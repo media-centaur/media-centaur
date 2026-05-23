@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Setup.WelcomeStep do
+defmodule MediaCentaurWeb.Storybook.Setup.WelcomeStep do
   @moduledoc """
   Welcome step — the first step in the Setup Tour. Greets the user,
   outlines what the tour covers, and offers a single "Begin" CTA.
@@ -13,7 +13,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.WelcomeStep do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.Components.SetupSteps.welcome_step/1
+  def function, do: &MediaCentaurWeb.Components.SetupSteps.welcome_step/1
   def render_source, do: :function
   def layout, do: :one_column
 

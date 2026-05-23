@@ -23,9 +23,9 @@ We need a uniform floor of protection that every new credential gets automatical
 
 Every value classified as sensitive MUST receive all four protections below. There is no opt-out: a credential without all four is a bug.
 
-1. **Wrapped as `MediaCentarr.Secret`** in `:persistent_term`. `Config.get/1` returns `%Secret{}` for sensitive keys; callers must call `Secret.expose/1` at the HTTP / external-API boundary. The `Secret` struct overrides `Inspect` to print `#Secret<***>` and intentionally does not implement `String.Chars` so accidental interpolation crashes loudly instead of leaking. The list of sensitive keys lives at `MediaCentarr.Config.sensitive_keys/0`.
+1. **Wrapped as `MediaCentaur.Secret`** in `:persistent_term`. `Config.get/1` returns `%Secret{}` for sensitive keys; callers must call `Secret.expose/1` at the HTTP / external-API boundary. The `Secret` struct overrides `Inspect` to print `#Secret<***>` and intentionally does not implement `String.Chars` so accidental interpolation crashes loudly instead of leaking. The list of sensitive keys lives at `MediaCentaur.Config.sensitive_keys/0`.
 
-2. **Covered by `:phoenix, :filter_parameters`** in `config/config.exs` so `Plug.Logger` and `Phoenix.Logger` redact the value to `[FILTERED]` in request and event logs. The current pattern set (`~w(password api_key secret token)`) covers any field whose name contains one of these substrings (case-insensitive). New credentials must either match an existing pattern or extend the list. `test/media_centarr_web/sensitive_params_filter_test.exs` is the regression guard.
+2. **Covered by `:phoenix, :filter_parameters`** in `config/config.exs` so `Plug.Logger` and `Phoenix.Logger` redact the value to `[FILTERED]` in request and event logs. The current pattern set (`~w(password api_key secret token)`) covers any field whose name contains one of these substrings (case-insensitive). New credentials must either match an existing pattern or extend the list. `test/media_centaur_web/sensitive_params_filter_test.exs` is the regression guard.
 
 3. **Never readable from the TOML config file.** Sensitive values are entered through the Settings UI only and persisted to the SQLite Settings table. The TOML's job is non-secret structural config (paths, URLs, intervals). Eliminating the TOML path eliminates the dotfiles-backup leak class entirely. The `download_client_password` removal is the precedent.
 
@@ -35,7 +35,7 @@ Every value classified as sensitive MUST receive all four protections below. The
 
 Adding a new sensitive value to the codebase MUST do all of the following in the same change. Reviewers should reject any PR that adds a credential without satisfying every one:
 
-  1. Add the key to `MediaCentarr.Config.sensitive_keys/0`.
+  1. Add the key to `MediaCentaur.Config.sensitive_keys/0`.
   2. Wrap the value with `Secret.wrap/1` everywhere it enters `:persistent_term` (TOML defaults, `merge_toml`, `load_runtime_overrides`, `update/2`).
   3. Confirm the form-field name matches one of the substrings in `:phoenix, :filter_parameters`. If it doesn't, extend the list AND update `sensitive_params_filter_test.exs`.
   4. Decide whether the TOML path is acceptable. Default: NO. If you genuinely need TOML loading, justify it explicitly in the PR description and in this ADR's appendix.
@@ -62,9 +62,9 @@ When in doubt, classify the value as sensitive. False positives cost a `Secret.e
 
 ## Implementation
 
-  * `lib/media_centarr/secret.ex` — the `Secret` struct.
-  * `lib/media_centarr/config.ex` — `sensitive_keys/0`, wrap-on-load, wrap-on-update, password no longer parsed from TOML.
+  * `lib/media_centaur/secret.ex` — the `Secret` struct.
+  * `lib/media_centaur/config.ex` — `sensitive_keys/0`, wrap-on-load, wrap-on-update, password no longer parsed from TOML.
   * `config/config.exs` — `:phoenix, :filter_parameters` configured.
-  * `lib/media_centarr/tmdb/client.ex`, `lib/media_centarr/acquisition/prowlarr.ex`, `lib/media_centarr/acquisition/download_client/qbittorrent.ex` — the three boundary call sites that `Secret.expose/1`.
-  * `lib/media_centarr_web/live/settings_live.ex`, `lib/media_centarr_web/live/status_live.ex` — `*_configured?` booleans replace raw secrets in assigns.
-  * `test/media_centarr/secret_test.exs`, `test/media_centarr_web/sensitive_params_filter_test.exs` — protection regression tests.
+  * `lib/media_centaur/tmdb/client.ex`, `lib/media_centaur/acquisition/prowlarr.ex`, `lib/media_centaur/acquisition/download_client/qbittorrent.ex` — the three boundary call sites that `Secret.expose/1`.
+  * `lib/media_centaur_web/live/settings_live.ex`, `lib/media_centaur_web/live/status_live.ex` — `*_configured?` booleans replace raw secrets in assigns.
+  * `test/media_centaur/secret_test.exs`, `test/media_centaur_web/sensitive_params_filter_test.exs` — protection regression tests.

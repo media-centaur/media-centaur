@@ -84,7 +84,7 @@ it:
    render a spinner / skeleton immediately. Stash the work-in-flight
    identity (pursuit id, item id, query) on the socket.
 2. Dispatch the slow work via `Task.Supervisor.start_child(...)`
-   under `MediaCentarr.TaskSupervisor`. Inside the task, perform the
+   under `MediaCentaur.TaskSupervisor`. Inside the task, perform the
    external call and `send(parent, {:slow_work_finished, identity,
    result})`.
 3. Add a `handle_info/2` clause that matches the message, checks

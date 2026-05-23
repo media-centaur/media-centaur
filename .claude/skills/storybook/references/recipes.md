@@ -7,10 +7,10 @@ Copy-pasteable patterns for the situations you'll hit. Adjust modules and attrib
 The seed: `storybook/core_components/button.story.exs`. Use `VariationGroup` per axis, comprehensions for ids:
 
 ```elixir
-defmodule MediaCentarrWeb.Storybook.CoreComponents.Button do
+defmodule MediaCentaurWeb.Storybook.CoreComponents.Button do
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.CoreComponents.button/1
+  def function, do: &MediaCentaurWeb.CoreComponents.button/1
   def render_source, do: :function
 
   def variations do
@@ -52,10 +52,10 @@ end
 For a component whose contract is a struct (`<.poster_card entity={...}>`), build the struct in a private helper. Designers reading the story should be able to look at the literal and map it to what they see on screen:
 
 ```elixir
-defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
+defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.LibraryCards.poster_card/1
+  def function, do: &MediaCentaurWeb.LibraryCards.poster_card/1
   def render_source, do: :function
 
   def variations do
@@ -100,10 +100,10 @@ Don't import factories from `test/support`. The point of an obvious literal is t
 ## Recipe 3 — Component with named slots
 
 ```elixir
-defmodule MediaCentarrWeb.Storybook.Components.DetailPanel do
+defmodule MediaCentaurWeb.Storybook.Components.DetailPanel do
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.DetailPanel.detail_panel/1
+  def function, do: &MediaCentaurWeb.DetailPanel.detail_panel/1
   def render_source, do: :function
 
   def variations do
@@ -132,10 +132,10 @@ end
 JS-controlled (component toggles itself):
 
 ```elixir
-defmodule MediaCentarrWeb.Storybook.Components.Modal do
+defmodule MediaCentaurWeb.Storybook.Components.Modal do
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarrWeb.Modal
+  alias MediaCentaurWeb.Modal
 
   def function, do: &Modal.modal/1
   def render_source, do: :function
@@ -232,7 +232,7 @@ The `form={f}` attribute on `<.psb-variation/>` is forwarded to the component in
 ## Recipe 7 — Page story (docs / philosophy / index)
 
 ```elixir
-defmodule MediaCentarrWeb.Storybook.<Area>.<PageName> do
+defmodule MediaCentaurWeb.Storybook.<Area>.<PageName> do
   use PhoenixStorybook.Story, :page
 
   def doc, do: "Short subtitle"
@@ -293,8 +293,8 @@ def layout, do: :one_column
 Slot HEEx referencing other modules — declare imports/aliases so the slot stays terse:
 
 ```elixir
-def aliases, do: [MediaCentarrWeb.JSHelpers]
-def imports, do: [{MediaCentarrWeb.NestedComponent, nested: 1}]
+def aliases, do: [MediaCentaurWeb.JSHelpers]
+def imports, do: [{MediaCentaurWeb.NestedComponent, nested: 1}]
 
 def variations do
   [
@@ -316,7 +316,7 @@ When you create a new story area, the auto-generated sidebar entry is alphabetic
 
 ```elixir
 # storybook/library_cards/_library_cards.index.exs
-defmodule MediaCentarrWeb.Storybook.LibraryCards do
+defmodule MediaCentaurWeb.Storybook.LibraryCards do
   use PhoenixStorybook.Index
 
   def folder_name, do: "Library cards"
@@ -330,7 +330,7 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards do
 end
 ```
 
-Note the module name **must** be `MediaCentarrWeb.Storybook.<Area>` for Boundary classification.
+Note the module name **must** be `MediaCentaurWeb.Storybook.<Area>` for Boundary classification.
 
 ## Recipe 12 — Static example for a stateful component
 

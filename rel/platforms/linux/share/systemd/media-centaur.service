@@ -1,0 +1,23 @@
+[Unit]
+Description=Media Centaur
+After=network-online.target graphical-session.target
+Wants=network-online.target graphical-session.target
+
+[Service]
+Type=exec
+# Pull WAYLAND_DISPLAY / DISPLAY into the systemd-user manager so mpv can open
+# a window. The leading `-` makes this best-effort — headless / tty-only
+# installs work fine, and the app's DisplayEnv.resolve fallback finds the
+# Wayland socket directly if the import didn't fire.
+ExecStartPre=-/usr/bin/systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_SESSION_TYPE
+ExecStart=%h/.local/lib/media-centaur/current/bin/media_centaur start
+ExecStop=%h/.local/lib/media-centaur/current/bin/media_centaur stop
+EnvironmentFile=-%h/.config/media-centaur/secrets.env
+Restart=on-failure
+RestartSec=5
+KillMode=process
+TimeoutStopSec=30
+LimitNOFILE=65536
+
+[Install]
+WantedBy=default.target

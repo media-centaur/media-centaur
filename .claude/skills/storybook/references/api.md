@@ -32,7 +32,7 @@ Required:
 
 | Callback | Returns | Notes |
 |----------|---------|-------|
-| `component/0` | the LiveComponent module | E.g. `MediaCentarrWeb.SomeLiveComp` |
+| `component/0` | the LiveComponent module | E.g. `MediaCentaurWeb.SomeLiveComp` |
 
 Optional: same set as `:component` plus:
 
@@ -184,7 +184,7 @@ slots: [
 ## Index module callbacks
 
 ```elixir
-defmodule MediaCentarrWeb.Storybook.<Area> do
+defmodule MediaCentaurWeb.Storybook.<Area> do
   use PhoenixStorybook.Index
 end
 ```
@@ -216,7 +216,7 @@ CSS classes inside icons must be `psb:`-prefixed (icons live in chrome).
 
 ## `use PhoenixStorybook` configuration options
 
-Authoritative: `lib/media_centarr_web/storybook.ex` plus the upstream `PhoenixStorybook` moduledoc. Frequently used:
+Authoritative: `lib/media_centaur_web/storybook.ex` plus the upstream `PhoenixStorybook` moduledoc. Frequently used:
 
 | Option | Type | Default | Purpose |
 |--------|------|---------|---------|
@@ -249,7 +249,7 @@ From `import PhoenixStorybook.Router` (must be inside the same `if Mix.env() == 
 | Macro | Effect |
 |-------|--------|
 | `storybook_assets()` | Mounts the assets controller routes (CSS, JS, FA, etc.) |
-| `live_storybook("/storybook", backend_module: MediaCentarrWeb.Storybook)` | Mounts the storybook LiveSession at the given path |
+| `live_storybook("/storybook", backend_module: MediaCentaurWeb.Storybook)` | Mounts the storybook LiveSession at the given path |
 
 Routes generated (see `mix phx.routes` filtered by storybook in `:dev`):
 

@@ -10,22 +10,22 @@ Application.ensure_all_started(:credo)
 # Load them here so unit tests can reference each migration's helper functions
 # directly (e.g. `BackfillOrphanedPursuits.backfill/1`) without compile-time
 # undefined-module warnings.
-:media_centarr
+:media_centaur
 |> Application.app_dir("priv/repo/data_migrations")
 |> Path.join("*.exs")
 |> Path.wildcard()
 |> Enum.each(&Code.require_file/1)
 
-Ecto.Adapters.SQL.Sandbox.mode(MediaCentarr.Repo, :manual)
+Ecto.Adapters.SQL.Sandbox.mode(MediaCentaur.Repo, :manual)
 
 # Default to "wizard already dismissed" in tests so `SetupRedirect` doesn't
 # divert every existing page-smoke test to /setup. Tests that exercise the
 # redirect itself (`setup_redirect_test.exs`) flip this back to false in
 # their own setup.
 :persistent_term.put(
-  {MediaCentarr.Config, :config},
+  {MediaCentaur.Config, :config},
   Map.put(
-    :persistent_term.get({MediaCentarr.Config, :config}),
+    :persistent_term.get({MediaCentaur.Config, :config}),
     :setup_wizard_dismissed,
     true
   )
@@ -35,7 +35,7 @@ Ecto.Adapters.SQL.Sandbox.mode(MediaCentarr.Repo, :manual)
 # auto-check-on-mount sees :fresh and does not dial out to GitHub during
 # tests that haven't wired a stub. Tests that exercise the auto-check flow
 # call `UpdateChecker.clear_cache/0` in their own setup.
-MediaCentarr.SelfUpdate.UpdateChecker.cache_result({:error, :disabled_in_tests})
+MediaCentaur.SelfUpdate.UpdateChecker.cache_result({:error, :disabled_in_tests})
 
 # Snapshot the post-helper Config cache so DataCase can restore it
 # before every test, defending against Config.update calls in one test
@@ -44,6 +44,6 @@ MediaCentarr.SelfUpdate.UpdateChecker.cache_result({:error, :disabled_in_tests})
 # and after any other test_helper mutations — that's the pristine state
 # every test should start from.
 :persistent_term.put(
-  {MediaCentarr.Config, :test_pristine_snapshot},
-  :persistent_term.get({MediaCentarr.Config, :config})
+  {MediaCentaur.Config, :test_pristine_snapshot},
+  :persistent_term.get({MediaCentaur.Config, :config})
 )

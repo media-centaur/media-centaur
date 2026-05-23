@@ -4,7 +4,7 @@ Reference for the entity data shape used by the LiveView UI and by the
 library context's public functions.
 
 The **canonical source of truth is the Ecto schema modules** in
-`lib/media_centarr/library/`. Each schema's `@type` and field
+`lib/media_centaur/library/`. Each schema's `@type` and field
 declarations define the on-disk and in-memory structure. This document
 exists to describe how those schemas combine into the entry shape the UI
 consumes — it does not duplicate per-field definitions.
@@ -17,10 +17,10 @@ Each playable type is its own schema and its own table:
 
 | Type | Module | Table | Children |
 |------|--------|-------|----------|
-| Movie (standalone or in a series) | `MediaCentarr.Library.Movie` | `library_movies` | Extras |
-| TV Series | `MediaCentarr.Library.TVSeries` | `library_tv_series` | Seasons → Episodes; Extras |
-| Movie Series | `MediaCentarr.Library.MovieSeries` | `library_movie_series` | Movies; Extras |
-| Video Object | `MediaCentarr.Library.VideoObject` | `library_video_objects` | — |
+| Movie (standalone or in a series) | `MediaCentaur.Library.Movie` | `library_movies` | Extras |
+| TV Series | `MediaCentaur.Library.TVSeries` | `library_tv_series` | Seasons → Episodes; Extras |
+| Movie Series | `MediaCentaur.Library.MovieSeries` | `library_movie_series` | Movies; Extras |
+| Video Object | `MediaCentaur.Library.VideoObject` | `library_video_objects` | — |
 
 Embedded under those: `Season`, `Episode`, `Extra`, `ExternalId`,
 `Image`, `WatchedFile`, `WatchProgress`. Each one is a regular Ecto
@@ -65,7 +65,7 @@ return entries in this shape:
   `Library.ProgressSummary.compute/2` (e.g. episodes completed / total)
 - `progress_records` — the underlying per-child `WatchProgress` rows
 - `resume_target` — a hint for what plays when the user hits "play";
-  see `MediaCentarr.Playback.ResumeTarget`
+  see `MediaCentaur.Playback.ResumeTarget`
 - `child_targets` — per-child resume hints, keyed by the child UUID
   (used for season/episode navigation in TV series; `nil` for
   single-item entities)
@@ -81,5 +81,5 @@ return entries in this shape:
   layout, HTTP serving
 - [`docs/library.md`](../docs/library.md) — broader explanation of the
   Library context
-- The schema modules themselves (`lib/media_centarr/library/*.ex`) —
+- The schema modules themselves (`lib/media_centaur/library/*.ex`) —
   authoritative for fields and types

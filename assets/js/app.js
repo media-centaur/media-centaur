@@ -22,7 +22,7 @@ import "phoenix_html"
 // Establish Phoenix Socket and LiveView configuration.
 import {Socket} from "phoenix"
 import {LiveSocket} from "phoenix_live_view"
-import {hooks as colocatedHooks} from "phoenix-colocated/media_centarr"
+import {hooks as colocatedHooks} from "phoenix-colocated/media_centaur"
 import {createInputHook} from "./input/index"
 import {Console} from "./hooks/console"
 import {LogTail} from "./hooks/log_tail"

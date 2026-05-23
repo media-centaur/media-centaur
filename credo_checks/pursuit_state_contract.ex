@@ -1,12 +1,12 @@
-defmodule MediaCentarr.Credo.Checks.PursuitStateContract do
+defmodule MediaCentaur.Credo.Checks.PursuitStateContract do
   use Credo.Check,
     id: "MC0015",
     base_priority: :high,
     category: :design,
     explanations: [
       check: """
-      Code outside `MediaCentarr.Acquisition.Pursuits.State` and the schema
-      module `MediaCentarr.Acquisition.Pursuits.Pursuit` must not use the
+      Code outside `MediaCentaur.Acquisition.Pursuits.State` and the schema
+      module `MediaCentaur.Acquisition.Pursuits.Pursuit` must not use the
       `in` operator with an inline list of pursuit-state strings or atoms
       (e.g. `state in ["active", "needs_decision"]`,
       `state in [:active, :needs_decision]`). Use the bucket helpers from
@@ -14,7 +14,7 @@ defmodule MediaCentarr.Credo.Checks.PursuitStateContract do
       return the same lists from a single source of truth.
 
           # preferred
-          alias MediaCentarr.Acquisition.Pursuits.State
+          alias MediaCentaur.Acquisition.Pursuits.State
 
           if State.terminal?(pursuit.state), do: …
           where: p.state in ^State.in_flight()
@@ -30,9 +30,9 @@ defmodule MediaCentarr.Credo.Checks.PursuitStateContract do
       new-state addition.
 
       The check exempts:
-        * `lib/media_centarr/acquisition/pursuits/state.ex` — source of truth
-        * `lib/media_centarr/acquisition/pursuits/pursuit.ex` — the schema that writes literals
-        * `lib/media_centarr_web/components/acquisition/pursuit_style.ex` — view-model atom set lives here
+        * `lib/media_centaur/acquisition/pursuits/state.ex` — source of truth
+        * `lib/media_centaur/acquisition/pursuits/pursuit.ex` — the schema that writes literals
+        * `lib/media_centaur_web/components/acquisition/pursuit_style.ex` — view-model atom set lives here
         * `priv/repo/migrations/` — DB-level constants
         * test files
       """
@@ -44,13 +44,13 @@ defmodule MediaCentarr.Credo.Checks.PursuitStateContract do
   @impl true
   def run(%SourceFile{filename: filename} = source_file, params) do
     cond do
-      String.contains?(filename, "lib/media_centarr/acquisition/pursuits/state.ex") ->
+      String.contains?(filename, "lib/media_centaur/acquisition/pursuits/state.ex") ->
         []
 
-      String.contains?(filename, "lib/media_centarr/acquisition/pursuits/pursuit.ex") ->
+      String.contains?(filename, "lib/media_centaur/acquisition/pursuits/pursuit.ex") ->
         []
 
-      String.contains?(filename, "lib/media_centarr_web/components/acquisition/pursuit_style.ex") ->
+      String.contains?(filename, "lib/media_centaur_web/components/acquisition/pursuit_style.ex") ->
         []
 
       String.contains?(filename, "priv/repo/migrations/") ->
@@ -97,7 +97,7 @@ defmodule MediaCentarr.Credo.Checks.PursuitStateContract do
       issue_meta,
       message:
         "Inline list of pursuit-state values — use a bucket from " <>
-          "`MediaCentarr.Acquisition.Pursuits.State` (`in_flight/0`, `terminal/0`) " <>
+          "`MediaCentaur.Acquisition.Pursuits.State` (`in_flight/0`, `terminal/0`) " <>
           "so adding a new state only requires editing one file.",
       trigger: trigger,
       line_no: line_no || 1

@@ -1,11 +1,11 @@
-defmodule MediaCentarr.Credo.Checks.RawButtonClass do
+defmodule MediaCentaur.Credo.Checks.RawButtonClass do
   use Credo.Check,
     id: "MC0007",
     base_priority: :high,
     category: :design,
     explanations: [
       check: """
-      Templates under `lib/media_centarr_web/` must not use raw daisyUI
+      Templates under `lib/media_centaur_web/` must not use raw daisyUI
       `btn` classes directly. Go through the `<.button>` component, which
       encodes the UIDR-003 button variants (primary, secondary, action,
       info, risky, danger, dismiss, destructive_inline, neutral, outline)
@@ -63,7 +63,7 @@ defmodule MediaCentarr.Credo.Checks.RawButtonClass do
   end
 
   defp template_file?(filename) do
-    String.contains?(filename, "lib/media_centarr_web/") and
+    String.contains?(filename, "lib/media_centaur_web/") and
       (String.ends_with?(filename, ".ex") or String.ends_with?(filename, ".heex"))
   end
 
@@ -88,7 +88,7 @@ defmodule MediaCentarr.Credo.Checks.RawButtonClass do
       issue_meta,
       message:
         "Use the `<.button>` component (with `variant` and `size`) instead of raw `btn` classes. " <>
-          "See UIDR-003 / `MediaCentarrWeb.CoreComponents.button/1`.",
+          "See UIDR-003 / `MediaCentaurWeb.CoreComponents.button/1`.",
       trigger: "btn",
       line_no: line_no
     )

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.TestFactory do
+defmodule MediaCentaur.TestFactory do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @moduledoc """
@@ -12,9 +12,9 @@ defmodule MediaCentarr.TestFactory do
     Use for resource tests and channel tests.
   """
 
-  alias MediaCentarr.Library
+  alias MediaCentaur.Library
 
-  alias MediaCentarr.Library.{
+  alias MediaCentaur.Library.{
     Extra,
     Image,
     ExternalId,
@@ -28,7 +28,7 @@ defmodule MediaCentarr.TestFactory do
     VideoObject
   }
 
-  alias MediaCentarr.Review
+  alias MediaCentaur.Review
 
   # ---------------------------------------------------------------------------
   # build_* — plain structs, no database
@@ -98,7 +98,7 @@ defmodule MediaCentarr.TestFactory do
   end
 
   @doc """
-  Builds a `MediaCentarr.Library.Person` embedded struct — used for
+  Builds a `MediaCentaur.Library.Person` embedded struct — used for
   cast and crew fixtures on `Movie` and `TVSeries`. Defaults to a
   cast-shaped entry (with `character` + `order`); pass `job` and
   `department` in overrides for crew-shaped entries.
@@ -354,7 +354,7 @@ defmodule MediaCentarr.TestFactory do
       parent_year: nil
     }
 
-    struct(MediaCentarr.Parser.Result, Map.merge(defaults, overrides))
+    struct(MediaCentaur.Parser.Result, Map.merge(defaults, overrides))
   end
 
   # ---------------------------------------------------------------------------
@@ -784,7 +784,7 @@ defmodule MediaCentarr.TestFactory do
     # removed the direct `movie_id` / `episode_id` / `video_object_id`
     # columns; the container link lives on the PlayableItem).
     then(cond_result, fn {:ok, record} ->
-      MediaCentarr.Repo.preload(record, :playable_item)
+      MediaCentaur.Repo.preload(record, :playable_item)
     end)
   end
 
@@ -797,7 +797,7 @@ defmodule MediaCentarr.TestFactory do
   # Release Tracking
   # ---------------------------------------------------------------------------
 
-  alias MediaCentarr.ReleaseTracking
+  alias MediaCentaur.ReleaseTracking
 
   def build_tracking_item(overrides \\ %{}) do
     defaults = %{
@@ -877,7 +877,7 @@ defmodule MediaCentarr.TestFactory do
       completed_at: DateTime.utc_now(:second)
     }
 
-    struct(MediaCentarr.WatchHistory.Event, Map.merge(defaults, overrides))
+    struct(MediaCentaur.WatchHistory.Event, Map.merge(defaults, overrides))
   end
 
   def create_watch_event(attrs \\ %{}) do
@@ -888,7 +888,7 @@ defmodule MediaCentarr.TestFactory do
       completed_at: DateTime.utc_now(:second)
     }
 
-    {:ok, event} = MediaCentarr.WatchHistory.create_event(Map.merge(defaults, attrs))
+    {:ok, event} = MediaCentaur.WatchHistory.create_event(Map.merge(defaults, attrs))
 
     event
   end
@@ -918,7 +918,7 @@ defmodule MediaCentarr.TestFactory do
     internal_attrs = Map.drop(merged, cast_keys)
 
     {:ok, pursuit} =
-      MediaCentarr.Repo.insert(MediaCentarr.Acquisition.Pursuits.Pursuit.create_changeset(cast_attrs))
+      MediaCentaur.Repo.insert(MediaCentaur.Acquisition.Pursuits.Pursuit.create_changeset(cast_attrs))
 
     if internal_attrs == %{} do
       pursuit
@@ -926,7 +926,7 @@ defmodule MediaCentarr.TestFactory do
       {:ok, updated} =
         pursuit
         |> Ecto.Changeset.change(internal_attrs)
-        |> MediaCentarr.Repo.update()
+        |> MediaCentaur.Repo.update()
 
       updated
     end
@@ -942,8 +942,8 @@ defmodule MediaCentarr.TestFactory do
     }
 
     {:ok, event} =
-      MediaCentarr.Repo.insert(
-        MediaCentarr.Acquisition.Pursuits.Event.create_changeset(Map.merge(defaults, attrs))
+      MediaCentaur.Repo.insert(
+        MediaCentaur.Acquisition.Pursuits.Event.create_changeset(Map.merge(defaults, attrs))
       )
 
     event
@@ -1009,10 +1009,10 @@ defmodule MediaCentarr.TestFactory do
     now = DateTime.utc_now(:second)
 
     {:ok, pursuit} =
-      %MediaCentarr.Acquisition.Pursuits.Pursuit{}
+      %MediaCentaur.Acquisition.Pursuits.Pursuit{}
       |> Ecto.Changeset.change(Map.put_new(pursuit_attrs, :state, "active"))
       |> Ecto.Changeset.change(inserted_at: now, updated_at: now)
-      |> MediaCentarr.Repo.insert()
+      |> MediaCentaur.Repo.insert()
 
     target_base =
       target_attrs
@@ -1024,14 +1024,14 @@ defmodule MediaCentarr.TestFactory do
       |> Map.put(:updated_at, now)
 
     {:ok, target} =
-      %MediaCentarr.Acquisition.Target{}
+      %MediaCentaur.Acquisition.Target{}
       |> Ecto.Changeset.change(target_base)
-      |> MediaCentarr.Repo.insert()
+      |> MediaCentaur.Repo.insert()
 
     {:ok, pursuit} =
       pursuit
       |> Ecto.Changeset.change(current_target_id: target.id)
-      |> MediaCentarr.Repo.update()
+      |> MediaCentaur.Repo.update()
 
     {pursuit, target}
   end

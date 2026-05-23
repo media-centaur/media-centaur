@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddBackdropPathToTrackingItems do
+defmodule MediaCentaur.Repo.Migrations.AddBackdropPathToTrackingItems do
   use Ecto.Migration
 
   def change do

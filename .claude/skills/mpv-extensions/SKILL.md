@@ -3,9 +3,9 @@ name: mpv-extensions
 description: "Use this skill when creating or modifying mpv Lua scripts, mpv configuration, key bindings, or any playback overlay UI. Covers the ASS rendering pattern, forced key binding lifecycle, OSD scaling, and project conventions for media-center-style mpv extensions."
 ---
 
-Media Centarr extends mpv with custom Lua scripts that add media-center UX (track selection, intro skipping, playback info overlays). All scripts live in `../contrib/mpv/scripts/` and share a common visual language and implementation pattern.
+Media Centaur extends mpv with custom Lua scripts that add media-center UX (track selection, intro skipping, playback info overlays). All scripts live in `../contrib/mpv/scripts/` and share a common visual language and implementation pattern.
 
-> **Repo layout note:** mpv configs live in the sibling `contrib/` repo (`~/src/media-centarr/contrib/`), not inside the main app repo. All paths below are relative to the main app repo root. If you don't have the contrib repo checked out, `git clone git@github.com:media-centarr/contrib.git` alongside the main app.
+> **Repo layout note:** mpv configs live in the sibling `contrib/` repo (`~/src/media-centaur/contrib/`), not inside the main app repo. All paths below are relative to the main app repo root. If you don't have the contrib repo checked out, `git clone git@github.com:media-centaur/contrib.git` alongside the main app.
 
 Read the [mpv Lua API reference](references/mpv-lua-api.md) before writing any script code.
 

@@ -6,8 +6,8 @@ set -euo pipefail
 # Usage: scripts/preflight [--clean]
 #
 # Run this before `/ship <level>`. It produces a release tree at
-# _build/prod/rel/media_centarr/ containing bin/media-centarr-install
-# and share/systemd/media-centarr.service — the files the in-app
+# _build/prod/rel/media_centaur/ containing bin/media-centaur-install
+# and share/systemd/media-centaur.service — the files the in-app
 # updater needs end users to receive. If the build fails here, tagging
 # would just publish a broken release.
 #
@@ -41,16 +41,16 @@ MIX_ENV=prod MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile
 banner "Deploying assets"
 MIX_ENV=prod mix assets.deploy
 
-# Sync defaults/media-centarr.toml into the shared release overlay so the
+# Sync defaults/media-centaur.toml into the shared release overlay so the
 # bundled installer can seed it on first install. Source of truth stays in
 # defaults/; the overlay copy is gitignored.
 banner "Syncing config defaults into shared release overlay"
 mkdir -p rel/platforms/shared/share/defaults
-cp defaults/media-centarr.toml rel/platforms/shared/share/defaults/media-centarr.toml
+cp defaults/media-centaur.toml rel/platforms/shared/share/defaults/media-centaur.toml
 
 banner "Building release"
 MIX_ENV=prod mix release --overwrite
 
-release_path="_build/prod/rel/media_centarr"
+release_path="_build/prod/rel/media_centaur"
 banner "Release built at: $(pwd)/$release_path"
-"$release_path/bin/media_centarr" version
+"$release_path/bin/media_centaur" version

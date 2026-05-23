@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Detail.MoreInfo do
+defmodule MediaCentaurWeb.Storybook.Detail.MoreInfo do
   use PhoenixStorybook.Index
 
   def folder_open?, do: false

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.ExtendPursuitsAndGrabsForObservations do
+defmodule MediaCentaur.Repo.Migrations.ExtendPursuitsAndGrabsForObservations do
   use Ecto.Migration
 
   def change do

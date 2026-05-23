@@ -16,7 +16,7 @@ Chosen option: "Bounded contexts communicating primarily via PubSub events, with
 
 ### The contexts
 
-Ten bounded contexts plus `MediaCentarr.TMDB` (an external-integration adapter, not a domain context):
+Ten bounded contexts plus `MediaCentaur.TMDB` (an external-integration adapter, not a domain context):
 
 | Context | Table prefix | Responsibility |
 |---------|-------------|----------------|
@@ -36,7 +36,7 @@ Ten bounded contexts plus `MediaCentarr.TMDB` (an external-integration adapter, 
 1. **Cross-context references are declared in `use Boundary, deps: [...]`** at the top of each context's facade module. The default is no coupling — every additional `dep:` is a deliberate decision visible in the code. The Boundary library fails compilation on any cross-boundary call without a declared dep.
 2. **Cross-context communication prefers PubSub events.** Events carry plain data (maps, lists, atoms) — never structs from another context. Direct calls are reserved for the sanctioned deps below; new direct couplings should default to PubSub unless there's a specific reason.
 3. **`Settings` doubles as shared infrastructure.** Any context that needs per-user or per-installation persistence without justifying its own table may declare a `Settings` dep and write to `Settings.Entry` directly. The coupling is one-directional — Settings carries no domain logic of its own.
-4. **`MediaCentarr.TMDB` is an adapter boundary, not a domain context.** Pipeline, ReleaseTracking, and Review all declare `MediaCentarr.TMDB` deps because TMDB is the external metadata source they all integrate against.
+4. **`MediaCentaur.TMDB` is an adapter boundary, not a domain context.** Pipeline, ReleaseTracking, and Review all declare `MediaCentaur.TMDB` deps because TMDB is the external metadata source they all integrate against.
 5. **PubSub listener GenServers don't start in test mode.** Tests call public API functions directly. This avoids sandbox race conditions where GenServers process PubSub messages after the test sandbox is torn down.
 
 ### Sanctioned cross-context deps

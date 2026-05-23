@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Credo.Checks.PlatformBranchingDiscipline do
+defmodule MediaCentaur.Credo.Checks.PlatformBranchingDiscipline do
   use Credo.Check,
     id: "MC0017",
     base_priority: :high,
@@ -6,17 +6,17 @@ defmodule MediaCentarr.Credo.Checks.PlatformBranchingDiscipline do
     param_defaults: [grandfathered: []],
     explanations: [
       check: """
-      All OS-divergent code must live under `MediaCentarr.Platform.*`
-      (`lib/media_centarr/platform/`). Outside that namespace,
+      All OS-divergent code must live under `MediaCentaur.Platform.*`
+      (`lib/media_centaur/platform/`). Outside that namespace,
       branching on `:os.type/0` or calling `:os.cmd/1` is forbidden.
 
       The rule keeps platform divergence in one discoverable place.
-      A contributor opening `lib/media_centarr/` should be able to
+      A contributor opening `lib/media_centaur/` should be able to
       answer "where does this app branch on OS?" in one glance —
       the answer is the `platform/` directory.
 
           # NOT allowed — `Watcher` is business logic
-          defmodule MediaCentarr.Watcher do
+          defmodule MediaCentaur.Watcher do
             def handle_event(events) do
               case :os.type() do
                 {:unix, :darwin} -> filter_macos(events)
@@ -26,7 +26,7 @@ defmodule MediaCentarr.Credo.Checks.PlatformBranchingDiscipline do
           end
 
           # Allowed — `Platform.WatcherEvents` is a platform seam
-          defmodule MediaCentarr.Platform.WatcherEvents do
+          defmodule MediaCentaur.Platform.WatcherEvents do
             def normalize(events) do
               case :os.type() do
                 {:unix, :darwin} -> macos_translate(events)
@@ -65,8 +65,8 @@ defmodule MediaCentarr.Credo.Checks.PlatformBranchingDiscipline do
   defp lib_path?(filename), do: String.starts_with?(filename, "lib/")
 
   defp platform_path?(filename) do
-    String.starts_with?(filename, "lib/media_centarr/platform/") or
-      filename == "lib/media_centarr/platform.ex"
+    String.starts_with?(filename, "lib/media_centaur/platform/") or
+      filename == "lib/media_centaur/platform.ex"
   end
 
   defp analyze(source_file, params) do
@@ -90,8 +90,8 @@ defmodule MediaCentarr.Credo.Checks.PlatformBranchingDiscipline do
     format_issue(
       issue_meta,
       message:
-        "`#{trigger}` is not allowed outside `MediaCentarr.Platform.*`. " <>
-          "Move the OS-divergent logic into a module under `lib/media_centarr/platform/` " <>
+        "`#{trigger}` is not allowed outside `MediaCentaur.Platform.*`. " <>
+          "Move the OS-divergent logic into a module under `lib/media_centaur/platform/` " <>
           "and call through the seam. See `campaigns/macos-platform-support.md`.",
       trigger: trigger,
       line_no: line_no

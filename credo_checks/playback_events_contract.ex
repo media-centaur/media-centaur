@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Credo.Checks.PlaybackEventsContract do
+defmodule MediaCentaur.Credo.Checks.PlaybackEventsContract do
   use Credo.Check,
     id: "MC0012",
     base_priority: :high,
@@ -6,7 +6,7 @@ defmodule MediaCentarr.Credo.Checks.PlaybackEventsContract do
     explanations: [
       check: """
       Every message broadcast on the `playback:events` topic must go
-      through `MediaCentarr.Playback.Events.broadcast/1`. Direct calls to
+      through `MediaCentaur.Playback.Events.broadcast/1`. Direct calls to
       `Phoenix.PubSub.broadcast/3` with one of the topic-tagged tuples
       (`:entity_progress_updated`, `:extra_progress_updated`,
       `:playback_state_changed`, `:playback_failed`) bypass the typed
@@ -14,8 +14,8 @@ defmodule MediaCentarr.Credo.Checks.PlaybackEventsContract do
       the structs were introduced to prevent.
 
           # preferred
-          alias MediaCentarr.Playback.Events
-          alias MediaCentarr.Playback.Events.PlaybackStateChanged
+          alias MediaCentaur.Playback.Events
+          alias MediaCentaur.Playback.Events.PlaybackStateChanged
 
           Events.broadcast(%PlaybackStateChanged{
             entity_id: id, state: :playing, now_playing: np, started_at: ts
@@ -23,12 +23,12 @@ defmodule MediaCentarr.Credo.Checks.PlaybackEventsContract do
 
           # NOT preferred — bypasses the @enforce_keys guarantee
           Phoenix.PubSub.broadcast(
-            MediaCentarr.PubSub,
-            MediaCentarr.Topics.playback_events(),
+            MediaCentaur.PubSub,
+            MediaCentaur.Topics.playback_events(),
             {:playback_state_changed, id, :playing, np, ts}
           )
 
-      The check exempts `lib/media_centarr/playback/events.ex` itself
+      The check exempts `lib/media_centaur/playback/events.ex` itself
       (the canonical chokepoint), all test files (which need to construct
       payloads for assertions, but should still prefer the struct), and
       docstrings/moduledocs.
@@ -45,7 +45,7 @@ defmodule MediaCentarr.Credo.Checks.PlaybackEventsContract do
   @impl true
   def run(%SourceFile{filename: filename} = source_file, params) do
     cond do
-      String.contains?(filename, "lib/media_centarr/playback/events.ex") ->
+      String.contains?(filename, "lib/media_centaur/playback/events.ex") ->
         []
 
       String.starts_with?(filename, "test/") or String.contains?(filename, "/test/") ->
@@ -87,7 +87,7 @@ defmodule MediaCentarr.Credo.Checks.PlaybackEventsContract do
       issue_meta,
       message:
         "Direct `Phoenix.PubSub.broadcast` of a playback:events payload bypasses the " <>
-          "typed `MediaCentarr.Playback.Events` chokepoint. Use `Events.broadcast/1` with " <>
+          "typed `MediaCentaur.Playback.Events` chokepoint. Use `Events.broadcast/1` with " <>
           "the matching struct so @enforce_keys catches missing fields at compile time.",
       trigger: trigger,
       line_no: line_no || 0

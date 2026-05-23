@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Credo.Checks.PredicateNaming do
+defmodule MediaCentaur.Credo.Checks.PredicateNaming do
   use Credo.Check,
     id: "MC0001",
     base_priority: :high,

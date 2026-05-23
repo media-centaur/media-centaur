@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.PolymorphicOwnerDiscriminators do
+defmodule MediaCentaur.Repo.Migrations.PolymorphicOwnerDiscriminators do
   @moduledoc """
   Library Schema v2 — Phase 2 Tasks D, E, F (combined).
 
@@ -72,7 +72,7 @@ defmodule MediaCentarr.Repo.Migrations.PolymorphicOwnerDiscriminators do
 
     flush()
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("""
     UPDATE library_images
     SET owner_type = CASE
@@ -85,7 +85,7 @@ defmodule MediaCentarr.Repo.Migrations.PolymorphicOwnerDiscriminators do
     owner_id = COALESCE(movie_id, episode_id, tv_series_id, movie_series_id, video_object_id)
     """)
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("DELETE FROM library_images WHERE owner_type IS NULL")
 
     # Drop legacy per-FK-and-role unique indexes before the rebuild —
@@ -148,7 +148,7 @@ defmodule MediaCentarr.Repo.Migrations.PolymorphicOwnerDiscriminators do
 
     flush()
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("""
     UPDATE library_extras
     SET owner_type = CASE
@@ -160,7 +160,7 @@ defmodule MediaCentarr.Repo.Migrations.PolymorphicOwnerDiscriminators do
     owner_id = COALESCE(movie_id, tv_series_id, movie_series_id, season_id)
     """)
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("DELETE FROM library_extras WHERE owner_type IS NULL")
 
     drop_if_exists index(:library_extras, [:movie_id], name: :library_extras_movie_id_index)
@@ -210,7 +210,7 @@ defmodule MediaCentarr.Repo.Migrations.PolymorphicOwnerDiscriminators do
 
     flush()
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("""
     UPDATE library_external_ids
     SET owner_type = CASE
@@ -222,7 +222,7 @@ defmodule MediaCentarr.Repo.Migrations.PolymorphicOwnerDiscriminators do
     owner_id = COALESCE(movie_id, tv_series_id, movie_series_id, video_object_id)
     """)
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("DELETE FROM library_external_ids WHERE owner_type IS NULL")
 
     # Phase 1 Task 6 partial unique indexes collapse to a single

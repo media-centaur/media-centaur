@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.LibraryCards.Toolbar do
+defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
   @moduledoc """
   Library page toolbar — tabs (All / Movies / TV) with count badges,
   custom sort dropdown, and a debounced filter input.
@@ -37,7 +37,7 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.Toolbar do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.Components.LibraryCards.toolbar/1
+  def function, do: &MediaCentaurWeb.Components.LibraryCards.toolbar/1
   def render_source, do: :function
 
   # The open sort menu drops below the trigger via `position: absolute`,

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.DropWatcherFiles do
+defmodule MediaCentaur.Repo.Migrations.DropWatcherFiles do
   use Ecto.Migration
 
   # Campaign: library-presence-unification, Phase 7.

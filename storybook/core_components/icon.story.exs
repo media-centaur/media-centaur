@@ -1,7 +1,7 @@
-defmodule MediaCentarrWeb.Storybook.CoreComponents.Icon do
+defmodule MediaCentaurWeb.Storybook.CoreComponents.Icon do
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.CoreComponents.icon/1
+  def function, do: &MediaCentaurWeb.CoreComponents.icon/1
   def render_source, do: :function
 
   def variations do

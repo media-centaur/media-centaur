@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Credo.Checks.DestructiveFileQuery do
+defmodule MediaCentaur.Credo.Checks.DestructiveFileQuery do
   use Credo.Check,
     id: "MC0015",
     base_priority: :high,
@@ -6,12 +6,12 @@ defmodule MediaCentarr.Credo.Checks.DestructiveFileQuery do
     explanations: [
       check: """
       Static guard against the durability bug class that motivated
-      `MediaCentarr.Library.AbsenceSweeper`: a `Repo.delete_all` on a
+      `MediaCentaur.Library.AbsenceSweeper`: a `Repo.delete_all` on a
       file-presence-tracking table that doesn't filter on `:watch_dir`
       can silently destroy data for a drive that's currently
       unmounted (file marked absent because we can't see it, not
       because it's gone — destroying it cascades through
-      `MediaCentarr.Library.FileEventHandler` to the entity rows on
+      `MediaCentaur.Library.FileEventHandler` to the entity rows on
       that drive).
 
       This check flags `Repo.delete_all(from(x in <Schema>, ...))`
@@ -20,7 +20,7 @@ defmodule MediaCentarr.Credo.Checks.DestructiveFileQuery do
       intent is to force the destructive author to either:
 
         1. Add an availability filter — usually `where: x.watch_dir
-           in ^MediaCentarr.Library.AbsenceSweeper.available_watch_dirs()`,
+           in ^MediaCentaur.Library.AbsenceSweeper.available_watch_dirs()`,
            or
         2. Add an explicit override comment that documents *why* the
            destructive op is safe without one (e.g. operator action,
@@ -28,7 +28,7 @@ defmodule MediaCentarr.Credo.Checks.DestructiveFileQuery do
 
       Override:
 
-          # credo:disable-for-next-line MediaCentarr.Credo.Checks.DestructiveFileQuery
+          # credo:disable-for-next-line MediaCentaur.Credo.Checks.DestructiveFileQuery
           # <one-line reason>
           Repo.delete_all(from(w in WatchedFile, where: w.id in ^ids))
 
@@ -85,7 +85,7 @@ defmodule MediaCentarr.Credo.Checks.DestructiveFileQuery do
 
   # Recognise `from(<binding> in TargetSchema, ...)` where TargetSchema
   # appears as the *last* segment of an aliased module name (so both
-  # bare `KnownFile` and `MediaCentarr.Watcher.KnownFile` match).
+  # bare `KnownFile` and `MediaCentaur.Watcher.KnownFile` match).
   defp classify_query({:from, _, [{:in, _, [_binding, {:__aliases__, _, schema_path}]} | _rest]}) do
     case List.last(schema_path) do
       schema when schema in @target_schemas -> {:target, schema}
@@ -114,7 +114,7 @@ defmodule MediaCentarr.Credo.Checks.DestructiveFileQuery do
       issue_meta,
       message:
         "Destructive query on a file-presence table without a `:watch_dir` filter — " <>
-          "this is the bug class `MediaCentarr.Watcher.AbsencePolicy` exists to prevent. " <>
+          "this is the bug class `MediaCentaur.Watcher.AbsencePolicy` exists to prevent. " <>
           "Add a `where: ... in ^AbsencePolicy.available_watch_dirs()` clause, or add an " <>
           "explicit override comment documenting why this destructive op is safe without one.",
       trigger: trigger,

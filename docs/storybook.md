@@ -34,7 +34,7 @@ If a refactor splits one component into two, write the second story before mergi
 
 ### 5. Dev-only
 
-Storybook is mounted under `if Mix.env() == :dev` in `MediaCentarrWeb.Router`. The dep itself is `only: [:dev, :test]` (test inclusion is required so the `import PhoenixStorybook.Router` inside the dev guard still passes compile in `:test` — see the comment in `mix.exs`). Same posture as Tidewave: never reachable in production.
+Storybook is mounted under `if Mix.env() == :dev` in `MediaCentaurWeb.Router`. The dep itself is `only: [:dev, :test]` (test inclusion is required so the `import PhoenixStorybook.Router` inside the dev guard still passes compile in `:test` — see the comment in `mix.exs`). Same posture as Tidewave: never reachable in production.
 
 ### 6. Visuals only — no assertions, no logic
 
@@ -63,10 +63,10 @@ storybook/<area>/<component>.story.exs
 Module convention:
 
 ```elixir
-defmodule MediaCentarrWeb.Storybook.<Area>.<Component> do
+defmodule MediaCentaurWeb.Storybook.<Area>.<Component> do
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.<Area>.<component>/1
+  def function, do: &MediaCentaurWeb.<Area>.<component>/1
   def render_source, do: :function
 
   def variations do
@@ -75,7 +75,7 @@ defmodule MediaCentarrWeb.Storybook.<Area>.<Component> do
 end
 ```
 
-**Boundary requirement.** All story modules must live under `MediaCentarrWeb.Storybook.*`. Anything outside that namespace falls outside the existing `MediaCentarrWeb` boundary and triggers a compile-time warning that fails `--warnings-as-errors`. The auto-generated default `Storybook.*` namespace is **wrong** for this repo — rename it.
+**Boundary requirement.** All story modules must live under `MediaCentaurWeb.Storybook.*`. Anything outside that namespace falls outside the existing `MediaCentaurWeb` boundary and triggers a compile-time warning that fails `--warnings-as-errors`. The auto-generated default `Storybook.*` namespace is **wrong** for this repo — rename it.
 
 Add an entry to the area's `_<area>.index.exs`:
 
@@ -83,7 +83,7 @@ Add an entry to the area's `_<area>.index.exs`:
 def entry("<component>"), do: [icon: {:fa, "<faicon>", :thin}]
 ```
 
-If the area is new, create `_<area>.index.exs` defining a module `MediaCentarrWeb.Storybook.<Area>`.
+If the area is new, create `_<area>.index.exs` defining a module `MediaCentaurWeb.Storybook.<Area>`.
 
 ## Variation patterns
 
@@ -139,7 +139,7 @@ Every function component is either covered, deliberately skipped with a reason, 
 
 - **Tailwind v4 source globs.** `storybook/` is added to `assets/css/app.css` `@source` directives so utility classes inside variations compile. New top-level dirs need the same treatment.
 - **Theme.** The storybook iframe loads our real `app.css` so the body gradient + glass surfaces work. Do not rely on a separate `storybook.css` — it was deleted on setup and should not return.
-- **Boundary.** See "Boundary requirement" above. Story modules must be `MediaCentarrWeb.Storybook.*`.
+- **Boundary.** See "Boundary requirement" above. Story modules must be `MediaCentaurWeb.Storybook.*`.
 - **Stateful components.** If a component depends on `data-input` modes or sticky LiveView state, write a static example illustrating the visual outcome — do not synthesize fake input state.
 - **Fake data lives in the story.** Don't import factories from `test/support`; story fixtures should be obvious literals so a designer reading the story can reason about the rendered output.
 

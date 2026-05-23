@@ -1,6 +1,6 @@
-defmodule MediaCentarrWeb.Storybook.CoreComponents.Button do
+defmodule MediaCentaurWeb.Storybook.CoreComponents.Button do
   @moduledoc """
-  Seed story demonstrating the Media Centarr storybook philosophy.
+  Seed story demonstrating the Media Centaur storybook philosophy.
 
   Covers every `<.button>` variant, each at default size; then a size matrix
   for the most common variants; then icon-only shapes. Mirrors the recipes
@@ -9,7 +9,7 @@ defmodule MediaCentarrWeb.Storybook.CoreComponents.Button do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.CoreComponents.button/1
+  def function, do: &MediaCentaurWeb.CoreComponents.button/1
   def render_source, do: :function
 
   def variations do

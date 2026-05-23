@@ -49,18 +49,18 @@ copy is committed. LiveViews never depend on each other directly."
    something a sibling LiveView already has, extract it.
 
 2. **Shared markup → function component.** Anything rendered by two
-   LiveViews lives in `lib/media_centarr_web/components/`. The component
+   LiveViews lives in `lib/media_centaur_web/components/`. The component
    declares its assigns explicitly with `attr/3` (typed where possible
    per the component-contract guidance) and is rendered the same way in
    every caller. Examples in-tree:
-   `MediaCentarrWeb.Components.{ModalShell, EntityModal, HeroCard,
+   `MediaCentaurWeb.Components.{ModalShell, EntityModal, HeroCard,
    PlayCard, FacetStrip, …}`.
 
 3. **Shared logic → helper module.** Pure functions belong in a helper
    module with `async: true` unit tests per
    [ADR-030](./2026-04-02-030-liveview-logic-extraction.md). Examples
-   in-tree: `MediaCentarrWeb.LiveHelpers` (debounce, playback diff),
-   `MediaCentarrWeb.LibraryFormatters`, the per-component `Logic`
+   in-tree: `MediaCentaurWeb.LiveHelpers` (debounce, playback diff),
+   `MediaCentaurWeb.LibraryFormatters`, the per-component `Logic`
    modules under `components/detail/`.
 
 4. **Shared mount/event wiring → `__using__` macro or behaviour.** When

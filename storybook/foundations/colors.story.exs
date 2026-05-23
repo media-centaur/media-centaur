@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Foundations.Colors do
+defmodule MediaCentaurWeb.Storybook.Foundations.Colors do
   @moduledoc """
   Color foundations — daisyUI semantic tokens and surface treatments.
 
@@ -97,7 +97,7 @@ defmodule MediaCentarrWeb.Storybook.Foundations.Colors do
           backdrop is what gives glass surfaces something to show through.
         </p>
 
-        <div class="media-centarr psb:rounded-md psb:overflow-hidden psb:border psb:border-slate-300/40">
+        <div class="media-centaur psb:rounded-md psb:overflow-hidden psb:border psb:border-slate-300/40">
           <div
             class="psb:p-6 psb:space-y-4"
             style={
@@ -111,7 +111,7 @@ defmodule MediaCentarrWeb.Storybook.Foundations.Colors do
                 Body gradient
               </div>
               <p class="psb:text-sm psb:text-slate-200/90 psb:mb-2">
-                <code class="psb:text-xs">body.media-centarr</code>
+                <code class="psb:text-xs">body.media-centaur</code>
                 — radial blobs of <code class="psb:text-xs">--glass-gradient-a</code>
                 (blue) and <code class="psb:text-xs">--glass-gradient-b</code>
                 (violet) over <code class="psb:text-xs">base-100</code>.

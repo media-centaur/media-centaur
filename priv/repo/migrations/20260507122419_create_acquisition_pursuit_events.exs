@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.CreateAcquisitionPursuitEvents do
+defmodule MediaCentaur.Repo.Migrations.CreateAcquisitionPursuitEvents do
   use Ecto.Migration
 
   def change do

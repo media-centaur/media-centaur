@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.TypedDatePublished do
+defmodule MediaCentaur.Repo.Migrations.TypedDatePublished do
   @moduledoc """
   Promotes `date_published` from `:string` to `:date` on the four container
   schemas (Movie, TVSeries, MovieSeries, VideoObject). See Phase 1 Task 2 of
@@ -30,7 +30,7 @@ defmodule MediaCentarr.Repo.Migrations.TypedDatePublished do
 
   def up do
     for table <- @tables do
-      # credo:disable-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+      # credo:disable-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
       execute("UPDATE #{table} SET date_published = NULL WHERE date_published = ''")
     end
   end

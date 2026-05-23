@@ -1,17 +1,17 @@
-defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
+defmodule MediaCentaur.Credo.Checks.StorybookCoverage do
   use Credo.Check,
     id: "MC0009",
     base_priority: :normal,
     category: :design,
     explanations: [
       check: """
-      Every Phoenix function component in `lib/media_centarr_web/components/**`
+      Every Phoenix function component in `lib/media_centaur_web/components/**`
       must have either:
 
         1. A story file matching `<func>.story.exs` somewhere under `storybook/`.
            The conventional placement is `storybook/<area>/<func>.story.exs`
            (where `<area>` is the component file's directory under
-           `lib/media_centarr_web/components/`), but cross-cutting areas like
+           `lib/media_centaur_web/components/`), but cross-cutting areas like
            `storybook/composites/` or `storybook/foundations/` are also
            discovered by basename.
         2. A `@storybook_status` module attribute with a `@storybook_reason`
@@ -28,7 +28,7 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
 
       Story files in `storybook/**/*.story.exs` must additionally:
 
-        * Use the `MediaCentarrWeb.Storybook.*` namespace (boundary requirement).
+        * Use the `MediaCentaurWeb.Storybook.*` namespace (boundary requirement).
         * Define `function/0` for `:component` stories.
         * Use `render_source :function` for `:component` stories (or omit it).
 
@@ -52,7 +52,7 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
     ]
 
   @valid_statuses [:skip, :static_example, :pending]
-  @namespace_prefix "Elixir.MediaCentarrWeb.Storybook."
+  @namespace_prefix "Elixir.MediaCentaurWeb.Storybook."
   # Maps to Credo.Priority.to_integer(:low) == -10. Hard-coded to keep the
   # check's runtime free of internal Credo modules.
   @low_priority -10
@@ -78,7 +78,7 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
   # =============================================================
 
   defp component_file?(filename) do
-    String.contains?(filename, "lib/media_centarr_web/components/") and
+    String.contains?(filename, "lib/media_centaur_web/components/") and
       String.ends_with?(filename, ".ex")
   end
 
@@ -499,7 +499,7 @@ defmodule MediaCentarr.Credo.Checks.StorybookCoverage do
         format_issue(issue_meta,
           message:
             "Story module #{inspect(module)} must be under " <>
-              "MediaCentarrWeb.Storybook.* — boundary requirement.",
+              "MediaCentaurWeb.Storybook.* — boundary requirement.",
           line_no: 1
         )
 

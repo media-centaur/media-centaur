@@ -1,11 +1,11 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/media-centarr/media-centarr/main/priv/static/images/centaur-logo-light.png">
-  <img src="https://raw.githubusercontent.com/media-centarr/media-centarr/main/priv/static/images/centaur-logo.png" alt="Media Centarr" width="220">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/media-centaur/media-centaur/main/priv/static/images/centaur-logo-light.png">
+  <img src="https://raw.githubusercontent.com/media-centaur/media-centaur/main/priv/static/images/centaur-logo.png" alt="Media Centaur" width="220">
 </picture>
 
-# Media Centarr
+# Media Centaur
 
 **Library management and playback for your personal movie and TV collection — the \*ARR stack and a couch-ready player in one self-hosted Linux app.**
 
@@ -15,7 +15,7 @@ Point it at your video directories. It identifies your movies and TV shows via T
 
 Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 
-**🌐 [Visit the site](https://media-centarr.github.io/media-centarr/) &nbsp;·&nbsp; 📖 [Read the docs](https://github.com/media-centarr/media-centarr/wiki)**
+**🌐 [Visit the site](https://media-centaur.github.io/media-centaur/) &nbsp;·&nbsp; 📖 [Read the docs](https://github.com/media-centaur/media-centaur/wiki)**
 
 </div>
 
@@ -36,7 +36,7 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 > | Settings          | In progress   |
 
 > [!IMPORTANT]
-> **macOS support — experimental.** Media Centarr is being extended to run on macOS (Apple Silicon). The platform-architecture work is complete; runtime parity testing is ongoing. **Linux remains the only fully-supported platform today.**
+> **macOS support — experimental.** Media Centaur is being extended to run on macOS (Apple Silicon). The platform-architecture work is complete; runtime parity testing is ongoing. **Linux remains the only fully-supported platform today.**
 >
 > Even after the Mac build ships, expect an experimental period — we don't own Mac hardware, so the macOS path is Linux-developer-tested only. If you run it on macOS, please open a GitHub issue with `[macOS]` in the title so we can sharpen the experience from real-world reports.
 
@@ -44,16 +44,16 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 
 <div align="center">
 
-<a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/home.png"><img src="docs-site/assets/screenshots/home.png" alt="Home — cinematic landing page with Continue Watching, Recently Added, and Coming Up" width="48%"></a>
-<a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/library-grid.png"><img src="docs-site/assets/screenshots/library-grid.png" alt="Library grid" width="48%"></a>
+<a href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/home.png"><img src="docs-site/assets/screenshots/home.png" alt="Home — cinematic landing page with Continue Watching, Recently Added, and Coming Up" width="48%"></a>
+<a href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/library-grid.png"><img src="docs-site/assets/screenshots/library-grid.png" alt="Library grid" width="48%"></a>
 
-<a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/library-detail-movie.png"><img src="docs-site/assets/screenshots/library-detail-movie.png" alt="Movie detail" width="48%"></a>
-<a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/home-coming-up.png"><img src="docs-site/assets/screenshots/home-coming-up.png" alt="Coming Up — release cards with live grab-status badges" width="48%"></a>
+<a href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/library-detail-movie.png"><img src="docs-site/assets/screenshots/library-detail-movie.png" alt="Movie detail" width="48%"></a>
+<a href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/home-coming-up.png"><img src="docs-site/assets/screenshots/home-coming-up.png" alt="Coming Up — release cards with live grab-status badges" width="48%"></a>
 
-<a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/upcoming-calendar.png"><img src="docs-site/assets/screenshots/upcoming-calendar.png" alt="Upcoming — calendar of tracked releases plus active-shows panel" width="48%"></a>
-<a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/history-heatmap.png"><img src="docs-site/assets/screenshots/history-heatmap.png" alt="Watch history — stats and 52-week activity heatmap" width="48%"></a>
+<a href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/upcoming-calendar.png"><img src="docs-site/assets/screenshots/upcoming-calendar.png" alt="Upcoming — calendar of tracked releases plus active-shows panel" width="48%"></a>
+<a href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/history-heatmap.png"><img src="docs-site/assets/screenshots/history-heatmap.png" alt="Watch history — stats and 52-week activity heatmap" width="48%"></a>
 
-<a href="https://cdn.jsdelivr.net/gh/media-centarr/media-centarr-assets@main/screenshots/download-activity.png"><img src="docs-site/assets/screenshots/download-activity.png" alt="Downloads — Activity tab showing the full grab lifecycle" width="48%"></a>
+<a href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/download-activity.png"><img src="docs-site/assets/screenshots/download-activity.png" alt="Downloads — Activity tab showing the full grab lifecycle" width="48%"></a>
 
 </div>
 
@@ -64,29 +64,29 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 - **Library management** — watches your directories for new video files, identifies movies and TV shows via TMDB, and downloads artwork automatically. Low-confidence matches wait for manual review instead of polluting your library with wrong guesses.
 - **Playback** — launches mpv on the local machine, tracks your progress, resumes where you left off, and auto-advances to the next episode.
 - **Release tracking** — monitors TMDB daily for upcoming movies and new TV seasons tied to the shows in your library.
-- **Acquisition** *(optional)* — search and queue downloads via Prowlarr. Entirely optional: Media Centarr is a full library manager without it.
+- **Acquisition** *(optional)* — search and queue downloads via Prowlarr. Entirely optional: Media Centaur is a full library manager without it.
 - **Couch-first UI** — keyboard *and* gamepad navigation, large artwork, dark-first. Built to drive a TV from across the room.
 - **Real-time** — every change (new file, metadata fetched, playback started) appears instantly via Phoenix LiveView. No polling, no refresh.
 
 ## Non-goals
 
-Media Centarr is deliberately **not** a streaming server or cross-platform media suite. It does not stream to remote devices, transcode, run in Docker, or support multiple users. If you need those, [Jellyfin](https://jellyfin.org/) and Plex do them well.
+Media Centaur is deliberately **not** a streaming server or cross-platform media suite. It does not stream to remote devices, transcode, run in Docker, or support multiple users. If you need those, [Jellyfin](https://jellyfin.org/) and Plex do them well.
 
-See the [FAQ](https://github.com/media-centarr/media-centarr/wiki/FAQ) for the full list and reasoning.
+See the [FAQ](https://github.com/media-centaur/media-centaur/wiki/FAQ) for the full list and reasoning.
 
 ---
 
 ## Install
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/media-centarr/media-centarr/main/installer/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/media-centaur/media-centaur/main/installer/install.sh | sh
 ```
 
-Downloads the latest release, verifies its checksum, installs atomically under `~/.local/lib/media-centarr/`, generates a `SECRET_KEY_BASE`, and sets up a systemd user unit. **The installer is idempotent** — re-run it any time to reset to the latest stable build, recover from a half-applied update, or roll a wedged install forward. Your config, data, and cache live elsewhere and are preserved.
+Downloads the latest release, verifies its checksum, installs atomically under `~/.local/lib/media-centaur/`, generates a `SECRET_KEY_BASE`, and sets up a systemd user unit. **The installer is idempotent** — re-run it any time to reset to the latest stable build, recover from a half-applied update, or roll a wedged install forward. Your config, data, and cache live elsewhere and are preserved.
 
 After install, everyday updates happen inside the app: **Settings → System → Update now**.
 
-Full installation guide and recovery playbook: **[Wiki → Installation](https://github.com/media-centarr/media-centarr/wiki/Installation)** · **[Wiki → Troubleshooting](https://github.com/media-centarr/media-centarr/wiki/Troubleshooting#reset-by-re-running-the-installer)**.
+Full installation guide and recovery playbook: **[Wiki → Installation](https://github.com/media-centaur/media-centaur/wiki/Installation)** · **[Wiki → Troubleshooting](https://github.com/media-centaur/media-centaur/wiki/Troubleshooting#reset-by-re-running-the-installer)**.
 
 ## Requirements
 
@@ -99,20 +99,20 @@ Full installation guide and recovery playbook: **[Wiki → Installation](https:/
 
 ## Documentation
 
-All end-user documentation lives in the **[Wiki](https://github.com/media-centarr/media-centarr/wiki)**:
+All end-user documentation lives in the **[Wiki](https://github.com/media-centaur/media-centaur/wiki)**:
 
-- [Getting Started](https://github.com/media-centarr/media-centarr/wiki) — install, first run, add your library
-- [Using Media Centarr](https://github.com/media-centarr/media-centarr/wiki) — browsing, playback, keyboard & gamepad, review queue
-- [Setup Guides](https://github.com/media-centarr/media-centarr/wiki) — TMDB, Prowlarr, backup & restore, running as a service
-- [Reference](https://github.com/media-centarr/media-centarr/wiki) — settings, FAQ, troubleshooting
+- [Getting Started](https://github.com/media-centaur/media-centaur/wiki) — install, first run, add your library
+- [Using Media Centaur](https://github.com/media-centaur/media-centaur/wiki) — browsing, playback, keyboard & gamepad, review queue
+- [Setup Guides](https://github.com/media-centaur/media-centaur/wiki) — TMDB, Prowlarr, backup & restore, running as a service
+- [Reference](https://github.com/media-centaur/media-centaur/wiki) — settings, FAQ, troubleshooting
 
 ---
 
 ## For contributors
 
 ```bash
-git clone https://github.com/media-centarr/media-centarr.git
-cd media-centarr
+git clone https://github.com/media-centaur/media-centaur.git
+cd media-centaur
 mix setup
 mix phx.server
 ```

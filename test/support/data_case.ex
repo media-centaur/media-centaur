@@ -1,4 +1,4 @@
-defmodule MediaCentarr.DataCase do
+defmodule MediaCentaur.DataCase do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @moduledoc """
@@ -12,7 +12,7 @@ defmodule MediaCentarr.DataCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use MediaCentarr.DataCase, async: true`, although
+  by setting `use MediaCentaur.DataCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -20,25 +20,25 @@ defmodule MediaCentarr.DataCase do
 
   using do
     quote do
-      alias MediaCentarr.Repo
+      alias MediaCentaur.Repo
 
       import Ecto
       import Ecto.Changeset
       import Ecto.Query
-      import MediaCentarr.DataCase
-      import MediaCentarr.TestFactory
+      import MediaCentaur.DataCase
+      import MediaCentaur.TestFactory
     end
   end
 
   setup tags do
-    MediaCentarr.DataCase.setup_sandbox(tags)
+    MediaCentaur.DataCase.setup_sandbox(tags)
     :ok
   end
 
   @doc """
   Sets up the sandbox based on the test tags.
 
-  Also restores the `MediaCentarr.Config` `:persistent_term` cache to
+  Also restores the `MediaCentaur.Config` `:persistent_term` cache to
   its post-helper pristine state. Without this, a previous test's
   `Config.update/2` call leaks into the next test's view of `Config.get/1`
   — the global cache survives sandbox rollback. See
@@ -46,7 +46,7 @@ defmodule MediaCentarr.DataCase do
   """
   def setup_sandbox(tags) do
     restore_config_cache()
-    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(MediaCentarr.Repo, shared: not tags[:async])
+    pid = Ecto.Adapters.SQL.Sandbox.start_owner!(MediaCentaur.Repo, shared: not tags[:async])
 
     # ExUnit on_exit callbacks run LIFO — the wait-for-tasks below
     # runs BEFORE stop_owner. Both run in `ExUnit.OnExitHandler`
@@ -58,12 +58,12 @@ defmodule MediaCentarr.DataCase do
   end
 
   defp restore_config_cache do
-    snapshot = :persistent_term.get({MediaCentarr.Config, :test_pristine_snapshot})
-    :persistent_term.put({MediaCentarr.Config, :config}, snapshot)
+    snapshot = :persistent_term.get({MediaCentaur.Config, :test_pristine_snapshot})
+    :persistent_term.put({MediaCentaur.Config, :config}, snapshot)
   end
 
   # Terminates any `Task.Supervisor` child still running under
-  # `MediaCentarr.TaskSupervisor` at teardown, so it can't hit the DB
+  # `MediaCentaur.TaskSupervisor` at teardown, so it can't hit the DB
   # after the sandbox owner is released (`DBConnection.OwnershipError`,
   # which Console.Handler then forwards into unrelated tests'
   # `refute_receive` checks — see `campaigns/test-isolation-hardening.md`
@@ -86,7 +86,7 @@ defmodule MediaCentarr.DataCase do
   @task_drain_grace_ms 100
 
   defp drain_supervised_tasks do
-    MediaCentarr.TaskSupervisor
+    MediaCentaur.TaskSupervisor
     |> Task.Supervisor.children()
     |> Enum.each(fn pid ->
       ref = Process.monitor(pid)

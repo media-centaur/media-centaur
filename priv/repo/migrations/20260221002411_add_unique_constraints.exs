@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddUniqueConstraints do
+defmodule MediaCentaur.Repo.Migrations.AddUniqueConstraints do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

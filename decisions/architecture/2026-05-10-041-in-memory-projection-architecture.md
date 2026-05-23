@@ -6,7 +6,7 @@ date: 2026-05-10
 
 ## Context and Problem Statement
 
-Media Centarr is a single-user, local-only desktop application. The
+Media Centaur is a single-user, local-only desktop application. The
 traditional Phoenix concern — "every read goes through the DB so we can
 horizontally scale stateless web nodes" — does not apply. Statefulness
 at the BEAM level is not a liability here; it is an asset, because
@@ -31,7 +31,7 @@ Three forces tug in different directions:
    shape, or to how it's derived, must not ripple into every consuming
    LiveView.
 
-The previously-shipped `MediaCentarr.Cache` behaviour
+The previously-shipped `MediaCentaur.Cache` behaviour
 ([ADR-040 lineage]) handles `:persistent_term`-backed singletons
 (Settings, Capabilities, Controls, SpoilerFree). It does not yet have
 an established pattern for ETS-backed read projections of
@@ -48,7 +48,7 @@ that only surfaces as bugs.
 ## Decision Outcome
 
 Chosen option: **"Each in-memory projection is a per-view ETS table
-owned by a single GenServer (re-using `MediaCentarr.Cache.Worker`),
+owned by a single GenServer (re-using `MediaCentaur.Cache.Worker`),
 exposes a typed view-model struct as its public read contract, and
 broadcasts a dedicated `library:views`-class topic so consumers
 subscribe to *the projection*, not to the underlying source events."**
@@ -220,10 +220,10 @@ arrival. This is additive — not all views need it.
 ### Module conventions
 
 ```
-MediaCentarr.Library                                — context facade
-MediaCentarr.Library.Views                          — public read API + subscribe/0
-MediaCentarr.Library.Views.<ViewName>Item           — typed struct (UI contract)
-MediaCentarr.Library.Views.<ViewName>               — projection: implements Cache,
+MediaCentaur.Library                                — context facade
+MediaCentaur.Library.Views                          — public read API + subscribe/0
+MediaCentaur.Library.Views.<ViewName>Item           — typed struct (UI contract)
+MediaCentaur.Library.Views.<ViewName>               — projection: implements Cache,
                                                       owns ETS table, broadcasts
                                                       on refresh
 ```
@@ -294,6 +294,6 @@ projections.
 - [ADR-038](2026-04-30-038-liveview-decoupling.md) — LiveViews are
   leaves; they never call into each other. Projections sit one layer
   below: shared read API for any LiveView that needs the same view.
-- `MediaCentarr.Cache` behaviour — the wiring this ADR builds on.
+- `MediaCentaur.Cache` behaviour — the wiring this ADR builds on.
   Applies uniformly across `:persistent_term` and ETS storage; the
   storage choice is the projection's, not the Worker's.

@@ -1,25 +1,25 @@
-defmodule MediaCentarr.Credo.Checks.LogMacroPreferred do
+defmodule MediaCentaur.Credo.Checks.LogMacroPreferred do
   use Credo.Check,
     id: "MC0005",
     base_priority: :normal,
     category: :design,
     explanations: [
       check: """
-      Code under `lib/media_centarr/` must log via the `MediaCentarr.Log`
+      Code under `lib/media_centaur/` must log via the `MediaCentaur.Log`
       macros (`Log.info/2`, `Log.warning/2`, `Log.error/2`) rather than
       calling `Logger` directly. The Log macros tag every entry with a
       component, which the Console drawer uses for filtering.
 
           # preferred
-          require MediaCentarr.Log, as: Log
+          require MediaCentaur.Log, as: Log
           Log.info(:pipeline, "claimed 3 files")
 
           # NOT preferred
           require Logger
           Logger.info("claimed 3 files")
 
-      Phoenix integration code under `lib/media_centarr_web/` may call
-      `Logger` directly. The `MediaCentarr.Log` module itself is also
+      Phoenix integration code under `lib/media_centaur_web/` may call
+      `Logger` directly. The `MediaCentaur.Log` module itself is also
       exempt (it wraps `Logger`).
 
       Source: CLAUDE.md "Thinking Logs".
@@ -43,10 +43,10 @@ defmodule MediaCentarr.Credo.Checks.LogMacroPreferred do
     # If Console.Buffer's persist fails, calling Log.warning would recurse
     # into the same broken buffer. Console.* is allowed to use Logger
     # directly with `mc_log_source: :buffer` to bypass the buffer.
-    String.contains?(filename, "lib/media_centarr/") and
-      not String.contains?(filename, "lib/media_centarr_web/") and
-      not String.ends_with?(filename, "lib/media_centarr/log.ex") and
-      not String.contains?(filename, "lib/media_centarr/console/")
+    String.contains?(filename, "lib/media_centaur/") and
+      not String.contains?(filename, "lib/media_centaur_web/") and
+      not String.ends_with?(filename, "lib/media_centaur/log.ex") and
+      not String.contains?(filename, "lib/media_centaur/console/")
   end
 
   defp traverse({{:., meta, [{:__aliases__, _, [:Logger]}, fun]}, _, _args} = ast, issues, issue_meta)
@@ -60,8 +60,8 @@ defmodule MediaCentarr.Credo.Checks.LogMacroPreferred do
     format_issue(
       issue_meta,
       message:
-        "Use `MediaCentarr.Log` macros (e.g. `Log.info(:component, msg)`) instead of `#{trigger}` " <>
-          "in lib/media_centarr/. See CLAUDE.md \"Thinking Logs\".",
+        "Use `MediaCentaur.Log` macros (e.g. `Log.info(:component, msg)`) instead of `#{trigger}` " <>
+          "in lib/media_centaur/. See CLAUDE.md \"Thinking Logs\".",
       trigger: trigger,
       line_no: line_no
     )

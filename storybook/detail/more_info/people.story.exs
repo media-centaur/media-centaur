@@ -1,9 +1,9 @@
-defmodule MediaCentarrWeb.Storybook.Detail.MoreInfo.People do
+defmodule MediaCentaurWeb.Storybook.Detail.MoreInfo.People do
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Library.Person
+  alias MediaCentaur.Library.Person
 
-  def function, do: &MediaCentarrWeb.Components.Detail.MoreInfo.People.people/1
+  def function, do: &MediaCentaurWeb.Components.Detail.MoreInfo.People.people/1
 
   @linked [
     %Person{tmdb_person_id: 1, name: "Linked Person A"},

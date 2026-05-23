@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Detail.PlayCard do
+defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
   @moduledoc """
   Playback action row in the entity detail panel — Play/Resume button,
   thin progress bar with optional "remaining" text, and a "Manage"
@@ -24,7 +24,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.PlayCard do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.Components.Detail.PlayCard.play_card/1
+  def function, do: &MediaCentaurWeb.Components.Detail.PlayCard.play_card/1
   def render_source, do: :function
   def layout, do: :one_column
 

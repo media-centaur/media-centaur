@@ -4,7 +4,7 @@
 @import "tailwindcss" source(none);
 @source "../css";
 @source "../js";
-@source "../../lib/media_centarr_web";
+@source "../../lib/media_centaur_web";
 @source "../../storybook";
 
 /* A Tailwind plugin that makes "hero-#{ICON}" classes available.
@@ -20,7 +20,7 @@
   themes: false;
 }
 
-/* Media Centarr theme — slate-based cool grays (hue 264).
+/* Media Centaur theme — slate-based cool grays (hue 264).
    Dark-only design. See the user-interface skill for color philosophy.
    Build your own at: https://daisyui.com/theme-generator/ */
 
@@ -110,11 +110,11 @@ html { scrollbar-gutter: stable; }
 }
 
 /* Gradient backdrop — gives the glass something to show through.
-   Scoped to .media-centarr (sandbox class) so the gradient applies to both
+   Scoped to .media-centaur (sandbox class) so the gradient applies to both
    the live app body and the storybook component iframe (whose sandbox_class
    adds the same class), but NOT the storybook chrome body — where our
    gradient and dark theme would make the light chrome unreadable. */
-body.media-centarr {
+body.media-centaur {
   min-height: 100dvh;
   background-image:
     radial-gradient(ellipse at 20% 15%, var(--glass-gradient-a), transparent 60%),
@@ -130,7 +130,7 @@ body.media-centarr {
    Force a light browser scheme + dark body text for the chrome itself —
    storybook's own sidebar/header keep their `psb:bg-white` utility
    styles regardless. Then restore the dark theme inside the sandbox
-   container `.media-centarr` so component previews still render with
+   container `.media-centaur` so component previews still render with
    the real theme, glass gradient, and daisyUI variants.
 
    Body bg is set to the app's dark base so the surrounding "frame"
@@ -149,12 +149,12 @@ html.psb body {
 
 /* Restore dark theme ONLY inside component preview sandboxes
    (`.psb-variation-block` is on component story pages only — `:page` stories
-   like the welcome doc have a `.media-centarr` wrapper too, but no
+   like the welcome doc have a `.media-centaur` wrapper too, but no
    `.psb-variation-block`, so they stay light like the chrome). This gives
    us light docs + dark component previews — visually consistent with
    storybook's chrome design while still showing components in their real
    theme. */
-html.psb .psb-variation-block .media-centarr {
+html.psb .psb-variation-block .media-centaur {
   color-scheme: dark;
   color: var(--color-base-content);
   background:

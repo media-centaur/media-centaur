@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddAutoGrabToReleaseTrackingItems do
+defmodule MediaCentaur.Repo.Migrations.AddAutoGrabToReleaseTrackingItems do
   use Ecto.Migration
 
   def change do

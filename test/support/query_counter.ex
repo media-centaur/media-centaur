@@ -1,19 +1,19 @@
-defmodule MediaCentarr.QueryCounter do
+defmodule MediaCentaur.QueryCounter do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @moduledoc """
-  Counts `MediaCentarr.Repo` queries issued during the execution of a
-  zero-arity callback via the `[:media_centarr, :repo, :query]`
+  Counts `MediaCentaur.Repo` queries issued during the execution of a
+  zero-arity callback via the `[:media_centaur, :repo, :query]`
   telemetry event Ecto emits by default.
 
-  Used by `MediaCentarrWeb.NoDbOnRenderTest` (and any other suite that
+  Used by `MediaCentaurWeb.NoDbOnRenderTest` (and any other suite that
   needs to assert a bounded mount-time query budget) to lock in the
   no-DB-on-render contract that the in-memory projection architecture
   (ADR-041, Library Schema v2 Phase 3) ships.
 
   ## Usage
 
-      {result, queries} = MediaCentarr.QueryCounter.count(fn ->
+      {result, queries} = MediaCentaur.QueryCounter.count(fn ->
         live(conn, "/library")
       end)
 
@@ -25,7 +25,7 @@ defmodule MediaCentarr.QueryCounter do
   enough to debug a budget overrun without leaking schema details.
   """
 
-  @event [:media_centarr, :repo, :query]
+  @event [:media_centaur, :repo, :query]
 
   @doc """
   Runs `fun` and returns `{result, queries}` where `queries` is a list

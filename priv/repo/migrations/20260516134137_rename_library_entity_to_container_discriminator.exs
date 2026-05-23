@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.RenameLibraryEntityToContainerDiscriminator do
+defmodule MediaCentaur.Repo.Migrations.RenameLibraryEntityToContainerDiscriminator do
   @moduledoc """
   Library Schema v2 — Phase 2 Task J.
 
@@ -43,7 +43,7 @@ defmodule MediaCentarr.Repo.Migrations.RenameLibraryEntityToContainerDiscriminat
 
     flush()
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("""
     UPDATE release_tracking_items
     SET library_container_type = CASE

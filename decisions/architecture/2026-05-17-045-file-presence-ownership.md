@@ -9,10 +9,10 @@ date: 2026-05-17
 The watcher and library track overlapping concepts in two
 independent persistent tables:
 
-* `MediaCentarr.Watcher.KnownFile` (table `watcher_files`) — "the
+* `MediaCentaur.Watcher.KnownFile` (table `watcher_files`) — "the
   scanner has seen this path; here's its `:present | :absent`
   state and absent-since clock."
-* `MediaCentarr.Library.WatchedFile` (table `library_watched_files`)
+* `MediaCentaur.Library.WatchedFile` (table `library_watched_files`)
   — "this disk file IS this library entity's file."
 
 Both ultimately answer "what files do we know about" from
@@ -56,7 +56,7 @@ durable state.**
 
 Concretely:
 
-* New schema **`MediaCentarr.Library.FilePresence`** (table
+* New schema **`MediaCentaur.Library.FilePresence`** (table
   `library_file_presences`). One row per path observed in any
   watch dir. Fields: `id (UUID)`, `file_path :string UNIQUE`,
   `watch_dir :string`, `last_seen_at :utc_datetime_usec`. Indexed

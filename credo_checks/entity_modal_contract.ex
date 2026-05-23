@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Credo.Checks.EntityModalContract do
+defmodule MediaCentaur.Credo.Checks.EntityModalContract do
   use Credo.Check,
     id: "MC0011",
     base_priority: :high,
@@ -12,9 +12,9 @@ defmodule MediaCentarr.Credo.Checks.EntityModalContract do
       message is delivered twice.
 
           Trait                                         Forbidden subscribes
-          MediaCentarrWeb.Live.EntityModal              Library, Playback
-          MediaCentarrWeb.Live.SpoilerFreeAware         Settings
-          MediaCentarrWeb.Live.CapabilitiesAware        Capabilities
+          MediaCentaurWeb.Live.EntityModal              Library, Playback
+          MediaCentaurWeb.Live.SpoilerFreeAware         Settings
+          MediaCentaurWeb.Live.CapabilitiesAware        Capabilities
 
       The historical bug this prevents (the EntityModal case): a host that
       mounted the modal but forgot to wire one of the four PubSub messages
@@ -24,7 +24,7 @@ defmodule MediaCentarr.Credo.Checks.EntityModalContract do
       host re-subscribes.
 
           # preferred
-          use MediaCentarrWeb.Live.EntityModal
+          use MediaCentaurWeb.Live.EntityModal
 
           def mount(_, _, socket) do
             if connected?(socket), do: ReleaseTracking.subscribe()
@@ -33,7 +33,7 @@ defmodule MediaCentarr.Credo.Checks.EntityModalContract do
           end
 
           # NOT preferred — duplicate subscribe, messages delivered twice
-          use MediaCentarrWeb.Live.EntityModal
+          use MediaCentaurWeb.Live.EntityModal
 
           def mount(_, _, socket) do
             if connected?(socket) do
@@ -54,9 +54,9 @@ defmodule MediaCentarr.Credo.Checks.EntityModalContract do
   # Mapping of trait module → context modules whose `subscribe/0` the
   # trait owns. Add new entries as new auto-wiring traits are introduced.
   @trait_subscribes %{
-    [:MediaCentarrWeb, :Live, :EntityModal] => [:Library, :Playback],
-    [:MediaCentarrWeb, :Live, :SpoilerFreeAware] => [:Settings],
-    [:MediaCentarrWeb, :Live, :CapabilitiesAware] => [:Capabilities]
+    [:MediaCentaurWeb, :Live, :EntityModal] => [:Library, :Playback],
+    [:MediaCentaurWeb, :Live, :SpoilerFreeAware] => [:Settings],
+    [:MediaCentaurWeb, :Live, :CapabilitiesAware] => [:Capabilities]
   }
 
   @impl true
@@ -76,7 +76,7 @@ defmodule MediaCentarr.Credo.Checks.EntityModalContract do
   end
 
   defp liveview_path?(filename) do
-    String.contains?(filename, "lib/media_centarr_web/live/")
+    String.contains?(filename, "lib/media_centaur_web/live/")
   end
 
   # Returns the deduplicated list of forbidden subscribe modules for this

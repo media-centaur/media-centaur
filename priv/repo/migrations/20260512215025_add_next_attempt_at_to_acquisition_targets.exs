@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddNextAttemptAtToAcquisitionTargets do
+defmodule MediaCentaur.Repo.Migrations.AddNextAttemptAtToAcquisitionTargets do
   use Ecto.Migration
 
   # Denormalises the "when will we try again" signal off Oban's

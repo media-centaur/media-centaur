@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.PosterRow do
+defmodule MediaCentaurWeb.Storybook.PosterRow do
   use PhoenixStorybook.Index
 
   def folder_open?, do: true

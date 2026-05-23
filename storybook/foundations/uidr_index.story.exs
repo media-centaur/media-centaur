@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Foundations.UidrIndex do
+defmodule MediaCentaurWeb.Storybook.Foundations.UidrIndex do
   @moduledoc """
   UI Design Rule (UIDR) index — the design-system entry point.
 

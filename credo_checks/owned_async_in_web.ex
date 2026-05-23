@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Credo.Checks.OwnedAsyncInWeb do
+defmodule MediaCentaur.Credo.Checks.OwnedAsyncInWeb do
   use Credo.Check,
     id: "MC0019",
     base_priority: :high,
@@ -7,7 +7,7 @@ defmodule MediaCentarr.Credo.Checks.OwnedAsyncInWeb do
       check: """
       Web-layer modules (LiveViews, components) must not spawn
       fire-and-forget work via
-      `Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, …)`.
+      `Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, …)`.
 
       Such a task is **owned by nobody**: it is not linked to the
       LiveView, so it is not cancelled when the LiveView dies and not
@@ -21,7 +21,7 @@ defmodule MediaCentarr.Credo.Checks.OwnedAsyncInWeb do
       Use the lifecycle-bound alternative instead:
 
           # NOT allowed — orphaned, untestable, leaks past the LiveView
-          Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+          Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
             result = expensive_load()
             send(self(), {:loaded, result})
           end)
@@ -57,17 +57,17 @@ defmodule MediaCentarr.Credo.Checks.OwnedAsyncInWeb do
   end
 
   defp web_path?(filename) do
-    String.contains?(filename, "lib/media_centarr_web/")
+    String.contains?(filename, "lib/media_centaur_web/")
   end
 
   defp grandfathered?(filename) do
     Enum.any?(@grandfathered, &String.ends_with?(filename, &1))
   end
 
-  # `Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, …)`
+  # `Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, …)`
   defp traverse(
          {{:., meta, [{:__aliases__, _, [:Task, :Supervisor]}, :start_child]}, _,
-          [{:__aliases__, _, [:MediaCentarr, :TaskSupervisor]} | _]} = ast,
+          [{:__aliases__, _, [:MediaCentaur, :TaskSupervisor]} | _]} = ast,
          issues,
          issue_meta
        ) do
@@ -80,7 +80,7 @@ defmodule MediaCentarr.Credo.Checks.OwnedAsyncInWeb do
     format_issue(
       issue_meta,
       message:
-        "Fire-and-forget `Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, …)` " <>
+        "Fire-and-forget `Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, …)` " <>
           "in the web layer orphans the task — it is not cancelled with the LiveView " <>
           "and not awaitable in tests. Use `start_async/3` (owned, awaitable) for view " <>
           "loads, or an Oban job / supervised service for work that must outlive the " <>

@@ -9,7 +9,7 @@
     "priv/*/seeds.exs"
   ],
   # `:module_directives` excluded because Quokka's alias-lifting can shadow
-  # stdlib modules (e.g. lifting `MediaCentarr.Watcher.DynamicSupervisor` to
+  # stdlib modules (e.g. lifting `MediaCentaur.Watcher.DynamicSupervisor` to
   # `DynamicSupervisor` masks the OTP module). Imports that depend on aliased
   # names also break when Quokka reorders directives. Other rewrites
   # (pipes, deprecations, single-node fixes, etc.) remain enabled.

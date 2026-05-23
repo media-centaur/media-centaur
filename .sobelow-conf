@@ -2,7 +2,7 @@
   verbose: false,
   private: false,
   skip: true,
-  router: "lib/media_centarr_web/router.ex",
+  router: "lib/media_centaur_web/router.ex",
   exit: "High",
   threshold: "high",
   # Config.HTTPS and Config.CSP are intentionally not enforced — this app

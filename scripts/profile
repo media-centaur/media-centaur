@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-button performance profile run (ADR-041).
 #
-# Spins up an isolated profile instance via MEDIA_CENTARR_CONFIG_OVERRIDE,
+# Spins up an isolated profile instance via MEDIA_CENTAUR_CONFIG_OVERRIDE,
 # seeds deterministic fixtures, runs every Profile.Suite and the page-mount
 # harness, and writes a markdown report to priv/profiling/runs/<timestamp>.md.
 #
@@ -24,7 +24,7 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-OVERRIDE="defaults/media-centarr-profile.toml"
+OVERRIDE="defaults/media-centaur-profile.toml"
 PROFILE_DIR="priv/profile"
 PROFILE_PORT=4004
 
@@ -57,7 +57,7 @@ if [ "$keep_db" = false ]; then
   mkdir -p "$PROFILE_DIR/media" "$PROFILE_DIR/images"
 fi
 
-export MEDIA_CENTARR_CONFIG_OVERRIDE="$OVERRIDE"
+export MEDIA_CENTAUR_CONFIG_OVERRIDE="$OVERRIDE"
 
 # 3. Database setup. --quiet because the run-summary output is what
 # we want the user to focus on, not migration spam.

@@ -1,8 +1,8 @@
-defmodule MediaCentarrWeb.Storybook.CoreComponents.Header do
+defmodule MediaCentaurWeb.Storybook.CoreComponents.Header do
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.CoreComponents.header/1
-  def imports, do: [{MediaCentarrWeb.CoreComponents, button: 1}]
+  def function, do: &MediaCentaurWeb.CoreComponents.header/1
+  def imports, do: [{MediaCentaurWeb.CoreComponents, button: 1}]
   def render_source, do: :function
 
   def template do
@@ -27,7 +27,7 @@ defmodule MediaCentarrWeb.Storybook.CoreComponents.Header do
           "Settings",
           """
           <:subtitle>
-            Configure how Media Centarr behaves on this device.
+            Configure how Media Centaur behaves on this device.
           </:subtitle>
           """
         ]

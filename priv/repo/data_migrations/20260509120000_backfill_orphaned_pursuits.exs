@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.DataMigrations.BackfillOrphanedPursuits do
+defmodule MediaCentaur.Repo.DataMigrations.BackfillOrphanedPursuits do
   @moduledoc """
   Creates pursuits for in-flight grabs that predate the pursuit feature
   and lack a `pursuit_id`.

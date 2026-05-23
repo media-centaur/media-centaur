@@ -1,6 +1,6 @@
 ---
 name: storybook
-description: "Use this skill when adding or changing a function component, writing/editing a `*.story.exs` file, working in `storybook/`, mounting a new daisyUI variant, or answering questions about the component catalog. Triggers on `lib/media_centarr_web/components/**`, `storybook/**`, references to `Variation`/`VariationGroup`/`PhoenixStorybook`, or 'storybook'/'component catalog' in the user's message."
+description: "Use this skill when adding or changing a function component, writing/editing a `*.story.exs` file, working in `storybook/`, mounting a new daisyUI variant, or answering questions about the component catalog. Triggers on `lib/media_centaur_web/components/**`, `storybook/**`, references to `Variation`/`VariationGroup`/`PhoenixStorybook`, or 'storybook'/'component catalog' in the user's message."
 ---
 
 > Before writing or editing any story, **read this whole file**. The mistakes are easy to make and cheap to avoid: wrong module namespace breaks Boundary, wrong sandbox css breaks the chrome, wrong story type silently strips state. The references in `references/` cover the long-form deep dives.
@@ -64,15 +64,15 @@ Full long-form: [`docs/storybook.md`](../../docs/storybook.md). Abridged:
 
 | Convention | Rule | Why |
 |------------|------|-----|
-| **Module namespace** | All story modules must be `MediaCentarrWeb.Storybook.*` | The `MediaCentarrWeb` boundary already covers this prefix. The default `Storybook.*` namespace from the generator falls outside any boundary and emits a `--warnings-as-errors` build failure. |
-| **Sandbox class** | `sandbox_class: "media-centarr"` (already set in `lib/media_centarr_web/storybook.ex`) | The live app body also has `class="media-centarr"`. Our `body.media-centarr` gradient and `.glass-surface` rules apply consistently in both contexts. |
+| **Module namespace** | All story modules must be `MediaCentaurWeb.Storybook.*` | The `MediaCentaurWeb` boundary already covers this prefix. The default `Storybook.*` namespace from the generator falls outside any boundary and emits a `--warnings-as-errors` build failure. |
+| **Sandbox class** | `sandbox_class: "media-centaur"` (already set in `lib/media_centaur_web/storybook.ex`) | The live app body also has `class="media-centaur"`. Our `body.media-centaur` gradient and `.glass-surface` rules apply consistently in both contexts. |
 | **CSS path** | `css_path: "/assets/css/app.css"` — share the real bundle | Components render with the actual theme. Avoid creating a parallel `storybook.css`. |
-| **Theme scoping** | `html.psb` resets to light; `.psb-variation-block .media-centarr` restores dark | Storybook chrome stays light/readable; component previews show our real theme. Don't touch this without reading [`references/sandboxing.md`](references/sandboxing.md). |
+| **Theme scoping** | `html.psb` resets to light; `.psb-variation-block .media-centaur` restores dark | Storybook chrome stays light/readable; component previews show our real theme. Don't touch this without reading [`references/sandboxing.md`](references/sandboxing.md). |
 | **Dep env** | `{:phoenix_storybook, "~> 1.0", only: [:dev, :test]}` | `import PhoenixStorybook.Router` inside `if Mix.env() == :dev` is still validated at compile time. `:test` inclusion makes that compile pass. |
-| **Backend module guard** | `if Mix.env() == :dev` wraps `defmodule MediaCentarrWeb.Storybook` | Without the guard, `:test` and `:prod` compile fails to find `PhoenixStorybook`. |
+| **Backend module guard** | `if Mix.env() == :dev` wraps `defmodule MediaCentaurWeb.Storybook` | Without the guard, `:test` and `:prod` compile fails to find `PhoenixStorybook`. |
 | **Tailwind source** | `assets/css/app.css` has `@source "../../storybook"` | Utilities used in stories must be scanned by Tailwind v4. New top-level dirs need the same treatment. |
 | **Formatter** | `.formatter.exs` includes `"storybook/**/*.exs"` | Stories format alongside the rest of the code. |
-| **Component coverage** | Every component module without a story must declare `@storybook_status :skip / :pending / :static_example` + `@storybook_reason "..."` | Enforced by `MediaCentarr.Credo.Checks.StorybookCoverage` (`mix precommit`). The reason lives next to the code so it can't drift. |
+| **Component coverage** | Every component module without a story must declare `@storybook_status :skip / :pending / :static_example` + `@storybook_reason "..."` | Enforced by `MediaCentaur.Credo.Checks.StorybookCoverage` (`mix precommit`). The reason lives next to the code so it can't drift. |
 
 ## Story types — choose the right one
 
@@ -83,7 +83,7 @@ Full long-form: [`docs/storybook.md`](../../docs/storybook.md). Abridged:
 | `:page` | Documentation, design-system overview, conventions reference | `render/1` (and optionally `navigation/0`, `doc/0`) | n/a |
 | `:example` | Real-world UI showcase mixing multiple components | `mount/3` + `render/1` (LiveView lifecycle) | n/a |
 
-For function components in `lib/media_centarr_web/components/**`, use `:component`. For the welcome/philosophy landing, use `:page`. Skip `:live_component` and `:example` until there's a proven need.
+For function components in `lib/media_centaur_web/components/**`, use `:component`. For the welcome/philosophy landing, use `:page`. Skip `:live_component` and `:example` until there's a proven need.
 
 ## Variation / VariationGroup — the API you'll use 90% of the time
 
@@ -319,18 +319,18 @@ Iframes trigger an extra HTTP fetch for `:live_component` stories. Don't reach f
 When a slot contains other components, declare aliases/imports so the slot HEEx stays terse:
 
 ```elixir
-def aliases, do: [MediaCentarrWeb.JSHelpers]
-def imports, do: [{MediaCentarrWeb.NestedComponent, nested: 1}]
+def aliases, do: [MediaCentaurWeb.JSHelpers]
+def imports, do: [{MediaCentaurWeb.NestedComponent, nested: 1}]
 ```
 
 Then slot content can call `<.nested phx-click={JSHelpers.toggle()}>...</.nested>` without fully-qualifying.
 
 ## Index files — sidebar customization
 
-Each area has an `_<area>.index.exs` shaping its sidebar entry. Module name **must** be `MediaCentarrWeb.Storybook.<Area>` (Boundary).
+Each area has an `_<area>.index.exs` shaping its sidebar entry. Module name **must** be `MediaCentaurWeb.Storybook.<Area>` (Boundary).
 
 ```elixir
-defmodule MediaCentarrWeb.Storybook.CoreComponents do
+defmodule MediaCentaurWeb.Storybook.CoreComponents do
   use PhoenixStorybook.Index
 
   def folder_open?, do: true
@@ -364,12 +364,12 @@ Sizing/spacing classes inside icons must be `psb:`-prefixed because they live in
 
 1. Confirm the component **belongs** in storybook — re-read rule 8.
 2. Create `storybook/<area>/<component>.story.exs`.
-3. Module: `defmodule MediaCentarrWeb.Storybook.<Area>.<Component>`. **Always** `MediaCentarrWeb.Storybook.*`.
+3. Module: `defmodule MediaCentaurWeb.Storybook.<Area>.<Component>`. **Always** `MediaCentaurWeb.Storybook.*`.
 4. `use PhoenixStorybook.Story, :component` (or `:page` for docs).
-5. `def function, do: &MediaCentarrWeb.<Area>.<component>/1`.
+5. `def function, do: &MediaCentaurWeb.<Area>.<component>/1`.
 6. `def render_source, do: :function`.
 7. `def variations do [...] end` — every meaningful state. Use `VariationGroup` + comprehensions for matrices.
-8. Add an entry in `storybook/<area>/_<area>.index.exs`. Create the index module (`MediaCentarrWeb.Storybook.<Area>`) if the area is new.
+8. Add an entry in `storybook/<area>/_<area>.index.exs`. Create the index module (`MediaCentaurWeb.Storybook.<Area>`) if the area is new.
 9. If the component has nested components in slots, declare `aliases/0` / `imports/0`.
 10. Run dev server, visit `/storybook/<area>/<component>`, verify previews render against the dark gradient.
 11. `mix precommit` → push.
@@ -381,7 +381,7 @@ The seed example is `storybook/core_components/button.story.exs`. Copy its shape
 If you add a component but **don't** add a story (sticky state, orchestration-only, awaiting contract refactor), declare the status on the module immediately so the Credo check passes:
 
 ```elixir
-defmodule MediaCentarrWeb.Components.Foo do
+defmodule MediaCentaurWeb.Components.Foo do
   @moduledoc "..."
 
   Module.register_attribute(__MODULE__, :storybook_status, persist: true)
@@ -408,7 +408,7 @@ Omit all four lines (the two `register_attribute` and the two `@` declarations) 
 
 | ❌ Don't | ✅ Do |
 |---------|------|
-| `defmodule Storybook.X` (auto-generator default) | `defmodule MediaCentarrWeb.Storybook.X` |
+| `defmodule Storybook.X` (auto-generator default) | `defmodule MediaCentaurWeb.Storybook.X` |
 | Import factories from `test/support/` | Use obvious literal fixtures so a designer reading the story can reason about the output |
 | Conditional rendering based on `data-input` mode | Cover the visual outcome statically; describe the mode in `:description` |
 | Add logic-heavy assertions or snapshot diffs to a story | Cover behaviour in `automated-testing`; storybook is visuals only |
@@ -430,12 +430,12 @@ If you reach for fake context state (mocked PubSub, fake LiveView assigns) to ma
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | `module PhoenixStorybook.Router is not loaded` in `MIX_ENV=test` | Dep was `only: :dev` | Make it `only: [:dev, :test]`. The router import inside `if Mix.env() == :dev` is still validated at compile time. |
-| `Storybook.X is not included in any boundary` | Module under `Storybook.*` namespace | Rename to `MediaCentarrWeb.Storybook.*`. |
+| `Storybook.X is not included in any boundary` | Module under `Storybook.*` namespace | Rename to `MediaCentaurWeb.Storybook.*`. |
 | Storybook chrome shows light-on-light text | Daisy `:root { color-scheme: dark }` leaks into storybook chrome | The `html.psb` override in `assets/css/app.css` resets this. Don't remove it. |
-| Component preview is light/unstyled | Theme override too aggressive — wiped variables for the whole storybook | The `html.psb .psb-variation-block .media-centarr` rule restores dark theme inside component previews specifically. Don't widen the selector to all `.media-centarr`; that re-darkens `:page` stories. |
+| Component preview is light/unstyled | Theme override too aggressive — wiped variables for the whole storybook | The `html.psb .psb-variation-block .media-centaur` rule restores dark theme inside component previews specifically. Don't widen the selector to all `.media-centaur`; that re-darkens `:page` stories. |
 | Stories missing from sidebar | New `<area>` directory has no `_<area>.index.exs` | Create the index. Fall back to the auto-generated default by omitting it, but you lose icon control. |
 | Tailwind utility classes used in a story aren't generated | New top-level dir not in `@source` | Add `@source "../../<dir>"` to `assets/css/app.css`. |
-| Compilation error: `module PhoenixStorybook is not loaded` in `lib/media_centarr_web/storybook.ex` | The backend module isn't gated by `if Mix.env() == :dev` | Wrap the whole `defmodule` in `if Mix.env() == :dev do … end`. |
+| Compilation error: `module PhoenixStorybook is not loaded` in `lib/media_centaur_web/storybook.ex` | The backend module isn't gated by `if Mix.env() == :dev` | Wrap the whole `defmodule` in `if Mix.env() == :dev do … end`. |
 | Iframe spinner forever on a `:live_component` story with `def container, do: :iframe` | Live components in iframes use a real HTTP fetch and need the route to be reachable | Verify `storybook_assets()` scope is mounted in the router. |
 
 ## See also

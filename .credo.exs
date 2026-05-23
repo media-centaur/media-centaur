@@ -48,7 +48,7 @@
            [
              ignore_names: [
                ~r/Test$/,
-               ~r/^MediaCentarr\.Credo\.Checks\..+$/,
+               ~r/^MediaCentaur\.Credo\.Checks\..+$/,
                ~r/^Mix\.Tasks\..+$/
              ]
            ]},
@@ -58,7 +58,7 @@
           {Credo.Check.Readability.ParenthesesOnZeroArityDefs, []},
           {Credo.Check.Readability.PipeIntoAnonymousFunctions, []},
           # PredicateFunctionNames intentionally disabled — replaced by
-          # MediaCentarr.Credo.Checks.PredicateNaming, which enforces the
+          # MediaCentaur.Credo.Checks.PredicateNaming, which enforces the
           # AGENTS.md rule (`?` suffix, no `is_` prefix).
           {Credo.Check.Readability.PredicateFunctionNames, false},
           {Credo.Check.Readability.PreferImplicitTry, []},
@@ -90,11 +90,11 @@
           # ReleaseTracking.Scanner). Bumped to 7 to accept current code.
           {Credo.Check.Refactor.FunctionArity, [max_arity: 7]},
           # IoPuts catches debug print statements left in production code, but
-          # `MediaCentarr.Diagnostics` and Mix tasks legitimately print to
+          # `MediaCentaur.Diagnostics` and Mix tasks legitimately print to
           # stdout — that's their job. Exclude those from the check.
           {Credo.Check.Refactor.IoPuts,
            [
-             files: %{excluded: ["lib/media_centarr/diagnostics.ex", "lib/mix/tasks/"]}
+             files: %{excluded: ["lib/media_centaur/diagnostics.ex", "lib/mix/tasks/"]}
            ]},
           {Credo.Check.Refactor.LongQuoteBlocks, [max_line_count: 250]},
           {Credo.Check.Refactor.MapJoin, []},
@@ -159,7 +159,7 @@
           # tuned because the surface area of exclusions exceeds what the
           # check would catch.
           # Note: `Util`/`Utils`/`Misc` were considered for the denylist but the
-          # repo intentionally has `MediaCentarr.DateUtil` (a one-function
+          # repo intentionally has `MediaCentaur.DateUtil` (a one-function
           # module), and there's no clear better name without churn. Keep only
           # `Misc` which signals genuine indecision.
           {CredoNaming.Check.Warning.AvoidSpecificTermsInModuleNames, [terms: ["Misc"]]},
@@ -175,26 +175,26 @@
           {CredoCheckErrorHandlingEctoOban.Check.TransactionErrorInObanJob, []},
 
           # Custom checks (this repo)
-          {MediaCentarr.Credo.Checks.PredicateNaming, []},
-          {MediaCentarr.Credo.Checks.NoAbbreviatedNames, []},
-          {MediaCentarr.Credo.Checks.ContextSubscribeFacade, []},
-          {MediaCentarr.Credo.Checks.EntityModalContract, []},
-          {MediaCentarr.Credo.Checks.PlaybackEventsContract, []},
-          {MediaCentarr.Credo.Checks.LibraryUpdatesContract, []},
-          {MediaCentarr.Credo.Checks.GrabStatusContract, []},
-          {MediaCentarr.Credo.Checks.PursuitStateContract, []},
-          {MediaCentarr.Credo.Checks.NoSysIntrospection, []},
-          {MediaCentarr.Credo.Checks.LogMacroPreferred, []},
-          {MediaCentarr.Credo.Checks.ModalPanelNoClickAway, []},
-          {MediaCentarr.Credo.Checks.RawButtonClass, []},
-          {MediaCentarr.Credo.Checks.RawBadgeClass, []},
-          {MediaCentarr.Credo.Checks.StorybookCoverage, []},
-          {MediaCentarr.Credo.Checks.TypedComponentAttrs, []},
-          {MediaCentarr.Credo.Checks.DestructiveFileQuery, []},
+          {MediaCentaur.Credo.Checks.PredicateNaming, []},
+          {MediaCentaur.Credo.Checks.NoAbbreviatedNames, []},
+          {MediaCentaur.Credo.Checks.ContextSubscribeFacade, []},
+          {MediaCentaur.Credo.Checks.EntityModalContract, []},
+          {MediaCentaur.Credo.Checks.PlaybackEventsContract, []},
+          {MediaCentaur.Credo.Checks.LibraryUpdatesContract, []},
+          {MediaCentaur.Credo.Checks.GrabStatusContract, []},
+          {MediaCentaur.Credo.Checks.PursuitStateContract, []},
+          {MediaCentaur.Credo.Checks.NoSysIntrospection, []},
+          {MediaCentaur.Credo.Checks.LogMacroPreferred, []},
+          {MediaCentaur.Credo.Checks.ModalPanelNoClickAway, []},
+          {MediaCentaur.Credo.Checks.RawButtonClass, []},
+          {MediaCentaur.Credo.Checks.RawBadgeClass, []},
+          {MediaCentaur.Credo.Checks.StorybookCoverage, []},
+          {MediaCentaur.Credo.Checks.TypedComponentAttrs, []},
+          {MediaCentaur.Credo.Checks.DestructiveFileQuery, []},
           # MC0016 enforces eager + sync-decode on in-flow `<img>` tags per
           # ADR-012. Lazy is allowed only in reveal-bounded surfaces named
           # in the check's `@exempt_files` list.
-          {MediaCentarr.Credo.Checks.ImgAttributeDefaults, []},
+          {MediaCentaur.Credo.Checks.ImgAttributeDefaults, []},
           # MC0015 catches `execute("UPDATE …")` / `execute("DELETE …")` in
           # priv/repo/migrations/ — bulk row mutations belong in a data
           # migration per ADR-040, not in a schema migration where a dev
@@ -207,7 +207,7 @@
           # comment-only edit and is allowed, but a single file-level list
           # here is clearer than 40+ scattered annotations. Do not add new
           # files to this list; new mutations go in priv/repo/data_migrations/.
-          {MediaCentarr.Credo.Checks.RowMutationInSchemaMigration,
+          {MediaCentaur.Credo.Checks.RowMutationInSchemaMigration,
            [
              files: %{
                excluded: [
@@ -222,31 +222,31 @@
                ]
              }
            ]},
-          # MC0017 keeps OS-divergent code under `lib/media_centarr/platform/`.
+          # MC0017 keeps OS-divergent code under `lib/media_centaur/platform/`.
           # `:os.type/0` / `:os.cmd/1` outside that directory fail the build.
           # The grandfathered list holds files with pre-existing calls scheduled
           # for migration in later campaign phases — see
           # `campaigns/macos-platform-support.md`. The list shrinks as each seam
           # extracts to `Platform.*`; once empty, drop the option entirely.
-          {MediaCentarr.Credo.Checks.PlatformBranchingDiscipline,
+          {MediaCentaur.Credo.Checks.PlatformBranchingDiscipline,
            [
              grandfathered: [
-               "lib/media_centarr/error_reports/env_metadata.ex"
+               "lib/media_centaur/error_reports/env_metadata.ex"
              ]
            ]},
           # MC0018 blocks DB writes inside on_exit callbacks — they run in
           # ExUnit.OnExitHandler without the test's sandbox ownership and
           # race under concurrent-test load. See
           # campaigns/test-isolation-hardening.md (Category A).
-          {MediaCentarr.Credo.Checks.NoDbInOnExit, []},
+          {MediaCentaur.Credo.Checks.NoDbInOnExit, []},
           # MC0019 bans fire-and-forget
-          # `Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, …)` in the
+          # `Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, …)` in the
           # web layer — orphaned tasks aren't owned by the LiveView, leak past
           # navigation, and hung the test suite. Use start_async/3 (owned) or an
           # Oban job for must-outlive work. The check's grandfather list is the
           # owned-async rollout backlog. See ADR-049 /
           # campaigns/test-suite-performance.md.
-          {MediaCentarr.Credo.Checks.OwnedAsyncInWeb, []}
+          {MediaCentaur.Credo.Checks.OwnedAsyncInWeb, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the
@@ -270,7 +270,7 @@
           # The directive-organization checks below would all fire on the
           # existing codebase. Quokka's `:module_directives` rewriter could
           # auto-fix them, but it's been excluded because it shadows stdlib
-          # modules (e.g. `MediaCentarr.Watcher.DynamicSupervisor` lifted to
+          # modules (e.g. `MediaCentaur.Watcher.DynamicSupervisor` lifted to
           # `DynamicSupervisor` shadows OTP). Without a safe auto-fixer the
           # 80+ manual rewrites aren't worth the noise.
           {Credo.Check.Consistency.MultiAliasImportRequireUse, []},

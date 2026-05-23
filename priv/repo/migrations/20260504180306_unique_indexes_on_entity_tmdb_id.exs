@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.UniqueIndexesOnEntityTmdbId do
+defmodule MediaCentaur.Repo.Migrations.UniqueIndexesOnEntityTmdbId do
   use Ecto.Migration
 
   def change do

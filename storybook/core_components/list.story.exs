@@ -1,7 +1,7 @@
-defmodule MediaCentarrWeb.Storybook.CoreComponents.List do
+defmodule MediaCentaurWeb.Storybook.CoreComponents.List do
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.CoreComponents.list/1
+  def function, do: &MediaCentaurWeb.CoreComponents.list/1
   def render_source, do: :function
 
   def template do

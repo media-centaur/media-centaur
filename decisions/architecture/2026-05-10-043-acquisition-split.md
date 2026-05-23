@@ -6,7 +6,7 @@ date: 2026-05-10
 
 ## Context and Problem Statement
 
-`MediaCentarr.Acquisition` has grown to **76 files** across three
+`MediaCentaur.Acquisition` has grown to **76 files** across three
 distinct responsibilities that share a single boundary:
 
 1. **Search** (~12 files) — Prowlarr API client, query builder /
@@ -32,7 +32,7 @@ Three forces push for a split:
   require rereading anything about `Pursuit.State`. A new download
   client driver should not need awareness of the grab lifecycle.
 * **Vestigial dependency** — the boundary declares
-  `deps: [MediaCentarr.Library, ...]`, but zero code in Acquisition
+  `deps: [MediaCentaur.Library, ...]`, but zero code in Acquisition
   references the `Library` module. The dep was inherited and never
   cleaned up. It's a small symptom of a bigger missing-line-item:
   the boundary stopped describing the actual coupling some time ago.
@@ -52,8 +52,8 @@ is the sub-context split itself.
 
 ## Decision Outcome
 
-Chosen option: **extract `MediaCentarr.Downloads` and
-`MediaCentarr.Search` as sibling contexts to `MediaCentarr.Acquisition`,
+Chosen option: **extract `MediaCentaur.Downloads` and
+`MediaCentaur.Search` as sibling contexts to `MediaCentaur.Acquisition`,
 in two phased rollouts. Pursuits stays inside Acquisition for now.**
 Each phase ships independently and leaves the boundary tree in a
 correct state.
@@ -61,9 +61,9 @@ correct state.
 ### Target boundary tree
 
 ```
-MediaCentarr.Search           (new)  — stateless Prowlarr-facing layer
-MediaCentarr.Acquisition      (slim) — grab lifecycle + pursuits aggregate
-MediaCentarr.Downloads        (new)  — download-client integration
+MediaCentaur.Search           (new)  — stateless Prowlarr-facing layer
+MediaCentaur.Acquisition      (slim) — grab lifecycle + pursuits aggregate
+MediaCentaur.Downloads        (new)  — download-client integration
 ```
 
 Boundary deps:
@@ -103,7 +103,7 @@ shippable.
 **Phase 1 — Extract `Downloads`.** Smallest, cleanest cluster.
 QueueMonitor is the only stateful piece; it moves with its
 supervisor child registration. External callers
-(`MediaCentarrWeb.AcquisitionLive`, `Pursuits.Snapshot`,
+(`MediaCentaurWeb.AcquisitionLive`, `Pursuits.Snapshot`,
 `Pursuits.Observations`, etc.) update their aliases. Validates the
 split pattern before bigger moves.
 
@@ -118,7 +118,7 @@ stays; the cognitive-load case for a fourth context is weaker once
 the other two are out.
 
 > **Stale premise — corrected 2026-05-17.** This ADR was drafted while
-> Acquisition's `deps: [MediaCentarr.Library, …]` line was vestigial.
+> Acquisition's `deps: [MediaCentaur.Library, …]` line was vestigial.
 > Since then, `Acquisition.Pursuits.LibraryReconciler` was added and
 > calls `Library.find_present_episode/3` / `find_present_movie/1` to
 > short-circuit pursuits whose targets are already on disk. The
@@ -205,7 +205,7 @@ acceptable.
 * **View-model relocation.** View-models stay co-located with
   their consumer (web) context — they were originally placed in
   Acquisition to be exported across the boundary, but moving them
-  to `MediaCentarrWeb.*` is a separate concern that doesn't gate
+  to `MediaCentaurWeb.*` is a separate concern that doesn't gate
   the boundary split.
 
 ## Notes

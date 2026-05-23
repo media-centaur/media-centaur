@@ -42,11 +42,11 @@ Each data migration is an ordinary `Ecto.Migration` module. It is loaded by `Ect
 
 ### Boot integration
 
-`MediaCentarr.Release.migrate_data/0` (alongside the existing `migrate/0`) is invoked by the installer immediately after schema migrations and before the symlink flip:
+`MediaCentaur.Release.migrate_data/0` (alongside the existing `migrate/0`) is invoked by the installer immediately after schema migrations and before the symlink flip:
 
 ```sh
-"$target/bin/media_centarr" eval "MediaCentarr.Release.migrate()"
-"$target/bin/media_centarr" eval "MediaCentarr.Release.migrate_data()"
+"$target/bin/media_centaur" eval "MediaCentaur.Release.migrate()"
+"$target/bin/media_centaur" eval "MediaCentaur.Release.migrate_data()"
 ```
 
 If either step fails, the symlink does not flip — the running service continues on the previous release. In-app updates re-exec the new installer, so they traverse the same path; there is no second wiring.
@@ -64,4 +64,4 @@ The `data_migrations` table has the same shape Ecto creates for `schema_migratio
 * Good, because **the snapshot rule (raw SQL, no live aliases, append-only) survives refactors.** Replaying history on a fresh install in 2027 does not break because we renamed a context module in 2026.
 * Bad, because **raw SQL means domain validation isn't applied at backfill time.** A backfill could insert a row that violates a changeset rule the live code would have rejected. Mitigated by the row-level idempotency contract and by reviewing each migration as its own gated piece of work.
 * Bad, because **a long sync-mode backfill blocks installer completion.** For now this is acceptable — the project's scale fits sync mode and the Oban-job-enqueue escape hatch covers the cases that don't. If a multi-hour backfill ever genuinely needs to run on a deploy, we'll revisit then; designing for it now would be premature.
-* Bad, because **`Ecto.Migrator` re-runs the whole `up/0` on partial failure**, so authors must carry the row-level idempotency burden personally. Documented prominently in `MediaCentarr.DataMigrations` and enforced by review.
+* Bad, because **`Ecto.Migrator` re-runs the whole `up/0` on partial failure**, so authors must carry the row-level idempotency burden personally. Documented prominently in `MediaCentaur.DataMigrations` and enforced by review.

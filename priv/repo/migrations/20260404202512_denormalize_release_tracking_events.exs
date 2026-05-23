@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.DenormalizeReleaseTrackingEvents do
+defmodule MediaCentaur.Repo.Migrations.DenormalizeReleaseTrackingEvents do
   use Ecto.Migration
 
   def change do

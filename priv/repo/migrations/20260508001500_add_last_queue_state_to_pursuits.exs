@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddLastQueueStateToPursuits do
+defmodule MediaCentaur.Repo.Migrations.AddLastQueueStateToPursuits do
   use Ecto.Migration
 
   def change do

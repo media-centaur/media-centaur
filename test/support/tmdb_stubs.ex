@@ -1,4 +1,4 @@
-defmodule MediaCentarr.TmdbStubs do
+defmodule MediaCentaur.TmdbStubs do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @moduledoc """
@@ -16,10 +16,10 @@ defmodule MediaCentarr.TmdbStubs do
   def setup_tmdb_client(context \\ %{}) do
     Req.Test.stub(:tmdb, fn conn -> json_resp(conn, 200, %{"results" => []}) end)
     client = Req.new(plug: {Req.Test, :tmdb}, retry: false)
-    :persistent_term.put({MediaCentarr.TMDB.Client, :client}, client)
+    :persistent_term.put({MediaCentaur.TMDB.Client, :client}, client)
 
     ExUnit.Callbacks.on_exit(fn ->
-      :persistent_term.erase({MediaCentarr.TMDB.Client, :client})
+      :persistent_term.erase({MediaCentaur.TMDB.Client, :client})
     end)
 
     context

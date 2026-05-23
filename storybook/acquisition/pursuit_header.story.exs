@@ -1,12 +1,12 @@
-defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
+defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
   @moduledoc "Identity header for the pursuit detail modal."
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Acquisition.ViewModels.PursuitHeader
-  alias MediaCentarr.Acquisition.ViewModels.Recipe
+  alias MediaCentaur.Acquisition.ViewModels.PursuitHeader
+  alias MediaCentaur.Acquisition.ViewModels.Recipe
 
-  def function, do: &MediaCentarrWeb.Components.Acquisition.PursuitHeader.pursuit_header/1
+  def function, do: &MediaCentaurWeb.Components.Acquisition.PursuitHeader.pursuit_header/1
   def render_source, do: :function
 
   def template do

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.CollapseNeedsDecisionIntoAwaitingFlag do
+defmodule MediaCentaur.Repo.Migrations.CollapseNeedsDecisionIntoAwaitingFlag do
   @moduledoc """
   Collapses `state = "needs_decision"` into an orthogonal
   `awaiting_decision_at` timestamp on `acquisition_pursuits`.

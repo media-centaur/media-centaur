@@ -34,7 +34,7 @@ scripts/profile --skip-seed        # re-measure against existing DB
 scripts/profile --rebaseline       # prompt to promote run → baseline
 ```
 
-`scripts/profile` sets `MEDIA_CENTARR_CONFIG_OVERRIDE` so the run
+`scripts/profile` sets `MEDIA_CENTAUR_CONFIG_OVERRIDE` so the run
 uses an isolated `priv/profile/` DB and never touches dev or prod.
 The mix task refuses to start without that override.
 
@@ -52,7 +52,7 @@ the stable threshold, sorted by severity. Glyphs:
 | `↓ IMPROVEMENT`    | ≥ -25 % faster / smaller               |
 
 Anything within ±10 % is `stable` and not surfaced. Thresholds are
-defaults in `MediaCentarr.Profile.Diff`; tighten via the diff API
+defaults in `MediaCentaur.Profile.Diff`; tighten via the diff API
 if you need a sharper signal locally.
 
 Diffed metrics: microbenchmark `median_ns` + `p99_ns` per scenario,
@@ -90,7 +90,7 @@ interactive consent.
 
 Baselines reflect the hardware that produced them — CPU model,
 core count, scheduler behaviour, page cache state. Cross-machine
-diffs will show false regressions. Media Centarr is a
+diffs will show false regressions. Media Centaur is a
 single-developer project, so a single machine's baseline is the
 working norm; future contributors should rebaseline on their own
 hardware before reading too much into deltas.
@@ -98,6 +98,6 @@ hardware before reading too much into deltas.
 ## Pointers
 
 * [ADR-041 — In-memory projection architecture](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)
-* `lib/media_centarr/profile/` — Suite, Bench, Mounts, Diff, RunData
+* `lib/media_centaur/profile/` — Suite, Bench, Mounts, Diff, RunData
 * `lib/mix/tasks/profile.ex` — orchestration, terminal summary,
   `--rebaseline` flow

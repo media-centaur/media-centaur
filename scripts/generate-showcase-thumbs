@@ -2,7 +2,7 @@
 # Regenerate the bundled showcase episode-thumbnail placeholders.
 #
 # These are the fallback thumbs used by the seeder
-# (MediaCentarr.Showcase.bundle_episode_thumb!/1) for TV series where
+# (MediaCentaur.Showcase.bundle_episode_thumb!/1) for TV series where
 # TMDB has no still_path — currently only Pioneer One (CC-BY-NC-SA).
 #
 # The design goal is "tasteful dark placeholder that reads as

@@ -3,7 +3,7 @@
 #
 # Flow:
 #   1. Stop any showcase server listening on :4003 (best-effort).
-#   2. Delete priv/showcase/media-centarr.db{,-shm,-wal}.
+#   2. Delete priv/showcase/media-centaur.db{,-shm,-wal}.
 #   3. ecto.create + ecto.migrate against the showcase override TOML.
 #   4. Pull the TMDB API key from the dev DB's settings_entries (the one
 #      and only place it's stored on this machine) and export it so the
@@ -19,9 +19,9 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
-OVERRIDE="defaults/media-centarr-showcase.toml"
-SHOWCASE_DB="priv/showcase/media-centarr.db"
-DEV_DB="$HOME/.local/share/media-centarr/media-centarr.db"
+OVERRIDE="defaults/media-centaur-showcase.toml"
+SHOWCASE_DB="priv/showcase/media-centaur.db"
+DEV_DB="$HOME/.local/share/media-centaur/media-centaur.db"
 SHOWCASE_PORT=4003
 
 # 1. Stop any showcase-on-4003 so the DB isn't locked when we wipe.
@@ -57,10 +57,10 @@ fi
 # 2. Wipe showcase DB + WAL sidecars.
 rm -f "$SHOWCASE_DB" "${SHOWCASE_DB}-shm" "${SHOWCASE_DB}-wal"
 
-# 3. Create + migrate. MEDIA_CENTARR_CONFIG_OVERRIDE points at the shipped
-# showcase TOML, which carries an explicit priv/showcase/media-centarr.db
+# 3. Create + migrate. MEDIA_CENTAUR_CONFIG_OVERRIDE points at the shipped
+# showcase TOML, which carries an explicit priv/showcase/media-centaur.db
 # path so there's no risk of hitting the default dev DB.
-export MEDIA_CENTARR_CONFIG_OVERRIDE="$OVERRIDE"
+export MEDIA_CENTAUR_CONFIG_OVERRIDE="$OVERRIDE"
 mise exec -- mix ecto.create
 mise exec -- mix ecto.migrate
 

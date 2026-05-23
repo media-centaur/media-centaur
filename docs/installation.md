@@ -1,6 +1,6 @@
 # Installation
 
-The installation guide has moved to the wiki: **[Installation](https://github.com/media-centarr/media-centarr/wiki/Installation)**.
+The installation guide has moved to the wiki: **[Installation](https://github.com/media-centaur/media-centaur/wiki/Installation)**.
 
 That page covers:
 

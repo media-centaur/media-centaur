@@ -2,9 +2,9 @@
 
 End-user content has moved to the wiki:
 
-- **[Playback](https://github.com/media-centarr/media-centarr/wiki/Playback)** — how playback works end-to-end.
-- **[Keyboard & Gamepad](https://github.com/media-centarr/media-centarr/wiki/Keyboard-and-Gamepad)** — full mpv key bindings (playback, seek, tracks, volume, subtitles).
-- **[FAQ → Why mpv](https://github.com/media-centarr/media-centarr/wiki/FAQ#why-mpv)** — the rationale for delegating to mpv.
+- **[Playback](https://github.com/media-centaur/media-centaur/wiki/Playback)** — how playback works end-to-end.
+- **[Keyboard & Gamepad](https://github.com/media-centaur/media-centaur/wiki/Keyboard-and-Gamepad)** — full mpv key bindings (playback, seek, tracks, volume, subtitles).
+- **[FAQ → Why mpv](https://github.com/media-centaur/media-centaur/wiki/FAQ#why-mpv)** — the rationale for delegating to mpv.
 
 ---
 
@@ -12,7 +12,7 @@ End-user content has moved to the wiki:
 
 The remainder of this file documents mpv configuration, the couch-mode Lua scripts shipped in `../contrib/mpv/`, and their implementation details. End users who just want to know which keys do what should use the wiki links above.
 
-> **Repo layout note:** mpv configs live in the sibling `contrib/` repo at `~/src/media-centarr/contrib/`, not inside this main app repo. Paths below are relative to this repo's root. If the contrib repo isn't checked out alongside, clone it: `git clone git@github.com:media-centarr/contrib.git ../contrib`.
+> **Repo layout note:** mpv configs live in the sibling `contrib/` repo at `~/src/media-centaur/contrib/`, not inside this main app repo. Paths below are relative to this repo's root. If the contrib repo isn't checked out alongside, clone it: `git clone git@github.com:media-centaur/contrib.git ../contrib`.
 
 ## Installation
 
@@ -65,7 +65,7 @@ cp -r ../contrib/mpv/scripts/ ~/.config/mpv/scripts/
 
 ## Key Bindings (input.conf)
 
-See the wiki's [Keyboard & Gamepad](https://github.com/media-centarr/media-centarr/wiki/Keyboard-and-Gamepad) page for the user-facing reference. The canonical source is `../contrib/mpv/input.conf`.
+See the wiki's [Keyboard & Gamepad](https://github.com/media-centaur/media-centaur/wiki/Keyboard-and-Gamepad) page for the user-facing reference. The canonical source is `../contrib/mpv/input.conf`.
 
 ## track-menu Plugin
 

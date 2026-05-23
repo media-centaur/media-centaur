@@ -1,11 +1,11 @@
-defmodule MediaCentarrWeb.Storybook.Acquisition.DecisionCard do
+defmodule MediaCentaurWeb.Storybook.Acquisition.DecisionCard do
   @moduledoc "Alternatives picker shown on a pursuit detail page when its `awaiting_decision_at` flag is set."
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Acquisition.ViewModels.{Alternative, DecisionCard}
+  alias MediaCentaur.Acquisition.ViewModels.{Alternative, DecisionCard}
 
-  def function, do: &MediaCentarrWeb.Components.Acquisition.DecisionCard.decision_card/1
+  def function, do: &MediaCentaurWeb.Components.Acquisition.DecisionCard.decision_card/1
   def render_source, do: :function
 
   def template do

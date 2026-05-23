@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.CreateLibraryMediaTrackOverrides do
+defmodule MediaCentaur.Repo.Migrations.CreateLibraryMediaTrackOverrides do
   @moduledoc """
   Per-entity audio + subtitle track overrides used by the playback
   language policy. When the user manually changes tracks inside mpv, the

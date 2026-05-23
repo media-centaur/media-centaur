@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.SubtitleTracksTable do
+defmodule MediaCentaur.Repo.Migrations.SubtitleTracksTable do
   @moduledoc """
   Library Schema v2 Phase 1 Task 5 — moves subtitle tracks out of the
   `library_watched_files.subtitle_tracks` JSON column into the new

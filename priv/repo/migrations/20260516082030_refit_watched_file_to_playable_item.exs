@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.RefitWatchedFileToPlayableItem do
+defmodule MediaCentaur.Repo.Migrations.RefitWatchedFileToPlayableItem do
   @moduledoc """
   Library Schema v2 — Phase 2 Task B.
 
@@ -130,7 +130,7 @@ defmodule MediaCentarr.Repo.Migrations.RefitWatchedFileToPlayableItem do
       )
     """)
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("""
     UPDATE library_watched_files
        SET playable_item_id = (
@@ -163,7 +163,7 @@ defmodule MediaCentarr.Repo.Migrations.RefitWatchedFileToPlayableItem do
       )
     """)
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("""
     UPDATE library_watched_files
        SET playable_item_id = (
@@ -198,7 +198,7 @@ defmodule MediaCentarr.Repo.Migrations.RefitWatchedFileToPlayableItem do
       )
     """)
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("""
     UPDATE library_watched_files
        SET playable_item_id = (
@@ -240,7 +240,7 @@ defmodule MediaCentarr.Repo.Migrations.RefitWatchedFileToPlayableItem do
       )
     """)
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("""
     UPDATE library_watched_files
        SET playable_item_id = (
@@ -265,7 +265,7 @@ defmodule MediaCentarr.Repo.Migrations.RefitWatchedFileToPlayableItem do
     #
     # The INSERT joins `library_extras` by `(content_url, movie_series_id)`.
     # Production data audit (2026-05-16) found 22 such Extras.
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("""
     INSERT INTO library_extra_files (id, file_path, watch_dir, extra_id, inserted_at, updated_at)
     SELECT
@@ -307,7 +307,7 @@ defmodule MediaCentarr.Repo.Migrations.RefitWatchedFileToPlayableItem do
 
     # Now drop the promoted rows from WatchedFile so the only remaining
     # NULL-playable_item_id rows are truly dangling.
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("""
     DELETE FROM library_watched_files
      WHERE playable_item_id IS NULL
@@ -325,7 +325,7 @@ defmodule MediaCentarr.Repo.Migrations.RefitWatchedFileToPlayableItem do
           "(no PlayableItem and no Extra match)"
       )
 
-      # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+      # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
       execute("DELETE FROM library_watched_files WHERE playable_item_id IS NULL")
     end
 

@@ -1,6 +1,6 @@
 # Image Cache Specification
 
-This document specifies how artwork images are stored, referenced, and loaded in the Media Centarr system.
+This document specifies how artwork images are stored, referenced, and loaded in the Media Centaur system.
 
 ---
 
@@ -22,7 +22,7 @@ This document specifies how artwork images are stored, referenced, and loaded in
 
 ## Image Schema
 
-Each row in `library_images` (Ecto schema `MediaCentarr.Library.Image`)
+Each row in `library_images` (Ecto schema `MediaCentaur.Library.Image`)
 holds one image for one entity. See the schema module for the full
 field list.
 
@@ -62,10 +62,10 @@ Key fields for image caching:
 
 ## Directory Structure
 
-Each watch directory has its own image cache. By default, images are stored at `{watch_dir}/.media-centarr/images/`. Users can override this per watch directory from the UI — **Settings → Library → Watch Directories** exposes an advanced *images directory* field on each entry for putting the artwork cache on a separate volume (e.g. SSD). Watch directories are DB-managed since v0.14.0; the TOML is not consulted for them.
+Each watch directory has its own image cache. By default, images are stored at `{watch_dir}/.media-centaur/images/`. Users can override this per watch directory from the UI — **Settings → Library → Watch Directories** exposes an advanced *images directory* field on each entry for putting the artwork cache on a separate volume (e.g. SSD). Watch directories are DB-managed since v0.14.0; the TOML is not consulted for them.
 
 ```
-/mnt/videos/.media-centarr/
+/mnt/videos/.media-centaur/
 └── images/
     ├── 550e8400-e29b-41d4-a716-446655440001/   # Sample Movie (entity)
     │   ├── poster.jpg
@@ -74,7 +74,7 @@ Each watch directory has its own image cache. By default, images are stored at `
     │   └── poster.jpg
     └── ...
 
-/mnt/nas/TV/.media-centarr/
+/mnt/nas/TV/.media-centaur/
 └── images/
     ├── 550e8400-e29b-41d4-a716-446655440004/   # Sample Show (entity)
     │   └── poster.jpg
@@ -86,7 +86,7 @@ Each watch directory has its own image cache. By default, images are stored at `
 - One subdirectory per owner (entity, child movie, or episode), named by the owner's UUID.
 - Filename is `{role}.{ext}` — extension matches the source format (`.jpg` or `.png`).
 - The database stores relative paths (`{uuid}/{role}.{ext}`). The serializer resolves to absolute filesystem paths when needed.
-- Staging directories for in-progress downloads are created at `{images_dir}/partial-downloads/` (inside the image cache, not alongside it) and cleaned up after pipeline completion and on application startup. See `MediaCentarr.Config.staging_base_for/1`.
+- Staging directories for in-progress downloads are created at `{images_dir}/partial-downloads/` (inside the image cache, not alongside it) and cleaned up after pipeline completion and on application startup. See `MediaCentaur.Config.staging_base_for/1`.
 
 ---
 
@@ -104,12 +104,12 @@ The manager app uses these patterns when downloading images:
 
 `{poster_path}` etc. come from the TMDB API response (e.g. `/1E5baAaEse26fej7uHcjOgEE2t2.jpg`).
 
-All image downloads — whether driven by the Pipeline (`MediaCentarr.Pipeline.ImageProcessor`) or by `ReleaseTracking.ImageStore` — go through the shared `MediaCentarr.Images` facade:
+All image downloads — whether driven by the Pipeline (`MediaCentaur.Pipeline.ImageProcessor`) or by `ReleaseTracking.ImageStore` — go through the shared `MediaCentaur.Images` facade:
 
 - `Images.download/3` — download + resize via libvips. Used for poster / backdrop / logo / thumb where the on-disk size must match the target role.
 - `Images.download_raw/2` — raw bytes without processing. Used where a downstream consumer needs the unmodified source.
 
-No caller writes an HTTP download inline. Resize targets per role are defined in `MediaCentarr.Pipeline.ImageProcessor`.
+No caller writes an HTTP download inline. Resize targets per role are defined in `MediaCentaur.Pipeline.ImageProcessor`.
 
 **Video Objects:** No standard source. User-provided thumbnails or frames extracted from video.
 

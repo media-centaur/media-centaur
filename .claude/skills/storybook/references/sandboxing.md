@@ -10,7 +10,7 @@ This doc explains how we mitigate both, and why the CSS overrides in `assets/css
 ## What loads where
 
 - **Chrome** = the storybook UI: sidebar, header, tabs, search box. Tailwind classes use the `psb:` prefix and only `.psb`-classed elements get preflight reset.
-- **Sandbox** = the container around each variation render. It carries `class="psb-sandbox media-centarr"` (the second is our `sandbox_class`). Components render inside this.
+- **Sandbox** = the container around each variation render. It carries `class="psb-sandbox media-centaur"` (the second is our `sandbox_class`). Components render inside this.
 - **`css_path`** loads into the same DOM as chrome — the `psb:` prefix is what (mostly) prevents storybook utilities from clashing with our utilities.
 - **`js_path`** loads before storybook's own JS and is where you set `window.storybook = { Hooks, Params, Uploaders }` if components need them.
 
@@ -25,7 +25,7 @@ The dual problem: chrome leaking into components, and our CSS leaking into chrom
 
 ## How we solve it
 
-The chrome's `<html>` and `<body>` carry the `psb` class. The sandbox carries `media-centarr`. Three rules combined:
+The chrome's `<html>` and `<body>` carry the `psb` class. The sandbox carries `media-centaur`. Three rules combined:
 
 ### 1. Scope the body gradient
 
@@ -38,10 +38,10 @@ body { background-image: ...gradient...; }
 Now:
 
 ```css
-body.media-centarr { background-image: ...gradient...; }
+body.media-centaur { background-image: ...gradient...; }
 ```
 
-Effect: the gradient only paints when `body` has the sandbox class. The live app body has it (we added `class="media-centarr"` in `root.html.heex`). The storybook chrome body doesn't.
+Effect: the gradient only paints when `body` has the sandbox class. The live app body has it (we added `class="media-centaur"` in `root.html.heex`). The storybook chrome body doesn't.
 
 ### 2. Reset chrome to a light scheme
 
@@ -62,7 +62,7 @@ This kicks in only inside storybook's chrome (`html.psb`). Browser defaults flip
 ### 3. Restore dark theme inside component preview sandboxes
 
 ```css
-html.psb .psb-variation-block .media-centarr {
+html.psb .psb-variation-block .media-centaur {
   color-scheme: dark;
   color: var(--color-base-content);
   background:
@@ -88,9 +88,9 @@ Class-based scoping (above) is uglier but doesn't require app changes.
 
 ## Why not `:has()`-based selectors?
 
-The first attempt was `html:not(:has(.media-centarr))` — assuming the chrome's `<html>` would have no `.media-centarr` descendant. That fails because storybook puts `.media-centarr` on every variation's container, and those are children of the chrome's `<html>`.
+The first attempt was `html:not(:has(.media-centaur))` — assuming the chrome's `<html>` would have no `.media-centaur` descendant. That fails because storybook puts `.media-centaur` on every variation's container, and those are children of the chrome's `<html>`.
 
-Lesson: don't reason about "chrome vs sandbox" via DOM ancestry. Use the explicit class markers (`html.psb` vs `.media-centarr` vs `.psb-variation-block`) that storybook already provides.
+Lesson: don't reason about "chrome vs sandbox" via DOM ancestry. Use the explicit class markers (`html.psb` vs `.media-centaur` vs `.psb-variation-block`) that storybook already provides.
 
 ## Why not a separate storybook.css?
 
@@ -100,7 +100,7 @@ The auto-generator creates `assets/css/storybook.css` and `assets/js/storybook.j
 - The `psb:` prefix already isolates chrome utilities from component utilities.
 - The class-scoped overrides above achieve sandbox isolation cleanly.
 
-Rule: do **not** recreate those files. If you need component-specific behaviour, either declare it inline in `app.css` scoped to `.media-centarr`, or use a Tailwind plugin that applies inside the sandbox.
+Rule: do **not** recreate those files. If you need component-specific behaviour, either declare it inline in `app.css` scoped to `.media-centaur`, or use a Tailwind plugin that applies inside the sandbox.
 
 ## Iframe escape hatch
 
@@ -124,7 +124,7 @@ When **not** to reach for it:
 When something looks off, run this in the dev console with the storybook page open:
 
 ```js
-const sb = document.querySelector('.media-centarr');
+const sb = document.querySelector('.media-centaur');
 console.log({
   htmlClass: document.documentElement.className,
   htmlColorScheme: getComputedStyle(document.documentElement).colorScheme,
@@ -161,13 +161,13 @@ Expected on a `:page` story (welcome):
 }
 ```
 
-If `htmlColorScheme` is `"dark"`, the `html.psb` reset isn't winning specificity. If `sandboxColorScheme` is `"light"` on a component story, the `.psb-variation-block .media-centarr` rule isn't matching.
+If `htmlColorScheme` is `"dark"`, the `html.psb` reset isn't winning specificity. If `sandboxColorScheme` is `"light"` on a component story, the `.psb-variation-block .media-centaur` rule isn't matching.
 
 ## Color modes (currently unused)
 
 Phoenix Storybook has built-in light/dark/system support via `color_mode: true`. We don't enable it because our app is dark-only — the dark theme is the only theme. If we ever ship a light theme, revisit:
 
-1. Set `color_mode: true` in `lib/media_centarr_web/storybook.ex`.
+1. Set `color_mode: true` in `lib/media_centaur_web/storybook.ex`.
 2. Set `color_mode_sandbox_dark_class: "dark-theme"` (or whatever class triggers our dark theme).
 3. Update the override rules to switch theme based on the sandbox class instead of unconditionally restoring dark.
 

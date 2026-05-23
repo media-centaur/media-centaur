@@ -8,8 +8,8 @@ defmodule Mix.Tasks.Ecto.MigrateData do
       mix ecto.migrate_data
 
   Data migrations are distinct from schema migrations — see
-  `MediaCentarr.DataMigrations` for the authoring contract. Production
-  releases run this from `MediaCentarr.Release.migrate_data/0` after
+  `MediaCentaur.DataMigrations` for the authoring contract. Production
+  releases run this from `MediaCentaur.Release.migrate_data/0` after
   schema migrations and before the symlink flip; this Mix task is the
   dev-parity entry point.
   """
@@ -19,8 +19,8 @@ defmodule Mix.Tasks.Ecto.MigrateData do
   def run(_args) do
     Mix.Task.run("app.start")
 
-    for repo <- Application.fetch_env!(:media_centarr, :ecto_repos) do
-      MediaCentarr.DataMigrations.run!(repo)
+    for repo <- Application.fetch_env!(:media_centaur, :ecto_repos) do
+      MediaCentaur.DataMigrations.run!(repo)
     end
   end
 end

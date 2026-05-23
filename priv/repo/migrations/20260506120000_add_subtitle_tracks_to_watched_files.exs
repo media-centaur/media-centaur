@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddSubtitleTracksToWatchedFiles do
+defmodule MediaCentaur.Repo.Migrations.AddSubtitleTracksToWatchedFiles do
   use Ecto.Migration
 
   def change do

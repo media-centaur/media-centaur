@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.DropFilePresenceFk do
+defmodule MediaCentaur.Repo.Migrations.DropFilePresenceFk do
   use Ecto.Migration
 
   # Closes out the library-presence-unification campaign (ADR-046):
@@ -43,7 +43,7 @@ defmodule MediaCentarr.Repo.Migrations.DropFilePresenceFk do
     execute("DROP INDEX IF EXISTS #{table}_file_presence_id_index")
     execute("ALTER TABLE #{table} ADD COLUMN file_presence_id BLOB")
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("UPDATE #{table} SET file_presence_id = file_presence_id_legacy")
 
     flush()

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.DataMigrations.BackfillFilePresenceIds do
+defmodule MediaCentaur.Repo.DataMigrations.BackfillFilePresenceIds do
   @moduledoc """
   Backfills `file_presence_id` on every `library_watched_files` and
   `library_extra_files` row by ensuring a matching `library_file_presences`

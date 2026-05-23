@@ -1,11 +1,11 @@
-defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitTimeline do
+defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitTimeline do
   @moduledoc "Full-page timeline rendering all events for a pursuit."
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Acquisition.ViewModels.{Timeline, TimelineEntry}
+  alias MediaCentaur.Acquisition.ViewModels.{Timeline, TimelineEntry}
 
-  def function, do: &MediaCentarrWeb.Components.Acquisition.PursuitTimeline.timeline/1
+  def function, do: &MediaCentaurWeb.Components.Acquisition.PursuitTimeline.timeline/1
   def render_source, do: :function
 
   def template do

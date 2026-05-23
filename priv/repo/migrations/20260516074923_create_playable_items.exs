@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.CreatePlayableItems do
+defmodule MediaCentaur.Repo.Migrations.CreatePlayableItems do
   use Ecto.Migration
 
   def change do
@@ -14,7 +14,7 @@ defmodule MediaCentarr.Repo.Migrations.CreatePlayableItems do
 
     # Discriminator pair (campaign decision 2026-05-15). No DB-level FK
     # enforcement on `container_id` — app-level integrity is enforced at
-    # the write seam in `MediaCentarr.Library.Inbound`.
+    # the write seam in `MediaCentaur.Library.Inbound`.
     #
     # Unique on `(container_type, container_id, position)` so Task B/G can
     # use changeset `unique_constraint` errors for race-loss recovery
@@ -23,7 +23,7 @@ defmodule MediaCentarr.Repo.Migrations.CreatePlayableItems do
     # a separate non-unique index would be redundant. The default Ecto-
     # derived name (`library_playable_items_container_type_container_id_position_index`)
     # matches the synthetic name the SQLite adapter surfaces in
-    # constraint errors — see `MediaCentarr.Library.PlayableItem.create_changeset/1`.
+    # constraint errors — see `MediaCentaur.Library.PlayableItem.create_changeset/1`.
     create unique_index(:library_playable_items, [:container_type, :container_id, :position])
   end
 end

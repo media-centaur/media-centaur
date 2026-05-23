@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Detail.FacetStrip do
+defmodule MediaCentaurWeb.Storybook.Detail.FacetStrip do
   @moduledoc """
   Single-row label-on-top column strip used inside the entity detail panel.
 
@@ -24,9 +24,9 @@ defmodule MediaCentarrWeb.Storybook.Detail.FacetStrip do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarrWeb.Components.Detail.Facet
+  alias MediaCentaurWeb.Components.Detail.Facet
 
-  def function, do: &MediaCentarrWeb.Components.Detail.FacetStrip.facet_strip/1
+  def function, do: &MediaCentaurWeb.Components.Detail.FacetStrip.facet_strip/1
   def aliases, do: [Facet]
   def render_source, do: :function
   def layout, do: :one_column

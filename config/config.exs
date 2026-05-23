@@ -10,7 +10,7 @@ import Config
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
-  media_centarr: [
+  media_centaur: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
@@ -22,23 +22,23 @@ config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",
   metadata: [:request_id]
 
-config :media_centarr, MediaCentarr.Repo,
-  database: Path.expand("~/.local/share/media-centarr/media-centarr.db")
+config :media_centaur, MediaCentaur.Repo,
+  database: Path.expand("~/.local/share/media-centaur/media-centaur.db")
 
 # Configures the endpoint
-config :media_centarr, MediaCentarrWeb.Endpoint,
+config :media_centaur, MediaCentaurWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: MediaCentarrWeb.ErrorHTML, json: MediaCentarrWeb.ErrorJSON],
+    formats: [html: MediaCentaurWeb.ErrorHTML, json: MediaCentaurWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: MediaCentarr.PubSub,
+  pubsub_server: MediaCentaur.PubSub,
   live_view: [signing_salt: "802OLLfH"]
 
-config :media_centarr, Oban,
+config :media_centaur, Oban,
   engine: Oban.Engines.Lite,
-  repo: MediaCentarr.Repo,
+  repo: MediaCentaur.Repo,
   # acquisition: Prowlarr search fans out to every configured indexer in
   # parallel, so the real concurrency is `acquisition * indexers`. With a
   # typical 6-indexer setup, 3 workers = 18 simultaneous outbound HTTP
@@ -53,15 +53,15 @@ config :media_centarr, Oban,
     # us far under the 60/h unauthenticated rate limit.
     {Oban.Plugins.Cron,
      crontab: [
-       {"17 */6 * * *", MediaCentarr.SelfUpdate.CheckerJob},
+       {"17 */6 * * *", MediaCentaur.SelfUpdate.CheckerJob},
        # Drives `Pursuits.Policy` for every active pursuit every 15 minutes.
        # Idempotent re-reads on every wake; terminal pursuits are skipped.
-       {"*/15 * * * *", MediaCentarr.Acquisition.Pursuits.Watcher}
+       {"*/15 * * * *", MediaCentaur.Acquisition.Pursuits.Watcher}
      ]}
   ]
 
-config :media_centarr,
-  ecto_repos: [MediaCentarr.Repo],
+config :media_centaur,
+  ecto_repos: [MediaCentaur.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Redact sensitive form params from Plug.Logger output. Any param whose
@@ -76,7 +76,7 @@ config :phoenix, :json_library, Jason
 # Configure tailwind (the version is required)
 config :tailwind,
   version: "4.1.7",
-  media_centarr: [
+  media_centaur: [
     args: ~w(
       --input=assets/css/app.css
       --output=priv/static/assets/css/app.css

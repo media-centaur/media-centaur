@@ -1,12 +1,12 @@
-defmodule MediaCentarr.Credo.Checks.GrabStatusContract do
+defmodule MediaCentaur.Credo.Checks.GrabStatusContract do
   use Credo.Check,
     id: "MC0014",
     base_priority: :high,
     category: :design,
     explanations: [
       check: """
-      Code outside `MediaCentarr.Acquisition.GrabStatus` and the schema
-      module `MediaCentarr.Acquisition.Grab` must not use the `in`
+      Code outside `MediaCentaur.Acquisition.GrabStatus` and the schema
+      module `MediaCentaur.Acquisition.Grab` must not use the `in`
       operator with an inline list of grab-status strings (e.g.
       `status in ["grabbed", "abandoned", "cancelled"]`,
       `status in ["searching", "snoozed"]`). Use the bucket helpers from
@@ -15,7 +15,7 @@ defmodule MediaCentarr.Credo.Checks.GrabStatusContract do
       source of truth.
 
           # preferred
-          alias MediaCentarr.Acquisition.GrabStatus
+          alias MediaCentaur.Acquisition.GrabStatus
 
           if GrabStatus.terminal?(grab.status), do: …
           where: g.status in ^GrabStatus.in_flight()
@@ -31,8 +31,8 @@ defmodule MediaCentarr.Credo.Checks.GrabStatusContract do
       become silently-wrong on the first new-status addition.
 
       The check exempts:
-        * `lib/media_centarr/acquisition/grab_status.ex` — source of truth
-        * `lib/media_centarr/acquisition/grab.ex` — the schema that writes literals
+        * `lib/media_centaur/acquisition/grab_status.ex` — source of truth
+        * `lib/media_centaur/acquisition/grab.ex` — the schema that writes literals
         * `priv/repo/migrations/` — DB-level constants
         * test files
       """
@@ -43,10 +43,10 @@ defmodule MediaCentarr.Credo.Checks.GrabStatusContract do
   @impl true
   def run(%SourceFile{filename: filename} = source_file, params) do
     cond do
-      String.contains?(filename, "lib/media_centarr/acquisition/grab_status.ex") ->
+      String.contains?(filename, "lib/media_centaur/acquisition/grab_status.ex") ->
         []
 
-      String.contains?(filename, "lib/media_centarr/acquisition/grab.ex") ->
+      String.contains?(filename, "lib/media_centaur/acquisition/grab.ex") ->
         []
 
       String.contains?(filename, "priv/repo/migrations/") ->
@@ -91,7 +91,7 @@ defmodule MediaCentarr.Credo.Checks.GrabStatusContract do
       issue_meta,
       message:
         "Inline list of grab-status strings — use a bucket from " <>
-          "`MediaCentarr.Acquisition.GrabStatus` (`in_flight/0`, `terminal/0`, " <>
+          "`MediaCentaur.Acquisition.GrabStatus` (`in_flight/0`, `terminal/0`, " <>
           "`terminal_failure/0`) so adding a new status only requires editing one file.",
       trigger: trigger,
       line_no: line_no || 1

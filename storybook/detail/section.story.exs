@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Detail.Section do
+defmodule MediaCentaurWeb.Storybook.Detail.Section do
   @moduledoc """
   Consistent section wrapper for the entity detail panel — a small
   uppercase header with tracking, followed by an `inner_block` slot for
@@ -16,7 +16,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.Section do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.Components.Detail.Section.section/1
+  def function, do: &MediaCentaurWeb.Components.Detail.Section.section/1
   def render_source, do: :function
   def layout, do: :one_column
 

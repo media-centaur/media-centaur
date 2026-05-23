@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddDownloadIdentityToAcquisitionTargets do
+defmodule MediaCentaur.Repo.Migrations.AddDownloadIdentityToAcquisitionTargets do
   use Ecto.Migration
 
   # Persists the durable link from a target to the file its download

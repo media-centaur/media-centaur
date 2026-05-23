@@ -2,7 +2,7 @@
 >
 > Read [`AGENTS.md`](AGENTS.md) for Elixir/Phoenix/LiveView/Ecto/CSS/JS conventions. Read [`docs/architecture.md`](docs/architecture.md) for the architectural deep-dive (bounded contexts, PubSub topics, supervision tree, key principles).
 
-Phoenix Storybook in this repo pins **component contracts** (typed attrs + their state matrix) and is enforced by `mix precommit`: every function component under `lib/media_centarr_web/components/**` must have a story (Credo check MC0009) and every story must compile + render in `storybook_compile_test` / `storybook_render_test`. When you change a component's attrs, default state, or variation matrix, update the story in the same change — the precommit will tell you if you didn't.
+Phoenix Storybook in this repo pins **component contracts** (typed attrs + their state matrix) and is enforced by `mix precommit`: every function component under `lib/media_centaur_web/components/**` must have a story (Credo check MC0009) and every story must compile + render in `storybook_compile_test` / `storybook_render_test`. When you change a component's attrs, default state, or variation matrix, update the story in the same change — the precommit will tell you if you didn't.
 
 Stories are a **typed coupling check** and a **state-matrix forcing function**, not a guarantee of visual correctness in the app and not a substitute for integration testing. They render in isolation with attribute fixtures; they do not exercise click handlers, PubSub, or LiveView state machines. Interaction bugs (event → assign update → re-render) live in `*_live_test.exs`, not in stories. Don't oversell the storybook to yourself: if a regression is in the wiring rather than the render, no story will catch it.
 
@@ -31,9 +31,9 @@ You are free to design new visual surfaces directly in storybook (the isolated r
 
 Invoke the skill **first**, then explore the codebase, then write code.
 
-# Media Centarr — Backend
+# Media Centaur — Backend
 
-Phoenix/Elixir application managing the Media Centarr media library. **Write-side** of the system: it creates and edits entity records, scrapes metadata from external APIs, and downloads artwork. The LiveView UI provides library browsing, review, playback control, and administration.
+Phoenix/Elixir application managing the Media Centaur media library. **Write-side** of the system: it creates and edits entity records, scrapes metadata from external APIs, and downloads artwork. The LiveView UI provides library browsing, review, playback control, and administration.
 
 Map of contributor docs:
 
@@ -71,36 +71,36 @@ mix seed.review        # populate review UI test cases (one-shot, idempotent)
 
 ### Config overrides (isolated dev/demo instances)
 
-`MEDIA_CENTARR_CONFIG_OVERRIDE` points at a TOML file that fully replaces the default (`~/.config/media-centarr/media-centarr.toml`). It carries its own port, database path, and watch dirs, so a misconfigured command can't clobber the real DB. Single mechanism for running dev + demo side-by-side with the installed release.
+`MEDIA_CENTAUR_CONFIG_OVERRIDE` points at a TOML file that fully replaces the default (`~/.config/media-centaur/media-centaur.toml`). It carries its own port, database path, and watch dirs, so a misconfigured command can't clobber the real DB. Single mechanism for running dev + demo side-by-side with the installed release.
 
 | TOML | Purpose | Binds |
 |------|---------|-------|
-| `defaults/media-centarr-showcase.toml` | Demo instance, public-domain media | :4003 |
+| `defaults/media-centaur-showcase.toml` | Demo instance, public-domain media | :4003 |
 
 ```bash
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.create
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.migrate
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix phx.server
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.create
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.migrate
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix seed.showcase
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix phx.server
 scripts/screenshot-tour    # capture marketing screenshots (manual only)
 ```
 
-`mix seed.showcase` refuses to run without `MEDIA_CENTARR_CONFIG_OVERRIDE` — that guarantee is why the earlier profile mechanism collapsed into this single lever.
+`mix seed.showcase` refuses to run without `MEDIA_CENTAUR_CONFIG_OVERRIDE` — that guarantee is why the earlier profile mechanism collapsed into this single lever.
 
 ### Dev service (optional persistent server)
 
 ```bash
 scripts/install-dev                              # install systemd user service
-systemctl --user start media-centarr-dev         # start
-journalctl --user -u media-centarr-dev -f        # logs
-iex --name repl@127.0.0.1 --remsh media_centarr_dev@127.0.0.1   # remote REPL (Ctrl+\ to detach)
+systemctl --user start media-centaur-dev         # start
+journalctl --user -u media-centaur-dev -f        # logs
+iex --name repl@127.0.0.1 --remsh media_centaur_dev@127.0.0.1   # remote REPL (Ctrl+\ to detach)
 ```
 
 ### Release + deployment
 
 Shipping is tagging — nothing installed by hand:
 
-1. `scripts/preflight` — pre-flight build at `_build/prod/rel/media_centarr/`. Verifies the build is clean. Does NOT install.
+1. `scripts/preflight` — pre-flight build at `_build/prod/rel/media_centaur/`. Verifies the build is clean. Does NOT install.
 2. `/ship <major|minor|patch>` — runs upgrade-safety checks, drafts the user-facing CHANGELOG entry, bumps `mix.exs`, commits, tags `v<version>`, pushes. The tag triggers `.github/workflows/release.yml`.
 3. **Local production catches up via Settings → *Update now***, same path as any end user. There is no `scripts/install`.
 
@@ -118,7 +118,7 @@ When you add a new house rule that fits a static check, prefer adding a custom C
 
 Every system must be designed so Claude Code can get diagnostic feedback at runtime. Tests passing while the app is broken means the observability gap is the first problem to solve.
 
-- **Elixir/OTP:** use `MediaCentarr.Log` (component-tagged macros). Captured into the in-memory ring buffer (`MediaCentarr.Console.Buffer`) and viewable via the Guake-style Console drawer (`` ` ``) or `/console`. See `MediaCentarr.Log` and `MediaCentarr.Console` moduledocs. Production access via the `troubleshoot` skill.
+- **Elixir/OTP:** use `MediaCentaur.Log` (component-tagged macros). Captured into the in-memory ring buffer (`MediaCentaur.Console.Buffer`) and viewable via the Guake-style Console drawer (`` ` ``) or `/console`. See `MediaCentaur.Log` and `MediaCentaur.Console` moduledocs. Production access via the `troubleshoot` skill.
 - **JavaScript:** the input system has `debug()` from `assets/js/input/core/debug.js` — toggle `window.__inputDebug = true`, read via Chrome DevTools MCP. Pattern: toggle-gated function, never bare `console.log`. See the `input-system` skill.
 - **New systems:** if it's not obvious how to surface runtime diagnostics back to Claude Code, stop and consult the user before fixing. The feedback loop is a prerequisite — don't guess.
 
@@ -128,7 +128,7 @@ Load the `automated-testing` skill before writing any test or implementation. It
 
 ### Test and example content (no real show titles)
 
-Anything we author into the codebase — test queries, fixture titles, `@doc`/`@moduledoc` examples, comment examples, seed data — must use **generic placeholders** (`Sample Show`, `Movie A`, `Sample.Show.S01E01.1080p.WEB-DL.mkv`) or PD/CC titles. Real titles drift into screenshots, demos, and grep results. Exempt: `test/media_centarr/parser_test.exs` (real filenames the parser has been observed to handle, append-only per ADR-027) and production runtime data.
+Anything we author into the codebase — test queries, fixture titles, `@doc`/`@moduledoc` examples, comment examples, seed data — must use **generic placeholders** (`Sample Show`, `Movie A`, `Sample.Show.S01E01.1080p.WEB-DL.mkv`) or PD/CC titles. Real titles drift into screenshots, demos, and grep results. Exempt: `test/media_centaur/parser_test.exs` (real filenames the parser has been observed to handle, append-only per ADR-027) and production runtime data.
 
 ## Public-facing documentation
 
@@ -138,14 +138,14 @@ End-user docs live across three surfaces:
 |---|---|---|
 | README | `README.md` | GitHub visitors |
 | GitHub Pages | `docs-site/index.html` (auto-deployed via `.github/workflows/pages.yml`) | Marketing landing |
-| GitHub Wiki | `../media-centarr.wiki/` (git, sibling repo) | Fleshed-out user docs |
+| GitHub Wiki | `../media-centaur.wiki/` (git, sibling repo) | Fleshed-out user docs |
 
 **Internal contributor docs** (`docs/`) stay in this repo. User-facing pages under `docs/` are pointer stubs to the wiki.
 
-**Keep the wiki in sync with user-visible changes** — same unit of work as the code. New setting → `Settings-Reference.md`; new config key → `Configuration-File.md`; keybinding change → `Keyboard-and-Gamepad.md`; new UI flow → corresponding *Using Media Centarr* page; new download driver → `Prowlarr-Integration.md` / `Download-Clients.md`; new failure mode → `Troubleshooting.md`; non-obvious behaviour decision → `FAQ.md`.
+**Keep the wiki in sync with user-visible changes** — same unit of work as the code. New setting → `Settings-Reference.md`; new config key → `Configuration-File.md`; keybinding change → `Keyboard-and-Gamepad.md`; new UI flow → corresponding *Using Media Centaur* page; new download driver → `Prowlarr-Integration.md` / `Download-Clients.md`; new failure mode → `Troubleshooting.md`; non-obvious behaviour decision → `FAQ.md`.
 
 ```sh
-cd ~/src/media-centarr/media-centarr.wiki
+cd ~/src/media-centaur/media-centaur.wiki
 # edit the relevant page(s)
 git add -A
 git commit -m "wiki: <short summary>"
@@ -170,7 +170,7 @@ Decision records live in `decisions/` ([MADR 4.0](https://adr.github.io/madr/)).
 
 ## Defaults
 
-`defaults/` contains git-tracked starter configs — seed values shipped with the repo, **never overwritten at runtime**. Keep `defaults/media-centarr.toml` complete: every key recognised by `MediaCentarr.Config` must have an entry with a logical default and a comment. The file must always be valid TOML.
+`defaults/` contains git-tracked starter configs — seed values shipped with the repo, **never overwritten at runtime**. Keep `defaults/media-centaur.toml` complete: every key recognised by `MediaCentaur.Config` must have an entry with a logical default and a comment. The file must always be valid TOML.
 
 <!-- usage-rules-start -->
 <!-- usage_rules-start -->

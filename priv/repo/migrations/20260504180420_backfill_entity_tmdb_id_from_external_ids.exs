@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.BackfillEntityTmdbIdFromExternalIds do
+defmodule MediaCentaur.Repo.Migrations.BackfillEntityTmdbIdFromExternalIds do
   @moduledoc """
   One-shot data migration: copies the canonical TMDB id from
   `library_external_ids` rows into the new `tmdb_id` column on each

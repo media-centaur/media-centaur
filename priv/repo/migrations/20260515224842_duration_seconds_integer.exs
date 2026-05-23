@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.DurationSecondsInteger do
+defmodule MediaCentaur.Repo.Migrations.DurationSecondsInteger do
   @moduledoc """
   Replaces the stringly-typed `duration` column on `library_movies` and
   `library_episodes` with the canonical `duration_seconds :integer`. See

@@ -1,0 +1,26 @@
+#!/bin/sh
+# media-centaur-launchd-start — launchd entry point for the LaunchAgent.
+#
+# Loads ~/.config/media-centaur/secrets.env (matching the Linux systemd
+# unit's `EnvironmentFile=`), then exec's the release binary in foreground
+# daemon mode so launchd directly supervises the BEAM PID.
+#
+# Self-locating: resolves <release_root> from the script's own path, so
+# the install prefix isn't baked in. Works for any
+# ~/.local/lib/media-centaur/releases/<ver>/bin/media-centaur-launchd-start
+# the `current` symlink may point at.
+set -eu
+
+config_dir="${MEDIA_CENTAUR_CONFIG_DIR:-$HOME/.config/media-centaur}"
+secrets="$config_dir/secrets.env"
+if [ -f "$secrets" ]; then
+    set -a
+    # shellcheck source=/dev/null
+    . "$secrets"
+    set +a
+fi
+
+script_path=$(readlink -f "$0" 2>/dev/null || realpath "$0")
+release_root=$(cd "$(dirname "$script_path")/.." && pwd)
+
+exec "$release_root/bin/media_centaur" start

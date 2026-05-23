@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddQualityBoundsToGrabs do
+defmodule MediaCentaur.Repo.Migrations.AddQualityBoundsToGrabs do
   use Ecto.Migration
 
   def change do

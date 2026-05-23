@@ -1,8 +1,8 @@
-defmodule MediaCentarrWeb.Storybook.Detail.SubtitlesRow do
+defmodule MediaCentaurWeb.Storybook.Detail.SubtitlesRow do
   @moduledoc """
   Compact label-plus-codes row showing the subtitle languages available
   on a movie's linked file(s). Codes are pre-aggregated by
-  `MediaCentarr.Subtitles.aggregate_languages/1`; the component is pure
+  `MediaCentaur.Subtitles.aggregate_languages/1`; the component is pure
   display.
 
   `nil` entries render as the literal text `external` — those came from
@@ -13,7 +13,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.SubtitlesRow do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.Components.Detail.SubtitlesRow.subtitles_row/1
+  def function, do: &MediaCentaurWeb.Components.Detail.SubtitlesRow.subtitles_row/1
   def render_source, do: :function
   def layout, do: :one_column
 
