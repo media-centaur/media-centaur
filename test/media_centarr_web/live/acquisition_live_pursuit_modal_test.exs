@@ -132,10 +132,9 @@ defmodule MediaCentarrWeb.AcquisitionLivePursuitModalTest do
 
       {:ok, view, _html} = live_async!(conn, "/download")
 
-      # `AcquisitionLive.ensure_loaded/1` defers `pursuit_rows` to an
-      # async task. Wait for the `{:acquisition_loaded, _}` reply
-      # before sampling render.
-      Process.sleep(100)
+      # `AcquisitionLive.ensure_loaded/1` defers `pursuit_rows` to an owned
+      # `start_async(:acquisition_load, …)`; `live_async!` already drained it
+      # at mount, so `render/1` reflects the loaded state.
       html = render(view)
 
       # The group renders collapsed by default — header visible, no

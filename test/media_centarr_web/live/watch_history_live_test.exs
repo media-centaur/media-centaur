@@ -101,10 +101,8 @@ defmodule MediaCentarrWeb.WatchHistoryLiveTest do
 
       send(view.pid, {:watch_event_created, event})
 
-      # The handler debounces at 500ms — wait for the window to fire before asserting.
-      Process.sleep(600)
-
-      assert render(view) =~ "Sample Movie"
+      # The new event appears only after the 500ms debounce fires — poll for it.
+      assert render_until(view, "Sample Movie") =~ "Sample Movie"
     end
 
     test "five rapid watch_event_created broadcasts trigger only one reload after the debounce window",

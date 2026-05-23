@@ -91,10 +91,9 @@ defmodule MediaCentarrWeb.HomeLiveTest do
       send(view.pid, {:availability_changed, "/mnt/movies", :available})
       :ok = MediaCentarr.Library.Views.ContinueWatching.refresh_cache()
 
-      # 500ms debounce + slack
-      Process.sleep(700)
-
-      html_after = render(view)
+      # The cache-busted URL (?v=1) appears only after the debounced section
+      # reload re-renders with the bumped :image_version — poll for it.
+      html_after = render_until(view, "/media-images/#{movie.id}/backdrop.jpg?v=1")
       assert html_after =~ "/media-images/#{movie.id}/backdrop.jpg?v=1"
     end
   end
@@ -235,9 +234,8 @@ defmodule MediaCentarrWeb.HomeLiveTest do
 
       send(view.pid, {:library_view_updated, :continue_watching})
 
-      Process.sleep(600)
-
-      assert render(view) =~ "Newly Started Movie"
+      # The new movie appears only after the debounced Continue Watching reload.
+      assert render_until(view, "Newly Started Movie") =~ "Newly Started Movie"
     end
 
     test "playback_state_changed reloads Continue Watching",
@@ -264,9 +262,9 @@ defmodule MediaCentarrWeb.HomeLiveTest do
         started_at: DateTime.utc_now()
       })
 
-      Process.sleep(600)
-
-      assert render(view) =~ "Now Playing Movie"
+      # The now-playing movie floats into Continue Watching only after the
+      # debounced reload — poll for it rather than guessing the settle time.
+      assert render_until(view, "Now Playing Movie") =~ "Now Playing Movie"
     end
 
     test "modal selected_entry refreshes when entity_progress_updated arrives",

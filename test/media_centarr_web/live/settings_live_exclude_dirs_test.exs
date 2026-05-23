@@ -6,12 +6,10 @@ defmodule MediaCentarrWeb.SettingsLiveExcludeDirsTest do
   alias MediaCentarr.Config
 
   # SettingsLive's `ensure_loaded/1` defers its 15+ config / capability
-  # / probe reads to a `Task.Supervisor` child that messages back via
-  # `{:settings_loaded, _}`. Tests interacting with deferred-loaded
-  # state (exclude_dirs / watch_dirs / etc) must wait for the load.
+  # / probe reads to an owned `start_async(:settings_load, …)` (ADR-049).
+  # `render_async/1` awaits the load deterministically — no wall-clock sleep.
   defp wait_for_async_load(view) do
-    Process.sleep(100)
-    _ = render(view)
+    _ = render_async(view)
     view
   end
 

@@ -136,9 +136,11 @@ defmodule MediaCentarr.Library.Views.RecentlyAddedTest do
     test "ETS-cached output matches Library.list_recently_added for the same DB state" do
       on_exit_clear_table()
 
-      seed_recently_added("Movie One")
-      Process.sleep(5)
-      seed_recently_added("Movie Two")
+      # Explicit, distinct inserted_at gives the cached and DB paths a
+      # deterministic order to zip-compare — no clock-advance sleep.
+      now = DateTime.utc_now(:second)
+      seed_recently_added("Movie One", DateTime.add(now, -2, :second))
+      seed_recently_added("Movie Two", DateTime.add(now, -1, :second))
 
       :ok = RecentlyAdded.refresh_cache()
 

@@ -6,12 +6,11 @@ defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
   alias MediaCentarr.Config
 
   # `SettingsLive.ensure_loaded/1` defers its 15+ config / capability
-  # / probe reads to a `Task.Supervisor` child that messages back via
-  # `{:settings_loaded, _}`. Tests that interact with deferred-loaded
-  # `watch_dirs` state must wait for the load before clicking edit/save.
+  # / probe reads to an owned `start_async(:settings_load, …)` (ADR-049).
+  # `render_async/1` awaits the load deterministically before tests click
+  # edit/save — no wall-clock sleep.
   defp wait_for_async_load(view) do
-    Process.sleep(100)
-    _ = render(view)
+    _ = render_async(view)
     view
   end
 
@@ -41,8 +40,10 @@ defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
     |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "Movies", images_dir: ""})
     |> render_change()
 
-    # Wait for debounced validation (500ms debounce + buffer)
-    :timer.sleep(600)
+    # `watch_dir:save` reads dialog.entry/validation, which only the
+    # 500ms-debounced validate handler populates. Poll until the preview
+    # ("Found N video files…") proves the debounce fired before submitting.
+    render_until(view, "video files")
 
     view
     |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "Movies", images_dir: ""})
@@ -71,7 +72,9 @@ defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
     |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "", images_dir: ""})
     |> render_change()
 
-    :timer.sleep(600)
+    # Poll for the debounced validation (see "save persists" above) before
+    # submitting — the save handler reads the validated dialog entry.
+    render_until(view, "video files")
 
     view
     |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "", images_dir: ""})
@@ -97,9 +100,9 @@ defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
     |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "", images_dir: ""})
     |> render_change()
 
-    :timer.sleep(600)
-
-    html = render(view)
+    # The duplicate-dir error surfaces only after the debounced validation
+    # fires — poll for it instead of guessing the settle time.
+    html = render_until(view, "already configured")
     assert html =~ "already configured"
   end
 end

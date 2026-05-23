@@ -32,7 +32,9 @@ defmodule MediaCentarrWeb.StatusLive.ErrorSummaryTest do
       {:buckets_changed, [sample_bucket()]}
     )
 
-    :timer.sleep(50)
+    # PubSub delivers to the LiveView's mailbox with a synchronous local send;
+    # the next render (via has_element?/2) serialises after it in the LV's FIFO
+    # mailbox, so the broadcast is already applied — no settle sleep needed.
     assert has_element?(view, "[data-testid='error-summary-card']")
   end
 end

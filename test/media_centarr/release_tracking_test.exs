@@ -231,14 +231,23 @@ defmodule MediaCentarr.ReleaseTrackingTest do
       release = create_tracking_release(%{item_id: item.id, season_number: 1, episode_number: 1})
 
       ReleaseTracking.mark_in_library_releases(item)
-      first = MediaCentarr.Repo.get!(MediaCentarr.ReleaseTracking.Release, release.id).in_library_at
 
-      # Sleep briefly to ensure any re-bump would have a different timestamp.
-      Process.sleep(1100)
+      # Backdate in_library_at to a sentinel. A (buggy) re-bump on the second
+      # call would overwrite it with the current time, so asserting it is
+      # unchanged catches the regression deterministically — no clock-advance
+      # sleep needed to make the timestamps distinguishable.
+      sentinel = ~U[2000-01-01 00:00:00Z]
+
+      {1, _} =
+        MediaCentarr.Repo.update_all(
+          from(r in MediaCentarr.ReleaseTracking.Release, where: r.id == ^release.id),
+          set: [in_library_at: sentinel]
+        )
+
       ReleaseTracking.mark_in_library_releases(item)
       second = MediaCentarr.Repo.get!(MediaCentarr.ReleaseTracking.Release, release.id).in_library_at
 
-      assert first == second
+      assert second == sentinel
     end
 
     test "stamps in_library_at on first transition (movie)" do

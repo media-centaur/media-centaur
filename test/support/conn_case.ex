@@ -68,4 +68,49 @@ defmodule MediaCentarrWeb.ConnCase do
       end
     end
   end
+
+  @doc """
+  Polls `render(view)` until the rendered HTML matches `matcher`, or `timeout`
+  ms elapses (then `flunk/1`). Returns the matching HTML.
+
+  `matcher` is either a substring or a 1-arity predicate over the HTML. This is
+  the deterministic replacement for a fixed `Process.sleep` before asserting on
+  async-derived render output (ADR-049, sleep hygiene): a fixed sleep guesses
+  the settle time and either flakes (too short) or wastes wall-clock (too
+  long); this waits exactly as long as the content needs and fails loudly if it
+  never appears.
+
+  Use it when the asserted content is *produced* by async work — a debounced
+  reload, a `start_async` result, a PubSub-driven re-render. Do **not** use it
+  to prove a *negative* (that something never renders): a poll that succeeds on
+  the first tick proves nothing, so keep a bounded `Process.sleep` + `refute`
+  for absence checks.
+  """
+  @render_until_poll_ms 10
+  def render_until(view, matcher, timeout \\ 1_000)
+
+  def render_until(view, substring, timeout) when is_binary(substring) do
+    render_until(view, &String.contains?(&1, substring), timeout)
+  end
+
+  def render_until(view, predicate, timeout) when is_function(predicate, 1) do
+    deadline = System.monotonic_time(:millisecond) + timeout
+    do_render_until(view, predicate, deadline)
+  end
+
+  defp do_render_until(view, predicate, deadline) do
+    html = Phoenix.LiveViewTest.render(view)
+
+    cond do
+      predicate.(html) ->
+        html
+
+      System.monotonic_time(:millisecond) >= deadline ->
+        ExUnit.Assertions.flunk("render_until/3 timed out before the rendered HTML matched")
+
+      true ->
+        Process.sleep(@render_until_poll_ms)
+        do_render_until(view, predicate, deadline)
+    end
+  end
 end

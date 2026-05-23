@@ -5,14 +5,11 @@ defmodule MediaCentarrWeb.SettingsLiveTest do
 
   alias MediaCentarr.Playback.LanguagePolicy
 
-  # The page's `ensure_loaded/1` defers its 15+ config / capability /
-  # probe reads to a `Task.Supervisor` child that messages back via
-  # `{:settings_loaded, _}` (per the "no blocking LV page loads" rule).
-  # Tests that assert on populated state need to wait for that message
-  # before sampling `render/1`.
+  # `SettingsLive.ensure_loaded/1` defers its 15+ config / capability /
+  # probe reads to an owned `start_async(:settings_load, …)` (ADR-049).
+  # `render_async/1` awaits it deterministically — no wall-clock sleep.
   defp render_after_async_load(view) do
-    Process.sleep(100)
-    render(view)
+    render_async(view)
   end
 
   test "mounts at /settings", %{conn: conn} do

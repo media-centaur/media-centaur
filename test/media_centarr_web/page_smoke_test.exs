@@ -402,10 +402,8 @@ defmodule MediaCentarrWeb.PageSmokeTest do
       assert is_binary(html)
 
       # `AcquisitionLive.ensure_loaded/1` defers the pursuit-row + history
-      # reads to a `Task.Supervisor` child that messages back via
-      # `{:acquisition_loaded, _}`. Wait for the result before asserting
-      # on populated cards.
-      Process.sleep(100)
+      # reads to an owned `start_async(:acquisition_load, …)`; `live_async!`
+      # drained it at mount, so `render/1` reflects the loaded state.
       html = render(view)
 
       # The seeded active pursuit must render its card, exercising the

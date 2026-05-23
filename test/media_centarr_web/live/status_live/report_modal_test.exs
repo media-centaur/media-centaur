@@ -21,13 +21,16 @@ defmodule MediaCentarrWeb.StatusLive.ReportModalTest do
     Buckets.ingest(error_entry(1, :tmdb, "TMDB returned 429 rate limited"))
     Buckets.ingest(error_entry(2, :watcher, "permission denied on watch dir"))
 
+    # `Buckets.list_buckets/0` is a GenServer.call, so it serialises after the
+    # two `ingest` casts above (FIFO) — the buckets are populated before any
+    # test runs without a settle sleep. (No LiveView is mounted yet, so this
+    # broadcast has no subscribers; it stands in for production wiring.)
     Phoenix.PubSub.broadcast(
       MediaCentarr.PubSub,
       Topics.error_reports(),
       {:buckets_changed, Buckets.list_buckets()}
     )
 
-    :timer.sleep(50)
     :ok
   end
 

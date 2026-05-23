@@ -158,9 +158,11 @@ defmodule MediaCentarr.Library.Views.ContinueWatchingTest do
     test "ETS-cached output matches Library.list_in_progress for the same DB state" do
       on_exit_clear_table()
 
-      seed_in_progress_movie("Movie One")
-      Process.sleep(5)
-      seed_in_progress_movie("Movie Two")
+      # Explicit, distinct last_watched_at gives the cached and DB paths a
+      # deterministic order to zip-compare — no clock-advance sleep.
+      now = DateTime.utc_now(:second)
+      seed_in_progress_movie("Movie One", DateTime.add(now, -2, :second))
+      seed_in_progress_movie("Movie Two", DateTime.add(now, -1, :second))
 
       :ok = ContinueWatching.refresh_cache()
 
