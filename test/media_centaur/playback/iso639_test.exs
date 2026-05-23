@@ -115,4 +115,48 @@ defmodule MediaCentaur.Playback.Iso639Test do
       assert Iso639.display_name(nil) == nil
     end
   end
+
+  describe "all/0" do
+    test "returns {code, name} pairs sorted by display name" do
+      all = Iso639.all()
+      assert {"eng", "English"} in all
+      assert {"spa", "Spanish"} in all
+      assert {"jpn", "Japanese"} in all
+      names = Enum.map(all, fn {_code, name} -> name end)
+      assert names == Enum.sort(names)
+    end
+
+    test "every entry is a canonical 3-letter code with a non-empty name" do
+      for {code, name} <- Iso639.all() do
+        assert Iso639.normalize(code) == code
+        assert is_binary(name) and name != ""
+      end
+    end
+  end
+
+  describe "code_for_name/1" do
+    test "exact display name (case-insensitive) → code" do
+      assert Iso639.code_for_name("English") == "eng"
+      assert Iso639.code_for_name("spanish") == "spa"
+      assert Iso639.code_for_name("JAPANESE") == "jpn"
+    end
+
+    test "any ISO form of a known code → canonical code" do
+      assert Iso639.code_for_name("en") == "eng"
+      assert Iso639.code_for_name("fre") == "fra"
+      assert Iso639.code_for_name("eng") == "eng"
+    end
+
+    test "whitespace trimmed" do
+      assert Iso639.code_for_name("  French  ") == "fra"
+    end
+
+    test "unknown or blank → nil" do
+      assert Iso639.code_for_name("Klingon") == nil
+      assert Iso639.code_for_name("zzz") == nil
+      assert Iso639.code_for_name("") == nil
+      assert Iso639.code_for_name("   ") == nil
+      assert Iso639.code_for_name(nil) == nil
+    end
+  end
 end
