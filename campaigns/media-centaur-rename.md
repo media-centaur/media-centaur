@@ -23,10 +23,12 @@ a campaign rather than a single commit.
 
 ## Status
 
-`2026-05-23` — Planning complete; design approved. Phase 1 (in-repo
-code rename) starting on branch `rename/media-centaur`, gated by
-`mix precommit`. Phases 3–7 (external/irreversible) wait for explicit
-go-ahead.
+`2026-05-23` — **Phases 0–1 complete** on branch `rename/media-centaur`
+(commit `d7c7d0ad`): in-repo sweep done, `mix precommit` green (3950
+Elixir + 436 bun tests, 0 failures). 1035 files, 7294/7294
+ins/del (symmetric — equal-length token swap, no drift). Next:
+**Phase 2** (local source-tree rename) then the external/irreversible
+Phases 3–7, which wait for explicit go-ahead.
 
 ## Decisions made
 
@@ -58,13 +60,22 @@ Append-only log.
   migration**, not a self-migrating updater. For a single
   self-hosted instance the engineering cost of bridging the
   artifact-name discontinuity isn't worth it.
+* `2026-05-23` — **`campaigns/` excluded from the content sweep**
+  (extends the CHANGELOG-history-is-immutable decision). This doc and
+  the README entry intentionally hold both names; historical campaign
+  narratives stay as written. (commit `d7c7d0ad`)
+* `2026-05-23` — Sweep reduced to **three case-variant substring
+  substitutions** (`Centarr→Centaur`, `centarr→centaur`,
+  `CENTARR→CENTAUR`); covers every token, idempotent (`centaur` never
+  contains `centarr`), equal-length so formatting never drifts.
 
 ## Next steps
 
 Phased. Reversible/local first; irreversible/external last. Each
 phase ends with a verifiable gate.
 
-### Phase 0 — Safety net (local, reversible)
+### Phase 0 — Safety net (local, reversible) ✅ done
+DB snapshot saved to `~/media-centarr-db-backup-20260523-132539.db`.
 1. `git switch -c rename/media-centaur`.
 2. Back up the live prod DB: copy
    `~/.local/share/media-centarr/media-centarr.db` somewhere safe;
@@ -75,7 +86,12 @@ phase ends with a verifiable gate.
    (history is immutable). Parser regression titles are unaffected
    (they don't contain the brand).
 
-### Phase 1 — In-repo code rename (verifiable, nothing shipped)
+### Phase 1 — In-repo code rename (verifiable, nothing shipped) ✅ done
+Committed `d7c7d0ad`; `mix precommit` green. Note: the renamed
+`.gitignore` entry exposed a stale build artifact
+(`rel/platforms/shared/share/defaults/media-centarr.toml`) which was
+deleted (CI/`preflight` regenerate the new-named copy). Required a
+clean `_build` (app-atom rename changes the per-app build dir).
 Casing-aware sweep, in this order so narrower tokens don't corrupt
 wider ones:
 1. `MediaCentarr` → `MediaCentaur` — module namespace + rename dirs
