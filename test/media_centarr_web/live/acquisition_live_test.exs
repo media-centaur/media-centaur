@@ -165,7 +165,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       |> form("form[phx-change='query_change']", query: "Movie A")
       |> render_submit()
 
-      html = wait_until(view, &(&1 =~ "Movie.A.2024.2160p.BluRay"))
+      html = render_until(view, "Movie.A.2024.2160p.BluRay")
       # Default selection should be applied — Grab button shows count of 1
       assert html =~ "Grab 1 selected"
 
@@ -174,7 +174,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       |> element("button[phx-click='grab_selected']")
       |> render_click()
 
-      html = wait_until(view, &(&1 =~ "1 grab(s) submitted"))
+      html = render_until(view, "1 grab(s) submitted")
       assert html =~ "1 grab(s) submitted"
     end
   end
@@ -432,7 +432,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       |> form("form[phx-change='query_change']", query: "Movie A")
       |> render_submit()
 
-      html = wait_until(view, &(&1 =~ "Prowlarr timed out"))
+      html = render_until(view, "Prowlarr timed out")
       # Retry affordance is present alongside the timeout message
       assert html =~ "phx-click=\"retry_search\""
       assert html =~ "phx-value-term=\"Movie A\""
@@ -460,7 +460,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       |> element("button[phx-click='retry_search'][phx-value-term='Movie A']")
       |> render_click()
 
-      html = wait_until(view, &(&1 =~ "Movie.A.2024.1080p"))
+      html = render_until(view, "Movie.A.2024.1080p")
       refute html =~ "Prowlarr timed out"
     end
   end
@@ -478,7 +478,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       |> form("form[phx-change='query_change']", query: "Sample Show S01E{01,02}")
       |> render_submit()
 
-      html = wait_until(view, &(&1 =~ "Retry 2 timeouts"))
+      html = render_until(view, "Retry 2 timeouts")
       assert html =~ "phx-click=\"retry_all_timeouts\""
 
       # Switch the stub to succeed, then bulk-retry
@@ -504,7 +504,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       |> element("button[phx-click='retry_all_timeouts']")
       |> render_click()
 
-      html = wait_until(view, &(&1 =~ "Sample.Show.Episode.1080p"))
+      html = render_until(view, "Sample.Show.Episode.1080p")
       refute html =~ "Prowlarr timed out"
       refute html =~ "Retry 2 timeouts"
     end
@@ -536,7 +536,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       |> form("form[phx-change='query_change']", query: "Healthy")
       |> render_submit()
 
-      html = wait_until(view, &(&1 =~ "Healthy.Result.1080p"))
+      html = render_until(view, "Healthy.Result.1080p")
       refute html =~ "retry_all_timeouts"
     end
   end
@@ -575,9 +575,9 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       |> form("form[phx-change='query_change']", %{"query" => "Sample Show"})
       |> render_submit()
 
-      _ = render(view)
-      :timer.sleep(100)
-      html = render(view)
+      # The Prowlarr search results arrive asynchronously ({:search_result, …})
+      # and re-render the group — poll until they land.
+      html = render_until(view, "Sample.Show.S01E01")
       assert html =~ "Sample Show"
       assert html =~ "Sample.Show.S01E01"
 
@@ -603,7 +603,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       |> form("form[phx-change='query_change']", %{"query" => "Sample Show"})
       |> render_submit()
 
-      _ = wait_until(view, &(&1 =~ "Sample.Show.S01E01"))
+      _ = render_until(view, "Sample.Show.S01E01")
 
       # Override the auto-default selection with a user-driven choice.
       MediaCentarr.Acquisition.set_selection("Sample Show", "guid-2")
@@ -629,15 +629,14 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
       |> form("form[phx-change='query_change']", %{"query" => "Pending Show"})
       |> render_submit()
 
-      :timer.sleep(50)
-      session_before = MediaCentarr.Acquisition.current_search_session()
+      session_before = await_session_groups(:loading)
       assert Enum.all?(session_before.groups, fn group -> group.status == :loading end)
 
       GenServer.stop(view.pid, :normal)
 
-      :timer.sleep(100)
-
-      session_after = MediaCentarr.Acquisition.current_search_session()
+      # The LV crash sweeps in-flight :loading groups to :abandoned via the
+      # SearchSession's :DOWN handler — poll the session until it lands.
+      session_after = await_session_groups(:abandoned)
       assert Enum.all?(session_after.groups, fn group -> group.status == :abandoned end)
 
       {:ok, view2, _html2} = live_async!(conn, "/download")
@@ -645,9 +644,6 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
     end
   end
 
-  # Polls render(view) until `predicate.(html)` returns true or the timeout
-  # elapses. Used to wait for async Task.Supervisor work to deliver
-  # {:search_result, _, _} / grab completion messages back to the LiveView.
   describe "live updates from queue monitor" do
     # The active queue is now driven by QueueMonitor's PubSub broadcast
     # rather than per-LV polling. The LV must consume {:queue_state, %QueueState{items: items}}
@@ -787,7 +783,7 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
 
       # Await the async pursuit-rows load deterministically rather than
       # relying on render timing (ADR-049: tests drive async to completion).
-      html = wait_until(view, &(&1 =~ ~s|data-pursuit-id="#{pursuit.id}"|))
+      html = render_until(view, ~s|data-pursuit-id="#{pursuit.id}"|)
       # The card carries the pursuit id; the cancel button inside its footer
       # carries the queue item id — co-located in the rendered DOM, which is
       # exactly the pairing this redesign delivers.
@@ -876,24 +872,33 @@ defmodule MediaCentarrWeb.AcquisitionLiveTest do
     end
   end
 
-  defp wait_until(view, predicate, timeout \\ 1_000) do
+  # Polls the out-of-band search session (a GenServer updated asynchronously —
+  # search dispatch, and the crash-driven :abandoned sweep on the LV's :DOWN)
+  # until every group reaches `status` and at least one group exists. The
+  # non-empty guard matters: `Enum.all?([], …)` is vacuously true, so without
+  # it a poll would pass before the groups were even created. Deterministic
+  # stand-in for a settle sleep; returns the session.
+  defp await_session_groups(status, timeout \\ 1_000) do
     deadline = System.monotonic_time(:millisecond) + timeout
-    do_wait_until(view, predicate, deadline)
+    do_await_session_groups(status, deadline)
   end
 
-  defp do_wait_until(view, predicate, deadline) do
-    html = render(view)
+  defp do_await_session_groups(status, deadline) do
+    session = MediaCentarr.Acquisition.current_search_session()
 
     cond do
-      predicate.(html) ->
-        html
+      session.groups != [] and Enum.all?(session.groups, &(&1.status == status)) ->
+        session
 
       System.monotonic_time(:millisecond) >= deadline ->
-        flunk("wait_until timed out")
+        flunk(
+          "search-session groups never all reached #{inspect(status)}; " <>
+            "got #{inspect(Enum.map(session.groups, & &1.status))}"
+        )
 
       true ->
         Process.sleep(10)
-        do_wait_until(view, predicate, deadline)
+        do_await_session_groups(status, deadline)
     end
   end
 end

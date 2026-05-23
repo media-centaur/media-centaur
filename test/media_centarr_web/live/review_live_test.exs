@@ -49,10 +49,8 @@ defmodule MediaCentarrWeb.ReviewLiveTest do
 
       send(view.pid, {:file_added, Ecto.UUID.generate()})
 
-      # 500ms reload_groups debounce.
-      Process.sleep(600)
-
-      assert render(view) =~ "Newly Arrived File"
+      # The new file appears only after the 500ms reload_groups debounce fires.
+      assert render_until(view, "Newly Arrived File") =~ "Newly Arrived File"
     end
 
     test "file_reviewed broadcast removes the file from the list",

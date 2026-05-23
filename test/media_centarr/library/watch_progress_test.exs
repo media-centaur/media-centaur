@@ -146,9 +146,6 @@ defmodule MediaCentarr.Library.WatchProgressTest do
           duration_seconds: 2400.0
         })
 
-      # Small delay to ensure timestamps differ
-      Process.sleep(1100)
-
       create_watch_progress(%{
         episode_id: episode.id,
         position_seconds: 300.0,
@@ -216,8 +213,6 @@ defmodule MediaCentarr.Library.WatchProgressTest do
           duration_seconds: 7200.0
         })
 
-      Process.sleep(1100)
-
       {:ok, updated} = Library.mark_watch_completed(progress)
       assert DateTime.compare(updated.last_watched_at, progress.last_watched_at) in [:gt, :eq]
     end
@@ -257,7 +252,6 @@ defmodule MediaCentarr.Library.WatchProgressTest do
         })
 
       {:ok, completed} = Library.mark_watch_completed(progress)
-      Process.sleep(1100)
 
       {:ok, incomplete} = Library.mark_watch_incomplete(completed)
       assert DateTime.compare(incomplete.last_watched_at, completed.last_watched_at) in [:gt, :eq]

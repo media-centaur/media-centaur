@@ -327,8 +327,12 @@ defmodule MediaCentarr.SelfUpdate.UpdaterTest do
       assert :ok = Updater.apply_pending(name)
       assert_receive {:handoff_blocking_started, _}, 2_000
 
-      # Small buffer for the GenServer to process the :handing_off phase message.
-      Process.sleep(50)
+      # The :handing_off transition is an async {:phase, …} message the GenServer
+      # turns into a {:progress, :handing_off, _} broadcast (we subscribed to
+      # self_update:progress above). Awaiting that broadcast is deterministic:
+      # the GenServer can't process our cancel call until the handle_info that
+      # committed phase = :handing_off has returned, so cancel observes it.
+      assert_receive {:progress, :handing_off, _}, 2_000
 
       assert {:error, :past_point_of_no_return} = Updater.cancel(name)
     end

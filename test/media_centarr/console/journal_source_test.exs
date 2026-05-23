@@ -195,12 +195,14 @@ defmodule MediaCentarr.Console.JournalSourceTest do
       assert_receive :helper_subscribed, 500
       assert_receive {:port_opened, _, _}, 500
 
-      # Kill the helper — the JournalSource should see :DOWN and treat it
-      # as an unsubscribe.
+      # Kill the helper — the JournalSource should see :DOWN and treat it as
+      # an unsubscribe. Monitor it from the test too: receiving our own :DOWN
+      # proves the helper has exited and the runtime has already enqueued
+      # JournalSource's :DOWN, so the subscribe call below (a GenServer.call)
+      # serialises after it in the FIFO mailbox — no settle sleep needed.
+      ref = Process.monitor(helper)
       Process.exit(helper, :kill)
-
-      # Give the GenServer a beat to process the DOWN message.
-      Process.sleep(50)
+      assert_receive {:DOWN, ^ref, :process, ^helper, _}, 500
 
       # Refcount should be zero now; a fresh subscribe should respawn the port.
       {:ok, []} = JournalSource.subscribe(name)
