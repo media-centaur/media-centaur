@@ -105,7 +105,21 @@ defmodule MediaCentaurWeb.LiveHelpers do
     image = Enum.find(Map.get(entity, :images) || [], &(&1.role == role))
 
     if image && image.content_url do
-      "/media-images/#{image.content_url}"
+      "/media-images/#{image.content_url}#{cache_bust(image)}"
+    end
+  end
+
+  # The artwork file is rewritten in place on a TMDB re-scrape (same
+  # `<owner_id>/<role>.<ext>` path), so a bare URL would let the browser
+  # serve stale bytes for up to an hour (ImageServer's unversioned
+  # `max-age=3600`). Appending the image's `updated_at` — bumped by
+  # `Library.upsert_image/2` on every replace — flips ImageServer to its
+  # immutable/versioned branch and guarantees a refetch the moment the
+  # detail view reloads after `entities_changed`.
+  defp cache_bust(image) do
+    case Map.get(image, :updated_at) do
+      %DateTime{} = dt -> "?v=#{DateTime.to_unix(dt)}"
+      _ -> ""
     end
   end
 end

@@ -36,6 +36,27 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
       entity = %{id: "x", name: "Sample Movie", content_url: "y", present?: true}
       assert image_url(entity, "poster") == nil
     end
+
+    test "appends ?v=<updated_at unix> so replaced artwork busts the cache" do
+      dt = ~U[2026-05-24 00:00:00Z]
+      entity = %{images: [%{role: "poster", content_url: "abc/poster.jpg", updated_at: dt}]}
+
+      assert image_url(entity, "poster") ==
+               "/media-images/abc/poster.jpg?v=#{DateTime.to_unix(dt)}"
+    end
+
+    test "the URL changes when updated_at changes (re-downloaded artwork)" do
+      base = %{role: "poster", content_url: "abc/poster.jpg"}
+      before = %{images: [Map.put(base, :updated_at, ~U[2026-05-24 00:00:00Z])]}
+      later = %{images: [Map.put(base, :updated_at, ~U[2026-05-24 01:00:00Z])]}
+
+      refute image_url(before, "poster") == image_url(later, "poster")
+    end
+
+    test "falls back to a bare URL when the image carries no updated_at" do
+      entity = %{images: [%{role: "poster", content_url: "abc/poster.jpg"}]}
+      assert image_url(entity, "poster") == "/media-images/abc/poster.jpg"
+    end
   end
 
   describe "time_ago/1" do
