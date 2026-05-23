@@ -7,8 +7,8 @@
 **Architecture premise (unchanged from Phase 3):** local desktop app, statefulness is an asset, projections are Pillar 2, LiveViews subscribe to derived topics. Phase 3.1 proved the BrowseItem-plus-bulk-helpers composition pattern for LibraryLive's grid; Phase 3.2 applies the same shape to the heaviest remaining DB-on-modal-open path.
 
 **Campaign references:**
-* [`campaigns/done/library-schema-v2.md`](../../../campaigns/done/library-schema-v2.md) — DetailLive flip is the Phase 3 Task E E.3 deferral.
-* [`campaigns/done/desktop-rearchitecture.md`](../../../campaigns/done/desktop-rearchitecture.md) — Workstream A's "every read path through a projection" criterion. Open follow-up: "DetailLive / EntityModal consumer flip."
+* `library-schema-v2` — DetailLive flip is the Phase 3 Task E E.3 deferral.
+* `desktop-rearchitecture` — Workstream A's "every read path through a projection" criterion. Open follow-up: "DetailLive / EntityModal consumer flip."
 
 **Tech stack:** Phoenix 1.7+, Ecto 3.12+, SQLite via ecto_sqlite3, ETS, `MediaCentaur.Cache` behaviour (ADR-041).
 

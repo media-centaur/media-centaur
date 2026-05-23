@@ -33,8 +33,13 @@ agent) starts blind.
 Chosen option: a tracked **`campaigns/`** directory at the repo
 root, holding one markdown per long-running initiative, each
 following a small template (Goal / Status / Decisions / Next steps
-/ Completion criteria). Completed campaigns move to
-`campaigns/done/` rather than being deleted.
+/ Completion criteria). Completed campaigns are **removed** from the
+tree once closed; their full history remains in git.
+
+> **Amended 2026-05-23.** Originally completed campaigns were archived
+> to `campaigns/done/` rather than deleted. That directory was retired —
+> finished campaigns are now removed (git history is the archive), to
+> keep the working tree focused on active work.
 
 ### When a campaign warrants a file
 
@@ -85,9 +90,9 @@ accumulating across sessions.
 * **Update** at the start of each session (reconciliation rule)
   and at the end of each session (record decisions made, refresh
   next steps).
-* **Archive** to `campaigns/done/` when status flips to
-  `complete` or `abandoned`. Archived files are kept verbatim —
-  they remain a source of historical context.
+* **Remove** the file when status flips to `complete` or
+  `abandoned` — git history preserves the verbatim record.
+  (Amended 2026-05-23; previously archived to `campaigns/done/`.)
 
 ### Consequences
 
@@ -111,6 +116,7 @@ accumulating across sessions.
 * `campaigns/README.md` — index of active campaigns + the
   convention summary.
 * `campaigns/template.md` — starter template.
-* `campaigns/done/desktop-rearchitecture.md` — first seeded campaign
-  (ADR-041 three-pillar segregation, broader local-only desktop
-  paradigm shift). Closed 2026-05-17.
+* The first seeded campaign was `desktop-rearchitecture` (ADR-041
+  three-pillar segregation, broader local-only desktop paradigm shift;
+  closed 2026-05-17). It and other completed campaigns were removed per
+  the 2026-05-23 amendment — see git history.

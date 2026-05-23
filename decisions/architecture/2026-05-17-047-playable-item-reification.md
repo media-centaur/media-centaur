@@ -117,9 +117,9 @@ pre-v2 shape inconsistencies is retired.
 
 ## Pointers
 
-* Full implementation record:
-  [`campaigns/done/library-schema-v2.md`](../../campaigns/done/library-schema-v2.md).
-  The campaign carries the per-phase task lists, schema diagrams, and
+* Full implementation record: the `library-schema-v2` campaign
+  (completed; removed per ADR-042's 2026-05-23 amendment — in git
+  history). It carried the per-phase task lists, schema diagrams, and
   closure-pass deferral list.
 * Related decisions:
   * [ADR-029](2026-03-26-029-data-decoupling.md) — Library boundary as

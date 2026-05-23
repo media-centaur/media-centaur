@@ -2,7 +2,8 @@
 
 Multi-session work — initiatives that span many commits with
 context worth preserving across sessions and contributors. One
-markdown per campaign, archived to `done/` when complete.
+markdown per campaign, **removed when complete** — git history is the
+archive (see ADR-042's 2026-05-23 amendment).
 
 See [ADR-042](../decisions/architecture/2026-05-10-042-multi-session-campaigns.md)
 for the full convention. The short version:
@@ -31,82 +32,6 @@ Use [`template.md`](template.md) as a starter.
   watching brief. `MC0018 NoDbInOnExit` Credo check enforces
   Category A mechanically. `DataCase` snapshot+drain pattern
   isolates `:persistent_term` and Task.Supervisor children.
-  Will move to `done/` after the macos-platform-support Phase 5
-  push sequence proves CI stability through its commits.
-
-## Archived
-
-* [`done/media-centaur-rename.md`](done/media-centaur-rename.md) —
-  eradicated the misspelled brand `Centarr` → `Centaur` across the OTP
-  app atom, modules, GitHub org/repos, prod instance + XDG dirs, source
-  tree, site (`media-centaur.net`), wiki, and scripts. First
-  `media-centaur` release shipped as **v0.72.2** (2026-05-23); production
-  cut over and verified (library intact). Deferred (operator-only):
-  registrar 301 from the old domain, stale Hyprland references, and
-  old-install / orphaned-Claude-dir cleanup.
-
-* [`done/pursuit-lifecycle-tracking.md`](done/pursuit-lifecycle-tracking.md) —
-  track a pursuit's file through *downloaded → in review → landed in
-  library*; satisfy only at library-landing, surface the real stage
-  otherwise (fixed orphaned `prowlarr_query` grabs stuck on "not visible
-  in your download client"). Shipped in **v0.70.0** (2026-05-22);
-  reconciled + closed 2026-05-23 — cross-path audit clean (no other path
-  can orphan a non-tmdb pursuit), wiki documents the stages, prod
-  confirmed resolved. Deferred: optional `DownloadStarted.infohash`
-  enrichment. Changelog deliberately left as-is (shipped silently, wiki
-  covers it).
-* [`done/language-track-preferences.md`](done/language-track-preferences.md) —
-  per-install audio/subtitle language policy + per-entity overrides
-  captured mid-playback and applied next play, with an entity-detail
-  *Remembered tracks* badge + Reset (live-refreshing). ISO 639 boundary
-  normalization hardened ([ADR-048](../decisions/architecture/2026-05-22-048-canonical-language-codes-at-boundary.md)).
-  Shipped 2026-05-22. Deferred: friendly language names in the detail UI.
-* [`done/component-contracts.md`](done/component-contracts.md) —
-  every LiveView function component declares a typed contract for
-  domain-data attrs (struct / Ecto schema / shared ViewModel, or
-  `:any` / `:map` / `:list` with a justified `doc:`). 157/165
-  attrs documented; remaining 8 are excluded Phoenix-base infra.
-  `MC0008 TypedComponentAttrs` + `MC0009 StorybookCoverage` +
-  `storybook_render_test` form the enforcement triple. Shipped
-  2026-05-18.
-* [`done/page-redistribution.md`](done/page-redistribution.md) — IA
-  refactor splitting Library into Home / Library / Upcoming /
-  History; sidebar gains Watch (frontstage) and System
-  (backstage) groups. All four pages and the sidebar split shipped
-  2026-05-10. Outstanding storybook stories for the new sidebar
-  grouping + History rewatch baseline re-homed to
-  [`done/component-contracts.md`](done/component-contracts.md).
-* [`done/pursuits-maturation.md`](done/pursuits-maturation.md) —
-  three-phase maturation of the Acquisition Pursuits aggregate:
-  Recipe value object + timeline VM, AutoCancel auto-pivot on
-  zero-seeders, single typed PubSub dialect on `acquisition:updates`
-  (`Acquisition.TargetEvents.*`). All phases shipped 2026-05-14.
-* [`done/desktop-rearchitecture.md`](done/desktop-rearchitecture.md)
-  — local-only, single-user, no-auth desktop paradigm shift backed
-  by ADR-041 three-pillar segregation. Shipped: Library projections
-  fanning out to every LiveView read path
-  (`no_db_on_render_test` enforcing the budget), Acquisition split
-  per ADR-043, the two grey-area Pillar-1 fields explicitly
-  confirmed durable, Cache.Worker + Topics pattern documented in
-  canonical moduledocs, ContinueWatching availability gap closed.
-  ADR-047 (PlayableItem reification) and the `docs/architecture.md`
-  Pillar-2 principle landed at closure. Workstreams A–D all
-  complete 2026-05-17; closure pass 2026-05-17. Deferred items
-  re-homed to test-infra (baselines), component-contracts (typed
-  attrs + storybook coverage), and UX backlog (v0.62.3 empty-state
-  follow-ups) — see the campaign's Closure section.
-* [`done/library-presence-unification.md`](done/library-presence-unification.md)
-  — moved file-presence ownership into Library
-  (`Library.FilePresence`), shrunk Watcher to a thin filesystem
-  observer with no durable state. Closed the orphan-stuck-pipeline
-  bug class structurally. Shipped v0.65.0; follow-up FK drop
-  shipped v0.65.1 (ADR-046).
-* [`done/library-schema-v2.md`](done/library-schema-v2.md) —
-  pre-public architectural refit of the Library bounded context:
-  PlayableItem reified as the canonical leaf, supporting tables
-  collapsed to single-FK or single-discriminator shapes, all
-  Pillar-1 fields typed, ADR-041 projections fan out to every
-  Library LiveView read path. Phases 1–3.2 shipped 2026-05-15
-  through 2026-05-17; closure pass 2026-05-17. Deferred items
-  re-homed to component-contracts, test-infra, and Playback
-  workstreams (see the campaign's Closure section).
+  Will be removed (git history is the archive) after the
+  macos-platform-support Phase 5 push sequence proves CI stability
+  through its commits.

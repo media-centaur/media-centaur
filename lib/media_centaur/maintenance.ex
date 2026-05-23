@@ -231,9 +231,9 @@ defmodule MediaCentaur.Maintenance do
   — rate-limited by `TMDB.RateLimiter` but otherwise unbounded.
 
   **Not wired to a Settings button or scheduled job in this task.** API
-  surface only. See campaign `campaigns/done/library-schema-v2.md` follow-ups for the
-  plan to either (a) implement a `tmdb_fetched_at`-based skip predicate
-  or (b) aggregate constituent-movie credits up to the collection level.
+  surface only. A future task will either (a) implement a
+  `tmdb_fetched_at`-based skip predicate or (b) aggregate constituent-movie
+  credits up to the collection level.
   """
   @spec refresh_movie_series_credits() ::
           {:ok, %{updated: non_neg_integer(), skipped: non_neg_integer(), failed: non_neg_integer()}}

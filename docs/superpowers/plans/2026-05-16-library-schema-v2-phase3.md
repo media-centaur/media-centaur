@@ -6,7 +6,7 @@
 
 **Architecture premise:** This is a local desktop app — statefulness is an asset. The four ADR-041 projections already live; Phase 3 fans the same pattern across the remaining read paths. Reads are microseconds (`:ets.tab2list/1` / `:ets.lookup/2`), not milliseconds. Writes go through Pillar-1 unchanged; projections rebuild on PubSub events.
 
-**Campaign reference:** [`campaigns/done/library-schema-v2.md`](../../../campaigns/done/library-schema-v2.md). Phase 1 + Phase 2 shipped to main. This plan executes Phase 3.
+**Campaign reference:** `library-schema-v2`. Phase 1 + Phase 2 shipped to main. This plan executes Phase 3.
 
 **Tech stack:** Phoenix 1.7+, Ecto 3.12+, SQLite via ecto_sqlite3, ETS, `MediaCentaur.Cache` behaviour (ADR-041).
 
@@ -457,8 +457,8 @@ Each task above gets a fresh subagent dispatch:
 ## Pointers
 
 - [ADR-041 — In-memory projection architecture](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)
-- [`campaigns/done/library-schema-v2.md`](../../../campaigns/done/library-schema-v2.md)
-- [`campaigns/done/desktop-rearchitecture.md`](../../../campaigns/done/desktop-rearchitecture.md) — partner campaign; Phase 3's projections feed Workstream A
+- `library-schema-v2`
+- `desktop-rearchitecture` — partner campaign; Phase 3's projections feed Workstream A
 - `lib/media_centaur/cache.ex` — Cache.Worker behaviour
 - `lib/media_centaur/library/views/continue_watching.ex` — canonical projection
 - `test/media_centaur/library/views/continue_watching_test.exs` — canonical projection test
