@@ -33,16 +33,19 @@ Use [`template.md`](template.md) as a starter.
   isolates `:persistent_term` and Task.Supervisor children.
   Will move to `done/` after the macos-platform-support Phase 5
   push sequence proves CI stability through its commits.
-* [`pursuit-lifecycle-tracking.md`](pursuit-lifecycle-tracking.md) —
-  track a pursuit's file through *downloaded → in review → landed in
-  library*; satisfy only at library-landing, surface the real stage
-  otherwise (fixes orphaned `prowlarr_query` grabs stuck on "not
-  visible in your download client"). Design approved 2026-05-22; Phase 1
-  built + held; Phase 2 (persist torrent hash + content path on Target)
-  next.
 
 ## Archived
 
+* [`done/pursuit-lifecycle-tracking.md`](done/pursuit-lifecycle-tracking.md) —
+  track a pursuit's file through *downloaded → in review → landed in
+  library*; satisfy only at library-landing, surface the real stage
+  otherwise (fixed orphaned `prowlarr_query` grabs stuck on "not visible
+  in your download client"). Shipped in **v0.70.0** (2026-05-22);
+  reconciled + closed 2026-05-23 — cross-path audit clean (no other path
+  can orphan a non-tmdb pursuit), wiki documents the stages, prod
+  confirmed resolved. Deferred: optional `DownloadStarted.infohash`
+  enrichment. Changelog deliberately left as-is (shipped silently, wiki
+  covers it).
 * [`done/language-track-preferences.md`](done/language-track-preferences.md) —
   per-install audio/subtitle language policy + per-entity overrides
   captured mid-playback and applied next play, with an entity-detail

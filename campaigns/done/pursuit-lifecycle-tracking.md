@@ -1,7 +1,8 @@
 ---
-status: in-progress
+status: complete
 started: 2026-05-22
 last_updated: 2026-05-23
+completed: 2026-05-23
 ---
 # Pursuit lifecycle stage tracking
 
@@ -43,9 +44,14 @@ recipe gates, and the three remaining `recipe_type == "tmdb"` queries
 with no missing tmdb-less analog — no other path can orphan a non-tmdb
 pursuit. **The user-facing CHANGELOG entry was missed**, though: v0.70.0–
 v0.72.0 release notes never describe the lifecycle feature (v0.70.0 shipped
-it silently). Two items remain to fully close: (1) verify the 3 stranded
-production pursuits actually resolved post-deploy (needs prod-REPL approval),
-(2) decide whether to retro-document the changelog gap.
+it silently).
+
+**Closed 2026-05-23.** Both remaining items resolved: the user **confirmed
+the 3 stranded production pursuits resolved** on the deployed build, and the
+**changelog gap is intentionally left as-is** (the feature shipped three
+versions back; the wiki documents it — re-noting it in a later release would
+misrepresent when it landed). Campaign complete; only deferred item is the
+optional `DownloadStarted.infohash` enrichment below.
 
 ## Background — root cause (investigated 2026-05-22)
 
@@ -144,15 +150,18 @@ duplicates. Title-match remains as a **fallback** for path-less pursuits
 5. ~~**Wiki.**~~ ✅ already done 2026-05-22 (`673c416`) — full 5-stage
    lifecycle in `Prowlarr-Integration.md`, "Downloaded — not landed" in
    `Troubleshooting.md`. Accurate and complete; no changes needed.
-6. **Production verification** (BLOCKED on prod-REPL approval) — confirm the
-   3 stranded pursuits resolved on the deployed build (Remarkably + Exit 8
-   satisfy via fallback; Top Gun shows "downloaded, not imported"). Read-only
-   diagnostic staged at `/tmp/mc_pursuit_check.exs` (lists rows via context
-   functions); run with `~/scripts/mc-rpc < /tmp/mc_pursuit_check.exs`.
+6. ~~**Production verification.**~~ ✅ done 2026-05-23 — user confirmed the
+   3 stranded pursuits resolved on the deployed build.
 7. ~~Full `mix precommit` before ship; CHANGELOG note for the migration.~~
-   The code shipped in v0.70.0 (precommit was green then). **Open decision:**
-   the user-facing CHANGELOG entry was never written — retro-document in the
-   next release's notes, or leave it (shipped three versions back)?
+   The code shipped in v0.70.0 (precommit was green then). **Decided
+   2026-05-23: leave the changelog as-is** — the feature shipped three
+   versions back and the wiki documents it; re-noting it later would
+   misrepresent when it landed.
+
+**Deferred (not blocking closure):** optional `DownloadStarted.infohash`
+enrichment — currently hardcoded `nil`; could be populated from the observed
+queue item. Small quality-of-life improvement, no functional gap. Pick up
+inside a future downloads/queue workstream if it ever matters.
 
 ## Completion criteria
 
