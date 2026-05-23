@@ -44,6 +44,16 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
         journal_available =
           if connected?(socket), do: Console.journal_available?(), else: false
 
+        # Apply the filter before the entries reach the stream, exactly like
+        # every other entry-producing path (`should_insert_entry?` on new
+        # entries, `:filter_changed`, `:buffer_resized`). Streaming the raw
+        # window here was the one path that bypassed the filter, so excluded
+        # entries (hidden components, below-floor levels, non-matching search)
+        # painted on first load and were only scrolled away by later live
+        # entries — the "flash of unfiltered text". Filtering at the source
+        # means excluded entries never reach the DOM.
+        visible_entries = Logic.visible_entries(snapshot, snapshot.filter)
+
         socket
         |> assign(:filter, snapshot.filter)
         |> assign(:paused, false)
@@ -61,7 +71,7 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
           dom_id: &Logic.entry_dom_id/1,
           limit: -Buffer.max_cap()
         )
-        |> stream(:entries, Enum.reverse(snapshot.entries))
+        |> stream(:entries, Enum.reverse(visible_entries))
         |> stream_configure(:journal, dom_id: &Logic.entry_dom_id/1, limit: -500)
         |> stream(:journal, [])
       end
