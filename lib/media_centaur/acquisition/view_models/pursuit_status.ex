@@ -334,7 +334,9 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     bits =
       []
       |> maybe_prepend(qi.timeleft, &"ETA #{&1}")
-      |> maybe_prepend(qi.progress, &"#{round(&1 * 100)}%")
+      # `qi.progress` is already a 0..100 percentage (see QueueItem) — do
+      # not re-scale by 100.
+      |> maybe_prepend(qi.progress, &"#{round(&1)}%")
       |> maybe_prepend(qi.download_client, &"From #{&1}")
 
     case bits do

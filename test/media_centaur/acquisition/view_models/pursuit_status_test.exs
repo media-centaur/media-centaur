@@ -88,6 +88,20 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
       assert actions == [:cancel]
     end
 
+    # Regression: QueueItem.progress is already a 0..100 percentage, so the
+    # download description must not multiply by 100 again (the "2330%" bug).
+    test "download description shows progress as a percentage without re-scaling" do
+      {action, _next, _actions} =
+        PursuitStatus.derive(
+          pursuit(:active),
+          target(:acquired),
+          queue_item(:downloading, %{progress: 23.3, timeleft: "13m", download_client: "qBittorrent"})
+        )
+
+      assert action.description =~ "23%"
+      refute action.description =~ "2330%"
+    end
+
     test "queued -> Queued, cancel only" do
       {action, _next, actions} =
         PursuitStatus.derive(pursuit(:active), target(:acquired), queue_item(:queued))

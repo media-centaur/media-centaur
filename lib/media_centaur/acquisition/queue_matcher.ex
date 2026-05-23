@@ -101,14 +101,15 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
   def to_download(%QueueItem{} = qi) do
     %DownloadProgress{
       state: qi.state,
-      progress_pct: progress_pct(qi.progress),
+      # `QueueItem.progress` is already a 0..100 percentage
+      # (`QueueItem.from_qbittorrent` scales the qBittorrent 0..1 fraction
+      # by 100), so it passes straight through. Re-multiplying here was the
+      # cause of the "2330%" download in Active Pursuits.
+      progress_pct: qi.progress,
       size_bytes: qi.size,
       size_left_bytes: qi.size_left,
       eta: qi.timeleft,
       client: qi.download_client
     }
   end
-
-  defp progress_pct(nil), do: nil
-  defp progress_pct(p) when is_number(p), do: p * 100.0
 end
