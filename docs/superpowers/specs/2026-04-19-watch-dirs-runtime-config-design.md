@@ -16,7 +16,7 @@ so users can confirm a path is usable before saving.
 ## Motivation
 
 Today `watch_dirs` is a TOML-only setting. Changing it requires editing
-`~/.config/media-centarr/media-centarr.toml` and restarting the process. This
+`~/.config/media-centaur/media-centaur.toml` and restarting the process. This
 is friction for users and, more importantly, misclassifies "which media
 directories exist" as a deploy-time concern rather than a runtime one. It also
 means a fresh install always has a meaningless placeholder path in the
@@ -39,7 +39,7 @@ shipped config, and the UI has no way to help the user pick a correct path.
 - No new rescan flow is built — existing Watcher + Pipeline behavior handles
   a freshly-started watcher seeing a populated directory.
 - No server-side directory browser UI. Plain text input with validation only.
-- The showcase override TOML (`MEDIA_CENTARR_CONFIG_OVERRIDE=…showcase.toml`)
+- The showcase override TOML (`MEDIA_CENTAUR_CONFIG_OVERRIDE=…showcase.toml`)
   still works unchanged — the migration runs against the showcase instance's
   isolated DB.
 
@@ -73,7 +73,7 @@ anything and cleanly maps to a terminate-old + start-new action.
 
 ### 2. Source of truth and migration
 
-- `MediaCentarr.Config.watch_dirs/0` keeps its current signature. Its
+- `MediaCentaur.Config.watch_dirs/0` keeps its current signature. Its
   implementation switches to read the `config:watch_dirs` Settings entry
   instead of parsing TOML.
 - **None of the 11 existing callers change.**
@@ -81,18 +81,18 @@ anything and cleanly maps to a terminate-old + start-new action.
   read the TOML `watch_dirs` (if any), assign UUIDs, and write a single
   `Settings.Entry`. After that first write, the TOML key is never read again.
   The migration is idempotent — a re-run is a no-op.
-- `defaults/media-centarr.toml` loses the documented `watch_dirs` block. A
+- `defaults/media-centaur.toml` loses the documented `watch_dirs` block. A
   pointer comment replaces it: "configured via the app — Settings → Library."
-- `defaults/media-centarr-showcase.toml` is unchanged. The first boot of a
+- `defaults/media-centaur-showcase.toml` is unchanged. The first boot of a
   showcase instance runs the same TOML → Settings migration against the
   showcase's isolated DB.
 
 ### 3. Runtime wiring
 
-- `MediaCentarr.Watcher.Supervisor` remains always-started. With zero dirs
+- `MediaCentaur.Watcher.Supervisor` remains always-started. With zero dirs
   configured it idles with zero children — `DynamicSupervisor` cost is
   negligible, and "off" is accurately modelled as "no children."
-- New function: `MediaCentarr.Watcher.Supervisor.reconcile/1` takes the new
+- New function: `MediaCentaur.Watcher.Supervisor.reconcile/1` takes the new
   list of watch-dir maps and computes a minimal set of actions:
   - **Added** id → start a new watcher child keyed by that id.
   - **Removed** id → terminate that child.
@@ -108,7 +108,7 @@ anything and cleanly maps to a terminate-old + start-new action.
 
 ### 4. Validation (live, in the add/edit dialog)
 
-All validation runs in a pure module `MediaCentarr.Watcher.DirValidator`.
+All validation runs in a pure module `MediaCentaur.Watcher.DirValidator`.
 Filesystem primitives are injected so tests run `async: true` without touching
 real disk. The dialog invokes the validator on a 500 ms debounce as the user
 types and renders per-field status (green / amber / red + one-line message).
@@ -204,7 +204,7 @@ Existing library entries stay until you run Clear Database."
 - **Migration failure on upgrade.** If TOML → Settings migration fails (e.g.
   the user's TOML is malformed), the user ends up with zero dirs configured
   and no obvious recovery path. Mitigation: log the TOML parse error
-  explicitly through `MediaCentarr.Log`, and surface a banner on the settings
+  explicitly through `MediaCentaur.Log`, and surface a banner on the settings
   page "Existing watch_dirs could not be migrated — see the console."
 - **Nested-dir false negatives.** Symlinks can make two paths appear
   non-nested when they physically alias. Mitigation: canonicalise both sides

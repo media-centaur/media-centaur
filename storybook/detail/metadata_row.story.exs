@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Detail.MetadataRow do
+defmodule MediaCentaurWeb.Storybook.Detail.MetadataRow do
   @moduledoc """
   Horizontal metadata row used inside the entity detail panel — a type
   badge followed by dotted text items (year, runtime, rating, status…).
@@ -11,7 +11,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.MetadataRow do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.Components.Detail.MetadataRow.metadata_row/1
+  def function, do: &MediaCentaurWeb.Components.Detail.MetadataRow.metadata_row/1
   def render_source, do: :function
   def layout, do: :one_column
 

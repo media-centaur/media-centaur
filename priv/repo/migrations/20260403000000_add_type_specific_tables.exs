@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddTypeSpecificTables do
+defmodule MediaCentaur.Repo.Migrations.AddTypeSpecificTables do
   use Ecto.Migration
 
   def change do

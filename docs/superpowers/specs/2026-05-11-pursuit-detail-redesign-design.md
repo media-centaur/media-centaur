@@ -5,7 +5,7 @@
 
 ## Problem
 
-`/download/:pursuit_id` (`MediaCentarrWeb.PursuitLive`) tells the user nothing about *what is actually happening* to a pursuit. It shows static counters (`Attempts: 0`, `Tried releases: 0`, `Origin: manual`, `Started: …`), a state badge, and a timeline. The only available action is **Cancel pursuit**.
+`/download/:pursuit_id` (`MediaCentaurWeb.PursuitLive`) tells the user nothing about *what is actually happening* to a pursuit. It shows static counters (`Attempts: 0`, `Tried releases: 0`, `Origin: manual`, `Started: …`), a state badge, and a timeline. The only available action is **Cancel pursuit**.
 
 Concrete example that triggered this work: a manually-grabbed pursuit sat at `Active` for two days with no downstream events. The page could not answer:
 
@@ -37,7 +37,7 @@ The page must answer those three questions at a glance, while keeping the histor
 A read-side ViewModel that joins everything we know about a pursuit's current activity:
 
 ```elixir
-%MediaCentarr.Acquisition.ViewModels.PursuitStatus{
+%MediaCentaur.Acquisition.ViewModels.PursuitStatus{
   pursuit_id:        Ecto.UUID.t(),
   title:             String.t(),
   state:             State.t(),                # :active | :needs_decision | terminal
@@ -67,7 +67,7 @@ Embedded structs:
         {CurrentAction.t(), NextStep.t() | nil, [action_atom()]}
 ```
 
-A pure function — no DB, no PubSub — that produces the dynamic fields from inputs. Tested exhaustively against the truth table below. Lives in `MediaCentarr.Acquisition.ViewModels.PursuitStatus`.
+A pure function — no DB, no PubSub — that produces the dynamic fields from inputs. Tested exhaustively against the truth table below. Lives in `MediaCentaur.Acquisition.ViewModels.PursuitStatus`.
 
 ### Read-side assembly: `Pursuits.status_for/1`
 
@@ -75,7 +75,7 @@ A pure function — no DB, no PubSub — that produces the dynamic fields from i
 @spec status_for(Ecto.UUID.t()) :: {:ok, PursuitStatus.t()} | {:error, :not_found}
 ```
 
-In `MediaCentarr.Acquisition.Pursuits`, next to `header_for/1` and `timeline_for/1`. Steps:
+In `MediaCentaur.Acquisition.Pursuits`, next to `header_for/1` and `timeline_for/1`. Steps:
 
 1. `Repo.get(Pursuit, id)` — short-circuit `{:error, :not_found}`.
 2. `latest_grab(pursuit_id)` — may be `{:error, :not_found}`; passed as `nil` to derive when absent.
@@ -112,7 +112,7 @@ The "force out of snooze" path is new — `rearm_grab/1` currently only handles 
 Records that a user manually re-armed the pursuit's grab.
 
 ```elixir
-defmodule MediaCentarr.Acquisition.Pursuits.Events.PursuitReSearched do
+defmodule MediaCentaur.Acquisition.Pursuits.Events.PursuitReSearched do
   use Define
   defevent [:pursuit_id, :pursuit_title, :occurred_at]
 end
@@ -157,7 +157,7 @@ The new big thing. Lives between `PursuitHeader` and `PursuitTimeline`. Renders:
 Component contract (typed attrs):
 
 ```elixir
-attr :vm, MediaCentarr.Acquisition.ViewModels.PursuitStatus, required: true
+attr :vm, MediaCentaur.Acquisition.ViewModels.PursuitStatus, required: true
 attr :on_cancel,             :string, default: nil
 attr :on_re_search,          :string, default: nil
 attr :on_request_decision,   :string, default: nil
@@ -195,7 +195,7 @@ Heading renamed `Timeline` → `History`. Renders the same vertical event log.
 | `exhausted` | * | * | "Gave up" — "Exhausted after N attempts." | "Start a new pursuit if you still want this." | (none) |
 | `cancelled` | * | * | "Cancelled" — "{reason}." | nil | (none) |
 
-The unknown-pairing `(active, no grab)` logs a warning via `MediaCentarr.Log` — it indicates a data-integrity issue but the page still renders rather than 500'ing.
+The unknown-pairing `(active, no grab)` logs a warning via `MediaCentaur.Log` — it indicates a data-integrity issue but the page still renders rather than 500'ing.
 
 ## Data Flow & PubSub
 
@@ -241,10 +241,10 @@ Strict test-first per `automated-testing` skill. New / extended files:
 
 | File | Coverage |
 |---|---|
-| `test/media_centarr/acquisition/view_models/pursuit_status_derive_test.exs` (new) | Every row of the truth table — pure inputs, pure outputs |
-| `test/media_centarr/acquisition/pursuits_status_for_test.exs` (new) | `status_for/1` with factory pursuits/grabs and faked QueueMonitor snapshots; staleness threshold boundaries |
-| `test/media_centarr/acquisition/pursuits/commands/re_search_test.exs` (new) | Re-search command — happy path, refusal on terminal pursuit, refusal on grabbed grab, refusal on missing pursuit |
-| `test/media_centarr_web/live/pursuit_live_test.exs` (extend) | Page renders for each pursuit state without 500; cancel / re-search / request-decision events fire the right commands; queue snapshot deliveries refresh the status |
+| `test/media_centaur/acquisition/view_models/pursuit_status_derive_test.exs` (new) | Every row of the truth table — pure inputs, pure outputs |
+| `test/media_centaur/acquisition/pursuits_status_for_test.exs` (new) | `status_for/1` with factory pursuits/grabs and faked QueueMonitor snapshots; staleness threshold boundaries |
+| `test/media_centaur/acquisition/pursuits/commands/re_search_test.exs` (new) | Re-search command — happy path, refusal on terminal pursuit, refusal on grabbed grab, refusal on missing pursuit |
+| `test/media_centaur_web/live/pursuit_live_test.exs` (extend) | Page renders for each pursuit state without 500; cancel / re-search / request-decision events fire the right commands; queue snapshot deliveries refresh the status |
 | `storybook/acquisition/pursuit_activity.story.exs` (new) | All 12 variations render under `storybook_test.exs` |
 
 The pure-derivation tests double as executable documentation of the truth table.

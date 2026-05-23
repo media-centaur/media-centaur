@@ -1,11 +1,11 @@
-defmodule MediaCentarr.Credo.Checks.RawBadgeClass do
+defmodule MediaCentaur.Credo.Checks.RawBadgeClass do
   use Credo.Check,
     id: "MC0008",
     base_priority: :high,
     category: :design,
     explanations: [
       check: """
-      Templates under `lib/media_centarr_web/` must not use raw daisyUI
+      Templates under `lib/media_centaur_web/` must not use raw daisyUI
       `badge` classes directly. Go through the `<.badge>` component, which
       encodes the UIDR-002 badge variants (metric, type, info, success,
       warning, error, ghost) and sizes (xs, sm, md).
@@ -74,7 +74,7 @@ defmodule MediaCentarr.Credo.Checks.RawBadgeClass do
   end
 
   defp template_file?(filename) do
-    String.contains?(filename, "lib/media_centarr_web/") and
+    String.contains?(filename, "lib/media_centaur_web/") and
       (String.ends_with?(filename, ".ex") or String.ends_with?(filename, ".heex"))
   end
 
@@ -112,7 +112,7 @@ defmodule MediaCentarr.Credo.Checks.RawBadgeClass do
       issue_meta,
       message:
         "Use the `<.badge>` component (with `variant` and `size`) instead of raw `badge` classes. " <>
-          "See UIDR-002 / `MediaCentarrWeb.CoreComponents.badge/1`.",
+          "See UIDR-002 / `MediaCentaurWeb.CoreComponents.badge/1`.",
       trigger: "badge",
       line_no: line_no
     )

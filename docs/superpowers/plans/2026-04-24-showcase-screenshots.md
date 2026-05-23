@@ -17,10 +17,10 @@
 Before starting, verify the showcase environment works today:
 
 ```bash
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.create
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.migrate
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix phx.server
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.create
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.migrate
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix seed.showcase
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix phx.server
 # In another shell:
 scripts/screenshot-tour
 ```
@@ -34,26 +34,26 @@ Expected: 4 PNGs land in `docs-site/assets/screenshots/`. If not, fix before sta
 ### Task 1: Add belt-and-suspenders safety assertion to seeder
 
 **Files:**
-- Modify: `lib/media_centarr/showcase.ex` — add assertion at top of `seed!/0`
-- Modify: `test/media_centarr/showcase_test.exs` — add negative test
+- Modify: `lib/media_centaur/showcase.ex` — add assertion at top of `seed!/0`
+- Modify: `test/media_centaur/showcase_test.exs` — add negative test
 
-**Why:** `Mix.Tasks.Seed.Showcase` requires `MEDIA_CENTARR_CONFIG_OVERRIDE` to be set, but `MediaCentarr.Showcase.seed!/0` called directly from IEx bypasses that check. Add a second rail that inspects the live config.
+**Why:** `Mix.Tasks.Seed.Showcase` requires `MEDIA_CENTAUR_CONFIG_OVERRIDE` to be set, but `MediaCentaur.Showcase.seed!/0` called directly from IEx bypasses that check. Add a second rail that inspects the live config.
 
 - [ ] **Step 1.1: Write the failing test**
 
-Add to `test/media_centarr/showcase_test.exs` in a new `describe` block:
+Add to `test/media_centaur/showcase_test.exs` in a new `describe` block:
 
 ```elixir
 describe "safety rail" do
   test "raises when database_path does not look like a showcase path" do
-    config = :persistent_term.get({MediaCentarr.Config, :config})
+    config = :persistent_term.get({MediaCentaur.Config, :config})
 
     :persistent_term.put(
-      {MediaCentarr.Config, :config},
-      Map.put(config, :database_path, "/home/user/.local/share/media-centarr/media-centarr.db")
+      {MediaCentaur.Config, :config},
+      Map.put(config, :database_path, "/home/user/.local/share/media-centaur/media-centaur.db")
     )
 
-    on_exit(fn -> :persistent_term.put({MediaCentarr.Config, :config}, config) end)
+    on_exit(fn -> :persistent_term.put({MediaCentaur.Config, :config}, config) end)
 
     assert_raise RuntimeError, ~r/refusing to seed/i, fn ->
       Showcase.seed!()
@@ -65,14 +65,14 @@ end
 - [ ] **Step 1.2: Run test to verify it fails**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/showcase_test.exs:89 --no-start
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/showcase_test.exs:89 --no-start
 ```
 
 Expected: FAIL (no assertion yet).
 
 - [ ] **Step 1.3: Add the assertion**
 
-At the top of `MediaCentarr.Showcase.seed!/0` (currently line 58), before `client = TMDB.Client.default_client()`:
+At the top of `MediaCentaur.Showcase.seed!/0` (currently line 58), before `client = TMDB.Client.default_client()`:
 
 ```elixir
 def seed! do
@@ -85,11 +85,11 @@ Add a new private function at the end of the module (before `defp pending_file_d
 
 ```elixir
 # Belt-and-suspenders: the Mix task wrapper refuses to run without
-# MEDIA_CENTARR_CONFIG_OVERRIDE, but a direct IEx call to this function
+# MEDIA_CENTAUR_CONFIG_OVERRIDE, but a direct IEx call to this function
 # would bypass that check. This rail fires for both invocation paths by
 # inspecting the live config.
 defp assert_showcase_db! do
-  db_path = MediaCentarr.Config.get(:database_path) || ""
+  db_path = MediaCentaur.Config.get(:database_path) || ""
 
   unless String.contains?(db_path, "showcase") do
     raise """
@@ -97,8 +97,8 @@ defp assert_showcase_db! do
     doesn't look like a showcase DB.
 
     The showcase seeder only runs against a DB whose configured path
-    contains "showcase". Set MEDIA_CENTARR_CONFIG_OVERRIDE to
-    defaults/media-centarr-showcase.toml (or a custom TOML with a
+    contains "showcase". Set MEDIA_CENTAUR_CONFIG_OVERRIDE to
+    defaults/media-centaur-showcase.toml (or a custom TOML with a
     showcase-prefixed database_path) and try again.
     """
   end
@@ -112,17 +112,17 @@ The existing `setup` block in `showcase_test.exs` sets `:watch_dirs` via persist
 Find this block around line 27–28:
 
 ```elixir
-config = :persistent_term.get({MediaCentarr.Config, :config})
-:persistent_term.put({MediaCentarr.Config, :config}, Map.put(config, :watch_dirs, [tmp_dir]))
+config = :persistent_term.get({MediaCentaur.Config, :config})
+:persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, :watch_dirs, [tmp_dir]))
 ```
 
 Replace with:
 
 ```elixir
-config = :persistent_term.get({MediaCentarr.Config, :config})
+config = :persistent_term.get({MediaCentaur.Config, :config})
 
 :persistent_term.put(
-  {MediaCentarr.Config, :config},
+  {MediaCentaur.Config, :config},
   config
   |> Map.put(:watch_dirs, [tmp_dir])
   |> Map.put(:database_path, "priv/showcase/test.db")
@@ -132,7 +132,7 @@ config = :persistent_term.get({MediaCentarr.Config, :config})
 - [ ] **Step 1.5: Run tests, verify they pass**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/showcase_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/showcase_test.exs
 ```
 
 Expected: both tests PASS.
@@ -149,12 +149,12 @@ jj new
 ### Task 2: Swap Dragnet → Beverly Hillbillies S1 in catalog
 
 **Files:**
-- Modify: `lib/media_centarr/showcase/catalog.ex` — swap TV entry
-- Test: existing `test/media_centarr/showcase_test.exs` still passes (dynamic catalog counts)
+- Modify: `lib/media_centaur/showcase/catalog.ex` — swap TV entry
+- Test: existing `test/media_centaur/showcase_test.exs` still passes (dynamic catalog counts)
 
 - [ ] **Step 2.1: Edit the catalog**
 
-In `lib/media_centarr/showcase/catalog.ex`, replace the `tv_series/0` body:
+In `lib/media_centaur/showcase/catalog.ex`, replace the `tv_series/0` body:
 
 ```elixir
 @spec tv_series() :: [tv_entry()]
@@ -179,7 +179,7 @@ end
 - [ ] **Step 2.2: Run tests**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/showcase_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/showcase_test.exs
 ```
 
 Expected: PASS. The test counts catalog entries dynamically, so the swap is transparent.
@@ -187,11 +187,11 @@ Expected: PASS. The test counts catalog entries dynamically, so the swap is tran
 - [ ] **Step 2.3: Reseed the showcase DB and inspect**
 
 ```bash
-rm -rf priv/showcase/media-centarr.db priv/showcase/media-centarr.db-* priv/showcase/images priv/showcase/media
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.create
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.migrate
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
-sqlite3 priv/showcase/media-centarr.db "SELECT name FROM library_tv_series;"
+rm -rf priv/showcase/media-centaur.db priv/showcase/media-centaur.db-* priv/showcase/images priv/showcase/media
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.create
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.migrate
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix seed.showcase
+sqlite3 priv/showcase/media-centaur.db "SELECT name FROM library_tv_series;"
 ```
 
 Expected output: two rows, "The Beverly Hillbillies" and "Pioneer One".
@@ -199,8 +199,8 @@ Expected output: two rows, "The Beverly Hillbillies" and "Pioneer One".
 - [ ] **Step 2.4: Verify Beverly Hillbillies episodes have real thumbs**
 
 ```bash
-BH_ID=$(sqlite3 priv/showcase/media-centarr.db "SELECT id FROM library_tv_series WHERE name='The Beverly Hillbillies';")
-sqlite3 priv/showcase/media-centarr.db "SELECT COUNT(*) FROM library_images i JOIN library_episodes e ON i.episode_id=e.id JOIN library_seasons s ON e.season_id=s.id WHERE s.tv_series_id='$BH_ID' AND i.role='thumb';"
+BH_ID=$(sqlite3 priv/showcase/media-centaur.db "SELECT id FROM library_tv_series WHERE name='The Beverly Hillbillies';")
+sqlite3 priv/showcase/media-centaur.db "SELECT COUNT(*) FROM library_images i JOIN library_episodes e ON i.episode_id=e.id JOIN library_seasons s ON e.season_id=s.id WHERE s.tv_series_id='$BH_ID' AND i.role='thumb';"
 ```
 
 Expected: >20 (most of 36 S1 episodes should have stills).
@@ -236,7 +236,7 @@ Overwrite `scripts/generate-showcase-thumbs` with:
 # Regenerate the bundled showcase episode-thumbnail placeholders.
 #
 # These are the fallback thumbs used by the seeder
-# (MediaCentarr.Showcase.bundle_episode_thumb!/1) for TV series where
+# (MediaCentaur.Showcase.bundle_episode_thumb!/1) for TV series where
 # TMDB has no still_path — currently only Pioneer One (CC-BY-NC-SA).
 #
 # The design goal is "tasteful dark placeholder that reads as
@@ -314,11 +314,11 @@ If they look wrong (too dark, too bright, wrong proportions), iterate on the gly
 - [ ] **Step 3.4: Reseed and view Pioneer One detail**
 
 ```bash
-rm -rf priv/showcase/media-centarr.db* priv/showcase/images priv/showcase/media
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.create
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.migrate
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix phx.server
+rm -rf priv/showcase/media-centaur.db* priv/showcase/images priv/showcase/media
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.create
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.migrate
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix seed.showcase
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix phx.server
 ```
 
 In a browser, visit `http://127.0.0.1:4003/?zone=library`, click Pioneer One, check the episode strip. Placeholders should read as intentional dark placeholders, not as the old loud gradients. Stop the server (`Ctrl+C` twice).
@@ -343,11 +343,11 @@ jj new
 ### Task 4: Populated watch history
 
 **Files:**
-- Modify: `lib/media_centarr/showcase.ex` — expand `seed_watch_history!/1` to 15–20 events
+- Modify: `lib/media_centaur/showcase.ex` — expand `seed_watch_history!/1` to 15–20 events
 
 - [ ] **Step 4.1: Edit `seed_watch_history!/1`**
 
-In `lib/media_centarr/showcase.ex`, locate `seed_watch_history!/1` (currently around line 401). Replace its body:
+In `lib/media_centaur/showcase.ex`, locate `seed_watch_history!/1` (currently around line 401). Replace its body:
 
 ```elixir
 defp seed_watch_history!(movies) do
@@ -386,7 +386,7 @@ end
 
 - [ ] **Step 4.2: Run the showcase seed test to verify counts**
 
-Update the existing test assertion in `test/media_centarr/showcase_test.exs` — `watch_events > 0` still holds but is now specifically ≥15:
+Update the existing test assertion in `test/media_centaur/showcase_test.exs` — `watch_events > 0` still holds but is now specifically ≥15:
 
 ```elixir
 assert summary.watch_events >= 15
@@ -395,7 +395,7 @@ assert summary.watch_events >= 15
 Run:
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/showcase_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/showcase_test.exs
 ```
 
 Expected: PASS.
@@ -403,11 +403,11 @@ Expected: PASS.
 - [ ] **Step 4.3: Reseed and visit /history**
 
 ```bash
-rm -rf priv/showcase/media-centarr.db* priv/showcase/images priv/showcase/media
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.create
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.migrate
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix phx.server
+rm -rf priv/showcase/media-centaur.db* priv/showcase/images priv/showcase/media
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.create
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.migrate
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix seed.showcase
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix phx.server
 ```
 
 Visit `http://127.0.0.1:4003/history` and verify the page shows ~20 events over ~30 days. Stop the server.
@@ -424,13 +424,13 @@ jj new
 ### Task 5: Seed console log entries
 
 **Files:**
-- Modify: `lib/media_centarr/showcase.ex` — emit varied log entries near end of `seed!/0`
+- Modify: `lib/media_centaur/showcase.ex` — emit varied log entries near end of `seed!/0`
 
 **Why:** The `/console` page will otherwise be nearly empty at screenshot time. A varied set of log entries gives the filter chips something to show off.
 
 - [ ] **Step 5.1: Add a `seed_console_entries/0` helper and call it**
 
-In `lib/media_centarr/showcase.ex`, add just before the final `%{movies: length(movies), ...}` return in `seed!/0`:
+In `lib/media_centaur/showcase.ex`, add just before the final `%{movies: length(movies), ...}` return in `seed!/0`:
 
 ```elixir
 seed_console_entries!()
@@ -463,11 +463,11 @@ end
 - [ ] **Step 5.2: Reseed, visit /console**
 
 ```bash
-rm -rf priv/showcase/media-centarr.db* priv/showcase/images priv/showcase/media
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.create
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.migrate
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix phx.server
+rm -rf priv/showcase/media-centaur.db* priv/showcase/images priv/showcase/media
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.create
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.migrate
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix seed.showcase
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix phx.server
 ```
 
 Visit `http://127.0.0.1:4003/console` and verify ~10 varied entries across components, levels. Stop the server.
@@ -484,14 +484,14 @@ jj new
 ### Task 6: Seed an acquisition grab row (for /download shot)
 
 **Files:**
-- Modify: `lib/media_centarr/showcase.ex` — add `seed_acquisition!/0`
+- Modify: `lib/media_centaur/showcase.ex` — add `seed_acquisition!/0`
 - Modify: `lib/mix/tasks/seed.showcase.ex` — print acquisition count in summary
 
 **Why:** `/download` is primarily a search UI with a queue monitor below. Seeding one grab row means the queue card below the search isn't completely empty at screenshot time. We still capture the empty-search state (no active search typed); the queue card provides visual anchor.
 
 - [ ] **Step 6.1: Add `seed_acquisition!/0` helper**
 
-In `lib/media_centarr/showcase.ex`, add near the end (before `# Helpers`):
+In `lib/media_centaur/showcase.ex`, add near the end (before `# Helpers`):
 
 ```elixir
 # One Acquisition.Grab row in the "searching" state so the /download
@@ -499,13 +499,13 @@ In `lib/media_centarr/showcase.ex`, add near the end (before `# Helpers`):
 # The Prowlarr client is not called — this is a static DB row only.
 defp seed_acquisition! do
   changeset =
-    MediaCentarr.Acquisition.Grab.create_changeset(%{
+    MediaCentaur.Acquisition.Grab.create_changeset(%{
       tmdb_id: "12345",
       tmdb_type: "movie",
       title: "Showcase Upcoming Film (2026)"
     })
 
-  {:ok, _grab} = MediaCentarr.Repo.insert(changeset)
+  {:ok, _grab} = MediaCentaur.Repo.insert(changeset)
   1
 end
 ```
@@ -522,7 +522,7 @@ Add `acquisitions: acquisition_count` to the returned summary map.
 
 - [ ] **Step 6.3: Extend the `summary()` type and Mix task printer**
 
-In `lib/media_centarr/showcase.ex`, update the `@type summary` spec:
+In `lib/media_centaur/showcase.ex`, update the `@type summary` spec:
 
 ```elixir
 @type summary :: %{
@@ -543,7 +543,7 @@ In `lib/mix/tasks/seed.showcase.ex`, add `Acquisitions:   #{summary.acquisitions
 
 - [ ] **Step 6.4: Extend the Showcase test**
 
-In `test/media_centarr/showcase_test.exs`, add to the "creates all catalog entries" test:
+In `test/media_centaur/showcase_test.exs`, add to the "creates all catalog entries" test:
 
 ```elixir
 assert summary.acquisitions == 1
@@ -552,14 +552,14 @@ assert summary.acquisitions == 1
 Also add a `Repo.all/1` assertion:
 
 ```elixir
-grabs = Repo.all(MediaCentarr.Acquisition.Grab)
+grabs = Repo.all(MediaCentaur.Acquisition.Grab)
 assert length(grabs) == 1
 ```
 
 Run:
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/showcase_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/showcase_test.exs
 ```
 
 Expected: PASS.
@@ -582,13 +582,13 @@ jj new
 ### Task 7: Add scroll anchors to settings sections
 
 **Files:**
-- Modify: `lib/media_centarr_web/live/settings_live.ex`
+- Modify: `lib/media_centaur_web/live/settings_live.ex`
 
 **Why:** The tour needs to scroll `/settings` to four distinct sections for the `settings-library`, `settings-tmdb`, `settings-prowlarr`, and `settings-download-clients` shots. Each section currently has only an `<h2>` — no stable anchor ID for Playwright to target.
 
 - [ ] **Step 7.1: Add `id=` attributes to the four section containers**
 
-In `lib/media_centarr_web/live/settings_live.ex`, find the four `<form>` / `<div>` blocks that wrap each section and add `id="settings-<name>"`:
+In `lib/media_centaur_web/live/settings_live.ex`, find the four `<form>` / `<div>` blocks that wrap each section and add `id="settings-<name>"`:
 
 **TMDB** (around line 1518):
 ```html
@@ -626,7 +626,7 @@ Expected: clean compile.
 - [ ] **Step 7.3: Manual check in browser**
 
 ```bash
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix phx.server
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix phx.server
 ```
 
 Visit `http://127.0.0.1:4003/settings#settings-tmdb` — the page should scroll to the TMDB section on load. Repeat for each anchor. Stop the server.
@@ -837,7 +837,7 @@ In the same file, update the JSDoc typedef:
 Grep the codebase:
 
 ```bash
-grep -rn 'data-review-pending\|data-status-releases' lib/media_centarr_web
+grep -rn 'data-review-pending\|data-status-releases' lib/media_centaur_web
 ```
 
 If the attributes don't exist, add them to the appropriate HEEx templates in this same commit:
@@ -850,7 +850,7 @@ Stable test-hook attributes are fine to add; they're opaque to users.
 - [ ] **Step 9.5: Start showcase server and run the tour**
 
 ```bash
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix phx.server
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix phx.server
 ```
 
 In another shell:
@@ -937,7 +937,7 @@ jj new
 
 ### Task 11: Update wiki pages with new / fixed screenshot references
 
-**Files:** (in sibling repo `../media-centarr.wiki/`)
+**Files:** (in sibling repo `../media-centaur.wiki/`)
 - Modify: `Review-Queue.md` (fix broken link, add detail shot)
 - Modify: `Release-Tracking.md` (fix broken link)
 - Modify: `Browsing-Your-Library.md` (add movie + TV detail shots)
@@ -950,7 +950,7 @@ jj new
 - Modify: `Keyboard-and-Gamepad.md` (add keyboard-focus shot)
 - Modify: `Home.md` (add library-grid hero)
 
-All images use the `https://raw.githubusercontent.com/media-centarr/media-centarr/main/docs-site/assets/screenshots/<NAME>.png` URL pattern, matching existing references.
+All images use the `https://raw.githubusercontent.com/media-centaur/media-centaur/main/docs-site/assets/screenshots/<NAME>.png` URL pattern, matching existing references.
 
 - [ ] **Step 11.1: Ensure screenshot commit is on `main` and pushed first**
 
@@ -960,12 +960,12 @@ Push Phases 1–6 first (see "Phase 7 — Ship" below), then return to this task
 
 - [ ] **Step 11.2: For each wiki page, insert or fix the image reference**
 
-All edits happen in `../media-centarr.wiki/`. For each page:
+All edits happen in `../media-centaur.wiki/`. For each page:
 
 **`Review-Queue.md`** — the top `![Review queue](...)` line is currently broken; keep it, and after the first paragraph add a second image for the detail view:
 
 ```markdown
-![Review detail](https://raw.githubusercontent.com/media-centarr/media-centarr/main/docs-site/assets/screenshots/review-detail.png)
+![Review detail](https://raw.githubusercontent.com/media-centaur/media-centaur/main/docs-site/assets/screenshots/review-detail.png)
 ```
 
 **`Release-Tracking.md`** — the top `![Release tracking](...)` line is currently broken. No change needed to the reference itself (screenshot now exists); just verify the filename matches (`release-tracking.png`).
@@ -973,14 +973,14 @@ All edits happen in `../media-centarr.wiki/`. For each page:
 **`Browsing-Your-Library.md`** — currently has `library-grid` at top. After the first paragraph, add:
 
 ```markdown
-![Movie detail](https://raw.githubusercontent.com/media-centarr/media-centarr/main/docs-site/assets/screenshots/library-detail-movie.png)
-![TV series detail](https://raw.githubusercontent.com/media-centarr/media-centarr/main/docs-site/assets/screenshots/library-detail-tv.png)
+![Movie detail](https://raw.githubusercontent.com/media-centaur/media-centaur/main/docs-site/assets/screenshots/library-detail-movie.png)
+![TV series detail](https://raw.githubusercontent.com/media-centaur/media-centaur/main/docs-site/assets/screenshots/library-detail-tv.png)
 ```
 
 **`Settings-Reference.md`** — currently has `settings-overview` at top. Near the relevant section headings in the body, insert section screenshots:
 
 ```markdown
-![TMDB settings](https://raw.githubusercontent.com/media-centarr/media-centarr/main/docs-site/assets/screenshots/settings-tmdb.png)
+![TMDB settings](https://raw.githubusercontent.com/media-centaur/media-centaur/main/docs-site/assets/screenshots/settings-tmdb.png)
 ```
 
 (Similarly `settings-prowlarr`, `settings-download-clients`, `settings-library` near their section headings.)
@@ -988,49 +988,49 @@ All edits happen in `../media-centarr.wiki/`. For each page:
 **`Watch-History.md`** — after the intro, add:
 
 ```markdown
-![Watch history](https://raw.githubusercontent.com/media-centarr/media-centarr/main/docs-site/assets/screenshots/history.png)
+![Watch history](https://raw.githubusercontent.com/media-centaur/media-centaur/main/docs-site/assets/screenshots/history.png)
 ```
 
 **`Download-Clients.md`** — after the intro:
 
 ```markdown
-![Download client settings](https://raw.githubusercontent.com/media-centarr/media-centarr/main/docs-site/assets/screenshots/settings-download-clients.png)
+![Download client settings](https://raw.githubusercontent.com/media-centaur/media-centaur/main/docs-site/assets/screenshots/settings-download-clients.png)
 ```
 
 **`Prowlarr-Integration.md`** — after the intro:
 
 ```markdown
-![Prowlarr settings](https://raw.githubusercontent.com/media-centarr/media-centarr/main/docs-site/assets/screenshots/settings-prowlarr.png)
+![Prowlarr settings](https://raw.githubusercontent.com/media-centaur/media-centaur/main/docs-site/assets/screenshots/settings-prowlarr.png)
 ```
 
 **`TMDB-API-Key.md`** — after the intro:
 
 ```markdown
-![TMDB API key setting](https://raw.githubusercontent.com/media-centarr/media-centarr/main/docs-site/assets/screenshots/settings-tmdb.png)
+![TMDB API key setting](https://raw.githubusercontent.com/media-centaur/media-centaur/main/docs-site/assets/screenshots/settings-tmdb.png)
 ```
 
 **`Adding-Your-Library.md`** — after the first paragraph:
 
 ```markdown
-![Library settings](https://raw.githubusercontent.com/media-centarr/media-centarr/main/docs-site/assets/screenshots/settings-library.png)
+![Library settings](https://raw.githubusercontent.com/media-centaur/media-centaur/main/docs-site/assets/screenshots/settings-library.png)
 ```
 
 **`Keyboard-and-Gamepad.md`** — after the intro:
 
 ```markdown
-![Keyboard focus ring](https://raw.githubusercontent.com/media-centarr/media-centarr/main/docs-site/assets/screenshots/keyboard-focus.png)
+![Keyboard focus ring](https://raw.githubusercontent.com/media-centaur/media-centaur/main/docs-site/assets/screenshots/keyboard-focus.png)
 ```
 
 **`Home.md`** — add after the existing logo/title block, before the first section:
 
 ```markdown
-![Library grid](https://raw.githubusercontent.com/media-centarr/media-centarr/main/docs-site/assets/screenshots/library-grid.png)
+![Library grid](https://raw.githubusercontent.com/media-centaur/media-centaur/main/docs-site/assets/screenshots/library-grid.png)
 ```
 
 - [ ] **Step 11.3: Commit the wiki bundle**
 
 ```bash
-cd ../media-centarr.wiki
+cd ../media-centaur.wiki
 jj describe -m "wiki: screenshots for every major page"
 jj bookmark set master -r @
 jj git push
@@ -1039,7 +1039,7 @@ cd -
 
 - [ ] **Step 11.4: Visual check on GitHub**
 
-Open the GitHub wiki (e.g. `https://github.com/media-centarr/media-centarr/wiki/Review-Queue`) and verify images render in each edited page. GitHub caches images aggressively — may take 1–2 minutes for new images to show.
+Open the GitHub wiki (e.g. `https://github.com/media-centaur/media-centaur/wiki/Review-Queue`) and verify images render in each edited page. GitHub caches images aggressively — may take 1–2 minutes for new images to show.
 
 ---
 
@@ -1087,7 +1087,7 @@ Expected: the new `v0.22.1` (or whatever patch was cut) appears with a tarball a
 
 - [ ] **Step 13.3: Pages deploy check**
 
-`docs-site/index.html` change triggers `.github/workflows/pages.yml`. Verify the deployed landing page shows 8 tiles at https://media-centarr.github.io/media-centarr/.
+`docs-site/index.html` change triggers `.github/workflows/pages.yml`. Verify the deployed landing page shows 8 tiles at https://media-centaur.github.io/media-centaur/.
 
 - [ ] **Step 13.4: Wiki commit**
 

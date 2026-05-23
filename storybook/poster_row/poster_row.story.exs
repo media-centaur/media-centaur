@@ -1,11 +1,11 @@
-defmodule MediaCentarrWeb.Storybook.PosterRow.PosterRow do
+defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
   @moduledoc """
   Horizontal 8-up poster row — used on Home for "Recently Added".
 
   ## Contract shape (typed)
 
   The component takes `attr :items, :list, required: true` of
-  `MediaCentarrWeb.Components.PosterRow.Item.t()` structs:
+  `MediaCentaurWeb.Components.PosterRow.Item.t()` structs:
 
       %Item{
         id: term(),
@@ -27,9 +27,9 @@ defmodule MediaCentarrWeb.Storybook.PosterRow.PosterRow do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarrWeb.Components.PosterRow.Item
+  alias MediaCentaurWeb.Components.PosterRow.Item
 
-  def function, do: &MediaCentarrWeb.Components.PosterRow.poster_row/1
+  def function, do: &MediaCentaurWeb.Components.PosterRow.poster_row/1
   def render_source, do: :function
 
   # Row uses horizontal scroll on overflow; the default two-column preview

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.DropContentUrlFromLeaves do
+defmodule MediaCentaur.Repo.Migrations.DropContentUrlFromLeaves do
   use Ecto.Migration
 
   # Library Schema v2 Phase 2 Task I.

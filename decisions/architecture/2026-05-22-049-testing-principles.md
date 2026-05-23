@@ -13,9 +13,9 @@ performance guardrail: the test-isolation-hardening campaign added
 `drain_supervised_tasks` to `DataCase` `on_exit` (commit `9528cc1b`,
 2026-05-21) to stop async tasks from hitting the DB after sandbox
 release. The drain waits up to 1000ms per lingering
-`MediaCentarr.TaskSupervisor` child. Because many LiveViews fire
+`MediaCentaur.TaskSupervisor` child. Because many LiveViews fire
 background work on mount via raw
-`Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, …)` and
+`Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, …)` and
 tests never await it, those tasks are orphaned under the *global*
 supervisor — so teardown blocks on them, ~230ms–1000ms per test,
 invisible in per-test timing (it runs in `on_exit`). Across
@@ -65,7 +65,7 @@ the process that needs it:
   `Task.Supervisor.start_child` whose lifecycle nobody owns and no
   test can await.
 
-Fire-and-forget `Task.Supervisor.start_child(MediaCentarr.Task
+Fire-and-forget `Task.Supervisor.start_child(MediaCentaur.Task
 Supervisor, …)` from the web layer is **forbidden**. Teardown then
 needs no global drain because there is nothing to drain.
 

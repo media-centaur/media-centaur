@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.DropTmdbExternalIds do
+defmodule MediaCentaur.Repo.Migrations.DropTmdbExternalIds do
   @moduledoc """
   Drops `library_external_ids` rows for sources `"tmdb"` and `"tmdb_collection"`.
 

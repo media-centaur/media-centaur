@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Acquisition do
+defmodule MediaCentaurWeb.Storybook.Acquisition do
   use PhoenixStorybook.Index
 
   def folder_open?, do: false

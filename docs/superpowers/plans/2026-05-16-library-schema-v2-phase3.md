@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to execute task-by-task. Steps use checkbox (`- [ ]`). Invoke `automated-testing`, `otp-thinking`, `phoenix-thinking`, and `coding-guidelines` BEFORE touching code.
 
-**Goal:** Push the remaining Library read paths into Pillar 2 (in-memory projections via the established Cache.Worker pattern from [ADR-041](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)). After Phase 3, no LiveView mount/render path hits `MediaCentarr.Repo` directly for Library data — they read from `Library.Views.*` ETS tables. Watch progress moves to a Pillar-2 GenServer with debounced persistence.
+**Goal:** Push the remaining Library read paths into Pillar 2 (in-memory projections via the established Cache.Worker pattern from [ADR-041](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)). After Phase 3, no LiveView mount/render path hits `MediaCentaur.Repo` directly for Library data — they read from `Library.Views.*` ETS tables. Watch progress moves to a Pillar-2 GenServer with debounced persistence.
 
 **Architecture premise:** This is a local desktop app — statefulness is an asset. The four ADR-041 projections already live; Phase 3 fans the same pattern across the remaining read paths. Reads are microseconds (`:ets.tab2list/1` / `:ets.lookup/2`), not milliseconds. Writes go through Pillar-1 unchanged; projections rebuild on PubSub events.
 
 **Campaign reference:** [`campaigns/done/library-schema-v2.md`](../../../campaigns/done/library-schema-v2.md). Phase 1 + Phase 2 shipped to main. This plan executes Phase 3.
 
-**Tech stack:** Phoenix 1.7+, Ecto 3.12+, SQLite via ecto_sqlite3, ETS, `MediaCentarr.Cache` behaviour (ADR-041).
+**Tech stack:** Phoenix 1.7+, Ecto 3.12+, SQLite via ecto_sqlite3, ETS, `MediaCentaur.Cache` behaviour (ADR-041).
 
 ---
 
@@ -35,7 +35,7 @@ The user is explicit: **automated testing rigor is the bar for Phase 3.** Apply 
 
 5. **Test from cold start AND from incremental update.** Cold-start tests: the projection populates correctly on boot (`refresh_cache/0` called once). Incremental tests: upstream event → projection updates → read reflects the change. Both paths matter; mocking either is a smell.
 
-6. **Page smoke tests update for every LiveView touched.** `test/media_centarr_web/page_smoke_test.exs` must keep covering every route/zone with a representative fixture. If Phase 3 changes how a LiveView reads its data, the smoke fixture still has to seed enough data to exercise the new read path.
+6. **Page smoke tests update for every LiveView touched.** `test/media_centaur_web/page_smoke_test.exs` must keep covering every route/zone with a representative fixture. If Phase 3 changes how a LiveView reads its data, the smoke fixture still has to seed enough data to exercise the new read path.
 
 7. **Extract LiveView logic into pure functions ([ADR-030]).** Phase 3 may introduce new view-model helpers. They live in pure modules and get unit-tested with `build_*` factory helpers (no DB), `async: true`. Never test rendered HTML.
 
@@ -51,9 +51,9 @@ The user is explicit: **automated testing rigor is the bar for Phase 3.** Apply 
 
 ## Pre-flight
 
-- [ ] Read `lib/media_centarr/cache.ex` end-to-end — the `MediaCentarr.Cache` behaviour is the contract every projection implements.
-- [ ] Read `lib/media_centarr/library/views/continue_watching.ex` and its test as the canonical example.
-- [ ] Read `lib/media_centarr/topics.ex` — the PubSub topic registry. Phase 3 adds derived topics; the pattern is `library:views` for derived events, `library:updates` for source events.
+- [ ] Read `lib/media_centaur/cache.ex` end-to-end — the `MediaCentaur.Cache` behaviour is the contract every projection implements.
+- [ ] Read `lib/media_centaur/library/views/continue_watching.ex` and its test as the canonical example.
+- [ ] Read `lib/media_centaur/topics.ex` — the PubSub topic registry. Phase 3 adds derived topics; the pattern is `library:views` for derived events, `library:updates` for source events.
 - [ ] Confirm `mix precommit` is green on `main` before starting (it shipped clean after Phase 2 — should be a no-op).
 - [ ] `jj new` off main for the Phase 3 branch.
 
@@ -75,11 +75,11 @@ E (Audit + retire DB-on-render reads)                        — depends on A, B
 
 | Task | Creates | Modifies |
 |------|---------|----------|
-| A | `lib/media_centarr/library/views/browse.ex`, `lib/media_centarr/library/views/browse_item.ex`, `test/media_centarr/library/views/browse_test.exs` | `lib/media_centarr/library.ex` (add `Views.browse/1` reader), `lib/media_centarr/topics.ex` if new topic atom needed, `lib/media_centarr/application.ex` (start the Cache.Worker for this projection), `lib/media_centarr_web/live/library_live.ex` (read from projection on mount) |
-| B | `lib/media_centarr/library/views/detail.ex`, `lib/media_centarr/library/views/detail_item.ex`, `test/media_centarr/library/views/detail_test.exs` | `Library` context, application supervision, `DetailLive` / `EntityModal` consumers |
-| C | `lib/media_centarr/library/views/search.ex`, `lib/media_centarr/library/views/search_item.ex`, `test/media_centarr/library/views/search_test.exs` | `Library` context, application supervision, search consumers |
-| D | `lib/media_centarr/library/progress.ex`, `lib/media_centarr/library/progress/cache.ex` (or wherever fits the Cache.Worker shape), `test/media_centarr/library/progress_test.exs`, possibly `test/media_centarr/library/progress/debounced_flush_test.exs` | `Library.WatchProgress` writer paths (Playback session writes via Library.Progress now), `MpvSession`, application supervision |
-| E | — | Every LiveView mount/handle_info that still hits `Repo` for Library data; `test/media_centarr_web/page_smoke_test.exs` to verify zero DB queries in render paths |
+| A | `lib/media_centaur/library/views/browse.ex`, `lib/media_centaur/library/views/browse_item.ex`, `test/media_centaur/library/views/browse_test.exs` | `lib/media_centaur/library.ex` (add `Views.browse/1` reader), `lib/media_centaur/topics.ex` if new topic atom needed, `lib/media_centaur/application.ex` (start the Cache.Worker for this projection), `lib/media_centaur_web/live/library_live.ex` (read from projection on mount) |
+| B | `lib/media_centaur/library/views/detail.ex`, `lib/media_centaur/library/views/detail_item.ex`, `test/media_centaur/library/views/detail_test.exs` | `Library` context, application supervision, `DetailLive` / `EntityModal` consumers |
+| C | `lib/media_centaur/library/views/search.ex`, `lib/media_centaur/library/views/search_item.ex`, `test/media_centaur/library/views/search_test.exs` | `Library` context, application supervision, search consumers |
+| D | `lib/media_centaur/library/progress.ex`, `lib/media_centaur/library/progress/cache.ex` (or wherever fits the Cache.Worker shape), `test/media_centaur/library/progress_test.exs`, possibly `test/media_centaur/library/progress/debounced_flush_test.exs` | `Library.WatchProgress` writer paths (Playback session writes via Library.Progress now), `MpvSession`, application supervision |
+| E | — | Every LiveView mount/handle_info that still hits `Repo` for Library data; `test/media_centaur_web/page_smoke_test.exs` to verify zero DB queries in render paths |
 
 ---
 
@@ -108,12 +108,12 @@ def browse(filter \\ [])
 The test file follows the existing `continue_watching_test.exs` pattern:
 
 ```elixir
-defmodule MediaCentarr.Library.Views.BrowseTest do
-  use MediaCentarr.DataCase, async: false
-  import MediaCentarr.TestFactory
-  alias MediaCentarr.Library.Views
-  alias MediaCentarr.Library.Views.{Browse, BrowseItem}
-  alias MediaCentarr.Topics
+defmodule MediaCentaur.Library.Views.BrowseTest do
+  use MediaCentaur.DataCase, async: false
+  import MediaCentaur.TestFactory
+  alias MediaCentaur.Library.Views
+  alias MediaCentaur.Library.Views.{Browse, BrowseItem}
+  alias MediaCentaur.Topics
 
   setup do
     # Re-init the cache so each test starts cold
@@ -136,10 +136,10 @@ defmodule MediaCentarr.Library.Views.BrowseTest do
 
     # The non-flaky synchronisation pattern:
     test "broadcasts :browse on library:views after refresh" do
-      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.library_views())
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
       movie = create_standalone_movie(%{name: "Movie A"})
 
-      Phoenix.PubSub.broadcast(MediaCentarr.PubSub, Topics.library_updates(),
+      Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.library_updates(),
         %Library.Events.EntitiesChanged{entity_ids: [movie.id]})
 
       assert_receive {:library_view_updated, :browse}, 500
@@ -167,11 +167,11 @@ end
 - [ ] **A.1 Write `browse_test.exs`** covering all cases above. Run it — expect failures on every test (modules don't exist yet).
 - [ ] **A.2 Write `BrowseItem` typed struct** with `@type t :: %__MODULE__{...}`, factory helper in `test/support/factory.ex` (`build_browse_item/1`).
 - [ ] **A.3 Implement `Library.Views.Browse`** — Cache behaviour module: `subscribe/0`, `relevant?/1`, `refresh_cache/0`. Source: `Library.Browser.list/2` output (or a new optimised query). ETS table init, replace-all on refresh.
-- [ ] **A.4 Wire `Cache.Worker`** into `lib/media_centarr/application.ex` supervision tree.
-- [ ] **A.5 Implement `Library.Views.browse/1` reader** in `lib/media_centarr/library/views.ex` (the umbrella read module — already exists, you're adding to it).
+- [ ] **A.4 Wire `Cache.Worker`** into `lib/media_centaur/application.ex` supervision tree.
+- [ ] **A.5 Implement `Library.Views.browse/1` reader** in `lib/media_centaur/library/views.ex` (the umbrella read module — already exists, you're adding to it).
 - [ ] **A.6 Migrate `LibraryLive` mount path** to read from `Library.Views.browse/1` instead of `Library.Browser.list/2`. Subscribe to derived topic. Section_reloader pattern from existing projections.
 - [ ] **A.7 Update page smoke test** if the LibraryLive zone count or fixture shape changed.
-- [ ] **A.8 `mix precommit` green.** Run `mix test --repeat-until-failure 3 test/media_centarr/library/views/browse_test.exs test/media_centarr_web/page_smoke_test.exs` for flake check.
+- [ ] **A.8 `mix precommit` green.** Run `mix test --repeat-until-failure 3 test/media_centaur/library/views/browse_test.exs test/media_centaur_web/page_smoke_test.exs` for flake check.
 - [ ] **A.9 Commit:** `jj describe -m "feat(library): Views.Browse projection — LibraryLive reads in microseconds"`
 
 ---
@@ -384,16 +384,16 @@ end
 
 ## Task E — Audit + retire DB-on-render reads
 
-**Goal:** Final cleanup. Every LiveView mount/handle_info that still calls `MediaCentarr.Repo.*` for Library data either:
+**Goal:** Final cleanup. Every LiveView mount/handle_info that still calls `MediaCentaur.Repo.*` for Library data either:
 - (a) moves to a `Library.Views.*` projection
 - (b) carries an explicit `# Direct DB read by design: <reason>` comment
 
-**Approach:** Grep `Repo\.` in `lib/media_centarr_web/live/`, evaluate each hit, fix or annotate.
+**Approach:** Grep `Repo\.` in `lib/media_centaur_web/live/`, evaluate each hit, fix or annotate.
 
 ### Test plan
 
 ```elixir
-# In test/media_centarr_web/page_smoke_test.exs (or a dedicated module):
+# In test/media_centaur_web/page_smoke_test.exs (or a dedicated module):
 describe "no DB-on-render contract" do
   # Optional but high-value: use Ecto.Adapters.SQL.query_count or similar
   # to count queries during mount, and assert ≤ N for the section's projection
@@ -408,8 +408,8 @@ If the query-count helper doesn't exist, write it first as part of this task (it
 
 ### Implementation steps
 
-- [ ] **E.1 Inventory:** `grep -rn 'Repo\.' lib/media_centarr_web/live/` and categorise each hit.
-- [ ] **E.2 Write the query-counter test helper** if it doesn't exist. Use `:telemetry.attach/4` against `[:media_centarr, :repo, :query]`.
+- [ ] **E.1 Inventory:** `grep -rn 'Repo\.' lib/media_centaur_web/live/` and categorise each hit.
+- [ ] **E.2 Write the query-counter test helper** if it doesn't exist. Use `:telemetry.attach/4` against `[:media_centaur, :repo, :query]`.
 - [ ] **E.3 Write `no_db_on_render_test.exs`** that asserts each LiveView's mount issues 0 (or N, with N documented) queries for the render path. Run — red where Repo is still being hit.
 - [ ] **E.4 Fix each LiveView** by moving to projection reads or annotating with rationale.
 - [ ] **E.5 `mix precommit` green** + the new test suite stays at 0 queries.
@@ -440,7 +440,7 @@ Each task above gets a fresh subagent dispatch:
 
 - Every Library read path used by a LiveView reads from a `Library.Views.*` projection.
 - `Library.Progress` is a Pillar-2 GenServer with debounced flush; MpvSession writes via its public API; no DB writes on the playback tick path.
-- `grep -rn 'Repo\.' lib/media_centarr_web/live/` returns zero hits without an explanatory `# Direct DB read by design` annotation.
+- `grep -rn 'Repo\.' lib/media_centaur_web/live/` returns zero hits without an explanatory `# Direct DB read by design` annotation.
 - `mix precommit` green; all baselines stable across three consecutive `scripts/profile` runs.
 - Per-task spec tests + per-route page smoke tests all green and deterministic.
 - ADR added (or amended) documenting the new projections and the watch-progress GenServer.
@@ -459,7 +459,7 @@ Each task above gets a fresh subagent dispatch:
 - [ADR-041 — In-memory projection architecture](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)
 - [`campaigns/done/library-schema-v2.md`](../../../campaigns/done/library-schema-v2.md)
 - [`campaigns/done/desktop-rearchitecture.md`](../../../campaigns/done/desktop-rearchitecture.md) — partner campaign; Phase 3's projections feed Workstream A
-- `lib/media_centarr/cache.ex` — Cache.Worker behaviour
-- `lib/media_centarr/library/views/continue_watching.ex` — canonical projection
-- `test/media_centarr/library/views/continue_watching_test.exs` — canonical projection test
-- `lib/media_centarr/topics.ex` — PubSub topic registry
+- `lib/media_centaur/cache.ex` — Cache.Worker behaviour
+- `lib/media_centaur/library/views/continue_watching.ex` — canonical projection
+- `test/media_centaur/library/views/continue_watching_test.exs` — canonical projection test
+- `lib/media_centaur/topics.ex` — PubSub topic registry

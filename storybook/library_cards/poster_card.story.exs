@@ -1,15 +1,15 @@
-defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
+defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
   @moduledoc """
   Library grid poster card — the 2:3 thumbnail rendered by
-  `MediaCentarrWeb.LibraryLive` at `/library`.
+  `MediaCentaurWeb.LibraryLive` at `/library`.
 
   ## Contract shape (Phase 3.1)
 
   After the Phase 3.1 LibraryLive cutover, the component takes a typed
-  `MediaCentarr.Library.Views.BrowseItem` struct and a separate
+  `MediaCentaur.Library.Views.BrowseItem` struct and a separate
   optional `progress` summary map:
 
-      attr :entry, MediaCentarr.Library.Views.BrowseItem
+      attr :entry, MediaCentaur.Library.Views.BrowseItem
       attr :progress, :map, default: nil
 
   The fixtures below construct that pair directly. The `entry` is a
@@ -29,9 +29,9 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.PosterCard do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Library.Views.BrowseItem
+  alias MediaCentaur.Library.Views.BrowseItem
 
-  def function, do: &MediaCentarrWeb.Components.LibraryCards.poster_card/1
+  def function, do: &MediaCentaurWeb.Components.LibraryCards.poster_card/1
   def render_source, do: :function
 
   # The card's natural width is the grid's `minmax(155px, 1fr)`. The

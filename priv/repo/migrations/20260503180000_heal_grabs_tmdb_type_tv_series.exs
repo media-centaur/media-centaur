@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.HealGrabsTmdbTypeTvSeries do
+defmodule MediaCentaur.Repo.Migrations.HealGrabsTmdbTypeTvSeries do
   use Ecto.Migration
 
   # An earlier release stored TV grabs with `tmdb_type = "tv_series"` (the

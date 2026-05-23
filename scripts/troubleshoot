@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Troubleshoot a running Media Centarr production instance.
-# All Elixir-side logic lives in MediaCentarr.Diagnostics — this script
+# Troubleshoot a running Media Centaur production instance.
+# All Elixir-side logic lives in MediaCentaur.Diagnostics — this script
 # is a thin dispatcher that calls named functions, never inline code.
 # Usage: scripts/troubleshoot [command] [args...]
 
-service="media-centarr"
-install_dir="$HOME/.local/lib/media-centarr"
-bin="$install_dir/current/bin/media_centarr"
+service="media-centaur"
+install_dir="$HOME/.local/lib/media-centaur"
+bin="$install_dir/current/bin/media_centaur"
 port=2160
 
 bold="\033[1m"
@@ -29,7 +29,7 @@ info()   { printf "  ${dim}%s${reset}\n" "$1"; }
 require_release() {
   if [ ! -x "$bin" ]; then
     echo "Error: Release not found at $bin"
-    echo "Install one: curl -fsSL https://raw.githubusercontent.com/media-centarr/media-centarr/main/installer/install.sh | sh"
+    echo "Install one: curl -fsSL https://raw.githubusercontent.com/media-centaur/media-centaur/main/installer/install.sh | sh"
     echo "(Or tag a new release with /ship <level> and update from Settings > Overview.)"
     exit 1
   fi
@@ -44,7 +44,7 @@ require_running() {
 }
 
 diag() {
-  "$bin" rpc "MediaCentarr.Diagnostics.$1"
+  "$bin" rpc "MediaCentaur.Diagnostics.$1"
 }
 
 # --- Commands ---
@@ -85,8 +85,8 @@ cmd_status() {
   fi
 
   banner "Database"
-  if [ -f "$HOME/.local/share/media-centarr/media-centarr.db" ]; then
-    db_size=$(du -h "$HOME/.local/share/media-centarr/media-centarr.db" 2>/dev/null | cut -f1)
+  if [ -f "$HOME/.local/share/media-centaur/media-centaur.db" ]; then
+    db_size=$(du -h "$HOME/.local/share/media-centaur/media-centaur.db" 2>/dev/null | cut -f1)
     ok "Exists ($db_size)"
   else
     fail "Database file not found"
@@ -168,7 +168,7 @@ cmd_mpv_env() {
     info "  systemctl --user restart $service"
     info ""
     info "Long-term: make sure your compositor's autostart imports the env"
-    info "before starting media-centarr (or add it to the unit's [Service])."
+    info "before starting media-centaur (or add it to the unit's [Service])."
   fi
 
   banner "Current systemd-user environment"

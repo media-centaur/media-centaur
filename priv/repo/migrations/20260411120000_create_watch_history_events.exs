@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.CreateWatchHistoryEvents do
+defmodule MediaCentaur.Repo.Migrations.CreateWatchHistoryEvents do
   use Ecto.Migration
 
   def change do

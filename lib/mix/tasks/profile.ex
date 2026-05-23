@@ -5,7 +5,7 @@ if Mix.env() in [:dev, :test] do
 
     @moduledoc """
     Orchestrates an end-to-end profile run (ADR-041): seed
-    representative library data, run every `MediaCentarr.Profile.Suite`
+    representative library data, run every `MediaCentaur.Profile.Suite`
     via Benchee, time every top-level LiveView mount via
     `Phoenix.LiveViewTest`, and write both a markdown report and a
     canonical JSON snapshot under `priv/profiling/runs/`.
@@ -16,7 +16,7 @@ if Mix.env() in [:dev, :test] do
     the markdown's `## Deltas` section, and a focused terminal
     summary (regressions and improvements outside ±10%).
 
-    Refuses to run without `MEDIA_CENTARR_CONFIG_OVERRIDE` set so a
+    Refuses to run without `MEDIA_CENTAUR_CONFIG_OVERRIDE` set so a
     misconfigured invocation cannot mutate the user's dev or prod DB.
     `scripts/profile` sets this automatically — invoke that for the
     one-button experience.
@@ -59,8 +59,8 @@ if Mix.env() in [:dev, :test] do
     """
     use Mix.Task
 
-    alias MediaCentarr.Profile
-    alias MediaCentarr.Profile.{Bench, Diff, Loader, Mounts, Reporter, RunData}
+    alias MediaCentaur.Profile
+    alias MediaCentaur.Profile.{Bench, Diff, Loader, Mounts, Reporter, RunData}
 
     @cache_ets :library_view_continue_watching
     @cache_warm_timeout_ms 5000
@@ -95,7 +95,7 @@ if Mix.env() in [:dev, :test] do
         # Loader writes through public Library APIs that don't broadcast
         # entity changes, so the projection's Cache.Worker hasn't refreshed.
         # Force a refresh so the warm-cache scenarios see the seeded data.
-        MediaCentarr.Library.Views.ContinueWatching.refresh_cache()
+        MediaCentaur.Library.Views.ContinueWatching.refresh_cache()
       end
 
       Mix.shell().info("Running benchmarks…")
@@ -342,13 +342,13 @@ if Mix.env() in [:dev, :test] do
     end
 
     defp require_config_override! do
-      case System.get_env("MEDIA_CENTARR_CONFIG_OVERRIDE") do
+      case System.get_env("MEDIA_CENTAUR_CONFIG_OVERRIDE") do
         override when is_binary(override) and override != "" ->
           :ok
 
         _ ->
           Mix.raise("""
-          mix profile refuses to run without MEDIA_CENTARR_CONFIG_OVERRIDE.
+          mix profile refuses to run without MEDIA_CENTAUR_CONFIG_OVERRIDE.
 
           Use the script entry point (sets the override automatically):
 
@@ -356,7 +356,7 @@ if Mix.env() in [:dev, :test] do
 
           Or invoke directly with the shipped profile config:
 
-              MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-profile.toml mix profile
+              MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-profile.toml mix profile
 
           This prevents profiling against the default dev/prod DB.
           """)

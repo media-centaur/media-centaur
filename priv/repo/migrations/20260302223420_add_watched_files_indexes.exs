@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddWatchedFilesIndexes do
+defmodule MediaCentaur.Repo.Migrations.AddWatchedFilesIndexes do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

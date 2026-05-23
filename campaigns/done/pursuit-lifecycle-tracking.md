@@ -181,10 +181,10 @@ inside a future downloads/queue workstream if it ever matters.
 
 * Predecessors: [`done/pursuits-maturation.md`](done/pursuits-maturation.md),
   [`done/library-presence-unification.md`](done/library-presence-unification.md).
-* Key modules: `lib/media_centarr/acquisition/pursuits/{inbound_listener,
+* Key modules: `lib/media_centaur/acquisition/pursuits/{inbound_listener,
   identity_verifier,library_reconciler,watcher,observations}.ex`,
-  `lib/media_centarr/acquisition/{target,queue_matcher}.ex`,
-  `lib/media_centarr/acquisition/view_models/pursuit_status.ex`,
-  `lib/media_centarr/downloads/{queue_monitor,queue_item}.ex`,
-  `lib/media_centarr/review.ex` (`PendingFile`), `lib/media_centarr/library.ex`
+  `lib/media_centaur/acquisition/{target,queue_matcher}.ex`,
+  `lib/media_centaur/acquisition/view_models/pursuit_status.ex`,
+  `lib/media_centaur/downloads/{queue_monitor,queue_item}.ex`,
+  `lib/media_centaur/review.ex` (`PendingFile`), `lib/media_centaur/library.ex`
   (`find_present_*`, `list_present_file_paths`).

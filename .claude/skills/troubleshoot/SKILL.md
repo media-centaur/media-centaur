@@ -1,23 +1,23 @@
 ---
 name: troubleshoot
-description: "Use this skill when debugging production issues, checking service health, enabling runtime logs, or investigating errors in the deployed Media Centarr backend."
+description: "Use this skill when debugging production issues, checking service health, enabling runtime logs, or investigating errors in the deployed Media Centaur backend."
 ---
 
 ## Production Deployment
 
-- **Service:** `media-centarr` (systemd user unit)
-- **Install dir:** `~/.local/lib/media-centarr/`
-- **Binary:** `~/.local/lib/media-centarr/bin/media_centarr`
-- **Database:** `~/.local/share/media-centarr/media-centarr.db` (SQLite)
-- **Config:** `~/.config/media-centarr/media-centarr.toml`
+- **Service:** `media-centaur` (systemd user unit)
+- **Install dir:** `~/.local/lib/media-centaur/`
+- **Binary:** `~/.local/lib/media-centaur/bin/media_centaur`
+- **Database:** `~/.local/share/media-centaur/media-centaur.db` (SQLite)
+- **Config:** `~/.config/media-centaur/media-centaur.toml`
 - **Port:** 2160 (loopback only)
-- **Node:** `media_centarr` (sname, cookie: `media-centarr-local`)
+- **Node:** `media_centaur` (sname, cookie: `media-centaur-local`)
 
-Dev runs on port 1080 (see `MEDIA_CENTARR_CONFIG_OVERRIDE` in the dev systemd unit). Both coexist on the same machine.
+Dev runs on port 1080 (see `MEDIA_CENTAUR_CONFIG_OVERRIDE` in the dev systemd unit). Both coexist on the same machine.
 
 ## Diagnostics Module
 
-All diagnostic logic lives in `MediaCentarr.Diagnostics` (`lib/media_centarr/diagnostics.ex`). The troubleshoot script calls these named functions — never inline Elixir code.
+All diagnostic logic lives in `MediaCentaur.Diagnostics` (`lib/media_centaur/diagnostics.ex`). The troubleshoot script calls these named functions — never inline Elixir code.
 
 | Function | Purpose |
 |----------|---------|
@@ -32,7 +32,7 @@ level. The buffer captures every log; filtering is a display concern.
 
 ## The Troubleshoot Script
 
-`scripts/troubleshoot` is the CLI interface. All Elixir-side calls go through `MediaCentarr.Diagnostics`.
+`scripts/troubleshoot` is the CLI interface. All Elixir-side calls go through `MediaCentaur.Diagnostics`.
 
 ### Quick Health Check
 
@@ -76,7 +76,7 @@ Disconnect with `Ctrl+\`.
 ## Log Architecture
 
 Every log emitted by the application flows through an Erlang `:logger` handler
-into `MediaCentarr.Console.Buffer` — an in-memory ring buffer (default 2,000
+into `MediaCentaur.Console.Buffer` — an in-memory ring buffer (default 2,000
 entries, configurable up to 50,000). The buffer captures unconditionally; the
 console UI applies display-time filtering via component chips, a level floor
 (info/warning/error), and a text search box.
@@ -91,7 +91,7 @@ Filter state and buffer size are persisted per user in `Settings.Entry` with a
 
 ### Component Formatter (terminal / journal)
 
-Production uses the component-aware formatter (`MediaCentarr.Log.Formatter`),
+Production uses the component-aware formatter (`MediaCentaur.Log.Formatter`),
 so thinking logs show `[info][playback] resolved entity Dept Q — play_next, file.mkv`
 in `journalctl`. The browser console shows the same entries with rich
 filtering. Choose whichever is faster for the task at hand.
@@ -109,13 +109,13 @@ scripts/troubleshoot errors 24h             # error-level journal entries, last 
 
 For arbitrary state queries against the running production node, use the
 `mc-rpc` wrapper (`~/scripts/mc-rpc`) — it pipes an Elixir expression to
-`bin/media_centarr rpc` on the installed release and prints the result.
+`bin/media_centaur rpc` on the installed release and prints the result.
 Same `Diagnostics.*` helpers as dev work; non-interactive, scripts cleanly:
 
 ```bash
-mc-rpc 'MediaCentarr.Diagnostics.services()'
-mc-rpc 'alias MediaCentarr.{Library, Repo}; import Ecto.Query; Repo.aggregate(Library.Movie, :count)'
-echo 'MediaCentarr.Console.snapshot()' | mc-rpc
+mc-rpc 'MediaCentaur.Diagnostics.services()'
+mc-rpc 'alias MediaCentaur.{Library, Repo}; import Ecto.Query; Repo.aggregate(Library.Movie, :count)'
+echo 'MediaCentaur.Console.snapshot()' | mc-rpc
 ```
 
 Set `MC_BIN` to override the release path on hosts with a non-default install.
@@ -144,12 +144,12 @@ debug browser won't.
 ### Dev (via Tidewave MCP)
 
 Call functions directly on the running dev node:
-- `MediaCentarr.Diagnostics.log_recent(20)` — print recent entries
-- `MediaCentarr.Console.recent_entries(20)` — same data as `%Entry{}` structs
-- `MediaCentarr.Console.snapshot()` — entries + buffer cap + current filter
-- `MediaCentarr.Diagnostics.playback()` — active playback state
-- `MediaCentarr.Diagnostics.services()` — watcher/pipeline/session counts
-- `MediaCentarr.Diagnostics.status()` — supervision tree health
+- `MediaCentaur.Diagnostics.log_recent(20)` — print recent entries
+- `MediaCentaur.Console.recent_entries(20)` — same data as `%Entry{}` structs
+- `MediaCentaur.Console.snapshot()` — entries + buffer cap + current filter
+- `MediaCentaur.Diagnostics.playback()` — active playback state
+- `MediaCentaur.Diagnostics.services()` — watcher/pipeline/session counts
+- `MediaCentaur.Diagnostics.status()` — supervision tree health
 
 ## Common Debugging Workflows
 
@@ -179,15 +179,15 @@ for rate-limit warnings, 404s, and confidence scoring decisions.
 1. `scripts/troubleshoot errors 24h` — systemd journal errors
 2. `scripts/troubleshoot log recent 100` — in-memory buffer (lost on restart,
    so may be empty after a crash)
-3. `journalctl --user -u media-centarr --since "1 hour ago"` — full
+3. `journalctl --user -u media-centaur --since "1 hour ago"` — full
    journal context around the crash
 
 ## Systemd Operations
 
 ```bash
-systemctl --user start media-centarr
-systemctl --user stop media-centarr
-systemctl --user restart media-centarr
+systemctl --user start media-centaur
+systemctl --user stop media-centaur
+systemctl --user restart media-centaur
 ```
 
 ## Rebuilding and Deploying

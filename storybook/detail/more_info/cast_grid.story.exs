@@ -1,9 +1,9 @@
-defmodule MediaCentarrWeb.Storybook.Detail.MoreInfo.CastGrid do
+defmodule MediaCentaurWeb.Storybook.Detail.MoreInfo.CastGrid do
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Library.Person
+  alias MediaCentaur.Library.Person
 
-  def function, do: &MediaCentarrWeb.Components.Detail.MoreInfo.CastGrid.cast_grid/1
+  def function, do: &MediaCentaurWeb.Components.Detail.MoreInfo.CastGrid.cast_grid/1
 
   @populated Enum.map(0..7, fn i ->
                %Person{

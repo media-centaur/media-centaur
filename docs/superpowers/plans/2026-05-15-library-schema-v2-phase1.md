@@ -6,7 +6,7 @@
 
 **Architecture:** Pillar-1 schema work. Each task is a self-contained migration + schema + changeset + caller-update + commit. No projection changes (Pillar 2) and no PubSub topology changes (Pillar 3) — those land in later phases.
 
-**Tech Stack:** Phoenix 1.7+, Ecto 3.12+, SQLite via ecto_sqlite3, ExMachina-style factories in `MediaCentarr.TestFactory`.
+**Tech Stack:** Phoenix 1.7+, Ecto 3.12+, SQLite via ecto_sqlite3, ExMachina-style factories in `MediaCentaur.TestFactory`.
 
 **Campaign reference:** [`campaigns/done/library-schema-v2.md`](../../../campaigns/done/library-schema-v2.md).
 
@@ -25,12 +25,12 @@ Files this plan creates or modifies, by task. Keep responsibilities narrow.
 
 | Task | Creates | Modifies |
 |------|---------|----------|
-| 1 | `lib/media_centarr/library/person.ex` | `lib/media_centarr/library/movie.ex`, `tv_series.ex`, `movie_series.ex`; `lib/media_centarr/library/inbound.ex`; `test/support/factory.ex`; cast-strip templates under `lib/media_centarr_web/components/library_detail/` |
-| 2 | `priv/repo/migrations/<ts>_typed_date_published.exs` | Each container schema's `date_published` field; `lib/media_centarr_web/components/library_card/` (year display); `lib/media_centarr/format.ex` if a date helper is added |
-| 3 | `priv/repo/migrations/<ts>_duration_seconds_integer.exs` | `lib/media_centarr/library/movie.ex`, `episode.ex`; `lib/media_centarr/format.ex` (`format_seconds/1` already exists); `lib/media_centarr/tmdb/mapper.ex` (parse ISO 8601 / minutes string → seconds) |
-| 4 | `priv/repo/migrations/<ts>_movie_series_metadata_symmetry.exs` | `lib/media_centarr/library/movie_series.ex` schema + changeset; `lib/media_centarr/library/inbound.ex` `movie_series_attrs/1`; `lib/media_centarr/tmdb/collection_mapper.ex` (or wherever collection metadata is mapped) |
-| 5 | `lib/media_centarr/subtitles/track.ex` *(promoted from embedded struct to schema)*; `priv/repo/migrations/<ts>_subtitle_tracks_table.exs` | `lib/media_centarr/library/watched_file.ex` (drop `subtitle_tracks` field); `lib/media_centarr/subtitles.ex` (CRUD); `lib/media_centarr/playback.ex` consumers |
-| 6 | `lib/media_centarr/library/external_ids.ex` *(helper module — `put/3`, `get/2`)*; `priv/repo/migrations/<ts>_drop_redundant_tmdb_imdb_columns.exs` | Each container schema (drop columns); `lib/media_centarr/library/inbound.ex` (write `ExternalId` rows); `lib/media_centarr/library/type_resolver.ex` (`find_by_tmdb_id/1` reads `ExternalId`) |
+| 1 | `lib/media_centaur/library/person.ex` | `lib/media_centaur/library/movie.ex`, `tv_series.ex`, `movie_series.ex`; `lib/media_centaur/library/inbound.ex`; `test/support/factory.ex`; cast-strip templates under `lib/media_centaur_web/components/library_detail/` |
+| 2 | `priv/repo/migrations/<ts>_typed_date_published.exs` | Each container schema's `date_published` field; `lib/media_centaur_web/components/library_card/` (year display); `lib/media_centaur/format.ex` if a date helper is added |
+| 3 | `priv/repo/migrations/<ts>_duration_seconds_integer.exs` | `lib/media_centaur/library/movie.ex`, `episode.ex`; `lib/media_centaur/format.ex` (`format_seconds/1` already exists); `lib/media_centaur/tmdb/mapper.ex` (parse ISO 8601 / minutes string → seconds) |
+| 4 | `priv/repo/migrations/<ts>_movie_series_metadata_symmetry.exs` | `lib/media_centaur/library/movie_series.ex` schema + changeset; `lib/media_centaur/library/inbound.ex` `movie_series_attrs/1`; `lib/media_centaur/tmdb/collection_mapper.ex` (or wherever collection metadata is mapped) |
+| 5 | `lib/media_centaur/subtitles/track.ex` *(promoted from embedded struct to schema)*; `priv/repo/migrations/<ts>_subtitle_tracks_table.exs` | `lib/media_centaur/library/watched_file.ex` (drop `subtitle_tracks` field); `lib/media_centaur/subtitles.ex` (CRUD); `lib/media_centaur/playback.ex` consumers |
+| 6 | `lib/media_centaur/library/external_ids.ex` *(helper module — `put/3`, `get/2`)*; `priv/repo/migrations/<ts>_drop_redundant_tmdb_imdb_columns.exs` | Each container schema (drop columns); `lib/media_centaur/library/inbound.ex` (write `ExternalId` rows); `lib/media_centaur/library/type_resolver.ex` (`find_by_tmdb_id/1` reads `ExternalId`) |
 
 ---
 
@@ -39,23 +39,23 @@ Files this plan creates or modifies, by task. Keep responsibilities narrow.
 Today `cast` and `crew` are `{:array, :map}` on `Movie` and `TVSeries`. No type contract. Templates do `member["name"]` / `member["character"]` directly. We replace with an embedded schema.
 
 **Files:**
-- Create: `lib/media_centarr/library/person.ex`
-- Create: `test/media_centarr/library/person_test.exs`
-- Modify: `lib/media_centarr/library/movie.ex`, `lib/media_centarr/library/tv_series.ex`
-- Modify: `lib/media_centarr/library/inbound.ex` (any `cast: cast_list` paths)
+- Create: `lib/media_centaur/library/person.ex`
+- Create: `test/media_centaur/library/person_test.exs`
+- Modify: `lib/media_centaur/library/movie.ex`, `lib/media_centaur/library/tv_series.ex`
+- Modify: `lib/media_centaur/library/inbound.ex` (any `cast: cast_list` paths)
 - Modify: `test/support/factory.ex`
-- Modify: cast-strip + crew-row templates (e.g. `lib/media_centarr_web/components/library_detail/cast_strip.ex`)
+- Modify: cast-strip + crew-row templates (e.g. `lib/media_centaur_web/components/library_detail/cast_strip.ex`)
 
 ### Steps
 
 - [ ] **Step 1: Write the failing test for `Library.Person.cast_changeset/1`**
 
 ```elixir
-# test/media_centarr/library/person_test.exs
-defmodule MediaCentarr.Library.PersonTest do
+# test/media_centaur/library/person_test.exs
+defmodule MediaCentaur.Library.PersonTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Library.Person
+  alias MediaCentaur.Library.Person
 
   test "casts a cast member from TMDB-shaped map" do
     attrs = %{
@@ -85,16 +85,16 @@ end
 - [ ] **Step 2: Run the test — verify it fails**
 
 ```bash
-mix test test/media_centarr/library/person_test.exs
+mix test test/media_centaur/library/person_test.exs
 ```
 
-Expected: `(UndefinedFunctionError) function MediaCentarr.Library.Person.cast_member_changeset/1 is undefined`.
+Expected: `(UndefinedFunctionError) function MediaCentaur.Library.Person.cast_member_changeset/1 is undefined`.
 
 - [ ] **Step 3: Implement `Library.Person`**
 
 ```elixir
-# lib/media_centarr/library/person.ex
-defmodule MediaCentarr.Library.Person do
+# lib/media_centaur/library/person.ex
+defmodule MediaCentaur.Library.Person do
   @moduledoc """
   Embedded schema for cast and crew members. Two changesets — one per
   role — since cast members have `character`/`order` and crew members
@@ -130,17 +130,17 @@ end
 - [ ] **Step 4: Run the test — verify it passes**
 
 ```bash
-mix test test/media_centarr/library/person_test.exs
+mix test test/media_centaur/library/person_test.exs
 ```
 
 - [ ] **Step 5: Migrate `Movie` to `embeds_many :cast, Person, with: &Person.cast_member_changeset/2`**
 
 ```elixir
-# lib/media_centarr/library/movie.ex — schema block changes only
+# lib/media_centaur/library/movie.ex — schema block changes only
 - field :cast, {:array, :map}, default: []
 - field :crew, {:array, :map}, default: []
-+ embeds_many :cast, MediaCentarr.Library.Person, on_replace: :delete
-+ embeds_many :crew, MediaCentarr.Library.Person, on_replace: :delete
++ embeds_many :cast, MediaCentaur.Library.Person, on_replace: :delete
++ embeds_many :crew, MediaCentaur.Library.Person, on_replace: :delete
 ```
 
 And update the changeset:
@@ -149,8 +149,8 @@ And update the changeset:
 def create_changeset(attrs) do
   %__MODULE__{}
   |> cast(attrs, [:id, :name, ...])  # NOTE: remove :cast, :crew from the cast/2 list
-  |> cast_embed(:cast, with: &MediaCentarr.Library.Person.cast_member_changeset/1)
-  |> cast_embed(:crew, with: &MediaCentarr.Library.Person.crew_member_changeset/1)
+  |> cast_embed(:cast, with: &MediaCentaur.Library.Person.cast_member_changeset/1)
+  |> cast_embed(:crew, with: &MediaCentaur.Library.Person.crew_member_changeset/1)
   |> validate_required([:name])
   |> unique_constraint(:tmdb_id, name: :library_movies_tmdb_id_index)
 end
@@ -160,7 +160,7 @@ Drop `coerce_cast_default/1` and `coerce_crew_default/1` — `embeds_many` defau
 
 - [ ] **Step 6: Repeat for `TVSeries`**
 
-Mechanically identical to step 5 against `lib/media_centarr/library/tv_series.ex`.
+Mechanically identical to step 5 against `lib/media_centaur/library/tv_series.ex`.
 
 - [ ] **Step 7: Update test factory**
 
@@ -171,7 +171,7 @@ In `test/support/factory.ex`, change any `build_cast/0` or `build_crew/0` helper
 Any template that does `member["name"]` or `member["character"]` becomes `member.name` / `member.character`. Grep:
 
 ```bash
-grep -rn '"character"\|"job"\|"department"\|"profile_path"' lib/media_centarr_web/ test/
+grep -rn '"character"\|"job"\|"department"\|"profile_path"' lib/media_centaur_web/ test/
 ```
 
 Each hit converts from string-key access to struct field access.
@@ -205,8 +205,8 @@ Today every container stores `date_published` as `"YYYY-MM-DD"` strings. Filters
 
 **Files:**
 - Create: `priv/repo/migrations/<timestamp>_typed_date_published.exs`
-- Modify: `lib/media_centarr/library/movie.ex`, `tv_series.ex`, `movie_series.ex`, `video_object.ex`
-- Modify: `lib/media_centarr/library/inbound.ex` (TMDB date mapping)
+- Modify: `lib/media_centaur/library/movie.ex`, `tv_series.ex`, `movie_series.ex`, `video_object.ex`
+- Modify: `lib/media_centaur/library/inbound.ex` (TMDB date mapping)
 - Modify: templates using `entity.date_published` for year display
 
 ### Steps
@@ -221,7 +221,7 @@ mix ecto.gen.migration typed_date_published
 
 ```elixir
 # priv/repo/migrations/<ts>_typed_date_published.exs
-defmodule MediaCentarr.Repo.Migrations.TypedDatePublished do
+defmodule MediaCentaur.Repo.Migrations.TypedDatePublished do
   use Ecto.Migration
 
   def up do
@@ -274,10 +274,10 @@ defp parse_date(iso) when is_binary(iso), do: Date.from_iso8601!(iso)
 
 - [ ] **Step 6: Update display helpers**
 
-Templates that did `String.slice(entity.date_published, 0, 4)` for year now do `entity.date_published && entity.date_published.year`. Add `MediaCentarr.Format.year/1` if used in 3+ places:
+Templates that did `String.slice(entity.date_published, 0, 4)` for year now do `entity.date_published && entity.date_published.year`. Add `MediaCentaur.Format.year/1` if used in 3+ places:
 
 ```elixir
-# lib/media_centarr/format.ex
+# lib/media_centaur/format.ex
 def year(nil), do: nil
 def year(%Date{year: y}), do: y
 ```
@@ -311,8 +311,8 @@ Today `Movie.duration` and `Episode.duration` are `:string`. The actual stored f
 
 **Files:**
 - Create: `priv/repo/migrations/<timestamp>_duration_seconds_integer.exs`
-- Modify: `lib/media_centarr/library/movie.ex`, `episode.ex`
-- Modify: `lib/media_centarr/tmdb/mapper.ex` (or equivalent — convert minutes → seconds at the boundary)
+- Modify: `lib/media_centaur/library/movie.ex`, `episode.ex`
+- Modify: `lib/media_centaur/tmdb/mapper.ex` (or equivalent — convert minutes → seconds at the boundary)
 - Modify: templates using `entity.duration` for display
 
 ### Steps
@@ -326,7 +326,7 @@ mix ecto.gen.migration duration_seconds_integer
 - [ ] **Step 2: Write migration with column rename**
 
 ```elixir
-defmodule MediaCentarr.Repo.Migrations.DurationSecondsInteger do
+defmodule MediaCentaur.Repo.Migrations.DurationSecondsInteger do
   use Ecto.Migration
 
   def up do
@@ -369,7 +369,7 @@ Re-seed if needed.
 - [ ] **Step 4: Update schemas**
 
 ```elixir
-# lib/media_centarr/library/movie.ex
+# lib/media_centaur/library/movie.ex
 - field :duration, :string
 + field :duration_seconds, :integer
 ```
@@ -378,15 +378,15 @@ Same in `episode.ex`. Update `create_changeset/1` and `set_content_url_changeset
 
 - [ ] **Step 5: Update TMDB mapper to emit seconds**
 
-Find the mapper (likely `lib/media_centarr/tmdb/mapper.ex` or pipeline equivalent). TMDB returns `runtime: 120` (minutes). Map to `duration_seconds: 120 * 60`. For episodes (`runtime: 42`), `duration_seconds: 42 * 60`.
+Find the mapper (likely `lib/media_centaur/tmdb/mapper.ex` or pipeline equivalent). TMDB returns `runtime: 120` (minutes). Map to `duration_seconds: 120 * 60`. For episodes (`runtime: 42`), `duration_seconds: 42 * 60`.
 
 - [ ] **Step 6: Update display call sites**
 
-`MediaCentarr.Format.format_seconds/1` (lib/media_centarr/format.ex:11) already takes seconds — display call sites that previously did string parsing now go through it directly:
+`MediaCentaur.Format.format_seconds/1` (lib/media_centaur/format.ex:11) already takes seconds — display call sites that previously did string parsing now go through it directly:
 
 ```elixir
 - entity.duration |> parse_iso_duration() |> format()
-+ MediaCentarr.Format.format_seconds(entity.duration_seconds)
++ MediaCentaur.Format.format_seconds(entity.duration_seconds)
 ```
 
 Grep for `entity.duration\b` (word boundary excludes `duration_seconds`) and convert each call site.
@@ -418,9 +418,9 @@ jj new
 
 **Files:**
 - Create: `priv/repo/migrations/<timestamp>_movie_series_metadata_symmetry.exs`
-- Modify: `lib/media_centarr/library/movie_series.ex`
-- Modify: `lib/media_centarr/library/inbound.ex` — `movie_series_attrs/1` mapping
-- Modify: TMDB collection mapper (find via `grep "tmdb_collection\|collection_id" lib/media_centarr/tmdb/`)
+- Modify: `lib/media_centaur/library/movie_series.ex`
+- Modify: `lib/media_centaur/library/inbound.ex` — `movie_series_attrs/1` mapping
+- Modify: TMDB collection mapper (find via `grep "tmdb_collection\|collection_id" lib/media_centaur/tmdb/`)
 
 ### Steps
 
@@ -433,7 +433,7 @@ mix ecto.gen.migration movie_series_metadata_symmetry
 - [ ] **Step 2: Write migration**
 
 ```elixir
-defmodule MediaCentarr.Repo.Migrations.MovieSeriesMetadataSymmetry do
+defmodule MediaCentaur.Repo.Migrations.MovieSeriesMetadataSymmetry do
   use Ecto.Migration
 
   def change do
@@ -477,8 +477,8 @@ schema "library_movie_series" do
   field :country_code, :string
   field :status, Ecto.Enum, values: [:released, :ongoing, :ended]
 
-  embeds_many :cast, MediaCentarr.Library.Person, on_replace: :delete
-  embeds_many :crew, MediaCentarr.Library.Person, on_replace: :delete
+  embeds_many :cast, MediaCentaur.Library.Person, on_replace: :delete
+  embeds_many :crew, MediaCentaur.Library.Person, on_replace: :delete
 
   # ... existing has_many associations unchanged
   timestamps()
@@ -518,9 +518,9 @@ jj new
 
 **Files:**
 - Create: `priv/repo/migrations/<timestamp>_subtitle_tracks_table.exs`
-- Modify: `lib/media_centarr/subtitles/track.ex` — promote from plain struct to Ecto schema
-- Modify: `lib/media_centarr/subtitles.ex` — CRUD functions
-- Modify: `lib/media_centarr/library/watched_file.ex` — drop `subtitle_tracks` field
+- Modify: `lib/media_centaur/subtitles/track.ex` — promote from plain struct to Ecto schema
+- Modify: `lib/media_centaur/subtitles.ex` — CRUD functions
+- Modify: `lib/media_centaur/library/watched_file.ex` — drop `subtitle_tracks` field
 - Modify: every consumer of `watched_file.subtitle_tracks` (grep finds them — Playback, UI selectors)
 
 ### Steps
@@ -528,7 +528,7 @@ jj new
 - [ ] **Step 1: Write failing test in `Subtitles`**
 
 ```elixir
-# test/media_centarr/subtitles_test.exs
+# test/media_centaur/subtitles_test.exs
 test "list_tracks_for_file/1 returns tracks linked to a WatchedFile" do
   watched_file = insert(:watched_file)
 
@@ -553,7 +553,7 @@ mix ecto.gen.migration subtitle_tracks_table
 - [ ] **Step 3: Write migration**
 
 ```elixir
-defmodule MediaCentarr.Repo.Migrations.SubtitleTracksTable do
+defmodule MediaCentaur.Repo.Migrations.SubtitleTracksTable do
   use Ecto.Migration
 
   def change do
@@ -578,8 +578,8 @@ end
 - [ ] **Step 4: Promote `Subtitles.Track` to an Ecto schema**
 
 ```elixir
-# lib/media_centarr/subtitles/track.ex
-defmodule MediaCentarr.Subtitles.Track do
+# lib/media_centaur/subtitles/track.ex
+defmodule MediaCentaur.Subtitles.Track do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -592,7 +592,7 @@ defmodule MediaCentarr.Subtitles.Track do
     field :language, :string
     field :source, :string
 
-    belongs_to :watched_file, MediaCentarr.Library.WatchedFile
+    belongs_to :watched_file, MediaCentaur.Library.WatchedFile
 
     timestamps()
   end
@@ -610,7 +610,7 @@ The old `to_map`/`from_map` helpers delete — the map round-trip is gone.
 - [ ] **Step 5: Add `Subtitles` CRUD**
 
 ```elixir
-# lib/media_centarr/subtitles.ex
+# lib/media_centaur/subtitles.ex
 def create_track(attrs) do
   attrs
   |> Track.create_changeset()
@@ -637,9 +637,9 @@ end
 - [ ] **Step 6: Drop `subtitle_tracks` field from `Library.WatchedFile`**
 
 ```elixir
-# lib/media_centarr/library/watched_file.ex
+# lib/media_centaur/library/watched_file.ex
 # Remove the field declaration and the moduledoc comment about subtitle_tracks.
-# Add: has_many :subtitle_tracks, MediaCentarr.Subtitles.Track, foreign_key: :watched_file_id
+# Add: has_many :subtitle_tracks, MediaCentaur.Subtitles.Track, foreign_key: :watched_file_id
 ```
 
 Update `link_file_changeset/1` and `/2` to drop `:subtitle_tracks` from the cast list.
@@ -682,11 +682,11 @@ jj new
 Today: `Movie.tmdb_id`, `Movie.imdb_id`, etc. exist as columns *and* `ExternalId` rows exist with `source: "tmdb"` / `"imdb"`. Two sources of truth, both updated by `Inbound`. Drop the columns.
 
 **Files:**
-- Create: `lib/media_centarr/library/external_ids.ex` — helper for canonical reads/writes
+- Create: `lib/media_centaur/library/external_ids.ex` — helper for canonical reads/writes
 - Create: `priv/repo/migrations/<timestamp>_drop_redundant_tmdb_imdb_columns.exs`
-- Modify: `lib/media_centarr/library/movie.ex`, `tv_series.ex`, `movie_series.ex`, `video_object.ex`
-- Modify: `lib/media_centarr/library/inbound.ex` — write only via `ExternalIds.put/3`
-- Modify: `lib/media_centarr/library/type_resolver.ex` — `find_by_tmdb_id/1`
+- Modify: `lib/media_centaur/library/movie.ex`, `tv_series.ex`, `movie_series.ex`, `video_object.ex`
+- Modify: `lib/media_centaur/library/inbound.ex` — write only via `ExternalIds.put/3`
+- Modify: `lib/media_centaur/library/type_resolver.ex` — `find_by_tmdb_id/1`
 - Modify: every call site of `record.tmdb_id` / `record.imdb_id`
 
 ### Steps
@@ -694,12 +694,12 @@ Today: `Movie.tmdb_id`, `Movie.imdb_id`, etc. exist as columns *and* `ExternalId
 - [ ] **Step 1: Write failing test for `ExternalIds.put/3` and `get/2`**
 
 ```elixir
-# test/media_centarr/library/external_ids_test.exs
-defmodule MediaCentarr.Library.ExternalIdsTest do
-  use MediaCentarr.DataCase, async: true
+# test/media_centaur/library/external_ids_test.exs
+defmodule MediaCentaur.Library.ExternalIdsTest do
+  use MediaCentaur.DataCase, async: true
 
-  alias MediaCentarr.Library.ExternalIds
-  alias MediaCentarr.TestFactory
+  alias MediaCentaur.Library.ExternalIds
+  alias MediaCentaur.TestFactory
 
   test "put/3 inserts a new ExternalId row" do
     movie = TestFactory.create_movie()
@@ -712,7 +712,7 @@ defmodule MediaCentarr.Library.ExternalIdsTest do
   test "get/2 fetches by source from a loaded record" do
     movie = TestFactory.create_movie()
     {:ok, _} = ExternalIds.put(:tmdb, movie, "12345")
-    movie = MediaCentarr.Repo.preload(movie, :external_ids)
+    movie = MediaCentaur.Repo.preload(movie, :external_ids)
     assert ExternalIds.get(movie, :tmdb) == "12345"
   end
 end
@@ -721,8 +721,8 @@ end
 - [ ] **Step 2: Implement `ExternalIds`**
 
 ```elixir
-# lib/media_centarr/library/external_ids.ex
-defmodule MediaCentarr.Library.ExternalIds do
+# lib/media_centaur/library/external_ids.ex
+defmodule MediaCentaur.Library.ExternalIds do
   @moduledoc """
   Canonical accessors for external identifiers across containers.
 
@@ -731,8 +731,8 @@ defmodule MediaCentarr.Library.ExternalIds do
   changeset.
   """
 
-  alias MediaCentarr.Library.ExternalId
-  alias MediaCentarr.Repo
+  alias MediaCentaur.Library.ExternalId
+  alias MediaCentaur.Repo
 
   @sources ~w(tmdb imdb tvdb tmdb_collection)a
 
@@ -751,10 +751,10 @@ defmodule MediaCentarr.Library.ExternalIds do
     Enum.find_value(ids, fn %{source: s, external_id: v} -> s == source_str && v end)
   end
 
-  defp owner_fk(%MediaCentarr.Library.Movie{}), do: :movie_id
-  defp owner_fk(%MediaCentarr.Library.TVSeries{}), do: :tv_series_id
-  defp owner_fk(%MediaCentarr.Library.MovieSeries{}), do: :movie_series_id
-  defp owner_fk(%MediaCentarr.Library.VideoObject{}), do: :video_object_id
+  defp owner_fk(%MediaCentaur.Library.Movie{}), do: :movie_id
+  defp owner_fk(%MediaCentaur.Library.TVSeries{}), do: :tv_series_id
+  defp owner_fk(%MediaCentaur.Library.MovieSeries{}), do: :movie_series_id
+  defp owner_fk(%MediaCentaur.Library.VideoObject{}), do: :video_object_id
 end
 ```
 
@@ -763,12 +763,12 @@ end
 - [ ] **Step 3: Run tests — verify pass**
 
 ```bash
-mix test test/media_centarr/library/external_ids_test.exs
+mix test test/media_centaur/library/external_ids_test.exs
 ```
 
 - [ ] **Step 4: Migrate every Inbound write path**
 
-In `lib/media_centarr/library/inbound.ex`, find every place that writes `tmdb_id`/`imdb_id` on a container changeset. Remove from the changeset attrs map; emit `ExternalIds.put(:tmdb, record, tmdb_id)` after the insert.
+In `lib/media_centaur/library/inbound.ex`, find every place that writes `tmdb_id`/`imdb_id` on a container changeset. Remove from the changeset attrs map; emit `ExternalIds.put(:tmdb, record, tmdb_id)` after the insert.
 
 ```elixir
 # Before:
@@ -785,7 +785,7 @@ if imdb_id, do: ExternalIds.put(:imdb, movie, imdb_id)
 - [ ] **Step 5: Migrate `find_by_tmdb_id/1` helpers**
 
 ```elixir
-# lib/media_centarr/library/type_resolver.ex (or wherever lookups live)
+# lib/media_centaur/library/type_resolver.ex (or wherever lookups live)
 def find_movie_by_tmdb_id(tmdb_id) do
   from(m in Movie,
     join: e in assoc(m, :external_ids),
@@ -805,7 +805,7 @@ mix ecto.gen.migration drop_redundant_tmdb_imdb_columns
 ```
 
 ```elixir
-defmodule MediaCentarr.Repo.Migrations.DropRedundantTmdbImdbColumns do
+defmodule MediaCentaur.Repo.Migrations.DropRedundantTmdbImdbColumns do
   use Ecto.Migration
 
   def up do
@@ -848,13 +848,13 @@ end
 
 ```bash
 mix ecto.reset
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.reset
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.reset
 ```
 
 - [ ] **Step 8: Drop the columns from each schema**
 
 ```elixir
-# lib/media_centarr/library/movie.ex
+# lib/media_centaur/library/movie.ex
 - field :tmdb_id, :string
 - field :imdb_id, :string
 ```

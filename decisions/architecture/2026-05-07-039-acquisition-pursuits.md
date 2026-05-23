@@ -18,7 +18,7 @@ A single mutable `Grab.status` flag cannot express any of this. We need an aggre
 
 ## Decision Outcome
 
-Chosen option: **Introduce a `Pursuit` aggregate inside `MediaCentarr.Acquisition`**, identified TMDB-keyed (matching `Grab`), with an append-only event log, a hybrid-autonomy policy, and a strict separation between the read-side facade, write-side commands, and orchestrating workers.
+Chosen option: **Introduce a `Pursuit` aggregate inside `MediaCentaur.Acquisition`**, identified TMDB-keyed (matching `Grab`), with an append-only event log, a hybrid-autonomy policy, and a strict separation between the read-side facade, write-side commands, and orchestrating workers.
 
 ### Aggregate shape
 
@@ -41,7 +41,7 @@ Identification: `(tmdb_id, tmdb_type, season_number, episode_number)` — the sa
 
 ### Append-only event log
 
-`acquisition_pursuit_events` records every meaningful step. The FK to pursuits is `nilify_all` and the pursuit title is denormalised — so events survive pursuit deletion (the pattern set by [`WatchHistory.Event`](../../lib/media_centarr/watch_history/event.ex)).
+`acquisition_pursuit_events` records every meaningful step. The FK to pursuits is `nilify_all` and the pursuit title is denormalised — so events survive pursuit deletion (the pattern set by [`WatchHistory.Event`](../../lib/media_centaur/watch_history/event.ex)).
 
 In-memory representation is a typed struct per kind (one module each under `Pursuits.Events.*`); the DB row stores `kind` + `payload` map. A small `Pursuits.Events.Define` macro generates the struct, the `EventBehaviour` callbacks (`kind/0`, `to_payload/1`, `from_payload/1`), and the type — each event module ends up ~3 lines. The mapping kind ↔ struct module is exhaustive and asserted by a unit test.
 

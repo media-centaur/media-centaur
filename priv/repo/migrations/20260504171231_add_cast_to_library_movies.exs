@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddCastToLibraryMovies do
+defmodule MediaCentaur.Repo.Migrations.AddCastToLibraryMovies do
   use Ecto.Migration
 
   def change do

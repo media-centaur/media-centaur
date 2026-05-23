@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Detail.Hero do
+defmodule MediaCentaurWeb.Storybook.Detail.Hero do
   @moduledoc """
   21:9 detail-panel hero — the title-layer frame that sits on top of
   the modal-panel backdrop.
@@ -34,7 +34,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.Hero do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.Components.Detail.Hero.hero/1
+  def function, do: &MediaCentaurWeb.Components.Detail.Hero.hero/1
   def render_source, do: :function
   def layout, do: :one_column
 

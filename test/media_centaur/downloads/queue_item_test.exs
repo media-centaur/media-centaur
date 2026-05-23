@@ -1,0 +1,188 @@
+defmodule MediaCentaur.Downloads.QueueItemTest do
+  use ExUnit.Case, async: true
+
+  alias MediaCentaur.Downloads.QueueItem
+
+  describe "from_qbittorrent/1" do
+    test "parses a downloading torrent" do
+      raw = %{
+        "hash" => "abc123def456",
+        "name" => "Some.Movie.2024.2160p.UHD.BluRay-FGT",
+        "state" => "downloading",
+        "size" => 100_000_000_000,
+        "amount_left" => 25_000_000_000,
+        "progress" => 0.75,
+        "eta" => 1800,
+        "category" => "movies"
+      }
+
+      item = QueueItem.from_qbittorrent(raw)
+
+      assert %QueueItem{} = item
+      assert item.id == "abc123def456"
+      assert item.title == "Some.Movie.2024.2160p.UHD.BluRay-FGT"
+      assert item.status == "downloading"
+      assert item.state == :downloading
+      assert item.download_client == "qBittorrent"
+      assert item.indexer == "movies"
+      assert item.size == 100_000_000_000
+      assert item.size_left == 25_000_000_000
+      assert item.progress == 75.0
+      assert item.timeleft == "30m"
+    end
+
+    test "captures content_path from qBittorrent" do
+      item =
+        QueueItem.from_qbittorrent(%{
+          "hash" => "h",
+          "name" => "Some.Movie.2024-FGT",
+          "state" => "downloading",
+          "content_path" => "/downloads/Some.Movie.2024-FGT.mkv"
+        })
+
+      assert item.content_path == "/downloads/Some.Movie.2024-FGT.mkv"
+    end
+
+    test "content_path is nil when absent or blank" do
+      assert QueueItem.from_qbittorrent(%{"hash" => "h", "name" => "X", "state" => "downloading"}).content_path ==
+               nil
+
+      assert QueueItem.from_qbittorrent(%{
+               "hash" => "h",
+               "name" => "X",
+               "state" => "downloading",
+               "content_path" => ""
+             }).content_path == nil
+    end
+
+    test "leaves :health nil — only QueueMonitor sets it (it's the only thing with history)" do
+      item = QueueItem.from_qbittorrent(base_torrent(%{}))
+      assert item.health == nil
+    end
+
+    test "maps qbittorrent active states to :downloading" do
+      for state <- ~w(downloading metaDL forcedDL allocating checkingResumeData checkingDL) do
+        item = QueueItem.from_qbittorrent(base_torrent(%{"state" => state}))
+        assert item.state == :downloading, "expected #{state} → :downloading"
+      end
+    end
+
+    test "maps qbittorrent seeding/done states to :completed" do
+      for state <- ~w(uploading forcedUP pausedUP queuedUP stalledUP checkingUP) do
+        item = QueueItem.from_qbittorrent(base_torrent(%{"state" => state}))
+        assert item.state == :completed, "expected #{state} → :completed"
+      end
+    end
+
+    test "maps pausedDL to :paused" do
+      item = QueueItem.from_qbittorrent(base_torrent(%{"state" => "pausedDL"}))
+      assert item.state == :paused
+    end
+
+    test "maps stalledDL to :stalled" do
+      assert QueueItem.from_qbittorrent(base_torrent(%{"state" => "stalledDL"})).state == :stalled
+    end
+
+    test "maps queuedDL to :queued — distinct from :stalled (waiting in qBittorrent's queue, not started yet)" do
+      assert QueueItem.from_qbittorrent(base_torrent(%{"state" => "queuedDL"})).state == :queued
+    end
+
+    test "maps error and missingFiles to :error" do
+      assert QueueItem.from_qbittorrent(base_torrent(%{"state" => "error"})).state == :error
+
+      assert QueueItem.from_qbittorrent(base_torrent(%{"state" => "missingFiles"})).state ==
+               :error
+    end
+
+    test "maps unknown state to :other and preserves the raw status string" do
+      item = QueueItem.from_qbittorrent(base_torrent(%{"state" => "futureState"}))
+      assert item.state == :other
+      assert item.status == "futureState"
+    end
+
+    test "progress is the qbittorrent fraction multiplied by 100" do
+      item = QueueItem.from_qbittorrent(base_torrent(%{"progress" => 0.42}))
+      assert item.progress == 42.0
+    end
+
+    test "progress is nil when missing" do
+      raw = Map.delete(base_torrent(%{}), "progress")
+      item = QueueItem.from_qbittorrent(raw)
+      assert item.progress == nil
+    end
+
+    # qBittorrent's JSON sometimes serialises `progress` as an integer
+    # (0 or 1) rather than a float. `Float.round/2` rejects integers in
+    # Elixir 1.19+, which crashed the /download poller. Ensure integer
+    # progress is coerced to float.
+    test "progress accepts integer 0 and returns a float" do
+      item = QueueItem.from_qbittorrent(base_torrent(%{"progress" => 0}))
+      assert item.progress === 0.0
+    end
+
+    test "progress accepts integer 1 and returns a float" do
+      item = QueueItem.from_qbittorrent(base_torrent(%{"progress" => 1}))
+      assert item.progress === 100.0
+    end
+
+    test "timeleft is nil when eta is the qbittorrent infinite sentinel" do
+      assert QueueItem.from_qbittorrent(base_torrent(%{"eta" => 8_640_000})).timeleft == nil
+    end
+
+    test "timeleft formats short durations as seconds" do
+      assert QueueItem.from_qbittorrent(base_torrent(%{"eta" => 45})).timeleft == "45s"
+    end
+
+    test "timeleft formats minutes" do
+      assert QueueItem.from_qbittorrent(base_torrent(%{"eta" => 600})).timeleft == "10m"
+    end
+
+    test "timeleft formats hours and minutes" do
+      assert QueueItem.from_qbittorrent(base_torrent(%{"eta" => 5400})).timeleft == "1h 30m"
+    end
+
+    test "timeleft formats days for very long etas" do
+      assert QueueItem.from_qbittorrent(base_torrent(%{"eta" => 200_000})).timeleft == "2d"
+    end
+
+    test "indexer is nil when category is empty" do
+      item = QueueItem.from_qbittorrent(base_torrent(%{"category" => ""}))
+      assert item.indexer == nil
+    end
+
+    test "substitutes a friendly placeholder when name equals the info-hash" do
+      # qBittorrent reports `name` as the info-hash itself until the
+      # `.torrent` metadata downloads (typically during `metaDL`).
+      # Showing the bare hex string in the Downloads UI confuses users
+      # — substitute a friendly placeholder until a real name arrives.
+      hash = "ad0352787544b70df51dc696b9e0f99add01acd4"
+      raw = base_torrent(%{"hash" => hash, "name" => hash, "state" => "metaDL"})
+      item = QueueItem.from_qbittorrent(raw)
+      assert item.id == hash
+      assert item.title == "Fetching torrent details…"
+    end
+
+    test "keeps a real qBittorrent name even when it's hash-shaped but not the hash" do
+      # Don't false-positive on legitimate titles that happen to look
+      # hash-like — only substitute when name == hash exactly.
+      raw = base_torrent(%{"hash" => "abc", "name" => "Sample.Show.S01E01.mkv"})
+      assert QueueItem.from_qbittorrent(raw).title == "Sample.Show.S01E01.mkv"
+    end
+  end
+
+  defp base_torrent(overrides) do
+    Map.merge(
+      %{
+        "hash" => "h",
+        "name" => "x",
+        "state" => "downloading",
+        "size" => 100,
+        "amount_left" => 50,
+        "progress" => 0.5,
+        "eta" => 60,
+        "category" => "movies"
+      },
+      overrides
+    )
+  end
+end

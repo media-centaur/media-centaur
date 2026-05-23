@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.PursuitTargetRecipeRefactor do
+defmodule MediaCentaur.Repo.Migrations.PursuitTargetRecipeRefactor do
   @moduledoc """
   Unifies pursuit/grab into pursuit (intent + recipe) + target (specific
   release attempt). Recipe lives on the pursuit so it survives across

@@ -23,47 +23,47 @@
 ## File Structure
 
 **Create:**
-- `lib/media_centarr/acquisition/view_models/current_action.ex` — `%CurrentAction{verb, description, severity}`
-- `lib/media_centarr/acquisition/view_models/next_step.ex` — `%NextStep{description}`
-- `lib/media_centarr/acquisition/view_models/download_progress.ex` — `%DownloadProgress{state, progress_pct, size_bytes, size_left_bytes, eta, client}`
-- `lib/media_centarr/acquisition/view_models/target.ex` — `%Target{tmdb_type, tmdb_id, season_number, episode_number, year}`
-- `lib/media_centarr/acquisition/view_models/pursuit_status.ex` — main struct + pure `derive/3`
-- `lib/media_centarr/acquisition/pursuits/events/pursuit_re_searched.ex` — new event type
-- `lib/media_centarr/acquisition/pursuits/commands/re_search.ex` — new command
-- `lib/media_centarr_web/components/acquisition/pursuit_activity.ex` — new live-status component
+- `lib/media_centaur/acquisition/view_models/current_action.ex` — `%CurrentAction{verb, description, severity}`
+- `lib/media_centaur/acquisition/view_models/next_step.ex` — `%NextStep{description}`
+- `lib/media_centaur/acquisition/view_models/download_progress.ex` — `%DownloadProgress{state, progress_pct, size_bytes, size_left_bytes, eta, client}`
+- `lib/media_centaur/acquisition/view_models/target.ex` — `%Target{tmdb_type, tmdb_id, season_number, episode_number, year}`
+- `lib/media_centaur/acquisition/view_models/pursuit_status.ex` — main struct + pure `derive/3`
+- `lib/media_centaur/acquisition/pursuits/events/pursuit_re_searched.ex` — new event type
+- `lib/media_centaur/acquisition/pursuits/commands/re_search.ex` — new command
+- `lib/media_centaur_web/components/acquisition/pursuit_activity.ex` — new live-status component
 - `storybook/acquisition/pursuit_activity.story.exs` — 12 variations
-- `test/media_centarr/acquisition/view_models/pursuit_status_test.exs` — pure derive tests
-- `test/media_centarr/acquisition/pursuits_status_for_test.exs` — integration tests
-- `test/media_centarr/acquisition/pursuits/commands/re_search_test.exs` — command tests
+- `test/media_centaur/acquisition/view_models/pursuit_status_test.exs` — pure derive tests
+- `test/media_centaur/acquisition/pursuits_status_for_test.exs` — integration tests
+- `test/media_centaur/acquisition/pursuits/commands/re_search_test.exs` — command tests
 
 **Modify:**
-- `lib/media_centarr/acquisition/pursuits.ex` — add `status_for/1`, queue match helper; add `pursuit_re_searched` to summary_for/severity_for
-- `lib/media_centarr/acquisition/pursuits/event.ex` — extend `@kinds` with `pursuit_re_searched`
-- `lib/media_centarr/acquisition/pursuits/events.ex` — extend `@kind_modules` map
-- `lib/media_centarr/acquisition.ex` — add `force_search_now/1` helper
-- `lib/media_centarr_web/live/pursuit_live.ex` — full rewire (subscriptions + handle_event + render)
-- `lib/media_centarr_web/components/acquisition/pursuit_header.ex` — slim down to identity-only
-- `lib/media_centarr_web/components/acquisition/pursuit_timeline.ex` — rename heading
+- `lib/media_centaur/acquisition/pursuits.ex` — add `status_for/1`, queue match helper; add `pursuit_re_searched` to summary_for/severity_for
+- `lib/media_centaur/acquisition/pursuits/event.ex` — extend `@kinds` with `pursuit_re_searched`
+- `lib/media_centaur/acquisition/pursuits/events.ex` — extend `@kind_modules` map
+- `lib/media_centaur/acquisition.ex` — add `force_search_now/1` helper
+- `lib/media_centaur_web/live/pursuit_live.ex` — full rewire (subscriptions + handle_event + render)
+- `lib/media_centaur_web/components/acquisition/pursuit_header.ex` — slim down to identity-only
+- `lib/media_centaur_web/components/acquisition/pursuit_timeline.ex` — rename heading
 - `storybook/acquisition/pursuit_header.story.exs` — drop counter variations, add target/criteria
 - `storybook/acquisition/timeline.story.exs` — update heading variation if it asserts text
-- `test/media_centarr_web/live/pursuit_live_test.exs` — extend coverage (if file exists; otherwise leave for new file)
+- `test/media_centaur_web/live/pursuit_live_test.exs` — extend coverage (if file exists; otherwise leave for new file)
 
 ---
 
 ## Task 1: Sub-struct ViewModels (CurrentAction, NextStep, DownloadProgress, Target)
 
 **Files:**
-- Create: `lib/media_centarr/acquisition/view_models/current_action.ex`
-- Create: `lib/media_centarr/acquisition/view_models/next_step.ex`
-- Create: `lib/media_centarr/acquisition/view_models/download_progress.ex`
-- Create: `lib/media_centarr/acquisition/view_models/target.ex`
+- Create: `lib/media_centaur/acquisition/view_models/current_action.ex`
+- Create: `lib/media_centaur/acquisition/view_models/next_step.ex`
+- Create: `lib/media_centaur/acquisition/view_models/download_progress.ex`
+- Create: `lib/media_centaur/acquisition/view_models/target.ex`
 
 These are pure data carriers — no logic, no tests of their own. They are exercised by every test of `PursuitStatus.derive/3` in Task 2.
 
 - [ ] **Step 1: Create `current_action.ex`**
 
 ```elixir
-defmodule MediaCentarr.Acquisition.ViewModels.CurrentAction do
+defmodule MediaCentaur.Acquisition.ViewModels.CurrentAction do
   @moduledoc "What the pursuit is doing right now — one verb plus context."
 
   @enforce_keys [:verb, :description, :severity]
@@ -81,7 +81,7 @@ end
 - [ ] **Step 2: Create `next_step.ex`**
 
 ```elixir
-defmodule MediaCentarr.Acquisition.ViewModels.NextStep do
+defmodule MediaCentaur.Acquisition.ViewModels.NextStep do
   @moduledoc "What's expected to happen next on this pursuit (automatic)."
 
   @enforce_keys [:description]
@@ -94,7 +94,7 @@ end
 - [ ] **Step 3: Create `download_progress.ex`**
 
 ```elixir
-defmodule MediaCentarr.Acquisition.ViewModels.DownloadProgress do
+defmodule MediaCentaur.Acquisition.ViewModels.DownloadProgress do
   @moduledoc "Live download state for the matched QueueItem."
 
   @enforce_keys [:state]
@@ -116,7 +116,7 @@ end
 - [ ] **Step 4: Create `target.ex`**
 
 ```elixir
-defmodule MediaCentarr.Acquisition.ViewModels.Target do
+defmodule MediaCentaur.Acquisition.ViewModels.Target do
   @moduledoc "TMDB identity of the pursuit's goal — used in the header."
 
   @enforce_keys [:tmdb_type]
@@ -149,23 +149,23 @@ jj new
 ## Task 2: `PursuitStatus` struct + pure `derive/3` (TDD)
 
 **Files:**
-- Create: `lib/media_centarr/acquisition/view_models/pursuit_status.ex`
-- Create: `test/media_centarr/acquisition/view_models/pursuit_status_test.exs`
+- Create: `lib/media_centaur/acquisition/view_models/pursuit_status.ex`
+- Create: `test/media_centaur/acquisition/view_models/pursuit_status_test.exs`
 
 The truth table from the spec. `derive/3` takes `(Pursuit.t(), Grab.t() | nil, QueueItem.t() | nil)` and returns `{CurrentAction.t(), NextStep.t() | nil, [action_atom()]}`. No DB, no PubSub — entirely pure.
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `test/media_centarr/acquisition/view_models/pursuit_status_test.exs`:
+Create `test/media_centaur/acquisition/view_models/pursuit_status_test.exs`:
 
 ```elixir
-defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatusTest do
+defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.ViewModels.PursuitStatus
-  alias MediaCentarr.Acquisition.Pursuits.Pursuit
-  alias MediaCentarr.Acquisition.Grab
-  alias MediaCentarr.Downloads.QueueItem
+  alias MediaCentaur.Acquisition.ViewModels.PursuitStatus
+  alias MediaCentaur.Acquisition.Pursuits.Pursuit
+  alias MediaCentaur.Acquisition.Grab
+  alias MediaCentaur.Downloads.QueueItem
 
   defp pursuit(state, attrs \\ %{}) do
     base = %Pursuit{
@@ -352,36 +352,36 @@ end
 
 - [ ] **Step 2: Run tests; expect failure**
 
-Run: `mix test test/media_centarr/acquisition/view_models/pursuit_status_test.exs`
+Run: `mix test test/media_centaur/acquisition/view_models/pursuit_status_test.exs`
 Expected: All tests fail with `UndefinedFunctionError` — `PursuitStatus.derive/3` does not exist yet.
 
 - [ ] **Step 3: Implement `PursuitStatus` struct + `derive/3`**
 
-Create `lib/media_centarr/acquisition/view_models/pursuit_status.ex`:
+Create `lib/media_centaur/acquisition/view_models/pursuit_status.ex`:
 
 ```elixir
-defmodule MediaCentarr.Acquisition.ViewModels.PursuitStatus do
+defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   @moduledoc """
   Display contract for the pursuit detail page.
 
-  Built by `MediaCentarr.Acquisition.Pursuits.status_for/1` — joins the
+  Built by `MediaCentaur.Acquisition.Pursuits.status_for/1` — joins the
   pursuit row with its latest grab and any matching download-client queue
   item, then routes through the pure `derive/3` function to produce
   `current_action`, `next_step`, and `available_actions`.
   """
 
-  alias MediaCentarr.Acquisition.Grab
-  alias MediaCentarr.Acquisition.Pursuits.Pursuit
-  alias MediaCentarr.Acquisition.Pursuits.State
+  alias MediaCentaur.Acquisition.Grab
+  alias MediaCentaur.Acquisition.Pursuits.Pursuit
+  alias MediaCentaur.Acquisition.Pursuits.State
 
-  alias MediaCentarr.Acquisition.ViewModels.{
+  alias MediaCentaur.Acquisition.ViewModels.{
     CurrentAction,
     DownloadProgress,
     NextStep,
     Target
   }
 
-  alias MediaCentarr.Downloads.QueueItem
+  alias MediaCentaur.Downloads.QueueItem
 
   @enforce_keys [
     :pursuit_id,
@@ -636,7 +636,7 @@ end
 
 - [ ] **Step 4: Run tests; expect green**
 
-Run: `mix test test/media_centarr/acquisition/view_models/pursuit_status_test.exs`
+Run: `mix test test/media_centaur/acquisition/view_models/pursuit_status_test.exs`
 Expected: 14+ tests pass.
 
 - [ ] **Step 5: Commit**
@@ -651,29 +651,29 @@ jj new
 ## Task 3: New event type `pursuit_re_searched`
 
 **Files:**
-- Create: `lib/media_centarr/acquisition/pursuits/events/pursuit_re_searched.ex`
-- Modify: `lib/media_centarr/acquisition/pursuits/event.ex` (extend `@kinds`)
-- Modify: `lib/media_centarr/acquisition/pursuits/events.ex` (extend `@kind_modules`)
+- Create: `lib/media_centaur/acquisition/pursuits/events/pursuit_re_searched.ex`
+- Modify: `lib/media_centaur/acquisition/pursuits/event.ex` (extend `@kinds`)
+- Modify: `lib/media_centaur/acquisition/pursuits/events.ex` (extend `@kind_modules`)
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `test/media_centarr/acquisition/pursuits/events_test.exs` (open the file, find the existing "every kind has a struct module" assertion). If unsure, run:
+Append to `test/media_centaur/acquisition/pursuits/events_test.exs` (open the file, find the existing "every kind has a struct module" assertion). If unsure, run:
 
 ```bash
-grep -n "kinds\|kind_modules\|@kind_modules" test/media_centarr/acquisition/pursuits/events_test.exs
+grep -n "kinds\|kind_modules\|@kind_modules" test/media_centaur/acquisition/pursuits/events_test.exs
 ```
 
 The exhaustiveness test there will fail when we add `pursuit_re_searched` to `@kinds` without a matching struct. We rely on that test to fail first; no new test code required for this task.
 
 - [ ] **Step 2: Create the event struct**
 
-Create `lib/media_centarr/acquisition/pursuits/events/pursuit_re_searched.ex`:
+Create `lib/media_centaur/acquisition/pursuits/events/pursuit_re_searched.ex`:
 
 ```elixir
-defmodule MediaCentarr.Acquisition.Pursuits.Events.PursuitReSearched do
+defmodule MediaCentaur.Acquisition.Pursuits.Events.PursuitReSearched do
   @moduledoc "Recorded when a user manually re-arms the pursuit's underlying grab."
 
-  use MediaCentarr.Acquisition.Pursuits.Events.Define,
+  use MediaCentaur.Acquisition.Pursuits.Events.Define,
     kind: "pursuit_re_searched",
     payload_keys: []
 end
@@ -681,7 +681,7 @@ end
 
 - [ ] **Step 3: Extend `Event.@kinds`**
 
-Edit `lib/media_centarr/acquisition/pursuits/event.ex`. Find:
+Edit `lib/media_centaur/acquisition/pursuits/event.ex`. Find:
 
 ```elixir
   @kinds ~w(
@@ -718,10 +718,10 @@ Add `pursuit_re_searched` to the list:
 
 - [ ] **Step 4: Extend `Events.@kind_modules`**
 
-Edit `lib/media_centarr/acquisition/pursuits/events.ex`. In the alias block add `PursuitReSearched`, and add the map entry:
+Edit `lib/media_centaur/acquisition/pursuits/events.ex`. In the alias block add `PursuitReSearched`, and add the map entry:
 
 ```elixir
-alias MediaCentarr.Acquisition.Pursuits.Events.{
+alias MediaCentaur.Acquisition.Pursuits.Events.{
   AutoCancelled,
   DownloadStarted,
   FallbackInitiated,
@@ -766,7 +766,7 @@ alias MediaCentarr.Acquisition.Pursuits.Events.{
 
 - [ ] **Step 5: Add summary + severity in `Pursuits`**
 
-Edit `lib/media_centarr/acquisition/pursuits.ex`. Find the `summary_for/2` clauses and add (before the catch-all `summary_for(kind, _)`):
+Edit `lib/media_centaur/acquisition/pursuits.ex`. Find the `summary_for/2` clauses and add (before the catch-all `summary_for(kind, _)`):
 
 ```elixir
 defp summary_for("pursuit_re_searched", _), do: "Manual re-search triggered"
@@ -776,7 +776,7 @@ Severity defaults to `:info` via the existing catch-all `severity_for/1` — not
 
 - [ ] **Step 6: Run tests**
 
-Run: `mix test test/media_centarr/acquisition/pursuits/`
+Run: `mix test test/media_centaur/acquisition/pursuits/`
 Expected: all event-exhaustiveness tests pass; no regressions.
 
 - [ ] **Step 7: Commit**
@@ -791,15 +791,15 @@ jj new
 ## Task 4: `Acquisition.force_search_now/1` helper
 
 **Files:**
-- Modify: `lib/media_centarr/acquisition.ex`
-- Modify: `test/media_centarr/acquisition_test.exs` (or wherever Acquisition tests live)
+- Modify: `lib/media_centaur/acquisition.ex`
+- Modify: `test/media_centaur/acquisition_test.exs` (or wherever Acquisition tests live)
 
 This breaks a snoozed grab out of its backoff and enqueues a fresh `SearchAndGrab` job *without* resetting `attempt_count` (that's what distinguishes it from `rearm_grab/1`).
 
 - [ ] **Step 1: Find the right test file**
 
-Run: `ls test/media_centarr/acquisition*test.exs && grep -l "rearm_grab" test/media_centarr/`
-Expected: confirms the existing test file location for `Acquisition`. If `test/media_centarr/acquisition_test.exs` exists, use it; otherwise create the file mirroring the structure of nearby tests.
+Run: `ls test/media_centaur/acquisition*test.exs && grep -l "rearm_grab" test/media_centaur/`
+Expected: confirms the existing test file location for `Acquisition`. If `test/media_centaur/acquisition_test.exs` exists, use it; otherwise create the file mirroring the structure of nearby tests.
 
 - [ ] **Step 2: Write the failing test**
 
@@ -822,7 +822,7 @@ describe "force_search_now/1" do
   test "enqueues a SearchAndGrab Oban job", %{grab: grab} do
     {:ok, _updated} = Acquisition.force_search_now(grab.id)
 
-    assert_enqueued(worker: MediaCentarr.Acquisition.Jobs.SearchAndGrab, args: %{"grab_id" => grab.id})
+    assert_enqueued(worker: MediaCentaur.Acquisition.Jobs.SearchAndGrab, args: %{"grab_id" => grab.id})
   end
 
   test "no-ops on grabs that are not snoozed" do
@@ -830,7 +830,7 @@ describe "force_search_now/1" do
     {:ok, returned} = Acquisition.force_search_now(grab.id)
 
     assert returned.id == grab.id
-    refute_enqueued(worker: MediaCentarr.Acquisition.Jobs.SearchAndGrab)
+    refute_enqueued(worker: MediaCentaur.Acquisition.Jobs.SearchAndGrab)
   end
 
   test "returns :not_found for unknown grab id" do
@@ -843,12 +843,12 @@ end
 
 - [ ] **Step 3: Run tests; expect failure**
 
-Run: `mix test test/media_centarr/acquisition_test.exs` (or whichever file)
+Run: `mix test test/media_centaur/acquisition_test.exs` (or whichever file)
 Expected: `UndefinedFunctionError` on `force_search_now/1`.
 
 - [ ] **Step 4: Implement `force_search_now/1`**
 
-Edit `lib/media_centarr/acquisition.ex`. Add near `rearm_grab/1` (around line 612):
+Edit `lib/media_centaur/acquisition.ex`. Add near `rearm_grab/1` (around line 612):
 
 ```elixir
 @doc """
@@ -886,7 +886,7 @@ end
 
 - [ ] **Step 5: Run tests; expect green**
 
-Run: `mix test test/media_centarr/acquisition_test.exs`
+Run: `mix test test/media_centaur/acquisition_test.exs`
 Expected: all four `force_search_now` tests pass; no regressions in nearby tests.
 
 - [ ] **Step 6: Commit**
@@ -901,23 +901,23 @@ jj new
 ## Task 5: `Pursuits.Commands.ReSearch` command
 
 **Files:**
-- Create: `lib/media_centarr/acquisition/pursuits/commands/re_search.ex`
-- Create: `test/media_centarr/acquisition/pursuits/commands/re_search_test.exs`
+- Create: `lib/media_centaur/acquisition/pursuits/commands/re_search.ex`
+- Create: `test/media_centaur/acquisition/pursuits/commands/re_search_test.exs`
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `test/media_centarr/acquisition/pursuits/commands/re_search_test.exs`:
+Create `test/media_centaur/acquisition/pursuits/commands/re_search_test.exs`:
 
 ```elixir
-defmodule MediaCentarr.Acquisition.Pursuits.Commands.ReSearchTest do
-  use MediaCentarr.DataCase, async: false
-  use Oban.Testing, repo: MediaCentarr.Repo
+defmodule MediaCentaur.Acquisition.Pursuits.Commands.ReSearchTest do
+  use MediaCentaur.DataCase, async: false
+  use Oban.Testing, repo: MediaCentaur.Repo
 
-  import MediaCentarr.TestFactory
+  import MediaCentaur.TestFactory
 
-  alias MediaCentarr.Acquisition.Pursuits.Commands.ReSearch
-  alias MediaCentarr.Acquisition.Pursuits.Event
-  alias MediaCentarr.Repo
+  alias MediaCentaur.Acquisition.Pursuits.Commands.ReSearch
+  alias MediaCentaur.Acquisition.Pursuits.Event
+  alias MediaCentaur.Repo
 
   defp setup_with_grab(pursuit_state, grab_status) do
     pursuit = create_pursuit(%{state: pursuit_state})
@@ -939,7 +939,7 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.ReSearchTest do
       assert {:ok, _updated} = ReSearch.execute(%{pursuit_id: pursuit.id})
 
       assert_enqueued(
-        worker: MediaCentarr.Acquisition.Jobs.SearchAndGrab,
+        worker: MediaCentaur.Acquisition.Jobs.SearchAndGrab,
         args: %{"grab_id" => grab.id}
       )
 
@@ -990,15 +990,15 @@ end
 
 - [ ] **Step 2: Run tests; expect failure**
 
-Run: `mix test test/media_centarr/acquisition/pursuits/commands/re_search_test.exs`
+Run: `mix test test/media_centaur/acquisition/pursuits/commands/re_search_test.exs`
 Expected: all tests fail (`ReSearch` not defined).
 
 - [ ] **Step 3: Implement the command**
 
-Create `lib/media_centarr/acquisition/pursuits/commands/re_search.ex`:
+Create `lib/media_centaur/acquisition/pursuits/commands/re_search.ex`:
 
 ```elixir
-defmodule MediaCentarr.Acquisition.Pursuits.Commands.ReSearch do
+defmodule MediaCentaur.Acquisition.Pursuits.Commands.ReSearch do
   @moduledoc """
   Forces a fresh `SearchAndGrab` cycle for an Active pursuit.
 
@@ -1009,12 +1009,12 @@ defmodule MediaCentarr.Acquisition.Pursuits.Commands.ReSearch do
   - any other grab state → `{:error, :not_eligible}`.
   """
 
-  alias MediaCentarr.Acquisition
-  alias MediaCentarr.Acquisition.Grab
-  alias MediaCentarr.Acquisition.Pursuits
-  alias MediaCentarr.Acquisition.Pursuits.{Events, Pursuit}
-  alias MediaCentarr.Acquisition.Pursuits.Commands.Runner
-  alias MediaCentarr.Acquisition.Pursuits.Events.PursuitReSearched
+  alias MediaCentaur.Acquisition
+  alias MediaCentaur.Acquisition.Grab
+  alias MediaCentaur.Acquisition.Pursuits
+  alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit}
+  alias MediaCentaur.Acquisition.Pursuits.Commands.Runner
+  alias MediaCentaur.Acquisition.Pursuits.Events.PursuitReSearched
 
   @spec execute(%{pursuit_id: Ecto.UUID.t()}) ::
           {:ok, Pursuit.t()} | {:error, :not_found | :not_eligible | term()}
@@ -1071,7 +1071,7 @@ end
 
 - [ ] **Step 4: Add ReSearch to Acquisition boundary exports**
 
-Edit `lib/media_centarr/acquisition.ex`. Find the `use Boundary, ..., exports: [...]` block and add `Pursuits.Commands.ReSearch`:
+Edit `lib/media_centaur/acquisition.ex`. Find the `use Boundary, ..., exports: [...]` block and add `Pursuits.Commands.ReSearch`:
 
 ```elixir
 exports: [
@@ -1093,7 +1093,7 @@ exports: [
 
 - [ ] **Step 5: Run tests; expect green**
 
-Run: `mix test test/media_centarr/acquisition/pursuits/commands/re_search_test.exs`
+Run: `mix test test/media_centaur/acquisition/pursuits/commands/re_search_test.exs`
 Expected: all tests pass.
 
 - [ ] **Step 6: Commit**
@@ -1108,25 +1108,25 @@ jj new
 ## Task 6: `Pursuits.status_for/1` read-side assembly
 
 **Files:**
-- Modify: `lib/media_centarr/acquisition/pursuits.ex`
-- Create: `test/media_centarr/acquisition/pursuits_status_for_test.exs`
+- Modify: `lib/media_centaur/acquisition/pursuits.ex`
+- Create: `test/media_centaur/acquisition/pursuits_status_for_test.exs`
 
 - [ ] **Step 1: Write the failing tests**
 
-Create `test/media_centarr/acquisition/pursuits_status_for_test.exs`:
+Create `test/media_centaur/acquisition/pursuits_status_for_test.exs`:
 
 ```elixir
-defmodule MediaCentarr.Acquisition.PursuitsStatusForTest do
-  use MediaCentarr.DataCase, async: false
+defmodule MediaCentaur.Acquisition.PursuitsStatusForTest do
+  use MediaCentaur.DataCase, async: false
 
-  import MediaCentarr.TestFactory
+  import MediaCentaur.TestFactory
 
-  alias MediaCentarr.Acquisition.Pursuits
-  alias MediaCentarr.Acquisition.ViewModels.PursuitStatus
-  alias MediaCentarr.Downloads.QueueItem
-  alias MediaCentarr.Downloads.QueueState
+  alias MediaCentaur.Acquisition.Pursuits
+  alias MediaCentaur.Acquisition.ViewModels.PursuitStatus
+  alias MediaCentaur.Downloads.QueueItem
+  alias MediaCentaur.Downloads.QueueState
 
-  @queue_cache_key {MediaCentarr.Downloads.QueueMonitor, :state}
+  @queue_cache_key {MediaCentaur.Downloads.QueueMonitor, :state}
 
   setup do
     on_exit(fn -> :persistent_term.put(@queue_cache_key, %QueueState{items: []}) end)
@@ -1205,15 +1205,15 @@ end
 
 - [ ] **Step 2: Run tests; expect failure**
 
-Run: `mix test test/media_centarr/acquisition/pursuits_status_for_test.exs`
+Run: `mix test test/media_centaur/acquisition/pursuits_status_for_test.exs`
 Expected: `UndefinedFunctionError` on `Pursuits.status_for/1`.
 
 - [ ] **Step 3: Implement `status_for/1` in `Pursuits`**
 
-Edit `lib/media_centarr/acquisition/pursuits.ex`. Add the alias and function. Near the top, extend the aliases:
+Edit `lib/media_centaur/acquisition/pursuits.ex`. Add the alias and function. Near the top, extend the aliases:
 
 ```elixir
-alias MediaCentarr.Acquisition.ViewModels.{
+alias MediaCentaur.Acquisition.ViewModels.{
   CurrentAction,
   DownloadProgress,
   NextStep,
@@ -1225,8 +1225,8 @@ alias MediaCentarr.Acquisition.ViewModels.{
   TimelineEntry
 }
 
-alias MediaCentarr.Downloads.QueueItem
-alias MediaCentarr.Downloads.QueueMonitor
+alias MediaCentaur.Downloads.QueueItem
+alias MediaCentaur.Downloads.QueueMonitor
 ```
 
 (`CurrentAction`, `NextStep`, `QueueItem` may be only used inside the new code — the compiler will warn if unused. Drop any of these that the implementation below doesn't reference.)
@@ -1341,7 +1341,7 @@ end
 
 - [ ] **Step 4: Run tests; expect green**
 
-Run: `mix test test/media_centarr/acquisition/pursuits_status_for_test.exs`
+Run: `mix test test/media_centaur/acquisition/pursuits_status_for_test.exs`
 Expected: all four tests pass.
 
 - [ ] **Step 5: Commit**
@@ -1356,22 +1356,22 @@ jj new
 ## Task 7: Refactor `PursuitHeader` component (identity-only)
 
 **Files:**
-- Modify: `lib/media_centarr_web/components/acquisition/pursuit_header.ex`
-- Modify: `lib/media_centarr/acquisition/view_models/pursuit_header.ex`
+- Modify: `lib/media_centaur_web/components/acquisition/pursuit_header.ex`
+- Modify: `lib/media_centaur/acquisition/view_models/pursuit_header.ex`
 - Modify: `storybook/acquisition/pursuit_header.story.exs`
 
 The header becomes a *what is this pursuit for?* card — no counters, no cancel button. The full counter context (attempts, tried releases) is intentionally dropped; if we ever need it back, it goes in `PursuitActivity` for the relevant states.
 
 - [ ] **Step 1: Update the ViewModel**
 
-Edit `lib/media_centarr/acquisition/view_models/pursuit_header.ex`. Replace the file with:
+Edit `lib/media_centaur/acquisition/view_models/pursuit_header.ex`. Replace the file with:
 
 ```elixir
-defmodule MediaCentarr.Acquisition.ViewModels.PursuitHeader do
+defmodule MediaCentaur.Acquisition.ViewModels.PursuitHeader do
   @moduledoc "Identity contract for the detail-page header."
 
-  alias MediaCentarr.Acquisition.ViewModels.PursuitRow
-  alias MediaCentarr.Acquisition.ViewModels.Target
+  alias MediaCentaur.Acquisition.ViewModels.PursuitRow
+  alias MediaCentaur.Acquisition.ViewModels.Target
 
   @enforce_keys [:id, :title, :state, :target]
   defstruct [:id, :title, :state, :target, :criteria_summary]
@@ -1388,16 +1388,16 @@ end
 
 - [ ] **Step 2: Update the component**
 
-Edit `lib/media_centarr_web/components/acquisition/pursuit_header.ex`. Replace the file with:
+Edit `lib/media_centaur_web/components/acquisition/pursuit_header.ex`. Replace the file with:
 
 ```elixir
-defmodule MediaCentarrWeb.Components.Acquisition.PursuitHeader do
+defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
   @moduledoc "Identity card for `/download/:pursuit_id` — title, state, target, criteria."
 
   use Phoenix.Component
 
-  alias MediaCentarr.Acquisition.ViewModels.PursuitHeader
-  alias MediaCentarrWeb.Components.Acquisition.PursuitStyle
+  alias MediaCentaur.Acquisition.ViewModels.PursuitHeader
+  alias MediaCentaurWeb.Components.Acquisition.PursuitStyle
 
   attr :vm, PursuitHeader, required: true
 
@@ -1440,7 +1440,7 @@ end
 
 - [ ] **Step 3: Update `Pursuits.header_for/1` to populate the new shape**
 
-Edit `lib/media_centarr/acquisition/pursuits.ex`. Replace `build_header/1` with:
+Edit `lib/media_centaur/acquisition/pursuits.ex`. Replace `build_header/1` with:
 
 ```elixir
 defp build_header(%Pursuit{} = pursuit) do
@@ -1459,15 +1459,15 @@ end
 Replace `storybook/acquisition/pursuit_header.story.exs`:
 
 ```elixir
-defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitHeader do
+defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
   @moduledoc "Identity header for `/download/:pursuit_id`."
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Acquisition.ViewModels.PursuitHeader
-  alias MediaCentarr.Acquisition.ViewModels.Target
+  alias MediaCentaur.Acquisition.ViewModels.PursuitHeader
+  alias MediaCentaur.Acquisition.ViewModels.Target
 
-  def function, do: &MediaCentarrWeb.Components.Acquisition.PursuitHeader.pursuit_header/1
+  def function, do: &MediaCentaurWeb.Components.Acquisition.PursuitHeader.pursuit_header/1
   def render_source, do: :function
 
   def template do
@@ -1553,12 +1553,12 @@ end
 Run: `mix compile --warnings-as-errors`
 Expected: clean.
 
-Run: `mix test test/media_centarr_web/storybook_test.exs`
+Run: `mix test test/media_centaur_web/storybook_test.exs`
 Expected: green — every variation renders without crashing.
 
 - [ ] **Step 6: Run the broader test suite to catch other consumers**
 
-Run: `mix test test/media_centarr/acquisition/ test/media_centarr_web/`
+Run: `mix test test/media_centaur/acquisition/ test/media_centaur_web/`
 Expected: any test that constructed the old `PursuitHeader` struct directly will fail; fix those imports/constructions to use the new shape. There should be at most a handful (search for `%PursuitHeader{`).
 
 - [ ] **Step 7: Commit**
@@ -1573,17 +1573,17 @@ jj new
 ## Task 8: New `PursuitActivity` component + storybook stories
 
 **Files:**
-- Create: `lib/media_centarr_web/components/acquisition/pursuit_activity.ex`
+- Create: `lib/media_centaur_web/components/acquisition/pursuit_activity.ex`
 - Create: `storybook/acquisition/pursuit_activity.story.exs`
 
 Storybook stories ship FIRST (project rule). For this task: build the component and its stories side-by-side and verify in storybook before wiring it into the LiveView (Task 9).
 
 - [ ] **Step 1: Implement the component**
 
-Create `lib/media_centarr_web/components/acquisition/pursuit_activity.ex`:
+Create `lib/media_centaur_web/components/acquisition/pursuit_activity.ex`:
 
 ```elixir
-defmodule MediaCentarrWeb.Components.Acquisition.PursuitActivity do
+defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
   @moduledoc """
   Live status card for the pursuit detail page.
 
@@ -1594,9 +1594,9 @@ defmodule MediaCentarrWeb.Components.Acquisition.PursuitActivity do
 
   use Phoenix.Component
 
-  import MediaCentarrWeb.CoreComponents, only: [button: 1]
+  import MediaCentaurWeb.CoreComponents, only: [button: 1]
 
-  alias MediaCentarr.Acquisition.ViewModels.PursuitStatus
+  alias MediaCentaur.Acquisition.ViewModels.PursuitStatus
 
   attr :vm, PursuitStatus, required: true
   attr :on_cancel, :string, default: nil
@@ -1696,12 +1696,12 @@ end
 Create `storybook/acquisition/pursuit_activity.story.exs`:
 
 ```elixir
-defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
+defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
   @moduledoc "Live status card for `/download/:pursuit_id`."
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Acquisition.ViewModels.{
+  alias MediaCentaur.Acquisition.ViewModels.{
     CurrentAction,
     DownloadProgress,
     NextStep,
@@ -1709,7 +1709,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
     Target
   }
 
-  def function, do: &MediaCentarrWeb.Components.Acquisition.PursuitActivity.pursuit_activity/1
+  def function, do: &MediaCentaurWeb.Components.Acquisition.PursuitActivity.pursuit_activity/1
   def render_source, do: :function
 
   def template do
@@ -1956,7 +1956,7 @@ end
 
 - [ ] **Step 3: Run storybook tests**
 
-Run: `mix test test/media_centarr_web/storybook_test.exs`
+Run: `mix test test/media_centaur_web/storybook_test.exs`
 Expected: every variation renders without crashing.
 
 - [ ] **Step 4: Compile check**
@@ -1976,12 +1976,12 @@ jj new
 ## Task 9: Rename `PursuitTimeline` heading
 
 **Files:**
-- Modify: `lib/media_centarr_web/components/acquisition/pursuit_timeline.ex`
+- Modify: `lib/media_centaur_web/components/acquisition/pursuit_timeline.ex`
 - Modify: `storybook/acquisition/timeline.story.exs` (only if it asserts the heading text)
 
 - [ ] **Step 1: Update the heading**
 
-Edit `lib/media_centarr_web/components/acquisition/pursuit_timeline.ex`. Change the heading line:
+Edit `lib/media_centaur_web/components/acquisition/pursuit_timeline.ex`. Change the heading line:
 
 ```elixir
 <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50 mb-3">History</h3>
@@ -1991,7 +1991,7 @@ Edit `lib/media_centarr_web/components/acquisition/pursuit_timeline.ex`. Change 
 
 - [ ] **Step 2: Storybook smoke**
 
-Run: `mix test test/media_centarr_web/storybook_test.exs`
+Run: `mix test test/media_centaur_web/storybook_test.exs`
 Expected: green.
 
 - [ ] **Step 3: Commit**
@@ -2006,7 +2006,7 @@ jj new
 ## Task 10: Rewire `PursuitLive`
 
 **Files:**
-- Modify: `lib/media_centarr_web/live/pursuit_live.ex`
+- Modify: `lib/media_centaur_web/live/pursuit_live.ex`
 
 Replace the LiveView to use `Pursuits.status_for/1`, subscribe to queue snapshots, and add re-search + request-decision handlers.
 
@@ -2015,7 +2015,7 @@ Replace the LiveView to use `Pursuits.status_for/1`, subscribe to queue snapshot
 Replace the file with:
 
 ```elixir
-defmodule MediaCentarrWeb.PursuitLive do
+defmodule MediaCentaurWeb.PursuitLive do
   @moduledoc """
   Detail page for a single pursuit at `/download/:pursuit_id`.
 
@@ -2024,20 +2024,20 @@ defmodule MediaCentarrWeb.PursuitLive do
   Every refresh recomputes via `Pursuits.status_for/1`.
   """
 
-  use MediaCentarrWeb, :live_view
+  use MediaCentaurWeb, :live_view
 
-  require MediaCentarr.Log, as: Log
+  require MediaCentaur.Log, as: Log
 
-  alias MediaCentarr.Acquisition
-  alias MediaCentarr.Acquisition.{CancelReasons, Pursuits}
-  alias MediaCentarr.Acquisition.Pursuits.Pursuit
-  alias MediaCentarr.Acquisition.Pursuits.Commands.{Cancel, RecordUserChoice, ReSearch, RequestDecision}
-  alias MediaCentarr.Acquisition.Pursuits.Events, as: PursuitEvents
-  alias MediaCentarr.Acquisition.ViewModels
-  alias MediaCentarr.Acquisition.ViewModels.Alternative
-  alias MediaCentarrWeb.Components.Acquisition.DecisionCard, as: DecisionCardComponent
-  alias MediaCentarrWeb.Components.Acquisition.{PursuitActivity, PursuitHeader, PursuitTimeline}
-  alias MediaCentarrWeb.Layouts
+  alias MediaCentaur.Acquisition
+  alias MediaCentaur.Acquisition.{CancelReasons, Pursuits}
+  alias MediaCentaur.Acquisition.Pursuits.Pursuit
+  alias MediaCentaur.Acquisition.Pursuits.Commands.{Cancel, RecordUserChoice, ReSearch, RequestDecision}
+  alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
+  alias MediaCentaur.Acquisition.ViewModels
+  alias MediaCentaur.Acquisition.ViewModels.Alternative
+  alias MediaCentaurWeb.Components.Acquisition.DecisionCard, as: DecisionCardComponent
+  alias MediaCentaurWeb.Components.Acquisition.{PursuitActivity, PursuitHeader, PursuitTimeline}
+  alias MediaCentaurWeb.Layouts
 
   @decision_prompt "Pick an alternative release."
 
@@ -2247,7 +2247,7 @@ defmodule MediaCentarrWeb.PursuitLive do
   defp indexer_name(%{indexer: indexer}) when is_binary(indexer), do: indexer
   defp indexer_name(_), do: "Unknown"
 
-  defp quality_label(%{quality: q}) when is_atom(q), do: MediaCentarr.Acquisition.Quality.label(q)
+  defp quality_label(%{quality: q}) when is_atom(q), do: MediaCentaur.Acquisition.Quality.label(q)
   defp quality_label(_), do: nil
 end
 ```
@@ -2255,11 +2255,11 @@ end
 - [ ] **Step 2: Compile check**
 
 Run: `mix compile --warnings-as-errors`
-Expected: clean. If `RequestDecision` isn't currently exported from the Acquisition boundary, add it to the exports list in `lib/media_centarr/acquisition.ex`.
+Expected: clean. If `RequestDecision` isn't currently exported from the Acquisition boundary, add it to the exports list in `lib/media_centaur/acquisition.ex`.
 
 - [ ] **Step 3: Smoke test the page**
 
-Run: `mix test test/media_centarr_web/page_smoke_test.exs`
+Run: `mix test test/media_centaur_web/page_smoke_test.exs`
 Expected: existing smoke test for `/download` still passes; the `/download/:id` mount path isn't covered by `page_smoke_test.exs` directly but we'll add a smoke test next.
 
 - [ ] **Step 4: Commit**
@@ -2274,29 +2274,29 @@ jj new
 ## Task 11: PursuitLive smoke + handler tests
 
 **Files:**
-- Create: `test/media_centarr_web/live/pursuit_live_test.exs` (if absent)
+- Create: `test/media_centaur_web/live/pursuit_live_test.exs` (if absent)
 
 - [ ] **Step 1: Check whether the test file exists**
 
-Run: `test -f test/media_centarr_web/live/pursuit_live_test.exs && echo exists || echo create`
+Run: `test -f test/media_centaur_web/live/pursuit_live_test.exs && echo exists || echo create`
 Expected output: `create`. If it shows `exists`, open the file and append the tests below.
 
 - [ ] **Step 2: Write the tests**
 
-Create `test/media_centarr_web/live/pursuit_live_test.exs`:
+Create `test/media_centaur_web/live/pursuit_live_test.exs`:
 
 ```elixir
-defmodule MediaCentarrWeb.PursuitLiveTest do
-  use MediaCentarrWeb.ConnCase, async: false
+defmodule MediaCentaurWeb.PursuitLiveTest do
+  use MediaCentaurWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
-  import MediaCentarr.TestFactory
+  import MediaCentaur.TestFactory
 
-  alias MediaCentarr.Acquisition.Pursuits.Event
-  alias MediaCentarr.Downloads.QueueState
-  alias MediaCentarr.Repo
+  alias MediaCentaur.Acquisition.Pursuits.Event
+  alias MediaCentaur.Downloads.QueueState
+  alias MediaCentaur.Repo
 
-  @queue_cache_key {MediaCentarr.Downloads.QueueMonitor, :state}
+  @queue_cache_key {MediaCentaur.Downloads.QueueMonitor, :state}
 
   setup do
     on_exit(fn -> :persistent_term.put(@queue_cache_key, %QueueState{items: []}) end)
@@ -2369,7 +2369,7 @@ end
 
 - [ ] **Step 3: Run tests**
 
-Run: `mix test test/media_centarr_web/live/pursuit_live_test.exs`
+Run: `mix test test/media_centaur_web/live/pursuit_live_test.exs`
 Expected: all tests pass.
 
 - [ ] **Step 4: Commit**
@@ -2390,7 +2390,7 @@ Expected: zero warnings, all checks green. Fix anything reported, re-run.
 
 - [ ] **Step 2: Manual smoke in dev**
 
-In an existing `iex --name repl@127.0.0.1 --remsh media_centarr_dev@127.0.0.1` session, recompile:
+In an existing `iex --name repl@127.0.0.1 --remsh media_centaur_dev@127.0.0.1` session, recompile:
 
 ```
 iex> recompile()

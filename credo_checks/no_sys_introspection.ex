@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Credo.Checks.NoSysIntrospection do
+defmodule MediaCentaur.Credo.Checks.NoSysIntrospection do
   use Credo.Check,
     id: "MC0004",
     base_priority: :high,

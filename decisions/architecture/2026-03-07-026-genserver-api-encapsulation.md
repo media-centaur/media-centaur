@@ -16,10 +16,10 @@ Chosen option: "Wrap all GenServer interactions in public functions on the ownin
 
 1. **Never call `GenServer.call/2` or `GenServer.cast/2` from outside the module** that defines the GenServer.
 2. **Never use `:sys.get_state/1`, `:sys.replace_state/2`, or any other `:sys.*` introspection** from outside the module — including from tests. This was previously allowed as a test sync trick; it no longer is.
-3. **Expose a public function API** on the module that wraps the call or cast internally — including any synchronous "trigger" the tests need. For schedulers and tickers, this typically means a public `tick/0`-style function that does `GenServer.call(__MODULE__, :tick)` so tests synchronise against the public API rather than peeking at process state. Example: `MediaCentarr.ImagePipeline.RetryScheduler.tick/1`.
+3. **Expose a public function API** on the module that wraps the call or cast internally — including any synchronous "trigger" the tests need. For schedulers and tickers, this typically means a public `tick/0`-style function that does `GenServer.call(__MODULE__, :tick)` so tests synchronise against the public API rather than peeking at process state. Example: `MediaCentaur.ImagePipeline.RetryScheduler.tick/1`.
 4. **Callers use the module's public functions**, not the GenServer protocol directly.
 
-These rules are enforced by `MediaCentarr.Credo.Checks.NoSysIntrospection` (bans `:sys.*` in `test/`) and surfaced by code review for direct `GenServer.call/cast` in callers.
+These rules are enforced by `MediaCentaur.Credo.Checks.NoSysIntrospection` (bans `:sys.*` in `test/`) and surfaced by code review for direct `GenServer.call/cast` in callers.
 
 ### Consequences
 

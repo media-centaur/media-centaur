@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddCrewAndImdbIdToMovies do
+defmodule MediaCentaur.Repo.Migrations.AddCrewAndImdbIdToMovies do
   @moduledoc """
   Adds `crew` (JSON array of structured crew entries) and `imdb_id`
   columns to `library_movies`. Powers the More info detail panel:

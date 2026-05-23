@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
+defmodule MediaCentaurWeb.Storybook.Setup.IntegrationStep do
   @moduledoc """
   One step in the Setup Tour for a network integration (TMDB, Prowlarr,
   download client). The form fields slot is provided by the parent
@@ -7,8 +7,8 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
 
   ## Contract shape
 
-      attr :result, MediaCentarrWeb.Live.SetupLive.Probe.Result, required: true
-      attr :content, MediaCentarrWeb.Live.SetupLive.Content, required: true
+      attr :result, MediaCentaurWeb.Live.SetupLive.Probe.Result, required: true
+      attr :content, MediaCentaurWeb.Live.SetupLive.Content, required: true
       attr :step_index, :integer, required: true
       attr :total_steps, :integer, required: true
       attr :form_id, :string, required: true
@@ -19,9 +19,9 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarrWeb.Live.SetupLive.Probe
+  alias MediaCentaurWeb.Live.SetupLive.Probe
 
-  def function, do: &MediaCentarrWeb.Components.SetupSteps.integration_step/1
+  def function, do: &MediaCentaurWeb.Components.SetupSteps.integration_step/1
   def render_source, do: :function
   def layout, do: :one_column
 
@@ -31,7 +31,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
         id: :tmdb_not_configured,
         description: "TMDB step on first visit — no key entered yet.",
         attributes: %{
-          content: MediaCentarrWeb.Live.SetupLive.Content.for(:tmdb),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:tmdb),
           step_index: 2,
           total_steps: 6,
           form_id: "setup-step-tmdb-form",
@@ -61,7 +61,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
         id: :tmdb_connected,
         description: "TMDB key configured and verified.",
         attributes: %{
-          content: MediaCentarrWeb.Live.SetupLive.Content.for(:tmdb),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:tmdb),
           step_index: 2,
           total_steps: 6,
           form_id: "setup-step-tmdb-form",
@@ -91,7 +91,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
         id: :prowlarr_auth_failed,
         description: "Prowlarr URL set but key rejected.",
         attributes: %{
-          content: MediaCentarrWeb.Live.SetupLive.Content.for(:prowlarr),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:prowlarr),
           step_index: 5,
           total_steps: 6,
           form_id: "setup-step-prowlarr-form",
@@ -127,7 +127,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.IntegrationStep do
         id: :download_client_skipped,
         description: "Download client step — fully optional, easy to skip.",
         attributes: %{
-          content: MediaCentarrWeb.Live.SetupLive.Content.for(:download_client),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:download_client),
           step_index: 6,
           total_steps: 6,
           form_id: "setup-step-download-client-form",

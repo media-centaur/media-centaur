@@ -68,11 +68,11 @@ Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
 | `download_behavior.js` | Yes | Download (`/download`) page navigation |
 | `status_behavior.js` | Yes | Status (`/status`) page navigation |
 | `watch_history_behavior.js` | Yes | Watch History (`/history`) page — filter pills, date badge, event list, pagination |
-| `controls_bridge.js` | No | Listens for `controls:updates` from `MediaCentarr.Controls` and rewrites the keyboard/gamepad source maps at runtime so user rebindings take effect without reload |
+| `controls_bridge.js` | No | Listens for `controls:updates` from `MediaCentaur.Controls` and rewrites the keyboard/gamepad source maps at runtime so user rebindings take effect without reload |
 
 *Library behavior is pure when injected with mock DOM.
 
-Settings → Controls (v0.16.0) makes every entry in the Action Vocabulary table below **user-remappable**. The tables here document the *defaults* shipped in `MediaCentarr.Controls.Catalog`. User overrides are persisted under `controls.keyboard` / `controls.gamepad` in `Settings.Entry` and are pushed to the browser via `controls_bridge.js`, which swaps the key→action / button→action maps live on the running `KeyboardSource` and `GamepadSource` instances.
+Settings → Controls (v0.16.0) makes every entry in the Action Vocabulary table below **user-remappable**. The tables here document the *defaults* shipped in `MediaCentaur.Controls.Catalog`. User overrides are persisted under `controls.keyboard` / `controls.gamepad` in `Settings.Entry` and are pushed to the browser via `controls_bridge.js`, which swaps the key→action / button→action maps live on the running `KeyboardSource` and `GamepadSource` instances.
 
 ## Input Source Contract
 

@@ -129,7 +129,7 @@ Phase 2 but worth picking up for full architectural polish:
   subtitles-table migration's rollback drops detected track data.
   Note when v0.62 ships.
 
-- **Showcase subtitle seeding** (Task 5). `priv/showcase/media-centarr.db`
+- **Showcase subtitle seeding** (Task 5). `priv/showcase/media-centaur.db`
   has the `subtitles_tracks` table but no rows — seed needs to either
   invoke detection on seeded files or hard-code fixtures so the
   showcase demonstrates subtitle UI.
@@ -646,9 +646,9 @@ path gets its own ETS projection.
    position; LiveView reads/subscribes to it; periodic flush to
    `library_watch_progress`. On boot, hydrates from DB.
 5. **Retire DB-on-render reads.** Every LiveView mount checks: does
-   it hit `MediaCentarr.Repo` directly? Move to a projection.
+   it hit `MediaCentaur.Repo` directly? Move to a projection.
 
-**Completion:** `grep -r "Repo\\." lib/media_centarr_web/live` returns
+**Completion:** `grep -r "Repo\\." lib/media_centaur_web/live` returns
 zero hits on read paths; every projection has a baseline; all four
 new projections + Phase 2's re-pointed existing ones diff-stable
 across three consecutive `scripts/profile` runs.
@@ -755,8 +755,8 @@ These need resolution before / during the phase that touches them.
 - [ADR-029 — Data decoupling](../../decisions/architecture/2026-03-26-029-data-decoupling.md)
 - [`campaigns/done/desktop-rearchitecture.md`](desktop-rearchitecture.md) — the projection fan-out partner campaign
 - [`docs/library.md`](../../docs/library.md) — current schema documentation
-- [`lib/media_centarr/library/`](../../lib/media_centarr/library/) — current schemas
-- [`lib/media_centarr/library/views/continue_watching.ex`](../../lib/media_centarr/library/views/continue_watching.ex) — canonical projection example
+- [`lib/media_centaur/library/`](../../lib/media_centaur/library/) — current schemas
+- [`lib/media_centaur/library/views/continue_watching.ex`](../../lib/media_centaur/library/views/continue_watching.ex) — canonical projection example
 
 ## Closure — campaign-deferred items by destination
 
@@ -851,6 +851,6 @@ them up doesn't need to read this one cover-to-cover.
   campaign's scope; the others predate it.
 
 **Showcase / demo seeding:**
-- **Showcase subtitle seeding** — `priv/showcase/media-centarr.db` has
+- **Showcase subtitle seeding** — `priv/showcase/media-centaur.db` has
   the `subtitles_tracks` table but no rows. Belongs to the demo-seeder
   workstream, not Schema v2.

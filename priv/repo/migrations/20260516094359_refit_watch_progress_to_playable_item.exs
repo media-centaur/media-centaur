@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.RefitWatchProgressToPlayableItem do
+defmodule MediaCentaur.Repo.Migrations.RefitWatchProgressToPlayableItem do
   @moduledoc """
   Library Schema v2 — Phase 2 Task C.
 
@@ -88,7 +88,7 @@ defmodule MediaCentarr.Repo.Migrations.RefitWatchProgressToPlayableItem do
       )
     """)
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("""
     UPDATE library_watch_progress
        SET playable_item_id = (
@@ -121,7 +121,7 @@ defmodule MediaCentarr.Repo.Migrations.RefitWatchProgressToPlayableItem do
       )
     """)
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("""
     UPDATE library_watch_progress
        SET playable_item_id = (
@@ -157,7 +157,7 @@ defmodule MediaCentarr.Repo.Migrations.RefitWatchProgressToPlayableItem do
       )
     """)
 
-    # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+    # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
     execute("""
     UPDATE library_watch_progress
        SET playable_item_id = (
@@ -189,7 +189,7 @@ defmodule MediaCentarr.Repo.Migrations.RefitWatchProgressToPlayableItem do
           "(keeping the most recent per playable_item_id)"
       )
 
-      # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+      # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
       execute("""
       DELETE FROM library_watch_progress
        WHERE playable_item_id IS NOT NULL
@@ -218,7 +218,7 @@ defmodule MediaCentarr.Repo.Migrations.RefitWatchProgressToPlayableItem do
           "(no PlayableItem could be resolved)"
       )
 
-      # credo:disable-for-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+      # credo:disable-for-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
       execute("DELETE FROM library_watch_progress WHERE playable_item_id IS NULL")
     end
 

@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.LibraryCards.StorageOfflineBanner do
+defmodule MediaCentaurWeb.Storybook.LibraryCards.StorageOfflineBanner do
   @moduledoc """
   Persistent top-of-page banner shown on the Library page when one or
   more configured watch directories are offline.
@@ -7,7 +7,7 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.StorageOfflineBanner do
 
       attr :summary, :string, required: true
 
-  Pre-formatted by `MediaCentarrWeb.LibraryAvailability.offline_summary/2`,
+  Pre-formatted by `MediaCentaurWeb.LibraryAvailability.offline_summary/2`,
   so the banner is purely presentational. Fixtures below match the two
   shapes that helper produces (single-dir vs multi-dir) plus a long
   path edge case.
@@ -15,7 +15,7 @@ defmodule MediaCentarrWeb.Storybook.LibraryCards.StorageOfflineBanner do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.Components.LibraryCards.storage_offline_banner/1
+  def function, do: &MediaCentaurWeb.Components.LibraryCards.storage_offline_banner/1
   def render_source, do: :function
 
   def variations do

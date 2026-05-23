@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddWatchProgressCompletedLastWatchedIndex do
+defmodule MediaCentaur.Repo.Migrations.AddWatchProgressCompletedLastWatchedIndex do
   use Ecto.Migration
 
   # Composite index on (completed, last_watched_at). Library.list_in_progress

@@ -5,7 +5,7 @@
     "dirty": false,
     "otp_release": "28",
     "elixir_version": "1.19.5",
-    "database_path": "/home/shawn/src/media-centarr/media-centarr-app/priv/profile/media-centarr.db",
+    "database_path": "/home/shawn/src/media-centaur/media-centaur-app/priv/profile/media-centaur.db",
     "run_id": "2026-05-20T21-43-56.330368Z",
     "scale": "small",
     "git_sha": "a3786e75",

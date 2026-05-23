@@ -5,7 +5,7 @@
 
 ## Problem
 
-`MediaCentarr.Acquisition.QueueItem` already carries a normalized `state` atom (`:downloading | :queued | :stalled | :paused | :completed | :error | :other`). The existing `:stalled` is whatever the qBittorrent client itself reports (`stalledDL` — no peers). A torrent that the client *thinks* is downloading but is actually crawling at 50 KB/s looks identical in the UI to one running at 80 MB/s — both render as a blue "Downloading" badge with a progress bar.
+`MediaCentaur.Acquisition.QueueItem` already carries a normalized `state` atom (`:downloading | :queued | :stalled | :paused | :completed | :error | :other`). The existing `:stalled` is whatever the qBittorrent client itself reports (`stalledDL` — no peers). A torrent that the client *thinks* is downloading but is actually crawling at 50 KB/s looks identical in the UI to one running at 80 MB/s — both render as a blue "Downloading" badge with a progress bar.
 
 We want to classify the *quality* of an active download by observed throughput over a rolling window, plus a few related "stuck" cases (metadata fetch hung, queued for too long), and surface degraded items in the UI.
 
@@ -201,7 +201,7 @@ Already handled — `QueueMonitor` broadcasts `{:queue_snapshot, items}` every 1
 
 ## Public API
 
-### `MediaCentarr.Acquisition.Health` (new)
+### `MediaCentaur.Acquisition.Health` (new)
 
 ```elixir
 @type status :: :healthy | :warming_up | :slow | :soft_stall
@@ -217,7 +217,7 @@ Already handled — `QueueMonitor` broadcasts `{:queue_snapshot, items}` every 1
 
 `degraded?/1` is the function `AutoGrabPolicy` will call in a future automation slice. Defining the predicate now — even though nothing calls it in v1 — is what makes this slice "informational, but actions can ride on top later."
 
-### `MediaCentarr.Acquisition.QueueItem` (existing — one new field)
+### `MediaCentaur.Acquisition.QueueItem` (existing — one new field)
 
 ```elixir
 defstruct [
@@ -228,7 +228,7 @@ defstruct [
 
 `from_qbittorrent/1` leaves it `nil`. Drivers translate; only the monitor classifies (it's the only thing with history).
 
-### `MediaCentarr.Acquisition` (existing facade — no changes)
+### `MediaCentaur.Acquisition` (existing facade — no changes)
 
 `Acquisition.list_downloads/1` and `Acquisition.queue_snapshot/0` keep their shapes. Items carry the new field.
 

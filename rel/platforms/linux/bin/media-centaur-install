@@ -1,0 +1,450 @@
+#!/bin/sh
+# media-centaur-install — install, update, or manage autostart for Media Centaur.
+#
+# Modes:
+#
+#   (default — install / upgrade)
+#     ./bin/media-centaur-install [--no-service] [--no-start]
+#       Installs THIS release atomically into ~/.local/lib/media-centaur/,
+#       seeds config, runs migrations, flips the `current` symlink.
+#       On a first install, also installs and enables the systemd user
+#       unit (unless --no-service). Skips autostart steps gracefully
+#       when systemd-user is not available on this machine.
+#
+#   --update [--force]
+#     ~/.local/lib/media-centaur/current/bin/media-centaur-install --update
+#       Resolves the latest release on GitHub, downloads it, and re-execs
+#       its bundled installer in default mode. When the latest tag
+#       matches the running version, the command exits early — unless
+#       --force is passed, in which case it re-applies the install. Use
+#       this when the in-app updater failed mid-apply and you want to
+#       reinstall cleanly without bumping versions.
+#
+#   service install | service remove
+#     Manage the systemd user unit after the fact — set up autostart on an
+#     existing app-only install, or remove autostart while leaving the app
+#     in place.
+#
+#   --uninstall
+#       Removes the app, symlink, and systemd unit. Preserves config,
+#       data, and cache. The final summary prints the commands to delete
+#       those explicitly if a full wipe is desired.
+#
+# Atomic-upgrade contract:
+#   - Each release lives at ~/.local/lib/media-centaur/releases/<version>/
+#   - ~/.local/lib/media-centaur/current is a symlink to one of them
+#   - Migrations run against the new release BEFORE the symlink flips
+#   - On any failure before the flip, the existing install keeps serving
+#
+# Designed for: Linux x86_64 glibc. Autostart is optional — the app runs
+# fine without it via `bin/media_centaur start|daemon|start_iex`.
+
+set -eu
+
+GITHUB_REPO="media-centaur/media-centaur"
+INSTALL_ROOT="${MEDIA_CENTAUR_INSTALL_ROOT:-$HOME/.local/lib/media-centaur}"
+CONFIG_DIR="${MEDIA_CENTAUR_CONFIG_DIR:-$HOME/.config/media-centaur}"
+DATA_DIR="${MEDIA_CENTAUR_DATA_DIR:-$HOME/.local/share/media-centaur}"
+CACHE_DIR="${MEDIA_CENTAUR_CACHE_DIR:-$HOME/.cache/media-centaur}"
+SYSTEMD_USER_DIR="${SYSTEMD_USER_DIR:-$HOME/.config/systemd/user}"
+UNIT_NAME="media-centaur.service"
+
+banner() { printf '==> %s\n' "$1"; }
+die()    { printf 'Error: %s\n' "$1" >&2; exit 1; }
+
+# Detect a working systemd-user session. `systemctl` alone can lie (WSL2
+# without systemd, some container envs, ssh without linger) — the
+# `--user show-environment` probe confirms the session bus is actually
+# reachable before we trust anything else.
+has_systemd_user() {
+    [ "${MEDIA_CENTAUR_FAKE_NO_SYSTEMD:-0}" = "1" ] && return 1
+    command -v systemctl >/dev/null 2>&1 || return 1
+    systemctl --user show-environment >/dev/null 2>&1 || return 1
+
+    # When SYSTEMD_USER_DIR is overridden for testing (away from the real
+    # user's ~/.config/systemd/user), suppress live systemctl calls so we
+    # don't poke the running session.
+    real_systemd_dir="$HOME/.config/systemd/user"
+    [ "$SYSTEMD_USER_DIR" = "$real_systemd_dir" ]
+}
+
+sysctl_user() {
+    if has_systemd_user; then
+        systemctl --user "$@"
+    else
+        return 1
+    fi
+}
+
+# Locate the release root from this script's path. The script lives at
+# <release_root>/bin/media-centaur-install, so the release root is two
+# levels up. Resolve symlinks so `current/bin/media-centaur-install --update`
+# still works.
+script_path=$(readlink -f "$0" 2>/dev/null || realpath "$0")
+release_root=$(cd "$(dirname "$script_path")/.." && pwd)
+
+# Read the release version from the bundled mix release metadata.
+# `bin/media_centaur version` prints "media_centaur 0.3.0" (or similar).
+detect_version() {
+    "$release_root/bin/media_centaur" version 2>/dev/null | awk '{print $NF}'
+}
+
+# Resolve the port the installed app will listen on.
+#
+# Port conventions for this project are:
+#   1080 — dev server (mix phx.server) — NEVER use this in installer output
+#   2160 — production default (matches lib/media_centaur/config.ex defaults.port)
+#   4003 — showcase demo
+#
+# If the user has uncommented `port = NNNN` in their TOML, honor it.
+# Otherwise fall back to the production default. Do NOT hardcode 1080 —
+# end users see this value as the URL in the success summary.
+detect_port() {
+    toml="$CONFIG_DIR/media-centaur.toml"
+    if [ -f "$toml" ]; then
+        port=$(grep -E '^[[:space:]]*port[[:space:]]*=[[:space:]]*[0-9]+' "$toml" 2>/dev/null \
+               | head -1 \
+               | sed -E 's/.*=[[:space:]]*([0-9]+).*/\1/')
+        if [ -n "${port:-}" ]; then
+            printf '%s' "$port"
+            return
+        fi
+    fi
+    printf '%s' "2160"
+}
+
+# Validate a tag string against the canonical release shape:
+# v<major>.<minor>.<patch> with an optional -<prerelease> suffix.
+# Rejected strings never reach URL construction or filesystem paths, so
+# this is the single gate blocking tag-injection attacks.
+# POSIX grep -E for a precise character class — shell `case` globs can't
+# enforce digits-only, which opens injections like "v0.7.1; rm".
+validate_tag() {
+    printf '%s' "$1" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$'
+}
+
+# ---- argument parsing ------------------------------------------------------
+
+mode=install
+no_service=0
+no_start=0
+force_update=0
+
+# Subcommands: "service install" / "service remove" — consumed as a pair.
+if [ "${1:-}" = "service" ]; then
+    case "${2:-}" in
+        install) mode=service_install ;;
+        remove)  mode=service_remove ;;
+        *)       die "Usage: $0 service {install|remove}" ;;
+    esac
+    shift 2
+fi
+
+for arg in "$@"; do
+    case "$arg" in
+        --update)     mode=update ;;
+        --uninstall)  mode=uninstall ;;
+        --no-service) no_service=1 ;;
+        --no-start)   no_start=1 ;;
+        --force)      force_update=1 ;;
+        --help|-h)
+            sed -n '2,/^$/p' "$script_path" | sed 's/^# //;s/^#$//'
+            exit 0
+            ;;
+        *) die "Unknown flag: $arg" ;;
+    esac
+done
+
+# ---- summary helpers -------------------------------------------------------
+
+summary_paths_preserved() {
+    printf '  config  %s       rm -rf %s\n' "$CONFIG_DIR" "$CONFIG_DIR"
+    printf '  data    %s/  rm -rf %s\n' "$DATA_DIR" "$DATA_DIR"
+    printf '  cache   %s/         rm -rf %s\n' "$CACHE_DIR" "$CACHE_DIR"
+}
+
+summary_uninstall_hint() {
+    printf '\nTo uninstall:\n'
+    printf '  %s/current/bin/media-centaur-install --uninstall\n' "$INSTALL_ROOT"
+    printf '  # Removes app + symlink + systemd unit. Preserves:\n'
+    printf '  #   config  %s        (rm -rf to delete)\n' "$CONFIG_DIR"
+    printf '  #   data    %s/   (rm -rf to delete)\n' "$DATA_DIR"
+    printf '  #   cache   %s/         (rm -rf to delete)\n' "$CACHE_DIR"
+}
+
+summary_manual_start_hint() {
+    printf '\nAutostart not configured. Start the app with one of:\n'
+    printf '  %s/current/bin/media_centaur start        # foreground\n' "$INSTALL_ROOT"
+    printf '  %s/current/bin/media_centaur daemon       # background\n' "$INSTALL_ROOT"
+    printf '  %s/current/bin/media_centaur start_iex    # foreground with IEx\n' "$INSTALL_ROOT"
+    printf '\nTo set up autostart later:\n'
+    printf '  %s/current/bin/media-centaur-install service install\n' "$INSTALL_ROOT"
+}
+
+# ---- update: download latest, then re-exec from new tree ------------------
+
+if [ "$mode" = update ]; then
+    command -v curl >/dev/null 2>&1 || die "curl is required for --update"
+    command -v tar  >/dev/null 2>&1 || die "tar is required for --update"
+    command -v sha256sum >/dev/null 2>&1 || die "sha256sum is required for --update"
+
+    banner "Resolving latest release"
+    api_url="https://api.github.com/repos/$GITHUB_REPO/releases/latest"
+    tag=$(curl -fsSL "$api_url" | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -n1)
+    [ -n "$tag" ] || die "Could not resolve latest release tag"
+    validate_tag "$tag" || die "Rejected malformed tag: $tag"
+
+    current_version=$(detect_version || echo unknown)
+    latest_version=${tag#v}
+    if [ "$current_version" = "$latest_version" ]; then
+        if [ "$force_update" = 1 ]; then
+            banner "Re-applying $current_version (--force)"
+        else
+            banner "Already at latest version: $current_version (pass --force to reinstall)"
+            exit 0
+        fi
+    else
+        banner "Updating from $current_version to $latest_version"
+    fi
+
+    # URLs are built from the validated tag + version — never from any
+    # URL field the API response supplied. A compromised API response
+    # cannot redirect us to an attacker-controlled host.
+    tarball="media-centaur-${latest_version}-linux-x86_64.tar.gz"
+    base_url="https://github.com/$GITHUB_REPO/releases/download/$tag"
+
+    tmpdir=$(mktemp -d)
+    trap 'rm -rf "$tmpdir"' EXIT
+
+    banner "Downloading $tarball"
+    curl -fsSL -o "$tmpdir/$tarball"   "$base_url/$tarball"
+    curl -fsSL -o "$tmpdir/SHA256SUMS" "$base_url/SHA256SUMS"
+
+    banner "Verifying checksum"
+    (cd "$tmpdir" && grep " $tarball\$" SHA256SUMS | sha256sum -c -) \
+        || die "Checksum verification failed"
+
+    banner "Extracting"
+    mkdir -p "$tmpdir/extract"
+    tar -xzf "$tmpdir/$tarball" -C "$tmpdir/extract"
+
+    # Mix release tarballs extract their contents at the top level (no
+    # wrapping dir), so the installer is at extract/bin/media-centaur-install.
+    new_installer="$tmpdir/extract/bin/media-centaur-install"
+    [ -x "$new_installer" ] || die "Update tarball does not contain bin/media-centaur-install"
+
+    banner "Handing off to new installer"
+    exec "$new_installer"
+fi
+
+# ---- uninstall ------------------------------------------------------------
+
+if [ "$mode" = uninstall ]; then
+    banner "Stopping service"
+    sysctl_user stop "$UNIT_NAME" 2>/dev/null || true
+    sysctl_user disable "$UNIT_NAME" 2>/dev/null || true
+
+    banner "Removing $INSTALL_ROOT"
+    rm -rf "$INSTALL_ROOT"
+
+    banner "Removing systemd unit"
+    rm -f "$SYSTEMD_USER_DIR/$UNIT_NAME"
+    sysctl_user daemon-reload || true
+
+    banner "Uninstall complete"
+    printf '\nRemoved:\n'
+    printf '  app           %s/\n' "$INSTALL_ROOT"
+    printf '  symlink       (via the above)\n'
+    printf '  systemd unit  %s/%s\n' "$SYSTEMD_USER_DIR" "$UNIT_NAME"
+    printf '\nPreserved (delete manually if you want a full wipe):\n'
+    summary_paths_preserved
+    exit 0
+fi
+
+# ---- service install / service remove -------------------------------------
+
+if [ "$mode" = service_install ]; then
+    current_link="$INSTALL_ROOT/current"
+    [ -L "$current_link" ] || die "No app installed at $current_link — run a normal install first"
+
+    has_systemd_user || die "systemd user session not available — cannot install autostart"
+
+    unit_src="$(readlink -f "$current_link")/share/systemd/$UNIT_NAME"
+    unit_dst="$SYSTEMD_USER_DIR/$UNIT_NAME"
+    [ -f "$unit_src" ] || die "Bundled systemd unit missing at $unit_src"
+
+    mkdir -p "$SYSTEMD_USER_DIR"
+    cp "$unit_src" "$unit_dst"
+    sysctl_user daemon-reload || true
+    sysctl_user enable --now "$UNIT_NAME"
+
+    banner "Autostart installed"
+    printf '\n  unit    %s\n' "$unit_dst"
+    printf '  state   enabled + running\n'
+    printf '\nTo remove autostart:\n'
+    printf '  media-centaur-install service remove\n'
+    exit 0
+fi
+
+if [ "$mode" = service_remove ]; then
+    sysctl_user disable --now "$UNIT_NAME" 2>/dev/null || true
+    rm -f "$SYSTEMD_USER_DIR/$UNIT_NAME"
+    sysctl_user daemon-reload || true
+
+    banner "Autostart removed"
+    printf '\nApp still installed at %s/current.\n' "$INSTALL_ROOT"
+    printf 'Start manually: %s/current/bin/media_centaur daemon\n' "$INSTALL_ROOT"
+    exit 0
+fi
+
+# ---- install / upgrade (default mode) -------------------------------------
+
+version=$(detect_version) || die "Could not detect release version from $release_root/bin/media_centaur"
+[ -n "$version" ] || die "Empty version string from bin/media_centaur"
+
+target="$INSTALL_ROOT/releases/$version"
+current_link="$INSTALL_ROOT/current"
+
+# Remember whether this is a first install BEFORE we touch the filesystem —
+# auto-enabling the unit is a first-install-only default so we don't
+# surprise users who deliberately disabled the unit on an upgrade.
+first_install=0
+if [ ! -L "$current_link" ]; then
+    first_install=1
+fi
+
+# Whether the autostart surface should be touched at all on this install.
+# Opt-out via flag, or skipped silently when systemd-user isn't usable.
+want_service=1
+if [ "$no_service" = 1 ]; then
+    want_service=0
+fi
+if ! has_systemd_user; then
+    want_service=0
+fi
+
+banner "Installing media-centaur $version"
+banner "  release tree: $release_root"
+banner "  install root: $INSTALL_ROOT"
+
+# 1. Stage the new release version.
+if [ -d "$target" ]; then
+    banner "Replacing existing $target"
+    rm -rf "$target"
+fi
+mkdir -p "$target"
+cp -a "$release_root/." "$target/"
+
+# 2. Seed config dir (idempotent — never overwrite user edits).
+mkdir -p "$CONFIG_DIR"
+seed_toml="$target/share/defaults/media-centaur.toml"
+user_toml="$CONFIG_DIR/media-centaur.toml"
+if [ -f "$seed_toml" ] && [ ! -f "$user_toml" ]; then
+    banner "Seeding config: $user_toml"
+    cp "$seed_toml" "$user_toml"
+fi
+
+# 3. Install systemd user unit only when autostart is wanted and systemd is
+#    available. The unit is pinned to current/ so it doesn't change between
+#    versions; reinstalling it is still safe + idempotent.
+unit_src="$target/share/systemd/$UNIT_NAME"
+unit_dst="$SYSTEMD_USER_DIR/$UNIT_NAME"
+if [ "$want_service" = 1 ]; then
+    mkdir -p "$SYSTEMD_USER_DIR"
+    if [ -f "$unit_src" ]; then
+        banner "Installing unit: $unit_dst"
+        cp "$unit_src" "$unit_dst"
+        sysctl_user daemon-reload || true
+    else
+        die "Bundled systemd unit missing at $unit_src"
+    fi
+fi
+
+# 4. Seed secrets.env on first install. SECRET_KEY_BASE is required at runtime;
+#    generate one rather than fail with a cryptic Erlang stack trace. Never
+#    overwrite an existing secrets.env — users may have edited it.
+secrets_file="$CONFIG_DIR/secrets.env"
+if [ ! -f "$secrets_file" ]; then
+    banner "Generating $secrets_file"
+    secret_key_base=$(head -c 48 /dev/urandom | base64 | tr -d '\n')
+    umask 077
+    cat > "$secrets_file" <<EOF
+# Media Centaur runtime secrets — loaded by the systemd unit and the
+# bundled installer when running migrations.
+#
+# SECRET_KEY_BASE is auto-generated on first install. Do not change it
+# unless you know what you're doing — sessions and signed tokens are
+# bound to this value.
+SECRET_KEY_BASE=$secret_key_base
+
+# Optional: TMDB API key for metadata enrichment.
+# TMDB_API_KEY=
+
+# Optional: root directory to watch for new media files.
+# MEDIA_DIR=/mnt/videos/Videos
+EOF
+fi
+
+# 5. Run migrations against the NEW release, before the symlink flip. If
+#    either step fails, the running service (pointing at old `current`)
+#    is untouched. Schema migrations run first (fast, atomic), then data
+#    migrations (one-shot row backfills tracked in `data_migrations`).
+banner "Running schema migrations against $version"
+# shellcheck source=/dev/null
+set -a; . "$secrets_file"; set +a
+"$target/bin/media_centaur" eval "MediaCentaur.Release.migrate()"
+
+banner "Running data migrations against $version"
+"$target/bin/media_centaur" eval "MediaCentaur.Release.migrate_data()"
+
+# 6. Atomic symlink flip.
+banner "Pointing current -> releases/$version"
+ln -sfn "releases/$version" "$current_link.new"
+mv -Tf "$current_link.new" "$current_link"
+
+# 7. Autostart handling.
+#    - First install + want_service + no --no-start → enable + start.
+#    - Upgrade path: restart if running; start if enabled-but-dormant; else leave alone.
+autostart_state="not configured"
+if [ "$want_service" = 1 ]; then
+    if [ "$first_install" = 1 ] && [ "$no_start" != 1 ]; then
+        banner "Enabling + starting $UNIT_NAME"
+        sysctl_user enable --now "$UNIT_NAME"
+        autostart_state="enabled + running"
+    elif sysctl_user is-active --quiet "$UNIT_NAME"; then
+        banner "Restarting $UNIT_NAME"
+        sysctl_user restart "$UNIT_NAME"
+        autostart_state="enabled + running"
+    elif sysctl_user is-enabled --quiet "$UNIT_NAME" 2>/dev/null; then
+        banner "Starting $UNIT_NAME (enabled but not running)"
+        sysctl_user start "$UNIT_NAME"
+        autostart_state="enabled + running"
+    else
+        autostart_state="unit installed, not enabled"
+    fi
+fi
+
+# 8. Summary — tell the user what we did and how to undo it.
+banner "Install complete"
+printf '\nInstalled:\n'
+printf '  Media Centaur %s\n' "$version"
+printf '    release   %s/releases/%s/\n' "$INSTALL_ROOT" "$version"
+printf '    symlink   %s\n' "$current_link"
+printf '  Config (idempotent — preserved across upgrades):\n'
+printf '    %s\n' "$user_toml"
+printf '    %s\n' "$secrets_file"
+if [ "$want_service" = 1 ]; then
+    printf '  Autostart:\n'
+    printf '    unit      %s\n' "$unit_dst"
+    printf '    state     %s\n' "$autostart_state"
+fi
+printf '  Data (created on first run):\n'
+printf '    %s/\n' "$DATA_DIR"
+
+if [ "$want_service" = 1 ] && [ "$autostart_state" = "enabled + running" ]; then
+    printf '\nOpen http://localhost:%s to get started.\n' "$(detect_port)"
+else
+    summary_manual_start_hint
+fi
+
+summary_uninstall_hint

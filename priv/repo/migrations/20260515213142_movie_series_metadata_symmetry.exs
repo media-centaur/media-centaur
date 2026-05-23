@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.MovieSeriesMetadataSymmetry do
+defmodule MediaCentaur.Repo.Migrations.MovieSeriesMetadataSymmetry do
   @moduledoc """
   Brings `library_movie_series` to metadata parity with `library_tv_series`
   so the detail surface can render collections with the same shape as

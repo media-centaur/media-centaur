@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Setup.SummaryStep do
+defmodule MediaCentaurWeb.Storybook.Setup.SummaryStep do
   @moduledoc """
   Summary step — the final step in the Setup Tour. Shows every
   probed component with a status glyph and an "Edit" patch back to
@@ -19,9 +19,9 @@ defmodule MediaCentarrWeb.Storybook.Setup.SummaryStep do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarrWeb.Live.SetupLive.Probe
+  alias MediaCentaurWeb.Live.SetupLive.Probe
 
-  def function, do: &MediaCentarrWeb.Components.SetupSteps.summary_step/1
+  def function, do: &MediaCentaurWeb.Components.SetupSteps.summary_step/1
   def render_source, do: :function
   def layout, do: :one_column
 

@@ -1,6 +1,6 @@
 # Architecture
 
-Media Centarr Backend is a Phoenix/Elixir application that watches directories for video files, enriches them with TMDB metadata and artwork, and serves the library through a LiveView web UI.
+Media Centaur Backend is a Phoenix/Elixir application that watches directories for video files, enriches them with TMDB metadata and artwork, and serves the library through a LiveView web UI.
 
 > **Architecture** · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · [Library](library.md) · [Input System](input-system.md)
 
@@ -72,20 +72,20 @@ The backend is organised into eleven bounded contexts plus a TMDB adapter, all e
 
 | Context | Owns | Notes |
 |---------|------|-------|
-| `MediaCentarr.Library` | `library_*` tables, entity facade, file-presence ownership (FilePresence + AbsenceSweeper, per ADR-045) | Type-specific schemas: Movie, TVSeries, MovieSeries, VideoObject, Season, Episode, Extra, Image, Identifier, WatchProgress, WatchedFile, ExtraFile, FilePresence. |
-| `MediaCentarr.Pipeline` | `pipeline_*` tables, Broadway import + image pipelines | Mediator that orchestrates parse → search → fetch → ingest. ETS-backed in-flight set in `Discovery.InflightSet` dedupes duplicate file-detected events. |
-| `MediaCentarr.Review` | `review_*` table | Holds low-confidence matches awaiting human decision. |
-| `MediaCentarr.Watcher` | inotify supervision + filesystem observer, drive-mount detection, exclude-dir handling | No DB tables — pure filesystem observer that emits `{:file_detected, ...}` events. Library owns the presence record (ADR-045). |
-| `MediaCentarr.Settings` | `settings_*` table (key/value entries) | Shared infrastructure: any context may write its own keys via a declared `Settings` dep. |
-| `MediaCentarr.ReleaseTracking` | `release_tracking_*` tables | Periodic TMDB refresh of upcoming items in the user's library. |
-| `MediaCentarr.Playback` | mpv session supervision, progress broadcasts | No DB tables — in-memory sessions. |
-| `MediaCentarr.Console` | `console_*` (filter/buffer-cap settings) + in-memory ring buffer + journal source | Drives the `/console` page and the Guake-style drawer. |
-| `MediaCentarr.Acquisition` | `acquisition_*` tables, Prowlarr + download-client drivers, Oban jobs. **Sub-namespace `Acquisition.Pursuits`** introduces a goal-level aggregate with append-only event log and a hybrid-autonomy decision pipeline (`Snapshot → Policy → Action → Command`); workers (`Pursuits.Watcher`, `Pursuits.IdentityVerifier`) orchestrate, commands execute. See [ADR-039](../decisions/architecture/2026-05-07-039-acquisition-pursuits.md). | Optional — gated by `MediaCentarr.Capabilities`. |
-| `MediaCentarr.WatchHistory` | `watch_history_*` table | Append-only stream of playback events. |
-| `MediaCentarr.SelfUpdate` | GitHub release polling, in-app updater | Disabled in dev. |
-| `MediaCentarr.TMDB` | TMDB HTTP adapter + rate limiter | Cross-cutting adapter, not a bounded context owner. |
-| `MediaCentarr.Capabilities` | Pure query layer over Settings | Predicates that gate features on a passing Test Connection. Reads `Settings`, owns no state. |
-| `MediaCentarr.Controls` | Compile-time keybinding catalog + persisted overrides | Used by Settings → Controls UI. |
+| `MediaCentaur.Library` | `library_*` tables, entity facade, file-presence ownership (FilePresence + AbsenceSweeper, per ADR-045) | Type-specific schemas: Movie, TVSeries, MovieSeries, VideoObject, Season, Episode, Extra, Image, Identifier, WatchProgress, WatchedFile, ExtraFile, FilePresence. |
+| `MediaCentaur.Pipeline` | `pipeline_*` tables, Broadway import + image pipelines | Mediator that orchestrates parse → search → fetch → ingest. ETS-backed in-flight set in `Discovery.InflightSet` dedupes duplicate file-detected events. |
+| `MediaCentaur.Review` | `review_*` table | Holds low-confidence matches awaiting human decision. |
+| `MediaCentaur.Watcher` | inotify supervision + filesystem observer, drive-mount detection, exclude-dir handling | No DB tables — pure filesystem observer that emits `{:file_detected, ...}` events. Library owns the presence record (ADR-045). |
+| `MediaCentaur.Settings` | `settings_*` table (key/value entries) | Shared infrastructure: any context may write its own keys via a declared `Settings` dep. |
+| `MediaCentaur.ReleaseTracking` | `release_tracking_*` tables | Periodic TMDB refresh of upcoming items in the user's library. |
+| `MediaCentaur.Playback` | mpv session supervision, progress broadcasts | No DB tables — in-memory sessions. |
+| `MediaCentaur.Console` | `console_*` (filter/buffer-cap settings) + in-memory ring buffer + journal source | Drives the `/console` page and the Guake-style drawer. |
+| `MediaCentaur.Acquisition` | `acquisition_*` tables, Prowlarr + download-client drivers, Oban jobs. **Sub-namespace `Acquisition.Pursuits`** introduces a goal-level aggregate with append-only event log and a hybrid-autonomy decision pipeline (`Snapshot → Policy → Action → Command`); workers (`Pursuits.Watcher`, `Pursuits.IdentityVerifier`) orchestrate, commands execute. See [ADR-039](../decisions/architecture/2026-05-07-039-acquisition-pursuits.md). | Optional — gated by `MediaCentaur.Capabilities`. |
+| `MediaCentaur.WatchHistory` | `watch_history_*` table | Append-only stream of playback events. |
+| `MediaCentaur.SelfUpdate` | GitHub release polling, in-app updater | Disabled in dev. |
+| `MediaCentaur.TMDB` | TMDB HTTP adapter + rate limiter | Cross-cutting adapter, not a bounded context owner. |
+| `MediaCentaur.Capabilities` | Pure query layer over Settings | Predicates that gate features on a passing Test Connection. Reads `Settings`, owns no state. |
+| `MediaCentaur.Controls` | Compile-time keybinding catalog + persisted overrides | Used by Settings → Controls UI. |
 
 ## Data Flow
 
@@ -108,7 +108,7 @@ flowchart LR
 
 ```mermaid
 graph TD
-    App[MediaCentarr.Supervisor<br/>one_for_one]
+    App[MediaCentaur.Supervisor<br/>one_for_one]
 
     App --> Telemetry[Telemetry]
     App --> Repo[Repo<br/>SQLite]
@@ -147,7 +147,7 @@ PubSub listener GenServers (`Library.Inbound`, `Review.Intake`, `ReleaseTracking
 
 ## PubSub Topics
 
-`MediaCentarr.Topics` is the single source of truth for every topic string. Read [`lib/media_centarr/topics.ex`](../lib/media_centarr/topics.ex) instead of duplicating the list here. The current set, grouped by owner:
+`MediaCentaur.Topics` is the single source of truth for every topic string. Read [`lib/media_centaur/topics.ex`](../lib/media_centaur/topics.ex) instead of duplicating the list here. The current set, grouped by owner:
 
 | Owner | Topics |
 |-------|--------|
@@ -170,12 +170,12 @@ Each context exposes a `subscribe/0` facade that wraps `Phoenix.PubSub.subscribe
 ## Key Principles
 
 - **Ecto is the data interface.** All persistence goes through context modules that wrap `Ecto.Repo` and broadcast `{:entities_changed, ids}` on `library:updates` for every mutation. Raw SQL is reserved for SQLite-specific features (e.g. `json_extract`).
-- **Ecto schemas are the data spec.** Field names, types, and associations are defined in the schema modules under `lib/media_centarr/library/`. See [`specs/DATA-FORMAT.md`](../specs/DATA-FORMAT.md) for the entry shape returned to LiveViews.
+- **Ecto schemas are the data spec.** Field names, types, and associations are defined in the schema modules under `lib/media_centaur/library/`. See [`specs/DATA-FORMAT.md`](../specs/DATA-FORMAT.md) for the entry shape returned to LiveViews.
 - **UUIDs are permanent.** Entity IDs never change once assigned — they double as image directory names.
 - **PubSub for cross-context communication.** Contexts don't call into each other's internals; cross-context wiring is enforced by Boundary.
 - **Pipeline is a mediator.** The pipeline actively orchestrates — domain resources don't trigger pipeline behavior through state changes.
-- **Capability gating.** UI surfaces that depend on TMDB / Prowlarr / the download client only appear once the integration's most recent Test Connection succeeded. See `MediaCentarr.Capabilities`.
-- **Three-pillar state segregation.** Every state-bearing module belongs to exactly one of three pillars: long-term durable storage (DB), short-term in-memory state (ETS / `:persistent_term` / GenServer), or real-time PubSub coordination. LiveView read paths go through Pillar-2 projections that subscribe to source topics, refresh in-memory state, and emit derived `*_view_updated` broadcasts; LiveViews consume only the derived topics, never the DB on render. `MediaCentarr.Cache` is the unified container for the three Pillar-2 flavours; `Library.Progress.Worker` is the canonical GenServer-with-debounced-flush example. See [ADR-041](../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md).
+- **Capability gating.** UI surfaces that depend on TMDB / Prowlarr / the download client only appear once the integration's most recent Test Connection succeeded. See `MediaCentaur.Capabilities`.
+- **Three-pillar state segregation.** Every state-bearing module belongs to exactly one of three pillars: long-term durable storage (DB), short-term in-memory state (ETS / `:persistent_term` / GenServer), or real-time PubSub coordination. LiveView read paths go through Pillar-2 projections that subscribe to source topics, refresh in-memory state, and emit derived `*_view_updated` broadcasts; LiveViews consume only the derived topics, never the DB on render. `MediaCentaur.Cache` is the unified container for the three Pillar-2 flavours; `Library.Progress.Worker` is the canonical GenServer-with-debounced-flush example. See [ADR-041](../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md).
 
 ## Specifications
 
@@ -184,18 +184,18 @@ Protocol specifications live in [`specs/`](../specs/):
 | Spec | Governs |
 |------|---------|
 | [DATA-FORMAT.md](../specs/DATA-FORMAT.md) | Entity types, library entry shape, and pointer to the canonical Ecto schemas |
-| [IMAGE-CACHING.md](../specs/IMAGE-CACHING.md) | Image storage conventions and the shared `MediaCentarr.Images` facade |
+| [IMAGE-CACHING.md](../specs/IMAGE-CACHING.md) | Image storage conventions and the shared `MediaCentaur.Images` facade |
 
 ## Module Reference
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentarr.Application` | OTP application, supervision tree | `lib/media_centarr/application.ex` |
-| `MediaCentarr.Config` | TOML loader + DB-backed runtime overrides | `lib/media_centarr/config.ex` |
-| `MediaCentarr.Topics` | Single source of truth for PubSub topic strings | `lib/media_centarr/topics.ex` |
-| `MediaCentarr.Capabilities` | Predicates gating features on Test Connection results | `lib/media_centarr/capabilities.ex` |
-| `MediaCentarr.Controls` | Keybinding catalog + persisted overrides | `lib/media_centarr/controls.ex` |
-| `MediaCentarr.Images` | Shared image download + libvips resize service | `lib/media_centarr/images.ex` |
-| `MediaCentarr.Log` | Component-tagged thinking-log macros | `lib/media_centarr/log.ex` |
-| `MediaCentarr.Storage` | Disk usage measurement | `lib/media_centarr/storage.ex` |
-| `MediaCentarr.Maintenance` | Operator-driven destructive operations (clear DB, refresh image cache, repair missing images) | `lib/media_centarr/maintenance.ex` |
+| `MediaCentaur.Application` | OTP application, supervision tree | `lib/media_centaur/application.ex` |
+| `MediaCentaur.Config` | TOML loader + DB-backed runtime overrides | `lib/media_centaur/config.ex` |
+| `MediaCentaur.Topics` | Single source of truth for PubSub topic strings | `lib/media_centaur/topics.ex` |
+| `MediaCentaur.Capabilities` | Predicates gating features on Test Connection results | `lib/media_centaur/capabilities.ex` |
+| `MediaCentaur.Controls` | Keybinding catalog + persisted overrides | `lib/media_centaur/controls.ex` |
+| `MediaCentaur.Images` | Shared image download + libvips resize service | `lib/media_centaur/images.ex` |
+| `MediaCentaur.Log` | Component-tagged thinking-log macros | `lib/media_centaur/log.ex` |
+| `MediaCentaur.Storage` | Disk usage measurement | `lib/media_centaur/storage.ex` |
+| `MediaCentaur.Maintenance` | Operator-driven destructive operations (clear DB, refresh image cache, repair missing images) | `lib/media_centaur/maintenance.ex` |

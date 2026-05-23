@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddCreditsToLibraryTvSeries do
+defmodule MediaCentaur.Repo.Migrations.AddCreditsToLibraryTvSeries do
   @moduledoc """
   Adds `cast`, `crew`, and `imdb_id` columns to `library_tv_series` to
   power the More info detail panel for TV series — Created by row,

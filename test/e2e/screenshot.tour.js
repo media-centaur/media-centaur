@@ -4,7 +4,7 @@
 // Manually invoked via scripts/screenshot-tour. NOT regenerated on every
 // deploy; run when the catalog or UI changes warrant refreshed marketing
 // imagery. The runner script injects NOSFERATU_ID / PIONEER_ONE_ID env
-// vars (freshly queried from priv/showcase/media-centarr.db) so this
+// vars (freshly queried from priv/showcase/media-centaur.db) so this
 // file never needs updating after a reseed.
 const { test, expect } = require("@playwright/test")
 const path = require("node:path")
@@ -36,7 +36,7 @@ const TOUR = [
   // The cinematic landing page. Each section is gated by `:if` on
   // assigned data, so the seeded showcase DB needs Continue Watching
   // and Coming Up populated for these shots to render. See
-  // lib/media_centarr/showcase.ex.
+  // lib/media_centaur/showcase.ex.
   {
     name: "home",
     url: "/",
@@ -138,7 +138,7 @@ const TOUR = [
     action: async (page) => {
       // Type a public-domain title into the search input and submit.
       // In showcase mode, Prowlarr is stubbed (see
-      // MediaCentarr.Showcase.Stubs) — the stub returns fixture
+      // MediaCentaur.Showcase.Stubs) — the stub returns fixture
       // release candidates regardless of the query string, so any
       // submission populates the results card.
       const input = page.locator("input[name='query']")

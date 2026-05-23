@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Credo.Checks.ModalPanelNoClickAway do
+defmodule MediaCentaur.Credo.Checks.ModalPanelNoClickAway do
   use Credo.Check,
     id: "MC0006",
     base_priority: :high,

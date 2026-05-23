@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddStatusToLibraryTypes do
+defmodule MediaCentaur.Repo.Migrations.AddStatusToLibraryTypes do
   use Ecto.Migration
 
   def change do

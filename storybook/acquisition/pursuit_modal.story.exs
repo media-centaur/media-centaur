@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitModal do
+defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
   @moduledoc """
   Pursuit detail modal — opened from the Downloads index when a pursuit
   row is clicked. Mirrors the `ModalShell` pattern for Library entities:
@@ -12,7 +12,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitModal do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Acquisition.ViewModels.{
+  alias MediaCentaur.Acquisition.ViewModels.{
     Alternative,
     CurrentAction,
     DecisionCard,
@@ -25,7 +25,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitModal do
     TimelineEntry
   }
 
-  def function, do: &MediaCentarrWeb.Components.Acquisition.PursuitModal.pursuit_modal/1
+  def function, do: &MediaCentaurWeb.Components.Acquisition.PursuitModal.pursuit_modal/1
   def render_source, do: :function
   def layout, do: :one_column
 

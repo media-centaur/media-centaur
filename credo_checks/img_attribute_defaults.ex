@@ -1,13 +1,13 @@
-defmodule MediaCentarr.Credo.Checks.ImgAttributeDefaults do
+defmodule MediaCentaur.Credo.Checks.ImgAttributeDefaults do
   use Credo.Check,
     id: "MC0016",
     base_priority: :high,
     category: :design,
     explanations: [
       check: """
-      Templates under `lib/media_centarr_web/` must not use
+      Templates under `lib/media_centaur_web/` must not use
       `loading="lazy"` on `<img>` tags except inside the explicit
-      allowlist below. Media Centarr is a specialized desktop app
+      allowlist below. Media Centaur is a specialized desktop app
       with a bounded library; lazy-loading defers the fetch until
       intersection-observer fires, which is exactly the perceived
       latency we're paying to remove (ADR-012).
@@ -82,7 +82,7 @@ defmodule MediaCentarr.Credo.Checks.ImgAttributeDefaults do
   end
 
   defp template_file?(filename) do
-    String.contains?(filename, "lib/media_centarr_web/") and
+    String.contains?(filename, "lib/media_centaur_web/") and
       (String.ends_with?(filename, ".ex") or String.ends_with?(filename, ".heex"))
   end
 
@@ -97,7 +97,7 @@ defmodule MediaCentarr.Credo.Checks.ImgAttributeDefaults do
         ~s(Replace `loading="lazy"` with `loading="eager" decoding="sync"` ) <>
           "(this is a desktop app — see ADR-012). If this surface is genuinely " <>
           "reveal-bounded, add the file to `@exempt_files` in " <>
-          "`MediaCentarr.Credo.Checks.ImgAttributeDefaults` with a justification.",
+          "`MediaCentaur.Credo.Checks.ImgAttributeDefaults` with a justification.",
       trigger: ~s(loading="lazy"),
       line_no: line_no
     )

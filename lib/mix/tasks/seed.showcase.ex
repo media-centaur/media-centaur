@@ -7,25 +7,25 @@ defmodule Mix.Tasks.Seed.Showcase do
   Creative Commons media so the UI can be exercised and screenshotted
   without copyrighted material from your personal library.
 
-  Refuses to run unless `MEDIA_CENTARR_CONFIG_OVERRIDE` is set. That env
+  Refuses to run unless `MEDIA_CENTAUR_CONFIG_OVERRIDE` is set. That env
   var points at a self-contained TOML (see
-  `defaults/media-centarr-showcase.toml`) which carries its own
+  `defaults/media-centaur-showcase.toml`) which carries its own
   `database_path` and `watch_dirs` — so the seeder cannot land on the
   default dev/prod DB by accident.
 
-      MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.create
-      MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.migrate
-      MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
+      MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.create
+      MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.migrate
+      MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix seed.showcase
 
-  See `MediaCentarr.Showcase` for what gets created.
+  See `MediaCentaur.Showcase` for what gets created.
   """
   use Mix.Task
 
-  alias MediaCentarr.Showcase
+  alias MediaCentaur.Showcase
 
   @impl true
   def run(_args) do
-    case System.get_env("MEDIA_CENTARR_CONFIG_OVERRIDE") do
+    case System.get_env("MEDIA_CENTAUR_CONFIG_OVERRIDE") do
       override when is_binary(override) and override != "" ->
         Mix.Task.run("app.start")
         summary = Showcase.seed!()
@@ -33,11 +33,11 @@ defmodule Mix.Tasks.Seed.Showcase do
 
       _ ->
         Mix.raise("""
-        mix seed.showcase refuses to run without MEDIA_CENTARR_CONFIG_OVERRIDE.
+        mix seed.showcase refuses to run without MEDIA_CENTAUR_CONFIG_OVERRIDE.
 
         Run with the shipped showcase override:
 
-            MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
+            MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix seed.showcase
 
         This prevents seeding the default dev/prod DB by accident.
         """)

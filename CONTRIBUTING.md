@@ -1,20 +1,20 @@
-# Contributing to Media Centarr
+# Contributing to Media Centaur
 
 Thanks for your interest. This is a small project with a specific scope (see [Non-Goals](README.md#non-goals) in the README) — contributions that fit that scope are very welcome.
 
 ## Ways to contribute
 
-- **Bug reports** — open a [GitHub issue](https://github.com/media-centarr/media-centarr/issues) with repro steps, what you expected, what happened, and relevant logs (the in-app `/console` drawer captures thinking logs; press `` ` `` to open it).
+- **Bug reports** — open a [GitHub issue](https://github.com/media-centaur/media-centaur/issues) with repro steps, what you expected, what happened, and relevant logs (the in-app `/console` drawer captures thinking logs; press `` ` `` to open it).
 - **Feature requests** — open an issue to discuss first. If it lands in the [Non-Goals](README.md#non-goals) list, I'll almost certainly close it — that's not personal, just scope discipline.
 - **Download-client drivers** — adding support for Transmission, Deluge, SABnzbd, NZBGet, etc. is contained work with a clear `@behaviour`. See [Adding a download-client driver](README.md#adding-a-download-client-driver) for the contract.
-- **Parser rules** — the `lib/media_centarr/parser.ex` module matches filename patterns to media metadata. If a filename you own isn't being parsed correctly, a failing test case (with the real path) is a great contribution.
+- **Parser rules** — the `lib/media_centaur/parser.ex` module matches filename patterns to media metadata. If a filename you own isn't being parsed correctly, a failing test case (with the real path) is a great contribution.
 - **Pull requests** — for anything non-trivial, open an issue first so we agree on the approach before you spend time.
 
 ## Development setup
 
 ```bash
-git clone https://github.com/media-centarr/media-centarr.git
-cd media-centarr
+git clone https://github.com/media-centaur/media-centaur.git
+cd media-centaur
 mix setup          # install deps, create DB, run migrations, build assets
 mix phx.server     # start dev server at http://localhost:1080
 ```

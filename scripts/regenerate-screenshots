@@ -7,7 +7,7 @@
 # reused and left running — we only manage the lifecycle of a server we
 # launched ourselves.
 #
-# Prerequisite: a seeded showcase DB at priv/showcase/media-centarr.db.
+# Prerequisite: a seeded showcase DB at priv/showcase/media-centaur.db.
 # Run scripts/reseed-showcase first if the DB is missing. (We don't run
 # it here on purpose — reseeding is destructive and slow, and the
 # operator should make that decision explicitly.)
@@ -33,7 +33,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$REPO_ROOT"
 
 SHOWCASE_PORT=4003
-SHOWCASE_DB="priv/showcase/media-centarr.db"
+SHOWCASE_DB="priv/showcase/media-centaur.db"
 LOG_FILE="$(mktemp -t showcase-server.XXXXXX.log)"
 SERVER_PID=""
 
@@ -87,7 +87,7 @@ if ss -tlnH 2>/dev/null | awk -v p=":$SHOWCASE_PORT" '$4 ~ p {found=1} END {exit
   echo "reusing existing showcase server on :$SHOWCASE_PORT"
 else
   echo "starting showcase server (logs → $LOG_FILE)"
-  MEDIA_CENTARR_CONFIG_OVERRIDE="defaults/media-centarr-showcase.toml" \
+  MEDIA_CENTAUR_CONFIG_OVERRIDE="defaults/media-centaur-showcase.toml" \
     nohup mise exec -- mix phx.server > "$LOG_FILE" 2>&1 &
   SERVER_PID=$!
 
@@ -126,11 +126,11 @@ if [ "$exec_status" -ne 0 ]; then
 fi
 
 # Two-repo screenshot publishing: web-resolution shots stay in this repo;
-# 4K shots move to ../media-centarr-assets so the main repo doesn't bloat
+# 4K shots move to ../media-centaur-assets so the main repo doesn't bloat
 # with multi-megabyte PNGs every release. README/docs-site/wiki link to
 # the 4K versions via jsDelivr CDN URLs that resolve against the assets
 # repo's main branch.
-ASSETS_REPO="$REPO_ROOT/../media-centarr-assets"
+ASSETS_REPO="$REPO_ROOT/../media-centaur-assets"
 LOCAL_4K_DIR="$REPO_ROOT/docs-site/assets/screenshots/4k"
 
 if [ -d "$ASSETS_REPO" ] && [ -d "$LOCAL_4K_DIR" ]; then
@@ -140,7 +140,7 @@ if [ -d "$ASSETS_REPO" ] && [ -d "$LOCAL_4K_DIR" ]; then
   echo "moved 4K screenshots into $ASSETS_REPO/screenshots/"
 elif [ -d "$LOCAL_4K_DIR" ]; then
   echo "warning: $ASSETS_REPO not present; 4K shots remain at $LOCAL_4K_DIR" >&2
-  echo "         Clone media-centarr/media-centarr-assets as a sibling of this repo," >&2
+  echo "         Clone media-centaur/media-centaur-assets as a sibling of this repo," >&2
   echo "         then re-run to publish 4K shots through jsDelivr." >&2
 fi
 

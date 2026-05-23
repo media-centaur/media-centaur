@@ -18,23 +18,23 @@
 
 ### New files
 
-- `lib/media_centarr/watcher/dir_validator.ex` — pure validator, all 11 rules, injected FS adapter
-- `lib/media_centarr/watcher/reconciler.ex` — pure diff function `(old_entries, new_entries) -> %{start, stop, replace}`
-- `lib/media_centarr_web/live/settings_live/watch_dirs_logic.ex` — pure helpers for the card & dialog (ADR-030)
-- `test/media_centarr/watcher/dir_validator_test.exs`
-- `test/media_centarr/watcher/reconciler_test.exs`
-- `test/media_centarr_web/live/settings_live/watch_dirs_logic_test.exs`
-- `test/media_centarr/config_watch_dirs_test.exs` (migration + put/get round-trip)
+- `lib/media_centaur/watcher/dir_validator.ex` — pure validator, all 11 rules, injected FS adapter
+- `lib/media_centaur/watcher/reconciler.ex` — pure diff function `(old_entries, new_entries) -> %{start, stop, replace}`
+- `lib/media_centaur_web/live/settings_live/watch_dirs_logic.ex` — pure helpers for the card & dialog (ADR-030)
+- `test/media_centaur/watcher/dir_validator_test.exs`
+- `test/media_centaur/watcher/reconciler_test.exs`
+- `test/media_centaur_web/live/settings_live/watch_dirs_logic_test.exs`
+- `test/media_centaur/config_watch_dirs_test.exs` (migration + put/get round-trip)
 
 ### Modified files
 
-- `lib/media_centarr/config.ex` — add `watch_dirs_entries/0`, `put_watch_dirs/1`, `migrate_watch_dirs_from_toml/0`; rebuild `:watch_dirs` + `:watch_dir_images` from Settings on load
-- `lib/media_centarr/watcher/supervisor.ex` — subscribe to config updates; add `reconcile/1`, `handle_info/2`
-- `lib/media_centarr/application.ex` — call `Config.migrate_watch_dirs_from_toml/0` after Repo starts, before starting watchers
-- `lib/media_centarr/topics.ex` — add `config_updates/0` topic (if absent)
-- `lib/media_centarr_web/live/settings_live.ex` — render the card + dialog in the `library` section; wire events
-- `defaults/media-centarr.toml` — remove `watch_dirs`, add pointer comment
-- `test/media_centarr_web/live/settings_live_test.exs` (or a sibling file) — integration tests for the new UI
+- `lib/media_centaur/config.ex` — add `watch_dirs_entries/0`, `put_watch_dirs/1`, `migrate_watch_dirs_from_toml/0`; rebuild `:watch_dirs` + `:watch_dir_images` from Settings on load
+- `lib/media_centaur/watcher/supervisor.ex` — subscribe to config updates; add `reconcile/1`, `handle_info/2`
+- `lib/media_centaur/application.ex` — call `Config.migrate_watch_dirs_from_toml/0` after Repo starts, before starting watchers
+- `lib/media_centaur/topics.ex` — add `config_updates/0` topic (if absent)
+- `lib/media_centaur_web/live/settings_live.ex` — render the card + dialog in the `library` section; wire events
+- `defaults/media-centaur.toml` — remove `watch_dirs`, add pointer comment
+- `test/media_centaur_web/live/settings_live_test.exs` (or a sibling file) — integration tests for the new UI
 
 ---
 
@@ -43,9 +43,9 @@
 ### Task 1: Add `Topics.config_updates/0`
 
 **Files:**
-- Modify: `lib/media_centarr/topics.ex`
+- Modify: `lib/media_centaur/topics.ex`
 
-- [ ] **Step 1.1:** Open `lib/media_centarr/topics.ex`. If a `config_updates` topic does not exist, add:
+- [ ] **Step 1.1:** Open `lib/media_centaur/topics.ex`. If a `config_updates` topic does not exist, add:
 
 ```elixir
 @doc "Topic for broadcasting config changes (e.g. watch_dirs)."
@@ -66,18 +66,18 @@ jj desc -m "feat(topics): add config_updates pubsub topic"
 ### Task 2: `Config.watch_dirs_entries/0` read path + `put_watch_dirs/1` write path
 
 **Files:**
-- Modify: `lib/media_centarr/config.ex`
-- Create: `test/media_centarr/config_watch_dirs_test.exs`
+- Modify: `lib/media_centaur/config.ex`
+- Create: `test/media_centaur/config_watch_dirs_test.exs`
 
 - [ ] **Step 2.1: Write failing tests.**
 
 ```elixir
-# test/media_centarr/config_watch_dirs_test.exs
-defmodule MediaCentarr.ConfigWatchDirsTest do
-  use MediaCentarr.DataCase, async: false
+# test/media_centaur/config_watch_dirs_test.exs
+defmodule MediaCentaur.ConfigWatchDirsTest do
+  use MediaCentaur.DataCase, async: false
 
-  alias MediaCentarr.Config
-  alias MediaCentarr.Settings
+  alias MediaCentaur.Config
+  alias MediaCentaur.Settings
 
   describe "watch_dirs_entries/0" do
     test "returns [] when the settings entry is absent" do
@@ -101,7 +101,7 @@ defmodule MediaCentarr.ConfigWatchDirsTest do
 
   describe "put_watch_dirs/1" do
     test "persists, updates :persistent_term, and broadcasts" do
-      :ok = Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.config_updates())
+      :ok = Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.config_updates())
 
       entries = [
         %{"id" => "aaa", "dir" => "/mnt/a", "images_dir" => nil, "name" => nil}
@@ -111,7 +111,7 @@ defmodule MediaCentarr.ConfigWatchDirsTest do
 
       # persistent_term contract preserved
       assert Config.get(:watch_dirs) == ["/mnt/a"]
-      assert Config.get(:watch_dir_images) == %{"/mnt/a" => Path.join("/mnt/a", ".media-centarr/images")}
+      assert Config.get(:watch_dir_images) == %{"/mnt/a" => Path.join("/mnt/a", ".media-centaur/images")}
 
       assert_receive {:config_updated, :watch_dirs, ^entries}
     end
@@ -129,9 +129,9 @@ defmodule MediaCentarr.ConfigWatchDirsTest do
 end
 ```
 
-- [ ] **Step 2.2:** Run `mix test test/media_centarr/config_watch_dirs_test.exs`. Expect all four tests to fail (functions undefined).
+- [ ] **Step 2.2:** Run `mix test test/media_centaur/config_watch_dirs_test.exs`. Expect all four tests to fail (functions undefined).
 
-- [ ] **Step 2.3: Implement.** In `lib/media_centarr/config.ex`:
+- [ ] **Step 2.3: Implement.** In `lib/media_centaur/config.ex`:
 
 ```elixir
 @watch_dirs_settings_key "config:watch_dirs"
@@ -139,7 +139,7 @@ end
 @doc "Returns the raw list of watch-dir entry maps from Settings."
 @spec watch_dirs_entries() :: [map()]
 def watch_dirs_entries do
-  case MediaCentarr.Settings.get_by_key(@watch_dirs_settings_key) do
+  case MediaCentaur.Settings.get_by_key(@watch_dirs_settings_key) do
     {:ok, %{value: %{"entries" => entries}}} when is_list(entries) -> entries
     _ -> []
   end
@@ -153,7 +153,7 @@ and broadcasts `{:config_updated, :watch_dirs, entries}` on the config topic.
 @spec put_watch_dirs([map()]) :: :ok
 def put_watch_dirs(entries) when is_list(entries) do
   {:ok, _} =
-    MediaCentarr.Settings.find_or_create_entry(%{
+    MediaCentaur.Settings.find_or_create_entry(%{
       key: @watch_dirs_settings_key,
       value: %{"entries" => entries}
     })
@@ -161,8 +161,8 @@ def put_watch_dirs(entries) when is_list(entries) do
   refresh_watch_dirs_persistent_term(entries)
 
   Phoenix.PubSub.broadcast(
-    MediaCentarr.PubSub,
-    MediaCentarr.Topics.config_updates(),
+    MediaCentaur.PubSub,
+    MediaCentaur.Topics.config_updates(),
     {:config_updated, :watch_dirs, entries}
   )
 
@@ -188,7 +188,7 @@ defp refresh_watch_dirs_persistent_term(entries) do
 end
 ```
 
-- [ ] **Step 2.4:** Run `mix test test/media_centarr/config_watch_dirs_test.exs`. Expect 4 passes.
+- [ ] **Step 2.4:** Run `mix test test/media_centaur/config_watch_dirs_test.exs`. Expect 4 passes.
 
 - [ ] **Step 2.5:** `jj desc -m "feat(config): add watch_dirs_entries/0 and put_watch_dirs/1"`
 
@@ -197,8 +197,8 @@ end
 ### Task 3: TOML→Settings migration, one-shot on boot
 
 **Files:**
-- Modify: `lib/media_centarr/config.ex`
-- Modify: `test/media_centarr/config_watch_dirs_test.exs`
+- Modify: `lib/media_centaur/config.ex`
+- Modify: `test/media_centaur/config_watch_dirs_test.exs`
 
 - [ ] **Step 3.1: Write failing tests.** Append to `config_watch_dirs_test.exs`:
 
@@ -234,16 +234,16 @@ end
 
 - [ ] **Step 3.2:** Run the tests. Expect 3 failures.
 
-- [ ] **Step 3.3: Implement.** In `lib/media_centarr/config.ex`:
+- [ ] **Step 3.3: Implement.** In `lib/media_centaur/config.ex`:
 
 ```elixir
 @doc """
 One-shot import of TOML `watch_dirs` into the Settings entry. No-op if the
-entry already exists. Called once per boot from `MediaCentarr.Application`.
+entry already exists. Called once per boot from `MediaCentaur.Application`.
 """
 @spec migrate_watch_dirs_from_toml([map() | String.t()]) :: :ok
 def migrate_watch_dirs_from_toml(toml_entries) when is_list(toml_entries) do
-  case MediaCentarr.Settings.get_by_key(@watch_dirs_settings_key) do
+  case MediaCentaur.Settings.get_by_key(@watch_dirs_settings_key) do
     {:ok, _} ->
       :ok
 
@@ -280,7 +280,7 @@ defp new_uuid do
 end
 ```
 
-- [ ] **Step 3.4:** `mix test test/media_centarr/config_watch_dirs_test.exs` — all 7 pass.
+- [ ] **Step 3.4:** `mix test test/media_centaur/config_watch_dirs_test.exs` — all 7 pass.
 
 - [ ] **Step 3.5:** `jj desc -m "feat(config): add one-shot TOML→Settings watch_dirs migration"`
 
@@ -289,18 +289,18 @@ end
 ### Task 4: Wire migration into application boot
 
 **Files:**
-- Modify: `lib/media_centarr/application.ex`
+- Modify: `lib/media_centaur/application.ex`
 
 - [ ] **Step 4.1:** Locate the init_services task (around line 87-93 per prior exploration). Before the call to `WatcherSupervisor.start_watchers/0`, call the migration. The migration needs the raw TOML entries — use the current TOML loading code as the source. If the TOML was already parsed at load time, the parsed structures are available; otherwise re-read:
 
 ```elixir
 # In the init_services function, before start_watchers:
-toml_entries = Application.get_env(:media_centarr, :__raw_toml_watch_dirs, [])
-:ok = MediaCentarr.Config.migrate_watch_dirs_from_toml(toml_entries)
+toml_entries = Application.get_env(:media_centaur, :__raw_toml_watch_dirs, [])
+:ok = MediaCentaur.Config.migrate_watch_dirs_from_toml(toml_entries)
 
 # Refresh :persistent_term from Settings (covers the case where entries
 # already exist in the DB from a prior boot).
-:ok = MediaCentarr.Config.refresh_watch_dirs_from_settings()
+:ok = MediaCentaur.Config.refresh_watch_dirs_from_settings()
 ```
 
 - [ ] **Step 4.2:** Add `refresh_watch_dirs_from_settings/0` to `config.ex`:
@@ -323,7 +323,7 @@ raw_watch_dirs =
     _ -> []
   end
 
-Application.put_env(:media_centarr, :__raw_toml_watch_dirs, raw_watch_dirs)
+Application.put_env(:media_centaur, :__raw_toml_watch_dirs, raw_watch_dirs)
 ```
 
 - [ ] **Step 4.4:** Manually smoke-test: start the app, confirm `Config.watch_dirs_entries/0` returns the migrated entries. If you have an existing TOML with `watch_dirs`, confirm the first boot after this change migrates them into the DB.
@@ -339,17 +339,17 @@ Application.put_env(:media_centarr, :__raw_toml_watch_dirs, raw_watch_dirs)
 ### Task 5: Pure `Reconciler.diff/2`
 
 **Files:**
-- Create: `lib/media_centarr/watcher/reconciler.ex`
-- Create: `test/media_centarr/watcher/reconciler_test.exs`
+- Create: `lib/media_centaur/watcher/reconciler.ex`
+- Create: `test/media_centaur/watcher/reconciler_test.exs`
 
 - [ ] **Step 5.1: Write failing tests.**
 
 ```elixir
-# test/media_centarr/watcher/reconciler_test.exs
-defmodule MediaCentarr.Watcher.ReconcilerTest do
+# test/media_centaur/watcher/reconciler_test.exs
+defmodule MediaCentaur.Watcher.ReconcilerTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Watcher.Reconciler
+  alias MediaCentaur.Watcher.Reconciler
 
   defp entry(id, dir, opts \\ []) do
     %{"id" => id, "dir" => dir, "images_dir" => opts[:images_dir], "name" => opts[:name]}
@@ -407,13 +407,13 @@ defmodule MediaCentarr.Watcher.ReconcilerTest do
 end
 ```
 
-- [ ] **Step 5.2:** Run `mix test test/media_centarr/watcher/reconciler_test.exs`. Expect 7 failures.
+- [ ] **Step 5.2:** Run `mix test test/media_centaur/watcher/reconciler_test.exs`. Expect 7 failures.
 
 - [ ] **Step 5.3: Implement.**
 
 ```elixir
-# lib/media_centarr/watcher/reconciler.ex
-defmodule MediaCentarr.Watcher.Reconciler do
+# lib/media_centaur/watcher/reconciler.ex
+defmodule MediaCentaur.Watcher.Reconciler do
   @moduledoc """
   Pure diff calculator for watcher reconcile actions.
 
@@ -462,7 +462,7 @@ defmodule MediaCentarr.Watcher.Reconciler do
 end
 ```
 
-- [ ] **Step 5.4:** `mix test test/media_centarr/watcher/reconciler_test.exs` — 7 pass.
+- [ ] **Step 5.4:** `mix test test/media_centaur/watcher/reconciler_test.exs` — 7 pass.
 
 - [ ] **Step 5.5:** `jj desc -m "feat(watcher): add Reconciler.diff/2 pure function"`
 
@@ -471,7 +471,7 @@ end
 ### Task 6: `Watcher.Supervisor.reconcile/1` + live subscribe
 
 **Files:**
-- Modify: `lib/media_centarr/watcher/supervisor.ex`
+- Modify: `lib/media_centaur/watcher/supervisor.ex`
 
 - [ ] **Step 6.1:** Add reconcile as a public function. This is a stateful wrapper that takes the current entry list and applies the diff to running children. Uses `Reconciler` + existing `start_watchers`-style helpers.
 
@@ -486,7 +486,7 @@ Called whenever `Config` broadcasts `{:config_updated, :watch_dirs, …}`.
 @spec reconcile([map()]) :: :ok
 def reconcile(new_entries) when is_list(new_entries) do
   old_entries = currently_running_entries()
-  actions = MediaCentarr.Watcher.Reconciler.diff(old_entries, new_entries)
+  actions = MediaCentaur.Watcher.Reconciler.diff(old_entries, new_entries)
 
   Enum.each(actions.to_stop, &stop_dir/1)
   Enum.each(actions.to_replace, fn %{old_dir: old, new: new} ->
@@ -502,7 +502,7 @@ defp currently_running_entries do
   # Reconstruct an "entries"-shaped list from the Registry so the pure
   # diff can compare id-for-id. We use dir as both id and dir here,
   # because the Registry only knows paths.
-  MediaCentarr.Watcher.Registry
+  MediaCentaur.Watcher.Registry
   |> Registry.select([{{:"$1", :_, :_}, [], [:"$1"]}])
   |> Enum.map(fn dir ->
     %{"id" => dir, "dir" => dir, "images_dir" => nil, "name" => nil}
@@ -511,8 +511,8 @@ end
 
 defp start_dir(dir) do
   case DynamicSupervisor.start_child(
-         MediaCentarr.Watcher.DynamicSupervisor,
-         {MediaCentarr.Watcher, dir}
+         MediaCentaur.Watcher.DynamicSupervisor,
+         {MediaCentaur.Watcher, dir}
        ) do
     {:ok, _} -> :ok
     {:error, {:already_started, _}} -> :ok
@@ -522,35 +522,35 @@ defp start_dir(dir) do
 end
 
 defp stop_dir(dir) do
-  case Registry.lookup(MediaCentarr.Watcher.Registry, dir) do
-    [{pid, _}] -> DynamicSupervisor.terminate_child(MediaCentarr.Watcher.DynamicSupervisor, pid)
+  case Registry.lookup(MediaCentaur.Watcher.Registry, dir) do
+    [{pid, _}] -> DynamicSupervisor.terminate_child(MediaCentaur.Watcher.DynamicSupervisor, pid)
     [] -> :ok
   end
 end
 ```
 
-- [ ] **Step 6.2:** Switch subscription: convert `Watcher.Supervisor` into a `GenServer` sibling that subscribes + delegates reconciles, OR — simpler — add a thin `Watcher.ConfigListener` GenServer that subscribes to `Topics.config_updates()` and calls `Watcher.Supervisor.reconcile/1`. Recommendation: the latter. Create `lib/media_centarr/watcher/config_listener.ex`:
+- [ ] **Step 6.2:** Switch subscription: convert `Watcher.Supervisor` into a `GenServer` sibling that subscribes + delegates reconciles, OR — simpler — add a thin `Watcher.ConfigListener` GenServer that subscribes to `Topics.config_updates()` and calls `Watcher.Supervisor.reconcile/1`. Recommendation: the latter. Create `lib/media_centaur/watcher/config_listener.ex`:
 
 ```elixir
-defmodule MediaCentarr.Watcher.ConfigListener do
+defmodule MediaCentaur.Watcher.ConfigListener do
   @moduledoc """
   Subscribes to `Topics.config_updates()` and calls
   `Watcher.Supervisor.reconcile/1` on every watch-dir change.
   """
   use GenServer
-  require MediaCentarr.Log, as: Log
+  require MediaCentaur.Log, as: Log
 
   def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 
   @impl true
   def init(_) do
-    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.config_updates())
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.config_updates())
     {:ok, nil}
   end
 
   @impl true
   def handle_info({:config_updated, :watch_dirs, entries}, state) do
-    MediaCentarr.Watcher.Supervisor.reconcile(entries)
+    MediaCentaur.Watcher.Supervisor.reconcile(entries)
     {:noreply, state}
   end
 
@@ -562,23 +562,23 @@ end
 
 ```elixir
 children = [
-  {Registry, keys: :unique, name: MediaCentarr.Watcher.Registry},
-  {Registry, keys: :unique, name: MediaCentarr.Watcher.DirMonitor.Registry},
-  {DynamicSupervisor, name: MediaCentarr.Watcher.DynamicSupervisor, strategy: :one_for_one},
+  {Registry, keys: :unique, name: MediaCentaur.Watcher.Registry},
+  {Registry, keys: :unique, name: MediaCentaur.Watcher.DirMonitor.Registry},
+  {DynamicSupervisor, name: MediaCentaur.Watcher.DynamicSupervisor, strategy: :one_for_one},
   {DynamicSupervisor,
-   name: MediaCentarr.Watcher.DirMonitor.DynamicSupervisor, strategy: :one_for_one},
-  MediaCentarr.Watcher.ConfigListener
+   name: MediaCentaur.Watcher.DirMonitor.DynamicSupervisor, strategy: :one_for_one},
+  MediaCentaur.Watcher.ConfigListener
 ]
 ```
 
-- [ ] **Step 6.4: Integration test.** Create `test/media_centarr/watcher/supervisor_reconcile_test.exs`:
+- [ ] **Step 6.4: Integration test.** Create `test/media_centaur/watcher/supervisor_reconcile_test.exs`:
 
 ```elixir
-defmodule MediaCentarr.Watcher.SupervisorReconcileTest do
-  use MediaCentarr.DataCase, async: false
+defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
+  use MediaCentaur.DataCase, async: false
 
-  alias MediaCentarr.Config
-  alias MediaCentarr.Watcher.Supervisor, as: WatcherSup
+  alias MediaCentaur.Config
+  alias MediaCentaur.Watcher.Supervisor, as: WatcherSup
 
   @tag :integration
   test "put_watch_dirs triggers reconcile that starts a watcher" do
@@ -603,7 +603,7 @@ defmodule MediaCentarr.Watcher.SupervisorReconcileTest do
 end
 ```
 
-- [ ] **Step 6.5:** `mix test test/media_centarr/watcher/` — expect passes.
+- [ ] **Step 6.5:** `mix test test/media_centaur/watcher/` — expect passes.
 
 - [ ] **Step 6.6:** `jj desc -m "feat(watcher): live reconcile on config changes"`
 
@@ -614,17 +614,17 @@ end
 ### Task 7: Pure validator with injected FS adapter
 
 **Files:**
-- Create: `lib/media_centarr/watcher/dir_validator.ex`
-- Create: `test/media_centarr/watcher/dir_validator_test.exs`
+- Create: `lib/media_centaur/watcher/dir_validator.ex`
+- Create: `test/media_centaur/watcher/dir_validator_test.exs`
 
 - [ ] **Step 7.1: Write failing tests (all 11 rules).** Tests use a stub FS adapter and async mode.
 
 ```elixir
-# test/media_centarr/watcher/dir_validator_test.exs
-defmodule MediaCentarr.Watcher.DirValidatorTest do
+# test/media_centaur/watcher/dir_validator_test.exs
+defmodule MediaCentaur.Watcher.DirValidatorTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Watcher.DirValidator
+  alias MediaCentaur.Watcher.DirValidator
 
   defp stub_fs(overrides \\ %{}) do
     defaults = %{
@@ -783,10 +783,10 @@ end
 
 - [ ] **Step 7.2:** Run tests. Expect 14 failures.
 
-- [ ] **Step 7.3: Implement.** Create `lib/media_centarr/watcher/dir_validator.ex`:
+- [ ] **Step 7.3: Implement.** Create `lib/media_centaur/watcher/dir_validator.ex`:
 
 ```elixir
-defmodule MediaCentarr.Watcher.DirValidator do
+defmodule MediaCentaur.Watcher.DirValidator do
   @moduledoc """
   Pure validator for watch-directory form entries.
 
@@ -904,13 +904,13 @@ defmodule MediaCentarr.Watcher.DirValidator do
   defp writable?(path, fs) do
     cond do
       fs.exists?.(path) ->
-        fs.touch.(Path.join(path, ".media-centarr-write-test")) == :ok
+        fs.touch.(Path.join(path, ".media-centaur-write-test")) == :ok
 
       true ->
         parent = Path.dirname(path)
 
         fs.exists?.(parent) and
-          fs.touch.(Path.join(parent, ".media-centarr-write-test")) == :ok
+          fs.touch.(Path.join(parent, ".media-centaur-write-test")) == :ok
     end
   end
 
@@ -1014,7 +1014,7 @@ defp mounted?(mount) do
 end
 ```
 
-- [ ] **Step 7.5:** `mix test test/media_centarr/watcher/dir_validator_test.exs`. Expect 14 pass.
+- [ ] **Step 7.5:** `mix test test/media_centaur/watcher/dir_validator_test.exs`. Expect 14 pass.
 
 - [ ] **Step 7.6:** `jj desc -m "feat(watcher): pure DirValidator with 11 live validation rules"`
 
@@ -1025,16 +1025,16 @@ end
 ### Task 8: `WatchDirsLogic` pure helpers + tests
 
 **Files:**
-- Create: `lib/media_centarr_web/live/settings_live/watch_dirs_logic.ex`
-- Create: `test/media_centarr_web/live/settings_live/watch_dirs_logic_test.exs`
+- Create: `lib/media_centaur_web/live/settings_live/watch_dirs_logic.ex`
+- Create: `test/media_centaur_web/live/settings_live/watch_dirs_logic_test.exs`
 
 - [ ] **Step 8.1: Write failing tests.**
 
 ```elixir
-defmodule MediaCentarrWeb.SettingsLive.WatchDirsLogicTest do
+defmodule MediaCentaurWeb.SettingsLive.WatchDirsLogicTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarrWeb.SettingsLive.WatchDirsLogic
+  alias MediaCentaurWeb.SettingsLive.WatchDirsLogic
 
   defp entry(dir, opts \\ []), do: %{"id" => opts[:id] || dir, "dir" => dir, "images_dir" => opts[:images_dir], "name" => opts[:name]}
 
@@ -1094,7 +1094,7 @@ end
 - [ ] **Step 8.3: Implement.**
 
 ```elixir
-defmodule MediaCentarrWeb.SettingsLive.WatchDirsLogic do
+defmodule MediaCentaurWeb.SettingsLive.WatchDirsLogic do
   @moduledoc """
   Pure helpers for the Settings watch-dirs card and dialog.
 
@@ -1154,15 +1154,15 @@ end
 ### Task 9: Settings LiveView card + dialog + events
 
 **Files:**
-- Modify: `lib/media_centarr_web/live/settings_live.ex`
-- (optional, if it makes the LiveView cleaner) Create: `lib/media_centarr_web/live/settings_live/watch_dirs_component.ex` as a `Phoenix.Component`
+- Modify: `lib/media_centaur_web/live/settings_live.ex`
+- (optional, if it makes the LiveView cleaner) Create: `lib/media_centaur_web/live/settings_live/watch_dirs_component.ex` as a `Phoenix.Component`
 
 Because settings_live.ex is already large, this task adds the new state + event handlers + template block inline, keeping the card markup in a function component for readability.
 
 - [ ] **Step 9.1: Extend mount assigns.** In `settings_live.ex`, extend `mount/3` to load watch dirs from `Config.watch_dirs_entries()`, initialize dialog state:
 
 ```elixir
-|> assign(:watch_dirs, MediaCentarr.Config.watch_dirs_entries())
+|> assign(:watch_dirs, MediaCentaur.Config.watch_dirs_entries())
 |> assign(:watch_dir_dialog, nil)              # nil | %{entry, validation, debounce_timer}
 |> assign(:watch_dir_delete_confirm, nil)      # nil | id
 ```
@@ -1170,7 +1170,7 @@ Because settings_live.ex is already large, this task adds the new state + event 
 Also subscribe in `mount/3` (connected? branch) to the config topic:
 
 ```elixir
-Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.config_updates())
+Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.config_updates())
 ```
 
 - [ ] **Step 9.2: Handle params** — `handle_params/3` reads `?add_watch_dir=1` and opens the dialog with a fresh entry.
@@ -1209,7 +1209,7 @@ def handle_event("watch_dir:save", _, socket) do
 
   if WatchDirsLogic.saveable?(validation) do
     entries = WatchDirsLogic.upsert(socket.assigns.watch_dirs, entry)
-    :ok = MediaCentarr.Config.put_watch_dirs(entries)
+    :ok = MediaCentaur.Config.put_watch_dirs(entries)
     {:noreply, close_watch_dir_dialog(socket)}
   else
     {:noreply, socket}
@@ -1226,7 +1226,7 @@ end
 
 def handle_event("watch_dir:delete", %{"id" => id}, socket) do
   entries = WatchDirsLogic.remove(socket.assigns.watch_dirs, id)
-  :ok = MediaCentarr.Config.put_watch_dirs(entries)
+  :ok = MediaCentaur.Config.put_watch_dirs(entries)
   {:noreply, assign(socket, :watch_dir_delete_confirm, nil)}
 end
 ```
@@ -1244,10 +1244,10 @@ def handle_info({:watch_dir_validate, params}, socket) do
       entry = merge_entry(dialog.entry, params)
 
       validation =
-        MediaCentarr.Watcher.DirValidator.validate(
+        MediaCentaur.Watcher.DirValidator.validate(
           entry,
           other_entries(socket.assigns.watch_dirs, entry),
-          MediaCentarr.Watcher.DirValidator.real_fs()
+          MediaCentaur.Watcher.DirValidator.real_fs()
         )
 
       new_dialog = %{dialog | entry: entry, validation: validation, debounce_timer: nil}
@@ -1420,20 +1420,20 @@ end
 - [ ] **Step 9.8: Alias WatchDirsLogic** at the top of `settings_live.ex`:
 
 ```elixir
-alias MediaCentarrWeb.SettingsLive.WatchDirsLogic
+alias MediaCentaurWeb.SettingsLive.WatchDirsLogic
 ```
 
 - [ ] **Step 9.9:** Run `mix compile --warnings-as-errors`.
 
-- [ ] **Step 9.10: LiveView integration test** in `test/media_centarr_web/live/settings_live_watch_dirs_test.exs`:
+- [ ] **Step 9.10: LiveView integration test** in `test/media_centaur_web/live/settings_live_watch_dirs_test.exs`:
 
 ```elixir
-defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
-  use MediaCentarrWeb.ConnCase
+defmodule MediaCentaurWeb.SettingsLiveWatchDirsTest do
+  use MediaCentaurWeb.ConnCase
 
   import Phoenix.LiveViewTest
 
-  alias MediaCentarr.Config
+  alias MediaCentaur.Config
 
   setup do
     on_exit(fn -> :ok = Config.put_watch_dirs([]) end)
@@ -1491,7 +1491,7 @@ defmodule MediaCentarrWeb.SettingsLiveWatchDirsTest do
 end
 ```
 
-- [ ] **Step 9.11:** `mix test test/media_centarr_web/live/settings_live_watch_dirs_test.exs` — green.
+- [ ] **Step 9.11:** `mix test test/media_centaur_web/live/settings_live_watch_dirs_test.exs` — green.
 
 - [ ] **Step 9.12:** `jj desc -m "feat(settings-ui): watch-dirs card, add/edit dialog, delete flow"`
 
@@ -1502,7 +1502,7 @@ end
 ### Task 10: Remove `watch_dirs` from defaults TOML
 
 **Files:**
-- Modify: `defaults/media-centarr.toml`
+- Modify: `defaults/media-centaur.toml`
 
 - [ ] **Step 10.1:** Replace the `watch_dirs` section (lines ~11-23) with:
 
@@ -1512,7 +1512,7 @@ end
 # watch_dirs found here, after which this key is ignored.
 ```
 
-Leave the key itself out. `Config.load_toml` already defaults to `[]` when absent; the migration uses `Application.get_env(:media_centarr, :__raw_toml_watch_dirs, [])`.
+Leave the key itself out. `Config.load_toml` already defaults to `[]` when absent; the migration uses `Application.get_env(:media_centaur, :__raw_toml_watch_dirs, [])`.
 
 - [ ] **Step 10.2:** Verify existing user TOML files are still parsed (migration still runs) — no action needed; `resolve_watch_dirs/2` already handles absent keys.
 
@@ -1530,7 +1530,7 @@ Leave the key itself out. `Config.load_toml` already defaults to `[]` when absen
   1. `mix phx.server`
   2. Visit `/settings?section=library` → click Add → type a valid path → watch validation turn green → Save
   3. Confirm the watcher process appears in `/status` or via `WatcherSupervisor.statuses()` from IEx
-  4. Edit the entry, change the name only → no watcher restart (tail `journalctl --user -u media-centarr-dev -f`)
+  4. Edit the entry, change the name only → no watcher restart (tail `journalctl --user -u media-centaur-dev -f`)
   5. Delete → confirm → watcher process gone
   6. Reload the app → entries survive
 
@@ -1540,7 +1540,7 @@ Leave the key itself out. `Config.load_toml` already defaults to `[]` when absen
 
 ### Task 12: Wiki updates (follow-up — separate repo)
 
-**Files (separate repo, `~/src/media-centarr/media-centarr.wiki/`):**
+**Files (separate repo, `~/src/media-centaur/media-centaur.wiki/`):**
 - `Configuration-File.md` — remove `watch_dirs` reference; point to Settings UI
 - `Adding-Your-Library.md` — rewrite the "how to add a library" flow to use the Settings UI (screenshots helpful)
 - `Settings-Reference.md` — document the new "Watch Directories" card
@@ -1551,7 +1551,7 @@ Leave the key itself out. `Config.load_toml` already defaults to `[]` when absen
 
 - [ ] **Step 12.3:**
 ```bash
-cd ~/src/media-centarr/media-centarr.wiki
+cd ~/src/media-centaur/media-centaur.wiki
 jj describe -m "wiki: watch dirs are now managed in the Settings UI"
 jj bookmark set master -r @
 jj git push

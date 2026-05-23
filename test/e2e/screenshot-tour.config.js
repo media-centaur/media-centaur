@@ -39,7 +39,7 @@ const sharedUse = {
   // (Ozone), Chromium derives app_id from the URL and ignores
   // --class; XWayland honours --class reliably.
   launchOptions: {
-    args: ["--ozone-platform=x11", "--class=media-centarr"],
+    args: ["--ozone-platform=x11", "--class=media-centaur"],
   },
 }
 

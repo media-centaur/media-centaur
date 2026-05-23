@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Credo.Checks.NoAbbreviatedNames do
+defmodule MediaCentaur.Credo.Checks.NoAbbreviatedNames do
   use Credo.Check,
     id: "MC0002",
     base_priority: :normal,

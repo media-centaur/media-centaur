@@ -19,9 +19,9 @@ This is the executable plan derived from the design captured in `mockups/page-re
 Key project conventions you must follow:
 
 - **Test-first** is mandatory ([automated-testing] skill). Write the test, see it fail, write the minimal code to make it pass, commit.
-- **Pure-function extraction** for any non-trivial LiveView logic ([ADR-030]). Helper module pattern: `MediaCentarrWeb.HomeLive.Logic` paired with `MediaCentarrWeb.HomeLive`.
-- **Context facade subscribe** ([CLAUDE.md "Context facade subscribe pattern"]). LiveViews call `Library.subscribe()`, never `Phoenix.PubSub.subscribe(MediaCentarr.PubSub, ...)` directly.
-- **Boundary** ([ADR-029]). `MediaCentarrWeb` already declares deps to all contexts it needs; if a new context becomes a dep, update the `use Boundary` line in `lib/media_centarr_web.ex`.
+- **Pure-function extraction** for any non-trivial LiveView logic ([ADR-030]). Helper module pattern: `MediaCentaurWeb.HomeLive.Logic` paired with `MediaCentaurWeb.HomeLive`.
+- **Context facade subscribe** ([CLAUDE.md "Context facade subscribe pattern"]). LiveViews call `Library.subscribe()`, never `Phoenix.PubSub.subscribe(MediaCentaur.PubSub, ...)` directly.
+- **Boundary** ([ADR-029]). `MediaCentaurWeb` already declares deps to all contexts it needs; if a new context becomes a dep, update the `use Boundary` line in `lib/media_centaur_web.ex`.
 - **No abbreviated names** ([CLAUDE.md "Variable Naming"]). `episode` not `ep`, `movie` not `m`. The `NoAbbreviatedNames` Credo check enforces this.
 - **PredicateNaming**: boolean functions end in `?`. `is_` prefix is reserved for `defmacro`/`defguard`.
 - **Zero warnings** ([CLAUDE.md "Zero warnings policy"]). Treat every warning as a bug.
@@ -39,38 +39,38 @@ Key project conventions you must follow:
 
 | Path | Responsibility |
 |---|---|
-| `lib/media_centarr/watch_history/rewatch.ex` | Pure SQL/Ecto query: count of completion events per entity, with most-recent date |
-| `lib/media_centarr_web/live/upcoming_live.ex` | Standalone Upcoming page (was zone of LibraryLive) |
-| `lib/media_centarr_web/live/upcoming_live/logic.ex` | Pure functions for Upcoming page (calendar weeks, group merging — most reusable from existing UpcomingCards) |
-| `lib/media_centarr_web/live/home_live.ex` | New cinematic Home page |
-| `lib/media_centarr_web/live/home_live/logic.ex` | Pure functions: row assembly, hero selection, "this week" date math |
-| `lib/media_centarr_web/components/continue_watching_row.ex` | Extracted backdrop-card row (used by Home; replaces inline impl in LibraryLive) |
-| `lib/media_centarr_web/components/coming_up_row.ex` | New 4-card digest row for Home |
-| `lib/media_centarr_web/components/poster_row.ex` | New horizontal poster strip (used twice on Home: Recently Added, Watched Recently) |
-| `lib/media_centarr_web/components/hero_card.ex` | New full-bleed hero (Home only) |
-| `test/media_centarr/watch_history/rewatch_test.exs` | Tests for rewatch query |
-| `test/media_centarr_web/live/upcoming_live_test.exs` | Mount + render smoke + redirect-from-library test |
-| `test/media_centarr_web/live/upcoming_live/logic_test.exs` | Pure function tests (moved from existing) |
-| `test/media_centarr_web/live/home_live_test.exs` | Mount + render smoke |
-| `test/media_centarr_web/live/home_live/logic_test.exs` | Pure row-assembly tests |
-| `test/media_centarr_web/components/continue_watching_row_test.exs` | Render smoke |
-| `test/media_centarr_web/components/coming_up_row_test.exs` | Pure logic + render smoke |
+| `lib/media_centaur/watch_history/rewatch.ex` | Pure SQL/Ecto query: count of completion events per entity, with most-recent date |
+| `lib/media_centaur_web/live/upcoming_live.ex` | Standalone Upcoming page (was zone of LibraryLive) |
+| `lib/media_centaur_web/live/upcoming_live/logic.ex` | Pure functions for Upcoming page (calendar weeks, group merging — most reusable from existing UpcomingCards) |
+| `lib/media_centaur_web/live/home_live.ex` | New cinematic Home page |
+| `lib/media_centaur_web/live/home_live/logic.ex` | Pure functions: row assembly, hero selection, "this week" date math |
+| `lib/media_centaur_web/components/continue_watching_row.ex` | Extracted backdrop-card row (used by Home; replaces inline impl in LibraryLive) |
+| `lib/media_centaur_web/components/coming_up_row.ex` | New 4-card digest row for Home |
+| `lib/media_centaur_web/components/poster_row.ex` | New horizontal poster strip (used twice on Home: Recently Added, Watched Recently) |
+| `lib/media_centaur_web/components/hero_card.ex` | New full-bleed hero (Home only) |
+| `test/media_centaur/watch_history/rewatch_test.exs` | Tests for rewatch query |
+| `test/media_centaur_web/live/upcoming_live_test.exs` | Mount + render smoke + redirect-from-library test |
+| `test/media_centaur_web/live/upcoming_live/logic_test.exs` | Pure function tests (moved from existing) |
+| `test/media_centaur_web/live/home_live_test.exs` | Mount + render smoke |
+| `test/media_centaur_web/live/home_live/logic_test.exs` | Pure row-assembly tests |
+| `test/media_centaur_web/components/continue_watching_row_test.exs` | Render smoke |
+| `test/media_centaur_web/components/coming_up_row_test.exs` | Pure logic + render smoke |
 
 **Modified files:**
 
 | Path | Change |
 |---|---|
-| `lib/media_centarr/watch_history.ex` | Add `rewatch_count/1` and `top_rewatches/1` public API |
-| `lib/media_centarr_web/components/layouts.ex` | Sidebar gets group labels and two visual weights |
+| `lib/media_centaur/watch_history.ex` | Add `rewatch_count/1` and `top_rewatches/1` public API |
+| `lib/media_centaur_web/components/layouts.ex` | Sidebar gets group labels and two visual weights |
 | `assets/css/app.css` | Sidebar group label styles + `.sidebar-link.system-link` variant |
-| `lib/media_centarr_web/live/library_live.ex` | Remove Upcoming zone; in Phase 4, also remove Continue Watching zone |
-| `lib/media_centarr_web/router.ex` | Add `/upcoming`, `/library`, change `/` to HomeLive in Phase 4 |
-| `lib/media_centarr_web/live/watch_history_live.ex` | Surface re-watch counts in event rows |
-| `lib/media_centarr_web/live/library_live/library_helpers.ex` | If Continue Watching helper extracts, move to component module |
+| `lib/media_centaur_web/live/library_live.ex` | Remove Upcoming zone; in Phase 4, also remove Continue Watching zone |
+| `lib/media_centaur_web/router.ex` | Add `/upcoming`, `/library`, change `/` to HomeLive in Phase 4 |
+| `lib/media_centaur_web/live/watch_history_live.ex` | Surface re-watch counts in event rows |
+| `lib/media_centaur_web/live/library_live/library_helpers.ex` | If Continue Watching helper extracts, move to component module |
 
 **Files left alone:**
 
-`lib/media_centarr_web/components/upcoming_cards.ex` — the current Upcoming zone implementation. In Phase 3 we extract it into UpcomingLive but the component itself is reused mostly verbatim. Renaming/refactoring its internals is out of scope.
+`lib/media_centaur_web/components/upcoming_cards.ex` — the current Upcoming zone implementation. In Phase 3 we extract it into UpcomingLive but the component itself is reused mostly verbatim. Renaming/refactoring its internals is out of scope.
 
 ---
 
@@ -81,18 +81,18 @@ Key project conventions you must follow:
 ### Task 1.1: Add a pure-function rewatch query module
 
 **Files:**
-- Create: `lib/media_centarr/watch_history/rewatch.ex`
-- Test: `test/media_centarr/watch_history/rewatch_test.exs`
+- Create: `lib/media_centaur/watch_history/rewatch.ex`
+- Test: `test/media_centaur/watch_history/rewatch_test.exs`
 
 - [ ] **Step 1: Write the failing test**
 
 ```elixir
-defmodule MediaCentarr.WatchHistory.RewatchTest do
-  use MediaCentarr.DataCase, async: false
+defmodule MediaCentaur.WatchHistory.RewatchTest do
+  use MediaCentaur.DataCase, async: false
 
-  alias MediaCentarr.TestFactory
-  alias MediaCentarr.WatchHistory
-  alias MediaCentarr.WatchHistory.Rewatch
+  alias MediaCentaur.TestFactory
+  alias MediaCentaur.WatchHistory
+  alias MediaCentaur.WatchHistory.Rewatch
 
   describe "count_per_entity/1" do
     test "returns 1 for entities watched once" do
@@ -161,14 +161,14 @@ end
 - [ ] **Step 2: Run the test, verify it fails**
 
 ```
-mix test test/media_centarr/watch_history/rewatch_test.exs
+mix test test/media_centaur/watch_history/rewatch_test.exs
 ```
-Expected: FAIL — module `MediaCentarr.WatchHistory.Rewatch` is not defined.
+Expected: FAIL — module `MediaCentaur.WatchHistory.Rewatch` is not defined.
 
 - [ ] **Step 3: Implement the module**
 
 ```elixir
-defmodule MediaCentarr.WatchHistory.Rewatch do
+defmodule MediaCentaur.WatchHistory.Rewatch do
   @moduledoc """
   Pure Ecto queries for re-watch detection.
 
@@ -178,8 +178,8 @@ defmodule MediaCentarr.WatchHistory.Rewatch do
   """
   import Ecto.Query
 
-  alias MediaCentarr.Repo
-  alias MediaCentarr.WatchHistory.Event
+  alias MediaCentaur.Repo
+  alias MediaCentaur.WatchHistory.Event
 
   @type entity_type :: :movie | :episode | :video_object
   @type rewatch_row :: %{entity_type: entity_type(), entity_id: integer(), count: pos_integer(), last_watched_at: DateTime.t()}
@@ -265,7 +265,7 @@ def create_watch_event(attrs \\ %{}) do
 
   attrs = Map.merge(defaults, Map.new(attrs))
 
-  {:ok, event} = MediaCentarr.WatchHistory.create_event(attrs)
+  {:ok, event} = MediaCentaur.WatchHistory.create_event(attrs)
   event
 end
 ```
@@ -273,7 +273,7 @@ end
 - [ ] **Step 5: Re-run the test, verify it passes**
 
 ```
-mix test test/media_centarr/watch_history/rewatch_test.exs
+mix test test/media_centaur/watch_history/rewatch_test.exs
 ```
 Expected: 4 tests, 0 failures.
 
@@ -287,34 +287,34 @@ jj new
 ### Task 1.2: Expose rewatch_count/1 and top_rewatches/1 from WatchHistory facade
 
 **Files:**
-- Modify: `lib/media_centarr/watch_history.ex`
-- Test: `test/media_centarr/watch_history_test.exs`
+- Modify: `lib/media_centaur/watch_history.ex`
+- Test: `test/media_centaur/watch_history_test.exs`
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `test/media_centarr/watch_history_test.exs`:
+Add to `test/media_centaur/watch_history_test.exs`:
 
 ```elixir
 describe "rewatch_count/2" do
   test "returns count for a single entity" do
-    movie = MediaCentarr.TestFactory.create_movie()
-    for _ <- 1..3, do: MediaCentarr.TestFactory.create_watch_event(movie_id: movie.id)
+    movie = MediaCentaur.TestFactory.create_movie()
+    for _ <- 1..3, do: MediaCentaur.TestFactory.create_watch_event(movie_id: movie.id)
 
-    assert MediaCentarr.WatchHistory.rewatch_count(:movie, movie.id) == 3
+    assert MediaCentaur.WatchHistory.rewatch_count(:movie, movie.id) == 3
   end
 
   test "returns 0 for an entity with no events" do
-    movie = MediaCentarr.TestFactory.create_movie()
-    assert MediaCentarr.WatchHistory.rewatch_count(:movie, movie.id) == 0
+    movie = MediaCentaur.TestFactory.create_movie()
+    assert MediaCentaur.WatchHistory.rewatch_count(:movie, movie.id) == 0
   end
 end
 
 describe "top_rewatches/1" do
   test "delegates to Rewatch.top_rewatches/1" do
-    movie = MediaCentarr.TestFactory.create_movie()
-    for _ <- 1..2, do: MediaCentarr.TestFactory.create_watch_event(movie_id: movie.id)
+    movie = MediaCentaur.TestFactory.create_movie()
+    for _ <- 1..2, do: MediaCentaur.TestFactory.create_watch_event(movie_id: movie.id)
 
-    [row] = MediaCentarr.WatchHistory.top_rewatches(min: 2, limit: 5)
+    [row] = MediaCentaur.WatchHistory.top_rewatches(min: 2, limit: 5)
 
     assert row.entity_id == movie.id
     assert row.count == 2
@@ -322,14 +322,14 @@ describe "top_rewatches/1" do
 end
 ```
 
-- [ ] **Step 2: Run test to confirm failure** (`mix test test/media_centarr/watch_history_test.exs`).
+- [ ] **Step 2: Run test to confirm failure** (`mix test test/media_centaur/watch_history_test.exs`).
 
-- [ ] **Step 3: Add the public functions to `lib/media_centarr/watch_history.ex`**
+- [ ] **Step 3: Add the public functions to `lib/media_centaur/watch_history.ex`**
 
 After `def stats do ... end`, add:
 
 ```elixir
-alias MediaCentarr.WatchHistory.Rewatch
+alias MediaCentaur.WatchHistory.Rewatch
 
 @doc """
 Count of completion events for a single entity.
@@ -363,16 +363,16 @@ jj new
 ### Task 1.3: Add re-watch column to History event rows
 
 **Files:**
-- Modify: `lib/media_centarr_web/live/watch_history_live.ex`
+- Modify: `lib/media_centaur_web/live/watch_history_live.ex`
 
 - [ ] **Step 1: Write the failing test**
 
-Add to `test/media_centarr_web/live/watch_history_live_test.exs`:
+Add to `test/media_centaur_web/live/watch_history_live_test.exs`:
 
 ```elixir
 test "shows rewatch count badge for entities watched 2+ times", %{conn: conn} do
-  movie = MediaCentarr.TestFactory.create_movie(name: "Sample Show")
-  for _ <- 1..3, do: MediaCentarr.TestFactory.create_watch_event(movie_id: movie.id, title: "Sample Show")
+  movie = MediaCentaur.TestFactory.create_movie(name: "Sample Show")
+  for _ <- 1..3, do: MediaCentaur.TestFactory.create_watch_event(movie_id: movie.id, title: "Sample Show")
 
   {:ok, view, _html} = live(conn, "/history")
   rendered = render(view)
@@ -382,7 +382,7 @@ test "shows rewatch count badge for entities watched 2+ times", %{conn: conn} do
 end
 ```
 
-- [ ] **Step 2: Confirm failure** (`mix test test/media_centarr_web/live/watch_history_live_test.exs`).
+- [ ] **Step 2: Confirm failure** (`mix test test/media_centaur_web/live/watch_history_live_test.exs`).
 
 - [ ] **Step 3: Pass rewatch counts to the template**
 
@@ -427,10 +427,10 @@ jj describe -m "feat(history): show rewatch count on event rows"
 jj new
 ```
 
-### Task 1.4: Update wiki "Using Media Centarr" → History page
+### Task 1.4: Update wiki "Using Media Centaur" → History page
 
 **Files:**
-- Modify: `~/src/media-centarr/media-centarr.wiki/Watch-History.md` (or whichever page exists; create if missing per CLAUDE.md "Keep the wiki in sync")
+- Modify: `~/src/media-centaur/media-centaur.wiki/Watch-History.md` (or whichever page exists; create if missing per CLAUDE.md "Keep the wiki in sync")
 
 - [ ] **Step 1: Add a section on re-watch counts**
 
@@ -439,7 +439,7 @@ Brief note that completion rows now show a count badge for anything watched 2+ t
 - [ ] **Step 2: Commit the wiki**
 
 ```
-cd ~/src/media-centarr/media-centarr.wiki
+cd ~/src/media-centaur/media-centaur.wiki
 jj describe -m "wiki: history page now surfaces rewatch counts"
 jj bookmark set master -r @
 jj git push
@@ -516,8 +516,8 @@ jj new
 ### Task 2.2: Restructure sidebar HTML to use the groups
 
 **Files:**
-- Modify: `lib/media_centarr_web/components/layouts.ex`
-- Test: `test/media_centarr_web/page_smoke_test.exs` (existing smoke test should still pass)
+- Modify: `lib/media_centaur_web/components/layouts.ex`
+- Test: `test/media_centaur_web/page_smoke_test.exs` (existing smoke test should still pass)
 
 - [ ] **Step 1: Edit the `<nav>` block in `app/2`**
 
@@ -541,7 +541,7 @@ Replace the existing `<nav class="flex flex-col gap-0.5">...</nav>` (lines ~44-9
 
 <div class="sidebar-group-label sidebar-label">System</div>
 <nav class="flex flex-col gap-0.5">
-  <%= if MediaCentarr.Capabilities.prowlarr_ready?() do %>
+  <%= if MediaCentaur.Capabilities.prowlarr_ready?() do %>
     <.link
       navigate="/download"
       class={sidebar_link_class(@current_path, "/download") <> " sidebar-link-system"}
@@ -590,7 +590,7 @@ Replace the existing `<nav class="flex flex-col gap-0.5">...</nav>` (lines ~44-9
 - [ ] **Step 2: Run the page smoke test, verify still passes**
 
 ```
-mix test test/media_centarr_web/page_smoke_test.exs
+mix test test/media_centaur_web/page_smoke_test.exs
 ```
 
 - [ ] **Step 3: Manually verify** — load any page, confirm the sidebar shows "WATCH" with Library, then "SYSTEM" with the four operator pages in slightly smaller/dimmer styling. Collapse the sidebar (`Collapse` button at the bottom) and confirm the group labels collapse cleanly without leaving holes.
@@ -624,14 +624,14 @@ jj new
 ### Task 2.3: Update wiki — Keyboard-and-Gamepad / sidebar overview
 
 **Files:**
-- Modify: `~/src/media-centarr/media-centarr.wiki/` — relevant page describing the sidebar
+- Modify: `~/src/media-centaur/media-centaur.wiki/` — relevant page describing the sidebar
 
 - [ ] **Step 1: Note the new grouping** in the sidebar description (one sentence is plenty).
 
 - [ ] **Step 2: Commit and push**
 
 ```
-cd ~/src/media-centarr/media-centarr.wiki
+cd ~/src/media-centaur/media-centaur.wiki
 jj describe -m "wiki: sidebar now grouped Watch / System; History is in nav"
 jj bookmark set master -r @
 jj git push
@@ -646,14 +646,14 @@ jj git push
 ### Task 3.1: Create UpcomingLive — minimum viable mount + render
 
 **Files:**
-- Create: `lib/media_centarr_web/live/upcoming_live.ex`
-- Create: `test/media_centarr_web/live/upcoming_live_test.exs`
+- Create: `lib/media_centaur_web/live/upcoming_live.ex`
+- Create: `test/media_centaur_web/live/upcoming_live_test.exs`
 
 - [ ] **Step 1: Write the failing test**
 
 ```elixir
-defmodule MediaCentarrWeb.UpcomingLiveTest do
-  use MediaCentarrWeb.ConnCase, async: false
+defmodule MediaCentaurWeb.UpcomingLiveTest do
+  use MediaCentaurWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 
@@ -670,7 +670,7 @@ defmodule MediaCentarrWeb.UpcomingLiveTest do
 end
 ```
 
-- [ ] **Step 2: Add the route to `lib/media_centarr_web/router.ex`**
+- [ ] **Step 2: Add the route to `lib/media_centaur_web/router.ex`**
 
 Inside `live_session :default do`:
 
@@ -680,14 +680,14 @@ live "/upcoming", UpcomingLive, :index
 
 - [ ] **Step 3: Run the test, confirm route 404 fails**
 
-`mix test test/media_centarr_web/live/upcoming_live_test.exs`
+`mix test test/media_centaur_web/live/upcoming_live_test.exs`
 
 - [ ] **Step 4: Implement the LiveView**
 
-Open `lib/media_centarr_web/live/library_live.ex` and find the section that handles `zone=upcoming`. Lift its mount/handle_info/handle_event logic into a new module:
+Open `lib/media_centaur_web/live/library_live.ex` and find the section that handles `zone=upcoming`. Lift its mount/handle_info/handle_event logic into a new module:
 
 ```elixir
-defmodule MediaCentarrWeb.UpcomingLive do
+defmodule MediaCentaurWeb.UpcomingLive do
   @moduledoc """
   Standalone Upcoming page — calendar, tracking, active shows, recent
   changes, unscheduled. Uses the shared `UpcomingCards` component for
@@ -696,10 +696,10 @@ defmodule MediaCentarrWeb.UpcomingLive do
   Extracted from LibraryLive zone-3 in the page-redistribution refactor
   (see docs/plans/2026-04-27-page-redistribution.md).
   """
-  use MediaCentarrWeb, :live_view
+  use MediaCentaurWeb, :live_view
 
-  alias MediaCentarr.{Library, ReleaseTracking}
-  alias MediaCentarrWeb.Components.UpcomingCards
+  alias MediaCentaur.{Library, ReleaseTracking}
+  alias MediaCentaurWeb.Components.UpcomingCards
 
   @impl true
   def mount(_params, _session, socket) do
@@ -776,7 +776,7 @@ end
 
 - [ ] **Step 5: Run the smoke tests, verify they pass**
 
-`mix test test/media_centarr_web/live/upcoming_live_test.exs`
+`mix test test/media_centaur_web/live/upcoming_live_test.exs`
 
 - [ ] **Step 6: Commit**
 
@@ -788,7 +788,7 @@ jj new
 ### Task 3.2: Add /upcoming to sidebar nav
 
 **Files:**
-- Modify: `lib/media_centarr_web/components/layouts.ex`
+- Modify: `lib/media_centaur_web/components/layouts.ex`
 
 - [ ] **Step 1: Add the link to the Watch group nav** (between Library and History from Task 2.2):
 
@@ -817,7 +817,7 @@ jj new
 ### Task 3.3: Redirect /?zone=upcoming → /upcoming
 
 **Files:**
-- Modify: `lib/media_centarr_web/live/library_live.ex` — in the `handle_params` function that interprets `zone`, intercept `zone=upcoming` early.
+- Modify: `lib/media_centaur_web/live/library_live.ex` — in the `handle_params` function that interprets `zone`, intercept `zone=upcoming` early.
 
 - [ ] **Step 1: Add the redirect**
 
@@ -836,7 +836,7 @@ Leave existing clauses for other zone values intact.
 
 - [ ] **Step 2: Test the redirect**
 
-Add to `test/media_centarr_web/live/library_live_test.exs`:
+Add to `test/media_centaur_web/live/library_live_test.exs`:
 
 ```elixir
 test "redirects /?zone=upcoming to /upcoming", %{conn: conn} do
@@ -844,7 +844,7 @@ test "redirects /?zone=upcoming to /upcoming", %{conn: conn} do
 end
 ```
 
-Run: `mix test test/media_centarr_web/live/library_live_test.exs`
+Run: `mix test test/media_centaur_web/live/library_live_test.exs`
 
 - [ ] **Step 3: Commit**
 
@@ -856,14 +856,14 @@ jj new
 ### Task 3.4: Update wiki — Upcoming/Tracking page
 
 **Files:**
-- Modify: `~/src/media-centarr/media-centarr.wiki/Tracking-Releases.md` (or wherever Upcoming is documented)
+- Modify: `~/src/media-centaur/media-centaur.wiki/Tracking-Releases.md` (or wherever Upcoming is documented)
 
 - [ ] **Step 1: Update URL references** from `/?zone=upcoming` to `/upcoming`. One paragraph is fine.
 
 - [ ] **Step 2: Commit and push**
 
 ```
-cd ~/src/media-centarr/media-centarr.wiki
+cd ~/src/media-centaur/media-centaur.wiki
 jj describe -m "wiki: Upcoming is now a top-level /upcoming page"
 jj bookmark set master -r @
 jj git push
@@ -878,19 +878,19 @@ jj git push
 ### Task 4.1: Extract a reusable `<.continue_watching_row>` component
 
 **Files:**
-- Create: `lib/media_centarr_web/components/continue_watching_row.ex`
-- Create: `test/media_centarr_web/components/continue_watching_row_test.exs`
+- Create: `lib/media_centaur_web/components/continue_watching_row.ex`
+- Create: `test/media_centaur_web/components/continue_watching_row_test.exs`
 
 The component takes a list of in-progress items + an images map and renders a horizontal row of backdrop cards with progress bars. Same look as the mockup at `mockups/page-redistribution/home/index.html`.
 
 - [ ] **Step 1: Write the failing test**
 
 ```elixir
-defmodule MediaCentarrWeb.Components.ContinueWatchingRowTest do
-  use MediaCentarrWeb.ConnCase, async: true
+defmodule MediaCentaurWeb.Components.ContinueWatchingRowTest do
+  use MediaCentaurWeb.ConnCase, async: true
   import Phoenix.LiveViewTest
 
-  alias MediaCentarrWeb.Components.ContinueWatchingRow
+  alias MediaCentaurWeb.Components.ContinueWatchingRow
 
   test "renders one card per item with the title visible" do
     items = [
@@ -915,7 +915,7 @@ end
 - [ ] **Step 2: Implement the component**
 
 ```elixir
-defmodule MediaCentarrWeb.Components.ContinueWatchingRow do
+defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
   @moduledoc """
   Horizontal row of backdrop cards for in-progress titles. Used on Home.
 
@@ -973,18 +973,18 @@ For each:
 ### Task 4.3: Build HomeLive.Logic — pure row-assembly functions
 
 **Files:**
-- Create: `lib/media_centarr_web/live/home_live/logic.ex`
-- Create: `test/media_centarr_web/live/home_live/logic_test.exs`
+- Create: `lib/media_centaur_web/live/home_live/logic.ex`
+- Create: `test/media_centaur_web/live/home_live/logic_test.exs`
 
 Pure functions for: `continue_watching_items/1`, `coming_up_items/2`, `recently_added_items/1`, `watched_recently_items/1`, `select_hero/1`, `coming_up_window/2` (returns the date range "this week").
 
 - [ ] **Step 1: Write failing tests**
 
 ```elixir
-defmodule MediaCentarrWeb.HomeLive.LogicTest do
+defmodule MediaCentaurWeb.HomeLive.LogicTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarrWeb.HomeLive.Logic
+  alias MediaCentaurWeb.HomeLive.Logic
 
   describe "coming_up_window/2" do
     test "returns Mon-Sun of the week containing today" do
@@ -1052,7 +1052,7 @@ end
 - [ ] **Step 2: Implement the module**
 
 ```elixir
-defmodule MediaCentarrWeb.HomeLive.Logic do
+defmodule MediaCentaurWeb.HomeLive.Logic do
   @moduledoc """
   Pure helpers for HomeLive — row assembly, hero pick, date math.
   No DB, no PubSub. Tested with `async: true`.
@@ -1119,17 +1119,17 @@ jj new
 ### Task 4.4: Create HomeLive that wires Logic + components
 
 **Files:**
-- Create: `lib/media_centarr_web/live/home_live.ex`
-- Create: `test/media_centarr_web/live/home_live_test.exs`
+- Create: `lib/media_centaur_web/live/home_live.ex`
+- Create: `test/media_centaur_web/live/home_live_test.exs`
 
 - [ ] **Step 1: Write the failing test**
 
 ```elixir
-defmodule MediaCentarrWeb.HomeLiveTest do
-  use MediaCentarrWeb.ConnCase, async: false
+defmodule MediaCentaurWeb.HomeLiveTest do
+  use MediaCentaurWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
-  alias MediaCentarr.TestFactory
+  alias MediaCentaur.TestFactory
 
   test "renders the page and the section headings", %{conn: conn} do
     {:ok, _view, html} = live(conn, "/home_preview")
@@ -1161,20 +1161,20 @@ live "/home_preview", HomeLive, :index
 - [ ] **Step 3: Implement HomeLive**
 
 ```elixir
-defmodule MediaCentarrWeb.HomeLive do
+defmodule MediaCentaurWeb.HomeLive do
   @moduledoc """
   Cinematic landing page. Hero + Continue Watching + Coming Up This Week
   + Recently Added + Watched Recently. Assembled from Library,
   ReleaseTracking, and WatchHistory contexts.
 
-  Pure assembly logic lives in `MediaCentarrWeb.HomeLive.Logic` per ADR-030.
+  Pure assembly logic lives in `MediaCentaurWeb.HomeLive.Logic` per ADR-030.
   """
-  use MediaCentarrWeb, :live_view
+  use MediaCentaurWeb, :live_view
 
-  alias MediaCentarr.{Library, ReleaseTracking, WatchHistory}
-  alias MediaCentarrWeb.HomeLive.Logic
+  alias MediaCentaur.{Library, ReleaseTracking, WatchHistory}
+  alias MediaCentaurWeb.HomeLive.Logic
 
-  alias MediaCentarrWeb.Components.{
+  alias MediaCentaurWeb.Components.{
     HeroCard,
     ContinueWatchingRow,
     ComingUpRow,
@@ -1276,13 +1276,13 @@ jj new
 ### Task 4.5: Reduce LibraryLive to pure browse
 
 **Files:**
-- Modify: `lib/media_centarr_web/live/library_live.ex`
+- Modify: `lib/media_centaur_web/live/library_live.ex`
 
 Strip the zone-switching: only the catalog browse remains.
 
 - [ ] **Step 1: Test that Library has no zone tabs**
 
-Add to `test/media_centarr_web/live/library_live_test.exs`:
+Add to `test/media_centaur_web/live/library_live_test.exs`:
 
 ```elixir
 test "library page has no zone tabs", %{conn: conn} do
@@ -1307,7 +1307,7 @@ In `library_live.ex`:
 
 Many `library_live_test.exs` tests probably assume zones. Update them to test the browse-only behavior. **Do not delete tests** ([ADR-027 — regression tests append-only]); rewrite them to test the equivalent behavior on `/library`.
 
-- [ ] **Step 4: Run `mix test test/media_centarr_web/live/library_live_test.exs` — all pass.**
+- [ ] **Step 4: Run `mix test test/media_centaur_web/live/library_live_test.exs` — all pass.**
 
 - [ ] **Step 5: Commit**
 
@@ -1319,8 +1319,8 @@ jj new
 ### Task 4.6: Cutover — `/` → HomeLive, `/library` → LibraryLive
 
 **Files:**
-- Modify: `lib/media_centarr_web/router.ex`
-- Modify: `lib/media_centarr_web/components/layouts.ex` (sidebar Library link points to `/library`)
+- Modify: `lib/media_centaur_web/router.ex`
+- Modify: `lib/media_centaur_web/components/layouts.ex` (sidebar Library link points to `/library`)
 
 - [ ] **Step 1: Update routes**
 
@@ -1376,7 +1376,7 @@ And update `current_path="/"` to `current_path="/library"` in the LibraryLive's 
 - [ ] **Step 5: Run all live tests**
 
 ```
-mix test test/media_centarr_web/live/
+mix test test/media_centaur_web/live/
 ```
 
 Fix any breakages. Common: tests that hit `/` and expect Library content now see HomeLive — change those to `/library`.
@@ -1415,7 +1415,7 @@ jj new
 - [ ] **Step 3: Commit and push the wiki**
 
 ```
-cd ~/src/media-centarr/media-centarr.wiki
+cd ~/src/media-centaur/media-centaur.wiki
 jj describe -m "wiki: rewrite for new Home / Library / Upcoming / History IA"
 jj bookmark set master -r @
 jj git push

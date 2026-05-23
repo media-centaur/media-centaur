@@ -84,4 +84,4 @@ Visual reference and design narrative: `mockups/page-redistribution/` and `mocku
 
 - ADR-006 (Library zone architecture) — superseded for `/`. The zone concept lives on inside `/library` for type tabs (All / Movies / TV / etc.) but no longer for cross-mode switching.
 - ADR-030 (LiveView logic extraction) — followed throughout: `HomeLive.Logic`, `WatchHistoryLive`'s rewatch lookup helper, etc.
-- ADR-029 (Data decoupling / Boundary) — HomeLive crosses three contexts via their facades; declared deps on `MediaCentarrWeb`'s boundary.
+- ADR-029 (Data decoupling / Boundary) — HomeLive crosses three contexts via their facades; declared deps on `MediaCentaurWeb`'s boundary.

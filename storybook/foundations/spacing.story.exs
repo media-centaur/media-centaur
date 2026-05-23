@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Foundations.Spacing do
+defmodule MediaCentaurWeb.Storybook.Foundations.Spacing do
   @moduledoc """
   Spacing foundations — scale, glass surface, and hover/focus rules.
 
@@ -116,7 +116,7 @@ defmodule MediaCentarrWeb.Storybook.Foundations.Spacing do
           the actual class against the actual backdrop.
         </p>
 
-        <div class="media-centarr psb:rounded-md psb:overflow-hidden psb:border psb:border-slate-300/40">
+        <div class="media-centaur psb:rounded-md psb:overflow-hidden psb:border psb:border-slate-300/40">
           <div
             class="psb:p-6 psb:space-y-4"
             style={
@@ -160,7 +160,7 @@ defmodule MediaCentarrWeb.Storybook.Foundations.Spacing do
           right shows what the ring looks like when active.
         </p>
 
-        <div class="media-centarr psb:rounded-md psb:overflow-hidden psb:border psb:border-slate-300/40">
+        <div class="media-centaur psb:rounded-md psb:overflow-hidden psb:border psb:border-slate-300/40">
           <div
             class="psb:p-8 psb:flex psb:flex-wrap psb:gap-8 psb:items-center"
             style={

@@ -6,9 +6,9 @@ date: 2026-04-16
 
 ## Context and Problem Statement
 
-[ADR-035](2026-04-15-035-acquisition-prowlarr-integration.md) established Prowlarr as the single acquisition integration point, with a rule that media-centarr "never talks directly to qBittorrent, Transmission, or any other download client." Commit 87a08ff then added a qBittorrent driver because Prowlarr itself does not expose download progress — once Prowlarr forwards a grab, the active queue lives on the download client.
+[ADR-035](2026-04-15-035-acquisition-prowlarr-integration.md) established Prowlarr as the single acquisition integration point, with a rule that media-centaur "never talks directly to qBittorrent, Transmission, or any other download client." Commit 87a08ff then added a qBittorrent driver because Prowlarr itself does not expose download progress — once Prowlarr forwards a grab, the active queue lives on the download client.
 
-This ADR records the intent going forward and resolves a follow-on problem: **detected download-client URLs from Prowlarr are frequently unreachable from the host running media-centarr.** Prowlarr returns the host/port exactly as configured inside Prowlarr. In typical deployments Prowlarr is configured with a Docker service name (e.g. `qbittorrent:8080`), which resolves inside the Docker network but not from the host.
+This ADR records the intent going forward and resolves a follow-on problem: **detected download-client URLs from Prowlarr are frequently unreachable from the host running media-centaur.** Prowlarr returns the host/port exactly as configured inside Prowlarr. In typical deployments Prowlarr is configured with a Docker service name (e.g. `qbittorrent:8080`), which resolves inside the Docker network but not from the host.
 
 ## Decision Outcome
 
@@ -17,7 +17,7 @@ This ADR records the intent going forward and resolves a follow-on problem: **de
 1. **Prowlarr is the integration surface.** Everything that can be done via Prowlarr *is* done via Prowlarr — search, grab, download-client discovery.
 2. **Direct download-client drivers exist only where Prowlarr has no equivalent.** Today this is a single use case: reading active/completed download progress, which Prowlarr does not expose. The qBittorrent driver exists reluctantly for this reason and no other.
 3. **New download-client drivers are justified only by a Prowlarr gap.** If a capability is available via Prowlarr, use Prowlarr. A driver is added only when Prowlarr cannot supply the capability and the feature is worth the integration cost.
-4. **Docker/runtime introspection is out of scope.** Media-centarr will not inspect the Docker socket, resolve container names, or otherwise probe the user's runtime environment to make connections work. Users run media-centarr in many configurations (bare metal, systemd, various container setups); adopting one as canonical would break the others.
+4. **Docker/runtime introspection is out of scope.** Media-centaur will not inspect the Docker socket, resolve container names, or otherwise probe the user's runtime environment to make connections work. Users run media-centaur in many configurations (bare metal, systemd, various container setups); adopting one as canonical would break the others.
 
 This supersedes the literal rule in ADR-035 ("never talks directly to qBittorrent"). The spirit — minimise the integration surface, route through Prowlarr wherever possible — is preserved.
 
@@ -34,7 +34,7 @@ Rejected alternatives for URL reachability:
 ### Consequences
 
 * Good, because the integration surface stays narrow and predictable — Prowlarr is the default answer; drivers are the exception, not the pattern.
-* Good, because media-centarr works the same regardless of whether the user runs services in Docker, on bare metal, or mixed.
+* Good, because media-centaur works the same regardless of whether the user runs services in Docker, on bare metal, or mixed.
 * Good, because the detection UX fails softly: the user sees what Prowlarr reported and decides whether it matches their network.
 * Bad, because users always do one extra step after "Detect" — review the URL and usually edit it. This is accepted as the price of not imposing a runtime model.
 * Bad, because progress-polling integrations may grow over time if users run non-qBittorrent clients. Each is evaluated individually against (3).

@@ -66,8 +66,8 @@ Historical phase log retained below.
   `file_presence_test.exs`.
   **Deferred:** the campaign's "tighten to non-null" step
   cannot land in the same release as the backfill because
-  `MediaCentarr.Release` runs *all* schema migrations before
-  *any* data migration (see `lib/media_centarr/release.ex`
+  `MediaCentaur.Release` runs *all* schema migrations before
+  *any* data migration (see `lib/media_centaur/release.ex`
   comments), so a NOT-NULL schema migration paired with the
   Phase-3 backfill would fail at boot. Non-null is enforced
   at the changeset layer today; the DB-level constraint
@@ -125,7 +125,7 @@ green and is committable on its own; don't straddle. Phases
    contiguous multi-phase rollout; ADR-045 acknowledges
    Phase 4 as the highest-risk slice.
 5. ✅ **Phase 5.** New
-   `MediaCentarr.Pipeline.Discovery.InflightSet` GenServer
+   `MediaCentaur.Pipeline.Discovery.InflightSet` GenServer
    owns an `:ets` named table that the Producer claims on
    every `{:file_detected, ...}` event (returns `false` if
    the path is already in flight; the duplicate is dropped).

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddImageQueue do
+defmodule MediaCentaur.Repo.Migrations.AddImageQueue do
   use Ecto.Migration
 
   def change do

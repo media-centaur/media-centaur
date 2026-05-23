@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Composites.ModalShell do
+defmodule MediaCentaurWeb.Storybook.Composites.ModalShell do
   @moduledoc """
   Centered overlay shell for the DetailPanel.
 
@@ -21,7 +21,7 @@ defmodule MediaCentarrWeb.Storybook.Composites.ModalShell do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.Components.ModalShell.modal_shell/1
+  def function, do: &MediaCentaurWeb.Components.ModalShell.modal_shell/1
   def render_source, do: :function
   def layout, do: :one_column
 

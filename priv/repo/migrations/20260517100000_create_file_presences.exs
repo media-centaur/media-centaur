@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.CreateFilePresences do
+defmodule MediaCentaur.Repo.Migrations.CreateFilePresences do
   use Ecto.Migration
 
   # Campaign: library-presence-unification, Phase 1.

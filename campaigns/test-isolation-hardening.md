@@ -64,8 +64,8 @@ ownership. Any DB write inside it races against teardown.
 
 | File:line | Symptom |
 |---|---|
-| `test/media_centarr_web/live/settings_live_acquisition_test.exs:106` | `Config.update/2` → `Settings.find_or_create_entry/1` exits with "no process" / OwnershipError. **FIXED** in `ef386275` (moved cleanup to setup-start). |
-| `test/media_centarr_web/live/settings_live_acquisition_test.exs:157` | Same pattern. **FIXED** in `ef386275`. |
+| `test/media_centaur_web/live/settings_live_acquisition_test.exs:106` | `Config.update/2` → `Settings.find_or_create_entry/1` exits with "no process" / OwnershipError. **FIXED** in `ef386275` (moved cleanup to setup-start). |
+| `test/media_centaur_web/live/settings_live_acquisition_test.exs:157` | Same pattern. **FIXED** in `ef386275`. |
 
 **Suspected fanout:** any of the 71 files using `on_exit(fn -> ...)`
 where the callback body writes to the DB.
@@ -79,7 +79,7 @@ async task, often pooling into ErrorReports.
 
 | File:line | Symptom |
 |---|---|
-| `test/media_centarr/error_reports/buckets_test.exs:110-118` | `refute_receive {:buckets_changed, _}` fails because async tasks (SettingsLive's `start_async_settings_load`, WatchHistoryLive's `start_async_history_load`) emit DB errors into the bucket aggregator after the test should have settled. |
+| `test/media_centaur/error_reports/buckets_test.exs:110-118` | `refute_receive {:buckets_changed, _}` fails because async tasks (SettingsLive's `start_async_settings_load`, WatchHistoryLive's `start_async_history_load`) emit DB errors into the bucket aggregator after the test should have settled. |
 
 **Suspected fanout:** every LiveView that uses `start_async` with
 a DB query (SettingsLive, WatchHistoryLive likely; probably more).
@@ -94,8 +94,8 @@ variance. Tight budgets (35ms, 80ms) bust on the noisy tail.
 
 | File:line | Symptom |
 |---|---|
-| `test/media_centarr_web/page_smoke_test.exs:191` | `/library?selected=<tv-tracked>` took 99ms, budget 80ms. |
-| `test/media_centarr_web/page_smoke_test.exs:224` | `/library?selected=<movie-w-subs>` took 49ms, budget 35ms. |
+| `test/media_centaur_web/page_smoke_test.exs:191` | `/library?selected=<tv-tracked>` took 99ms, budget 80ms. |
+| `test/media_centaur_web/page_smoke_test.exs:224` | `/library?selected=<movie-w-subs>` took 49ms, budget 35ms. |
 
 All `live_within!/3` callers in `page_smoke_test.exs`.
 
@@ -107,7 +107,7 @@ misses when other tests have invalidated `:persistent_term`.
 
 | File:line | Symptom |
 |---|---|
-| `test/media_centarr_web/no_db_on_render_test.exs:145` | `/library` issued 52 queries (40 to `settings_entries`), budget 45. All `Config.get/1` cache misses. |
+| `test/media_centaur_web/no_db_on_render_test.exs:145` | `/library` issued 52 queries (40 to `settings_entries`), budget 45. All `Config.get/1` cache misses. |
 
 ### Category E — Cross-test global-state bleed
 
@@ -117,8 +117,8 @@ run.
 
 | File:line | Symptom |
 |---|---|
-| `test/media_centarr/library/progress_test.exs:90` | `assert %WatchProgress{position_seconds: 30.0} = Progress.get(pi.id)` — match failure; the struct came back with a different `position_seconds` than the test wrote. Likely cross-test pollution. |
-| `test/media_centarr/query_counter_test.exs:26` | "captures multiple queries in invocation order" — order-dependent assertion that's race-prone under concurrent test execution. |
+| `test/media_centaur/library/progress_test.exs:90` | `assert %WatchProgress{position_seconds: 30.0} = Progress.get(pi.id)` — match failure; the struct came back with a different `position_seconds` than the test wrote. Likely cross-test pollution. |
+| `test/media_centaur/query_counter_test.exs:26` | "captures multiple queries in invocation order" — order-dependent assertion that's race-prone under concurrent test execution. |
 
 ### Category F — Render-time vs assertion-time race
 
@@ -128,7 +128,7 @@ rendered yet. Hits string-assertion tests on `render(view)`.
 
 | File:line | Symptom |
 |---|---|
-| `test/media_centarr_web/live/settings_live_exclude_dirs_test.exs:46` | Asserts `tmp` path in rendered HTML; rendered HTML is just the Console drawer panel. |
+| `test/media_centaur_web/live/settings_live_exclude_dirs_test.exs:46` | Asserts `tmp` path in rendered HTML; rendered HTML is just the Console drawer panel. |
 
 Likely overlaps with category B — async settings load races against the
 `render(view)` call.
@@ -180,7 +180,7 @@ Ordered by leverage — smallest, most-impactful fixes first.
    pattern (probably `Sandbox.allow` for the async pid, or
    inject the async runner as a dep). Ship.
 3. **Phase 3 — Category E `:persistent_term` reset.** Add a
-   `MediaCentarr.Config.TestReset` helper that clears the cache;
+   `MediaCentaur.Config.TestReset` helper that clears the cache;
    wire it into `DataCase.setup`. Audit which tests need this
    explicitly. Ship.
 4. **Phase 4 — Category C mount budgets.** Replace wall-clock
@@ -216,9 +216,9 @@ Ordered by leverage — smallest, most-impactful fixes first.
 
 ## Pointers
 
-* `test/media_centarr_web/live/settings_live_acquisition_test.exs`
+* `test/media_centaur_web/live/settings_live_acquisition_test.exs`
   — already-fixed Category A example (`ef386275`).
-* `lib/media_centarr/config.ex` — `:persistent_term` cache that
+* `lib/media_centaur/config.ex` — `:persistent_term` cache that
   many tests mutate.
 * `test/test_helper.exs` — global test setup, ideal home for
   cache-reset hooks.
@@ -226,7 +226,7 @@ Ordered by leverage — smallest, most-impactful fixes first.
   DB tests inherit from.
 * `mix.exs` — has `FIXME` comment marking the typo to restore
   (Phase 6 deliverable).
-* `lib/media_centarr/query_counter.ex` (if exists) — used by
+* `lib/media_centaur/query_counter.ex` (if exists) — used by
   `NoDbOnRenderTest` for query-count assertions.
 * `campaigns/macos-platform-support.md` — the campaign that
   surfaced these flakes; resumes its macOS Phase 5+ work after

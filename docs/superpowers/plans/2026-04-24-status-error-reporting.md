@@ -4,7 +4,7 @@
 
 **Goal:** Replace the Status page's per-file error table with a fingerprint-bucketed summary and add a review-before-send "Report to developer" flow that opens a pre-filled GitHub issue.
 
-**Architecture:** New `MediaCentarr.ErrorReports` bounded context subscribes to the Console PubSub stream, groups `:error`-level entries by a normalized-message fingerprint, and exposes a 1-hour rolling snapshot. StatusLive renders a top-3 summary + header button that opens a LiveComponent modal with a redacted payload preview and a single confirm button. Submission is purely browser-side (`window.open` on a GitHub `/issues/new?title=&body=` URL).
+**Architecture:** New `MediaCentaur.ErrorReports` bounded context subscribes to the Console PubSub stream, groups `:error`-level entries by a normalized-message fingerprint, and exposes a 1-hour rolling snapshot. StatusLive renders a top-3 summary + header button that opens a LiveComponent modal with a redacted payload preview and a single confirm button. Submission is purely browser-side (`window.open` on a GitHub `/issues/new?title=&body=` URL).
 
 **Tech Stack:** Elixir, Phoenix LiveView, DaisyUI/TailwindCSS, `:crypto.hash/2`, `:persistent_term` (for `Config.get/1`), Phoenix PubSub, Phoenix colocated hooks registered in `assets/js/app.js`.
 
@@ -18,31 +18,31 @@
 
 | File | Responsibility |
 |---|---|
-| `lib/media_centarr/error_reports.ex` | Public facade: `list_buckets/0`, `get_bucket/1`, `subscribe/0`. `use Boundary`. |
-| `lib/media_centarr/error_reports/bucket.ex` | `%Bucket{}` struct, exported from the boundary. |
-| `lib/media_centarr/error_reports/fingerprint.ex` | Pure — `fingerprint/2` returns `%{key, display_title, normalized_message}`. |
-| `lib/media_centarr/error_reports/redactor.ex` | Pure — `normalize/1`, `configured_urls/0`. Regex + active-config strip. |
-| `lib/media_centarr/error_reports/env_metadata.ex` | Pure — `collect/0` returns app/OTP/Elixir/OS/locale/uptime map. |
-| `lib/media_centarr/error_reports/issue_url.ex` | Pure — `build/2` returns `{:ok, url, flags}`; `format_body/2`, `format_title/1`. |
-| `lib/media_centarr/error_reports/buckets.ex` | GenServer. Subscribes to `Console`, fingerprints entries, prunes by window, throttled broadcast. |
-| `lib/media_centarr_web/live/status_live/report_modal.ex` | LiveComponent. Radio list + preview + confirm. |
+| `lib/media_centaur/error_reports.ex` | Public facade: `list_buckets/0`, `get_bucket/1`, `subscribe/0`. `use Boundary`. |
+| `lib/media_centaur/error_reports/bucket.ex` | `%Bucket{}` struct, exported from the boundary. |
+| `lib/media_centaur/error_reports/fingerprint.ex` | Pure — `fingerprint/2` returns `%{key, display_title, normalized_message}`. |
+| `lib/media_centaur/error_reports/redactor.ex` | Pure — `normalize/1`, `configured_urls/0`. Regex + active-config strip. |
+| `lib/media_centaur/error_reports/env_metadata.ex` | Pure — `collect/0` returns app/OTP/Elixir/OS/locale/uptime map. |
+| `lib/media_centaur/error_reports/issue_url.ex` | Pure — `build/2` returns `{:ok, url, flags}`; `format_body/2`, `format_title/1`. |
+| `lib/media_centaur/error_reports/buckets.ex` | GenServer. Subscribes to `Console`, fingerprints entries, prunes by window, throttled broadcast. |
+| `lib/media_centaur_web/live/status_live/report_modal.ex` | LiveComponent. Radio list + preview + confirm. |
 | `assets/js/hooks/error_report.js` | One-line hook: handleEvent `open_issue` → `window.open(url, "_blank", "noopener")`. |
-| `test/media_centarr/error_reports/fingerprint_test.exs` | Pure tests, `async: true`. |
-| `test/media_centarr/error_reports/redactor_test.exs` | Pure tests, `async: true`. |
-| `test/media_centarr/error_reports/issue_url_test.exs` | Pure tests, `async: true`. |
-| `test/media_centarr/error_reports/env_metadata_test.exs` | Pure tests, `async: true`. |
-| `test/media_centarr/error_reports/buckets_test.exs` | GenServer via public API. |
-| `test/media_centarr_web/live/status_live/report_modal_test.exs` | LiveView integration test. |
+| `test/media_centaur/error_reports/fingerprint_test.exs` | Pure tests, `async: true`. |
+| `test/media_centaur/error_reports/redactor_test.exs` | Pure tests, `async: true`. |
+| `test/media_centaur/error_reports/issue_url_test.exs` | Pure tests, `async: true`. |
+| `test/media_centaur/error_reports/env_metadata_test.exs` | Pure tests, `async: true`. |
+| `test/media_centaur/error_reports/buckets_test.exs` | GenServer via public API. |
+| `test/media_centaur_web/live/status_live/report_modal_test.exs` | LiveView integration test. |
 
 **Modify:**
 
 | File | Change |
 |---|---|
-| `lib/media_centarr/topics.ex` | Add `def error_reports, do: "error_reports:updates"`. |
-| `lib/media_centarr/application.ex` | Add `MediaCentarr.ErrorReports.Buckets` to supervision tree; add `MediaCentarr.ErrorReports` to Boundary `deps`. |
-| `lib/media_centarr_web/live/status_live.ex` | Remove `recent_errors_table/1`, remove `recent_errors` assign, subscribe to `ErrorReports.subscribe/0`, render `error_summary_card/1`, mount `ReportModal` on demand. |
-| `lib/media_centarr_web/live/status_helpers.ex` | Remove `merge_recent_errors/2`. |
-| `lib/media_centarr_web/live.ex` (or wherever LiveView boundary lives) | Add `MediaCentarr.ErrorReports` to LiveView boundary deps. |
+| `lib/media_centaur/topics.ex` | Add `def error_reports, do: "error_reports:updates"`. |
+| `lib/media_centaur/application.ex` | Add `MediaCentaur.ErrorReports.Buckets` to supervision tree; add `MediaCentaur.ErrorReports` to Boundary `deps`. |
+| `lib/media_centaur_web/live/status_live.ex` | Remove `recent_errors_table/1`, remove `recent_errors` assign, subscribe to `ErrorReports.subscribe/0`, render `error_summary_card/1`, mount `ReportModal` on demand. |
+| `lib/media_centaur_web/live/status_helpers.ex` | Remove `merge_recent_errors/2`. |
+| `lib/media_centaur_web/live.ex` (or wherever LiveView boundary lives) | Add `MediaCentaur.ErrorReports` to LiveView boundary deps. |
 | `assets/js/app.js` | Import & register `ErrorReport` hook. |
 
 **Delete (inside existing files):** The `recent_errors_table/1` private component and the `recent_errors` assign references.
@@ -51,24 +51,24 @@
 
 ## Conventions the engineer must follow
 
-- **Use `Log` macros, not `Logger`:** any logging in `lib/media_centarr/error_reports/` must `require MediaCentarr.Log` and call `Log.info(:system, ...)` / `Log.error(:system, ...)`. Direct `Logger` calls fail `mix credo --strict`.
-- **Boundary declarations:** every new module under `MediaCentarr.ErrorReports` is part of that context; the facade declares `use Boundary, deps: [...], exports: [...]`. Sub-modules use `use Boundary` only if needed — the facade pattern is sufficient here.
-- **`use MediaCentarrWeb, :live_component`** for the modal (existing pattern).
-- **Tests:** pure modules are `async: true` and use `MediaCentarr.TestFactory` where helpful. GenServer tests call the public API only (ADR-026) — never `:sys.get_state`, never `GenServer.call/cast` in tests.
+- **Use `Log` macros, not `Logger`:** any logging in `lib/media_centaur/error_reports/` must `require MediaCentaur.Log` and call `Log.info(:system, ...)` / `Log.error(:system, ...)`. Direct `Logger` calls fail `mix credo --strict`.
+- **Boundary declarations:** every new module under `MediaCentaur.ErrorReports` is part of that context; the facade declares `use Boundary, deps: [...], exports: [...]`. Sub-modules use `use Boundary` only if needed — the facade pattern is sufficient here.
+- **`use MediaCentaurWeb, :live_component`** for the modal (existing pattern).
+- **Tests:** pure modules are `async: true` and use `MediaCentaur.TestFactory` where helpful. GenServer tests call the public API only (ADR-026) — never `:sys.get_state`, never `GenServer.call/cast` in tests.
 - **No HTML-structure assertions.** LiveView tests verify assigns and `push_event` records, not rendered markup.
 - **Version control:** this repo uses `jj` (Jujutsu). Do not use raw `git` commands. After each task's commit step, run `jj describe -m "..."` and start the next task's work on top with `jj new` only when the task changes subject (otherwise amend the in-flight change via fresh edits + `jj describe` when the scope becomes clearer).
 - **Precommit:** `MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix precommit` must be green before any `jj describe` at the end of a task.
 
 ---
 
-## Task 1: Add `MediaCentarr.Topics.error_reports/0`
+## Task 1: Add `MediaCentaur.Topics.error_reports/0`
 
 **Files:**
-- Modify: `lib/media_centarr/topics.ex`
+- Modify: `lib/media_centaur/topics.ex`
 
 - [ ] **Step 1: Add the topic constant**
 
-Open `lib/media_centarr/topics.ex`. After the existing `def controls_updates, do: "controls:updates"` line, add:
+Open `lib/media_centaur/topics.ex`. After the existing `def controls_updates, do: "controls:updates"` line, add:
 
 ```elixir
   def error_reports, do: "error_reports:updates"
@@ -88,17 +88,17 @@ jj new
 
 ---
 
-## Task 2: `MediaCentarr.ErrorReports.Bucket` struct
+## Task 2: `MediaCentaur.ErrorReports.Bucket` struct
 
 **Files:**
-- Create: `lib/media_centarr/error_reports/bucket.ex`
+- Create: `lib/media_centaur/error_reports/bucket.ex`
 
 - [ ] **Step 1: Create the struct module**
 
 ```elixir
-defmodule MediaCentarr.ErrorReports.Bucket do
+defmodule MediaCentaur.ErrorReports.Bucket do
   @moduledoc """
-  A single error fingerprint bucket held by `MediaCentarr.ErrorReports.Buckets`.
+  A single error fingerprint bucket held by `MediaCentaur.ErrorReports.Buckets`.
 
   Buckets are keyed by `fingerprint` — a stable hash of
   `{component, normalized_message}` that groups the same error across files,
@@ -157,19 +157,19 @@ jj new
 
 ---
 
-## Task 3: `MediaCentarr.ErrorReports.Redactor` — regex rules
+## Task 3: `MediaCentaur.ErrorReports.Redactor` — regex rules
 
 **Files:**
-- Create: `lib/media_centarr/error_reports/redactor.ex`
-- Test: `test/media_centarr/error_reports/redactor_test.exs`
+- Create: `lib/media_centaur/error_reports/redactor.ex`
+- Test: `test/media_centaur/error_reports/redactor_test.exs`
 
 - [ ] **Step 1: Write the failing tests for regex rules**
 
 ```elixir
-defmodule MediaCentarr.ErrorReports.RedactorTest do
+defmodule MediaCentaur.ErrorReports.RedactorTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.ErrorReports.Redactor
+  alias MediaCentaur.ErrorReports.Redactor
 
   describe "normalize/1 regex rules" do
     test "redacts absolute paths" do
@@ -225,13 +225,13 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `mix test test/media_centarr/error_reports/redactor_test.exs`
-Expected: FAIL with "module MediaCentarr.ErrorReports.Redactor is not available".
+Run: `mix test test/media_centaur/error_reports/redactor_test.exs`
+Expected: FAIL with "module MediaCentaur.ErrorReports.Redactor is not available".
 
 - [ ] **Step 3: Write the Redactor module (regex rules only, no active-config strip yet)**
 
 ```elixir
-defmodule MediaCentarr.ErrorReports.Redactor do
+defmodule MediaCentaur.ErrorReports.Redactor do
   @moduledoc """
   Strips sensitive and variable substrings from error text so that
   two users hitting the same bug produce the same fingerprint.
@@ -277,7 +277,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `mix test test/media_centarr/error_reports/redactor_test.exs`
+Run: `mix test test/media_centaur/error_reports/redactor_test.exs`
 Expected: all pass.
 
 - [ ] **Step 5: Commit**
@@ -292,8 +292,8 @@ jj new
 ## Task 4: `Redactor` — active-config strip
 
 **Files:**
-- Modify: `lib/media_centarr/error_reports/redactor.ex`
-- Modify: `test/media_centarr/error_reports/redactor_test.exs`
+- Modify: `lib/media_centaur/error_reports/redactor.ex`
+- Modify: `test/media_centaur/error_reports/redactor_test.exs`
 
 - [ ] **Step 1: Add the failing tests**
 
@@ -304,18 +304,18 @@ Append inside the top-level `describe` block or a new describe block:
     setup do
       # Stub Config values. The real Config is `:persistent_term`-backed,
       # so we overwrite the key for the test and restore it after.
-      original = :persistent_term.get({MediaCentarr.Config, :config})
+      original = :persistent_term.get({MediaCentaur.Config, :config})
 
       patched =
         original
-        |> Map.put(:tmdb_api_key, MediaCentarr.Secret.wrap("super_secret_abcdef_1234"))
+        |> Map.put(:tmdb_api_key, MediaCentaur.Secret.wrap("super_secret_abcdef_1234"))
         |> Map.put(:prowlarr_url, "http://prowlarr.local:9696")
         |> Map.put(:download_client_url, "http://qbit.local:8080")
 
-      :persistent_term.put({MediaCentarr.Config, :config}, patched)
+      :persistent_term.put({MediaCentaur.Config, :config}, patched)
 
       on_exit(fn ->
-        :persistent_term.put({MediaCentarr.Config, :config}, original)
+        :persistent_term.put({MediaCentaur.Config, :config}, original)
       end)
 
       :ok
@@ -339,11 +339,11 @@ Append inside the top-level `describe` block or a new describe block:
     end
 
     test "no-op on short/missing API key" do
-      original = :persistent_term.get({MediaCentarr.Config, :config})
-      patched = Map.put(original, :tmdb_api_key, MediaCentarr.Secret.wrap(""))
-      :persistent_term.put({MediaCentarr.Config, :config}, patched)
+      original = :persistent_term.get({MediaCentaur.Config, :config})
+      patched = Map.put(original, :tmdb_api_key, MediaCentaur.Secret.wrap(""))
+      :persistent_term.put({MediaCentaur.Config, :config}, patched)
 
-      on_exit(fn -> :persistent_term.put({MediaCentarr.Config, :config}, original) end)
+      on_exit(fn -> :persistent_term.put({MediaCentaur.Config, :config}, original) end)
 
       input = "error contains the literal string a"
       # empty key must not replace every 'a' in the input
@@ -353,15 +353,15 @@ Append inside the top-level `describe` block or a new describe block:
 
   describe "configured_urls/0" do
     test "returns the set of non-nil configured external URLs" do
-      original = :persistent_term.get({MediaCentarr.Config, :config})
+      original = :persistent_term.get({MediaCentaur.Config, :config})
 
       patched =
         original
         |> Map.put(:prowlarr_url, "http://p")
         |> Map.put(:download_client_url, nil)
 
-      :persistent_term.put({MediaCentarr.Config, :config}, patched)
-      on_exit(fn -> :persistent_term.put({MediaCentarr.Config, :config}, original) end)
+      :persistent_term.put({MediaCentaur.Config, :config}, patched)
+      on_exit(fn -> :persistent_term.put({MediaCentaur.Config, :config}, original) end)
 
       urls = Redactor.configured_urls()
       assert "http://p" in urls
@@ -372,7 +372,7 @@ Append inside the top-level `describe` block or a new describe block:
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `mix test test/media_centarr/error_reports/redactor_test.exs`
+Run: `mix test test/media_centaur/error_reports/redactor_test.exs`
 Expected: FAIL — active-config tests fail because the strip isn't implemented.
 
 - [ ] **Step 3: Implement the strip**
@@ -380,7 +380,7 @@ Expected: FAIL — active-config tests fail because the strip isn't implemented.
 Replace the Redactor module body with:
 
 ```elixir
-defmodule MediaCentarr.ErrorReports.Redactor do
+defmodule MediaCentaur.ErrorReports.Redactor do
   @moduledoc """
   Strips sensitive and variable substrings from error text so that
   two users hitting the same bug produce the same fingerprint.
@@ -395,8 +395,8 @@ defmodule MediaCentarr.ErrorReports.Redactor do
   Unicode-aware; callers can assume input has been NFC-normalized.
   """
 
-  alias MediaCentarr.Config
-  alias MediaCentarr.Secret
+  alias MediaCentaur.Config
+  alias MediaCentaur.Secret
 
   @min_secret_len 8
 
@@ -473,7 +473,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `mix test test/media_centarr/error_reports/redactor_test.exs`
+Run: `mix test test/media_centaur/error_reports/redactor_test.exs`
 Expected: all pass (regex + active-config + configured_urls).
 
 - [ ] **Step 5: Commit**
@@ -485,19 +485,19 @@ jj new
 
 ---
 
-## Task 5: `MediaCentarr.ErrorReports.Fingerprint`
+## Task 5: `MediaCentaur.ErrorReports.Fingerprint`
 
 **Files:**
-- Create: `lib/media_centarr/error_reports/fingerprint.ex`
-- Test: `test/media_centarr/error_reports/fingerprint_test.exs`
+- Create: `lib/media_centaur/error_reports/fingerprint.ex`
+- Test: `test/media_centaur/error_reports/fingerprint_test.exs`
 
 - [ ] **Step 1: Write the failing tests**
 
 ```elixir
-defmodule MediaCentarr.ErrorReports.FingerprintTest do
+defmodule MediaCentaur.ErrorReports.FingerprintTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.ErrorReports.Fingerprint
+  alias MediaCentaur.ErrorReports.Fingerprint
 
   describe "fingerprint/2" do
     test "returns a 16-char lowercase hex key" do
@@ -566,13 +566,13 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `mix test test/media_centarr/error_reports/fingerprint_test.exs`
+Run: `mix test test/media_centaur/error_reports/fingerprint_test.exs`
 Expected: FAIL — module not defined.
 
 - [ ] **Step 3: Implement `Fingerprint`**
 
 ```elixir
-defmodule MediaCentarr.ErrorReports.Fingerprint do
+defmodule MediaCentaur.ErrorReports.Fingerprint do
   @moduledoc """
   Computes a stable fingerprint for an error so that two users hitting
   the same bug produce the same bucket key and the same GitHub issue title.
@@ -584,7 +584,7 @@ defmodule MediaCentarr.ErrorReports.Fingerprint do
     - `normalized_message` — `Redactor.normalize/1` output.
   """
 
-  alias MediaCentarr.ErrorReports.Redactor
+  alias MediaCentaur.ErrorReports.Redactor
 
   @title_limit 200
 
@@ -639,7 +639,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `mix test test/media_centarr/error_reports/fingerprint_test.exs`
+Run: `mix test test/media_centaur/error_reports/fingerprint_test.exs`
 Expected: all pass.
 
 - [ ] **Step 5: Commit**
@@ -651,19 +651,19 @@ jj new
 
 ---
 
-## Task 6: `MediaCentarr.ErrorReports.EnvMetadata`
+## Task 6: `MediaCentaur.ErrorReports.EnvMetadata`
 
 **Files:**
-- Create: `lib/media_centarr/error_reports/env_metadata.ex`
-- Test: `test/media_centarr/error_reports/env_metadata_test.exs`
+- Create: `lib/media_centaur/error_reports/env_metadata.ex`
+- Test: `test/media_centaur/error_reports/env_metadata_test.exs`
 
 - [ ] **Step 1: Write the failing tests**
 
 ```elixir
-defmodule MediaCentarr.ErrorReports.EnvMetadataTest do
+defmodule MediaCentaur.ErrorReports.EnvMetadataTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.ErrorReports.EnvMetadata
+  alias MediaCentaur.ErrorReports.EnvMetadata
 
   describe "collect/0" do
     test "returns a map with required keys" do
@@ -677,7 +677,7 @@ defmodule MediaCentarr.ErrorReports.EnvMetadataTest do
     end
 
     test "app_version matches the running app spec" do
-      assert EnvMetadata.collect().app_version == to_string(Application.spec(:media_centarr, :vsn))
+      assert EnvMetadata.collect().app_version == to_string(Application.spec(:media_centaur, :vsn))
     end
 
     test "uptime format is human readable (e.g. '2h 14m')" do
@@ -709,13 +709,13 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `mix test test/media_centarr/error_reports/env_metadata_test.exs`
+Run: `mix test test/media_centaur/error_reports/env_metadata_test.exs`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement `EnvMetadata`**
 
 ```elixir
-defmodule MediaCentarr.ErrorReports.EnvMetadata do
+defmodule MediaCentaur.ErrorReports.EnvMetadata do
   @moduledoc """
   Collects environment fields for an error report — app version,
   Erlang/Elixir, OS, locale, uptime. Pure: no PubSub, no DB.
@@ -733,7 +733,7 @@ defmodule MediaCentarr.ErrorReports.EnvMetadata do
   @spec collect() :: t()
   def collect do
     %{
-      app_version: to_string(Application.spec(:media_centarr, :vsn)),
+      app_version: to_string(Application.spec(:media_centaur, :vsn)),
       otp_release: to_string(:erlang.system_info(:otp_release)),
       elixir_version: System.version(),
       os: os_string(),
@@ -745,7 +745,7 @@ defmodule MediaCentarr.ErrorReports.EnvMetadata do
   @spec render(t()) :: binary()
   def render(%{} = meta) do
     """
-    App:     media-centarr #{meta.app_version}
+    App:     media-centaur #{meta.app_version}
     Erlang:  OTP #{meta.otp_release} / Elixir #{meta.elixir_version}
     OS:      #{meta.os}
     Locale:  #{meta.locale}
@@ -788,7 +788,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `mix test test/media_centarr/error_reports/env_metadata_test.exs`
+Run: `mix test test/media_centaur/error_reports/env_metadata_test.exs`
 Expected: all pass.
 
 - [ ] **Step 5: Commit**
@@ -800,19 +800,19 @@ jj new
 
 ---
 
-## Task 7: `MediaCentarr.ErrorReports.IssueUrl`
+## Task 7: `MediaCentaur.ErrorReports.IssueUrl`
 
 **Files:**
-- Create: `lib/media_centarr/error_reports/issue_url.ex`
-- Test: `test/media_centarr/error_reports/issue_url_test.exs`
+- Create: `lib/media_centaur/error_reports/issue_url.ex`
+- Test: `test/media_centaur/error_reports/issue_url_test.exs`
 
 - [ ] **Step 1: Write the failing tests**
 
 ```elixir
-defmodule MediaCentarr.ErrorReports.IssueUrlTest do
+defmodule MediaCentaur.ErrorReports.IssueUrlTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.ErrorReports.{Bucket, IssueUrl}
+  alias MediaCentaur.ErrorReports.{Bucket, IssueUrl}
 
   defp sample_bucket(overrides \\ %{}) do
     bucket = %Bucket{
@@ -846,7 +846,7 @@ defmodule MediaCentarr.ErrorReports.IssueUrlTest do
       {:ok, url, flags} = IssueUrl.build(sample_bucket(), sample_env())
       parsed = URI.parse(url)
       assert parsed.host == "github.com"
-      assert parsed.path == "/media-centarr/media-centarr/issues/new"
+      assert parsed.path == "/media-centaur/media-centaur/issues/new"
       assert is_list(flags)
     end
 
@@ -902,13 +902,13 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `mix test test/media_centarr/error_reports/issue_url_test.exs`
+Run: `mix test test/media_centaur/error_reports/issue_url_test.exs`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement `IssueUrl`**
 
 ```elixir
-defmodule MediaCentarr.ErrorReports.IssueUrl do
+defmodule MediaCentaur.ErrorReports.IssueUrl do
   @moduledoc """
   Builds a GitHub `new/issue` URL for an `ErrorReports.Bucket`.
 
@@ -919,9 +919,9 @@ defmodule MediaCentarr.ErrorReports.IssueUrl do
   (never) environment and fingerprint.
   """
 
-  alias MediaCentarr.ErrorReports.{Bucket, EnvMetadata}
+  alias MediaCentaur.ErrorReports.{Bucket, EnvMetadata}
 
-  @repo_url "https://github.com/media-centarr/media-centarr"
+  @repo_url "https://github.com/media-centaur/media-centaur"
   @max_url_bytes 7_500
   @title_limit 140
 
@@ -978,7 +978,7 @@ defmodule MediaCentarr.ErrorReports.IssueUrl do
       indent(bucket.normalized_message),
       "\n\n## Recent log context (normalized)\n\n",
       format_samples(sample_entries),
-      "\n\n---\nReported via Media Centarr's in-app error reporter.\n"
+      "\n\n---\nReported via Media Centaur's in-app error reporter.\n"
     ]
     |> IO.iodata_to_binary()
   end
@@ -1019,7 +1019,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `mix test test/media_centarr/error_reports/issue_url_test.exs`
+Run: `mix test test/media_centaur/error_reports/issue_url_test.exs`
 Expected: all pass.
 
 - [ ] **Step 5: Commit**
@@ -1031,22 +1031,22 @@ jj new
 
 ---
 
-## Task 8: `MediaCentarr.ErrorReports.Buckets` GenServer
+## Task 8: `MediaCentaur.ErrorReports.Buckets` GenServer
 
 **Files:**
-- Create: `lib/media_centarr/error_reports/buckets.ex`
-- Create: `lib/media_centarr/error_reports.ex` (facade — minimal at this point)
-- Test: `test/media_centarr/error_reports/buckets_test.exs`
+- Create: `lib/media_centaur/error_reports/buckets.ex`
+- Create: `lib/media_centaur/error_reports.ex` (facade — minimal at this point)
+- Test: `test/media_centaur/error_reports/buckets_test.exs`
 
 - [ ] **Step 1: Write the failing tests**
 
 ```elixir
-defmodule MediaCentarr.ErrorReports.BucketsTest do
+defmodule MediaCentaur.ErrorReports.BucketsTest do
   use ExUnit.Case, async: false
 
-  alias MediaCentarr.Console.Entry
-  alias MediaCentarr.ErrorReports.{Bucket, Buckets}
-  alias MediaCentarr.Topics
+  alias MediaCentaur.Console.Entry
+  alias MediaCentaur.ErrorReports.{Bucket, Buckets}
+  alias MediaCentaur.Topics
 
   setup do
     # Use an isolated name so tests don't collide with the app supervisor.
@@ -1123,7 +1123,7 @@ defmodule MediaCentarr.ErrorReports.BucketsTest do
 
   describe "broadcasts" do
     test "broadcasts a throttled :buckets_changed message" do
-      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.error_reports())
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.error_reports())
 
       Buckets.ingest(:buckets_test, error_entry(1, :tmdb, "TMDB returned 429"))
       assert_receive {:buckets_changed, _snapshot}, 1_500
@@ -1138,16 +1138,16 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `mix test test/media_centarr/error_reports/buckets_test.exs`
+Run: `mix test test/media_centaur/error_reports/buckets_test.exs`
 Expected: FAIL — module not defined.
 
 - [ ] **Step 3: Create the facade module (minimal — expanded in Task 10)**
 
 ```elixir
-# lib/media_centarr/error_reports.ex
-defmodule MediaCentarr.ErrorReports do
+# lib/media_centaur/error_reports.ex
+defmodule MediaCentaur.ErrorReports do
   use Boundary,
-    deps: [MediaCentarr.Console, MediaCentarr.Config, MediaCentarr.Topics, MediaCentarr.Secret],
+    deps: [MediaCentaur.Console, MediaCentaur.Config, MediaCentaur.Topics, MediaCentaur.Secret],
     exports: [Bucket, EnvMetadata, Fingerprint, IssueUrl, Redactor]
 
   @moduledoc """
@@ -1159,8 +1159,8 @@ defmodule MediaCentarr.ErrorReports do
   new-issue URL that the status page opens via `window.open`.
   """
 
-  alias MediaCentarr.ErrorReports.Buckets
-  alias MediaCentarr.Topics
+  alias MediaCentaur.ErrorReports.Buckets
+  alias MediaCentaur.Topics
 
   @spec list_buckets() :: [__MODULE__.Bucket.t()]
   defdelegate list_buckets(), to: Buckets
@@ -1169,15 +1169,15 @@ defmodule MediaCentarr.ErrorReports do
   defdelegate get_bucket(fingerprint), to: Buckets
 
   @spec subscribe() :: :ok | {:error, term()}
-  def subscribe, do: Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.error_reports())
+  def subscribe, do: Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.error_reports())
 end
 ```
 
 - [ ] **Step 4: Implement `Buckets`**
 
 ```elixir
-# lib/media_centarr/error_reports/buckets.ex
-defmodule MediaCentarr.ErrorReports.Buckets do
+# lib/media_centaur/error_reports/buckets.ex
+defmodule MediaCentaur.ErrorReports.Buckets do
   @moduledoc """
   GenServer that ingests Console `:error` entries, groups them by
   fingerprint, and serves a windowed snapshot to the Status page.
@@ -1198,12 +1198,12 @@ defmodule MediaCentarr.ErrorReports.Buckets do
   """
 
   use GenServer
-  require MediaCentarr.Log
+  require MediaCentaur.Log
 
-  alias MediaCentarr.Console
-  alias MediaCentarr.Console.Entry
-  alias MediaCentarr.ErrorReports.{Bucket, Fingerprint}
-  alias MediaCentarr.Topics
+  alias MediaCentaur.Console
+  alias MediaCentaur.Console.Entry
+  alias MediaCentaur.ErrorReports.{Bucket, Fingerprint}
+  alias MediaCentaur.Topics
 
   @default_window_minutes 60
   @broadcast_throttle_ms 1_000
@@ -1294,7 +1294,7 @@ defmodule MediaCentarr.ErrorReports.Buckets do
   @impl true
   def handle_info(:flush_broadcast, state) do
     snapshot = visible_buckets(state)
-    Phoenix.PubSub.broadcast(MediaCentarr.PubSub, Topics.error_reports(), {:buckets_changed, snapshot})
+    Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.error_reports(), {:buckets_changed, snapshot})
     {:noreply, %{state | last_broadcast_at: now_ms(), broadcast_pending: false}}
   end
 
@@ -1394,7 +1394,7 @@ end
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `mix test test/media_centarr/error_reports/buckets_test.exs`
+Run: `mix test test/media_centaur/error_reports/buckets_test.exs`
 Expected: all pass.
 
 - [ ] **Step 6: Commit**
@@ -1409,42 +1409,42 @@ jj new
 ## Task 9: Register `Buckets` in the supervision tree
 
 **Files:**
-- Modify: `lib/media_centarr/application.ex`
+- Modify: `lib/media_centaur/application.ex`
 
 - [ ] **Step 1: Add `ErrorReports` to the Application boundary deps**
 
-In `lib/media_centarr/application.ex`, locate the `use Boundary, top_level?: true, deps: [...]` block and add `MediaCentarr.ErrorReports` alphabetically (between `MediaCentarr.Console` and `MediaCentarr.Library`, or in the existing order pattern):
+In `lib/media_centaur/application.ex`, locate the `use Boundary, top_level?: true, deps: [...]` block and add `MediaCentaur.ErrorReports` alphabetically (between `MediaCentaur.Console` and `MediaCentaur.Library`, or in the existing order pattern):
 
 ```elixir
   use Boundary,
     top_level?: true,
     deps: [
-      MediaCentarr.Library,
-      MediaCentarr.Pipeline,
-      MediaCentarr.Review,
-      MediaCentarr.Watcher,
-      MediaCentarr.Settings,
-      MediaCentarr.ReleaseTracking,
-      MediaCentarr.Playback,
-      MediaCentarr.Console,
-      MediaCentarr.ErrorReports,
-      MediaCentarr.Acquisition,
-      MediaCentarr.WatchHistory,
-      MediaCentarr.SelfUpdate,
-      MediaCentarr.TMDB,
-      MediaCentarrWeb
+      MediaCentaur.Library,
+      MediaCentaur.Pipeline,
+      MediaCentaur.Review,
+      MediaCentaur.Watcher,
+      MediaCentaur.Settings,
+      MediaCentaur.ReleaseTracking,
+      MediaCentaur.Playback,
+      MediaCentaur.Console,
+      MediaCentaur.ErrorReports,
+      MediaCentaur.Acquisition,
+      MediaCentaur.WatchHistory,
+      MediaCentaur.SelfUpdate,
+      MediaCentaur.TMDB,
+      MediaCentaurWeb
     ]
 ```
 
 - [ ] **Step 2: Add `Buckets` child to the supervision list**
 
-In the `start/2` function's `children` list, after `MediaCentarr.Console.Buffer` (Buckets subscribes to Console, so Buffer must be running when Buckets starts):
+In the `start/2` function's `children` list, after `MediaCentaur.Console.Buffer` (Buckets subscribes to Console, so Buffer must be running when Buckets starts):
 
 ```elixir
-        MediaCentarr.Console.Buffer,
-        MediaCentarr.Console.JournalSource,
-        MediaCentarr.ErrorReports.Buckets,
-        {Task.Supervisor, name: MediaCentarr.TaskSupervisor},
+        MediaCentaur.Console.Buffer,
+        MediaCentaur.Console.JournalSource,
+        MediaCentaur.ErrorReports.Buckets,
+        {Task.Supervisor, name: MediaCentaur.TaskSupervisor},
 ```
 
 - [ ] **Step 3: Verify compile + app start**
@@ -1452,7 +1452,7 @@ In the `start/2` function's `children` list, after `MediaCentarr.Console.Buffer`
 Run: `MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile --warnings-as-errors`
 Expected: no warnings.
 
-Run: `mix test test/media_centarr/error_reports/buckets_test.exs` again to make sure the named-process-in-supervision-tree doesn't collide with the test-supervisor usage.
+Run: `mix test test/media_centaur/error_reports/buckets_test.exs` again to make sure the named-process-in-supervision-tree doesn't collide with the test-supervisor usage.
 Expected: all pass.
 
 - [ ] **Step 4: Commit**
@@ -1467,25 +1467,25 @@ jj new
 ## Task 10: `StatusLive` — render the summary card
 
 **Files:**
-- Modify: `lib/media_centarr_web/live/status_live.ex`
-- Modify: `lib/media_centarr_web/live/status_helpers.ex`
+- Modify: `lib/media_centaur_web/live/status_live.ex`
+- Modify: `lib/media_centaur_web/live/status_helpers.ex`
 
 - [ ] **Step 1: Remove `merge_recent_errors/2`**
 
-In `lib/media_centarr_web/live/status_helpers.ex`, delete the `merge_recent_errors/2` function (lines 148 and following — locate by `grep -n "merge_recent_errors"`).
+In `lib/media_centaur_web/live/status_helpers.ex`, delete the `merge_recent_errors/2` function (lines 148 and following — locate by `grep -n "merge_recent_errors"`).
 
 - [ ] **Step 2: Write the integration test (summary card assigns)**
 
-Create `test/media_centarr_web/live/status_live/error_summary_test.exs`:
+Create `test/media_centaur_web/live/status_live/error_summary_test.exs`:
 
 ```elixir
-defmodule MediaCentarrWeb.StatusLive.ErrorSummaryTest do
-  use MediaCentarrWeb.ConnCase, async: false
+defmodule MediaCentaurWeb.StatusLive.ErrorSummaryTest do
+  use MediaCentaurWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
-  alias MediaCentarr.Console.Entry
-  alias MediaCentarr.ErrorReports.Buckets
-  alias MediaCentarr.Topics
+  alias MediaCentaur.Console.Entry
+  alias MediaCentaur.ErrorReports.Buckets
+  alias MediaCentaur.Topics
 
   defp error_entry(id, component, message) do
     Entry.new(%{
@@ -1509,7 +1509,7 @@ defmodule MediaCentarrWeb.StatusLive.ErrorSummaryTest do
 
     # Wait for the throttled broadcast; UI should reflect the bucket
     Phoenix.PubSub.broadcast(
-      MediaCentarr.PubSub,
+      MediaCentaur.PubSub,
       Topics.error_reports(),
       {:buckets_changed, Buckets.list_buckets()}
     )
@@ -1524,12 +1524,12 @@ Note: the test uses `data-testid` to locate the card — a neutral, stable selec
 
 - [ ] **Step 3: Run the test to verify failure**
 
-Run: `mix test test/media_centarr_web/live/status_live/error_summary_test.exs`
+Run: `mix test test/media_centaur_web/live/status_live/error_summary_test.exs`
 Expected: FAIL — `data-testid='error-summary-card'` not present.
 
 - [ ] **Step 4: Replace `recent_errors_table` with `error_summary_card`**
 
-In `lib/media_centarr_web/live/status_live.ex`:
+In `lib/media_centaur_web/live/status_live.ex`:
 
 a) Update the `mount/3` callback — remove `|> assign(recent_errors: merge_recent_errors(...))` and the fallback `|> assign(recent_errors: [])`. Replace with a subscription + fetch:
 
@@ -1562,7 +1562,7 @@ a) Update the `mount/3` callback — remove `|> assign(recent_errors: merge_rece
 b) At the top of the module, add the alias:
 
 ```elixir
-  alias MediaCentarr.{Library, Playback, Status, Storage, WatchHistory, ErrorReports}
+  alias MediaCentaur.{Library, Playback, Status, Storage, WatchHistory, ErrorReports}
 ```
 
 c) Update `assign_defaults/1` — replace `|> assign(recent_errors: [])` with `|> assign(error_buckets: [])`.
@@ -1645,7 +1645,7 @@ f) Replace the `recent_errors_table/1` component (entire function body, lines ~6
 
 - [ ] **Step 5: Run all StatusLive tests**
 
-Run: `mix test test/media_centarr_web/live/status_live/`
+Run: `mix test test/media_centaur_web/live/status_live/`
 Expected: all pass (including the new `data-testid` test).
 
 - [ ] **Step 6: Run the full test suite + precommit**
@@ -1668,20 +1668,20 @@ jj new
 ## Task 11: `ReportModal` LiveComponent — radio list + preview
 
 **Files:**
-- Create: `lib/media_centarr_web/live/status_live/report_modal.ex`
-- Create: `test/media_centarr_web/live/status_live/report_modal_test.exs`
-- Modify: `lib/media_centarr_web/live/status_live.ex`
+- Create: `lib/media_centaur_web/live/status_live/report_modal.ex`
+- Create: `test/media_centaur_web/live/status_live/report_modal_test.exs`
+- Modify: `lib/media_centaur_web/live/status_live.ex`
 
 - [ ] **Step 1: Write the failing test**
 
 ```elixir
-defmodule MediaCentarrWeb.StatusLive.ReportModalTest do
-  use MediaCentarrWeb.ConnCase, async: false
+defmodule MediaCentaurWeb.StatusLive.ReportModalTest do
+  use MediaCentaurWeb.ConnCase, async: false
   import Phoenix.LiveViewTest
 
-  alias MediaCentarr.Console.Entry
-  alias MediaCentarr.ErrorReports.Buckets
-  alias MediaCentarr.Topics
+  alias MediaCentaur.Console.Entry
+  alias MediaCentaur.ErrorReports.Buckets
+  alias MediaCentaur.Topics
 
   defp error_entry(id, component, message) do
     Entry.new(%{
@@ -1698,7 +1698,7 @@ defmodule MediaCentarrWeb.StatusLive.ReportModalTest do
     Buckets.ingest(error_entry(1, :tmdb, "TMDB returned 429 rate limited"))
     Buckets.ingest(error_entry(2, :watcher, "permission denied on watch dir"))
     Phoenix.PubSub.broadcast(
-      MediaCentarr.PubSub,
+      MediaCentaur.PubSub,
       Topics.error_reports(),
       {:buckets_changed, Buckets.list_buckets()}
     )
@@ -1718,7 +1718,7 @@ defmodule MediaCentarrWeb.StatusLive.ReportModalTest do
     render_click(view, "report_confirm", %{"fingerprint" => hd(Buckets.list_buckets()).fingerprint})
 
     assert_push_event(view, "error_reports:open_issue", %{url: url})
-    assert url =~ "https://github.com/media-centarr/media-centarr/issues/new"
+    assert url =~ "https://github.com/media-centaur/media-centaur/issues/new"
   end
 
   test "cancel dismisses the modal", %{conn: conn} do
@@ -1732,13 +1732,13 @@ end
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `mix test test/media_centarr_web/live/status_live/report_modal_test.exs`
+Run: `mix test test/media_centaur_web/live/status_live/report_modal_test.exs`
 Expected: FAIL.
 
 - [ ] **Step 3: Implement the LiveComponent**
 
 ```elixir
-defmodule MediaCentarrWeb.StatusLive.ReportModal do
+defmodule MediaCentaurWeb.StatusLive.ReportModal do
   @moduledoc """
   Modal shown when the user clicks "Report errors" on the Status page.
 
@@ -1746,9 +1746,9 @@ defmodule MediaCentarrWeb.StatusLive.ReportModal do
   preview, and on confirm emits a `push_event("error_reports:open_issue",
   %{url: url})` that the `ErrorReport` JS hook handles with `window.open`.
   """
-  use MediaCentarrWeb, :live_component
+  use MediaCentaurWeb, :live_component
 
-  alias MediaCentarr.ErrorReports.{EnvMetadata, IssueUrl}
+  alias MediaCentaur.ErrorReports.{EnvMetadata, IssueUrl}
 
   @impl true
   def update(assigns, socket) do
@@ -1805,7 +1805,7 @@ defmodule MediaCentarrWeb.StatusLive.ReportModal do
     >
       <div class="modal-panel" phx-click={%Phoenix.LiveView.JS{}}>
         <h2 class="text-lg font-semibold">
-          Send this error report to the Media Centarr developer?
+          Send this error report to the Media Centaur developer?
         </h2>
 
         <div class="alert alert-warning mt-3 text-sm">
@@ -1882,12 +1882,12 @@ end
 
 - [ ] **Step 4: Wire the modal into `StatusLive`**
 
-In `lib/media_centarr_web/live/status_live.ex`:
+In `lib/media_centaur_web/live/status_live.ex`:
 
 a) Import the component at the top alongside other aliases:
 
 ```elixir
-  alias MediaCentarrWeb.StatusLive.ReportModal
+  alias MediaCentaurWeb.StatusLive.ReportModal
 ```
 
 b) In `assign_defaults/1`, add `|> assign(show_report_modal: false)`.
@@ -1915,8 +1915,8 @@ c) Add event handlers:
           socket
 
         bucket ->
-          env = MediaCentarr.ErrorReports.EnvMetadata.collect()
-          {:ok, url, _flags} = MediaCentarr.ErrorReports.IssueUrl.build(bucket, env)
+          env = MediaCentaur.ErrorReports.EnvMetadata.collect()
+          {:ok, url, _flags} = MediaCentaur.ErrorReports.IssueUrl.build(bucket, env)
           push_event(socket, "error_reports:open_issue", %{url: url})
       end
 
@@ -1937,7 +1937,7 @@ d) In the render template, after the main status grid, add the modal mount:
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
-Run: `mix test test/media_centarr_web/live/status_live/`
+Run: `mix test test/media_centaur_web/live/status_live/`
 Expected: all pass.
 
 - [ ] **Step 6: Commit**
@@ -1998,7 +1998,7 @@ And add to the `hooks:` block inside `new LiveSocket(...)`:
 
 - [ ] **Step 3: Attach the hook to the error summary card**
 
-In `lib/media_centarr_web/live/status_live.ex`, update the `error_summary_card/1` component's top-level `<div>`:
+In `lib/media_centaur_web/live/status_live.ex`, update the `error_summary_card/1` component's top-level `<div>`:
 
 ```elixir
     <div
@@ -2011,16 +2011,16 @@ In `lib/media_centarr_web/live/status_live.ex`, update the `error_summary_card/1
 
 - [ ] **Step 4: Manual smoke-test in dev browser**
 
-Start the dev server (`systemctl --user restart media-centarr-dev` or `mix phx.server`). Trigger an error in IEx:
+Start the dev server (`systemctl --user restart media-centaur-dev` or `mix phx.server`). Trigger an error in IEx:
 
 ```elixir
-iex --name repl@127.0.0.1 --remsh media_centarr_dev@127.0.0.1
+iex --name repl@127.0.0.1 --remsh media_centaur_dev@127.0.0.1
 # Then in the shell:
-require MediaCentarr.Log
-MediaCentarr.Log.error(:system, "demo error for testing report flow")
+require MediaCentaur.Log
+MediaCentaur.Log.error(:system, "demo error for testing report flow")
 ```
 
-In the browser, open `/status`, wait for the bucket to appear, click **Report errors**, select the bucket, click **Confirm & open GitHub**. A new browser tab should open on `github.com/media-centarr/media-centarr/issues/new` with the title and body prefilled. Close that tab without filing.
+In the browser, open `/status`, wait for the bucket to appear, click **Report errors**, select the bucket, click **Confirm & open GitHub**. A new browser tab should open on `github.com/media-centaur/media-centaur/issues/new` with the title and body prefilled. Close that tab without filing.
 
 - [ ] **Step 5: Commit**
 
@@ -2034,8 +2034,8 @@ jj new
 ## Task 13: Precommit + wiki updates
 
 **Files:**
-- Create (wiki): `../media-centarr.wiki/Troubleshooting.md` (append section)
-- Create (wiki): `../media-centarr.wiki/FAQ.md` (append question)
+- Create (wiki): `../media-centaur.wiki/Troubleshooting.md` (append section)
+- Create (wiki): `../media-centaur.wiki/FAQ.md` (append question)
 
 - [ ] **Step 1: Run full precommit**
 
@@ -2046,7 +2046,7 @@ If any step fails, fix the root cause; do not skip.
 
 - [ ] **Step 2: Append to wiki `Troubleshooting.md`**
 
-In `~/src/media-centarr/media-centarr.wiki/Troubleshooting.md`, append:
+In `~/src/media-centaur/media-centaur.wiki/Troubleshooting.md`, append:
 
 ```markdown
 ## Reporting errors to the developer
@@ -2061,7 +2061,7 @@ keys, IP addresses, emails, and any URLs you've configured (Prowlarr,
 download clients). **Please review it before confirming** — private file
 titles or usernames inside error messages are not auto-scrubbed.
 
-On confirm, a new browser tab opens on the Media Centarr GitHub repo
+On confirm, a new browser tab opens on the Media Centaur GitHub repo
 pre-filled with the title and body. You can still edit the issue or
 back out before submitting.
 ```
@@ -2089,7 +2089,7 @@ There is no server-side telemetry.
 - [ ] **Step 4: Commit wiki**
 
 ```bash
-cd ~/src/media-centarr/media-centarr.wiki
+cd ~/src/media-centaur/media-centaur.wiki
 jj describe -m "wiki: document status-page error reporting"
 jj bookmark set master -r @
 jj git push

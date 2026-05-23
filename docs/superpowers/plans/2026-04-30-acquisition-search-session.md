@@ -4,13 +4,13 @@
 
 **Goal:** Make the manual-search slot at `/download` durable across LiveView navigation, browser refresh, and reconnect by extracting search state from `AcquisitionLive` socket assigns into a process-resident `SearchSession` GenServer.
 
-**Architecture:** A new singleton GenServer `MediaCentarr.Acquisition.SearchSession` owns a `%SearchSession{}` struct (query, expansion preview, groups with `:loading | :ready | {:failed, _} | :abandoned` status, selections, grab message, grabbing flag, monitored searching pid). The `MediaCentarr.Acquisition` facade exposes `current_search_session/0`, `subscribe_search/0`, `start_search/1`, `record_search_result/2`, selection/toggle/grab mutators, and `retry_search_terms/1`. `AcquisitionLive` becomes a thin viewer: it reads on mount, subscribes to a new `acquisition:search` PubSub topic, and every event delegates to the facade. When the LiveView dies mid-search, the GenServer's monitor sweeps `:loading` groups to `:abandoned` so the next mount renders Retry buttons. Tasks remain unlinked; late-arriving results are silently dropped by an idempotency check.
+**Architecture:** A new singleton GenServer `MediaCentaur.Acquisition.SearchSession` owns a `%SearchSession{}` struct (query, expansion preview, groups with `:loading | :ready | {:failed, _} | :abandoned` status, selections, grab message, grabbing flag, monitored searching pid). The `MediaCentaur.Acquisition` facade exposes `current_search_session/0`, `subscribe_search/0`, `start_search/1`, `record_search_result/2`, selection/toggle/grab mutators, and `retry_search_terms/1`. `AcquisitionLive` becomes a thin viewer: it reads on mount, subscribes to a new `acquisition:search` PubSub topic, and every event delegates to the facade. When the LiveView dies mid-search, the GenServer's monitor sweeps `:loading` groups to `:abandoned` so the next mount renders Retry buttons. Tasks remain unlinked; late-arriving results are silently dropped by an idempotency check.
 
-**Tech Stack:** Elixir / OTP (`GenServer`, `Process.monitor`, `Phoenix.PubSub`), Phoenix LiveView, ExUnit, `MediaCentarr.Topics`, existing `Req.Test`-backed Prowlarr stub.
+**Tech Stack:** Elixir / OTP (`GenServer`, `Process.monitor`, `Phoenix.PubSub`), Phoenix LiveView, ExUnit, `MediaCentaur.Topics`, existing `Req.Test`-backed Prowlarr stub.
 
 **Spec:** `docs/superpowers/specs/2026-04-30-acquisition-search-session-design.md`
 
-**Repo:** `/home/shawn/src/media-centarr/media-centarr-app/` (Jujutsu — use `jj desc -m` and `jj new` per the jujutsu skill, not raw `git commit`).
+**Repo:** `/home/shawn/src/media-centaur/media-centaur-app/` (Jujutsu — use `jj desc -m` and `jj new` per the jujutsu skill, not raw `git commit`).
 
 ---
 
@@ -19,20 +19,20 @@
 Adds the `acquisition:search` topic, the `SearchSession` struct, an empty GenServer, and wires it into the application supervision tree. No behavior yet — just enough to start the process and read its empty state.
 
 **Files:**
-- Modify: `lib/media_centarr/topics.ex` (add `acquisition_search/0`)
-- Create: `lib/media_centarr/acquisition/search_session.ex`
-- Create: `test/media_centarr/acquisition/search_session_test.exs`
-- Modify: `lib/media_centarr/application.ex` (children list — add `MediaCentarr.Acquisition.SearchSession`)
+- Modify: `lib/media_centaur/topics.ex` (add `acquisition_search/0`)
+- Create: `lib/media_centaur/acquisition/search_session.ex`
+- Create: `test/media_centaur/acquisition/search_session_test.exs`
+- Modify: `lib/media_centaur/application.ex` (children list — add `MediaCentaur.Acquisition.SearchSession`)
 
 - [ ] **Step 1: Write the failing skeleton test**
 
-Create `test/media_centarr/acquisition/search_session_test.exs`:
+Create `test/media_centaur/acquisition/search_session_test.exs`:
 
 ```elixir
-defmodule MediaCentarr.Acquisition.SearchSessionTest do
+defmodule MediaCentaur.Acquisition.SearchSessionTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Acquisition.SearchSession
+  alias MediaCentaur.Acquisition.SearchSession
 
   describe "default state" do
     test "fresh GenServer returns empty session" do
@@ -58,14 +58,14 @@ end
 - [ ] **Step 2: Run test to verify it fails**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/acquisition/search_session_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/acquisition/search_session_test.exs
 ```
 
-Expected: compile error — `MediaCentarr.Acquisition.SearchSession` is undefined.
+Expected: compile error — `MediaCentaur.Acquisition.SearchSession` is undefined.
 
 - [ ] **Step 3: Add the topic**
 
-Edit `lib/media_centarr/topics.ex`. Add a new function after `acquisition_queue/0`:
+Edit `lib/media_centaur/topics.ex`. Add a new function after `acquisition_queue/0`:
 
 ```elixir
   def acquisition_search, do: "acquisition:search"
@@ -73,19 +73,19 @@ Edit `lib/media_centarr/topics.ex`. Add a new function after `acquisition_queue/
 
 - [ ] **Step 4: Create the SearchSession module (struct + skeleton GenServer)**
 
-Create `lib/media_centarr/acquisition/search_session.ex`:
+Create `lib/media_centaur/acquisition/search_session.ex`:
 
 ```elixir
-defmodule MediaCentarr.Acquisition.SearchSession do
+defmodule MediaCentaur.Acquisition.SearchSession do
   @moduledoc """
   Singleton GenServer holding the user's current acquisition search session.
 
-  Decouples the search workflow from `MediaCentarrWeb.AcquisitionLive`'s
+  Decouples the search workflow from `MediaCentaurWeb.AcquisitionLive`'s
   process lifetime so search state — query, brace-expanded groups, results,
   user selections, grab feedback — survives navigation, reconnect, and
   browser refresh. Lost on BEAM restart.
 
-  All public access goes through the `MediaCentarr.Acquisition` facade —
+  All public access goes through the `MediaCentaur.Acquisition` facade —
   no module outside the Acquisition context calls this GenServer directly.
 
   See `docs/superpowers/specs/2026-04-30-acquisition-search-session-design.md`.
@@ -93,7 +93,7 @@ defmodule MediaCentarr.Acquisition.SearchSession do
 
   use GenServer
 
-  alias MediaCentarr.Acquisition.SearchResult
+  alias MediaCentaur.Acquisition.SearchResult
 
   @type group_status :: :loading | :ready | {:failed, term()} | :abandoned
 
@@ -155,16 +155,16 @@ end
 
 - [ ] **Step 5: Wire SearchSession into the supervision tree**
 
-Edit `lib/media_centarr/application.ex`. Find the children list and add `MediaCentarr.Acquisition.SearchSession` adjacent to the existing `MediaCentarr.Acquisition` and `MediaCentarr.Acquisition.QueueMonitor` children. The exact location is the same children block where `MediaCentarr.Acquisition` is started (line 17 in current source). Add:
+Edit `lib/media_centaur/application.ex`. Find the children list and add `MediaCentaur.Acquisition.SearchSession` adjacent to the existing `MediaCentaur.Acquisition` and `MediaCentaur.Acquisition.QueueMonitor` children. The exact location is the same children block where `MediaCentaur.Acquisition` is started (line 17 in current source). Add:
 
 ```elixir
-      MediaCentarr.Acquisition.SearchSession,
+      MediaCentaur.Acquisition.SearchSession,
 ```
 
 - [ ] **Step 6: Run the test to verify it passes**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/acquisition/search_session_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/acquisition/search_session_test.exs
 ```
 
 Expected: `1 test, 0 failures`.
@@ -191,8 +191,8 @@ jj new
 Implements the entry point. `start_search/1` expands the query via `QueryExpander.expand/1`, replaces the entire session with a fresh one (placeholder `:loading` groups, empty selections, no grab message), monitors the caller, and broadcasts the new session.
 
 **Files:**
-- Modify: `lib/media_centarr/acquisition/search_session.ex`
-- Modify: `test/media_centarr/acquisition/search_session_test.exs`
+- Modify: `lib/media_centaur/acquisition/search_session.ex`
+- Modify: `test/media_centaur/acquisition/search_session_test.exs`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -203,7 +203,7 @@ Append to the test file:
     setup do
       name = :"sess_#{System.unique_integer([:positive])}"
       start_supervised!({SearchSession, name: name})
-      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.acquisition_search())
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_search())
       {:ok, name: name}
     end
 
@@ -246,14 +246,14 @@ Append to the test file:
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/acquisition/search_session_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/acquisition/search_session_test.exs
 ```
 
 Expected: 3 failures — `start_search/2` is undefined.
 
 - [ ] **Step 3: Extend the struct with `monitor_ref`**
 
-Edit `lib/media_centarr/acquisition/search_session.ex`. Update the type and `defstruct` to add a `monitor_ref` field — needed in the next step so we can demonitor cleanly when a new search replaces the old one:
+Edit `lib/media_centaur/acquisition/search_session.ex`. Update the type and `defstruct` to add a `monitor_ref` field — needed in the next step so we can demonitor cleanly when a new search replaces the old one:
 
 ```elixir
   @type t :: %__MODULE__{
@@ -284,10 +284,10 @@ The Task 1 empty-session test already uses `assert %SearchSession{...} = session
 Add aliases and `require Log` at the top of the module (above `defstruct`):
 
 ```elixir
-  alias MediaCentarr.Acquisition.QueryExpander
-  alias MediaCentarr.Topics
+  alias MediaCentaur.Acquisition.QueryExpander
+  alias MediaCentaur.Topics
 
-  require MediaCentarr.Log, as: Log
+  require MediaCentaur.Log, as: Log
 ```
 
 Add the public function after `current/1`:
@@ -370,7 +370,7 @@ Add private helpers at the bottom of the module (above the closing `end`):
 
   defp broadcast(%__MODULE__{} = session) do
     Phoenix.PubSub.broadcast(
-      MediaCentarr.PubSub,
+      MediaCentaur.PubSub,
       Topics.acquisition_search(),
       {:search_session, session}
     )
@@ -380,7 +380,7 @@ Add private helpers at the bottom of the module (above the closing `end`):
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/acquisition/search_session_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/acquisition/search_session_test.exs
 ```
 
 Expected: 4 tests, 0 failures (the 1 from Task 1 plus 3 new ones).
@@ -399,21 +399,21 @@ jj new
 A per-query Task calls `record_search_result/3` when its Prowlarr request resolves. The function transitions the matching `:loading` group to `:ready` (with sorted results and an auto-added top-seeder default selection) or `{:failed, reason}`. Late-arriving results for groups already in a terminal status (`:abandoned`, `:ready`, `{:failed, _}`) or for unknown terms are silently dropped.
 
 **Files:**
-- Modify: `lib/media_centarr/acquisition/search_session.ex`
-- Modify: `test/media_centarr/acquisition/search_session_test.exs`
+- Modify: `lib/media_centaur/acquisition/search_session.ex`
+- Modify: `test/media_centaur/acquisition/search_session_test.exs`
 
 - [ ] **Step 1: Write the failing tests**
 
-Append to the test file. Note these tests construct `%SearchResult{}` literals — check `lib/media_centarr/acquisition/search_result.ex` for the exact field names; the struct already has `guid`, `title`, `quality`, `seeders`, `size_bytes`, `indexer_name`. Adjust the struct literal if any field name differs.
+Append to the test file. Note these tests construct `%SearchResult{}` literals — check `lib/media_centaur/acquisition/search_result.ex` for the exact field names; the struct already has `guid`, `title`, `quality`, `seeders`, `size_bytes`, `indexer_name`. Adjust the struct literal if any field name differs.
 
 ```elixir
   describe "record_search_result/3" do
-    alias MediaCentarr.Acquisition.SearchResult
+    alias MediaCentaur.Acquisition.SearchResult
 
     setup do
       name = :"sess_#{System.unique_integer([:positive])}"
       start_supervised!({SearchSession, name: name})
-      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.acquisition_search())
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_search())
       {:ok, _} = SearchSession.start_search(name, "Show S01E{01-02}")
       assert_receive {:search_session, _}
       {:ok, name: name}
@@ -499,17 +499,17 @@ The fourth test depends on `:DOWN`-driven sweep behavior implemented in Task 5. 
 - [ ] **Step 2: Run tests to verify the first three fail**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/acquisition/search_session_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/acquisition/search_session_test.exs
 ```
 
 Expected: 3 failures, 1 skipped — `record_search_result/3` is undefined.
 
 - [ ] **Step 3: Implement `record_search_result/3`**
 
-Edit `lib/media_centarr/acquisition/search_session.ex`. Alias `Quality`:
+Edit `lib/media_centaur/acquisition/search_session.ex`. Alias `Quality`:
 
 ```elixir
-  alias MediaCentarr.Acquisition.{QueryExpander, Quality, SearchResult}
+  alias MediaCentaur.Acquisition.{QueryExpander, Quality, SearchResult}
 ```
 
 Add public function:
@@ -583,7 +583,7 @@ Add private helpers (above the `swap_monitor/2` helper):
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/acquisition/search_session_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/acquisition/search_session_test.exs
 ```
 
 Expected: 6 tests pass, 1 skipped (the abandonment idempotency test, unblocked in Task 5).
@@ -602,8 +602,8 @@ jj new
 Adds the small write API used by every `handle_event` in the LiveView. None of these touch monitoring; they all just edit fields and broadcast.
 
 **Files:**
-- Modify: `lib/media_centarr/acquisition/search_session.ex`
-- Modify: `test/media_centarr/acquisition/search_session_test.exs`
+- Modify: `lib/media_centaur/acquisition/search_session.ex`
+- Modify: `test/media_centaur/acquisition/search_session_test.exs`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -614,7 +614,7 @@ Append:
     setup do
       name = :"sess_#{System.unique_integer([:positive])}"
       start_supervised!({SearchSession, name: name})
-      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.acquisition_search())
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_search())
       {:ok, name: name}
     end
 
@@ -701,14 +701,14 @@ Append:
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/acquisition/search_session_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/acquisition/search_session_test.exs
 ```
 
 Expected: 8 new failures — the new functions are undefined.
 
 - [ ] **Step 3: Implement the mutators**
 
-Edit `lib/media_centarr/acquisition/search_session.ex`. Add these public functions after `record_search_result/3`:
+Edit `lib/media_centaur/acquisition/search_session.ex`. Add these public functions after `record_search_result/3`:
 
 ```elixir
   @doc "Sets `term => guid` in the selections map."
@@ -842,7 +842,7 @@ Add the handlers (alongside the existing `handle_call` clauses):
 - [ ] **Step 4: Run tests to verify they pass**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/acquisition/search_session_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/acquisition/search_session_test.exs
 ```
 
 Expected: 14 tests, 0 failures, 1 skipped.
@@ -861,8 +861,8 @@ jj new
 The GenServer monitors the LiveView pid that called `start_search/2`. On `:DOWN`, it sweeps every `:loading` group to `:abandoned`, clears the searching pid + monitor ref, and broadcasts. `retry_search_terms/2` transitions named `:abandoned`/`{:failed, _}` groups back to `:loading` and re-monitors the new caller.
 
 **Files:**
-- Modify: `lib/media_centarr/acquisition/search_session.ex`
-- Modify: `test/media_centarr/acquisition/search_session_test.exs`
+- Modify: `lib/media_centaur/acquisition/search_session.ex`
+- Modify: `test/media_centaur/acquisition/search_session_test.exs`
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -873,7 +873,7 @@ Append:
     setup do
       name = :"sess_#{System.unique_integer([:positive])}"
       start_supervised!({SearchSession, name: name})
-      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.acquisition_search())
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_search())
       {:ok, name: name}
     end
 
@@ -903,7 +903,7 @@ Append:
     end
 
     test ":ready groups are not swept on :DOWN", %{name: name} do
-      alias MediaCentarr.Acquisition.SearchResult
+      alias MediaCentaur.Acquisition.SearchResult
       parent = self()
 
       child =
@@ -937,7 +937,7 @@ Append:
     setup do
       name = :"sess_#{System.unique_integer([:positive])}"
       start_supervised!({SearchSession, name: name})
-      Phoenix.PubSub.subscribe(MediaCentarr.PubSub, MediaCentarr.Topics.acquisition_search())
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_search())
       {:ok, name: name}
     end
 
@@ -995,14 +995,14 @@ Also remove the `@tag :skip` from the abandonment idempotency test in Task 3.
 - [ ] **Step 2: Run tests to verify they fail**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/acquisition/search_session_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/acquisition/search_session_test.exs
 ```
 
 Expected: 4 failures (the 3 new tests plus the unskipped Task 3 test) — `:DOWN` is unhandled and `retry_search_terms/2` is undefined.
 
 - [ ] **Step 3: Implement the `:DOWN` handler**
 
-Edit `lib/media_centarr/acquisition/search_session.ex`. Add a `handle_info` for `:DOWN`:
+Edit `lib/media_centaur/acquisition/search_session.ex`. Add a `handle_info` for `:DOWN`:
 
 ```elixir
   @impl GenServer
@@ -1121,7 +1121,7 @@ Add the handler:
 - [ ] **Step 5: Run tests to verify they pass**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/acquisition/search_session_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/acquisition/search_session_test.exs
 ```
 
 Expected: all SearchSession tests pass (16 or so, no skips).
@@ -1137,14 +1137,14 @@ jj new
 
 ## Task 6: Acquisition facade — public functions delegating to SearchSession
 
-Adds the public API on `MediaCentarr.Acquisition` that the LiveView calls. These are thin wrappers; nothing else changes about the existing facade.
+Adds the public API on `MediaCentaur.Acquisition` that the LiveView calls. These are thin wrappers; nothing else changes about the existing facade.
 
 **Files:**
-- Modify: `lib/media_centarr/acquisition/acquisition.ex`
+- Modify: `lib/media_centaur/acquisition/acquisition.ex`
 
 - [ ] **Step 1: Add the facade functions**
 
-Edit `lib/media_centarr/acquisition/acquisition.ex`. Find the existing `subscribe_queue/0` function (line ~101) and add directly below it:
+Edit `lib/media_centaur/acquisition/acquisition.ex`. Find the existing `subscribe_queue/0` function (line ~101) and add directly below it:
 
 ```elixir
   @doc """
@@ -1153,13 +1153,13 @@ Edit `lib/media_centarr/acquisition/acquisition.ex`. Find the existing `subscrib
   """
   @spec subscribe_search() :: :ok
   def subscribe_search do
-    Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.acquisition_search())
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.acquisition_search())
   end
 
   @doc "Returns the current search session struct (always present; may be empty)."
-  @spec current_search_session() :: MediaCentarr.Acquisition.SearchSession.t()
+  @spec current_search_session() :: MediaCentaur.Acquisition.SearchSession.t()
   defdelegate current_search_session,
-    to: MediaCentarr.Acquisition.SearchSession,
+    to: MediaCentaur.Acquisition.SearchSession,
     as: :current
 
   @doc """
@@ -1168,9 +1168,9 @@ Edit `lib/media_centarr/acquisition/acquisition.ex`. Find the existing `subscrib
   can spawn Tasks for each expanded query.
   """
   @spec start_search(String.t()) ::
-          {:ok, %{session: MediaCentarr.Acquisition.SearchSession.t(), queries: [String.t()]}}
+          {:ok, %{session: MediaCentaur.Acquisition.SearchSession.t(), queries: [String.t()]}}
           | {:error, :invalid_syntax}
-  defdelegate start_search(query), to: MediaCentarr.Acquisition.SearchSession
+  defdelegate start_search(query), to: MediaCentaur.Acquisition.SearchSession
 
   @doc "Records a per-query Prowlarr result against the current session."
   @spec record_search_result(
@@ -1178,39 +1178,39 @@ Edit `lib/media_centarr/acquisition/acquisition.ex`. Find the existing `subscrib
           {:ok, [SearchResult.t()]} | {:error, term()}
         ) :: :ok
   defdelegate record_search_result(term, outcome),
-    to: MediaCentarr.Acquisition.SearchSession
+    to: MediaCentaur.Acquisition.SearchSession
 
   @doc "Updates the query input box value and recomputes the expansion preview."
   @spec set_query_preview(String.t()) :: :ok
-  defdelegate set_query_preview(query), to: MediaCentarr.Acquisition.SearchSession
+  defdelegate set_query_preview(query), to: MediaCentaur.Acquisition.SearchSession
 
   @doc "Sets `term => guid` in the session selections map."
   @spec set_selection(String.t(), String.t()) :: :ok
-  defdelegate set_selection(term, guid), to: MediaCentarr.Acquisition.SearchSession
+  defdelegate set_selection(term, guid), to: MediaCentaur.Acquisition.SearchSession
 
   @doc "Removes `term` from the session selections map."
   @spec clear_selection(String.t()) :: :ok
-  defdelegate clear_selection(term), to: MediaCentarr.Acquisition.SearchSession
+  defdelegate clear_selection(term), to: MediaCentaur.Acquisition.SearchSession
 
   @doc "Empties the session selections map."
   @spec clear_selections() :: :ok
-  defdelegate clear_selections(), to: MediaCentarr.Acquisition.SearchSession
+  defdelegate clear_selections(), to: MediaCentaur.Acquisition.SearchSession
 
   @doc "Toggles `expanded?` on the named group."
   @spec toggle_group(String.t()) :: :ok
-  defdelegate toggle_group(term), to: MediaCentarr.Acquisition.SearchSession
+  defdelegate toggle_group(term), to: MediaCentaur.Acquisition.SearchSession
 
   @doc "Sets the boolean `grabbing?` flag on the session."
   @spec set_grabbing(boolean()) :: :ok
-  defdelegate set_grabbing(value), to: MediaCentarr.Acquisition.SearchSession
+  defdelegate set_grabbing(value), to: MediaCentaur.Acquisition.SearchSession
 
   @doc "Sets the last-grab outcome message on the session."
   @spec set_grab_message({:ok | :partial | :error, String.t()}) :: :ok
-  defdelegate set_grab_message(message), to: MediaCentarr.Acquisition.SearchSession
+  defdelegate set_grab_message(message), to: MediaCentaur.Acquisition.SearchSession
 
   @doc "Resets the entire search session to the default empty state."
   @spec clear_search_session() :: :ok
-  defdelegate clear_search_session(), to: MediaCentarr.Acquisition.SearchSession, as: :clear
+  defdelegate clear_search_session(), to: MediaCentaur.Acquisition.SearchSession, as: :clear
 
   @doc """
   Re-arms named groups (`:abandoned` / `{:failed, _}` -> `:loading`). The
@@ -1218,7 +1218,7 @@ Edit `lib/media_centarr/acquisition/acquisition.ex`. Find the existing `subscrib
   responsible for spawning Tasks for these terms.
   """
   @spec retry_search_terms([String.t()]) :: :ok
-  defdelegate retry_search_terms(terms), to: MediaCentarr.Acquisition.SearchSession
+  defdelegate retry_search_terms(terms), to: MediaCentaur.Acquisition.SearchSession
 ```
 
 - [ ] **Step 2: Verify the compile is clean**
@@ -1232,7 +1232,7 @@ Expected: clean compile. Boundary check passes — `SearchSession` is referenced
 - [ ] **Step 3: Run the existing acquisition + search_session tests**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr/acquisition/
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur/acquisition/
 ```
 
 Expected: all green.
@@ -1251,11 +1251,11 @@ jj new
 Before refactoring the LiveView, write the tests that prove the new behavior. They should fail against the current implementation (search state lost on navigation), pass after Task 8.
 
 **Files:**
-- Modify: `test/media_centarr_web/live/acquisition_live_test.exs`
+- Modify: `test/media_centaur_web/live/acquisition_live_test.exs`
 
 - [ ] **Step 1: Stub Prowlarr search responses**
 
-Add helpers at the top of the test module (after `alias` lines). The fixture matches `MediaCentarr.Acquisition.SearchResult.from_prowlarr/1` (in `lib/media_centarr/acquisition/search_result.ex`) — keys: `"title"`, `"guid"`, `"indexerId"`, `"size"`, `"seeders"`, `"leechers"`, `"indexer"`, `"publishDate"`:
+Add helpers at the top of the test module (after `alias` lines). The fixture matches `MediaCentaur.Acquisition.SearchResult.from_prowlarr/1` (in `lib/media_centaur/acquisition/search_result.ex`) — keys: `"title"`, `"guid"`, `"indexerId"`, `"size"`, `"seeders"`, `"leechers"`, `"indexer"`, `"publishDate"`:
 
 ```elixir
   defp stub_prowlarr_with(results) do
@@ -1280,14 +1280,14 @@ Add helpers at the top of the test module (after `alias` lines). The fixture mat
 
 - [ ] **Step 2: Add the persistence tests**
 
-Append to `test/media_centarr_web/live/acquisition_live_test.exs`. Place the new `describe` block after the existing ones:
+Append to `test/media_centaur_web/live/acquisition_live_test.exs`. Place the new `describe` block after the existing ones:
 
 ```elixir
   describe "search session persistence" do
     setup do
       # Reset the singleton SearchSession between tests so the slot is empty
       # at start. Each test starts the BEAM-wide singleton GenServer.
-      MediaCentarr.Acquisition.clear_search_session()
+      MediaCentaur.Acquisition.clear_search_session()
       :ok
     end
 
@@ -1332,14 +1332,14 @@ Append to `test/media_centarr_web/live/acquisition_live_test.exs`. Place the new
       |> element("button[phx-click='select_result'][phx-value-guid='guid-1']")
       |> render_click()
 
-      session_before = MediaCentarr.Acquisition.current_search_session()
+      session_before = MediaCentaur.Acquisition.current_search_session()
       assert session_before.selections == %{"Sample Show" => "guid-1"}
 
       # Navigate away and back.
       {:ok, _other_view, _other_html} = live(conn, "/")
       {:ok, _view2, _html2} = live(conn, "/download")
 
-      session_after = MediaCentarr.Acquisition.current_search_session()
+      session_after = MediaCentaur.Acquisition.current_search_session()
       assert session_after.selections == %{"Sample Show" => "guid-1"}
     end
 
@@ -1356,7 +1356,7 @@ Append to `test/media_centarr_web/live/acquisition_live_test.exs`. Place the new
       |> render_submit()
 
       :timer.sleep(50)
-      session_before = MediaCentarr.Acquisition.current_search_session()
+      session_before = MediaCentaur.Acquisition.current_search_session()
       assert Enum.all?(session_before.groups, fn group -> group.status == :loading end)
 
       # Simulate LV death by stopping the LV process.
@@ -1365,7 +1365,7 @@ Append to `test/media_centarr_web/live/acquisition_live_test.exs`. Place the new
       # Allow :DOWN message processing.
       :timer.sleep(100)
 
-      session_after = MediaCentarr.Acquisition.current_search_session()
+      session_after = MediaCentaur.Acquisition.current_search_session()
       assert Enum.all?(session_after.groups, fn group -> group.status == :abandoned end)
 
       # Mount fresh, render, expect a Retry control to be visible.
@@ -1375,12 +1375,12 @@ Append to `test/media_centarr_web/live/acquisition_live_test.exs`. Place the new
   end
 ```
 
-The third test stubs Prowlarr to hang, then kills the LV — the Task that was started lives under `MediaCentarr.TaskSupervisor` and is unlinked from the LV, so it'll keep running until the test process exits. That's fine since `record_search_result/3` is idempotent.
+The third test stubs Prowlarr to hang, then kills the LV — the Task that was started lives under `MediaCentaur.TaskSupervisor` and is unlinked from the LV, so it'll keep running until the test process exits. That's fine since `record_search_result/3` is idempotent.
 
 - [ ] **Step 3: Run the new tests to verify they fail**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr_web/live/acquisition_live_test.exs --only describe:"search session persistence"
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur_web/live/acquisition_live_test.exs --only describe:"search session persistence"
 ```
 
 (If `--only describe:` doesn't filter as expected for ExUnit, just run the whole file; the new tests should be the failing ones.)
@@ -1401,12 +1401,12 @@ jj new
 This is the largest task. Rewrite `mount/3`, `handle_params/3`, every search-related `handle_event/3`, the search-related `handle_info/2`, and update the render template to read from `@search_session.<field>` instead of individual assigns.
 
 **Files:**
-- Modify: `lib/media_centarr_web/live/acquisition_live.ex`
-- Modify: `lib/media_centarr_web/live/acquisition_live/logic.ex` (slim down)
+- Modify: `lib/media_centaur_web/live/acquisition_live.ex`
+- Modify: `lib/media_centaur_web/live/acquisition_live/logic.ex` (slim down)
 
 - [ ] **Step 1: Rewrite `mount/3`**
 
-In `lib/media_centarr_web/live/acquisition_live.ex`, replace the existing `mount/3` body. The new mount subscribes to both topics, reads the current session, and assigns it whole:
+In `lib/media_centaur_web/live/acquisition_live.ex`, replace the existing `mount/3` body. The new mount subscribes to both topics, reads the current session, and assigns it whole:
 
 ```elixir
   @impl true
@@ -1607,7 +1607,7 @@ Replace `{:run_search_one, query}`:
 
 ```elixir
   def handle_info({:run_search_one, query}, socket) do
-    Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, fn ->
+    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
       outcome =
         try do
           Acquisition.search(query)
@@ -1679,7 +1679,7 @@ Use Edit's `replace_all: true` on the file for each rename if no other matches e
 
 - [ ] **Step 6: Add `Logic.any_loading?/1` and remove now-unused functions**
 
-In `lib/media_centarr_web/live/acquisition_live/logic.ex`:
+In `lib/media_centaur_web/live/acquisition_live/logic.ex`:
 
 Add (the inverse of the existing `all_loaded?/1`):
 
@@ -1718,7 +1718,7 @@ Update the type alias since `:abandoned` is now valid:
 - [ ] **Step 7: Run the LiveView tests**
 
 ```bash
-MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centarr_web/live/acquisition_live_test.exs
+MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix test test/media_centaur_web/live/acquisition_live_test.exs
 ```
 
 Expected: all green, including the persistence tests added in Task 7.
@@ -1745,17 +1745,17 @@ jj new
 Drop tests for the functions removed in Task 8 Step 6, and run the project's full precommit gate.
 
 **Files:**
-- Modify: `test/media_centarr_web/live/acquisition_live/logic_test.exs` (if it exists — verify)
+- Modify: `test/media_centaur_web/live/acquisition_live/logic_test.exs` (if it exists — verify)
 
 - [ ] **Step 1: Find and delete tests for removed functions**
 
 ```bash
-grep -rn -E "expansion_preview|build_groups|placeholder_groups|apply_search_result|mark_group_loading|add_default_selection|default_selections|toggle_group" test/media_centarr_web/live/acquisition_live/
+grep -rn -E "expansion_preview|build_groups|placeholder_groups|apply_search_result|mark_group_loading|add_default_selection|default_selections|toggle_group" test/media_centaur_web/live/acquisition_live/
 ```
 
 Open each match and delete tests targeting the removed functions. Functions still exported from `Logic` (per Task 8 Step 6's "Keep" list) keep their tests.
 
-If equivalent coverage exists in `test/media_centarr/acquisition/search_session_test.exs` (which it does, given Tasks 2–5), no test loss is regressive — we moved the logic and the tests. If a deleted test had assertions not covered in the SearchSession suite, port them over.
+If equivalent coverage exists in `test/media_centaur/acquisition/search_session_test.exs` (which it does, given Tasks 2–5), no test loss is regressive — we moved the logic and the tests. If a deleted test had assertions not covered in the SearchSession suite, port them over.
 
 - [ ] **Step 2: Run `mix precommit`**
 
@@ -1784,7 +1784,7 @@ Confirm the user-visible behavior matches the spec.
 
 - [ ] **Step 1: Start dev IEx if not running**
 
-If a dev session is already running under `iex --name repl@127.0.0.1 --remsh media_centarr_dev@127.0.0.1`, attach. Otherwise start fresh: `iex -S mix phx.server`. (Note: per project convention, the dev server is run as a manual IEx session, not the systemd dev unit; recompile via `recompile` inside IEx after the changes land.)
+If a dev session is already running under `iex --name repl@127.0.0.1 --remsh media_centaur_dev@127.0.0.1`, attach. Otherwise start fresh: `iex -S mix phx.server`. (Note: per project convention, the dev server is run as a manual IEx session, not the systemd dev unit; recompile via `recompile` inside IEx after the changes land.)
 
 - [ ] **Step 2: Open the dev browser**
 

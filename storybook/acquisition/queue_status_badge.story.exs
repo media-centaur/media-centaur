@@ -1,9 +1,9 @@
-defmodule MediaCentarrWeb.Storybook.Acquisition.QueueStatusBadge do
+defmodule MediaCentaurWeb.Storybook.Acquisition.QueueStatusBadge do
   @moduledoc "Compact freshness pill for the Downloads page queue header."
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.Components.Acquisition.QueueStatusBadge.queue_status_badge/1
+  def function, do: &MediaCentaurWeb.Components.Acquisition.QueueStatusBadge.queue_status_badge/1
   def render_source, do: :function
 
   def template do

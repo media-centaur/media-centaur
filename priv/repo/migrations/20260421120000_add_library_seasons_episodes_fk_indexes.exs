@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddLibrarySeasonsEpisodesFkIndexes do
+defmodule MediaCentaur.Repo.Migrations.AddLibrarySeasonsEpisodesFkIndexes do
   use Ecto.Migration
 
   # Rounds out the FK indexing started in 20260405173122_add_library_fk_indexes.

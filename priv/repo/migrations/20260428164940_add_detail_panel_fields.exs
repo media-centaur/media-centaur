@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddDetailPanelFields do
+defmodule MediaCentaur.Repo.Migrations.AddDetailPanelFields do
   use Ecto.Migration
 
   def change do

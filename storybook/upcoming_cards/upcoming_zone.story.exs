@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
+defmodule MediaCentaurWeb.Storybook.UpcomingCards.UpcomingZone do
   @moduledoc """
   Upcoming releases zone — monthly calendar, active-shows section,
   recent-changes feed, tracking list, unscheduled list, and a
@@ -6,7 +6,7 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
 
   This is the most complex single component in the catalog (11 attrs,
   most loosely-typed `:map`/`:list`/`:any`). The contract is documented
-  in `MediaCentarrWeb.Components.UpcomingCards.upcoming_zone/1`.
+  in `MediaCentaurWeb.Components.UpcomingCards.upcoming_zone/1`.
 
   ## Why representative coverage rather than exhaustive
 
@@ -33,7 +33,7 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   ## Contract observations
 
   The contract is a Phase 3 candidate in
-  `~/src/media-centarr/component-contract-plan.md` (paired migration
+  `~/src/media-centaur/component-contract-plan.md` (paired migration
   with `library_cards.ex`). Notable smells observed while wiring this
   story:
 
@@ -58,18 +58,18 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   use PhoenixStorybook.Story, :component
 
   # Per the component's `@doc_releases_*` / `@doc_events_list` contracts on
-  # `MediaCentarrWeb.Components.UpcomingCards`, the schema modules
-  # `MediaCentarr.ReleaseTracking.{Item,Release,Event}` are intentionally
+  # `MediaCentaurWeb.Components.UpcomingCards`, the schema modules
+  # `MediaCentaur.ReleaseTracking.{Item,Release,Event}` are intentionally
   # NOT exported from their boundary — the attrs stay loose-typed (`:map` /
   # `:list`) with prose contracts. So this story uses plain maps with the
   # same fields rather than aliasing the schemas, matching the policy.
   # `Pursuit` + `Target` are exported and `TrackedItem` is a web-layer
   # view-model — all safe to alias.
-  alias MediaCentarr.Acquisition.Pursuits.Pursuit
-  alias MediaCentarr.Acquisition.Target
-  alias MediaCentarrWeb.Components.UpcomingCards.TrackedItem
+  alias MediaCentaur.Acquisition.Pursuits.Pursuit
+  alias MediaCentaur.Acquisition.Target
+  alias MediaCentaurWeb.Components.UpcomingCards.TrackedItem
 
-  def function, do: &MediaCentarrWeb.Components.UpcomingCards.upcoming_zone/1
+  def function, do: &MediaCentaurWeb.Components.UpcomingCards.upcoming_zone/1
   def render_source, do: :function
 
   # The upcoming zone is a full-page composition — narrow it into a
@@ -247,7 +247,7 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   # builds. `library_container_id: nil` matches a freshly-tracked item that
   # hasn't been linked to a library container yet.
 
-  # Plain maps mirroring `MediaCentarr.ReleaseTracking.Item`'s schema
+  # Plain maps mirroring `MediaCentaur.ReleaseTracking.Item`'s schema
   # fields. Components accept loose `:map`/`:list` attrs (see header
   # comment), so structs aren't required.
   defp sample_item_tv do
@@ -285,7 +285,7 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   end
 
   # --- Releases ---------------------------------------------------------
-  # Plain maps mirroring `MediaCentarr.ReleaseTracking.Release`'s fields.
+  # Plain maps mirroring `MediaCentaur.ReleaseTracking.Release`'s fields.
 
   defp tv_release(item, air_date, season, episode, title, opts \\ []) do
     %{
@@ -318,7 +318,7 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   end
 
   # --- Events -----------------------------------------------------------
-  # Plain maps mirroring `MediaCentarr.ReleaseTracking.Event`'s fields.
+  # Plain maps mirroring `MediaCentaur.ReleaseTracking.Event`'s fields.
 
   defp sample_events do
     [
@@ -352,7 +352,7 @@ defmodule MediaCentarrWeb.Storybook.UpcomingCards.UpcomingZone do
   # `tracked_item_row/1` declares `attr :item, TrackedItem, required: true`
   # — Phoenix.Component runtime checks reject a plain map there.
   # `TrackedItem` is the web-layer view-model, not the
-  # `MediaCentarr.ReleaseTracking.Item` schema (which stays private).
+  # `MediaCentaur.ReleaseTracking.Item` schema (which stays private).
   defp sample_tracked_items(item_tv, item_movie) do
     [
       %TrackedItem{

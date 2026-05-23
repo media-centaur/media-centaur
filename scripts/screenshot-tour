@@ -5,11 +5,11 @@
 #
 # Prerequisites:
 #   1. Showcase DB created and seeded (all prefixed with the override env var):
-#        MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.create
-#        MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.migrate
-#        MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix seed.showcase
+#        MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.create
+#        MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.migrate
+#        MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix seed.showcase
 #   2. Server running with the showcase override (binds :4003):
-#        MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix phx.server
+#        MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix phx.server
 #   3. Hyprland running (for the floating-window rule). Not strictly
 #      required — Chromium will just open normally on other compositors.
 #
@@ -48,8 +48,8 @@ fi
 # the tour's Chromium window so it doesn't get auto-tiled.
 #
 # The launch config (test/e2e/screenshot-tour.config.js) forces XWayland
-# with --ozone-platform=x11 and sets --class=media-centarr. That lands a
-# literal WM_CLASS of "media-centarr" on the tour window only, so a
+# with --ozone-platform=x11 and sets --class=media-centaur. That lands a
+# literal WM_CLASS of "media-centaur" on the tour window only, so a
 # single exact-match rule is surgical — it cannot touch the user's other
 # Chromium windows.
 #
@@ -59,10 +59,10 @@ fi
 if command -v hyprctl > /dev/null 2>&1; then
   hyprctl reload > /dev/null 2>&1 || true
   for rule in \
-    "float, class:^media-centarr$" \
-    "size 1400 900, class:^media-centarr$" \
-    "center, class:^media-centarr$" \
-    "noinitialfocus, class:^media-centarr$"
+    "float, class:^media-centaur$" \
+    "size 1400 900, class:^media-centaur$" \
+    "center, class:^media-centaur$" \
+    "noinitialfocus, class:^media-centaur$"
   do
     hyprctl keyword windowrulev2 "$rule" > /dev/null 2>&1 || true
   done
@@ -75,7 +75,7 @@ mkdir -p "$REPO_ROOT/docs-site/assets/screenshots" "$REPO_ROOT/docs-site/assets/
 # is missing (showcase not yet created), the vars stay empty and the
 # tour's waitFor selectors time out cleanly — a visible failure rather
 # than a silent miss.
-SHOWCASE_DB="$REPO_ROOT/priv/showcase/media-centarr.db"
+SHOWCASE_DB="$REPO_ROOT/priv/showcase/media-centaur.db"
 if [ -f "$SHOWCASE_DB" ]; then
   NOSFERATU_ID=$(sqlite3 "$SHOWCASE_DB" "SELECT id FROM library_movies WHERE name = 'Nosferatu' LIMIT 1;" 2>/dev/null || true)
   PIONEER_ONE_ID=$(sqlite3 "$SHOWCASE_DB" "SELECT id FROM library_tv_series WHERE name = 'Pioneer One' LIMIT 1;" 2>/dev/null || true)

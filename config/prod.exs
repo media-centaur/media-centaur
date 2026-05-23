@@ -2,7 +2,7 @@ import Config
 
 # Use the same component-aware formatter as dev so thinking logs show [component]
 config :logger, :default_formatter,
-  format: {MediaCentarr.Log.Formatter, :format},
+  format: {MediaCentaur.Log.Formatter, :format},
   metadata: [:component]
 
 # Note we also include the path to a cache manifest
@@ -14,8 +14,8 @@ config :logger, :default_formatter,
 # before starting your production server.
 config :logger, level: :info
 
-config :media_centarr, MediaCentarrWeb.Endpoint, cache_static_manifest: "priv/static/cache_manifest.json"
-config :media_centarr, :environment, :prod
+config :media_centaur, MediaCentaurWeb.Endpoint, cache_static_manifest: "priv/static/cache_manifest.json"
+config :media_centaur, :environment, :prod
 
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.

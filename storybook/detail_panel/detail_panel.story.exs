@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
+defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   @moduledoc """
   Shared entity detail content rendered inside the entity modal — hero,
   metadata row, play card, facet strip, and the type-specific content
@@ -78,10 +78,10 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
 
   ## Contract observations (for Phase 3 typed-attr migration)
 
-  Recorded as input for `~/src/media-centarr/component-contract-plan.md`:
+  Recorded as input for `~/src/media-centaur/component-contract-plan.md`:
 
     * **TV-series episode-list path migrated** to
-      `MediaCentarrWeb.ViewModel.{SeriesDetail, SeasonView,
+      `MediaCentaurWeb.ViewModel.{SeriesDetail, SeasonView,
       EpisodeListItem.{Library, Missing, Upcoming}}` — `seasons_view`
       attr is the typed contract `season_section/1`,
       `episode_row/1`, `missing_episode_row/1`, and the new
@@ -121,15 +121,15 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
   use PhoenixStorybook.Story, :component
 
   # Per the data-decoupling policy (ADR-029), `WatchProgress` is private
-  # to `MediaCentarr.Library` — its boundary doesn't export the schema.
+  # to `MediaCentaur.Library` — its boundary doesn't export the schema.
   # The component declares `attr :progress_records, :list` (loose-typed),
   # so this story uses plain maps with the same fields. `WatchedFile` IS
   # exported and stays aliased.
-  alias MediaCentarr.Library.{Person, WatchedFile}
-  alias MediaCentarrWeb.ViewModel.EpisodeListItem
-  alias MediaCentarrWeb.ViewModel.SeasonView
+  alias MediaCentaur.Library.{Person, WatchedFile}
+  alias MediaCentaurWeb.ViewModel.EpisodeListItem
+  alias MediaCentaurWeb.ViewModel.SeasonView
 
-  def function, do: &MediaCentarrWeb.Components.DetailPanel.detail_panel/1
+  def function, do: &MediaCentaurWeb.Components.DetailPanel.detail_panel/1
   def render_source, do: :function
 
   # The detail panel is naturally tall and wide — two-column would
@@ -416,7 +416,7 @@ defmodule MediaCentarrWeb.Storybook.DetailPanel.DetailPanel do
     }
   end
 
-  # Plain-map progress records mirror `MediaCentarr.Library.WatchProgress`
+  # Plain-map progress records mirror `MediaCentaur.Library.WatchProgress`
   # — all three foreign keys (`movie_id`, `episode_id`, `video_object_id`)
   # included with explicit `nil` for the unused ones, since plain maps
   # don't get the schema's struct defaults and the consuming code does

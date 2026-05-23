@@ -39,7 +39,7 @@ A well-managed suite is *fast because it is correct*, not fast because
 it cuts corners. Three rules, all enforced or load-bearing:
 
 **Async work is owned, never orphaned.** In the web layer, never spawn
-`Task.Supervisor.start_child(MediaCentarr.TaskSupervisor, …)` — that
+`Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, …)` — that
 task is owned by nobody, leaks past navigation, and orphans under the
 global supervisor in tests. Use `start_async/3` / `assign_async/3` for
 view loads (cancelled with the LiveView, awaitable in tests); use an
@@ -73,7 +73,7 @@ cause is unowned async — fix the seam, don't extend the wait.
 
 ## Page Smoke Tests (Mandatory for Every Route + Zone)
 
-`test/media_centarr_web/page_smoke_test.exs` mounts every top-level
+`test/media_centaur_web/page_smoke_test.exs` mounts every top-level
 LiveView route and asserts it renders without crashing. This is the
 cheapest possible safety net for the class of bug that pure-helper unit
 tests can't catch — a render-path crash (`KeyError`, `BadBooleanError`,
@@ -152,7 +152,7 @@ gap between lines is the teardown. Chase the gap, not the number.
   cmdline contains the string `mix test`, so it matches and dies before
   reaching the real command. To kill a real run, target a unique
   substring (`pkill -f 'mix test --slowest'`) or check `fuser
-  priv/repo/media_centarr_test.db`.
+  priv/repo/media_centaur_test.db`.
 - **`mix test … | tail` shows nothing until the run ends** — `tail`
   buffers to EOF, so you can't watch progress and a kill mid-run loses
   all output. Redirect to a file (`> /tmp/out 2>&1`) and read that.
@@ -174,10 +174,10 @@ gap between lines is the teardown. Chase the gap, not the number.
 | Template | When | Async? |
 |----------|------|--------|
 | `use ExUnit.Case, async: true` | Pure functions (Parser, Serializer, Mapper, Confidence) | Yes |
-| `use MediaCentarr.DataCase` | Ecto schema tests, pipeline stages, anything touching DB | No (SQLite) |
-| `use MediaCentarrWeb.ConnCase` | HTTP/LiveView connection tests | No |
+| `use MediaCentaur.DataCase` | Ecto schema tests, pipeline stages, anything touching DB | No (SQLite) |
+| `use MediaCentaurWeb.ConnCase` | HTTP/LiveView connection tests | No |
 
-### Factory — `MediaCentarr.TestFactory`
+### Factory — `MediaCentaur.TestFactory`
 
 All tests use the shared factory. Never inline `Ecto.Changeset.cast` / `Repo.insert!` boilerplate.
 
@@ -207,7 +207,7 @@ Fixtures: `movie_search_result/1`, `tv_search_result/1`, `movie_detail/1`, `tv_d
 
 ### Image Downloads
 
-`config/test.exs` sets `:image_downloader` to `MediaCentarr.NoopImageDownloader`. No HTTP or file I/O in tests.
+`config/test.exs` sets `:image_downloader` to `MediaCentaur.NoopImageDownloader`. No HTTP or file I/O in tests.
 
 ### Filesystem Isolation ([ADR-016])
 

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Credo.Checks.ContextSubscribeFacade do
+defmodule MediaCentaur.Credo.Checks.ContextSubscribeFacade do
   use Credo.Check,
     id: "MC0003",
     base_priority: :high,
@@ -10,7 +10,7 @@ defmodule MediaCentarr.Credo.Checks.ContextSubscribeFacade do
       than calling `Phoenix.PubSub.subscribe/2` directly. Topic knowledge
       stays in the context that owns it.
 
-          # preferred (in lib/media_centarr_web/live/foo_live.ex)
+          # preferred (in lib/media_centaur_web/live/foo_live.ex)
           if connected?(socket) do
             Library.subscribe()
             Playback.subscribe()
@@ -18,7 +18,7 @@ defmodule MediaCentarr.Credo.Checks.ContextSubscribeFacade do
 
           # NOT preferred
           if connected?(socket) do
-            Phoenix.PubSub.subscribe(MediaCentarr.PubSub, "library:updates")
+            Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "library:updates")
           end
 
       Source: CLAUDE.md "Context facade subscribe pattern".
@@ -36,7 +36,7 @@ defmodule MediaCentarr.Credo.Checks.ContextSubscribeFacade do
   end
 
   defp liveview_path?(filename) do
-    String.contains?(filename, "lib/media_centarr_web/live/")
+    String.contains?(filename, "lib/media_centaur_web/live/")
   end
 
   # Phoenix.PubSub.subscribe(...)

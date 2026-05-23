@@ -2,8 +2,8 @@
 
 End-user playback documentation has moved to the wiki:
 
-- **[Playback](https://github.com/media-centarr/media-centarr/wiki/Playback)** — starting playback, resume logic, next-episode, multi-session.
-- **[Keyboard & Gamepad](https://github.com/media-centarr/media-centarr/wiki/Keyboard-and-Gamepad)** — full input reference, including mpv controls.
+- **[Playback](https://github.com/media-centaur/media-centaur/wiki/Playback)** — starting playback, resume logic, next-episode, multi-session.
+- **[Keyboard & Gamepad](https://github.com/media-centaur/media-centaur/wiki/Keyboard-and-Gamepad)** — full input reference, including mpv controls.
 
 ---
 
@@ -34,7 +34,7 @@ graph TD
 
 ### Key Concepts
 
-**Multi-session playback:** Multiple mpv processes can run concurrently, one per entity. Each session is identified by its entity_id and uses an entity-scoped socket (`media-centarr-{entity_id}.sock`).
+**Multi-session playback:** Multiple mpv processes can run concurrently, one per entity. Each session is identified by its entity_id and uses an entity-scoped socket (`media-centaur-{entity_id}.sock`).
 
 **Observation, not control:** The backend is a tracking system. The user controls mpv directly (keyboard, remote, gamepad). Each MpvSession observes position/duration/pause/eof via IPC, persists watch progress, and broadcasts state via PubSub.
 
@@ -46,7 +46,7 @@ graph TD
 
 **Error surfacing:** mpv exit codes are classified by `MpvExitClassifier` into user-actionable categories (bad format, missing file, unreadable input, generic). MpvSession attaches the classification to the flash message the UI shows, and pipes mpv's full stderr through `ProgressBroadcaster` into the Console drawer (`:playback` filter) and the systemd journal for post-mortem inspection.
 
-Because the production launch uses `--no-terminal` (which silences mpv's stderr entirely), the live port-data tail is usually empty. `MpvSession` adds `--log-file=<socket_dir>/media-centarr-<session_id>.log` to every spawn, and `MpvLogReader.fallback_tail/3` slurps the last 5 lines of that file when the port tail is empty — so the classifier always has the real mpv error string to summarise.
+Because the production launch uses `--no-terminal` (which silences mpv's stderr entirely), the live port-data tail is usually empty. `MpvSession` adds `--log-file=<socket_dir>/media-centaur-<session_id>.log` to every spawn, and `MpvLogReader.fallback_tail/3` slurps the last 5 lines of that file when the port tail is empty — so the classifier always has the real mpv error string to summarise.
 
 **Display-env resolution:** Before each spawn `DisplayEnv.resolve/1` builds the env list passed to `Port.open`. It prefers any `WAYLAND_DISPLAY` / `DISPLAY` already in the parent env, and falls back to scanning `$XDG_RUNTIME_DIR/wayland-N` (lowest N wins) and `/tmp/.X11-unix/XN` for live sockets. This protects against the common production failure where the systemd-user service started before the graphical session imported its env — without it, mpv aborts with status 1 and the classifier can only emit "mpv exited before playback started". When neither display server is reachable the session refuses to launch and broadcasts `PlaybackFailed{reason: :no_display}` so the UI can surface a clear message.
 
@@ -136,7 +136,7 @@ LiveView subscribers receive both via PubSub.
 
 #### Session Recovery (ADR-023)
 
-On startup, a one-shot Task scans the socket directory for `media-centarr-*.sock` files. For each socket found, it probes mpv for the current path and position, resolves the entity, and starts a reconnecting MpvSession. Dead socket files are cleaned up.
+On startup, a one-shot Task scans the socket directory for `media-centaur-*.sock` files. For each socket found, it probes mpv for the current path and position, resolves the entity, and starts a reconnecting MpvSession. Dead socket files are cleaned up.
 
 #### WatchingTracker
 
@@ -165,20 +165,20 @@ After 20 continuous seconds, `actively_watching` becomes `true` and `saveable_po
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentarr.Playback.Sessions` | Public API facade (stateless) | `lib/media_centarr/playback/sessions.ex` |
-| `MediaCentarr.Playback.SessionRegistry` | Registry wrapper, entity_id lookup | `lib/media_centarr/playback/session_registry.ex` |
-| `MediaCentarr.Playback.MpvSession` | Per-session GenServer, MPV IPC observer | `lib/media_centarr/playback/mpv_session.ex` |
-| `MediaCentarr.Playback.SessionSupervisor` | DynamicSupervisor for sessions | `lib/media_centarr/playback/session_supervisor.ex` |
-| `MediaCentarr.Playback.SessionRecovery` | Multi-socket orphan recovery | `lib/media_centarr/playback/session_recovery.ex` |
-| `MediaCentarr.Playback.Supervisor` | Groups Registry + SessionSupervisor + Recovery | `lib/media_centarr/playback/supervisor.ex` |
-| `MediaCentarr.Playback.Resume` | Resume/next algorithm | `lib/media_centarr/playback/resume.ex` |
-| `MediaCentarr.Playback.Resolver` | UUID → play params | `lib/media_centarr/playback/resolver.ex` |
-| `MediaCentarr.Playback.EpisodeList` | TV episode walking helpers | `lib/media_centarr/playback/episode_list.ex` |
-| `MediaCentarr.Playback.MovieList` | Movie series walking helpers | `lib/media_centarr/playback/movie_list.ex` |
-| `MediaCentarr.Playback.ProgressSummary` | Display-ready progress computation | `lib/media_centarr/playback/progress_summary.ex` |
-| `MediaCentarr.Playback.ResumeTarget` | Play-button hint computation | `lib/media_centarr/playback/resume_target.ex` |
-| `MediaCentarr.Playback.WatchingTracker` | Seek detection, continuous-watch gating | `lib/media_centarr/playback/watching_tracker.ex` |
-| `MediaCentarr.Playback.MpvExitClassifier` | Classifies mpv exit output into actionable error categories | `lib/media_centarr/playback/mpv_exit_classifier.ex` |
-| `MediaCentarr.Playback.MpvLogReader` | Tails the per-session `--log-file=` capture for the classifier | `lib/media_centarr/playback/mpv_log_reader.ex` |
-| `MediaCentarr.Playback.DisplayEnv` | Resolves `WAYLAND_DISPLAY` / `DISPLAY` env for mpv spawn | `lib/media_centarr/playback/display_env.ex` |
-| `MediaCentarr.Playback.ProgressBroadcaster` | Fan-out of progress + diagnostic output to PubSub and thinking logs | `lib/media_centarr/playback/progress_broadcaster.ex` |
+| `MediaCentaur.Playback.Sessions` | Public API facade (stateless) | `lib/media_centaur/playback/sessions.ex` |
+| `MediaCentaur.Playback.SessionRegistry` | Registry wrapper, entity_id lookup | `lib/media_centaur/playback/session_registry.ex` |
+| `MediaCentaur.Playback.MpvSession` | Per-session GenServer, MPV IPC observer | `lib/media_centaur/playback/mpv_session.ex` |
+| `MediaCentaur.Playback.SessionSupervisor` | DynamicSupervisor for sessions | `lib/media_centaur/playback/session_supervisor.ex` |
+| `MediaCentaur.Playback.SessionRecovery` | Multi-socket orphan recovery | `lib/media_centaur/playback/session_recovery.ex` |
+| `MediaCentaur.Playback.Supervisor` | Groups Registry + SessionSupervisor + Recovery | `lib/media_centaur/playback/supervisor.ex` |
+| `MediaCentaur.Playback.Resume` | Resume/next algorithm | `lib/media_centaur/playback/resume.ex` |
+| `MediaCentaur.Playback.Resolver` | UUID → play params | `lib/media_centaur/playback/resolver.ex` |
+| `MediaCentaur.Playback.EpisodeList` | TV episode walking helpers | `lib/media_centaur/playback/episode_list.ex` |
+| `MediaCentaur.Playback.MovieList` | Movie series walking helpers | `lib/media_centaur/playback/movie_list.ex` |
+| `MediaCentaur.Playback.ProgressSummary` | Display-ready progress computation | `lib/media_centaur/playback/progress_summary.ex` |
+| `MediaCentaur.Playback.ResumeTarget` | Play-button hint computation | `lib/media_centaur/playback/resume_target.ex` |
+| `MediaCentaur.Playback.WatchingTracker` | Seek detection, continuous-watch gating | `lib/media_centaur/playback/watching_tracker.ex` |
+| `MediaCentaur.Playback.MpvExitClassifier` | Classifies mpv exit output into actionable error categories | `lib/media_centaur/playback/mpv_exit_classifier.ex` |
+| `MediaCentaur.Playback.MpvLogReader` | Tails the per-session `--log-file=` capture for the classifier | `lib/media_centaur/playback/mpv_log_reader.ex` |
+| `MediaCentaur.Playback.DisplayEnv` | Resolves `WAYLAND_DISPLAY` / `DISPLAY` env for mpv spawn | `lib/media_centaur/playback/display_env.ex` |
+| `MediaCentaur.Playback.ProgressBroadcaster` | Fan-out of progress + diagnostic output to PubSub and thinking logs | `lib/media_centaur/playback/progress_broadcaster.ex` |

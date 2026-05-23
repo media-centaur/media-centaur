@@ -1,12 +1,12 @@
-defmodule MediaCentarrWeb.Storybook.CoreComponents.Input do
+defmodule MediaCentaurWeb.Storybook.CoreComponents.Input do
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.CoreComponents.input/1
+  def function, do: &MediaCentaurWeb.CoreComponents.input/1
   def render_source, do: :function
   def layout, do: :one_column
 
   # Mirrors the live `attr :type, values: [...]` declaration in
-  # MediaCentarrWeb.CoreComponents.input/1. Keep in sync; every value here
+  # MediaCentaurWeb.CoreComponents.input/1. Keep in sync; every value here
   # must have a visual representation (none of the supported types are visually
   # invisible like a hypothetical `hidden`).
   @types ~w(text email password search tel url number color date datetime-local

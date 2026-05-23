@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Credo.Checks.TypedComponentAttrs do
+defmodule MediaCentaur.Credo.Checks.TypedComponentAttrs do
   use Credo.Check,
     id: "MC0008",
     base_priority: :normal,
@@ -6,12 +6,12 @@ defmodule MediaCentarr.Credo.Checks.TypedComponentAttrs do
     explanations: [
       check: """
       Phoenix function-component `attr` declarations under
-      `lib/media_centarr_web/` that use a loose type (`:list`, `:map`,
+      `lib/media_centaur_web/` that use a loose type (`:list`, `:map`,
       `:any`, or `:global`) must carry a non-empty `doc:` justification.
 
           # preferred (typed)
           attr :items, :list, required: true, doc: "list of `Item.t()`"
-          attr :entity, MediaCentarr.Library.Movie, required: true
+          attr :entity, MediaCentaur.Library.Movie, required: true
           attr :delete_confirm, :any, default: nil, doc: "transient flag"
 
           # NOT preferred
@@ -21,11 +21,11 @@ defmodule MediaCentarr.Credo.Checks.TypedComponentAttrs do
       The `doc:` field is the explicit waiver — it forces a contributor
       to document why a loose contract is acceptable instead of silently
       passing untyped data to a component. Per
-      `~/src/media-centarr/component-contract-plan.md`, prefer in order:
+      `~/src/media-centaur/component-contract-plan.md`, prefer in order:
 
         1. Co-located view-model struct with `@enforce_keys`
         2. Existing Ecto schema reference (`Library.Movie`, etc.)
-        3. Shared `MediaCentarrWeb.ViewModels.*` struct
+        3. Shared `MediaCentaurWeb.ViewModels.*` struct
         4. `:list` / `:map` / `:any` / `:global` with a `doc:`
            justification (last resort)
 
@@ -52,7 +52,7 @@ defmodule MediaCentarr.Credo.Checks.TypedComponentAttrs do
   end
 
   defp applies_to?(filename) do
-    String.contains?(filename, "lib/media_centarr_web/") and
+    String.contains?(filename, "lib/media_centaur_web/") and
       String.ends_with?(filename, ".ex") and
       not excluded_file?(filename)
   end
@@ -60,7 +60,7 @@ defmodule MediaCentarr.Credo.Checks.TypedComponentAttrs do
   # `core_components.ex` and `layouts.ex` are Phoenix-generated bases
   # whose attrs (`attr :rest, :global`, `attr :class, :any`) are
   # intentionally generic and predate the contract migration. They sit
-  # outside the scope of `~/src/media-centarr/component-contract-plan.md`
+  # outside the scope of `~/src/media-centaur/component-contract-plan.md`
   # and would only generate noise.
   defp excluded_file?(filename) do
     String.ends_with?(filename, "core_components.ex") or

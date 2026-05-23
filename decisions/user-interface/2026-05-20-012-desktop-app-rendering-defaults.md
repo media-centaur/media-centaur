@@ -6,7 +6,7 @@ date: 2026-05-20
 
 ## Context and Problem Statement
 
-Media Centarr is a specialized desktop application: single user, runs
+Media Centaur is a specialized desktop application: single user, runs
 locally, has a curated library bounded by what's on disk. It is not a
 public-internet web app serving anonymous traffic over a hostile
 network. But the codebase had inherited every "good web citizen"
@@ -55,7 +55,7 @@ The defaults:
    `loading="eager" decoding="sync"`. `loading="lazy"` is reserved
    for bounded reveal-on-demand surfaces (cast headshots inside
    the "More Info" pane; track-search results inside a modal) and
-   flagged elsewhere by `MediaCentarr.Credo.Checks.ImgAttributeDefaults`
+   flagged elsewhere by `MediaCentaur.Credo.Checks.ImgAttributeDefaults`
    (MC0016).
 
 2. **`fetchpriority="high"` on the page backdrop and modal
@@ -86,7 +86,7 @@ The defaults:
 
 8. **Versioned image URLs are `immutable`; plain image URLs are
    `max-age=3600` + ETag.** Implemented in
-   `MediaCentarrWeb.Plugs.ImageServer`. The version parameter
+   `MediaCentaurWeb.Plugs.ImageServer`. The version parameter
    (`?v=<n>`) acts as the cache key.
 
 9. **Sane static defaults in HTML to avoid pre-JS flash.**
@@ -124,7 +124,7 @@ The defaults:
 | Stable `id={...}` on iterator roots | Convention | `user-interface` skill |
 | No entrance animations on mount | Convention | `user-interface` skill |
 | `topbar.show(800)` | Code | `assets/js/app.js` |
-| WS-only transport | Code | `lib/media_centarr_web/endpoint.ex` |
-| Immutable hashed assets | Code | `lib/media_centarr_web/endpoint.ex` (`Plug.Static` opts) |
-| Image cache headers (versioned vs. plain) | Code | `lib/media_centarr_web/plugs/image_server.ex` |
-| Static `data-input="mouse"` default | Code | `lib/media_centarr_web/components/layouts/root.html.heex` |
+| WS-only transport | Code | `lib/media_centaur_web/endpoint.ex` |
+| Immutable hashed assets | Code | `lib/media_centaur_web/endpoint.ex` (`Plug.Static` opts) |
+| Image cache headers (versioned vs. plain) | Code | `lib/media_centaur_web/plugs/image_server.ex` |
+| Static `data-input="mouse"` default | Code | `lib/media_centaur_web/components/layouts/root.html.heex` |

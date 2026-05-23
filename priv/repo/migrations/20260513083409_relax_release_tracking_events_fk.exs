@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.RelaxReleaseTrackingEventsFk do
+defmodule MediaCentaur.Repo.Migrations.RelaxReleaseTrackingEventsFk do
   use Ecto.Migration
 
   # Events carry a denormalized `item_name` so they survive item deletion

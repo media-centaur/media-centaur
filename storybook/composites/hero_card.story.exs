@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Composites.HeroCard do
+defmodule MediaCentaurWeb.Storybook.Composites.HeroCard do
   @moduledoc """
   Full-bleed hero card for the Home page.
 
@@ -14,7 +14,7 @@ defmodule MediaCentarrWeb.Storybook.Composites.HeroCard do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarrWeb.Components.HeroCard
+  alias MediaCentaurWeb.Components.HeroCard
 
   def function, do: &HeroCard.hero_card/1
   def render_source, do: :function

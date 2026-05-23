@@ -1,0 +1,32 @@
+# Showcase override — self-contained config for the demo instance.
+#
+# Activate by setting MEDIA_CENTAUR_CONFIG_OVERRIDE to this file's path.
+# Paths below are relative to repo root (i.e. the CWD when running mix
+# tasks from the checkout).
+#
+#   MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.create
+#   MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.migrate
+#   MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix seed.showcase
+#   MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix phx.server
+#
+# Everything the showcase needs (DB, image cache, fake watch dir) lives
+# under priv/showcase/, which is git-ignored — a `rm -rf priv/showcase/`
+# resets the demo cleanly.
+
+# Separate port so the showcase can run side-by-side with dev (1080) and
+# prod (2160) without colliding. scripts/screenshot-tour defaults to this.
+port = 4003
+
+# Showcase data lives inside the repo checkout, not ~/.local/share, so
+# the demo setup is fully contained and git-clean-able.
+database_path = "priv/showcase/media-centaur.db"
+
+watch_dirs = [
+  { dir = "priv/showcase/media", images_dir = "priv/showcase/images" }
+]
+
+# ---------------------------------------------------------------------------
+# All other settings (TMDB, pipeline thresholds, playback paths, etc.) are
+# imported from seed.showcase on first boot and managed through the Settings
+# page thereafter. Add them here only if the seeder doesn't cover them.
+# ---------------------------------------------------------------------------

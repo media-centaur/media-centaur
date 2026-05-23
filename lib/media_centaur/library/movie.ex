@@ -1,0 +1,153 @@
+defmodule MediaCentaur.Library.Movie do
+  @moduledoc """
+  A child movie belonging to a `MovieSeries` entity (or a standalone
+  Movie when `movie_series_id` is nil). Parallel to `Episode` belonging
+  to a `Season` — stores per-movie metadata from TMDB.
+
+  `duration_seconds` is the canonical integer-seconds field (Library Schema
+  v2 Phase 1 Task 3). The pipeline derives it from TMDB's `runtime`
+  (minutes) at ingest time via `TMDB.Mapper.movie_attrs/3`. The prior
+  stringly-typed `:duration` column was dropped; any previously-stored
+  values are not recoverable but are repopulated on the next TMDB refresh.
+
+  TMDB and IMDB ids live in `Library.ExternalId` rows reachable via the
+  `:external_ids` association — they are no longer columns on this
+  schema (Library Schema v2 Phase 1 Task 6). Read through
+  `MediaCentaur.Library.ExternalIds.get/2`; write through
+  `MediaCentaur.Library.ExternalIds.put/3`.
+
+  ## `content_url` is a derived virtual field
+
+  `content_url` no longer carries a persisted column (Library Schema v2
+  Phase 2 Task I dropped it). It is materialised at read time from
+  `playable_items.watched_files.file_path` by
+  `MediaCentaur.Library.populate_content_urls/1` — the read-side seam the
+  detail panel, resume pipeline, and playback resolvers consume. Writes
+  must go through `Library.link_file/1` against a `PlayableItem` — not
+  through this schema.
+  """
+  use Ecto.Schema
+  import Ecto.Changeset
+
+  alias MediaCentaur.Library.Person
+
+  @primary_key {:id, Ecto.UUID, autogenerate: true}
+  @foreign_key_type Ecto.UUID
+  @timestamps_opts [type: :utc_datetime]
+
+  schema "library_movies" do
+    field :name, :string
+    field :description, :string
+    field :date_published, :date
+    field :duration_seconds, :integer
+    field :director, :string
+    field :content_rating, :string
+    # Virtual: populated from `playable_items.watched_files.file_path` by
+    # `MediaCentaur.Library.populate_content_urls/1` (Library Schema v2
+    # Phase 2 Task I). The persisted column was dropped; `WatchedFile` is
+    # the sole source of truth.
+    field :content_url, :string, virtual: true
+    field :url, :string
+    field :aggregate_rating_value, :float
+    field :vote_count, :integer
+    field :tagline, :string
+    field :original_language, :string
+    field :studio, :string
+    field :country_code, :string
+    field :position, :integer
+
+    field :genres, {:array, :string}
+
+    field :status, Ecto.Enum,
+      values: [:released, :in_production, :post_production, :planned, :rumored, :canceled]
+
+    embeds_many :cast, Person, on_replace: :delete
+    embeds_many :crew, Person, on_replace: :delete
+
+    belongs_to :movie_series, MediaCentaur.Library.MovieSeries
+
+    # Polymorphic associations — Image / Extra / ExternalId rows discriminate
+    # on `(owner_type, owner_id)` (Library Schema v2 Phase 2 Tasks D, E, F).
+    has_many :images, MediaCentaur.Library.Image,
+      foreign_key: :owner_id,
+      where: [owner_type: :movie]
+
+    has_many :extras, MediaCentaur.Library.Extra,
+      foreign_key: :owner_id,
+      where: [owner_type: :movie]
+
+    has_many :external_ids, MediaCentaur.Library.ExternalId,
+      foreign_key: :owner_id,
+      where: [owner_type: :movie]
+
+    # Polymorphic has_many via Ecto's `where:` filter. The `container_id` FK
+    # is shared across container types; the discriminator keeps the
+    # association scoped to this kind. See `Library.PlayableItem` moduledoc.
+    has_many :playable_items, MediaCentaur.Library.PlayableItem,
+      foreign_key: :container_id,
+      where: [container_type: :movie]
+
+    # WatchedFiles reach this Movie via its PlayableItems
+    # (Library Schema v2 Phase 2 Task B). One Movie may host multiple
+    # PlayableItems (director's cut etc.), each with its own
+    # WatchedFile.
+    has_many :watched_files, through: [:playable_items, :watched_files]
+
+    # WatchProgress is per-PlayableItem (Library Schema v2 Phase 2
+    # Task C). For the canonical single-cut case there is one or zero
+    # — `has_one :through` matches the historical Movie-level
+    # `:watch_progress` semantics. If a Movie ever has multiple
+    # PlayableItems (director's cut etc.) each with WatchProgress,
+    # `Repo.preload(movie, :watch_progress)` silently returns the
+    # first PlayableItem's progress; the second cut would be invisible
+    # at this preload path. Multi-cut work must read progress through
+    # `:playable_items` directly.
+    has_one :watch_progress, through: [:playable_items, :watch_progress]
+
+    timestamps()
+  end
+
+  def create_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [
+      :id,
+      :name,
+      :description,
+      :date_published,
+      :duration_seconds,
+      :director,
+      :content_rating,
+      :url,
+      :aggregate_rating_value,
+      :vote_count,
+      :tagline,
+      :original_language,
+      :studio,
+      :country_code,
+      :genres,
+      :position,
+      :movie_series_id,
+      :status
+    ])
+    |> cast_embed(:cast, with: &Person.cast_member_changeset/2)
+    |> cast_embed(:crew, with: &Person.crew_member_changeset/2)
+    |> validate_required([:name])
+  end
+
+  @doc """
+  Replaces the credits embeds in place — used by
+  `MediaCentaur.Maintenance.refresh_movie_credits/0` to backfill cast
+  and crew from a fresh TMDB fetch. `cast_embed` is required here
+  because `Ecto.Changeset.change/2` cannot coerce maps into
+  `embeds_many` entries.
+
+  The IMDB id no longer lives on this schema; the credits-refresh
+  call site writes it separately via `Library.ExternalIds.put(:imdb,
+  movie, id)` after this changeset has been applied.
+  """
+  def update_credits_changeset(movie, attrs) do
+    movie
+    |> change()
+    |> Person.put_credits(attrs)
+  end
+end

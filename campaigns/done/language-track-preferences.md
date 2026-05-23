@@ -112,7 +112,7 @@ updated. Closing items bucketed under *Completion criteria*.
    differs from what launched.
 3. Wait ~4s (debounce) for the `captured track override` log line
    (Console drawer, `` ` ``, or `~/scripts/mc-rpc`).
-4. Inspect: `~/scripts/mc-rpc 'MediaCentarr.Library.get_media_track_override(:movie, "<id>") |> inspect()'`.
+4. Inspect: `~/scripts/mc-rpc 'MediaCentaur.Library.get_media_track_override(:movie, "<id>") |> inspect()'`.
 5. Quit mpv, replay the same entity → confirm it launches with the
    captured tracks (`--alang`/`--slang` reflect the override).
 6. Open the entity's **More info** → the **Remembered tracks** badge
@@ -144,10 +144,10 @@ upgrade the meta-block *Language* line for consistency.
 
 * Plan: `~/.claude/plans/let-s-think-about-a-elegant-meteor.md`
 * ADR: [048 canonical language codes](../decisions/architecture/2026-05-22-048-canonical-language-codes-at-boundary.md)
-* Modules: `MediaCentarr.Playback.{LanguagePolicy, TrackResolver,
+* Modules: `MediaCentaur.Playback.{LanguagePolicy, TrackResolver,
   OverrideCapture, LanguageContext, Iso639}`,
-  `MediaCentarr.Library.MediaTrackOverride`,
-  `MediaCentarr.Playback.MpvSession` (capture wiring),
-  `MediaCentarrWeb.Live.SettingsLive` (playback section)
+  `MediaCentaur.Library.MediaTrackOverride`,
+  `MediaCentaur.Playback.MpvSession` (capture wiring),
+  `MediaCentaurWeb.Live.SettingsLive` (playback section)
 * Auto-memory: `project-language-prefs-v1.md` (v2 follow-ups),
   `feedback-no-co-authored-by-claude.md`

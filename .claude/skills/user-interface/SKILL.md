@@ -15,7 +15,7 @@ description: "Use this skill before any UI work — LiveView templates, componen
 
 ## Rendering Defaults ([ADR-012])
 
-Media Centarr is a specialized desktop app, not a public-internet web app. We trade memory and bandwidth (essentially free in this context) for instant perception. These rules apply to every UI surface unless explicitly justified otherwise:
+Media Centaur is a specialized desktop app, not a public-internet web app. We trade memory and bandwidth (essentially free in this context) for instant perception. These rules apply to every UI surface unless explicitly justified otherwise:
 
 **Images in the page flow:**
 
@@ -23,7 +23,7 @@ Media Centarr is a specialized desktop app, not a public-internet web app. We tr
 <img src={...} loading="eager" decoding="sync" />
 ```
 
-Enforced by `MediaCentarr.Credo.Checks.ImgAttributeDefaults` (MC0016). `loading="lazy"` is reserved for bounded reveal-on-demand surfaces (cast headshots, track-search results). Adding a third lazy site requires extending the exempt list with a justification.
+Enforced by `MediaCentaur.Credo.Checks.ImgAttributeDefaults` (MC0016). `loading="lazy"` is reserved for bounded reveal-on-demand surfaces (cast headshots, track-search results). Adding a third lazy site requires extending the exempt list with a justification.
 
 **Hero / page-dominant images:** add `fetchpriority="high"`. Two per surface max — the priority signal must remain meaningful.
 
@@ -41,7 +41,7 @@ Enforced by `MediaCentarr.Credo.Checks.ImgAttributeDefaults` (MC0016). `loading=
 
 **Don't mask transport failures.** WebSocket is the only LiveView transport. No longpoll fallback. A real reconnect attempt is better UX than a hidden slow path.
 
-**Image cache headers** (already wired in `MediaCentarrWeb.Plugs.ImageServer`):
+**Image cache headers** (already wired in `MediaCentaurWeb.Plugs.ImageServer`):
 - Versioned URLs (`?v=<n>`): `public, max-age=31536000, immutable`
 - Plain URLs: `public, max-age=3600` + ETag
 
@@ -84,13 +84,13 @@ Every recipe below has a runnable counterpart in **Phoenix Storybook** at <http:
 
 The full philosophy and triage table live at [`docs/storybook.md`](../../docs/storybook.md). The dedicated [`storybook`](../storybook/SKILL.md) skill covers conventions and anti-patterns.
 
-**Story rule.** Story modules must live under `MediaCentarrWeb.Storybook.*` — that places them inside the `MediaCentarrWeb` boundary. The default `Storybook.*` namespace from the generator is wrong for this repo.
+**Story rule.** Story modules must live under `MediaCentaurWeb.Storybook.*` — that places them inside the `MediaCentaurWeb` boundary. The default `Storybook.*` namespace from the generator is wrong for this repo.
 
 ## Component Recipes
 
 ### Buttons ([UIDR-003])
 
-**Always** use the `<.button>` component with a `variant` and `size`. Raw `class="btn ..."` strings in templates are flagged by `MediaCentarr.Credo.Checks.RawButtonClass` (precommit). Pass extra Tailwind utilities through the component's `class` attribute.
+**Always** use the `<.button>` component with a `variant` and `size`. Raw `class="btn ..."` strings in templates are flagged by `MediaCentaur.Credo.Checks.RawButtonClass` (precommit). Pass extra Tailwind utilities through the component's `class` attribute.
 
 | Variant | Use | Daisy classes (under the hood) |
 |---------|-----|--------------------------------|
@@ -120,7 +120,7 @@ Sizes: `"xs"`, `"sm"`, `"md"` (default), `"lg"`. Shapes: `"circle"`, `"square"` 
 
 ### Badges ([UIDR-002])
 
-**Always** use the `<.badge>` component with a `variant` and `size` for any `badge`-styled element. Raw `class="badge ..."` strings (and `class={["badge ...", ...]}` list expressions) in templates are flagged by `MediaCentarr.Credo.Checks.RawBadgeClass` (precommit). Pass extra Tailwind utilities through the component's `class` attribute.
+**Always** use the `<.badge>` component with a `variant` and `size` for any `badge`-styled element. Raw `class="badge ..."` strings (and `class={["badge ...", ...]}` list expressions) in templates are flagged by `MediaCentaur.Credo.Checks.RawBadgeClass` (precommit). Pass extra Tailwind utilities through the component's `class` attribute.
 
 | Variant | Use | Daisy classes |
 |---------|-----|---------------|

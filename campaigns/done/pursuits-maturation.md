@@ -119,7 +119,7 @@ Phased; ship each phase as its own commit set so we can pause between.
      `Acquisition.do_search_for_pursuit`, `PursueTarget`.
    * Move timeline presentation (`summary_for/2`, `severity_for/1`,
      `detail_for/1`, `transition_phrase/2`) out of
-     `MediaCentarr.Acquisition.Pursuits` into
+     `MediaCentaur.Acquisition.Pursuits` into
      `ViewModels.TimelineEntry.from_event/1`.
    * Rename `Pursuits.Observations` semantics — honest moduledoc
      that owns "signal-derived event emission" (the
@@ -202,6 +202,6 @@ Phased; ship each phase as its own commit set so we can pause between.
 * Audit conversation (this session) — source of all findings.
 * ADR-039 — original pursuits design.
 * ADR-041 — three-pillar segregation (Pillar 1 storage commitment).
-* `MediaCentarr.Acquisition.Pursuits.*` — internals being preserved.
-* `MediaCentarr.Acquisition` — the 1,047-line parent slated for
+* `MediaCentaur.Acquisition.Pursuits.*` — internals being preserved.
+* `MediaCentaur.Acquisition` — the 1,047-line parent slated for
   splitting in Phase 4.

@@ -29,20 +29,20 @@ The page doubles as a cheat sheet — each row shows the current binding regardl
 
 | Module | Responsibility | Boundary deps |
 |---|---|---|
-| `MediaCentarr.Controls` (facade) | Public API: `get/0`, `put/3`, `clear/2`, `reset_category/1`, `reset_all/0`, `subscribe/0`, `glyph_style/0` | `Settings` |
-| `MediaCentarr.Controls.Catalog` | Compile-time list of `%Binding{}` structs — the single source of truth for every binding, its metadata, and its defaults | (none) |
-| `MediaCentarr.Controls.Store` | Reads/writes `Settings.Entry` rows, decodes JSON, applies defaults for missing keys | `Settings` |
-| `MediaCentarrWeb.SettingsLive.Controls` | LiveView section rendered inside `SettingsLive` (same pattern as `Overview`, `SystemSection`) | `Controls`, `Settings` |
-| `MediaCentarrWeb.SettingsLive.ControlsLogic` | Pure helpers: catalog→view model, conflict detection, swap resolution, glyph-style display mapping | (none) |
+| `MediaCentaur.Controls` (facade) | Public API: `get/0`, `put/3`, `clear/2`, `reset_category/1`, `reset_all/0`, `subscribe/0`, `glyph_style/0` | `Settings` |
+| `MediaCentaur.Controls.Catalog` | Compile-time list of `%Binding{}` structs — the single source of truth for every binding, its metadata, and its defaults | (none) |
+| `MediaCentaur.Controls.Store` | Reads/writes `Settings.Entry` rows, decodes JSON, applies defaults for missing keys | `Settings` |
+| `MediaCentaurWeb.SettingsLive.Controls` | LiveView section rendered inside `SettingsLive` (same pattern as `Overview`, `SystemSection`) | `Controls`, `Settings` |
+| `MediaCentaurWeb.SettingsLive.ControlsLogic` | Pure helpers: catalog→view model, conflict detection, swap resolution, glyph-style display mapping | (none) |
 
 A full bounded context is not justified for ~11 bindings; `Controls` is a thin facade over `Settings.Entry` plus a catalog and conflict logic. It still follows the context facade subscribe pattern (ADR).
 
 ### The binding catalog
 
-`MediaCentarr.Controls.Catalog` exposes `all/0` returning a list of:
+`MediaCentaur.Controls.Catalog` exposes `all/0` returning a list of:
 
 ```elixir
-%MediaCentarr.Controls.Binding{
+%MediaCentaur.Controls.Binding{
   id: :navigate_up,                 # atom, stable forever
   category: :navigation,            # :navigation | :zones | :playback | :system
   name: "Move up",                  # display string
@@ -116,19 +116,19 @@ Clearing — `Controls.clear(binding_id, :keyboard | :gamepad)` — does **not**
 
 ### PubSub topic
 
-New topic in `MediaCentarr.Topics`:
+New topic in `MediaCentaur.Topics`:
 
 ```elixir
 def controls_updates, do: "controls:updates"
 ```
 
-`MediaCentarr.Controls.subscribe/0` wraps the subscribe call (context facade pattern, per the custom Credo check).
+`MediaCentaur.Controls.subscribe/0` wraps the subscribe call (context facade pattern, per the custom Credo check).
 
 ### JS integration
 
 The input system's `core/actions.js` already supports a custom key/button map parameter. Two pieces wire it to runtime config:
 
-1. **Initial load.** `MediaCentarrWeb.Layouts.root` reads `Controls.get/0` server-side and renders the current bindings as a `data-input-bindings="…"` attribute on the root LiveView container (JSON-encoded). `assets/js/input/index.js`'s `createInputHook()` reads that attribute and passes the resulting `keyMap` and `buttonMap` into `KeyboardSource` / `GamepadSource` / `orchestrator`. The existing `DEFAULT_KEY_MAP` / `DEFAULT_BUTTON_MAP` become the fallback when no attr is present.
+1. **Initial load.** `MediaCentaurWeb.Layouts.root` reads `Controls.get/0` server-side and renders the current bindings as a `data-input-bindings="…"` attribute on the root LiveView container (JSON-encoded). `assets/js/input/index.js`'s `createInputHook()` reads that attribute and passes the resulting `keyMap` and `buttonMap` into `KeyboardSource` / `GamepadSource` / `orchestrator`. The existing `DEFAULT_KEY_MAP` / `DEFAULT_BUTTON_MAP` become the fallback when no attr is present.
 
 2. **Hot-swap on change.** On `{:controls_changed, map}`, the Controls LiveView pushes `phx:controls:updated` to the client with the new maps. A small bridge module `assets/js/input/controls_bridge.js` listens for this window event and rebuilds maps in the running input hook. No page reload.
 

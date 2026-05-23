@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Credo.Checks.RowMutationInSchemaMigration do
+defmodule MediaCentaur.Credo.Checks.RowMutationInSchemaMigration do
   use Credo.Check,
     id: "MC0015",
     base_priority: :high,
@@ -35,7 +35,7 @@ defmodule MediaCentarr.Credo.Checks.RowMutationInSchemaMigration do
       enum spelling drift in the same migration that makes the new
       spelling canonical) may opt out per-line:
 
-          # credo:disable-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration
+          # credo:disable-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration
           execute("UPDATE acquisition_grabs SET tmdb_type = 'tv' WHERE tmdb_type = 'tv_series'")
 
       Anything larger — anything that wouldn't fit in the same hunk as
@@ -92,7 +92,7 @@ defmodule MediaCentarr.Credo.Checks.RowMutationInSchemaMigration do
         "Bulk row mutation in a schema migration — move to a data migration in " <>
           "`priv/repo/data_migrations/` per ADR-040. For surgical inline fixups " <>
           "paired with a schema change, add " <>
-          "`# credo:disable-next-line MediaCentarr.Credo.Checks.RowMutationInSchemaMigration`.",
+          "`# credo:disable-next-line MediaCentaur.Credo.Checks.RowMutationInSchemaMigration`.",
       trigger: trigger,
       line_no: line_no || 1
     )

@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Welcome do
+defmodule MediaCentaurWeb.Storybook.Welcome do
   @moduledoc """
   Storybook landing page — restates our philosophy of use.
 
@@ -8,12 +8,12 @@ defmodule MediaCentarrWeb.Storybook.Welcome do
 
   use PhoenixStorybook.Story, :page
 
-  def doc, do: "Media Centarr component catalog — philosophy and conventions."
+  def doc, do: "Media Centaur component catalog — philosophy and conventions."
 
   def render(assigns) do
     ~H"""
     <div class="psb:prose psb:max-w-none psb:p-6">
-      <h1 class="psb:text-2xl psb:font-semibold psb:mb-4">Media Centarr storybook</h1>
+      <h1 class="psb:text-2xl psb:font-semibold psb:mb-4">Media Centaur storybook</h1>
 
       <p class="psb:text-base psb:mb-4">
         A live catalog of the design system. Every component renders here exactly the
@@ -70,7 +70,7 @@ defmodule MediaCentarrWeb.Storybook.Welcome do
           Create <code class="psb:text-sm">storybook/&lt;area&gt;/&lt;component&gt;.story.exs</code>.
         </li>
         <li>
-          Define a module under <code class="psb:text-sm">MediaCentarrWeb.Storybook.*</code>
+          Define a module under <code class="psb:text-sm">MediaCentaurWeb.Storybook.*</code>
           (matters for Boundary).
         </li>
         <li>

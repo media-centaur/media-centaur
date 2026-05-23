@@ -48,7 +48,7 @@ custom classes must fully style the input
 ### Storybook (live component catalog)
 
 - **A PR that adds or changes a function component must update its story** in the same change. Same rule as wiki sync — drift kills the value.
-- Story modules **must** live under `MediaCentarrWeb.Storybook.*` so they classify into the existing `MediaCentarrWeb` boundary. The auto-generated `Storybook.*` namespace breaks Boundary.
+- Story modules **must** live under `MediaCentaurWeb.Storybook.*` so they classify into the existing `MediaCentaurWeb` boundary. The auto-generated `Storybook.*` namespace breaks Boundary.
 - Storybook is **dev-only** (`/storybook`, `Mix.env() == :dev` only) and visual-only — no logic, no assertions. Behavioural coverage stays in test suites.
 - Skip storybook for components that need sticky LiveView state, `data-input` modes, or PubSub topics — page smoke tests cover them.
 - Full philosophy + per-component triage: [`docs/storybook.md`](docs/storybook.md). Conventions, anti-patterns, checklist: [`storybook` skill](.claude/skills/storybook/SKILL.md).

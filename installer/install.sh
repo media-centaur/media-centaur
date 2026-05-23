@@ -1,23 +1,23 @@
 #!/bin/sh
-# Media Centarr — bootstrap installer.
+# Media Centaur — bootstrap installer.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/media-centarr/media-centarr/main/installer/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/media-centaur/media-centaur/main/installer/install.sh | sh
 #
 # Resolves the latest GitHub Release, downloads the Linux x86_64 tarball,
-# verifies it, and hands off to the bundled `bin/media-centarr-install`
+# verifies it, and hands off to the bundled `bin/media-centaur-install`
 # inside the extracted tree.
 #
 # Optional flags:
 #   --version <vX.Y.Z>   Install a specific release tag instead of latest.
 #
 # Optional env:
-#   MEDIA_CENTARR_INSTALL_ROOT  override install root (default ~/.local/lib/media-centarr)
-#   MEDIA_CENTARR_CONFIG_DIR    override config dir   (default ~/.config/media-centarr)
+#   MEDIA_CENTAUR_INSTALL_ROOT  override install root (default ~/.local/lib/media-centaur)
+#   MEDIA_CENTAUR_CONFIG_DIR    override config dir   (default ~/.config/media-centaur)
 
 set -eu
 
-GITHUB_REPO="media-centarr/media-centarr"
+GITHUB_REPO="media-centaur/media-centaur"
 
 die()    { printf 'Error: %s\n' "$1" >&2; exit 1; }
 banner() { printf '==> %s\n' "$1"; }
@@ -96,7 +96,7 @@ fi
 validate_tag "$tag" || die "Rejected malformed tag: $tag"
 
 version=${tag#v}
-tarball="media-centarr-${version}-linux-x86_64.tar.gz"
+tarball="media-centaur-${version}-linux-x86_64.tar.gz"
 base_url="https://github.com/$GITHUB_REPO/releases/download/$tag"
 
 # ---- download + verify ----------------------------------------------------
@@ -118,8 +118,8 @@ banner "Extracting"
 mkdir -p "$tmpdir/extract"
 tar -xzf "$tmpdir/$tarball" -C "$tmpdir/extract"
 
-bundled_installer="$tmpdir/extract/bin/media-centarr-install"
-[ -x "$bundled_installer" ] || die "Tarball missing bin/media-centarr-install — was this built before the install flow shipped?"
+bundled_installer="$tmpdir/extract/bin/media-centaur-install"
+[ -x "$bundled_installer" ] || die "Tarball missing bin/media-centaur-install — was this built before the install flow shipped?"
 
 banner "Handing off to bundled installer"
 # shellcheck disable=SC2086 # intentional word-split of forward_args

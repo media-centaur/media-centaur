@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.CoreComponents.Table do
+defmodule MediaCentaurWeb.Storybook.CoreComponents.Table do
   @moduledoc """
   Rubric-bar story for `table/1` — empty, default, long-rows,
   `row_id`/`row_item` callbacks, and the `:action` slot.
@@ -6,8 +6,8 @@ defmodule MediaCentarrWeb.Storybook.CoreComponents.Table do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.CoreComponents.table/1
-  def imports, do: [{MediaCentarrWeb.CoreComponents, button: 1}]
+  def function, do: &MediaCentaurWeb.CoreComponents.table/1
+  def imports, do: [{MediaCentaurWeb.CoreComponents, button: 1}]
   def render_source, do: :function
   def layout, do: :one_column
 

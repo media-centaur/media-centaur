@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.RenameTablesWithContextPrefix do
+defmodule MediaCentaur.Repo.Migrations.RenameTablesWithContextPrefix do
   use Ecto.Migration
 
   def change do

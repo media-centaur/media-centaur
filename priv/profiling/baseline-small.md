@@ -1,4 +1,4 @@
-# Media Centarr Profile Run
+# Media Centaur Profile Run
 
 | key | value |
 |-----|-------|
@@ -18,7 +18,7 @@
 |-----|-------|
 | schedulers_online | 12 |
 | total schedulers | 12 |
-| database_path | `/home/shawn/src/media-centarr/media-centarr-app/priv/profile/media-centarr.db` |
+| database_path | `/home/shawn/src/media-centaur/media-centaur-app/priv/profile/media-centaur.db` |
 
 
 ## Deltas vs `2026-05-10T20-22-14.635571Z` (sha `fbf1217b`)

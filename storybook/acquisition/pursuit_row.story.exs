@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
+defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
   @moduledoc """
   One row in the Downloads index. Each card consumes a typed
   `PursuitRow` ViewModel; this story constructs literals so the
@@ -11,9 +11,9 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitRow do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Acquisition.ViewModels.{CurrentAction, DownloadProgress, PursuitRow}
+  alias MediaCentaur.Acquisition.ViewModels.{CurrentAction, DownloadProgress, PursuitRow}
 
-  def function, do: &MediaCentarrWeb.Components.Acquisition.PursuitRow.pursuit_row/1
+  def function, do: &MediaCentaurWeb.Components.Acquisition.PursuitRow.pursuit_row/1
   def render_source, do: :function
 
   def template do

@@ -21,7 +21,7 @@ Rules:
 
 ### Component-enforced (2026-05-02 amendment)
 
-Rules 2 and 3 (the cases that actually use a `<span class="badge …">`) now live in the `<.badge>` component (`MediaCentarrWeb.CoreComponents.badge/1`) as named `variant` values: `metric`, `type`, `info`, `success`, `warning`, `error`, `ghost`, `primary`, `soft_primary`. The `MediaCentarr.Credo.Checks.RawBadgeClass` Credo check (precommit) flags any raw `class="badge …"` string in templates under `lib/media_centarr_web/`. The badge component file (`core_components.ex`) is exempt — it owns the literal `badge` token.
+Rules 2 and 3 (the cases that actually use a `<span class="badge …">`) now live in the `<.badge>` component (`MediaCentaurWeb.CoreComponents.badge/1`) as named `variant` values: `metric`, `type`, `info`, `success`, `warning`, `error`, `ghost`, `primary`, `soft_primary`. The `MediaCentaur.Credo.Checks.RawBadgeClass` Credo check (precommit) flags any raw `class="badge …"` string in templates under `lib/media_centaur_web/`. The badge component file (`core_components.ex`) is exempt — it owns the literal `badge` token.
 
 The `primary` / `soft_primary` variants were added during the migration sweep to cover (a) active filter pills that need to grab attention (solid primary blue) and (b) tonal annotations like rewatch counters or manual-origin labels (soft primary). They are deliberately separate variants so the design conversation around "is this a filter pill or a tonal annotation?" stays explicit.
 

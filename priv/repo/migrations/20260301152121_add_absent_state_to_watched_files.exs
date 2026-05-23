@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddAbsentStateToWatchedFiles do
+defmodule MediaCentaur.Repo.Migrations.AddAbsentStateToWatchedFiles do
   @moduledoc """
   Updates resources based on their most recent snapshots.
 

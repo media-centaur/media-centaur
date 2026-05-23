@@ -33,8 +33,8 @@ The split rule:
 
 | Consumer | Data source | Pattern |
 |---|---|---|
-| `MediaCentarr.Watcher.AbsencePolicy` | `MediaCentarr.Watcher.FilePresence` | TTL/lifecycle policy uses presence-tracking primitives. |
-| `MediaCentarr.Library.Availability` | `MediaCentarr.WatcherStatus` | Library reads watcher state through a boundary-neutral helper. |
+| `MediaCentaur.Watcher.AbsencePolicy` | `MediaCentaur.Watcher.FilePresence` | TTL/lifecycle policy uses presence-tracking primitives. |
+| `MediaCentaur.Library.Availability` | `MediaCentaur.WatcherStatus` | Library reads watcher state through a boundary-neutral helper. |
 
 When in doubt: write the moduledoc you'd want to see for the new code
 *first*. If you can't fit it in one short sentence, the work belongs
@@ -46,8 +46,8 @@ in (or as) a separate module.
 
 - Use `DataCase` (not async — SQLite limitation).
 - Use `create_*` factory helpers to persist via the relevant context module
-  (`MediaCentarr.Library`, `MediaCentarr.Review`, `MediaCentarr.ReleaseTracking`,
-  `MediaCentarr.Settings`).
+  (`MediaCentaur.Library`, `MediaCentaur.Review`, `MediaCentaur.ReleaseTracking`,
+  `MediaCentaur.Settings`).
 - Test through the context's public API against the real database — never stub
   the data layer, never call `Repo` directly from tests.
 - For bulk operations, wrap in `Ecto.Multi` and assert on the transaction result.
@@ -77,7 +77,7 @@ Extract all non-trivial LiveView/component logic into public pure functions and 
 
 ## Factory
 
-All tests use `MediaCentarr.TestFactory`. Never inline `Ecto.Changeset.cast` / `Repo.insert!` boilerplate.
+All tests use `MediaCentaur.TestFactory`. Never inline `Ecto.Changeset.cast` / `Repo.insert!` boilerplate.
 
 - `build_*` — pure structs for async tests (fast, no I/O).
 - `create_*` — persisted via context-module functions for DataCase tests.

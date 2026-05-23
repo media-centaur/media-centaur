@@ -12,12 +12,12 @@ domain-data attrs. The acceptable shapes are:
 
 1. **Co-located view-model struct** with `@enforce_keys`
    (Phase 1 pattern — see
-   `lib/media_centarr_web/components/continue_watching_row.ex`
+   `lib/media_centaur_web/components/continue_watching_row.ex`
    for the canonical example).
 2. **Existing Ecto schema** referenced directly:
-   `attr :entity, MediaCentarr.Library.Movie`.
+   `attr :entity, MediaCentaur.Library.Movie`.
 3. **Top-level shared view-model** under
-   `MediaCentarrWeb.ViewModels.*` when the same shape is
+   `MediaCentaurWeb.ViewModels.*` when the same shape is
    consumed by multiple sibling components.
 4. **`:any` / `:map` / `:list` ONLY with an explicit `doc:`
    justification** — Phoenix Streams (`:streams, :any`),
@@ -32,7 +32,7 @@ was significantly out of date (it described "many bare attrs in
 `core_components.ex` and elsewhere"); the actual state is:
 
 * **165 total** `:map | :list | :any` attrs across
-  `lib/media_centarr_web/{components,live}`.
+  `lib/media_centaur_web/{components,live}`.
 * **157 (95%)** carry a `doc:` justification.
 * **8 bare attrs remain** (`core_components.ex` ×7,
   `layouts.ex` ×1) — all Phoenix-supplied infrastructure
@@ -80,7 +80,7 @@ the Credo check codifies the exclusion.
 Shipped as `MC0008` at
 `credo_checks/typed_component_attrs.ex`. Rule: any
 `attr ..., :list | :map | :any | :global` under
-`lib/media_centarr_web/` must carry a non-empty `doc:` field.
+`lib/media_centaur_web/` must carry a non-empty `doc:` field.
 Recognises raw strings, string interpolation,
 concatenation, sigils (`~s` / `~S`), and module-attribute
 references (`doc: @doc_some_shape`) as valid waivers.
@@ -93,7 +93,7 @@ strict.
 Stories for typed components construct their attribute
 fixtures via the actual struct (verified spot-check:
 `storybook/detail/more_info_panel.story.exs` uses
-`%MediaCentarr.Library.Person{}` for `cast`/`crew`).
+`%MediaCentaur.Library.Person{}` for `cast`/`crew`).
 Where the component attr is a justified `:map` (polymorphic
 Library entity), the story passes a literal map and that's
 consistent with the contract. Any drift would crash
@@ -109,7 +109,7 @@ Append-only.
   `doc:` justification in the attr declaration.
 * `2026-04` — **Three acceptable typed shapes**: co-located
   Item struct with `@enforce_keys`, existing Ecto schema
-  reference, or shared `MediaCentarrWeb.ViewModels.*` for
+  reference, or shared `MediaCentaurWeb.ViewModels.*` for
   multi-component shapes.
 * `2026-04` — **Triggering incident**: home-page row cards
   (Continue Watching, Coming Up, Recently Added) shipped as
@@ -164,8 +164,8 @@ Append-only.
 * `credo_checks/storybook_coverage.ex` — `MC0009`, requires
   a story per function component (complements MC0008 by
   forcing stories to exercise the struct).
-* `lib/media_centarr_web/components/continue_watching_row.ex`
+* `lib/media_centaur_web/components/continue_watching_row.ex`
   — canonical typed `Item` struct with `@enforce_keys`.
-* `lib/media_centarr_web/components/modal_shell.ex` — example
+* `lib/media_centaur_web/components/modal_shell.ex` — example
   of justified `:map` attrs for a polymorphic shape, each
   carrying a `doc:` pointer to the producer.

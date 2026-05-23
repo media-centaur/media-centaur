@@ -1,6 +1,6 @@
 # Library
 
-The library is the core data domain. It stores all media entities, their relationships, watch progress, and file tracking. Built on [Ecto](https://github.com/elixir-ecto/ecto) with SQLite, organized as type-specific schemas (Movie, TVSeries, MovieSeries, VideoObject) wrapped by the `MediaCentarr.Library` context module.
+The library is the core data domain. It stores all media entities, their relationships, watch progress, and file tracking. Built on [Ecto](https://github.com/elixir-ecto/ecto) with SQLite, organized as type-specific schemas (Movie, TVSeries, MovieSeries, VideoObject) wrapped by the `MediaCentaur.Library` context module.
 
 > [Architecture](architecture.md) · [Watcher](watcher.md) · [Pipeline](pipeline.md) · [TMDB](tmdb.md) · [Playback](playback.md) · **Library** · [Input System](input-system.md)
 
@@ -123,9 +123,9 @@ graph TD
 
 ### Movie / TVSeries / MovieSeries / VideoObject
 
-The four top-level type records. Each carries common attributes — `name`, `description`, `date_published`, `genres`, `duration`, `director`, `content_rating` — plus type-specific fields (e.g. `number_of_seasons` on `TVSeries`, `position` on a Movie linked to a MovieSeries, `content_url` on Movie / Episode / VideoObject for the playable file path). The Ecto schemas in `lib/media_centarr/library/` are the canonical reference.
+The four top-level type records. Each carries common attributes — `name`, `description`, `date_published`, `genres`, `duration`, `director`, `content_rating` — plus type-specific fields (e.g. `number_of_seasons` on `TVSeries`, `position` on a Movie linked to a MovieSeries, `content_url` on Movie / Episode / VideoObject for the playable file path). The Ecto schemas in `lib/media_centaur/library/` are the canonical reference.
 
-CRUD goes through `MediaCentarr.Library` (the context facade) using ordinary Ecto queries — no Ash actions or polymorphic dispatch. Reads that need full association trees use the dedicated helper modules listed in the [Module Reference](#module-reference).
+CRUD goes through `MediaCentaur.Library` (the context facade) using ordinary Ecto queries — no Ash actions or polymorphic dispatch. Reads that need full association trees use the dedicated helper modules listed in the [Module Reference](#module-reference).
 
 ### Season
 
@@ -179,11 +179,11 @@ Per-playable-item progress. Indexed by `(entity_id, season_number, episode_numbe
 
 For standalone movies: `season_number = 0, episode_number = 0`. For movie series children: `season_number = 0, episode_number = ordinal`.
 
-> Settings (the per-installation key/value store) is its own bounded context — `MediaCentarr.Settings.Entry` — not part of `Library`. See [`architecture.md`](architecture.md#bounded-contexts).
+> Settings (the per-installation key/value store) is its own bounded context — `MediaCentaur.Settings.Entry` — not part of `Library`. See [`architecture.md`](architecture.md#bounded-contexts).
 
 ## Inbound API
 
-`MediaCentarr.Library.Inbound` is the pipeline's entry point into the library. It is a PubSub-listener GenServer (subscribed to `pipeline:publish`) that handles `{:entity_published, event}` and `{:image_ready, attrs}` messages and:
+`MediaCentaur.Library.Inbound` is the pipeline's entry point into the library. It is a PubSub-listener GenServer (subscribed to `pipeline:publish`) that handles `{:entity_published, event}` and `{:image_ready, attrs}` messages and:
 
 1. **Resolves** existing type records by TMDB identifier lookup via `Library.Identifier`
 2. **Creates** new records (and their children) if not found, with race-loss recovery on the unique `(source, external_id)` constraint
@@ -237,7 +237,7 @@ This is the v0.20.0 fix for the silent-failure mode where pressing Play on an un
 
 ## Review Domain
 
-Separate bounded context (`MediaCentarr.Review`) for files awaiting human review.
+Separate bounded context (`MediaCentaur.Review`) for files awaiting human review.
 
 **PendingFile** stores: file path, parsed metadata, best TMDB match with confidence, all scored candidates, status (`:pending` / `:approved` / `:dismissed`).
 
@@ -249,29 +249,29 @@ See [pipeline.md](pipeline.md#review-flow) for the full review workflow.
 
 | Module | Description | Path |
 |--------|-------------|------|
-| `MediaCentarr.Library` | Library context — CRUD for all types | `lib/media_centarr/library.ex` |
-| `MediaCentarr.Library.Movie` | Standalone or collection movie | `lib/media_centarr/library/movie.ex` |
-| `MediaCentarr.Library.TVSeries` | TV series with seasons/episodes | `lib/media_centarr/library/tv_series.ex` |
-| `MediaCentarr.Library.MovieSeries` | Movie collection/saga | `lib/media_centarr/library/movie_series.ex` |
-| `MediaCentarr.Library.VideoObject` | Standalone video | `lib/media_centarr/library/video_object.ex` |
-| `MediaCentarr.Library.Season` | TV season | `lib/media_centarr/library/season.ex` |
-| `MediaCentarr.Library.Episode` | TV episode | `lib/media_centarr/library/episode.ex` |
-| `MediaCentarr.Library.Extra` | Bonus feature | `lib/media_centarr/library/extra.ex` |
-| `MediaCentarr.Library.Image` | Artwork | `lib/media_centarr/library/image.ex` |
-| `MediaCentarr.Library.ExternalId` | Identifier (TMDB, IMDB) — schema for `library_identifiers` | `lib/media_centarr/library/external_id.ex` |
-| `MediaCentarr.Library.WatchedFile` | File-to-record link | `lib/media_centarr/library/watched_file.ex` |
-| `MediaCentarr.Library.WatchProgress` | Playback progress | `lib/media_centarr/library/watch_progress.ex` |
-| `MediaCentarr.Library.TypeResolver` | UUID-to-type-record lookup | `lib/media_centarr/library/type_resolver.ex` |
-| `MediaCentarr.Library.EntityShape` | Normalize type records to common map shape | `lib/media_centarr/library/entity_shape.ex` |
-| `MediaCentarr.Library.EntityCascade` | Cascade-deletion order | `lib/media_centarr/library/entity_cascade.ex` |
-| `MediaCentarr.Library.Inbound` | Pipeline → library inbound PubSub listener | `lib/media_centarr/library/inbound.ex` |
-| `MediaCentarr.Library.Availability` | Per-watch-dir mount/reachability tracker | `lib/media_centarr/library/availability.ex` |
-| `MediaCentarr.Library.Browser` | Library browse + filter helpers used by LibraryLive | `lib/media_centarr/library/browser.ex` |
-| `MediaCentarr.Library.ProgressTracker` | Resume-target / completion bookkeeping | `lib/media_centarr/library/progress_tracker.ex` |
-| `MediaCentarr.Library.LastActivity` | "Recently watched" / activity ordering helper | `lib/media_centarr/library/last_activity.ex` |
-| `MediaCentarr.Library.Helpers` | PubSub broadcast helpers | `lib/media_centarr/library/helpers.ex` |
-| `MediaCentarr.Library.FileEventHandler` | File presence tracking, cleanup | `lib/media_centarr/library/file_event_handler.ex` |
-| `MediaCentarr.Library.ChangeLog` | Library change recording | `lib/media_centarr/library/change_log.ex` |
-| `MediaCentarr.Review` | Review context | `lib/media_centarr/review.ex` |
-| `MediaCentarr.Review.PendingFile` | Pending review file | `lib/media_centarr/review/pending_file.ex` |
-| `MediaCentarr.Review.Intake` | Payload → PendingFile mapper | `lib/media_centarr/review/intake.ex` |
+| `MediaCentaur.Library` | Library context — CRUD for all types | `lib/media_centaur/library.ex` |
+| `MediaCentaur.Library.Movie` | Standalone or collection movie | `lib/media_centaur/library/movie.ex` |
+| `MediaCentaur.Library.TVSeries` | TV series with seasons/episodes | `lib/media_centaur/library/tv_series.ex` |
+| `MediaCentaur.Library.MovieSeries` | Movie collection/saga | `lib/media_centaur/library/movie_series.ex` |
+| `MediaCentaur.Library.VideoObject` | Standalone video | `lib/media_centaur/library/video_object.ex` |
+| `MediaCentaur.Library.Season` | TV season | `lib/media_centaur/library/season.ex` |
+| `MediaCentaur.Library.Episode` | TV episode | `lib/media_centaur/library/episode.ex` |
+| `MediaCentaur.Library.Extra` | Bonus feature | `lib/media_centaur/library/extra.ex` |
+| `MediaCentaur.Library.Image` | Artwork | `lib/media_centaur/library/image.ex` |
+| `MediaCentaur.Library.ExternalId` | Identifier (TMDB, IMDB) — schema for `library_identifiers` | `lib/media_centaur/library/external_id.ex` |
+| `MediaCentaur.Library.WatchedFile` | File-to-record link | `lib/media_centaur/library/watched_file.ex` |
+| `MediaCentaur.Library.WatchProgress` | Playback progress | `lib/media_centaur/library/watch_progress.ex` |
+| `MediaCentaur.Library.TypeResolver` | UUID-to-type-record lookup | `lib/media_centaur/library/type_resolver.ex` |
+| `MediaCentaur.Library.EntityShape` | Normalize type records to common map shape | `lib/media_centaur/library/entity_shape.ex` |
+| `MediaCentaur.Library.EntityCascade` | Cascade-deletion order | `lib/media_centaur/library/entity_cascade.ex` |
+| `MediaCentaur.Library.Inbound` | Pipeline → library inbound PubSub listener | `lib/media_centaur/library/inbound.ex` |
+| `MediaCentaur.Library.Availability` | Per-watch-dir mount/reachability tracker | `lib/media_centaur/library/availability.ex` |
+| `MediaCentaur.Library.Browser` | Library browse + filter helpers used by LibraryLive | `lib/media_centaur/library/browser.ex` |
+| `MediaCentaur.Library.ProgressTracker` | Resume-target / completion bookkeeping | `lib/media_centaur/library/progress_tracker.ex` |
+| `MediaCentaur.Library.LastActivity` | "Recently watched" / activity ordering helper | `lib/media_centaur/library/last_activity.ex` |
+| `MediaCentaur.Library.Helpers` | PubSub broadcast helpers | `lib/media_centaur/library/helpers.ex` |
+| `MediaCentaur.Library.FileEventHandler` | File presence tracking, cleanup | `lib/media_centaur/library/file_event_handler.ex` |
+| `MediaCentaur.Library.ChangeLog` | Library change recording | `lib/media_centaur/library/change_log.ex` |
+| `MediaCentaur.Review` | Review context | `lib/media_centaur/review.ex` |
+| `MediaCentaur.Review.PendingFile` | Pending review file | `lib/media_centaur/review/pending_file.ex` |
+| `MediaCentaur.Review.Intake` | Payload → PendingFile mapper | `lib/media_centaur/review/intake.ex` |

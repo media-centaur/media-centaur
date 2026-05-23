@@ -31,7 +31,7 @@ Out of scope (deliberate):
 
 ## Data model
 
-Add an embedded JSON column to `MediaCentarr.Library.Movie`:
+Add an embedded JSON column to `MediaCentaur.Library.Movie`:
 
 ```elixir
 field :cast, {:array, :map}, default: []
@@ -55,7 +55,7 @@ String keys (not atoms) so the column round-trips through SQLite/JSON without at
 
 ## TMDB extraction
 
-`MediaCentarr.TMDB.Mapper` already destructures `movie["credits"]` for `extract_director/1`. Add `extract_cast/1`:
+`MediaCentaur.TMDB.Mapper` already destructures `movie["credits"]` for `extract_director/1`. Add `extract_cast/1`:
 
 ```elixir
 def extract_cast(%{"cast" => cast}) when is_list(cast) do
@@ -79,7 +79,7 @@ Wire it into the existing `from_movie/1` so the field flows through the import p
 
 ## Component
 
-New module `MediaCentarrWeb.Components.Detail.CastStrip` in `lib/media_centarr_web/components/detail/cast_strip.ex`.
+New module `MediaCentaurWeb.Components.Detail.CastStrip` in `lib/media_centaur_web/components/detail/cast_strip.ex`.
 
 ```elixir
 attr :cast, :list, required: true,
@@ -103,7 +103,7 @@ Slotted into `DetailPanel` as the last visible content, only when `entity.type` 
 
 Existing movies have `cast: []` after the migration. To populate:
 
-- Add a one-shot maintenance action in `MediaCentarr.Maintenance` (extend an existing "refresh metadata" action if one is already present — check before adding) that enqueues a TMDB re-fetch for every movie with empty `cast` and a non-nil `tmdb_id`.
+- Add a one-shot maintenance action in `MediaCentaur.Maintenance` (extend an existing "refresh metadata" action if one is already present — check before adding) that enqueues a TMDB re-fetch for every movie with empty `cast` and a non-nil `tmdb_id`.
 - Surfaced as a "Refresh metadata for all movies" button on the maintenance/library admin page.
 - Idempotent on subsequent runs: only acts on movies still missing cast. A user wanting to force-refresh a populated movie uses the existing per-entity rematch flow.
 
@@ -119,7 +119,7 @@ def change do
 end
 ```
 
-No DB-level default. The schema field declares `field :cast, {:array, :map}, default: []`; the changeset coerces `nil` (existing rows post-migration) to `[]` so the component never has to defend against `nil`. The plan should verify the exact null/empty handling against an existing JSON-array field elsewhere in `MediaCentarr.Library` before locking it in.
+No DB-level default. The schema field declares `field :cast, {:array, :map}, default: []`; the changeset coerces `nil` (existing rows post-migration) to `[]` so the component never has to defend against `nil`. The plan should verify the exact null/empty handling against an existing JSON-array field elsewhere in `MediaCentaur.Library` before locking it in.
 
 ## Storybook
 
@@ -133,9 +133,9 @@ Use generic placeholder names (`Sample Actor One`, etc.) per the no-real-titles 
 
 ## Testing
 
-- **Mapper test** (`test/media_centarr/tmdb/mapper_test.exs`): `extract_cast/1` orders by `:order`, drops nothing, returns `[]` for missing/malformed input.
+- **Mapper test** (`test/media_centaur/tmdb/mapper_test.exs`): `extract_cast/1` orders by `:order`, drops nothing, returns `[]` for missing/malformed input.
 - **Schema test**: round-trip `cast` through changeset and DB. Verify default `[]`.
-- **Component test** (`test/media_centarr_web/components/detail/cast_strip_test.exs`):
+- **Component test** (`test/media_centaur_web/components/detail/cast_strip_test.exs`):
   - renders nothing for empty cast,
   - renders one card per entry,
   - link href and `target="_blank"`,
@@ -146,7 +146,7 @@ Use generic placeholder names (`Sample Actor One`, etc.) per the no-real-titles 
 
 ## Observability
 
-Cast extraction runs inside the existing TMDB metadata pipeline; failures and warnings flow through the existing `MediaCentarr.Log` calls. No new log component tag needed. If `extract_cast/1` ever returns malformed data, the changeset cast will surface it on import — the existing import-error reporting path handles surfacing.
+Cast extraction runs inside the existing TMDB metadata pipeline; failures and warnings flow through the existing `MediaCentaur.Log` calls. No new log component tag needed. If `extract_cast/1` ever returns malformed data, the changeset cast will surface it on import — the existing import-error reporting path handles surfacing.
 
 ## Open questions / non-decisions
 

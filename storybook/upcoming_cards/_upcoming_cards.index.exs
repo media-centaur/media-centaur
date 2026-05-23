@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.UpcomingCards do
+defmodule MediaCentaurWeb.Storybook.UpcomingCards do
   use PhoenixStorybook.Index
 
   def folder_open?, do: true

@@ -1,10 +1,10 @@
-defmodule MediaCentarrWeb.Storybook.Detail.MoreInfoPanel do
+defmodule MediaCentaurWeb.Storybook.Detail.MoreInfoPanel do
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Library.MediaTrackOverride
-  alias MediaCentarr.Library.Person
+  alias MediaCentaur.Library.MediaTrackOverride
+  alias MediaCentaur.Library.Person
 
-  def function, do: &MediaCentarrWeb.Components.Detail.MoreInfoPanel.more_info_panel/1
+  def function, do: &MediaCentaurWeb.Components.Detail.MoreInfoPanel.more_info_panel/1
 
   @cast Enum.map(0..7, fn i ->
           %Person{

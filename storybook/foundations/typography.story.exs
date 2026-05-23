@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Foundations.Typography do
+defmodule MediaCentaurWeb.Storybook.Foundations.Typography do
   @moduledoc """
   Typography foundations — type scale, weights, and numeric guidance.
 

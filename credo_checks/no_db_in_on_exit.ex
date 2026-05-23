@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Credo.Checks.NoDbInOnExit do
+defmodule MediaCentaur.Credo.Checks.NoDbInOnExit do
   use Credo.Check,
     id: "MC0018",
     base_priority: :high,
@@ -46,11 +46,11 @@ defmodule MediaCentarr.Credo.Checks.NoDbInOnExit do
   # Local + qualified call detection both supported.
   @forbidden_calls [
     {[:Config], :update},
-    {[:MediaCentarr, :Config], :update},
+    {[:MediaCentaur, :Config], :update},
     {[:Settings], :find_or_create_entry},
     {[:Settings], :find_or_create_entry!},
-    {[:MediaCentarr, :Settings], :find_or_create_entry},
-    {[:MediaCentarr, :Settings], :find_or_create_entry!},
+    {[:MediaCentaur, :Settings], :find_or_create_entry},
+    {[:MediaCentaur, :Settings], :find_or_create_entry!},
     {[:Repo], :insert},
     {[:Repo], :insert!},
     {[:Repo], :update},

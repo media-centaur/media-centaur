@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.RepointCollectionChildWatchedFiles do
+defmodule MediaCentaur.Repo.Migrations.RepointCollectionChildWatchedFiles do
   @moduledoc """
   Backfill: move `library_watched_files.movie_series_id` to `movie_id` for
   files that belong to a child movie of a collection.

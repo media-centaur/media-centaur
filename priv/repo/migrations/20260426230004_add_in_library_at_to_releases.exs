@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.AddInLibraryAtToReleases do
+defmodule MediaCentaur.Repo.Migrations.AddInLibraryAtToReleases do
   use Ecto.Migration
 
   def change do

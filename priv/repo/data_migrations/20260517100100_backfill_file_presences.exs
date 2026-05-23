@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.DataMigrations.BackfillFilePresences do
+defmodule MediaCentaur.Repo.DataMigrations.BackfillFilePresences do
   @moduledoc """
   Seeds the new `library_file_presences` table from the legacy
   `watcher_files` table, intentionally skipping orphan rows (those

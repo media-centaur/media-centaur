@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.CoreComponents do
+defmodule MediaCentaurWeb.Storybook.CoreComponents do
   use PhoenixStorybook.Index
 
   def folder_open?, do: true

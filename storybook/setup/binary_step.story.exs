@@ -1,12 +1,12 @@
-defmodule MediaCentarrWeb.Storybook.Setup.BinaryStep do
+defmodule MediaCentaurWeb.Storybook.Setup.BinaryStep do
   @moduledoc """
   One step in the Setup Tour for an external binary dependency
   (currently `mpv` and `ffprobe`).
 
   ## Contract shape
 
-      attr :result, MediaCentarrWeb.Live.SetupLive.Probe.Result, required: true
-      attr :content, MediaCentarrWeb.Live.SetupLive.Content, required: true
+      attr :result, MediaCentaurWeb.Live.SetupLive.Probe.Result, required: true
+      attr :content, MediaCentaurWeb.Live.SetupLive.Content, required: true
       attr :binary_name, :string, required: true
       attr :step_index, :integer, required: true
       attr :total_steps, :integer, required: true
@@ -25,9 +25,9 @@ defmodule MediaCentarrWeb.Storybook.Setup.BinaryStep do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarrWeb.Live.SetupLive.Probe
+  alias MediaCentaurWeb.Live.SetupLive.Probe
 
-  def function, do: &MediaCentarrWeb.Components.SetupSteps.binary_step/1
+  def function, do: &MediaCentaurWeb.Components.SetupSteps.binary_step/1
   def render_source, do: :function
   def layout, do: :one_column
 
@@ -37,7 +37,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.BinaryStep do
         id: :ok,
         description: "Path configured and executable found.",
         attributes: %{
-          content: MediaCentarrWeb.Live.SetupLive.Content.for(:mpv),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:mpv),
           binary_name: "mpv",
           step_index: 3,
           total_steps: 6,
@@ -55,7 +55,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.BinaryStep do
         id: :not_executable,
         description: "File exists but lacks the exec bit.",
         attributes: %{
-          content: MediaCentarrWeb.Live.SetupLive.Content.for(:mpv),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:mpv),
           binary_name: "mpv",
           step_index: 3,
           total_steps: 6,
@@ -73,7 +73,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.BinaryStep do
         id: :missing_with_candidates,
         description: "Configured path missing, but other candidates were detected.",
         attributes: %{
-          content: MediaCentarrWeb.Live.SetupLive.Content.for(:ffprobe),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:ffprobe),
           binary_name: "ffprobe",
           step_index: 4,
           total_steps: 6,
@@ -91,7 +91,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.BinaryStep do
         id: :missing_no_candidates,
         description: "Nothing detected anywhere — install hint shown.",
         attributes: %{
-          content: MediaCentarrWeb.Live.SetupLive.Content.for(:ffprobe),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:ffprobe),
           binary_name: "ffprobe",
           step_index: 4,
           total_steps: 6,
@@ -109,7 +109,7 @@ defmodule MediaCentarrWeb.Storybook.Setup.BinaryStep do
         id: :not_configured,
         description: "Fresh state — no path entered yet.",
         attributes: %{
-          content: MediaCentarrWeb.Live.SetupLive.Content.for(:ffprobe),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:ffprobe),
           binary_name: "ffprobe",
           step_index: 4,
           total_steps: 6,

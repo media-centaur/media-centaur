@@ -7,7 +7,7 @@ last_updated: 2026-05-21
 
 ## Goal
 
-Ship macOS as a first-class installable platform for Media Centarr
+Ship macOS as a first-class installable platform for Media Centaur
 with **full feature parity** — including the in-app self-update
 path Linux users have — and **zero regression for Linux**, our
 primary demographic.
@@ -23,7 +23,7 @@ architecture.
 
 **Phases 1–6 shipped (2026-05-21).** All seven Platform.* seams
 have both Linux and macOS impls; the impl picker
-(`MediaCentarr.Platform.pick_impl/3`) routes them by `:os.type/0`.
+(`MediaCentaur.Platform.pick_impl/3`) routes them by `:os.type/0`.
 CI is green on both `ubuntu-22.04` and `macos-14` with
 `--warnings-as-errors` enforced. Phase 6 added the release-side
 infrastructure: per-platform overlays under `rel/platforms/`, a
@@ -74,7 +74,7 @@ Three non-negotiables, in order:
    [[architectural-modularity]]).
 3. **Platform-divergent code is locatable from `ls`.** Every
    module that knows about OS differences lives under
-   `lib/media_centarr/platform/`. The directory itself is the
+   `lib/media_centaur/platform/`. The directory itself is the
    discoverability surface — see "Project-structure visibility"
    below.
 4. **Parity is proven, not hoped for.** A `macos-14` CI runner
@@ -84,20 +84,20 @@ Three non-negotiables, in order:
 
 `case :os.type()` scattered through business modules is the
 explicit anti-pattern. It appears only inside
-`MediaCentarr.Platform.*` modules, and a Credo check enforces it
+`MediaCentaur.Platform.*` modules, and a Credo check enforces it
 (see "Enforcement" below).
 
 ## Project-structure visibility
 
-A contributor opening `lib/media_centarr/` for the first time
+A contributor opening `lib/media_centaur/` for the first time
 must be able to answer "where does this app branch on OS?" in
-one glance. The answer is: **`lib/media_centarr/platform/`** —
+one glance. The answer is: **`lib/media_centaur/platform/`** —
 and only there.
 
 ### Directory layout
 
 ```
-lib/media_centarr/
+lib/media_centaur/
 ├── platform/                           ← OS-divergent code lives ONLY here
 │   ├── platform.ex                     ← inventory + impl picker (the ONE :os.type/0 caller)
 │   ├── autostart.ex                    ← behaviour
@@ -131,15 +131,15 @@ contents live under split overlays:
 ```
 rel/
 ├── platforms/                          ← OS-divergent overlay trees live ONLY here
-│   ├── linux/                          ← contents of media-centarr-${ver}-linux-x86_64.tar.gz
-│   │   ├── bin/media-centarr-install   (Linux installer; systemd-aware)
-│   │   └── share/systemd/media-centarr.service
-│   ├── darwin/                         ← contents of media-centarr-${ver}-darwin-arm64.tar.gz
-│   │   ├── bin/media-centarr-install   (macOS installer; launchctl-aware)
-│   │   ├── bin/media-centarr-launchd-start  (launchd wrapper: loads secrets.env, execs bin/media_centarr)
-│   │   └── share/launchd/com.media-centarr.app.plist
+│   ├── linux/                          ← contents of media-centaur-${ver}-linux-x86_64.tar.gz
+│   │   ├── bin/media-centaur-install   (Linux installer; systemd-aware)
+│   │   └── share/systemd/media-centaur.service
+│   ├── darwin/                         ← contents of media-centaur-${ver}-darwin-arm64.tar.gz
+│   │   ├── bin/media-centaur-install   (macOS installer; launchctl-aware)
+│   │   ├── bin/media-centaur-launchd-start  (launchd wrapper: loads secrets.env, execs bin/media_centaur)
+│   │   └── share/launchd/com.media-centaur.app.plist
 │   └── shared/                         ← contents shipped in both
-│       └── share/defaults/media-centarr.toml
+│       └── share/defaults/media-centaur.toml
 ```
 
 `ls rel/platforms/` → see the platform trees side by side.
@@ -157,15 +157,15 @@ for the empirical trace.
 
 ### The inventory module
 
-`MediaCentarr.Platform`'s moduledoc lists every platform-seam
+`MediaCentaur.Platform`'s moduledoc lists every platform-seam
 module with a one-line description. It is the authoritative
 answer to "what diverges?":
 
 ```elixir
-defmodule MediaCentarr.Platform do
+defmodule MediaCentaur.Platform do
   @moduledoc """
-  All platform-divergent code in Media Centarr lives under this
-  namespace. Nothing outside `MediaCentarr.Platform.*` may call
+  All platform-divergent code in Media Centaur lives under this
+  namespace. Nothing outside `MediaCentaur.Platform.*` may call
   `:os.type/0` or invoke OS-specific binaries directly.
 
   ## Seams
@@ -193,10 +193,10 @@ adding a row.
 A custom Credo check — `MC00NN PlatformBranchingDiscipline` —
 fails the build on:
 
-* `:os.type/0` or `:os.cmd/1` calls outside `MediaCentarr.Platform.*`
+* `:os.type/0` or `:os.cmd/1` calls outside `MediaCentaur.Platform.*`
 * `System.cmd/3` to known OS-specific binaries (`systemctl`,
   `launchctl`, `journalctl`, `df` when invoked with GNU-only
-  flags) outside `MediaCentarr.Platform.*`
+  flags) outside `MediaCentaur.Platform.*`
 * New `:linux-x86_64` / `:darwin-arm64` literals outside
   `Platform.ReleaseArtifact`
 
@@ -213,16 +213,16 @@ section).
 |---|---|---|
 | `mix.exs:16-23` | `include_executables_for: [:unix]` — covers macOS already | — |
 | `.github/workflows/release.yml` | Builds `linux-x86_64` only, ubuntu-22.04 | CI matrix |
-| `rel/overlays/bin/media-centarr-install` | Linux x86_64 glibc, sha256sum, GNU readlink, systemd | `rel/overlays/linux/` (split from current `rel/overlays/`) |
-| `lib/media_centarr/self_update/service.ex` | systemd via `INVOCATION_ID` + `systemctl --user` + `/proc/self/cgroup` | `Platform.Autostart` + `Platform.Autostart.Systemd` |
-| `lib/media_centarr/self_update/handoff.ex` | XDG_RUNTIME_DIR + DBUS_SESSION_BUS_ADDRESS pass-through; `setsid --fork` (GNU) | Env list moves into `Platform.Autostart.handoff_env_vars/0`; detach idiom made portable |
-| `lib/media_centarr/self_update/stager.ex` | Required path `share/systemd/media-centarr.service` | Required paths come from `Platform.Autostart.tarball_required_paths/0` |
-| `lib/media_centarr/self_update/updater.ex:319` + `downloader.ex:24` | `linux-x86_64` literal | `Platform.ReleaseArtifact` |
-| `lib/media_centarr/storage.ex` | GNU `df --output=…` | `Platform.DriveProbe` + `Platform.DriveProbe.GnuDf` |
-| `lib/media_centarr/playback/display_env.ex` | Wayland/X11 socket scan | `Platform.DisplayEnv` (pure, OS branch inside) |
-| `lib/media_centarr/console/journal_source.ex` | Reads `journalctl` | `Platform.LogSource` + `Platform.LogSource.Journal` |
-| `lib/media_centarr/config.ex:424,427` | `/usr/bin/mpv`, `/usr/bin/ffprobe` defaults | `Platform.Defaults` |
-| `lib/media_centarr/watcher.ex:196,209` | Matches `:unmounted` + `:deleted` — Linux inotify vocabulary; FSEvents emits `:unmount` + `:removed` | `Platform.WatcherEvents` |
+| `rel/overlays/bin/media-centaur-install` | Linux x86_64 glibc, sha256sum, GNU readlink, systemd | `rel/overlays/linux/` (split from current `rel/overlays/`) |
+| `lib/media_centaur/self_update/service.ex` | systemd via `INVOCATION_ID` + `systemctl --user` + `/proc/self/cgroup` | `Platform.Autostart` + `Platform.Autostart.Systemd` |
+| `lib/media_centaur/self_update/handoff.ex` | XDG_RUNTIME_DIR + DBUS_SESSION_BUS_ADDRESS pass-through; `setsid --fork` (GNU) | Env list moves into `Platform.Autostart.handoff_env_vars/0`; detach idiom made portable |
+| `lib/media_centaur/self_update/stager.ex` | Required path `share/systemd/media-centaur.service` | Required paths come from `Platform.Autostart.tarball_required_paths/0` |
+| `lib/media_centaur/self_update/updater.ex:319` + `downloader.ex:24` | `linux-x86_64` literal | `Platform.ReleaseArtifact` |
+| `lib/media_centaur/storage.ex` | GNU `df --output=…` | `Platform.DriveProbe` + `Platform.DriveProbe.GnuDf` |
+| `lib/media_centaur/playback/display_env.ex` | Wayland/X11 socket scan | `Platform.DisplayEnv` (pure, OS branch inside) |
+| `lib/media_centaur/console/journal_source.ex` | Reads `journalctl` | `Platform.LogSource` + `Platform.LogSource.Journal` |
+| `lib/media_centaur/config.ex:424,427` | `/usr/bin/mpv`, `/usr/bin/ffprobe` defaults | `Platform.Defaults` |
+| `lib/media_centaur/watcher.ex:196,209` | Matches `:unmounted` + `:deleted` — Linux inotify vocabulary; FSEvents emits `:unmount` + `:removed` | `Platform.WatcherEvents` |
 
 ## Concrete divergences (the real engineering)
 
@@ -236,17 +236,17 @@ ends with the behaviour-contract shape that contains it.
 |---|---|---|
 | "Am I under supervision?" | `INVOCATION_ID` env var set by systemd | `launchctl print pid/$$` returns success when parented by launchd in a known domain. PID 1 is launchd system-wide so PPID==1 isn't sufficient |
 | Unit name discovery | Parse `/proc/self/cgroup` for `*.service` suffix | Read the `Label` from the launchd job (`launchctl print pid/$$` output). cgroups don't exist on macOS |
-| Default unit identifier | `media-centarr.service` | `com.media-centarr.app` (reverse-DNS label per Apple convention) |
+| Default unit identifier | `media-centaur.service` | `com.media-centaur.app` (reverse-DNS label per Apple convention) |
 | Unit-file format | INI `[Unit] [Service] [Install]` | XML plist with `Label`, `ProgramArguments`, `KeepAlive`, `ThrottleInterval`, `StandardOutPath`, `StandardErrorPath` |
 | Domain & install location | `~/.config/systemd/user/` | `~/Library/LaunchAgents/` |
-| Restart | `systemctl --user --no-block restart unit` (queued; returns immediately so caller doesn't deadlock on its own death) | `launchctl kickstart -k gui/$UID/com.media-centarr.app` (`-k` sends SIGTERM then restarts) |
-| Stop | `systemctl --user stop unit` (active→inactive, autostart pref preserved) | `launchctl disable gui/$UID/com.media-centarr.app` + `launchctl bootout gui/$UID com.media-centarr.app` (two-step: KeepAlive=true would otherwise restart) |
-| Enable+start (install) | `systemctl --user enable --now unit` | `launchctl bootstrap gui/$UID ~/Library/LaunchAgents/foo.plist` + `launchctl enable gui/$UID/com.media-centarr.app` + `launchctl kickstart gui/$UID/com.media-centarr.app` |
-| Status output | `systemctl --user status unit --no-pager` (human-readable, well-formed) | `launchctl print gui/$UID/com.media-centarr.app` (structured but very different shape) |
+| Restart | `systemctl --user --no-block restart unit` (queued; returns immediately so caller doesn't deadlock on its own death) | `launchctl kickstart -k gui/$UID/com.media-centaur.app` (`-k` sends SIGTERM then restarts) |
+| Stop | `systemctl --user stop unit` (active→inactive, autostart pref preserved) | `launchctl disable gui/$UID/com.media-centaur.app` + `launchctl bootout gui/$UID com.media-centaur.app` (two-step: KeepAlive=true would otherwise restart) |
+| Enable+start (install) | `systemctl --user enable --now unit` | `launchctl bootstrap gui/$UID ~/Library/LaunchAgents/foo.plist` + `launchctl enable gui/$UID/com.media-centaur.app` + `launchctl kickstart gui/$UID/com.media-centaur.app` |
+| Status output | `systemctl --user status unit --no-pager` (human-readable, well-formed) | `launchctl print gui/$UID/com.media-centaur.app` (structured but very different shape) |
 | Env handover to detached child | Must forward `XDG_RUNTIME_DIR`, `DBUS_SESSION_BUS_ADDRESS`, `XDG_DATA_DIRS`, `XDG_CONFIG_DIRS` to reach the user's systemd | `launchctl gui/$UID` is resolved from caller's UID; no env handover needed (assuming caller is in the user's Aqua session) |
 | Logging | stdout/stderr → journald automatically; `journalctl --user -u unit` reads it | We set `StandardOutPath` + `StandardErrorPath` in the plist; logs land in files we control |
 
-**Behaviour contract** — `MediaCentarr.Platform.Autostart`:
+**Behaviour contract** — `MediaCentaur.Platform.Autostart`:
 
 ```
 @callback state() :: %{under_supervision: boolean(),
@@ -277,11 +277,11 @@ behaviour where it belongs.
 body verbatim. `handoff_env_vars/0` returns
 `["XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS", "XDG_DATA_DIRS", "XDG_CONFIG_DIRS"]`.
 `tarball_required_paths/0` returns
-`["share/systemd/media-centarr.service"]`.
+`["share/systemd/media-centaur.service"]`.
 
 **macOS impl** (`Platform.Autostart.Launchd`): new module wrapping `launchctl`.
 `handoff_env_vars/0` returns `[]`. `tarball_required_paths/0`
-returns `["share/launchd/com.media-centarr.app.plist"]`.
+returns `["share/launchd/com.media-centaur.app.plist"]`.
 
 **What MUST NOT leak into this behaviour:** download URLs, tarball
 filenames, mpv paths, drive probing, log reading. If you find
@@ -309,7 +309,7 @@ matches `:unmounted in events` and `:deleted in events` — on macOS
 unmounts wouldn't transition to `:unavailable`. Both are
 parity-breaking.
 
-**Seam**: a tiny pure helper `MediaCentarr.Platform.WatcherEvents`
+**Seam**: a tiny pure helper `MediaCentaur.Platform.WatcherEvents`
 sitting between `file_system` and the `Watcher` business logic.
 It collapses both backend vocabularies into our four domain atoms
 (`:created | :modified | :deleted | :unmounted`) plus optionally a
@@ -328,7 +328,7 @@ Watcher already knows how to handle (it triggers `:auto_scan`).
 The Watcher applies `Platform.WatcherEvents.normalize/1` once on
 receipt and matches only on the normalized atoms thereafter. The
 backend-specific atoms are quarantined to the helper, which lives
-under `lib/media_centarr/platform/` alongside every other piece of
+under `lib/media_centaur/platform/` alongside every other piece of
 OS-divergent code.
 
 **Two additional macOS-specific constraints discovered:**
@@ -351,7 +351,7 @@ OS-divergent code.
 | Wraparound prevention | not needed with `--output=` | `-P` (POSIX) prevents column wrap on long device names |
 | Column order | controlled via `--output=` | fixed: Filesystem, 1024-blocks, Used, Available, Capacity, Mounted on |
 
-**Behaviour contract** — `MediaCentarr.Platform.DriveProbe`:
+**Behaviour contract** — `MediaCentaur.Platform.DriveProbe`:
 
 ```
 @callback available_bytes(Path.t()) :: {:ok, non_neg_integer()} | :error
@@ -374,12 +374,12 @@ multiply 1024-blocks by 1024.
 | Filtering | `--since`, `--priority`, `--grep` | tail + in-process filtering |
 
 **Important**: because we *write* the plist, **we choose** the log
-paths on macOS — e.g., `~/Library/Logs/Media Centarr/stdout.log`
+paths on macOS — e.g., `~/Library/Logs/Media Centaur/stdout.log`
 + `stderr.log`. That gives us a real `LogSource.Files` impl that
 provides parity with the Linux "System" Console tab, not the
 `Noop` fallback I sketched in v1 of this doc.
 
-**Behaviour contract** — `MediaCentarr.Platform.LogSource`:
+**Behaviour contract** — `MediaCentaur.Platform.LogSource`:
 
 ```
 @callback available?() :: boolean()
@@ -398,7 +398,7 @@ The only module in the codebase that switches on `:os.type/0`
 **for the purpose of naming things**. Pure functions; no behaviour.
 
 ```
-defmodule MediaCentarr.Platform.ReleaseArtifact do
+defmodule MediaCentaur.Platform.ReleaseArtifact do
   @spec current_platform_tag() :: String.t()
   def current_platform_tag, do: pick(:os.type(), :erlang.system_info(:system_architecture))
 
@@ -408,7 +408,7 @@ defmodule MediaCentarr.Platform.ReleaseArtifact do
 
   @spec tarball_filename(version :: String.t()) :: String.t()
   def tarball_filename(version),
-    do: "media-centarr-#{version}-#{current_platform_tag()}.tar.gz"
+    do: "media-centaur-#{version}-#{current_platform_tag()}.tar.gz"
 
   @spec tarball_url(tag :: String.t(), version :: String.t()) :: String.t()
 end
@@ -439,7 +439,7 @@ Two clean options:
   works on both. The current `Port.open(..., :nouse_stdio)` already
   handles the SIGPIPE concern.
 * **OS-specific detach prefix** behind a tiny helper at
-  `lib/media_centarr/platform/spawn.ex` returning
+  `lib/media_centaur/platform/spawn.ex` returning
   `["setsid", "--fork"]` on Linux, `["setsid"]` on macOS (or `[]`
   if we go with the portable idiom).
 
@@ -473,7 +473,7 @@ non-native to Finder users.
 
 **Decision (proposed)**: stay on XDG on both. Reasoning:
 * One code path, one test fixture tree, one set of docs.
-* `MEDIA_CENTARR_CONFIG_DIR` / `_DATA_DIR` / `_CACHE_DIR` env
+* `MEDIA_CENTAUR_CONFIG_DIR` / `_DATA_DIR` / `_CACHE_DIR` env
   overrides exist and work on both, so users who want Apple HIG
   paths set them themselves.
 * Adding a `Paths` behaviour for one cosmetic divergence is the
@@ -490,16 +490,16 @@ What would corrupt each seam if added — name the anti-patterns so
 future contributors don't trip into them.
 
 1. **One directory.** Every module that diverges on OS lives
-   under `lib/media_centarr/platform/`. Nothing OS-specific lives
-   anywhere else. `ls lib/media_centarr/` makes this discoverable.
+   under `lib/media_centaur/platform/`. Nothing OS-specific lives
+   anywhere else. `ls lib/media_centaur/` makes this discoverable.
 2. **`Platform` is a namespace, not a module.** There is no
    single file aggregating autostart + drive-probe + log-source.
-   `MediaCentarr.Platform` itself is a thin doc-only module
+   `MediaCentaur.Platform` itself is a thin doc-only module
    carrying the seam inventory and the impl picker. Each seam is
    its own module under the namespace.
 3. **No business-module OS branching.** `case :os.type/0` and
    OS-conditional `System.cmd/3` calls appear *only* inside
-   `MediaCentarr.Platform.*`. They NEVER appear in `Library`,
+   `MediaCentaur.Platform.*`. They NEVER appear in `Library`,
    `Acquisition`, `Watcher`, `SelfUpdate`, `Storage`, `Console`,
    `Playback`, or any LiveView. The `MC00NN` Credo check enforces
    this mechanically.
@@ -517,9 +517,9 @@ future contributors don't trip into them.
    Phase 1 diffs should be pure code motion — no logic edits.
    This is the contract that protects Linux from regression.
 7. **OS detection is configuration, not control flow.** The picker
-   in `MediaCentarr.Platform.pick/1` reads `:os.type/0` at boot and
+   in `MediaCentaur.Platform.pick/1` reads `:os.type/0` at boot and
    writes the chosen impl into application config. Consumers read
-   `Application.fetch_env!(:media_centarr, Platform.Autostart)` and
+   `Application.fetch_env!(:media_centaur, Platform.Autostart)` and
    call `mod.foo()`. Tests override via config — no recompile, no
    env-var hacks, no `case` in hot paths.
 
@@ -528,20 +528,20 @@ future contributors don't trip into them.
 Per-platform tarballs require per-platform release overlays.
 
 **Phase-6a discovery:** mix `releases:` cannot be split into
-`media_centarr_linux` + `media_centarr_darwin` entries the way the
+`media_centaur_linux` + `media_centaur_darwin` entries the way the
 original design proposed — release name controls binary name, so a
-`media_centarr_linux` release would produce `bin/media_centarr_linux`,
+`media_centaur_linux` release would produce `bin/media_centaur_linux`,
 breaking every existing install whose self-updater expects
-`bin/media_centarr` and breaking `SelfUpdate.Stager`'s required-paths
+`bin/media_centaur` and breaking `SelfUpdate.Stager`'s required-paths
 contract. Cross-version self-update would silently fail to find the
 binary in the new tarball.
 
-The shipped design is a single `media_centarr` release entry with
+The shipped design is a single `media_centaur` release entry with
 OS-aware overlays selected at evaluation time:
 
 ```elixir
 releases: [
-  media_centarr: [
+  media_centaur: [
     include_executables_for: [:unix],
     overlays: overlays_for_target()
   ]
@@ -562,16 +562,16 @@ end
 
 `mix release` runs natively on each target OS (`priv/mac_listener`
 is a per-platform binary that forces this), so `:os.type/0` at
-mix-evaluation time equals the build target. Same `bin/media_centarr`
+mix-evaluation time equals the build target. Same `bin/media_centaur`
 on both platforms; the OS-specific autostart unit-file +
 installer ride in via the overlays.
 
 Each overlay tree contains its own:
-* `bin/media-centarr-install` (platform-specific installer)
+* `bin/media-centaur-install` (platform-specific installer)
 * `share/<autostart-system>/<unit-file>` (systemd unit or
-  launchd plist; macOS also ships `bin/media-centarr-launchd-start`
+  launchd plist; macOS also ships `bin/media-centaur-launchd-start`
   as the LaunchAgent's entry-point wrapper)
-* `share/defaults/media-centarr.toml` (identical between platforms,
+* `share/defaults/media-centaur.toml` (identical between platforms,
   lives under `rel/platforms/shared/`)
 
 CI runs `mix release` on `ubuntu-22.04` and on `macos-14` in a
@@ -586,14 +586,14 @@ when two matrix jobs landed simultaneously).
 Concrete, checkable, must hold at every phase merge:
 
 * `Platform.Autostart.Systemd` is the current `SelfUpdate.Service`
-  body relocated under `lib/media_centarr/platform/autostart/` —
+  body relocated under `lib/media_centaur/platform/autostart/` —
   no logic edits. A diff review on phase 2 must show
   `Service` → `Platform.Autostart.Systemd` as pure code motion.
-* The Linux tarball (`media-centarr-${ver}-linux-x86_64.tar.gz`)
+* The Linux tarball (`media-centaur-${ver}-linux-x86_64.tar.gz`)
   contains the same file tree it does today. `Stager`'s required
   paths for Linux remain
-  `["bin/media-centarr-install", "bin/media_centarr", "share/systemd/media-centarr.service", "share/defaults/media-centarr.toml"]`.
-* `bin/media-centarr-install` in the Linux tarball is byte-for-byte
+  `["bin/media-centaur-install", "bin/media_centaur", "share/systemd/media-centaur.service", "share/defaults/media-centaur.toml"]`.
+* `bin/media-centaur-install` in the Linux tarball is byte-for-byte
   identical until phase 2 lands the single `ReleaseArtifact`-based
   tarball-name lookup. That change is one line in the installer's
   `--update` mode, reviewed in isolation.
@@ -613,7 +613,7 @@ work. Kept here as a record of the framing that drove the design.*
    seam map proposed — 3 behaviours (`Autostart`, `DriveProbe`,
    `LogSource`) + 4 pure helpers (`WatcherEvents`,
    `ReleaseArtifact`, `Defaults`, `DisplayEnv`) + 1 picker
-   (`MediaCentarr.Platform`). Deliberate non-seams (`Paths`,
+   (`MediaCentaur.Platform`). Deliberate non-seams (`Paths`,
    `Spawn`) stayed inline. `MC0017 PlatformBranchingDiscipline`
    enforces the discoverability rule.
 2. ~~**Architectures.**~~ **Resolved**: Apple Silicon only.
@@ -654,8 +654,8 @@ Append-only log.
   infrastructure landed in four narrow commits:
   * `8ac48f89` — overlay restructure under `rel/platforms/{linux,shared}/`
     + `mix.exs:overlays_for_target/0`. Linux tarball byte-equivalent.
-  * `fe45f0f5` — macOS launchd plist + `bin/media-centarr-launchd-start`
-    wrapper (loads `secrets.env`, exec's `bin/media_centarr` —
+  * `fe45f0f5` — macOS launchd plist + `bin/media-centaur-launchd-start`
+    wrapper (loads `secrets.env`, exec's `bin/media_centaur` —
     the launchd analog of systemd's `EnvironmentFile=`).
   * `ae7f18e8` — macOS installer script mirroring the Linux
     contract (`--update`/`--uninstall`/service install|remove,
@@ -675,13 +675,13 @@ Append-only log.
      parent to `rel/platforms/` to defeat the auto-include while
      preserving `ls`-discoverability.
   2. **Mix release name controls binary name** — splitting
-     `releases:` into `media_centarr_linux` + `media_centarr_darwin`
+     `releases:` into `media_centaur_linux` + `media_centaur_darwin`
      (the original design) would have produced
-     `bin/media_centarr_linux`, breaking every existing install's
+     `bin/media_centaur_linux`, breaking every existing install's
      self-updater + `SelfUpdate.Stager`'s required-paths contract.
-     Single `media_centarr` release entry with `overlays_for_target/0`
+     Single `media_centaur` release entry with `overlays_for_target/0`
      selecting per-OS overlays at evaluation time keeps
-     `bin/media_centarr` stable across both platforms.
+     `bin/media_centaur` stable across both platforms.
 
 ## Next steps
 
@@ -691,15 +691,15 @@ distribution polish remain.
 
 1. **Phase 7 — Parity smoke (manual, real machine).** The next
    tag will trigger the matrix workflow and produce both
-   `media-centarr-${ver}-linux-x86_64.tar.gz` and
-   `media-centarr-${ver}-darwin-arm64.tar.gz`. First Mac user
+   `media-centaur-${ver}-linux-x86_64.tar.gz` and
+   `media-centaur-${ver}-darwin-arm64.tar.gz`. First Mac user
    reports substitute for our lack of hardware. The README +
    docs-site `[macOS]` issue link is the funnel. Track findings
    here as the campaign re-opens with them. Key things to verify:
-   * Tarball downloads, extracts, `bin/media-centarr-install`
+   * Tarball downloads, extracts, `bin/media-centaur-install`
      runs to completion.
    * LaunchAgent registers; the app starts and listens on the
-     configured port; logs land in `~/Library/Logs/Media Centarr/`.
+     configured port; logs land in `~/Library/Logs/Media Centaur/`.
    * Settings → Overview → Update now exercises the full
      `Platform.Autostart.Launchd.restart/0` path end-to-end.
    * `file_system` (FSEvents) emits events the Watcher receives
@@ -731,33 +731,33 @@ distribution polish remain.
 
 ### Lands at
 
-* `lib/media_centarr/platform/` (new directory)
-* `lib/media_centarr/platform/platform.ex` — inventory moduledoc + impl picker
-* `lib/media_centarr/platform/autostart.ex` + `autostart/systemd.ex` + `autostart/launchd.ex`
-* `lib/media_centarr/platform/drive_probe.ex` + `drive_probe/gnu_df.ex` + `drive_probe/bsd_df.ex`
-* `lib/media_centarr/platform/log_source.ex` + `log_source/journal.ex` + `log_source/files.ex`
-* `lib/media_centarr/platform/watcher_events.ex`
-* `lib/media_centarr/platform/release_artifact.ex`
-* `lib/media_centarr/platform/defaults.ex`
-* `lib/media_centarr/platform/display_env.ex`
+* `lib/media_centaur/platform/` (new directory)
+* `lib/media_centaur/platform/platform.ex` — inventory moduledoc + impl picker
+* `lib/media_centaur/platform/autostart.ex` + `autostart/systemd.ex` + `autostart/launchd.ex`
+* `lib/media_centaur/platform/drive_probe.ex` + `drive_probe/gnu_df.ex` + `drive_probe/bsd_df.ex`
+* `lib/media_centaur/platform/log_source.ex` + `log_source/journal.ex` + `log_source/files.ex`
+* `lib/media_centaur/platform/watcher_events.ex`
+* `lib/media_centaur/platform/release_artifact.ex`
+* `lib/media_centaur/platform/defaults.ex`
+* `lib/media_centaur/platform/display_env.ex`
 * `credo_checks/platform_branching_discipline.ex` — `MC00NN` check
 * `rel/platforms/{linux,darwin,shared}/` — split per-platform overlays
   (NOT `rel/overlays/` — see Phase-6a discovery in `Decisions made`)
-* `rel/platforms/darwin/share/launchd/com.media-centarr.app.plist` — LaunchAgent
-* `rel/platforms/darwin/bin/media-centarr-launchd-start` — launchd entry-point wrapper
-* `rel/platforms/darwin/bin/media-centarr-install` — macOS installer
+* `rel/platforms/darwin/share/launchd/com.media-centaur.app.plist` — LaunchAgent
+* `rel/platforms/darwin/bin/media-centaur-launchd-start` — launchd entry-point wrapper
+* `rel/platforms/darwin/bin/media-centaur-install` — macOS installer
 
 ### Lifts from
 
-* `lib/media_centarr/self_update/service.ex` → `Platform.Autostart.Systemd`
-* `lib/media_centarr/self_update/handoff.ex` → handoff env list moves into `Platform.Autostart.handoff_env_vars/0`; portable detach idiom replaces `setsid --fork` inline
-* `lib/media_centarr/self_update/stager.ex` → `:required` = base list + `Platform.Autostart.tarball_required_paths/0`
-* `lib/media_centarr/self_update/updater.ex:319` + `downloader.ex:24` → `Platform.ReleaseArtifact`
-* `lib/media_centarr/storage.ex` → `Platform.DriveProbe.GnuDf` + thin `Storage` aggregator
-* `lib/media_centarr/console/journal_source.ex` → `Platform.LogSource.Journal`
-* `lib/media_centarr/playback/display_env.ex` → `Platform.DisplayEnv`
-* `lib/media_centarr/config.ex:424,427` → reads `Platform.Defaults`
-* `lib/media_centarr/watcher.ex:196,209` → matches normalized vocabulary from `Platform.WatcherEvents`
+* `lib/media_centaur/self_update/service.ex` → `Platform.Autostart.Systemd`
+* `lib/media_centaur/self_update/handoff.ex` → handoff env list moves into `Platform.Autostart.handoff_env_vars/0`; portable detach idiom replaces `setsid --fork` inline
+* `lib/media_centaur/self_update/stager.ex` → `:required` = base list + `Platform.Autostart.tarball_required_paths/0`
+* `lib/media_centaur/self_update/updater.ex:319` + `downloader.ex:24` → `Platform.ReleaseArtifact`
+* `lib/media_centaur/storage.ex` → `Platform.DriveProbe.GnuDf` + thin `Storage` aggregator
+* `lib/media_centaur/console/journal_source.ex` → `Platform.LogSource.Journal`
+* `lib/media_centaur/playback/display_env.ex` → `Platform.DisplayEnv`
+* `lib/media_centaur/config.ex:424,427` → reads `Platform.Defaults`
+* `lib/media_centaur/watcher.ex:196,209` → matches normalized vocabulary from `Platform.WatcherEvents`
 
 ### External references
 

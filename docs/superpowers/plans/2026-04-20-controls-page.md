@@ -4,7 +4,7 @@
 
 **Goal:** Ship a Settings → Controls subpage that shows every keyboard and gamepad binding (grouped by category) and lets the user rebind, clear, and reset them — functioning as both cheat sheet and customisation UI. See `docs/superpowers/specs/2026-04-20-controls-page-design.md`.
 
-**Architecture:** New thin facade `MediaCentarr.Controls` over `Settings.Entry` (three rows: `controls.keyboard`, `controls.gamepad`, `controls.glyph_style`). A compile-time catalog describes all bindings. LiveView section renders the UI. A new JS bridge module handles one-shot capture and hot-swaps the input system's key/button maps on change. The backtick console hotkey moves from hardcoded to catalog-driven.
+**Architecture:** New thin facade `MediaCentaur.Controls` over `Settings.Entry` (three rows: `controls.keyboard`, `controls.gamepad`, `controls.glyph_style`). A compile-time catalog describes all bindings. LiveView section renders the UI. A new JS bridge module handles one-shot capture and hot-swaps the input system's key/button maps on change. The backtick console hotkey moves from hardcoded to catalog-driven.
 
 **Tech Stack:** Elixir/Phoenix, LiveView, Ecto, daisyUI + Tailwind, vanilla JS (`bun test`).
 
@@ -13,31 +13,31 @@
 ## File Structure
 
 **New files:**
-- `lib/media_centarr/controls.ex` — facade module (public API)
-- `lib/media_centarr/controls/binding.ex` — `%Binding{}` struct
-- `lib/media_centarr/controls/catalog.ex` — compile-time list of all bindings + uniqueness assertion
-- `lib/media_centarr/controls/store.ex` — read/write `Settings.Entry` rows, resolve defaults
-- `lib/media_centarr_web/live/settings_live/controls_logic.ex` — pure helpers: view grouping, glyph display, conflict detection
-- `lib/media_centarr_web/live/settings_live/controls.ex` — LiveView section renderer (function component)
+- `lib/media_centaur/controls.ex` — facade module (public API)
+- `lib/media_centaur/controls/binding.ex` — `%Binding{}` struct
+- `lib/media_centaur/controls/catalog.ex` — compile-time list of all bindings + uniqueness assertion
+- `lib/media_centaur/controls/store.ex` — read/write `Settings.Entry` rows, resolve defaults
+- `lib/media_centaur_web/live/settings_live/controls_logic.ex` — pure helpers: view grouping, glyph display, conflict detection
+- `lib/media_centaur_web/live/settings_live/controls.ex` — LiveView section renderer (function component)
 - `assets/css/controls.css` — scoped styles for keycap / gamepad glyphs / listening state
 - `assets/js/input/controls_bridge.js` — one-shot capture + hot-swap
 - `assets/js/input/__tests__/controls_bridge.test.js`
-- `test/media_centarr/controls_test.exs`
-- `test/media_centarr/controls/catalog_test.exs`
-- `test/media_centarr_web/live/settings_live/controls_logic_test.exs`
-- `test/media_centarr_web/live/settings_live/controls_test.exs`
+- `test/media_centaur/controls_test.exs`
+- `test/media_centaur/controls/catalog_test.exs`
+- `test/media_centaur_web/live/settings_live/controls_logic_test.exs`
+- `test/media_centaur_web/live/settings_live/controls_test.exs`
 
 **Modified files:**
-- `lib/media_centarr/topics.ex` — add `controls_updates/0`
-- `lib/media_centarr_web/live/settings_live.ex` — add `"controls"` to `@sections`; add `section_content/1` clause delegating to `SettingsLive.Controls.render/1`
-- `lib/media_centarr_web/components/layouts.ex` — pass bindings JSON into `#input-system` as `data-input-bindings`
+- `lib/media_centaur/topics.ex` — add `controls_updates/0`
+- `lib/media_centaur_web/live/settings_live.ex` — add `"controls"` to `@sections`; add `section_content/1` clause delegating to `SettingsLive.Controls.render/1`
+- `lib/media_centaur_web/components/layouts.ex` — pass bindings JSON into `#input-system` as `data-input-bindings`
 - `assets/css/app.css` — `@import "./controls.css"` + keycap custom props on `[data-theme="dark"]`
 - `assets/js/input/index.js` — read `data-input-bindings` from the hook element, build `keyMap`/`buttonMap`, pass to sources and orchestrator; listen for `phx:controls:updated` to rebuild
 - `assets/js/input/__tests__/index.test.js` — extend for bindings load + updated event
 - `assets/js/app.js` — backtick listener reads binding from `data-global-bindings`, listens for `phx:controls:updated`
 - `assets/js/hooks/console.test.js` — update for attr-driven binding
 
-**Wiki (separate repo `../media-centarr.wiki/`):**
+**Wiki (separate repo `../media-centaur.wiki/`):**
 - `Keyboard-and-Gamepad.md`
 - `Keyboard-Shortcuts.md`
 
@@ -46,15 +46,15 @@
 ## Task 1: Add `controls_updates/0` topic
 
 **Files:**
-- Modify: `lib/media_centarr/topics.ex`
+- Modify: `lib/media_centaur/topics.ex`
 
 - [ ] **Step 1: Check existing topics**
 
-Open `lib/media_centarr/topics.ex` to confirm the module's one-function-per-topic convention.
+Open `lib/media_centaur/topics.ex` to confirm the module's one-function-per-topic convention.
 
 - [ ] **Step 2: Add the function**
 
-Edit `lib/media_centarr/topics.ex` — add after `self_update_progress`:
+Edit `lib/media_centaur/topics.ex` — add after `self_update_progress`:
 
 ```elixir
   def controls_updates, do: "controls:updates"
@@ -78,18 +78,18 @@ jj desc -m "feat(controls): add controls_updates pubsub topic"
 ## Task 2: `Binding` struct
 
 **Files:**
-- Create: `lib/media_centarr/controls/binding.ex`
-- Create: `test/media_centarr/controls/binding_test.exs`
+- Create: `lib/media_centaur/controls/binding.ex`
+- Create: `test/media_centaur/controls/binding_test.exs`
 
 - [ ] **Step 1: Write the failing test**
 
-`test/media_centarr/controls/binding_test.exs`:
+`test/media_centaur/controls/binding_test.exs`:
 
 ```elixir
-defmodule MediaCentarr.Controls.BindingTest do
+defmodule MediaCentaur.Controls.BindingTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Controls.Binding
+  alias MediaCentaur.Controls.Binding
 
   test "struct requires id, category, name, scope" do
     binding = %Binding{
@@ -126,15 +126,15 @@ end
 
 - [ ] **Step 2: Run test — expect failure**
 
-Run: `mix test test/media_centarr/controls/binding_test.exs`
-Expected: `MediaCentarr.Controls.Binding is not available`.
+Run: `mix test test/media_centaur/controls/binding_test.exs`
+Expected: `MediaCentaur.Controls.Binding is not available`.
 
 - [ ] **Step 3: Implement**
 
-`lib/media_centarr/controls/binding.ex`:
+`lib/media_centaur/controls/binding.ex`:
 
 ```elixir
-defmodule MediaCentarr.Controls.Binding do
+defmodule MediaCentaur.Controls.Binding do
   @moduledoc """
   One entry in the controls catalog.
 
@@ -170,7 +170,7 @@ end
 
 - [ ] **Step 4: Run test — expect pass**
 
-Run: `mix test test/media_centarr/controls/binding_test.exs`
+Run: `mix test test/media_centaur/controls/binding_test.exs`
 Expected: 2 tests passing.
 
 - [ ] **Step 5: Commit**
@@ -184,18 +184,18 @@ jj desc -m "feat(controls): Binding struct for catalog entries"
 ## Task 3: `Catalog` with uniqueness invariant
 
 **Files:**
-- Create: `lib/media_centarr/controls/catalog.ex`
-- Create: `test/media_centarr/controls/catalog_test.exs`
+- Create: `lib/media_centaur/controls/catalog.ex`
+- Create: `test/media_centaur/controls/catalog_test.exs`
 
 - [ ] **Step 1: Write the failing test**
 
-`test/media_centarr/controls/catalog_test.exs`:
+`test/media_centaur/controls/catalog_test.exs`:
 
 ```elixir
-defmodule MediaCentarr.Controls.CatalogTest do
+defmodule MediaCentaur.Controls.CatalogTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarr.Controls.Catalog
+  alias MediaCentaur.Controls.Catalog
 
   test "all/0 returns 11 bindings" do
     assert length(Catalog.all()) == 11
@@ -246,15 +246,15 @@ end
 
 - [ ] **Step 2: Run test — expect failure**
 
-Run: `mix test test/media_centarr/controls/catalog_test.exs`
-Expected: `MediaCentarr.Controls.Catalog is not available`.
+Run: `mix test test/media_centaur/controls/catalog_test.exs`
+Expected: `MediaCentaur.Controls.Catalog is not available`.
 
 - [ ] **Step 3: Implement**
 
-`lib/media_centarr/controls/catalog.ex`:
+`lib/media_centaur/controls/catalog.ex`:
 
 ```elixir
-defmodule MediaCentarr.Controls.Catalog do
+defmodule MediaCentaur.Controls.Catalog do
   @moduledoc """
   Compile-time list of every keyboard/gamepad binding the app supports.
 
@@ -271,7 +271,7 @@ defmodule MediaCentarr.Controls.Catalog do
   share a default button. Enforced at compile time.
   """
 
-  alias MediaCentarr.Controls.Binding
+  alias MediaCentaur.Controls.Binding
 
   @bindings [
     %Binding{
@@ -407,7 +407,7 @@ end
 
 - [ ] **Step 4: Run test — expect pass**
 
-Run: `mix test test/media_centarr/controls/catalog_test.exs`
+Run: `mix test test/media_centaur/controls/catalog_test.exs`
 Expected: 9 tests passing.
 
 - [ ] **Step 5: Commit**
@@ -421,18 +421,18 @@ jj desc -m "feat(controls): Catalog with 11 bindings and uniqueness assertions"
 ## Task 4: `Store` — read/write `Settings.Entry`
 
 **Files:**
-- Create: `lib/media_centarr/controls/store.ex`
-- Create: `test/media_centarr/controls/store_test.exs`
+- Create: `lib/media_centaur/controls/store.ex`
+- Create: `test/media_centaur/controls/store_test.exs`
 
 - [ ] **Step 1: Write the failing test**
 
-`test/media_centarr/controls/store_test.exs`:
+`test/media_centaur/controls/store_test.exs`:
 
 ```elixir
-defmodule MediaCentarr.Controls.StoreTest do
-  use MediaCentarr.DataCase, async: false
+defmodule MediaCentaur.Controls.StoreTest do
+  use MediaCentaur.DataCase, async: false
 
-  alias MediaCentarr.Controls.Store
+  alias MediaCentaur.Controls.Store
 
   describe "read_keyboard/0 and write_keyboard/1" do
     test "returns empty map when no entry" do
@@ -477,15 +477,15 @@ end
 
 - [ ] **Step 2: Run test — expect failure**
 
-Run: `mix test test/media_centarr/controls/store_test.exs`
+Run: `mix test test/media_centaur/controls/store_test.exs`
 Expected: module not loaded.
 
 - [ ] **Step 3: Implement**
 
-`lib/media_centarr/controls/store.ex`:
+`lib/media_centaur/controls/store.ex`:
 
 ```elixir
-defmodule MediaCentarr.Controls.Store do
+defmodule MediaCentaur.Controls.Store do
   @moduledoc """
   Persists keyboard, gamepad, and glyph-style settings in `Settings.Entry` rows.
 
@@ -494,13 +494,13 @@ defmodule MediaCentarr.Controls.Store do
   - `controls.gamepad`  — map of binding_id_string to button_index_integer (or nil = cleared)
   - `controls.glyph_style` — "xbox" | "playstation"
 
-  Missing keys in the stored maps are interpreted by `MediaCentarr.Controls`
+  Missing keys in the stored maps are interpreted by `MediaCentaur.Controls`
   as "use the catalog default" — not nil. The explicit nil semantics ("user
   cleared this slot intentionally") must therefore be preserved through
   serialization; SQLite's `:map` column does this correctly.
   """
 
-  alias MediaCentarr.Settings
+  alias MediaCentaur.Settings
 
   @keyboard_key "controls.keyboard"
   @gamepad_key "controls.gamepad"
@@ -549,7 +549,7 @@ end
 
 - [ ] **Step 4: Run test — expect pass**
 
-Run: `mix test test/media_centarr/controls/store_test.exs`
+Run: `mix test test/media_centaur/controls/store_test.exs`
 Expected: 7 tests passing.
 
 - [ ] **Step 5: Commit**
@@ -563,18 +563,18 @@ jj desc -m "feat(controls): Store persists keyboard/gamepad/glyph entries"
 ## Task 5: `Controls` facade with conflict/swap logic
 
 **Files:**
-- Create: `lib/media_centarr/controls.ex`
-- Create: `test/media_centarr/controls_test.exs`
+- Create: `lib/media_centaur/controls.ex`
+- Create: `test/media_centaur/controls_test.exs`
 
 - [ ] **Step 1: Write the failing test**
 
-`test/media_centarr/controls_test.exs`:
+`test/media_centaur/controls_test.exs`:
 
 ```elixir
-defmodule MediaCentarr.ControlsTest do
-  use MediaCentarr.DataCase, async: false
+defmodule MediaCentaur.ControlsTest do
+  use MediaCentaur.DataCase, async: false
 
-  alias MediaCentarr.Controls
+  alias MediaCentaur.Controls
 
   describe "get/0" do
     test "returns all catalog defaults when no overrides" do
@@ -715,17 +715,17 @@ end
 
 - [ ] **Step 2: Run test — expect failure**
 
-Run: `mix test test/media_centarr/controls_test.exs`
+Run: `mix test test/media_centaur/controls_test.exs`
 Expected: module not loaded.
 
 - [ ] **Step 3: Implement**
 
-`lib/media_centarr/controls.ex`:
+`lib/media_centaur/controls.ex`:
 
 ```elixir
-defmodule MediaCentarr.Controls do
+defmodule MediaCentaur.Controls do
   use Boundary,
-    deps: [MediaCentarr.Settings],
+    deps: [MediaCentaur.Settings],
     exports: [Binding, Catalog]
 
   @moduledoc """
@@ -740,15 +740,15 @@ defmodule MediaCentarr.Controls do
   `{:controls_changed, resolved_map}` on the `controls:updates` topic.
   """
 
-  alias MediaCentarr.Controls.{Binding, Catalog, Store}
-  alias MediaCentarr.Topics
+  alias MediaCentaur.Controls.{Binding, Catalog, Store}
+  alias MediaCentaur.Topics
 
   @type kind :: :keyboard | :gamepad
   @type resolved :: %{atom() => %{key: String.t() | nil, button: non_neg_integer() | nil}}
 
   @doc "Subscribe to controls change broadcasts."
   @spec subscribe() :: :ok | {:error, term()}
-  def subscribe, do: Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.controls_updates())
+  def subscribe, do: Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.controls_updates())
 
   @doc """
   Returns a map keyed by binding id, each value `%{key: ..., button: ...}`.
@@ -884,7 +884,7 @@ defmodule MediaCentarr.Controls do
 
   defp broadcast do
     Phoenix.PubSub.broadcast(
-      MediaCentarr.PubSub,
+      MediaCentaur.PubSub,
       Topics.controls_updates(),
       {:controls_changed, get()}
     )
@@ -894,7 +894,7 @@ end
 
 - [ ] **Step 4: Run test — expect pass**
 
-Run: `mix test test/media_centarr/controls_test.exs`
+Run: `mix test test/media_centaur/controls_test.exs`
 Expected: 15 tests passing.
 
 - [ ] **Step 5: Run full test suite to catch regressions**
@@ -913,18 +913,18 @@ jj desc -m "feat(controls): facade with conflict/swap logic and pubsub"
 ## Task 6: `ControlsLogic` pure helpers
 
 **Files:**
-- Create: `lib/media_centarr_web/live/settings_live/controls_logic.ex`
-- Create: `test/media_centarr_web/live/settings_live/controls_logic_test.exs`
+- Create: `lib/media_centaur_web/live/settings_live/controls_logic.ex`
+- Create: `test/media_centaur_web/live/settings_live/controls_logic_test.exs`
 
 - [ ] **Step 1: Write the failing test**
 
-`test/media_centarr_web/live/settings_live/controls_logic_test.exs`:
+`test/media_centaur_web/live/settings_live/controls_logic_test.exs`:
 
 ```elixir
-defmodule MediaCentarrWeb.SettingsLive.ControlsLogicTest do
+defmodule MediaCentaurWeb.SettingsLive.ControlsLogicTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentarrWeb.SettingsLive.ControlsLogic
+  alias MediaCentaurWeb.SettingsLive.ControlsLogic
 
   describe "group_for_view/1" do
     test "returns ordered list of {category, [binding_view]} tuples" do
@@ -1057,15 +1057,15 @@ end
 
 - [ ] **Step 2: Run test — expect failure**
 
-Run: `mix test test/media_centarr_web/live/settings_live/controls_logic_test.exs`
+Run: `mix test test/media_centaur_web/live/settings_live/controls_logic_test.exs`
 Expected: module not loaded.
 
 - [ ] **Step 3: Implement**
 
-`lib/media_centarr_web/live/settings_live/controls_logic.ex`:
+`lib/media_centaur_web/live/settings_live/controls_logic.ex`:
 
 ```elixir
-defmodule MediaCentarrWeb.SettingsLive.ControlsLogic do
+defmodule MediaCentaurWeb.SettingsLive.ControlsLogic do
   @moduledoc """
   Pure helpers for the Controls settings page.
 
@@ -1073,7 +1073,7 @@ defmodule MediaCentarrWeb.SettingsLive.ControlsLogic do
   with `async: true` and has no side effects.
   """
 
-  alias MediaCentarr.Controls.Catalog
+  alias MediaCentaur.Controls.Catalog
 
   @category_labels %{
     navigation: "Navigation",
@@ -1173,7 +1173,7 @@ end
 
 - [ ] **Step 4: Run test — expect pass**
 
-Run: `mix test test/media_centarr_web/live/settings_live/controls_logic_test.exs`
+Run: `mix test test/media_centaur_web/live/settings_live/controls_logic_test.exs`
 Expected: 23 tests passing.
 
 - [ ] **Step 5: Commit**
@@ -1187,20 +1187,20 @@ jj desc -m "feat(controls): ControlsLogic pure helpers for view grouping and dis
 ## Task 7: `SettingsLive.Controls` section component
 
 **Files:**
-- Create: `lib/media_centarr_web/live/settings_live/controls.ex`
-- Create: `test/media_centarr_web/live/settings_live/controls_test.exs`
+- Create: `lib/media_centaur_web/live/settings_live/controls.ex`
+- Create: `test/media_centaur_web/live/settings_live/controls_test.exs`
 
 - [ ] **Step 1: Write the failing test**
 
-`test/media_centarr_web/live/settings_live/controls_test.exs`:
+`test/media_centaur_web/live/settings_live/controls_test.exs`:
 
 ```elixir
-defmodule MediaCentarrWeb.SettingsLive.ControlsTest do
-  use MediaCentarrWeb.ConnCase, async: false
+defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
+  use MediaCentaurWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 
-  alias MediaCentarr.Controls
+  alias MediaCentaur.Controls
 
   describe "mount" do
     test "renders all bindings grouped by category", %{conn: conn} do
@@ -1315,26 +1315,26 @@ end
 
 - [ ] **Step 2: Run test — expect failure**
 
-Run: `mix test test/media_centarr_web/live/settings_live/controls_test.exs`
+Run: `mix test test/media_centaur_web/live/settings_live/controls_test.exs`
 Expected: route `/settings?section=controls` renders default content (section not found), tests fail assertions.
 
 - [ ] **Step 3: Implement the section component**
 
-`lib/media_centarr_web/live/settings_live/controls.ex`:
+`lib/media_centaur_web/live/settings_live/controls.ex`:
 
 ```elixir
-defmodule MediaCentarrWeb.SettingsLive.Controls do
+defmodule MediaCentaurWeb.SettingsLive.Controls do
   @moduledoc """
   The Controls section of the Settings page.
 
   Renders the full binding table grouped by category. The parent
   `SettingsLive` delegates to `render/1` and hosts the event handlers
-  that call into `MediaCentarr.Controls`.
+  that call into `MediaCentaur.Controls`.
   """
 
-  use MediaCentarrWeb, :html
+  use MediaCentaurWeb, :html
 
-  alias MediaCentarrWeb.SettingsLive.ControlsLogic
+  alias MediaCentaurWeb.SettingsLive.ControlsLogic
 
   attr :bindings, :map, required: true
   attr :glyph_style, :string, required: true
@@ -1484,13 +1484,13 @@ end
 
 - [ ] **Step 4: Wire into `SettingsLive`**
 
-Edit `lib/media_centarr_web/live/settings_live.ex`:
+Edit `lib/media_centaur_web/live/settings_live.ex`:
 
 1. Add to alias list near the top:
 
 ```elixir
-alias MediaCentarr.Controls
-alias MediaCentarrWeb.SettingsLive.Controls, as: ControlsSection
+alias MediaCentaur.Controls
+alias MediaCentaurWeb.SettingsLive.Controls, as: ControlsSection
 ```
 
 2. Add `"controls"` to `@sections` — insert between `preferences` and `library`:
@@ -1615,7 +1615,7 @@ end
 
 - [ ] **Step 5: Run tests — expect pass**
 
-Run: `mix test test/media_centarr_web/live/settings_live/controls_test.exs`
+Run: `mix test test/media_centaur_web/live/settings_live/controls_test.exs`
 Expected: 7 tests passing.
 
 - [ ] **Step 6: Commit**
@@ -2029,12 +2029,12 @@ jj desc -m "feat(controls): JS bridge for one-shot capture and hot-swap"
 
 **Files:**
 - Modify: `assets/js/input/index.js`
-- Modify: `lib/media_centarr_web/components/layouts.ex`
+- Modify: `lib/media_centaur_web/components/layouts.ex`
 - Modify: `assets/js/app.js`
 
 - [ ] **Step 1: Update `layouts.ex` to inject bindings**
 
-Edit `lib/media_centarr_web/components/layouts.ex` at line 36 (the `#input-system` div):
+Edit `lib/media_centaur_web/components/layouts.ex` at line 36 (the `#input-system` div):
 
 Find:
 
@@ -2053,12 +2053,12 @@ Replace with:
   data-global-bindings={Jason.encode!(global_bindings())}>
 ```
 
-Add these helpers at the bottom of the module (inside `defmodule MediaCentarrWeb.Layouts do`):
+Add these helpers at the bottom of the module (inside `defmodule MediaCentaurWeb.Layouts do`):
 
 ```elixir
 defp input_bindings do
-  resolved = MediaCentarr.Controls.get()
-  catalog = MediaCentarr.Controls.Catalog.all()
+  resolved = MediaCentaur.Controls.get()
+  catalog = MediaCentaur.Controls.Catalog.all()
   input_scope_ids = for b <- catalog, b.scope == :input_system, do: b.id
 
   %{
@@ -2080,8 +2080,8 @@ defp input_bindings do
 end
 
 defp global_bindings do
-  resolved = MediaCentarr.Controls.get()
-  catalog = MediaCentarr.Controls.Catalog.all()
+  resolved = MediaCentaur.Controls.get()
+  catalog = MediaCentaur.Controls.Catalog.all()
   global_scope_ids = for b <- catalog, b.scope == :global, do: b.id
 
   Enum.reduce(global_scope_ids, %{}, fn id, acc ->
@@ -2322,14 +2322,14 @@ jj desc -m "feat(controls): runtime-configurable keyboard and gamepad bindings v
 
 ## Task 11: Wiki updates
 
-**Files (in the wiki repo `../media-centarr.wiki/`):**
+**Files (in the wiki repo `../media-centaur.wiki/`):**
 - Modify: `Keyboard-and-Gamepad.md`
 - Modify: `Keyboard-Shortcuts.md`
 
 - [ ] **Step 1: Switch to the wiki repo**
 
 ```bash
-cd ~/src/media-centarr/media-centarr.wiki
+cd ~/src/media-centaur/media-centaur.wiki
 jj st
 ```
 
@@ -2408,7 +2408,7 @@ jj git push
 - [ ] **Step 5: Return to app repo**
 
 ```bash
-cd ~/src/media-centarr/media-centarr
+cd ~/src/media-centaur/media-centaur
 ```
 
 ---
@@ -2432,7 +2432,7 @@ Common things the precommit tools may flag:
 - **Credo `PredicateNaming`** — function ending in `?` must be a boolean predicate (not macro). Naming in this plan already follows the rule (`listening?/2`, `listening_slot?/3`).
 - **Credo `NoAbbreviatedNames`** — all vars in this plan use full words (`bindings`, `overrides`, not `b` or `ovr`).
 - **Credo `ContextSubscribeFacade`** — LiveViews use `Controls.subscribe()`, which is the facade pattern.
-- **Boundary** — `MediaCentarr.Controls` declares `use Boundary, deps: [MediaCentarr.Settings], exports: [Binding, Catalog]`. If any LiveView subscribes to it, it needs `Controls` in its boundary deps. Follow compiler messages.
+- **Boundary** — `MediaCentaur.Controls` declares `use Boundary, deps: [MediaCentaur.Settings], exports: [Binding, Catalog]`. If any LiveView subscribes to it, it needs `Controls` in its boundary deps. Follow compiler messages.
 - **Warnings-as-errors** — fix any unused-variable / unused-alias reports.
 
 - [ ] **Step 3: Commit any fixes**

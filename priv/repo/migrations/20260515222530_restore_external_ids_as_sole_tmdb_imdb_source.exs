@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.RestoreExternalIdsAsSoleTmdbImdbSource do
+defmodule MediaCentaur.Repo.Migrations.RestoreExternalIdsAsSoleTmdbImdbSource do
   @moduledoc """
   Library Schema v2 — Phase 1 Task 6.
 
@@ -29,7 +29,7 @@ defmodule MediaCentarr.Repo.Migrations.RestoreExternalIdsAsSoleTmdbImdbSource do
      container.
   4. **Drop** the `tmdb_id` / `imdb_id` columns from each container.
   5. **Index** `(source, external_id)` on `library_external_ids` for
-     the new lookup path (`MediaCentarr.Library.ExternalIds.find_owner/2`).
+     the new lookup path (`MediaCentaur.Library.ExternalIds.find_owner/2`).
 
   Not reversible — the columns are dropped destructively. The data
   remains in `library_external_ids` either way.

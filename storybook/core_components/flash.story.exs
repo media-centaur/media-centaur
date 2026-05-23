@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.CoreComponents.Flash do
+defmodule MediaCentaurWeb.Storybook.CoreComponents.Flash do
   @moduledoc """
   Rubric-bar story for `flash/1` — every `kind`, hidden vs. visible,
   no-title, and long-body wrapping.
@@ -9,8 +9,8 @@ defmodule MediaCentarrWeb.Storybook.CoreComponents.Flash do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.CoreComponents.flash/1
-  def imports, do: [{MediaCentarrWeb.CoreComponents, show: 1, button: 1}]
+  def function, do: &MediaCentaurWeb.CoreComponents.flash/1
+  def imports, do: [{MediaCentaurWeb.CoreComponents, show: 1, button: 1}]
   def render_source, do: :function
 
   # Flash uses `class="toast toast-top toast-end"` which is position-fixed

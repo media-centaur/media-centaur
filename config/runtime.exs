@@ -9,23 +9,23 @@ import Config
 if config_env() != :test do
   # Read the active TOML override once so we can hand both the Phoenix
   # Endpoint (port) and the Ecto Repo (database) their real values before
-  # the supervision tree starts. `MEDIA_CENTARR_CONFIG_OVERRIDE` is the
+  # the supervision tree starts. `MEDIA_CENTAUR_CONFIG_OVERRIDE` is the
   # single lever — dev systemd unit, showcase seeder, and any demo setup
   # all set it to a self-contained TOML file. If unset, the default XDG
   # TOML is read (the installed production config).
   # Dev and prod have different default TOML paths so `iex -S mix phx.server`
   # in a dev checkout doesn't silently inherit the installed production's
   # config. The dev systemd unit also points at this same dev path via its
-  # own `MEDIA_CENTARR_CONFIG_OVERRIDE`.
+  # own `MEDIA_CENTAUR_CONFIG_OVERRIDE`.
   default_toml_path =
     if config_env() == :dev do
-      "~/.config/media-centarr/media-centarr-dev.toml"
+      "~/.config/media-centaur/media-centaur-dev.toml"
     else
-      "~/.config/media-centarr/media-centarr.toml"
+      "~/.config/media-centaur/media-centaur.toml"
     end
 
   toml_path =
-    case System.get_env("MEDIA_CENTARR_CONFIG_OVERRIDE") do
+    case System.get_env("MEDIA_CENTAUR_CONFIG_OVERRIDE") do
       nil -> Path.expand(default_toml_path)
       "" -> Path.expand(default_toml_path)
       path -> Path.expand(path)
@@ -51,16 +51,16 @@ if config_env() != :test do
       true -> 1080
     end
 
-  config :media_centarr, MediaCentarrWeb.Endpoint, http: [ip: {127, 0, 0, 1}, port: port]
+  config :media_centaur, MediaCentaurWeb.Endpoint, http: [ip: {127, 0, 0, 1}, port: port]
 
   # Database: TOML `database_path` > compile-time default in config.exs.
   if db = get_in(toml, ["database_path"]) do
-    config :media_centarr, MediaCentarr.Repo, database: Path.expand(db)
+    config :media_centaur, MediaCentaur.Repo, database: Path.expand(db)
   end
 
-  # Defaults that flow into MediaCentarr.Config as fallbacks — the TOML
+  # Defaults that flow into MediaCentaur.Config as fallbacks — the TOML
   # overrides any of these via `watch_dirs`, `[tmdb].api_key`, etc.
-  config :media_centarr,
+  config :media_centaur,
     watch_dirs: [System.get_env("MEDIA_DIR", "/mnt/videos/Videos")],
     tmdb_api_key: System.get_env("TMDB_API_KEY", ""),
     auto_approve_threshold: 0.85
@@ -71,7 +71,7 @@ if config_env() == :prod do
     System.get_env("SECRET_KEY_BASE") ||
       raise("environment variable SECRET_KEY_BASE is missing")
 
-  config :media_centarr, MediaCentarrWeb.Endpoint,
+  config :media_centaur, MediaCentaurWeb.Endpoint,
     server: true,
     check_origin: false,
     secret_key_base: secret_key_base

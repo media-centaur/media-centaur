@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Invoke `automated-testing`, `ecto`, `otp-thinking`, and `coding-guidelines` skills before touching code.
 
-**Goal:** Reify `MediaCentarr.Library.PlayableItem` as the canonical leaf — the thing the user presses Play on. Collapse the 3–5-FK polymorphic fanout on `WatchedFile`, `WatchProgress`, `Image`, `Extra`, `ExternalId` into either a single FK to PlayableItem (`WatchedFile`, `WatchProgress`) or a `(owner_type, owner_id)` discriminator (`Image`, `Extra`, `ExternalId`). Drop `content_url` from leaves. Eliminate `EntityShape.normalize/3` (PlayableItem IS the normalised shape).
+**Goal:** Reify `MediaCentaur.Library.PlayableItem` as the canonical leaf — the thing the user presses Play on. Collapse the 3–5-FK polymorphic fanout on `WatchedFile`, `WatchProgress`, `Image`, `Extra`, `ExternalId` into either a single FK to PlayableItem (`WatchedFile`, `WatchProgress`) or a `(owner_type, owner_id)` discriminator (`Image`, `Extra`, `ExternalId`). Drop `content_url` from leaves. Eliminate `EntityShape.normalize/3` (PlayableItem IS the normalised shape).
 
 **Architecture:** Pillar-1 structural redesign. The campaign target schema (`campaigns/done/library-schema-v2.md` "Target schema" section) is the spec. After Phase 2, every supporting table either keys to `playable_item_id` (file/progress/subtitle) or uses a single `(owner_type, owner_id)` polymorphic pair (image/extra/external_id). One container can host N playable items (unlocks director's cuts, multi-part episodes).
 
@@ -49,16 +49,16 @@ J (Drop legacy library_entity_id columns; convert UI/release_tracking callers)
 
 | Sub-task | Creates | Modifies |
 |----------|---------|----------|
-| A | `lib/media_centarr/library/playable_item.ex`, `priv/repo/migrations/<ts>_create_playable_items.exs`, `test/media_centarr/library/playable_item_test.exs` | `lib/media_centarr/library.ex` (CRUD + boundary export); `lib/media_centarr/library/movie.ex`/`episode.ex`/`video_object.ex` (has_many) |
-| B | `priv/repo/migrations/<ts>_refit_watched_file_to_playable_item.exs` | `lib/media_centarr/library/watched_file.ex` (drop 4 FKs, add 1; delete `owner_id/1`); every caller of `WatchedFile.owner_id/1`; backfill writes in `Library.Inbound` |
-| C | `priv/repo/migrations/<ts>_refit_watch_progress_to_playable_item.exs` | `lib/media_centarr/library/watch_progress.ex` (drop 3 FKs, add 1, unique); `Library.WatchProgress.create_changeset/1` API; every caller of `wp.movie_id`/`wp.episode_id`/`wp.video_object_id` |
-| D | `priv/repo/migrations/<ts>_image_polymorphic_owner.exs` | `lib/media_centarr/library/image.ex` (drop 5 FKs, add `(owner_type, owner_id)`); image-readers/writers; unique index on `(owner_type, owner_id, role)` |
-| E | `priv/repo/migrations/<ts>_extra_polymorphic_owner.exs` | `lib/media_centarr/library/extra.ex` (drop multi FKs, add `(owner_type, owner_id)`); Extra writers/readers |
-| F | `priv/repo/migrations/<ts>_external_id_polymorphic_owner.exs` | `lib/media_centarr/library/external_id.ex` (drop 4 FKs, add `(owner_type, owner_id)`); `Library.ExternalIds.put/3` + `get/2` + `find_owner/2` + `Library.find_*_by_tmdb_id/1`; unique-constraint declarations match new index |
-| G | — | `lib/media_centarr/library/inbound.ex` (movie/episode/video_object/series-child ingest creates PlayableItem rows); `lib/media_centarr/library/file_event_handler.ex` (cascade uses PlayableItem) |
-| H | — | `lib/media_centarr/library/type_resolver.ex` (resolve by PlayableItem id); `lib/media_centarr/library/entity_shape.ex` (delete `normalize/3` + module if empty); `lib/media_centarr/library/entity_cascade.ex` (rewrite cascade order: playable_items → supporting → containers); every consumer of `EntityShape.normalize/3` |
-| I | `priv/repo/migrations/<ts>_drop_content_url_from_leaves.exs` | `lib/media_centarr/library/movie.ex`/`episode.ex`/`video_object.ex` (drop `content_url`); LiveView playback handlers and `Playback.*` consumers read `WatchedFile.file_path` |
-| J | `priv/repo/migrations/<ts>_drop_legacy_library_entity_id_columns.exs` | `lib/media_centarr/release_tracking.ex` (column rename: `library_entity_id` → `playable_item_id`); `lib/media_centarr_web/components/upcoming_cards.ex`; `lib/media_centarr_web/live/upcoming_live.ex` |
+| A | `lib/media_centaur/library/playable_item.ex`, `priv/repo/migrations/<ts>_create_playable_items.exs`, `test/media_centaur/library/playable_item_test.exs` | `lib/media_centaur/library.ex` (CRUD + boundary export); `lib/media_centaur/library/movie.ex`/`episode.ex`/`video_object.ex` (has_many) |
+| B | `priv/repo/migrations/<ts>_refit_watched_file_to_playable_item.exs` | `lib/media_centaur/library/watched_file.ex` (drop 4 FKs, add 1; delete `owner_id/1`); every caller of `WatchedFile.owner_id/1`; backfill writes in `Library.Inbound` |
+| C | `priv/repo/migrations/<ts>_refit_watch_progress_to_playable_item.exs` | `lib/media_centaur/library/watch_progress.ex` (drop 3 FKs, add 1, unique); `Library.WatchProgress.create_changeset/1` API; every caller of `wp.movie_id`/`wp.episode_id`/`wp.video_object_id` |
+| D | `priv/repo/migrations/<ts>_image_polymorphic_owner.exs` | `lib/media_centaur/library/image.ex` (drop 5 FKs, add `(owner_type, owner_id)`); image-readers/writers; unique index on `(owner_type, owner_id, role)` |
+| E | `priv/repo/migrations/<ts>_extra_polymorphic_owner.exs` | `lib/media_centaur/library/extra.ex` (drop multi FKs, add `(owner_type, owner_id)`); Extra writers/readers |
+| F | `priv/repo/migrations/<ts>_external_id_polymorphic_owner.exs` | `lib/media_centaur/library/external_id.ex` (drop 4 FKs, add `(owner_type, owner_id)`); `Library.ExternalIds.put/3` + `get/2` + `find_owner/2` + `Library.find_*_by_tmdb_id/1`; unique-constraint declarations match new index |
+| G | — | `lib/media_centaur/library/inbound.ex` (movie/episode/video_object/series-child ingest creates PlayableItem rows); `lib/media_centaur/library/file_event_handler.ex` (cascade uses PlayableItem) |
+| H | — | `lib/media_centaur/library/type_resolver.ex` (resolve by PlayableItem id); `lib/media_centaur/library/entity_shape.ex` (delete `normalize/3` + module if empty); `lib/media_centaur/library/entity_cascade.ex` (rewrite cascade order: playable_items → supporting → containers); every consumer of `EntityShape.normalize/3` |
+| I | `priv/repo/migrations/<ts>_drop_content_url_from_leaves.exs` | `lib/media_centaur/library/movie.ex`/`episode.ex`/`video_object.ex` (drop `content_url`); LiveView playback handlers and `Playback.*` consumers read `WatchedFile.file_path` |
+| J | `priv/repo/migrations/<ts>_drop_legacy_library_entity_id_columns.exs` | `lib/media_centaur/release_tracking.ex` (column rename: `library_entity_id` → `playable_item_id`); `lib/media_centaur_web/components/upcoming_cards.ex`; `lib/media_centaur_web/live/upcoming_live.ex` |
 
 ---
 
@@ -67,22 +67,22 @@ J (Drop legacy library_entity_id columns; convert UI/release_tracking callers)
 The foundation. Other tasks reference `playable_item_id` so this must land first.
 
 **Files:**
-- Create `lib/media_centarr/library/playable_item.ex`
+- Create `lib/media_centaur/library/playable_item.ex`
 - Create `priv/repo/migrations/<ts>_create_playable_items.exs`
-- Create `test/media_centarr/library/playable_item_test.exs`
-- Modify `lib/media_centarr/library.ex` (CRUD + boundary export)
-- Modify `lib/media_centarr/library/movie.ex`, `episode.ex`, `video_object.ex` (`has_many :playable_items`)
+- Create `test/media_centaur/library/playable_item_test.exs`
+- Modify `lib/media_centaur/library.ex` (CRUD + boundary export)
+- Modify `lib/media_centaur/library/movie.ex`, `episode.ex`, `video_object.ex` (`has_many :playable_items`)
 
 ### Steps
 
-- [ ] **A.1 Write failing test** in `test/media_centarr/library/playable_item_test.exs`:
+- [ ] **A.1 Write failing test** in `test/media_centaur/library/playable_item_test.exs`:
 
 ```elixir
-defmodule MediaCentarr.Library.PlayableItemTest do
-  use MediaCentarr.DataCase, async: true
+defmodule MediaCentaur.Library.PlayableItemTest do
+  use MediaCentaur.DataCase, async: true
 
-  alias MediaCentarr.Library.{Movie, PlayableItem}
-  alias MediaCentarr.TestFactory
+  alias MediaCentaur.Library.{Movie, PlayableItem}
+  alias MediaCentaur.TestFactory
 
   describe "create_changeset/1" do
     test "round-trips a movie playable item" do
@@ -97,7 +97,7 @@ defmodule MediaCentarr.Library.PlayableItemTest do
           name: nil
         }
         |> PlayableItem.create_changeset()
-        |> MediaCentarr.Repo.insert()
+        |> MediaCentaur.Repo.insert()
 
       assert item.container_type == :movie
       assert item.container_id == movie.id
@@ -131,7 +131,7 @@ mix ecto.gen.migration create_playable_items
 Migration shape:
 
 ```elixir
-defmodule MediaCentarr.Repo.Migrations.CreatePlayableItems do
+defmodule MediaCentaur.Repo.Migrations.CreatePlayableItems do
   use Ecto.Migration
 
   def change do
@@ -156,13 +156,13 @@ Note container_type/container_id uses a discriminator pair (campaign decision 20
 
 ```bash
 mix ecto.migrate
-MEDIA_CENTARR_CONFIG_OVERRIDE=defaults/media-centarr-showcase.toml mix ecto.migrate
+MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.migrate
 ```
 
 - [ ] **A.5 Implement `Library.PlayableItem`**:
 
 ```elixir
-defmodule MediaCentarr.Library.PlayableItem do
+defmodule MediaCentaur.Library.PlayableItem do
   @moduledoc """
   The user-visible playable leaf — the thing pressed Play on. One container
   (Movie / Episode / VideoObject) can host multiple PlayableItems for
@@ -205,7 +205,7 @@ end
 - [ ] **A.6 Add `Library` CRUD + boundary export**:
 
 ```elixir
-# in lib/media_centarr/library.ex — add to exports if Boundary is in use
+# in lib/media_centaur/library.ex — add to exports if Boundary is in use
 # and add helpers:
 
 def create_playable_item(attrs) do
@@ -234,17 +234,17 @@ end
 
 ```elixir
 # Movie schema:
-has_many :playable_items, MediaCentarr.Library.PlayableItem,
+has_many :playable_items, MediaCentaur.Library.PlayableItem,
   foreign_key: :container_id,
   where: [container_type: :movie]
 
 # Episode schema:
-has_many :playable_items, MediaCentarr.Library.PlayableItem,
+has_many :playable_items, MediaCentaur.Library.PlayableItem,
   foreign_key: :container_id,
   where: [container_type: :episode]
 
 # VideoObject schema:
-has_many :playable_items, MediaCentarr.Library.PlayableItem,
+has_many :playable_items, MediaCentaur.Library.PlayableItem,
   foreign_key: :container_id,
   where: [container_type: :video_object]
 ```
@@ -253,7 +253,7 @@ The `where: [container_type: ...]` filter is Ecto's polymorphic-association idio
 
 - [ ] **A.8 Update test factory** to add `create_playable_item/1` and `create_playable_item_for_movie/1`.
 
-- [ ] **A.9 Run tests** — `mix test test/media_centarr/library/playable_item_test.exs`. Expected: green.
+- [ ] **A.9 Run tests** — `mix test test/media_centaur/library/playable_item_test.exs`. Expected: green.
 
 - [ ] **A.10 `mix precommit`** — must pass cleanly. Zero warnings.
 
@@ -309,7 +309,7 @@ After this task, `WatchedFile` schema is:
 schema "library_watched_files" do
   field :file_path, :string
   field :watch_dir, :string
-  belongs_to :playable_item, MediaCentarr.Library.PlayableItem
+  belongs_to :playable_item, MediaCentaur.Library.PlayableItem
   timestamps()
 end
 ```
@@ -436,9 +436,9 @@ After Phase 2, the UUIDs they hold should point at PlayableItem (the canonical U
 
 **Files touched:**
 - Migration that renames the column AND backfills the values to point at PlayableItem (lookup by `(container_type, container_id) = (release.media_type, release.library_entity_id)` → fetch PlayableItem).
-- `lib/media_centarr/release_tracking.ex` — column rename, helper rename (`find_last_library_episode` → `find_last_episode_playable_item` or similar)
-- `lib/media_centarr_web/components/upcoming_cards.ex` — link generation
-- `lib/media_centarr_web/live/upcoming_live.ex` — playable lookup
+- `lib/media_centaur/release_tracking.ex` — column rename, helper rename (`find_last_library_episode` → `find_last_episode_playable_item` or similar)
+- `lib/media_centaur_web/components/upcoming_cards.ex` — link generation
+- `lib/media_centaur_web/live/upcoming_live.ex` — playable lookup
 
 Commit message: `refactor(release_tracking): library_entity_id → playable_item_id`
 

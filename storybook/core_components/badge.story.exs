@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.CoreComponents.Badge do
+defmodule MediaCentaurWeb.Storybook.CoreComponents.Badge do
   @moduledoc """
   Story for the `<.badge>` component — UIDR-002 codified as typed variants.
 
@@ -8,7 +8,7 @@ defmodule MediaCentarrWeb.Storybook.CoreComponents.Badge do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.CoreComponents.badge/1
+  def function, do: &MediaCentaurWeb.CoreComponents.badge/1
   def render_source, do: :function
 
   def variations do

@@ -1,9 +1,9 @@
-defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
+defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
   @moduledoc "Live status card for the pursuit detail modal."
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Acquisition.ViewModels.{
+  alias MediaCentaur.Acquisition.ViewModels.{
     CurrentAction,
     DownloadProgress,
     NextStep,
@@ -11,7 +11,7 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitActivity do
     Recipe
   }
 
-  def function, do: &MediaCentarrWeb.Components.Acquisition.PursuitActivity.pursuit_activity/1
+  def function, do: &MediaCentaurWeb.Components.Acquisition.PursuitActivity.pursuit_activity/1
   def render_source, do: :function
 
   def template do

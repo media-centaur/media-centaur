@@ -5,7 +5,7 @@ As of v0.14.0, virtually all runtime settings are managed in the app UI and stor
 ## TOML file (minimal)
 
 ```
-~/.config/media-centarr/media-centarr.toml
+~/.config/media-centaur/media-centaur.toml
 ```
 
 **Only two keys belong here:**
@@ -19,7 +19,7 @@ Everything else (watch directories, excluded directories, TMDB API key, Prowlarr
 
 ## One-shot TOML migration
 
-On first boot after upgrading from v0.13.x or earlier, Media Centarr reads any runtime keys present in the TOML file, imports them into the Settings DB, and then ignores the TOML for those keys from that point on. No data is lost. After the migration, editing the TOML keys that were imported has no effect — use the Settings UI instead.
+On first boot after upgrading from v0.13.x or earlier, Media Centaur reads any runtime keys present in the TOML file, imports them into the Settings DB, and then ignores the TOML for those keys from that point on. No data is lost. After the migration, editing the TOML keys that were imported has no effect — use the Settings UI instead.
 
 ## DB-managed settings (edit in the UI)
 
@@ -35,10 +35,10 @@ All of these live on the **Settings** page and apply immediately with no restart
 
 ## End-user documentation
 
-- **[Configuration File](https://github.com/media-centarr/media-centarr/wiki/Configuration-File)** — the minimal TOML file and migration notes.
-- **[Settings Reference](https://github.com/media-centarr/media-centarr/wiki/Settings-Reference)** — all in-app settings.
-- **[Adding Your Library](https://github.com/media-centarr/media-centarr/wiki/Adding-Your-Library)** — adding watch directories via the UI.
+- **[Configuration File](https://github.com/media-centaur/media-centaur/wiki/Configuration-File)** — the minimal TOML file and migration notes.
+- **[Settings Reference](https://github.com/media-centaur/media-centaur/wiki/Settings-Reference)** — all in-app settings.
+- **[Adding Your Library](https://github.com/media-centaur/media-centaur/wiki/Adding-Your-Library)** — adding watch directories via the UI.
 
 ## Contributor reference
 
-`MediaCentarr.Config` details live in the module's `@moduledoc` (`lib/media_centarr/config.ex`).
+`MediaCentaur.Config` details live in the module's `@moduledoc` (`lib/media_centaur/config.ex`).

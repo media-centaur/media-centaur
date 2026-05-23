@@ -1,9 +1,9 @@
-defmodule MediaCentarr.MixProject do
+defmodule MediaCentaur.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :media_centarr,
+      app: :media_centaur,
       version: "0.72.1",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
@@ -14,10 +14,10 @@ defmodule MediaCentarr.MixProject do
       listeners: [Phoenix.CodeReloader],
       consolidate_protocols: Mix.env() != :dev,
       releases: [
-        media_centarr: [
+        media_centaur: [
           include_executables_for: [:unix],
           applications: [runtime_tools: :permanent],
-          cookie: "media-centarr-local",
+          cookie: "media-centaur-local",
           steps: [:assemble, :tar],
           overlays: overlays_for_target()
         ]
@@ -31,7 +31,7 @@ defmodule MediaCentarr.MixProject do
   # Type `mix help compile.app` for more information.
   def application do
     [
-      mod: {MediaCentarr.Application, []},
+      mod: {MediaCentaur.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
   end
@@ -50,7 +50,7 @@ defmodule MediaCentarr.MixProject do
   # Per-platform release overlays. `mix release` runs natively on each target
   # OS (`priv/mac_listener` is a per-platform binary so macOS tarballs can't
   # be cross-compiled from Linux), so `:os.type/0` at evaluation time is the
-  # build target. Shared overlay carries `defaults/media-centarr.toml`; the
+  # build target. Shared overlay carries `defaults/media-centaur.toml`; the
   # OS-specific overlay carries the autostart unit file + matching installer.
   #
   # Lives outside `rel/overlays/` because mix auto-prepends that directory to
@@ -141,10 +141,10 @@ defmodule MediaCentarr.MixProject do
       "ecto.reset": ["ecto.drop", "ecto.setup"],
       test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
-      "assets.build": ["compile", "tailwind media_centarr", "esbuild media_centarr"],
+      "assets.build": ["compile", "tailwind media_centaur", "esbuild media_centaur"],
       "assets.deploy": [
-        "tailwind media_centarr --minify",
-        "esbuild media_centarr --minify",
+        "tailwind media_centaur --minify",
+        "esbuild media_centaur --minify",
         "phx.digest"
       ],
       precommit: [

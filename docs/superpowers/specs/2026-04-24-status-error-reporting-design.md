@@ -25,46 +25,46 @@
 
 ### New bounded context
 
-A new context `MediaCentarr.ErrorReports` (no tables; all in-memory). Follows the project's bounded-context pattern: facade module exposes a small public API, internals are private.
+A new context `MediaCentaur.ErrorReports` (no tables; all in-memory). Follows the project's bounded-context pattern: facade module exposes a small public API, internals are private.
 
 ```elixir
-defmodule MediaCentarr.ErrorReports do
+defmodule MediaCentaur.ErrorReports do
   use Boundary,
-    deps: [MediaCentarr.Console, MediaCentarr.Config, MediaCentarr.Topics],
+    deps: [MediaCentaur.Console, MediaCentaur.Config, MediaCentaur.Topics],
     exports: [Bucket]
 
   # Public facade
   def list_buckets(), do: Buckets.list_buckets()
   def get_bucket(fingerprint), do: Buckets.get_bucket(fingerprint)
-  def subscribe(), do: Phoenix.PubSub.subscribe(MediaCentarr.PubSub, Topics.error_reports())
+  def subscribe(), do: Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.error_reports())
 end
 ```
 
-`MediaCentarr.Topics` gets a new `error_reports/0` returning `"error_reports:updates"`.
+`MediaCentaur.Topics` gets a new `error_reports/0` returning `"error_reports:updates"`.
 
 ### Module layout
 
 | Module | Kind | Responsibility |
 |---|---|---|
-| `MediaCentarr.ErrorReports` | Facade | Public API — `list_buckets/0`, `get_bucket/1`, `subscribe/0` |
-| `MediaCentarr.ErrorReports.Bucket` | Struct | Exported bucket struct (see schema below) |
-| `MediaCentarr.ErrorReports.Fingerprint` | Pure | Given `{component, raw_message}`, returns `%{key, display_title, normalized_message}` |
-| `MediaCentarr.ErrorReports.Redactor` | Pure | Applies regex-based redaction + active-config strip of API keys and URLs |
-| `MediaCentarr.ErrorReports.Buckets` | GenServer | Subscribes to Console, maintains `%{fingerprint => Bucket}`, prunes by window, throttled broadcasts |
-| `MediaCentarr.ErrorReports.IssueUrl` | Pure | Builds `https://github.com/.../issues/new?title=&body=` URL with size-fallback truncation |
-| `MediaCentarr.ErrorReports.EnvMetadata` | Pure | Collects app version, OTP/Elixir, OS, uptime for the payload |
+| `MediaCentaur.ErrorReports` | Facade | Public API — `list_buckets/0`, `get_bucket/1`, `subscribe/0` |
+| `MediaCentaur.ErrorReports.Bucket` | Struct | Exported bucket struct (see schema below) |
+| `MediaCentaur.ErrorReports.Fingerprint` | Pure | Given `{component, raw_message}`, returns `%{key, display_title, normalized_message}` |
+| `MediaCentaur.ErrorReports.Redactor` | Pure | Applies regex-based redaction + active-config strip of API keys and URLs |
+| `MediaCentaur.ErrorReports.Buckets` | GenServer | Subscribes to Console, maintains `%{fingerprint => Bucket}`, prunes by window, throttled broadcasts |
+| `MediaCentaur.ErrorReports.IssueUrl` | Pure | Builds `https://github.com/.../issues/new?title=&body=` URL with size-fallback truncation |
+| `MediaCentaur.ErrorReports.EnvMetadata` | Pure | Collects app version, OTP/Elixir, OS, uptime for the payload |
 
-`MediaCentarr.ErrorReports.Application`-supervised `Buckets` starts in the main supervision tree alongside other context GenServers.
+`MediaCentaur.ErrorReports.Application`-supervised `Buckets` starts in the main supervision tree alongside other context GenServers.
 
 ### Boundary dependencies
 
 `ErrorReports` depends on:
 
-- `MediaCentarr.Console` — subscribes to `Console.subscribe()` (already exists for the `/console` LiveView), reads `Console.Entry` structs at `:error` level.
-- `MediaCentarr.Config` — reads active TMDB API key and any configured URLs for the Redactor's strip pass.
-- `MediaCentarr.Topics` — topic string constants.
+- `MediaCentaur.Console` — subscribes to `Console.subscribe()` (already exists for the `/console` LiveView), reads `Console.Entry` structs at `:error` level.
+- `MediaCentaur.Config` — reads active TMDB API key and any configured URLs for the Redactor's strip pass.
+- `MediaCentaur.Topics` — topic string constants.
 
-`MediaCentarrWeb.StatusLive` gains a `MediaCentarr.ErrorReports` boundary dep (already depends on `Library`, `Playback`, etc.). The existing `MediaCentarrWeb.StatusHelpers.merge_recent_errors/2` function is deleted.
+`MediaCentaurWeb.StatusLive` gains a `MediaCentaur.ErrorReports` boundary dep (already depends on `Library`, `Playback`, etc.). The existing `MediaCentaurWeb.StatusHelpers.merge_recent_errors/2` function is deleted.
 
 ## Data flow
 
@@ -104,7 +104,7 @@ The `:logger` handler is **not** modified. The Console buffer is the single ingr
 ### `ErrorReports.Bucket`
 
 ```elixir
-defmodule MediaCentarr.ErrorReports.Bucket do
+defmodule MediaCentaur.ErrorReports.Bucket do
   @enforce_keys [:fingerprint, :component, :normalized_message, :display_title,
                  :count, :first_seen, :last_seen, :sample_entries]
   defstruct [:fingerprint, :component, :normalized_message, :display_title,
@@ -151,8 +151,8 @@ Given a Console entry with `level: :error, component: c, message: m`:
 Applied in order; first-match wins per token:
 
 1. **Configured secrets** (active-config strip):
-   - Replace literal occurrences of `MediaCentarr.Config.get(:tmdb_api_key)` with `<redacted:api_key>` (no-op if nil/empty or length < 8).
-   - Replace literal occurrences of every URL gathered by a new helper `MediaCentarr.ErrorReports.Redactor.configured_urls/0`, which reads the existing `MediaCentarr.Config` for any known external-URL keys (e.g. Prowlarr base URL, download-client URLs) and returns a flat list of strings. New helper — implementation picks up each known config key explicitly; it does not scan the entire config tree.
+   - Replace literal occurrences of `MediaCentaur.Config.get(:tmdb_api_key)` with `<redacted:api_key>` (no-op if nil/empty or length < 8).
+   - Replace literal occurrences of every URL gathered by a new helper `MediaCentaur.ErrorReports.Redactor.configured_urls/0`, which reads the existing `MediaCentaur.Config` for any known external-URL keys (e.g. Prowlarr base URL, download-client URLs) and returns a flat list of strings. New helper — implementation picks up each known config key explicitly; it does not scan the entire config tree.
 2. **Regex substitutions** (applied after secret strip):
    - Absolute paths: `~r{(?<![A-Za-z0-9_])/(?:[^\s/"']+/){1,}[^\s/"']*}` → `<path>`
    - UUIDs: `~r/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/i` → `<uuid>`
@@ -171,7 +171,7 @@ The modal carries a visible `alert alert-warning`:
 
 ## GitHub issue URL
 
-Base: `https://github.com/media-centarr/media-centarr/issues/new?title=<encoded>&body=<encoded>`.
+Base: `https://github.com/media-centaur/media-centaur/issues/new?title=<encoded>&body=<encoded>`.
 
 ### Title format
 
@@ -185,7 +185,7 @@ Deterministic given `{component, normalized_message}` — so two users filing th
 
 ```markdown
 ## Environment
-App:     media-centarr 0.21.0
+App:     media-centaur 0.21.0
 Erlang:  OTP 27 / Elixir 1.17
 OS:      Linux 6.19.12-arch1-1 (x86_64)
 Locale:  en_US.UTF-8
@@ -209,7 +209,7 @@ Normalized message:
     ...
 
 ---
-Reported via Media Centarr's in-app error reporter.
+Reported via Media Centaur's in-app error reporter.
 ```
 
 ### URL-length fallback
@@ -228,7 +228,7 @@ The modal shows a banner when truncation was applied.
 
 ### Status page error card
 
-Replaces `recent_errors_table/1` in `MediaCentarrWeb.StatusLive`. Rendered by a new helper function `error_summary_card/1` (kept as an in-file component — StatusLive is already a large file, but no new call site justifies a separate module yet).
+Replaces `recent_errors_table/1` in `MediaCentaurWeb.StatusLive`. Rendered by a new helper function `error_summary_card/1` (kept as an in-file component — StatusLive is already a large file, but no new call site justifies a separate module yet).
 
 **Populated state:**
 
@@ -264,9 +264,9 @@ Report button hidden when `buckets == []`.
 
 ### Report modal
 
-New `MediaCentarrWeb.StatusLive.ReportModal` LiveComponent.
+New `MediaCentaurWeb.StatusLive.ReportModal` LiveComponent.
 
-Header: `Send this error report to the Media Centarr developer?`
+Header: `Send this error report to the Media Centaur developer?`
 
 Body (top to bottom):
 
@@ -358,9 +358,9 @@ Report flow involves a third-party (GitHub). Functional coverage is handled by t
 
 Single-step, same-PR:
 
-1. Add `MediaCentarr.ErrorReports` context and its modules.
+1. Add `MediaCentaur.ErrorReports` context and its modules.
 2. Register `Buckets` in the supervision tree.
-3. Add `MediaCentarr.Topics.error_reports/0`.
+3. Add `MediaCentaur.Topics.error_reports/0`.
 4. Replace `StatusLive.recent_errors_table/1` + `merge_recent_errors/2` with the new summary card.
 5. Delete the old table helper and the `recent_errors` assign from `StatusLive`.
 6. Keep `Pipeline.Stats.recent_errors` ring buffer untouched.

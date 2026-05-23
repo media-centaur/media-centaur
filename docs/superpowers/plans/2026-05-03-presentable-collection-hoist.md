@@ -13,15 +13,15 @@
 ## File Structure
 
 **New files:**
-- `lib/media_centarr/library/presentable_queries.ex` — composable Ecto query fragments for the hoist split.
-- `test/media_centarr/library/presentable_queries_test.exs` — unit tests for the two query helpers.
+- `lib/media_centaur/library/presentable_queries.ex` — composable Ecto query fragments for the hoist split.
+- `test/media_centaur/library/presentable_queries_test.exs` — unit tests for the two query helpers.
 
 **Modified files:**
-- `lib/media_centarr/library/entity_shape.ex` — `normalize/2` adds `:collection` field.
-- `lib/media_centarr/library/browser.ex` — `fetch_all_typed_entries/0`, `fetch_typed_entries_by_ids/1`. Drop `maybe_unwrap_single_movie/1`.
-- `lib/media_centarr/library.ex` — `list_recently_added/1`, `list_in_progress/1`, `list_hero_candidates/1` plus their per-type fetchers.
-- `test/media_centarr/library_browser_test.exs` — extend the N+1 regression guard with hoist coverage.
-- `test/media_centarr/library_test.exs` — extend Home surface tests with hoist coverage.
+- `lib/media_centaur/library/entity_shape.ex` — `normalize/2` adds `:collection` field.
+- `lib/media_centaur/library/browser.ex` — `fetch_all_typed_entries/0`, `fetch_typed_entries_by_ids/1`. Drop `maybe_unwrap_single_movie/1`.
+- `lib/media_centaur/library.ex` — `list_recently_added/1`, `list_in_progress/1`, `list_hero_candidates/1` plus their per-type fetchers.
+- `test/media_centaur/library_browser_test.exs` — extend the N+1 regression guard with hoist coverage.
+- `test/media_centaur/library_test.exs` — extend Home surface tests with hoist coverage.
 
 ---
 
@@ -38,21 +38,21 @@ The project uses `mix precommit` as the gate. Each task ends with running the ta
 **Why first:** Every other change depends on these helpers. Building them in isolation with their own tests means every downstream surface gets correct, tested queries from the start.
 
 **Files:**
-- Create: `lib/media_centarr/library/presentable_queries.ex`
-- Test: `test/media_centarr/library/presentable_queries_test.exs`
+- Create: `lib/media_centaur/library/presentable_queries.ex`
+- Test: `test/media_centaur/library/presentable_queries_test.exs`
 
 - [ ] **Step 1: Write the failing tests**
 
 ```elixir
-# test/media_centarr/library/presentable_queries_test.exs
-defmodule MediaCentarr.Library.PresentableQueriesTest do
-  use MediaCentarr.DataCase, async: true
+# test/media_centaur/library/presentable_queries_test.exs
+defmodule MediaCentaur.Library.PresentableQueriesTest do
+  use MediaCentaur.DataCase, async: true
 
-  alias MediaCentarr.Library.{Movie, MovieSeries, PresentableQueries}
-  alias MediaCentarr.Repo
+  alias MediaCentaur.Library.{Movie, MovieSeries, PresentableQueries}
+  alias MediaCentaur.Repo
 
-  import MediaCentarr.LibraryFixtures
-  import MediaCentarr.WatcherFixtures
+  import MediaCentaur.LibraryFixtures
+  import MediaCentaur.WatcherFixtures
 
   describe "multi_child_movie_series/0" do
     test "returns movie_series with 2+ present children" do
@@ -150,14 +150,14 @@ end
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `mix test test/media_centarr/library/presentable_queries_test.exs`
+Run: `mix test test/media_centaur/library/presentable_queries_test.exs`
 Expected: FAIL with "module PresentableQueries is not loaded".
 
 - [ ] **Step 3: Implement the module**
 
 ```elixir
-# lib/media_centarr/library/presentable_queries.ex
-defmodule MediaCentarr.Library.PresentableQueries do
+# lib/media_centaur/library/presentable_queries.ex
+defmodule MediaCentaur.Library.PresentableQueries do
   @moduledoc """
   Composable Ecto query fragments that encode the "presentable" hoist rule
   for browse-style surfaces.
@@ -188,8 +188,8 @@ defmodule MediaCentarr.Library.PresentableQueries do
   """
   import Ecto.Query
 
-  alias MediaCentarr.Library.{Movie, MovieSeries}
-  alias MediaCentarr.Watcher.KnownFile
+  alias MediaCentaur.Library.{Movie, MovieSeries}
+  alias MediaCentaur.Watcher.KnownFile
 
   @doc """
   Standalone movies: `movie_series_id IS NULL`, with at least one present file.
@@ -270,7 +270,7 @@ end
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `mix test test/media_centarr/library/presentable_queries_test.exs`
+Run: `mix test test/media_centaur/library/presentable_queries_test.exs`
 Expected: PASS — all three describe blocks green.
 
 - [ ] **Step 5: Commit**
@@ -287,19 +287,19 @@ jj new
 **Why:** Hoisted Movies need to expose their parent MovieSeries metadata so detail views can render a "Part of: X collection" badge without nesting. The rich-shape contract is the right place to surface this — slim Home shapes can read `record.movie_series` directly when they need it.
 
 **Files:**
-- Modify: `lib/media_centarr/library/entity_shape.ex`
-- Test: `test/media_centarr/library/entity_shape_test.exs` (create if missing)
+- Modify: `lib/media_centaur/library/entity_shape.ex`
+- Test: `test/media_centaur/library/entity_shape_test.exs` (create if missing)
 
 - [ ] **Step 1: Check whether the test file exists**
 
-Run: `ls test/media_centarr/library/entity_shape_test.exs 2>/dev/null && echo found || echo missing`
+Run: `ls test/media_centaur/library/entity_shape_test.exs 2>/dev/null && echo found || echo missing`
 
 If missing, create it with the standard header:
 ```elixir
-defmodule MediaCentarr.Library.EntityShapeTest do
-  use MediaCentarr.DataCase, async: true
+defmodule MediaCentaur.Library.EntityShapeTest do
+  use MediaCentaur.DataCase, async: true
 
-  alias MediaCentarr.Library.EntityShape
+  alias MediaCentaur.Library.EntityShape
 end
 ```
 
@@ -308,12 +308,12 @@ end
 ```elixir
   describe "normalize/2 with :collection field" do
     test "movie with preloaded movie_series populates :collection" do
-      ms = %MediaCentarr.Library.MovieSeries{
+      ms = %MediaCentaur.Library.MovieSeries{
         id: "ms-uuid",
         name: "Mascot Collection"
       }
 
-      record = %MediaCentarr.Library.Movie{
+      record = %MediaCentaur.Library.Movie{
         id: "m-uuid",
         name: "Mascot Cosmos",
         movie_series_id: "ms-uuid",
@@ -328,7 +328,7 @@ end
     end
 
     test "standalone movie has nil :collection" do
-      record = %MediaCentarr.Library.Movie{
+      record = %MediaCentaur.Library.Movie{
         id: "m-uuid",
         name: "Standalone",
         movie_series_id: nil,
@@ -341,7 +341,7 @@ end
     end
 
     test "non-movie types have nil :collection" do
-      record = %MediaCentarr.Library.TVSeries{
+      record = %MediaCentaur.Library.TVSeries{
         id: "tv-uuid",
         name: "Show",
         inserted_at: ~U[2026-01-01 00:00:00Z],
@@ -352,7 +352,7 @@ end
     end
 
     test "movie with movie_series_id but unloaded association has nil :collection" do
-      record = %MediaCentarr.Library.Movie{
+      record = %MediaCentaur.Library.Movie{
         id: "m-uuid",
         name: "Mascot Cosmos",
         movie_series_id: "ms-uuid",
@@ -368,12 +368,12 @@ end
 
 - [ ] **Step 3: Run test to verify it fails**
 
-Run: `mix test test/media_centarr/library/entity_shape_test.exs`
+Run: `mix test test/media_centaur/library/entity_shape_test.exs`
 Expected: FAIL — `result.collection` is missing or `nil` in the positive case.
 
 - [ ] **Step 4: Modify `normalize/2`**
 
-In `lib/media_centarr/library/entity_shape.ex`, add a `collection: collection_from(record, type)` field to the map returned by `normalize/2`, and add a private helper:
+In `lib/media_centaur/library/entity_shape.ex`, add a `collection: collection_from(record, type)` field to the map returned by `normalize/2`, and add a private helper:
 
 ```elixir
   defp collection_from(%{movie_series: %{id: id, name: name}}, :movie),
@@ -386,7 +386,7 @@ The pattern only matches when `movie_series` is loaded as a struct (not `%Ecto.A
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `mix test test/media_centarr/library/entity_shape_test.exs`
+Run: `mix test test/media_centaur/library/entity_shape_test.exs`
 Expected: PASS — all four cases green.
 
 - [ ] **Step 6: Commit**
@@ -403,18 +403,18 @@ jj new
 **Why:** The library grid is the foundational consumer. Switching it first means we can validate the hoist behavior end-to-end before touching the Home page surfaces. The existing `maybe_unwrap_single_movie/1` becomes redundant and is removed; the entity id bug (using MovieSeries id while claiming `type: :movie`) is fixed because hoisted rows are real Movie records.
 
 **Files:**
-- Modify: `lib/media_centarr/library/browser.ex`
-- Test: `test/media_centarr/library_browser_test.exs`
+- Modify: `lib/media_centaur/library/browser.ex`
+- Test: `test/media_centaur/library_browser_test.exs`
 
 - [ ] **Step 1: Read the existing N+1 regression test to understand the contract**
 
-Run: `cat test/media_centarr/library_browser_test.exs | head -80`
+Run: `cat test/media_centaur/library_browser_test.exs | head -80`
 
 Identify the existing describe block "query count (N+1 regression guard)" — the new tests will sit alongside it.
 
 - [ ] **Step 2: Add failing tests for hoist behavior**
 
-Append to `test/media_centarr/library_browser_test.exs`:
+Append to `test/media_centaur/library_browser_test.exs`:
 
 ```elixir
   describe "collection hoist" do
@@ -424,7 +424,7 @@ Append to `test/media_centarr/library_browser_test.exs`:
       _kf = known_file_fixture(%{file_path: "/mario.mkv", state: :present})
       _wf = watched_file_fixture(%{file_path: "/mario.mkv", movie_id: child.id})
 
-      entries = MediaCentarr.Library.Browser.fetch_all_typed_entries()
+      entries = MediaCentaur.Library.Browser.fetch_all_typed_entries()
       mario = Enum.find(entries, fn e -> e.entity.name == "Mascot Cosmos" end)
 
       assert mario != nil
@@ -444,7 +444,7 @@ Append to `test/media_centarr/library_browser_test.exs`:
         _wf = watched_file_fixture(%{file_path: path, movie_id: m.id})
       end
 
-      entries = MediaCentarr.Library.Browser.fetch_all_typed_entries()
+      entries = MediaCentaur.Library.Browser.fetch_all_typed_entries()
       trilogy = Enum.find(entries, fn e -> e.entity.name == "Trilogy" end)
 
       assert trilogy != nil
@@ -460,7 +460,7 @@ Append to `test/media_centarr/library_browser_test.exs`:
       _wf = watched_file_fixture(%{file_path: "/mario.mkv", movie_id: child.id})
 
       {[entry], gone} =
-        MediaCentarr.Library.Browser.fetch_typed_entries_by_ids([child.id])
+        MediaCentaur.Library.Browser.fetch_typed_entries_by_ids([child.id])
 
       assert MapSet.size(gone) == 0
       assert entry.entity.type == :movie
@@ -474,7 +474,7 @@ Append to `test/media_centarr/library_browser_test.exs`:
       _wf = watched_file_fixture(%{file_path: "/mario.mkv", movie_id: child.id})
 
       {entries, gone} =
-        MediaCentarr.Library.Browser.fetch_typed_entries_by_ids([ms.id])
+        MediaCentaur.Library.Browser.fetch_typed_entries_by_ids([ms.id])
 
       assert entries == []
       assert MapSet.member?(gone, ms.id)
@@ -484,14 +484,14 @@ Append to `test/media_centarr/library_browser_test.exs`:
 
 - [ ] **Step 3: Run tests to verify they fail**
 
-Run: `mix test test/media_centarr/library_browser_test.exs --only describe:"collection hoist"`
+Run: `mix test test/media_centaur/library_browser_test.exs --only describe:"collection hoist"`
 Expected: FAIL — entries still show "Mascot Collection" or use the MovieSeries id.
 
 If the `--only` filter syntax doesn't match, omit it and run the file; the new failures will be obvious in the output.
 
 - [ ] **Step 4: Refactor `Browser` to use the new queries**
 
-In `lib/media_centarr/library/browser.ex`, replace the four list-style fetchers with five (movies split into standalone + hoisted):
+In `lib/media_centaur/library/browser.ex`, replace the four list-style fetchers with five (movies split into standalone + hoisted):
 
 Replace the body of `fetch_all_typed_entries/0`:
 
@@ -620,7 +620,7 @@ Delete `maybe_unwrap_single_movie/1` and its callsite in `build_entry_from_norma
 Also delete the `maybe_unwrap_single_movie/1` function. Add the alias:
 
 ```elixir
-  alias MediaCentarr.Library.{EntityShape, Movie, MovieSeries, PresentableQueries, TVSeries, VideoObject}
+  alias MediaCentaur.Library.{EntityShape, Movie, MovieSeries, PresentableQueries, TVSeries, VideoObject}
 ```
 
 (Delete the now-unused `import Ecto.Query` if and only if `from(...)` no longer appears in the file. Most by_ids fetchers still need it — keep the import.)
@@ -629,14 +629,14 @@ The TV-series and video-object fetchers (`fetch_all_tv_series/0`, `fetch_tv_seri
 
 - [ ] **Step 5: Run tests to verify they pass**
 
-Run: `mix test test/media_centarr/library_browser_test.exs`
+Run: `mix test test/media_centaur/library_browser_test.exs`
 Expected: PASS — all existing tests still green, plus the four new hoist tests.
 
 - [ ] **Step 6: Update the existing N+1 regression guard if its expected count changed**
 
 If the query-count assertion fails because we now issue one extra query (the hoisted-movies fetch + its preloads), update the constant. Justify the bump in a code comment: hoisted-movies branch adds one Repo.all + four preloads = 5 queries.
 
-Run: `mix test test/media_centarr/library_browser_test.exs`
+Run: `mix test test/media_centaur/library_browser_test.exs`
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
@@ -653,12 +653,12 @@ jj new
 **Why:** This is the surface that triggered the original bug report — Home's "Recently added" carousel shows "The Sample Mascot Collection" instead of "The Sample Mascot Cosmos Movie". The fix mirrors Task 3 but for the slim Home shape.
 
 **Files:**
-- Modify: `lib/media_centarr/library.ex` (around line 861)
-- Test: `test/media_centarr/library_test.exs`
+- Modify: `lib/media_centaur/library.ex` (around line 861)
+- Test: `test/media_centaur/library_test.exs`
 
 - [ ] **Step 1: Write failing tests**
 
-Append to `test/media_centarr/library_test.exs` (or create a `describe "list_recently_added/1 hoist"` block):
+Append to `test/media_centaur/library_test.exs` (or create a `describe "list_recently_added/1 hoist"` block):
 
 ```elixir
   describe "list_recently_added/1 collection hoist" do
@@ -668,7 +668,7 @@ Append to `test/media_centarr/library_test.exs` (or create a `describe "list_rec
       _kf = known_file_fixture(%{file_path: "/mario.mkv", state: :present})
       _wf = watched_file_fixture(%{file_path: "/mario.mkv", movie_id: child.id})
 
-      results = MediaCentarr.Library.list_recently_added(limit: 50)
+      results = MediaCentaur.Library.list_recently_added(limit: 50)
 
       mario = Enum.find(results, fn r -> r.name == "Mascot Cosmos" end)
       assert mario != nil
@@ -685,7 +685,7 @@ Append to `test/media_centarr/library_test.exs` (or create a `describe "list_rec
         _wf = watched_file_fixture(%{file_path: path, movie_id: m.id})
       end
 
-      results = MediaCentarr.Library.list_recently_added(limit: 50)
+      results = MediaCentaur.Library.list_recently_added(limit: 50)
       trilogy = Enum.find(results, fn r -> r.name == "Trilogy" end)
 
       assert trilogy != nil
@@ -696,12 +696,12 @@ Append to `test/media_centarr/library_test.exs` (or create a `describe "list_rec
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `mix test test/media_centarr/library_test.exs`
+Run: `mix test test/media_centaur/library_test.exs`
 Expected: FAIL — "Mascot Collection" still surfaces; "Mascot Cosmos" missing.
 
 - [ ] **Step 3: Modify `list_recently_added/1` and its fetchers**
 
-In `lib/media_centarr/library.ex`, change `list_recently_added/1`:
+In `lib/media_centaur/library.ex`, change `list_recently_added/1`:
 
 ```elixir
   def list_recently_added(opts \\ []) do
@@ -765,14 +765,14 @@ Replace `fetch_recently_added_movie_series/1` to use `PresentableQueries.multi_c
 Add the alias at the top of `library.ex`:
 
 ```elixir
-  alias MediaCentarr.Library.{..., PresentableQueries, ...}
+  alias MediaCentaur.Library.{..., PresentableQueries, ...}
 ```
 
 (`shape_recently_added_record/1` is already type-agnostic — it reads `:id`, `:name`, `:date_published`, `:images`, `:inserted_at` from any record. No changes needed there.)
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `mix test test/media_centarr/library_test.exs`
+Run: `mix test test/media_centaur/library_test.exs`
 Expected: PASS for the new hoist describe; existing recently_added tests still green.
 
 - [ ] **Step 5: Commit**
@@ -789,12 +789,12 @@ jj new
 **Why:** The "Continue watching" carousel uses the rich shape (`%{entity, progress, progress_records}`) plus `shape_in_progress_row/1`. Its in-progress fetchers are paginated by `last_watched_at` rather than `inserted_at`, so the singleton-hoist branch is added analogously but with the right ordering.
 
 **Files:**
-- Modify: `lib/media_centarr/library.ex` (around lines 835, 1107, 1255, 1315)
-- Test: `test/media_centarr/library_test.exs`
+- Modify: `lib/media_centaur/library.ex` (around lines 835, 1107, 1255, 1315)
+- Test: `test/media_centaur/library_test.exs`
 
 - [ ] **Step 1: Write failing tests**
 
-Append to `test/media_centarr/library_test.exs`:
+Append to `test/media_centaur/library_test.exs`:
 
 ```elixir
   describe "list_in_progress/1 collection hoist" do
@@ -812,7 +812,7 @@ Append to `test/media_centarr/library_test.exs`:
           last_watched_at: ~U[2026-05-03 00:00:00Z]
         })
 
-      results = MediaCentarr.Library.list_in_progress(limit: 50)
+      results = MediaCentaur.Library.list_in_progress(limit: 50)
       mario = Enum.find(results, fn r -> r.entity_name == "Mascot Cosmos" end)
 
       assert mario != nil
@@ -827,12 +827,12 @@ Append to `test/media_centarr/library_test.exs`:
 
 - [ ] **Step 2: Run tests to verify they fail**
 
-Run: `mix test test/media_centarr/library_test.exs`
+Run: `mix test test/media_centaur/library_test.exs`
 Expected: FAIL.
 
 - [ ] **Step 3: Modify `list_in_progress/1` and its fetchers**
 
-In `lib/media_centarr/library.ex`, change `list_in_progress/1`:
+In `lib/media_centaur/library.ex`, change `list_in_progress/1`:
 
 ```elixir
   def list_in_progress(opts \\ []) do
@@ -864,7 +864,7 @@ Update `fetch_in_progress_movie_series/1` to use `PresentableQueries.multi_child
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `mix test test/media_centarr/library_test.exs`
+Run: `mix test test/media_centaur/library_test.exs`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -881,8 +881,8 @@ jj new
 **Why:** The Home hero rotation pulls from the same four type-specific tables. A 1-movie "collection" qualifying as a hero candidate would surface a `MovieSeries` that the hero card renders as a collection — same bug, same fix.
 
 **Files:**
-- Modify: `lib/media_centarr/library.ex` (around line 965)
-- Test: `test/media_centarr/library_test.exs`
+- Modify: `lib/media_centaur/library.ex` (around line 965)
+- Test: `test/media_centaur/library_test.exs`
 
 - [ ] **Step 1: Write failing test**
 
@@ -907,7 +907,7 @@ jj new
           content_url: "/path/to/backdrop.jpg"
         })
 
-      results = MediaCentarr.Library.list_hero_candidates(limit: 50)
+      results = MediaCentaur.Library.list_hero_candidates(limit: 50)
       mario = Enum.find(results, fn r -> r.name == "Mascot Cosmos" end)
 
       assert mario != nil
@@ -920,12 +920,12 @@ jj new
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `mix test test/media_centarr/library_test.exs`
+Run: `mix test test/media_centaur/library_test.exs`
 Expected: FAIL.
 
 - [ ] **Step 3: Modify `list_hero_candidates/1` and its fetchers**
 
-In `lib/media_centarr/library.ex`:
+In `lib/media_centaur/library.ex`:
 
 ```elixir
   def list_hero_candidates(opts \\ []) do
@@ -947,7 +947,7 @@ Switch `fetch_hero_candidates_movies/1` to use `PresentableQueries.standalone_mo
 
 - [ ] **Step 4: Run tests to verify they pass**
 
-Run: `mix test test/media_centarr/library_test.exs`
+Run: `mix test test/media_centaur/library_test.exs`
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -970,7 +970,7 @@ jj new
 Run:
 ```bash
 ~/scripts/mc-rpc '
-alias MediaCentarr.Library.Browser
+alias MediaCentaur.Library.Browser
 
 entries = Browser.fetch_all_typed_entries()
 mario = Enum.find(entries, fn e -> String.contains?(String.downcase(e.entity.name || ""), "mario") end)
@@ -990,7 +990,7 @@ The `id` must be the Movie's id (`7fea1baa-8e53-41c2-8f17-1007073ae76f`), not th
 Run:
 ```bash
 ~/scripts/mc-rpc '
-results = MediaCentarr.Library.list_recently_added(limit: 50)
+results = MediaCentaur.Library.list_recently_added(limit: 50)
 mario = Enum.filter(results, fn e -> String.contains?(String.downcase(e.name || ""), "mario") end)
 for e <- mario, do: IO.inspect(e)
 '
@@ -1018,8 +1018,8 @@ Run:
 ```bash
 ~/scripts/mc-rpc '
 import Ecto.Query
-alias MediaCentarr.Repo
-alias MediaCentarr.ReleaseTracking.Item
+alias MediaCentaur.Repo
+alias MediaCentaur.ReleaseTracking.Item
 
 result =
   from(i in Item, group_by: i.tmdb_type, select: {i.tmdb_type, count(i.id)})
@@ -1037,8 +1037,8 @@ Run:
 ```bash
 ~/scripts/mc-rpc '
 import Ecto.Query
-alias MediaCentarr.Repo
-alias MediaCentarr.WatchHistory.Event
+alias MediaCentaur.Repo
+alias MediaCentaur.WatchHistory.Event
 
 result =
   from(e in Event, group_by: e.entity_type, select: {e.entity_type, count(e.id)})
@@ -1104,5 +1104,5 @@ Otherwise, no commit needed.
 - Skip `git commit`. Skip `git add`. JJ tracks files automatically.
 - The `PresentableQueries` module composes via `as: :item` Ecto bindings — when extending a query in a calling site, use `from([m] in PresentableQueries.standalone_movies(), ...)`. If Ecto rejects the bind alias, fall back to `subquery(...)`.
 - The N+1 regression test in `library_browser_test.exs` will need its expected query count bumped by ~5 (one new fetcher's `Repo.all` + four preloads). Document the bump in a comment.
-- All tests must use `MediaCentarr.DataCase` and existing fixture helpers. Do not invent new fixtures unless the existing helpers truly cannot express the scenario.
-- Do not edit the wiki (`../media-centarr.wiki/`) for this change — it has no user-visible feature surface beyond "the library now shows Mario as a movie." The bug fix is invisible from the user's mental model.
+- All tests must use `MediaCentaur.DataCase` and existing fixture helpers. Do not invent new fixtures unless the existing helpers truly cannot express the scenario.
+- Do not edit the wiki (`../media-centaur.wiki/`) for this change — it has no user-visible feature surface beyond "the library now shows Mario as a movie." The bug fix is invisible from the user's mental model.

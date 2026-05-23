@@ -31,7 +31,7 @@ done — the prior campaign file pre-dated the implementation push
 and was never updated. Findings:
 
 * Sidebar Watch / System split is live in
-  `lib/media_centarr_web/components/layouts.ex` (lines 64-155),
+  `lib/media_centaur_web/components/layouts.ex` (lines 64-155),
   with CSS-driven demotion of the System group in `assets/css/app.css`
   (`.sidebar-link-system`: smaller font, dimmer colour, smaller icons).
 * `/upcoming` route + `UpcomingLive` exists.
@@ -151,16 +151,16 @@ Append-only.
   Home (`1-cinematic-compression`, `2-editorial-billboard`,
   `3-netflix-fluid`). Reflects the design exploration that
   preceded the shipped Home.
-* `lib/media_centarr_web/components/layouts.ex` — sidebar
+* `lib/media_centaur_web/components/layouts.ex` — sidebar
   Watch / System split lives here (no dedicated component).
 * `assets/css/app.css` — `.sidebar-group-label` +
   `.sidebar-link-system` rules.
-* `lib/media_centarr_web/live/home_live.ex` — Home (`/`).
-* `lib/media_centarr_web/live/library_live.ex` — narrowed
+* `lib/media_centaur_web/live/home_live.ex` — Home (`/`).
+* `lib/media_centaur_web/live/library_live.ex` — narrowed
   browse-only Library page.
-* `lib/media_centarr_web/live/upcoming_live.ex` — Upcoming
+* `lib/media_centaur_web/live/upcoming_live.ex` — Upcoming
   page.
-* `lib/media_centarr_web/live/watch_history_live.ex` —
+* `lib/media_centaur_web/live/watch_history_live.ex` —
   History page with rewatch surfacing.
 * [Desktop-rearchitecture campaign](desktop-rearchitecture.md)
   — the data-layer counterpart; WatchHistory.Views projection

@@ -8,7 +8,7 @@ resume_with: see "Closure — campaign-deferred items by destination" section at
 
 ## Goal
 
-Move media-centarr-app away from Phoenix-web defaults toward a
+Move media-centaur-app away from Phoenix-web defaults toward a
 **local-only, single-user, no-auth desktop application** paradigm.
 Statefulness is no longer a liability to scale around — it is an
 asset to lean on.
@@ -54,7 +54,7 @@ across the LiveView surface. (Phase 3 follow-ups remain — see
 behind a locked-in architecture, not workstream blockers.)
 
 **Workstream B — Acquisition split: ✅ 3 of 3 phases shipped.**
-Downloads cleanly extracted to `MediaCentarr.Downloads.*` per
+Downloads cleanly extracted to `MediaCentaur.Downloads.*` per
 ADR-043 (2026-05-10). Search extraction shipped 2026-05-17 with
 `Search.Criteria` as the boundary inversion. Phase 3 boundary
 cleanup pruned the inflated export list 2026-05-17; the once-
@@ -67,7 +67,7 @@ audited fields (`last_attempt_*`, `last_queue_*`) explicitly
 confirmed Pillar-1 durable; rationale recorded in moduledocs.
 
 **Workstream D — pattern documentation: ✅ complete.**
-`MediaCentarr.Cache` and `MediaCentarr.Topics` moduledocs are the
+`MediaCentaur.Cache` and `MediaCentaur.Topics` moduledocs are the
 canonical homes for the three-flavour Cache.Worker pattern and the
 source-vs-derived PubSub taxonomy.
 
@@ -240,7 +240,7 @@ the budget per LiveView; any regression fails CI.
 
 **Correctly placed:**
 
-* All topics in `lib/media_centarr/topics.ex` are global, no
+* All topics in `lib/media_centaur/topics.ex` are global, no
   per-user scoping (multi-user audit confirmed).
 * ContinueWatching projection follows the
   *subscribe-canonical-emit-derived* pattern: subscribes to
@@ -265,7 +265,7 @@ Append-only.
   principle.** Every state-bearing module belongs to exactly one
   pillar; cross-pillar coordination uses Pillar 3.
   ([ADR-041](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md))
-* `2026-05-10` — Cache.Worker (`lib/media_centarr/cache.ex`) is
+* `2026-05-10` — Cache.Worker (`lib/media_centaur/cache.ex`) is
   the unified container for Pillar 2 — one behaviour, three
   flavours (ETS for per-view result sets, `:persistent_term` for
   tiny-but-hot global config, GenServer for purely transient
@@ -327,7 +327,7 @@ Append-only.
   (Workstream B Phase 1). Per
   [ADR-043](../../decisions/architecture/2026-05-10-043-acquisition-split.md),
   qBittorrent driver + queue + health moved to
-  `MediaCentarr.Downloads.*`. New boundary declared with
+  `MediaCentaur.Downloads.*`. New boundary declared with
   `deps: [Capabilities]`; web layer + Pursuits subsystem rewired
   to the new aliases. Search extraction (Phase 2) and
   Acquisition boundary cleanup (Phase 3) remain open.
@@ -432,7 +432,7 @@ paths.
 
 ### B. Acquisition split — extract Downloads and Search
 
-Decompose the 76-file `MediaCentarr.Acquisition` boundary into
+Decompose the 76-file `MediaCentaur.Acquisition` boundary into
 three sibling contexts: a slim `Acquisition` (grab lifecycle +
 Pursuits aggregate), a new `Downloads` (download-client
 integration), and a new `Search` (Prowlarr-facing stateless
@@ -450,16 +450,16 @@ split. See ADR-043.
   proposed 2026-05-10.
 * [x] Phase 1 — extract `Downloads` (qBittorrent driver, queue,
   health). 10 source files + 8 test files moved to
-  `MediaCentarr.Downloads.*`; consumers across web layer +
+  `MediaCentaur.Downloads.*`; consumers across web layer +
   Pursuits subsystem rewired to new aliases; new boundary
   declared with `deps: [Capabilities]` and the cluster's modules
   re-exported. *(shipped 2026-05-10)*
 * [x] Phase 2 — extract `Search` (Prowlarr, query, results, title
   matcher, quality). 10 source files + 7 test files moved to
-  `MediaCentarr.Search.*`; new `Search.Criteria` struct decouples
+  `MediaCentaur.Search.*`; new `Search.Criteria` struct decouples
   Search from `Acquisition.Pursuits.Recipe` (Recipe projects into
   Criteria via `to_criteria/1`). Acquisition's Boundary now declares
-  `MediaCentarr.Search`; exports dropped Prowlarr/Quality/
+  `MediaCentaur.Search`; exports dropped Prowlarr/Quality/
   QueryExpander/SearchSession (callers reach through Search now).
   *(shipped 2026-05-17)*
 * [x] Phase 3 — clean up Acquisition boundary. Pruned 5 unused
@@ -512,12 +512,12 @@ new contributor (or fresh agent context) finds the pattern in
 one place.
 
 * [x] Centralise the three-flavour Cache.Worker pattern in
-  `MediaCentarr.Cache` moduledoc — table of flavours with
+  `MediaCentaur.Cache` moduledoc — table of flavours with
   decision criteria, misplacement defects, canonical examples,
   the source-vs-derived PubSub rule, and the test-mode fallback.
   *(shipped 2026-05-10)*
 * [x] Centralise the PubSub topic taxonomy in
-  `MediaCentarr.Topics` moduledoc — every topic tabulated by
+  `MediaCentaur.Topics` moduledoc — every topic tabulated by
   role (source / derived / coordination), owner, and payloads.
   Discipline rules: topics live in `Topics`, not inline; LiveViews
   consume derived topics, not source topics for cache-driven
@@ -547,7 +547,7 @@ wait-for-consumer.
 
 | Item | Where |
 |------|-------|
-| ContinueWatching availability gap closed + HomeLive workaround removed | `lib/media_centarr/library/views/continue_watching.ex`, `lib/media_centarr_web/live/home_live/logic.ex`, `lib/media_centarr_web/live/home_live.ex` |
+| ContinueWatching availability gap closed + HomeLive workaround removed | `lib/media_centaur/library/views/continue_watching.ex`, `lib/media_centaur_web/live/home_live/logic.ex`, `lib/media_centaur_web/live/home_live.ex` |
 | ADR-047 — PlayableItem reification | `decisions/architecture/2026-05-17-047-playable-item-reification.md` |
 | `docs/architecture.md` Pillar-2 / projection-layer principle + canonical Progress.Worker callout | `docs/architecture.md` Key Principles |
 | Campaign file reconciled, frontmatter flipped to `status: complete`, file moved to `campaigns/done/` | this commit |
@@ -574,10 +574,10 @@ and carried follow-up items that landed before closure:
      module isn't force-loaded before `JSONFormatter.from_jsonable/1`
      runs, so atoms it defines (`:delta_abs`, `:delta_pct`) aren't
      yet known to the running BEAM. One-line fix
-     (`Code.ensure_loaded(MediaCentarr.Profile.Diff)` ahead of
+     (`Code.ensure_loaded(MediaCentaur.Profile.Diff)` ahead of
      deserialise_deltas) before any rebaseline run.
   2. Only three of the seven projections in the original ask have
-     Benchee suites under `lib/media_centarr/profile/suites/` —
+     Benchee suites under `lib/media_centaur/profile/suites/` —
      Browse, Detail, Search, and Progress need new `Suite` +
      `RefreshSuite` modules following the HeroCandidates pattern
      (~75 LOC per pair). After that, `scripts/profile --rebaseline
@@ -670,19 +670,19 @@ and carried follow-up items that landed before closure:
   * [`library-presence-unification.md`](library-presence-unification.md)
     — Watcher-to-Library presence ownership shift; phases 1–2
     shipped.
-* `lib/media_centarr/cache.ex` + `lib/media_centarr/cache/` —
+* `lib/media_centaur/cache.ex` + `lib/media_centaur/cache/` —
   Cache.Worker behaviour and worker module.
-* `lib/media_centarr/library/views/continue_watching.ex` —
+* `lib/media_centaur/library/views/continue_watching.ex` —
   canonical projection example.
-* `lib/media_centarr/library/progress.ex` +
-  `lib/media_centarr/library/progress/worker.ex` — canonical
+* `lib/media_centaur/library/progress.ex` +
+  `lib/media_centaur/library/progress/worker.ex` — canonical
   Pillar-2 GenServer-with-debounced-flush example.
-* `lib/media_centarr/topics.ex` — PubSub topic registry.
-* `lib/media_centarr/profile/` — Bench, Mounts, Diff, RunData,
+* `lib/media_centaur/topics.ex` — PubSub topic registry.
+* `lib/media_centaur/profile/` — Bench, Mounts, Diff, RunData,
   Reporter (validation rig).
 * `priv/profiling/` — baselines + workflow README.
 * `lib/mix/tasks/profile.ex` — orchestrator with `--rebaseline`.
-* `test/media_centarr_web/no_db_on_render_test.exs` —
+* `test/media_centaur_web/no_db_on_render_test.exs` —
   per-LiveView Repo-query budget guard.
 
 The user-local plan file at

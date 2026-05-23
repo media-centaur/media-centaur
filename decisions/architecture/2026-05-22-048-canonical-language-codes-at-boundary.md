@@ -49,7 +49,7 @@ through a single helper.**
 
 Concretely:
 
-* **`MediaCentarr.Playback.Iso639`** is the one place that knows the
+* **`MediaCentaur.Playback.Iso639`** is the one place that knows the
   code table. `normalize/1` maps any common 2-letter or bibliographic
   form to the canonical terminologic 3-letter form; `equal?/2` and
   `find_match/2` build on it.
@@ -104,10 +104,10 @@ mismatch structurally impossible instead.
 
 ## Pointers
 
-* Modules: `MediaCentarr.Playback.Iso639`,
-  `MediaCentarr.Playback.LanguageContext`,
-  `MediaCentarr.Playback.LanguagePolicy`,
-  `MediaCentarr.Playback.TrackResolver`
+* Modules: `MediaCentaur.Playback.Iso639`,
+  `MediaCentaur.Playback.LanguageContext`,
+  `MediaCentaur.Playback.LanguagePolicy`,
+  `MediaCentaur.Playback.TrackResolver`
 * Feature plan: `~/.claude/plans/let-s-think-about-a-elegant-meteor.md`
 * Related principle: [ADR-045 file-presence ownership](2026-05-17-045-file-presence-ownership.md)
   applies the same "make the bad state unrepresentable at the boundary"

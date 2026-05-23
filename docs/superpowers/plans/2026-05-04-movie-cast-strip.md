@@ -4,7 +4,7 @@
 
 **Goal:** Show a horizontal strip of cast cards (photo + actor + character) at the bottom of the movie detail modal, sourced from TMDB credits already returned by the existing client.
 
-**Architecture:** Cast is stored as a JSON array column on `library_movies` — no person/credit normalization. TMDB profile photos are hotlinked from `image.tmdb.org/t/p/w185` (matching the existing review-UI pattern). A new `MediaCentarrWeb.Components.Detail.CastStrip` component renders the section, mounted by `DetailPanel` only when `entity.type == :movie`. A backfill maintenance action populates `cast` for movies imported before this change by re-fetching TMDB metadata in place (without disturbing watch state, files, or images).
+**Architecture:** Cast is stored as a JSON array column on `library_movies` — no person/credit normalization. TMDB profile photos are hotlinked from `image.tmdb.org/t/p/w185` (matching the existing review-UI pattern). A new `MediaCentaurWeb.Components.Detail.CastStrip` component renders the section, mounted by `DetailPanel` only when `entity.type == :movie`. A backfill maintenance action populates `cast` for movies imported before this change by re-fetching TMDB metadata in place (without disturbing watch state, files, or images).
 
 **Tech Stack:** Elixir / Phoenix LiveView / Ecto / SQLite / Tailwind / DaisyUI / Phoenix Storybook / Jujutsu (jj) for VCS.
 
@@ -16,18 +16,18 @@
 
 **Created:**
 - `priv/repo/migrations/<timestamp>_add_cast_to_library_movies.exs` — adds `cast` column
-- `lib/media_centarr_web/components/detail/cast_strip.ex` — new strip component
-- `test/media_centarr_web/components/detail/cast_strip_test.exs` — component test
+- `lib/media_centaur_web/components/detail/cast_strip.ex` — new strip component
+- `test/media_centaur_web/components/detail/cast_strip_test.exs` — component test
 - `storybook/detail/cast_strip.story.exs` — story for the component catalog
 
 **Modified:**
-- `lib/media_centarr/library/movie.ex` — add `cast` field + include in changeset
-- `lib/media_centarr/tmdb/mapper.ex` — add `extract_cast/1`, wire into `movie_attrs/3`
-- `test/media_centarr/tmdb/mapper_test.exs` — assertions for extracted cast
-- `lib/media_centarr_web/components/detail_panel.ex` — slot CastStrip below the play card section for movies
-- `test/media_centarr_web/components/detail_panel_test.exs` — integration assertion
-- `lib/media_centarr/maintenance.ex` — add `refresh_movie_cast/0`
-- `lib/media_centarr_web/live/settings_live.ex` — add maintenance button + handler
+- `lib/media_centaur/library/movie.ex` — add `cast` field + include in changeset
+- `lib/media_centaur/tmdb/mapper.ex` — add `extract_cast/1`, wire into `movie_attrs/3`
+- `test/media_centaur/tmdb/mapper_test.exs` — assertions for extracted cast
+- `lib/media_centaur_web/components/detail_panel.ex` — slot CastStrip below the play card section for movies
+- `test/media_centaur_web/components/detail_panel_test.exs` — integration assertion
+- `lib/media_centaur/maintenance.ex` — add `refresh_movie_cast/0`
+- `lib/media_centaur_web/live/settings_live.ex` — add maintenance button + handler
 - `storybook/detail/_detail.index.exs` — register the new story (if it lists entries explicitly)
 
 ---
@@ -35,12 +35,12 @@
 ## Task 1: TMDB Mapper — extract_cast
 
 **Files:**
-- Modify: `lib/media_centarr/tmdb/mapper.ex`
-- Modify: `test/media_centarr/tmdb/mapper_test.exs`
+- Modify: `lib/media_centaur/tmdb/mapper.ex`
+- Modify: `test/media_centaur/tmdb/mapper_test.exs`
 
 - [ ] **Step 1.1: Add failing test for `extract_cast/1`**
 
-Append a `describe "extract_cast/1"` block to `test/media_centarr/tmdb/mapper_test.exs`:
+Append a `describe "extract_cast/1"` block to `test/media_centaur/tmdb/mapper_test.exs`:
 
 ```elixir
 describe "extract_cast/1" do
@@ -93,14 +93,14 @@ assert result.cast == [
 - [ ] **Step 1.2: Run mapper test, verify it fails**
 
 ```bash
-mix test test/media_centarr/tmdb/mapper_test.exs
+mix test test/media_centaur/tmdb/mapper_test.exs
 ```
 
 Expected: failures referencing `Mapper.extract_cast/1` undefined and missing `:cast` key on `movie_attrs/3` result.
 
 - [ ] **Step 1.3: Implement `extract_cast/1` and wire into `movie_attrs/3`**
 
-In `lib/media_centarr/tmdb/mapper.ex`, after the `extract_director/1` block (around line 232), add:
+In `lib/media_centaur/tmdb/mapper.ex`, after the `extract_director/1` block (around line 232), add:
 
 ```elixir
 @doc """
@@ -140,7 +140,7 @@ cast: extract_cast(movie["credits"]),
 - [ ] **Step 1.4: Run mapper test, verify it passes**
 
 ```bash
-mix test test/media_centarr/tmdb/mapper_test.exs
+mix test test/media_centaur/tmdb/mapper_test.exs
 ```
 
 Expected: all tests pass, no warnings.
@@ -158,7 +158,7 @@ jj new
 
 **Files:**
 - Create: `priv/repo/migrations/<timestamp>_add_cast_to_library_movies.exs`
-- Modify: `lib/media_centarr/library/movie.ex`
+- Modify: `lib/media_centaur/library/movie.ex`
 
 - [ ] **Step 2.1: Generate the migration**
 
@@ -173,7 +173,7 @@ The exact filename will be `priv/repo/migrations/<UTC-timestamp>_add_cast_to_lib
 Replace the generated body with:
 
 ```elixir
-defmodule MediaCentarr.Repo.Migrations.AddCastToLibraryMovies do
+defmodule MediaCentaur.Repo.Migrations.AddCastToLibraryMovies do
   use Ecto.Migration
 
   def change do
@@ -188,7 +188,7 @@ No DB-level default. Existing rows post-migration carry `nil`; the schema field 
 
 - [ ] **Step 2.3: Add `cast` field to `Movie` schema and changeset**
 
-In `lib/media_centarr/library/movie.ex`:
+In `lib/media_centaur/library/movie.ex`:
 
 a) Inside the `schema "library_movies"` block, after the `field :genres, {:array, :string}` line (~line 32), add:
 
@@ -231,14 +231,14 @@ Expected: success, "library_movies" altered.
 
 - [ ] **Step 2.5: Add round-trip test**
 
-If `test/media_centarr/library/movie_test.exs` does not yet exist, create it with the round-trip; if it does, append a `describe "cast"` block. Skeleton (adjust `use` line to match neighbouring schema tests in the project — likely `MediaCentarr.DataCase`):
+If `test/media_centaur/library/movie_test.exs` does not yet exist, create it with the round-trip; if it does, append a `describe "cast"` block. Skeleton (adjust `use` line to match neighbouring schema tests in the project — likely `MediaCentaur.DataCase`):
 
 ```elixir
-defmodule MediaCentarr.Library.MovieTest do
-  use MediaCentarr.DataCase, async: true
+defmodule MediaCentaur.Library.MovieTest do
+  use MediaCentaur.DataCase, async: true
 
-  alias MediaCentarr.Library.Movie
-  alias MediaCentarr.Repo
+  alias MediaCentaur.Library.Movie
+  alias MediaCentaur.Repo
 
   describe "cast field" do
     test "round-trips a list-of-maps through SQLite" do
@@ -276,12 +276,12 @@ defmodule MediaCentarr.Library.MovieTest do
 end
 ```
 
-If `Movie` requires `movie_series_id` for FK reasons in this project, mirror what existing movie tests do — check neighbouring tests under `test/media_centarr/library/` for the pattern before locking it in.
+If `Movie` requires `movie_series_id` for FK reasons in this project, mirror what existing movie tests do — check neighbouring tests under `test/media_centaur/library/` for the pattern before locking it in.
 
 - [ ] **Step 2.6: Run schema test, verify pass**
 
 ```bash
-mix test test/media_centarr/library/movie_test.exs
+mix test test/media_centaur/library/movie_test.exs
 ```
 
 Expected: all three cases pass.
@@ -298,20 +298,20 @@ jj new
 ## Task 3: CastStrip Component
 
 **Files:**
-- Create: `lib/media_centarr_web/components/detail/cast_strip.ex`
-- Create: `test/media_centarr_web/components/detail/cast_strip_test.exs`
+- Create: `lib/media_centaur_web/components/detail/cast_strip.ex`
+- Create: `test/media_centaur_web/components/detail/cast_strip_test.exs`
 
 - [ ] **Step 3.1: Write failing component test**
 
-Create `test/media_centarr_web/components/detail/cast_strip_test.exs`:
+Create `test/media_centaur_web/components/detail/cast_strip_test.exs`:
 
 ```elixir
-defmodule MediaCentarrWeb.Components.Detail.CastStripTest do
-  use MediaCentarrWeb.ConnCase, async: true
+defmodule MediaCentaurWeb.Components.Detail.CastStripTest do
+  use MediaCentaurWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
 
-  alias MediaCentarrWeb.Components.Detail.CastStrip
+  alias MediaCentaurWeb.Components.Detail.CastStrip
 
   defp render_strip(cast) do
     assigns = %{cast: cast}
@@ -382,22 +382,22 @@ defmodule MediaCentarrWeb.Components.Detail.CastStripTest do
 end
 ```
 
-The exact `~H` import path may need adjustment — check `MediaCentarrWeb.ConnCase` for what's already imported. If `~H` requires a `use MediaCentarrWeb, :html` shim, copy whatever the existing `detail_panel_test.exs` does for rendering components.
+The exact `~H` import path may need adjustment — check `MediaCentaurWeb.ConnCase` for what's already imported. If `~H` requires a `use MediaCentaurWeb, :html` shim, copy whatever the existing `detail_panel_test.exs` does for rendering components.
 
 - [ ] **Step 3.2: Run component test, verify it fails**
 
 ```bash
-mix test test/media_centarr_web/components/detail/cast_strip_test.exs
+mix test test/media_centaur_web/components/detail/cast_strip_test.exs
 ```
 
-Expected: module `MediaCentarrWeb.Components.Detail.CastStrip` not found.
+Expected: module `MediaCentaurWeb.Components.Detail.CastStrip` not found.
 
 - [ ] **Step 3.3: Implement CastStrip component**
 
-Create `lib/media_centarr_web/components/detail/cast_strip.ex`:
+Create `lib/media_centaur_web/components/detail/cast_strip.ex`:
 
 ```elixir
-defmodule MediaCentarrWeb.Components.Detail.CastStrip do
+defmodule MediaCentaurWeb.Components.Detail.CastStrip do
   @moduledoc """
   Horizontal scrollable strip of cast cards rendered at the bottom of
   the movie detail modal. Each card shows a TMDB profile photo, actor
@@ -410,9 +410,9 @@ defmodule MediaCentarrWeb.Components.Detail.CastStrip do
   `tmdb_person_id` (defensive) render as non-interactive.
   """
 
-  use MediaCentarrWeb, :html
+  use MediaCentaurWeb, :html
 
-  @cast_doc "list of maps as stored on `MediaCentarr.Library.Movie.cast` — string keys: `name`, `character`, `tmdb_person_id`, `profile_path`, `order`."
+  @cast_doc "list of maps as stored on `MediaCentaur.Library.Movie.cast` — string keys: `name`, `character`, `tmdb_person_id`, `profile_path`, `order`."
 
   attr :cast, :list, required: true, doc: @cast_doc
 
@@ -490,7 +490,7 @@ end
 - [ ] **Step 3.4: Run component test, verify all cases pass**
 
 ```bash
-mix test test/media_centarr_web/components/detail/cast_strip_test.exs
+mix test test/media_centaur_web/components/detail/cast_strip_test.exs
 ```
 
 Expected: 6 tests pass.
@@ -507,12 +507,12 @@ jj new
 ## Task 4: DetailPanel integration
 
 **Files:**
-- Modify: `lib/media_centarr_web/components/detail_panel.ex`
-- Modify: `test/media_centarr_web/components/detail_panel_test.exs`
+- Modify: `lib/media_centaur_web/components/detail_panel.ex`
+- Modify: `test/media_centaur_web/components/detail_panel_test.exs`
 
 - [ ] **Step 4.1: Write failing integration test**
 
-Append to `test/media_centarr_web/components/detail_panel_test.exs` (consult existing patterns — likely there's a `render_panel_for/1` helper or similar). Skeleton:
+Append to `test/media_centaur_web/components/detail_panel_test.exs` (consult existing patterns — likely there's a `render_panel_for/1` helper or similar). Skeleton:
 
 ```elixir
 describe "cast strip" do
@@ -549,19 +549,19 @@ Use the existing `render_panel` helper / factory style from the rest of the file
 - [ ] **Step 4.2: Run integration test, verify it fails**
 
 ```bash
-mix test test/media_centarr_web/components/detail_panel_test.exs
+mix test test/media_centaur_web/components/detail_panel_test.exs
 ```
 
 Expected: assertions for "Sample Actor" / "Sample Role" fail (strip not rendered).
 
 - [ ] **Step 4.3: Wire CastStrip into DetailPanel**
 
-In `lib/media_centarr_web/components/detail_panel.ex`:
+In `lib/media_centaur_web/components/detail_panel.ex`:
 
-a) Add the alias near the top (alphabetised within the `MediaCentarrWeb.Components.Detail.*` block, ~lines 19-23):
+a) Add the alias near the top (alphabetised within the `MediaCentaurWeb.Components.Detail.*` block, ~lines 19-23):
 
 ```elixir
-alias MediaCentarrWeb.Components.Detail.CastStrip
+alias MediaCentaurWeb.Components.Detail.CastStrip
 ```
 
 b) Inside the `~H` template of `detail_panel/1`, locate the closing `</div>` of `id="detail-header"` (around line 187). Immediately **before** that closing tag (so the strip lives inside the header section, below the description/facets row), insert:
@@ -575,7 +575,7 @@ The `Map.get(@entity, :cast) || []` defends against entities loaded via paths th
 - [ ] **Step 4.4: Run integration test, verify pass**
 
 ```bash
-mix test test/media_centarr_web/components/detail_panel_test.exs
+mix test test/media_centaur_web/components/detail_panel_test.exs
 ```
 
 Expected: all three new tests pass; existing tests still pass.
@@ -612,7 +612,7 @@ jj new
 Read `storybook/detail/facet_strip.story.exs` first for the canonical structure, then create `storybook/detail/cast_strip.story.exs`:
 
 ```elixir
-defmodule MediaCentarrWeb.Storybook.Detail.CastStrip do
+defmodule MediaCentaurWeb.Storybook.Detail.CastStrip do
   @moduledoc """
   Horizontal cast strip rendered at the bottom of the movie detail
   modal. Each card is a TMDB profile photo + actor name + character
@@ -629,7 +629,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.CastStrip do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.Components.Detail.CastStrip.cast_strip/1
+  def function, do: &MediaCentaurWeb.Components.Detail.CastStrip.cast_strip/1
   def render_source, do: :function
   def layout, do: :one_column
 
@@ -689,7 +689,7 @@ defmodule MediaCentarrWeb.Storybook.Detail.CastStrip do
 end
 ```
 
-The hotlinked photos won't actually load in storybook (the placeholder paths don't exist on TMDB CDN). That's accurate — storybook is a structural catalog, and `<img>` tags with broken `src` show the browser's broken-image icon. If the project's existing stories use a known-valid PD/CC poster path (check `defaults/media-centarr-showcase.toml` or `lib/media_centarr/showcase.ex` for one) and you'd rather show real photos, switch to that — but only if the CC license allows it.
+The hotlinked photos won't actually load in storybook (the placeholder paths don't exist on TMDB CDN). That's accurate — storybook is a structural catalog, and `<img>` tags with broken `src` show the browser's broken-image icon. If the project's existing stories use a known-valid PD/CC poster path (check `defaults/media-centaur-showcase.toml` or `lib/media_centaur/showcase.ex` for one) and you'd rather show real photos, switch to that — but only if the CC license allows it.
 
 - [ ] **Step 5.2: Register the story (if the index requires explicit listing)**
 
@@ -715,13 +715,13 @@ jj new
 ## Task 6: Backfill maintenance action
 
 **Files:**
-- Modify: `lib/media_centarr/maintenance.ex`
-- Modify: `lib/media_centarr_web/live/settings_live.ex`
-- Create: `test/media_centarr/maintenance_test.exs` (or extend if it already exists)
+- Modify: `lib/media_centaur/maintenance.ex`
+- Modify: `lib/media_centaur_web/live/settings_live.ex`
+- Create: `test/media_centaur/maintenance_test.exs` (or extend if it already exists)
 
 - [ ] **Step 6.1: Write failing test for `Maintenance.refresh_movie_cast/0`**
 
-Skeleton (adapt to the existing test conventions — read other maintenance tests if present, and `test/support/tmdb_stubs.ex` for the stub pattern). The stub must short-circuit `MediaCentarr.TMDB.Client.get_movie/1` so no real network calls happen.
+Skeleton (adapt to the existing test conventions — read other maintenance tests if present, and `test/support/tmdb_stubs.ex` for the stub pattern). The stub must short-circuit `MediaCentaur.TMDB.Client.get_movie/1` so no real network calls happen.
 
 ```elixir
 describe "refresh_movie_cast/0" do
@@ -769,25 +769,25 @@ describe "refresh_movie_cast/0" do
 end
 ```
 
-(Use `MediaCentarr.DataCase`. `stub_tmdb_get_movie/2` is illustrative — the real helper name lives in `test/support/tmdb_stubs.ex`; read it before locking in the call.)
+(Use `MediaCentaur.DataCase`. `stub_tmdb_get_movie/2` is illustrative — the real helper name lives in `test/support/tmdb_stubs.ex`; read it before locking in the call.)
 
 - [ ] **Step 6.2: Run, verify it fails**
 
 ```bash
-mix test test/media_centarr/maintenance_test.exs
+mix test test/media_centaur/maintenance_test.exs
 ```
 
 Expected: `Maintenance.refresh_movie_cast/0` undefined.
 
 - [ ] **Step 6.3: Implement `refresh_movie_cast/0`**
 
-In `lib/media_centarr/maintenance.ex`, add the `Mapper` and `Client` aliases at the top:
+In `lib/media_centaur/maintenance.ex`, add the `Mapper` and `Client` aliases at the top:
 
 ```elixir
-alias MediaCentarr.TMDB.{Client, Mapper}
+alias MediaCentaur.TMDB.{Client, Mapper}
 ```
 
-(Verify boundary deps allow this — `use Boundary, deps: [...]` may need `MediaCentarr.TMDB` added if not already permitted.)
+(Verify boundary deps allow this — `use Boundary, deps: [...]` may need `MediaCentaur.TMDB` added if not already permitted.)
 
 Then add the function:
 
@@ -800,7 +800,7 @@ a focused changeset — no images, watch progress, or files are
 touched.
 
 Idempotent: subsequent runs skip movies that already have non-empty
-cast. Rate-limited automatically by `MediaCentarr.TMDB.RateLimiter`
+cast. Rate-limited automatically by `MediaCentaur.TMDB.RateLimiter`
 inside `Client.get_movie/1`.
 
 Returns `{:ok, %{updated: n, skipped: n, failed: n}}`.
@@ -851,14 +851,14 @@ The query intentionally pulls all movies with a tmdb_id (even ones with non-empt
 - [ ] **Step 6.4: Run, verify pass**
 
 ```bash
-mix test test/media_centarr/maintenance_test.exs
+mix test test/media_centaur/maintenance_test.exs
 ```
 
 Expected: all three cases pass.
 
 - [ ] **Step 6.5: Wire button into Settings page**
 
-In `lib/media_centarr_web/live/settings_live.ex`:
+In `lib/media_centaur_web/live/settings_live.ex`:
 
 a) Find the existing `mount/3` (or relevant assigns initialization) and ensure there's a `:refreshing_cast` flag (default `false`) — mirror how `@refreshing_images` and `@repairing_images` are initialised.
 
@@ -931,12 +931,12 @@ jj new
 
 - [ ] **Step 7.1: Update wiki — Settings reference**
 
-In `~/src/media-centarr/media-centarr.wiki/`, edit `Settings-Reference.md` (or whatever page documents Library Maintenance buttons — grep for "Refresh image cache"). Add an entry for "Refresh movie cast" mirroring the style of neighbouring entries: what it does, when to use, idempotency note.
+In `~/src/media-centaur/media-centaur.wiki/`, edit `Settings-Reference.md` (or whatever page documents Library Maintenance buttons — grep for "Refresh image cache"). Add an entry for "Refresh movie cast" mirroring the style of neighbouring entries: what it does, when to use, idempotency note.
 
 - [ ] **Step 7.2: Commit wiki**
 
 ```bash
-cd ~/src/media-centarr/media-centarr.wiki
+cd ~/src/media-centaur/media-centaur.wiki
 jj describe -m "wiki: document refresh-movie-cast maintenance action"
 jj bookmark set master -r @
 jj git push
@@ -951,7 +951,7 @@ mix precommit
 
 Zero warnings policy. Address every warning, every Credo issue, every Sobelow finding. Do not skip.
 
-If `mix boundaries` complains about `Maintenance` reaching `MediaCentarr.TMDB`, update the `use Boundary, deps:` line in `lib/media_centarr/maintenance.ex` to add `MediaCentarr.TMDB`.
+If `mix boundaries` complains about `Maintenance` reaching `MediaCentaur.TMDB`, update the `use Boundary, deps:` line in `lib/media_centaur/maintenance.ex` to add `MediaCentaur.TMDB`.
 
 - [ ] **Step 7.4: Final commit if precommit caused fixes**
 

@@ -1,4 +1,4 @@
-defmodule MediaCentarr.Repo.Migrations.DropGrabExcludedReleaseGuids do
+defmodule MediaCentaur.Repo.Migrations.DropGrabExcludedReleaseGuids do
   use Ecto.Migration
 
   # The pursuit aggregate's `tried_release_guids` array is the single

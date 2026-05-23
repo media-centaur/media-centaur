@@ -1,7 +1,7 @@
-defmodule MediaCentarrWeb.Storybook.Detail.MoreInfo.ExternalLinks do
+defmodule MediaCentaurWeb.Storybook.Detail.MoreInfo.ExternalLinks do
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentarrWeb.Components.Detail.MoreInfo.ExternalLinks.external_links/1
+  def function, do: &MediaCentaurWeb.Components.Detail.MoreInfo.ExternalLinks.external_links/1
 
   def variations do
     [

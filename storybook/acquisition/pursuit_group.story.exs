@@ -1,4 +1,4 @@
-defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitGroup do
+defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitGroup do
   @moduledoc """
   Collapsible group row for N pursuits of the same show in the same
   state. Header shows the show name, count, and a severity-colored verb;
@@ -11,9 +11,9 @@ defmodule MediaCentarrWeb.Storybook.Acquisition.PursuitGroup do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentarr.Acquisition.ViewModels.{CurrentAction, PursuitRow}
+  alias MediaCentaur.Acquisition.ViewModels.{CurrentAction, PursuitRow}
 
-  def function, do: &MediaCentarrWeb.Components.Acquisition.PursuitGroup.pursuit_group/1
+  def function, do: &MediaCentaurWeb.Components.Acquisition.PursuitGroup.pursuit_group/1
   def render_source, do: :function
 
   def template do

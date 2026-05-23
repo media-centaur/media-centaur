@@ -10,7 +10,7 @@
 * [`campaigns/done/library-schema-v2.md`](../../../campaigns/done/library-schema-v2.md) — DetailLive flip is the Phase 3 Task E E.3 deferral.
 * [`campaigns/done/desktop-rearchitecture.md`](../../../campaigns/done/desktop-rearchitecture.md) — Workstream A's "every read path through a projection" criterion. Open follow-up: "DetailLive / EntityModal consumer flip."
 
-**Tech stack:** Phoenix 1.7+, Ecto 3.12+, SQLite via ecto_sqlite3, ETS, `MediaCentarr.Cache` behaviour (ADR-041).
+**Tech stack:** Phoenix 1.7+, Ecto 3.12+, SQLite via ecto_sqlite3, ETS, `MediaCentaur.Cache` behaviour (ADR-041).
 
 **Scope honesty:** this plan is the *design* artifact. Implementation lands in subsequent sessions, one task per commit, dispatch-implement-review-fix loop. Treat the field set in Task A as the binding contract — every consumer flip later refers back to it.
 
@@ -36,11 +36,11 @@ Same load-bearing rules as Phase 3 — read [`2026-05-16-library-schema-v2-phase
 | `/?selected=<id>` | `HomeLive` | Continue Watching / Recently Added / Hero card click |
 | `/upcoming?selected=<id>` | `UpcomingLive` | upcoming-row click |
 
-All three use `use MediaCentarrWeb.Live.EntityModal`; the modal is identical across pages.
+All three use `use MediaCentaurWeb.Live.EntityModal`; the modal is identical across pages.
 
 ### Two compose paths today
 
-1. **TV series:** `MediaCentarrWeb.ViewModel.SeriesDetail.compose/1` →
+1. **TV series:** `MediaCentaurWeb.ViewModel.SeriesDetail.compose/1` →
    - calls `Library.load_modal_entry/1` (rich entity + preloads + extras backfill)
    - calls `ReleaseTracking.list_relevant_releases_for_library_container/2`
    - calls `ResumeTarget.compute/2`
@@ -95,7 +95,7 @@ The projection emits Library data; the LiveView composes the cross-context layer
 - [ ] Update `DetailItem` storybook fixtures to populate the new fields with realistic data so the existing detail stories keep rendering. **(Deferred — no existing DetailItem-typed storybook attr exists yet; storybook flip lands at Task E alongside the consumer migration.)**
 
 **Tests:**
-* [x] `test/media_centarr/library/views/detail_item_test.exs` — struct-shape unit test (`async: true`, 12 cases). Covers field defaults + required-key enforcement for DetailItem and each inner struct.
+* [x] `test/media_centaur/library/views/detail_item_test.exs` — struct-shape unit test (`async: true`, 12 cases). Covers field defaults + required-key enforcement for DetailItem and each inner struct.
 
 **Acceptance:** `DetailItem` struct compiles; existing projection-builder + consumer files keep compiling because the new fields default to nil. **Shipped 2026-05-17.**
 
@@ -120,10 +120,10 @@ The projection emits Library data; the LiveView composes the cross-context layer
 * **Canonical-leaf sort key** picks the row by looking up `container_id` in the shared `:seasons`/`:movies` tree, not by inspecting the head of the tree (which is identical across all sibling rows and would fall back to playable_item_id ordering — wrong answer).
 
 **Tests:**
-* [x] `test/media_centarr/library/views/detail_test.exs` — 7 new cases for the Phase 3.2 expanded fields: Movie `:watched_files`, Movie `:images`, TV episode `:seasons`, `detail_by_container(:tv_series, _)` canonical-leaf, MovieSeries `:movies`, `detail_by_container(:movie_series, _)` canonical-leaf, `:subtitle_tracks` empty-default.
+* [x] `test/media_centaur/library/views/detail_test.exs` — 7 new cases for the Phase 3.2 expanded fields: Movie `:watched_files`, Movie `:images`, TV episode `:seasons`, `detail_by_container(:tv_series, _)` canonical-leaf, MovieSeries `:movies`, `detail_by_container(:movie_series, _)` canonical-leaf, `:subtitle_tracks` empty-default.
 * [x] Updated 1 existing test that asserted `detail_by_container(:tv_series, _)` returns nil — now asserts it returns the canonical episode with `:seasons` populated.
 
-**Acceptance:** Projection cold-start populates new fields. `mix test test/media_centarr/library/views/detail_test.exs` green (33 tests). `mix precommit` green (3603 tests). **Shipped 2026-05-17.**
+**Acceptance:** Projection cold-start populates new fields. `mix test test/media_centaur/library/views/detail_test.exs` green (33 tests). `mix precommit` green (3603 tests). **Shipped 2026-05-17.**
 
 ---
 
@@ -136,8 +136,8 @@ The projection emits Library data; the LiveView composes the cross-context layer
 - [x] DetailItem.Season's `:extras` is populated from preloaded `Extra` rows (`owner_type: :season, owner_id: <season.id>`). Previously defaulted to []; projection now batches the lookup across seasons.
 
 **Tests:**
-* [x] `test/media_centarr/library/views/detail_item_test.exs` — struct-shape assertions for the two new fields.
-* [x] `test/media_centarr/library/views/detail_test.exs` — 3 new cold-start cases (Season `:number_of_episodes`, Season `:extras`, Episode `:content_url`).
+* [x] `test/media_centaur/library/views/detail_item_test.exs` — struct-shape assertions for the two new fields.
+* [x] `test/media_centaur/library/views/detail_test.exs` — 3 new cold-start cases (Season `:number_of_episodes`, Season `:extras`, Episode `:content_url`).
 
 **Acceptance:** Fields populated by projection refresh; no consumer reads yet (Task C.2 flips). `mix precommit` green (3606 tests). **Shipped 2026-05-17 (commit `3f242e9e`).**
 
@@ -145,7 +145,7 @@ The projection emits Library data; the LiveView composes the cross-context layer
 
 **Goal:** TV-series modal entry path stops calling `Library.load_modal_entry/1`. The cross-context overlay (releases, tracking_status, resume target) stays at the LiveView layer; only the Library half flips.
 
-- [x] Adapter function `MediaCentarr.Library.Views.DetailItem.to_entity_map/1` — converts a `parent_container_type: :tv_series` DetailItem into the polymorphic entity-map shape consumers (`SeriesDetail.build/4`, `ResumeTarget.compute/2`, `EntityModal.find_tmdb_id/1`, `EntityModal.resolve_progress_fk/4`) read today. Pure; no DB; non-TV DetailItems rejected statically by the typer. Temporary — Task E retires it.
+- [x] Adapter function `MediaCentaur.Library.Views.DetailItem.to_entity_map/1` — converts a `parent_container_type: :tv_series` DetailItem into the polymorphic entity-map shape consumers (`SeriesDetail.build/4`, `ResumeTarget.compute/2`, `EntityModal.find_tmdb_id/1`, `EntityModal.resolve_progress_fk/4`) read today. Pure; no DB; non-TV DetailItems rejected statically by the typer. Temporary — Task E retires it.
 - [x] Helper `Library.list_progress_records_for_tv_series/1` — returns `[%WatchProgress{}]` for every episode under the series, each with a synthesised `:playable_item` so `EpisodeList.progress_container_id/1` still resolves to the Episode UUID (same shape `EntityShape.extract_progress(_, :tv_series)` produced).
 - [x] **Reused existing `Library.ProgressSummary.compute/2`** — already pure and accepts the adapted entity-map shape, so no new helper needed. The plan's `compute_for_tv_series/2` proposal turned out to be redundant.
 - [x] Rewrite `SeriesDetail.compose/1`:
@@ -205,7 +205,7 @@ The projection emits Library data; the LiveView composes the cross-context layer
 
 **Deferred to Phase 3.3 / component-contracts campaign:**
 - [ ] `DetailPanel`'s `attr :entity, :map` → `attr :entity, DetailItem`. Same for `Hero`, `MoreInfoPanel`, `MovieCredits`, `SeriesCredits`.
-- [ ] `EntityModal`'s `:selected_entry` assign collapses to a typed `%MediaCentarrWeb.ViewModel.ModalEntry{}` (or split `TVModalEntry` / `MovieModalEntry`).
+- [ ] `EntityModal`'s `:selected_entry` assign collapses to a typed `%MediaCentaurWeb.ViewModel.ModalEntry{}` (or split `TVModalEntry` / `MovieModalEntry`).
 - [ ] Storybook stories migrate to typed literals.
 - [ ] Retire `DetailItem.to_entity_map/1` (the temporary compat shim) once every consumer reads `DetailItem` fields directly.
 
@@ -234,14 +234,14 @@ These are explicitly *not* decided in this plan — they need a decision at task
 
 ## Pointers
 
-* `lib/media_centarr/library/views/detail_item.ex` — current shape.
-* `lib/media_centarr/library/views/detail.ex` — current projection.
-* `lib/media_centarr_web/components/detail_panel.ex` — main consumer.
-* `lib/media_centarr_web/components/detail/` — sub-components.
-* `lib/media_centarr_web/live/entity_modal.ex` — modal state machine.
-* `lib/media_centarr_web/view_model/series_detail.ex` — current TV composer.
-* `lib/media_centarr/library.ex` — `load_modal_entry/1` + `load_extras_for_entity/1`.
-* `test/media_centarr_web/no_db_on_render_test.exs` — budget guard.
+* `lib/media_centaur/library/views/detail_item.ex` — current shape.
+* `lib/media_centaur/library/views/detail.ex` — current projection.
+* `lib/media_centaur_web/components/detail_panel.ex` — main consumer.
+* `lib/media_centaur_web/components/detail/` — sub-components.
+* `lib/media_centaur_web/live/entity_modal.ex` — modal state machine.
+* `lib/media_centaur_web/view_model/series_detail.ex` — current TV composer.
+* `lib/media_centaur/library.ex` — `load_modal_entry/1` + `load_extras_for_entity/1`.
+* `test/media_centaur_web/no_db_on_render_test.exs` — budget guard.
 
 ## Out of scope
 

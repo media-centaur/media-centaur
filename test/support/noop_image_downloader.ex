@@ -1,4 +1,4 @@
-defmodule MediaCentarr.NoopImageDownloader do
+defmodule MediaCentaur.NoopImageDownloader do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @moduledoc """

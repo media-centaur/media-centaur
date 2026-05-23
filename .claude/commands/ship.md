@@ -3,9 +3,9 @@ description: Commit and push git changes — and optionally tag a release with a
 allowed-tools: Bash, AskUserQuestion, Read, Write, Edit
 ---
 
-You are shipping one or more git repos for Media Centarr, and optionally tagging a release the end-user updater will see. Media Centarr end users are media-center users — not engineers. Release notes they see must be written for them.
+You are shipping one or more git repos for Media Centaur, and optionally tagging a release the end-user updater will see. Media Centaur end users are media-center users — not engineers. Release notes they see must be written for them.
 
-> This skill supersedes the global `/ship` (`~/.claude/commands/ship.md`) when invoked from the Media Centarr repo. Both skills share the same arg modes (`/ship` / `patch` / `minor` / `major`), the same halt-on-failure discipline, the same end-user changelog voice, and the same tag flow. This local version adds the Media-Centarr-specific safety checks (pending migrations, `scripts/preflight`, Settings.Entry schema compatibility, updater-contract stability). When updating either skill, update the other to keep the concepts aligned.
+> This skill supersedes the global `/ship` (`~/.claude/commands/ship.md`) when invoked from the Media Centaur repo. Both skills share the same arg modes (`/ship` / `patch` / `minor` / `major`), the same halt-on-failure discipline, the same end-user changelog voice, and the same tag flow. This local version adds the Media-Centaur-specific safety checks (pending migrations, `scripts/preflight`, Settings.Entry schema compatibility, updater-contract stability). When updating either skill, update the other to keep the concepts aligned.
 
 ## Arguments
 
@@ -65,7 +65,7 @@ Show a summary table of all repos with their status. If a version bump was reque
 
 - Current version (from `mix.exs`)
 - Target version after bump
-- Which repo will be tagged (the Media Centarr app — the one containing `mix.exs`)
+- Which repo will be tagged (the Media Centaur app — the one containing `mix.exs`)
 
 Use `AskUserQuestion` to get explicit confirmation before any mutations. If the user declines, stop.
 
@@ -103,24 +103,24 @@ Never force-push `main`. If the push is rejected as non-fast-forward, the repo i
 
 ## Step 5: Version bump + tag (only when mode is major|minor|patch)
 
-Run these in the Media Centarr app repo (the one with `mix.exs`). If shipping multiple repos, the tag applies to the main app repo only. These steps happen AFTER the working-copy ship in Step 4 has been pushed, so `main` already includes the feature commits being released.
+Run these in the Media Centaur app repo (the one with `mix.exs`). If shipping multiple repos, the tag applies to the main app repo only. These steps happen AFTER the working-copy ship in Step 4 has been pushed, so `main` already includes the feature commits being released.
 
 ### 5a: Validate safe upgrade path
 
-**Before** bumping anything, confirm the release will be safely consumable by the in-app updater (`MediaCentarr.SelfUpdate`). If any check fails, **halt** and prompt the engineer using Claude Code to resolve before continuing. Checks:
+**Before** bumping anything, confirm the release will be safely consumable by the in-app updater (`MediaCentaur.SelfUpdate`). If any check fails, **halt** and prompt the engineer using Claude Code to resolve before continuing. Checks:
 
 1. **No pending migrations.** Run `mix ecto.migrations 2>&1 | grep -v "up"` in the app repo. Any line showing a migration in state other than `up` → halt with the offending migration listed.
 2. **Tests green.** Run `mix test` (fast subset acceptable if the full suite was just run). Any failure → halt with the failing test names.
-3. **Full release workflow builds.** Run `scripts/preflight` and confirm it produces `_build/prod/rel/media_centarr/` containing `bin/media-centarr-install` and `share/systemd/media-centarr.service`. Missing files or build failure → halt with details. (`scripts/preflight` never installs anything.)
-4. **Settings.Entry schema compatibility.** Check if the diff from the previous tag touches `lib/media_centarr/settings/entry.ex` or migrations under `priv/repo/migrations/` in a way that renames or drops keys under the `update.*` namespace (`update.last_check_at`, `update.latest_known`, or anything the updater reads). Any such change → halt with a note that in-app hydration would break.
-5. **Updater contract intact.** Check if the diff from the previous tag touches `rel/overlays/bin/media-centarr-install` in a backward-incompatible way (removing `--update` flag, changing argv contract of the default install path). Any such change → halt with the offending diff hunks.
+3. **Full release workflow builds.** Run `scripts/preflight` and confirm it produces `_build/prod/rel/media_centaur/` containing `bin/media-centaur-install` and `share/systemd/media-centaur.service`. Missing files or build failure → halt with details. (`scripts/preflight` never installs anything.)
+4. **Settings.Entry schema compatibility.** Check if the diff from the previous tag touches `lib/media_centaur/settings/entry.ex` or migrations under `priv/repo/migrations/` in a way that renames or drops keys under the `update.*` namespace (`update.last_check_at`, `update.latest_known`, or anything the updater reads). Any such change → halt with a note that in-app hydration would break.
+5. **Updater contract intact.** Check if the diff from the previous tag touches `rel/overlays/bin/media-centaur-install` in a backward-incompatible way (removing `--update` flag, changing argv contract of the default install path). Any such change → halt with the offending diff hunks.
 6. **Changelog present.** Check that `CHANGELOG.md` (or `docs/changelog.md`) exists and has an entry header matching the target version. If missing, it will be generated in 5b — do NOT halt for this.
 
 Halt format: print `UPGRADE SAFETY CHECK FAILED` followed by a bulleted list of failures, then tell the engineer exactly which files to look at and what decision they need to make. Use `AskUserQuestion` to ask whether to abort or continue anyway (override is explicit, never silent).
 
 ### 5b: Draft a user-facing changelog
 
-Media Centarr end users are media-center users. Technical commit messages are useless to them. Generate release notes they can actually read.
+Media Centaur end users are media-center users. Technical commit messages are useless to them. Generate release notes they can actually read.
 
 1. Collect commits since the previous tag:
    ```bash

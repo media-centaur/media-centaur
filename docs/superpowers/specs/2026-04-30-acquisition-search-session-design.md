@@ -29,11 +29,11 @@ Out of scope:
 
 ### 1. Session struct and group statuses
 
-A new module `MediaCentarr.Acquisition.SearchSession` defines both the data shape and the GenServer that owns it. The data structure:
+A new module `MediaCentaur.Acquisition.SearchSession` defines both the data shape and the GenServer that owns it. The data structure:
 
 ```elixir
-defmodule MediaCentarr.Acquisition.SearchSession do
-  alias MediaCentarr.Acquisition.SearchResult
+defmodule MediaCentaur.Acquisition.SearchSession do
+  alias MediaCentaur.Acquisition.SearchResult
 
   @type group_status :: :loading | :ready | {:failed, term()} | :abandoned
 
@@ -74,9 +74,9 @@ end
 
 `grabbing?` is hoisted into the session so the bulk-grab feedback also persists across navigation. A user who clicks "Grab 3 selected" and immediately navigates away returns to the spinner state until the grab completes.
 
-### 2. GenServer: `MediaCentarr.Acquisition.SearchSession`
+### 2. GenServer: `MediaCentaur.Acquisition.SearchSession`
 
-A standalone, named GenServer started under `MediaCentarr.Application`'s supervision tree, distinct from the existing `MediaCentarr.Acquisition` GenServer. Separation of concerns: the existing `Acquisition` GenServer is event-driven (handles `:release_ready` and `:item_removed` PubSub messages from release-tracking); the search session is request-driven (handles `call`s from `AcquisitionLive`). Folding both into one module would blur the responsibilities and grow the file.
+A standalone, named GenServer started under `MediaCentaur.Application`'s supervision tree, distinct from the existing `MediaCentaur.Acquisition` GenServer. Separation of concerns: the existing `Acquisition` GenServer is event-driven (handles `:release_ready` and `:item_removed` PubSub messages from release-tracking); the search session is request-driven (handles `call`s from `AcquisitionLive`). Folding both into one module would blur the responsibilities and grow the file.
 
 GenServer state holds a single `%SearchSession{}` struct. All public access goes through the `Acquisition` facade — no module outside the Acquisition context calls `GenServer.call(SearchSession, ...)` directly.
 
@@ -134,7 +134,7 @@ def clear_search_session
 def retry_search_terms(terms)
 ```
 
-A new PubSub topic `acquisition:search` is added to `MediaCentarr.Topics`. Distinct from the existing `acquisition:updates`, because that topic is broadcast app-wide for grab lifecycle events (every LiveView showing grab status subscribes); the search session is purely a `/download` page concern and should not be force-fanned to unrelated subscribers.
+A new PubSub topic `acquisition:search` is added to `MediaCentaur.Topics`. Distinct from the existing `acquisition:updates`, because that topic is broadcast app-wide for grab lifecycle events (every LiveView showing grab status subscribes); the search session is purely a `/download` page concern and should not be force-fanned to unrelated subscribers.
 
 `start_search/1` and `retry_search_terms/1` swap the `searching_pid` monitor to the new caller — if the LiveView restarts (navigate away, come back, hit Retry), the monitor follows the live process, not the dead one.
 
@@ -179,7 +179,7 @@ Activity-zone events (`set_activity_filter`, `set_activity_search`, `cancel_acti
 
 **Render** — every reference to a former assign becomes `@search_session.<field>`. `@searching?` is derived: `Logic.any_loading?(@search_session.groups)`.
 
-**Logic relocation** — most of `MediaCentarrWeb.AcquisitionLive.Logic` (placeholder_groups, apply_search_result, add_default_selection, toggle_group, mark_group_loading, all_loaded?, find_result, build_grab_message) moves into `MediaCentarr.Acquisition.SearchSession` as private functions or stays in `Logic` and is called by the GenServer. The LiveView no longer needs them. `Logic` retains only template-only helpers (formatting, color classes, expansion preview text, timeout_terms list extraction). This is a small ADR-029-style boundary win: search-state logic now lives inside the Acquisition context, not the web layer.
+**Logic relocation** — most of `MediaCentaurWeb.AcquisitionLive.Logic` (placeholder_groups, apply_search_result, add_default_selection, toggle_group, mark_group_loading, all_loaded?, find_result, build_grab_message) moves into `MediaCentaur.Acquisition.SearchSession` as private functions or stays in `Logic` and is called by the GenServer. The LiveView no longer needs them. `Logic` retains only template-only helpers (formatting, color classes, expansion preview text, timeout_terms list extraction). This is a small ADR-029-style boundary win: search-state logic now lives inside the Acquisition context, not the web layer.
 
 ### 5. Lifecycle: monitor, abandonment, retry
 
@@ -217,7 +217,7 @@ The current LiveView clears `selections` after a grab batch and shows `grab_mess
 
 Test-first per the `automated-testing` skill: SearchSession tests are written before the SearchSession module; LiveView tests are extended before the LiveView refactor.
 
-### `test/media_centarr/acquisition/search_session_test.exs` — async pure GenServer tests
+### `test/media_centaur/acquisition/search_session_test.exs` — async pure GenServer tests
 
 - Each test starts a fresh GenServer with `start_supervised!({SearchSession, name: :"sess_#{System.unique_integer()}"})` so they run async.
 - Public-API only — never `:sys.get_state` (ADR-026, enforced by the `NoSysIntrospection` Credo check).
@@ -232,7 +232,7 @@ Test-first per the `automated-testing` skill: SearchSession tests are written be
   - `set_selection`/`clear_selection`/`clear_selections`/`toggle_group`/`set_grabbing`/`set_grab_message`/`clear_search_session` round-trip correctly.
 - Subscribers receive `{:search_session, session}` on every write — verified via `Phoenix.PubSub.subscribe` then `assert_receive`.
 
-### `test/media_centarr_web/live/acquisition_live_test.exs` — extend the existing LiveView test
+### `test/media_centaur_web/live/acquisition_live_test.exs` — extend the existing LiveView test
 
 - Mount, submit search, navigate away (`live_redirect` to `/`), navigate back to `/download`. Assert the new mount shows the same query, same groups, same selections.
 - Mount, submit search with one query still `:loading`, kill the LiveView process, mount again. Assert the loading group renders as `:abandoned` with a Retry affordance.
@@ -240,7 +240,7 @@ Test-first per the `automated-testing` skill: SearchSession tests are written be
 - Selection persists across navigation.
 - Grab message persists across navigation until the next search.
 
-### `MediaCentarrWeb.AcquisitionLive.Logic` tests
+### `MediaCentaurWeb.AcquisitionLive.Logic` tests
 
 Most existing assertions move to `SearchSession` tests since the logic moved. `Logic` retains only template helpers (color classes, expansion preview text, timeout-term extraction); those stay as small async unit tests.
 
@@ -248,11 +248,11 @@ Most existing assertions move to `SearchSession` tests since the logic moved. `L
 
 This is a non-data-migrating refactor:
 - No new database tables, no migrations, no Ecto schema changes.
-- One new module (`MediaCentarr.Acquisition.SearchSession`).
-- One new entry in `MediaCentarr.Application`'s child spec list.
-- One new function in `MediaCentarr.Topics`.
+- One new module (`MediaCentaur.Acquisition.SearchSession`).
+- One new entry in `MediaCentaur.Application`'s child spec list.
+- One new function in `MediaCentaur.Topics`.
 - New exports in the `Acquisition` `use Boundary` declaration: `SearchSession` is internal but the new public functions live on the `Acquisition` facade and need no boundary changes for callers.
-- `MediaCentarrWeb.AcquisitionLive` and `MediaCentarrWeb.AcquisitionLive.Logic` are rewritten in place; no other web modules touched.
+- `MediaCentaurWeb.AcquisitionLive` and `MediaCentaurWeb.AcquisitionLive.Logic` are rewritten in place; no other web modules touched.
 
 The change can ship in a single commit since the LiveView and the GenServer must be consistent. Pre-existing search behavior is preserved — every visible feature today (brace expansion, grouped results, top-seeder default selection, retry timeouts, grab batch with feedback message, deep-link `?prowlarr_search=…`) continues to work identically. The only user-visible difference is that the search now persists across navigation.
 
