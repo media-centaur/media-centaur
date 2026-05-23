@@ -33,6 +33,12 @@ Use [`template.md`](template.md) as a starter.
   isolates `:persistent_term` and Task.Supervisor children.
   Will move to `done/` after the macos-platform-support Phase 5
   push sequence proves CI stability through its commits.
+* [`media-centaur-rename.md`](media-centaur-rename.md) —
+  **planning.** Rename `Centarr` → `Centaur` across the OTP app
+  atom, modules, GitHub org/repos, prod DB + XDG dirs, source tree,
+  domain, and wiki. Reversible/local phases first; org rename + DNS
+  + prod cutover are irreversible and sequenced last. Phase 1
+  (in-repo sweep, gated by `mix precommit`) starting.
 
 ## Archived
 
