@@ -76,5 +76,11 @@ defmodule MediaCentaur.Library.Episode do
       :season_id
     ])
     |> validate_required([:season_id, :episode_number])
+    # The episode unique index already existed; this only teaches the
+    # changeset to surface a racing duplicate as `{:error, changeset}`
+    # instead of raising `Ecto.ConstraintError`. The index name is
+    # normalised to the Ecto default in
+    # 20260523210000_restore_season_unique_index.
+    |> unique_constraint([:season_id, :episode_number])
   end
 end

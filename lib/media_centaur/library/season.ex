@@ -28,6 +28,12 @@ defmodule MediaCentaur.Library.Season do
   end
 
   def create_changeset(attrs) do
-    cast(%__MODULE__{}, attrs, [:season_number, :number_of_episodes, :name, :tv_series_id])
+    %__MODULE__{}
+    |> cast(attrs, [:season_number, :number_of_episodes, :name, :tv_series_id])
+    # Matches the unique index restored in
+    # 20260523210000_restore_season_unique_index. Surfaces a racing
+    # duplicate insert as `{:error, changeset}` so `find_or_insert_by/3`
+    # can recover to the winning row instead of creating a second Season.
+    |> unique_constraint([:tv_series_id, :season_number])
   end
 end
