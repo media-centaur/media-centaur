@@ -46,7 +46,9 @@ config :media_centaur, Oban,
   # caused tail latencies of 30-45s per search (most of it queueing) and
   # tripped the per-search timeout for whole-season grabs.
   # self_update: serialized because it writes to the install dir on disk.
-  queues: [acquisition: 3, self_update: 1],
+  # images: per-entity artwork refresh (TMDB fetch → enqueue), kept low
+  # since the heavy download/resize runs in the Broadway image pipeline.
+  queues: [acquisition: 3, self_update: 1, images: 2],
   plugins: [
     # Offset minute (17) so every install doesn't hit the GitHub API
     # on the hour — spreads requests across the 60s window and keeps
