@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: complete
 started: 2026-05-23
 last_updated: 2026-05-23
 ---
@@ -23,15 +23,24 @@ a campaign rather than a single commit.
 
 ## Status
 
-`2026-05-23` (reconciled + session 2) — **Phases 0–6 done + Phase 7 step 1
-(ship); only Phase 7 steps 2–3 and the optional old-domain 301 remain.**
-The rename is **merged to `main`**, the **first `media-centaur` release is
-published (`v0.72.2`)**, and the **production instance is cut over and
-verified**: running `media_centaur 0.72.2`, 40/40 supervised children,
-HTTP 200 on :2160, library intact (39 movies, 8 collections, 37 seasons,
-420 episodes). Pages live at `https://media-centaur.net`; org display name
-"Media Centaur". **Next: Phase 7** — migrate `~/scripts/*` (old node name +
-URLs) and re-key the path-keyed Claude project memory.
+`2026-05-23` (reconciled + session 2) — **COMPLETE** (modulo the optional
+old-domain 301 + a bonus Hyprland-integration follow-up). Rename merged to
+`main`; first `media-centaur` release published (`v0.72.2`); production
+cut over and verified (running `media_centaur 0.72.2`, 40/40 children,
+HTTP 200 on :2160, library intact — 39 movies / 8 collections / 37
+seasons / 420 episodes); Pages live at `https://media-centaur.net`; org
+display name "Media Centaur". Phase 7: `~/scripts` helpers (`mc-rpc`,
+`mc-debug-browser`, `mc-soak-check-progress`) swept + `mc-rpc` verified
+against the new node; Claude project memory (33 files incl. `MEMORY.md`)
+re-keyed to the new path. **Session-2 remediation:** two migrated-memory
+directives had been violated while memory was orphaned — Co-Authored-By
+trailers were stripped from `main` + the `v0.72.2` tag (history rewrite +
+force-push, release rebuilt clean), and `jj` was scrubbed from the wiki +
+org-profile (now pure git). **Remaining (optional):** registrar 301
+(`media-centarr.net` → new); Hyprland window-rules/keybinds/launcher that
+reference the old name (stale `~/scripts/media-centarr/run`, port 4000 —
+ownership unclear, deferred for operator review); cleanup of the old
+`~/.local/lib/media-centarr/` install + orphaned old Claude project dir.
 
 * **Phase 0** ✅ DB backup at `~/media-centarr-db-backup-20260523-132539.db`.
 * **Phase 1** ✅ committed `d7c7d0ad`; `mix precommit` was green (3950
@@ -251,20 +260,30 @@ session 2).
    `media-centaur.net` refs, so nothing depended on the pending Phase-4 DNS.
 2. Swept the `.github` org-profile repo.
 
-### Phase 7 — Ship & final verification
+### Phase 7 — Ship & final verification ✅ done
 1. ✅ done — `/ship patch` tagged **`v0.72.2`**, the first `media-centaur`
    release (build `26336006331` green; linux + darwin tarballs +
    `SHA256SUMS`). CHANGELOG documents the rename + the one-time
    manual-migration note for external installs. (Shipped before Phase 5
    per the "ship first" decision, so the cutover installs a real
    published artifact.)
-2. Update `~/scripts` (outside the repo): `mc-rpc`,
-   `mc-debug-browser`, `media-dev`, install helpers — they hardcode
-   the old node name `media_centarr_dev@127.0.0.1` and old URLs.
-3. Re-key Claude project memory: the project dir
-   `~/.claude/projects/-home-shawn-src-media-centarr-media-centarr-app/`
-   is path-keyed; renaming the source dir orphans `MEMORY.md`.
-   Migrate it to the new path-keyed project dir.
+2. ✅ done — swept the dotfiles-managed `~/scripts` helpers (`mc-rpc`,
+   `mc-debug-browser`, `mc-soak-check-progress`); `mc-rpc` now targets the
+   new install and was verified against `media_centaur@…` (39 movies).
+   (No script hardcoded the dev node name after all — `mc-rpc` uses the
+   release `rpc`.) **Out of scope / deferred:** the Hyprland config
+   (`rules.conf` class/namespace, `keybinds.conf`/`hyprland.conf` →
+   `~/scripts/media-centarr/run`) still references the old name; the app
+   does **not** emit a `media-centarr` window class (live mpv window is
+   class `mpv`), so those rules are likely stale and `run` itself is stale
+   (port 4000). Left for operator review — touching live WM config blind
+   is riskier than the payoff.
+3. ✅ done — re-keyed Claude project memory from
+   `…-media-centarr-media-centarr-app/memory/` to the new
+   `…-media-centaur-media-centaur-app/memory/` (33 files incl. `MEMORY.md`,
+   swept). The old session-start ran *without* this memory (orphaned),
+   which is why the no-Co-Authored-By / no-jj directives were missed and
+   then remediated. Old project dir left as an inert backup.
 
 ## Completion criteria
 
