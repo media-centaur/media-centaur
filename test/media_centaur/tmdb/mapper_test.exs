@@ -746,4 +746,41 @@ defmodule MediaCentaur.TMDB.MapperTest do
       assert Mapper.minutes_to_seconds(45) == 2700
     end
   end
+
+  describe "image_list/1" do
+    test "extracts poster, backdrop, and english logo" do
+      data = %{
+        "poster_path" => "/p.jpg",
+        "backdrop_path" => "/b.jpg",
+        "images" => %{
+          "logos" => [
+            %{"iso_639_1" => "de", "file_path" => "/de.png"},
+            %{"iso_639_1" => "en", "file_path" => "/en.png"}
+          ]
+        }
+      }
+
+      assert Mapper.image_list(data) == [
+               %{role: "poster", url: "https://image.tmdb.org/t/p/original/p.jpg", extension: "jpg"},
+               %{role: "backdrop", url: "https://image.tmdb.org/t/p/original/b.jpg", extension: "jpg"},
+               %{role: "logo", url: "https://image.tmdb.org/t/p/original/en.png", extension: "png"}
+             ]
+    end
+
+    test "omits missing roles and falls back to first logo when no english" do
+      data = %{
+        "poster_path" => "/p.jpg",
+        "images" => %{"logos" => [%{"iso_639_1" => "fr", "file_path" => "/fr.png"}]}
+      }
+
+      assert Mapper.image_list(data) == [
+               %{role: "poster", url: "https://image.tmdb.org/t/p/original/p.jpg", extension: "jpg"},
+               %{role: "logo", url: "https://image.tmdb.org/t/p/original/fr.png", extension: "png"}
+             ]
+    end
+
+    test "returns empty list when no image paths present" do
+      assert Mapper.image_list(%{}) == []
+    end
+  end
 end
