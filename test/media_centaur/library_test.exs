@@ -38,6 +38,51 @@ defmodule MediaCentaur.LibraryTest do
   # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
   defp record_present(_file), do: :ok
 
+  describe "load_modal_entry/1 collection hoist" do
+    test "a sole-possessed collection movie loads as a faithful movie, not the collection" do
+      ms = create_movie_series(%{name: "Singleton Collection", genres: ["Adventure"]})
+
+      child =
+        create_movie(%{
+          movie_series_id: ms.id,
+          name: "Only Child",
+          genres: ["Action"],
+          position: 0
+        })
+
+      record_present(create_linked_file(%{movie_id: child.id}))
+
+      assert {:ok, %{entity: entity}} = Library.load_modal_entry(child.id)
+      assert entity.type == :movie
+      assert entity.id == child.id
+      assert entity.name == "Only Child"
+      assert entity.genres == ["Action"]
+      assert entity.collection == %{id: ms.id, name: "Singleton Collection"}
+    end
+
+    test "opening a hoisted collection by its series id resolves to the sole movie" do
+      ms = create_movie_series(%{name: "Singleton Collection"})
+      child = create_movie(%{movie_series_id: ms.id, name: "Only Child", position: 0})
+      record_present(create_linked_file(%{movie_id: child.id}))
+
+      assert {:ok, %{entity: entity}} = Library.load_modal_entry(ms.id)
+      assert entity.type == :movie
+      assert entity.id == child.id
+    end
+
+    test "a multi-possessed collection loads as the collection" do
+      ms = create_movie_series(%{name: "Trilogy"})
+      part1 = create_movie(%{movie_series_id: ms.id, name: "Part 1", position: 0})
+      part2 = create_movie(%{movie_series_id: ms.id, name: "Part 2", position: 1})
+      record_present(create_linked_file(%{movie_id: part1.id}))
+      record_present(create_linked_file(%{movie_id: part2.id}))
+
+      assert {:ok, %{entity: entity}} = Library.load_modal_entry(ms.id)
+      assert entity.type == :movie_series
+      assert entity.id == ms.id
+    end
+  end
+
   describe "list_in_progress/1" do
     test "returns empty list when no entities exist" do
       assert Library.list_in_progress() == []

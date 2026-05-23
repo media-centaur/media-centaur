@@ -76,20 +76,23 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
-  describe "/?selected=<id> with a movie collection containing a downloaded movie" do
+  describe "/?selected=<id> with a movie collection containing downloaded movies" do
     # Regression: the home detail panel renders `movie_row` for each
     # present constituent movie of a movie_series. `movie_row` reads
     # optional fields (:images, :description, :duration_seconds) that the
     # lean `DetailItem.movie_entry_to_map/1` projection map omits — a bare
     # dot-access raised `KeyError` and crashed HomeLive the moment a
-    # collection with a downloaded movie was opened. This smoke mounts the
+    # collection with downloaded movies was opened. This smoke mounts the
     # home detail for exactly that shape and asserts a movie row renders.
     setup do
       series = create_movie_series(%{name: "Smoke Movie Collection"})
-      # Auto-creates a present child Movie under the series (content_url ==
-      # the linked file path), so the projection surfaces a present
-      # constituent movie that content_list/1 renders as a movie_row.
-      _file = create_linked_file(%{movie_series_id: series.id})
+      # Two present child Movies — the hoist rule (ADR-050) presents a
+      # collection AS a collection only when 2+ of its movies are owned (a
+      # single owned movie is surfaced as the movie itself). Each linked
+      # file auto-creates a present constituent the collection detail's
+      # content_list/1 renders as a movie_row.
+      _file1 = create_linked_file(%{movie_series_id: series.id, file_path: "/media/smoke/part-1.mkv"})
+      _file2 = create_linked_file(%{movie_series_id: series.id, file_path: "/media/smoke/part-2.mkv"})
 
       {:ok, series: series}
     end
