@@ -65,10 +65,12 @@ URLs) and re-key the path-keyed Claude project memory.
   `media-centarr.db` (+ wal, actively written), dotfiles config, and the
   prod `media-centarr.service` are all still old-named.
 * **Phase 6** ✅ done (session 2). Wiki (207 hits, 22 files) and
-  org-profile (4 hits) swept and pushed. **Both are jj-colocated repos**
-  (`.jj/` present) — pushed via `jj` (`desc` → `bookmark move` →
-  `jj git push`), **not git**. Logo files (`centaur-logo*.png`) confirmed
-  present in the app repo, so org-profile images resolve.
+  org-profile (4 hits) swept and pushed. Both are **plain git** (branches
+  `master` / `main`). [Note: they were briefly committed via jj before the
+  no-jj directive surfaced from migrated memory; the `.jj/` colocation was
+  then removed and they reattached to their git branches.] Logo files
+  (`centaur-logo*.png`) confirmed in the app repo, so org-profile images
+  resolve.
 * **Phase 7** ❌ not started — `~/scripts/*` and Claude memory unmigrated.
 
 Next (blocked on operator): (1) merge `rename/media-centaur` → `main`;
@@ -241,14 +243,13 @@ it, the in-app updater works normally forever.
    context functions (not raw SQL).
 
 ### Phase 6 — Wiki & org-profile docs ✅ done
-**Correction:** both `media-centaur.wiki` and `media-centaur-org-profile`
-are **jj-colocated** (`.jj/` present) — `git status` works but committing
-with git risks desyncing jj. Use jj: `jj desc -m … && jj bookmark move
-<master|main> --to @ && jj git push -b <bookmark>`.
-1. Swept the wiki repo (`media-centaur.wiki`, branch `master`): titles,
-   install commands, GitHub URLs. No `media-centaur.net` refs, so nothing
-   depended on the pending Phase-4 DNS. Pushed via jj.
-2. Swept the `.github` org-profile repo (branch `main`). Pushed via jj.
+Both `media-centaur.wiki` (branch `master`) and `media-centaur-org-profile`
+(branch `main`) are **plain git** — use git for commit + push, never jj
+(project-wide no-jj directive; any `.jj/` colocation was removed in
+session 2).
+1. Swept the wiki repo: titles, install commands, GitHub URLs. No
+   `media-centaur.net` refs, so nothing depended on the pending Phase-4 DNS.
+2. Swept the `.github` org-profile repo.
 
 ### Phase 7 — Ship & final verification
 1. ✅ done — `/ship patch` tagged **`v0.72.2`**, the first `media-centaur`
