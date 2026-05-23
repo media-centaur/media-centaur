@@ -1,8 +1,29 @@
 # Changelog
 
-User-facing release notes for Media Centarr. Internal refactors, test
+User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
+
+## v0.72.2 — 2026-05-23
+
+### Changed
+
+**The app is now called Media Centaur.** The misspelled "Centarr" is now
+"Centaur" — across the app, the website (**media-centaur.net**), and the
+project. How the app works is unchanged; only the name is different.
+
+**Existing installs need a one-time manual switch.** The rename changes the
+name of the release package, so an existing *Media Centarr* install can't
+pick up this version through the in-app updater. To move to Media Centaur:
+
+1. Stop the old service: `systemctl --user stop media-centarr.service`
+2. Rename your data folder so the new app finds your library:
+   `~/.local/share/media-centarr` → `~/.local/share/media-centaur`, and
+   inside it rename `media-centarr.db` → `media-centaur.db`.
+3. Install Media Centaur from **media-centaur.net** and start it.
+
+Your library, settings, and watch history carry over. After this one-time
+step, in-app updates work normally again.
 
 ## v0.72.1 — 2026-05-23
 
