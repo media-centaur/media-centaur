@@ -3165,11 +3165,39 @@ defmodule MediaCentaur.Library do
   # Find an existing record by `lookup` (a keyword list of field/value pairs)
   # or insert a new one from `attrs` via `schema.create_changeset/1`. Returns
   # the existing record unchanged on hit.
+  #
+  # Read-then-write is inherently racy: two callers can both miss on the
+  # `existing_by/2` read and both reach the insert. When the schema has a
+  # unique index (Season, Episode) the loser's insert comes back as a
+  # unique-constraint `{:error, changeset}` — we recover by re-reading the
+  # winner's row, so concurrent ingest of the same season/episode returns
+  # `{:ok, record}` for everyone instead of stranding the loser or (worse,
+  # absent the index) creating a duplicate.
   defp find_or_insert_by(schema, lookup, attrs) do
     case existing_by(schema, lookup) do
-      nil -> Repo.insert(schema.create_changeset(attrs))
-      existing -> {:ok, existing}
+      nil ->
+        case Repo.insert(schema.create_changeset(attrs)) do
+          {:ok, record} ->
+            {:ok, record}
+
+          {:error, changeset} = error ->
+            if unique_constraint_error?(changeset) do
+              case existing_by(schema, lookup) do
+                nil -> error
+                existing -> {:ok, existing}
+              end
+            else
+              error
+            end
+        end
+
+      existing ->
+        {:ok, existing}
     end
+  end
+
+  defp unique_constraint_error?(%Ecto.Changeset{errors: errors}) do
+    Enum.any?(errors, fn {_field, {_message, opts}} -> opts[:constraint] == :unique end)
   end
 
   # Find an existing record by `lookup` (a keyword list of field/value pairs)

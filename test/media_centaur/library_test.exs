@@ -879,4 +879,74 @@ defmodule MediaCentaur.LibraryTest do
       assert Library.list_progress_records_for_tv_series(Ecto.UUID.generate()) == []
     end
   end
+
+  # Regression: the Library Schema v2 table rename
+  # (`seasons` → `library_seasons`) dropped the
+  # `(entity_id, season_number)` unique index and never re-created it on
+  # the new `tv_series_id` column. With no DB guard, a burst of episodes
+  # for one new season races in `find_or_insert_by/3` and inserts
+  # duplicate `Season` rows; every later `Repo.get_by` then raises
+  # `MultipleResultsError`, wedging the whole series. Episodes kept their
+  # index across the rename, so they never duplicated — but their
+  # changeset still lacks the `unique_constraint`, so a racing insert
+  # raises `ConstraintError` instead of returning a tidy `{:error, _}`.
+  describe "season uniqueness" do
+    test "create_season/1 rejects a duplicate (tv_series_id, season_number)" do
+      series = create_tv_series(%{name: "Dup Season Show"})
+
+      assert {:ok, _season} =
+               Library.create_season(%{tv_series_id: series.id, season_number: 3, name: "S3"})
+
+      assert {:error, changeset} =
+               Library.create_season(%{tv_series_id: series.id, season_number: 3, name: "S3 again"})
+
+      refute changeset.valid?
+      assert "has already been taken" in all_error_messages(changeset)
+      assert length(Library.list_seasons_for_tv_series(series.id)) == 1
+    end
+
+    test "find_or_create_season_for_tv_series/1 is idempotent — repeated calls yield one season" do
+      series = create_tv_series(%{name: "Idempotent Season Show"})
+      attrs = %{tv_series_id: series.id, season_number: 1, name: "S1", number_of_episodes: 10}
+
+      assert {:ok, first} = Library.find_or_create_season_for_tv_series(attrs)
+      assert {:ok, second} = Library.find_or_create_season_for_tv_series(attrs)
+
+      assert first.id == second.id
+      assert length(Library.list_seasons_for_tv_series(series.id)) == 1
+    end
+  end
+
+  describe "episode uniqueness" do
+    test "create_episode/1 returns {:error, changeset} (not a raised ConstraintError) on a duplicate (season_id, episode_number)" do
+      series = create_tv_series(%{name: "Dup Episode Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
+
+      assert {:ok, _episode} =
+               Library.create_episode(%{season_id: season.id, episode_number: 1, name: "Pilot"})
+
+      assert {:error, changeset} =
+               Library.create_episode(%{season_id: season.id, episode_number: 1, name: "Pilot again"})
+
+      refute changeset.valid?
+      assert "has already been taken" in all_error_messages(changeset)
+      assert length(Library.list_episodes_for_season(season.id)) == 1
+    end
+
+    test "find_or_create_episode/1 is idempotent — repeated calls yield one episode" do
+      series = create_tv_series(%{name: "Idempotent Episode Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
+      attrs = %{season_id: season.id, episode_number: 5, name: "E5"}
+
+      assert {:ok, first} = Library.find_or_create_episode(attrs)
+      assert {:ok, second} = Library.find_or_create_episode(attrs)
+
+      assert first.id == second.id
+      assert length(Library.list_episodes_for_season(season.id)) == 1
+    end
+  end
+
+  defp all_error_messages(changeset) do
+    changeset |> errors_on() |> Map.values() |> List.flatten()
+  end
 end
