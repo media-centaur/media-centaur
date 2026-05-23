@@ -149,6 +149,44 @@ defmodule MediaCentaur.Playback.Iso639 do
     "zho" => "Chinese"
   }
 
+  # Reverse index: lowercased display name → canonical code. Compiled
+  # from @names so `code_for_name/1` resolves a typed language name.
+  @name_to_code for {code, name} <- @names, into: %{}, do: {String.downcase(name), code}
+
+  @doc """
+  All known languages as `{code, display_name}` tuples, sorted by name.
+  Powers language pickers in the UI — exactly the set the resolver can
+  match, so users can only choose languages the app understands.
+  """
+  @spec all() :: [{String.t(), String.t()}]
+  def all do
+    Enum.sort_by(@names, fn {_code, name} -> name end)
+  end
+
+  @doc """
+  Resolve a free-text language input to a canonical 3-letter code, or
+  `nil` if it matches no known language. Accepts an exact display name
+  (case-insensitive, e.g. `"French"`) or any ISO form of a known code
+  (`"fr"`, `"fre"`, `"fra"`). Used by the settings language picker to
+  turn what the user typed or selected into a stored code.
+  """
+  @spec code_for_name(String.t() | nil) :: String.t() | nil
+  def code_for_name(nil), do: nil
+
+  def code_for_name(input) when is_binary(input) do
+    case String.trim(input) do
+      "" -> nil
+      trimmed -> Map.get(@name_to_code, String.downcase(trimmed)) || known_code(trimmed)
+    end
+  end
+
+  defp known_code(input) do
+    case normalize(input) do
+      code when is_binary(code) -> if Map.has_key?(@names, code), do: code
+      _ -> nil
+    end
+  end
+
   @doc "Canonicalize a language code to its 3-letter ISO 639-2/T form."
   @spec normalize(String.t() | nil) :: String.t() | nil
   def normalize(nil), do: nil

@@ -32,8 +32,9 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.Pipeline.Image, as: ImagePipeline
   alias MediaCentaurWeb.SettingsLive.WatchDirsLogic
   alias MediaCentaur.Controls
-  alias MediaCentaur.Playback.LanguagePolicy
+  alias MediaCentaur.Playback.{Iso639, LanguagePolicy}
   alias MediaCentaurWeb.SettingsLive.Controls, as: ControlsSection
+  alias MediaCentaurWeb.SettingsLive.LanguageLogic
 
   # Sections are grouped for sidebar display — a thin divider renders between
   # adjacent items whose :group differs. Order within a group is by frequency
@@ -51,6 +52,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     %{id: "acquisition", label: "Acquisition", group: :media},
     %{id: "pipeline", label: "Pipeline", group: :media},
     %{id: "playback", label: "Playback", group: :media},
+    %{id: "language", label: "Language", group: :media},
     %{id: "release_tracking", label: "Release Tracking", group: :media},
     # Infrastructure — rare-touch admin
     %{id: "danger", label: "Danger Zone", group: :infra}
@@ -133,9 +135,33 @@ defmodule MediaCentaurWeb.SettingsLive do
        service_action_pending: nil,
        service_status_visible: false,
        service_status_output: nil,
-       listening: nil,
-       language_policy: LanguagePolicy.load()
-     )}
+       listening: nil
+     )
+     |> put_language_assigns()}
+  end
+
+  # Loads the saved language policy and seeds the picker's working state:
+  # the draft list of understood-language codes (mutated live by the
+  # add/remove/reorder events, persisted on save) and the selectable
+  # language options. Re-called after a save to re-sync the draft.
+  defp put_language_assigns(socket) do
+    policy = LanguagePolicy.load()
+
+    assign(socket,
+      language_policy: policy,
+      language_draft: policy.understood_languages,
+      language_options: LanguageLogic.options()
+    )
+  end
+
+  # The understood-languages picker is a live tag editor: each add /
+  # remove / reorder persists immediately (no Save button), keeping the
+  # saved policy and the draft assign in lock-step. The audio/subtitle
+  # enums keep their own explicit Save.
+  defp update_languages(socket, draft) do
+    policy = %{socket.assigns.language_policy | understood_languages: draft}
+    LanguagePolicy.save(policy)
+    assign(socket, language_policy: policy, language_draft: draft)
   end
 
   @impl true
@@ -770,19 +796,39 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   def handle_event("save_language_policy", params, socket) do
-    params
-    |> LanguagePolicy.from_form()
-    |> LanguagePolicy.save()
-    |> case do
+    # The understood-languages list is the live draft (the chip picker),
+    # not a form field; the audio/subtitle enums come from the form.
+    policy = %{
+      LanguagePolicy.from_form(params)
+      | understood_languages: socket.assigns.language_draft
+    }
+
+    case LanguagePolicy.save(policy) do
       {:ok, _entry} ->
         {:noreply,
          socket
-         |> assign(language_policy: LanguagePolicy.load())
+         |> put_language_assigns()
          |> put_flash(:info, "Language & subtitle preferences saved")}
 
       {:error, _changeset} ->
         {:noreply, put_flash(socket, :error, "Couldn't save language preferences")}
     end
+  end
+
+  def handle_event("add_language", %{"lang" => input}, socket) do
+    {:noreply, update_languages(socket, LanguageLogic.add(socket.assigns.language_draft, input))}
+  end
+
+  def handle_event("remove_language", %{"code" => code}, socket) do
+    {:noreply, update_languages(socket, LanguageLogic.remove(socket.assigns.language_draft, code))}
+  end
+
+  def handle_event("move_language_up", %{"code" => code}, socket) do
+    {:noreply, update_languages(socket, LanguageLogic.move_up(socket.assigns.language_draft, code))}
+  end
+
+  def handle_event("move_language_down", %{"code" => code}, socket) do
+    {:noreply, update_languages(socket, LanguageLogic.move_down(socket.assigns.language_draft, code))}
   end
 
   def handle_event("save_library", params, socket) do
@@ -1321,6 +1367,8 @@ defmodule MediaCentaurWeb.SettingsLive do
           <.section_content
             active_section={@active_section}
             language_policy={@language_policy}
+            language_draft={@language_draft}
+            language_options={@language_options}
             watchers_running={@watchers_running}
             pipeline_running={@pipeline_running}
             image_pipeline_running={@image_pipeline_running}
@@ -2319,17 +2367,102 @@ defmodule MediaCentaurWeb.SettingsLive do
           </div>
         </div>
       </form>
+    </div>
+    """
+  end
 
-      <form
-        phx-submit="save_language_policy"
-        class="p-5 rounded-lg glass-surface space-y-5"
-      >
+  defp section_content(%{active_section: "language"} = assigns) do
+    ~H"""
+    <div class="space-y-4">
+      <form phx-submit="add_language" class="p-5 rounded-lg glass-surface space-y-4">
+        <div>
+          <h2 class="text-lg font-semibold">Languages you understand</h2>
+          <p class="text-sm text-base-content/50 mt-0.5">
+            Add the languages you can follow without subtitles, most-preferred first.
+            Used to pick audio you understand and which language to show subtitles in.
+            Changes here save automatically.
+          </p>
+        </div>
+
+        <div class="flex gap-2">
+          <input
+            type="text"
+            name="lang"
+            list="language-options"
+            class="input input-bordered flex-1 text-sm"
+            placeholder="Add a language…"
+            autocomplete="off"
+            data-nav-item
+            tabindex="0"
+          />
+          <datalist id="language-options">
+            <option :for={{_code, name} <- @language_options} value={name}></option>
+          </datalist>
+          <.button type="submit" variant="neutral" size="sm" data-nav-item tabindex="0">
+            Add
+          </.button>
+        </div>
+
+        <ol :if={@language_draft != []} class="space-y-2">
+          <li
+            :for={{code, index} <- Enum.with_index(@language_draft)}
+            id={"understood-lang-#{code}"}
+            class="flex items-center gap-2 glass-inset rounded-lg px-3 py-2"
+          >
+            <span class="w-5 text-xs tabular-nums text-base-content/40">{index + 1}</span>
+            <span class="flex-1 text-sm">{Iso639.display_name(code)}</span>
+            <.button
+              type="button"
+              variant="dismiss"
+              size="xs"
+              phx-click="move_language_up"
+              phx-value-code={code}
+              disabled={index == 0}
+              data-nav-item
+              tabindex="0"
+              aria-label={"Move #{Iso639.display_name(code)} up"}
+            >
+              <.icon name="hero-chevron-up-mini" class="size-4" />
+            </.button>
+            <.button
+              type="button"
+              variant="dismiss"
+              size="xs"
+              phx-click="move_language_down"
+              phx-value-code={code}
+              disabled={index == length(@language_draft) - 1}
+              data-nav-item
+              tabindex="0"
+              aria-label={"Move #{Iso639.display_name(code)} down"}
+            >
+              <.icon name="hero-chevron-down-mini" class="size-4" />
+            </.button>
+            <.button
+              type="button"
+              variant="destructive_inline"
+              size="xs"
+              phx-click="remove_language"
+              phx-value-code={code}
+              data-nav-item
+              tabindex="0"
+              aria-label={"Remove #{Iso639.display_name(code)}"}
+            >
+              <.icon name="hero-x-mark-mini" class="size-4" />
+            </.button>
+          </li>
+        </ol>
+        <p :if={@language_draft == []} class="text-sm text-base-content/40">
+          No languages added yet — subtitles will always be shown until you add one.
+        </p>
+      </form>
+
+      <form phx-submit="save_language_policy" class="p-5 rounded-lg glass-surface space-y-5">
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
-            <h2 class="text-lg font-semibold">Language &amp; Subtitles</h2>
+            <h2 class="text-lg font-semibold">Audio &amp; subtitles</h2>
             <p class="text-sm text-base-content/50 mt-0.5">
-              How audio and subtitle tracks are picked automatically when playback starts.
-              Per-show overrides (set by changing tracks during playback) always win over these.
+              How tracks are picked automatically when playback starts. Per-show overrides
+              (set by changing tracks during playback) always win over these.
             </p>
           </div>
           <.button
@@ -2345,25 +2478,6 @@ defmodule MediaCentaurWeb.SettingsLive do
         </div>
 
         <div class="space-y-4">
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-              Languages you understand
-            </label>
-            <input
-              type="text"
-              name="understood_languages"
-              value={Enum.join(@language_policy.understood_languages, ", ")}
-              class="input input-bordered w-full font-mono text-sm"
-              placeholder="eng, spa, fra"
-              data-nav-item
-              tabindex="0"
-            />
-            <p class="text-xs text-base-content/40 mt-1">
-              Comma-separated language codes, most-preferred first. Used to pick audio you
-              can follow and, when subtitles are shown, which language to show them in.
-            </p>
-          </div>
-
           <div>
             <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
               Audio preference

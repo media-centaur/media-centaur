@@ -30,6 +30,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
         "acquisition",
         "pipeline",
         "playback",
+        "language",
         "library",
         "release_tracking",
         "danger"
@@ -41,12 +42,67 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   end
 
   describe "language & subtitle policy" do
-    test "submitting the form persists a normalized policy", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=playback")
+    test "renders the picker and the audio/subtitle form", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=language")
+      assert has_element?(view, "h2", "Languages you understand")
+      assert has_element?(view, "h2", "Audio & subtitles")
+    end
+
+    test "adding a language persists it and shows a chip", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=language")
+
+      view
+      |> form("form[phx-submit=add_language]", %{"lang" => "French"})
+      |> render_submit()
+
+      assert has_element?(view, "#understood-lang-fra", "French")
+      assert "fra" in LanguagePolicy.load().understood_languages
+    end
+
+    test "adding an unknown language is ignored", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=language")
+
+      before = LanguagePolicy.load().understood_languages
+
+      view
+      |> form("form[phx-submit=add_language]", %{"lang" => "Klingon"})
+      |> render_submit()
+
+      assert LanguagePolicy.load().understood_languages == before
+    end
+
+    test "removing a language persists the removal", %{conn: conn} do
+      {:ok, _} =
+        LanguagePolicy.save(%{LanguagePolicy.defaults() | understood_languages: ["eng", "spa"]})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=language")
+
+      view
+      |> element("#understood-lang-spa button[phx-click=remove_language]")
+      |> render_click()
+
+      refute has_element?(view, "#understood-lang-spa")
+      refute "spa" in LanguagePolicy.load().understood_languages
+    end
+
+    test "reordering a language persists the new order", %{conn: conn} do
+      {:ok, _} =
+        LanguagePolicy.save(%{LanguagePolicy.defaults() | understood_languages: ["eng", "spa"]})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=language")
+
+      view
+      |> element("#understood-lang-spa button[phx-click=move_language_up]")
+      |> render_click()
+
+      assert LanguagePolicy.load().understood_languages == ["spa", "eng"]
+    end
+
+    test "saving the audio/subtitle form persists a normalized policy", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=language")
 
       view
       |> form("form[phx-submit=save_language_policy]", %{
-        "understood_languages" => "en, ja",
         "audio_priority" => "understood_first",
         "subtitles_when" => "always",
         "subtitles_language" => "audio_language",
@@ -56,7 +112,6 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       |> render_submit()
 
       policy = LanguagePolicy.load()
-      assert policy.understood_languages == ["eng", "jpn"]
       assert policy.audio_priority == ["understood", "original", "any"]
       assert policy.subtitles_when == "always"
       assert policy.subtitles_language == "audio_language"
@@ -64,15 +119,13 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       assert policy.forced_subs == "never"
     end
 
-    test "the form reflects the persisted policy on load", %{conn: conn} do
+    test "persisted languages render as chips on load", %{conn: conn} do
       {:ok, _} =
-        LanguagePolicy.save(%{
-          LanguagePolicy.defaults()
-          | understood_languages: ["spa", "fra"]
-        })
+        LanguagePolicy.save(%{LanguagePolicy.defaults() | understood_languages: ["spa", "fra"]})
 
-      {:ok, _view, html} = live_async!(conn, ~p"/settings?section=playback")
-      assert html =~ "spa, fra"
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=language")
+      assert has_element?(view, "#understood-lang-spa", "Spanish")
+      assert has_element?(view, "#understood-lang-fra", "French")
     end
   end
 
