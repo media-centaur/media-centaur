@@ -23,7 +23,10 @@ defmodule MediaCentaur.Acquisition.QueueMatcherTest do
       title: title,
       status: "downloading",
       state: :downloading,
-      progress: 0.5,
+      # QueueItem.progress is ALREADY a percentage (0..100) — see
+      # QueueItem.from_qbittorrent, which scales the qBittorrent 0..1
+      # fraction by 100. Fixtures must use that unit.
+      progress: 50.0,
       timeleft: "10m",
       download_client: "qBit"
     }
@@ -53,13 +56,21 @@ defmodule MediaCentaur.Acquisition.QueueMatcherTest do
       assert QueueMatcher.to_download(nil) == nil
     end
 
-    test "wraps QueueItem into a DownloadProgress with progress scaled to 0..100" do
-      download = QueueMatcher.to_download(item("abc", "Sample.Movie", %{progress: 0.42}))
+    test "wraps QueueItem into a DownloadProgress, passing the already-percentage progress through unchanged" do
+      download = QueueMatcher.to_download(item("abc", "Sample.Movie", %{progress: 42.0}))
 
       assert download.state == :downloading
       assert download.progress_pct == 42.0
       assert download.client == "qBit"
       assert download.eta == "10m"
+    end
+
+    # Regression: QueueItem.progress is already 0..100, so `to_download`
+    # must NOT multiply by 100 again. The double-scale showed up as a
+    # "2330%" download in Active Pursuits (a torrent 23.3% complete).
+    test "does not re-scale progress past 100%" do
+      download = QueueMatcher.to_download(item("h", "Sample", %{progress: 23.3}))
+      assert download.progress_pct == 23.3
     end
   end
 
