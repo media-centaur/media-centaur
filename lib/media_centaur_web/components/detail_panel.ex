@@ -1225,6 +1225,17 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             <.icon name="hero-arrow-path-mini" class="size-4" />
             {if @rematch_confirm, do: "Confirm?", else: "Rematch"}
           </.button>
+          <.button
+            :if={@tmdb_ready}
+            variant="neutral"
+            size="sm"
+            phx-click="refresh_artwork"
+            phx-value-id={@entity.id}
+            data-nav-item
+            tabindex="0"
+          >
+            <.icon name="hero-photo-mini" class="size-4" /> Refresh artwork
+          </.button>
           <p :if={!@tmdb_ready} class="text-xs text-base-content/50">
             Rematch needs a working TMDB connection. Test it in <.link
               navigate="/settings?section=tmdb"
