@@ -4,6 +4,14 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.3 — 2026-05-23
+
+### Improved
+
+**Internal maintenance.** Repository housekeeping — completed planning
+documents were pruned from the tree (their history is preserved in git).
+No change to how Media Centaur behaves.
+
 ## v0.72.2 — 2026-05-23
 
 ### Changed
