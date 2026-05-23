@@ -6,6 +6,7 @@ defmodule MediaCentaur.Pipeline do
       Image.Stats,
       Image.Supervisor,
       ImageQueue,
+      ImageRefresh,
       ImageRepair,
       Stats,
       Supervisor

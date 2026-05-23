@@ -202,6 +202,15 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         end
       end
 
+      # --- Refresh artwork ---
+
+      def handle_event("refresh_artwork", %{"id" => entity_id}, socket) do
+        type = socket.assigns.selected_entry.entity.type
+        result = MediaCentaur.Pipeline.ImageRefresh.enqueue_refresh(entity_id, type)
+        {level, message} = MediaCentaurWeb.Live.EntityModal.refresh_artwork_flash(result)
+        {:noreply, put_flash(socket, level, message)}
+      end
+
       # --- Tracking ---
 
       def handle_event("toggle_tracking", _params, socket) do
@@ -846,6 +855,14 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   def find_tmdb_id(_), do: nil
+
+  @doc """
+  Maps a `Pipeline.ImageRefresh.enqueue_refresh/2` result to a
+  `{flash_level, message}` pair for the detail-panel Refresh-artwork action.
+  """
+  def refresh_artwork_flash({:ok, _job}), do: {:info, "Refreshing artwork from TMDB…"}
+  def refresh_artwork_flash({:error, :no_tmdb_id}), do: {:error, "No TMDB match — Rematch first."}
+  def refresh_artwork_flash({:error, _reason}), do: {:error, "Couldn't start artwork refresh."}
 
   @doc false
   # Loads the watched-files list for an entity and stats each path. The
