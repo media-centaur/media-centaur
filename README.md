@@ -36,9 +36,9 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 > | Settings          | In progress   |
 
 > [!IMPORTANT]
-> **macOS support — experimental.** Media Centaur is being extended to run on macOS (Apple Silicon). The platform-architecture work is complete; runtime parity testing is ongoing. **Linux remains the only fully-supported platform today.**
+> **macOS support — experimental (Apple Silicon).** The Mac build now ships: the one-line installer works on Apple Silicon, autostart runs via launchd, and in-app updates work the same as on Linux. **Linux remains the fully-supported, primary platform.**
 >
-> Even after the Mac build ships, expect an experimental period — we don't own Mac hardware, so the macOS path is Linux-developer-tested only. If you run it on macOS, please open a GitHub issue with `[macOS]` in the title so we can sharpen the experience from real-world reports.
+> Because we don't own Mac hardware, the macOS path is Linux-developer-tested only — so it's genuinely experimental and we need real-world reports. If you run it on macOS, please [open a `[macOS]` issue](https://github.com/media-centaur/media-centaur/issues/new?labels=macos) for anything that doesn't work. See the wiki's **[macOS](https://github.com/media-centaur/media-centaur/wiki/macOS)** page for install steps and the honest done/not-done list.
 
 ---
 

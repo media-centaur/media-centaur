@@ -4,9 +4,9 @@
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/media-centaur/media-centaur/main/installer/install.sh | sh
 #
-# Resolves the latest GitHub Release, downloads the Linux x86_64 tarball,
-# verifies it, and hands off to the bundled `bin/media-centaur-install`
-# inside the extracted tree.
+# Resolves the latest GitHub Release, downloads the tarball for this
+# platform (Linux x86_64, or macOS Apple Silicon — experimental), verifies
+# it, and hands off to the bundled `bin/media-centaur-install` in the tree.
 #
 # Optional flags:
 #   --version <vX.Y.Z>   Install a specific release tag instead of latest.
@@ -32,26 +32,49 @@ validate_tag() {
 }
 
 # ---- platform check -------------------------------------------------------
+#
+# Resolve the release artifact for this OS + arch. Linux x86_64 is the
+# primary, fully-supported platform; macOS on Apple Silicon (arm64) is
+# experimental — the darwin build ships and self-updates, but is
+# Linux-developer-tested only. Report rough edges with a [macOS] issue.
 
 case "$(uname -s)" in
-    Linux) ;;
-    *) die "Only Linux is supported (saw $(uname -s)). See docs/installation.md for source builds." ;;
+    Linux)
+        case "$(uname -m)" in
+            x86_64|amd64) platform="linux-x86_64" ;;
+            *) die "On Linux, only x86_64 is supported (saw $(uname -m))." ;;
+        esac
+        if [ -f /etc/os-release ] && grep -qi 'alpine\|musl' /etc/os-release; then
+            die "musl libc is not supported. Releases are built against glibc."
+        fi
+        ;;
+    Darwin)
+        case "$(uname -m)" in
+            arm64|aarch64) platform="darwin-arm64" ;;
+            *) die "On macOS, only Apple Silicon (arm64) is supported (saw $(uname -m)). Intel Macs aren't built yet." ;;
+        esac
+        ;;
+    *) die "Unsupported OS: $(uname -s). Supported: Linux (x86_64), macOS (Apple Silicon)." ;;
 esac
 
-case "$(uname -m)" in
-    x86_64|amd64) ;;
-    *) die "Only x86_64 is supported (saw $(uname -m))." ;;
-esac
-
-if [ -f /etc/os-release ] && grep -qi 'alpine\|musl' /etc/os-release; then
-    die "musl libc is not supported. Releases are built against glibc."
-fi
+# Portable SHA-256 verifier — macOS ships `shasum -a 256` but not
+# `sha256sum`; most Linux distros are the reverse. Honor whichever exists.
+sha256_check() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        sha256sum -c -
+    elif command -v shasum >/dev/null 2>&1; then
+        shasum -a 256 -c -
+    else
+        die "Neither sha256sum nor shasum is available; cannot verify the download."
+    fi
+}
 
 need curl
 need tar
-need sha256sum
-need systemctl
 need awk
+# Service setup (systemd on Linux, launchd on macOS) is handled by the
+# bundled per-platform installer, which degrades gracefully when absent —
+# so the bootstrap doesn't hard-require either init system.
 
 # ---- arg parsing ----------------------------------------------------------
 
@@ -96,7 +119,7 @@ fi
 validate_tag "$tag" || die "Rejected malformed tag: $tag"
 
 version=${tag#v}
-tarball="media-centaur-${version}-linux-x86_64.tar.gz"
+tarball="media-centaur-${version}-${platform}.tar.gz"
 base_url="https://github.com/$GITHUB_REPO/releases/download/$tag"
 
 # ---- download + verify ----------------------------------------------------
@@ -109,7 +132,7 @@ curl -fsSL --progress-bar -o "$tmpdir/$tarball"   "$base_url/$tarball"
 curl -fsSL                -o "$tmpdir/SHA256SUMS" "$base_url/SHA256SUMS"
 
 banner "Verifying checksum"
-(cd "$tmpdir" && grep " $tarball\$" SHA256SUMS | sha256sum -c -) \
+(cd "$tmpdir" && grep " $tarball\$" SHA256SUMS | sha256_check) \
     || die "Checksum verification failed"
 
 # ---- extract + hand off ---------------------------------------------------
