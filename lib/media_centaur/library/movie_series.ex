@@ -7,8 +7,8 @@ defmodule MediaCentaur.Library.MovieSeries do
   country, status, cast, crew, vote_count) so detail pages render both
   containers with the same shape. TMDB collection endpoints expose fewer of
   these fields directly — most ingest-time values come back `nil` and are
-  filled in by maintenance/refresh paths. See Phase 1 Task 4 of the Library
-  Schema v2 campaign (`campaigns/done/library-schema-v2.md`).
+  filled in by maintenance/refresh paths (Library Schema v2 redesign,
+  Phase 1 Task 4; see ADR-047).
 
   TMDB ids (source `"tmdb_collection"`) live in `Library.ExternalId` rows
   reachable via the `:external_ids` association — no longer a column on

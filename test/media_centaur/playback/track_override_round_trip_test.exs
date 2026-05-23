@@ -12,7 +12,7 @@ defmodule MediaCentaur.Playback.TrackOverrideRoundTripTest do
   is `MpvSession` (the thin mpv wrapper that drives `compute` from real
   property-change events and reads the override at launch) — that is
   validated by the manual real-playback procedure recorded in the
-  language-track-preferences campaign (`campaigns/done/`).
+  language-track-preferences campaign (git history).
   """
   use MediaCentaur.DataCase, async: false
 
