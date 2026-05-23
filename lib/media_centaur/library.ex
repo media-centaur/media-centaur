@@ -1031,12 +1031,16 @@ defmodule MediaCentaur.Library do
           {:ok, %{entity: map(), progress: map() | nil, progress_records: list()}}
           | :not_found
   def load_modal_entry(id) when is_binary(id) do
-    cond do
-      item = present_detail_for(:tv_series, id) -> {:ok, build_modal_entry(:tv_series, item, id)}
-      item = present_detail_for(:movie_series, id) -> {:ok, build_modal_entry(:movie_series, item, id)}
-      item = present_detail_for(:movie, id) -> {:ok, build_modal_entry(:movie, item, id)}
-      item = present_detail_for(:video_object, id) -> {:ok, build_modal_entry(:video_object, item, id)}
-      true -> :not_found
+    # Route through the single presentable authority: it applies the hoist
+    # rule once (so opening a hoisted collection by its series id correctly
+    # lands on the sole movie), then we build the view for the resolved
+    # kind. `to_entity_map/1` keys off the projection's `presented_as`, so
+    # the resolved kind and the built entity always agree.
+    with {kind, resolved_id} <- resolve_presentable(id),
+         item when not is_nil(item) <- present_detail_for(kind, resolved_id) do
+      {:ok, build_modal_entry(kind, item, resolved_id)}
+    else
+      _ -> :not_found
     end
   end
 
