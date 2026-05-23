@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.5 — 2026-05-23
+
+### Improved
+
+**Language settings are now their own section, and much easier to set up.**
+Settings → Language gives your audio and subtitle language preferences a
+dedicated home (they were previously tucked under Playback). "Languages
+you understand" is now a searchable, reorderable list — add a language by
+name, order it by preference, remove it with a click — instead of a
+comma-separated box of codes. It saves as you edit.
+
 ## v0.72.4 — 2026-05-23
 
 ### Improved
