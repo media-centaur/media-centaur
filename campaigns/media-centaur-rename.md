@@ -23,11 +23,11 @@ a campaign rather than a single commit.
 
 ## Status
 
-`2026-05-23` (reconciled + session 2) — **Phases 0–3, 6 done (bar org
-display name); Phase 4 needs registrar DNS; Phase 5 awaits the first
-`media-centaur` ship; Phase 7 pending.** Branch `rename/media-centaur`
-(3 commits ahead of `main` — **not yet merged**; `/ship` tags from main,
-so the merge is a prerequisite to Phases 5/7).
+`2026-05-23` (reconciled + session 2) — **Phases 0–4, 6 done (bar the
+old-domain 301); Phase 5 awaits the first `media-centaur` ship; Phase 7
+pending.** The rename is now **merged to `main`** (ff to `b5d961c1`,
+pushed) — `/ship` is unblocked. Pages live at `https://media-centaur.net`.
+Org display name set to "Media Centaur".
 
 * **Phase 0** ✅ DB backup at `~/media-centarr-db-backup-20260523-132539.db`.
 * **Phase 1** ✅ committed `d7c7d0ad`; `mix precommit` was green (3950
@@ -43,14 +43,20 @@ so the merge is a prerequisite to Phases 5/7).
   Session 2: all four local git remotes (app, wiki, org-profile, assets)
   repointed to `media-centaur/*`; descriptions for `media-centaur-assets`
   and `.github` updated (the `media-centaur` repo desc was already clean).
-  ⚠️ **only leftover**: org **display name still "Media Centarr"** —
-  needs `admin:org` (run `gh auth refresh -h github.com -s admin:org`,
-  then `gh api -X PATCH orgs/media-centaur -f name='Media Centaur'`, or do
-  it in the browser).
-* **Phase 4** ⚠️ in progress: `media-centaur.net` returns a TLS cert
-  mismatch (Pages cert not provisioned / custom domain not finalized);
-  `media-centarr.net` still 200s (no 301 yet); `docs-site/CNAME` is empty.
-  Registrar/DNS steps are external (operator-only).
+  Org **display name set to "Media Centaur"** via `admin:org` (operator
+  refreshed the scope; `gh api -X PATCH orgs/media-centaur -f
+  name='Media Centaur'`). Org description was already clean. **No leftover.**
+* **Phase 4** ✅ (bar old-domain 301): operator pointed `media-centaur.net`
+  DNS at GitHub Pages (185.199.108–111.153) and set it as the Pages custom
+  domain; cert approved. The merge to `main` triggered `pages.yml` (run
+  `26335722435`) which deployed the renamed `docs-site` — site is live and
+  correctly branded at `https://media-centaur.net` (200), HTTPS enforcement
+  enabled via `gh api … -F https_enforced=true`. No `docs-site/CNAME` file
+  is needed (workflow Pages uses the settings domain). ⚠️ **leftover**:
+  `media-centarr.net` now 404s (it's no longer the Pages custom domain;
+  Pages allows only one). The campaign's planned **301 old→new** must be a
+  registrar/DNS URL-forward — operator-only, GitHub can't do it for a
+  non-configured domain.
 * **Phase 5** ❌ not started — live data dir (`~/.local/share/media-centarr`),
   `media-centarr.db` (+ wal, actively written), dotfiles config, and the
   prod `media-centarr.service` are all still old-named.
@@ -167,7 +173,7 @@ wider ones:
 2. Rename + fix paths in the dev systemd unit
    (`~/.config/systemd/user/media-centarr-dev.service`); `daemon-reload`.
 
-### Phase 3 — GitHub org + repos (IRREVERSIBLE — only after Phase 1 green) ✅ done (leftovers: display name, local remotes, descriptions)
+### Phase 3 — GitHub org + repos (IRREVERSIBLE — only after Phase 1 green) ✅ done
 1. Rename org `media-centarr` → `media-centaur` (Settings → rename;
    needs `admin:org` — gh currently lacks the scope, so
    `gh auth refresh -h github.com -s admin:org` or do it in browser).
@@ -183,7 +189,7 @@ wider ones:
    (`api.github.com/repos/media-centarr/media-centarr/releases/latest`),
    `raw.githubusercontent.com/.../installer/install.sh`.
 
-### Phase 4 — Website / domain ⏳ in progress (TLS pending, old domain not 301ing)
+### Phase 4 — Website / domain ✅ done (bar old-domain 301, operator-only)
 1. Point `media-centaur.net` DNS at GitHub Pages; set it as the app
    repo's Pages custom domain (replaces current `media-centarr.net`).
 2. Add a registrar/DNS **301: media-centarr.net → media-centaur.net**.
