@@ -375,4 +375,45 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert render(view) =~ "Availability Movie"
     end
   end
+
+  describe "refresh artwork action" do
+    @cache_key {MediaCentaur.Capabilities, :ready_flags}
+
+    setup do
+      cache_backup = :persistent_term.get(@cache_key, :__unset)
+
+      :persistent_term.put(@cache_key, %{
+        tmdb: true,
+        prowlarr: false,
+        download_client: false,
+        acquisition: false
+      })
+
+      on_exit(fn ->
+        case cache_backup do
+          :__unset -> :persistent_term.erase(@cache_key)
+          flags -> :persistent_term.put(@cache_key, flags)
+        end
+      end)
+
+      # Unidentified movie (no tmdb_id) → the click takes the no-HTTP
+      # pre-check branch and flashes, so this test never touches TMDB.
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      {:ok, movie: movie}
+    end
+
+    test "clicking Refresh artwork on an unidentified movie flashes the Rematch hint", %{
+      conn: conn,
+      movie: movie
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+
+      assert has_element?(view, "button[phx-click='refresh_artwork']")
+
+      html = view |> element("button[phx-click='refresh_artwork']") |> render_click()
+
+      assert html =~ "No TMDB match"
+    end
+  end
 end
