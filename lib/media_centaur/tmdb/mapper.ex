@@ -143,6 +143,33 @@ defmodule MediaCentaur.TMDB.Mapper do
   def tmdb_image_url(nil), do: nil
   def tmdb_image_url(path), do: "https://image.tmdb.org/t/p/original#{path}"
 
+  @doc """
+  Builds the artwork list from a TMDB movie/tv/collection payload:
+  poster, backdrop, and the english (or first) logo. Missing roles are
+  omitted. Shared by the import pipeline (`Pipeline.Stages.FetchMetadata`)
+  and per-entity artwork refresh (`Pipeline.ImageRefresh`).
+  """
+  @spec image_list(map()) :: [%{role: String.t(), url: String.t(), extension: String.t()}]
+  def image_list(data) do
+    Enum.reject(
+      [
+        data["poster_path"] &&
+          %{role: "poster", url: tmdb_image_url(data["poster_path"]), extension: "jpg"},
+        data["backdrop_path"] &&
+          %{role: "backdrop", url: tmdb_image_url(data["backdrop_path"]), extension: "jpg"},
+        logo_path(data) &&
+          %{role: "logo", url: tmdb_image_url(logo_path(data)), extension: "png"}
+      ],
+      &is_nil/1
+    )
+  end
+
+  defp logo_path(data) do
+    logos = get_in(data, ["images", "logos"]) || []
+    logo = Enum.find(logos, &(&1["iso_639_1"] == "en")) || List.first(logos)
+    logo && logo["file_path"]
+  end
+
   @tv_status_map %{
     "Returning Series" => :returning,
     "Ended" => :ended,

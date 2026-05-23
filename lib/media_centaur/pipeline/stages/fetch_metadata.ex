@@ -238,22 +238,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
   # Helpers
   # ---------------------------------------------------------------------------
 
-  defp build_images(data) do
-    poster_path = data["poster_path"]
-    backdrop_path = data["backdrop_path"]
-    logo_path = find_logo_path(data)
-
-    Enum.reject(
-      [
-        poster_path &&
-          %{role: "poster", url: Mapper.tmdb_image_url(poster_path), extension: "jpg"},
-        backdrop_path &&
-          %{role: "backdrop", url: Mapper.tmdb_image_url(backdrop_path), extension: "jpg"},
-        logo_path && %{role: "logo", url: Mapper.tmdb_image_url(logo_path), extension: "png"}
-      ],
-      &is_nil/1
-    )
-  end
+  defp build_images(data), do: Mapper.image_list(data)
 
   defp build_episode_images(nil), do: []
 
@@ -263,12 +248,6 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
     else
       []
     end
-  end
-
-  defp find_logo_path(data) do
-    logos = get_in(data, ["images", "logos"]) || []
-    logo = Enum.find(logos, &(&1["iso_639_1"] == "en")) || List.first(logos)
-    logo && logo["file_path"]
   end
 
   defp build_extra(%{type: :extra, title: title, file_path: file_path, season: season}) do
