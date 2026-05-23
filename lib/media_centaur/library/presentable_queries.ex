@@ -127,6 +127,26 @@ defmodule MediaCentaur.Library.PresentableQueries do
   end
 
   @doc """
+  Present (possessed) movie ids in a `MovieSeries`, ordered by position.
+
+  The hoist rule reads the length of the result: an empty list means the
+  collection isn't presentable at all; one id means present the movie
+  directly (in place of a collection container); two or more means
+  present the collection. `MediaCentaur.Library.resolve_presentable/1`
+  consumes this — the single authority every browse surface agrees with.
+  """
+  @spec present_movie_ids(Ecto.UUID.t()) :: Ecto.Query.t()
+  def present_movie_ids(movie_series_id) do
+    from(m in Movie,
+      as: :item,
+      where: m.movie_series_id == ^movie_series_id,
+      where: exists(movie_present_files_subquery()),
+      order_by: [asc: m.position],
+      select: m.id
+    )
+  end
+
+  @doc """
   Standalone movies, presence-agnostic: `movie_series_id IS NULL`. Used by progress
   surfaces (e.g. Continue Watching) where the user's engagement signal is the
   inclusion criterion, not file presence.
