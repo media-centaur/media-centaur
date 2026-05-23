@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.7 — 2026-05-23
+
+### Fixed
+
+**A movie you own from a collection now opens its own page, not the
+collection's.** When a film collection (like a series of related movies)
+has only one movie in your library, opening it now shows that movie's
+details — with a note that it's part of the collection — instead of
+opening the whole collection. Collections where you own two or more
+movies still open as a collection. The library grid and the detail page
+now always agree on whether something is shown as a movie or a
+collection.
+
 ## v0.72.6 — 2026-05-23
 
 ### Fixed
