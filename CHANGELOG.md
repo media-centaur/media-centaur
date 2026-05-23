@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.8 — 2026-05-23
+
+### Fixed
+
+**Movies and TV episodes that had silently gone missing now appear in
+your library.** If a file was added while the movie/TV metadata service
+was briefly unreachable, Media Centaur would detect the file but could
+quietly fail to import it — so it never showed up in your library *or* on
+the review screen. Those files are now imported correctly. A new
+safeguard also stops a single TV season from being recorded twice, a
+situation that could previously block an entire show's episodes from
+appearing. If you were missing content, it should fill in on its own.
+
 ## v0.72.7 — 2026-05-23
 
 ### Fixed
