@@ -33,14 +33,17 @@ Use [`template.md`](template.md) as a starter.
   isolates `:persistent_term` and Task.Supervisor children.
   Will move to `done/` after the macos-platform-support Phase 5
   push sequence proves CI stability through its commits.
-* [`media-centaur-rename.md`](media-centaur-rename.md) —
-  **planning.** Rename `Centarr` → `Centaur` across the OTP app
-  atom, modules, GitHub org/repos, prod DB + XDG dirs, source tree,
-  domain, and wiki. Reversible/local phases first; org rename + DNS
-  + prod cutover are irreversible and sequenced last. Phase 1
-  (in-repo sweep, gated by `mix precommit`) starting.
 
 ## Archived
+
+* [`done/media-centaur-rename.md`](done/media-centaur-rename.md) —
+  eradicated the misspelled brand `Centarr` → `Centaur` across the OTP
+  app atom, modules, GitHub org/repos, prod instance + XDG dirs, source
+  tree, site (`media-centaur.net`), wiki, and scripts. First
+  `media-centaur` release shipped as **v0.72.2** (2026-05-23); production
+  cut over and verified (library intact). Deferred (operator-only):
+  registrar 301 from the old domain, stale Hyprland references, and
+  old-install / orphaned-Claude-dir cleanup.
 
 * [`done/pursuit-lifecycle-tracking.md`](done/pursuit-lifecycle-tracking.md) —
   track a pursuit's file through *downloaded → in review → landed in
