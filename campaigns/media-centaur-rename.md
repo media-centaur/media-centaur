@@ -24,10 +24,14 @@ a campaign rather than a single commit.
 ## Status
 
 `2026-05-23` (reconciled + session 2) — **Phases 0–4, 6 done (bar the
-old-domain 301); Phase 5 awaits the first `media-centaur` ship; Phase 7
-pending.** The rename is now **merged to `main`** (ff to `b5d961c1`,
-pushed) — `/ship` is unblocked. Pages live at `https://media-centaur.net`.
-Org display name set to "Media Centaur".
+old-domain 301); Phase 7 step 1 (ship) done; Phase 5 ready to execute;
+rest of Phase 7 pending.** The rename is **merged to `main`** and the
+**first `media-centaur` release is published — `v0.72.2`** (release build
+`26336006331` green; assets `media-centaur-0.72.2-{linux-x86_64,
+darwin-arm64}.tar.gz` + `SHA256SUMS`). CHANGELOG carries the rename + a
+one-time manual-migration note. Pages live at `https://media-centaur.net`;
+org display name "Media Centaur". **Next: Phase 5 prod cutover** — the
+artifact it installs now exists.
 
 * **Phase 0** ✅ DB backup at `~/media-centarr-db-backup-20260523-132539.db`.
 * **Phase 1** ✅ committed `d7c7d0ad`; `mix precommit` was green (3950
@@ -232,9 +236,12 @@ with git risks desyncing jj. Use jj: `jj desc -m … && jj bookmark move
 2. Swept the `.github` org-profile repo (branch `main`). Pushed via jj.
 
 ### Phase 7 — Ship & final verification
-1. `/ship patch` (or minor) — tag the first `media-centaur` release
-   with a CHANGELOG entry documenting the rename + a one-time
-   migration note for any external installs.
+1. ✅ done — `/ship patch` tagged **`v0.72.2`**, the first `media-centaur`
+   release (build `26336006331` green; linux + darwin tarballs +
+   `SHA256SUMS`). CHANGELOG documents the rename + the one-time
+   manual-migration note for external installs. (Shipped before Phase 5
+   per the "ship first" decision, so the cutover installs a real
+   published artifact.)
 2. Update `~/scripts` (outside the repo): `mc-rpc`,
    `mc-debug-browser`, `media-dev`, install helpers — they hardcode
    the old node name `media_centarr_dev@127.0.0.1` and old URLs.
