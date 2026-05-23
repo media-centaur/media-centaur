@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.4 — 2026-05-23
+
+### Improved
+
+**One-line install now works on macOS (Apple Silicon).** The
+`curl … | sh` installer now detects Apple Silicon and installs the
+experimental macOS build directly — no manual download. See the new
+[macOS guide](https://github.com/media-centaur/media-centaur/wiki/macOS)
+for what works, what's still rough, and how to report issues. macOS stays
+experimental (Linux-developer-tested only); Linux is unchanged.
+
 ## v0.72.3 — 2026-05-23
 
 ### Improved
