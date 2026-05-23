@@ -4,6 +4,15 @@ User-facing release notes for Media Centarr. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.1 — 2026-05-23
+
+### Improved
+
+**Internal maintenance.** Test-suite reliability work — the automated tests
+now wait for results deterministically instead of on fixed timers, removing a
+source of spurious failures — plus release-build housekeeping. No change to
+how Media Centarr behaves day to day.
+
 ## v0.72.0 — 2026-05-22
 
 ### Improved
