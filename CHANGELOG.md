@@ -4,6 +4,14 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.9 — 2026-05-23
+
+### Fixed
+
+**Download progress no longer shows impossible percentages.** On the
+Downloads page, a torrent that was (for example) 23% complete could
+display "2330%". Progress now reads correctly between 0 and 100%.
+
 ## v0.72.8 — 2026-05-23
 
 ### Fixed
