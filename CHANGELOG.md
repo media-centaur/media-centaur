@@ -4,6 +4,15 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.6 — 2026-05-23
+
+### Fixed
+
+**The diagnostic console no longer flashes hidden log lines when it first
+opens.** It now applies your active filters before showing any entries, so
+log lines you've filtered out (for example, hidden components or lower
+severity levels) don't briefly appear and then vanish.
+
 ## v0.72.5 — 2026-05-23
 
 ### Improved
