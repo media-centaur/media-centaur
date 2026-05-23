@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.11 — 2026-05-24
+
+### Fixed
+
+**Refreshed artwork now updates instantly.** When you use **Refresh
+artwork** on a title and it downloads a new or corrected poster,
+backdrop, or logo, the new image appears right away in the detail view.
+Previously a *replaced* image could keep showing the old one for up to
+an hour, or until you reloaded the page.
+
 ## v0.72.10 — 2026-05-24
 
 ### New
