@@ -82,6 +82,11 @@ defmodule MediaCentaur.Library.Views.DetailItem do
   defstruct [
     :playable_item_id,
     :container_type,
+    # Materialized hoist decision — how this row should be presented
+    # (`:movie | :movie_series | :tv_series | :video_object`). Computed
+    # once at build time from the collection's present-movie count so
+    # `to_entity_map/1` never has to re-infer it from the struct shape.
+    :presented_as,
     :container_id,
     :name,
     :position,
@@ -127,6 +132,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
   @type t :: %__MODULE__{
           playable_item_id: Ecto.UUID.t(),
           container_type: container_type(),
+          presented_as: :movie | :movie_series | :tv_series | :video_object | nil,
           container_id: Ecto.UUID.t(),
           name: String.t(),
           position: integer() | nil,
@@ -323,10 +329,28 @@ defmodule MediaCentaur.Library.Views.DetailItem do
   DetailPanel consumer tree migrates to typed `DetailItem` attrs.
   """
   @spec to_entity_map(t()) :: map()
-  def to_entity_map(%__MODULE__{parent_container_type: :tv_series} = item) do
+  # Prefer the materialized `presented_as` decision; fall back to struct
+  # inference for fixtures / legacy callers that don't set it.
+  def to_entity_map(%__MODULE__{presented_as: :tv_series} = item), do: tv_series_entity_map(item)
+  def to_entity_map(%__MODULE__{presented_as: :movie_series} = item), do: movie_series_entity_map(item)
+  def to_entity_map(%__MODULE__{presented_as: :movie} = item), do: movie_entity_map(item)
+  def to_entity_map(%__MODULE__{presented_as: :video_object} = item), do: video_object_entity_map(item)
+
+  def to_entity_map(%__MODULE__{parent_container_type: :tv_series} = item),
+    do: tv_series_entity_map(item)
+
+  def to_entity_map(%__MODULE__{parent_container_type: :movie_series, container_type: :movie} = item),
+    do: movie_series_entity_map(item)
+
+  def to_entity_map(%__MODULE__{container_type: :movie} = item), do: movie_entity_map(item)
+
+  def to_entity_map(%__MODULE__{container_type: :video_object} = item), do: video_object_entity_map(item)
+
+  defp tv_series_entity_map(%__MODULE__{} = item) do
     %{
       id: item.parent_container_id,
       type: :tv_series,
+      collection: nil,
       name: item.container_name,
       description: item.container_description,
       date_published: nil,
@@ -360,10 +384,11 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     }
   end
 
-  def to_entity_map(%__MODULE__{parent_container_type: :movie_series, container_type: :movie} = item) do
+  defp movie_series_entity_map(%__MODULE__{} = item) do
     %{
       id: item.parent_container_id,
       type: :movie_series,
+      collection: nil,
       name: item.container_name,
       description: item.container_description,
       date_published: nil,
@@ -397,10 +422,11 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     }
   end
 
-  def to_entity_map(%__MODULE__{container_type: :movie} = item) do
+  defp movie_entity_map(%__MODULE__{} = item) do
     %{
       id: item.container_id,
       type: :movie,
+      collection: collection_ref(item),
       name: item.container_name,
       description: item.container_description,
       date_published: item.date_published,
@@ -434,10 +460,11 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     }
   end
 
-  def to_entity_map(%__MODULE__{container_type: :video_object} = item) do
+  defp video_object_entity_map(%__MODULE__{} = item) do
     %{
       id: item.container_id,
       type: :video_object,
+      collection: nil,
       name: item.container_name,
       description: item.container_description,
       date_published: item.date_published,
@@ -470,6 +497,19 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       extra_progress: []
     }
   end
+
+  # The collection reference carried on a movie view (presented_as :movie)
+  # so the detail surface can show a "Part of <collection>" badge without
+  # the movie morphing into the collection. nil when the movie isn't in a
+  # collection.
+  defp collection_ref(%__MODULE__{
+         parent_container_type: :movie_series,
+         parent_container_id: id,
+         parent_container_name: name
+       })
+       when is_binary(id), do: %{id: id, name: name}
+
+  defp collection_ref(_), do: nil
 
   defp season_to_map(%__MODULE__.Season{} = season) do
     %{
