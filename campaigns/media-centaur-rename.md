@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-05-23
 last_updated: 2026-05-23
 ---
@@ -23,12 +23,49 @@ a campaign rather than a single commit.
 
 ## Status
 
-`2026-05-23` — **Phases 0–1 complete** on branch `rename/media-centaur`
-(commit `d7c7d0ad`): in-repo sweep done, `mix precommit` green (3950
-Elixir + 436 bun tests, 0 failures). 1035 files, 7294/7294
-ins/del (symmetric — equal-length token swap, no drift). Next:
-**Phase 2** (local source-tree rename) then the external/irreversible
-Phases 3–7, which wait for explicit go-ahead.
+`2026-05-23` (reconciled + session 2) — **Phases 0–3, 6 done (bar org
+display name); Phase 4 needs registrar DNS; Phase 5 awaits the first
+`media-centaur` ship; Phase 7 pending.** Branch `rename/media-centaur`
+(3 commits ahead of `main` — **not yet merged**; `/ship` tags from main,
+so the merge is a prerequisite to Phases 5/7).
+
+* **Phase 0** ✅ DB backup at `~/media-centarr-db-backup-20260523-132539.db`.
+* **Phase 1** ✅ committed `d7c7d0ad`; `mix precommit` was green (3950
+  Elixir + 436 bun tests). `git grep -niI centarr` is clean outside the
+  two intentionally-frozen surfaces (CHANGELOG.md history, `campaigns/`).
+* **Phase 2** ✅ source tree renamed; dev systemd unit fixed (session 2):
+  `scripts/install-dev` rewrote `~/.config/systemd/user/media-centaur-dev.service`
+  (correct WorkingDirectory, node name, config-override path); old
+  `media-centarr-dev.service` removed; `daemon-reload`. (Its
+  `MEDIA_CENTAUR_CONFIG_OVERRIDE` points at the new config path, migrated
+  in Phase 5.)
+* **Phase 3** ✅ org renamed (login `media-centaur`); product repos exist.
+  Session 2: all four local git remotes (app, wiki, org-profile, assets)
+  repointed to `media-centaur/*`; descriptions for `media-centaur-assets`
+  and `.github` updated (the `media-centaur` repo desc was already clean).
+  ⚠️ **only leftover**: org **display name still "Media Centarr"** —
+  needs `admin:org` (run `gh auth refresh -h github.com -s admin:org`,
+  then `gh api -X PATCH orgs/media-centaur -f name='Media Centaur'`, or do
+  it in the browser).
+* **Phase 4** ⚠️ in progress: `media-centaur.net` returns a TLS cert
+  mismatch (Pages cert not provisioned / custom domain not finalized);
+  `media-centarr.net` still 200s (no 301 yet); `docs-site/CNAME` is empty.
+  Registrar/DNS steps are external (operator-only).
+* **Phase 5** ❌ not started — live data dir (`~/.local/share/media-centarr`),
+  `media-centarr.db` (+ wal, actively written), dotfiles config, and the
+  prod `media-centarr.service` are all still old-named.
+* **Phase 6** ✅ done (session 2). Wiki (207 hits, 22 files) and
+  org-profile (4 hits) swept and pushed. **Both are jj-colocated repos**
+  (`.jj/` present) — pushed via `jj` (`desc` → `bookmark move` →
+  `jj git push`), **not git**. Logo files (`centaur-logo*.png`) confirmed
+  present in the app repo, so org-profile images resolve.
+* **Phase 7** ❌ not started — `~/scripts/*` and Claude memory unmigrated.
+
+Next (blocked on operator): (1) merge `rename/media-centaur` → `main`;
+(2) `/ship patch` to build the first `media_centaur` artifact; (3) org
+display name via `admin:org`; (4) registrar DNS for Phase 4. Then I run
+the irreversible Phase 5 prod cutover (step-by-step, explicit go-ahead at
+each destructive step) and finish Phase 7.
 
 ## Decisions made
 
@@ -120,7 +157,7 @@ wider ones:
    moves (Phase 5).
 8. Commit on the branch.
 
-### Phase 2 — Local source tree & dev env
+### Phase 2 — Local source tree & dev env ✅ done (dev-unit leftover)
 1. Rename parent `~/src/media-centarr` → `~/src/media-centaur` and
    the in-scope children: `media-centarr-app` → `media-centaur-app`,
    `media-centarr-assets` → `media-centaur-assets`,
@@ -130,7 +167,7 @@ wider ones:
 2. Rename + fix paths in the dev systemd unit
    (`~/.config/systemd/user/media-centarr-dev.service`); `daemon-reload`.
 
-### Phase 3 — GitHub org + repos (IRREVERSIBLE — only after Phase 1 green)
+### Phase 3 — GitHub org + repos (IRREVERSIBLE — only after Phase 1 green) ✅ done (leftovers: display name, local remotes, descriptions)
 1. Rename org `media-centarr` → `media-centaur` (Settings → rename;
    needs `admin:org` — gh currently lacks the scope, so
    `gh auth refresh -h github.com -s admin:org` or do it in browser).
@@ -146,7 +183,7 @@ wider ones:
    (`api.github.com/repos/media-centarr/media-centarr/releases/latest`),
    `raw.githubusercontent.com/.../installer/install.sh`.
 
-### Phase 4 — Website / domain
+### Phase 4 — Website / domain ⏳ in progress (TLS pending, old domain not 301ing)
 1. Point `media-centaur.net` DNS at GitHub Pages; set it as the app
    repo's Pages custom domain (replaces current `media-centarr.net`).
 2. Add a registrar/DNS **301: media-centarr.net → media-centaur.net**.
@@ -178,10 +215,15 @@ it, the in-app updater works normally forever.
    `troubleshoot` skill / `mc-rpc`) and library intact via `Library.*`
    context functions (not raw SQL).
 
-### Phase 6 — Wiki & org-profile docs
-1. Sweep the wiki repo (`media-centaur.wiki`): titles, install
-   commands, URLs, domain. Commit with **git** (not jj), push.
-2. Update the `.github` org-profile repo content.
+### Phase 6 — Wiki & org-profile docs ✅ done
+**Correction:** both `media-centaur.wiki` and `media-centaur-org-profile`
+are **jj-colocated** (`.jj/` present) — `git status` works but committing
+with git risks desyncing jj. Use jj: `jj desc -m … && jj bookmark move
+<master|main> --to @ && jj git push -b <bookmark>`.
+1. Swept the wiki repo (`media-centaur.wiki`, branch `master`): titles,
+   install commands, GitHub URLs. No `media-centaur.net` refs, so nothing
+   depended on the pending Phase-4 DNS. Pushed via jj.
+2. Swept the `.github` org-profile repo (branch `main`). Pushed via jj.
 
 ### Phase 7 — Ship & final verification
 1. `/ship patch` (or minor) — tag the first `media-centaur` release
