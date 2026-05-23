@@ -23,15 +23,15 @@ a campaign rather than a single commit.
 
 ## Status
 
-`2026-05-23` (reconciled + session 2) — **Phases 0–4, 6 done (bar the
-old-domain 301); Phase 7 step 1 (ship) done; Phase 5 ready to execute;
-rest of Phase 7 pending.** The rename is **merged to `main`** and the
-**first `media-centaur` release is published — `v0.72.2`** (release build
-`26336006331` green; assets `media-centaur-0.72.2-{linux-x86_64,
-darwin-arm64}.tar.gz` + `SHA256SUMS`). CHANGELOG carries the rename + a
-one-time manual-migration note. Pages live at `https://media-centaur.net`;
-org display name "Media Centaur". **Next: Phase 5 prod cutover** — the
-artifact it installs now exists.
+`2026-05-23` (reconciled + session 2) — **Phases 0–6 done + Phase 7 step 1
+(ship); only Phase 7 steps 2–3 and the optional old-domain 301 remain.**
+The rename is **merged to `main`**, the **first `media-centaur` release is
+published (`v0.72.2`)**, and the **production instance is cut over and
+verified**: running `media_centaur 0.72.2`, 40/40 supervised children,
+HTTP 200 on :2160, library intact (39 movies, 8 collections, 37 seasons,
+420 episodes). Pages live at `https://media-centaur.net`; org display name
+"Media Centaur". **Next: Phase 7** — migrate `~/scripts/*` (old node name +
+URLs) and re-key the path-keyed Claude project memory.
 
 * **Phase 0** ✅ DB backup at `~/media-centarr-db-backup-20260523-132539.db`.
 * **Phase 1** ✅ committed `d7c7d0ad`; `mix precommit` was green (3950
@@ -201,7 +201,22 @@ wider ones:
    Phase 1; auto-deploys on push touching `docs-site/**`).
 4. Verify `https://media-centaur.net` live and old domain 301s.
 
-### Phase 5 — Production cutover (live instance + library data)
+### Phase 5 — Production cutover (live instance + library data) ✅ done
+**Session 2 (2026-05-23):** stopped + disabled old `media-centarr.service`;
+fresh backup at `~/media-centaur-cutover-backup-20260523-171010/` (db +
+wal + shm). Moved `~/.local/share/media-centarr` →
+`~/.local/share/media-centaur`, renamed `media-centarr.db*` →
+`media-centaur.db*` (a stray empty `media-centaur.db` from the earlier
+`mix ecto.migrations` had pre-created the target dir, briefly nesting the
+move — un-nested, no data lost). Config: created a new dotfiles
+`media-centaur/` dir, moved+swept both TOMLs (`database_path` → new path)
++ `secrets.env`; **left legacy `dock.toml`/`frontend.toml` in the old
+`media-centarr` dir** (no consumers); symlinked `~/.config/media-centaur`.
+Installed `v0.72.2` via the public installer (`--version v0.72.2`):
+migrations reported "already up", `media-centaur.service` enabled +
+running. Removed the old unit. Verified healthy (see Status). Old install
+`~/.local/lib/media-centarr/` left for rollback (cleanup later).
+
 The in-app updater **cannot** bridge this: the new release artifact
 is `media_centaur-*.tar.gz`, but the installed updater looks for
 `media_centarr-*`. First hop is a deliberate manual cutover; after
