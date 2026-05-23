@@ -1,7 +1,7 @@
 ---
 status: in-progress
 started: 2026-05-22
-last_updated: 2026-05-22
+last_updated: 2026-05-23
 ---
 # Pursuit lifecycle stage tracking
 
@@ -20,21 +20,32 @@ Creatures, Exit 8 — all `prowlarr_query`, all showing "not visible").
 
 ## Status
 
-Phases 1–4 complete and committed (2026-05-22, `c6fe0c91`; crash-fix
-predecessor `51cbb686`). `mix precommit` green (3910 Elixir + 436 JS
-tests). Not yet shipped — `/ship` (version bump + CHANGELOG with the
-migration note + tag) and the wiki update remain. On deploy, the 3
-stranded production pursuits resolve: Remarkably Bright Creatures + Exit 8
-satisfy on the next reconcile tick (their files match); Top Gun shows
-"Downloaded — not landed" (its UHD grab never imported). Completion now fires
-at library-landing for *all* pursuits via the unified `LibraryReconciler`
-(content_path exact/under-dir → TMDB id → release-title fallback); the
-cryptic "not visible in your download client" is replaced by the real
-post-download stage ("Downloaded" / "In review" via `PursuitStatus.derive/4`,
-fed by a batched `Review.pending_file_paths/0` membership test). Storybook
-variations updated. Affected + storybook tests green, clean
-`--warnings-as-errors` compile. Remaining: wiki, the cross-path audit, and
-full `mix precommit` before ship.
+Phases 1–4 complete, committed, and **shipped in v0.70.0** (feature commit
+`8bdcf549` = `v0.70.0~2`, 2026-05-22; on `main` this is the same change,
+crash-fix predecessor `51cbb686`). The migration
+`20260522160000_add_download_identity_to_acquisition_targets.exs` shipped
+with it. Completion now fires at library-landing for *all* pursuits via the
+unified `LibraryReconciler` (content_path exact/under-dir → TMDB id →
+release-title fallback); the cryptic "not visible in your download client"
+is replaced by the real post-download stage ("Downloaded" / "In review" via
+`PursuitStatus.derive/4`, fed by a batched `Review.pending_file_paths/0`
+membership test). Storybook variations updated.
+
+**Reconciled 2026-05-23.** The earlier "not yet shipped" status was wrong —
+the code went out three releases ago, and the **wiki was already updated**
+(`673c416`, 2026-05-22: full 5-stage lifecycle in `Prowlarr-Integration.md`
++ the "Downloaded — not landed" troubleshooting entry). The **cross-path
+audit is done and clean** (2026-05-23): the single `Satisfy` command is fed
+by the recipe-agnostic `LibraryReconciler`, `PursuitStatus.derive` has zero
+recipe gates, and the three remaining `recipe_type == "tmdb"` queries
+(`find_active_for_target` fast-path, `find_by_tmdb_recipe` idempotency-create,
+`cancel_active_targets_for` item-removed) are all legitimately tmdb-scoped
+with no missing tmdb-less analog — no other path can orphan a non-tmdb
+pursuit. **The user-facing CHANGELOG entry was missed**, though: v0.70.0–
+v0.72.0 release notes never describe the lifecycle feature (v0.70.0 shipped
+it silently). Two items remain to fully close: (1) verify the 3 stranded
+production pursuits actually resolved post-deploy (needs prod-REPL approval),
+(2) decide whether to retro-document the changelog gap.
 
 ## Background — root cause (investigated 2026-05-22)
 
@@ -125,11 +136,23 @@ duplicates. Title-match remains as a **fallback** for path-less pursuits
    stage, actions for "didn't import" are `[:cancel, :change_target]`
    (re-grab), storybook variations added. (No separate page-smoke needed;
    `acquisition_live_test` already asserts the rendered status.)
-4. **Wiki** — `Prowlarr-Integration.md` / pursuits user page: document the
-   lifecycle stages and what "Downloaded — not landed" / "In review" mean.
-5. **Cross-path audit** (task) — one-over of all pursuit completion paths
-   for other recipe/shape gaps like the original prowlarr_query one.
-6. Full `mix precommit` before ship; CHANGELOG note for the migration.
+4. ~~**Cross-path audit.**~~ ✅ done 2026-05-23 — clean. Completion flows
+   through one `Satisfy` command whose catch-all caller (`LibraryReconciler`)
+   is recipe-agnostic (content_path → tmdb → title); `PursuitStatus.derive`
+   has no recipe gate; the three `recipe_type == "tmdb"` queries are all
+   legitimately tmdb-scoped. No remaining path can orphan a non-tmdb pursuit.
+5. ~~**Wiki.**~~ ✅ already done 2026-05-22 (`673c416`) — full 5-stage
+   lifecycle in `Prowlarr-Integration.md`, "Downloaded — not landed" in
+   `Troubleshooting.md`. Accurate and complete; no changes needed.
+6. **Production verification** (BLOCKED on prod-REPL approval) — confirm the
+   3 stranded pursuits resolved on the deployed build (Remarkably + Exit 8
+   satisfy via fallback; Top Gun shows "downloaded, not imported"). Read-only
+   diagnostic staged at `/tmp/mc_pursuit_check.exs` (lists rows via context
+   functions); run with `~/scripts/mc-rpc < /tmp/mc_pursuit_check.exs`.
+7. ~~Full `mix precommit` before ship; CHANGELOG note for the migration.~~
+   The code shipped in v0.70.0 (precommit was green then). **Open decision:**
+   the user-facing CHANGELOG entry was never written — retro-document in the
+   next release's notes, or leave it (shipped three versions back)?
 
 ## Completion criteria
 
