@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.10 — 2026-05-24
+
+### New
+
+**Refresh artwork for a single title.** Open a movie or show, go to its
+**Manage** view, and click **Refresh artwork** to re-fetch its poster,
+backdrop, and logo from the metadata service. Use it when a title is
+missing its image or downloaded the wrong one — no need to refresh the
+artwork for your whole library from Settings anymore.
+
 ## v0.72.9 — 2026-05-23
 
 ### Fixed
