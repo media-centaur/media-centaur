@@ -351,6 +351,47 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     end
   end
 
+  describe "collection hoist — presented_as" do
+    test "a sole-possessed collection movie presents as a faithful movie with a collection reference" do
+      ms = create_movie_series(%{name: "Singleton Collection", genres: ["Adventure"]})
+
+      child =
+        create_movie(%{
+          movie_series_id: ms.id,
+          name: "Sole Child",
+          genres: ["Action"],
+          position: 0
+        })
+
+      record_present(create_linked_file(%{movie_id: child.id}))
+
+      entity = DetailItem.to_entity_map(Views.detail_by_container(:movie, child.id))
+
+      # Presents as the movie itself — not the collection container.
+      assert entity.type == :movie
+      assert entity.id == child.id
+      assert entity.name == "Sole Child"
+      # Facets are the movie's own, not the collection's.
+      assert entity.genres == ["Action"]
+      # The relationship survives as a reference (for the badge).
+      assert entity.collection == %{id: ms.id, name: "Singleton Collection"}
+    end
+
+    test "a multi-possessed collection still presents as the collection" do
+      ms = create_movie_series(%{name: "Trilogy", genres: ["Adventure"]})
+      part1 = create_movie(%{movie_series_id: ms.id, name: "Part 1", position: 0})
+      part2 = create_movie(%{movie_series_id: ms.id, name: "Part 2", position: 1})
+      record_present(create_linked_file(%{movie_id: part1.id}))
+      record_present(create_linked_file(%{movie_id: part2.id}))
+
+      entity = DetailItem.to_entity_map(Views.detail_by_container(:movie_series, ms.id))
+
+      assert entity.type == :movie_series
+      assert entity.id == ms.id
+      assert entity.name == "Trilogy"
+    end
+  end
+
   describe "detail_by_container/2" do
     test "resolves a Movie container UUID to its sole PlayableItem" do
       on_exit_clear_table()
@@ -672,22 +713,34 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       movie2 =
         create_movie(%{name: "MS Pending Part 2", movie_series_id: ms.id, position: 2})
 
+      # Part 3 has a PlayableItem (TMDB metadata in place) but no acquired
+      # file — the not-yet-acquired constituent that must not crash the
+      # collection build. Two present movies (parts 1 & 2) keep this
+      # presented as a collection, since the hoist rule needs 2+ possessed.
+      movie3 =
+        create_movie(%{name: "MS Pending Part 3", movie_series_id: ms.id, position: 3})
+
       pi1 = create_playable_item_for_movie(movie1)
-      _pi2 = create_playable_item_for_movie(movie2)
+      pi2 = create_playable_item_for_movie(movie2)
+      _pi3 = create_playable_item_for_movie(movie3)
 
       _f1 = create_linked_file(%{playable_item_id: pi1.id, file_path: "/media/test/ms-part-1.mkv"})
+      _f2 = create_linked_file(%{playable_item_id: pi2.id, file_path: "/media/test/ms-part-2.mkv"})
 
       assert :ok = Detail.refresh_cache()
       item = Views.detail(pi1.id)
 
-      assert length(item.movies) == 2
-      [m1, m2] = item.movies
+      assert item.presented_as == :movie_series
+      assert length(item.movies) == 3
+      [m1, m2, m3] = item.movies
 
       assert m1.present?
       assert m1.content_url == "/media/test/ms-part-1.mkv"
 
-      refute m2.present?
-      assert m2.content_url == nil
+      assert m2.present?
+
+      refute m3.present?
+      assert m3.content_url == nil
     end
 
     test "detail_by_container(:movie_series, id) returns canonical leaf with movies list" do

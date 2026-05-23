@@ -72,6 +72,7 @@ defmodule MediaCentaur.Library.Views.Detail do
   alias MediaCentaur.Library.Movie
   alias MediaCentaur.Library.MovieSeries
   alias MediaCentaur.Library.PlayableItem
+  alias MediaCentaur.Library.PresentableQueries
   alias MediaCentaur.Library.Season
   alias MediaCentaur.Library.TVSeries
   alias MediaCentaur.Library.Views.DetailItem
@@ -275,7 +276,7 @@ defmodule MediaCentaur.Library.Views.Detail do
       {{:movie, item.container_id}, {item.position || 0, item.playable_item_id}, item.playable_item_id}
 
     series_entry =
-      case item.parent_container_type do
+      case item.presented_as do
         :movie_series ->
           collection_position = movie_collection_position(item)
 
@@ -349,7 +350,7 @@ defmodule MediaCentaur.Library.Views.Detail do
       shared = build_shared_entity_data(entity_key)
 
       items
-      |> Enum.map(&build_item_for_playable_item(&1, shared))
+      |> Enum.map(&build_item_for_playable_item(&1, shared, entity_key))
       |> Enum.reject(&is_nil/1)
     end)
   end
@@ -360,8 +361,9 @@ defmodule MediaCentaur.Library.Views.Detail do
         nil
 
       %PlayableItem{} = item ->
-        shared = build_shared_entity_data(entity_grouping_key(item))
-        build_item_for_playable_item(item, shared)
+        grouping = entity_grouping_key(item)
+        shared = build_shared_entity_data(grouping)
+        build_item_for_playable_item(item, shared, grouping)
     end
   end
 
@@ -377,8 +379,9 @@ defmodule MediaCentaur.Library.Views.Detail do
         nil
 
       %PlayableItem{} = item ->
-        shared = build_shared_entity_data(entity_grouping_key(item))
-        build_item_for_playable_item(item, shared)
+        grouping = entity_grouping_key(item)
+        shared = build_shared_entity_data(grouping)
+        build_item_for_playable_item(item, shared, grouping)
     end
   end
 
@@ -394,8 +397,9 @@ defmodule MediaCentaur.Library.Views.Detail do
         nil
 
       %PlayableItem{} = item ->
-        shared = build_shared_entity_data(entity_grouping_key(item))
-        build_item_for_playable_item(item, shared)
+        grouping = entity_grouping_key(item)
+        shared = build_shared_entity_data(grouping)
+        build_item_for_playable_item(item, shared, grouping)
     end
   end
 
@@ -419,8 +423,9 @@ defmodule MediaCentaur.Library.Views.Detail do
         nil
 
       %PlayableItem{} = item ->
-        shared = build_shared_entity_data(entity_grouping_key(item))
-        build_item_for_playable_item(item, shared)
+        grouping = entity_grouping_key(item)
+        shared = build_shared_entity_data(grouping)
+        build_item_for_playable_item(item, shared, grouping)
     end
   end
 
@@ -441,8 +446,9 @@ defmodule MediaCentaur.Library.Views.Detail do
         nil
 
       %PlayableItem{} = item ->
-        shared = build_shared_entity_data(entity_grouping_key(item))
-        build_item_for_playable_item(item, shared)
+        grouping = entity_grouping_key(item)
+        shared = build_shared_entity_data(grouping)
+        build_item_for_playable_item(item, shared, grouping)
     end
   end
 
@@ -468,12 +474,25 @@ defmodule MediaCentaur.Library.Views.Detail do
 
   defp entity_grouping_key(%PlayableItem{container_type: :movie, container_id: movie_id}) do
     case Repo.one(from(m in Movie, where: m.id == ^movie_id, select: m.movie_series_id)) do
-      nil -> {:movie, movie_id}
-      ms_id -> {:movie_series, ms_id}
+      nil ->
+        {:movie, movie_id}
+
+      ms_id ->
+        # Hoist rule (the same one `Library.resolve_presentable/1` applies):
+        # a collection with a single present movie is presented AS that
+        # movie, not as a container. Only group under the collection when
+        # two or more of its movies are possessed.
+        if collection_multi_present?(ms_id),
+          do: {:movie_series, ms_id},
+          else: {:movie, movie_id}
     end
   end
 
   defp entity_grouping_key(%PlayableItem{container_type: type, container_id: id}), do: {type, id}
+
+  defp collection_multi_present?(movie_series_id) do
+    match?([_, _ | _], Repo.all(PresentableQueries.present_movie_ids(movie_series_id)))
+  end
 
   # `shared_entity_data` holds the per-entity slices flowed identically
   # into every sibling row (cost paid once; references shared).
@@ -509,16 +528,28 @@ defmodule MediaCentaur.Library.Views.Detail do
 
   defp build_item_for_playable_item(
          %PlayableItem{container_type: type, container_id: cid} = item,
-         shared
+         shared,
+         grouping
        ) do
     case fetch_container(type, cid) do
       nil ->
         nil
 
       container ->
+        presented_as = presented_as_from_grouping(grouping)
+        # `parent_*` always reads the full leaf container (so a hoisted movie
+        # keeps its collection reference for the badge). The `container_*`
+        # metadata reads `display`, which for a movie presented as itself is
+        # the leaf Movie with its collection link dropped — that makes
+        # `top_level_container/2` resolve to the Movie, so the facets are the
+        # movie's own. For a collection-presented movie, `display` is the
+        # full leaf and `top_level_container/2` promotes to the MovieSeries.
+        display = display_container(type, presented_as, container)
+
         %DetailItem{
           playable_item_id: item.id,
           container_type: type,
+          presented_as: presented_as,
           container_id: cid,
           name: leaf_name(type, item, container),
           position: item.position,
@@ -528,29 +559,29 @@ defmodule MediaCentaur.Library.Views.Detail do
           parent_container_type: parent_container_type(type, container),
           parent_container_id: parent_container_id(type, container),
           parent_container_name: parent_container_name(type, container),
-          container_name: container_name(type, container),
-          container_description: container_description(type, container),
-          container_year: container_year(type, container),
-          container_url: container_url(type, container),
-          container_tagline: container_tagline(type, container),
-          container_genres: container_genres(type, container),
-          container_studio: container_studio(type, container),
-          container_country_code: container_country_code(type, container),
-          container_original_language: container_original_language(type, container),
-          container_network: container_network(type, container),
-          container_status: container_status(type, container),
-          container_duration_seconds: container_duration_seconds(type, container),
-          container_content_rating: container_content_rating(type, container),
-          container_aggregate_rating: container_aggregate_rating(type, container),
-          container_vote_count: container_vote_count(type, container),
-          container_number_of_seasons: container_number_of_seasons(type, container),
-          container_director: container_director(type, container),
-          cast: container_cast(type, container),
-          crew: container_crew(type, container),
-          extras: container_extras(type, container),
-          external_ids: container_external_ids(type, container),
-          imdb_id: external_id_value(container_external_ids(type, container), "imdb"),
-          tmdb_id: external_id_value(container_external_ids(type, container), "tmdb"),
+          container_name: container_name(type, display),
+          container_description: container_description(type, display),
+          container_year: container_year(type, display),
+          container_url: container_url(type, display),
+          container_tagline: container_tagline(type, display),
+          container_genres: container_genres(type, display),
+          container_studio: container_studio(type, display),
+          container_country_code: container_country_code(type, display),
+          container_original_language: container_original_language(type, display),
+          container_network: container_network(type, display),
+          container_status: container_status(type, display),
+          container_duration_seconds: container_duration_seconds(type, display),
+          container_content_rating: container_content_rating(type, display),
+          container_aggregate_rating: container_aggregate_rating(type, display),
+          container_vote_count: container_vote_count(type, display),
+          container_number_of_seasons: container_number_of_seasons(type, display),
+          container_director: container_director(type, display),
+          cast: container_cast(type, display),
+          crew: container_crew(type, display),
+          extras: container_extras(type, display),
+          external_ids: container_external_ids(type, display),
+          imdb_id: external_id_value(container_external_ids(type, display), "imdb"),
+          tmdb_id: external_id_value(container_external_ids(type, display), "tmdb"),
           present?: any_present_file?(item.id),
           images: shared.images,
           seasons: shared.seasons,
@@ -560,6 +591,19 @@ defmodule MediaCentaur.Library.Views.Detail do
         }
     end
   end
+
+  defp presented_as_from_grouping({:movie, _}), do: :movie
+  defp presented_as_from_grouping({:movie_series, _}), do: :movie_series
+  defp presented_as_from_grouping({:tv_series, _}), do: :tv_series
+  defp presented_as_from_grouping({:video_object, _}), do: :video_object
+  defp presented_as_from_grouping({:orphan_episode, _}), do: :tv_series
+
+  # When a Movie is presented as itself, drop its collection link so the
+  # `container_*` helpers (via `top_level_container/2`) read the Movie's own
+  # metadata instead of bubbling up to the MovieSeries. Every other case
+  # keeps the full leaf container.
+  defp display_container(:movie, :movie, %Movie{} = movie), do: %{movie | movie_series: nil}
+  defp display_container(_type, _presented_as, container), do: container
 
   defp rebuild_row(playable_item_id) do
     old_keys = canonical_keys_for_stored_row(playable_item_id)
