@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.12 — 2026-05-24
+
+### Fixed
+
+**Artwork now appears on the open detail view the moment it downloads.**
+When you opened a title that had no image and used **Refresh artwork**
+(or artwork simply finished downloading in the background), the detail
+view kept showing the placeholder until you reloaded the page. The
+placeholder now flips to the real poster/backdrop on its own, no refresh
+needed.
+
 ## v0.72.11 — 2026-05-24
 
 ### Fixed
