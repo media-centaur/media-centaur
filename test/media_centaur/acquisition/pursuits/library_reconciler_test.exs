@@ -189,6 +189,79 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconcilerTest do
     end
   end
 
+  describe "reconcile_active/0 — multi-file pack (prowlarr_query)" do
+    test "satisfies a pack pursuit by matching the release-folder ancestor, not the leaf basename" do
+      # A complete-series pack downloads as one torrent whose top-level
+      # folder is named after the release; the pipeline imports the
+      # individual episode files in place, preserving that folder as an
+      # ancestor of every episode path. The pursuit carries no tmdb_id
+      # (manual grab) and its content_path is the stale *incomplete*
+      # download dir — but the release-folder name survives as a path
+      # segment, which is the only durable binding back to the library.
+      tv_series = create_tv_series(%{name: "Sample Show", tmdb_id: "888"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+      base = "/srv/media/Sample.Show.S01-S03.COMPLETE.SERIES.1080p.BluRay.x265-GRP"
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 1,
+        content_url:
+          "#{base}/Sample.Show.S01.1080p.BluRay.x265-GRP/Sample.Show.S01E01.1080p.BluRay.x265-GRP.mkv"
+      })
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 2,
+        content_url:
+          "#{base}/Sample.Show.S01.1080p.BluRay.x265-GRP/Sample.Show.S01E02.1080p.BluRay.x265-GRP.mkv"
+      })
+
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "prowlarr_query",
+          tmdb_id: nil,
+          tmdb_type: nil,
+          manual_query: "Sample Show Complete Series",
+          title: "Sample.Show.S01-S03.COMPLETE.SERIES.1080p.BluRay.x265-GRP",
+          status: "acquired",
+          release_title: "Sample Show S01-S03 COMPLETE SERIES 1080p BluRay x265-GRP",
+          content_path: "/downloads/incomplete/Sample.Show.S01-S03.COMPLETE.SERIES.1080p.BluRay.x265-GRP"
+        })
+
+      assert :ok = LibraryReconciler.reconcile_active()
+
+      assert Repo.get!(Pursuit, pursuit.id).state == "satisfied"
+      assert Enum.any?(pursuit_events(pursuit.id), &(&1.kind == "pursuit_satisfied"))
+    end
+
+    test "leaves a pack pursuit active when its release folder is not present in the library" do
+      tv_series = create_tv_series(%{name: "Sample Show", tmdb_id: "888"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 1,
+        content_url:
+          "/srv/media/Other.Show.S01.1080p.BluRay.x265-GRP/Other.Show.S01E01.1080p.BluRay.x265-GRP.mkv"
+      })
+
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "prowlarr_query",
+          tmdb_id: nil,
+          tmdb_type: nil,
+          manual_query: "Sample Show Complete Series",
+          title: "Sample.Show.S01-S03.COMPLETE.SERIES.1080p.BluRay.x265-GRP",
+          status: "acquired",
+          release_title: "Sample Show S01-S03 COMPLETE SERIES 1080p BluRay x265-GRP",
+          content_path: "/downloads/incomplete/Sample.Show.S01-S03.COMPLETE.SERIES.1080p.BluRay.x265-GRP"
+        })
+
+      assert :ok = LibraryReconciler.reconcile_active()
+      assert Repo.get!(Pursuit, pursuit.id).state == "active"
+    end
+  end
+
   describe "reconcile_active/0 — content_path match" do
     test "satisfies via the target's content_path even when title + tmdb don't match" do
       _movie =
