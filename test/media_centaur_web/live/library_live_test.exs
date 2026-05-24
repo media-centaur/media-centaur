@@ -416,4 +416,34 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert html =~ "No TMDB match"
     end
   end
+
+  describe "detail modal artwork lands while open" do
+    # Regression: in production `load_modal_entry` reads the cached Detail
+    # ETS projection, which the cache worker refreshes asynchronously
+    # *after* `entities_changed`. Refreshing the open modal on the raw
+    # `entities_changed` therefore re-read a stale (image-less) row, so a
+    # placeholder never flipped to artwork without a page reload. The modal
+    # must also react to the post-refresh `{:library_view_updated, :detail,
+    # _}` event (the same projection-refresh signal the grid/home use).
+    test "poster appears when the post-refresh detail event fires", %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+      refute html =~ "/media-images/#{movie.id}/poster.jpg"
+
+      # Artwork finished downloading: the Image row now exists in the DB.
+      create_image(%{
+        movie_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg",
+        extension: "jpg"
+      })
+
+      # The Detail projection cache worker has refreshed and emits this.
+      send(view.pid, {:library_view_updated, :detail, "any-playable-item-id"})
+
+      assert render(view) =~ "/media-images/#{movie.id}/poster.jpg"
+    end
+  end
 end
