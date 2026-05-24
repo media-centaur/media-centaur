@@ -375,6 +375,23 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     end
   end
 
+  # Post-refresh signal from the Detail projection's cache worker, emitted
+  # *after* it has rebuilt the ETS row that `load_modal_entry/1` reads. The
+  # raw `:entities_changed` above fires *before* that rebuild, so in
+  # production (cache worker running) refreshing on it alone re-read a
+  # stale, image-less row — a placeholder never flipped to artwork that
+  # landed while the modal was open. Reacting here, after the cache is
+  # fresh, is the same projection-refresh signal the grid/home consume.
+  # The `playable_item_id` isn't matched: `refresh_selected_entry/1` reads
+  # only the open entity, and detail changes are infrequent.
+  def handle_modal_pubsub({:library_view_updated, :detail, _playable_item_id}, socket) do
+    if socket.assigns[:selected_entity_id] do
+      {:cont, refresh_selected_entry(socket)}
+    else
+      {:cont, socket}
+    end
+  end
+
   def handle_modal_pubsub(
         {:playback_state_changed, %{entity_id: entity_id, state: new_state, now_playing: now_playing}},
         socket
