@@ -5,8 +5,9 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
 
   All loaded items render — the row scrolls horizontally so callers can
   pass as many as they like. A "See all" placeholder appears as the last
-  slot. Per-row keyboard/gamepad navigation is planned (each row will
-  become its own nav-zone) but not yet wired.
+  slot. Cards carry `data-nav-item` so the host can wrap the row in a
+  `data-nav-zone` (a SHELF context) for keyboard/gamepad navigation — see
+  HomeLive and the `input-system` skill.
   """
 
   Module.register_attribute(__MODULE__, :storybook_status, persist: true)
@@ -60,6 +61,9 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
         phx-value-autoplay={if item.autoplay, do: "1"}
         class="card-hover relative aspect-[16/9] rounded-lg overflow-hidden glass-inset block w-full text-left"
         data-row-item
+        data-nav-item
+        data-entity-id={item.entity_id}
+        tabindex="0"
       >
         <img
           :if={item.backdrop_url}
@@ -94,6 +98,8 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
         class="card-hover relative aspect-[16/9] rounded-lg overflow-hidden glass-inset flex flex-col items-center justify-center gap-2 text-base-content/60 hover:text-primary hover:bg-base-content/5"
         data-component="continue-watching-see-all"
         data-row-item
+        data-nav-item
+        tabindex="0"
       >
         <.icon name="hero-arrow-right-circle" class="size-10" />
         <span class="text-sm font-medium">See all</span>

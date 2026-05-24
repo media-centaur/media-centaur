@@ -36,6 +36,13 @@ const TEST_LAYOUTS = {
     grid:      { up: ["sections"], left: ["sidebar"] },
     sidebar:   { right: ["sections", "grid"] },
   },
+  home: {
+    hero:      { down: ["continue", "recently", "coming_up"], left: ["sidebar"] },
+    continue:  { up: ["hero"], down: ["recently", "coming_up"], left: ["sidebar"] },
+    recently:  { up: ["continue", "hero"], down: ["coming_up"], left: ["sidebar"] },
+    coming_up: { up: ["recently", "continue", "hero"], left: ["sidebar"] },
+    sidebar:   { right: ["hero", "continue", "recently", "coming_up"] },
+  },
 }
 
 const TEST_ALWAYS_POPULATED = ["sidebar", "sections"]
@@ -47,6 +54,7 @@ const TEST_CURSOR_START_PRIORITY = {
   settings:  ["sections", "grid", "sidebar"],
   status:    ["sections", "sidebar"],
   download:  ["sections", "grid", "sidebar"],
+  home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
 }
 
 const CONFIG = { layouts: TEST_LAYOUTS, alwaysPopulated: TEST_ALWAYS_POPULATED }
@@ -412,6 +420,77 @@ describe("buildNavGraph", () => {
     })
   })
 
+  describe("home zone, all shelves populated", () => {
+    const counts = { hero: 2, continue: 5, recently: 8, coming_up: 4, sidebar: 4 }
+    const graph = buildNavGraph("home", counts, CONFIG)
+
+    test("hero down goes to continue (first candidate)", () => {
+      expect(graph.hero.down).toBe("continue")
+    })
+
+    test("hero left goes to sidebar", () => {
+      expect(graph.hero.left).toBe("sidebar")
+    })
+
+    test("hero has no up edge (top shelf)", () => {
+      expect(graph.hero.up).toBeUndefined()
+    })
+
+    test("continue up goes to hero, down to recently", () => {
+      expect(graph.continue.up).toBe("hero")
+      expect(graph.continue.down).toBe("recently")
+    })
+
+    test("recently up goes to continue, down to coming_up", () => {
+      expect(graph.recently.up).toBe("continue")
+      expect(graph.recently.down).toBe("coming_up")
+    })
+
+    test("coming_up up goes to recently, has no down edge (bottom shelf)", () => {
+      expect(graph.coming_up.up).toBe("recently")
+      expect(graph.coming_up.down).toBeUndefined()
+    })
+
+    test("sidebar right goes to hero (first candidate)", () => {
+      expect(graph.sidebar.right).toBe("hero")
+    })
+  })
+
+  describe("home zone, no hero (continue is first shelf)", () => {
+    const counts = { hero: 0, continue: 5, recently: 8, coming_up: 4, sidebar: 4 }
+    const graph = buildNavGraph("home", counts, CONFIG)
+
+    test("sidebar right skips empty hero, goes to continue", () => {
+      expect(graph.sidebar.right).toBe("continue")
+    })
+
+    test("continue up blocked (only hero candidate, empty)", () => {
+      expect(graph.continue.up).toBeUndefined()
+    })
+  })
+
+  describe("home zone, sparse middle shelves", () => {
+    const counts = { hero: 2, continue: 0, recently: 0, coming_up: 4, sidebar: 4 }
+    const graph = buildNavGraph("home", counts, CONFIG)
+
+    test("hero down skips empty continue/recently, goes to coming_up", () => {
+      expect(graph.hero.down).toBe("coming_up")
+    })
+
+    test("coming_up up skips empty recently/continue, goes to hero", () => {
+      expect(graph.coming_up.up).toBe("hero")
+    })
+  })
+
+  describe("home zone, only sidebar populated", () => {
+    const counts = { hero: 0, continue: 0, recently: 0, coming_up: 0, sidebar: 4 }
+    const graph = buildNavGraph("home", counts, CONFIG)
+
+    test("sidebar right blocked (all shelves empty)", () => {
+      expect(graph.sidebar.right).toBeUndefined()
+    })
+  })
+
   describe("edge cases", () => {
     test("unknown zone returns empty graph", () => {
       expect(buildNavGraph("unknown", fullCounts(), CONFIG)).toEqual({})
@@ -474,6 +553,22 @@ describe("resolveCursorStart", () => {
 
   test("download zone always starts at sections (always populated)", () => {
     expect(resolveCursorStart("download", { sections: 0, grid: 0, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
+  })
+
+  test("home zone returns hero when populated", () => {
+    expect(resolveCursorStart("home", { hero: 2, continue: 5, recently: 8, coming_up: 4, sidebar: 4 }, CURSOR_CONFIG)).toBe("hero")
+  })
+
+  test("home zone falls back to continue when hero is empty", () => {
+    expect(resolveCursorStart("home", { hero: 0, continue: 5, recently: 8, coming_up: 4, sidebar: 4 }, CURSOR_CONFIG)).toBe("continue")
+  })
+
+  test("home zone falls back to coming_up when only it is populated", () => {
+    expect(resolveCursorStart("home", { hero: 0, continue: 0, recently: 0, coming_up: 4, sidebar: 4 }, CURSOR_CONFIG)).toBe("coming_up")
+  })
+
+  test("home zone falls back to sidebar when all shelves empty", () => {
+    expect(resolveCursorStart("home", { hero: 0, continue: 0, recently: 0, coming_up: 0, sidebar: 4 }, CURSOR_CONFIG)).toBe("sidebar")
   })
 
   test("unknown zone returns null", () => {

@@ -30,6 +30,13 @@ const TEST_LAYOUTS = {
     grid:      { left: ["sections"] },
     sidebar:   { right: ["sections", "grid"] },
   },
+  home: {
+    hero:      { down: ["continue", "recently", "coming_up"], left: ["sidebar"] },
+    continue:  { up: ["hero"], down: ["recently", "coming_up"], left: ["sidebar"] },
+    recently:  { up: ["continue", "hero"], down: ["coming_up"], left: ["sidebar"] },
+    coming_up: { up: ["recently", "continue", "hero"], left: ["sidebar"] },
+    sidebar:   { right: ["hero", "continue", "recently", "coming_up"] },
+  },
 }
 
 const TEST_CONFIG = {
@@ -40,10 +47,17 @@ const TEST_CONFIG = {
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
     upcoming: "[data-nav-zone='upcoming'] > [data-nav-item]",
+    hero: "[data-nav-zone='hero'] [data-nav-item]",
+    continue: "[data-nav-zone='continue'] [data-nav-item]",
+    recently: "[data-nav-zone='recently'] [data-nav-item]",
+    coming_up: "[data-nav-zone='coming_up'] [data-nav-item]",
     drawer: "[data-detail-mode='drawer'] [data-nav-item]",
     modal: "[data-detail-mode='modal'] [data-nav-item]",
   },
-  instanceTypes: { sidebar: "menu", sections: "menu", upcoming: "menu" },
+  instanceTypes: {
+    sidebar: "menu", sections: "menu", upcoming: "menu",
+    hero: "shelf", continue: "shelf", recently: "shelf", coming_up: "shelf",
+  },
   primaryMenu: "sidebar",
   layouts: TEST_LAYOUTS,
   cursorStartPriority: {
@@ -51,6 +65,7 @@ const TEST_CONFIG = {
     library:   ["grid", "toolbar", "zone_tabs", "sidebar"],
     upcoming:  ["upcoming", "grid", "zone_tabs", "sidebar"],
     settings:  ["sections", "grid", "sidebar"],
+    home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
   },
   alwaysPopulated: ["sidebar", "sections"],
   activeClassNames: ["sidebar-link-active", "tab-active", "zone-tab-active", "menu-item-active"],
@@ -178,6 +193,11 @@ function mockCreateBehavior(name) {
   }
   if (name === "status" || name === "review") {
     return { onAttach() {}, onDetach() {}, onEscape: () => "sidebar" }
+  }
+  // Home (and watch-history) behaviors deliberately omit onAttach/onDetach —
+  // the mock must mirror that so start() exercises the optional-hook path.
+  if (name === "home") {
+    return { onEscape: () => "sidebar" }
   }
   return null
 }
@@ -727,6 +747,139 @@ describe("Orchestrator", () => {
 
       expect(system.focusMachine.context).toBe("sidebar")
       expect(system._preSidebarContext).toBe(Context.ZONE_TABS)
+    })
+
+    test("left at index 0 in a home shelf enters sidebar", () => {
+      const { system } = setup({
+        getZone: () => "home",
+        getFocusedIndex: () => 0,
+        getItemCount: (ctx) => ctx === "sidebar" ? 4 : 3,
+        getActiveItemIndex: (ctx) => ctx === "sidebar" ? 0 : -1,
+      })
+      system.start({})
+      system.focusMachine.forceContext("continue")
+
+      system._handleAction(Action.NAVIGATE_LEFT)
+
+      expect(system.focusMachine.context).toBe("sidebar")
+      expect(system._preSidebarContext).toBe("continue")
+    })
+  })
+
+  describe("home shelf navigation", () => {
+    function homeShelves(focusedContext) {
+      const { system, reader, calls, globals } = setup({
+        getZone: () => "home",
+        getFocusedIndex: () => 1,
+        getItemCount: (ctx) => ctx === "sidebar" ? 4 : 5,
+      })
+      system.start({})
+      system.focusMachine.forceContext(focusedContext)
+      calls.length = 0
+      return { system, reader, calls, globals }
+    }
+
+    test("down moves to the next shelf and focuses it", () => {
+      const { system, calls } = homeShelves("continue")
+
+      system._handleAction(Action.NAVIGATE_DOWN)
+
+      expect(system.focusMachine.context).toBe("recently")
+      const focusCalls = calls.filter(c =>
+        (c.method === "focusFirst" || c.method === "focusByIndex") && c.args[0] === "recently"
+      )
+      expect(focusCalls.length).toBeGreaterThan(0)
+    })
+
+    test("right navigates within the shelf (no context change)", () => {
+      const { system, calls } = homeShelves("continue")
+
+      system._handleAction(Action.NAVIGATE_RIGHT)
+
+      expect(system.focusMachine.context).toBe("continue")
+      const focusCalls = calls.filter(c => c.method === "focusByIndex" && c.args[0] === "continue")
+      expect(focusCalls.length).toBe(1)
+      expect(focusCalls[0].args[1]).toBe(2) // index 1 → 2
+    })
+
+    test("select in a shelf records origin context for modal restore", () => {
+      const { system, reader } = homeShelves("continue")
+      reader.getCurrentFocusedItem = () => ({
+        dataset: { entityId: "abc-123" },
+        hasAttribute: () => false,
+        click() {},
+      })
+
+      system._handleAction(Action.SELECT)
+
+      expect(system._originEntityId).toBe("abc-123")
+      expect(system._originContext).toBe("continue")
+    })
+  })
+
+  describe("modal opened from a home shelf restores focus to that shelf", () => {
+    test("closing modal restores origin context and focuses the originating card", () => {
+      const { system, reader, calls, globals } = setup({
+        getZone: () => "home",
+        getItemCount: (ctx) => ctx === "sidebar" ? 4 : 5,
+      })
+      system.start({})
+
+      // Open a modal from the "recently" shelf
+      system.focusMachine.forceContext("recently")
+      system._originContext = "recently"
+      system._originEntityId = "poster-9"
+      reader.getPresentation = () => "modal"
+      system.onViewChanged()
+      expect(system.focusMachine.context).toBe(Context.MODAL)
+      calls.length = 0
+
+      // Close the modal
+      reader.getPresentation = () => null
+      system.onViewChanged()
+      globals._flushRAF()
+
+      expect(system.focusMachine.context).toBe("recently")
+      const restoreCalls = calls.filter(c => c.method === "focusByEntityId" && c.args[0] === "recently")
+      expect(restoreCalls.length).toBeGreaterThan(0)
+      expect(restoreCalls[0].args[1]).toBe("poster-9")
+    })
+  })
+
+  describe("home zone cursor start", () => {
+    test("start does not throw when the page behavior has no onAttach hook", () => {
+      // Regression: start() called this._behavior?.onAttach() (guarding only
+      // the behavior, not the method). A behavior without onAttach (home,
+      // watch-history) threw a TypeError that aborted start() before
+      // _ensureCursorStart — leaving a grid-less page stuck in empty GRID.
+      const { system } = setup({
+        getZone: () => "home",
+        getItemCount: (ctx) => ctx === "grid" ? 0 : 4,
+        getPageBehavior: () => "home",
+      })
+
+      expect(() => system.start({})).not.toThrow()
+      expect(system.focusMachine.context).toBe("hero")
+    })
+
+    test("start lands on hero when grid is empty (home has no grid)", () => {
+      const { system } = setup({
+        getZone: () => "home",
+        getItemCount: (ctx) => ctx === "grid" ? 0 : 4,
+      })
+      system.start({})
+
+      expect(system.focusMachine.context).toBe("hero")
+    })
+
+    test("start skips empty hero to the first populated shelf", () => {
+      const { system } = setup({
+        getZone: () => "home",
+        getItemCount: (ctx) => (ctx === "grid" || ctx === "hero") ? 0 : 4,
+      })
+      system.start({})
+
+      expect(system.focusMachine.context).toBe("continue")
     })
   })
 

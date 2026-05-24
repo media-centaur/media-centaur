@@ -22,6 +22,11 @@ export const inputConfig = {
     [Context.ZONE_TABS]: "[data-nav-zone='zone-tabs'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
     "review-detail": "[data-nav-zone='review-detail'] [data-nav-item]",
+    // Home page shelves (horizontal media rows stacked vertically)
+    hero: "[data-nav-zone='hero'] [data-nav-item]",
+    continue: "[data-nav-zone='continue'] [data-nav-item]",
+    recently: "[data-nav-zone='recently'] [data-nav-item]",
+    coming_up: "[data-nav-zone='coming_up'] [data-nav-item]",
   },
 
   // Instance → context type mapping
@@ -31,6 +36,11 @@ export const inputConfig = {
     upcoming: Context.MENU,
     "review-list": Context.MENU,
     "review-detail": Context.MENU,
+    // Home shelves behave as horizontal lists with a vertical nav graph
+    hero: Context.SHELF,
+    continue: Context.SHELF,
+    recently: Context.SHELF,
+    coming_up: Context.SHELF,
   },
 
   // Zone layouts for nav graph
@@ -78,6 +88,16 @@ export const inputConfig = {
       grid:      { up: ["toolbar"], left: ["sidebar"] },
       sidebar:   { right: ["toolbar", "grid"] },
     },
+    // Home: vertical stack of horizontal shelves. Up/down crosses between
+    // shelves (candidate lists skip shelves the page didn't render); left
+    // always returns to the sidebar.
+    home: {
+      hero:      { down: ["continue", "recently", "coming_up"], left: ["sidebar"] },
+      continue:  { up: ["hero"], down: ["recently", "coming_up"], left: ["sidebar"] },
+      recently:  { up: ["continue", "hero"], down: ["coming_up"], left: ["sidebar"] },
+      coming_up: { up: ["recently", "continue", "hero"], left: ["sidebar"] },
+      sidebar:   { right: ["hero", "continue", "recently", "coming_up"] },
+    },
   },
 
   // Cursor start priority per zone
@@ -90,6 +110,7 @@ export const inputConfig = {
     review:    ["review-list", "review-detail", "sidebar"],
     download:  ["sections", "grid", "sidebar"],
     watch_history: ["toolbar", "grid", "sidebar"],
+    home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
   },
 
   // Always-populated contexts (skip item count check)

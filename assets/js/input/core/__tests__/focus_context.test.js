@@ -7,6 +7,10 @@ import { buildNavGraph } from "../nav_graph"
 const TEST_INSTANCE_TYPES = {
   sidebar: Context.MENU,
   sections: Context.MENU,
+  hero: Context.SHELF,
+  continue: Context.SHELF,
+  recently: Context.SHELF,
+  coming_up: Context.SHELF,
 }
 
 const TEST_LAYOUTS = {
@@ -27,6 +31,13 @@ const TEST_LAYOUTS = {
     sections:  { right: ["grid"],            left: ["sidebar"] },
     grid:      { left: ["sections"] },
     sidebar:   { right: ["sections", "grid"] },
+  },
+  home: {
+    hero:      { down: ["continue", "recently", "coming_up"], left: ["sidebar"] },
+    continue:  { up: ["hero"], down: ["recently", "coming_up"], left: ["sidebar"] },
+    recently:  { up: ["continue", "hero"], down: ["coming_up"], left: ["sidebar"] },
+    coming_up: { up: ["recently", "continue", "hero"], left: ["sidebar"] },
+    sidebar:   { right: ["hero", "continue", "recently", "coming_up"] },
   },
 }
 
@@ -499,6 +510,81 @@ describe("FocusContextMachine", () => {
     test("sections select activates", () => {
       machine._context = "sections"
       expect(machine.transition(Action.SELECT)).toEqual({ type: "activate" })
+    })
+  })
+
+  describe("Shelf context type (home shelves)", () => {
+    // Home zone: vertical stack of horizontal shelves. The graph wires
+    // up/down between shelves; left/right navigate within a shelf.
+    function homeGraph() {
+      const counts = { hero: 2, continue: 5, recently: 8, coming_up: 4, sidebar: 4 }
+      return buildNavGraph("home", counts, GRAPH_CONFIG)
+    }
+
+    test("shelf instances resolve to SHELF type", () => {
+      expect(contextType("hero", TEST_INSTANCE_TYPES)).toBe(Context.SHELF)
+      expect(contextType("continue", TEST_INSTANCE_TYPES)).toBe(Context.SHELF)
+    })
+
+    test("left/right navigate within the shelf", () => {
+      machine._context = "continue"
+      expect(machine.transition(Action.NAVIGATE_LEFT)).toEqual({ type: "navigate", direction: "left" })
+      expect(machine.transition(Action.NAVIGATE_RIGHT)).toEqual({ type: "navigate", direction: "right" })
+    })
+
+    test("down goes to the next shelf via nav graph", () => {
+      machine._context = "continue"
+      machine.setNavGraph(homeGraph())
+      const directive = machine.transition(Action.NAVIGATE_DOWN)
+      expect(directive).toEqual({ type: "focus_first", context: "recently" })
+      expect(machine.context).toBe("recently")
+    })
+
+    test("up goes to the previous shelf via nav graph", () => {
+      machine._context = "continue"
+      machine.setNavGraph(homeGraph())
+      const directive = machine.transition(Action.NAVIGATE_UP)
+      expect(directive).toEqual({ type: "focus_first", context: "hero" })
+      expect(machine.context).toBe("hero")
+    })
+
+    test("up from the top shelf is a wall (no-op)", () => {
+      machine._context = "hero"
+      machine.setNavGraph(homeGraph())
+      const directive = machine.transition(Action.NAVIGATE_UP)
+      expect(directive).toEqual({ type: "none" })
+      expect(machine.context).toBe("hero")
+    })
+
+    test("down from the bottom shelf is a wall (no-op)", () => {
+      machine._context = "coming_up"
+      machine.setNavGraph(homeGraph())
+      const directive = machine.transition(Action.NAVIGATE_DOWN)
+      expect(directive).toEqual({ type: "none" })
+      expect(machine.context).toBe("coming_up")
+    })
+
+    test("down skips empty shelves to the next populated one", () => {
+      machine._context = "hero"
+      machine.setNavGraph(buildNavGraph("home", { hero: 2, continue: 0, recently: 0, coming_up: 4, sidebar: 4 }, GRAPH_CONFIG))
+      const directive = machine.transition(Action.NAVIGATE_DOWN)
+      expect(directive).toEqual({ type: "focus_first", context: "coming_up" })
+      expect(machine.context).toBe("coming_up")
+    })
+
+    test("select activates the focused card", () => {
+      machine._context = "continue"
+      expect(machine.transition(Action.SELECT)).toEqual({ type: "activate" })
+    })
+
+    test("play produces play", () => {
+      machine._context = "continue"
+      expect(machine.transition(Action.PLAY)).toEqual({ type: "play" })
+    })
+
+    test("back is a no-op (page behavior onEscape handles it)", () => {
+      machine._context = "continue"
+      expect(machine.transition(Action.BACK)).toEqual({ type: "none" })
     })
   })
 

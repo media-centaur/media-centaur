@@ -17,6 +17,7 @@ export const Context = Object.freeze({
   MODAL: "modal",
   TOOLBAR: "toolbar",
   MENU: "menu",
+  SHELF: "shelf",
   ZONE_TABS: "zone_tabs",
 })
 
@@ -112,6 +113,7 @@ export class FocusContextMachine {
       case Context.GRID:     return this._gridTransition(action)
       case Context.TOOLBAR:  return this._toolbarTransition(action)
       case Context.MENU:     return this._menuTransition(action)
+      case Context.SHELF:    return this._shelfTransition(action)
       case Context.ZONE_TABS: return this._zoneTabsTransition(action)
       default: return NONE
     }
@@ -333,6 +335,28 @@ export class FocusContextMachine {
         this._setContext(target)
         return focusFirst(target)
       }
+      default: return NONE
+    }
+  }
+
+  /**
+   * Shelf: the dual of MENU. A horizontal list of media cards stacked
+   * vertically with sibling shelves (the home page's Continue Watching /
+   * Recently Added / Coming Up rows). Left/right navigate within the shelf
+   * (wall handling — including the left-wall sidebar entry — lives in the
+   * orchestrator's _linearNavigate). Up/down cross to the adjacent shelf via
+   * the nav graph. Select activates the focused card; the page behavior's
+   * onEscape owns BACK.
+   */
+  _shelfTransition(action) {
+    switch (action) {
+      case Action.NAVIGATE_LEFT:  return navigate("left")
+      case Action.NAVIGATE_RIGHT: return navigate("right")
+      case Action.NAVIGATE_UP:    return this.contextWall(this._context, "up")
+      case Action.NAVIGATE_DOWN:  return this.contextWall(this._context, "down")
+      case Action.SELECT:         return ACTIVATE
+      case Action.BACK:           return NONE
+      case Action.PLAY:           return { type: "play" }
       default: return NONE
     }
   }
