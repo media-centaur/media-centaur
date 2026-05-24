@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.16 — 2026-05-24
+
+### Improved
+
+**The detail view makes better use of wide screens.** When you open a
+series or movie on a full-width window, its network, rating, original
+language, and genres now sit alongside the play button instead of
+dropping below the description — closing the empty gap that used to open
+up next to the buttons. Narrower and split-screen windows are unchanged.
+
 ## v0.72.15 — 2026-05-24
 
 ### Improved
