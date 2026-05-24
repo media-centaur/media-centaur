@@ -25,13 +25,21 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
        the download client dropping the completed torrent.
     2. **TMDB id** — for TMDB-recipe pursuits, `(tmdb_id[, season,
        episode])` against the library. Authoritative; no title-matching.
-    3. **Release title** — the path-less fallback for `prowlarr_query`
+    3. **Release name** — the path-less fallback for `prowlarr_query`
        pursuits (and any grab from before content paths were captured):
-       the normalized release title against present file basenames, the
-       same normalization `QueueMatcher` uses to pair a pursuit with its
-       live download. An exact normalized match only — a miss leaves the
-       pursuit active (safe; the user can cancel), where a false positive
-       would wrongly close a pursuit whose file isn't present.
+       the normalized release name — both the `Target.release_title` and
+       the basename of the (possibly stale) `content_path` — matched
+       against **every path segment** of the present files, not just the
+       leaf basename. A multi-file pack imports its episodes under a
+       top-level folder named after the release; that folder survives as
+       an *ancestor segment* of every episode path, so the release name
+       matches it even though it can never equal a per-episode basename.
+       This is the same normalization `QueueMatcher` uses to pair a
+       pursuit with its live download. An exact normalized match against
+       a segment only — a miss leaves the pursuit active (safe; the user
+       can cancel), where a false positive would wrongly close a pursuit
+       whose file isn't present. Release names are long and specific, so
+       they never collide with generic ancestor folders.
 
   Invoked by `Pursuits.Watcher` once per tick. Worst-case satisfaction
   latency for this safety-net is one tick; the primary PubSub path
@@ -52,10 +60,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
     pairs = Pursuits.list_active_with_current_targets()
     present_paths = Library.list_present_file_paths()
     present_set = MapSet.new(present_paths)
-    basename_index = basename_index(present_paths)
+    segment_index = segment_index(present_paths)
 
     Enum.each(pairs, fn {pursuit, target} ->
-      case landed_file(pursuit, target, present_set, basename_index) do
+      case landed_file(pursuit, target, present_set, segment_index) do
         {:ok, path} -> satisfy(pursuit, path)
         :not_found -> :ok
       end
@@ -77,10 +85,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
     })
   end
 
-  defp landed_file(pursuit, target, present_set, basename_index) do
+  defp landed_file(pursuit, target, present_set, segment_index) do
     with :not_found <- content_path_match(target, present_set),
          :not_found <- tmdb_match(pursuit) do
-      title_match(target, basename_index)
+      release_match(target, segment_index)
     end
   end
 
@@ -116,21 +124,54 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
 
   defp tmdb_match(_pursuit), do: :not_found
 
-  defp title_match(%Target{release_title: release_title}, basename_index)
-       when is_binary(release_title) do
-    case Map.get(basename_index, QueueMatcher.normalize_title(release_title)) do
-      nil -> :not_found
-      path -> {:ok, path}
-    end
+  # Tries every name the pursuit knows its release by — the prowlarr
+  # `release_title` and the basename of the captured `content_path`
+  # (which is the on-disk release folder/file name, intact even when the
+  # path prefix is the stale incomplete dir) — against the segment index.
+  # First normalized hit wins.
+  defp release_match(%Target{} = target, segment_index) do
+    [target.release_title, content_path_name(target.content_path)]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.find_value(:not_found, fn name ->
+      case Map.get(segment_index, QueueMatcher.normalize_title(name)) do
+        nil -> nil
+        path -> {:ok, path}
+      end
+    end)
   end
 
-  defp title_match(_target, _basename_index), do: :not_found
+  defp content_path_name(path) when is_binary(path), do: Path.rootname(Path.basename(path))
+  defp content_path_name(_), do: nil
 
-  # Maps each present file's normalized basename (extension stripped) to its
-  # path, so a pursuit's normalized release title is a single lookup.
-  defp basename_index(present_paths) do
-    Map.new(present_paths, fn path ->
-      {QueueMatcher.normalize_title(Path.rootname(Path.basename(path))), path}
+  # Maps the normalized form of every path segment (ancestor directories
+  # plus the extension-stripped leaf) of each present file to that file's
+  # path. Indexing ancestors — not just the leaf basename — is what lets a
+  # pack's release-folder name match: the folder is an ancestor of every
+  # episode file, so the release name resolves in a single lookup even
+  # though it never equals an individual episode basename. `put_new` keeps
+  # the first path seen for a segment; any present file under the matched
+  # release folder is an equally valid landing witness.
+  defp segment_index(present_paths) do
+    Enum.reduce(present_paths, %{}, fn path, acc ->
+      path
+      |> path_segments()
+      |> Enum.reduce(acc, fn segment, inner ->
+        Map.put_new(inner, QueueMatcher.normalize_title(segment), path)
+      end)
     end)
+  end
+
+  defp path_segments(path) do
+    path
+    |> Path.split()
+    |> Enum.reject(&(&1 in ["/", ""]))
+    |> case do
+      [] ->
+        []
+
+      parts ->
+        {dirs, [leaf]} = Enum.split(parts, length(parts) - 1)
+        dirs ++ [Path.rootname(leaf)]
+    end
   end
 end
