@@ -25,7 +25,6 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     TimelineEntry
   }
 
-  alias MediaCentaur.Downloads.QueueItem
   alias MediaCentaur.Downloads.QueueMonitor
   alias MediaCentaur.Repo
   alias MediaCentaur.Review
@@ -398,10 +397,13 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   end
 
   defp build_row(%Pursuit{} = pursuit, target, location) do
-    {release_title, target_status} =
+    {release_title, target_status, torrent_hash} =
       case target do
-        %Target{release_title: rt, status: status} -> {rt, status_to_atom(status)}
-        nil -> {nil, nil}
+        %Target{release_title: rt, status: status, torrent_hash: hash} ->
+          {rt, status_to_atom(status), hash}
+
+        nil ->
+          {nil, nil, nil}
       end
 
     # Status line for the index card. Queue-state-aware status takes
@@ -421,7 +423,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       release_title: release_title,
       target_status: target_status,
       status: status,
-      normalized_release_title: release_title && QueueMatcher.normalize_title(release_title)
+      normalized_release_title: release_title && QueueMatcher.normalize_title(release_title),
+      torrent_hash: torrent_hash
     }
   end
 
@@ -495,15 +498,11 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   end
 
   defp find_queue_match(nil, _items), do: nil
-  defp find_queue_match(%Target{release_title: nil}, _items), do: nil
 
-  defp find_queue_match(%Target{release_title: title}, items) do
-    queue = resolve_queue_items(items)
-    normalized = QueueMatcher.normalize_title(title)
-
-    Enum.find(queue, fn %QueueItem{} = item ->
-      QueueMatcher.normalize_title(item.title) == normalized
-    end)
+  defp find_queue_match(%Target{} = target, items) do
+    items
+    |> resolve_queue_items()
+    |> QueueMatcher.find_item(target.torrent_hash, target.release_title)
   end
 
   defp resolve_queue_items(:persistent_term), do: QueueMonitor.snapshot()

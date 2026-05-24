@@ -560,4 +560,64 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
       assert entry.summary == "No acceptable release found — Sample Show S01E03"
     end
   end
+
+  describe "status_from/2 — infohash-first queue pairing" do
+    defp downloading_item(attrs) do
+      struct!(
+        %MediaCentaur.Downloads.QueueItem{
+          id: "x",
+          title: "t",
+          status: "downloading",
+          state: :downloading,
+          progress: 12.0,
+          timeleft: "30m",
+          download_client: "qBit"
+        },
+        attrs
+      )
+    end
+
+    test "pairs the live download by infohash even when the torrent name is tracker-prefixed" do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "prowlarr_query",
+          status: "acquired",
+          release_title: "Sample.Show.S05E03.clean.release.2160p",
+          torrent_hash: "ABCDEF0123"
+        })
+
+      # qBittorrent reports the hash lowercase; the name bears a tracker
+      # prefix that title matching could never bridge.
+      item =
+        downloading_item(%{
+          id: "abcdef0123",
+          title: "www.UIndex.org - Sample Show S05E03 a totally different name"
+        })
+
+      status = Pursuits.status_from(pursuit, [item])
+
+      assert status.current_action.verb == "Downloading"
+      assert status.download != nil
+    end
+
+    test "an acquired target whose hash is absent from the queue is not paired to a same-titled stranger" do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "prowlarr_query",
+          status: "acquired",
+          release_title: "Sample Movie 2010 1080p WEB-DL",
+          torrent_hash: "gonehash"
+        })
+
+      # Same title, different torrent — the hash is authoritative, so this
+      # must NOT pair (the real torrent completed and left the client).
+      stranger =
+        downloading_item(%{id: "stranger", title: "Sample Movie 2010 1080p WEB-DL"})
+
+      status = Pursuits.status_from(pursuit, [stranger])
+
+      assert status.current_action.verb == "Downloaded"
+      assert status.download == nil
+    end
+  end
 end

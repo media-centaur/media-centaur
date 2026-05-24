@@ -18,7 +18,14 @@ defmodule MediaCentaur.Search.SearchResult do
     :seeders,
     :leechers,
     :indexer_name,
-    :publish_date
+    :publish_date,
+    # Torrent identity, when the indexer exposes it. Captured at grab
+    # time onto `Target.torrent_hash` so the pursuit pairs with its live
+    # torrent by infohash — robust to the tracker-prefixed names
+    # (`www.X.org - …`) that break title matching. Often present for
+    # public torrent indexers; nil for usenet and indexers that omit it.
+    :info_hash,
+    :magnet_url
   ]
 
   @type t :: %__MODULE__{
@@ -30,7 +37,9 @@ defmodule MediaCentaur.Search.SearchResult do
           seeders: integer() | nil,
           leechers: integer() | nil,
           indexer_name: String.t() | nil,
-          publish_date: String.t() | nil
+          publish_date: String.t() | nil,
+          info_hash: String.t() | nil,
+          magnet_url: String.t() | nil
         }
 
   @doc "Builds a SearchResult from a raw Prowlarr API result map."
@@ -47,7 +56,9 @@ defmodule MediaCentaur.Search.SearchResult do
       seeders: raw["seeders"],
       leechers: raw["leechers"],
       indexer_name: raw["indexer"],
-      publish_date: raw["publishDate"]
+      publish_date: raw["publishDate"],
+      info_hash: raw["infoHash"],
+      magnet_url: raw["magnetUrl"]
     }
   end
 end
