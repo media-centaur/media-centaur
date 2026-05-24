@@ -62,9 +62,13 @@ export class Orchestrator {
     // (we can't know the delta without a prior reading).
     this._lastMouseX = null
     this._lastMouseY = null
-    // Track the entity ID of the card that opened a modal/drawer,
-    // so we can restore focus on dismiss.
+    // Track the entity ID and context of the card that opened a modal/drawer,
+    // so we can restore focus on dismiss. The context matters because cards
+    // live in different content contexts on different pages (the grid on
+    // library/watching, a shelf on home) — restoring always to GRID would
+    // lose focus on pages that have no grid.
     this._originEntityId = null
+    this._originContext = null
     // Per-context focus memory: remembers the last focused index in each
     // context so returning to it restores position instead of jumping to first.
     this._contextMemory = {}
@@ -130,8 +134,11 @@ export class Orchestrator {
     // so the constructor's initial value needs an explicit write)
     this.writer.setNavContext?.(this.focusMachine.context)
 
-    // Let the page behavior restore its state on attach
-    this._behavior?.onAttach()
+    // Let the page behavior restore its state on attach. The method is
+    // optional — guard it (not just the behavior) so behaviors without an
+    // onAttach hook (home, watch-history) don't abort start() with a
+    // TypeError before _ensureCursorStart runs. Mirrors _detectBehavior.
+    this._behavior?.onAttach?.()
 
     // Resume sidebar context after navigation (sessionStorage bridge)
     const primaryMenu = this._config.primaryMenu
@@ -394,13 +401,19 @@ export class Orchestrator {
 
   /**
    * After modal/drawer dismissal, restore focus to the card that opened it.
+   * Returns to the originating context (grid, or a home shelf) — not just
+   * GRID — so pages without a grid don't lose focus. Falls back to GRID when
+   * the overlay had no recorded origin (e.g. opened via a deep link).
    */
   _restoreOriginFocus() {
     const entityId = this._originEntityId
+    const context = this._originContext ?? Context.GRID
     this._originEntityId = null
+    this._originContext = null
     this._globals.requestAnimationFrame(() => {
-      if (entityId && this.writer.focusByEntityId(Context.GRID, entityId)) return
-      this._restoreContextFocus(Context.GRID)
+      this.focusMachine.forceContext(context)
+      if (entityId && this.writer.focusByEntityId(context, entityId)) return
+      this._restoreContextFocus(context)
     })
   }
 
@@ -679,9 +692,13 @@ export class Orchestrator {
       if (nextIndex < 0) nextIndex = totalCount - 1
       else if (nextIndex >= totalCount) nextIndex = 0
     } else if (nextIndex < 0 || nextIndex >= totalCount) {
-      // Left wall on horizontal rows → enter primary menu
+      const type = contextType(context, this._config.instanceTypes)
+      // Left wall on a horizontal row (zone tabs, toolbar, or a home shelf)
+      // → enter primary menu. The sidebar is always the left neighbour of
+      // these contexts, so this short-circuits the nav graph.
       if (nextIndex < 0 && direction === "left" &&
-          (context === Context.ZONE_TABS || context === Context.TOOLBAR)) {
+          (context === Context.ZONE_TABS || context === Context.TOOLBAR ||
+            type === Context.SHELF)) {
         this._saveContextMemory()
         this._preSidebarContext = context
         this.focusMachine.enterSidebarFromWall()
@@ -762,9 +779,13 @@ export class Orchestrator {
       return
     }
 
-    // Remember which card opened the modal/drawer for focus restoration
-    if (this.focusMachine.context === Context.GRID && focused.dataset.entityId) {
+    // Remember which card opened the modal/drawer for focus restoration.
+    // Content-card contexts (the grid, or a home shelf) carry a stable entity
+    // ID; menu/overlay contexts don't, and must not seed a bogus origin.
+    const originType = contextType(this.focusMachine.context, this._config.instanceTypes)
+    if (focused.dataset.entityId && (originType === Context.GRID || originType === Context.SHELF)) {
       this._originEntityId = focused.dataset.entityId
+      this._originContext = this.focusMachine.context
     }
 
     focused.click()

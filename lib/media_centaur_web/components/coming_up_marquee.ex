@@ -232,6 +232,9 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
       phx-value-id={@item.entity_id}
       data-card={@data_card}
       data-row-item
+      data-nav-item
+      data-entity-id={@item.entity_id}
+      tabindex="0"
       class={[@class, "w-full"]}
     >
       {render_slot(@inner_block)}
@@ -241,7 +244,14 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
 
   defp tile_link(assigns) do
     ~H"""
-    <.link navigate="/upcoming" data-card={@data_card} data-row-item class={@class}>
+    <.link
+      navigate="/upcoming"
+      data-card={@data_card}
+      data-row-item
+      data-nav-item
+      tabindex="0"
+      class={@class}
+    >
       {render_slot(@inner_block)}
     </.link>
     """

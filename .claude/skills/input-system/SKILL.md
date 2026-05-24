@@ -50,9 +50,13 @@ Keyboard and gamepad are decoupled peers behind a duck-typed contract: `start()`
 
 The `_menuTransition()` handles all MENU instances. The primaryMenu gets special treatment (exit_sidebar on right/back, wall on left). Non-primary MENU instances use the nav graph for left/right/back transitions. SELECT on any MENU exits the menu into the content area (primary menu skips the click since items are already activated on focus; non-primary menus click after transitioning).
 
+### SHELF Behavior (dual of MENU)
+
+The `_shelfTransition()` handles all SHELF instances — the home page's horizontal media rows (`hero`, `continue`, `recently`, `coming_up`). SHELF is the dual of MENU: a *horizontal* list whose up/down cross between sibling shelves via the nav graph (`contextWall`), while left/right navigate within the row and the left-wall (handled in the orchestrator's `_linearNavigate`) enters the sidebar. SELECT activates the focused card (opens the detail modal); the page behavior's `onEscape()` owns BACK. Empty shelves are skipped by the graph's candidate fallback lists, so a page that renders only some rows still navigates cleanly.
+
 ### BACK and CLEAR Context Gating
 
-BACK delegates to page behavior `onEscape()` only in content contexts (grid, toolbar, zone_tabs). Overlays (modal, drawer) and all MENU-type instances (sidebar, sections) have their own BACK semantics (dismiss, exit, nav graph left) that bypass `onEscape()` entirely.
+BACK delegates to page behavior `onEscape()` only in content contexts (grid, toolbar, zone_tabs, shelf). Overlays (modal, drawer) and all MENU-type instances (sidebar, sections) have their own BACK semantics (dismiss, exit, nav graph left) that bypass `onEscape()` entirely.
 
 `onEscape()` supports three return types: `false` (not consumed → fall through), `true` (consumed → stop), or a **string** (navigate to that context). All current behaviors return `"sidebar"` or `"sections"`. When the target is the primary menu, the full enter-sidebar flow runs (expand, record pre-sidebar context).
 

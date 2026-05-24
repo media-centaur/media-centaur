@@ -62,6 +62,7 @@ Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
 | `config.js` | Yes | All app-specific config: selectors, layouts, instance types, behaviors |
 | `index.js` | No | LiveView hook factory — imports core + config, exports `createInputHook()` |
 | `page_behavior.js` | No | Registry mapping `data-page-behavior` → behavior factory |
+| `home_behavior.js` | Yes | Home (`/`): BACK → sidebar. Shelves don't activate-on-focus |
 | `library_behavior.js` | Yes* | Library: BACK → sidebar, CLEAR → filter, sort tracking |
 | `review_behavior.js` | Yes | Review: BACK → sidebar |
 | `settings_behavior.js` | Yes | Settings: BACK → sections, activateOnFocus for sections |
@@ -147,9 +148,11 @@ Defines the `Action` enum and maps keyboard keys / gamepad buttons to semantic a
 
 The `FocusContextMachine` tracks which navigation context is active and returns `FocusDirective` data objects. Never touches DOM.
 
-**Context types:** `GRID` · `TOOLBAR` · `ZONE_TABS` · `MENU` · `MODAL` · `DRAWER`
+**Context types:** `GRID` · `TOOLBAR` · `ZONE_TABS` · `MENU` · `SHELF` · `MODAL` · `DRAWER`
 
-**Instance → type mapping:** The `contextType(instance, instanceTypes)` resolver maps instance names to behavior types. Multiple instances can share the same behavior type — for example, both `"sidebar"` and `"sections"` resolve to `MENU`. Instance names not in the map are their own type (e.g., `"grid"` → `GRID`). The map is provided via config, not hardcoded in the framework.
+**Instance → type mapping:** The `contextType(instance, instanceTypes)` resolver maps instance names to behavior types. Multiple instances can share the same behavior type — for example, both `"sidebar"` and `"sections"` resolve to `MENU`, and the home page's `"hero"`/`"continue"`/`"recently"`/`"coming_up"` shelves all resolve to `SHELF`. Instance names not in the map are their own type (e.g., `"grid"` → `GRID`). The map is provided via config, not hardcoded in the framework.
+
+**`SHELF` is the dual of `MENU`.** `MENU` is a *vertical* list whose left/right cross to adjacent contexts via the nav graph; `SHELF` is a *horizontal* list whose up/down cross between sibling shelves via the nav graph (left/right navigate within the shelf, left-wall enters the sidebar). The home page is a vertical stack of horizontal media shelves, so each row is a `SHELF` instance and the `home` zone layout wires up/down between them. Empty shelves (rows the page didn't render) are skipped by the graph's candidate fallback lists.
 
 **Public API:**
 
@@ -260,17 +263,17 @@ Extracts library-specific concerns from the orchestrator. Receives a `dom` inter
 
 Actions in each context:
 
-| Action | GRID | TOOLBAR | ZONE_TABS | MENU (sidebar) | MENU (other) | MODAL | DRAWER |
-|--------|------|---------|-----------|----------------|--------------|-------|--------|
-| Up | navigate | → ZONE_TABS | wall | navigate | navigate (wall → graph) | navigate (wrap) | navigate |
-| Down | navigate | → GRID | → TOOLBAR or GRID | navigate | navigate (wall → graph) | navigate (wrap) | navigate |
-| Left | navigate | navigate | navigate | wall | nav graph left | navigate (wrap) | → GRID (row edge) |
-| Right | navigate | navigate | navigate | exit sidebar | nav graph right | sub-focus / navigate | wall |
-| Select | activate | activate | activate | exit sidebar* | click + nav right | activate | activate |
-| Back | onEscape | onEscape | onEscape | exit sidebar | nav graph left | dismiss | dismiss |
-| Clear | onClear | onClear | onClear | — | — | — | — |
-| Play | play | — | — | — | — | play | play |
-| Zone± | zone_cycle | zone_cycle | zone_cycle | — | — | — | zone_cycle |
+| Action | GRID | TOOLBAR | ZONE_TABS | MENU (sidebar) | MENU (other) | SHELF | MODAL | DRAWER |
+|--------|------|---------|-----------|----------------|--------------|-------|-------|--------|
+| Up | navigate | → ZONE_TABS | wall | navigate | navigate (wall → graph) | nav graph up | navigate (wrap) | navigate |
+| Down | navigate | → GRID | → TOOLBAR or GRID | navigate | navigate (wall → graph) | nav graph down | navigate (wrap) | navigate |
+| Left | navigate | navigate | navigate | wall | nav graph left | navigate (wall → sidebar) | navigate (wrap) | → GRID (row edge) |
+| Right | navigate | navigate | navigate | exit sidebar | nav graph right | navigate | sub-focus / navigate | wall |
+| Select | activate | activate | activate | exit sidebar* | click + nav right | activate | activate | activate |
+| Back | onEscape | onEscape | onEscape | exit sidebar | nav graph left | onEscape | dismiss | dismiss |
+| Clear | onClear | onClear | onClear | — | — | onClear | — | — |
+| Play | play | — | — | — | — | play | play | play |
+| Zone± | zone_cycle | zone_cycle | zone_cycle | — | — | — | — | zone_cycle |
 
 \* Primary menu items are already activated on focus — SELECT just exits without clicking.
 
@@ -287,7 +290,8 @@ Actions in each context:
 - Grid left → nav graph target (sidebar in library/watching zones, sections in settings zone)
 - Grid right → DRAWER (if open)
 - MENU up/down → nav graph target for that direction (if defined)
-- Zone tabs/toolbar left at index 0 → SIDEBAR
+- SHELF up/down → adjacent shelf via nav graph (skips empty rows)
+- Zone tabs / toolbar / shelf left at index 0 → SIDEBAR
 - Drawer left → GRID (rightmost column, same row)
 
 ## Directive Reference
@@ -310,7 +314,7 @@ Actions in each context:
 
 | Attribute | Purpose | Values |
 |-----------|---------|--------|
-| `data-nav-zone` | Navigation zone container | `grid`, `toolbar`, `sidebar`, `sections`, `upcoming`, `zone-tabs` |
+| `data-nav-zone` | Navigation zone container | `grid`, `toolbar`, `sidebar`, `sections`, `upcoming`, `zone-tabs`, `hero`, `continue`, `recently`, `coming_up` |
 | `data-nav-item` | Focusable element (needs `tabindex="0"`) | — |
 | `data-nav-grid` | CSS grid container (column count detection) | — |
 | `data-entity-id` | Stable entity identifier on cards | UUID |
@@ -320,8 +324,8 @@ Actions in each context:
 | `data-section-type` | Section identifier for page behavior `onAction` dispatch | `calendar`, `tracking`, `scan`, etc. |
 | `data-captures-keys` | Element handles own keyboard events | — |
 | `data-sort` | Current sort order value | string |
-| `data-page-behavior` | Page behavior to activate | `dashboard`, `library`, `review`, `settings` |
-| `data-nav-default-zone` | Default zone for pages without zone tabs | `settings` |
+| `data-page-behavior` | Page behavior to activate | `home`, `library`, `review`, `settings`, `status`, `download`, `watch-history` |
+| `data-nav-default-zone` | Default zone for pages without zone tabs | `home`, `settings` |
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation | — |
 | `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |
 | `data-input-editing` | Text input is in edit mode (set on `<html>`) | `true` or absent |
@@ -435,6 +439,7 @@ A contextual button legend fixed at the bottom center of the viewport. Shows rel
 | `modal` | D-pad Navigate, A Select, B Close, Start Play |
 | `drawer` | D-pad Navigate, A Select, B Close, Start Play |
 | `sidebar` | D-pad Navigate, A Select, B Exit, LB/RB Zone |
+| `shelf` (home shelves: hero/continue/recently/coming_up) | D-pad Navigate, A Select, B Back, Start Play |
 
 ## CSS Integration
 
@@ -516,6 +521,7 @@ A per-zone priority list determines the initial focus context. Walked in order; 
 watching:  grid → zone_tabs → sidebar
 library:   grid → toolbar → zone_tabs → sidebar
 settings:  sections → grid → sidebar
+home:      hero → continue → recently → coming_up → sidebar
 ```
 
 Sidebar and sections are always populated (static content), guaranteeing a viable terminal.

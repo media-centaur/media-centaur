@@ -96,6 +96,10 @@ defmodule MediaCentaurWeb.Components.HeroCard do
         >
           {@item.overview}
         </p>
+        <%!-- Both CTAs are focusable nav items: Left/Right toggles between
+              Play and More info, Select activates the focused one. The shared
+              entity id lets PLAY and modal-close focus restoration target the
+              hero shelf. --%>
         <div class="flex gap-3 mt-2">
           <.button
             variant="primary"
@@ -103,6 +107,9 @@ defmodule MediaCentaurWeb.Components.HeroCard do
             phx-click="select_entity"
             phx-value-id={@item.entity_id}
             phx-value-autoplay="1"
+            data-nav-item
+            data-entity-id={@item.entity_id}
+            tabindex="0"
           >
             <.icon name="hero-play-mini" class="size-5" /> Play
           </.button>
@@ -112,6 +119,9 @@ defmodule MediaCentaurWeb.Components.HeroCard do
             class="text-white"
             phx-click="select_entity"
             phx-value-id={@item.entity_id}
+            data-nav-item
+            data-entity-id={@item.entity_id}
+            tabindex="0"
           >
             <.icon name="hero-information-circle-mini" class="size-5" /> More info
           </.button>

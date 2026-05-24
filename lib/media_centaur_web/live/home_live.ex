@@ -87,8 +87,13 @@ defmodule MediaCentaurWeb.HomeLive do
       <%!-- Home page positioning context. `relative` makes this the anchor
             for the absolutely positioned atmosphere layers, and because it
             sizes naturally to its content (unlike Layouts.app's flex-1 inner
-            div) the side-dim's `bottom` reaches the true page bottom. --%>
-      <div class="relative">
+            div) the side-dim's `bottom` reaches the true page bottom.
+
+            Input system: the home page is a vertical stack of horizontal
+            SHELF zones (hero + content rows). `data-nav-default-zone="home"`
+            selects the `home` nav-graph layout; the home page behavior maps
+            BACK → sidebar. See the `input-system` skill. --%>
+      <div class="relative" data-page-behavior="home" data-nav-default-zone="home">
         <%!-- ── Page atmosphere (z-index 0) ──
               Backdrop image fades into base-100 at the top of the page. The
               side-dim continues the hero's left-anchored darkening down the
@@ -113,6 +118,7 @@ defmodule MediaCentaurWeb.HomeLive do
           :if={@hero}
           class="relative z-[1] -mx-6 -mt-6"
           data-scroll-row="hero"
+          data-nav-zone="hero"
         >
           <div class="row-scroll row-scroll-hero">
             <div class="w-full" data-row-item>
@@ -126,7 +132,7 @@ defmodule MediaCentaurWeb.HomeLive do
           "relative z-[2] space-y-10",
           @hero && "-mt-8"
         ]}>
-          <section :if={@continue_items != []} data-row="continue-watching">
+          <section :if={@continue_items != []} data-row="continue-watching" data-nav-zone="continue">
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Continue Watching</h2>
               <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
@@ -136,7 +142,7 @@ defmodule MediaCentaurWeb.HomeLive do
             <ContinueWatchingRow.continue_watching_row items={@continue_items} />
           </section>
 
-          <section :if={@recently_added != []} data-row="recently-added">
+          <section :if={@recently_added != []} data-row="recently-added" data-nav-zone="recently">
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Recently Added</h2>
               <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
@@ -146,7 +152,7 @@ defmodule MediaCentaurWeb.HomeLive do
             <PosterRow.poster_row items={@recently_added} />
           </section>
 
-          <section :if={@coming_up_marquee.hero != nil} data-row="coming-up">
+          <section :if={@coming_up_marquee.hero != nil} data-row="coming-up" data-nav-zone="coming_up">
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Coming Up</h2>
               <.link navigate="/upcoming" class="text-sm text-base-content/60 hover:text-primary">

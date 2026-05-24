@@ -40,6 +40,9 @@ defmodule MediaCentaurWeb.Components.PosterRow do
         phx-value-id={item.entity_id}
         class="card-hover relative aspect-[2/3] rounded overflow-hidden glass-inset block w-full text-left"
         data-row-item
+        data-nav-item
+        data-entity-id={item.entity_id}
+        tabindex="0"
       >
         <img
           :if={item.poster_url}

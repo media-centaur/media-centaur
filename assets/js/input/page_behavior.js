@@ -22,8 +22,10 @@ import { createReviewBehavior } from "./review_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
 import { createDownloadBehavior } from "./download_behavior"
 import { createWatchHistoryBehavior } from "./watch_history_behavior"
+import { createHomeBehavior } from "./home_behavior"
 
 const BEHAVIOR_REGISTRY = {
+  home: () => createHomeBehavior(),
   status: () => createStatusBehavior(),
   library: () => createLibraryBehavior(libraryDom),
   review: () => createReviewBehavior(),

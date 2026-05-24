@@ -1076,6 +1076,14 @@ body:has(.modal-backdrop[data-state="open"]) {
   display: flex;
 }
 
+/* Home shelves (hero + content rows) share one hint group */
+[data-nav-context="hero"] .hint-group[data-hint-context="shelf"],
+[data-nav-context="continue"] .hint-group[data-hint-context="shelf"],
+[data-nav-context="recently"] .hint-group[data-hint-context="shelf"],
+[data-nav-context="coming_up"] .hint-group[data-hint-context="shelf"] {
+  display: flex;
+}
+
 /* Individual hint */
 .hint {
   display: flex;
