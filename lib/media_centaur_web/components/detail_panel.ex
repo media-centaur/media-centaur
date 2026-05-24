@@ -167,31 +167,39 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             badge_text={format_type(@entity.type)}
             items={@metadata_items}
           />
-          <PlayCard.play_card
-            on_play={@on_play}
-            target_id={@playback.target_id}
-            label={@playback.label}
-            percent={@playback.percent}
-            remaining_text={@playback.remaining_text}
-            available={@available}
-            detail_view={@detail_view}
-            show_more_info={@entity.type in [:movie, :tv_series]}
-          />
-          <%!-- Synopsis + structured-metadata sidebar.
-                Below xl: stacks single-column (synopsis full width, then
-                facet strip horizontal).
-                At xl:+ reflows to two columns: synopsis capped at a
-                readable measure on the left, facets stacked on the right —
-                keeps prose at a comfortable line length on wide displays
-                without leaving the right side empty.
-                File paths are intentionally NOT rendered here — they
-                live in the Manage view's Files section, grouped by
-                directory with delete affordances. The main view stays
-                focused on what to watch, not where it lives on disk. --%>
-          <div class="space-y-4 xl:space-y-0 xl:grid xl:grid-cols-[minmax(0,50ch)_minmax(0,1fr)] xl:gap-8 xl:items-start">
-            <p :if={@entity.description} class="text-sm text-base-content/70 line-clamp-8">
-              {@entity.description}
-            </p>
+          <%!-- Action + synopsis on the left, structured metadata on the right.
+                Below xl: single column — play card, synopsis, then the facet
+                strip as a horizontal row (the layout the half-width view uses).
+                At xl:+ two equal columns top-align (`items-start`) so the
+                facet strip rises to sit beside the play button instead of
+                dropping to the (often short) synopsis line — which used to
+                leave an L-shaped void next to the buttons and below the
+                synopsis on wide displays. Equal columns keep the play-button
+                row from wrapping while the synopsis stays at a readable
+                measure (capped below).
+                File paths are intentionally NOT rendered here — they live in
+                the Manage view's Files section, grouped by directory with
+                delete affordances. The main view stays focused on what to
+                watch, not where it lives on disk. --%>
+          <div class="space-y-4 xl:space-y-0 xl:grid xl:grid-cols-2 xl:gap-8 xl:items-start">
+            <div class="space-y-4 min-w-0">
+              <PlayCard.play_card
+                on_play={@on_play}
+                target_id={@playback.target_id}
+                label={@playback.label}
+                percent={@playback.percent}
+                remaining_text={@playback.remaining_text}
+                available={@available}
+                detail_view={@detail_view}
+                show_more_info={@entity.type in [:movie, :tv_series]}
+              />
+              <p
+                :if={@entity.description}
+                class="text-sm text-base-content/70 line-clamp-8 xl:max-w-[50ch]"
+              >
+                {@entity.description}
+              </p>
+            </div>
             <div class="min-w-0 space-y-3">
               <FacetStrip.facet_strip facets={@facets} layout={:row} class="xl:hidden" />
               <FacetStrip.facet_strip facets={@facets} layout={:stacked} class="hidden xl:grid" />
