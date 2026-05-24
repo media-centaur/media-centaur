@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.15 — 2026-05-24
+
+### Improved
+
+**The Downloads page no longer implies your pursuits are stalled when
+only the download client is.** The "Live" badge next to Active pursuits
+actually tracked the connection to your download client — not whether
+your pursuits were progressing — so it could read as if nothing was
+happening when pursuits were searching, awaiting your decision, or
+importing perfectly fine. The page now stays quiet while everything's
+healthy and shows a clear, scoped warning ("Download client lagging" /
+"offline") only when the client connection is actually degraded.
+In-progress downloads also note "last seen Nm ago" when their figures
+have gone stale, so a frozen progress bar can't be mistaken for a live
+one.
+
 ## v0.72.14 — 2026-05-24
 
 ### Fixed
