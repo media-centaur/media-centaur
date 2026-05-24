@@ -4,6 +4,26 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.73.0 — 2026-05-25
+
+### New
+
+**You can now drive the home page entirely with your keyboard or
+controller.** The home page — the hero banner plus the Continue Watching,
+Recently Added, and Coming Up rows — was previously the one screen you
+couldn't navigate without a mouse. Now the arrow keys or d-pad move up and
+down between the rows and left and right along each one, Select (Enter / A)
+opens a title's details, Play (P / Start) starts playback, and Back
+(Escape / B) returns you to the sidebar. When you close a title you opened
+from a row, focus returns to exactly the card you came from.
+
+### Fixed
+
+**Keyboard and controller focus now settles correctly on the Watch
+History page.** Opening Watch History could leave the cursor in an
+unfocused state and skip restoring your place in the sidebar. Focus now
+lands on the filter toolbar as intended.
+
 ## v0.72.18 — 2026-05-24
 
 ### Fixed
