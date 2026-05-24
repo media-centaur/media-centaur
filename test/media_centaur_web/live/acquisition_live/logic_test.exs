@@ -5,6 +5,55 @@ defmodule MediaCentaurWeb.AcquisitionLive.LogicTest do
   alias MediaCentaur.Downloads.QueueItem
   alias MediaCentaurWeb.AcquisitionLive.Logic
 
+  describe "connectivity_notice/1" do
+    test "is quiet (nil) when the client is healthy or still connecting" do
+      assert Logic.connectivity_notice(:live) == nil
+      assert Logic.connectivity_notice(:initializing) == nil
+    end
+
+    test "is quiet when no client is configured (the page banner covers that)" do
+      assert Logic.connectivity_notice(:not_configured) == nil
+    end
+
+    test "warns (not errors) when telemetry is lagging" do
+      notice = Logic.connectivity_notice({:lagging, 240_000})
+      assert notice.tone == :warning
+      assert notice.label =~ "lagging"
+      refute notice.reconfigure?
+    end
+
+    test "errors when the client is offline" do
+      notice = Logic.connectivity_notice({:offline, DateTime.utc_now()})
+      assert notice.tone == :error
+      assert notice.label =~ "offline"
+      refute notice.reconfigure?
+    end
+
+    test "offers a reconfigure affordance on auth failure" do
+      notice = Logic.connectivity_notice(:auth_failed)
+      assert notice.tone == :error
+      assert notice.reconfigure?
+    end
+  end
+
+  describe "telemetry_age_label/1" do
+    test "is nil while telemetry is fresh — downloading numbers are current" do
+      assert Logic.telemetry_age_label(:live) == nil
+      assert Logic.telemetry_age_label(:initializing) == nil
+      assert Logic.telemetry_age_label(:not_configured) == nil
+      assert Logic.telemetry_age_label(:auth_failed) == nil
+    end
+
+    test "labels the staleness of lagging telemetry from the age in ms" do
+      assert Logic.telemetry_age_label({:lagging, 240_000}) == "last seen 4m ago"
+    end
+
+    test "labels the staleness of offline telemetry from the last-update timestamp" do
+      since = DateTime.add(DateTime.utc_now(), -180, :second)
+      assert Logic.telemetry_age_label({:offline, since}) == "last seen 3m ago"
+    end
+  end
+
   describe "format_grab_reason/1" do
     test "extracts errorMessage from a Prowlarr JSON body" do
       reason = {:http_error, 400, %{"errorMessage" => "Indexer not found"}}

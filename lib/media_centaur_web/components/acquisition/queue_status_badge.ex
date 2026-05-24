@@ -1,35 +1,45 @@
 defmodule MediaCentaurWeb.Components.Acquisition.QueueStatusBadge do
   @moduledoc """
-  Compact freshness pill rendered next to the active-queue header on
-  the Downloads page. Surfaces whether the queue we're showing is
-  actually fresh, lagging, or fully disconnected — distinguishing
-  "the queue is empty" from "we can't reach qBittorrent."
+  Download-client connectivity notice for the Active Pursuits header.
 
-  Driven by `MediaCentaur.Downloads.QueueStatus.derive/2`. Pure
-  visual; no event bindings except the optional reconfigure link in
-  the auth-failed state.
+  Deliberately **quiet when healthy.** This used to render a green "Live"
+  pill, but sitting next to "Active pursuits" that read as *pursuit*
+  liveness — when it only ever meant "we polled the download client
+  recently," and most pursuit states (Searching, Decision needed, In
+  review, Verifying, Done) never touch the client at all. So it now
+  renders **nothing** while telemetry is fresh, connecting, or
+  unconfigured, and surfaces a scoped warning only when the client is
+  lagging, offline, or auth-failed.
+
+  The healthy/degraded decision and the copy live in the pure
+  `MediaCentaurWeb.AcquisitionLive.Logic.connectivity_notice/1`; this
+  component is a thin renderer of its output.
   """
 
   use Phoenix.Component
 
+  alias MediaCentaurWeb.AcquisitionLive.Logic
+
   attr :status, :any,
     required: true,
     doc:
-      "Output of `QueueStatus.derive/2` — :live | :initializing | {:lagging, ms} | {:offline, since} | :auth_failed | :not_configured"
+      "Output of `MediaCentaur.Downloads.QueueStatus.derive/2`. Routed through `Logic.connectivity_notice/1` — only the degraded grades (`{:lagging, _}`, `{:offline, _}`, `:auth_failed`) render anything."
 
   def queue_status_badge(assigns) do
+    assigns = assign(assigns, :notice, Logic.connectivity_notice(assigns.status))
+
     ~H"""
-    <div class="inline-flex items-center gap-2 text-xs">
+    <div :if={@notice} class="inline-flex items-center gap-2 text-xs">
       <span class={[
         "inline-flex items-center gap-1.5 px-2 py-1 rounded-full",
-        tone_classes(@status)
+        tone_classes(@notice.tone)
       ]}>
-        <span class={["w-1.5 h-1.5 rounded-full", dot_classes(@status)]}></span>
-        <span class="font-medium">{label(@status)}</span>
+        <span class={["w-1.5 h-1.5 rounded-full", dot_classes(@notice.tone)]}></span>
+        <span class="font-medium">{@notice.label}</span>
       </span>
 
       <.link
-        :if={@status == :auth_failed}
+        :if={@notice.reconfigure?}
         navigate="/settings"
         class="link link-primary text-xs"
       >
@@ -39,36 +49,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.QueueStatusBadge do
     """
   end
 
-  defp tone_classes(:live), do: "bg-success/10 text-success"
-  defp tone_classes(:initializing), do: "bg-base-content/5 text-base-content/60"
-  defp tone_classes({:lagging, _}), do: "bg-warning/10 text-warning"
-  defp tone_classes({:offline, _}), do: "bg-error/10 text-error"
-  defp tone_classes(:auth_failed), do: "bg-error/10 text-error"
-  defp tone_classes(:not_configured), do: "bg-base-content/5 text-base-content/60"
+  defp tone_classes(:warning), do: "bg-warning/10 text-warning"
+  defp tone_classes(:error), do: "bg-error/10 text-error"
 
-  defp dot_classes(:live), do: "bg-success animate-pulse"
-  defp dot_classes(:initializing), do: "bg-base-content/40 animate-pulse"
-  defp dot_classes({:lagging, _}), do: "bg-warning"
-  defp dot_classes({:offline, _}), do: "bg-error"
-  defp dot_classes(:auth_failed), do: "bg-error"
-  defp dot_classes(:not_configured), do: "bg-base-content/40"
-
-  defp label(:live), do: "Live"
-  defp label(:initializing), do: "Connecting…"
-  defp label({:lagging, ms}), do: "Updated #{format_age(ms)} ago"
-  defp label({:offline, since}), do: "Offline · last update #{format_since(since)}"
-  defp label(:auth_failed), do: "Auth failed"
-  defp label(:not_configured), do: "Not configured"
-
-  defp format_age(ms) when ms < 1000, do: "<1s"
-  defp format_age(ms) when ms < 60_000, do: "#{div(ms, 1000)}s"
-  defp format_age(ms) when ms < 3_600_000, do: "#{div(ms, 60_000)}m"
-  defp format_age(ms), do: "#{div(ms, 3_600_000)}h"
-
-  defp format_since(%DateTime{} = since) do
-    seconds = DateTime.diff(DateTime.utc_now(), since, :second)
-    format_age(seconds * 1000)
-  end
-
-  defp format_since(_), do: "—"
+  defp dot_classes(:warning), do: "bg-warning"
+  defp dot_classes(:error), do: "bg-error"
 end
