@@ -13,6 +13,7 @@ defmodule MediaCentaur.Acquisition.QueueMatcherTest do
       title: Keyword.get(opts, :title, "Pursuit #{id}"),
       state: :active,
       release_title: release_title,
+      torrent_hash: Keyword.get(opts, :torrent_hash),
       status: @stub_status
     }
   end
@@ -153,6 +154,71 @@ defmodule MediaCentaur.Acquisition.QueueMatcherTest do
       {paired, _orphans} = QueueMatcher.match(rows, queue)
 
       assert Enum.map(paired, & &1.row.id) == ["r1", "r2", "r3"]
+    end
+
+    test "pairs by infohash when the row carries a torrent_hash, ignoring the title" do
+      rows = [row("r1", "Sample Show S05E03 clean release", torrent_hash: "ABCDEF123")]
+      # Torrent name bears a tracker prefix the title match could never bridge,
+      # and qBittorrent reports the hash lowercase.
+      queue = [item("abcdef123", "www.UIndex.org - Sample Show S05E03 something else entirely")]
+
+      {paired, orphans} = QueueMatcher.match(rows, queue)
+
+      assert orphans == []
+
+      assert [%PursuitWithDownload{queue_item_id: "abcdef123", download: %{state: :downloading}}] =
+               paired
+    end
+
+    test "infohash wins over a title that matches a different queue item" do
+      rows = [row("r1", "Same Title 1080p", torrent_hash: "hashA")]
+
+      queue = [
+        item("hashA", "www.tracker.org - completely different name"),
+        item("hashB", "Same Title 1080p")
+      ]
+
+      {paired, orphans} = QueueMatcher.match(rows, queue)
+
+      assert [%PursuitWithDownload{queue_item_id: "hashA"}] = paired
+      assert [%QueueItem{id: "hashB"}] = orphans
+    end
+
+    test "hash is authoritative — no fallback to a title match when the hash is absent from the queue" do
+      # Torrent completed and was removed; only a same-titled stranger remains.
+      rows = [row("r1", "Sample Movie 2010", torrent_hash: "gone")]
+      queue = [item("other", "Sample Movie 2010")]
+
+      {paired, orphans} = QueueMatcher.match(rows, queue)
+
+      assert [%PursuitWithDownload{download: nil, queue_item_id: nil}] = paired
+      assert [%QueueItem{id: "other"}] = orphans
+    end
+
+    test "title fallback tolerates a tracker prefix on the torrent name (no hash captured yet)" do
+      # The screenshot bug: pursuit has no hash yet, torrent name is prefixed.
+      rows = [row("r1", "Sample.Show.S05E03.Every.Last.Bit.Of.It.2160p.AMZN.WEB-DL")]
+
+      queue = [
+        item("h3", "www.UIndex.org - Sample Show S05E03 Every Last Bit Of It 2160p AMZN WEB-DL")
+      ]
+
+      {paired, orphans} = QueueMatcher.match(rows, queue)
+
+      assert orphans == []
+      assert [%PursuitWithDownload{queue_item_id: "h3"}] = paired
+    end
+
+    test "containment fallback does not fire for short release titles" do
+      # "Movie A" -> "moviea" is too short to safely containment-match;
+      # only an exact normalized match should pair it.
+      rows = [row("r1", "Movie A")]
+      queue = [item("h", "www.tracker.org - Movie ABCDEF Extended Edition")]
+
+      {paired, orphans} = QueueMatcher.match(rows, queue)
+
+      assert [%PursuitWithDownload{download: nil, queue_item_id: nil}] = paired
+      assert [%QueueItem{id: "h"}] = orphans
     end
   end
 end

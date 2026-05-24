@@ -50,6 +50,7 @@ defmodule MediaCentaur.Acquisition.Target do
   use Ecto.Schema
   import Ecto.Changeset
 
+  alias MediaCentaur.Acquisition.InfoHash
   alias MediaCentaur.Search.{Quality, SearchResult}
 
   @primary_key {:id, Ecto.UUID, autogenerate: true}
@@ -148,17 +149,26 @@ defmodule MediaCentaur.Acquisition.Target do
       last_attempt_outcome: "acquired",
       next_attempt_at: nil
     )
+    |> maybe_put_hash(InfoHash.from_search_result(result))
     |> validate_required([:pursuit_id, :title])
   end
 
   @doc """
   Transitions a `seeking` target to `acquired` after the auto-pick worker
   picks a release. Used by `Jobs.PursueTarget`.
+
+  `torrent_hash` is the infohash derived from the picked release at grab
+  time (`InfoHash.from_search_result/1`), already normalized — captured
+  so the pursuit pairs with its live torrent by exact key rather than the
+  tracker-mangled name. Nil when the indexer exposed no hash; it is then
+  omitted from the changeset (never written as a nil clobber) and
+  `DownloadIdentity` backfills it from the observed queue item.
   """
-  def acquire_changeset(target, quality, release_title \\ nil, prowlarr_guid \\ nil) do
+  def acquire_changeset(target, quality, release_title \\ nil, prowlarr_guid \\ nil, torrent_hash \\ nil) do
     now = DateTime.utc_now(:second)
 
-    change(target,
+    target
+    |> change(
       status: "acquired",
       quality: quality,
       release_title: release_title,
@@ -168,7 +178,15 @@ defmodule MediaCentaur.Acquisition.Target do
       last_attempt_outcome: "acquired",
       next_attempt_at: nil
     )
+    |> maybe_put_hash(torrent_hash)
   end
+
+  # Capture the infohash only when we have one — never overwrite with nil,
+  # so a hash-less grab leaves the field for `DownloadIdentity` to backfill.
+  defp maybe_put_hash(changeset, nil), do: changeset
+
+  defp maybe_put_hash(changeset, hash) when is_binary(hash),
+    do: put_change(changeset, :torrent_hash, hash)
 
   @doc """
   Records a failed-attempt outcome that should bump `attempt_count`.

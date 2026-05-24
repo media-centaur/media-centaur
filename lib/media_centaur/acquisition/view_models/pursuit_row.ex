@@ -22,6 +22,11 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitRow do
     # pairing — see `MediaCentaur.Acquisition.QueueMatcher.match/2`.
     # Nil for rows without a release title.
     :normalized_release_title,
+    # qBittorrent infohash captured on the pursuit's target, when known.
+    # When present, `QueueMatcher.match/2` pairs by this exact key instead
+    # of the title — immune to tracker-prefixed torrent names. Nil falls
+    # back to (prefix-tolerant) title matching.
+    :torrent_hash,
     awaiting_decision?: false
   ]
 
@@ -44,6 +49,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitRow do
           target_status: target_status() | nil,
           status: CurrentAction.t(),
           normalized_release_title: String.t() | nil,
+          torrent_hash: String.t() | nil,
           awaiting_decision?: boolean()
         }
 end

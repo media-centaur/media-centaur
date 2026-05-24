@@ -53,6 +53,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   alias MediaCentaur.Acquisition.{
     AutoGrabSettings,
+    InfoHash,
     Target,
     TargetEvents
   }
@@ -248,7 +249,15 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
         quality_label = Quality.label(result.quality)
 
         {:ok, updated} =
-          Repo.update(Target.acquire_changeset(target, quality_label, result.title, result.guid))
+          Repo.update(
+            Target.acquire_changeset(
+              target,
+              quality_label,
+              result.title,
+              result.guid,
+              InfoHash.from_search_result(result)
+            )
+          )
 
         broadcast(%TargetEvents.Acquired{target: updated})
         Log.info(:library, "acquisition acquired #{quality_label} — #{target.title}")

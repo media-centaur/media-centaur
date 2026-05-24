@@ -3,12 +3,16 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentity do
   Captures the durable download→file link onto a pursuit's current
   target the first time its torrent is observed in the queue.
 
-  The pursuit↔download pairing is by normalized title — the same key
-  `QueueMatcher` uses for display, robust to separator differences
-  between the picked release name and the torrent's name. On the first
-  tick where the target's torrent is visible, its infohash
-  (`QueueItem.id`) and on-disk `content_path` are written to the
-  `Target` (write-once via `Target.record_download_changeset/2`).
+  The pursuit↔download pairing goes through the shared
+  `QueueMatcher.find_item/4`. This callback only fires for targets that
+  carry **no** `torrent_hash` yet (the guard below), so it always takes
+  the matcher's title path (exact, then prefix-tolerant containment) —
+  the *backfill* that captures the infohash for releases whose indexer
+  never exposed one at grab time. On the first tick where the target's
+  torrent is visible, its infohash (`QueueItem.id`) and on-disk
+  `content_path` are written to the `Target` (write-once via
+  `Target.record_download_changeset/2`); from then on every match is by
+  hash and immune to tracker-prefixed names.
 
   Later stages resolve the pursuit's position in the lifecycle from that
   `content_path`, which the pipeline carries unchanged into review and
@@ -32,7 +36,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentity do
 
   def capture!(%Target{} = target, queue, release_title)
       when is_list(queue) and is_binary(release_title) do
-    case find_item(queue, release_title) do
+    case QueueMatcher.find_item(queue, target.torrent_hash, release_title) do
       %QueueItem{} = item ->
         target
         |> Target.record_download_changeset(%{
@@ -47,12 +51,4 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentity do
         :ok
     end
   end
-
-  defp find_item(queue, release_title) do
-    target_norm = QueueMatcher.normalize_title(release_title)
-    Enum.find(queue, fn item -> normalized(item) == target_norm end)
-  end
-
-  defp normalized(%QueueItem{normalized_title: norm}) when is_binary(norm), do: norm
-  defp normalized(%QueueItem{title: title}), do: QueueMatcher.normalize_title(title)
 end

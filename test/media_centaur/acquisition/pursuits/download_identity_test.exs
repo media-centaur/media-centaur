@@ -97,4 +97,25 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentityTest do
     assert :ok = DownloadIdentity.capture!(nil, [], "anything")
     assert reload(target).torrent_hash == nil
   end
+
+  test "self-heals a no-hash target whose torrent name carries a tracker prefix" do
+    release = "Sample.Show.S05E03.Every.Last.Bit.Of.It.2160p.AMZN.WEB-DL"
+
+    {_pursuit, target} =
+      create_pursuit_with_target(%{recipe_type: "prowlarr_query", release_title: release})
+
+    # The screenshot bug: torrent name is prefixed by the tracker, which
+    # exact normalized-title matching could never bridge. Containment in
+    # the shared matcher pairs it so the hash gets captured.
+    item =
+      queue_item(%{
+        id: "infohash903",
+        title: "www.UIndex.org - Sample Show S05E03 Every Last Bit Of It 2160p AMZN WEB-DL",
+        content_path: "/downloads/Sample.Show.S05E03/"
+      })
+
+    assert :ok = DownloadIdentity.capture!(target, [item], release)
+
+    assert reload(target).torrent_hash == "infohash903"
+  end
 end
