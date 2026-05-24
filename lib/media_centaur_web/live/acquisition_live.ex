@@ -414,7 +414,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
               </span>
             </div>
           </div>
-          <div class="grid gap-2">
+          <div class="grid grid-cols-1 gap-2">
             <PursuitRow.pursuit_row
               :for={
                 %PursuitWithDownload{row: row, download: download, queue_item_id: qid} <-

@@ -68,7 +68,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
           {HistoryLogic.empty_state(@filter)}
         </section>
       <% else %>
-        <div class="grid gap-2">
+        <div class="grid grid-cols-1 gap-2">
           {render_slot(@inner_block)}
         </div>
       <% end %>
