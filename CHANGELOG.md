@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.13 — 2026-05-24
+
+### Fixed
+
+**Movie cast now appears the moment you refresh credits.** After using
+**Settings → Library Maintenance → Refresh movie credits**, the cast
+and crew now show up in a movie's **More info** panel right away —
+including the cast grid and the "Directed by / Written by" line.
+Previously the refresh updated the data behind the scenes, but an open
+movie view kept showing the old, cast-less version until the app
+restarted. (TV series were already unaffected.)
+
 ## v0.72.12 — 2026-05-24
 
 ### Fixed
