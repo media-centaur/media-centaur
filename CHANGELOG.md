@@ -4,6 +4,27 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.17 — 2026-05-24
+
+### Fixed
+
+**The Downloads page no longer shows the same release twice.** When your
+torrent tracker prefixed a download's name (for example
+`www.SomeTracker.org - …`), Media Centaur couldn't tell that the torrent
+belonged to one of your active pursuits — so the release appeared both
+under Active pursuits (wrongly labelled "Downloaded — no file has landed
+in your library") and again under "Other downloads", as if it were
+unrelated. Pursuits are now matched to their torrents by the download's
+infohash, which the tracker can't mangle, so a download shows up in
+exactly one place with its real, live status. Existing in-progress
+downloads heal themselves the next time the page refreshes — no action
+needed.
+
+**Long release names no longer push the Downloads page sideways.** Very
+long torrent names in Active pursuits and History could stretch the page
+wider than the window and add a horizontal scrollbar. The names now
+truncate cleanly within the page.
+
 ## v0.72.16 — 2026-05-24
 
 ### Improved
