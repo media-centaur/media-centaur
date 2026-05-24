@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.18 — 2026-05-24
+
+### Fixed
+
+**Your gamepad no longer controls Media Centaur while you're playing
+something else.** If you left Media Centaur open on one workspace (or a
+second monitor) and switched away to a game, your controller could still
+trigger actions in Media Centaur in the background — scrolling the
+library or starting playback while you played. Media Centaur now responds
+to the gamepad only while its own window has focus, so the controller
+goes entirely to whatever you're actually using. Click back into the
+Media Centaur window to hand the controller back to it.
+
 ## v0.72.17 — 2026-05-24
 
 ### Fixed
