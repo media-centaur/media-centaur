@@ -18,6 +18,7 @@ const BROWSER_GLOBALS = {
   get requestAnimationFrame() { return requestAnimationFrame.bind(window) },
   get cancelAnimationFrame() { return cancelAnimationFrame.bind(window) },
   get getGamepads() { return navigator.getGamepads?.bind(navigator) ?? (() => []) },
+  get hasFocus() { return document.hasFocus.bind(document) },
 }
 
 function actionForId(idStr) {
@@ -104,6 +105,7 @@ export function createInputHook() {
               cancelAnimationFrame: globals.cancelAnimationFrame,
               addEventListener: window.addEventListener.bind(window),
               removeEventListener: window.removeEventListener.bind(window),
+              hasFocus: globals.hasFocus,
               onControllerChanged: (type) => writer.setControllerType(type),
               buttonMap,
               ...callbacks,

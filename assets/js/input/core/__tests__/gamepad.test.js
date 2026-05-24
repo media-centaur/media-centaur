@@ -703,6 +703,127 @@ describe("GamepadSource", () => {
     })
   })
 
+  describe("focus gating (window must have focus)", () => {
+    let focused
+    let gamepad
+    let focusSource
+
+    beforeEach(() => {
+      focused = true
+      gamepad = makeGamepad()
+      focusSource = new GamepadSource({
+        getGamepads: env.getGamepads,
+        requestAnimationFrame: env.requestAnimationFrame,
+        cancelAnimationFrame: env.cancelAnimationFrame,
+        addEventListener: env.addEventListener,
+        removeEventListener: env.removeEventListener,
+        hasFocus: () => focused,
+        onAction: (action) => actions.push(action),
+        onInputDetected: (type) => inputDetections.push(type),
+        deadzone: 0.3,
+        repeatDelay: 400,
+        repeatInterval: 180,
+      })
+    })
+
+    // Connect a gamepad after start (so start() does not see an
+    // already-connected pad), then prime the first poll frame.
+    function startAndConnect() {
+      focusSource.start()
+      env._setGamepad(0, gamepad)
+      env._dispatchEvent("gamepadconnected", { gamepad })
+      env._tickRAF() // initial poll primes prevButtons
+      actions.length = 0
+      inputDetections.length = 0
+    }
+
+    test("button press does not fire an action while the window is unfocused", () => {
+      startAndConnect()
+      focused = false
+      gamepad.buttons[0] = { pressed: true }
+      env._tickRAF()
+      expect(actions).toEqual([])
+    })
+
+    test("button press does not signal input detection while unfocused", () => {
+      startAndConnect()
+      focused = false
+      gamepad.buttons[0] = { pressed: true }
+      env._tickRAF()
+      expect(inputDetections).toEqual([])
+    })
+
+    test("analog stick is ignored while unfocused", () => {
+      startAndConnect()
+      focused = false
+      gamepad.axes[0] = 0.8
+      env._tickRAF()
+      expect(actions).toEqual([])
+    })
+
+    test("polling continues while unfocused (self-healing, no resume event needed)", () => {
+      startAndConnect()
+      focused = false
+      env._tickRAF()
+      // The loop reschedules itself rather than pausing/dying, so input
+      // resumes the instant focus returns without relying on a focus event.
+      expect(env._rafCallbacks.length).toBe(1)
+    })
+
+    test("a fresh press fires again once focus returns", () => {
+      startAndConnect()
+      focused = false
+      // Press + release while unfocused — nothing leaks into the app.
+      gamepad.buttons[0] = { pressed: true }
+      env._tickRAF()
+      gamepad.buttons[0] = { pressed: false }
+      env._tickRAF()
+      expect(actions).toEqual([])
+
+      // Focus returns; a brand-new press is delivered normally.
+      focused = true
+      gamepad.buttons[0] = { pressed: true }
+      env._tickRAF()
+      expect(actions).toEqual([Action.SELECT])
+    })
+
+    test("a button held when focus returns does not fire (primed while unfocused)", () => {
+      startAndConnect()
+      focused = false
+      gamepad.buttons[0] = { pressed: true } // held while playing the game
+      env._tickRAF()
+      expect(actions).toEqual([])
+
+      // Switch back with the button still held — must NOT fire.
+      focused = true
+      env._tickRAF()
+      expect(actions).toEqual([])
+
+      // Releasing and pressing again fires normally.
+      gamepad.buttons[0] = { pressed: false }
+      env._tickRAF()
+      gamepad.buttons[0] = { pressed: true }
+      env._tickRAF()
+      expect(actions).toEqual([Action.SELECT])
+    })
+
+    test("actions fire normally while focused (regression guard)", () => {
+      startAndConnect()
+      gamepad.buttons[0] = { pressed: true }
+      env._tickRAF()
+      expect(actions).toEqual([Action.SELECT])
+    })
+
+    test("does not signal gamepad presence at start while unfocused", () => {
+      focused = false
+      env._setGamepad(0, gamepad) // already connected at mount
+      focusSource.start()
+      expect(inputDetections).toEqual([])
+      // Still polls so it can pick up input the moment focus returns.
+      expect(env._rafCallbacks.length).toBe(1)
+    })
+  })
+
   describe("no actions after stop", () => {
     test("button presses ignored after stop", () => {
       source.start()
