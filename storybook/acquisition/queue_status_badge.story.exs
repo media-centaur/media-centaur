@@ -1,5 +1,5 @@
 defmodule MediaCentaurWeb.Storybook.Acquisition.QueueStatusBadge do
-  @moduledoc "Compact freshness pill for the Downloads page queue header."
+  @moduledoc "Download-client connectivity notice for the Active Pursuits header — quiet when healthy, scoped warning when degraded."
 
   use PhoenixStorybook.Story, :component
 
@@ -18,36 +18,39 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.QueueStatusBadge do
     [
       %VariationGroup{
         id: :all_states,
-        description: "Each freshness/error grade rendered as a compact pill",
+        description:
+          "Quiet when healthy (live / initializing / not-configured render nothing); a scoped warning only when degraded",
         variations: [
           %Variation{
             id: :live,
-            description: "Recent successful poll within 2× cadence — feels real-time",
+            description:
+              "Healthy poll within 2× cadence — renders nothing (no false 'live' next to pursuits)",
             attributes: %{status: :live}
           },
           %Variation{
             id: :initializing,
-            description: "No successful poll yet, no error — startup or post-reconfigure",
+            description: "No successful poll yet, no error — renders nothing (transient startup)",
             attributes: %{status: :initializing}
           },
           %Variation{
             id: :lagging,
-            description: "Last successful poll 4 s ago at 1.5 s cadence — between 2× and 5×",
+            description: "Telemetry 4.2 s stale (between 2× and 5× cadence) — amber 'lagging' warning",
             attributes: %{status: {:lagging, 4_200}}
           },
           %Variation{
             id: :offline,
-            description: "Connection lost — last successful poll 90 s ago",
+            description: "Connection lost — red 'offline' warning with last-update age",
             attributes: %{status: {:offline, ~U[2026-05-08 22:00:00Z]}}
           },
           %Variation{
             id: :auth_failed,
-            description: "qBittorrent rejected our credentials. Reconfigure link is the call-to-action.",
+            description:
+              "qBittorrent rejected our credentials — red warning with a Reconfigure call-to-action",
             attributes: %{status: :auth_failed}
           },
           %Variation{
             id: :not_configured,
-            description: "No download client configured at all",
+            description: "No download client configured — renders nothing (the page banner covers it)",
             attributes: %{status: :not_configured}
           }
         ]

@@ -367,6 +367,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       |> Phoenix.Component.assign(:active_compact, active_compact)
       |> Phoenix.Component.assign(:history_compact, history_compact)
       |> Phoenix.Component.assign(:orphan_queue, orphan_queue)
+      |> Phoenix.Component.assign(:telemetry_age, Logic.telemetry_age_label(assigns.queue_status))
 
     ~H"""
     <Layouts.console_mount socket={@socket} />
@@ -422,6 +423,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
               vm={row}
               download={download}
               queue_item_id={qid}
+              telemetry_age={@telemetry_age}
             />
             <.grouped_compact_rows entries={@active_compact} />
           </div>

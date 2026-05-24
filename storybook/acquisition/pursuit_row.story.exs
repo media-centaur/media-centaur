@@ -196,6 +196,28 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
             }
           },
           %Variation{
+            id: :matched_downloading_stale,
+            description:
+              "Same download, but the client is lagging/offline — the live figures are qualified with a 'last seen' age so they don't read as real-time.",
+            attributes: %{
+              vm:
+                row(:active, "Sample Movie",
+                  release_title: "Sample.Movie.2010.1080p.WEB-DL",
+                  status: any_action()
+                ),
+              download: %DownloadProgress{
+                state: :downloading,
+                progress_pct: 42.0,
+                size_bytes: 4_200_000_000,
+                size_left_bytes: 2_400_000_000,
+                eta: "12m",
+                client: "qBittorrent"
+              },
+              queue_item_id: "hash-downloading-stale",
+              telemetry_age: "last seen 4m ago"
+            }
+          },
+          %Variation{
             id: :matched_stalled,
             attributes: %{
               vm:

@@ -39,6 +39,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
     default: nil,
     doc: "Queue-client id (qBittorrent hash) for the matched torrent. Required to fire cancel."
 
+  attr :telemetry_age, :string,
+    default: nil,
+    doc:
+      "Staleness qualifier from `Logic.telemetry_age_label/1` (e.g. \"last seen 4m ago\"), or nil when telemetry is fresh. Appended to the download footer so its live figures aren't presented as current when the client is lagging/offline."
+
   attr :density, :atom,
     default: :full,
     values: [:full, :compact],
@@ -81,6 +86,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         download={@download}
         queue_item_id={@queue_item_id}
         cancel_title={@vm.release_title || @vm.title}
+        telemetry_age={@telemetry_age}
       />
     </div>
 
@@ -119,6 +125,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
   attr :download, DownloadProgress, required: true
   attr :queue_item_id, :string, required: true
   attr :cancel_title, :string, required: true
+  attr :telemetry_age, :string, default: nil
 
   defp download_footer(assigns) do
     ~H"""
@@ -135,6 +142,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         </span>
         <span :if={@download.client} class="text-xs text-base-content/40 truncate">
           {@download.client}
+        </span>
+        <%!-- When the download client is lagging/offline these figures are
+              last-known, not live — qualify them so the user isn't misled
+              into thinking the bar is updating in real time. --%>
+        <span :if={@telemetry_age} class="text-xs text-warning/80 tabular-nums">
+          · {@telemetry_age}
         </span>
         <div class="flex-1" />
         <.button
