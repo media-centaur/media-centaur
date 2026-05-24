@@ -182,6 +182,10 @@ defmodule MediaCentaur.Maintenance do
   cast and non-empty crew. Rate-limited automatically by
   `MediaCentaur.TMDB.RateLimiter` inside `Client.get_movie/1`.
 
+  Broadcasts `entities_changed` for the updated movies so the ETS
+  Detail projection (and any open modal) picks up the new cast/crew
+  instead of serving a stale, cast-less projection.
+
   Returns `{:ok, %{updated: n, skipped: n, failed: n}}`.
   """
   @spec refresh_movie_credits() ::
@@ -205,6 +209,9 @@ defmodule MediaCentaur.Maintenance do
   Idempotent: subsequent runs skip series that already have non-empty
   cast and non-empty crew. Rate-limited automatically by
   `MediaCentaur.TMDB.RateLimiter` inside `Client.get_tv/1`.
+
+  Broadcasts `entities_changed` for the updated series so dependent
+  caches refresh in place.
 
   Returns `{:ok, %{updated: n, skipped: n, failed: n}}`.
   """
@@ -257,18 +264,28 @@ defmodule MediaCentaur.Maintenance do
     Log.info(:library, "refreshing #{label} credits")
 
     records = records_with_tmdb_id(schema)
+    initial = %{updated: 0, skipped: 0, failed: 0, updated_ids: []}
 
-    result =
-      Enum.reduce(records, %{updated: 0, skipped: 0, failed: 0}, fn {record, tmdb_id}, acc ->
+    %{updated_ids: updated_ids} =
+      result =
+      Enum.reduce(records, initial, fn {record, tmdb_id}, acc ->
         process_credits_refresh(record, tmdb_id, acc, config)
       end)
 
+    # The ETS-backed Detail projection (read by the modal via
+    # `load_modal_entry/1`) rebuilds only on `{:entities_changed, _}`.
+    # Without this broadcast the DB carries the fresh cast/crew but the
+    # cached projection — and therefore the open modal — stays stale.
+    Library.broadcast_entities_changed(updated_ids)
+
+    counts = Map.delete(result, :updated_ids)
+
     Log.info(
       :library,
-      "#{label} credits refresh — #{result.updated} updated, #{result.skipped} skipped, #{result.failed} failed"
+      "#{label} credits refresh — #{counts.updated} updated, #{counts.skipped} skipped, #{counts.failed} failed"
     )
 
-    {:ok, result}
+    {:ok, counts}
   end
 
   # Returns `[{record, tmdb_id}, ...]` for every record of the schema
@@ -313,7 +330,10 @@ defmodule MediaCentaur.Maintenance do
         |> case do
           {:ok, updated_record} ->
             _ = ExternalIds.put(:imdb, updated_record, imdb_id)
-            Map.update!(acc, :updated, &(&1 + 1))
+
+            acc
+            |> Map.update!(:updated, &(&1 + 1))
+            |> Map.update!(:updated_ids, &[updated_record.id | &1])
 
           {:error, _} ->
             Map.update!(acc, :failed, &(&1 + 1))

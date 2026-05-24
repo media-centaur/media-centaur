@@ -10,6 +10,8 @@ defmodule MediaCentaur.MaintenanceTest do
     TVSeries
   }
 
+  alias MediaCentaur.Library
+  alias MediaCentaur.Library.Events.EntitiesChanged
   alias MediaCentaur.Maintenance
   alias MediaCentaur.Repo
   alias MediaCentaur.Review
@@ -197,6 +199,55 @@ defmodule MediaCentaur.MaintenanceTest do
         |> Repo.insert()
 
       assert {:ok, %{updated: 0, skipped: 0, failed: 0}} = Maintenance.refresh_movie_credits()
+    end
+
+    test "broadcasts entities_changed for updated movies so the detail cache rebuilds" do
+      # The ETS-backed Detail projection (read by the movie modal via
+      # load_modal_entry/1) only rebuilds on {:entities_changed, _}. A
+      # credit refresh that writes cast/crew but stays silent leaves the
+      # modal showing a stale, cast-less projection — the bug this guards.
+      movie = seed_movie_with_tmdb!(%{name: "Sample Movie", cast: [], crew: []}, "321")
+
+      stub_get_movie("321", %{
+        "imdb_id" => "tt0000321",
+        "credits" => %{
+          "cast" => [%{"name" => "Sample Actor", "character" => "Sample Role", "id" => 7, "order" => 0}],
+          "crew" => [
+            %{"id" => 9, "name" => "Sample Director", "department" => "Directing", "job" => "Director"}
+          ]
+        }
+      })
+
+      Library.subscribe()
+
+      assert {:ok, %{updated: 1}} = Maintenance.refresh_movie_credits()
+
+      assert_receive {:entities_changed, %EntitiesChanged{entity_ids: entity_ids}}
+      assert movie.id in entity_ids
+    end
+
+    test "does not broadcast when no movie credits change" do
+      seed_movie_with_tmdb!(
+        %{
+          name: "Sample Movie",
+          cast: [%{"name" => "Existing", "tmdb_person_id" => 1, "order" => 0}],
+          crew: [
+            %{
+              "tmdb_person_id" => 2,
+              "name" => "Existing Director",
+              "job" => "Director",
+              "department" => "Directing"
+            }
+          ]
+        },
+        "654"
+      )
+
+      Library.subscribe()
+
+      assert {:ok, %{updated: 0, skipped: 1}} = Maintenance.refresh_movie_credits()
+
+      refute_receive {:entities_changed, _}
     end
   end
 
