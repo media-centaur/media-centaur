@@ -21,6 +21,14 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`track-selection-source-of-truth.md`](track-selection-source-of-truth.md) —
+  **planning.** Mislabeled `forced` subtitle tracks (e.g. Sample Show
+  S01E01: a full 863-cue English track flagged `forced+default`) get
+  auto-enabled on understood-language audio because the on-screen sub is
+  mpv's auto-selection, not our resolver. Plan: parse `default` into
+  `Track`, distrust `forced+default` tracks, and make `MpvSession`
+  actively `set sid` so the resolver is the source of truth. Diagnosis
+  confirmed against the real file; no code yet.
 * [`macos-platform-support.md`](macos-platform-support.md) —
   resumed at Phase 5 (macOS impls). Seven Platform.* seams landed
   on the Linux side; CI matrix on both OSes is green and strict
