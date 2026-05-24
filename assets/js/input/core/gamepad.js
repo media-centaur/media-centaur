@@ -42,6 +42,9 @@ export class GamepadSource {
    * @param {function} config.cancelAnimationFrame
    * @param {function} config.addEventListener - window.addEventListener
    * @param {function} config.removeEventListener - window.removeEventListener
+   * @param {function} [config.hasFocus] - () => document.hasFocus(). Defaults to
+   *   always-focused. When this returns false, all gamepad-driven actions are
+   *   suppressed (see the focus gate in _poll).
    * @param {Object} [config.buttonMap] - Button-to-action map
    * @param {number} [config.deadzone=0.3] - Analog stick threshold
    * @param {number} [config.repeatDelay=400] - ms before first axis repeat
@@ -56,6 +59,7 @@ export class GamepadSource {
     this._cancelAnimationFrame = config.cancelAnimationFrame
     this._addEventListener = config.addEventListener
     this._removeEventListener = config.removeEventListener
+    this._hasFocus = config.hasFocus ?? (() => true)
     this._buttonMap = config.buttonMap ?? DEFAULT_BUTTON_MAP
     this._deadzone = config.deadzone ?? 0.3
     this._repeatDelay = config.repeatDelay ?? 400
@@ -75,6 +79,9 @@ export class GamepadSource {
     this._rafId = null
     this._lastGamepadId = null
     this._running = false
+    // True while the focus gate is suppressing input (document unfocused).
+    // Tracked only to emit a single debug line on each transition.
+    this._focusGateActive = false
 
     // Injectable clock for testing
     this._now = () => Date.now()
@@ -98,7 +105,9 @@ export class GamepadSource {
         // Signal gamepad presence so the orchestrator sets input method
         // and starts the mousemove cooldown. Without this, a layout-shift
         // mousemove after hook remount would immediately reset to mouse.
-        this._onInputDetected("gamepadbutton")
+        // Suppressed while the document is unfocused — the gamepad must not
+        // claim the input method when another window (e.g. a game) has focus.
+        if (this._hasFocus()) this._onInputDetected("gamepadbutton")
         // Prime button state so held buttons don't fire a false rising edge
         this._primeButtons(gp)
         this._startPolling()
@@ -218,6 +227,31 @@ export class GamepadSource {
       // Disconnect race — no gamepad found, stop loop
       this._resetState()
       return
+    }
+
+    // Focus gate. The Gamepad API reports controller state globally — even when
+    // another application (e.g. a fullscreen game on another workspace) holds OS
+    // focus. Keyboard input is naturally focus-scoped by the OS; gamepad polling
+    // is not. So suppress every gamepad-driven action whenever this document does
+    // not have focus. We keep priming button state and rescheduling the loop, so
+    // input resumes the instant focus returns: event-independent (does not rely
+    // on blur/focus firing, which is unreliable on tiling/multi-monitor WMs) and
+    // self-healing. Priming also ensures a button held at the moment focus
+    // returns does not register as a fresh press.
+    if (!this._hasFocus()) {
+      if (!this._focusGateActive) {
+        this._focusGateActive = true
+        debug("gamepad suppressed — document lost focus")
+      }
+      this._primeButtons(gamepad)
+      this._axisState.x.direction = null
+      this._axisState.y.direction = null
+      this._rafId = this._requestAnimationFrame(this._poll)
+      return
+    }
+    if (this._focusGateActive) {
+      this._focusGateActive = false
+      debug("gamepad resumed — document regained focus")
     }
 
     try {
