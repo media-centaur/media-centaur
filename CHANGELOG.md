@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.72.14 — 2026-05-24
+
+### Fixed
+
+**Season and complete-series packs now correctly show as landed.** When
+you grabbed a multi-episode pack from a manual search — one torrent
+holding a whole season or an entire series — the pursuit could stay
+stuck on "Downloaded — no file has landed in your library" indefinitely,
+even though every episode was already imported. Media Centaur now
+recognizes a pack by its release folder, so the pursuit completes as
+soon as the files land, the same way single movies and TMDB-tracked
+downloads already did.
+
 ## v0.72.13 — 2026-05-24
 
 ### Fixed
