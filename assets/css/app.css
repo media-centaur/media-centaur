@@ -928,8 +928,14 @@ body:has(.modal-backdrop[data-state="open"]) {
    Each row scrolls independently — that's the structural setup for future
    keyboard/gamepad nav (one nav-zone per row). No nav wiring yet.
 
-   Vertical padding + negative margin reserves space for `card-hover` scale
-   without visually inflating the row's bounding box. Scrollbar is hidden;
+   Padding + negative margin (both axes) reserves space for `card-hover` and
+   the keyboard/gamepad focus ring without visually inflating the row's
+   bounding box or shifting cards off the section's content edge. The inline
+   reserve matters specifically for the FIRST item: at scroll position 0 it
+   sits flush against the scrollport edge, so its 4px focus ring (2px outline
+   + 2px offset) would fall into the clipped `overflow-x` region without the
+   0.25rem start padding. Middle/last items are already rescued by
+   `scroll-padding-inline` when scrolled into view. Scrollbar is hidden;
    touch/wheel/programmatic scroll all work. */
 .row-scroll {
   --cols: 1;
@@ -943,6 +949,8 @@ body:has(.modal-backdrop[data-state="open"]) {
   -ms-overflow-style: none;
   padding-block: 0.75rem;
   margin-block: -0.75rem;
+  padding-inline: 0.25rem;
+  margin-inline: -0.25rem;
   scroll-padding-inline: 0.25rem;
 }
 
@@ -986,10 +994,13 @@ body:has(.modal-backdrop[data-state="open"]) {
 .row-scroll-hero {
   --cols: 1;
   --gap: 0px;
-  /* hero items are full-width siblings; no padding-block buffer needed
-     because there's no card-hover scale on heroes */
+  /* hero items are full-width siblings; no buffer needed — no card-hover
+     scale and the focus ring lives on the inner CTA buttons, not the
+     full-bleed wrapper. Reset both axes so the hero stays edge-to-edge. */
   padding-block: 0;
   margin-block: 0;
+  padding-inline: 0;
+  margin-inline: 0;
 }
 
 /* 4. Empty state fade-in */
