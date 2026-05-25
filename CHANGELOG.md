@@ -4,6 +4,15 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.73.1 — 2026-05-25
+
+### Fixed
+
+**The keyboard and controller highlight is no longer cut off on the first
+title in each home page row.** When you moved the selection to the leftmost
+card in Continue Watching or Recently Added, the highlight outline was
+clipped along its left edge. It now draws fully around the first card.
+
 ## v0.73.0 — 2026-05-25
 
 ### New
