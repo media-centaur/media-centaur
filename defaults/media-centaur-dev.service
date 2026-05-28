@@ -1,7 +1,12 @@
 [Unit]
 Description=Media Centaur Backend (Dev)
-After=network-online.target graphical-session.target
-Wants=network-online.target graphical-session.target
+# Do NOT add graphical-session.target here. This unit is WantedBy=default.target;
+# pulling the session target into the default.target transaction creates an
+# ordering cycle that systemd breaks by deleting session jobs, which loops the
+# GNOME login on Ubuntu. mpv's display env is resolved at the app layer by
+# MediaCentaur.Platform.DisplayEnv instead.
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=exec
