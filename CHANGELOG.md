@@ -4,6 +4,21 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.73.2 — 2026-05-28
+
+### Fixed
+
+**Installing Media Centaur no longer stops you from logging in to your Linux
+desktop.** On some desktops — most notably Ubuntu and other GNOME-based
+systems — the background service set up during install could interfere with
+the desktop session, leaving you stuck at the login screen. The service now
+starts without touching desktop startup, so logging in works normally.
+
+If you are currently locked out, switch to a text console (Ctrl+Alt+F3),
+log in, and run `systemctl --user disable --now media-centaur.service` to
+restore your desktop login — then update to this version, which fixes the
+underlying cause.
+
 ## v0.73.1 — 2026-05-25
 
 ### Fixed
