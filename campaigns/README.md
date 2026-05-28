@@ -21,6 +21,16 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`install-repro-matrix.md`](install-repro-matrix.md) —
+  **planning.** Reproducible install environments for media-centaur and
+  prowlarr-stack. Phase 1 (Linux Mint 22.3 only) spec written
+  ([`docs/superpowers/specs/2026-05-27-install-repro-env-design.md`](../docs/superpowers/specs/2026-05-27-install-repro-env-design.md));
+  six follow-on phases captured (Tier-1 cloud-image distros, Pop!_OS,
+  pre-built shareable images via Packer+GHCR, `--from-local`,
+  upgrade/uninstall scenarios, optional CI). Triggered by a tester
+  hitting missing-package, first-run, and Docker-without-sudo failures
+  on a fresh Mint install — and our inability to reproduce any of them
+  locally.
 * [`track-selection-source-of-truth.md`](track-selection-source-of-truth.md) —
   **planning.** Mislabeled `forced` subtitle tracks (e.g. Sample Show
   S01E01: a full 863-cue English track flagged `forced+default`) get
