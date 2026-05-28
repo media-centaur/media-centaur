@@ -306,17 +306,17 @@ defmodule MediaCentaurWeb.StatusLive do
       <div data-page-behavior="status" data-nav-default-zone="status" class="space-y-6">
         <h1 class="text-2xl font-bold">Status</h1>
 
-        <div data-nav-zone="sections">
+        <div data-nav-zone="sections" class="space-y-6">
           <.library_stats stats={@library_stats} pending_review_count={@pending_review_count} />
 
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <.recent_changes_card entries={@recent_changes} />
             <.recently_watched_card events={@history_events} />
           </div>
 
           <.error_summary_card buckets={@error_buckets} />
 
-          <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block mt-6">
+          <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block">
             <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
               <.pipeline_card
                 content_stats={@pipeline_stats}
@@ -337,7 +337,7 @@ defmodule MediaCentaurWeb.StatusLive do
             navigate="/settings?section=configuration"
             data-nav-item
             tabindex="0"
-            class="block mt-6"
+            class="block"
           >
             <.directories
               dir_health={@dir_health}
