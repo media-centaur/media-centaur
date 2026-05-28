@@ -4,6 +4,14 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.73.3 — 2026-05-28
+
+### Fixed
+
+**The Status page sections are now evenly spaced.** The "Errors" panel sat
+flush against the cards above it instead of leaving the same gap as the
+other sections. Spacing is now consistent all the way down the page.
+
 ## v0.73.2 — 2026-05-28
 
 ### Fixed
