@@ -6,9 +6,10 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
   The shape is intentionally hero-first rather than a horizontal row of
   identical cards. When a single show has many upcoming episodes, those
   collapse into a "+ N more" rollup line on the hero rather than
-  repeating the same artwork. When the library is sparse, the layout
-  collapses to a single full-width hero so a lonely card still feels
-  deliberate.
+  repeating the same artwork. When there are no secondaries, the hero
+  keeps its sized column (`1.7fr`) and the secondary track is filled with
+  a "See all" placeholder linking to `/upcoming` — mirroring the Continue
+  Watching row — rather than stretching the hero full-width.
 
   Tiles open the entity detail modal in place via `phx-click="select_entity"`
   when the release item has a paired library entity. Items without an
@@ -22,6 +23,7 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
   @storybook_reason "Depends on release-tracking timer state — covered by page smoke tests"
 
   use Phoenix.Component
+  import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
   defmodule Item do
     @moduledoc """
@@ -81,13 +83,7 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
     <div
       :if={@marquee.hero != nil}
       data-component="coming-up-marquee"
-      class={[
-        "grid gap-4",
-        if(@marquee.secondaries == [],
-          do: "grid-cols-1 h-[320px]",
-          else: "grid-cols-[1.7fr_1fr] h-[360px]"
-        )
-      ]}
+      class="grid gap-4 grid-cols-[1.7fr_1fr] h-[360px]"
     >
       <.hero_card item={@marquee.hero} />
       <div :if={@marquee.secondaries != []} class="flex flex-col gap-2.5 min-h-0">
@@ -97,7 +93,27 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
           fill?={length(@marquee.secondaries) > 1}
         />
       </div>
+      <.see_all_tile :if={@marquee.secondaries == []} />
     </div>
+    """
+  end
+
+  # Fills the otherwise-empty secondary column when the hero is the only
+  # upcoming release, mirroring the Continue Watching row's trailing
+  # "See all" slot rather than leaving dead space.
+  defp see_all_tile(assigns) do
+    ~H"""
+    <.link
+      navigate="/upcoming"
+      class="card-hover relative rounded-xl overflow-hidden glass-inset flex flex-col items-center justify-center gap-2 text-base-content/60 hover:text-primary hover:bg-base-content/5"
+      data-component="coming-up-see-all"
+      data-row-item
+      data-nav-item
+      tabindex="0"
+    >
+      <.icon name="hero-arrow-right-circle" class="size-10" />
+      <span class="text-sm font-medium">See all</span>
+    </.link>
     """
   end
 
