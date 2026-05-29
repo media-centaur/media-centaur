@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
-# End-to-end screenshot regeneration.
+# End-to-end screenshot regeneration AND publishing.
 #
 # Boots the showcase server (if one is not already listening on :4003),
-# runs the Playwright screenshot tour, then stops the server we started.
-# A pre-existing showcase server (e.g. from a long-running terminal) is
-# reused and left running — we only manage the lifecycle of a server we
-# launched ourselves.
+# runs the Playwright screenshot tour, stops the server we started, then
+# commits and pushes BOTH repos so the new shots land on every online
+# property. A pre-existing showcase server (e.g. from a long-running
+# terminal) is reused and left running — we only manage the lifecycle of
+# a server we launched ourselves.
+#
+# Publishing is the DEFAULT. The whole point of this script is that new
+# screenshots reach the live properties without anyone hand-committing:
+#
+#   - docs-site/index.html (GitHub Pages)  ← web shots in this repo
+#   - README.md thumbnails                 ← web shots in this repo
+#   - GitHub wiki thumbnails               ← raw-link this repo's web shots
+#   - jsDelivr 4K click-through            ← 4K shots in the assets repo
 #
 # Prerequisite: a seeded showcase DB at priv/showcase/media-centaur.db.
 # Run scripts/reseed-showcase first if the DB is missing. (We don't run
@@ -15,17 +24,18 @@
 # Output (as documented in scripts/screenshot-tour):
 #   docs-site/assets/screenshots/<name>.png       — web-resolution (1400×900)
 #   docs-site/assets/screenshots/4k/<name>.png    — supersampled ~3840px wide
+#                                                   (moved into the assets repo)
 #
-# Flags:
-#   --push    After the tour succeeds, commit + push the screenshot diffs
-#             in both repos (assets repo for 4K shots, main repo for
-#             web-resolution shots). Refuses to run if either working
-#             copy contains unrelated changes — stash or commit those
-#             first to avoid folding them into a marketing-screenshots
-#             commit.
+# Flags (each only ever subtracts from the default capture+publish):
+#   --no-push        Capture only; leave both working copies dirty for review.
+#   --publish-only   Skip the tour; just commit+push shots already on disk.
 #
 # Any other args pass through to scripts/screenshot-tour (and on to
 # Playwright), so `--project=…` and grep filters still work.
+#
+# VCS: plain git for both repos (the project scrubbed jj). The assets repo
+# is pushed first so jsDelivr has the 4K bytes before the main repo's
+# markup references them.
 
 set -euo pipefail
 
@@ -34,15 +44,19 @@ cd "$REPO_ROOT"
 
 SHOWCASE_PORT=4003
 SHOWCASE_DB="priv/showcase/media-centaur.db"
+ASSETS_REPO="$(cd "$REPO_ROOT/.." && pwd)/media-centaur-assets"
 LOG_FILE="$(mktemp -t showcase-server.XXXXXX.log)"
 SERVER_PID=""
+COMMIT_MSG="docs: regenerate marketing screenshots"
 
-# Peel --push off the arg list before forwarding to screenshot-tour.
-PUSH_AFTER=0
+# Defaults: run the tour AND publish. Flags only subtract.
+RUN_TOUR=1
+PUBLISH=1
 TOUR_ARGS=()
 for arg in "$@"; do
   case "$arg" in
-    --push) PUSH_AFTER=1 ;;
+    --no-push) PUBLISH=0 ;;
+    --publish-only) RUN_TOUR=0 ;;
     *) TOUR_ARGS+=("$arg") ;;
   esac
 done
@@ -72,154 +86,135 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-if [ ! -f "$SHOWCASE_DB" ]; then
-  echo "error: showcase DB missing at $SHOWCASE_DB" >&2
-  echo "" >&2
-  echo "Seed it first:" >&2
-  echo "    TMDB_API_KEY=<real-key> scripts/reseed-showcase" >&2
-  exit 1
-fi
+# ── Tour ────────────────────────────────────────────────────────────────────
+if [ "$RUN_TOUR" -eq 1 ]; then
+  if [ ! -f "$SHOWCASE_DB" ]; then
+    echo "error: showcase DB missing at $SHOWCASE_DB" >&2
+    echo "" >&2
+    echo "Seed it first:" >&2
+    echo "    TMDB_API_KEY=<real-key> scripts/reseed-showcase" >&2
+    exit 1
+  fi
 
-# Reuse a server already listening on :4003 (operator-managed); only
-# start a new one if the port is free. Either way the tour runs against
-# 127.0.0.1:4003.
-if ss -tlnH 2>/dev/null | awk -v p=":$SHOWCASE_PORT" '$4 ~ p {found=1} END {exit !found}'; then
-  echo "reusing existing showcase server on :$SHOWCASE_PORT"
-else
-  echo "starting showcase server (logs → $LOG_FILE)"
-  MEDIA_CENTAUR_CONFIG_OVERRIDE="defaults/media-centaur-showcase.toml" \
-    nohup mise exec -- mix phx.server > "$LOG_FILE" 2>&1 &
-  SERVER_PID=$!
+  # Reuse a server already listening on :4003 (operator-managed); only
+  # start a new one if the port is free. Either way the tour runs against
+  # 127.0.0.1:4003.
+  if ss -tlnH 2>/dev/null | awk -v p=":$SHOWCASE_PORT" '$4 ~ p {found=1} END {exit !found}'; then
+    echo "reusing existing showcase server on :$SHOWCASE_PORT"
+  else
+    echo "starting showcase server (logs → $LOG_FILE)"
+    MEDIA_CENTAUR_CONFIG_OVERRIDE="defaults/media-centaur-showcase.toml" \
+      nohup mise exec -- mix phx.server > "$LOG_FILE" 2>&1 &
+    SERVER_PID=$!
 
-  # Wait up to 60s for the BEAM to compile, migrate, and bind.
-  for _ in $(seq 1 60); do
-    if curl --silent --fail --max-time 1 "http://127.0.0.1:$SHOWCASE_PORT" > /dev/null 2>&1; then
-      break
-    fi
+    # Wait up to 60s for the BEAM to compile, migrate, and bind.
+    for _ in $(seq 1 60); do
+      if curl --silent --fail --max-time 1 "http://127.0.0.1:$SHOWCASE_PORT" > /dev/null 2>&1; then
+        break
+      fi
 
-    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-      echo "error: showcase server exited during startup. Last 40 log lines:" >&2
+      if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+        echo "error: showcase server exited during startup. Last 40 log lines:" >&2
+        tail -n 40 "$LOG_FILE" >&2
+        exit 1
+      fi
+
+      sleep 1
+    done
+
+    if ! curl --silent --fail --max-time 3 "http://127.0.0.1:$SHOWCASE_PORT" > /dev/null 2>&1; then
+      echo "error: showcase server did not respond on :$SHOWCASE_PORT after 60s. Last 40 log lines:" >&2
       tail -n 40 "$LOG_FILE" >&2
       exit 1
     fi
 
-    sleep 1
-  done
-
-  if ! curl --silent --fail --max-time 3 "http://127.0.0.1:$SHOWCASE_PORT" > /dev/null 2>&1; then
-    echo "error: showcase server did not respond on :$SHOWCASE_PORT after 60s. Last 40 log lines:" >&2
-    tail -n 40 "$LOG_FILE" >&2
-    exit 1
+    echo "showcase server up (pid=$SERVER_PID)"
   fi
 
-  echo "showcase server up (pid=$SERVER_PID)"
+  # Hand off to the existing tour script — it manages BASE_URL, hyprland
+  # windowrules, fixture-id lookups from the showcase DB, and Playwright.
+  exec_status=0
+  scripts/screenshot-tour "${TOUR_ARGS[@]}" || exec_status=$?
+
+  if [ "$exec_status" -ne 0 ]; then
+    echo "screenshot-tour exited with status $exec_status" >&2
+    exit "$exec_status"
+  fi
+
+  # Two-repo screenshot publishing: web-resolution shots stay in this repo;
+  # 4K shots move to ../media-centaur-assets so the main repo doesn't bloat
+  # with multi-megabyte PNGs every release. README/docs-site/wiki link to
+  # the 4K versions via jsDelivr CDN URLs that resolve against the assets
+  # repo's main branch.
+  LOCAL_4K_DIR="$REPO_ROOT/docs-site/assets/screenshots/4k"
+
+  if [ -d "$ASSETS_REPO" ] && [ -d "$LOCAL_4K_DIR" ]; then
+    mkdir -p "$ASSETS_REPO/screenshots"
+    mv "$LOCAL_4K_DIR"/*.png "$ASSETS_REPO/screenshots/" 2>/dev/null || true
+    rmdir "$LOCAL_4K_DIR" 2>/dev/null || true
+    echo "moved 4K screenshots into $ASSETS_REPO/screenshots/"
+  elif [ -d "$LOCAL_4K_DIR" ]; then
+    echo "warning: $ASSETS_REPO not present; 4K shots remain at $LOCAL_4K_DIR" >&2
+    echo "         Clone media-centaur/media-centaur-assets as a sibling of this repo," >&2
+    echo "         then re-run to publish 4K shots through jsDelivr." >&2
+  fi
 fi
 
-# Hand off to the existing tour script — it manages BASE_URL, hyprland
-# windowrules, fixture-id lookups from the showcase DB, and Playwright.
-exec_status=0
-scripts/screenshot-tour "${TOUR_ARGS[@]}" || exec_status=$?
+# ── Publish ──────────────────────────────────────────────────────────────────
+# Commits + pushes the screenshot diff under $3 in repo $1 to origin/main.
+# No markup edits: README / docs-site / wiki reference the shots by fixed
+# filenames, so replacing the bytes + pushing is the whole update.
+#
+# Safely re-attaches a detached HEAD to `main` when (and only when)
+# HEAD == main. A detached HEAD is what a jj-colocated checkout leaves the
+# git side in; committing there and then `git push origin main` would push
+# the stale main ref — a silent no-op publish. The assets repo is now pure
+# git (jj scrubbed), so this should already be on main, but the guard keeps
+# the script correct if it ever lands detached again.
+# Returns 0 on success (or nothing to do), 1 on failure.
+publish_repo() {
+  local dir="$1" label="$2" pathspec="$3"
 
-if [ "$exec_status" -ne 0 ]; then
-  echo "screenshot-tour exited with status $exec_status" >&2
-  exit "$exec_status"
-fi
-
-# Two-repo screenshot publishing: web-resolution shots stay in this repo;
-# 4K shots move to ../media-centaur-assets so the main repo doesn't bloat
-# with multi-megabyte PNGs every release. README/docs-site/wiki link to
-# the 4K versions via jsDelivr CDN URLs that resolve against the assets
-# repo's main branch.
-ASSETS_REPO="$REPO_ROOT/../media-centaur-assets"
-LOCAL_4K_DIR="$REPO_ROOT/docs-site/assets/screenshots/4k"
-
-if [ -d "$ASSETS_REPO" ] && [ -d "$LOCAL_4K_DIR" ]; then
-  mkdir -p "$ASSETS_REPO/screenshots"
-  mv "$LOCAL_4K_DIR"/*.png "$ASSETS_REPO/screenshots/" 2>/dev/null || true
-  rmdir "$LOCAL_4K_DIR" 2>/dev/null || true
-  echo "moved 4K screenshots into $ASSETS_REPO/screenshots/"
-elif [ -d "$LOCAL_4K_DIR" ]; then
-  echo "warning: $ASSETS_REPO not present; 4K shots remain at $LOCAL_4K_DIR" >&2
-  echo "         Clone media-centaur/media-centaur-assets as a sibling of this repo," >&2
-  echo "         then re-run to publish 4K shots through jsDelivr." >&2
-fi
-
-# Commits + pushes the screenshot diff in $1 to its `main` bookmark. Refuses
-# to run if the working copy contains anything outside $3, or if @ already
-# carries a description we'd clobber. Returns 0 on success, 2 if there's
-# nothing to commit, 1 on any other failure.
-commit_and_push() {
-  local dir="$1" label="$2" allow_prefix="$3"
-  local desc="docs: regenerate marketing screenshots"
-
-  if ! cd "$dir" 2>/dev/null; then
-    echo "error: $label: cannot cd to $dir" >&2
-    return 1
+  if [ ! -d "$dir" ]; then
+    echo "warning: $label not found at $dir; skipping" >&2
+    return 0
   fi
 
-  local summary
-  summary=$(jj diff --summary 2>/dev/null || true)
-
-  if [ -z "$summary" ]; then
-    echo "$label: no screenshot changes to commit, skipping push"
-    return 2
+  if [ -z "$(git -C "$dir" status --porcelain -- "$pathspec")" ]; then
+    echo "$label: nothing to publish"
+    return 0
   fi
 
-  local stray
-  stray=$(printf '%s\n' "$summary" | awk '{print $2}' | grep -v "^$allow_prefix" || true)
-  if [ -n "$stray" ]; then
-    echo "error: $label has unrelated changes in the working copy:" >&2
-    printf '         %s\n' $stray >&2
-    echo "       Refusing to fold these into a marketing-screenshots commit." >&2
-    echo "       Stash or commit them first, then push manually:" >&2
-    echo "         cd $dir && jj desc -m '$desc' && jj new && jj bookmark set main -r @- && jj git push --bookmark main" >&2
-    return 1
+  if ! git -C "$dir" symbolic-ref -q HEAD >/dev/null; then
+    if [ "$(git -C "$dir" rev-parse HEAD)" = "$(git -C "$dir" rev-parse main)" ]; then
+      git -C "$dir" checkout -q main
+    else
+      echo "error: $label is in detached HEAD and main != HEAD; refusing to commit." >&2
+      echo "       Resolve its git state manually, then re-run with --publish-only." >&2
+      return 1
+    fi
   fi
 
-  local existing_desc
-  existing_desc=$(jj log -r @ --no-graph -T 'description' 2>/dev/null | tr -d '\n' || true)
-  if [ -n "$existing_desc" ] && [ "$existing_desc" != "$desc" ]; then
-    echo "error: $label working-copy change @ already has a description:" >&2
-    printf '         %s\n' "$existing_desc" >&2
-    echo "       Run \`jj new\` to start a fresh change before re-running with --push." >&2
-    return 1
-  fi
-
-  echo "$label: committing and pushing…"
-  if ! jj desc -m "$desc" >/dev/null \
-     || ! jj new >/dev/null \
-     || ! jj bookmark set main -r @- >/dev/null \
-     || ! jj git push --bookmark main; then
-    echo "error: $label push failed. Recover with:" >&2
-    echo "         cd $dir && jj git push --bookmark main" >&2
-    return 1
-  fi
+  git -C "$dir" add -- "$pathspec"
+  git -C "$dir" commit -q -m "$COMMIT_MSG"
+  git -C "$dir" push -q origin main
   echo "$label: pushed."
-  return 0
 }
 
-if [ "$PUSH_AFTER" -eq 1 ]; then
+if [ "$PUBLISH" -eq 1 ]; then
   echo ""
-  echo "═══ Pushing screenshot commits ═══"
-  rc=0
-
-  if [ -d "$ASSETS_REPO" ]; then
-    commit_and_push "$ASSETS_REPO" "assets repo" "screenshots/" || rc=$?
-    if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then exit 1; fi
-    rc=0
-  fi
-
-  commit_and_push "$REPO_ROOT" "main repo" "docs-site/assets/screenshots/" || rc=$?
-  if [ "$rc" -ne 0 ] && [ "$rc" -ne 2 ]; then exit 1; fi
+  echo "═══ Publishing ═══"
+  # Assets repo first so jsDelivr has the 4K bytes before main references them.
+  publish_repo "$ASSETS_REPO" "assets repo (4K)" "screenshots/" || exit 1
+  publish_repo "$REPO_ROOT" "main repo (web)" "docs-site/assets/screenshots/" || exit 1
+  echo ""
+  echo "Published. GitHub Pages redeploys automatically; jsDelivr edge refreshes within minutes."
 else
   echo ""
-  echo "Next step: commit + push both repos (or re-run with --push):"
-  if [ -d "$ASSETS_REPO" ]; then
-    echo "  cd $ASSETS_REPO && jj desc -m 'docs: regenerate marketing screenshots' && jj new && jj bookmark set main -r @- && jj git push --bookmark main"
-  fi
-  echo "  cd $REPO_ROOT && jj desc -m 'docs: regenerate marketing screenshots' && jj new && jj bookmark set main -r @- && jj git push --bookmark main"
+  echo "Captured but not published (--no-push). Review, then publish with:"
+  echo "    scripts/regenerate-screenshots --publish-only"
 fi
 
 echo ""
-echo "screenshots regenerated: docs-site/assets/screenshots/*.png (web)"
-[ -d "$ASSETS_REPO" ] && echo "                          $ASSETS_REPO/screenshots/*.png (4K)"
+echo "screenshots: docs-site/assets/screenshots/*.png (web)"
+[ -d "$ASSETS_REPO" ] && echo "             $ASSETS_REPO/screenshots/*.png (4K)"
