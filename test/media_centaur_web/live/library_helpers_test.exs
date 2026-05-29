@@ -662,4 +662,27 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
       assert flash =~ "drive is mounted"
     end
   end
+
+  # --- in_progress_count/1 ---
+
+  describe "in_progress_count/1" do
+    test "returns 0 for an empty map" do
+      assert LibraryHelpers.in_progress_count(%{}) == 0
+    end
+
+    test "counts only summaries with episodes_completed < episodes_total" do
+      progress = %{
+        "a" => %{episodes_completed: 0, episodes_total: 10},
+        "b" => %{episodes_completed: 3, episodes_total: 8},
+        "c" => %{episodes_completed: 5, episodes_total: 5}
+      }
+
+      assert LibraryHelpers.in_progress_count(progress) == 2
+    end
+
+    test "ignores nil summaries" do
+      progress = %{"a" => nil, "b" => %{episodes_completed: 1, episodes_total: 4}}
+      assert LibraryHelpers.in_progress_count(progress) == 1
+    end
+  end
 end

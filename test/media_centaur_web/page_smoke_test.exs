@@ -206,6 +206,35 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
+  describe "/library with a populated grid and an in-progress title" do
+    # The base /library smoke only ever renders the empty state. This one
+    # seeds a present movie with partial watch progress so the grid's
+    # poster-card path AND the header's in-progress stat-line branch
+    # (`:if={@in_progress_count > 0}`) actually render — a render-path
+    # crash in either surfaces here instead of in a user's browser.
+    setup do
+      movie = create_standalone_movie(%{name: "Smoke Library Movie"})
+
+      create_linked_file(%{
+        movie_id: movie.id,
+        file_path: "/media/test/Smoke.Library.Movie.mkv"
+      })
+
+      create_watch_progress(%{
+        movie_id: movie.id,
+        position_seconds: 60.0,
+        duration_seconds: 600.0
+      })
+
+      :ok
+    end
+
+    test "library browse renders the grid and stat line", %{conn: conn} do
+      assert {:ok, _view, html} = live_async!(conn, ~p"/library")
+      assert is_binary(html)
+    end
+  end
+
   describe "/?zone=upcoming with tracked-item fixtures" do
     # Fixture covers every shape the Active card path renders so a
     # render-time crash in any branch trips the smoke. Not data-correctness

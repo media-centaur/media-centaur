@@ -1,31 +1,25 @@
 defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
   @moduledoc """
-  Library page toolbar — tabs (All / Movies / TV) with count badges,
-  custom sort dropdown, and a debounced filter input.
+  Library page toolbar — tabs (All / Movies / TV), a custom sort
+  dropdown, and a debounced filter input. Per-type counts live in the
+  page heading (`50 titles · 33 movies · 17 shows`), not on the tabs.
 
   ## Contract shape
 
-  The toolbar's contract is already typed:
+  The toolbar's contract is fully typed with scalar attrs:
 
       attr :active_tab, :atom, required: true       # :all | :movies | :tv
-      attr :counts, :map, required: true            # %{all: int, movies: int, tv: int}
       attr :sort_order, :atom, required: true       # :recent | :alpha | :year
       attr :sort_open, :boolean, required: true
       attr :sort_highlight, :integer, required: true
       attr :filter_text, :string, required: true
 
-  Only `:counts` is `:map`, but the shape is small and well-known so the
-  fixtures construct it directly. No view-model refactor needed.
-
   ## Variation matrix
 
-    * Tab axis — `:active_tab` toggled across the three tabs (badge counts
-      stay constant).
+    * Tab axis — `:active_tab` toggled across the three tabs.
     * Sort dropdown states — closed (showing each `sort_order` label) and
       open (sweeping `sort_highlight` across the three items).
-    * Filter input — empty placeholder vs active filter text.
-    * Edge cases — zero counts and very large counts (badge layout
-      stress test).
+    * Filter input — collapsed (idle/empty) vs expanded (holding a term).
 
   ## Visual note
 
@@ -55,18 +49,12 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
     [
       %VariationGroup{
         id: :tab_axis,
-        description:
-          "Tab axis — `active_tab` highlights one of `All` / `Movies` / `TV`. " <>
-            "Badge counts stay constant across the three variations.",
+        description: "Tab axis — `active_tab` highlights one of `All` / `Movies` / `TV`.",
         variations:
           for {tab, suffix} <- [{:all, "all"}, {:movies, "movies"}, {:tv, "tv"}] do
             %Variation{
               id: String.to_atom(suffix <> "_active"),
-              attributes:
-                base_attrs(
-                  active_tab: tab,
-                  counts: %{all: 42, movies: 18, tv: 24}
-                )
+              attributes: base_attrs(active_tab: tab)
             }
           end
       },
@@ -110,36 +98,19 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
       %VariationGroup{
         id: :filter_states,
         description:
-          "Filter input — empty (placeholder visible) and populated with " <>
-            "a generic search term.",
+          "Filter input collapses to an icon while idle (empty + unfocused) and " <>
+            "grows to full width once it holds a term. The two states below show " <>
+            "the collapse/expand endpoints; the focus transition is CSS-only.",
         variations: [
           %Variation{
             id: :empty_filter,
-            description: "No filter — placeholder text visible.",
+            description: "No filter — collapsed to an icon-only pill (unfocused).",
             attributes: base_attrs(filter_text: "")
           },
           %Variation{
             id: :active_filter,
-            description: "Filter populated with a generic term.",
+            description: "Filter populated with a generic term — expanded to full width.",
             attributes: base_attrs(filter_text: "drama")
-          }
-        ]
-      },
-      %VariationGroup{
-        id: :edge_cases,
-        description: "Count-badge edge cases — zero and four-digit values.",
-        variations: [
-          %Variation{
-            id: :zero_counts,
-            description: "All counts zero — badges still render the literal `0`.",
-            attributes: base_attrs(counts: %{all: 0, movies: 0, tv: 0})
-          },
-          %Variation{
-            id: :large_counts,
-            description:
-              "Four-digit counts — badge layout must not wrap or push the " <>
-                "filter input off the row.",
-            attributes: base_attrs(counts: %{all: 9999, movies: 4321, tv: 1234})
           }
         ]
       }
@@ -152,7 +123,6 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
   defp base_attrs(overrides) do
     defaults = [
       active_tab: :all,
-      counts: %{all: 42, movies: 18, tv: 24},
       sort_order: :recent,
       sort_open: false,
       sort_highlight: 0,
