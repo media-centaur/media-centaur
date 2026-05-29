@@ -210,15 +210,16 @@ export class Orchestrator {
 
   /**
    * Called by the LiveView hook's beforeUpdate(), before morphdom patches the
-   * DOM. A grid mutation (notably `stream(:grid, …, reset: true)`) re-renders
-   * the whole grid and drops focus to <body>, so we snapshot the focused
-   * card's entity ID here — while it still exists — so onViewChanged() can
-   * re-grab the exact card after the patch.
+   * DOM. A patch (notably `stream(:grid, …, reset: true)`) can re-render the
+   * focused element and drop focus to <body>, so we snapshot the focused
+   * position here — while it still exists — so `_reconcileFocus()` can re-grab
+   * it after the patch. This covers the idle case (no navigation since landing
+   * on the item, so the move-time memory would otherwise lag by one).
+   * `_saveContextMemory` records the right identity per context (entity ID for
+   * the grid, index for the rest).
    */
   onBeforeViewChange() {
-    if (this.focusMachine.context !== Context.GRID) return
-    const focused = this.reader.getCurrentFocusedItem()
-    if (focused?.dataset?.entityId) this._lastGridEntityId = focused.dataset.entityId
+    this._saveContextMemory()
   }
 
   /**
@@ -355,27 +356,32 @@ export class Orchestrator {
     })
     this.focusMachine.setNavGraph(navGraph)
 
-    // After a modal sub-view transition (e.g. info → main), the previously
-    // focused element was removed by morphdom. Refocus into the modal now
-    // that the DOM has been patched and the nav graph rebuilt.
-    if (this._pendingModalRefocus && this.focusMachine.context === Context.MODAL) {
-      this._pendingModalRefocus = false
-      this.writer.focusFirst(Context.MODAL)
-    }
+    // The DOM has been patched and the nav graph rebuilt — re-assert the
+    // focus the orchestrator owns onto the fresh DOM.
+    this._reconcileFocus()
+  }
 
-    // A LiveView patch can destroy the focused grid card — notably
-    // `stream(:grid, …, reset: true)`, which LibraryLive fires on any library
-    // mutation (e.g. a completed download). That re-renders the whole grid and
-    // drops focus to <body>. Re-grab the card by remembered entity ID so the
-    // cursor stays put instead of silently falling back to the first item
-    // (and then out to the sidebar) on the next keypress.
-    if (this.focusMachine.context === Context.GRID && !this.reader.getCurrentFocusedItem()) {
-      this._restoreContextFocus(Context.GRID)
-    }
-
-    // After a LiveView patch while in sub-focus, morphdom may have replaced
-    // the row and sub-item elements (e.g. watched state toggle changes classes).
-    // Re-query the sub-item from the fresh DOM using the saved index.
+  /**
+   * Single post-patch focus reconciler. A LiveView patch can move, replace, or
+   * destroy the element the user was on; this re-asserts the owned focus onto
+   * the fresh DOM. It is the one place that answers "where should focus be now"
+   * after every `updated()`, so a new content surface that loses focus on a
+   * patch is covered without adding another bespoke guard.
+   *
+   * Identity by context:
+   * - sub-focus: the `[data-nav-sub-item]` within the saved parent index
+   * - modal: first item after a sub-view transition (overlay-scoped semantics)
+   * - everything else (grid, shelf, menu, toolbar, zone tabs): the context's
+   *   own memory via `_restoreContextFocus` — entity ID for the grid, active
+   *   marker / saved index for the rest
+   *
+   * Drawer focus on open and origin-card restore on overlay close are
+   * transition-driven and handled in the presentation block above; empty
+   * contexts are left to `_ensureCursorStart`.
+   */
+  _reconcileFocus() {
+    // Sub-focus is layered: reconcile the sub-item within its parent, which
+    // morphdom may have replaced (e.g. a watched-state class toggle).
     if (this.focusMachine.subFocus && this._subFocusIndex != null) {
       const parent = this.reader.getItemAt?.(this.focusMachine.context, this._subFocusIndex)
       const subItem = parent?.querySelector?.("[data-nav-sub-item]")
@@ -386,6 +392,28 @@ export class Orchestrator {
         this._subFocusIndex = null
         if (parent) parent.focus({ preventScroll: true })
       }
+      return
+    }
+
+    // Modal sub-view transition (info → main): the focused element was removed.
+    // Refocus the first modal item — overlay focus has its own semantics and is
+    // not routed through the generic content/menu restore below.
+    if (this._pendingModalRefocus && this.focusMachine.context === Context.MODAL) {
+      this._pendingModalRefocus = false
+      this.writer.focusFirst(Context.MODAL)
+      return
+    }
+
+    // Content/menu contexts: a patch — notably `stream(:grid, …, reset: true)`,
+    // which LibraryLive fires on any library mutation — can destroy the focused
+    // element and drop focus to <body>. Re-grab it by the context's identity so
+    // the cursor stays put instead of falling back to the first item (and then
+    // out to the sidebar) on the next keypress. Overlays are handled above and
+    // in the presentation block; empty contexts are left to _ensureCursorStart.
+    const context = this.focusMachine.context
+    if (context === Context.MODAL || context === Context.DRAWER) return
+    if (this.reader.getItemCount(context) > 0 && !this.reader.getCurrentFocusedItem()) {
+      this._restoreContextFocus(context)
     }
   }
 

@@ -383,6 +383,17 @@ Page behaviors extract page-specific concerns from the global orchestrator. The 
 
 **Active item detection:** `reader.getActiveItemIndex(context)` finds the first item in a context with any "active" marker class from `config.activeClassNames`. When adding a new context with an active-item visual, add the class to the `activeClassNames` array in `config.js`.
 
+### Post-patch focus reconciliation
+
+Focus *position* is owned state, not a value read from the DOM on demand — the same single-owner-projection discipline the `<html>` `data-*` attributes follow (see below). A LiveView patch can move, replace, or destroy the element the user was on; the worst case is `stream(:grid, …, reset: true)`, which `LibraryLive` fires on any library mutation (e.g. a completed download) — it re-renders the whole grid and drops focus to `<body>`.
+
+Two hooks keep focus stable across patches:
+
+- **`onBeforeViewChange()`** (wired to the hook's `beforeUpdate()`) snapshots the focused position *before* morphdom runs, via `_saveContextMemory()` — entity ID for the grid, saved index for the rest. This covers the idle case (no navigation since landing on the item, so move-time memory would lag by one).
+- **`_reconcileFocus()`** (called at the end of `_syncState`, after the nav graph is rebuilt) is the single place that answers "where should focus be now." If focus was dropped, it re-asserts the owned identity for the current context: sub-item for sub-focus, first item for a modal sub-view transition, and `_restoreContextFocus(context)` for every content/menu context (grid, shelf, menu, toolbar, zone tabs). A new content surface that loses focus on a patch is covered without adding another bespoke guard.
+
+Drawer focus on open and origin-card restore on overlay close are transition-driven (handled in the presentation block of `_syncState`); empty contexts are left to `_ensureCursorStart`.
+
 ## Text Input Handling
 
 Two modes for `<input>` and `<textarea>` elements:

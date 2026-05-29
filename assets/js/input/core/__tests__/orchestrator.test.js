@@ -2548,4 +2548,57 @@ describe("Orchestrator", () => {
       expect(refocus.length).toBe(0)
     })
   })
+
+  describe("focus reconciliation generalizes across content/menu contexts", () => {
+    // The grid was the reported case, but any content/menu context can lose its
+    // focused element to a LiveView patch (a streamed home shelf reload, a
+    // re-rendered toolbar). One reconciler covers them all, keyed on the
+    // context's own identity (entity id for content, saved index for the rest).
+    test("restores a home shelf's focus after a patch re-renders the row", () => {
+      const card = { dataset: { entityId: "rec-2" }, hasAttribute: () => false }
+      let focusLost = false
+      const { system, calls } = setup({
+        getZone: () => "home",
+        getItemCount: (ctx) => (ctx === "sidebar" ? 4 : 6),
+        getCurrentFocusedItem: () => (focusLost ? null : card),
+        getFocusedIndex: () => (focusLost ? -1 : 2),
+      })
+      system.start({})
+      system.focusMachine.forceContext("recently")
+
+      // Snapshot focus, then a patch drops it.
+      system.onBeforeViewChange()
+      focusLost = true
+      calls.length = 0
+      system.onViewChanged()
+
+      const restore = calls.filter(
+        c => (c.method === "focusByIndex" || c.method === "focusFirst") && c.args[0] === "recently",
+      )
+      expect(restore.length).toBeGreaterThan(0)
+    })
+
+    test("restores toolbar focus after a patch drops it", () => {
+      const item = { dataset: {}, hasAttribute: () => false }
+      let focusLost = false
+      const { system, calls } = setup({
+        getZone: () => "library",
+        getItemCount: (ctx) => (ctx === "sidebar" ? 4 : 3),
+        getCurrentFocusedItem: () => (focusLost ? null : item),
+        getFocusedIndex: () => (focusLost ? -1 : 1),
+      })
+      system.start({})
+      system.focusMachine.forceContext(Context.TOOLBAR)
+
+      system.onBeforeViewChange()
+      focusLost = true
+      calls.length = 0
+      system.onViewChanged()
+
+      const restore = calls.filter(
+        c => (c.method === "focusByIndex" || c.method === "focusFirst") && c.args[0] === Context.TOOLBAR,
+      )
+      expect(restore.length).toBeGreaterThan(0)
+    })
+  })
 })
