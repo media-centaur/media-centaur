@@ -156,14 +156,19 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # In **test mode** the Cache.Worker isn't running, so
       # `Views.browse/0` falls back to a fresh `Browser.fetch_all_typed_entries/0`
       # build — that adds ~25 queries (per-type fetchers + preloads).
-      # The budget below tolerates that test-mode worst case so this
-      # regression net stays useful; it would catch a mount jumping to
-      # 100+ queries.
+      #
+      # Per ADR-051 the first-paint load now runs on BOTH the disconnected
+      # (static) and connected renders. `live/2` exercises both, so the
+      # bulk Browse + progress + availability load is counted twice here
+      # (~72 observed). The doubled ceiling reflects that intentional
+      # desktop trade — the query SET is unchanged, just run on both
+      # renders — and still catches a real regression (a mount jumping to
+      # 200+ queries).
       mount_and_assert(
         conn,
         "/library",
-        45,
-        "Views.Browse DB fallback (~25, test-mode only) + bulk progress + bulk availability + on_mount hooks"
+        90,
+        "Views.Browse DB fallback + bulk progress + bulk availability + on_mount hooks, run on both the disconnected and connected renders (ADR-051; ~72 observed, test-mode only)"
       )
     end
 
@@ -254,11 +259,16 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # test mode). The budget here is dominated by the Views.Browse
       # cold-start build for the grid (Cache.Worker isn't running in
       # tests — Phase 3 follow-up: warm Browse in test setup).
+      #
+      # Per ADR-051 the first-paint grid load runs on both the disconnected
+      # and connected renders, so `live/2` counts the Browse fallback build
+      # twice (~106 observed). The doubled ceiling reflects that intentional
+      # desktop trade.
       mount_and_assert(
         conn,
         "/library?selected=#{movie.id}",
-        85,
-        "Views.Browse DB-fallback grid (~65) + Views.Detail DB-fallback modal-open (~5) + bulk progress/availability. Isolated runs measure ~74; the +10 margin absorbs the inter-test PubSub/cache variance seen under the full suite."
+        130,
+        "Views.Browse DB-fallback grid + Views.Detail DB-fallback modal-open + bulk progress/availability, grid load run on both renders (ADR-051; ~106 observed, test-mode only)"
       )
     end
   end

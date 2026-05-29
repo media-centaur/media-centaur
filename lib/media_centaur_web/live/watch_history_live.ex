@@ -5,8 +5,6 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   """
   use MediaCentaurWeb, :live_view
 
-  require MediaCentaur.Log, as: Log
-
   alias MediaCentaur.{Format, WatchHistory}
   alias MediaCentaur.WatchHistory.Views, as: WatchHistoryViews
 
@@ -57,33 +55,31 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   # `fetch_page/1` is a paginated DB query that scales with the history
   # table; deferring it keeps `handle_params` snappy on big histories.
   defp ensure_loaded(socket) do
-    if connected?(socket) and not socket.assigns.loaded? do
+    if socket.assigns.loaded? do
       socket
-      |> start_async_history_load()
-      |> assign(:loaded?, true)
     else
       socket
+      |> load_history()
+      |> assign(:loaded?, true)
     end
   end
 
-  # Owned async (ADR-049): runs under the LiveView via `start_async/3`,
-  # cancelled with it and awaitable in tests. Result lands in
-  # `handle_async(:history_load, …)`.
-  defp start_async_history_load(socket) do
-    filters = filter_snapshot(socket)
+  # Synchronous first-render load. The summary is a microsecond ETS read
+  # and `fetch_page_for/1` is a single paginated local query — running
+  # them inline on both the disconnected and connected renders keeps the
+  # first paint correct (no empty-state flash) at negligible local cost.
+  # Desktop first-paint correctness (see AGENTS.md → LiveView callbacks).
+  defp load_history(socket) do
+    summary = WatchHistoryViews.summary()
+    {events, has_next} = fetch_page_for(filter_snapshot(socket))
 
-    start_async(socket, :history_load, fn ->
-      summary = WatchHistoryViews.summary()
-      {events, has_next} = fetch_page_for(filters)
-
-      %{
-        stats: summary.stats,
-        heatmap_cells_by_type: summary.heatmap_cells_by_type,
-        rewatch_counts: summary.rewatch_counts,
-        events: events,
-        has_next: has_next
-      }
-    end)
+    assign(socket,
+      stats: summary.stats,
+      heatmap_cells_by_type: summary.heatmap_cells_by_type,
+      rewatch_counts: summary.rewatch_counts,
+      events: events,
+      has_next: has_next
+    )
   end
 
   defp filter_snapshot(socket) do
@@ -495,18 +491,6 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
-
-  # Async result from `start_async_history_load/1` — summary read +
-  # initial fetch_page done off the LV process.
-  @impl true
-  def handle_async(:history_load, {:ok, assigns}, socket) do
-    {:noreply, assign(socket, Map.to_list(assigns))}
-  end
-
-  def handle_async(:history_load, {:exit, reason}, socket) do
-    Log.warning(:watch_history, "history load failed — #{inspect(reason)}")
-    {:noreply, socket}
-  end
 
   # --- Private helpers ---
 

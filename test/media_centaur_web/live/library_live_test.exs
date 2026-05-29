@@ -36,6 +36,35 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
+  describe "first paint (disconnected render) — no empty-state flash" do
+    # Desktop-app rendering principle (ADR-012): the static first render
+    # served before the WebSocket connects must already carry real data.
+    # Previously `ensure_loaded/1` gated `load_library/1` on
+    # `connected?/1`, so the disconnected render showed the mount
+    # placeholders (`counts: %{all: 0, ...}`, empty `:grid` stream) and the
+    # heading flashed "0 titles · 0 movies · 0 shows" with an empty grid
+    # until the socket connected and re-rendered. The read is a cheap local
+    # build, so it must run on the first render too. `get/2` (not
+    # `live_async!`) is deliberate — it exercises the static render the
+    # browser actually paints first.
+    test "static render shows real counts and a populated grid, not the 0 placeholder",
+         %{conn: conn} do
+      movie = create_standalone_movie(%{name: "First Paint Fixture"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      html = conn |> get("/library") |> html_response(200)
+
+      assert html =~ "First Paint Fixture",
+             "grid must be populated on the disconnected first render"
+
+      assert html =~ "1 title",
+             "heading count must reflect real data on the disconnected first render"
+
+      refute html =~ "0 titles",
+             "must not flash the 0-count placeholder before the socket connects"
+    end
+  end
+
   describe "in_progress filter" do
     setup do
       # Movie the user has started but not finished

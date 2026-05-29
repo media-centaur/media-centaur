@@ -15,6 +15,22 @@ defmodule MediaCentaurWeb.UpcomingLiveTest do
     assert html =~ "Upcoming"
   end
 
+  test "first paint (disconnected render) shows tracked items, not an empty flash",
+       %{conn: conn} do
+    # Desktop first-paint correctness: the static HTTP render must already
+    # carry the tracked-release data, not an empty placeholder that flashes
+    # until the socket connects. `get/2` exercises the disconnected render.
+    item =
+      create_tracking_item(%{tmdb_id: 8_777, media_type: :tv_series, name: "First Paint Upcoming Show"})
+
+    create_tracking_release(%{item_id: item.id, season_number: 1, episode_number: 1, released: true})
+
+    html = conn |> get("/upcoming") |> html_response(200)
+
+    assert html =~ "First Paint Upcoming Show",
+           "tracked items must render on the disconnected first paint"
+  end
+
   test "clicking the Track New Releases button opens the modal", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, "/upcoming")
 

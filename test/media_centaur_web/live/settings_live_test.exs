@@ -5,9 +5,10 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
   alias MediaCentaur.Playback.LanguagePolicy
 
-  # `SettingsLive.ensure_loaded/1` defers its 15+ config / capability /
-  # probe reads to an owned `start_async(:settings_load, …)` (ADR-049).
-  # `render_async/1` awaits it deterministically — no wall-clock sleep.
+  # `SettingsLive.ensure_loaded/1` loads its config / capability / probe
+  # reads synchronously on first render (desktop first-paint correctness),
+  # so the data is present immediately. `render_async/1` is retained as a
+  # no-op-safe await for any incidental async (e.g. the update check).
   defp render_after_async_load(view) do
     render_async(view)
   end
@@ -145,14 +146,25 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     test "renders when a critical probe is :error", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings")
 
-      # SettingsLive defers `ensure_loaded` to a supervised task per
-      # the "no blocking LV page loads" rule — the first render is the
-      # empty default. Wait for `{:settings_loaded, _}` to land.
       html = render_after_async_load(view)
 
       assert html =~ "Setup is incomplete"
       assert html =~ "Run tour"
       assert html =~ "watch dirs"
+    end
+
+    test "first paint (disconnected render) shows the banner, not an empty flash",
+         %{conn: conn} do
+      # Desktop first-paint correctness: with a broken watch dir (setup
+      # above) the load — which now runs on the disconnected render — must
+      # surface the setup banner. The previously-gated behavior left
+      # `show_setup_banner?` at its mount default (false) on the static
+      # render and flashed an incomplete page. `get/2` exercises the first
+      # render the browser paints.
+      html = conn |> get(~p"/settings") |> html_response(200)
+
+      assert html =~ "Setup is incomplete",
+             "load-derived state must render on the disconnected first paint"
     end
 
     test "dismiss event hides the banner for the session", %{conn: conn} do

@@ -32,6 +32,25 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
       assert render_after_async_load(view) =~ "Sample Anime One"
     end
 
+    test "first paint (disconnected render) shows real events, not an empty flash",
+         %{conn: conn} do
+      # Desktop first-paint correctness: the static HTTP render must already
+      # carry the history, not an empty placeholder that flashes until the
+      # socket connects. `get/2` exercises the disconnected first render.
+      movie = create_movie(%{name: "First Paint History Movie"})
+
+      create_watch_event(%{
+        entity_type: :movie,
+        movie_id: movie.id,
+        title: "First Paint History Movie"
+      })
+
+      html = conn |> get("/history") |> html_response(200)
+
+      assert html =~ "First Paint History Movie",
+             "history events must render on the disconnected first paint"
+    end
+
     test "mounts with correct event count reflected in stats", %{conn: conn} do
       create_watch_event(%{title: "Movie A", duration_seconds: 3600.0})
       create_watch_event(%{title: "Movie B", duration_seconds: 7200.0})

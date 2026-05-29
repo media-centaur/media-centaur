@@ -217,17 +217,21 @@ defmodule MediaCentaurWeb.HomeLive do
     {:noreply, socket |> ensure_loaded() |> apply_modal_params(params)}
   end
 
-  # First-render data load — gated by `connected?` so the static HTTP render
-  # ships empty defaults and the WebSocket render fills them in once. This is
-  # the canonical "Iron Law" pattern (see AGENTS.md → LiveView callbacks).
+  # First-render data load — runs on BOTH the disconnected (static) and
+  # connected renders so the first paint already carries real sections, not
+  # the empty-state placeholder. Desktop first-paint correctness (see
+  # AGENTS.md → LiveView callbacks): the load is local (ETS views + a
+  # playback-session read), so there is no traffic-scaling reason to defer
+  # it behind `connected?`. Do not re-add that gate — it reintroduces the
+  # empty-state flash.
   defp ensure_loaded(socket) do
-    if connected?(socket) and not socket.assigns.loaded? do
+    if socket.assigns.loaded? do
+      socket
+    else
       socket
       |> assign(:playback, load_playback_sessions())
       |> assign_all()
       |> assign(:loaded?, true)
-    else
-      socket
     end
   end
 

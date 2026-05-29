@@ -107,6 +107,19 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       assert html =~ "data-page-behavior=\"download\""
       assert html =~ "data-nav-default-zone=\"pursuits\""
     end
+
+    test "first paint (disconnected render) reflects loaded capability, not the unloaded default",
+         %{conn: conn} do
+      # Desktop first-paint correctness: setup marks :download_client :ok, so
+      # the load (which runs on the disconnected render) must surface the
+      # enabled queue section. The previously-gated behavior left
+      # `download_client_ready` at its mount default (false) on the static
+      # render and flashed the "Connect a download client" empty state.
+      html = conn |> get(~p"/download") |> html_response(200)
+
+      refute html =~ "Connect a download client",
+             "download-client capability must be loaded on the disconnected first paint"
+    end
   end
 
   describe "query_change" do
