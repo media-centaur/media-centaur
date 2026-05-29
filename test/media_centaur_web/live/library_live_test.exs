@@ -475,4 +475,71 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert render(view) =~ "/media-images/#{movie.id}/poster.jpg"
     end
   end
+
+  describe "library card info toggle" do
+    # The `library_show_card_info` Settings entry controls whether each
+    # poster card renders its title + type/year footer beneath the image.
+    # Default-on: when the entry is absent the footer renders. Live updates
+    # flow via the `settings:updates` PubSub topic through the
+    # `LibraryCardInfoAware` on_mount trait — no full re-mount required.
+
+    alias MediaCentaur.LibraryCardInfo
+    alias MediaCentaur.Settings
+    alias MediaCentaur.Topics
+
+    setup do
+      movie = create_standalone_movie(%{name: "Card Info Fixture"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      {:ok, movie: movie}
+    end
+
+    test "footer text renders by default (no Settings entry)", %{conn: conn, movie: movie} do
+      assert {:ok, nil} = Settings.get_by_key(LibraryCardInfo.setting_key())
+
+      {:ok, _view, html} = live_async!(conn, "/library")
+
+      assert html =~ movie.name,
+             "card title must render in the default-on state"
+    end
+
+    test "broadcast of `enabled: false` hides footer text on re-render",
+         %{conn: conn, movie: movie} do
+      {:ok, view, html} = live_async!(conn, "/library")
+
+      assert html =~ movie.name
+
+      {:ok, _} =
+        Settings.find_or_create_entry(%{
+          key: LibraryCardInfo.setting_key(),
+          value: %{"enabled" => false}
+        })
+
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        Topics.settings_updates(),
+        {:setting_changed, LibraryCardInfo.setting_key(), %{"enabled" => false}}
+      )
+
+      # Drain the message; broadcast is processed synchronously by the
+      # LiveView's attached handle_info hook before the next render.
+      _ = render(view)
+
+      refute render(view) =~ movie.name,
+             "card title must be suppressed when `enabled: false` is live-broadcast"
+    end
+
+    test "entry persisted with `enabled: false` hides footer text on first render",
+         %{conn: conn, movie: movie} do
+      {:ok, _} =
+        Settings.find_or_create_entry(%{
+          key: LibraryCardInfo.setting_key(),
+          value: %{"enabled" => false}
+        })
+
+      {:ok, _view, html} = live_async!(conn, "/library")
+
+      refute html =~ movie.name,
+             "card title must be suppressed when the persisted setting is `enabled: false`"
+    end
+  end
 end

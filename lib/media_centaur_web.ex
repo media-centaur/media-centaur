@@ -18,6 +18,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.WatchHistory,
       MediaCentaur.SelfUpdate,
       MediaCentaur.SpoilerFree,
+      MediaCentaur.LibraryCardInfo,
       MediaCentaur.Subtitles,
       MediaCentaur.TMDB,
       MediaCentaur.Controls,

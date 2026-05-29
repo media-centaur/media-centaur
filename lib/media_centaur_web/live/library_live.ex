@@ -31,6 +31,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.EntityModal
   use MediaCentaurWeb.Live.SpoilerFreeAware
+  use MediaCentaurWeb.Live.LibraryCardInfoAware
 
   alias MediaCentaur.{
     Library,
@@ -270,6 +271,14 @@ defmodule MediaCentaurWeb.LibraryLive do
      )}
   end
 
+  # `LibraryCardInfoAware` has already updated `:show_card_info` via its
+  # `attach_hook`; we reset the grid stream so existing card items
+  # re-render with the new `show_info` attr (stream items are not part
+  # of subsequent diffs — they only re-render when the stream is reset).
+  def handle_info({:setting_changed, "library_show_card_info", _value}, socket) do
+    {:noreply, stream(socket, :grid, socket.assigns.entries, reset: true)}
+  end
+
   # Polled once per second so the empty-state can show "Ingesting N
   # files…" while the pipeline drains. Same cadence StatusLive uses.
   # Cheap: Pipeline.Stats keeps the snapshot in ETS, no DB query.
@@ -411,6 +420,7 @@ defmodule MediaCentaurWeb.LibraryLive do
                   selected={@selected_entity_id == entry.id}
                   playing={playing?(@playback, entry.id)}
                   available={Map.get(@availability_map, entry.id, true)}
+                  show_info={@show_card_info}
                 />
               </div>
             </div>
