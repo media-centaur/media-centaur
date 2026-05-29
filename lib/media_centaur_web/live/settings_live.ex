@@ -1504,27 +1504,16 @@ defmodule MediaCentaurWeb.SettingsLive do
             >
               Update now
             </.button>
-            <a
-              href={@latest_release.html_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="link link-primary text-sm"
-              data-nav-item
-              tabindex="0"
-            >
-              View on GitHub →
-            </a>
           </div>
 
-          <details
+          <div
             :if={@latest_release && SystemSection.show_release_notes?(@update_status)}
-            class="release-notes-disclosure mt-3 pt-3 border-t border-base-content/10"
+            class="mt-3 pt-3 border-t border-base-content/10"
           >
-            <summary class="cursor-pointer text-sm text-base-content/70 hover:text-base-content transition-colors inline-flex items-center gap-1.5 select-none">
-              <.icon name="hero-chevron-right-mini" class="size-4 disclosure-caret" />
-              <span>See what's new in {@latest_release.tag}</span>
-            </summary>
-            <div class="mt-3 space-y-2">
+            <div class="text-sm text-base-content/70 mb-3">
+              What's new in {@latest_release.tag}
+            </div>
+            <div class="space-y-2">
               <div class="glass-inset rounded-md p-4 max-h-80 overflow-y-auto thin-scrollbar text-xs">
                 <ReleaseNotes.release_notes body={Map.get(@latest_release, :body, "")} />
               </div>
@@ -1540,7 +1529,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 Read full notes on GitHub →
               </a>
             </div>
-          </details>
+          </div>
 
           <details class="release-notes-disclosure mt-2">
             <summary class="cursor-pointer text-xs text-base-content/50 hover:text-base-content/80 transition-colors inline-flex items-center gap-1.5 select-none">
