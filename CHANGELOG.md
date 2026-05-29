@@ -4,6 +4,24 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.76.0 — 2026-05-29
+
+### Improved
+
+**You can now drive the Library's tabs, sort, and filter with a keyboard or
+gamepad.** After the Library page's recent redesign, its type tabs (All /
+Movies / TV), the sort menu, and the name filter couldn't be reached without a
+mouse. Press up from the poster grid to jump to the toolbar, move across it
+with left/right, open the sort menu with Select (A on a gamepad), and type
+straight into the filter.
+
+### Fixed
+
+**Returning to the Home hero no longer leaves it half cut off.** When you
+navigate back up to the featured title with a keyboard or gamepad, the page now
+scrolls to the top so the whole hero — including the Play and More info buttons
+— is visible, instead of stopping partway with the top of the hero clipped.
+
 ## v0.75.0 — 2026-05-29
 
 ### Fixed
