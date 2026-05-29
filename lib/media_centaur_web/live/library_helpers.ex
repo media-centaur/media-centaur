@@ -122,6 +122,18 @@ defmodule MediaCentaurWeb.LibraryHelpers do
     end)
   end
 
+  @doc """
+  Counts how many progress summaries represent a title that is partway
+  watched (`episodes_completed < episodes_total`). Drives the
+  "N in progress" segment of the library header stat line.
+  """
+  @spec in_progress_count(map()) :: non_neg_integer()
+  def in_progress_count(progress_by_id) do
+    Enum.count(progress_by_id, fn {_id, summary} ->
+      MediaCentaurWeb.LibraryProgress.in_progress_summary?(summary)
+    end)
+  end
+
   # --- Reload strategy ---
 
   @doc """

@@ -127,12 +127,6 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   @sort_options [{:recent, "Recently Added"}, {:alpha, "A–Z"}, {:year, "Year"}]
 
   attr :active_tab, :atom, required: true
-
-  attr :counts, :map,
-    required: true,
-    doc:
-      "tab counts `%{all: integer(), movies: integer(), tv: integer()}` from `MediaCentaurWeb.LibraryHelpers.tab_counts/1`."
-
   attr :sort_order, :atom, required: true
   attr :sort_open, :boolean, required: true
   attr :sort_highlight, :integer, required: true
@@ -142,65 +136,70 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
     assigns = assign(assigns, :sort_options, @sort_options)
 
     ~H"""
-    <div class="flex items-center gap-4 flex-wrap" data-nav-zone="toolbar">
-      <div role="tablist" class="tabs tabs-boxed library-tabs w-fit">
-        <button
-          :for={{tab, label} <- [{:all, "All"}, {:movies, "Movies"}, {:tv, "TV"}]}
-          role="tab"
-          class={["tab", @active_tab == tab && "tab-active"]}
-          phx-click="switch_tab"
-          phx-value-tab={tab}
-          data-nav-item
-          tabindex="0"
-        >
-          {label}
-          <.badge class="ml-1">{@counts[tab] || 0}</.badge>
-        </button>
-      </div>
-
-      <div
-        class="sort-dropdown"
-        phx-click-away="close_sort"
-        phx-keydown="sort_key"
-        data-nav-item
-        data-sort={@sort_order}
-        data-captures-keys={@sort_open}
-        tabindex="0"
-      >
-        <div class="sort-dropdown-trigger" phx-click="toggle_sort">
-          {sort_label(@sort_order)}
-          <span class={["sort-dropdown-chevron", @sort_open && "rotate-180"]}>
-            <.icon name="hero-chevron-down-mini" class="size-4" />
-          </span>
-        </div>
-        <ul :if={@sort_open} class="sort-dropdown-menu glass-surface">
-          <li
-            :for={{{value, label}, index} <- Enum.with_index(@sort_options)}
-            class={[
-              "sort-dropdown-item",
-              @sort_order == value && "sort-dropdown-item-active",
-              @sort_highlight == index && "sort-dropdown-item-highlight"
-            ]}
-            phx-click="sort"
-            phx-value-sort={value}
+    <div class="flex items-center gap-3 flex-wrap" data-nav-zone="toolbar">
+      <%!-- Left cluster: type tabs + sort, bound tightly as "shape the list" controls --%>
+      <div class="flex items-center gap-2">
+        <div role="tablist" class="tabs tabs-boxed library-tabs w-fit">
+          <button
+            :for={{tab, label} <- [{:all, "All"}, {:movies, "Movies"}, {:tv, "TV"}]}
+            role="tab"
+            class={["tab", @active_tab == tab && "tab-active"]}
+            phx-click="switch_tab"
+            phx-value-tab={tab}
+            data-nav-item
+            tabindex="0"
           >
             {label}
-          </li>
-        </ul>
+          </button>
+        </div>
+
+        <div
+          class="sort-dropdown"
+          phx-click-away="close_sort"
+          phx-keydown="sort_key"
+          data-nav-item
+          data-sort={@sort_order}
+          data-captures-keys={@sort_open}
+          tabindex="0"
+        >
+          <div class="sort-dropdown-trigger" phx-click="toggle_sort">
+            {sort_label(@sort_order)}
+            <span class={["sort-dropdown-chevron", @sort_open && "rotate-180"]}>
+              <.icon name="hero-chevron-down-mini" class="size-4" />
+            </span>
+          </div>
+          <ul :if={@sort_open} class="sort-dropdown-menu glass-surface">
+            <li
+              :for={{{value, label}, index} <- Enum.with_index(@sort_options)}
+              class={[
+                "sort-dropdown-item",
+                @sort_order == value && "sort-dropdown-item-active",
+                @sort_highlight == index && "sort-dropdown-item-highlight"
+              ]}
+              phx-click="sort"
+              phx-value-sort={value}
+            >
+              {label}
+            </li>
+          </ul>
+        </div>
       </div>
 
       <form phx-change="filter" class="ml-auto">
-        <input
-          id="library-filter"
-          type="text"
-          name="filter_text"
-          value={@filter_text}
-          placeholder="Filter by name…"
-          phx-debounce="150"
-          class="input library-filter w-48"
-          data-nav-item
-          tabindex="0"
-        />
+        <div class="library-filter-wrap">
+          <.icon name="hero-magnifying-glass-mini" class="library-filter-icon" />
+          <input
+            id="library-filter"
+            type="text"
+            name="filter_text"
+            value={@filter_text}
+            placeholder="Filter by name…"
+            phx-debounce="150"
+            class="input library-filter w-56"
+            data-nav-item
+            tabindex="0"
+          />
+        </div>
       </form>
     </div>
     """

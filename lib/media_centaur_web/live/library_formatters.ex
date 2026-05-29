@@ -40,6 +40,16 @@ defmodule MediaCentaurWeb.LibraryFormatters do
   def format_type(type), do: type |> to_string() |> String.capitalize()
 
   @doc """
+  Formats a count with its noun, pluralizing the noun (simple `+s`) for
+  any count other than one — e.g. `count_label(1, "title") == "1 title"`,
+  `count_label(324, "movie") == "324 movies"`. Drives the library header
+  stat line.
+  """
+  @spec count_label(integer(), String.t()) :: String.t()
+  def count_label(1, noun), do: "1 #{noun}"
+  def count_label(count, noun), do: "#{count} #{noun}s"
+
+  @doc """
   Returns the 4-digit year for an `entity.date_published` value. Accepts a
   `Date` struct (canonical, post Library Schema v2 Phase 1). The binary
   clause is retained only for legacy storybook fixtures (e.g.
