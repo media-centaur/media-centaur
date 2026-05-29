@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.73.4 — 2026-05-29
+
+### Fixed
+
+**A lone "Coming Up" release on the home page no longer stretches across the
+whole row.** When only one upcoming release was scheduled, its artwork
+ballooned to full width and looked out of place. It now keeps the same size
+it would have alongside other releases, with a "See all" shortcut filling the
+space beside it.
+
 ## v0.73.3 — 2026-05-28
 
 ### Fixed
