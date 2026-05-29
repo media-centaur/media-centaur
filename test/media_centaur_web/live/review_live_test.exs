@@ -28,6 +28,23 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       {:ok, view, _html} = live_async!(conn, "/review")
       assert render_after_async_load(view) =~ "Initial Mount Pending"
     end
+
+    test "first paint (disconnected render) lists pending files, not an empty flash",
+         %{conn: conn} do
+      # Desktop first-paint correctness: the static HTTP render must already
+      # list the review backlog, not an empty placeholder that flashes until
+      # the socket connects. `get/2` exercises the disconnected first render.
+      _file =
+        create_pending_file(%{
+          parsed_title: "First Paint Pending File",
+          parsed_type: "movie"
+        })
+
+      html = conn |> get("/review") |> html_response(200)
+
+      assert html =~ "First Paint Pending File",
+             "pending files must render on the disconnected first paint"
+    end
   end
 
   describe "live updates from review intake" do

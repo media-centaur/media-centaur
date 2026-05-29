@@ -43,28 +43,34 @@ defmodule MediaCentaurWeb.ReviewLive do
     {:noreply, ensure_loaded(socket)}
   end
 
-  # First-render data load — gated by `connected?` so the static HTTP render
-  # ships empty defaults and the WebSocket render fills them in once. See
-  # AGENTS.md → LiveView callbacks (Iron Law).
-  #
-  # Per the "no blocking LV page loads" rule, the pending-files fetch
-  # (which scales with the review backlog) runs on a supervised task
-  # and messages back via `{:review_loaded, _}`. The capability flag
-  # read is cached and stays synchronous.
+  # First-render data load — runs on BOTH the disconnected (static) and
+  # connected renders so the first paint already lists the review backlog,
+  # never an empty-state flash. Desktop first-paint correctness (see
+  # AGENTS.md → LiveView callbacks): `fetch_pending_groups/0` is a local
+  # query, so there is no traffic-scaling reason to defer it. Do not re-add
+  # a `connected?` gate.
   defp ensure_loaded(socket) do
-    if connected?(socket) and not socket.assigns.loaded? do
+    if socket.assigns.loaded? do
       socket
-      |> assign(tmdb_ready: MediaCentaur.Capabilities.tmdb_ready?())
-      |> start_async_review_load()
-      |> assign(:loaded?, true)
     else
       socket
+      |> assign(tmdb_ready: MediaCentaur.Capabilities.tmdb_ready?())
+      |> load_review()
+      |> assign(:loaded?, true)
     end
   end
 
-  # Owned async (ADR-049): result lands in handle_async(:review_load, …).
-  defp start_async_review_load(socket) do
-    start_async(socket, :review_load, fn -> Review.fetch_pending_groups() end)
+  # Synchronous first-render load: fetch the pending groups, then run the
+  # derived-assigns pipeline (`apply_group_stats`, `ensure_selection`) so
+  # the master/detail panes settle into a consistent state.
+  defp load_review(socket) do
+    groups = Review.fetch_pending_groups()
+
+    socket
+    |> assign(groups: groups)
+    |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
+    |> apply_group_stats()
+    |> ensure_selection()
   end
 
   @impl true
@@ -321,18 +327,6 @@ defmodule MediaCentaurWeb.ReviewLive do
     else
       {:noreply, socket}
     end
-  end
-
-  # Re-run the derived-assigns pipeline (`apply_group_stats`,
-  # `ensure_selection`) on the freshly fetched groups so the
-  # master/detail panes settle into a consistent state.
-  def handle_async(:review_load, {:ok, groups}, socket) do
-    {:noreply,
-     socket
-     |> assign(groups: groups)
-     |> assign(groups_by_key: Map.new(groups, &{&1.key, &1}))
-     |> apply_group_stats()
-     |> ensure_selection()}
   end
 
   def handle_async(name, {:exit, reason}, socket) do

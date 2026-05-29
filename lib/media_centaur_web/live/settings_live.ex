@@ -196,70 +196,52 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, socket}
   end
 
-  # First-render data load — gated by `connected?` so the static HTTP render
-  # ships empty defaults and the WebSocket render fills them in once. See
-  # AGENTS.md → LiveView callbacks (Iron Law).
-  #
-  # `ensure_loaded/1` previously ran ~15 sync calls back-to-back: config
-  # reads, four `running?/0` GenServer calls, an image-health summary, a
-  # systemd service-state probe, three persisted connection-test reads,
-  # and the setup-banner probe set. Per the "no blocking LV page loads"
-  # rule, the work runs on a supervised task that messages back via
-  # `{:settings_loaded, assigns}` — `handle_params` returns immediately
-  # and the page progressively populates.
+  # First-render data load — runs on BOTH the disconnected (static) and
+  # connected renders so the first paint already carries the settings state,
+  # never an empty-state flash. Desktop first-paint correctness (see
+  # AGENTS.md → LiveView callbacks): the ~15 reads (config, four `running?/0`
+  # GenServer calls, image-health summary, systemd service-state probe,
+  # connection-test reads, setup-banner probes) are all local, so there is
+  # no traffic-scaling reason to defer them. Do not re-add a `connected?`
+  # gate. The networked update-check stays async — see `start_update_check/1`.
   defp ensure_loaded(socket) do
-    if connected?(socket) and not socket.assigns.loaded? do
+    if socket.assigns.loaded? do
       socket
-      |> start_async_settings_load()
-      |> assign(loaded?: true)
     else
       socket
+      |> load_settings()
+      |> assign(loaded?: true)
     end
   end
 
-  # Spawns the settings-page data load on a supervised task. The task
-  # parallelises the four `running?/0` probes (independent GenServer
-  # calls), then builds the rest of the assigns from a single config
-  # snapshot. Result lands via `handle_info({:settings_loaded, ...}, _)`.
-  defp start_async_settings_load(socket) do
-    setup_banner_dismissed? = socket.assigns.setup_banner_dismissed?
+  # Synchronous first-render load. Builds the full settings assign set from
+  # local reads. The four `running?/0` probes are independent GenServer
+  # calls (microseconds each); running them sequentially inline is cheap.
+  defp load_settings(socket) do
+    config = load_config()
 
-    start_async(socket, :settings_load, fn ->
-      config = load_config()
+    {critical_failures, show_setup_banner?} =
+      compute_setup_banner_state(config, socket.assigns.setup_banner_dismissed?)
 
-      [watchers_running, pipeline_running, image_pipeline_running, acquisition_running] =
-        [
-          fn -> Watcher.Supervisor.running?() end,
-          fn -> Pipeline.Supervisor.pipeline_running?() end,
-          fn -> ImagePipeline.Supervisor.pipeline_running?() end,
-          fn -> Acquisition.auto_grab_running?() end
-        ]
-        |> Task.async_stream(& &1.(), max_concurrency: 4, ordered: true, timeout: 10_000)
-        |> Enum.map(fn {:ok, result} -> result end)
-
-      {critical_failures, show_setup_banner?} =
-        compute_setup_banner_state(config, setup_banner_dismissed?)
-
-      %{
-        config: config,
-        watchers_running: watchers_running,
-        pipeline_running: pipeline_running,
-        image_pipeline_running: image_pipeline_running,
-        acquisition_running: acquisition_running,
-        watch_dirs: MediaCentaur.Config.watch_dirs_entries(),
-        exclude_dirs: MediaCentaur.Config.get(:exclude_dirs) || [],
-        missing_images_summary: Maintenance.missing_images_summary(),
-        tmdb_test: load_test_result(:tmdb),
-        prowlarr_test: load_test_result(:prowlarr),
-        download_client_test: load_test_result(:download_client),
-        tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)),
-        service_state: SelfUpdate.service_state(),
-        bindings: Controls.get(),
-        glyph_style: Controls.glyph_style(),
-        critical_failures: critical_failures,
-        show_setup_banner?: show_setup_banner?
-      }
-    end)
+    assign(socket,
+      config: config,
+      watchers_running: Watcher.Supervisor.running?(),
+      pipeline_running: Pipeline.Supervisor.pipeline_running?(),
+      image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?(),
+      acquisition_running: Acquisition.auto_grab_running?(),
+      watch_dirs: MediaCentaur.Config.watch_dirs_entries(),
+      exclude_dirs: MediaCentaur.Config.get(:exclude_dirs) || [],
+      missing_images_summary: Maintenance.missing_images_summary(),
+      tmdb_test: load_test_result(:tmdb),
+      prowlarr_test: load_test_result(:prowlarr),
+      download_client_test: load_test_result(:download_client),
+      tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)),
+      service_state: SelfUpdate.service_state(),
+      bindings: Controls.get(),
+      glyph_style: Controls.glyph_style(),
+      critical_failures: critical_failures,
+      show_setup_banner?: show_setup_banner?
+    )
   end
 
   defp maybe_auto_check_updates(socket, "system") do
@@ -1217,10 +1199,6 @@ defmodule MediaCentaurWeb.SettingsLive do
   # --- Async results (owned via start_async/3, ADR-049) ---
 
   @impl true
-  def handle_async(:settings_load, {:ok, assigns}, socket) do
-    {:noreply, assign(socket, Map.to_list(assigns))}
-  end
-
   def handle_async(:tmdb_test_result, {:ok, status}, socket) do
     info = save_test_result(:tmdb, status)
     {:noreply, assign(socket, tmdb_testing: false, tmdb_test: info)}

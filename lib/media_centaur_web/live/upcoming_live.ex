@@ -13,8 +13,6 @@ defmodule MediaCentaurWeb.UpcomingLive do
   """
   use MediaCentaurWeb, :live_view
 
-  require MediaCentaur.Log, as: Log
-
   alias MediaCentaur.{Acquisition, Capabilities, ReleaseTracking}
   alias MediaCentaur.Acquisition.TargetEvents
   alias MediaCentaurWeb.Components.{TrackModal, UpcomingCards}
@@ -67,59 +65,45 @@ defmodule MediaCentaurWeb.UpcomingLive do
     {:noreply, ensure_loaded(socket)}
   end
 
-  # First-render data load — gated by `connected?` so the static HTTP render
-  # ships empty defaults and the WebSocket render fills them in once. See
-  # AGENTS.md → LiveView callbacks (Iron Law).
-  #
-  # The five `load_upcoming/1` loaders (releases / events / images /
-  # tracked items / grab statuses) total ~6 sequential DB queries. Per
-  # the "no blocking LV page loads" rule, the actual work runs on a
-  # supervised task that messages back via `{:upcoming_loaded, ...}` —
-  # `handle_params` returns immediately with the empty defaults the
-  # mount already seeded and the LV progressively populates.
-  #
-  # `Capabilities.tmdb_ready?/0` and `Acquisition.queue_state/0` are
-  # microsecond ETS / persistent_term reads and stay synchronous.
+  # First-render data load — runs on BOTH the disconnected (static) and
+  # connected renders so the first paint already carries the tracked-release
+  # data, never an empty-state flash. Desktop first-paint correctness (see
+  # AGENTS.md → LiveView callbacks): the load is a handful of local
+  # ReleaseTracking/Acquisition reads, so there is no traffic-scaling reason
+  # to defer it. Do not re-add a `connected?` gate.
   defp ensure_loaded(socket) do
-    if connected?(socket) and not socket.assigns.loaded? do
+    if socket.assigns.loaded? do
+      socket
+    else
       socket
       |> assign(
         tmdb_ready: Capabilities.tmdb_ready?(),
         queue_items: Acquisition.queue_state().items
       )
-      |> start_async_upcoming_load()
+      |> load_upcoming()
       |> assign(:loaded?, true)
-    else
-      socket
     end
   end
 
-  # Kicks off the upcoming-zone data load on a supervised task. The
-  # task parallelises the three independent ReleaseTracking reads via
-  # `Task.async_stream`, then derives the dependent assigns (images,
-  # tracked items, grab statuses) from the in-memory results before
-  # messaging the LV with the full `:upcoming_loaded` payload.
-  # Owned async (ADR-049): result lands in handle_async(:upcoming_load, …).
-  defp start_async_upcoming_load(socket) do
-    start_async(socket, :upcoming_load, fn ->
-      [releases, events, watching_items] =
-        [
-          fn -> ReleaseTracking.list_releases() end,
-          fn -> ReleaseTracking.list_recent_events(10) end,
-          fn -> ReleaseTracking.list_watching_items() end
-        ]
-        |> Task.async_stream(& &1.(), max_concurrency: 3, ordered: true, timeout: 15_000)
-        |> Enum.map(fn {:ok, result} -> result end)
+  # Synchronous first-render load. The three ReleaseTracking reads plus
+  # the derived images / tracked-items / grab-status assigns are all local
+  # queries; running them inline on both the disconnected and connected
+  # renders keeps the first paint correct (no empty-state flash) at
+  # negligible local cost. Desktop first-paint correctness (see AGENTS.md →
+  # LiveView callbacks).
+  defp load_upcoming(socket) do
+    releases = ReleaseTracking.list_releases()
+    events = ReleaseTracking.list_recent_events(10)
+    watching_items = ReleaseTracking.list_watching_items()
 
-      %{
-        upcoming_releases: releases,
-        upcoming_events: events,
-        upcoming_images: load_tracking_images(releases),
-        tracked_items: build_tracked_items_from(watching_items),
-        release_grab_statuses: load_release_grab_statuses(releases),
-        acquisition_ready: Capabilities.prowlarr_ready?()
-      }
-    end)
+    assign(socket,
+      upcoming_releases: releases,
+      upcoming_events: events,
+      upcoming_images: load_tracking_images(releases),
+      tracked_items: build_tracked_items_from(watching_items),
+      release_grab_statuses: load_release_grab_statuses(releases),
+      acquisition_ready: Capabilities.prowlarr_ready?()
+    )
   end
 
   @impl true
@@ -454,23 +438,7 @@ defmodule MediaCentaurWeb.UpcomingLive do
      )}
   end
 
-  # Async result from `start_async_upcoming_load/1`. The task parallels
-  # the three ReleaseTracking reads and derives the dependent assigns
-  # off the LV process — by the time this arrives the work is done and
-  # the assignment itself is the only LV-process cost.
   def handle_info(_msg, socket), do: {:noreply, socket}
-
-  # Async result from `start_async_upcoming_load/1` — releases, events,
-  # and watching items loaded in parallel off the LV process.
-  @impl true
-  def handle_async(:upcoming_load, {:ok, assigns}, socket) do
-    {:noreply, assign(socket, Map.to_list(assigns))}
-  end
-
-  def handle_async(:upcoming_load, {:exit, reason}, socket) do
-    Log.warning(:release_tracking, "upcoming load failed — #{inspect(reason)}")
-    {:noreply, socket}
-  end
 
   # --- Private ---
 
@@ -513,12 +481,6 @@ defmodule MediaCentaurWeb.UpcomingLive do
 
   defp pluralize(word, 1), do: word
   defp pluralize(word, _), do: word <> "s"
-
-  # Mid-session reload path. Routes through the same async task as the
-  # initial load so the LV process never blocks on the multi-query
-  # `ReleaseTracking` + `Acquisition` chain. Result lands via
-  # `handle_info({:upcoming_loaded, ...}, socket)`.
-  defp load_upcoming(socket), do: start_async_upcoming_load(socket)
 
   defp load_release_grab_statuses(%{upcoming: upcoming, released: released}) do
     if Capabilities.prowlarr_ready?() do

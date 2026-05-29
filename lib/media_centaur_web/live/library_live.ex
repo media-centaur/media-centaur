@@ -66,6 +66,8 @@ defmodule MediaCentaurWeb.LibraryLive do
        progress_by_id: %{},
        availability_map: %{},
        visible_ids: MapSet.new(),
+       in_progress_count: 0,
+       hero_backdrop: nil,
        active_tab: :all,
        sort_order: :recent,
        sort_open: false,
@@ -223,7 +225,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     {:noreply,
      socket
-     |> assign(progress_by_id: progress_by_id)
+     |> assign(progress_by_id: progress_by_id, in_progress_count: in_progress_count(progress_by_id))
      |> touch_stream_entries([entity_id])}
   end
 
@@ -314,86 +316,110 @@ defmodule MediaCentaurWeb.LibraryLive do
       full_width
       acquisition_ready={@acquisition_ready}
     >
-      <div data-page-behavior="library">
-        <%!-- Storage offline banner --%>
-        <LibraryCards.storage_offline_banner :if={@offline_summary} summary={@offline_summary} />
+      <div class="relative" data-page-behavior="library">
+        <%!-- Calm backdrop band behind the header — a sense of place that
+              ties the browse page to the home page's visual language without
+              a full hero. Masked + dimmed by `.library-atmosphere`. --%>
+        <div :if={@hero_backdrop} class="library-atmosphere" aria-hidden="true">
+          <img src={@hero_backdrop} alt="" loading="eager" decoding="sync" />
+        </div>
+        <%!-- Same fixed dark scrim the home page uses (left-weighted + a
+              vertical dim that holds down the page) so the library reads as a
+              rich dark surface rather than flat grey. It sits behind the grid
+              (z-0), so it darkens the background, never the posters. --%>
+        <div :if={@hero_backdrop} class="library-side-dim" aria-hidden="true"></div>
 
-        <%!-- Library Browse zone --%>
-        <section id="browse">
-          <LibraryCards.toolbar
-            active_tab={@active_tab}
-            counts={@counts}
-            sort_order={@sort_order}
-            sort_open={@sort_open}
-            sort_highlight={@sort_highlight}
-            filter_text={@filter_text}
-          />
+        <div class="relative z-[1]">
+          <header class="mb-5">
+            <h1 class="text-3xl font-bold tracking-tight">Library</h1>
+            <p class="mt-1 text-sm text-base-content/60">
+              {count_label(@counts.all, "title")} · {count_label(@counts.movies, "movie")} · {count_label(
+                @counts.tv,
+                "show"
+              )}<span :if={@in_progress_count > 0}>
+                · <span class="text-primary">{@in_progress_count} in progress</span></span>
+            </p>
+          </header>
 
-          <div :if={@in_progress_filter} class="mt-3 flex items-center gap-2">
-            <.badge size="md" class="gap-1">
-              In progress
-              <.link
-                patch={~p"/library"}
-                class="opacity-60 hover:opacity-100"
-                aria-label="Clear filter"
-              >
-                ×
-              </.link>
-            </.badge>
-          </div>
+          <%!-- Storage offline banner --%>
+          <LibraryCards.storage_offline_banner :if={@offline_summary} summary={@offline_summary} />
 
-          <div :if={@grid_count == 0} class="py-8 text-center empty-state-enter space-y-3">
-            <div :if={@watch_dirs_configured} class="max-w-md mx-auto space-y-3">
-              <p class="text-base-content/80">No media yet.</p>
-              <p :if={@pipeline_queue_depth > 0} class="text-sm opacity-70">
-                Ingesting {@pipeline_queue_depth} file{if @pipeline_queue_depth == 1,
-                  do: "",
-                  else: "s"}…
-              </p>
-              <.button
-                variant="primary"
-                size="sm"
-                phx-click="scan"
-                disabled={@scanning}
-                data-nav-item
-              >
-                {if @scanning, do: "Scanning…", else: "Scan watch directories"}
-              </.button>
+          <%!-- Library Browse zone --%>
+          <section id="browse">
+            <LibraryCards.toolbar
+              active_tab={@active_tab}
+              sort_order={@sort_order}
+              sort_open={@sort_open}
+              sort_highlight={@sort_highlight}
+              filter_text={@filter_text}
+            />
+
+            <div :if={@in_progress_filter} class="mt-3 flex items-center gap-2">
+              <.badge size="md" class="gap-1">
+                In progress
+                <.link
+                  patch={~p"/library"}
+                  class="opacity-60 hover:opacity-100"
+                  aria-label="Clear filter"
+                >
+                  ×
+                </.link>
+              </.badge>
             </div>
-            <div :if={not @watch_dirs_configured} class="max-w-md mx-auto space-y-2">
-              <p class="text-base-content/80">
-                No media yet — tell Media Centaur where your files live.
-              </p>
-              <.button
-                variant="primary"
-                size="sm"
-                navigate={~p"/settings?section=library"}
-                data-nav-item
-              >
-                Configure library
-              </.button>
-            </div>
-          </div>
 
-          <div :if={@grid_count > 0} data-nav-zone="grid" class="mt-4">
-            <div
-              id="library-grid"
-              phx-update="stream"
-              class="grid grid-cols-[repeat(auto-fill,minmax(155px,1fr))] gap-3"
-              data-nav-grid
-            >
-              <LibraryCards.poster_card
-                :for={{dom_id, entry} <- @streams.grid}
-                id={dom_id}
-                entry={entry}
-                progress={Map.get(@progress_by_id, entry.id)}
-                selected={@selected_entity_id == entry.id}
-                playing={playing?(@playback, entry.id)}
-                available={Map.get(@availability_map, entry.id, true)}
-              />
+            <div :if={@grid_count == 0} class="py-8 text-center empty-state-enter space-y-3">
+              <div :if={@watch_dirs_configured} class="max-w-md mx-auto space-y-3">
+                <p class="text-base-content/80">No media yet.</p>
+                <p :if={@pipeline_queue_depth > 0} class="text-sm opacity-70">
+                  Ingesting {@pipeline_queue_depth} file{if @pipeline_queue_depth == 1,
+                    do: "",
+                    else: "s"}…
+                </p>
+                <.button
+                  variant="primary"
+                  size="sm"
+                  phx-click="scan"
+                  disabled={@scanning}
+                  data-nav-item
+                >
+                  {if @scanning, do: "Scanning…", else: "Scan watch directories"}
+                </.button>
+              </div>
+              <div :if={not @watch_dirs_configured} class="max-w-md mx-auto space-y-2">
+                <p class="text-base-content/80">
+                  No media yet — tell Media Centaur where your files live.
+                </p>
+                <.button
+                  variant="primary"
+                  size="sm"
+                  navigate={~p"/settings?section=library"}
+                  data-nav-item
+                >
+                  Configure library
+                </.button>
+              </div>
             </div>
-          </div>
-        </section>
+
+            <div :if={@grid_count > 0} data-nav-zone="grid" class="mt-4">
+              <div
+                id="library-grid"
+                phx-update="stream"
+                class="grid grid-cols-[repeat(auto-fill,minmax(155px,1fr))] gap-3"
+                data-nav-grid
+              >
+                <LibraryCards.poster_card
+                  :for={{dom_id, entry} <- @streams.grid}
+                  id={dom_id}
+                  entry={entry}
+                  progress={Map.get(@progress_by_id, entry.id)}
+                  selected={@selected_entity_id == entry.id}
+                  playing={playing?(@playback, entry.id)}
+                  available={Map.get(@availability_map, entry.id, true)}
+                />
+              </div>
+            </div>
+          </section>
+        </div>
 
         <%!-- Detail modal (always in DOM for smooth backdrop-filter) --%>
         <.entity_modal
@@ -420,13 +446,22 @@ defmodule MediaCentaurWeb.LibraryLive do
   # First-render data load — gated by `connected?` so the static HTTP
   # render ships empty defaults and the WebSocket render fills them in
   # once. See AGENTS.md → LiveView callbacks (Iron Law).
+  # Loads on BOTH the disconnected (static) render and the connected
+  # render — deliberately NOT gated on `connected?/1`. This is a desktop
+  # app (ADR-012): the first paint must already carry real data, never the
+  # 0-count / empty-grid mount placeholders that would otherwise flash
+  # before the socket connects. The read is cheap (a `Library.Views.browse`
+  # ETS lookup plus a bounded set of local SQLite queries), so building it
+  # once more on the static render is the right trade. Do not re-add a
+  # `connected?` gate "to avoid the double load" — that reintroduces the
+  # flash.
   defp ensure_loaded(socket) do
-    if connected?(socket) and not socket.assigns.loaded? do
+    if socket.assigns.loaded? do
+      socket
+    else
       socket
       |> load_library()
       |> assign(loaded?: true)
-    else
-      socket
     end
   end
 
@@ -442,8 +477,21 @@ defmodule MediaCentaurWeb.LibraryLive do
       availability_map: availability_map,
       unavailable_count: Enum.count(availability_map, fn {_id, available} -> not available end),
       counts: tab_counts(entries),
+      in_progress_count: in_progress_count(progress_by_id),
+      hero_backdrop: library_backdrop(),
       playback: load_playback_sessions()
     )
+  end
+
+  # The header atmosphere reuses the same hero-candidate projection the
+  # home page draws from (ETS read, no DB query). Takes the top-ranked
+  # candidate so the backdrop is stable until the library itself changes,
+  # and re-reads on every `load_library/1` (browse refresh) alongside it.
+  defp library_backdrop do
+    case Library.Views.hero_candidates(limit: 1) do
+      [%{backdrop_url: url} | _] when is_binary(url) -> url
+      _ -> nil
+    end
   end
 
   # --- Stream Management ---

@@ -140,43 +140,33 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # `{:acquisition_loaded, _}`. The `Acquisition.queue_state/0` read
   # is `:persistent_term` — microsecond — and stays synchronous so the
   # page can render the queue's freshness state immediately.
+  # First-render data load — runs on BOTH the disconnected (static) and
+  # connected renders so the first paint already carries the search session,
+  # pursuit rows, and history, never an empty-state flash. Desktop
+  # first-paint correctness (see AGENTS.md → LiveView callbacks): the four
+  # reads are all local, so there is no traffic-scaling reason to defer
+  # them. Do not re-add a `connected?` gate.
   defp ensure_loaded(socket) do
-    if connected?(socket) and not socket.assigns.loaded? do
+    if socket.assigns.loaded? do
       socket
-      |> assign_queue_from_state(Acquisition.queue_state())
-      |> start_async_acquisition_load()
-      |> assign(:loaded?, true)
     else
       socket
+      |> assign_queue_from_state(Acquisition.queue_state())
+      |> load_acquisition()
+      |> assign(:loaded?, true)
     end
   end
 
-  # Owned async (ADR-049): the load runs under the LiveView via
-  # `start_async/3` — cancelled when the LiveView dies, awaitable in
-  # tests via `render_async/1`, never an orphan under the global
-  # `TaskSupervisor`. Result lands in `handle_async(:acquisition_load, …)`.
-  defp start_async_acquisition_load(socket) do
-    history_search = socket.assigns.history_search
-    history_filter = socket.assigns.history_filter
-
-    start_async(socket, :acquisition_load, fn ->
-      [search_session, download_client_ready, pursuit_rows, history_rows] =
-        [
-          fn -> Acquisition.current_search_session() end,
-          fn -> Capabilities.download_client_ready?() end,
-          fn -> MediaCentaur.Acquisition.Pursuits.list_active_rows() end,
-          fn -> compute_history_rows(history_filter, history_search) end
-        ]
-        |> Task.async_stream(& &1.(), max_concurrency: 4, ordered: true, timeout: 15_000)
-        |> Enum.map(fn {:ok, result} -> result end)
-
-      %{
-        search_session: search_session,
-        download_client_ready: download_client_ready,
-        pursuit_rows: pursuit_rows,
-        history_rows: history_rows
-      }
-    end)
+  # Synchronous first-render load of the four initial reads (search
+  # session, download-client capability, active pursuit rows, history
+  # rows). All local; running them inline keeps the first paint correct.
+  defp load_acquisition(socket) do
+    assign(socket,
+      search_session: Acquisition.current_search_session(),
+      download_client_ready: Capabilities.download_client_ready?(),
+      pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows(),
+      history_rows: compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search)
+    )
   end
 
   defp load_pursuit_rows(socket) do
@@ -869,17 +859,10 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
-  # Async result from `start_async_acquisition_load/1` — the four initial
-  # reads (search session, capability flag, pursuit rows, history rows)
-  # done in parallel off the LV process and merged into assigns.
-  @impl true
-  def handle_async(:acquisition_load, {:ok, assigns}, socket) do
-    {:noreply, assign(socket, Map.to_list(assigns))}
-  end
-
   # Initial modal-open alternatives fetch. Drops the result if the user has
   # closed the modal or pivoted to another pursuit. No flash on empty — the
   # empty card's "Search Prowlarr again" CTA is self-explanatory.
+  @impl true
   def handle_async({:alternatives_fetch, pursuit_id}, {:ok, decision}, socket) do
     case socket.assigns do
       %{selected_pursuit_id: ^pursuit_id, pursuit_detail: %{} = detail} ->

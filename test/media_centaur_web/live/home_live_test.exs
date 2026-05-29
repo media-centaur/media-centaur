@@ -33,6 +33,22 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     assert html =~ "Continue Watching"
   end
 
+  test "first paint (disconnected render) shows real sections, not the empty-state flash",
+       %{conn: conn} do
+    # Desktop first-paint correctness: the static HTTP render must already
+    # carry data, not the empty-state placeholder that flashes until the
+    # socket connects. `get/2` exercises the disconnected render the browser
+    # paints first.
+    movie = create_standalone_movie(%{name: "First Paint Home Movie"})
+    _ = create_linked_file(%{movie_id: movie.id})
+    create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+
+    html = conn |> get("/") |> html_response(200)
+
+    assert html =~ "First Paint Home Movie",
+           "continue-watching media must render on the disconnected first paint"
+  end
+
   describe "debounce on entities_changed" do
     test "five rapid broadcasts trigger only one reload after the debounce window", %{conn: conn} do
       # Regression guard: rapid :entities_changed messages must be debounced
