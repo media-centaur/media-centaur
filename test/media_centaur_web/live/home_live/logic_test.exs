@@ -87,6 +87,41 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
     end
   end
 
+  describe "select_alt_hero/2" do
+    test "returns nil for an empty candidate list" do
+      assert Logic.select_alt_hero([], ~U[2026-04-27 12:00:00Z]) == nil
+    end
+
+    test "returns the sole candidate when only one is eligible" do
+      assert Logic.select_alt_hero([%{id: 1}], ~U[2026-04-27 12:00:00Z]) == %{id: 1}
+    end
+
+    test "returns a candidate from the list" do
+      candidates = for i <- 1..5, do: %{id: i}
+      assert Logic.select_alt_hero(candidates, ~U[2026-04-27 12:00:00Z]) in candidates
+    end
+
+    test "differs from the primary hero pick whenever two or more candidates exist" do
+      base = ~U[2026-04-27 00:00:00Z]
+
+      for size <- 2..12, block <- 0..15 do
+        candidates = for i <- 1..size, do: %{id: i}
+        now = DateTime.add(base, block * 7 * 3600, :second)
+        assert Logic.select_alt_hero(candidates, now) != Logic.select_hero(candidates, now)
+      end
+    end
+
+    test "is stable within the same 7-hour rotation window" do
+      candidates = for i <- 1..10, do: %{id: i}
+      reference = ~U[2026-04-27 12:00:00Z]
+      block_start_unix = div(DateTime.to_unix(reference), 7 * 3600) * 7 * 3600
+      block_start = DateTime.from_unix!(block_start_unix)
+      a = Logic.select_alt_hero(candidates, block_start)
+      b = Logic.select_alt_hero(candidates, DateTime.add(block_start, 7 * 3600 - 1, :second))
+      assert a == b
+    end
+  end
+
   describe "continue_watching_items/1" do
     test "shapes progress rows into the component item map" do
       progress = [

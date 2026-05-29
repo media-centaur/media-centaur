@@ -155,6 +155,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
 
         <div
           class="sort-dropdown"
+          phx-click="toggle_sort"
           phx-click-away="close_sort"
           phx-keydown="sort_key"
           data-nav-item
@@ -162,7 +163,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
           data-captures-keys={@sort_open}
           tabindex="0"
         >
-          <div class="sort-dropdown-trigger" phx-click="toggle_sort">
+          <div class="sort-dropdown-trigger">
             {sort_label(@sort_order)}
             <span class={["sort-dropdown-chevron", @sort_open && "rotate-180"]}>
               <.icon name="hero-chevron-down-mini" class="size-4" />

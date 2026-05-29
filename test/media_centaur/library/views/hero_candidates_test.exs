@@ -72,6 +72,16 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
       assert Enum.all?(items, &(&1.backdrop_url != nil))
     end
 
+    test "materializes the whole eligible set with no cap, readable without a limit" do
+      on_exit_clear_table()
+
+      for index <- 1..30, do: seed_hero_candidate("Hero #{index}")
+
+      assert :ok = HeroCandidates.refresh_cache()
+
+      assert length(Views.hero_candidates()) == 30
+    end
+
     test "broadcasts {:library_view_updated, :hero_candidates} after refresh" do
       on_exit_clear_table()
 

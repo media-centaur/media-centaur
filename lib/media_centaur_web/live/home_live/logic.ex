@@ -46,6 +46,27 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
     Enum.at(candidates, rem(blocks, length(candidates)))
   end
 
+  @doc """
+  Picks a *second* candidate, distinct from `select_hero/2`, so a page
+  showing both (the library backdrop alongside the home hero) reads as
+  two different images. Same #{@rotation_hours}-hour rotation, offset by
+  half the pool — for any pool of 2+ this always lands on a different
+  candidate than the primary pick, and still rotates over time.
+
+  When only one candidate is eligible the two unavoidably coincide;
+  returns that sole candidate. Returns `nil` for an empty list.
+  """
+  @spec select_alt_hero([map()], DateTime.t()) :: map() | nil
+  def select_alt_hero(candidates, now \\ DateTime.utc_now())
+  def select_alt_hero([], _now), do: nil
+  def select_alt_hero([single], _now), do: single
+
+  def select_alt_hero(candidates, %DateTime{} = now) do
+    blocks = div(DateTime.to_unix(now), @rotation_hours * 3600)
+    count = length(candidates)
+    Enum.at(candidates, rem(blocks + div(count, 2), count))
+  end
+
   @doc "Shape Library progress rows into ContinueWatchingRow items."
   @spec continue_watching_items([map()]) :: [ContinueWatchingRow.Item.t()]
   def continue_watching_items(progress_rows), do: shape_continue_watching(progress_rows, 0)

@@ -388,6 +388,22 @@ defmodule MediaCentaur.LibraryTest do
       query_count = count_queries(fn -> Library.list_hero_candidates(limit: 12) end)
       assert query_count <= 8, "Expected at most 8 queries, got #{query_count}"
     end
+
+    test "returns every eligible entity when no limit is given" do
+      for index <- 1..15 do
+        movie = create_standalone_movie(%{name: "Movie #{index}", description: "A synopsis"})
+        record_present(create_linked_file(%{movie_id: movie.id}))
+
+        create_image(%{
+          movie_id: movie.id,
+          role: "backdrop",
+          content_url: "#{movie.id}/backdrop.jpg",
+          extension: "jpg"
+        })
+      end
+
+      assert length(Library.list_hero_candidates()) == 15
+    end
   end
 
   # ---------------------------------------------------------------------------

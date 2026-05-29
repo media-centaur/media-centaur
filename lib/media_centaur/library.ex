@@ -2164,12 +2164,16 @@ defmodule MediaCentaur.Library do
   image and a description). Returns plain maps in the shape:
     `%{id, name, year, runtime_minutes, genres, overview, backdrop_url}`
 
+  The eligibility filter (backdrop + description) is the real curation —
+  the library is already a user-curated set — so the result is unbounded
+  by default. Pass `:limit` to cap it (callers/benchmarks/tests).
+
   Issues at most 8 queries: one per entity type + one image preload per type,
   compared to ~87 queries for the previous `fetch_all_typed_entries` approach.
   """
   @spec list_hero_candidates(keyword()) :: [map()]
   def list_hero_candidates(opts \\ []) do
-    limit = Keyword.get(opts, :limit, 12)
+    limit = Keyword.get(opts, :limit)
 
     movies = fetch_hero_candidates_movies(limit)
     hoisted = fetch_hero_candidates_hoisted_movies(limit)
@@ -2177,10 +2181,16 @@ defmodule MediaCentaur.Library do
     movie_series = fetch_hero_candidates_movie_series(limit)
     video_objects = fetch_hero_candidates_video_objects(limit)
 
-    Enum.take(movies ++ hoisted ++ tv_series ++ movie_series ++ video_objects, limit)
+    maybe_take(movies ++ hoisted ++ tv_series ++ movie_series ++ video_objects, limit)
   end
 
   # --- Private fetchers for list_hero_candidates ---
+
+  defp maybe_take(list, nil), do: list
+  defp maybe_take(list, limit), do: Enum.take(list, limit)
+
+  defp maybe_limit(query, nil), do: query
+  defp maybe_limit(query, limit), do: from(q in query, limit: ^limit)
 
   defp fetch_hero_candidates_movies(limit) do
     from([m] in PresentableQueries.standalone_movies(),
@@ -2196,9 +2206,9 @@ defmodule MediaCentaur.Library do
               select: 1
             )
           ),
-      order_by: [{:desc, m.inserted_at}],
-      limit: ^limit
+      order_by: [{:desc, m.inserted_at}]
     )
+    |> maybe_limit(limit)
     |> Repo.all()
     |> Repo.preload(:images)
     |> Enum.map(&shape_hero_record/1)
@@ -2220,9 +2230,9 @@ defmodule MediaCentaur.Library do
               select: 1
             )
           ),
-      order_by: [{:desc, m.inserted_at}],
-      limit: ^limit
+      order_by: [{:desc, m.inserted_at}]
     )
+    |> maybe_limit(limit)
     |> Repo.all()
     |> Repo.preload(:images)
     |> Enum.map(&shape_hero_record/1)
@@ -2255,9 +2265,9 @@ defmodule MediaCentaur.Library do
               select: 1
             )
           ),
-      order_by: [{:desc, t.inserted_at}],
-      limit: ^limit
+      order_by: [{:desc, t.inserted_at}]
     )
+    |> maybe_limit(limit)
     |> Repo.all()
     |> Repo.preload(:images)
     |> Enum.map(&shape_hero_record/1)
@@ -2277,9 +2287,9 @@ defmodule MediaCentaur.Library do
               select: 1
             )
           ),
-      order_by: [{:desc, ms.inserted_at}],
-      limit: ^limit
+      order_by: [{:desc, ms.inserted_at}]
     )
+    |> maybe_limit(limit)
     |> Repo.all()
     |> Repo.preload(:images)
     |> Enum.map(&shape_hero_record/1)
@@ -2308,9 +2318,9 @@ defmodule MediaCentaur.Library do
               select: 1
             )
           ),
-      order_by: [{:desc, v.inserted_at}],
-      limit: ^limit
+      order_by: [{:desc, v.inserted_at}]
     )
+    |> maybe_limit(limit)
     |> Repo.all()
     |> Repo.preload(:images)
     |> Enum.map(&shape_hero_record/1)

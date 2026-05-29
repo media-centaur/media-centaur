@@ -35,7 +35,6 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
   alias MediaCentaur.Topics
 
   @table :library_view_hero_candidates
-  @max_items 24
 
   @impl MediaCentaur.Cache
   def subscribe do
@@ -54,7 +53,7 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
     ensure_table()
 
     items =
-      [limit: @max_items]
+      []
       |> Library.list_hero_candidates()
       |> Enum.map(&to_view_model/1)
 
@@ -79,7 +78,7 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
   """
   @spec read(keyword()) :: [HeroCandidatesItem.t()]
   def read(opts \\ []) do
-    limit = Keyword.get(opts, :limit, 12)
+    limit = Keyword.get(opts, :limit)
 
     case :ets.whereis(@table) do
       :undefined -> read_from_db(limit)
@@ -91,9 +90,12 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
     @table
     |> :ets.tab2list()
     |> Enum.sort_by(fn {rank, _item} -> rank end)
-    |> Enum.take(limit)
+    |> maybe_take(limit)
     |> Enum.map(fn {_rank, item} -> item end)
   end
+
+  defp maybe_take(list, nil), do: list
+  defp maybe_take(list, limit), do: Enum.take(list, limit)
 
   defp read_from_db(limit) do
     [limit: limit]
