@@ -4,9 +4,13 @@ defmodule MediaCentaurWeb.Components.PosterRow do
 
   Each item is an `Item` struct (see below). `year` may be a string like
   "2023" or "S2 · 2026".
+
+  When `see_all_href` is set, a "See all" card renders as the last slot in
+  the scrollable row, mirroring the Continue Watching row.
   """
 
   use Phoenix.Component
+  import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
   defmodule Item do
     @moduledoc "View-model for a single PosterRow card."
@@ -23,6 +27,10 @@ defmodule MediaCentaurWeb.Components.PosterRow do
   end
 
   attr :items, :list, required: true, doc: "list of `Item.t()`"
+
+  attr :see_all_href, :string,
+    default: nil,
+    doc: "when set, renders a trailing \"See all\" card navigating to this path"
 
   def poster_row(assigns) do
     ~H"""
@@ -59,6 +67,19 @@ defmodule MediaCentaurWeb.Components.PosterRow do
           <div :if={item.year} class="text-[10px] text-white/70 text-on-image">{item.year}</div>
         </div>
       </button>
+
+      <.link
+        :if={@see_all_href}
+        navigate={@see_all_href}
+        class="card-hover relative aspect-[2/3] rounded overflow-hidden glass-inset flex flex-col items-center justify-center gap-2 text-base-content/60 hover:text-primary hover:bg-base-content/5"
+        data-component="poster-row-see-all"
+        data-row-item
+        data-nav-item
+        tabindex="0"
+      >
+        <.icon name="hero-arrow-right-circle" class="size-10" />
+        <span class="text-sm font-medium">See all</span>
+      </.link>
     </div>
     """
   end

@@ -149,7 +149,7 @@ defmodule MediaCentaurWeb.HomeLive do
                 See all →
               </.link>
             </div>
-            <PosterRow.poster_row items={@recently_added} />
+            <PosterRow.poster_row items={@recently_added} see_all_href="/library" />
           </section>
 
           <section :if={@coming_up_marquee.hero != nil} data-row="coming-up" data-nav-zone="coming_up">
