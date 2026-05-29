@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.77.0 — 2026-05-29
+
+### New
+
+**You can now hide titles below posters for a clean wall-of-posters
+view.** A new toggle under **Settings → Library → "Show titles below
+posters"** suppresses the title and type/year line beneath each poster
+card on the Library page. Leave it on for the default labelled grid,
+turn it off when you want pure artwork.
+
 ## v0.76.0 — 2026-05-29
 
 ### Improved
