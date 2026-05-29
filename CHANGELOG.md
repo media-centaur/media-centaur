@@ -4,6 +4,14 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.74.0 — 2026-05-29
+
+### Improved
+
+**The "Recently Added" row on the home page now has a "See all" card at the
+end.** Matching the "Continue Watching" row above it, you can jump straight to
+your full library from the end of the row — with a keyboard, gamepad, or mouse.
+
 ## v0.73.6 — 2026-05-29
 
 ### Improved
