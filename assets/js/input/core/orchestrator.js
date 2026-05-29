@@ -209,6 +209,19 @@ export class Orchestrator {
   }
 
   /**
+   * Called by the LiveView hook's beforeUpdate(), before morphdom patches the
+   * DOM. A grid mutation (notably `stream(:grid, …, reset: true)`) re-renders
+   * the whole grid and drops focus to <body>, so we snapshot the focused
+   * card's entity ID here — while it still exists — so onViewChanged() can
+   * re-grab the exact card after the patch.
+   */
+  onBeforeViewChange() {
+    if (this.focusMachine.context !== Context.GRID) return
+    const focused = this.reader.getCurrentFocusedItem()
+    if (focused?.dataset?.entityId) this._lastGridEntityId = focused.dataset.entityId
+  }
+
+  /**
    * Called by the LiveView hook when the view updates.
    * Syncs focus machine state with current DOM state.
    */
@@ -348,6 +361,16 @@ export class Orchestrator {
     if (this._pendingModalRefocus && this.focusMachine.context === Context.MODAL) {
       this._pendingModalRefocus = false
       this.writer.focusFirst(Context.MODAL)
+    }
+
+    // A LiveView patch can destroy the focused grid card — notably
+    // `stream(:grid, …, reset: true)`, which LibraryLive fires on any library
+    // mutation (e.g. a completed download). That re-renders the whole grid and
+    // drops focus to <body>. Re-grab the card by remembered entity ID so the
+    // cursor stays put instead of silently falling back to the first item
+    // (and then out to the sidebar) on the next keypress.
+    if (this.focusMachine.context === Context.GRID && !this.reader.getCurrentFocusedItem()) {
+      this._restoreContextFocus(Context.GRID)
     }
 
     // After a LiveView patch while in sub-focus, morphdom may have replaced

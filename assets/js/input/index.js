@@ -132,6 +132,10 @@ export function createInputHook() {
       window.addEventListener("input:rebindMaps", handleRebind)
     },
 
+    beforeUpdate() {
+      orchestrator?.onBeforeViewChange()
+    },
+
     updated() {
       orchestrator?.onViewChanged()
     },
