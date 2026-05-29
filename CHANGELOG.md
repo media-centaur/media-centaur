@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.73.6 — 2026-05-29
+
+### Improved
+
+**The keyboard and gamepad cursor holds its place across more of the app when
+content refreshes in the background.** The previous release kept the Library
+grid from losing your spot when new media arrived; the same protection now
+extends to the home page rows and toolbars, so a background update never
+bounces the highlight away from where you were.
+
 ## v0.73.5 — 2026-05-29
 
 ### Fixed
