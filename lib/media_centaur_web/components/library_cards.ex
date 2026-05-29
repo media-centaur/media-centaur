@@ -27,6 +27,11 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   attr :playing, :boolean, default: false
   attr :available, :boolean, default: true
 
+  attr :show_info, :boolean,
+    default: true,
+    doc:
+      "When false, hides the title + type/year footer beneath the poster — for the wall-of-posters view. Driven by the `library_show_card_info` Settings entry (see `MediaCentaur.LibraryCardInfo`)."
+
   def poster_card(assigns) do
     ~H"""
     <div
@@ -71,7 +76,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
       </div>
 
       <%!-- Card footer --%>
-      <div class="p-2">
+      <div :if={@show_info} class="p-2">
         <div class="text-sm font-medium leading-tight line-clamp-2">
           {@entry.name || "Untitled"}
         </div>

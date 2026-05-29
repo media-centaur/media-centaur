@@ -9,6 +9,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   """
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.SpoilerFreeAware
+  use MediaCentaurWeb.Live.LibraryCardInfoAware
 
   require MediaCentaur.Log, as: Log
 
@@ -609,6 +610,17 @@ defmodule MediaCentaurWeb.SettingsLive do
     })
 
     {:noreply, assign(socket, spoiler_free: enabled)}
+  end
+
+  def handle_event("toggle_show_card_info", _params, socket) do
+    enabled = !socket.assigns.show_card_info
+
+    Settings.find_or_create_entry!(%{
+      key: MediaCentaur.LibraryCardInfo.setting_key(),
+      value: %{"enabled" => enabled}
+    })
+
+    {:noreply, assign(socket, show_card_info: enabled)}
   end
 
   # Save + Test share one form-submit handler per service. The Save and
@@ -1361,6 +1373,7 @@ defmodule MediaCentaurWeb.SettingsLive do
             refreshing_movie_subtitles={@refreshing_movie_subtitles}
             missing_images_summary={@missing_images_summary}
             spoiler_free={@spoiler_free}
+            show_card_info={@show_card_info}
             tmdb_test={@tmdb_test}
             tmdb_testing={@tmdb_testing}
             prowlarr_test={@prowlarr_test}
@@ -2783,6 +2796,27 @@ defmodule MediaCentaurWeb.SettingsLive do
             {@exclude_dir_error}
           </p>
         </form>
+      </div>
+
+      <div data-nav-grid class="p-5 rounded-lg glass-surface">
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <h2 class="text-lg font-semibold">Library display</h2>
+            <p class="text-sm text-base-content/50 mt-0.5">
+              How library entries appear in the poster grid.
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-4 space-y-0.5">
+          <.settings_row
+            label="Show titles below posters"
+            description="Hide for a clean wall-of-posters view."
+            checked={@show_card_info}
+            event="toggle_show_card_info"
+            color="info"
+          />
+        </div>
       </div>
 
       <form

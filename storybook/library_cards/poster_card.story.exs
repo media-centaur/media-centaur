@@ -185,6 +185,32 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
         ]
       },
       %VariationGroup{
+        id: :show_info_axis,
+        description:
+          "`show_info` axis — when false, the title + type/year footer " <>
+            "block is suppressed for a wall-of-posters view (Library " <>
+            "display setting `library_show_card_info`).",
+        variations: [
+          %Variation{
+            id: :info_visible,
+            description: "Default — `show_info: true` (the attr default).",
+            attributes: %{
+              id: "card-info-visible",
+              entry: item(name: "Sample With Info", year: 1924, poster: true)
+            }
+          },
+          %Variation{
+            id: :info_hidden,
+            description: "`show_info: false` — footer suppressed; only the artwork remains.",
+            attributes: %{
+              id: "card-info-hidden",
+              entry: item(name: "Sample Without Info", year: 1924, poster: true),
+              show_info: false
+            }
+          }
+        ]
+      },
+      %VariationGroup{
         id: :edge_cases,
         description: "Title and metadata edge cases.",
         variations: [
