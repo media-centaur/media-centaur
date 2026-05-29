@@ -2460,4 +2460,92 @@ describe("Orchestrator", () => {
       expect(focusCallsAfter).toBe(focusCallsBefore)
     })
   })
+
+  describe("grid focus survives dynamic library updates", () => {
+    // Regression: a library mutation (e.g. a completed download) makes
+    // LibraryLive call `stream(:grid, …, reset: true)`, which re-renders the
+    // whole grid and drops focus to <body>. The orchestrator must re-grab the
+    // focused card after the patch instead of leaving focus lost — otherwise
+    // the next arrow press falls back to focusFirst (index 0) and a left press
+    // from there exits to the sidebar.
+    test("restores grid focus to the remembered card after a stream-reset patch", () => {
+      const card = { dataset: { entityId: "entity-3" }, hasAttribute: () => false, click() {} }
+      let focusLost = false
+      const { system, calls } = setup({
+        getZone: () => "library",
+        getItemCount: (ctx) => (ctx === "sidebar" ? 4 : 5),
+        getGridColumnCount: () => 7,
+        getCurrentFocusedItem: () => (focusLost ? null : card),
+        getFocusedIndex: () => (focusLost ? -1 : 3),
+      })
+      system.start({})
+      system.focusMachine.forceContext(Context.GRID)
+
+      // User is on a grid card; navigating records it as the grid focus memory.
+      system._handleAction(Action.NAVIGATE_LEFT)
+
+      // The stream reset re-rendered the grid: the focused card is gone and
+      // focus has fallen to <body>.
+      focusLost = true
+      calls.length = 0
+      system.onViewChanged()
+
+      const restore = calls.filter(
+        c => c.method === "focusByEntityId" && c.args[0] === Context.GRID,
+      )
+      expect(restore.length).toBe(1)
+      expect(restore[0].args[1]).toBe("entity-3")
+    })
+
+    test("snapshots focus before the patch so the idle case restores the exact card", () => {
+      const card = { dataset: { entityId: "entity-7" }, hasAttribute: () => false }
+      let focusLost = false
+      const { system, calls } = setup({
+        getZone: () => "library",
+        getItemCount: (ctx) => (ctx === "sidebar" ? 4 : 9),
+        getGridColumnCount: () => 7,
+        getCurrentFocusedItem: () => (focusLost ? null : card),
+        getFocusedIndex: () => (focusLost ? -1 : 6),
+      })
+      system.start({})
+      system.focusMachine.forceContext(Context.GRID)
+
+      // User is idle on a card (no navigation since landing on it). The hook's
+      // beforeUpdate fires right before morphdom patches the DOM.
+      system.onBeforeViewChange()
+
+      focusLost = true
+      calls.length = 0
+      system.onViewChanged()
+
+      const restore = calls.filter(
+        c => c.method === "focusByEntityId" && c.args[0] === Context.GRID,
+      )
+      expect(restore.length).toBe(1)
+      expect(restore[0].args[1]).toBe("entity-7")
+    })
+
+    test("does not touch focus on a patch that preserves the focused card", () => {
+      const card = { dataset: { entityId: "entity-2" }, hasAttribute: () => false, click() {} }
+      const { system, calls } = setup({
+        getZone: () => "library",
+        getItemCount: (ctx) => (ctx === "sidebar" ? 4 : 5),
+        getGridColumnCount: () => 7,
+        getCurrentFocusedItem: () => card,
+        getFocusedIndex: () => 2,
+      })
+      system.start({})
+      system.focusMachine.forceContext(Context.GRID)
+      system._handleAction(Action.NAVIGATE_LEFT)
+
+      calls.length = 0
+      system.onViewChanged()
+
+      // Focus never left the card, so the orchestrator must not re-focus it.
+      const refocus = calls.filter(
+        c => c.method === "focusByEntityId" || c.method === "focusFirst" || c.method === "focusByIndex",
+      )
+      expect(refocus.length).toBe(0)
+    })
+  })
 })
