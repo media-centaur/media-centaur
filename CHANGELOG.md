@@ -4,6 +4,15 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.74.1 — 2026-05-29
+
+### Improved
+
+**When an update is available, the release notes are visible right away.**
+"What's new" now appears directly under the update instead of being tucked
+behind a collapsible section, and a duplicate "View on GitHub" link was removed
+for a cleaner layout.
+
 ## v0.74.0 — 2026-05-29
 
 ### Improved
