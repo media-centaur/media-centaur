@@ -1531,7 +1531,10 @@ defmodule MediaCentaurWeb.SettingsLive do
             </div>
           </div>
 
-          <details class="release-notes-disclosure mt-2">
+          <details
+            :if={SystemSection.show_terminal_recovery?(@update_status)}
+            class="release-notes-disclosure mt-2"
+          >
             <summary class="cursor-pointer text-xs text-base-content/50 hover:text-base-content/80 transition-colors inline-flex items-center gap-1.5 select-none">
               <.icon name="hero-chevron-right-mini" class="size-4 disclosure-caret" />
               <span>Prefer the terminal?</span>

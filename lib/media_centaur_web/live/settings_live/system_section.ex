@@ -182,19 +182,29 @@ defmodule MediaCentaurWeb.Live.SettingsLive.SystemSection do
   def apply_progress_text(pct) when is_integer(pct), do: "#{pct}%"
 
   @doc """
-  True when the "See what's new" disclosure should be rendered. The
-  `body` attached to the latest release drives the content, but
-  the disclosure only makes sense for states where the user has a
-  meaningful remote release to read notes for.
+  True when the "What's new" release notes should be rendered — only
+  when an update is available, so the notes preview what the user is
+  about to install.
 
-  :idle and :checking have no release yet. {:error, _} is noise.
-  :ahead_of_release is a dev/unreleased build so the "latest" shown
-  might be stale or regressive — hide rather than confuse.
+  Every other state hides them: :up_to_date has nothing new to show,
+  :idle and :checking have no release yet, {:error, _} is noise, and
+  :ahead_of_release is a dev/unreleased build whose "latest" might be
+  stale or regressive.
   """
   @spec show_release_notes?(update_status()) :: boolean()
   def show_release_notes?(:update_available), do: true
-  def show_release_notes?(:up_to_date), do: true
   def show_release_notes?(_), do: false
+
+  @doc """
+  True when the "Prefer the terminal?" recovery commands should be
+  rendered. These are an alternative to the "Update now" button (the
+  first command mirrors it exactly), so they only make sense when an
+  update is actually available — when on the latest release there is
+  nothing for them to do.
+  """
+  @spec show_terminal_recovery?(update_status()) :: boolean()
+  def show_terminal_recovery?(:update_available), do: true
+  def show_terminal_recovery?(_), do: false
 
   # --- First-run prompts --------------------------------------------------
 

@@ -149,6 +149,40 @@ defmodule MediaCentaurWeb.Live.SettingsLive.SystemSectionTest do
     end
   end
 
+  describe "show_release_notes?/1" do
+    test "shows release notes only when an update is available" do
+      assert SystemSection.show_release_notes?(:update_available)
+    end
+
+    test "hides release notes when on the latest release" do
+      refute SystemSection.show_release_notes?(:up_to_date)
+    end
+
+    test "hides release notes for idle, checking, ahead, and error states" do
+      refute SystemSection.show_release_notes?(:idle)
+      refute SystemSection.show_release_notes?(:checking)
+      refute SystemSection.show_release_notes?(:ahead_of_release)
+      refute SystemSection.show_release_notes?({:error, :not_found})
+    end
+  end
+
+  describe "show_terminal_recovery?/1" do
+    test "shows the terminal commands only when an update is available" do
+      assert SystemSection.show_terminal_recovery?(:update_available)
+    end
+
+    test "hides the terminal commands when on the latest release" do
+      refute SystemSection.show_terminal_recovery?(:up_to_date)
+    end
+
+    test "hides the terminal commands for idle, checking, ahead, and error states" do
+      refute SystemSection.show_terminal_recovery?(:idle)
+      refute SystemSection.show_terminal_recovery?(:checking)
+      refute SystemSection.show_terminal_recovery?(:ahead_of_release)
+      refute SystemSection.show_terminal_recovery?({:error, :not_found})
+    end
+  end
+
   describe "tmdb_key_missing?/1" do
     test "returns true for nil, empty string, whitespace, and unrecognized shapes" do
       assert SystemSection.tmdb_key_missing?(nil)
