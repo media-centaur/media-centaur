@@ -831,6 +831,11 @@ defmodule MediaCentaur.Showcase do
   # anywhere), but the UI renders the search form + empty queue card
   # which is what the screenshot needs.
   defp seed_fake_capabilities! do
+    # A seeded showcase is a ready-to-demo instance, not a first run — dismiss
+    # the setup wizard so `/` and `/library` render instead of redirecting to
+    # `/setup` (see MediaCentaurWeb.Plugs.SetupRedirect).
+    MediaCentaur.Config.update(:setup_wizard_dismissed, true)
+
     MediaCentaur.Config.update(:prowlarr_url, "http://localhost:9696")
     MediaCentaur.Config.update(:prowlarr_api_key, "showcase-prowlarr-key")
     MediaCentaur.Config.update(:download_client_type, "qbittorrent")
