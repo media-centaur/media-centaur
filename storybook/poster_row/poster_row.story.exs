@@ -23,6 +23,7 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
     * Items axis — full row (8), single item, empty list (renders nothing).
     * Artwork axis — all-with-posters, all-fallback, mixed.
     * Edge cases — long name (truncate), no year, TV-style year, numeric year.
+    * See-all axis — trailing "See all" card when `see_all_href` is set.
   """
 
   use PhoenixStorybook.Story, :component
@@ -64,6 +65,26 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
               %Item{
                 id: "item-#{i}",
                 entity_id: "entity-#{i}",
+                name: "Sample Show #{i}",
+                year: Integer.to_string(1920 + rem(i, 6)),
+                poster_url: poster_placeholder(i)
+              }
+            end
+        }
+      },
+      %Variation{
+        id: :with_see_all,
+        description:
+          "`see_all_href` set — a trailing \"See all\" card renders as the last " <>
+            "slot in the scrollable row, matching the Continue Watching row. " <>
+            "Navigates to the linked library view.",
+        attributes: %{
+          see_all_href: "/library",
+          items:
+            for i <- 1..6 do
+              %Item{
+                id: "sa-#{i}",
+                entity_id: "entity-sa-#{i}",
                 name: "Sample Show #{i}",
                 year: Integer.to_string(1920 + rem(i, 6)),
                 poster_url: poster_placeholder(i)
