@@ -401,5 +401,5 @@ defmodule MediaCentaurWeb.HomeLive do
 
   defp load_recently_added, do: Views.recently_added(limit: 30)
 
-  defp load_hero_candidates, do: Views.hero_candidates(limit: 12)
+  defp load_hero_candidates, do: Views.hero_candidates()
 end

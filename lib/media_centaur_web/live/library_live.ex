@@ -40,6 +40,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   alias MediaCentaur.Pipeline.Stats
 
   alias MediaCentaurWeb.Components.LibraryCards
+  alias MediaCentaurWeb.HomeLive.Logic
 
   import MediaCentaurWeb.LibraryHelpers
   import MediaCentaurWeb.LibraryFormatters
@@ -66,7 +67,6 @@ defmodule MediaCentaurWeb.LibraryLive do
        progress_by_id: %{},
        availability_map: %{},
        visible_ids: MapSet.new(),
-       in_progress_count: 0,
        hero_backdrop: nil,
        active_tab: :all,
        sort_order: :recent,
@@ -225,7 +225,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
     {:noreply,
      socket
-     |> assign(progress_by_id: progress_by_id, in_progress_count: in_progress_count(progress_by_id))
+     |> assign(progress_by_id: progress_by_id)
      |> touch_stream_entries([entity_id])}
   end
 
@@ -316,7 +316,7 @@ defmodule MediaCentaurWeb.LibraryLive do
       full_width
       acquisition_ready={@acquisition_ready}
     >
-      <div class="relative" data-page-behavior="library">
+      <div class="relative" data-page-behavior="library" data-nav-default-zone="library">
         <%!-- Calm backdrop band behind the header — a sense of place that
               ties the browse page to the home page's visual language without
               a full hero. Masked + dimmed by `.library-atmosphere`. --%>
@@ -333,11 +333,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           <header class="mb-5">
             <h1 class="text-3xl font-bold tracking-tight">Library</h1>
             <p class="mt-1 text-sm text-base-content/60">
-              {count_label(@counts.all, "title")} · {count_label(@counts.movies, "movie")} · {count_label(
-                @counts.tv,
-                "show"
-              )}<span :if={@in_progress_count > 0}>
-                · <span class="text-primary">{@in_progress_count} in progress</span></span>
+              {count_label(@counts.movies, "movie")} · {count_label(@counts.tv, "show")}
             </p>
           </header>
 
@@ -477,19 +473,19 @@ defmodule MediaCentaurWeb.LibraryLive do
       availability_map: availability_map,
       unavailable_count: Enum.count(availability_map, fn {_id, available} -> not available end),
       counts: tab_counts(entries),
-      in_progress_count: in_progress_count(progress_by_id),
       hero_backdrop: library_backdrop(),
       playback: load_playback_sessions()
     )
   end
 
-  # The header atmosphere reuses the same hero-candidate projection the
-  # home page draws from (ETS read, no DB query). Takes the top-ranked
-  # candidate so the backdrop is stable until the library itself changes,
-  # and re-reads on every `load_library/1` (browse refresh) alongside it.
+  # The header atmosphere draws from the same hero-candidate pool as the
+  # home page (ETS read, no DB query), but `select_alt_hero/1` deliberately
+  # picks a *different* candidate than the home hero whenever the pool has
+  # 2+ entries — so the two pages show two distinct backdrops. Re-read on
+  # every `load_library/1` (browse refresh).
   defp library_backdrop do
-    case Library.Views.hero_candidates(limit: 1) do
-      [%{backdrop_url: url} | _] when is_binary(url) -> url
+    case Logic.select_alt_hero(Library.Views.hero_candidates()) do
+      %{backdrop_url: url} when is_binary(url) -> url
       _ -> nil
     end
   end

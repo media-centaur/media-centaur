@@ -42,7 +42,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     # Previously `ensure_loaded/1` gated `load_library/1` on
     # `connected?/1`, so the disconnected render showed the mount
     # placeholders (`counts: %{all: 0, ...}`, empty `:grid` stream) and the
-    # heading flashed "0 titles · 0 movies · 0 shows" with an empty grid
+    # heading flashed "0 movies · 0 shows" with an empty grid
     # until the socket connected and re-rendered. The read is a cheap local
     # build, so it must run on the first render too. `get/2` (not
     # `live_async!`) is deliberate — it exercises the static render the
@@ -57,10 +57,10 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert html =~ "First Paint Fixture",
              "grid must be populated on the disconnected first render"
 
-      assert html =~ "1 title",
+      assert html =~ "1 movie",
              "heading count must reflect real data on the disconnected first render"
 
-      refute html =~ "0 titles",
+      refute html =~ "0 movies",
              "must not flash the 0-count placeholder before the socket connects"
     end
   end

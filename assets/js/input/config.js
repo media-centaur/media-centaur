@@ -52,10 +52,9 @@ export const inputConfig = {
       drawer:    { left: ["grid"] },
     },
     library: {
-      zone_tabs: { down: ["toolbar", "grid"],  left: ["sidebar"] },
-      toolbar:   { up: ["zone_tabs"],          down: ["grid"],   left: ["sidebar"] },
-      grid:      { up: ["toolbar", "zone_tabs"], left: ["sidebar"], right: ["drawer"] },
-      sidebar:   { right: ["grid", "toolbar", "zone_tabs"] },
+      toolbar:   { down: ["grid"],             left: ["sidebar"] },
+      grid:      { up: ["toolbar"],            left: ["sidebar"], right: ["drawer"] },
+      sidebar:   { right: ["grid", "toolbar"] },
       drawer:    { left: ["grid", "toolbar"] },
     },
     upcoming: {
@@ -103,7 +102,7 @@ export const inputConfig = {
   // Cursor start priority per zone
   cursorStartPriority: {
     watching:  ["grid", "zone_tabs", "sidebar"],
-    library:   ["grid", "toolbar", "zone_tabs", "sidebar"],
+    library:   ["grid", "toolbar", "sidebar"],
     upcoming:  ["upcoming", "grid", "zone_tabs", "sidebar"],
     settings:  ["sections", "grid", "sidebar"],
     status:    ["sections", "sidebar"],

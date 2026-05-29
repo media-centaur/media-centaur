@@ -209,9 +209,9 @@ defmodule MediaCentaurWeb.PageSmokeTest do
   describe "/library with a populated grid and an in-progress title" do
     # The base /library smoke only ever renders the empty state. This one
     # seeds a present movie with partial watch progress so the grid's
-    # poster-card path AND the header's in-progress stat-line branch
-    # (`:if={@in_progress_count > 0}`) actually render — a render-path
-    # crash in either surfaces here instead of in a user's browser.
+    # poster-card path and the progress-driven sort/filter projection
+    # actually render — a render-path crash surfaces here instead of in a
+    # user's browser.
     setup do
       movie = create_standalone_movie(%{name: "Smoke Library Movie"})
 

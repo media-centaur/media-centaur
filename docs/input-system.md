@@ -249,14 +249,13 @@ Maps `data-page-behavior` attribute values to behavior factories. Each factory r
 
 ### library_behavior.js — Library Page Behavior
 
-Extracts library-specific concerns from the orchestrator. Receives a `dom` interface (injected, never global). Zone, filter, and sort state live in the URL (managed by LiveView `handle_params`) — the input system doesn't persist these.
+Extracts library-specific concerns from the orchestrator. Receives a `dom` interface (injected, never global). The library page is a single browse surface — a `toolbar` (type tabs + sort dropdown + text filter) above a poster `grid`. Tab, filter, and sort state live in the URL (managed by LiveView `handle_params`) — the input system doesn't persist these. The page declares `data-nav-default-zone="library"` so it resolves to the `library` layout (it has no zone tabs).
 
 | Hook | Purpose |
 |------|---------|
-| `onAction(action, context, focused)` | Calendar left/right → month nav; tracking SELECT → grid drill-in |
-| `onEscape()` | Returns `"upcoming"` from tracking grid, `"sidebar"` otherwise |
-| `onClear()` | Clear filter input if non-empty |
-| `onZoneChanged(context)` | Track tracking drill-in state (preserved through modal/drawer overlays) |
+| `onEscape()` | Returns `"sidebar"` |
+| `onClear()` | Clear filter input if non-empty → return `"grid"` so focus follows the unfiltered content |
+| `onZoneChanged(context)` | Pin the page to the top when focus reaches the `toolbar` (the topmost context) |
 | `onSyncState(reader)` | Detect sort order change → signal grid memory clear |
 
 ## Context Navigation Rules
@@ -325,7 +324,7 @@ Actions in each context:
 | `data-captures-keys` | Element handles own keyboard events | — |
 | `data-sort` | Current sort order value | string |
 | `data-page-behavior` | Page behavior to activate | `home`, `library`, `review`, `settings`, `status`, `download`, `watch-history` |
-| `data-nav-default-zone` | Default zone for pages without zone tabs | `home`, `settings` |
+| `data-nav-default-zone` | Default zone for pages without zone tabs | `home`, `library`, `settings`, `status`, `review`, `watch_history` |
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation | — |
 | `data-input` | Current input method (set on `<html>`) | `mouse`, `keyboard`, `gamepad` |
 | `data-input-editing` | Text input is in edit mode (set on `<html>`) | `true` or absent |
