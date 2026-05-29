@@ -4,6 +4,23 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.75.0 — 2026-05-29
+
+### Fixed
+
+**Pages no longer flash empty "0" placeholders while loading.** Opening the
+Library — or Home, History, Upcoming, Review, Downloads, or Settings — used to
+briefly show blank counts and an empty page before your real content appeared.
+Every page now renders your actual library the moment it opens.
+
+### Improved
+
+**The Library toolbar is cleaner and easier to scan.** The duplicate counts on
+the All / Movies / TV tabs are gone (the same totals already sit in the header
+just above), the selected tab has a subtler look, the sort and filter controls
+now line up on a single row, and the search box stays tucked into a compact
+icon until you click it.
+
 ## v0.74.1 — 2026-05-29
 
 ### Improved
