@@ -28,7 +28,7 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 > | Page              | Status        |
 > | ----------------- | ------------- |
 > | Home              | **Done**      |
-> | Library           | In progress   |
+> | Library           | **Done**      |
 > | Release tracking  | In progress   |
 > | Acquisition       | In progress   |
 > | Dashboard         | In progress   |

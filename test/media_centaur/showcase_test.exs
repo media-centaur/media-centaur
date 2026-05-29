@@ -94,6 +94,23 @@ defmodule MediaCentaur.ShowcaseTest do
       events = WatchHistory.list_events()
       assert events != []
     end
+
+    test "dismisses the setup wizard so the demo browses straight to content" do
+      # A seeded showcase is a ready-to-demo instance, not a first run — it
+      # must not redirect /library and / to /setup (SetupRedirect plug).
+      # Force the first-run state so this proves the seeder flips it, rather
+      # than passing on whatever ambient value persistent_term already holds.
+      config = :persistent_term.get({MediaCentaur.Config, :config})
+
+      :persistent_term.put(
+        {MediaCentaur.Config, :config},
+        Map.put(config, :setup_wizard_dismissed, false)
+      )
+
+      Showcase.seed!()
+
+      assert MediaCentaur.Config.get(:setup_wizard_dismissed) == true
+    end
   end
 
   describe "Continue Watching seed shape" do
