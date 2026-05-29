@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.73.5 — 2026-05-29
+
+### Fixed
+
+**The highlight no longer jumps away while you browse the Library and new media
+arrives.** When you navigate the Library with a keyboard or gamepad and the
+library refreshes in the background — for example, a finished download is added
+— the cursor now stays on the item you were viewing. Previously the refresh
+could drop the highlight, so your next press would snap back to the first item
+or out to the sidebar menu.
+
 ## v0.73.4 — 2026-05-29
 
 ### Fixed
