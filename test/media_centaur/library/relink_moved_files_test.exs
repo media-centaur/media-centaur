@@ -81,4 +81,57 @@ defmodule MediaCentaur.Library.RelinkMovedFilesTest do
       assert Library.relink_moved_files([], "/new") == %{relinked: [], still_new: []}
     end
   end
+
+  # The reproduction harness for the original bug report. Unit tests above
+  # inject `exists?`; these drive the *real* filesystem (a real File.rename)
+  # with the default check, so they prove the move-vs-copy disambiguation
+  # against actual files — the part that can't be reproduced on the shared
+  # prod DB. Pre-relink, the moved file imported as a new/orphaned entity;
+  # these go red on that code and green with relink.
+  describe "real filesystem (default exists? check)" do
+    setup do
+      base = Path.join(System.tmp_dir!(), "relink_#{System.unique_integer([:positive])}")
+      rel = "Movies/foo/foo.mkv"
+      old_dir = Path.join(base, "A")
+      new_dir = Path.join(base, "B")
+      old_path = Path.join(old_dir, rel)
+      new_path = Path.join(new_dir, rel)
+
+      File.mkdir_p!(Path.dirname(old_path))
+      File.write!(old_path, "the-bytes-of-a-movie")
+      size = File.stat!(old_path).size
+
+      movie = create_standalone_movie(%{name: "Realfs Movie"})
+      _ = create_linked_file(%{movie_id: movie.id, watch_dir: old_dir, file_path: old_path})
+      _ = FilePresence.stamp(old_path, old_dir, DateTime.utc_now(), size: size)
+
+      File.mkdir_p!(Path.dirname(new_path))
+      on_exit(fn -> File.rm_rf!(base) end)
+
+      %{old_dir: old_dir, new_dir: new_dir, old_path: old_path, new_path: new_path, size: size}
+    end
+
+    test "a file renamed to a new dir is relinked, not re-imported", ctx do
+      :ok = File.rename(ctx.old_path, ctx.new_path)
+      before_movies = Repo.aggregate(MediaCentaur.Library.Movie, :count)
+
+      result = Library.relink_moved_files([{ctx.new_path, ctx.size}], ctx.new_dir)
+
+      assert result == %{relinked: [ctx.new_path], still_new: []}
+      assert [watched] = Library.list_files_by_paths([ctx.new_path])
+      assert watched.watch_dir == ctx.new_dir
+      assert Library.list_files_by_paths([ctx.old_path]) == []
+      assert Repo.aggregate(MediaCentaur.Library.Movie, :count) == before_movies
+    end
+
+    test "a copy (original still on disk) is left to import as new", ctx do
+      File.cp!(ctx.old_path, ctx.new_path)
+
+      result = Library.relink_moved_files([{ctx.new_path, ctx.size}], ctx.new_dir)
+
+      assert result == %{relinked: [], still_new: [ctx.new_path]}
+      assert [watched] = Library.list_files_by_paths([ctx.old_path])
+      assert watched.watch_dir == ctx.old_dir
+    end
+  end
 end
