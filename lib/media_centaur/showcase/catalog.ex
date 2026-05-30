@@ -112,6 +112,18 @@ defmodule MediaCentaur.Showcase.Catalog do
       # don't use audio.
       %{title: "The Beverly Hillbillies", year: 1962, seasons: [1]},
 
+      # Petticoat Junction Season 1 (1963) — another Filmways sitcom whose
+      # early episodes lapsed into US public domain through the same
+      # copyright-renewal failure that freed The Beverly Hillbillies S1.
+      # TMDB carries series metadata and episodic still_path coverage.
+      %{title: "Petticoat Junction", year: 1963, seasons: [1]},
+
+      # One Step Beyond Season 1 (1959) — ABC's "Alcoa Presents: One Step
+      # Beyond" supernatural anthology, long and widely distributed as
+      # public domain. A non-sitcom genre so the Coming Up row isn't all
+      # rural comedy. TMDB has series + episode coverage.
+      %{title: "One Step Beyond", year: 1959, seasons: [1]},
+
       # CC-BY-NC-SA modern web series. No TMDB stills — exercises the
       # bundled-fixture fallback (priv/showcase/fixtures/thumbs/).
       %{title: "Pioneer One", year: 2010, seasons: [1]}
