@@ -53,11 +53,3 @@ Use [`template.md`](template.md) as a starter.
   Will be removed (git history is the archive) after the
   macos-platform-support Phase 5 push sequence proves CI stability
   through its commits.
-* [`marketing-site-overhaul.md`](marketing-site-overhaul.md) —
-  **design exploration.** Rebuild media-centaur.net to stop reading as
-  AI-generated and be true to the product. Direction chosen: a
-  streaming-interface site ("the landing page is a media center") using
-  the app's real azure/slate/glass palette. Five mockups under `mockups/`;
-  v2 (`5-streaming-home-v2`) in review. Folds in: no maturity label,
-  desk-to-couch framing, summaries→feature-pages IA, Docker dropped from
-  non-goals, macOS install corrected, `© Shawn McCool`, demo-clip hero.
