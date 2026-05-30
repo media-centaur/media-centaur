@@ -144,11 +144,15 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
   defp content_path_name(_), do: nil
 
   # Maps the normalized form of every path segment (ancestor directories
-  # plus the extension-stripped leaf) of each present file to that file's
-  # path. Indexing ancestors — not just the leaf basename — is what lets a
-  # pack's release-folder name match: the folder is an ancestor of every
-  # episode file, so the release name resolves in a single lookup even
-  # though it never equals an individual episode basename. `put_new` keeps
+  # plus the leaf, indexed both with and without its extension) of each
+  # present file to that file's path. Indexing ancestors — not just the
+  # leaf basename — is what lets a pack's release-folder name match: the
+  # folder is an ancestor of every episode file, so the release name
+  # resolves in a single lookup even though it never equals an individual
+  # episode basename. Indexing the leaf *with* its extension covers the
+  # mirror case: an indexer that bakes the container into the release name
+  # as a trailing token ("…x264-FS mkv") normalizes to a name that equals
+  # the full basename, never the extension-stripped one. `put_new` keeps
   # the first path seen for a segment; any present file under the matched
   # release folder is an equally valid landing witness.
   defp segment_index(present_paths) do
@@ -171,7 +175,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
 
       parts ->
         {dirs, [leaf]} = Enum.split(parts, length(parts) - 1)
-        dirs ++ [Path.rootname(leaf)]
+        dirs ++ Enum.uniq([Path.rootname(leaf), leaf])
     end
   end
 end

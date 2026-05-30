@@ -165,6 +165,37 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconcilerTest do
       assert Enum.any?(pursuit_events(pursuit.id), &(&1.kind == "pursuit_satisfied"))
     end
 
+    test "satisfies via release name when the title bakes the container as a trailing token" do
+      # Some indexers name the release with the container extension as a
+      # space-separated token ("... x264-FS mkv"). The landed file's leaf is
+      # extension-stripped before indexing, so the normalized release name
+      # (…x264fsmkv) only matches if the leaf is *also* indexed with its
+      # extension. Without that, the one-token "mkv" drift orphans the
+      # pursuit (the production Mortal Kombat II miss). content_path is nil
+      # here — the download was gone before it could be captured — so this
+      # exercises the path-less release-name safety net.
+      _movie =
+        create_movie(%{
+          name: "Sample Movie",
+          tmdb_id: "556",
+          content_url: "/library/Sample.Movie.2026.1080p.DCPRip.x264-FS.mkv"
+        })
+
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "prowlarr_query",
+          tmdb_id: nil,
+          tmdb_type: nil,
+          manual_query: "Sample Movie 2026",
+          title: "Sample Movie 2026 1080p DCPRip x264-FS mkv",
+          status: "acquired",
+          release_title: "Sample Movie 2026 1080p DCPRip x264-FS mkv"
+        })
+
+      assert :ok = LibraryReconciler.reconcile_active()
+      assert Repo.get!(Pursuit, pursuit.id).state == "satisfied"
+    end
+
     test "leaves a prowlarr_query pursuit active when no library file matches its release" do
       _movie =
         create_movie(%{
