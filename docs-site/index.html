@@ -1,1100 +1,881 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Media Centaur — self-hosted Linux media center</title>
-    <meta
-      name="description"
-      content="Library management and playback for your personal movie and TV collection. Self-hosted, Linux-native, couch-first. The *ARR stack and a couch-ready mpv player in one app."
-    />
-    <meta name="theme-color" content="#0a0d14" />
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Media Centaur — Your library. Your machine. Your couch.</title>
+<meta name="description" content="Point it at your video directories. Media Centaur identifies your movies and TV shows via TMDB, downloads artwork, tracks your progress, and plays everything locally through mpv — fast at your desk, made for your couch." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* ===== REAL APP PALETTE (oklch, matched to assets/css/app.css :root) ===== */
+    --bg-deep:        oklch(14% 0.015 264);   /* base-300 — page background */
+    --bg-panel:       oklch(23% 0.017 264);   /* base-200 */
+    --bg-raised:      oklch(27% 0.019 264);   /* base-100 */
+    --text:           oklch(93% 0.005 264);   /* base-content */
+    --text-dim:       oklch(72% 0.008 264);
+    --text-faint:     oklch(56% 0.01 264);
+    --primary:        oklch(62% 0.16 250);    /* azure — THE accent */
+    --primary-bright: oklch(72% 0.15 248);
+    --primary-content:oklch(96% 0.008 250);
+    --secondary:      oklch(58% 0.12 280);    /* muted violet — sparing depth only */
+    --success:        oklch(72% 0.13 158);
 
-    <!-- OpenGraph -->
-    <meta property="og:title" content="Media Centaur" />
-    <meta
-      property="og:description"
-      content="Library management and playback for your personal movie and TV collection. Self-hosted, Linux-native, couch-first."
-    />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://media-centaur.net/" />
-    <meta property="og:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+    --glass-bg:       oklch(20% 0.02 264 / 0.45);
+    --glass-border:   oklch(90% 0.005 264 / 0.09);
+    --glass-border-2: oklch(90% 0.005 264 / 0.16);
+    --glass-nav-bg:   oklch(14% 0.015 264 / 0.8);
+    --glass-grad-a:   oklch(40% 0.16 250 / 0.2);   /* azure-tinted glass */
+    --glass-grad-b:   oklch(38% 0.14 300 / 0.15);  /* violet-tinted glass */
 
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Media Centaur" />
-    <meta
-      name="twitter:description"
-      content="Library management and playback for your personal movie and TV collection. Self-hosted, Linux-native, couch-first."
-    />
-    <meta name="twitter:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+    --shadow:    0 30px 80px -24px oklch(0% 0 0 / 0.85);
+    --shadow-tile: 0 26px 60px -22px oklch(0% 0 0 / 0.9);
+    --tile-r:    14px;
+    --nav-h:     66px;
+    --ease:      cubic-bezier(.2,.7,.2,1);
+    --maxw:      1340px;
+    --pad:       44px;
+  }
 
-    <link rel="canonical" href="https://media-centaur.net/" />
-    <link rel="icon" type="image/png" href="assets/centaur-logo.png" />
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg-deep);
+    color: var(--text);
+    font-family: "Hanken Grotesk", sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    font-weight: 400;
+    letter-spacing: -0.003em;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; max-width: 100%; }
+  ::selection { background: var(--primary); color: var(--primary-content); }
 
-    <!-- Tailwind via CDN (no build step) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              ink: {
-                900: "#05070c",
-                800: "#0a0d14",
-                700: "#111520",
-                600: "#1a2030",
-                500: "#232a3c",
-                400: "#2f3852",
-              },
-              parchment: {
-                100: "#f3f4f7",
-                200: "#d9dce4",
-                300: "#a8adbd",
-                400: "#717790",
-              },
-              arrow: {
-                500: "#6fa8ff",
-                600: "#4a8cff",
-                700: "#2e6fd9",
-              },
-            },
-            fontFamily: {
-              display: [
-                "ui-serif",
-                "Georgia",
-                "Cambria",
-                "Times New Roman",
-                "Times",
-                "serif",
-              ],
-              sans: [
-                "ui-sans-serif",
-                "system-ui",
-                "-apple-system",
-                "Segoe UI",
-                "Roboto",
-                "Inter",
-                "sans-serif",
-              ],
-            },
-          },
-        },
-      };
-    </script>
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad); }
 
-    <style>
-      :root {
-        color-scheme: dark;
-      }
+  /* ============ NAV ============ */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: var(--nav-h);
+    z-index: 1000;
+    display: flex; align-items: center;
+    transition: background .35s var(--ease), border-color .35s var(--ease), backdrop-filter .35s;
+    border-bottom: 1px solid transparent;
+  }
+  nav.scrolled {
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border-bottom: 1px solid var(--glass-border);
+  }
+  .nav-inner { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad);
+    display: flex; align-items: center; gap: 34px; }
+  .brand { display: flex; align-items: center; gap: 11px; margin-right: auto; }
+  .brand img { width: 32px; height: 32px; filter: drop-shadow(0 2px 6px oklch(0% 0 0 / .6)); }
+  .brand .word { font-weight: 700; font-size: 18.5px; letter-spacing: -.02em; }
+  .nav-links { display: flex; gap: 30px; align-items: center; }
+  .nav-links a { color: var(--text-dim); font-size: 14.5px; font-weight: 500; transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+  .gh-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--text); color: oklch(16% 0.015 264);
+    font-weight: 700; font-size: 13.5px;
+    padding: 9px 15px; border-radius: 9px;
+    transition: transform .2s var(--ease), box-shadow .2s;
+  }
+  .gh-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px -8px oklch(90% 0.005 264 / .4); }
+  .gh-btn svg { width: 15px; height: 15px; }
 
-      html {
-        scroll-behavior: smooth;
-        /* TV-scale base type — everything rem-based scales with this */
-        font-size: 17px;
-      }
+  /* ===== MOBILE NAV (hamburger + glass dropdown) — hidden on desktop ===== */
+  .nav-toggle {
+    display: none;
+    align-items: center; justify-content: center;
+    width: 42px; height: 42px; margin-left: 2px;
+    background: var(--glass-bg); color: var(--text);
+    border: 1px solid var(--glass-border-2); border-radius: 10px;
+    cursor: pointer; transition: border-color .2s, background .2s;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .nav-toggle:hover { border-color: var(--primary); }
+  .nav-toggle svg { width: 22px; height: 22px; }
+  .mobile-menu {
+    display: none;
+    position: absolute; top: calc(var(--nav-h) - 6px); right: var(--pad); left: var(--pad);
+    flex-direction: column; gap: 2px;
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid var(--glass-border-2); border-radius: 14px;
+    padding: 10px; box-shadow: var(--shadow);
+  }
+  .mobile-menu.open { display: flex; }
+  .mobile-menu a {
+    display: flex; align-items: center; min-height: 44px; padding: 0 14px;
+    color: var(--text-dim); font-size: 15.5px; font-weight: 600; border-radius: 9px;
+    transition: background .18s, color .18s;
+  }
+  .mobile-menu a:hover { background: oklch(90% 0.005 264 / .06); color: var(--text); }
 
-      @media (min-width: 1280px) {
-        html {
-          font-size: 18px;
-        }
-      }
+  /* ============ HERO / BILLBOARD ============ */
+  .hero {
+    position: relative;
+    min-height: 94vh;
+    display: grid;
+    grid-template-columns: minmax(0,1.05fr) minmax(0,.95fr);
+    align-items: center;
+    gap: 56px;
+    overflow: hidden;
+    padding-top: var(--nav-h);
+  }
+  /* ambient atmosphere — NOT a glow blob: a soft, off-canvas slate gradient wash that pulls toward azure at the seam */
+  .hero::before {
+    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      linear-gradient(115deg, var(--bg-deep) 30%, transparent 78%),
+      radial-gradient(140% 120% at 92% 8%, var(--glass-grad-a), transparent 55%),
+      radial-gradient(120% 130% at 100% 100%, var(--glass-grad-b), transparent 50%);
+  }
+  .hero-inner {
+    position: relative; z-index: 2;
+    max-width: var(--maxw); margin: 0 auto;
+    width: 100%; padding: 0 var(--pad);
+    display: grid; grid-template-columns: minmax(0,1.05fr) minmax(0,.95fr);
+    align-items: center; gap: 60px;
+  }
+  .hero-copy { max-width: 580px; }
+  .rail-tag {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--primary-bright); margin-bottom: 24px;
+  }
+  .rail-tag::before { content:""; width: 22px; height: 2px; background: var(--primary); display:inline-block; border-radius: 2px; }
+  .hero h1 {
+    font-weight: 800;
+    font-size: clamp(44px, 5.6vw, 78px);
+    line-height: 1.0; letter-spacing: -.035em;
+    margin: 0 0 22px;
+  }
+  .hero h1 .thin { font-weight: 300; color: var(--text-dim); }
+  .hero h1 .az { color: var(--primary-bright); }
+  .meta-row {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 0;
+    font-size: 13.5px; font-weight: 600; color: var(--text-dim);
+    margin-bottom: 24px; letter-spacing: .01em;
+  }
+  .meta-row span { padding: 0 13px; position: relative; }
+  .meta-row span:first-child { padding-left: 0; }
+  .meta-row span + span::before { content: "·"; position: absolute; left: -3px; color: var(--text-faint); }
+  .meta-row .hl { color: var(--text); }
+  .logline { font-size: 17.5px; line-height: 1.6; color: var(--text-dim); max-width: 540px; margin: 0 0 16px; }
+  .logline b { color: var(--text); font-weight: 600; }
+  .logline .az { color: var(--primary-bright); font-weight: 600; }
+  .sub-line { font-size: 14.5px; color: var(--text-faint); margin: 0 0 32px; font-weight: 500; }
 
-      @media (min-width: 1536px) {
-        html {
-          font-size: 19px;
-        }
-      }
+  .cta-row { display: flex; gap: 13px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 15.5px; font-family: inherit;
+    padding: 14px 26px; border-radius: 10px;
+    cursor: pointer; border: none;
+    transition: transform .2s var(--ease), background .25s, box-shadow .25s;
+  }
+  .btn-primary { background: var(--primary); color: var(--primary-content); }
+  .btn-primary:hover { transform: translateY(-2px); background: var(--primary-bright);
+    box-shadow: 0 16px 38px -12px oklch(62% 0.16 250 / .6); }
+  .btn-ghost {
+    background: var(--glass-bg); color: var(--text);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border-2);
+  }
+  .btn-ghost:hover { background: oklch(28% 0.02 264 / .6); transform: translateY(-2px); }
+  .btn svg { width: 16px; height: 16px; }
 
-      body {
-        background: #0a0d14;
-        color: #e5e7ed;
-        font-family:
-          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
-        -webkit-font-smoothing: antialiased;
-      }
+  /* ===== HERO VIDEO STAGE (built to host a looping muted <video> later) ===== */
+  .hero-stage {
+    position: relative; z-index: 2;
+    aspect-ratio: 16/9; width: 100%;
+    border-radius: 16px; overflow: hidden;
+    border: 1px solid var(--glass-border-2);
+    box-shadow: var(--shadow), 0 0 0 1px oklch(62% 0.16 250 / .12);
+    background: var(--bg-panel);
+  }
+  /* a real <video loop muted playsinline poster="..."> drops straight in here */
+  .hero-stage .media,
+  .hero-stage video,
+  .hero-stage .poster {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .hero-stage .poster {
+    background-size: cover; background-position: center top;
+    transform: scale(1.01);
+  }
+  .hero-stage .stage-scrim {
+    position:absolute; inset:0;
+    background: linear-gradient(to top, oklch(14% 0.015 264 / .55), transparent 42%);
+    pointer-events:none;
+  }
+  .play-affordance {
+    position: absolute; left: 18px; bottom: 16px; z-index: 3;
+    display: inline-flex; align-items: center; gap: 11px;
+    padding: 9px 16px 9px 11px; border-radius: 999px;
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(14px) saturate(150%); -webkit-backdrop-filter: blur(14px) saturate(150%);
+    border: 1px solid var(--glass-border-2);
+    color: var(--text); font-weight: 600; font-size: 14px;
+    cursor: pointer; transition: transform .2s var(--ease), border-color .2s;
+  }
+  .play-affordance:hover { transform: translateY(-1px); border-color: var(--primary); }
+  .play-affordance .disc {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--primary); color: var(--primary-content);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .play-affordance .disc svg { width: 13px; height: 13px; margin-left: 1px; }
+  .stage-chip {
+    position: absolute; right: 16px; top: 14px; z-index: 3;
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 12px; border-radius: 999px;
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--glass-border);
+    font-size: 12px; font-weight: 600; color: var(--text-dim); letter-spacing: .01em;
+  }
+  .stage-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success);
+    box-shadow: 0 0 0 3px oklch(72% 0.13 158 / .2); }
 
-      /* Subtle parallax/ambient glow behind the hero */
-      .hero-bg {
-        background:
-          radial-gradient(
-            circle at 30% 20%,
-            rgba(74, 140, 255, 0.12),
-            transparent 50%
-          ),
-          radial-gradient(
-            circle at 70% 80%,
-            rgba(120, 90, 255, 0.08),
-            transparent 55%
-          ),
-          linear-gradient(180deg, #05070c 0%, #0a0d14 60%, #111520 100%);
-      }
+  /* hero staggered reveal */
+  .reveal { opacity: 0; transform: translateY(20px); animation: rise .85s var(--ease) forwards; }
+  .reveal.d1 { animation-delay: .1s; }  .reveal.d2 { animation-delay: .2s; }
+  .reveal.d3 { animation-delay: .3s; }  .reveal.d4 { animation-delay: .4s; }
+  .reveal.d5 { animation-delay: .52s; } .reveal.d6 { animation-delay: .64s; }
+  @keyframes rise { to { opacity: 1; transform: none; } }
 
-      /* Logo treatment: centaur on dark — pale invert for visibility */
-      .centaur {
-        filter: invert(0.92) brightness(1.08) drop-shadow(0 12px 40px rgba(74, 140, 255, 0.25));
-        opacity: 0.95;
-      }
+  /* ============ SECTION SCAFFOLD ============ */
+  section { position: relative; }
+  .rail-section { padding: 26px 0; }
+  .section-pad { padding: 84px 0; }
+  .rail-head { display: flex; align-items: baseline; gap: 14px; margin: 0 auto 18px;
+    padding: 0 var(--pad); max-width: var(--maxw); }
+  .rail-label { font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
+  .rail-sub { font-size: 13.5px; color: var(--text-faint); font-weight: 500; }
 
-      /* Headline display face */
-      .display {
-        font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
-        font-weight: 600;
-        letter-spacing: -0.02em;
-      }
+  /* horizontal rail mechanics */
+  .rail-outer { position: relative; }
+  .rail {
+    display: flex; gap: 16px;
+    overflow-x: auto; scroll-snap-type: x mandatory;
+    padding: 8px var(--pad) 28px;
+    scrollbar-width: none; scroll-padding-left: var(--pad);
+  }
+  .rail::-webkit-scrollbar { display: none; }
+  .rail > * { scroll-snap-align: start; flex: 0 0 auto; }
 
-      /* Card hover lift */
-      .feature-card {
-        transition:
-          transform 200ms ease,
-          border-color 200ms ease,
-          background 200ms ease;
-      }
-      .feature-card:hover {
-        transform: translateY(-2px);
-        border-color: rgba(111, 168, 255, 0.35);
-        background: rgba(255, 255, 255, 0.035);
-      }
+  .chev {
+    position: absolute; top: 0; bottom: 28px;
+    width: 72px; z-index: 6; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text); opacity: 0; transition: opacity .25s;
+  }
+  .rail-outer:hover .chev { opacity: 1; }
+  .chev.left  { left: 0;  background: linear-gradient(to right, var(--bg-deep) 16%, transparent); justify-content:flex-start; padding-left: 8px;}
+  .chev.right { right: 0; background: linear-gradient(to left, var(--bg-deep) 16%, transparent); justify-content:flex-end; padding-right: 8px;}
+  .chev svg { width: 32px; height: 32px; filter: drop-shadow(0 2px 6px oklch(0% 0 0 / .8)); transition: transform .2s; }
+  .chev:hover svg { transform: scale(1.18); }
 
-      /* Screenshots frame */
-      .shot-frame {
-        background: linear-gradient(
-          160deg,
-          rgba(255, 255, 255, 0.04),
-          rgba(255, 255, 255, 0) 50%
-        );
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 14px;
-        overflow: hidden;
-        position: relative;
-      }
-      .shot-link {
-        display: block;
-        position: relative;
-        cursor: zoom-in;
-      }
-      .shot-link::after {
-        content: "4K";
-        position: absolute;
-        top: 12px;
-        right: 12px;
-        padding: 3px 8px;
-        border-radius: 999px;
-        background: rgba(5, 7, 12, 0.7);
-        color: rgba(246, 237, 220, 0.85);
-        font-size: 10px;
-        font-weight: 600;
-        letter-spacing: 0.08em;
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        backdrop-filter: blur(6px);
-        opacity: 0;
-        transform: translateY(-4px);
-        transition:
-          opacity 180ms ease,
-          transform 180ms ease;
-        pointer-events: none;
-      }
-      .shot-frame:hover .shot-link::after,
-      .shot-link:focus-visible::after {
-        opacity: 1;
-        transform: translateY(0);
-      }
-      .shot-link:focus-visible {
-        outline: 2px solid rgba(111, 168, 255, 0.8);
-        outline-offset: 2px;
-      }
+  /* ============ WHAT IT DOES — scannable summary rail ============ */
+  .intro-block { max-width: 780px; padding: 0 var(--pad); margin: 0 auto; }
+  .intro-block h2 {
+    font-weight: 800; font-size: clamp(30px, 4vw, 46px); line-height: 1.05; letter-spacing: -.03em;
+    margin: 0 0 18px;
+  }
+  .intro-block h2 .az { color: var(--primary-bright); }
+  .intro-block p { font-size: 17px; color: var(--text-dim); line-height: 1.6; margin: 0; }
+  .intro-block p b { color: var(--text); font-weight: 600; }
 
-      /* Install box */
-      .install-box {
-        background: #05070c;
-        border: 1px solid rgba(111, 168, 255, 0.2);
-        font-family: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
-      }
+  /* capability cards: tight one-liners, streaming-tile hover — NOT a static 3-col grid */
+  .cap-tile {
+    width: 348px; min-height: 168px;
+    background:
+      radial-gradient(130% 150% at 100% 0%, var(--glass-grad-a), transparent 54%),
+      linear-gradient(165deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border);
+    border-radius: var(--tile-r);
+    padding: 22px 22px 18px;
+    display: flex; flex-direction: column;
+    transition: transform .3s var(--ease), border-color .3s, box-shadow .3s;
+    position: relative; overflow: hidden;
+  }
+  .cap-tile:hover { transform: translateY(-6px); border-color: oklch(62% 0.16 250 / .45);
+    box-shadow: var(--shadow-tile), 0 0 0 1px oklch(62% 0.16 250 / .2); }
+  .cap-ico {
+    width: 38px; height: 38px; border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: oklch(62% 0.16 250 / .14); color: var(--primary-bright);
+    border: 1px solid oklch(62% 0.16 250 / .2);
+    margin-bottom: 16px;
+  }
+  .cap-ico svg { width: 19px; height: 19px; }
+  .cap-tile h3 { font-size: 18px; font-weight: 700; letter-spacing: -.01em; margin: 0 0 6px; }
+  .cap-tile p { font-size: 13.5px; color: var(--text-dim); line-height: 1.5; margin: 0 0 16px; }
+  .cap-more {
+    margin-top: auto; font-size: 13.5px; font-weight: 600; color: var(--primary-bright);
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: gap .2s var(--ease);
+  }
+  .cap-tile:hover .cap-more { gap: 10px; }
+  .cap-more svg { width: 14px; height: 14px; }
 
-      /* Reduce motion where requested */
-      @media (prefers-reduced-motion: reduce) {
-        html {
-          scroll-behavior: auto;
-        }
-        .feature-card {
-          transition: none;
-        }
-      }
+  /* ============ PRIVACY PILLAR — dedicated band ============ */
+  .privacy {
+    position: relative; overflow: hidden;
+    margin: 24px 0; padding: 96px 0;
+  }
+  .privacy::before {
+    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      linear-gradient(180deg, var(--bg-deep), oklch(17% 0.018 264)),
+      radial-gradient(80% 140% at 18% 50%, var(--glass-grad-a), transparent 60%),
+      radial-gradient(70% 130% at 96% 30%, var(--glass-grad-b), transparent 58%);
+    border-top: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--glass-border);
+  }
+  .privacy-inner { position: relative; z-index: 1; max-width: 940px; margin: 0 auto; padding: 0 var(--pad); }
+  .privacy .rail-tag { color: var(--primary-bright); }
+  .privacy h2 {
+    font-weight: 800; font-size: clamp(34px, 5vw, 60px); line-height: 1.04; letter-spacing: -.035em;
+    margin: 0 0 22px; max-width: 760px;
+  }
+  .privacy h2 .az { color: var(--primary-bright); }
+  .privacy .lede { font-size: 18px; color: var(--text-dim); line-height: 1.6; max-width: 600px; margin: 0 0 36px; }
+  .privacy .lede b { color: var(--text); font-weight: 600; }
+  .privacy-points { display: flex; gap: 14px; flex-wrap: wrap; }
+  .pp {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 11px 17px; border-radius: 11px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border-2);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    font-size: 14.5px; font-weight: 600; color: var(--text);
+  }
+  .pp svg { width: 17px; height: 17px; color: var(--primary-bright); }
 
-      /* Copy button states */
-      .copy-btn[data-state="copied"] {
-        color: #9ae6b4;
-        border-color: rgba(154, 230, 180, 0.4);
-      }
-    </style>
-  </head>
+  /* ---- SCREENSHOT TILES ---- */
+  .shot-tile {
+    width: 460px; border-radius: var(--tile-r);
+    overflow: hidden; position: relative;
+    background: var(--bg-panel); border: 1px solid var(--glass-border);
+    transition: transform .35s var(--ease), box-shadow .35s, border-color .35s;
+    transform-origin: center;
+  }
+  .shot-tile .frame { aspect-ratio: 16/9; overflow: hidden; }
+  .shot-tile img { width: 100%; height: 100%; object-fit: cover; display:block; transition: transform .5s var(--ease); }
+  .shot-cap {
+    position: absolute; inset: auto 0 0 0; padding: 42px 18px 16px;
+    background: linear-gradient(to top, oklch(11% 0.015 264 / .95) 16%, transparent);
+    opacity: 0; transform: translateY(8px); transition: opacity .3s, transform .3s;
+  }
+  .shot-cap h4 { margin: 0 0 3px; font-size: 16px; font-weight: 700; }
+  .shot-cap .smeta { font-size: 12.5px; color: var(--primary-bright); font-weight: 600; letter-spacing: .01em; }
+  .shot-tile:hover { transform: scale(1.06); z-index: 5;
+    box-shadow: var(--shadow); border-color: var(--glass-border-2); }
+  .shot-tile:hover img { transform: scale(1.04); }
+  .shot-tile:hover .shot-cap { opacity: 1; transform: none; }
 
-  <body class="min-h-screen">
-    <!-- Skip link for a11y -->
-    <a
-      href="#main"
-      class="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:rounded focus:bg-ink-700 focus:px-3 focus:py-2 focus:text-sm"
-      >Skip to content</a
-    >
+  /* ============ MPV SPOTLIGHT ============ */
+  .spotlight { position: relative; min-height: 60vh; display: flex; align-items: center; overflow: hidden; margin: 30px 0; }
+  .spot-bg { position: absolute; inset: 0; background-size: cover; background-position: center 38%; transform: scale(1.04); filter: saturate(.95); }
+  .spot-scrim { position: absolute; inset: 0;
+    background: linear-gradient(100deg, oklch(13% 0.015 264 / .97) 0%, oklch(13% 0.015 264 / .8) 40%, oklch(13% 0.015 264 / .28) 100%); }
+  .spot-content { position: relative; z-index: 3; max-width: 640px; padding: 70px 0; }
+  .spot-content .rail-tag { color: var(--primary-bright); }
+  .spot-content h2 { font-weight: 800; font-size: clamp(36px, 5.5vw, 62px); line-height: 1.0; letter-spacing: -.035em; margin: 0 0 22px; }
+  .spot-content h2 .thin { font-weight: 300; color: var(--text-dim); }
+  .spot-content p { font-size: 17.5px; line-height: 1.62; color: var(--text-dim); margin: 0; }
+  .spot-content p b { color: var(--primary-bright); font-weight: 600; }
 
-    <!-- ================== NAV ================== -->
-    <header class="relative z-10">
-      <nav
-        class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 sm:py-6"
-      >
-        <a href="#" class="flex items-center gap-3">
-          <img
-            src="assets/centaur-logo.png"
-            alt=""
-            class="centaur h-9 w-9"
-            aria-hidden="true"
-          />
-          <span class="display text-lg tracking-tight text-parchment-100"
-            >Media Centaur</span
-          >
+  /* ============ NON-GOALS ============ */
+  .ng-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+    background: var(--glass-border); border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden; }
+  .ng-item { background: var(--bg-panel); padding: 28px 28px; }
+  .ng-item .x {
+    display: inline-flex; align-items:center; justify-content:center;
+    width: 28px; height: 28px; border-radius: 8px;
+    background: oklch(90% 0.005 264 / .04); border: 1px solid var(--glass-border-2);
+    color: var(--text-faint); margin-bottom: 16px;
+  }
+  .ng-item .x svg { width: 14px; height: 14px; }
+  .ng-item h4 { margin: 0 0 6px; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+  .ng-item p { margin: 0; font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+  .section-title { font-weight: 800; font-size: clamp(28px, 4vw, 44px); letter-spacing: -.03em; margin: 0 0 10px; }
+  .section-title .az { color: var(--primary-bright); }
+  .section-lede { color: var(--text-faint); font-size: 16px; margin: 0 0 36px; max-width: 560px; }
+
+  /* ============ INSTALL ============ */
+  .install-card {
+    background:
+      radial-gradient(110% 170% at 0% 0%, var(--glass-grad-a), transparent 56%),
+      linear-gradient(180deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: 20px;
+    padding: 44px; box-shadow: var(--shadow);
+  }
+  .install-card h3 { font-weight: 800; font-size: clamp(24px, 3.2vw, 32px); letter-spacing: -.025em; margin: 0 0 8px; }
+  .install-card h3 .az { color: var(--primary-bright); }
+  .install-card .note { color: var(--text-dim); font-size: 15px; margin: 0 0 26px; max-width: 620px; }
+  .install-card .note b { color: var(--text); font-weight: 600; }
+  .cmd {
+    display: flex; align-items: center; gap: 14px;
+    background: oklch(11% 0.013 264); border: 1px solid var(--glass-border-2);
+    border-radius: 12px; padding: 15px 15px 15px 20px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13.5px; color: var(--primary-bright);
+    overflow-x: auto; white-space: nowrap;
+  }
+  .cmd .prompt { color: var(--text-faint); user-select: none; }
+  .cmd code { flex: 1; }
+  .copy-btn {
+    flex: 0 0 auto; margin-left: auto;
+    background: var(--text); color: oklch(16% 0.015 264); border: none; cursor: pointer;
+    font-family: "Hanken Grotesk", sans-serif; font-weight: 700; font-size: 13px;
+    padding: 8px 15px; border-radius: 8px; transition: background .2s, transform .15s, color .2s;
+  }
+  .copy-btn:hover { transform: translateY(-1px); }
+  .copy-btn.ok { background: var(--primary); color: var(--primary-content); }
+  .reqs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+  .req {
+    font-size: 13px; font-weight: 600; color: var(--text-dim);
+    background: oklch(90% 0.005 264 / .04); border: 1px solid var(--glass-border);
+    padding: 7px 13px; border-radius: 9px;
+  }
+  .req b { color: var(--primary-bright); font-weight: 700; }
+
+  /* ============ FOOTER ============ */
+  footer { border-top: 1px solid var(--glass-border); padding: 58px 0 50px; margin-top: 44px; background: oklch(12% 0.014 264); }
+  .foot-top { display: flex; justify-content: space-between; gap: 40px; flex-wrap: wrap; align-items: flex-start; }
+  .foot-brand { display:flex; align-items:center; gap: 11px; }
+  .foot-brand img { width: 36px; height: 36px; }
+  .foot-brand .word { font-weight: 700; font-size: 20px; letter-spacing: -.02em; }
+  .foot-links { display: flex; gap: 48px; flex-wrap: wrap; }
+  .foot-col h5 { margin: 0 0 12px; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint); font-weight: 700; }
+  .foot-col a { display: block; color: var(--text-dim); font-size: 14.5px; margin-bottom: 9px; transition: color .2s; }
+  .foot-col a:hover { color: var(--primary-bright); }
+  .foot-bottom { margin-top: 46px; padding-top: 24px; border-top: 1px solid var(--glass-border);
+    display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--text-faint); }
+  .foot-bottom a { color: var(--text-dim); }
+  .foot-bottom a:hover { color: var(--primary-bright); }
+
+  /* responsive */
+  /* ULTRA-WIDE: keep content centred & comfortable; bands stay full-bleed via inner wraps */
+  @media (min-width: 1800px) {
+    :root { --maxw: 1480px; --pad: 56px; }
+    .hero-copy, .logline { max-width: 620px; }
+    .intro-block { max-width: 820px; }
+  }
+  /* TABLET: collapse two-col layouts, image below text; multi-col grids → fewer cols */
+  @media (max-width: 1024px) {
+    .ng-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 980px) {
+    .hero, .hero-inner { grid-template-columns: 1fr; gap: 36px; }
+    .hero { min-height: auto; padding-top: calc(var(--nav-h) + 40px); padding-bottom: 36px; }
+    .hero-copy { max-width: 640px; }
+    .ng-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 760px) {
+    :root { --pad: 22px; }
+    .nav-links { display: none; }
+    .nav-toggle { display: inline-flex; }
+    .shot-tile { width: 330px; }
+    .cap-tile { width: 280px; }
+    .install-card { padding: 28px; }
+    .chev { display: none; }
+    .section-pad { padding: 60px 0; }
+    .privacy { padding: 64px 0; }
+    .spotlight { min-height: auto; }
+    .spot-content { padding: 56px 0; }
+  }
+  /* MOBILE: single column, type clamps down, padding tightens, nothing overflows */
+  @media (max-width: 480px) {
+    .hero h1 { font-size: clamp(34px, 11vw, 46px); }
+    .hero { padding-top: calc(var(--nav-h) + 26px); }
+    .logline { font-size: 16px; }
+    .cta-row .btn { flex: 1 1 auto; justify-content: center; }
+    .cap-tile { width: 84vw; max-width: 320px; }
+    .shot-tile { width: 84vw; max-width: 360px; }
+    .section-pad { padding: 48px 0; }
+    .privacy { padding: 52px 0; }
+    .privacy-points { gap: 10px; }
+    .pp { width: 100%; }
+    .install-card { padding: 22px; }
+    .mobile-menu { right: 14px; left: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .reveal { opacity: 1 !important; transform: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+<link rel="canonical" href="https://media-centaur.net/" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="icon" type="image/png" href="assets/centaur-logo.png" />
+<meta property="og:title" content="Media Centaur — Your library. Your machine. Your couch." />
+<meta property="og:description" content="Point it at your video directories. Media Centaur identifies your movies and TV shows via TMDB, downloads artwork, tracks your progress, and plays everything locally through mpv — fast at your desk, made for your couch." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://media-centaur.net/" />
+<meta property="og:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Media Centaur — Your library. Your machine. Your couch." />
+<meta name="twitter:description" content="Point it at your video directories. Media Centaur identifies your movies and TV shows via TMDB, downloads artwork, tracks your progress, and plays everything locally through mpv — fast at your desk, made for your couch." />
+<meta name="twitter:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav id="nav">
+  <div class="nav-inner">
+    <a class="brand" href="index.html">
+      <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+      <span class="word">Media&nbsp;Centaur</span>
+    </a>
+    <div class="nav-links">
+      <a href="how-it-works.html">How it works</a>
+      <a href="index.html#capabilities">Features</a>
+      <a href="compare.html">Compare</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+    </div>
+    <a class="gh-btn" href="https://github.com/media-centaur/media-centaur">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+    <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="how-it-works.html">How it works</a>
+    <a href="index.html#capabilities">Features</a>
+    <a href="compare.html">Compare</a>
+    <a href="faq.html">FAQ</a>
+    <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+    <a href="https://github.com/media-centaur/media-centaur">GitHub</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero" id="top">
+  <div class="hero-inner">
+    <div class="hero-copy">
+      <span class="rail-tag reveal">Self-hosted media center</span>
+      <h1 class="reveal d1">Your library.<br><span class="thin">Your machine.</span><br>Your <span class="az">couch.</span></h1>
+      <div class="meta-row reveal d2">
+        <span class="hl">MIT</span><span>Linux &amp; Apple&nbsp;Silicon</span><span class="hl">Real-time</span>
+      </div>
+      <p class="logline reveal d3">
+        Point it at your video directories. Media Centaur identifies your movies and TV shows via <span class="az">TMDB</span>,
+        downloads artwork, tracks your progress, and plays everything locally through <b>mpv</b> — in a real-time
+        browser UI that's <b>fast at your desk</b> and <b>made for your couch.</b>
+      </p>
+      <p class="sub-line reveal d4">Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.</p>
+      <div class="cta-row reveal d5">
+        <a class="btn btn-primary" href="#install">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          Install
         </a>
-        <div class="flex items-center gap-3 text-sm text-parchment-300 sm:gap-6">
-          <a href="#what" class="hidden hover:text-parchment-100 sm:inline">What it does</a>
-          <a
-            href="#install"
-            class="hidden hover:text-parchment-100 sm:inline"
-            >Install</a
-          >
-          <a
-            href="https://github.com/media-centaur/media-centaur/wiki"
-            class="hidden rounded-md border border-white/10 px-3 py-1.5 text-parchment-100 hover:border-arrow-500/40 hover:bg-white/5 sm:inline-block"
-            >Docs</a
-          >
-          <a
-            href="https://github.com/media-centaur/media-centaur"
-            class="rounded-md bg-arrow-600 px-3 py-1.5 text-sm text-white hover:bg-arrow-500"
-            >GitHub →</a
-          >
-        </div>
-      </nav>
-    </header>
-
-    <!-- ================== HERO ================== -->
-    <section class="hero-bg relative overflow-hidden">
-      <div
-        class="mx-auto grid max-w-7xl items-center gap-12 px-6 py-16 sm:py-28 lg:grid-cols-[1.1fr_0.9fr] lg:py-36"
-      >
-        <div>
-          <p
-            class="mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.18em] text-parchment-300"
-          >
-            <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span> Alpha &nbsp;·&nbsp;
-            Linux &nbsp;·&nbsp; MIT
-          </p>
-
-          <h1
-            class="display text-4xl leading-[1.08] text-parchment-100 sm:text-6xl sm:leading-[1.02] lg:text-7xl"
-          >
-            The media center for the <em class="text-arrow-500 not-italic"><span class="whitespace-nowrap">self-hosting</span> enthusiast.</em>
-          </h1>
-
-          <p class="mt-6 max-w-2xl text-lg leading-relaxed text-parchment-300 sm:mt-7 sm:text-xl">
-            Point it at your video directories. Media Centaur identifies your
-            movies and TV shows via TMDB, downloads artwork, tracks your
-            progress, and plays everything locally through mpv — all from a
-            real-time browser UI built for a TV across the room.
-          </p>
-
-          <p class="mt-3 max-w-2xl text-base text-parchment-400 sm:text-lg">
-            Zero-config SQLite. No Docker. No transcoding server. No accounts.
-            No cloud.
-          </p>
-
-          <div class="mt-10 flex flex-wrap items-center gap-4">
-            <a
-              href="#install"
-              class="inline-flex items-center gap-2 rounded-lg bg-arrow-600 px-5 py-3 font-medium text-white shadow-lg shadow-arrow-600/20 hover:bg-arrow-500"
-            >
-              Install →
-            </a>
-            <a
-              href="https://github.com/media-centaur/media-centaur/wiki"
-              class="inline-flex items-center gap-2 rounded-lg border border-white/15 px-5 py-3 font-medium text-parchment-100 hover:border-white/35 hover:bg-white/5"
-            >
-              Read the docs
-            </a>
-          </div>
-        </div>
-
-        <div class="relative flex items-center justify-center">
-          <!-- Ambient ring -->
-          <div
-            aria-hidden="true"
-            class="absolute inset-0 -z-10 rounded-full bg-[radial-gradient(circle,_rgba(74,140,255,0.18),_transparent_60%)] blur-2xl"
-          ></div>
-          <img
-            src="assets/centaur-logo.png"
-            alt="Media Centaur centaur-archer logo"
-            class="centaur w-[min(480px,80vw)]"
-          />
-        </div>
-      </div>
-    </section>
-
-    <!-- ================== STATUS STRIP ==================
-         Two cards: the in-progress UI overhaul and the
-         experimental macOS path. Both update over time as
-         pages ship / platform parity work lands.
-    -->
-    <section
-      aria-label="Current status"
-      class="border-y border-white/5 bg-ink-800/60"
-    >
-      <div class="mx-auto max-w-7xl px-6 py-12 sm:py-14">
-        <div class="grid gap-6 lg:grid-cols-2">
-          <!-- UI overhaul card -->
-          <article
-            class="rounded-2xl border border-amber-500/30 bg-amber-500/[0.04] p-6 sm:p-7"
-          >
-            <p
-              class="flex items-center gap-2 text-[0.7rem] uppercase tracking-[0.18em] text-amber-300"
-            >
-              <span class="h-1.5 w-1.5 rounded-full bg-amber-400"></span>
-              UI overhaul in progress
-            </p>
-            <h3
-              class="display mt-3 text-2xl leading-tight text-parchment-100 sm:text-3xl"
-            >
-              A higher-quality interface, shipping page by page.
-            </h3>
-            <p class="mt-3 text-parchment-300">
-              Every page is fully operational throughout — we're raising the
-              bar on craft, not gating features behind the rebuild.
-            </p>
-            <ul
-              class="mt-5 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2"
-            >
-              <li class="flex items-center justify-between gap-3">
-                <span class="text-parchment-200">Home</span>
-                <span
-                  class="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300"
-                  >Done</span
-                >
-              </li>
-              <li class="flex items-center justify-between gap-3">
-                <span class="text-parchment-200">Library</span>
-                <span
-                  class="rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300"
-                  >Done</span
-                >
-              </li>
-              <li class="flex items-center justify-between gap-3">
-                <span class="text-parchment-200">Release tracking</span>
-                <span
-                  class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200"
-                  >In progress</span
-                >
-              </li>
-              <li class="flex items-center justify-between gap-3">
-                <span class="text-parchment-200">Acquisition</span>
-                <span
-                  class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200"
-                  >In progress</span
-                >
-              </li>
-              <li class="flex items-center justify-between gap-3">
-                <span class="text-parchment-200">Dashboard</span>
-                <span
-                  class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200"
-                  >In progress</span
-                >
-              </li>
-              <li class="flex items-center justify-between gap-3">
-                <span class="text-parchment-200">Review</span>
-                <span
-                  class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200"
-                  >In progress</span
-                >
-              </li>
-              <li class="flex items-center justify-between gap-3">
-                <span class="text-parchment-200">Settings</span>
-                <span
-                  class="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200"
-                  >In progress</span
-                >
-              </li>
-            </ul>
-          </article>
-
-          <!-- macOS card -->
-          <article
-            class="rounded-2xl border border-arrow-500/30 bg-arrow-500/[0.05] p-6 sm:p-7"
-          >
-            <p
-              class="flex items-center gap-2 text-[0.7rem] uppercase tracking-[0.18em] text-arrow-500"
-            >
-              <span class="h-1.5 w-1.5 rounded-full bg-arrow-500"></span>
-              macOS support — experimental
-            </p>
-            <h3
-              class="display mt-3 text-2xl leading-tight text-parchment-100 sm:text-3xl"
-            >
-              Now on Apple Silicon — experimental.
-            </h3>
-            <p class="mt-3 text-parchment-300">
-              <strong class="text-parchment-100"
-                >Linux is the fully-supported, primary platform.</strong
-              >
-              The macOS build now ships — the one-line installer works on
-              Apple Silicon, with launchd autostart and the same in-app
-              updates Linux has.
-            </p>
-            <p class="mt-3 text-parchment-300">
-              We don't own Mac hardware, so the macOS path is
-              Linux-developer-tested only — genuinely experimental. If you run
-              it there, please open a GitHub issue with
-              <code
-                class="rounded bg-white/10 px-1.5 py-0.5 text-[0.85em] text-parchment-100"
-                >[macOS]</code
-              >
-              in the title so we can sharpen the experience from real-world
-              reports.
-            </p>
-            <div class="mt-5">
-              <a
-                href="https://github.com/media-centaur/media-centaur/issues/new?labels=macos"
-                class="inline-flex items-center gap-2 rounded-md border border-white/15 px-3 py-1.5 text-sm font-medium text-parchment-100 hover:border-white/35 hover:bg-white/5"
-              >
-                File a macOS report →
-              </a>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <main id="main">
-      <!-- ================== WHAT IT DOES ================== -->
-      <section id="what" class="scroll-mt-4 border-t border-white/5 bg-ink-800">
-        <div class="mx-auto max-w-7xl px-6 py-20 sm:py-24">
-          <div class="max-w-3xl">
-            <h2 class="display text-4xl text-parchment-100 sm:text-5xl">
-              Everything the *ARR stack does, in one app — plus the player.
-            </h2>
-            <p class="mt-4 text-lg text-parchment-300">
-              Most self-hosted media setups are four services in a trench coat.
-              Media Centaur is one Elixir app that does the library management,
-              the metadata, the review workflow, and the playback — and hands
-              the actual decoding off to mpv.
-            </p>
-          </div>
-
-          <div class="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            <article
-              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-7"
-            >
-              <h3 class="display text-xl text-parchment-100">
-                Library management
-              </h3>
-              <p class="mt-2 text-base text-parchment-300">
-                Watches your directories, identifies movies and TV shows via
-                TMDB, downloads artwork. Low-confidence matches wait for
-                manual review rather than polluting your library with wrong
-                guesses.
-              </p>
-            </article>
-
-            <article
-              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-7"
-            >
-              <h3 class="display text-xl text-parchment-100">Playback</h3>
-              <p class="mt-2 text-base text-parchment-300">
-                Launches mpv on the local machine, tracks your progress,
-                resumes where you left off, auto-advances to the next episode.
-                World-class subtitle rendering out of the box.
-              </p>
-            </article>
-
-            <article
-              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-7"
-            >
-              <h3 class="display text-xl text-parchment-100">
-                Release tracking
-              </h3>
-              <p class="mt-2 text-base text-parchment-300">
-                Monitors TMDB daily for upcoming movies and new TV seasons
-                tied to the shows in your library. No more "wait, there's a
-                season 4?"
-              </p>
-            </article>
-
-            <article
-              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-7"
-            >
-              <h3 class="display text-xl text-parchment-100">
-                Optional acquisition
-              </h3>
-              <p class="mt-2 text-base text-parchment-300">
-                Search and queue downloads via Prowlarr. Entirely optional —
-                Media Centaur is a full library manager without it. Bring your
-                own indexers.
-              </p>
-            </article>
-
-            <article
-              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-7"
-            >
-              <h3 class="display text-xl text-parchment-100">Couch-first UI</h3>
-              <p class="mt-2 text-base text-parchment-300">
-                Keyboard <em class="not-italic text-arrow-500">and</em>
-                gamepad navigation — plus any universal remote that can send
-                keystrokes (Bluetooth pairing or a Flirc USB). Large artwork,
-                dark-first, built to drive a TV from across the room.
-              </p>
-            </article>
-
-            <article
-              class="feature-card rounded-xl border border-white/10 bg-white/[0.02] p-7"
-            >
-              <h3 class="display text-xl text-parchment-100">Real-time</h3>
-              <p class="mt-2 text-base text-parchment-300">
-                Every change — new file detected, metadata fetched, playback
-                started — appears instantly via Phoenix LiveView. No polling.
-                No refresh button.
-              </p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================== SCREENSHOTS ================== -->
-      <section class="bg-ink-900">
-        <div class="mx-auto max-w-7xl px-6 py-20 sm:py-24">
-          <div class="max-w-3xl">
-            <h2 class="display text-4xl text-parchment-100 sm:text-5xl">
-              Cinema for the couch.
-            </h2>
-            <p class="mt-4 text-lg text-parchment-300">
-              Dark-first, keyboard- and gamepad-friendly, designed for the
-              distance between a couch and a TV.
-            </p>
-          </div>
-
-          <div class="mt-10 grid gap-6 md:grid-cols-2">
-            <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/home.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the home page screenshot"
-              >
-                <img
-                  src="assets/screenshots/home.png"
-                  alt="Home — cinematic landing page with Continue Watching, Recently Added, and Coming Up rows"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
-              <figcaption
-                class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
-              >
-                Home — assembled landing page
-              </figcaption>
-            </figure>
-            <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/library-grid.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the library grid screenshot"
-              >
-                <img
-                  src="assets/screenshots/library-grid.png"
-                  alt="Library grid — a wall of poster artwork for the curated showcase catalog"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
-              <figcaption
-                class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
-              >
-                Library grid
-              </figcaption>
-            </figure>
-            <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/library-detail-movie.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the movie detail screenshot"
-              >
-                <img
-                  src="assets/screenshots/library-detail-movie.png"
-                  alt="Movie detail modal — backdrop, poster, and metadata for Nosferatu (1922)"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
-              <figcaption
-                class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
-              >
-                Movie detail
-              </figcaption>
-            </figure>
-            <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/library-detail-tv.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the TV series detail screenshot"
-              >
-                <img
-                  src="assets/screenshots/library-detail-tv.png"
-                  alt="TV series detail — seasons and episode list with per-episode thumbnails"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
-              <figcaption
-                class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
-              >
-                Series detail — rich metadata
-              </figcaption>
-            </figure>
-            <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/library-detail-tv-pioneer.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the Pioneer One series detail screenshot"
-              >
-                <img
-                  src="assets/screenshots/library-detail-tv-pioneer.png"
-                  alt="TV series detail for indie content — Pioneer One with tasteful placeholder thumbnails"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
-              <figcaption
-                class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
-              >
-                Series detail — graceful fallback
-              </figcaption>
-            </figure>
-            <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/home-coming-up.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the Coming Up row screenshot"
-              >
-                <img
-                  src="assets/screenshots/home-coming-up.png"
-                  alt="Coming Up This Week — release cards with live grab-status badges (Grabbed / Searching / Pending / Scheduled)"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
-              <figcaption
-                class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
-              >
-                Coming Up — live grab-status badges
-              </figcaption>
-            </figure>
-            <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/upcoming-calendar.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the Upcoming page screenshot"
-              >
-                <img
-                  src="assets/screenshots/upcoming-calendar.png"
-                  alt="Upcoming — calendar of tracked releases plus active-shows panel and the Coming Up Week digest"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
-              <figcaption
-                class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
-              >
-                Upcoming — tracking calendar
-              </figcaption>
-            </figure>
-            <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/history-heatmap.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the watch history heatmap screenshot"
-              >
-                <img
-                  src="assets/screenshots/history-heatmap.png"
-                  alt="Watch history — Titles Watched, Hours Watched, Current Streak stats above a 52-week activity heatmap"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
-              <figcaption
-                class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
-              >
-                Watch history — stats &amp; heatmap
-              </figcaption>
-            </figure>
-            <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/settings-overview.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the settings overview screenshot"
-              >
-                <img
-                  src="assets/screenshots/settings-overview.png"
-                  alt="Settings — configuration surface for library, TMDB, pipeline, playback, and system"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
-              <figcaption
-                class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
-              >
-                Settings
-              </figcaption>
-            </figure>
-            <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/review-queue.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the review queue screenshot"
-              >
-                <img
-                  src="assets/screenshots/review-queue.png"
-                  alt="Review queue — pending files awaiting metadata confirmation"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
-              <figcaption
-                class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
-              >
-                Review queue
-              </figcaption>
-            </figure>
-            <figure class="shot-frame">
-              <a
-                class="shot-link"
-                href="https://cdn.jsdelivr.net/gh/media-centaur/media-centaur-assets@main/screenshots/download-activity.png"
-                target="_blank"
-                rel="noopener"
-                aria-label="Open 4K version of the download activity screenshot"
-              >
-                <img
-                  src="assets/screenshots/download-activity.png"
-                  alt="Downloads — Activity tab showing grab lifecycle across Searching, Grabbed, Pending, Abandoned, and Cancelled states"
-                  loading="lazy"
-                  width="1400"
-                  height="900"
-                  class="block w-full"
-                />
-              </a>
-              <figcaption
-                class="px-4 py-3 text-xs uppercase tracking-wider text-parchment-400"
-              >
-                Downloads — grab lifecycle
-              </figcaption>
-            </figure>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================== WHY MPV ================== -->
-      <section class="border-t border-white/5 bg-ink-800">
-        <div class="mx-auto grid max-w-7xl gap-10 px-6 py-20 sm:py-24 lg:grid-cols-[0.7fr_1.3fr]">
-          <div>
-            <a
-              href="https://mpv.io/"
-              class="inline-block"
-              aria-label="Visit mpv.io"
-            >
-              <img
-                src="assets/mpv-logo.png"
-                alt="mpv"
-                width="64"
-                height="64"
-                class="h-16 w-16 drop-shadow-[0_8px_24px_rgba(0,0,0,0.5)]"
-              />
-            </a>
-            <p
-              class="mt-6 text-xs uppercase tracking-[0.2em] text-arrow-500"
-            >
-              Why mpv
-            </p>
-            <h2 class="display mt-2 text-4xl text-parchment-100 sm:text-5xl">
-              Great software delegates.
-            </h2>
-          </div>
-          <div class="space-y-4 text-lg text-parchment-300">
-            <p>
-              Media Centaur hands playback off to
-              <a
-                href="https://mpv.io/"
-                class="text-arrow-500 underline-offset-4 hover:underline"
-                >mpv</a
-              >
-              instead of bundling a player or using an in-browser one. mpv
-              renders every subtitle format correctly — ASS typesetting, SRT,
-              PGS/SUP image subs, external or embedded — and plays virtually
-              every container and codec at full fidelity.
-            </p>
-            <p>
-              mpv also exposes a Lua scripting surface and a stable JSON IPC
-              socket, both of which Media Centaur uses. The couch overlays,
-              progress tracking, and next-episode logic all hook into mpv
-              rather than replacing it.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <!-- ================== NON-GOALS ================== -->
-      <section class="bg-ink-900">
-        <div class="mx-auto max-w-7xl px-6 py-20 sm:py-24">
-          <div class="max-w-3xl">
-            <p
-              class="text-xs uppercase tracking-[0.2em] text-parchment-400"
-            >
-              Deliberately not
-            </p>
-            <h2 class="display mt-2 text-4xl text-parchment-100 sm:text-5xl">
-              This is the wrong project if you want&hellip;
-            </h2>
-          </div>
-
-          <ul class="mt-10 grid gap-4 text-lg text-parchment-300 sm:grid-cols-2">
-            <li class="rounded-lg border border-white/10 bg-white/[0.02] p-6">
-              <strong class="text-parchment-100"
-                >To stream to other devices.</strong
-              >
-              No web player for remote clients, no Chromecast / AirPlay / DLNA,
-              no mobile app. Media Centaur plays locally.
-              <a
-                href="https://jellyfin.org/"
-                class="text-arrow-500 underline-offset-4 hover:underline"
-                >Jellyfin</a
-              >
-              exists.
-            </li>
-            <li class="rounded-lg border border-white/10 bg-white/[0.02] p-6">
-              <strong class="text-parchment-100">Transcoding.</strong>
-              Media Centaur never re-encodes your files. It plays what's on
-              disk, as authored. Fix the file or the hardware, not the
-              library manager.
-            </li>
-            <li class="rounded-lg border border-white/10 bg-white/[0.02] p-6">
-              <strong class="text-parchment-100"
-                >Docker or containerized deployment.</strong
-              >
-              Native Linux application — install script, systemd user unit,
-              SQLite. The *ARR stack in Docker is a well-trodden path if you
-              want that.
-            </li>
-            <li class="rounded-lg border border-white/10 bg-white/[0.02] p-6">
-              <strong class="text-parchment-100"
-                >Multi-user accounts, sharing, access control.</strong
-              >
-              Single-user app for the person at the keyboard or on the couch.
-              A reverse proxy with basic auth is as fancy as it gets.
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <!-- ================== INSTALL ================== -->
-      <section id="install" class="scroll-mt-4 border-t border-white/5 bg-ink-800">
-        <div class="mx-auto max-w-4xl px-6 py-20 sm:py-24">
-          <div class="text-center">
-            <p class="text-xs uppercase tracking-[0.2em] text-arrow-500">
-              Install
-            </p>
-            <h2 class="display mt-2 text-4xl text-parchment-100 sm:text-5xl">
-              One line on Linux x86_64.
-            </h2>
-            <p class="mt-4 text-lg text-parchment-300">
-              Downloads the latest release, verifies its checksum, installs
-              atomically, and sets up a systemd user unit.
-            </p>
-          </div>
-
-          <div
-            class="install-box relative mt-10 rounded-xl px-5 py-5 text-sm text-parchment-100 sm:px-6"
-          >
-            <pre
-              id="install-cmd"
-              class="overflow-x-auto whitespace-pre pr-20 text-xs sm:text-sm"
-            ><code>curl -fsSL https://raw.githubusercontent.com/media-centaur/media-centaur/main/installer/install.sh | sh</code></pre>
-            <button
-              id="copy-btn"
-              class="copy-btn absolute right-3 top-3 rounded-md border border-white/15 bg-ink-700 px-2.5 py-1 text-[11px] uppercase tracking-wider text-parchment-200 hover:border-arrow-500/40 hover:bg-ink-600"
-              type="button"
-              aria-label="Copy install command"
-            >
-              Copy
-            </button>
-          </div>
-
-          <p class="mt-6 text-center text-sm text-parchment-400">
-            Need details, an update path, or an uninstall?
-            <a
-              href="https://github.com/media-centaur/media-centaur/wiki/Installation"
-              class="text-arrow-500 underline-offset-4 hover:underline"
-              >Installation guide →</a
-            >
-          </p>
-
-          <div
-            class="mt-12 grid gap-5 border-t border-white/5 pt-10 text-sm text-parchment-300 sm:grid-cols-2"
-          >
-            <div>
-              <h3 class="display text-base text-parchment-100">Requirements</h3>
-              <ul class="mt-2 space-y-1">
-                <li>SQLite3, mpv, inotify-tools</li>
-                <li>
-                  A free
-                  <a
-                    href="https://www.themoviedb.org/settings/api"
-                    class="text-arrow-500 underline-offset-4 hover:underline"
-                    >TMDB API key</a
-                  >
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 class="display text-base text-parchment-100">
-                System packages
-              </h3>
-              <p class="mt-2 font-mono text-xs text-parchment-400">
-                Arch:
-                <span class="text-parchment-200"
-                  >pacman -S sqlite mpv inotify-tools</span
-                >
-              </p>
-              <p class="mt-1 font-mono text-xs text-parchment-400">
-                Debian/Ubuntu:
-                <span class="text-parchment-200"
-                  >apt install sqlite3 mpv inotify-tools</span
-                >
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <!-- ================== FOOTER ================== -->
-    <footer class="border-t border-white/5 bg-ink-900">
-      <div
-        class="mx-auto flex max-w-7xl flex-col gap-6 px-6 py-12 sm:flex-row sm:items-center sm:justify-between"
-      >
-        <div class="flex items-center gap-3">
-          <img
-            src="assets/centaur-logo.png"
-            alt=""
-            class="centaur h-8 w-8"
-            aria-hidden="true"
-          />
-          <span class="display text-parchment-100">Media Centaur</span>
-          <span class="text-sm text-parchment-400">· MIT · © 2026</span>
-        </div>
-
-        <nav
-          class="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-parchment-300"
-        >
-          <a
-            href="https://github.com/media-centaur/media-centaur"
-            class="hover:text-parchment-100"
-            >GitHub</a
-          >
-          <a
-            href="https://github.com/media-centaur/media-centaur/wiki"
-            class="hover:text-parchment-100"
-            >Docs</a
-          >
-          <a
-            href="https://github.com/media-centaur/media-centaur/issues"
-            class="hover:text-parchment-100"
-            >Issues</a
-          >
-          <a
-            href="https://github.com/media-centaur/media-centaur/blob/main/LICENSE"
-            class="hover:text-parchment-100"
-            >License</a
-          >
-        </nav>
-      </div>
-
-      <div class="mx-auto max-w-7xl px-6 pb-10">
-        <a href="https://www.themoviedb.org" class="inline-flex items-center gap-3 opacity-70 hover:opacity-100">
-          <img
-            src="https://www.themoviedb.org/assets/2/v4/logos/v2/blue_short-8e7b30f73a4020692ccca9c88bafe5dcb6f8a62a4c6bc55cd9ba82bb2cd95f6c.svg"
-            alt="TMDB"
-            width="80"
-          />
-          <span class="text-xs text-parchment-400">
-            This product uses the TMDB API but is not endorsed or certified
-            by TMDB.
-          </span>
+        <a class="btn btn-ghost" href="#features">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 16v-5M12 8h.01" stroke-linecap="round"/></svg>
+          See what it does
         </a>
       </div>
-    </footer>
+    </div>
 
-    <script>
-      // Copy install command
-      (function () {
-        const btn = document.getElementById("copy-btn");
-        const pre = document.getElementById("install-cmd");
-        if (!btn || !pre) return;
-        btn.addEventListener("click", async () => {
-          const text = pre.innerText.trim();
-          try {
-            await navigator.clipboard.writeText(text);
-            btn.textContent = "Copied";
-            btn.dataset.state = "copied";
-            setTimeout(() => {
-              btn.textContent = "Copy";
-              delete btn.dataset.state;
-            }, 1600);
-          } catch {
-            btn.textContent = "Press ⌘/Ctrl-C";
-            setTimeout(() => (btn.textContent = "Copy"), 1600);
-          }
-        });
-      })();
-    </script>
-  </body>
+    <!-- 16:9 stage built to host a looping muted demo video. Screenshot is the poster placeholder. -->
+    <div class="hero-stage reveal d3" id="hero-stage">
+      <!-- Drop-in later:  <video class="media" autoplay loop muted playsinline poster="…/home.png"><source src="demo.mp4" type="video/mp4"></video> -->
+      <div class="poster" style="background-image:url('assets/screenshots/home.png')"></div>
+      <div class="stage-scrim"></div>
+      <span class="stage-chip"><span class="dot"></span>Live preview</span>
+      <button class="play-affordance" type="button" aria-label="Watch it in motion">
+        <span class="disc"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
+        Watch it in motion
+      </button>
+    </div>
+  </div>
+</header>
+
+<!-- ============ WHAT IT DOES — intro ============ -->
+<section class="section-pad" id="features" style="padding-bottom:34px;">
+  <div class="intro-block">
+    <span class="rail-tag" style="display:inline-flex;margin-bottom:18px;">What it does</span>
+    <h2>Everything the <span class="az">*ARR</span> stack does, in one app — plus the player.</h2>
+    <p>Most self-hosted media setups are four services in a trench coat. <b>Media Centaur is one Elixir app</b>
+      that does the library management, the metadata, the review workflow, and the playback — and hands the
+      actual decoding off to mpv.</p>
+  </div>
+</section>
+
+<!-- ============ CAPABILITY SUMMARY RAIL ============ -->
+<section class="rail-section" id="capabilities">
+  <div class="rail-head">
+    <span class="rail-label">Six things, one binary</span>
+    <span class="rail-sub">Scannable summaries — open any one for the full story</span>
+  </div>
+  <div class="rail-outer">
+    <button class="chev left" data-target="cap-rail" aria-label="Scroll left">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="rail" id="cap-rail"><!-- populated by JS --></div>
+    <button class="chev right" data-target="cap-rail" aria-label="Scroll right">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+</section>
+
+<!-- ============ PRIVACY PILLAR ============ -->
+<section class="privacy" id="privacy">
+  <div class="privacy-inner">
+    <span class="rail-tag">Ownership</span>
+    <h2>Your library. Your machine. <span class="az">Nothing phones home.</span></h2>
+    <p class="lede">No cloud. No accounts. <b>Single-user by design.</b> Media Centaur runs entirely on your
+      own hardware — the metadata it fetches comes from TMDB and stops there. Everything else stays on disk,
+      in a plain SQLite file you can read, back up, and move.</p>
+    <div class="privacy-points">
+      <span class="pp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l7 4v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V7l7-4z" stroke-linejoin="round"/></svg> No cloud services</span>
+      <span class="pp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6" stroke-linecap="round"/></svg> No accounts</span>
+      <span class="pp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3" stroke-linecap="round"/></svg> Nothing phones home</span>
+      <span class="pp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/></svg> Plain SQLite, yours to keep</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCREENSHOT RAIL ============ -->
+<section class="rail-section" style="padding-top:54px;">
+  <div class="rail-head">
+    <span class="rail-label">See it running.</span>
+    <span class="rail-sub">Dark-first · large artwork · keyboard-fast at the desk, gamepad-friendly on the couch</span>
+  </div>
+  <div class="rail-outer">
+    <button class="chev left" data-target="shot-rail" aria-label="Scroll left">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="rail" id="shot-rail"><!-- populated by JS --></div>
+    <button class="chev right" data-target="shot-rail" aria-label="Scroll right">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+</section>
+
+<!-- ============ MPV SPOTLIGHT ============ -->
+<section class="spotlight">
+  <div class="spot-bg" style="background-image:url('assets/screenshots/library-detail-tv-pioneer.png')"></div>
+  <div class="spot-scrim"></div>
+  <div class="wrap">
+    <div class="spot-content">
+      <span class="rail-tag">Why mpv</span>
+      <h2>Great software <span class="thin">delegates.</span></h2>
+      <p>Media Centaur hands playback off to <b>mpv</b> instead of bundling a player. mpv renders every
+        subtitle format correctly — ASS typesetting, SRT, PGS/SUP image subs — and plays virtually every
+        container and codec at full fidelity. It also exposes a Lua scripting surface and a stable JSON IPC
+        socket, both of which Media Centaur uses.</p>
+      <div style="margin-top:28px;">
+        <a class="btn btn-ghost" href="feature-playback.html">
+          Explore playback
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ NON-GOALS ============ -->
+<section class="section-pad" id="docs">
+  <div class="wrap">
+    <span class="rail-tag" style="display:inline-flex;margin-bottom:16px;">Honest scope</span>
+    <h2 class="section-title">What it's <span class="az">not.</span></h2>
+    <p class="section-lede">Media Centaur is opinionated about what it isn't. If you need one of these, a different tool will serve you better.</p>
+    <div class="ng-grid">
+      <div class="ng-item">
+        <span class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></span>
+        <h4>A streaming server</h4>
+        <p>No Chromecast, AirPlay, or DLNA, and no mobile app — it doesn't stream to other devices. Jellyfin exists for that.</p>
+      </div>
+      <div class="ng-item">
+        <span class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></span>
+        <h4>A transcoder</h4>
+        <p>It never re-encodes your files. mpv plays exactly what's on disk, at full fidelity.</p>
+      </div>
+      <div class="ng-item">
+        <span class="x"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></span>
+        <h4>Multi-user</h4>
+        <p>No accounts, sharing, or access control. It's single-user by design — one person, one library.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INSTALL ============ -->
+<section class="section-pad" id="install" style="padding-top:0;">
+  <div class="wrap">
+    <div class="install-card">
+      <h3>One line. <span class="az">Linux or Apple Silicon.</span></h3>
+      <p class="note">Downloads the latest release, verifies its checksum, installs atomically, and sets up a systemd
+        user unit (launchd on macOS). <b>Linux x86_64 is the primary, fully-supported platform; macOS Apple Silicon is experimental.</b></p>
+      <div class="cmd">
+        <span class="prompt">$</span>
+        <code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/media-centaur/media-centaur/main/installer/install.sh | sh</code>
+        <button class="copy-btn" id="copy-btn" aria-label="Copy install command">Copy</button>
+      </div>
+      <div class="reqs">
+        <span class="req">Requires <b>SQLite3</b></span>
+        <span class="req"><b>mpv</b></span>
+        <span class="req"><b>inotify-tools</b></span>
+        <span class="req">a free <b>TMDB API key</b></span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-top">
+      <div>
+        <div class="foot-brand">
+          <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+          <span class="word">Media Centaur</span>
+        </div>
+        <p style="color:var(--text-faint); font-size:14px; margin:16px 0 0; max-width:320px;">
+          A self-hosted media center. Library, metadata, release tracking, and mpv playback — one Elixir app,
+          fast at your desk and made for your couch.
+        </p>
+      </div>
+      <div class="foot-links">
+        <div class="foot-col">
+          <h5>Product</h5>
+          <a href="how-it-works.html">How it works</a>
+          <a href="feature-library-management.html">Library management</a>
+          <a href="feature-playback.html">Playback</a>
+          <a href="feature-release-tracking.html">Release tracking</a>
+          <a href="feature-acquisition.html">Optional acquisition</a>
+          <a href="feature-input.html">Input</a>
+          <a href="feature-real-time.html">Real-time</a>
+          <a href="index.html#install">Install</a>
+        </div>
+        <div class="foot-col">
+          <h5>Project</h5>
+          <a href="https://github.com/media-centaur/media-centaur">GitHub</a>
+          <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+          <a href="https://github.com/media-centaur/media-centaur/issues">Issues</a>
+          <a href="https://github.com/media-centaur/media-centaur/blob/main/LICENSE">License</a>
+        </div>
+        <div class="foot-col">
+          <h5>More</h5>
+          <a href="about.html">Why I built this</a>
+          <a href="compare.html">Compare</a>
+          <a href="faq.html">FAQ</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>MIT · © 2026 Shawn McCool</span>
+      <span>This product uses the TMDB API but is not endorsed or certified by <a href="https://www.themoviedb.org/">TMDB</a>.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ---- nav frost on scroll ----
+  const nav = document.getElementById('nav');
+  const onScroll = () => nav.classList.toggle('scrolled', window.scrollY > 24);
+  window.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // ---- mobile nav toggle ----
+  const navToggle = document.getElementById('nav-toggle');
+  const mobileMenu = document.getElementById('mobile-menu');
+  navToggle.addEventListener('click', () => {
+    const open = mobileMenu.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    mobileMenu.classList.remove('open');
+    navToggle.setAttribute('aria-expanded', 'false');
+  }));
+
+  const CDN = "assets/screenshots/";
+
+  // ---- capability summaries (one-liners; each links to a feature detail page) ----
+  const ICON = {
+    library: '<path d="M4 19V6a2 2 0 012-2h3l2 2h7a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2z" stroke-linejoin="round"/>',
+    play:    '<circle cx="12" cy="12" r="9"/><path d="M10 9l5 3-5 3z" fill="currentColor" stroke="none"/>',
+    track:   '<path d="M4 17l5-5 4 4 7-8" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 8h6v6" stroke-linecap="round" stroke-linejoin="round"/>',
+    acquire: '<circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4" stroke-linecap="round"/>',
+    input:   '<rect x="3" y="8" width="18" height="9" rx="4"/><path d="M8 12h2M9 11v2" stroke-linecap="round"/><circle cx="16" cy="12" r="1" fill="currentColor" stroke="none"/>',
+    realtime:'<path d="M13 3L4 14h6l-1 7 9-11h-6l1-7z" stroke-linejoin="round"/>'
+  };
+  const caps = [
+    ["library",  "Library management", "Watches your directories, identifies titles via TMDB, downloads artwork; low-confidence matches wait for review.", "feature-library-management.html"],
+    ["play",     "Playback",           "Launches mpv locally, resumes where you left off, auto-advances, world-class subtitles.", "feature-playback.html"],
+    ["track",    "Release tracking",   "Monitors TMDB daily for upcoming movies and new seasons of the shows you own.", "feature-release-tracking.html"],
+    ["acquire",  "Optional acquisition","Search and queue downloads via Prowlarr. Entirely optional; bring your own indexers.", "feature-acquisition.html"],
+    ["input",    "Input, your way",    "Keyboard and mouse at the desk, gamepad or remote on the couch. Large artwork, dark-first.", "feature-input.html"],
+    ["realtime", "Real-time",          "Every change appears instantly via Phoenix LiveView. No polling, no refresh button.", "feature-real-time.html"],
+  ];
+  document.getElementById('cap-rail').innerHTML = caps.map(([ic, title, desc, href]) => `
+    <a class="cap-tile" href="${href}">
+      <span class="cap-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">${ICON[ic]}</svg></span>
+      <h3>${title}</h3>
+      <p>${desc}</p>
+      <span class="cap-more">Learn more
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+    </a>`).join('');
+
+  // ---- screenshot rail ----
+  const shots = [
+    ["library-grid.png",             "Library",            "Poster wall · every title at a glance"],
+    ["library-detail-tv.png",        "Series detail",      "Seasons · episodes · progress"],
+    ["home-coming-up.png",           "Coming up",          "Up next, surfaced on the home screen"],
+    ["history-heatmap.png",          "Watch history",      "A year of viewing, at a glance"],
+    ["upcoming-calendar.png",        "Upcoming calendar",  "New releases for the shows you own"],
+    ["review-queue.png",             "Review queue",       "Low-confidence matches, before they land"],
+    ["library-detail-tv-pioneer.png","Series spotlight",   "Backdrop-led detail view"],
+    ["download-activity.png",        "Download activity",  "Optional Prowlarr-driven grabs"],
+    ["settings-overview.png",        "Settings",           "Zero-config defaults, tunable"],
+  ];
+  document.getElementById('shot-rail').innerHTML = shots.map(([file, title, meta]) => `
+    <figure class="shot-tile">
+      <div class="frame"><img loading="lazy" src="${CDN}${file}" alt="${title}" /></div>
+      <figcaption class="shot-cap"><h4>${title}</h4><div class="smeta">${meta}</div></figcaption>
+    </figure>`).join('');
+
+  // ---- chevron scrolling ----
+  document.querySelectorAll('.chev').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const rail = document.getElementById(btn.dataset.target);
+      const dir = btn.classList.contains('left') ? -1 : 1;
+      rail.scrollBy({ left: dir * Math.round(rail.clientWidth * 0.8), behavior: 'smooth' });
+    });
+  });
+
+  // ---- copy button ----
+  const copyBtn = document.getElementById('copy-btn');
+  copyBtn.addEventListener('click', async () => {
+    const text = document.getElementById('install-cmd').textContent.trim();
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const r = document.createRange(); r.selectNodeContents(document.getElementById('install-cmd'));
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      document.execCommand('copy'); s.removeAllRanges();
+    }
+    copyBtn.textContent = 'Copied ✓'; copyBtn.classList.add('ok');
+    setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('ok'); }, 1900);
+  });
+</script>
+</body>
 </html>

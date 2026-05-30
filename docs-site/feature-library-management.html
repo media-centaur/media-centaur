@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Library management — Media Centaur</title>
+<meta name="description" content="Point Media Centaur at your video directories. It watches for changes, parses release filenames, identifies every movie and TV show via TMDB, downloads artwork, and routes anything ambiguous to a review queue so a wrong guess never pollutes your collection." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-deep:        oklch(14% 0.015 264);
+    --bg-panel:       oklch(23% 0.017 264);
+    --bg-raised:      oklch(27% 0.019 264);
+    --text:           oklch(93% 0.005 264);
+    --text-dim:       oklch(72% 0.008 264);
+    --text-faint:     oklch(56% 0.01 264);
+    --primary:        oklch(62% 0.16 250);
+    --primary-bright: oklch(72% 0.15 248);
+    --primary-content:oklch(96% 0.008 250);
+    --secondary:      oklch(58% 0.12 280);
+    --success:        oklch(72% 0.13 158);
+    --glass-bg:       oklch(20% 0.02 264 / 0.45);
+    --glass-border:   oklch(90% 0.005 264 / 0.09);
+    --glass-border-2: oklch(90% 0.005 264 / 0.16);
+    --glass-nav-bg:   oklch(14% 0.015 264 / 0.8);
+    --glass-grad-a:   oklch(40% 0.16 250 / 0.2);
+    --glass-grad-b:   oklch(38% 0.14 300 / 0.15);
+    --shadow:    0 30px 80px -24px oklch(0% 0 0 / 0.85);
+    --shadow-tile: 0 26px 60px -22px oklch(0% 0 0 / 0.9);
+    --tile-r:    14px;
+    --nav-h:     66px;
+    --ease:      cubic-bezier(.2,.7,.2,1);
+    --maxw:      1340px;
+    --pad:       44px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg-deep); color: var(--text);
+    font-family: "Hanken Grotesk", sans-serif; font-size: 16px; line-height: 1.55;
+    font-weight: 400; letter-spacing: -0.003em; -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; max-width: 100%; }
+  ::selection { background: var(--primary); color: var(--primary-content); }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad); }
+
+  /* ============ NAV (shared) ============ */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h); z-index: 1000;
+    display: flex; align-items: center; border-bottom: 1px solid var(--glass-border);
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+  }
+  .nav-inner { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad); display: flex; align-items: center; gap: 34px; }
+  .brand { display: flex; align-items: center; gap: 11px; margin-right: auto; }
+  .brand img { width: 32px; height: 32px; filter: drop-shadow(0 2px 6px oklch(0% 0 0 / .6)); }
+  .brand .word { font-weight: 700; font-size: 18.5px; letter-spacing: -.02em; }
+  .nav-links { display: flex; gap: 30px; align-items: center; }
+  .nav-links a { color: var(--text-dim); font-size: 14.5px; font-weight: 500; transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-links a.active { color: var(--primary-bright); }
+
+  /* mobile nav (hamburger + glass dropdown) — hidden above 760px */
+  .nav-toggle {
+    display: none; margin-left: auto; width: 42px; height: 42px; flex: 0 0 auto;
+    align-items: center; justify-content: center; cursor: pointer;
+    background: var(--glass-bg); color: var(--text);
+    border: 1px solid var(--glass-border-2); border-radius: 10px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    transition: background .2s, transform .15s;
+  }
+  .nav-toggle:hover { background: oklch(28% 0.02 264 / .6); }
+  .nav-toggle svg { width: 21px; height: 21px; }
+  .nav-menu {
+    position: fixed; top: var(--nav-h); left: 0; right: 0; z-index: 999;
+    display: none; flex-direction: column; gap: 2px; padding: 14px var(--pad) 18px;
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: 0 24px 50px -22px oklch(0% 0 0 / .85);
+  }
+  .nav-menu.open { display: flex; }
+  .nav-menu a {
+    color: var(--text-dim); font-size: 16px; font-weight: 600; padding: 13px 4px;
+    border-bottom: 1px solid var(--glass-border); transition: color .2s;
+  }
+  .nav-menu a:last-child { border-bottom: none; }
+  .nav-menu a:hover { color: var(--primary-bright); }
+
+  .gh-btn {
+    display: inline-flex; align-items: center; gap: 8px; background: var(--text); color: oklch(16% 0.015 264);
+    font-weight: 700; font-size: 13.5px; padding: 9px 15px; border-radius: 9px;
+    transition: transform .2s var(--ease), box-shadow .2s;
+  }
+  .gh-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px -8px oklch(90% 0.005 264 / .4); }
+  .gh-btn svg { width: 15px; height: 15px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15.5px; font-family: inherit;
+    padding: 13px 24px; border-radius: 10px; cursor: pointer; border: none;
+    transition: transform .2s var(--ease), background .25s, box-shadow .25s;
+  }
+  .btn-primary { background: var(--primary); color: var(--primary-content); }
+  .btn-primary:hover { transform: translateY(-2px); background: var(--primary-bright); box-shadow: 0 16px 38px -12px oklch(62% 0.16 250 / .6); }
+  .btn-ghost { background: var(--glass-bg); color: var(--text); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--glass-border-2); }
+  .btn-ghost:hover { background: oklch(28% 0.02 264 / .6); transform: translateY(-2px); }
+  .btn svg { width: 16px; height: 16px; }
+  .rail-tag {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--primary-bright); margin-bottom: 22px;
+  }
+  .rail-tag::before { content:""; width: 22px; height: 2px; background: var(--primary); display:inline-block; border-radius: 2px; }
+
+  /* breadcrumb / back */
+  .crumb { display: inline-flex; align-items: center; gap: 8px; color: var(--text-faint); font-size: 14px; font-weight: 600; margin-bottom: 22px; transition: color .2s; }
+  .crumb:hover { color: var(--primary-bright); }
+  .crumb svg { width: 15px; height: 15px; }
+
+  /* ============ FEATURE HERO ============ */
+  .fhero { position: relative; overflow: hidden; padding: calc(var(--nav-h) + 64px) 0 64px; }
+  .fhero::before {
+    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      linear-gradient(120deg, var(--bg-deep) 36%, transparent 80%),
+      radial-gradient(120% 120% at 96% 6%, var(--glass-grad-a), transparent 56%),
+      radial-gradient(110% 130% at 100% 100%, var(--glass-grad-b), transparent 52%);
+  }
+  .fhero-inner { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.1fr); gap: 56px; align-items: center; }
+  .fhero h1 { font-weight: 800; font-size: clamp(42px, 5.4vw, 74px); line-height: 1.0; letter-spacing: -.035em; margin: 0 0 20px; }
+  .fhero h1 .az { color: var(--primary-bright); }
+  .fhero h1 .thin { font-weight: 300; color: var(--text-dim); }
+  .fhero .lede { font-size: 18px; color: var(--text-dim); line-height: 1.6; max-width: 500px; margin: 0 0 18px; }
+  .fhero .lede b { color: var(--text); font-weight: 600; }
+  .fhero .meta-row { display: flex; flex-wrap: wrap; gap: 0; font-size: 13.5px; font-weight: 600; color: var(--text-dim); margin-bottom: 30px; }
+  .fhero .meta-row span { padding: 0 13px; position: relative; }
+  .fhero .meta-row span:first-child { padding-left: 0; }
+  .fhero .meta-row span + span::before { content: "·"; position: absolute; left: -3px; color: var(--text-faint); }
+  .fhero-shot {
+    aspect-ratio: 16/9; border-radius: 16px; overflow: hidden;
+    border: 1px solid var(--glass-border-2);
+    box-shadow: var(--shadow), 0 0 0 1px oklch(62% 0.16 250 / .12);
+  }
+  .fhero-shot img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* ============ DETAIL POINTS ============ */
+  .section-pad { padding: 72px 0; }
+  .sec-head { max-width: 720px; margin: 0 0 40px; }
+  .sec-head h2 { font-weight: 800; font-size: clamp(28px, 4vw, 44px); letter-spacing: -.03em; margin: 0 0 12px; }
+  .sec-head h2 .az { color: var(--primary-bright); }
+  .sec-head p { font-size: 17px; color: var(--text-dim); line-height: 1.6; margin: 0; }
+  .sec-head p b { color: var(--text); font-weight: 600; }
+
+  .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .detail-card {
+    background: linear-gradient(165deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: var(--tile-r);
+    padding: 26px 26px 24px; transition: transform .3s var(--ease), border-color .3s, box-shadow .3s; position: relative; overflow: hidden;
+  }
+  .detail-card:hover { transform: translateY(-4px); border-color: oklch(62% 0.16 250 / .4); box-shadow: var(--shadow-tile), 0 0 0 1px oklch(62% 0.16 250 / .16); }
+  .detail-card .ico {
+    width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center;
+    background: oklch(62% 0.16 250 / .14); color: var(--primary-bright); border: 1px solid oklch(62% 0.16 250 / .2); margin-bottom: 16px;
+  }
+  .detail-card .ico svg { width: 20px; height: 20px; }
+  .detail-card h3 { font-size: 19px; font-weight: 700; letter-spacing: -.015em; margin: 0 0 8px; }
+  .detail-card p { font-size: 14.5px; color: var(--text-dim); line-height: 1.55; margin: 0; }
+  .detail-card p b { color: var(--text); font-weight: 600; }
+  .detail-card code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--primary-bright);
+    background: oklch(62% 0.16 250 / .1); padding: 1px 6px; border-radius: 5px; }
+
+  /* ============ PIPELINE STRIP (the confidence gate, visualized) ============ */
+  .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: var(--glass-border); border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden; margin-top: 4px; }
+  .pl-step { background: var(--bg-panel); padding: 26px 24px; position: relative; }
+  .pl-step .num { font-size: 12px; font-weight: 800; letter-spacing: .12em; color: var(--primary-bright); margin-bottom: 12px; }
+  .pl-step h4 { margin: 0 0 6px; font-size: 16px; font-weight: 700; letter-spacing: -.01em; }
+  .pl-step p { margin: 0; font-size: 13.5px; color: var(--text-dim); line-height: 1.5; }
+  .pl-step .arr { position: absolute; right: -12px; top: 50%; transform: translateY(-50%); z-index: 3; color: var(--text-faint); }
+  .pl-step:last-child .arr { display: none; }
+  .pl-step .arr svg { width: 22px; height: 22px; }
+
+  /* ============ FIDELITY / REVIEW SPOTLIGHT ============ */
+  .spotlight { position: relative; min-height: 56vh; display: flex; align-items: center; overflow: hidden; margin: 30px 0; }
+  .spot-bg { position: absolute; inset: 0; background-size: cover; background-position: center 38%; transform: scale(1.04); filter: saturate(.95); }
+  .spot-scrim { position: absolute; inset: 0;
+    background: linear-gradient(100deg, oklch(13% 0.015 264 / .97) 0%, oklch(13% 0.015 264 / .8) 42%, oklch(13% 0.015 264 / .3) 100%); }
+  .spot-content { position: relative; z-index: 3; max-width: 640px; padding: 68px 0; }
+  .spot-content h2 { font-weight: 800; font-size: clamp(32px, 5vw, 56px); line-height: 1.0; letter-spacing: -.035em; margin: 0 0 20px; }
+  .spot-content h2 .thin { font-weight: 300; color: var(--text-dim); }
+  .spot-content h2 .az { color: var(--primary-bright); }
+  .spot-content p { font-size: 17px; line-height: 1.62; color: var(--text-dim); margin: 0 0 22px; }
+  .spot-content p b { color: var(--primary-bright); font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { font-size: 13px; font-weight: 600; color: var(--text); background: var(--glass-bg);
+    border: 1px solid var(--glass-border-2); padding: 8px 14px; border-radius: 999px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .chip b { color: var(--primary-bright); }
+
+  /* ============ SPLIT (file tracking) ============ */
+  .split { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,.85fr); gap: 48px; align-items: center; }
+  .split-shot { border-radius: var(--tile-r); overflow: hidden; border: 1px solid var(--glass-border-2); box-shadow: var(--shadow); aspect-ratio: 16/9; }
+  .split-shot img { width: 100%; height: 100%; object-fit: cover; }
+  .split-copy h2 { font-weight: 800; font-size: clamp(26px, 3.6vw, 40px); letter-spacing: -.03em; margin: 0 0 14px; }
+  .split-copy h2 .az { color: var(--primary-bright); }
+  .split-copy p { font-size: 16px; color: var(--text-dim); line-height: 1.62; margin: 0 0 14px; }
+  .split-copy p b { color: var(--text); font-weight: 600; }
+  .split-copy code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; color: var(--primary-bright);
+    background: oklch(62% 0.16 250 / .1); padding: 1px 6px; border-radius: 5px; }
+
+  /* ============ CROSS-LINK ============ */
+  .crosslink { padding: 80px 0 0; border-top: 1px solid var(--glass-border); }
+  .cross-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 30px; }
+  .cross-card {
+    display: flex; flex-direction: column; gap: 8px; padding: 22px;
+    background: linear-gradient(165deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: var(--tile-r);
+    transition: transform .3s var(--ease), border-color .3s, box-shadow .3s;
+  }
+  .cross-card:hover { transform: translateY(-4px); border-color: oklch(62% 0.16 250 / .4); box-shadow: var(--shadow-tile); }
+  .cross-card h4 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+  .cross-card p { margin: 0; font-size: 13.5px; color: var(--text-dim); line-height: 1.5; }
+  .cross-card .go { margin-top: 6px; font-size: 13.5px; font-weight: 600; color: var(--primary-bright); display: inline-flex; align-items: center; gap: 6px; transition: gap .2s var(--ease); }
+  .cross-card:hover .go { gap: 10px; }
+  .cross-card .go svg { width: 14px; height: 14px; }
+
+  /* ============ INSTALL ============ */
+  .install-card {
+    background:
+      radial-gradient(110% 170% at 0% 0%, var(--glass-grad-a), transparent 56%),
+      linear-gradient(180deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: 20px;
+    padding: 44px; box-shadow: var(--shadow);
+  }
+  .install-card h3 { font-weight: 800; font-size: clamp(24px, 3.2vw, 32px); letter-spacing: -.025em; margin: 0 0 8px; }
+  .install-card h3 .az { color: var(--primary-bright); }
+  .install-card .note { color: var(--text-dim); font-size: 15px; margin: 0 0 26px; max-width: 620px; }
+  .install-card .note b { color: var(--text); font-weight: 600; }
+  .cmd {
+    display: flex; align-items: center; gap: 14px;
+    background: oklch(11% 0.013 264); border: 1px solid var(--glass-border-2);
+    border-radius: 12px; padding: 15px 15px 15px 20px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13.5px; color: var(--primary-bright);
+    overflow-x: auto; white-space: nowrap;
+  }
+  .cmd .prompt { color: var(--text-faint); user-select: none; }
+  .cmd code { flex: 1; }
+  .copy-btn {
+    flex: 0 0 auto; margin-left: auto;
+    background: var(--text); color: oklch(16% 0.015 264); border: none; cursor: pointer;
+    font-family: "Hanken Grotesk", sans-serif; font-weight: 700; font-size: 13px;
+    padding: 8px 15px; border-radius: 8px; transition: background .2s, transform .15s, color .2s;
+  }
+  .copy-btn:hover { transform: translateY(-1px); }
+  .copy-btn.ok { background: var(--primary); color: var(--primary-content); }
+
+  /* ============ FOOTER (shared) ============ */
+  footer { border-top: 1px solid var(--glass-border); padding: 58px 0 50px; margin-top: 44px; background: oklch(12% 0.014 264); }
+  .foot-top { display: flex; justify-content: space-between; gap: 40px; flex-wrap: wrap; align-items: flex-start; }
+  .foot-brand { display:flex; align-items:center; gap: 11px; }
+  .foot-brand img { width: 36px; height: 36px; }
+  .foot-brand .word { font-weight: 700; font-size: 20px; letter-spacing: -.02em; }
+  .foot-links { display: flex; gap: 48px; flex-wrap: wrap; }
+  .foot-col h5 { margin: 0 0 12px; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint); font-weight: 700; }
+  .foot-col a { display: block; color: var(--text-dim); font-size: 14.5px; margin-bottom: 9px; transition: color .2s; }
+  .foot-col a:hover { color: var(--primary-bright); }
+  .foot-bottom { margin-top: 46px; padding-top: 24px; border-top: 1px solid var(--glass-border);
+    display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--text-faint); align-items: center; }
+  .foot-bottom .fb-left { display: flex; align-items: center; gap: 12px; }
+  .foot-bottom .fb-left img { width: 22px; height: 22px; opacity: .9; }
+  .foot-bottom a { color: var(--text-dim); }
+  .foot-bottom a:hover { color: var(--primary-bright); }
+
+  /* ultra-wide: cap the container so content never stretches unbounded */
+  @media (min-width: 1800px) {
+    :root { --maxw: 1440px; --pad: 56px; }
+  }
+  @media (max-width: 1080px) {
+    .cross-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 980px) {
+    .fhero-inner, .split { grid-template-columns: 1fr; gap: 36px; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .pipeline { grid-template-columns: 1fr 1fr; }
+    .pl-step .arr { display: none; }
+  }
+  @media (max-width: 760px) {
+    :root { --pad: 22px; }
+    .nav-links { display: none; }
+    .nav-toggle { display: inline-flex; }
+    .pipeline { grid-template-columns: 1fr; }
+    .install-card { padding: 28px; }
+  }
+  @media (max-width: 600px) {
+    .section-pad { padding: 52px 0; }
+    .crosslink { padding: 56px 0 0; }
+    .cross-grid { grid-template-columns: 1fr; }
+    .fhero { padding: calc(var(--nav-h) + 40px) 0 44px; }
+    .fhero h1 { font-size: clamp(34px, 10vw, 52px); }
+    .spotlight { min-height: 0; }
+    .spot-content { padding: 52px 0; }
+  }
+  @media (max-width: 440px) {
+    :root { --pad: 18px; }
+    .fhero h1 { font-size: clamp(30px, 9.4vw, 42px); }
+    .install-card { padding: 22px; }
+    .gh-btn { padding: 9px 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+<link rel="canonical" href="https://media-centaur.net/feature-library-management.html" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="icon" type="image/png" href="assets/centaur-logo.png" />
+<meta property="og:title" content="Library management — Media Centaur" />
+<meta property="og:description" content="Point Media Centaur at your video directories. It watches for changes, parses release filenames, identifies every movie and TV show via TMDB, downloads artwork, and routes anything ambiguous to a review queue so a wrong guess never pollutes your collection." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://media-centaur.net/feature-library-management.html" />
+<meta property="og:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Library management — Media Centaur" />
+<meta name="twitter:description" content="Point Media Centaur at your video directories. It watches for changes, parses release filenames, identifies every movie and TV show via TMDB, downloads artwork, and routes anything ambiguous to a review queue so a wrong guess never pollutes your collection." />
+<meta name="twitter:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav>
+  <div class="nav-inner">
+    <a class="brand" href="index.html">
+      <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+      <span class="word">Media&nbsp;Centaur</span>
+    </a>
+    <div class="nav-links">
+      <a href="how-it-works.html">How it works</a>
+      <a href="index.html#capabilities">Features</a>
+      <a href="compare.html">Compare</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+    </div>
+    <a class="gh-btn" href="https://github.com/media-centaur/media-centaur">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+    <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="nav-menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</nav>
+<div class="nav-menu" id="nav-menu">
+  <a href="how-it-works.html">How it works</a>
+  <a href="index.html#capabilities">Features</a>
+  <a href="compare.html">Compare</a>
+  <a href="faq.html">FAQ</a>
+  <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+  <a href="https://github.com/media-centaur/media-centaur">GitHub</a>
+</div>
+
+<!-- ============ FEATURE HERO ============ -->
+<header class="fhero">
+  <div class="wrap fhero-inner">
+    <div>
+      <a class="crumb" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M11 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Back to home
+      </a>
+      <span class="rail-tag">Feature · Library management</span>
+      <h1>Point it at your directories.<br><span class="thin">It figures out the</span> <span class="az">rest.</span></h1>
+      <p class="lede">Media Centaur watches your video directories, reads release-style filenames, and identifies
+        every movie and TV show via <b>TMDB</b> — then pulls the artwork. <b>High-confidence matches land in your
+        library; anything ambiguous waits in review.</b></p>
+      <div class="meta-row">
+        <span>Filesystem events</span><span>TMDB identification</span><span>Confidence-gated</span>
+      </div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <a class="btn btn-primary" href="#install">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Install
+        </a>
+        <a class="btn btn-ghost" href="index.html#capabilities">All features</a>
+      </div>
+    </div>
+    <div class="fhero-shot">
+      <img src="assets/screenshots/library-grid.png" alt="The library grid — a wall of poster artwork" />
+    </div>
+  </div>
+</header>
+
+<!-- ============ DETAIL POINTS ============ -->
+<section class="section-pad" style="padding-bottom:48px;">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="rail-tag">The mechanics</span>
+      <h2>From a file on disk to a <span class="az">finished shelf.</span></h2>
+      <p>You drop a file in a watched directory and walk away. Media Centaur does the parsing, the lookup,
+        the artwork, and the bookkeeping — and it knows when <b>not</b> to trust itself.</p>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-card">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4" stroke-linecap="round"/></svg></span>
+        <h3>Identify</h3>
+        <p>A filesystem watcher catches new and changed files the moment they appear. The parser reads
+          release-style names — <code>Sample.Show.S01E01.1080p.WEB-DL.mkv</code> — and queries <b>TMDB</b> to pin
+          down the exact movie or episode, season and all.</p>
+      </div>
+      <div class="detail-card">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.8"/><path d="M4 18l5-5 4 4 3-3 4 4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <h3>Artwork</h3>
+        <p>Once a title is identified, Media Centaur downloads the <b>posters, backdrops, and episode stills</b>
+          and caches them locally. The grid fills with real artwork — no placeholder tiles, no waiting on a
+          remote image host at render time.</p>
+      </div>
+      <div class="detail-card">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3l7 4v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V7l7-4z" stroke-linejoin="round"/><path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <h3>The review queue — no wrong guesses</h3>
+        <p>Identification is <b>confidence-gated</b>. A clean, unambiguous match goes straight to the library.
+          Anything uncertain — a sparse filename, two plausible titles — lands in a <b>review queue</b> instead of
+          silently polluting your collection. You confirm; it commits.</p>
+      </div>
+      <div class="detail-card">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h10" stroke-linecap="round"/><path d="M17 16l3 3 3-3" stroke-linecap="round" stroke-linejoin="round" transform="translate(-3 -1)"/></svg></span>
+        <h3>Tracks the files, not just the titles</h3>
+        <p>Each entity knows the <b>actual files backing it</b> on disk. Rename a file, move it to another
+          watched directory, or delete it — the library follows. Movies and multi-season TV alike stay in sync
+          with what's really there.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PIPELINE STRIP ============ -->
+<section class="section-pad" style="padding-top:0;">
+  <div class="wrap">
+    <div class="sec-head" style="margin-bottom:26px;">
+      <span class="rail-tag">The confidence gate</span>
+      <h2>A wrong guess never lands <span class="az">silently.</span></h2>
+      <p>Every file walks the same four steps. The branch at the end is the whole point: certainty earns a spot
+        on the shelf, doubt earns a second look.</p>
+    </div>
+    <div class="pipeline">
+      <div class="pl-step">
+        <div class="num">01 · WATCH</div>
+        <h4>A file appears</h4>
+        <p>Filesystem events flag a new or changed file in a watched directory.</p>
+        <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+      <div class="pl-step">
+        <div class="num">02 · PARSE</div>
+        <h4>Read the name</h4>
+        <p>The release-style filename is parsed into a title, year, season, and episode.</p>
+        <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+      <div class="pl-step">
+        <div class="num">03 · MATCH</div>
+        <h4>Ask TMDB</h4>
+        <p>TMDB returns candidates; Media Centaur scores how confident the match is.</p>
+        <span class="arr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </div>
+      <div class="pl-step">
+        <div class="num">04 · GATE</div>
+        <h4>Library or review</h4>
+        <p>High confidence → straight into the library. Ambiguous → the review queue.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ REVIEW SPOTLIGHT ============ -->
+<section class="spotlight">
+  <div class="spot-bg" style="background-image:url('assets/screenshots/review-queue.png')"></div>
+  <div class="spot-scrim"></div>
+  <div class="wrap">
+    <div class="spot-content">
+      <span class="rail-tag">The review queue</span>
+      <h2>The gate, <span class="thin">in action.</span></h2>
+      <p>When Media Centaur isn't sure, it shows you the file, the candidates it found, and the confidence behind
+        each — and lets <b>you</b> make the call. Confirm the right match and it commits to the library; reject it
+        and the file waits without ever entering your collection on a hunch.</p>
+      <div class="chips">
+        <span class="chip"><b>Candidates</b> ranked by confidence</span>
+        <span class="chip">Movies · multi-season TV</span>
+        <span class="chip">Nothing lands on a guess</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FILE TRACKING SPLIT ============ -->
+<section class="section-pad">
+  <div class="wrap split">
+    <div class="split-shot">
+      <img src="assets/screenshots/library-detail-tv.png" alt="Series detail — seasons and episodes tracked to their files" />
+    </div>
+    <div class="split-copy">
+      <span class="rail-tag">Seasons &amp; episodes</span>
+      <h2>It tracks the <span class="az">files, not just the titles.</span></h2>
+      <p>A TV show isn't one record — it's seasons, episodes, and the <b>real files behind each one</b>. Media
+        Centaur keeps the map current: a present episode shows up, a missing one is visibly absent, and a moved
+        file is re-linked rather than re-imported.</p>
+      <p>Because the library reflects what's actually on disk, <b>renames, moves, and deletions</b> just work.
+        The shelf is a view of your directories, kept honest by the same watcher that filled it.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CROSS-LINK ============ -->
+<section class="crosslink">
+  <div class="wrap">
+    <span class="rail-tag">Keep exploring</span>
+    <h2 style="font-weight:800; font-size:clamp(26px,3.6vw,40px); letter-spacing:-.03em; margin:0;">The rest of what it does</h2>
+    <div class="cross-grid">
+      <a class="cross-card" href="feature-playback.html">
+        <h4>Playback</h4>
+        <p>Launches mpv locally, resumes where you left off, auto-advances, world-class subtitles.</p>
+        <span class="go">Learn more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+      <a class="cross-card" href="feature-release-tracking.html">
+        <h4>Release tracking</h4>
+        <p>Monitors TMDB daily for upcoming movies and new seasons of the shows you own.</p>
+        <span class="go">Learn more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+      <a class="cross-card" href="feature-acquisition.html">
+        <h4>Optional acquisition</h4>
+        <p>Search and queue downloads via Prowlarr. Entirely optional; bring your own indexers.</p>
+        <span class="go">Learn more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+      <a class="cross-card" href="feature-input.html">
+        <h4>Input</h4>
+        <p>Keyboard and mouse at the desk, gamepad or remote on the couch. Large artwork, dark-first.</p>
+        <span class="go">Learn more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+      <a class="cross-card" href="feature-real-time.html">
+        <h4>Real-time</h4>
+        <p>Every change appears instantly via Phoenix LiveView. No polling, no refresh button.</p>
+        <span class="go">Learn more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+      <a class="cross-card" href="how-it-works.html">
+        <h4>How it works</h4>
+        <p>The whole pipeline, end to end — discovery, import, image fetching, and the data model behind it.</p>
+        <span class="go">Learn more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+    </div>
+    <div style="margin-top:34px;">
+      <a class="btn btn-ghost" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Back to home
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INSTALL ============ -->
+<section class="section-pad" id="install" style="padding-top:40px;">
+  <div class="wrap">
+    <div class="install-card">
+      <h3>Point it at a directory. <span class="az">Watch it fill.</span></h3>
+      <p class="note">One line installs the latest release, verifies its checksum, and sets up a user service.
+        <b>Linux x86_64 is the primary, fully-supported platform; macOS Apple Silicon is experimental.</b></p>
+      <div class="cmd">
+        <span class="prompt">$</span>
+        <code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/media-centaur/media-centaur/main/installer/install.sh | sh</code>
+        <button class="copy-btn" id="copy-btn" aria-label="Copy install command">Copy</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-top">
+      <div>
+        <div class="foot-brand">
+          <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+          <span class="word">Media Centaur</span>
+        </div>
+        <p style="color:var(--text-faint); font-size:14px; margin:16px 0 0; max-width:320px;">
+          A self-hosted media center. Library, metadata, release tracking, and mpv playback — one Elixir app,
+          fast at your desk and made for your couch.
+        </p>
+      </div>
+      <div class="foot-links">
+        <div class="foot-col">
+          <h5>Product</h5>
+          <a href="how-it-works.html">How it works</a>
+          <a href="feature-library-management.html">Library management</a>
+          <a href="feature-playback.html">Playback</a>
+          <a href="feature-release-tracking.html">Release tracking</a>
+          <a href="feature-acquisition.html">Optional acquisition</a>
+          <a href="feature-input.html">Input</a>
+          <a href="feature-real-time.html">Real-time</a>
+          <a href="index.html#install">Install</a>
+        </div>
+        <div class="foot-col">
+          <h5>Project</h5>
+          <a href="https://github.com/media-centaur/media-centaur">GitHub</a>
+          <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+          <a href="https://github.com/media-centaur/media-centaur/issues">Issues</a>
+          <a href="https://github.com/media-centaur/media-centaur/blob/main/LICENSE">License</a>
+        </div>
+        <div class="foot-col">
+          <h5>More</h5>
+          <a href="about.html">Why I built this</a>
+          <a href="compare.html">Compare</a>
+          <a href="faq.html">FAQ</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span class="fb-left">
+        <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+        © 2026 Shawn McCool · MIT
+      </span>
+      <span>This product uses the TMDB API but is not endorsed or certified by <a href="https://www.themoviedb.org/">TMDB</a>.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const navToggle = document.getElementById('nav-toggle');
+  const navMenu = document.getElementById('nav-menu');
+  navToggle.addEventListener('click', () => {
+    const open = navMenu.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  });
+  navMenu.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => {
+    navMenu.classList.remove('open');
+    navToggle.setAttribute('aria-expanded', 'false');
+    navToggle.setAttribute('aria-label', 'Open menu');
+  }));
+
+  const copyBtn = document.getElementById('copy-btn');
+  copyBtn.addEventListener('click', async () => {
+    const text = document.getElementById('install-cmd').textContent.trim();
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const r = document.createRange(); r.selectNodeContents(document.getElementById('install-cmd'));
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      document.execCommand('copy'); s.removeAllRanges();
+    }
+    copyBtn.textContent = 'Copied ✓'; copyBtn.classList.add('ok');
+    setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('ok'); }, 1900);
+  });
+</script>
+</body>
+</html>

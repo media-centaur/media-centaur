@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Why I'm building this — Media Centaur</title>
+<meta name="description" content="A founder's note on Media Centaur: one app for the whole self-hosted media pipeline — find, identify, track, optionally grab, and play — pleasant from a desk and a couch. Local-first, single-user, MIT." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-deep:        oklch(14% 0.015 264);
+    --bg-panel:       oklch(23% 0.017 264);
+    --bg-raised:      oklch(27% 0.019 264);
+    --text:           oklch(93% 0.005 264);
+    --text-dim:       oklch(72% 0.008 264);
+    --text-faint:     oklch(56% 0.01 264);
+    --primary:        oklch(62% 0.16 250);
+    --primary-bright: oklch(72% 0.15 248);
+    --primary-content:oklch(96% 0.008 250);
+    --secondary:      oklch(58% 0.12 280);
+    --success:        oklch(72% 0.13 158);
+    --glass-bg:       oklch(20% 0.02 264 / 0.45);
+    --glass-border:   oklch(90% 0.005 264 / 0.09);
+    --glass-border-2: oklch(90% 0.005 264 / 0.16);
+    --glass-nav-bg:   oklch(14% 0.015 264 / 0.8);
+    --glass-grad-a:   oklch(40% 0.16 250 / 0.2);
+    --glass-grad-b:   oklch(38% 0.14 300 / 0.15);
+    --shadow:    0 30px 80px -24px oklch(0% 0 0 / 0.85);
+    --shadow-tile: 0 26px 60px -22px oklch(0% 0 0 / 0.9);
+    --tile-r:    14px;
+    --nav-h:     66px;
+    --ease:      cubic-bezier(.2,.7,.2,1);
+    --maxw:      1340px;
+    --pad:       44px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg-deep); color: var(--text);
+    font-family: "Hanken Grotesk", sans-serif; font-size: 16px; line-height: 1.55;
+    font-weight: 400; letter-spacing: -0.003em; -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; max-width: 100%; }
+  ::selection { background: var(--primary); color: var(--primary-content); }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad); }
+
+  /* ============ NAV (shared) ============ */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h); z-index: 1000;
+    display: flex; align-items: center; border-bottom: 1px solid var(--glass-border);
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+  }
+  .nav-inner { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad); display: flex; align-items: center; gap: 34px; }
+  .brand { display: flex; align-items: center; gap: 11px; margin-right: auto; }
+  .brand img { width: 32px; height: 32px; filter: drop-shadow(0 2px 6px oklch(0% 0 0 / .6)); }
+  .brand .word { font-weight: 700; font-size: 18.5px; letter-spacing: -.02em; }
+  .nav-links { display: flex; gap: 30px; align-items: center; }
+  .nav-links a { color: var(--text-dim); font-size: 14.5px; font-weight: 500; transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-links a.active { color: var(--primary-bright); }
+  .gh-btn {
+    display: inline-flex; align-items: center; gap: 8px; background: var(--text); color: oklch(16% 0.015 264);
+    font-weight: 700; font-size: 13.5px; padding: 9px 15px; border-radius: 9px;
+    transition: transform .2s var(--ease), box-shadow .2s;
+  }
+  .gh-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px -8px oklch(90% 0.005 264 / .4); }
+  .gh-btn svg { width: 15px; height: 15px; }
+
+  /* ===== MOBILE NAV (hamburger + glass dropdown) — hidden on desktop ===== */
+  .nav-toggle {
+    display: none;
+    align-items: center; justify-content: center;
+    width: 42px; height: 42px; margin-left: 2px;
+    background: var(--glass-bg); color: var(--text);
+    border: 1px solid var(--glass-border-2); border-radius: 10px;
+    cursor: pointer; transition: border-color .2s, background .2s;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .nav-toggle:hover { border-color: var(--primary); }
+  .nav-toggle svg { width: 22px; height: 22px; }
+  .mobile-menu {
+    display: none;
+    position: absolute; top: calc(var(--nav-h) - 6px); right: var(--pad); left: var(--pad);
+    flex-direction: column; gap: 2px;
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid var(--glass-border-2); border-radius: 14px;
+    padding: 10px; box-shadow: var(--shadow);
+  }
+  .mobile-menu.open { display: flex; }
+  .mobile-menu a {
+    display: flex; align-items: center; min-height: 44px; padding: 0 14px;
+    color: var(--text-dim); font-size: 15.5px; font-weight: 600; border-radius: 9px;
+    transition: background .18s, color .18s;
+  }
+  .mobile-menu a:hover { background: oklch(90% 0.005 264 / .06); color: var(--text); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15.5px; font-family: inherit;
+    padding: 13px 24px; border-radius: 10px; cursor: pointer; border: none;
+    transition: transform .2s var(--ease), background .25s, box-shadow .25s;
+  }
+  .btn-primary { background: var(--primary); color: var(--primary-content); }
+  .btn-primary:hover { transform: translateY(-2px); background: var(--primary-bright); box-shadow: 0 16px 38px -12px oklch(62% 0.16 250 / .6); }
+  .btn-ghost { background: var(--glass-bg); color: var(--text); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--glass-border-2); }
+  .btn-ghost:hover { background: oklch(28% 0.02 264 / .6); transform: translateY(-2px); }
+  .btn svg { width: 16px; height: 16px; }
+
+  .rail-tag {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--primary-bright); margin-bottom: 22px;
+  }
+  .rail-tag::before { content:""; width: 22px; height: 2px; background: var(--primary); display:inline-block; border-radius: 2px; }
+  .crumb { display: inline-flex; align-items: center; gap: 8px; color: var(--text-faint); font-size: 14px; font-weight: 600; margin-bottom: 22px; transition: color .2s; }
+  .crumb:hover { color: var(--primary-bright); }
+  .crumb svg { width: 15px; height: 15px; }
+
+  /* ============ SUB-HERO ============ */
+  .fhero { position: relative; overflow: hidden; padding: calc(var(--nav-h) + 72px) 0 30px; }
+  .fhero::before {
+    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      linear-gradient(120deg, var(--bg-deep) 38%, transparent 82%),
+      radial-gradient(120% 130% at 96% 4%, var(--glass-grad-a), transparent 56%),
+      radial-gradient(110% 130% at 100% 100%, var(--glass-grad-b), transparent 52%);
+  }
+  .fhero-inner { position: relative; z-index: 1; max-width: 820px; }
+  .fhero h1 { font-weight: 800; font-size: clamp(40px, 5.2vw, 70px); line-height: 1.02; letter-spacing: -.035em; margin: 0 0 20px; }
+  .fhero h1 .az { color: var(--primary-bright); }
+  .fhero .lede { font-size: 18.5px; color: var(--text-dim); line-height: 1.6; max-width: 600px; margin: 0; }
+  .fhero .lede b { color: var(--text); font-weight: 600; }
+  .byline { display: inline-flex; align-items: center; gap: 11px; margin-top: 28px; }
+  .byline .avatar {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: linear-gradient(150deg, var(--primary), var(--secondary));
+    color: var(--primary-content); display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 15px; letter-spacing: -.02em;
+    border: 1px solid var(--glass-border-2);
+  }
+  .byline .who { font-size: 14px; }
+  .byline .who b { color: var(--text); font-weight: 700; }
+  .byline .who span { color: var(--text-faint); display: block; font-size: 12.5px; font-weight: 500; }
+
+  /* ============ ESSAY ============ */
+  .essay { max-width: 720px; margin: 0 auto; padding: 30px 0 16px; }
+  .essay .lead {
+    font-size: clamp(20px, 2.6vw, 26px); font-weight: 600; line-height: 1.42; letter-spacing: -.02em;
+    color: var(--text); margin: 0 0 40px;
+  }
+  .essay .lead .az { color: var(--primary-bright); }
+  .essay h2 {
+    font-weight: 800; font-size: clamp(23px, 3vw, 30px); letter-spacing: -.025em; line-height: 1.15;
+    margin: 48px 0 16px;
+  }
+  .essay h2 .az { color: var(--primary-bright); }
+  .essay h2 .num {
+    display: inline-block; font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: .52em; font-weight: 700; color: var(--primary-bright); vertical-align: super;
+    margin-right: 12px; letter-spacing: .02em;
+  }
+  .essay p { font-size: 17px; color: var(--text-dim); line-height: 1.72; margin: 0 0 20px; }
+  .essay p b { color: var(--text); font-weight: 600; }
+  .essay p .az { color: var(--primary-bright); font-weight: 600; }
+  .essay p code, .essay li code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 14px; color: var(--primary-bright);
+    background: oklch(62% 0.16 250 / .1); padding: 1px 6px; border-radius: 5px; }
+
+  /* pull-quote — editorial, not a glass card */
+  .pull {
+    margin: 44px 0; padding: 6px 0 6px 28px;
+    border-left: 3px solid var(--primary);
+    font-weight: 600; font-size: clamp(24px, 3.4vw, 34px); line-height: 1.22; letter-spacing: -.03em;
+    color: var(--text);
+  }
+  .pull .az { color: var(--primary-bright); }
+  .pull .attr { display: block; margin-top: 14px; font-size: 14px; font-weight: 600; letter-spacing: .01em;
+    color: var(--text-faint); }
+
+  /* inline figure */
+  figure.shot {
+    margin: 40px 0; border-radius: var(--tile-r); overflow: hidden;
+    border: 1px solid var(--glass-border-2); box-shadow: var(--shadow);
+  }
+  figure.shot img { width: 100%; display: block; }
+  figure.shot figcaption { font-size: 13px; color: var(--text-faint); padding: 12px 16px; background: oklch(12% 0.014 264);
+    border-top: 1px solid var(--glass-border); font-weight: 500; }
+  figure.shot figcaption b { color: var(--primary-bright); font-weight: 600; }
+
+  .stance {
+    margin: 16px 0 6px; padding: 0; list-style: none;
+    display: grid; gap: 10px;
+  }
+  .stance li {
+    display: flex; gap: 13px; align-items: flex-start;
+    font-size: 16px; color: var(--text-dim); line-height: 1.55;
+  }
+  .stance li b { color: var(--text); font-weight: 600; }
+  .stance .tick {
+    flex: 0 0 auto; margin-top: 2px;
+    width: 22px; height: 22px; border-radius: 6px;
+    background: oklch(62% 0.16 250 / .14); border: 1px solid oklch(62% 0.16 250 / .22);
+    color: var(--primary-bright); display: inline-flex; align-items: center; justify-content: center;
+  }
+  .stance .tick svg { width: 13px; height: 13px; }
+
+  .sig { margin: 40px 0 8px; font-size: 20px; font-weight: 700; letter-spacing: -.02em; color: var(--text); }
+  .sig .dash { color: var(--text-faint); font-weight: 400; }
+
+  /* ============ DUAL CTA ============ */
+  .cta-pad { padding: 40px 0 96px; }
+  .cta-card {
+    max-width: 880px; margin: 0 auto;
+    background:
+      radial-gradient(110% 170% at 0% 0%, var(--glass-grad-a), transparent 56%),
+      linear-gradient(180deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: 20px;
+    padding: 44px; box-shadow: var(--shadow);
+  }
+  .cta-card h3 { font-weight: 800; font-size: clamp(24px, 3.2vw, 34px); letter-spacing: -.025em; margin: 0 0 8px; }
+  .cta-card h3 .az { color: var(--primary-bright); }
+  .cta-card .note { color: var(--text-dim); font-size: 15.5px; margin: 0 0 26px; max-width: 600px; }
+  .cmd {
+    display: flex; align-items: center; gap: 14px;
+    background: oklch(11% 0.013 264); border: 1px solid var(--glass-border-2);
+    border-radius: 12px; padding: 15px 15px 15px 20px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13.5px; color: var(--primary-bright);
+    overflow-x: auto; white-space: nowrap;
+  }
+  .cmd .prompt { color: var(--text-faint); user-select: none; }
+  .cmd code { flex: 1; }
+  .copy-btn {
+    flex: 0 0 auto; margin-left: auto;
+    background: var(--text); color: oklch(16% 0.015 264); border: none; cursor: pointer;
+    font-family: "Hanken Grotesk", sans-serif; font-weight: 700; font-size: 13px;
+    padding: 8px 15px; border-radius: 8px; transition: background .2s, transform .15s, color .2s;
+  }
+  .copy-btn:hover { transform: translateY(-1px); }
+  .copy-btn.ok { background: var(--primary); color: var(--primary-content); }
+  .cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
+
+  /* ============ FOOTER (shared) ============ */
+  footer { border-top: 1px solid var(--glass-border); padding: 58px 0 50px; background: oklch(12% 0.014 264); }
+  .foot-top { display: flex; justify-content: space-between; gap: 40px; flex-wrap: wrap; align-items: flex-start; }
+  .foot-brand { display:flex; align-items:center; gap: 11px; }
+  .foot-brand img { width: 36px; height: 36px; }
+  .foot-brand .word { font-weight: 700; font-size: 20px; letter-spacing: -.02em; }
+  .foot-links { display: flex; gap: 48px; flex-wrap: wrap; }
+  .foot-col h5 { margin: 0 0 12px; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint); font-weight: 700; }
+  .foot-col a { display: block; color: var(--text-dim); font-size: 14.5px; margin-bottom: 9px; transition: color .2s; }
+  .foot-col a:hover { color: var(--primary-bright); }
+  .foot-bottom { margin-top: 46px; padding-top: 24px; border-top: 1px solid var(--glass-border);
+    display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--text-faint); }
+  .foot-bottom .fb-brand { display: inline-flex; align-items: center; gap: 9px; }
+  .foot-bottom .fb-brand img { width: 18px; height: 18px; }
+  .foot-bottom a { color: var(--text-dim); }
+  .foot-bottom a:hover { color: var(--primary-bright); }
+
+  /* ===== ULTRA-WIDE: cap container; essay holds a ~62–70ch reading measure (never stretches) ===== */
+  @media (min-width: 1800px) {
+    :root { --maxw: 1480px; --pad: 56px; }
+    .fhero-inner { max-width: 880px; }
+    .essay { max-width: 740px; }
+  }
+  @media (max-width: 760px) {
+    :root { --pad: 22px; }
+    .nav-links { display: none; }
+    .nav-toggle { display: inline-flex; }
+    .cta-card { padding: 28px; }
+  }
+  /* ===== MOBILE: single column, type clamps, figures + pull-quote + CTA stack ===== */
+  @media (max-width: 480px) {
+    .fhero { padding-bottom: 22px; }
+    .essay { padding: 24px 0 12px; }
+    .essay h2 { margin: 38px 0 14px; }
+    figure.shot, .pull { margin: 32px 0; }
+    .pull { padding-left: 20px; }
+    .cta-pad { padding: 32px 0 72px; }
+    .cta-card { padding: 22px; }
+    .cta-row { flex-direction: column; }
+    .cta-row .btn { width: 100%; justify-content: center; }
+    .copy-btn { padding: 8px 12px; }
+    .mobile-menu { right: 14px; left: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+<link rel="canonical" href="https://media-centaur.net/about.html" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="icon" type="image/png" href="assets/centaur-logo.png" />
+<meta property="og:title" content="Why I'm building this — Media Centaur" />
+<meta property="og:description" content="A founder's note on Media Centaur: one app for the whole self-hosted media pipeline — find, identify, track, optionally grab, and play — pleasant from a desk and a couch. Local-first, single-user, MIT." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://media-centaur.net/about.html" />
+<meta property="og:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Why I'm building this — Media Centaur" />
+<meta name="twitter:description" content="A founder's note on Media Centaur: one app for the whole self-hosted media pipeline — find, identify, track, optionally grab, and play — pleasant from a desk and a couch. Local-first, single-user, MIT." />
+<meta name="twitter:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav>
+  <div class="nav-inner">
+    <a class="brand" href="index.html">
+      <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+      <span class="word">Media&nbsp;Centaur</span>
+    </a>
+    <div class="nav-links">
+      <a href="how-it-works.html">How it works</a>
+      <a href="index.html#capabilities">Features</a>
+      <a href="compare.html">Compare</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+    </div>
+    <a class="gh-btn" href="https://github.com/media-centaur/media-centaur">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+    <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="how-it-works.html">How it works</a>
+    <a href="index.html#capabilities">Features</a>
+    <a href="compare.html">Compare</a>
+    <a href="faq.html">FAQ</a>
+    <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+    <a href="https://github.com/media-centaur/media-centaur">GitHub</a>
+  </div>
+</nav>
+
+<!-- ============ SUB-HERO ============ -->
+<header class="fhero">
+  <div class="wrap fhero-inner">
+    <a class="crumb" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M11 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Back to home
+    </a>
+    <span class="rail-tag">A founder's note</span>
+    <h1>Why I'm <span class="az">building this.</span></h1>
+    <p class="lede">Self-hosting your media shouldn't mean babysitting four services. This is the short version of
+      why Media Centaur exists, and the bet it's making.</p>
+  </div>
+</header>
+
+<!-- ============ ESSAY ============ -->
+<article class="essay">
+  <p class="lead">I wanted one app that finds my movies and shows, identifies them, fetches the artwork, tracks
+    what's coming, optionally grabs it, and <span class="az">plays it</span> — and is genuinely pleasant whether
+    I'm at my desk or on the couch.</p>
+
+  <h2><span class="num">01</span>The frustration</h2>
+  <p>Most self-hosted media setups are <b>four services in a trench coat</b>. Sonarr for shows, Radarr for movies,
+    Prowlarr for indexers, and a separate player to actually watch the result. Each is genuinely powerful — but
+    it's a lot to wire up, keep talking to each other, and babysit when one of them drifts out of sync.</p>
+  <p>And the big media servers solve a different problem than the one I had. They're built to <b>stream to every
+    device in the house</b> — phones, tablets, smart TVs, the works — transcoding on the fly to make that happen.
+    That's impressive engineering, and overkill when all I want is to play something on the machine that's already
+    in front of me.</p>
+
+  <figure class="shot">
+    <img loading="lazy" src="assets/screenshots/home.png" alt="Media Centaur home screen" />
+    <figcaption>The home screen — <b>one place</b> for the whole pipeline, dark-first and large-artwork.</figcaption>
+  </figure>
+
+  <h2><span class="num">02</span>The bet</h2>
+  <p>So the bet is simple: <b>one app that does the whole pipeline</b>. Find the files, identify them against TMDB,
+    pull down artwork, track upcoming releases for the shows you own, optionally grab new ones, and play everything
+    locally. No glue between four daemons — one Elixir app, one SQLite file, one thing to run.</p>
+  <p>The other half of the bet is posture. It has to be <span class="az">pleasant from both a desk and a couch</span> —
+    keyboard-fast when I'm working at the machine, gamepad- and remote-friendly when I've sat back ten feet away.
+    Same library, same controls, two ways to lean.</p>
+
+  <div class="pull">
+    "Great software <span class="az">delegates.</span>"
+    <span class="attr">— the principle the whole thing is built on</span>
+  </div>
+
+  <h2><span class="num">03</span>The philosophy</h2>
+  <p>I'm not going to reinvent a video player. There's already a great one: <b>mpv</b>. So Media Centaur hands
+    decoding and subtitles off to mpv — ASS typesetting, PGS image subs, every awkward codec — and focuses on
+    everything <i>around</i> playback: the library, the metadata, the review queue, the release calendar, the
+    couch overlays. Do one thing, and lean on the best tool for the rest.</p>
+
+  <ul class="stance">
+    <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><b>Local-first.</b> It runs on your hardware. Nothing phones home except the TMDB lookups you ask for.</span></li>
+    <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><b>Single-user.</b> For the person at the keyboard or on the couch — no accounts, no profiles, no access control to manage.</span></li>
+    <li><span class="tick"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span><b>Yours.</b> A plain SQLite database you can read, back up, and move. MIT-licensed, source in the open.</span></li>
+  </ul>
+
+  <h2><span class="num">04</span>The craft</h2>
+  <p>Under the hood it's <b>Elixir and Phoenix LiveView</b>, which means the whole UI is real-time by default —
+    a scrape finishes, a download lands, an episode gets marked watched, and the screen updates itself. No polling,
+    no refresh button. That same foundation is what lets me <b>raise the interface page by page</b> without taking
+    features away or breaking what already works.</p>
+
+  <figure class="shot">
+    <img loading="lazy" src="assets/screenshots/library-grid.png" alt="Library poster grid" />
+    <figcaption>The library grid — <b>large artwork</b>, dark-first, fast to scan from across the room.</figcaption>
+  </figure>
+
+  <h2><span class="num">05</span>Where it stands</h2>
+  <p>I want to be honest about the stage: it <b>works end to end today</b>, but it's pre-1.0 and developed in the
+    open on GitHub. The interface is actively being raised, surface by surface, while everything stays operational.
+    If you try it and something's rough or missing, <span class="az">bug reports and ideas are genuinely welcome</span> —
+    that feedback is shaping where it goes.</p>
+</article>
+
+<!-- ============ DUAL CTA ============ -->
+<section class="cta-pad">
+  <div class="wrap">
+    <div class="cta-card">
+      <h3>Try it, or read the code. <span class="az">Both are open.</span></h3>
+      <p class="note">One line installs the latest release on Linux x86_64 (or experimentally on Apple Silicon).
+        Or browse the source, file an issue, and tell me what you'd change.</p>
+      <div class="cmd">
+        <span class="prompt">$</span>
+        <code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/media-centaur/media-centaur/main/installer/install.sh | sh</code>
+        <button class="copy-btn" id="copy-btn" aria-label="Copy install command">Copy</button>
+      </div>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="how-it-works.html">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+          See how it works
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/media-centaur/media-centaur">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-top">
+      <div>
+        <div class="foot-brand">
+          <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+          <span class="word">Media Centaur</span>
+        </div>
+        <p style="color:var(--text-faint); font-size:14px; margin:16px 0 0; max-width:320px;">
+          A self-hosted media center. Library, metadata, release tracking, and mpv playback — one Elixir app,
+          fast at your desk and made for your couch.
+        </p>
+      </div>
+      <div class="foot-links">
+        <div class="foot-col">
+          <h5>Product</h5>
+          <a href="how-it-works.html">How it works</a>
+          <a href="feature-library-management.html">Library management</a>
+          <a href="feature-playback.html">Playback</a>
+          <a href="feature-release-tracking.html">Release tracking</a>
+          <a href="feature-acquisition.html">Optional acquisition</a>
+          <a href="feature-input.html">Input</a>
+          <a href="feature-real-time.html">Real-time</a>
+          <a href="index.html#install">Install</a>
+        </div>
+        <div class="foot-col">
+          <h5>Project</h5>
+          <a href="https://github.com/media-centaur/media-centaur">GitHub</a>
+          <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+          <a href="https://github.com/media-centaur/media-centaur/issues">Issues</a>
+          <a href="https://github.com/media-centaur/media-centaur/blob/main/LICENSE">License</a>
+        </div>
+        <div class="foot-col">
+          <h5>More</h5>
+          <a href="about.html">Why I built this</a>
+          <a href="compare.html">Compare</a>
+          <a href="faq.html">FAQ</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span class="fb-brand">
+        <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+        © 2026 Shawn McCool · MIT
+      </span>
+      <span>This product uses the TMDB API but is not endorsed or certified by <a href="https://www.themoviedb.org/">TMDB</a>.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ---- mobile nav toggle ----
+  const navToggle = document.getElementById('nav-toggle');
+  const mobileMenu = document.getElementById('mobile-menu');
+  navToggle.addEventListener('click', () => {
+    const open = mobileMenu.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    mobileMenu.classList.remove('open');
+    navToggle.setAttribute('aria-expanded', 'false');
+  }));
+
+  const copyBtn = document.getElementById('copy-btn');
+  copyBtn.addEventListener('click', async () => {
+    const text = document.getElementById('install-cmd').textContent.trim();
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const r = document.createRange(); r.selectNodeContents(document.getElementById('install-cmd'));
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      document.execCommand('copy'); s.removeAllRanges();
+    }
+    copyBtn.textContent = 'Copied ✓'; copyBtn.classList.add('ok');
+    setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('ok'); }, 1900);
+  });
+</script>
+</body>
+</html>
