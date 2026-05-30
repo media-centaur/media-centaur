@@ -149,7 +149,7 @@ defmodule MediaCentaur.Acquisition.Target do
       last_attempt_outcome: "acquired",
       next_attempt_at: nil
     )
-    |> maybe_put_hash(InfoHash.from_search_result(result))
+    |> maybe_put_hash(Keyword.get(opts, :torrent_hash) || InfoHash.from_search_result(result))
     |> validate_required([:pursuit_id, :title])
   end
 

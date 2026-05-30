@@ -125,4 +125,126 @@ defmodule MediaCentaur.Acquisition.InfoHashTest do
       assert InfoHash.from_search_result(result) == nil
     end
   end
+
+  describe "from_search_result/1 magnet guid" do
+    test "falls back to a magnet guid when info_hash and magnet_url are nil" do
+      result = %SearchResult{
+        title: "Sample.Release.2024.1080p-GRP",
+        guid: "magnet:?xt=urn:btih:#{@hex_upper}&dn=Sample",
+        indexer_id: 1,
+        info_hash: nil,
+        magnet_url: nil
+      }
+
+      assert InfoHash.from_search_result(result) == @hex_lower
+    end
+  end
+
+  describe "from_torrent/1" do
+    test "computes the v1 infohash from the info-dict byte span (info last)" do
+      info = "d5:filesld6:lengthi100e4:pathl8:file.mkveee4:name3:dire"
+      torrent = "d8:announce21:http://tracker.test/a4:info" <> info <> "e"
+      expected = :sha |> :crypto.hash(info) |> Base.encode16(case: :lower)
+
+      assert InfoHash.from_torrent(torrent) == expected
+    end
+
+    test "computes the infohash when info is not the last key" do
+      info = "d6:lengthi12345e4:name9:movie.mkve"
+      torrent = "d4:info" <> info <> "1:z1:!e"
+      expected = :sha |> :crypto.hash(info) |> Base.encode16(case: :lower)
+
+      assert InfoHash.from_torrent(torrent) == expected
+    end
+
+    test "returns nil for bytes that are not a bencoded dict" do
+      assert InfoHash.from_torrent("not a torrent") == nil
+    end
+
+    test "returns nil for a bencoded dict with no info key" do
+      assert InfoHash.from_torrent("d8:announce3:abce") == nil
+    end
+
+    test "returns nil for nil" do
+      assert InfoHash.from_torrent(nil) == nil
+    end
+  end
+
+  describe "resolve/2" do
+    test "returns the search-result hash without fetching" do
+      result = %SearchResult{
+        title: "Sample",
+        guid: "g1",
+        indexer_id: 1,
+        info_hash: @hex_upper,
+        magnet_url: nil
+      }
+
+      fetcher = fn _url -> raise "should not fetch when the hash is already known" end
+      assert InfoHash.resolve(result, fetcher) == @hex_lower
+    end
+
+    test "fetches and parses a magnet redirect when the result has no hash" do
+      result = %SearchResult{
+        title: "Sample",
+        guid: "g1",
+        indexer_id: 1,
+        info_hash: nil,
+        magnet_url: nil,
+        download_url: "http://prowlarr.test/download/1"
+      }
+
+      fetcher = fn "http://prowlarr.test/download/1" ->
+        {:magnet, "magnet:?xt=urn:btih:#{@hex_upper}&dn=Sample"}
+      end
+
+      assert InfoHash.resolve(result, fetcher) == @hex_lower
+    end
+
+    test "fetches and hashes a .torrent body when the result has no hash" do
+      info = "d6:lengthi1e4:name3:abce"
+      torrent = "d4:info" <> info <> "e"
+      expected = :sha |> :crypto.hash(info) |> Base.encode16(case: :lower)
+
+      result = %SearchResult{
+        title: "Sample",
+        guid: "g1",
+        indexer_id: 1,
+        info_hash: nil,
+        magnet_url: nil,
+        download_url: "http://prowlarr.test/download/2"
+      }
+
+      fetcher = fn _url -> {:torrent, torrent} end
+      assert InfoHash.resolve(result, fetcher) == expected
+    end
+
+    test "returns nil when the fetch fails" do
+      result = %SearchResult{
+        title: "Sample",
+        guid: "g1",
+        indexer_id: 1,
+        info_hash: nil,
+        magnet_url: nil,
+        download_url: "http://prowlarr.test/download/3"
+      }
+
+      fetcher = fn _url -> :error end
+      assert InfoHash.resolve(result, fetcher) == nil
+    end
+
+    test "returns nil without fetching when there is no download_url" do
+      result = %SearchResult{
+        title: "Sample",
+        guid: "g1",
+        indexer_id: 1,
+        info_hash: nil,
+        magnet_url: nil,
+        download_url: nil
+      }
+
+      fetcher = fn _url -> raise "should not fetch without a download_url" end
+      assert InfoHash.resolve(result, fetcher) == nil
+    end
+  end
 end

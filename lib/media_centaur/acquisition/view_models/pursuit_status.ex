@@ -188,7 +188,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     {
       %CurrentAction{
         verb: "Downloaded",
-        description: "Finished downloading — no file has landed in your library or review queue yet.",
+        description: "Finished downloading — still importing, or already in your library.",
         severity: :info
       },
       %NextStep{

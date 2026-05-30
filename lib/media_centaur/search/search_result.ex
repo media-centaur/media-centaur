@@ -25,7 +25,12 @@ defmodule MediaCentaur.Search.SearchResult do
     # (`www.X.org - …`) that break title matching. Often present for
     # public torrent indexers; nil for usenet and indexers that omit it.
     :info_hash,
-    :magnet_url
+    :magnet_url,
+    # Prowlarr proxy link to the release. For indexers that expose neither
+    # `info_hash` nor a magnet, this is the only path to a durable infohash:
+    # fetching it either redirects to a magnet or serves the `.torrent` body,
+    # from which `InfoHash.resolve/2` derives the hash at grab time.
+    :download_url
   ]
 
   @type t :: %__MODULE__{
@@ -39,7 +44,8 @@ defmodule MediaCentaur.Search.SearchResult do
           indexer_name: String.t() | nil,
           publish_date: String.t() | nil,
           info_hash: String.t() | nil,
-          magnet_url: String.t() | nil
+          magnet_url: String.t() | nil,
+          download_url: String.t() | nil
         }
 
   @doc "Builds a SearchResult from a raw Prowlarr API result map."
@@ -58,7 +64,8 @@ defmodule MediaCentaur.Search.SearchResult do
       indexer_name: raw["indexer"],
       publish_date: raw["publishDate"],
       info_hash: raw["infoHash"],
-      magnet_url: raw["magnetUrl"]
+      magnet_url: raw["magnetUrl"],
+      download_url: raw["downloadUrl"]
     }
   end
 end

@@ -255,7 +255,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
               quality_label,
               result.title,
               result.guid,
-              InfoHash.from_search_result(result)
+              InfoHash.resolve(result)
             )
           )
 
