@@ -838,18 +838,16 @@ body:has(.modal-backdrop[data-state="open"]) {
 .poster-card {
   border-color: oklch(from var(--color-base-content) l c h / 0.16);
   box-shadow: 0 4px 16px oklch(0% 0 0 / 0.35);
-  transition: box-shadow 150ms ease-out, border-color 150ms ease-out, transform 150ms ease-out;
+  transition: box-shadow 150ms ease-out, border-color 150ms ease-out;
 }
 
 .poster-card:hover:not(:active) {
   border-color: oklch(from var(--color-base-content) l c h / 0.3);
   box-shadow: 0 10px 28px oklch(0% 0 0 / 0.45);
-  transform: translateY(-2px);
 }
 
 .poster-card:active {
   transition: none;
-  transform: none;
 }
 
 /* ── Home page hero (Netflix-style fluid fill) ──
