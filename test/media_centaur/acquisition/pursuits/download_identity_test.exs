@@ -98,6 +98,36 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentityTest do
     assert reload(target).torrent_hash == nil
   end
 
+  test "captures content_path on a grab-time-hashed target while its torrent is still live" do
+    # Grab-time infohash capture (v0.77.2) populates torrent_hash BEFORE the
+    # download is ever seen in the queue. DownloadIdentity must still run to
+    # capture content_path from the live download — paired by the hash —
+    # otherwise the LibraryReconciler's authoritative content_path match is
+    # starved and the pursuit orphans on release-name drift (the Mortal
+    # Kombat II "mkv"-token miss). The hash being present is now an asset for
+    # pairing, not a reason to skip.
+    {_pursuit, target} =
+      create_pursuit_with_target(%{
+        recipe_type: "prowlarr_query",
+        release_title: "Sample.Release.2024.1080p-GRP",
+        torrent_hash: "grabhash",
+        content_path: nil
+      })
+
+    item =
+      queue_item(%{
+        id: "grabhash",
+        title: "Sample.Release.2024.1080p-GRP",
+        content_path: "/downloads/Sample.Release.2024.1080p-GRP.mkv"
+      })
+
+    assert :ok = DownloadIdentity.capture!(target, [item], "Sample.Release.2024.1080p-GRP")
+
+    reloaded = reload(target)
+    assert reloaded.torrent_hash == "grabhash"
+    assert reloaded.content_path == "/downloads/Sample.Release.2024.1080p-GRP.mkv"
+  end
+
   test "self-heals a no-hash target whose torrent name carries a tracker prefix" do
     release = "Sample.Show.S05E03.Every.Last.Bit.Of.It.2160p.AMZN.WEB-DL"
 
