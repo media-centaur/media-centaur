@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in_progress
 started: 2026-05-30
 last_updated: 2026-05-30
 ---
@@ -18,11 +18,13 @@ the existing entity to the new path instead of re-importing it.
 
 ## Status
 
-Planning. Triggered by a user bug report (`Path.join([])` 500 + "moved
-to a new HDD, cleared everything, only a reboot fixed it"). Two
-robustness fixes that fell out of the investigation are **already
-shipped**; the relink feature itself is designed (matcher = relative
-path + filesize, auto, filesystem-injected test seam) with no code yet.
+Core relink path **shipped and green** (`fec56c02`): `MoveMatcher` →
+`size` ingestion → `relink_moved_files/3` → scan hook → real-filesystem
+integration test. A move now re-points the existing entity instead of
+re-importing; copies and ambiguous matches fall through to a normal
+import. Remaining: discoverability (Scan-now in the Library settings
+section) and the wiki entry. Two robustness fixes from the original
+investigation shipped earlier (`3027a358`, `2695dc0d`).
 
 ## Decisions made
 
@@ -34,18 +36,18 @@ Append-only log.
 * `2026-05-30` — **Auto-relink, logged, no confirmation modal.** A "move" is confirmed by the old path being *gone* on disk (distinguishes move from copy), which keeps false positives near zero — a prompt would be friction, not safety.
 * `2026-05-30` — **Lazy size capture**: the scan stats only *new* files, so existing rows pick up a size the next time they're stamped. Pre-feature rows (size `nil`) fall back to relpath-only matching for the first move.
 * `2026-05-30` — Test strategy: pure `MoveMatcher` + filesystem-injected `relink_moved_files/3` + a real-temp-dir integration scan. The integration test **is** the reproduction harness — the prod DB is shared with the :1080 dev server, so the user's scenario can't be reproduced live. Red→green on that test is the proof the feature fixes the report.
+* `2026-05-30` — Steps 1–5 landed: `MoveMatcher` (`bf1ced46` chain), `size` column + ingestion (`c6360814`), `relink_moved_files/3` (`bf1ced46`), scan hook + real-FS integration test (`fec56c02`).
+
+## Known limitations / follow-ups
+
+* **Live inotify single-file move** is not relinked — only the scan path runs relink. A bulk move surfaces via the startup scan when the watch dir changes (the reported scenario), but a single `mv` into a running watch dir while the app is up would import as new. Route the `:check_size` → `detect_file` path through relink if this matters.
+* **New-path presence collision**: `relink_moved_files/3` rewrites the old `FilePresence` row's `file_path` to the new path; if a row already exists at the new path (rare — it'd have to be stamped under another dir), the unique constraint trips the transaction. Acceptable for now; guard (delete-stale-then-repoint) if it shows up.
+* **Pre-feature rows are size-less**, so `list_relink_candidates/1` loads all `nil`-size rows on any scan with new files. Self-heals as files get re-stamped with size; revisit if it shows on large legacy libraries.
 
 ## Next steps
 
-Build bottom-up, test-first. Each step lands with its tests.
-
-1. **Schema + ingestion** — migration adding nullable `size` to `library_file_presences`; capture `size` in `FilePresence.stamp`/`stamp_many`; stat new files in `Watcher.scan_directory_with_paths` (watcher.ex:409). Safe/idempotent migration, lazy backfill.
-2. **`Library.MoveMatcher`** (pure, `async: true`) — match new `{relpath, size}` against existing presence rows; single candidate → match, multiple → bail, `nil` size → relpath-only fallback. Moduledoc documents the matching contract.
-3. **`Library.relink_moved_files/3`** (DataCase, FS injected via `exists?:` opt) — re-point `FilePresence` **and** the denormalised `WatchedFile`/`ExtraFile` path+watch_dir; verify old path gone (move vs copy); return `{relinked, still_new}`; broadcast `entities_changed`. Cases: move, copy (not relinked), ambiguous (skipped), size mismatch, `nil`-size fallback.
-4. **Scan hook** — in `scan_directory_with_paths`, relink before `detect_file/2`; dispatch only `still_new` to the import pipeline; broadcast for relinked entities.
-5. **Integration test** (real temp dir, ADR-016) — write file under `tmp/A`, scan (links entity), `File.rename` to `tmp/B`, repoint watch dir, scan again (call `Watcher.scan` directly — no inotify timing). Assert entity count stays **1** and resolves to the new path. Confirm red on pre-relink code.
-6. **Discoverability** (deferred from the robustness pass) — surface the existing "Scan now" action in the **Library** settings section; today it lives only in *Services* (settings_live.ex:1807) and the console drawer, nowhere near watch-dir management.
-7. **Wiki** — `Troubleshooting.md` "moved media won't show up" entry once the user-visible workflow settles.
+1. **Discoverability** (deferred from the robustness pass) — surface the existing "Scan now" action in the **Library** settings section; today it lives only in *Services* (settings_live.ex:1807) and the console drawer, nowhere near watch-dir management.
+2. **Wiki** — `Troubleshooting.md` "moved media won't show up" entry now that the workflow shape has settled (move files → change watch dir → relink happens on the scan).
 
 ## Completion criteria
 
