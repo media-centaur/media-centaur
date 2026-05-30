@@ -30,6 +30,15 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
   def init(opts), do: opts
 
   @impl true
+  # Bare `/media-images` with nothing after it (path_info `["media-images"]`,
+  # so `rest == []`). Reached when an `<img src>` is built from an empty/nil
+  # image path (`/media-images/#{""}`) or a crawler pokes the mount point.
+  # `Path.join([])` raises, so short-circuit to the same graceful placeholder
+  # a missing file gets — there's no filename to look up, role is "unknown".
+  def call(%{path_info: ["media-images"]} = conn, _opts) do
+    send_placeholder(conn, "")
+  end
+
   def call(%{path_info: ["media-images" | rest]} = conn, _opts) do
     if Enum.any?(rest, &(&1 == "..")) do
       conn |> send_resp(400, "Bad request") |> halt()

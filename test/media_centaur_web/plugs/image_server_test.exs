@@ -133,6 +133,24 @@ defmodule MediaCentaurWeb.Plugs.ImageServerTest do
     end
   end
 
+  describe "bare /media-images (no filename) degrades, never crashes" do
+    # Regression for the production 500: an `<img src>` built from an empty
+    # content_url (`/media-images/#{""}`) — or a crawler hitting the bare
+    # mount point — arrives as path_info `["media-images"]` with nothing
+    # after it. `Path.join([])` raises FunctionClauseError, so the plug must
+    # short-circuit. We treat it like any other missing file: 200 + the
+    # generic ("unknown" role) placeholder, consistent with the module's
+    # graceful-degradation contract.
+    test "bare path returns the generic placeholder instead of raising", %{conn: conn} do
+      conn = call_plug(conn, "/media-images")
+
+      assert conn.status == 200
+      assert content_type(conn) =~ "image/svg+xml"
+      # 200x200 generic square — the "unknown" role viewBox.
+      assert conn.resp_body =~ ~s(viewBox="0 0 200 200")
+    end
+  end
+
   defp call_plug(conn, path, query_string \\ "") do
     segments = path |> String.trim_leading("/") |> String.split("/")
 
