@@ -37,32 +37,30 @@ const page = await context.newPage();
 
 // ---- Tour ----
 await page.goto(BASE + "/", { waitUntil: "networkidle" });
-await sleep(1600); // settle on the home hero
+await sleep(1500); // home hero — sidebar visible, the app shows its nav
 
 // 1. Glide down through the home rows (Continue Watching, Recently Added, Coming Up)
 const maxY = await page.evaluate(() =>
   Math.max(0, document.body.scrollHeight - window.innerHeight),
 );
-await smoothScroll(page, Math.min(maxY, 1500), 3800);
-await sleep(1100);
-await smoothScroll(page, 0, 1600);
-await sleep(900);
-
-// 2. Into the library grid — couch navigation with the keyboard
-await page.goto(BASE + "/library", { waitUntil: "networkidle" });
-await sleep(1300);
-await page.mouse.move(W / 2, H / 2);
-await page.mouse.click(W / 2, H / 2);
-for (const key of ["ArrowRight", "ArrowRight", "ArrowRight", "ArrowDown", "ArrowRight"]) {
-  await page.keyboard.press(key);
-  await sleep(620);
-}
-
-// 3. Open a detail, linger, close
-await page.keyboard.press("Enter");
-await sleep(2200);
-await page.keyboard.press("Escape");
+await smoothScroll(page, Math.min(maxY, 1500), 3600);
 await sleep(1000);
+await smoothScroll(page, 0, 1400);
+await sleep(700);
+
+// 2. Into the library via the sidebar — the nav rail stays on screen
+await page.locator('#sidebar a[href="/library"]').first().click();
+await sleep(1500); // library WITH the nav visible
+
+// 3. Collapse the sidebar — the artwork takes over (a "watch it respond" beat)
+await page.locator("#sidebar").getByText("Collapse", { exact: true }).click();
+await sleep(1500);
+
+// 4. Open a title — its detail page takes over the now-full-width frame
+await page.mouse.move(300, 400);
+await sleep(550);
+await page.mouse.click(300, 400);
+await sleep(2700); // linger on the detail before the loop restarts
 
 await context.close(); // finalizes the webm
 await browser.close();
