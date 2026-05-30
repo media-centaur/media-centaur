@@ -111,12 +111,12 @@ awaiting local review (push to `main` auto-deploys to media-centaur.net).**
 
 ## Next steps
 
-1. **Local review of `docs-site/`**, then commit + push (deploys). Keep the
-   docs-site port commit separate from unrelated working-tree changes (app.css,
-   test/e2e/*) and the `catalog.ex` showcase change.
-2. **Follow-up bucket (remaining):**
-   - Roadmap / what's-new page (only planned surface not built).
-3. Wiki sync for any user-visible copy/positioning changes.
+**All three completion criteria are met** (site shipped + corrected copy + OG
+card + favicons; no "alpha" anywhere; wiki synced). One optional follow-up
+remains:
+
+1. **Roadmap / what's-new page** — the only planned surface not built. Needs
+   copy/IA decisions; brainstorm before building. Not a completion criterion.
 
 ## Shipped (2026-05-30, pushed to main)
 
@@ -171,6 +171,13 @@ awaiting local review (push to `main` auto-deploys to media-centaur.net).**
   `favicon.ico` (16/32/48), `favicon-16/32`, `apple-touch-icon` (180),
   `icon-192/512`, `site.webmanifest`. Wired `og:image` (+ width/height/alt),
   `twitter:image`, and the full icon/manifest link set across all 11 pages.
+* **Wiki positioning sync** (`media-centaur.wiki` `cee8669`) — reconciled the wiki
+  against the site decisions. Most were already clean (no maturity label, no old
+  name, macOS/Linux copy already accurate). Real edits: scrubbed couch/TV-*only*
+  framing (FAQ Plex/Jellyfin answer, Windows target-user line, Keyboard & Gamepad
+  intro → desk-and-couch) and dropped "No Docker" from the FAQ elevator-pitch
+  headline. Kept the neutral "Why no Docker?" answer (genuinely useful — redirects
+  container users to Jellyfin + the *ARR stack).
 
 ## Completion criteria
 
