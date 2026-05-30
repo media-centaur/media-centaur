@@ -116,11 +116,7 @@ awaiting local review (push to `main` auto-deploys to media-centaur.net).**
    test/e2e/*) and the `catalog.ex` showcase change.
 2. **Follow-up bucket (remaining):**
    - Custom OG social card (currently reuses the logo); favicon set.
-   - Internal: extract the duplicated per-page `<style>` into one
-     `docs-site/assets/site.css` (11 near-identical copies today).
    - Roadmap / what's-new page (only planned surface not built).
-   - Dead CSS left behind: `.play-affordance` / `.stage-chip` play rules in
-     `index.html` (markup removed when the real `<video>` landed).
 3. Wiki sync for any user-visible copy/positioning changes.
 
 ## Shipped (2026-05-30, pushed to main)
@@ -141,6 +137,29 @@ awaiting local review (push to `main` auto-deploys to media-centaur.net).**
   over → a title's episode-list detail), wired as autoplaying `<video>` with
   home.png poster + an autoplay-nudge / tap-to-play fallback for mobile.
   Reproducible via `scripts/record-demo` + `test/e2e/demo-record.mjs`.
+
+## Shipped (2026-05-30, second session)
+
+* **Shared CSS extraction** — pulled the design-system core duplicated across all
+  11 pages into one `docs-site/assets/site.css` (25 `:root` vars unioned + 80
+  shared selectors), linked before each page's inline `<style>`. **−1335 lines of
+  duplicated HTML**, collapsed into a 248-line sheet. Dead `.play-affordance` rules
+  dropped (the campaign's earlier note was wrong about `.stage-chip` — that one is
+  still live as the "Live preview" chip on the hero video stage, so it stayed).
+  * **Hard part = cascade order.** External sheet loads *before* inline, so any
+    moved rule jumps ahead of inline rules. Three collision classes had to stay
+    inline to preserve rendering: (1) `@media` blocks (never extracted — nesting a
+    breakpoint override ahead of its base flips the cascade); (2) base/modifier
+    families where the base is page-divergent (`.btn` + `.btn-ghost`); (3) selectors
+    also targeted inside an `@media`. The transform self-computes these excludes
+    from the `@media` contents + markup class co-occurrence.
+  * **Verified zero visual change** three ways: a set-equality check (every page's
+    applicable rule multiset preserved), a computed-style oracle diffing every body
+    element before/after at 1280/760/390px (via `chromium-probe` + a width-forced
+    CDP probe), and isolating the only residuals (`.live-dot` pulse, `.rail-tag`
+    reveal) as keyframe-animation timing jitter (reproduce on self-vs-self loads).
+    The one-shot migration script lives in `/tmp` (not a repo build step — re-running
+    it against already-extracted files would mis-classify).
 
 ## Completion criteria
 
