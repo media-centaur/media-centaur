@@ -114,17 +114,28 @@ awaiting local review (push to `main` auto-deploys to media-centaur.net).**
 1. **Local review of `docs-site/`**, then commit + push (deploys). Keep the
    docs-site port commit separate from unrelated working-tree changes (app.css,
    test/e2e/*) and the `catalog.ex` showcase change.
-2. **Follow-up bucket (deferred by decision 2026-05-30):**
+2. **Follow-up bucket:**
    - **Hero demo clip** from the showcase instance (:4003) — couch nav + open +
      play + a live update — dropped into the hero `<video>` slot. Highest-
-     leverage remaining visual. (`screenshot-showcase` skill.)
-   - **Showcase reseed + regenerate-screenshots** to capture the corrected
-     4-tile "Coming Up" (needs TMDB key + outward push to assets repo + main).
+     leverage remaining visual. Needs net-new video-capture tooling
+     (`screenshot-tour` does stills only). (`screenshot-showcase` skill.)
    - Custom OG social card (currently reuses the logo); favicon set.
    - Internal: extract the duplicated per-page `<style>` into one
      `docs-site/assets/site.css` (11 near-identical copies today).
    - Roadmap / what's-new page (only planned surface not built).
 3. Wiki sync for any user-visible copy/positioning changes.
+
+## Shipped (2026-05-30, pushed to main)
+
+* `c3ec971` docs-site rebuild (11 pages) + README alpha sweep — **live on
+  media-centaur.net**.
+* `9794083` + `ab8671f` showcase 4-tile Coming Up: needed BOTH the catalog
+  addition (library presence) AND the `seed_release_tracking!` `upcoming` list
+  (the marquee dedups by *tracked* series, not catalog — caught by verifying the
+  captured screenshot before publishing).
+* `95fcdd3` regenerated marketing screenshots (web → main, 4K → assets repo),
+  verified the 4-tile Coming Up renders (hero One Step Beyond + Petticoat
+  Junction / Pioneer One / Beverly Hillbillies).
 
 ## Completion criteria
 
