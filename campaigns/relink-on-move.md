@@ -1,5 +1,5 @@
 ---
-status: in_progress
+status: shipped
 started: 2026-05-30
 last_updated: 2026-05-30
 ---
@@ -18,13 +18,16 @@ the existing entity to the new path instead of re-importing it.
 
 ## Status
 
-Core relink path **shipped and green** (`fec56c02`): `MoveMatcher` →
+**Shipped in v0.77.1** (2026-05-30). Full path live: `MoveMatcher` →
 `size` ingestion → `relink_moved_files/3` → scan hook → real-filesystem
-integration test. A move now re-points the existing entity instead of
-re-importing; copies and ambiguous matches fall through to a normal
-import. Remaining: discoverability (Scan-now in the Library settings
-section) and the wiki entry. Two robustness fixes from the original
-investigation shipped earlier (`3027a358`, `2695dc0d`).
+integration test → Scan-now in the Library settings section. A move now
+re-points the existing entity instead of re-importing; copies and
+ambiguous matches fall through to a normal import. Two robustness fixes
+from the original investigation rode the same release (`3027a358`,
+`2695dc0d`). Wiki documented (`Troubleshooting.md`). All completion
+criteria met — safe to remove once v0.77.1 is confirmed live for users
+(git history is the archive per ADR-042). Known limitations below remain
+as optional follow-ups.
 
 ## Decisions made
 
@@ -46,27 +49,15 @@ Append-only log.
 
 ## Next steps
 
-1. ~~**Discoverability** — Scan-now in the Library settings section.~~ Shipped `ff73cf2d` (Scan-now / Cancel footer on the Watch Directories card).
-2. **Ship** — `/ship` (patch or minor) to release the shipped commits so the reporter and other users actually get the fixes + relink. Held back: two other agents had in-flight work and the move touched the shared prod DB, so the release timing/version is the user's call.
-3. **Wiki** (held until the release version is known — the wiki gates behaviour by version, and this is unreleased). Ready-to-paste entry under `Troubleshooting.md`'s "The Watcher isn't detecting my files" section:
+All shipped in v0.77.1:
 
-   ```markdown
-   ### I moved my media to a new drive and the library looks empty
+1. ~~**Discoverability** — Scan-now in the Library settings section.~~ `ff73cf2d`.
+2. ~~**Ship** — release so users get the fixes + relink.~~ Tagged `v0.77.1`.
+3. ~~**Wiki** — `Troubleshooting.md` "moved media" entry.~~ Pushed (wiki `3f50488`).
 
-   Move your files, then point Media Centaur at the new location in
-   **Settings → Library → Watch Directories** (edit the entry, or remove the
-   old one and add the new path). On the scan that follows, Media Centaur
-   recognises files that simply *moved* — same path within the watch
-   directory, same size — and re-links them to their existing library
-   entries, so your watch history and metadata are preserved. You can also
-   press **Scan now** in **Settings → Library** to trigger it immediately.
-
-   You should not need **Clear database** for a move. (Available in vX.Y+.)
-
-   Caveats: a *renamed* or *re-encoded* file no longer matches and imports as
-   new; a single file moved in while the app is running is picked up on the
-   next scan.
-   ```
+Optional future work lives in **Known limitations / follow-ups** above
+(live inotify single-file relink; new-path presence collision guard;
+pre-feature size-less candidate load).
 
 
 ## Completion criteria

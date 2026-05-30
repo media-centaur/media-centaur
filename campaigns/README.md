@@ -22,16 +22,16 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`relink-on-move.md`](relink-on-move.md) —
-  **planning.** Make "I moved my media to a new drive" smooth. The
-  watcher scans a dir only once (at startup) and identifies files by
-  TMDB id + exact path, so a move orphans the library and the user is
-  forced into Clear-database/reboot folklore. Plan: detect a new file
-  that matches a now-missing known file (relative-path + filesize) and
-  re-point the existing entity instead of re-importing. Two robustness
-  fixes already shipped (image-plug 500 `3027a358`; `clear_database`
-  was leaving the `FilePresence` skip-ledger `2695dc0d`). Relink itself
-  not yet coded; the integration test doubles as the repro harness (the
-  prod DB is shared, so the scenario can't be reproduced live).
+  **shipped v0.77.1.** Make "I moved my media to a new drive" smooth.
+  The watcher scanned a dir only once (at startup) and identified files
+  by TMDB id + exact path, so a move orphaned the library. Now a scan
+  detects files that simply moved (relative-path + filesize, old path
+  gone) and re-points the existing entity instead of re-importing —
+  `MoveMatcher` → `size` ingestion → `relink_moved_files/3` → scan hook
+  → Scan-now in Library settings. Two robustness fixes rode the same
+  release (image-plug 500 `3027a358`; `clear_database` was leaving the
+  `FilePresence` skip-ledger `2695dc0d`). Wiki documented. Safe to remove
+  once v0.77.1 is confirmed live (git history is the archive).
 * [`install-repro-matrix.md`](install-repro-matrix.md) —
   **planning.** Reproducible install environments for media-centaur and
   prowlarr-stack. Phase 1 (Linux Mint 22.3 only) spec written
