@@ -703,7 +703,7 @@ describe("GamepadSource", () => {
     })
   })
 
-  describe("focus gating (window must have focus)", () => {
+  describe("input gating (surface must accept input)", () => {
     let focused
     let gamepad
     let focusSource
@@ -717,7 +717,7 @@ describe("GamepadSource", () => {
         cancelAnimationFrame: env.cancelAnimationFrame,
         addEventListener: env.addEventListener,
         removeEventListener: env.removeEventListener,
-        hasFocus: () => focused,
+        acceptsInput: () => focused,
         onAction: (action) => actions.push(action),
         onInputDetected: (type) => inputDetections.push(type),
         deadzone: 0.3,

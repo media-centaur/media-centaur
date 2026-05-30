@@ -11,6 +11,7 @@ import { Orchestrator, createDomReader, createDomWriter, KeyboardSource, Gamepad
 import { Action } from "./core/actions.js"
 import { inputConfig } from "./config.js"
 import { ControlsBridge } from "./controls_bridge.js"
+import { gamepadInputAllowed } from "./input_gate.js"
 
 const BROWSER_GLOBALS = {
   get document() { return document },
@@ -18,7 +19,15 @@ const BROWSER_GLOBALS = {
   get requestAnimationFrame() { return requestAnimationFrame.bind(window) },
   get cancelAnimationFrame() { return cancelAnimationFrame.bind(window) },
   get getGamepads() { return navigator.getGamepads?.bind(navigator) ?? (() => []) },
-  get hasFocus() { return document.hasFocus.bind(document) },
+  // Read live each call (polled per frame): a connected gamepad may only drive
+  // the UI when this surface is focused, visible, and not an automation context.
+  get acceptsGamepadInput() {
+    return () => gamepadInputAllowed({
+      hasFocus: document.hasFocus(),
+      visibilityState: document.visibilityState,
+      webdriver: navigator.webdriver,
+    })
+  },
 }
 
 function actionForId(idStr) {
@@ -105,7 +114,7 @@ export function createInputHook() {
               cancelAnimationFrame: globals.cancelAnimationFrame,
               addEventListener: window.addEventListener.bind(window),
               removeEventListener: window.removeEventListener.bind(window),
-              hasFocus: globals.hasFocus,
+              acceptsInput: globals.acceptsGamepadInput,
               onControllerChanged: (type) => writer.setControllerType(type),
               buttonMap,
               ...callbacks,
