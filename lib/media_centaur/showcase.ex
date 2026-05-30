@@ -425,15 +425,19 @@ defmodule MediaCentaur.Showcase do
   defp seed_release_tracking!(client) do
     # Public-domain and CC-licensed titles only — the showcase is a
     # legally-safe demo, so even metadata references stick to PD/CC.
-    # All five titles already live in the showcase library; tracking
+    # All seven titles already live in the showcase library; tracking
     # them here models the "watch for restorations / new seasons" flow
-    # without referencing copyrighted properties.
+    # without referencing copyrighted properties. Four TV series are
+    # tracked so the home "Coming Up" marquee (which dedups by series)
+    # renders all four badge states side-by-side.
     upcoming = [
       {:movie, "Big Buck Bunny"},
       {:movie, "Sintel"},
       {:movie, "Nosferatu"},
       {:tv_series, "The Beverly Hillbillies"},
-      {:tv_series, "Pioneer One"}
+      {:tv_series, "Pioneer One"},
+      {:tv_series, "Petticoat Junction"},
+      {:tv_series, "One Step Beyond"}
     ]
 
     count =
