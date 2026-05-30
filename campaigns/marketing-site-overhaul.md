@@ -114,15 +114,13 @@ awaiting local review (push to `main` auto-deploys to media-centaur.net).**
 1. **Local review of `docs-site/`**, then commit + push (deploys). Keep the
    docs-site port commit separate from unrelated working-tree changes (app.css,
    test/e2e/*) and the `catalog.ex` showcase change.
-2. **Follow-up bucket:**
-   - **Hero demo clip** from the showcase instance (:4003) — couch nav + open +
-     play + a live update — dropped into the hero `<video>` slot. Highest-
-     leverage remaining visual. Needs net-new video-capture tooling
-     (`screenshot-tour` does stills only). (`screenshot-showcase` skill.)
+2. **Follow-up bucket (remaining):**
    - Custom OG social card (currently reuses the logo); favicon set.
    - Internal: extract the duplicated per-page `<style>` into one
      `docs-site/assets/site.css` (11 near-identical copies today).
    - Roadmap / what's-new page (only planned surface not built).
+   - Dead CSS left behind: `.play-affordance` / `.stage-chip` play rules in
+     `index.html` (markup removed when the real `<video>` landed).
 3. Wiki sync for any user-visible copy/positioning changes.
 
 ## Shipped (2026-05-30, pushed to main)
@@ -136,6 +134,13 @@ awaiting local review (push to `main` auto-deploys to media-centaur.net).**
 * `95fcdd3` regenerated marketing screenshots (web → main, 4K → assets repo),
   verified the 4-tile Coming Up renders (hero One Step Beyond + Petticoat
   Junction / Pioneer One / Beverly Hillbillies).
+* `de739e5` hero layout fix — `.hero` was a 2-col grid wrapping a 2-col inner,
+  cramming content left with a dead right half.
+* `c04b2eb` + `0f4d5ec` hero demo clip: a muted, looping ~15s walkthrough
+  (home with nav → into Library where the sidebar collapses and artwork takes
+  over → a title's episode-list detail), wired as autoplaying `<video>` with
+  home.png poster + an autoplay-nudge / tap-to-play fallback for mobile.
+  Reproducible via `scripts/record-demo` + `test/e2e/demo-record.mjs`.
 
 ## Completion criteria
 
