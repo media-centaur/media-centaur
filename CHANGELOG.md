@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.77.3 — 2026-05-31
+
+### Fixed
+
+**Downloads you start from a manual search now reliably finish and clear from your queue.**
+When you searched by hand and picked a release, the file could land in your library while its
+download stayed stuck showing "Downloaded". This happened whenever the downloaded file's name
+did not exactly match the result you picked — an added "LIMITED", "PROPER", or "REPACK" tag, a
+tracker prefix, and the like. Media Centaur now identifies the download by its torrent
+fingerprint rather than its name, so it recognises the file and completes the request no matter
+how the name differs.
+
 ## v0.77.2 — 2026-05-30
 
 ### Fixed
