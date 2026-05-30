@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>How it works — Media Centaur</title>
+<meta name="description" content="From a folder of files to a couch-ready library in four steps: point it at your directories, let it identify everything, browse the artwork wall, and press play." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-deep:        oklch(14% 0.015 264);
+    --bg-panel:       oklch(23% 0.017 264);
+    --bg-raised:      oklch(27% 0.019 264);
+    --text:           oklch(93% 0.005 264);
+    --text-dim:       oklch(72% 0.008 264);
+    --text-faint:     oklch(56% 0.01 264);
+    --primary:        oklch(62% 0.16 250);
+    --primary-bright: oklch(72% 0.15 248);
+    --primary-content:oklch(96% 0.008 250);
+    --secondary:      oklch(58% 0.12 280);
+    --success:        oklch(72% 0.13 158);
+    --glass-bg:       oklch(20% 0.02 264 / 0.45);
+    --glass-border:   oklch(90% 0.005 264 / 0.09);
+    --glass-border-2: oklch(90% 0.005 264 / 0.16);
+    --glass-nav-bg:   oklch(14% 0.015 264 / 0.8);
+    --glass-grad-a:   oklch(40% 0.16 250 / 0.2);
+    --glass-grad-b:   oklch(38% 0.14 300 / 0.15);
+    --shadow:    0 30px 80px -24px oklch(0% 0 0 / 0.85);
+    --shadow-tile: 0 26px 60px -22px oklch(0% 0 0 / 0.9);
+    --tile-r:    14px;
+    --nav-h:     66px;
+    --ease:      cubic-bezier(.2,.7,.2,1);
+    --maxw:      1340px;
+    --pad:       44px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg-deep); color: var(--text);
+    font-family: "Hanken Grotesk", sans-serif; font-size: 16px; line-height: 1.55;
+    font-weight: 400; letter-spacing: -0.003em; -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; max-width: 100%; }
+  ::selection { background: var(--primary); color: var(--primary-content); }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad); }
+
+  /* ============ NAV (shared) ============ */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h); z-index: 1000;
+    display: flex; align-items: center; border-bottom: 1px solid var(--glass-border);
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+  }
+  .nav-inner { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad); display: flex; align-items: center; gap: 34px; }
+  .brand { display: flex; align-items: center; gap: 11px; margin-right: auto; }
+  .brand img { width: 32px; height: 32px; filter: drop-shadow(0 2px 6px oklch(0% 0 0 / .6)); }
+  .brand .word { font-weight: 700; font-size: 18.5px; letter-spacing: -.02em; }
+  .nav-links { display: flex; gap: 30px; align-items: center; }
+  .nav-links a { color: var(--text-dim); font-size: 14.5px; font-weight: 500; transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-links a.active { color: var(--primary-bright); }
+  .gh-btn {
+    display: inline-flex; align-items: center; gap: 8px; background: var(--text); color: oklch(16% 0.015 264);
+    font-weight: 700; font-size: 13.5px; padding: 9px 15px; border-radius: 9px;
+    transition: transform .2s var(--ease), box-shadow .2s;
+  }
+  .gh-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px -8px oklch(90% 0.005 264 / .4); }
+  .gh-btn svg { width: 15px; height: 15px; }
+
+  /* ===== MOBILE NAV (hamburger + glass dropdown) — hidden on desktop ===== */
+  .nav-toggle {
+    display: none;
+    align-items: center; justify-content: center;
+    width: 42px; height: 42px; margin-left: 2px;
+    background: var(--glass-bg); color: var(--text);
+    border: 1px solid var(--glass-border-2); border-radius: 10px;
+    cursor: pointer; transition: border-color .2s, background .2s;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .nav-toggle:hover { border-color: var(--primary); }
+  .nav-toggle svg { width: 22px; height: 22px; }
+  .mobile-menu {
+    display: none;
+    position: absolute; top: calc(var(--nav-h) - 6px); right: var(--pad); left: var(--pad);
+    flex-direction: column; gap: 2px;
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid var(--glass-border-2); border-radius: 14px;
+    padding: 10px; box-shadow: var(--shadow);
+  }
+  .mobile-menu.open { display: flex; }
+  .mobile-menu a {
+    display: flex; align-items: center; min-height: 44px; padding: 0 14px;
+    color: var(--text-dim); font-size: 15.5px; font-weight: 600; border-radius: 9px;
+    transition: background .18s, color .18s;
+  }
+  .mobile-menu a:hover { background: oklch(90% 0.005 264 / .06); color: var(--text); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15.5px; font-family: inherit;
+    padding: 13px 24px; border-radius: 10px; cursor: pointer; border: none;
+    transition: transform .2s var(--ease), background .25s, box-shadow .25s;
+  }
+  .btn-primary { background: var(--primary); color: var(--primary-content); }
+  .btn-primary:hover { transform: translateY(-2px); background: var(--primary-bright); box-shadow: 0 16px 38px -12px oklch(62% 0.16 250 / .6); }
+  .btn-ghost { background: var(--glass-bg); color: var(--text); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--glass-border-2); }
+  .btn-ghost:hover { background: oklch(28% 0.02 264 / .6); transform: translateY(-2px); }
+  .btn svg { width: 16px; height: 16px; }
+  .rail-tag {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--primary-bright); margin-bottom: 22px;
+  }
+  .rail-tag::before { content:""; width: 22px; height: 2px; background: var(--primary); display:inline-block; border-radius: 2px; }
+
+  /* breadcrumb / back */
+  .crumb { display: inline-flex; align-items: center; gap: 8px; color: var(--text-faint); font-size: 14px; font-weight: 600; margin-bottom: 22px; transition: color .2s; }
+  .crumb:hover { color: var(--primary-bright); }
+  .crumb svg { width: 15px; height: 15px; }
+
+  /* ============ SUB-HERO ============ */
+  .fhero { position: relative; overflow: hidden; padding: calc(var(--nav-h) + 70px) 0 56px; }
+  .fhero::before {
+    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      linear-gradient(120deg, var(--bg-deep) 34%, transparent 82%),
+      radial-gradient(120% 120% at 96% 4%, var(--glass-grad-a), transparent 56%),
+      radial-gradient(110% 130% at 100% 100%, var(--glass-grad-b), transparent 52%);
+  }
+  .fhero-inner { position: relative; z-index: 1; max-width: 880px; }
+  .fhero h1 { font-weight: 800; font-size: clamp(40px, 5.4vw, 70px); line-height: 1.02; letter-spacing: -.035em; margin: 0 0 20px; }
+  .fhero h1 .az { color: var(--primary-bright); }
+  .fhero h1 .thin { font-weight: 300; color: var(--text-dim); }
+  .fhero .lede { font-size: 18px; color: var(--text-dim); line-height: 1.6; max-width: 620px; margin: 0 0 30px; }
+  .fhero .lede b { color: var(--text); font-weight: 600; }
+  .step-nav { display: flex; flex-wrap: wrap; gap: 10px; }
+  .step-pill {
+    display: inline-flex; align-items: center; gap: 9px; padding: 9px 15px 9px 11px; border-radius: 11px;
+    background: var(--glass-bg); border: 1px solid var(--glass-border-2);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    font-size: 13.5px; font-weight: 600; color: var(--text-dim); transition: color .2s, border-color .2s, transform .2s var(--ease);
+  }
+  .step-pill:hover { color: var(--text); border-color: var(--primary); transform: translateY(-2px); }
+  .step-pill .n { font-weight: 800; color: var(--primary-bright); font-variant-numeric: tabular-nums; }
+
+  /* ============ STEPS — alternating narrative ============ */
+  .steps { padding: 20px 0 40px; }
+  .step {
+    display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.12fr);
+    gap: 60px; align-items: center; padding: 52px 0;
+    border-top: 1px solid var(--glass-border);
+  }
+  .step:first-child { border-top: none; }
+  .step.flip .step-copy { order: 2; }
+  .step.flip .step-media { order: 1; }
+  .step-num {
+    display: inline-flex; align-items: baseline; gap: 12px; margin-bottom: 16px;
+  }
+  .step-num .big {
+    font-weight: 800; font-size: 64px; line-height: .8; letter-spacing: -.04em;
+    color: transparent; -webkit-text-stroke: 1.5px oklch(62% 0.16 250 / .55);
+    font-variant-numeric: tabular-nums;
+  }
+  .step-num .kicker { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--primary-bright); }
+  .step-copy h2 { font-weight: 800; font-size: clamp(26px, 3.6vw, 40px); line-height: 1.06; letter-spacing: -.03em; margin: 0 0 14px; }
+  .step-copy h2 .az { color: var(--primary-bright); }
+  .step-copy p { font-size: 16.5px; color: var(--text-dim); line-height: 1.62; margin: 0 0 14px; max-width: 520px; }
+  .step-copy p b { color: var(--text); font-weight: 600; }
+  .step-copy p .az { color: var(--primary-bright); font-weight: 600; }
+  .step-notes { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 20px; }
+  .step-note {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    background: oklch(90% 0.005 264 / .04); border: 1px solid var(--glass-border-2);
+    padding: 7px 13px; border-radius: 9px;
+  }
+  .step-note b { color: var(--primary-bright); font-weight: 700; }
+
+  .step-media { position: relative; }
+  .shot {
+    border-radius: var(--tile-r); overflow: hidden; aspect-ratio: 16/9;
+    border: 1px solid var(--glass-border-2); box-shadow: var(--shadow);
+  }
+  .shot img { width: 100%; height: 100%; object-fit: cover; }
+  /* second screenshot peeking under for step 2 */
+  .shot-stack { position: relative; }
+  .shot-stack .shot-front { position: relative; z-index: 2; }
+  .shot-stack .shot-back {
+    position: absolute; right: -22px; bottom: -28px; width: 56%; z-index: 1;
+    border-radius: 12px; overflow: hidden; border: 1px solid var(--glass-border-2);
+    box-shadow: var(--shadow); aspect-ratio: 16/10;
+  }
+  .shot-stack .shot-back img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* ============ UNDERNEATH band ============ */
+  .underneath { position: relative; overflow: hidden; margin: 24px 0; padding: 90px 0; }
+  .underneath::before {
+    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      linear-gradient(180deg, var(--bg-deep), oklch(17% 0.018 264)),
+      radial-gradient(80% 140% at 16% 50%, var(--glass-grad-a), transparent 60%),
+      radial-gradient(70% 130% at 98% 28%, var(--glass-grad-b), transparent 58%);
+    border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);
+  }
+  .underneath-inner { position: relative; z-index: 1; max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad); }
+  .underneath h2 { font-weight: 800; font-size: clamp(28px, 4vw, 46px); line-height: 1.05; letter-spacing: -.03em; margin: 0 0 18px; max-width: 720px; }
+  .underneath h2 .az { color: var(--primary-bright); }
+  .underneath .lede { font-size: 17px; color: var(--text-dim); line-height: 1.62; max-width: 640px; margin: 0 0 34px; }
+  .underneath .lede b { color: var(--text); font-weight: 600; }
+  /* pipeline flow — named seams, not a glow grid */
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; }
+  .flow-node {
+    flex: 1 1 0; min-width: 150px;
+    background: var(--glass-bg); border: 1px solid var(--glass-border-2);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    border-radius: 12px; padding: 16px 18px;
+  }
+  .flow-node .fn-k { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--primary-bright); margin-bottom: 6px; }
+  .flow-node .fn-v { font-size: 14.5px; font-weight: 600; color: var(--text); line-height: 1.4; }
+  .flow-node .fn-s { font-size: 12.5px; color: var(--text-faint); margin-top: 4px; }
+  .flow-arrow { flex: 0 0 auto; align-self: center; color: var(--text-faint); display: flex; align-items: center; padding: 0 6px; }
+  .flow-arrow svg { width: 22px; height: 22px; }
+
+  /* ============ INSTALL ============ */
+  .section-pad { padding: 80px 0; }
+  .install-card {
+    background:
+      radial-gradient(110% 170% at 0% 0%, var(--glass-grad-a), transparent 56%),
+      linear-gradient(180deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: 20px;
+    padding: 44px; box-shadow: var(--shadow);
+  }
+  .install-card h3 { font-weight: 800; font-size: clamp(24px, 3.2vw, 32px); letter-spacing: -.025em; margin: 0 0 8px; }
+  .install-card h3 .az { color: var(--primary-bright); }
+  .install-card .note { color: var(--text-dim); font-size: 15px; margin: 0 0 26px; max-width: 620px; }
+  .install-card .note b { color: var(--text); font-weight: 600; }
+  .cmd {
+    display: flex; align-items: center; gap: 14px;
+    background: oklch(11% 0.013 264); border: 1px solid var(--glass-border-2);
+    border-radius: 12px; padding: 15px 15px 15px 20px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13.5px; color: var(--primary-bright);
+    overflow-x: auto; white-space: nowrap;
+  }
+  .cmd .prompt { color: var(--text-faint); user-select: none; }
+  .cmd code { flex: 1; }
+  .copy-btn {
+    flex: 0 0 auto; margin-left: auto;
+    background: var(--text); color: oklch(16% 0.015 264); border: none; cursor: pointer;
+    font-family: "Hanken Grotesk", sans-serif; font-weight: 700; font-size: 13px;
+    padding: 8px 15px; border-radius: 8px; transition: background .2s, transform .15s, color .2s;
+  }
+  .copy-btn:hover { transform: translateY(-1px); }
+  .copy-btn.ok { background: var(--primary); color: var(--primary-content); }
+  .reqs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+  .req {
+    font-size: 13px; font-weight: 600; color: var(--text-dim);
+    background: oklch(90% 0.005 264 / .04); border: 1px solid var(--glass-border);
+    padding: 7px 13px; border-radius: 9px;
+  }
+  .req b { color: var(--primary-bright); font-weight: 700; }
+  .platform-note { margin-top: 18px; font-size: 13.5px; color: var(--text-faint); }
+  .platform-note b { color: var(--text-dim); font-weight: 600; }
+
+  /* ============ FOOTER (shared) ============ */
+  footer { border-top: 1px solid var(--glass-border); padding: 58px 0 50px; background: oklch(12% 0.014 264); }
+  .foot-top { display: flex; justify-content: space-between; gap: 40px; flex-wrap: wrap; align-items: flex-start; }
+  .foot-brand { display:flex; align-items:center; gap: 11px; }
+  .foot-brand img { width: 36px; height: 36px; }
+  .foot-brand .word { font-weight: 700; font-size: 20px; letter-spacing: -.02em; }
+  .foot-links { display: flex; gap: 48px; flex-wrap: wrap; }
+  .foot-col h5 { margin: 0 0 12px; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint); font-weight: 700; }
+  .foot-col a { display: block; color: var(--text-dim); font-size: 14.5px; margin-bottom: 9px; transition: color .2s; }
+  .foot-col a:hover { color: var(--primary-bright); }
+  .foot-bottom { margin-top: 46px; padding-top: 24px; border-top: 1px solid var(--glass-border);
+    display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--text-faint); }
+  .foot-bottom .fb-left { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .foot-bottom .fb-left img { width: 22px; height: 22px; }
+  .foot-bottom a { color: var(--text-dim); }
+  .foot-bottom a:hover { color: var(--primary-bright); }
+
+  /* ULTRA-WIDE: keep content centred & comfortable; bands stay full-bleed via inner wraps */
+  @media (min-width: 1800px) {
+    :root { --maxw: 1480px; --pad: 56px; }
+    .fhero-inner { max-width: 940px; }
+  }
+  /* TABLET: stack the alternating steps, screenshot below text */
+  @media (max-width: 980px) {
+    .step, .step.flip .step-copy, .step.flip .step-media { grid-template-columns: 1fr; order: 0; }
+    .step { gap: 30px; padding: 40px 0; }
+    .step-copy h2, .step-copy p { max-width: none; }
+    .shot-stack .shot-back { position: relative; right: 0; bottom: 0; width: 70%; margin-top: 14px; }
+  }
+  @media (max-width: 760px) {
+    :root { --pad: 22px; }
+    .nav-links { display: none; }
+    .nav-toggle { display: inline-flex; }
+    .install-card { padding: 28px; }
+    .flow-arrow { transform: rotate(90deg); }
+    .flow { flex-direction: column; }
+    .flow-node { min-width: 0; }
+    .underneath { padding: 60px 0; }
+    .section-pad { padding: 56px 0; }
+  }
+  /* MOBILE: type clamps down, padding tightens, nothing overflows */
+  @media (max-width: 480px) {
+    .fhero { padding: calc(var(--nav-h) + 40px) 0 44px; }
+    .fhero h1 { font-size: clamp(32px, 10.5vw, 44px); }
+    .step-num .big { font-size: 52px; }
+    .step { padding: 34px 0; gap: 22px; }
+    .step-pill { flex: 1 1 100%; }
+    .shot-stack .shot-back { width: 84%; }
+    .underneath { padding: 48px 0; }
+    .section-pad { padding: 44px 0; }
+    .install-card { padding: 22px; }
+    .mobile-menu { right: 14px; left: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+<link rel="canonical" href="https://media-centaur.net/how-it-works.html" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="icon" type="image/png" href="assets/centaur-logo.png" />
+<meta property="og:title" content="How it works — Media Centaur" />
+<meta property="og:description" content="From a folder of files to a couch-ready library in four steps: point it at your directories, let it identify everything, browse the artwork wall, and press play." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://media-centaur.net/how-it-works.html" />
+<meta property="og:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="How it works — Media Centaur" />
+<meta name="twitter:description" content="From a folder of files to a couch-ready library in four steps: point it at your directories, let it identify everything, browse the artwork wall, and press play." />
+<meta name="twitter:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav>
+  <div class="nav-inner">
+    <a class="brand" href="index.html">
+      <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+      <span class="word">Media&nbsp;Centaur</span>
+    </a>
+    <div class="nav-links">
+      <a href="how-it-works.html" class="active">How it works</a>
+      <a href="index.html#capabilities">Features</a>
+      <a href="compare.html">Compare</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+    </div>
+    <a class="gh-btn" href="https://github.com/media-centaur/media-centaur">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+    <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="how-it-works.html">How it works</a>
+    <a href="index.html#capabilities">Features</a>
+    <a href="compare.html">Compare</a>
+    <a href="faq.html">FAQ</a>
+    <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+    <a href="https://github.com/media-centaur/media-centaur">GitHub</a>
+  </div>
+</nav>
+
+<!-- ============ SUB-HERO ============ -->
+<header class="fhero">
+  <div class="wrap fhero-inner">
+    <a class="crumb" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M11 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Back to home
+    </a>
+    <span class="rail-tag">How it works</span>
+    <h1>From a folder of files to a <span class="az">couch-ready library</span> <span class="thin">— in four steps.</span></h1>
+    <p class="lede">No Docker compose to babysit, no metadata agents to wire together. You point Media Centaur at
+      your directories and it does the rest — <b>identify, illustrate, track, and play</b> — fast at your desk,
+      comfortable from the couch.</p>
+    <div class="step-nav">
+      <a class="step-pill" href="#step-1"><span class="n">01</span> Point it at your files</a>
+      <a class="step-pill" href="#step-2"><span class="n">02</span> It identifies everything</a>
+      <a class="step-pill" href="#step-3"><span class="n">03</span> Browse — desk or couch</a>
+      <a class="step-pill" href="#step-4"><span class="n">04</span> Press play</a>
+    </div>
+  </div>
+</header>
+
+<!-- ============ STEPS ============ -->
+<section class="steps">
+  <div class="wrap">
+
+    <!-- STEP 1 -->
+    <div class="step" id="step-1">
+      <div class="step-copy">
+        <div class="step-num"><span class="big">01</span><span class="kicker">Set up once</span></div>
+        <h2>Point it at your <span class="az">directories.</span></h2>
+        <p>Tell Media Centaur where your video files live and it starts watching them. That's the whole
+          configuration — <b>zero-config SQLite</b> under the hood, so there's no Docker stack, no Postgres,
+          and no server to stand up first.</p>
+        <p>The database is a single file you can read, back up, and move. Nothing about your setup is locked
+          away in a container volume you can't reach.</p>
+        <div class="step-notes">
+          <span class="step-note"><b>SQLite</b> · one file</span>
+          <span class="step-note">No <b>Docker</b></span>
+          <span class="step-note">No server to run</span>
+        </div>
+      </div>
+      <div class="step-media">
+        <div class="shot"><img loading="lazy" src="assets/screenshots/settings-overview.png" alt="Settings overview — point Media Centaur at your watch directories" /></div>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step flip" id="step-2">
+      <div class="step-copy">
+        <div class="step-num"><span class="big">02</span><span class="kicker">Hands-off</span></div>
+        <h2>It identifies <span class="az">everything.</span></h2>
+        <p>Media Centaur watches those directories, <b>parses each filename</b>, matches every movie and show
+          against <span class="az">TMDB</span>, and downloads the artwork. New files get picked up as they land.</p>
+        <p>Anything it isn't confident about doesn't guess — it <b>waits in a Review queue</b> so a sloppy
+          release name never becomes the wrong title on your wall. You confirm, it learns the rest.</p>
+        <div class="step-notes">
+          <span class="step-note">Filename <b>parsing</b></span>
+          <span class="step-note"><b>TMDB</b> match + artwork</span>
+          <span class="step-note">Low-confidence → <b>Review</b></span>
+        </div>
+      </div>
+      <div class="step-media">
+        <div class="shot-stack">
+          <div class="shot shot-front"><img loading="lazy" src="assets/screenshots/review-queue.png" alt="Review queue — low-confidence matches wait before they land" /></div>
+          <div class="shot-back"><img loading="lazy" src="assets/screenshots/library-grid.png" alt="Library grid filling in as titles are identified" /></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step" id="step-3">
+      <div class="step-copy">
+        <div class="step-num"><span class="big">03</span><span class="kicker">Two postures</span></div>
+        <h2>Browse your library — <span class="az">desk or couch.</span></h2>
+        <p>What you get is a <b>wall of artwork</b>, dark-first and large. At your desk it's keyboard-fast and
+          mouse-friendly; from the couch the <b>same screens drive on a gamepad or remote</b>.</p>
+        <p>One control surface, two postures — there's no separate "TV mode" to switch into and no cut-down
+          interface. The library you browse working is the library you browse relaxing.</p>
+        <div class="step-notes">
+          <span class="step-note"><b>Keyboard</b> + mouse at the desk</span>
+          <span class="step-note"><b>Gamepad</b> / remote on the couch</span>
+          <span class="step-note">Large artwork · dark-first</span>
+        </div>
+      </div>
+      <div class="step-media">
+        <div class="shot"><img loading="lazy" src="assets/screenshots/library-detail-tv.png" alt="Series detail view — seasons, episodes and progress, couch-ready" /></div>
+      </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="step flip" id="step-4">
+      <div class="step-copy">
+        <div class="step-num"><span class="big">04</span><span class="kicker">Just watch</span></div>
+        <h2>Press <span class="az">play.</span></h2>
+        <p>Selecting a title launches <b>mpv on the machine it's running on</b> — the same box driving your TV.
+          Media Centaur tracks how far you got and <b>resumes exactly where you left off</b>.</p>
+        <p>When an episode ends, the next one is already queued, so a binge keeps rolling without you reaching
+          for anything. Finished titles are marked watched on their own.</p>
+        <div class="step-notes">
+          <span class="step-note">Launches <b>mpv</b> locally</span>
+          <span class="step-note"><b>Resume</b> to the frame</span>
+          <span class="step-note"><b>Auto-advance</b> episodes</span>
+        </div>
+      </div>
+      <div class="step-media">
+        <div class="shot"><img loading="lazy" src="assets/screenshots/library-detail-movie.png" alt="Movie detail view with a resume affordance, ready to press play" /></div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ WHAT'S UNDERNEATH ============ -->
+<section class="underneath">
+  <div class="underneath-inner">
+    <span class="rail-tag">What's underneath</span>
+    <h2>One Elixir app from <span class="az">watch directory to playback.</span></h2>
+    <p class="lede">Those four steps are a single Phoenix application, not a stack you assemble. A filesystem
+      watcher feeds an identification pipeline, results land in SQLite, and a real-time <b>LiveView</b> UI
+      renders the library — the *ARR stack's whole job done in one app, with the decoding handed off to mpv.</p>
+    <div class="flow">
+      <div class="flow-node"><div class="fn-k">Watch</div><div class="fn-v">Filesystem watcher</div><div class="fn-s">Sees new files land</div></div>
+      <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="flow-node"><div class="fn-k">Identify</div><div class="fn-v">Pipeline + TMDB</div><div class="fn-s">Parse, match, fetch art</div></div>
+      <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="flow-node"><div class="fn-k">Store</div><div class="fn-v">SQLite</div><div class="fn-s">One portable file</div></div>
+      <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="flow-node"><div class="fn-k">Render</div><div class="fn-v">LiveView UI</div><div class="fn-s">Real-time, no polling</div></div>
+      <div class="flow-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="flow-node"><div class="fn-k">Play</div><div class="fn-v">mpv</div><div class="fn-s">Decoding, full fidelity</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INSTALL ============ -->
+<section class="section-pad">
+  <div class="wrap">
+    <div class="install-card">
+      <h3>Ready in <span class="az">one line.</span></h3>
+      <p class="note">Downloads the latest release, verifies its checksum, installs atomically, and sets up a
+        systemd user unit (launchd on macOS). Then point it at your directories and let the four steps run.</p>
+      <div class="cmd">
+        <span class="prompt">$</span>
+        <code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/media-centaur/media-centaur/main/installer/install.sh | sh</code>
+        <button class="copy-btn" id="copy-btn" aria-label="Copy install command">Copy</button>
+      </div>
+      <div class="reqs">
+        <span class="req">Requires <b>SQLite3</b></span>
+        <span class="req"><b>mpv</b></span>
+        <span class="req"><b>inotify-tools</b></span>
+        <span class="req">a free <b>TMDB API key</b></span>
+      </div>
+      <p class="platform-note">Installs on <b>Linux x86_64</b> and <b>Apple Silicon</b> (experimental).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-top">
+      <div>
+        <div class="foot-brand">
+          <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+          <span class="word">Media Centaur</span>
+        </div>
+        <p style="color:var(--text-faint); font-size:14px; margin:16px 0 0; max-width:320px;">
+          A self-hosted media center. Library, metadata, release tracking, and mpv playback — one Elixir app,
+          fast at your desk and made for your couch.
+        </p>
+      </div>
+      <div class="foot-links">
+        <div class="foot-col">
+          <h5>Product</h5>
+          <a href="how-it-works.html">How it works</a>
+          <a href="feature-library-management.html">Library management</a>
+          <a href="feature-playback.html">Playback</a>
+          <a href="feature-release-tracking.html">Release tracking</a>
+          <a href="feature-acquisition.html">Optional acquisition</a>
+          <a href="feature-input.html">Input</a>
+          <a href="feature-real-time.html">Real-time</a>
+          <a href="index.html#install">Install</a>
+        </div>
+        <div class="foot-col">
+          <h5>Project</h5>
+          <a href="https://github.com/media-centaur/media-centaur">GitHub</a>
+          <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+          <a href="https://github.com/media-centaur/media-centaur/issues">Issues</a>
+          <a href="https://github.com/media-centaur/media-centaur/blob/main/LICENSE">License</a>
+        </div>
+        <div class="foot-col">
+          <h5>More</h5>
+          <a href="about.html">Why I built this</a>
+          <a href="compare.html">Compare</a>
+          <a href="faq.html">FAQ</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span class="fb-left">
+        <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+        © 2026 Shawn McCool · MIT
+      </span>
+      <span>This product uses the TMDB API but is not endorsed or certified by <a href="https://www.themoviedb.org/">TMDB</a>.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ---- mobile nav toggle ----
+  const navToggle = document.getElementById('nav-toggle');
+  const mobileMenu = document.getElementById('mobile-menu');
+  navToggle.addEventListener('click', () => {
+    const open = mobileMenu.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    mobileMenu.classList.remove('open');
+    navToggle.setAttribute('aria-expanded', 'false');
+  }));
+
+  const copyBtn = document.getElementById('copy-btn');
+  copyBtn.addEventListener('click', async () => {
+    const text = document.getElementById('install-cmd').textContent.trim();
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const r = document.createRange(); r.selectNodeContents(document.getElementById('install-cmd'));
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      document.execCommand('copy'); s.removeAllRanges();
+    }
+    copyBtn.textContent = 'Copied ✓'; copyBtn.classList.add('ok');
+    setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('ok'); }, 1900);
+  });
+</script>
+</body>
+</html>

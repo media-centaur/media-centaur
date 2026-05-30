@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Release tracking — Media Centaur</title>
+<meta name="description" content="Add an upcoming movie or new season to release tracking once. Media Centaur watches TMDB daily, and the morning it's out it's already grabbed, imported, and waiting in your library — a Coming Up digest and Upcoming calendar keep you in the loop, with a live status on every release." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-deep:        oklch(14% 0.015 264);
+    --bg-panel:       oklch(23% 0.017 264);
+    --bg-raised:      oklch(27% 0.019 264);
+    --text:           oklch(93% 0.005 264);
+    --text-dim:       oklch(72% 0.008 264);
+    --text-faint:     oklch(56% 0.01 264);
+    --primary:        oklch(62% 0.16 250);
+    --primary-bright: oklch(72% 0.15 248);
+    --primary-content:oklch(96% 0.008 250);
+    --secondary:      oklch(58% 0.12 280);
+    --success:        oklch(72% 0.13 158);
+    --warn:           oklch(80% 0.13 85);
+    --glass-bg:       oklch(20% 0.02 264 / 0.45);
+    --glass-border:   oklch(90% 0.005 264 / 0.09);
+    --glass-border-2: oklch(90% 0.005 264 / 0.16);
+    --glass-nav-bg:   oklch(14% 0.015 264 / 0.8);
+    --glass-grad-a:   oklch(40% 0.16 250 / 0.2);
+    --glass-grad-b:   oklch(38% 0.14 300 / 0.15);
+    --shadow:    0 30px 80px -24px oklch(0% 0 0 / 0.85);
+    --shadow-tile: 0 26px 60px -22px oklch(0% 0 0 / 0.9);
+    --tile-r:    14px;
+    --nav-h:     66px;
+    --ease:      cubic-bezier(.2,.7,.2,1);
+    --maxw:      1340px;
+    --pad:       44px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg-deep); color: var(--text);
+    font-family: "Hanken Grotesk", sans-serif; font-size: 16px; line-height: 1.55;
+    font-weight: 400; letter-spacing: -0.003em; -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; max-width: 100%; }
+  ::selection { background: var(--primary); color: var(--primary-content); }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad); }
+
+  /* ============ NAV (shared) ============ */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h); z-index: 1000;
+    display: flex; align-items: center; border-bottom: 1px solid var(--glass-border);
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+  }
+  .nav-inner { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad); display: flex; align-items: center; gap: 34px; }
+  .brand { display: flex; align-items: center; gap: 11px; margin-right: auto; }
+  .brand img { width: 32px; height: 32px; filter: drop-shadow(0 2px 6px oklch(0% 0 0 / .6)); }
+  .brand .word { font-weight: 700; font-size: 18.5px; letter-spacing: -.02em; }
+  .nav-links { display: flex; gap: 30px; align-items: center; }
+  .nav-links a { color: var(--text-dim); font-size: 14.5px; font-weight: 500; transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-links a.active { color: var(--primary-bright); }
+
+  /* mobile nav (hamburger + glass dropdown) — hidden above 760px */
+  .nav-toggle {
+    display: none; margin-left: auto; width: 42px; height: 42px; flex: 0 0 auto;
+    align-items: center; justify-content: center; cursor: pointer;
+    background: var(--glass-bg); color: var(--text);
+    border: 1px solid var(--glass-border-2); border-radius: 10px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    transition: background .2s, transform .15s;
+  }
+  .nav-toggle:hover { background: oklch(28% 0.02 264 / .6); }
+  .nav-toggle svg { width: 21px; height: 21px; }
+  .nav-menu {
+    position: fixed; top: var(--nav-h); left: 0; right: 0; z-index: 999;
+    display: none; flex-direction: column; gap: 2px; padding: 14px var(--pad) 18px;
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border-bottom: 1px solid var(--glass-border);
+    box-shadow: 0 24px 50px -22px oklch(0% 0 0 / .85);
+  }
+  .nav-menu.open { display: flex; }
+  .nav-menu a {
+    color: var(--text-dim); font-size: 16px; font-weight: 600; padding: 13px 4px;
+    border-bottom: 1px solid var(--glass-border); transition: color .2s;
+  }
+  .nav-menu a:last-child { border-bottom: none; }
+  .nav-menu a:hover { color: var(--primary-bright); }
+
+  .gh-btn {
+    display: inline-flex; align-items: center; gap: 8px; background: var(--text); color: oklch(16% 0.015 264);
+    font-weight: 700; font-size: 13.5px; padding: 9px 15px; border-radius: 9px;
+    transition: transform .2s var(--ease), box-shadow .2s;
+  }
+  .gh-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px -8px oklch(90% 0.005 264 / .4); }
+  .gh-btn svg { width: 15px; height: 15px; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15.5px; font-family: inherit;
+    padding: 13px 24px; border-radius: 10px; cursor: pointer; border: none;
+    transition: transform .2s var(--ease), background .25s, box-shadow .25s;
+  }
+  .btn-primary { background: var(--primary); color: var(--primary-content); }
+  .btn-primary:hover { transform: translateY(-2px); background: var(--primary-bright); box-shadow: 0 16px 38px -12px oklch(62% 0.16 250 / .6); }
+  .btn-ghost { background: var(--glass-bg); color: var(--text); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--glass-border-2); }
+  .btn-ghost:hover { background: oklch(28% 0.02 264 / .6); transform: translateY(-2px); }
+  .btn svg { width: 16px; height: 16px; }
+  .rail-tag {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--primary-bright); margin-bottom: 22px;
+  }
+  .rail-tag::before { content:""; width: 22px; height: 2px; background: var(--primary); display:inline-block; border-radius: 2px; }
+
+  /* breadcrumb / back */
+  .crumb { display: inline-flex; align-items: center; gap: 8px; color: var(--text-faint); font-size: 14px; font-weight: 600; margin-bottom: 22px; transition: color .2s; }
+  .crumb:hover { color: var(--primary-bright); }
+  .crumb svg { width: 15px; height: 15px; }
+
+  /* ============ FEATURE HERO ============ */
+  .fhero { position: relative; overflow: hidden; padding: calc(var(--nav-h) + 64px) 0 64px; }
+  .fhero::before {
+    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      linear-gradient(120deg, var(--bg-deep) 36%, transparent 80%),
+      radial-gradient(120% 120% at 96% 6%, var(--glass-grad-a), transparent 56%),
+      radial-gradient(110% 130% at 100% 100%, var(--glass-grad-b), transparent 52%);
+  }
+  .fhero-inner { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.1fr); gap: 56px; align-items: center; }
+  .fhero h1 { font-weight: 800; font-size: clamp(42px, 5.4vw, 74px); line-height: 1.0; letter-spacing: -.035em; margin: 0 0 20px; }
+  .fhero h1 .az { color: var(--primary-bright); }
+  .fhero h1 .thin { font-weight: 300; color: var(--text-dim); }
+  .fhero .lede { font-size: 18px; color: var(--text-dim); line-height: 1.6; max-width: 500px; margin: 0 0 18px; }
+  .fhero .lede b { color: var(--text); font-weight: 600; }
+  .fhero .meta-row { display: flex; flex-wrap: wrap; gap: 0; font-size: 13.5px; font-weight: 600; color: var(--text-dim); margin-bottom: 30px; }
+  .fhero .meta-row span { padding: 0 13px; position: relative; }
+  .fhero .meta-row span:first-child { padding-left: 0; }
+  .fhero .meta-row span + span::before { content: "·"; position: absolute; left: -3px; color: var(--text-faint); }
+  .fhero-shot {
+    aspect-ratio: 16/9; border-radius: 16px; overflow: hidden;
+    border: 1px solid var(--glass-border-2);
+    box-shadow: var(--shadow), 0 0 0 1px oklch(62% 0.16 250 / .12);
+  }
+  .fhero-shot img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* ============ DETAIL POINTS ============ */
+  .section-pad { padding: 72px 0; }
+  .sec-head { max-width: 720px; margin: 0 0 40px; }
+  .sec-head h2 { font-weight: 800; font-size: clamp(28px, 4vw, 44px); letter-spacing: -.03em; margin: 0 0 12px; }
+  .sec-head h2 .az { color: var(--primary-bright); }
+  .sec-head p { font-size: 17px; color: var(--text-dim); line-height: 1.6; margin: 0; }
+  .sec-head p b { color: var(--text); font-weight: 600; }
+
+  .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .detail-card {
+    background: linear-gradient(165deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: var(--tile-r);
+    padding: 26px 26px 24px; transition: transform .3s var(--ease), border-color .3s, box-shadow .3s; position: relative; overflow: hidden;
+  }
+  .detail-card:hover { transform: translateY(-4px); border-color: oklch(62% 0.16 250 / .4); box-shadow: var(--shadow-tile), 0 0 0 1px oklch(62% 0.16 250 / .16); }
+  .detail-card .ico {
+    width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center;
+    background: oklch(62% 0.16 250 / .14); color: var(--primary-bright); border: 1px solid oklch(62% 0.16 250 / .2); margin-bottom: 16px;
+  }
+  .detail-card .ico svg { width: 20px; height: 20px; }
+  .detail-card h3 { font-size: 19px; font-weight: 700; letter-spacing: -.015em; margin: 0 0 8px; }
+  .detail-card p { font-size: 14.5px; color: var(--text-dim); line-height: 1.55; margin: 0; }
+  .detail-card p b { color: var(--text); font-weight: 600; }
+  .detail-card code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12.5px; color: var(--primary-bright);
+    background: oklch(62% 0.16 250 / .1); padding: 1px 6px; border-radius: 5px; }
+
+  /* ============ STATUS LEGEND ============ */
+  .status-board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 6px; }
+  .status-card {
+    background: linear-gradient(165deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: var(--tile-r);
+    padding: 22px 22px 20px; transition: transform .3s var(--ease), border-color .3s;
+  }
+  .status-card:hover { transform: translateY(-4px); border-color: var(--glass-border-2); }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700;
+    letter-spacing: .04em; text-transform: uppercase; padding: 6px 12px; border-radius: 999px;
+    margin-bottom: 14px;
+  }
+  .status-pill .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .status-pill.pending   { color: var(--text-dim);     background: oklch(72% 0.008 264 / .1); border: 1px solid var(--glass-border-2); }
+  .status-pill.pending   .dot { background: var(--text-faint); }
+  .status-pill.searching { color: var(--primary-bright); background: oklch(62% 0.16 250 / .12); border: 1px solid oklch(62% 0.16 250 / .28); }
+  .status-pill.searching .dot { background: var(--primary-bright); box-shadow: 0 0 0 3px oklch(62% 0.16 250 / .2); }
+  .status-pill.grabbed   { color: var(--success);       background: oklch(72% 0.13 158 / .12); border: 1px solid oklch(72% 0.13 158 / .28); }
+  .status-pill.grabbed   .dot { background: var(--success); box-shadow: 0 0 0 3px oklch(72% 0.13 158 / .2); }
+  .status-pill.scheduled { color: var(--warn);          background: oklch(80% 0.13 85 / .12); border: 1px solid oklch(80% 0.13 85 / .28); }
+  .status-pill.scheduled .dot { background: var(--warn); }
+  .status-card p { margin: 0; font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+  .status-card p b { color: var(--text); font-weight: 600; }
+
+  /* ============ SPOTLIGHT ============ */
+  .spotlight { position: relative; min-height: 56vh; display: flex; align-items: center; overflow: hidden; margin: 30px 0; }
+  .spot-bg { position: absolute; inset: 0; background-size: cover; background-position: center 30%; transform: scale(1.04); filter: saturate(.95); }
+  .spot-scrim { position: absolute; inset: 0;
+    background: linear-gradient(100deg, oklch(13% 0.015 264 / .97) 0%, oklch(13% 0.015 264 / .8) 42%, oklch(13% 0.015 264 / .3) 100%); }
+  .spot-content { position: relative; z-index: 3; max-width: 640px; padding: 68px 0; }
+  .spot-content h2 { font-weight: 800; font-size: clamp(32px, 5vw, 56px); line-height: 1.0; letter-spacing: -.035em; margin: 0 0 20px; }
+  .spot-content h2 .thin { font-weight: 300; color: var(--text-dim); }
+  .spot-content h2 .az { color: var(--primary-bright); }
+  .spot-content p { font-size: 17px; line-height: 1.62; color: var(--text-dim); margin: 0 0 22px; }
+  .spot-content p b { color: var(--primary-bright); font-weight: 600; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { font-size: 13px; font-weight: 600; color: var(--text); background: var(--glass-bg);
+    border: 1px solid var(--glass-border-2); padding: 8px 14px; border-radius: 999px;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  .chip b { color: var(--primary-bright); }
+
+  /* ============ ARC / TIMELINE (set it once → it's just there) ============ */
+  .arc-band { position: relative; overflow: hidden; padding: 92px 0; margin: 24px 0; }
+  .arc-band::before {
+    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      linear-gradient(180deg, var(--bg-deep), oklch(17% 0.018 264)),
+      radial-gradient(78% 130% at 14% 0%, var(--glass-grad-a), transparent 58%),
+      radial-gradient(70% 130% at 96% 100%, var(--glass-grad-b), transparent 56%);
+    border-top: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--glass-border);
+  }
+  .arc-inner { position: relative; z-index: 1; }
+  .arc-head { max-width: 760px; margin: 0 0 52px; }
+  .arc-head h2 { font-weight: 800; font-size: clamp(30px, 4.4vw, 50px); line-height: 1.02; letter-spacing: -.035em; margin: 0 0 16px; }
+  .arc-head h2 .az { color: var(--primary-bright); }
+  .arc-head h2 .thin { font-weight: 300; color: var(--text-dim); }
+  .arc-head p { font-size: 17.5px; color: var(--text-dim); line-height: 1.62; margin: 0; max-width: 640px; }
+  .arc-head p b { color: var(--text); font-weight: 600; }
+
+  .arc-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; position: relative; }
+  /* connective spine running behind the step markers */
+  .arc-steps::before {
+    content:""; position:absolute; top: 19px; left: 6%; right: 6%; height: 2px; z-index: 0;
+    background: linear-gradient(90deg,
+      oklch(62% 0.16 250 / .15), oklch(62% 0.16 250 / .5) 35%, oklch(72% 0.13 158 / .5) 80%, oklch(72% 0.13 158 / .15));
+  }
+  .arc-step { position: relative; z-index: 1; padding: 0 18px; }
+  .arc-step:first-child { padding-left: 0; }
+  .arc-step:last-child  { padding-right: 0; }
+  .arc-node {
+    width: 40px; height: 40px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--bg-deep); border: 1.5px solid oklch(62% 0.16 250 / .5);
+    color: var(--primary-bright); margin-bottom: 18px;
+    box-shadow: 0 0 0 5px var(--bg-deep), 0 0 0 6px oklch(62% 0.16 250 / .12);
+  }
+  .arc-step.land .arc-node { border-color: oklch(72% 0.13 158 / .6); color: var(--success);
+    box-shadow: 0 0 0 5px var(--bg-deep), 0 0 0 6px oklch(72% 0.13 158 / .18); }
+  .arc-node svg { width: 19px; height: 19px; }
+  .arc-step .num { font-size: 11.5px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--text-faint); display: block; margin-bottom: 7px; }
+  .arc-step h3 { font-size: 18.5px; font-weight: 700; letter-spacing: -.018em; margin: 0 0 8px; }
+  .arc-step.land h3 { color: var(--success); }
+  .arc-step p { font-size: 14px; color: var(--text-dim); line-height: 1.55; margin: 0; }
+  .arc-step p b { color: var(--text); font-weight: 600; }
+  .arc-foot {
+    margin-top: 48px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+    font-size: 16px; color: var(--text-dim);
+  }
+  .arc-foot .kicker {
+    font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -.015em;
+  }
+  .arc-foot .kicker .az { color: var(--primary-bright); }
+
+  /* ============ DEPENDENCY SPLIT (honest: on vs off) ============ */
+  .dep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 6px; }
+  .dep-card {
+    background: linear-gradient(165deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: var(--tile-r);
+    padding: 28px 28px 26px; position: relative; overflow: hidden;
+    transition: transform .3s var(--ease), border-color .3s, box-shadow .3s;
+  }
+  .dep-card.on {
+    background:
+      radial-gradient(120% 150% at 100% 0%, oklch(62% 0.16 250 / .14), transparent 55%),
+      linear-gradient(165deg, var(--bg-raised), var(--bg-panel));
+    border-color: oklch(62% 0.16 250 / .32);
+  }
+  .dep-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-tile); }
+  .dep-card.on:hover { border-color: oklch(62% 0.16 250 / .5); }
+  .dep-tag {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800;
+    letter-spacing: .08em; text-transform: uppercase; margin-bottom: 16px;
+  }
+  .dep-card.on  .dep-tag { color: var(--primary-bright); }
+  .dep-card.off .dep-tag { color: var(--text-faint); }
+  .dep-tag .pdot { width: 9px; height: 9px; border-radius: 50%; }
+  .dep-card.on  .dep-tag .pdot { background: var(--primary-bright); box-shadow: 0 0 0 3px oklch(62% 0.16 250 / .2); }
+  .dep-card.off .dep-tag .pdot { background: var(--text-faint); }
+  .dep-card h3 { font-size: 21px; font-weight: 800; letter-spacing: -.02em; margin: 0 0 10px; }
+  .dep-card h3 .az { color: var(--primary-bright); }
+  .dep-card p { font-size: 15px; color: var(--text-dim); line-height: 1.58; margin: 0 0 16px; }
+  .dep-card p b { color: var(--text); font-weight: 600; }
+  .dep-card .dep-link {
+    font-size: 14px; font-weight: 700; color: var(--primary-bright);
+    display: inline-flex; align-items: center; gap: 7px; transition: gap .2s var(--ease);
+  }
+  .dep-card .dep-link:hover { gap: 11px; }
+  .dep-card .dep-link svg { width: 15px; height: 15px; }
+  .dep-card .dep-note { font-size: 14px; color: var(--text-faint); font-weight: 500; }
+
+  /* ============ SPLIT (digest) ============ */
+  .split { display: grid; grid-template-columns: minmax(0,1.15fr) minmax(0,.85fr); gap: 48px; align-items: center; }
+  .split-shot { border-radius: var(--tile-r); overflow: hidden; border: 1px solid var(--glass-border-2); box-shadow: var(--shadow); aspect-ratio: 16/9; }
+  .split-shot img { width: 100%; height: 100%; object-fit: cover; }
+  .split-copy h2 { font-weight: 800; font-size: clamp(26px, 3.6vw, 40px); letter-spacing: -.03em; margin: 0 0 14px; }
+  .split-copy h2 .az { color: var(--primary-bright); }
+  .split-copy p { font-size: 16px; color: var(--text-dim); line-height: 1.62; margin: 0 0 14px; }
+  .split-copy p b { color: var(--text); font-weight: 600; }
+  .split-copy code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; color: var(--primary-bright);
+    background: oklch(62% 0.16 250 / .1); padding: 1px 6px; border-radius: 5px; }
+
+  /* ============ CROSS-LINK ============ */
+  .crosslink { padding: 80px 0 0; border-top: 1px solid var(--glass-border); }
+  .cross-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 30px; }
+  .cross-card {
+    display: flex; flex-direction: column; gap: 8px; padding: 22px;
+    background: linear-gradient(165deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: var(--tile-r);
+    transition: transform .3s var(--ease), border-color .3s, box-shadow .3s;
+  }
+  .cross-card:hover { transform: translateY(-4px); border-color: oklch(62% 0.16 250 / .4); box-shadow: var(--shadow-tile); }
+  .cross-card h4 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
+  .cross-card p { margin: 0; font-size: 13.5px; color: var(--text-dim); line-height: 1.5; }
+  .cross-card .go { margin-top: 6px; font-size: 13.5px; font-weight: 600; color: var(--primary-bright); display: inline-flex; align-items: center; gap: 6px; transition: gap .2s var(--ease); }
+  .cross-card:hover .go { gap: 10px; }
+  .cross-card .go svg { width: 14px; height: 14px; }
+
+  /* ============ INSTALL ============ */
+  .install-card {
+    background:
+      radial-gradient(110% 170% at 0% 0%, var(--glass-grad-a), transparent 56%),
+      linear-gradient(180deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: 20px;
+    padding: 44px; box-shadow: var(--shadow);
+  }
+  .install-card h3 { font-weight: 800; font-size: clamp(24px, 3.2vw, 32px); letter-spacing: -.025em; margin: 0 0 8px; }
+  .install-card h3 .az { color: var(--primary-bright); }
+  .install-card .note { color: var(--text-dim); font-size: 15px; margin: 0 0 26px; max-width: 620px; }
+  .install-card .note b { color: var(--text); font-weight: 600; }
+  .cmd {
+    display: flex; align-items: center; gap: 14px;
+    background: oklch(11% 0.013 264); border: 1px solid var(--glass-border-2);
+    border-radius: 12px; padding: 15px 15px 15px 20px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13.5px; color: var(--primary-bright);
+    overflow-x: auto; white-space: nowrap;
+  }
+  .cmd .prompt { color: var(--text-faint); user-select: none; }
+  .cmd code { flex: 1; }
+  .copy-btn {
+    flex: 0 0 auto; margin-left: auto;
+    background: var(--text); color: oklch(16% 0.015 264); border: none; cursor: pointer;
+    font-family: "Hanken Grotesk", sans-serif; font-weight: 700; font-size: 13px;
+    padding: 8px 15px; border-radius: 8px; transition: background .2s, transform .15s, color .2s;
+  }
+  .copy-btn:hover { transform: translateY(-1px); }
+  .copy-btn.ok { background: var(--primary); color: var(--primary-content); }
+
+  /* ============ FOOTER (shared) ============ */
+  footer { border-top: 1px solid var(--glass-border); padding: 58px 0 50px; margin-top: 44px; background: oklch(12% 0.014 264); }
+  .foot-top { display: flex; justify-content: space-between; gap: 40px; flex-wrap: wrap; align-items: flex-start; }
+  .foot-brand { display:flex; align-items:center; gap: 11px; }
+  .foot-brand img { width: 36px; height: 36px; }
+  .foot-brand .word { font-weight: 700; font-size: 20px; letter-spacing: -.02em; }
+  .foot-links { display: flex; gap: 48px; flex-wrap: wrap; }
+  .foot-col h5 { margin: 0 0 12px; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint); font-weight: 700; }
+  .foot-col a { display: block; color: var(--text-dim); font-size: 14.5px; margin-bottom: 9px; transition: color .2s; }
+  .foot-col a:hover { color: var(--primary-bright); }
+  .foot-bottom { margin-top: 46px; padding-top: 24px; border-top: 1px solid var(--glass-border);
+    display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--text-faint); align-items: center; }
+  .foot-bottom .fb-left { display: flex; align-items: center; gap: 12px; }
+  .foot-bottom .fb-left img { width: 22px; height: 22px; opacity: .9; }
+  .foot-bottom a { color: var(--text-dim); }
+  .foot-bottom a:hover { color: var(--primary-bright); }
+
+  /* ultra-wide: cap the container so content never stretches unbounded */
+  @media (min-width: 1800px) {
+    :root { --maxw: 1440px; --pad: 56px; }
+  }
+  @media (max-width: 1080px) {
+    .cross-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 980px) {
+    .fhero-inner, .split { grid-template-columns: 1fr; gap: 36px; }
+    .detail-grid, .dep-grid { grid-template-columns: 1fr; }
+    .status-board { grid-template-columns: 1fr 1fr; }
+    .arc-steps { grid-template-columns: 1fr 1fr; gap: 36px 24px; }
+    .arc-steps::before { display: none; }
+    .arc-step, .arc-step:first-child, .arc-step:last-child { padding: 0; }
+  }
+  @media (max-width: 760px) {
+    :root { --pad: 22px; }
+    .nav-links { display: none; }
+    .nav-toggle { display: inline-flex; }
+    .status-board { grid-template-columns: 1fr; }
+    .arc-steps { grid-template-columns: 1fr; gap: 30px; }
+    .arc-band { padding: 64px 0; }
+    .install-card { padding: 28px; }
+  }
+  @media (max-width: 600px) {
+    .section-pad { padding: 52px 0; }
+    .crosslink { padding: 56px 0 0; }
+    .cross-grid { grid-template-columns: 1fr; }
+    .fhero { padding: calc(var(--nav-h) + 40px) 0 44px; }
+    .fhero h1 { font-size: clamp(34px, 10vw, 52px); }
+    .spotlight { min-height: 0; }
+    .spot-content { padding: 52px 0; }
+  }
+  @media (max-width: 440px) {
+    :root { --pad: 18px; }
+    .fhero h1 { font-size: clamp(30px, 9.4vw, 42px); }
+    .install-card { padding: 22px; }
+    .gh-btn { padding: 9px 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+<link rel="canonical" href="https://media-centaur.net/feature-release-tracking.html" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="icon" type="image/png" href="assets/centaur-logo.png" />
+<meta property="og:title" content="Release tracking — Media Centaur" />
+<meta property="og:description" content="Add an upcoming movie or new season to release tracking once. Media Centaur watches TMDB daily, and the morning it's out it's already grabbed, imported, and waiting in your library — a Coming Up digest and Upcoming calendar keep you in the loop, with a live status on every release." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://media-centaur.net/feature-release-tracking.html" />
+<meta property="og:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Release tracking — Media Centaur" />
+<meta name="twitter:description" content="Add an upcoming movie or new season to release tracking once. Media Centaur watches TMDB daily, and the morning it's out it's already grabbed, imported, and waiting in your library — a Coming Up digest and Upcoming calendar keep you in the loop, with a live status on every release." />
+<meta name="twitter:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav>
+  <div class="nav-inner">
+    <a class="brand" href="index.html">
+      <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+      <span class="word">Media&nbsp;Centaur</span>
+    </a>
+    <div class="nav-links">
+      <a href="how-it-works.html">How it works</a>
+      <a href="index.html#capabilities">Features</a>
+      <a href="compare.html">Compare</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+    </div>
+    <a class="gh-btn" href="https://github.com/media-centaur/media-centaur">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+    <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="nav-menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+</nav>
+<div class="nav-menu" id="nav-menu">
+  <a href="how-it-works.html">How it works</a>
+  <a href="index.html#capabilities">Features</a>
+  <a href="compare.html">Compare</a>
+  <a href="faq.html">FAQ</a>
+  <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+  <a href="https://github.com/media-centaur/media-centaur">GitHub</a>
+</div>
+
+<!-- ============ FEATURE HERO ============ -->
+<header class="fhero">
+  <div class="wrap fhero-inner">
+    <div>
+      <a class="crumb" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M11 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Back to home
+      </a>
+      <span class="rail-tag">Feature · Release tracking</span>
+      <h1>Show a little interest.<br>One morning <span class="az">it's just there.</span></h1>
+      <p class="lede">Flag an upcoming movie or a new season you're <b>interested in</b>. Media Centaur checks
+        <b>TMDB every day</b>, and the moment it's released it's grabbed, imported, and slotted into your library —
+        artwork and all. So the next time you sit down, <b>it's simply waiting to be played</b>. You showed interest
+        once; the rest just happens.</p>
+      <div class="meta-row">
+        <span>Show interest</span><span>Daily TMDB sync</span><span>Hands-off arrival</span>
+      </div>
+      <div style="display:flex; gap:12px; flex-wrap:wrap;">
+        <a class="btn btn-primary" href="#install">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg> Install
+        </a>
+        <a class="btn btn-ghost" href="index.html#capabilities">All features</a>
+      </div>
+    </div>
+    <div class="fhero-shot">
+      <img src="assets/screenshots/upcoming-calendar.png" alt="The Upcoming calendar of tracked releases" />
+    </div>
+  </div>
+</header>
+
+<!-- ============ ARC / TIMELINE (centerpiece) ============ -->
+<section class="arc-band">
+  <div class="wrap arc-inner">
+    <div class="arc-head">
+      <span class="rail-tag">The whole story, in four beats</span>
+      <h2>You show interest. Then you <span class="thin">forget about it</span> — <span class="az">until it arrives.</span></h2>
+      <p>No notification to act on. No download to babysit. No "go grab it." A flicker of interest sets the whole
+        chain in motion, and the <b>only thing left for you to do is press play</b> — whenever you happen to next sit down.</p>
+    </div>
+    <div class="arc-steps">
+      <div class="arc-step">
+        <span class="arc-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg></span>
+        <span class="num">Step 01</span>
+        <h3>You show interest</h3>
+        <p>Flag an upcoming movie or a new season of a show you own — just mark that you're interested. <b>That's the
+          last thing you do.</b></p>
+      </div>
+      <div class="arc-step">
+        <span class="arc-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="num">Step 02</span>
+        <h3>It watches, quietly</h3>
+        <p>Every day, Media Centaur checks <b>TMDB</b> for the release date — in the background, asking nothing of
+          you while it waits.</p>
+      </div>
+      <div class="arc-step">
+        <span class="arc-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 3v12m0 0l-4-4m4 4l4-4" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 21h14" stroke-linecap="round"/></svg></span>
+        <span class="num">Step 03</span>
+        <h3>Release day: it lands</h3>
+        <p>The moment it's out, it's <b>grabbed, imported, and matched</b> — artwork fetched, slotted into the
+          right show, ready like anything you already own.</p>
+      </div>
+      <div class="arc-step land">
+        <span class="arc-node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="num">Step 04</span>
+        <h3>You wake up to it</h3>
+        <p>Next time you open the app, <b>it's simply there</b> — waiting on the home screen, one press from
+          playing. No further action from you.</p>
+      </div>
+    </div>
+    <div class="arc-foot">
+      <span class="kicker">Set it once, then forget it — and one morning it's <span class="az">just there.</span></span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DETAIL POINTS ============ -->
+<section class="section-pad" style="padding-bottom:48px;">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="rail-tag">The mechanics</span>
+      <h2>Awareness first, <span class="az">action optional.</span></h2>
+      <p>Release tracking works on its own as pure awareness — and pairs with optional acquisition when you want
+        a tracked release to be grabbed for you. Either way, it only watches the shows <b>you already own</b>.</p>
+    </div>
+    <div class="detail-grid">
+      <div class="detail-card">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V6a2 2 0 012-2h3l2 2h7a2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2z" stroke-linejoin="round"/></svg></span>
+        <h3>Tied to your library</h3>
+        <p>Tracking is scoped to the shows you actually have. Media Centaur watches <b>TMDB daily</b> for new
+          seasons of those series and for upcoming movies in the same vein — no manual watchlist, no noise from
+          titles you'll never want.</p>
+      </div>
+      <div class="detail-card">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M4 9h16M8 3v4M16 3v4" stroke-linecap="round"/></svg></span>
+        <h3>Coming Up digest</h3>
+        <p>Fresh releases surface in a <b>Coming Up digest right on the home screen</b> — the first thing you see —
+          and in a dedicated <b>Upcoming calendar</b> when you want the full month laid out by date.</p>
+      </div>
+      <div class="detail-card">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <h3>Live status per release</h3>
+        <p>Every tracked release carries its own state — <b>Pending</b>, <b>Searching</b>, <b>Grabbed</b>, or
+          <b>Scheduled</b> — updated in real time as things progress. You always know where each one stands without
+          digging.</p>
+      </div>
+      <div class="detail-card">
+        <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4" stroke-linecap="round"/><path d="M9 11h4M11 9v4" stroke-linecap="round"/></svg></span>
+        <h3>Pairs with acquisition (optional)</h3>
+        <p>Turn it on and a tracked release can be <b>grabbed automatically</b> the moment it's available via your
+          own indexers. Leave it off and tracking stays pure awareness — it never reaches out to acquire anything
+          on its own.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ STATUS LEGEND ============ -->
+<section class="section-pad" style="padding-top:0;">
+  <div class="wrap">
+    <div class="sec-head" style="margin-bottom:26px;">
+      <span class="rail-tag">Four states, one glance</span>
+      <h2>Every release knows <span class="az">where it stands.</span></h2>
+      <p>The status moves with reality. A release you're only watching sits at Pending; one paired with
+        acquisition walks itself toward Grabbed.</p>
+    </div>
+    <div class="status-board">
+      <div class="status-card">
+        <span class="status-pill pending"><span class="dot"></span>Pending</span>
+        <p>Tracked and <b>on the radar</b>, with nothing in motion yet — pure awareness, waiting for its date.</p>
+      </div>
+      <div class="status-card">
+        <span class="status-pill searching"><span class="dot"></span>Searching</span>
+        <p>Acquisition is <b>actively looking</b> for a source across your configured indexers.</p>
+      </div>
+      <div class="status-card">
+        <span class="status-pill grabbed"><span class="dot"></span>Grabbed</span>
+        <p>A release was <b>found and queued</b> — on its way to a download client and, soon, your library.</p>
+      </div>
+      <div class="status-card">
+        <span class="status-pill scheduled"><span class="dot"></span>Scheduled</span>
+        <p>The release has a <b>known future date</b> and is slotted on the calendar until it lands.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ DIGEST SPLIT ============ -->
+<section class="section-pad" style="padding-top:0;">
+  <div class="wrap split">
+    <div class="split-shot">
+      <img src="assets/screenshots/home-coming-up.png" alt="The Coming Up digest on the home screen, with status badges" />
+    </div>
+    <div class="split-copy">
+      <span class="rail-tag">On the home screen</span>
+      <h2>Where you'll find it <span class="az">already waiting.</span></h2>
+      <p>The <b>Coming Up digest</b> rides on the home screen — so the new season you tracked weeks ago, the movie
+        you'd half-forgotten about, is right there the moment you open the app. With acquisition on, it's already
+        grabbed and ready; without it, the digest is your "it's out now, go get it" cue.</p>
+      <p>It updates the instant anything changes: a date confirmed, a search started, a release grabbed. <b>No
+        refresh, no polling</b> — the digest is always current because the whole UI is real-time.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE HONEST DEPENDENCY (on vs off) ============ -->
+<section class="section-pad" style="padding-top:0;">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="rail-tag">The honest part</span>
+      <h2>"It's just there" needs <span class="az">one switch on.</span></h2>
+      <p>The fully hands-off arrival is real — but it rides on the <b>optional acquisition integration</b>. With it
+        on, release tracking finishes the job for you. With it off, tracking still earns its keep: it keeps you
+        <b>aware</b>, you just do the grab yourself.</p>
+    </div>
+    <div class="dep-grid">
+      <div class="dep-card on">
+        <span class="dep-tag"><span class="pdot"></span>Acquisition on</span>
+        <h3>Fully hands-off — <span class="az">it just shows up.</span></h3>
+        <p>Turn on acquisition and a tracked release is <b>grabbed the moment it's available</b>, imported, and
+          waiting in your library. This is the "show interest, then wake up and it's there" experience — no manual
+          step ever again.</p>
+        <a class="dep-link" href="feature-acquisition.html">Turn this on with optional acquisition
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      </div>
+      <div class="dep-card off">
+        <span class="dep-tag"><span class="pdot"></span>Acquisition off</span>
+        <h3>Pure awareness — you grab it.</h3>
+        <p>Without acquisition, tracking <b>never reaches out to download anything</b>. You still get the full
+          heads-up: the <b>Coming Up digest</b> and the <b>Upcoming calendar</b> tell you the moment it's out — and
+          then you go grab it yourself, your own way.</p>
+        <span class="dep-note">No indexers required · nothing acquired on your behalf.</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CALENDAR SPOTLIGHT ============ -->
+<section class="spotlight">
+  <div class="spot-bg" style="background-image:url('assets/screenshots/upcoming-calendar.png')"></div>
+  <div class="spot-scrim"></div>
+  <div class="wrap">
+    <div class="spot-content">
+      <span class="rail-tag">The calendar</span>
+      <h2>A month of <span class="thin">what's coming.</span></h2>
+      <p>The <b>Upcoming calendar</b> lays every tracked release out by date — new seasons and upcoming movies
+        for the titles you own, side by side. Glance at the month and know exactly when to expect what, with each
+        date carrying its live status.</p>
+      <div class="chips">
+        <span class="chip"><b>New seasons</b> of shows you own</span>
+        <span class="chip"><b>Upcoming</b> movies</span>
+        <span class="chip">Status on every entry</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CROSS-LINK ============ -->
+<section class="crosslink">
+  <div class="wrap">
+    <span class="rail-tag">Keep exploring</span>
+    <h2 style="font-weight:800; font-size:clamp(26px,3.6vw,40px); letter-spacing:-.03em; margin:0;">The rest of what it does</h2>
+    <div class="cross-grid">
+      <a class="cross-card" href="feature-library-management.html">
+        <h4>Library management</h4>
+        <p>Watches your directories, identifies titles via TMDB, downloads artwork; low-confidence matches wait for review.</p>
+        <span class="go">Learn more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+      <a class="cross-card" href="feature-playback.html">
+        <h4>Playback</h4>
+        <p>Launches mpv locally, resumes where you left off, auto-advances, world-class subtitles.</p>
+        <span class="go">Learn more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+      <a class="cross-card" href="feature-acquisition.html">
+        <h4>Optional acquisition</h4>
+        <p>Search and queue downloads via Prowlarr. Entirely optional; bring your own indexers.</p>
+        <span class="go">Learn more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+      <a class="cross-card" href="feature-input.html">
+        <h4>Input</h4>
+        <p>Keyboard and mouse at the desk, gamepad or remote on the couch. Large artwork, dark-first.</p>
+        <span class="go">Learn more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+      <a class="cross-card" href="feature-real-time.html">
+        <h4>Real-time</h4>
+        <p>Every change appears instantly via Phoenix LiveView. No polling, no refresh button.</p>
+        <span class="go">Learn more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+      <a class="cross-card" href="how-it-works.html">
+        <h4>How it works</h4>
+        <p>The whole pipeline, end to end — discovery, import, image fetching, and the data model behind it.</p>
+        <span class="go">Learn more <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </a>
+    </div>
+    <div style="margin-top:34px;">
+      <a class="btn btn-ghost" href="index.html">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M11 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Back to home
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INSTALL ============ -->
+<section class="section-pad" id="install" style="padding-top:40px;">
+  <div class="wrap">
+    <div class="install-card">
+      <h3>Own a show? <span class="az">Start tracking it.</span></h3>
+      <p class="note">One line installs the latest release, verifies its checksum, and sets up a user service.
+        <b>Linux x86_64 is the primary, fully-supported platform; macOS Apple Silicon is experimental.</b></p>
+      <div class="cmd">
+        <span class="prompt">$</span>
+        <code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/media-centaur/media-centaur/main/installer/install.sh | sh</code>
+        <button class="copy-btn" id="copy-btn" aria-label="Copy install command">Copy</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-top">
+      <div>
+        <div class="foot-brand">
+          <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+          <span class="word">Media Centaur</span>
+        </div>
+        <p style="color:var(--text-faint); font-size:14px; margin:16px 0 0; max-width:320px;">
+          A self-hosted media center. Library, metadata, release tracking, and mpv playback — one Elixir app,
+          fast at your desk and made for your couch.
+        </p>
+      </div>
+      <div class="foot-links">
+        <div class="foot-col">
+          <h5>Product</h5>
+          <a href="how-it-works.html">How it works</a>
+          <a href="feature-library-management.html">Library management</a>
+          <a href="feature-playback.html">Playback</a>
+          <a href="feature-release-tracking.html">Release tracking</a>
+          <a href="feature-acquisition.html">Optional acquisition</a>
+          <a href="feature-input.html">Input</a>
+          <a href="feature-real-time.html">Real-time</a>
+          <a href="index.html#install">Install</a>
+        </div>
+        <div class="foot-col">
+          <h5>Project</h5>
+          <a href="https://github.com/media-centaur/media-centaur">GitHub</a>
+          <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+          <a href="https://github.com/media-centaur/media-centaur/issues">Issues</a>
+          <a href="https://github.com/media-centaur/media-centaur/blob/main/LICENSE">License</a>
+        </div>
+        <div class="foot-col">
+          <h5>More</h5>
+          <a href="about.html">Why I built this</a>
+          <a href="compare.html">Compare</a>
+          <a href="faq.html">FAQ</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span class="fb-left">
+        <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+        © 2026 Shawn McCool · MIT
+      </span>
+      <span>This product uses the TMDB API but is not endorsed or certified by <a href="https://www.themoviedb.org/">TMDB</a>.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  const navToggle = document.getElementById('nav-toggle');
+  const navMenu = document.getElementById('nav-menu');
+  navToggle.addEventListener('click', () => {
+    const open = navMenu.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    navToggle.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  });
+  navMenu.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => {
+    navMenu.classList.remove('open');
+    navToggle.setAttribute('aria-expanded', 'false');
+    navToggle.setAttribute('aria-label', 'Open menu');
+  }));
+
+  const copyBtn = document.getElementById('copy-btn');
+  copyBtn.addEventListener('click', async () => {
+    const text = document.getElementById('install-cmd').textContent.trim();
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const r = document.createRange(); r.selectNodeContents(document.getElementById('install-cmd'));
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      document.execCommand('copy'); s.removeAllRanges();
+    }
+    copyBtn.textContent = 'Copied ✓'; copyBtn.classList.add('ok');
+    setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('ok'); }, 1900);
+  });
+</script>
+</body>
+</html>

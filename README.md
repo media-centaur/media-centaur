@@ -9,9 +9,9 @@
 
 **Library management and playback for your personal movie and TV collection — the \*ARR stack and a couch-ready player in one self-hosted Linux app.**
 
-![Status: Alpha](https://img.shields.io/badge/status-alpha-orange) ![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform: Linux](https://img.shields.io/badge/platform-Linux-informational)
+![License: MIT](https://img.shields.io/badge/license-MIT-blue) ![Platform: Linux](https://img.shields.io/badge/platform-Linux-informational)
 
-Point it at your video directories. It identifies your movies and TV shows via TMDB, downloads artwork, tracks your progress, and plays everything locally through mpv — all from a real-time browser UI designed for a TV across the room.
+Point it at your video directories. It identifies your movies and TV shows via TMDB, downloads artwork, tracks your progress, and plays everything locally through mpv — all from a real-time browser UI that's fast at your desk and made for your couch.
 
 Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 
@@ -19,8 +19,8 @@ Zero-config SQLite. No Docker. No transcoding server. No accounts. No cloud.
 
 </div>
 
-> [!WARNING]
-> **Alpha.** Functional for daily use but under active development. Expect rough edges and occasional breaking changes between releases.
+> [!NOTE]
+> **Pre-1.0 and actively developed.** Functional for daily use; expect the occasional rough edge or breaking change between releases.
 
 > [!NOTE]
 > **UI overhaul in progress.** A complete pass over the visual design is shipping page by page. Every page is fully operational throughout — we're raising the bar on craft, not gating anything behind the rebuild.

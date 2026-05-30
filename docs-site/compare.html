@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Where Media Centaur fits — Media Centaur</title>
+<meta name="description" content="An honest comparison: Media Centaur is a local-first, single-user media center that owns the whole pipeline and plays through mpv — versus Plex, Jellyfin, Kodi, and the raw *ARR stack. Choose the right tool for how you watch." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg-deep:        oklch(14% 0.015 264);
+    --bg-panel:       oklch(23% 0.017 264);
+    --bg-raised:      oklch(27% 0.019 264);
+    --text:           oklch(93% 0.005 264);
+    --text-dim:       oklch(72% 0.008 264);
+    --text-faint:     oklch(56% 0.01 264);
+    --primary:        oklch(62% 0.16 250);
+    --primary-bright: oklch(72% 0.15 248);
+    --primary-content:oklch(96% 0.008 250);
+    --secondary:      oklch(58% 0.12 280);
+    --success:        oklch(72% 0.13 158);
+    --glass-bg:       oklch(20% 0.02 264 / 0.45);
+    --glass-border:   oklch(90% 0.005 264 / 0.09);
+    --glass-border-2: oklch(90% 0.005 264 / 0.16);
+    --glass-nav-bg:   oklch(14% 0.015 264 / 0.8);
+    --glass-grad-a:   oklch(40% 0.16 250 / 0.2);
+    --glass-grad-b:   oklch(38% 0.14 300 / 0.15);
+    --shadow:    0 30px 80px -24px oklch(0% 0 0 / 0.85);
+    --shadow-tile: 0 26px 60px -22px oklch(0% 0 0 / 0.9);
+    --tile-r:    14px;
+    --nav-h:     66px;
+    --ease:      cubic-bezier(.2,.7,.2,1);
+    --maxw:      1340px;
+    --pad:       44px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg-deep); color: var(--text);
+    font-family: "Hanken Grotesk", sans-serif; font-size: 16px; line-height: 1.55;
+    font-weight: 400; letter-spacing: -0.003em; -webkit-font-smoothing: antialiased; overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  img { display: block; max-width: 100%; }
+  ::selection { background: var(--primary); color: var(--primary-content); }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad); }
+
+  /* ============ NAV (shared) ============ */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--nav-h); z-index: 1000;
+    display: flex; align-items: center; border-bottom: 1px solid var(--glass-border);
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+  }
+  .nav-inner { width: 100%; max-width: var(--maxw); margin: 0 auto; padding: 0 var(--pad); display: flex; align-items: center; gap: 34px; }
+  .brand { display: flex; align-items: center; gap: 11px; margin-right: auto; }
+  .brand img { width: 32px; height: 32px; filter: drop-shadow(0 2px 6px oklch(0% 0 0 / .6)); }
+  .brand .word { font-weight: 700; font-size: 18.5px; letter-spacing: -.02em; }
+  .nav-links { display: flex; gap: 30px; align-items: center; }
+  .nav-links a { color: var(--text-dim); font-size: 14.5px; font-weight: 500; transition: color .2s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-links a.active { color: var(--primary-bright); }
+  .gh-btn {
+    display: inline-flex; align-items: center; gap: 8px; background: var(--text); color: oklch(16% 0.015 264);
+    font-weight: 700; font-size: 13.5px; padding: 9px 15px; border-radius: 9px;
+    transition: transform .2s var(--ease), box-shadow .2s;
+  }
+  .gh-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px -8px oklch(90% 0.005 264 / .4); }
+  .gh-btn svg { width: 15px; height: 15px; }
+
+  /* ===== MOBILE NAV (hamburger + glass dropdown) — hidden on desktop ===== */
+  .nav-toggle {
+    display: none;
+    align-items: center; justify-content: center;
+    width: 42px; height: 42px; margin-left: 2px;
+    background: var(--glass-bg); color: var(--text);
+    border: 1px solid var(--glass-border-2); border-radius: 10px;
+    cursor: pointer; transition: border-color .2s, background .2s;
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  }
+  .nav-toggle:hover { border-color: var(--primary); }
+  .nav-toggle svg { width: 22px; height: 22px; }
+  .mobile-menu {
+    display: none;
+    position: absolute; top: calc(var(--nav-h) - 6px); right: var(--pad); left: var(--pad);
+    flex-direction: column; gap: 2px;
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid var(--glass-border-2); border-radius: 14px;
+    padding: 10px; box-shadow: var(--shadow);
+  }
+  .mobile-menu.open { display: flex; }
+  .mobile-menu a {
+    display: flex; align-items: center; min-height: 44px; padding: 0 14px;
+    color: var(--text-dim); font-size: 15.5px; font-weight: 600; border-radius: 9px;
+    transition: background .18s, color .18s;
+  }
+  .mobile-menu a:hover { background: oklch(90% 0.005 264 / .06); color: var(--text); }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15.5px; font-family: inherit;
+    padding: 13px 24px; border-radius: 10px; cursor: pointer; border: none;
+    transition: transform .2s var(--ease), background .25s, box-shadow .25s;
+  }
+  .btn-primary { background: var(--primary); color: var(--primary-content); }
+  .btn-primary:hover { transform: translateY(-2px); background: var(--primary-bright); box-shadow: 0 16px 38px -12px oklch(62% 0.16 250 / .6); }
+  .btn-ghost { background: var(--glass-bg); color: var(--text); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid var(--glass-border-2); }
+  .btn-ghost:hover { background: oklch(28% 0.02 264 / .6); transform: translateY(-2px); }
+  .btn svg { width: 16px; height: 16px; }
+  .rail-tag {
+    display: inline-flex; align-items: center; gap: 9px;
+    font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--primary-bright); margin-bottom: 22px;
+  }
+  .rail-tag::before { content:""; width: 22px; height: 2px; background: var(--primary); display:inline-block; border-radius: 2px; }
+  .crumb { display: inline-flex; align-items: center; gap: 8px; color: var(--text-faint); font-size: 14px; font-weight: 600; margin-bottom: 22px; transition: color .2s; }
+  .crumb:hover { color: var(--primary-bright); }
+  .crumb svg { width: 15px; height: 15px; }
+
+  /* ============ SUB-HERO ============ */
+  .fhero { position: relative; overflow: hidden; padding: calc(var(--nav-h) + 70px) 0 56px; }
+  .fhero::before {
+    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      linear-gradient(120deg, var(--bg-deep) 34%, transparent 82%),
+      radial-gradient(120% 120% at 96% 4%, var(--glass-grad-a), transparent 56%),
+      radial-gradient(110% 130% at 100% 100%, var(--glass-grad-b), transparent 52%);
+  }
+  .fhero-inner { position: relative; z-index: 1; max-width: 860px; }
+  .fhero h1 { font-weight: 800; font-size: clamp(40px, 5.4vw, 70px); line-height: 1.02; letter-spacing: -.035em; margin: 0 0 20px; }
+  .fhero h1 .az { color: var(--primary-bright); }
+  .fhero h1 .thin { font-weight: 300; color: var(--text-dim); }
+  .fhero .lede { font-size: 18px; color: var(--text-dim); line-height: 1.6; max-width: 600px; margin: 0 0 14px; }
+  .fhero .lede b { color: var(--text); font-weight: 600; }
+  .fhero .sub { font-size: 15px; color: var(--text-faint); max-width: 600px; margin: 0; }
+
+  /* ============ POSITIONING STATEMENT ============ */
+  .section-pad { padding: 72px 0; }
+  .stance {
+    background:
+      radial-gradient(120% 160% at 0% 0%, var(--glass-grad-a), transparent 54%),
+      linear-gradient(180deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: 18px; padding: 38px 40px;
+  }
+  .stance h2 { font-weight: 800; font-size: clamp(24px, 3.2vw, 34px); letter-spacing: -.025em; line-height: 1.1; margin: 0 0 14px; }
+  .stance h2 .az { color: var(--primary-bright); }
+  .stance p { font-size: 16.5px; color: var(--text-dim); line-height: 1.62; margin: 0; max-width: 800px; }
+  .stance p b { color: var(--text); font-weight: 600; }
+  .stance p .az { color: var(--primary-bright); font-weight: 600; }
+
+  /* ============ VERSUS CARDS ============ */
+  .sec-head { max-width: 720px; margin: 0 0 34px; }
+  .sec-head h2 { font-weight: 800; font-size: clamp(28px, 4vw, 44px); letter-spacing: -.03em; margin: 0 0 12px; }
+  .sec-head h2 .az { color: var(--primary-bright); }
+  .sec-head p { font-size: 17px; color: var(--text-dim); line-height: 1.6; margin: 0; }
+
+  .vs-stack { display: flex; flex-direction: column; gap: 18px; }
+  .vs-card {
+    display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); gap: 0;
+    background: linear-gradient(165deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden;
+    transition: border-color .3s, box-shadow .3s;
+  }
+  .vs-card:hover { border-color: var(--glass-border-2); box-shadow: var(--shadow-tile); }
+  .vs-main { padding: 30px 32px; }
+  .vs-main .vs-h { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .vs-main .vs-h .ico {
+    width: 38px; height: 38px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center;
+    background: oklch(62% 0.16 250 / .14); color: var(--primary-bright); border: 1px solid oklch(62% 0.16 250 / .2); flex: 0 0 auto;
+  }
+  .vs-main .vs-h .ico svg { width: 19px; height: 19px; }
+  .vs-main .vs-h h3 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -.015em; }
+  .vs-main .vs-h h3 span { color: var(--text-faint); font-weight: 600; }
+  .vs-main p { font-size: 15px; color: var(--text-dim); line-height: 1.6; margin: 0; }
+  .vs-main p b { color: var(--text); font-weight: 600; }
+  .vs-side {
+    padding: 30px 32px; border-left: 1px solid var(--glass-border);
+    background: oklch(11% 0.013 264 / .35); display: flex; flex-direction: column; gap: 14px; justify-content: center;
+  }
+  .choose { display: flex; flex-direction: column; gap: 6px; }
+  .choose .lbl { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 7px; }
+  .choose .lbl.them { color: var(--text-faint); }
+  .choose .lbl.mc { color: var(--primary-bright); }
+  .choose .lbl svg { width: 14px; height: 14px; }
+  .choose p { margin: 0; font-size: 14px; color: var(--text-dim); line-height: 1.5; }
+  .choose p b { color: var(--text); font-weight: 600; }
+
+  /* ============ COMPARISON TABLE (glass, not default <table>) ============ */
+  .ctable {
+    border: 1px solid var(--glass-border); border-radius: 16px; overflow: hidden;
+    background: linear-gradient(180deg, var(--bg-raised), var(--bg-panel));
+    box-shadow: var(--shadow);
+  }
+  .ctable-scroll { overflow-x: auto; scrollbar-width: thin; }
+  .crow {
+    display: grid; grid-template-columns: minmax(190px,1.4fr) repeat(4, minmax(132px,1fr));
+    border-top: 1px solid var(--glass-border);
+  }
+  .crow:first-child { border-top: none; }
+  .crow.head { position: sticky; top: 0; z-index: 2;
+    background: oklch(17% 0.016 264); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .crow.head .cc { padding: 18px 16px; }
+  .cc { padding: 15px 16px; display: flex; align-items: center; gap: 8px; font-size: 14px; }
+  .cc.feat { color: var(--text); font-weight: 600; border-right: 1px solid var(--glass-border); justify-content: flex-start; }
+  .cc.col { justify-content: center; text-align: center; border-right: 1px solid var(--glass-border); }
+  .cc.col:last-child { border-right: none; }
+  /* highlight the Media Centaur column */
+  .crow .cc.mc { background: oklch(62% 0.16 250 / .07); }
+  .crow.head .cc.mc { background: oklch(62% 0.16 250 / .14); }
+  .col-title { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .col-title .name { font-weight: 800; font-size: 15px; letter-spacing: -.01em; }
+  .col-title.mc .name { color: var(--primary-bright); }
+  .col-title .tag { font-size: 11px; color: var(--text-faint); font-weight: 600; }
+  .cell-val { font-weight: 600; color: var(--text-dim); font-size: 13.5px; line-height: 1.35; }
+  .cell-val.yes { color: var(--success); }
+  .cell-val.no { color: var(--text-faint); }
+  .cell-val.opt { color: var(--primary-bright); }
+  .cell-ico { display: inline-flex; flex: 0 0 auto; }
+  .cell-ico svg { width: 16px; height: 16px; }
+  .table-foot { font-size: 13px; color: var(--text-faint); margin-top: 14px; }
+
+  /* ============ WARM CLOSE ============ */
+  .warm { position: relative; overflow: hidden; margin: 24px 0; padding: 80px 0; }
+  .warm::before {
+    content:""; position:absolute; inset:0; z-index:0; pointer-events:none;
+    background:
+      linear-gradient(180deg, var(--bg-deep), oklch(17% 0.018 264)),
+      radial-gradient(80% 140% at 18% 50%, var(--glass-grad-a), transparent 60%),
+      radial-gradient(70% 130% at 96% 30%, var(--glass-grad-b), transparent 58%);
+    border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);
+  }
+  .warm-inner { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; padding: 0 var(--pad); }
+  .warm h2 { font-weight: 800; font-size: clamp(28px, 4.4vw, 50px); line-height: 1.06; letter-spacing: -.035em; margin: 0 0 18px; }
+  .warm h2 .az { color: var(--primary-bright); }
+  .warm p { font-size: 17.5px; color: var(--text-dim); line-height: 1.62; margin: 0 0 26px; max-width: 620px; }
+  .warm p b { color: var(--text); font-weight: 600; }
+  .warm-links { display: flex; flex-wrap: wrap; gap: 10px; }
+  .warm-link {
+    display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 10px;
+    background: var(--glass-bg); border: 1px solid var(--glass-border-2);
+    backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    font-size: 14px; font-weight: 600; color: var(--text); transition: border-color .2s, transform .2s var(--ease), color .2s;
+  }
+  .warm-link:hover { border-color: var(--primary); color: var(--primary-bright); transform: translateY(-2px); }
+  .warm-link svg { width: 14px; height: 14px; color: var(--text-faint); }
+  .warm-link:hover svg { color: var(--primary-bright); }
+
+  /* ============ INSTALL ============ */
+  .install-card {
+    background:
+      radial-gradient(110% 170% at 0% 0%, var(--glass-grad-a), transparent 56%),
+      linear-gradient(180deg, var(--bg-raised), var(--bg-panel));
+    border: 1px solid var(--glass-border); border-radius: 20px;
+    padding: 44px; box-shadow: var(--shadow);
+  }
+  .install-card h3 { font-weight: 800; font-size: clamp(24px, 3.2vw, 32px); letter-spacing: -.025em; margin: 0 0 8px; }
+  .install-card h3 .az { color: var(--primary-bright); }
+  .install-card .note { color: var(--text-dim); font-size: 15px; margin: 0 0 26px; max-width: 620px; }
+  .install-card .note b { color: var(--text); font-weight: 600; }
+  .cmd {
+    display: flex; align-items: center; gap: 14px;
+    background: oklch(11% 0.013 264); border: 1px solid var(--glass-border-2);
+    border-radius: 12px; padding: 15px 15px 15px 20px;
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13.5px; color: var(--primary-bright);
+    overflow-x: auto; white-space: nowrap;
+  }
+  .cmd .prompt { color: var(--text-faint); user-select: none; }
+  .cmd code { flex: 1; }
+  .copy-btn {
+    flex: 0 0 auto; margin-left: auto;
+    background: var(--text); color: oklch(16% 0.015 264); border: none; cursor: pointer;
+    font-family: "Hanken Grotesk", sans-serif; font-weight: 700; font-size: 13px;
+    padding: 8px 15px; border-radius: 8px; transition: background .2s, transform .15s, color .2s;
+  }
+  .copy-btn:hover { transform: translateY(-1px); }
+  .copy-btn.ok { background: var(--primary); color: var(--primary-content); }
+  .reqs { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
+  .req {
+    font-size: 13px; font-weight: 600; color: var(--text-dim);
+    background: oklch(90% 0.005 264 / .04); border: 1px solid var(--glass-border);
+    padding: 7px 13px; border-radius: 9px;
+  }
+  .req b { color: var(--primary-bright); font-weight: 700; }
+  .platform-note { margin-top: 18px; font-size: 13.5px; color: var(--text-faint); }
+  .platform-note b { color: var(--text-dim); font-weight: 600; }
+
+  /* ============ FOOTER (shared) ============ */
+  footer { border-top: 1px solid var(--glass-border); padding: 58px 0 50px; background: oklch(12% 0.014 264); }
+  .foot-top { display: flex; justify-content: space-between; gap: 40px; flex-wrap: wrap; align-items: flex-start; }
+  .foot-brand { display:flex; align-items:center; gap: 11px; }
+  .foot-brand img { width: 36px; height: 36px; }
+  .foot-brand .word { font-weight: 700; font-size: 20px; letter-spacing: -.02em; }
+  .foot-links { display: flex; gap: 48px; flex-wrap: wrap; }
+  .foot-col h5 { margin: 0 0 12px; font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-faint); font-weight: 700; }
+  .foot-col a { display: block; color: var(--text-dim); font-size: 14.5px; margin-bottom: 9px; transition: color .2s; }
+  .foot-col a:hover { color: var(--primary-bright); }
+  .foot-bottom { margin-top: 46px; padding-top: 24px; border-top: 1px solid var(--glass-border);
+    display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--text-faint); }
+  .foot-bottom .fb-left { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .foot-bottom .fb-left img { width: 22px; height: 22px; }
+  .foot-bottom a { color: var(--text-dim); }
+  .foot-bottom a:hover { color: var(--primary-bright); }
+
+  /* scorecard scroll affordance — hint that columns scroll sideways when clipped */
+  .ctable-wrap { position: relative; }
+  .scroll-hint {
+    display: none;
+    margin: 10px 0 0; font-size: 12.5px; font-weight: 600; color: var(--text-faint);
+    align-items: center; gap: 7px;
+  }
+  .scroll-hint svg { width: 15px; height: 15px; color: var(--primary-bright); }
+
+  /* ===== ULTRA-WIDE: cap container, keep lines comfortable; bands stay full-bleed ===== */
+  @media (min-width: 1800px) {
+    :root { --maxw: 1480px; --pad: 56px; }
+    .fhero-inner { max-width: 900px; }
+    .stance p, .sec-head p, .warm p, .install-card .note { max-width: 70ch; }
+  }
+  @media (max-width: 980px) {
+    .vs-card { grid-template-columns: 1fr; }
+    .vs-side { border-left: none; border-top: 1px solid var(--glass-border); }
+  }
+  /* ===== TABLET: scorecard becomes side-scrollable so columns stay readable ===== */
+  @media (max-width: 860px) {
+    .ctable-scroll { -webkit-overflow-scrolling: touch; }
+    .crow { min-width: 720px; }
+    .scroll-hint { display: inline-flex; }
+  }
+  @media (max-width: 760px) {
+    :root { --pad: 22px; }
+    .nav-links { display: none; }
+    .nav-toggle { display: inline-flex; }
+    .install-card, .stance { padding: 26px; }
+  }
+  /* ===== MOBILE: single column, tighter padding, nothing overflows ===== */
+  @media (max-width: 480px) {
+    .section-pad { padding: 52px 0; }
+    .warm { padding: 60px 0; }
+    .vs-main, .vs-side { padding: 22px 20px; }
+    .install-card, .stance { padding: 20px; }
+    .copy-btn { padding: 8px 12px; }
+    .mobile-menu { right: 14px; left: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+<link rel="canonical" href="https://media-centaur.net/compare.html" />
+<meta name="theme-color" content="#0b0d12" />
+<link rel="icon" type="image/png" href="assets/centaur-logo.png" />
+<meta property="og:title" content="Where Media Centaur fits — Media Centaur" />
+<meta property="og:description" content="An honest comparison: Media Centaur is a local-first, single-user media center that owns the whole pipeline and plays through mpv — versus Plex, Jellyfin, Kodi, and the raw *ARR stack. Choose the right tool for how you watch." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://media-centaur.net/compare.html" />
+<meta property="og:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Where Media Centaur fits — Media Centaur" />
+<meta name="twitter:description" content="An honest comparison: Media Centaur is a local-first, single-user media center that owns the whole pipeline and plays through mpv — versus Plex, Jellyfin, Kodi, and the raw *ARR stack. Choose the right tool for how you watch." />
+<meta name="twitter:image" content="https://media-centaur.net/assets/centaur-logo.png" />
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav>
+  <div class="nav-inner">
+    <a class="brand" href="index.html">
+      <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+      <span class="word">Media&nbsp;Centaur</span>
+    </a>
+    <div class="nav-links">
+      <a href="how-it-works.html">How it works</a>
+      <a href="index.html#capabilities">Features</a>
+      <a href="compare.html" class="active">Compare</a>
+      <a href="faq.html">FAQ</a>
+      <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+    </div>
+    <a class="gh-btn" href="https://github.com/media-centaur/media-centaur">
+      <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+    <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="mobile-menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="mobile-menu" id="mobile-menu">
+    <a href="how-it-works.html">How it works</a>
+    <a href="index.html#capabilities">Features</a>
+    <a href="compare.html">Compare</a>
+    <a href="faq.html">FAQ</a>
+    <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+    <a href="https://github.com/media-centaur/media-centaur">GitHub</a>
+  </div>
+</nav>
+
+<!-- ============ SUB-HERO ============ -->
+<header class="fhero">
+  <div class="wrap fhero-inner">
+    <a class="crumb" href="index.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M19 12H5M11 6l-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Back to home
+    </a>
+    <span class="rail-tag">Compare</span>
+    <h1>Where Media Centaur <span class="az">fits.</span></h1>
+    <p class="lede">It's <b>not trying to be Plex.</b> Here's the shape of the trade — laid out honestly, so you
+      can tell in a minute whether it's the right tool for the way you watch.</p>
+    <p class="sub">No trash-talk. The alternatives below are genuinely good software; they're just solving a
+      different problem.</p>
+  </div>
+</header>
+
+<!-- ============ POSITIONING STATEMENT ============ -->
+<section class="section-pad" style="padding-bottom:36px;">
+  <div class="wrap">
+    <div class="stance">
+      <h2>The core distinction: <span class="az">local-first and single-user.</span></h2>
+      <p>Media Centaur is a <b>local-first, single-user media center that owns the whole pipeline</b> — it
+        identifies your files, fetches metadata and artwork, tracks releases, optionally acquires what's
+        missing, and plays it back locally through <span class="az">mpv</span>. It does <b>not</b> stream to
+        other devices and it <b>never</b> transcodes. The servers it's compared against do the opposite job:
+        they transcode and stream to many devices around the house and beyond. Different shape, different
+        trade — pick the one that matches how you actually watch.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VERSUS CARDS ============ -->
+<section class="section-pad" style="padding-top:8px;">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="rail-tag">Head to head</span>
+      <h2>Three honest <span class="az">comparisons.</span></h2>
+      <p>Each comes with a "choose them if…" so you can self-select without me overselling.</p>
+    </div>
+
+    <div class="vs-stack">
+
+      <!-- vs Plex / Jellyfin / Emby -->
+      <div class="vs-card">
+        <div class="vs-main">
+          <div class="vs-h">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M8 21h8M12 18v3" stroke-linecap="round"/></svg></span>
+            <h3>vs <span>Plex · Jellyfin · Emby</span></h3>
+          </div>
+          <p>These are <b>servers</b>: they transcode on the fly and stream to phones, TVs, other rooms, and
+            remote clients. Media Centaur deliberately does <b>neither</b> — no transcoding, ever, and no
+            streaming to other devices. It plays on the machine it runs on, or a TV attached to it.</p>
+        </div>
+        <div class="vs-side">
+          <div class="choose">
+            <span class="lbl them"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14" stroke-linecap="round"/></svg> Choose them if</span>
+            <p>You need to watch on <b>many devices</b> around the house or remotely.</p>
+          </div>
+          <div class="choose">
+            <span class="lbl mc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12l5 5L20 7" stroke-linecap="round" stroke-linejoin="round"/></svg> Choose Media Centaur if</span>
+            <p>You watch <b>at your desk or on the TV at the machine</b> and want library + couch UX + optional acquisition in one app.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- vs Kodi -->
+      <div class="vs-card">
+        <div class="vs-main">
+          <div class="vs-h">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M10 9l5 3-5 3z" fill="currentColor" stroke="none"/></svg></span>
+            <h3>vs <span>Kodi</span></h3>
+          </div>
+          <p>A <b>superb local player</b> — but you bring your own library management and acquisition and wire
+            it together yourself with add-ons. Media Centaur integrates <b>identify + artwork + tracking +
+            optional acquisition + playback</b> out of the box, and still hands the actual decoding to mpv.</p>
+        </div>
+        <div class="vs-side">
+          <div class="choose">
+            <span class="lbl them"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14" stroke-linecap="round"/></svg> Choose Kodi if</span>
+            <p>You want a <b>highly customisable player</b> and enjoy assembling the rest with add-ons.</p>
+          </div>
+          <div class="choose">
+            <span class="lbl mc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12l5 5L20 7" stroke-linecap="round" stroke-linejoin="round"/></svg> Choose Media Centaur if</span>
+            <p>You want the <b>whole pipeline integrated</b> and managed for you, decoding delegated to mpv.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- vs raw *ARR stack -->
+      <div class="vs-card">
+        <div class="vs-main">
+          <div class="vs-h">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="5" rx="1.5"/><rect x="3" y="10" width="18" height="5" rx="1.5"/><rect x="3" y="16" width="18" height="4" rx="1.5"/></svg></span>
+            <h3>vs <span>the raw *ARR stack</span></h3>
+          </div>
+          <p>Sonarr + Radarr + Prowlarr + a separate player is <b>four services in a trench coat</b> to
+            configure and keep running. Media Centaur is <b>one Elixir app</b> doing library + metadata +
+            review + release tracking + playback — delegating only <b>indexer search</b> (Prowlarr, optional)
+            and <b>decoding</b> (mpv).</p>
+        </div>
+        <div class="vs-side">
+          <div class="choose">
+            <span class="lbl them"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12h14" stroke-linecap="round"/></svg> Choose the *ARR stack if</span>
+            <p>You want <b>each service independently swappable</b> and don't mind running and updating four of them.</p>
+          </div>
+          <div class="choose">
+            <span class="lbl mc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12l5 5L20 7" stroke-linecap="round" stroke-linejoin="round"/></svg> Choose Media Centaur if</span>
+            <p>You'd rather run <b>one app</b> that covers the same ground and adds a couch-ready player.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ COMPARISON TABLE ============ -->
+<section class="section-pad" style="padding-top:8px;">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="rail-tag">At a glance</span>
+      <h2>The honest <span class="az">scorecard.</span></h2>
+      <p>Answered straight — including where Media Centaur deliberately does less.</p>
+    </div>
+
+    <div class="ctable-wrap">
+    <div class="ctable">
+      <div class="ctable-scroll">
+
+        <div class="crow head">
+          <div class="cc feat">Capability</div>
+          <div class="cc col mc"><span class="col-title mc"><span class="name">Media Centaur</span><span class="tag">one app</span></span></div>
+          <div class="cc col"><span class="col-title"><span class="name">Plex / Jellyfin</span><span class="tag">media server</span></span></div>
+          <div class="cc col"><span class="col-title"><span class="name">Kodi</span><span class="tag">player</span></span></div>
+          <div class="cc col"><span class="col-title"><span class="name">Raw *ARR stack</span><span class="tag">4 services</span></span></div>
+        </div>
+
+        <div class="crow">
+          <div class="cc feat">Streams to other devices?</div>
+          <div class="cc col mc"><span class="cell-val no"><span class="cell-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></span>No</span></div>
+          <div class="cc col"><span class="cell-val yes">Yes</span></div>
+          <div class="cc col"><span class="cell-val no">No</span></div>
+          <div class="cc col"><span class="cell-val no">N/A · player's job</span></div>
+        </div>
+
+        <div class="crow">
+          <div class="cc feat">Transcodes?</div>
+          <div class="cc col mc"><span class="cell-val no"><span class="cell-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></span>Never</span></div>
+          <div class="cc col"><span class="cell-val yes">Yes</span></div>
+          <div class="cc col"><span class="cell-val no">No</span></div>
+          <div class="cc col"><span class="cell-val no">No</span></div>
+        </div>
+
+        <div class="crow">
+          <div class="cc feat">Library management</div>
+          <div class="cc col mc"><span class="cell-val yes"><span class="cell-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12l5 5L20 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Built in</span></div>
+          <div class="cc col"><span class="cell-val yes">Yes</span></div>
+          <div class="cc col"><span class="cell-val">Basic / add-ons</span></div>
+          <div class="cc col"><span class="cell-val yes">Yes</span></div>
+        </div>
+
+        <div class="crow">
+          <div class="cc feat">Metadata + artwork</div>
+          <div class="cc col mc"><span class="cell-val yes"><span class="cell-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12l5 5L20 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>TMDB</span></div>
+          <div class="cc col"><span class="cell-val yes">Yes</span></div>
+          <div class="cc col"><span class="cell-val">Scrapers</span></div>
+          <div class="cc col"><span class="cell-val yes">Yes</span></div>
+        </div>
+
+        <div class="crow">
+          <div class="cc feat">Release tracking</div>
+          <div class="cc col mc"><span class="cell-val yes"><span class="cell-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12l5 5L20 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Built in</span></div>
+          <div class="cc col"><span class="cell-val no">No</span></div>
+          <div class="cc col"><span class="cell-val no">No</span></div>
+          <div class="cc col"><span class="cell-val yes">Yes</span></div>
+        </div>
+
+        <div class="crow">
+          <div class="cc feat">Acquisition</div>
+          <div class="cc col mc"><span class="cell-val opt">Optional · Prowlarr</span></div>
+          <div class="cc col"><span class="cell-val no">No</span></div>
+          <div class="cc col"><span class="cell-val no">No</span></div>
+          <div class="cc col"><span class="cell-val yes">Yes · its purpose</span></div>
+        </div>
+
+        <div class="crow">
+          <div class="cc feat">Built-in player</div>
+          <div class="cc col mc"><span class="cell-val yes"><span class="cell-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12l5 5L20 7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>mpv</span></div>
+          <div class="cc col"><span class="cell-val yes">Apps + web</span></div>
+          <div class="cc col"><span class="cell-val yes">Yes</span></div>
+          <div class="cc col"><span class="cell-val no">No · bring your own</span></div>
+        </div>
+
+        <div class="crow">
+          <div class="cc feat"># of services</div>
+          <div class="cc col mc"><span class="cell-val opt">One</span></div>
+          <div class="cc col"><span class="cell-val">One server</span></div>
+          <div class="cc col"><span class="cell-val">One app</span></div>
+          <div class="cc col"><span class="cell-val no">Four+</span></div>
+        </div>
+
+        <div class="crow">
+          <div class="cc feat">Multi-user</div>
+          <div class="cc col mc"><span class="cell-val no"><span class="cell-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg></span>Single-user</span></div>
+          <div class="cc col"><span class="cell-val yes">Yes</span></div>
+          <div class="cc col"><span class="cell-val">Profiles</span></div>
+          <div class="cc col"><span class="cell-val">Per-service</span></div>
+        </div>
+
+      </div>
+    </div>
+    <p class="scroll-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg> Scroll sideways to compare every column</p>
+    </div>
+    <p class="table-foot">"Optional" means off by default and entirely up to you — bring your own indexers. "Never" on transcoding is a deliberate design choice: mpv plays the file exactly as authored.</p>
+  </div>
+</section>
+
+<!-- ============ WARM CLOSE ============ -->
+<section class="warm">
+  <div class="warm-inner">
+    <span class="rail-tag">No hard feelings</span>
+    <h2>If you want to stream to every screen in the house, <span class="az">Jellyfin is genuinely great</span> — go use it.</h2>
+    <p>Seriously. Media Centaur is built for one person watching at a desk or a TV at the machine, and it's
+      unapologetic about that. If that's not your shape, the tools below will serve you <b>better than we
+      would</b> — and that's the honest answer.</p>
+    <div class="warm-links">
+      <a class="warm-link" href="https://jellyfin.org/">Jellyfin <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      <a class="warm-link" href="https://www.plex.tv/">Plex <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      <a class="warm-link" href="https://kodi.tv/">Kodi <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      <a class="warm-link" href="https://wiki.servarr.com/">The *ARR stack <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INSTALL ============ -->
+<section class="section-pad" style="padding-top:8px;">
+  <div class="wrap">
+    <div class="install-card">
+      <h3>Still your shape? <span class="az">Install in one line.</span></h3>
+      <p class="note">Downloads the latest release, verifies its checksum, installs atomically, and sets up a
+        systemd user unit (launchd on macOS). <b>Single-user, local-first, mpv-backed.</b></p>
+      <div class="cmd">
+        <span class="prompt">$</span>
+        <code id="install-cmd">curl -fsSL https://raw.githubusercontent.com/media-centaur/media-centaur/main/installer/install.sh | sh</code>
+        <button class="copy-btn" id="copy-btn" aria-label="Copy install command">Copy</button>
+      </div>
+      <div class="reqs">
+        <span class="req">Requires <b>SQLite3</b></span>
+        <span class="req"><b>mpv</b></span>
+        <span class="req"><b>inotify-tools</b></span>
+        <span class="req">a free <b>TMDB API key</b></span>
+      </div>
+      <p class="platform-note">Installs on <b>Linux x86_64</b> and <b>Apple Silicon</b> (experimental).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="wrap">
+    <div class="foot-top">
+      <div>
+        <div class="foot-brand">
+          <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+          <span class="word">Media Centaur</span>
+        </div>
+        <p style="color:var(--text-faint); font-size:14px; margin:16px 0 0; max-width:320px;">
+          A self-hosted media center. Library, metadata, release tracking, and mpv playback — one Elixir app,
+          fast at your desk and made for your couch.
+        </p>
+      </div>
+      <div class="foot-links">
+        <div class="foot-col">
+          <h5>Product</h5>
+          <a href="how-it-works.html">How it works</a>
+          <a href="feature-library-management.html">Library management</a>
+          <a href="feature-playback.html">Playback</a>
+          <a href="feature-release-tracking.html">Release tracking</a>
+          <a href="feature-acquisition.html">Optional acquisition</a>
+          <a href="feature-input.html">Input</a>
+          <a href="feature-real-time.html">Real-time</a>
+          <a href="index.html#install">Install</a>
+        </div>
+        <div class="foot-col">
+          <h5>Project</h5>
+          <a href="https://github.com/media-centaur/media-centaur">GitHub</a>
+          <a href="https://github.com/media-centaur/media-centaur/wiki">Docs</a>
+          <a href="https://github.com/media-centaur/media-centaur/issues">Issues</a>
+          <a href="https://github.com/media-centaur/media-centaur/blob/main/LICENSE">License</a>
+        </div>
+        <div class="foot-col">
+          <h5>More</h5>
+          <a href="about.html">Why I built this</a>
+          <a href="compare.html">Compare</a>
+          <a href="faq.html">FAQ</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span class="fb-left">
+        <img src="assets/centaur-logo-light.png" alt="Media Centaur logo" />
+        © 2026 Shawn McCool · MIT
+      </span>
+      <span>This product uses the TMDB API but is not endorsed or certified by <a href="https://www.themoviedb.org/">TMDB</a>.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // ---- mobile nav toggle ----
+  const navToggle = document.getElementById('nav-toggle');
+  const mobileMenu = document.getElementById('mobile-menu');
+  navToggle.addEventListener('click', () => {
+    const open = mobileMenu.classList.toggle('open');
+    navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  mobileMenu.querySelectorAll('a').forEach(a => a.addEventListener('click', () => {
+    mobileMenu.classList.remove('open');
+    navToggle.setAttribute('aria-expanded', 'false');
+  }));
+
+  const copyBtn = document.getElementById('copy-btn');
+  copyBtn.addEventListener('click', async () => {
+    const text = document.getElementById('install-cmd').textContent.trim();
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const r = document.createRange(); r.selectNodeContents(document.getElementById('install-cmd'));
+      const s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+      document.execCommand('copy'); s.removeAllRanges();
+    }
+    copyBtn.textContent = 'Copied ✓'; copyBtn.classList.add('ok');
+    setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('ok'); }, 1900);
+  });
+</script>
+</body>
+</html>
