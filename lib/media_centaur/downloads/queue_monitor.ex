@@ -20,10 +20,11 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
 
   The poll interval scales with whether anyone is watching:
 
-  - **1 s** when at least one LiveView is subscribed AND the download
-    client is ready — the row needs to feel real-time.
-  - **5 s** when ready but nobody is watching — keeps the cache warm
-    without burning request budget on the client.
+  - **10 s** when at least one LiveView is subscribed AND the download
+    client is ready — fresh enough for an open queue view without
+    hammering the client (and without flooding the logs).
+  - **30 s** when ready but nobody is watching — just keeps the cache
+    from going stale.
   - **30 s** when the client is offline — back off so the eventual
     reconfigure picks up within a reasonable window.
 
@@ -56,9 +57,18 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   alias MediaCentaur.Topics
 
   @cache_key {__MODULE__, :state}
-  @poll_watched_ms 1_500
-  @poll_idle_ms 5_000
+  @poll_watched_ms 10_000
+  @poll_idle_ms 30_000
   @poll_offline_ms 30_000
+
+  # Steady-state sync ticks (no real queue movement) repeat every
+  # @poll_watched_ms while a LiveView is open. Logging each one at :info
+  # floods the in-memory Console ring buffer and pushes every other
+  # subsystem's lines out of it — the opposite of an observability aid.
+  # We log real movement immediately and otherwise emit at most one
+  # :info heartbeat per this interval so "is it still polling?" stays
+  # answerable from the default buffer.
+  @sync_log_heartbeat_ms 60_000
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
@@ -116,8 +126,8 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   `Capabilities.last_test_ok?` lags reality (a successful
   `test_connection` at config time stays "ok" until the user re-tests),
   so without this row, a credential rotation on the qBittorrent side
-  silently log-spams at 1.5 s against an auth-broken client until the
-  user reconfigures.
+  silently log-spams at the watched cadence against an auth-broken
+  client until the user reconfigures.
   """
   @spec cadence_ms(non_neg_integer(), boolean(), QueueState.error_reason()) :: pos_integer()
   def cadence_ms(_subscribers, _ready?, :auth_failed), do: @poll_offline_ms
@@ -125,10 +135,68 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   def cadence_ms(0, true, _error), do: @poll_idle_ms
   def cadence_ms(_subscribers, true, _error), do: @poll_watched_ms
 
+  @doc """
+  Computes the display fields for one sync log line from a
+  `sync/maindata` response and the before/after torrent maps. Movement
+  detection (`sync_movement?/1`) and the log message both read from this
+  single result so they can never drift. Pure — extracted for unit
+  testing the contract.
+  """
+  @spec sync_counts(map(), map(), map()) :: %{
+          rid: integer(),
+          full?: boolean(),
+          total: non_neg_integer(),
+          added: non_neg_integer(),
+          changed: non_neg_integer(),
+          removed: non_neg_integer()
+        }
+  def sync_counts(response, before_torrents, after_torrents) do
+    removed = response |> Map.get("torrents_removed", []) |> length()
+
+    %{
+      rid: Map.get(response, "rid", 0),
+      full?: Map.get(response, "full_update", false),
+      total: map_size(after_torrents),
+      added: max(0, map_size(after_torrents) - map_size(before_torrents) + removed),
+      changed: response |> Map.get("torrents", %{}) |> map_size(),
+      removed: removed
+    }
+  end
+
+  @doc """
+  True when a sync tick reflects real queue movement — a torrent added
+  or removed, or a partial delta carrying field changes. A `full_update`
+  echo that merely repeats the prior set (`added: 0, removed: 0`) is NOT
+  movement: its `changed` count is just the full snapshot size, not a
+  delta, so it is ignored unless the update is partial.
+  """
+  @spec sync_movement?(%{
+          required(:full?) => boolean(),
+          required(:added) => non_neg_integer(),
+          required(:removed) => non_neg_integer(),
+          required(:changed) => non_neg_integer()
+        }) :: boolean()
+  def sync_movement?(%{full?: full?, added: added, removed: removed, changed: changed}) do
+    added > 0 or removed > 0 or (not full? and changed > 0)
+  end
+
+  @doc """
+  Log level for a sync tick. Real movement always logs at `:info`.
+  Steady-state ticks (no movement — the common case, repeating every
+  #{@poll_watched_ms} ms while watched) are `:skip`ped so they don't
+  flood the Console ring buffer, except for one `:info` heartbeat once
+  at least `heartbeat_ms` has elapsed since the last logged line.
+  """
+  @spec sync_log_level(boolean(), non_neg_integer(), pos_integer()) :: :info | :skip
+  def sync_log_level(movement?, ms_since_last_log, heartbeat_ms \\ @sync_log_heartbeat_ms)
+  def sync_log_level(true, _ms_since, _heartbeat), do: :info
+  def sync_log_level(false, ms_since, heartbeat) when ms_since >= heartbeat, do: :info
+  def sync_log_level(false, _ms_since, _heartbeat), do: :skip
+
   @impl GenServer
   def init(_opts) do
     Process.send_after(self(), :poll, 0)
-    {:ok, %{queue: %QueueState{}, subscribers: %{}, history: %{}}}
+    {:ok, %{queue: %QueueState{}, subscribers: %{}, history: %{}, last_sync_log_ms: nil}}
   end
 
   @impl GenServer
@@ -172,7 +240,8 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
         rid = Map.get(response, "rid", state.queue.rid)
         server_state = Map.merge(state.queue.server_state, Map.get(response, "server_state", %{}))
 
-        log_sync_tick(response, state.queue.torrents, torrents)
+        last_sync_log_ms =
+          log_sync_tick(response, state.queue.torrents, torrents, state.last_sync_log_ms)
 
         all_items = Sync.to_queue_items(torrents)
         active = Enum.reject(all_items, &(&1.state == :completed))
@@ -191,7 +260,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
         }
 
         store_and_broadcast(queue)
-        %{state | queue: queue, history: history}
+        %{state | queue: queue, history: history, last_sync_log_ms: last_sync_log_ms}
 
       {:error, :not_configured} ->
         queue = %QueueState{
@@ -238,20 +307,27 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   defp classify_error(:auth_failed), do: :auth_failed
   defp classify_error(_), do: :unreachable
 
-  # One log line per successful sync — gives a grep-able "is the
-  # subsystem actually polling?" signal for production troubleshooting.
-  # `full_update` resets the count expectations; partial deltas show
-  # how much of the queue moved this tick.
-  defp log_sync_tick(response, before_torrents, after_torrents) do
-    full? = Map.get(response, "full_update", false)
-    rid = Map.get(response, "rid", 0)
-    changed = response |> Map.get("torrents", %{}) |> map_size()
-    removed = response |> Map.get("torrents_removed", []) |> length()
-    added = max(0, map_size(after_torrents) - map_size(before_torrents) + removed)
+  # Emits the grep-able "is the subsystem actually polling?" signal —
+  # but only for ticks worth seeing. Real movement (added/removed/partial
+  # delta) logs at :info immediately; steady-state echoes are skipped
+  # except for a periodic heartbeat so the Console ring buffer isn't
+  # flooded (see @sync_log_heartbeat_ms). Returns the monotonic ms of the
+  # last logged line so the caller can thread the heartbeat clock.
+  defp log_sync_tick(response, before_torrents, after_torrents, last_log_ms) do
+    counts = sync_counts(response, before_torrents, after_torrents)
+    now_ms = System.monotonic_time(:millisecond)
+    ms_since = if last_log_ms, do: now_ms - last_log_ms, else: @sync_log_heartbeat_ms
 
-    Log.info(
-      :acquisition,
-      "queue sync — rid=#{rid} full=#{full?} torrents=#{map_size(after_torrents)} added=#{added} changed=#{changed} removed=#{removed}"
-    )
+    message =
+      "queue sync — rid=#{counts.rid} full=#{counts.full?} torrents=#{counts.total} added=#{counts.added} changed=#{counts.changed} removed=#{counts.removed}"
+
+    case sync_log_level(sync_movement?(counts), ms_since) do
+      :info ->
+        Log.info(:acquisition, message)
+        now_ms
+
+      :skip ->
+        last_log_ms
+    end
   end
 end
