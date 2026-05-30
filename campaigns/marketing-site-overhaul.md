@@ -115,7 +115,6 @@ awaiting local review (push to `main` auto-deploys to media-centaur.net).**
    docs-site port commit separate from unrelated working-tree changes (app.css,
    test/e2e/*) and the `catalog.ex` showcase change.
 2. **Follow-up bucket (remaining):**
-   - Custom OG social card (currently reuses the logo); favicon set.
    - Roadmap / what's-new page (only planned surface not built).
 3. Wiki sync for any user-visible copy/positioning changes.
 
@@ -160,6 +159,18 @@ awaiting local review (push to `main` auto-deploys to media-centaur.net).**
     reveal) as keyframe-animation timing jitter (reproduce on self-vs-self loads).
     The one-shot migration script lives in `/tmp` (not a repo build step — re-running
     it against already-extracted files would mis-classify).
+
+* **OG social card + favicon set** — the cards were `summary_large_image` but
+  `og:image` pointed at the 512² square logo (renders as a tiny letterboxed mark
+  when shared). Built a real **1200×630 `assets/og-card.png`**: sand centaur +
+  wordmark + "Your library. Your machine. Your couch." on the app's azure/violet
+  glass gradient, with the live home screen (Nosferatu, PD) bleeding in under a
+  fade. Rendered from an on-brand HTML file via a CDP screenshot at 2× → downscaled
+  (script in `/tmp`). Generated a proper favicon set from the logo composited on
+  the dark base (so the sand mark reads on light *and* dark tabs):
+  `favicon.ico` (16/32/48), `favicon-16/32`, `apple-touch-icon` (180),
+  `icon-192/512`, `site.webmanifest`. Wired `og:image` (+ width/height/alt),
+  `twitter:image`, and the full icon/manifest link set across all 11 pages.
 
 ## Completion criteria
 

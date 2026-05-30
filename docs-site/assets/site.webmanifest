@@ -1,0 +1,13 @@
+{
+  "name": "Media Centaur",
+  "short_name": "Media Centaur",
+  "description": "An open-source media center — local, fast, yours.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0f15",
+  "theme_color": "#0b0d12",
+  "icons": [
+    { "src": "icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "icon-512.png", "type": "image/png", "sizes": "512x512" }
+  ]
+}
