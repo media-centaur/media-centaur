@@ -30,9 +30,11 @@ defmodule MediaCentaur.Maintenance do
   alias MediaCentaur.Library.{
     Episode,
     Extra,
+    ExtraFile,
     ExtraProgress,
     ExternalId,
     ExternalIds,
+    FilePresence,
     Movie,
     MovieSeries,
     PlayableItem,
@@ -482,6 +484,7 @@ defmodule MediaCentaur.Maintenance do
       PendingFile,
       ExtraProgress,
       WatchProgress,
+      ExtraFile,
       Extra,
       Image,
       Episode,
@@ -489,6 +492,13 @@ defmodule MediaCentaur.Maintenance do
       Movie,
       Season,
       WatchedFile,
+      # FilePresence is the scan's skip-ledger (the watcher startup scan
+      # skips any path already present here). The file rows above
+      # (WatchedFile / ExtraFile) reference it by a plain column with no DB
+      # cascade, so deleting them leaves orphaned presence rows that make a
+      # post-clear rescan a no-op — the library can't be rebuilt from disk
+      # without a reboot. Wipe it too so "Clear database" is a true reset.
+      FilePresence,
       PlayableItem,
       TVSeries,
       MovieSeries,
