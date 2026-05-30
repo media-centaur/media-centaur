@@ -3,6 +3,7 @@ defmodule MediaCentaur.MaintenanceTest do
 
   alias MediaCentaur.Library.{
     ExternalIds,
+    FilePresence,
     Movie,
     MovieSeries,
     Person,
@@ -70,6 +71,33 @@ defmodule MediaCentaur.MaintenanceTest do
       Maintenance.clear_database()
 
       assert Repo.aggregate(PlayableItem, :count) == 0
+    end
+
+    test "destroys FilePresence rows so a post-clear scan re-detects files on disk" do
+      # FilePresence is the scan's skip-ledger: the watcher startup scan
+      # skips any path already in `FilePresence.list_paths_for_watch_dir/1`
+      # (watcher.ex). `clear_database/0` deletes the child WatchedFile rows
+      # but the presence reference is a plain column (no DB cascade), so the
+      # FilePresence parent rows survived — leaving a poisoned ledger that
+      # made the post-clear watcher restart skip every file still on disk.
+      # That is the "I cleared everything and it still won't pick up my
+      # media" report: clearing must wipe the ledger so a rescan rebuilds
+      # the library from disk.
+      movie = create_standalone_movie(%{name: "Moved Movie"})
+
+      file =
+        create_linked_file(%{
+          movie_id: movie.id,
+          watch_dir: "/media/test",
+          file_path: "/media/test/sample.mkv"
+        })
+
+      assert file.file_path in FilePresence.list_paths_for_watch_dir("/media/test")
+
+      Maintenance.clear_database()
+
+      assert Enum.empty?(FilePresence.list_paths_for_watch_dir("/media/test"))
+      assert Repo.aggregate(FilePresence, :count) == 0
     end
   end
 
