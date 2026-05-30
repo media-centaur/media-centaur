@@ -872,6 +872,22 @@
     copyBtn.textContent = 'Copied ✓'; copyBtn.classList.add('ok');
     setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('ok'); }, 1900);
   });
+
+  // Hero demo video: nudge autoplay (some mobile browsers need a prod), and
+  // make a tap play/pause it so a touch is never a no-op.
+  const heroVid = document.querySelector('.hero-stage video');
+  if (heroVid) {
+    const tryPlay = () => heroVid.play().catch(() => {});
+    tryPlay();
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) tryPlay(); });
+    const stage = document.getElementById('hero-stage');
+    if (stage) {
+      stage.style.cursor = 'pointer';
+      stage.addEventListener('click', () => {
+        if (heroVid.paused) tryPlay(); else heroVid.pause();
+      });
+    }
+  }
 </script>
 </body>
 </html>
