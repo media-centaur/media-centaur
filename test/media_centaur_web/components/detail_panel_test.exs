@@ -5,6 +5,54 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
   alias MediaCentaurWeb.Components.DetailPanel
 
+  describe "delete_gesture_state/3" do
+    # The lifecycle of one delete button's gesture: idle → confirm
+    # (armed, awaiting the second click) → deleting (async delete in
+    # flight). `deleting` outranks `delete_confirm` so a button can't
+    # claim it's both "click again to confirm" and "deleting".
+
+    test "idle when the target is neither armed nor deleting" do
+      assert DetailPanel.delete_gesture_state(:all, nil, nil) == :idle
+    end
+
+    test "confirm when the target is the armed delete_confirm target" do
+      assert DetailPanel.delete_gesture_state(:all, nil, :all) == :confirm
+
+      assert DetailPanel.delete_gesture_state({:file, "/m/a.mkv"}, nil, {:file, "/m/a.mkv"}) ==
+               :confirm
+    end
+
+    test "deleting when an async delete is in flight for the target" do
+      assert DetailPanel.delete_gesture_state(:all, :all, nil) == :deleting
+
+      assert DetailPanel.delete_gesture_state({:folder, "/m/Show"}, {:folder, "/m/Show"}, nil) ==
+               :deleting
+    end
+
+    test "deleting outranks a stale confirm on the same target" do
+      assert DetailPanel.delete_gesture_state(:all, :all, :all) == :deleting
+    end
+
+    test "idle for a different target than the one in flight" do
+      assert DetailPanel.delete_gesture_state(:all, {:file, "/m/a.mkv"}, nil) == :idle
+    end
+  end
+
+  describe "delete_in_flight?/1" do
+    # While any delete is running, every delete button disables so the
+    # user can't stack a second destructive op on the busy modal.
+
+    test "false when nothing is deleting" do
+      refute DetailPanel.delete_in_flight?(nil)
+    end
+
+    test "true for any in-flight target" do
+      assert DetailPanel.delete_in_flight?(:all)
+      assert DetailPanel.delete_in_flight?({:file, "/m/a.mkv"})
+      assert DetailPanel.delete_in_flight?({:folder, "/m/Show"})
+    end
+  end
+
   describe "auto_expand_season/2" do
     test "expands season containing current episode" do
       season1 = build_season(%{season_number: 1, episodes: []})

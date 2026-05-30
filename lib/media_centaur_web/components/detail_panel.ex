@@ -75,6 +75,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   @doc_extra_progress_by_id "`%{Ecto.UUID.t() => WatchProgress.t()}` keyed by extra id."
   @doc_detail_files "list of file-info maps (`%{file: KnownFile.t(), entity_id, role, ...}`) built by `LibraryLive.list_files_for_entity/2`."
   @doc_delete_confirm "pending inline-confirm target: `nil` | `:all` | `{:file, path}` | `{:folder, path}`. The host's `delete_*_prompt` handlers compare against this to decide whether the click is the first (set pending) or second (execute). `:any` is intentional — it's a sum type, not a single shape."
+  @doc_deleting "in-flight delete target (same sum type as `delete_confirm`): `nil` | `:all` | `{:file, path}` | `{:folder, path}`. Set while the async deletion runs so the matching button shows \"Deleting…\" and all delete buttons disable. Distinct from `delete_confirm` (armed-but-not-yet-running) — see `delete_gesture_state/3`."
   @doc_movie "A movie row inside a `MovieSeries` content list. Either a `MediaCentaur.Library.Movie.t()` or the lean projection map from `DetailItem.movie_entry_to_map/1`. Required keys: `:id`, `:name`, `:date_published`. Optional (read via `Map.get`): `:images`, `:description`, `:duration_seconds`."
   @doc_extra "`MediaCentaur.Library.Extra.t()` (Ecto schema) — TV bonus content."
   @doc_files_list "list of file-info maps — same shape as `:detail_files`."
@@ -94,6 +95,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :detail_view, :atom, default: :main
   attr :detail_files, :list, default: [], doc: @doc_detail_files
   attr :delete_confirm, :any, default: nil, doc: @doc_delete_confirm
+  attr :deleting, :any, default: nil, doc: @doc_deleting
   attr :spoiler_free, :boolean, default: false
   attr :tracking_status, :atom, default: nil
   attr :tmdb_ready, :boolean, default: true
@@ -224,6 +226,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               files={@detail_files}
               rematch_confirm={@rematch_confirm}
               delete_confirm={@delete_confirm}
+              deleting={@deleting}
               tmdb_ready={@tmdb_ready}
             />
           <% _ -> %>
@@ -1079,6 +1082,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :files, :list, default: [], doc: @doc_files_list
   attr :rematch_confirm, :boolean, default: false
   attr :delete_confirm, :any, default: nil, doc: @doc_delete_confirm
+  attr :deleting, :any, default: nil, doc: @doc_deleting
   attr :tmdb_ready, :boolean, default: true
 
   defp info_view(assigns) do
@@ -1128,15 +1132,21 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             variant="danger"
             size="sm"
             phx-click="delete_all_prompt"
+            disabled={delete_in_flight?(@deleting)}
             data-nav-item
             tabindex="0"
             aria-label={delete_all_aria_label(@file_count)}
           >
             <.icon name="hero-trash-mini" class="size-4" />
-            <%= if @delete_confirm == :all do %>
-              Click again to confirm — {delete_all_label(@file_count)} ({format_file_size(@total_size)})
-            <% else %>
-              {delete_all_label(@file_count)} ({format_file_size(@total_size)})
+            <%= case delete_gesture_state(:all, @deleting, @delete_confirm) do %>
+              <% :deleting -> %>
+                Deleting… {delete_all_label(@file_count)} ({format_file_size(@total_size)})
+              <% :confirm -> %>
+                Click again to confirm — {delete_all_label(@file_count)} ({format_file_size(
+                  @total_size
+                )})
+              <% :idle -> %>
+                {delete_all_label(@file_count)} ({format_file_size(@total_size)})
             <% end %>
           </.button>
           <.button
@@ -1164,6 +1174,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 :if={!group.is_watch_dir}
                 variant="destructive_inline"
                 size="xs"
+                disabled={delete_in_flight?(@deleting)}
                 class={[
                   "ml-auto flex-shrink-0",
                   if(@delete_confirm == {:folder, group.dir},
@@ -1178,12 +1189,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 tabindex="0"
               >
                 <.icon name="hero-folder-minus-mini" class="size-3.5" />
-                <%= if @delete_confirm == {:folder, group.dir} do %>
-                  Click again to confirm
-                <% else %>
-                  Delete ({length(group.files)} {if length(group.files) == 1,
-                    do: "file",
-                    else: "files"})
+                <%= case delete_gesture_state({:folder, group.dir}, @deleting, @delete_confirm) do %>
+                  <% :deleting -> %>
+                    Deleting…
+                  <% :confirm -> %>
+                    Click again to confirm
+                  <% :idle -> %>
+                    Delete ({length(group.files)} {if length(group.files) == 1,
+                      do: "file",
+                      else: "files"})
                 <% end %>
               </.button>
             </div>
@@ -1192,6 +1206,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 :for={file_info <- group.files}
                 file_info={file_info}
                 delete_confirm={@delete_confirm}
+                deleting={@deleting}
               />
             </div>
           </div>
@@ -1314,6 +1329,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     doc:
       "current pending-delete target — `{:file, path}` flips this row's trash button into confirm state."
 
+  attr :deleting, :any, default: nil, doc: @doc_deleting
+
   defp file_row(assigns) do
     file = assigns.file_info.file
     size = assigns.file_info.size
@@ -1321,7 +1338,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     filename = Path.basename(file.file_path)
     badges = parse_quality_badges(filename)
     added_at = Map.get(file, :inserted_at)
-    is_pending = assigns.delete_confirm == {:file, file.file_path}
+    gesture = delete_gesture_state({:file, file.file_path}, assigns.deleting, assigns.delete_confirm)
 
     assigns =
       assigns
@@ -1331,13 +1348,19 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:absent, absent)
       |> assign(:badges, badges)
       |> assign(:added_at, added_at)
-      |> assign(:is_pending, is_pending)
+      |> assign(:gesture, gesture)
+      |> assign(:is_pending, gesture == :confirm)
+      |> assign(:is_deleting, gesture == :deleting)
+      |> assign(:delete_in_flight, delete_in_flight?(assigns.deleting))
 
     ~H"""
     <div class={[
       "text-sm rounded p-2",
       @absent && "opacity-60",
-      if(@is_pending, do: "bg-error/15 ring-1 ring-error/40", else: "bg-base-content/5")
+      if(@is_pending or @is_deleting,
+        do: "bg-error/15 ring-1 ring-error/40",
+        else: "bg-base-content/5"
+      )
     ]}>
       <div class="flex items-center gap-2">
         <.icon
@@ -1354,9 +1377,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <.button
           variant="destructive_inline"
           size="xs"
+          disabled={@delete_in_flight}
           class={[
             "min-h-0 flex-shrink-0",
-            if(@is_pending,
+            if(@is_pending or @is_deleting,
               do: "px-2 text-error font-medium",
               else: "size-6 p-0 text-error/70 hover:text-error"
             )
@@ -1368,6 +1392,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           tabindex="0"
         >
           <.icon name="hero-trash-mini" class="size-3.5" />
+          <span :if={@is_deleting}>Deleting…</span>
           <span :if={@is_pending}>Click to confirm</span>
         </.button>
       </div>
@@ -1550,6 +1575,38 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   defp delete_all_aria_label(1), do: "Delete the file for this entry"
   defp delete_all_aria_label(_), do: "Delete all files for this entry"
+
+  @doc """
+  Resolves one delete button's gesture state for `target`
+  (`:all | {:file, path} | {:folder, path}`). The lifecycle is
+  `:idle → :confirm → :deleting`:
+
+    * `:deleting` — an async delete is in flight for this target
+      (`deleting == target`); the button shows "Deleting…".
+    * `:confirm` — armed, awaiting the second click
+      (`delete_confirm == target`); the button shows "Click again…".
+    * `:idle` — neither.
+
+  `:deleting` outranks `:confirm` so a button can't claim both at once.
+  Pure — extracted per ADR-030 so the label/disabled logic is unit
+  tested without rendering.
+  """
+  @spec delete_gesture_state(term(), term(), term()) :: :idle | :confirm | :deleting
+  def delete_gesture_state(target, deleting, delete_confirm) do
+    cond do
+      deleting == target -> :deleting
+      delete_confirm == target -> :confirm
+      true -> :idle
+    end
+  end
+
+  @doc """
+  True while any delete is in flight. Every delete button disables
+  during it so a second destructive op can't be stacked on the busy
+  modal.
+  """
+  @spec delete_in_flight?(term()) :: boolean()
+  def delete_in_flight?(deleting), do: deleting != nil
 
   def format_file_size(bytes) when bytes >= 1_073_741_824 do
     "#{Float.round(bytes / 1_073_741_824, 1)} GB"

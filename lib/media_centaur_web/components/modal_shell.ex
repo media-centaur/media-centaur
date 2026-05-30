@@ -53,6 +53,10 @@ defmodule MediaCentaurWeb.Components.ModalShell do
     doc:
       "transient delete-confirmation state — `nil`, `:entity`, or a `%{file_id: id}` map. Heterogeneous tag-or-map shape; `:any` is intentional."
 
+  attr :deleting, :any,
+    default: nil,
+    doc: "Forwarded to `DetailPanel.detail_panel/1`. In-flight delete target — see its `:deleting` attr."
+
   attr :spoiler_free, :boolean, default: false
   attr :tracking_status, :atom, default: nil
   attr :available, :boolean, default: true
@@ -125,6 +129,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
                 detail_view={@detail_view}
                 detail_files={@detail_files}
                 delete_confirm={@delete_confirm}
+                deleting={@deleting}
                 spoiler_free={@spoiler_free}
                 tracking_status={@tracking_status}
                 available={@available}

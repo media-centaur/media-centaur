@@ -207,7 +207,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       def handle_event("refresh_artwork", %{"id" => entity_id}, socket) do
         type = socket.assigns.selected_entry.entity.type
         result = MediaCentaur.Pipeline.ImageRefresh.enqueue_refresh(entity_id, type)
-        {level, message} = MediaCentaurWeb.Live.EntityModal.refresh_artwork_flash(result)
+        {level, message} = EntityModal.refresh_artwork_flash(result)
         {:noreply, put_flash(socket, level, message)}
       end
 
@@ -308,7 +308,15 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       # here and is applied only if the same entity is still selected.
       @impl true
       def handle_async({:detail_files, entity_id}, {:ok, files}, socket) do
-        {:noreply, MediaCentaurWeb.Live.EntityModal.apply_detail_files(socket, entity_id, files)}
+        {:noreply, EntityModal.apply_detail_files(socket, entity_id, files)}
+      end
+
+      def handle_async({:delete, entity_id}, {:ok, result}, socket) do
+        {:noreply, EntityModal.apply_delete_result(socket, entity_id, result)}
+      end
+
+      def handle_async({:delete, _entity_id}, {:exit, reason}, socket) do
+        {:noreply, EntityModal.apply_delete_crash(socket, reason)}
       end
 
       def handle_async(_name, {:exit, _reason}, socket), do: {:noreply, socket}
@@ -540,6 +548,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       expanded_seasons: MapSet.new(),
       rematch_confirm: nil,
       delete_confirm: nil,
+      deleting: nil,
       tracking_status: nil,
       playback: %{}
     )
@@ -693,6 +702,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     required: true,
     doc: "transient delete-confirmation state — see `DetailPanel`'s contract."
 
+  attr :deleting, :any,
+    default: nil,
+    doc: "in-flight async delete target — see `DetailPanel`'s `:deleting` contract."
+
   attr :tracking_status, :atom, required: true
 
   attr :availability_map, :map,
@@ -716,6 +729,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       detail_view={@detail_view}
       detail_files={@detail_files}
       delete_confirm={@delete_confirm}
+      deleting={@deleting}
       spoiler_free={@spoiler_free}
       tracking_status={@tracking_status}
       available={
@@ -974,36 +988,75 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   @doc """
-  Executes the pending delete in `socket.assigns.delete_confirm`,
-  clears the pending state, and refreshes (or closes) the modal based
-  on what's left on disk. Returns the same `{:noreply, socket}` shape
-  the calling `handle_event/3` returns so the host LV can pipe through.
+  Kicks off the pending delete in `socket.assigns.delete_confirm` as an
+  owned async task (ADR-049) instead of running it inline.
+
+  Deleting an entity's files is `File.rm`/`File.rm_rf` plus a per-file DB
+  cleanup cascade — for a large entity (dozens of files / tens of GB, or
+  any file on a network mount) that is seconds of blocking work. Run
+  inline it froze the LiveView process: clicks queued behind it and the
+  client heartbeat timed out, dropping the socket and reconnecting (it
+  looked like the app crashed). The read path (`load_entity_files/1`,
+  `File.stat` per file) was already deferred for the same reason — this
+  closes the gap on the destructive write path.
+
+  Clears `delete_confirm`, marks `deleting` with the target so the
+  matching button shows "Deleting…" and all delete buttons disable, and
+  hands the actual deletion to `start_async/3`. The result lands in
+  `handle_async({:delete, id}, …)` → `apply_delete_result/3`.
 
   Public only so the macro-injected handlers can call it; not part of
   the host contract.
   """
   def run_pending_delete(socket) do
     entity_id = socket.assigns.selected_entity_id
-    result = run_delete(socket.assigns)
-    socket = Phoenix.Component.assign(socket, delete_confirm: nil)
+    target = socket.assigns.delete_confirm
+    delete_args = Map.take(socket.assigns, [:delete_confirm, :detail_files, :watch_dirs])
+
+    socket =
+      socket
+      |> Phoenix.Component.assign(delete_confirm: nil, deleting: target)
+      |> Phoenix.LiveView.start_async({:delete, entity_id}, fn -> run_delete(delete_args) end)
+
+    {:noreply, socket}
+  end
+
+  @doc """
+  Applies the result of the async delete task: clears the `deleting`
+  flag, then closes the modal if the entity has no files left on disk or
+  refreshes the file list if some remain. Surfaces `{:error, reason}` as
+  a flash. Returns a socket (the macro-injected `handle_async` wraps it).
+  """
+  def apply_delete_result(socket, entity_id, result) do
+    socket = Phoenix.Component.assign(socket, deleting: nil)
 
     case result do
       {:ok, _entity_ids} ->
-        files = MediaCentaur.Library.list_watched_files_by_entity_id(entity_id)
-
-        if files == [] do
-          {:noreply,
-           Phoenix.LiveView.push_patch(socket,
-             to: socket.view.build_modal_path(socket, %{selected: nil, view: :main})
-           )}
+        if MediaCentaur.Library.list_watched_files_by_entity_id(entity_id) == [] do
+          Phoenix.LiveView.push_patch(socket,
+            to: socket.view.build_modal_path(socket, %{selected: nil, view: :main})
+          )
         else
-          detail_files = load_entity_files(entity_id)
-          {:noreply, Phoenix.Component.assign(socket, detail_files: detail_files)}
+          Phoenix.Component.assign(socket, detail_files: load_entity_files(entity_id))
         end
 
       {:error, reason} ->
-        {:noreply, Phoenix.LiveView.put_flash(socket, :error, "Delete failed: #{reason}")}
+        Log.warning(:library, "delete failed — #{inspect(reason)}")
+        Phoenix.LiveView.put_flash(socket, :error, "Delete failed: #{reason}")
     end
+  end
+
+  @doc """
+  Handles a crashed delete task (`{:exit, reason}`): clears the
+  `deleting` flag, logs, and flashes so the modal recovers instead of
+  staying stuck on "Deleting…".
+  """
+  def apply_delete_crash(socket, reason) do
+    Log.error(:library, "delete task crashed — #{inspect(reason)}")
+
+    socket
+    |> Phoenix.Component.assign(deleting: nil)
+    |> Phoenix.LiveView.put_flash(:error, "Delete failed")
   end
 
   # --- Private helpers ---

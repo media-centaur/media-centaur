@@ -345,6 +345,28 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         }
       },
       %Variation{
+        id: :delete_in_flight_all,
+        description:
+          "`deleting: :all` — the async delete is running (the gesture's third " <>
+            "state, after idle → confirm). The prominent danger button reads " <>
+            "**Deleting… Delete all files (size)** and every delete button on " <>
+            "the panel is disabled so a second destructive op can't be stacked " <>
+            "on the busy modal. Captures the feedback that replaced the silent " <>
+            "process-blocking delete.",
+        attributes: %{
+          entity: sample_movie_entity(),
+          progress: nil,
+          resume: nil,
+          progress_records: [],
+          available: true,
+          tmdb_ready: true,
+          detail_view: :info,
+          detail_files: sample_detail_files(),
+          deleting: :all,
+          expanded_seasons: MapSet.new()
+        }
+      },
+      %Variation{
         id: :tv_series_credits_view,
         description:
           "`detail_view: :credits` on a TV series — opens the More info panel " <>
