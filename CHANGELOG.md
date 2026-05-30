@@ -4,6 +4,23 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.77.4 — 2026-05-31
+
+### Fixed
+
+**Manual-search downloads now clear from your queue even when the download client drops the finished torrent.**
+The previous release taught Media Centaur to recognise a download by its torrent fingerprint, but a
+follow-on gap could still leave a request stuck: when a file finished and landed in your library
+before Media Centaur recorded where it had downloaded to, the request stayed open showing
+"Downloaded". Media Centaur now records that location as soon as the download appears, and also
+recognises files whose release name includes the file type as a trailing word (for example a name
+ending in "… x264-FS mkv"). Stuck requests like these now complete on their own.
+
+**Deleting a library entry with many files no longer freezes the dialog.**
+Removing an entry that tracked a large number of files could briefly lock up the confirmation
+dialog while the files were cleared. That work now happens in the background, so the dialog stays
+responsive.
+
 ## v0.77.3 — 2026-05-31
 
 ### Fixed
