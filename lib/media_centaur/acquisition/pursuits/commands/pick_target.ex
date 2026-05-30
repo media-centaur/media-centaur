@@ -31,7 +31,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
   alias MediaCentaur.Acquisition.Pursuits.Commands.Runner
   alias MediaCentaur.Acquisition.Pursuits.Events.{FallbackInitiated, UserDecisionRecorded}
   alias MediaCentaur.Search.SearchResult
-  alias MediaCentaur.Acquisition.{Target, TargetStatus}
+  alias MediaCentaur.Acquisition.{InfoHash, Target, TargetStatus}
   alias MediaCentaur.Repo
 
   @doc """
@@ -45,6 +45,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
   def execute(%{pursuit_id: id, result: %SearchResult{} = result, choice_label: label} = args)
       when is_binary(label) do
     origin = Map.get(args, :origin, "manual")
+    torrent_hash = InfoHash.resolve(result)
 
     log_label = fn pursuit ->
       "pursuit target picked — #{pursuit.title} — #{label}"
@@ -55,7 +56,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
       now = DateTime.utc_now(:second)
 
       with {:ok, _previous_target} <- maybe_fail_current_target(pursuit),
-           {:ok, new_target} <- insert_acquired_target(pursuit, result, origin),
+           {:ok, new_target} <- insert_acquired_target(pursuit, result, origin, torrent_hash),
            {:ok, attempted} <-
              Repo.update(Pursuit.record_attempt_changeset(pursuit, result.guid)),
            {:ok, with_target} <-
@@ -100,9 +101,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
     end
   end
 
-  defp insert_acquired_target(%Pursuit{} = pursuit, %SearchResult{} = result, origin) do
+  defp insert_acquired_target(%Pursuit{} = pursuit, %SearchResult{} = result, origin, torrent_hash) do
     result
-    |> Target.acquired_changeset(pursuit_id: pursuit.id, origin: origin)
+    |> Target.acquired_changeset(pursuit_id: pursuit.id, origin: origin, torrent_hash: torrent_hash)
     |> Repo.insert()
   end
 end

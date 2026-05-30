@@ -38,7 +38,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
 
   alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit}
   alias MediaCentaur.Acquisition.Pursuits.Events.{PursuitStarted, ReleasePicked}
-  alias MediaCentaur.Acquisition.Target
+  alias MediaCentaur.Acquisition.{InfoHash, Target}
   alias MediaCentaur.Search.{Quality, SearchResult}
   alias MediaCentaur.Repo
 
@@ -58,11 +58,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
   def execute(%{result: %SearchResult{} = result, manual_query: manual_query} = args) do
     origin = Map.get(args, :origin, "manual")
     now = DateTime.utc_now(:second)
+    torrent_hash = InfoHash.resolve(result)
 
     result_in_transaction =
       Repo.transaction(fn ->
         with {:ok, pursuit} <- insert_pursuit(result, manual_query, origin),
-             {:ok, target} <- insert_acquired_target(pursuit, result, origin),
+             {:ok, target} <- insert_acquired_target(pursuit, result, origin, torrent_hash),
              {:ok, attempted} <-
                Repo.update(Pursuit.record_attempt_changeset(pursuit, result.guid)),
              {:ok, with_target} <-
@@ -113,9 +114,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
     |> Repo.insert()
   end
 
-  defp insert_acquired_target(%Pursuit{} = pursuit, %SearchResult{} = result, origin) do
+  defp insert_acquired_target(%Pursuit{} = pursuit, %SearchResult{} = result, origin, torrent_hash) do
     result
-    |> Target.acquired_changeset(pursuit_id: pursuit.id, origin: origin)
+    |> Target.acquired_changeset(pursuit_id: pursuit.id, origin: origin, torrent_hash: torrent_hash)
     |> Repo.insert()
   end
 end
