@@ -476,7 +476,10 @@ defmodule MediaCentaur.Watcher do
   defp detect_file(path, watch_dir) do
     Log.info(:watcher, "detected #{Path.basename(path)}")
 
-    FilePresence.stamp(path, watch_dir)
+    # Record byte size on first detection so a future move of this file can
+    # be recognised by relink-on-move (relative path + size). Stat only here
+    # (new files), never in the bulk last_seen_at refresh — see MoveMatcher.
+    FilePresence.stamp(path, watch_dir, DateTime.utc_now(), size: file_size(path))
 
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
@@ -485,6 +488,13 @@ defmodule MediaCentaur.Watcher do
     )
 
     :ok
+  end
+
+  defp file_size(path) do
+    case File.stat(path) do
+      {:ok, %{size: size}} -> size
+      {:error, _} -> nil
+    end
   end
 
   defp schedule_health_check(device_id) do
