@@ -69,6 +69,7 @@ defmodule MediaCentaur.Library do
     FilePresence,
     Image,
     MediaTrackOverride,
+    MoveMatcher,
     Movie,
     MovieSeries,
     PlayableItem,
@@ -720,6 +721,91 @@ defmodule MediaCentaur.Library do
 
   def list_files_by_watch_dir(watch_dir) do
     Repo.all(from(w in WatchedFile, where: w.watch_dir == ^watch_dir))
+  end
+
+  @doc """
+  Relink-on-move. Given newly-seen `{path, size}` pairs under
+  `new_watch_dir`, re-point any that `MoveMatcher` recognises as a file
+  that *moved* — rewriting the `WatchedFile` / `ExtraFile` rows and the
+  `FilePresence` ledger to the new location — instead of letting them
+  import as brand-new entities.
+
+  A match is acted on only when the old path is actually gone on disk
+  (`:exists?`, default `&File.regular?/1`), which distinguishes a move
+  from a copy. Returns `%{relinked: [path], still_new: [path]}`; the
+  caller dispatches only `still_new` to the import pipeline.
+  """
+  @spec relink_moved_files([{String.t(), non_neg_integer() | nil}], String.t(), keyword()) ::
+          %{relinked: [String.t()], still_new: [String.t()]}
+  def relink_moved_files(new_files, new_watch_dir, opts \\ [])
+
+  def relink_moved_files([], _new_watch_dir, _opts), do: %{relinked: [], still_new: []}
+
+  def relink_moved_files(new_files, new_watch_dir, opts) do
+    exists? = Keyword.get(opts, :exists?, &File.regular?/1)
+
+    sizes = new_files |> Enum.map(&elem(&1, 1)) |> Enum.reject(&is_nil/1) |> Enum.uniq()
+    candidates = FilePresence.list_relink_candidates(sizes)
+
+    {moves, still_new} =
+      Enum.reduce(new_files, {[], []}, fn {path, size}, {moves, still_new} ->
+        case MoveMatcher.match(%{path: path, watch_dir: new_watch_dir, size: size}, candidates) do
+          {:move, old} ->
+            # Old path still on disk → a copy, not a move. Let it import.
+            if exists?.(old.file_path),
+              do: {moves, [path | still_new]},
+              else: {[{old, path, size} | moves], still_new}
+
+          :no_match ->
+            {moves, [path | still_new]}
+        end
+      end)
+
+    %{
+      relinked: moves |> Enum.reverse() |> perform_relinks(new_watch_dir),
+      still_new: Enum.reverse(still_new)
+    }
+  end
+
+  defp perform_relinks([], _new_watch_dir), do: []
+
+  defp perform_relinks(moves, new_watch_dir) do
+    now = DateTime.utc_now()
+    now_seconds = DateTime.truncate(now, :second)
+
+    {:ok, {relinked, entity_ids}} =
+      Repo.transaction(fn ->
+        Enum.reduce(moves, {[], []}, fn {old, new_path, new_size}, {paths, ids} ->
+          moved_entity_ids =
+            [old.file_path]
+            |> list_files_by_paths()
+            |> Enum.map(&top_level_entity_id_for_watched_file/1)
+            |> Enum.reject(&is_nil/1)
+
+          Repo.update_all(from(w in WatchedFile, where: w.file_path == ^old.file_path),
+            set: [file_path: new_path, watch_dir: new_watch_dir]
+          )
+
+          Repo.update_all(from(ef in ExtraFile, where: ef.file_path == ^old.file_path),
+            set: [file_path: new_path, watch_dir: new_watch_dir]
+          )
+
+          Repo.update_all(from(p in FilePresence, where: p.id == ^old.id),
+            set: [
+              file_path: new_path,
+              watch_dir: new_watch_dir,
+              size: new_size,
+              last_seen_at: now,
+              updated_at: now_seconds
+            ]
+          )
+
+          {[new_path | paths], ids ++ moved_entity_ids}
+        end)
+      end)
+
+    broadcast_entities_changed(Enum.uniq(entity_ids))
+    Enum.reverse(relinked)
   end
 
   @doc """

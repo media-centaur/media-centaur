@@ -156,6 +156,17 @@ defmodule MediaCentaur.Library.FilePresence do
   end
 
   @doc """
+  Candidate rows for relink-on-move matching: any row whose `size` is one
+  of `sizes`, plus all rows with a `nil` size (pre-feature rows that can
+  only be matched on relative path). The caller (`MoveMatcher`) does the
+  relative-path comparison in memory.
+  """
+  @spec list_relink_candidates([non_neg_integer()]) :: [t()]
+  def list_relink_candidates(sizes) do
+    Repo.all(from(p in __MODULE__, where: p.size in ^sizes or is_nil(p.size)))
+  end
+
+  @doc """
   Deletes FilePresence rows by path. Cascade-delete on dependent
   schemas (`WatchedFile`, `ExtraFile`) fires via the FK constraint
   introduced in campaign Phase 3.
