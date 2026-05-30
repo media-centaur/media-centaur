@@ -46,8 +46,28 @@ Append-only log.
 
 ## Next steps
 
-1. **Discoverability** (deferred from the robustness pass) — surface the existing "Scan now" action in the **Library** settings section; today it lives only in *Services* (settings_live.ex:1807) and the console drawer, nowhere near watch-dir management.
-2. **Wiki** — `Troubleshooting.md` "moved media won't show up" entry now that the workflow shape has settled (move files → change watch dir → relink happens on the scan).
+1. ~~**Discoverability** — Scan-now in the Library settings section.~~ Shipped `ff73cf2d` (Scan-now / Cancel footer on the Watch Directories card).
+2. **Ship** — `/ship` (patch or minor) to release the shipped commits so the reporter and other users actually get the fixes + relink. Held back: two other agents had in-flight work and the move touched the shared prod DB, so the release timing/version is the user's call.
+3. **Wiki** (held until the release version is known — the wiki gates behaviour by version, and this is unreleased). Ready-to-paste entry under `Troubleshooting.md`'s "The Watcher isn't detecting my files" section:
+
+   ```markdown
+   ### I moved my media to a new drive and the library looks empty
+
+   Move your files, then point Media Centaur at the new location in
+   **Settings → Library → Watch Directories** (edit the entry, or remove the
+   old one and add the new path). On the scan that follows, Media Centaur
+   recognises files that simply *moved* — same path within the watch
+   directory, same size — and re-links them to their existing library
+   entries, so your watch history and metadata are preserved. You can also
+   press **Scan now** in **Settings → Library** to trigger it immediately.
+
+   You should not need **Clear database** for a move. (Available in vX.Y+.)
+
+   Caveats: a *renamed* or *re-encoded* file no longer matches and imports as
+   new; a single file moved in while the app is running is picked up on the
+   next scan.
+   ```
+
 
 ## Completion criteria
 
