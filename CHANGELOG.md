@@ -4,6 +4,33 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.77.1 — 2026-05-30
+
+### New
+
+**Moving your media to a new drive no longer empties your library.** Move your
+files, then point Media Centaur at the new location in **Settings → Library →
+Watch Directories**. On the next scan, files that simply moved — same folder
+layout, same size — are recognised and re-linked to their existing entries, so
+your watch history and details carry over instead of being re-imported as brand
+new. (A file you *renamed* or re-encoded still comes in as new.)
+
+### Improved
+
+**There's now a "Scan now" button in Settings → Library**, right where you
+manage your watch directories — so after moving or adding files you can pick
+them up immediately instead of hunting through other screens.
+
+### Fixed
+
+**Clearing the database now fully resets.** Previously, using **Clear database**
+in the Danger Zone could leave behind internal file records that made the next
+scan skip your media — so the library stayed empty until you restarted the app.
+A clear now rebuilds cleanly from what's on disk.
+
+**Fixed a rare server error when a missing image was requested.** Missing
+artwork now always falls back to the usual placeholder instead of erroring.
+
 ## v0.77.0 — 2026-05-29
 
 ### New
