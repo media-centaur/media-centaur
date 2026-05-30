@@ -542,4 +542,53 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
              "card title must be suppressed when the persisted setting is `enabled: false`"
     end
   end
+
+  describe "delete files runs async" do
+    # Regression: deleting an entity's files ran inline in handle_event.
+    # For a large entity (dozens of files / tens of GB, or a network
+    # mount) that blocked the LiveView process — clicks did nothing and
+    # the heartbeat timed out, dropping the socket (it looked like a
+    # crash). Deletion now runs in an owned start_async task (ADR-049):
+    # handle_event returns immediately and the result lands in
+    # handle_async. This drives that path to completion and asserts the
+    # records are gone and the modal closed.
+    setup do
+      movie = create_standalone_movie(%{name: "Async Delete Fixture"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      {:ok, movie: movie}
+    end
+
+    test "confirming delete-all removes the files and closes the modal", %{
+      conn: conn,
+      movie: movie
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+
+      assert Library.list_watched_files_by_entity_id(movie.id) != [],
+             "fixture must start with files on disk"
+
+      # First click arms the inline confirm gesture.
+      armed_html =
+        view
+        |> element("button[phx-click='delete_all_prompt']")
+        |> render_click()
+
+      assert armed_html =~ "Click again to confirm"
+
+      # Second click hands the deletion to start_async; drain it.
+      view
+      |> element("button[phx-click='delete_all_prompt']")
+      |> render_click()
+
+      _ = render_async(view, 2_000)
+
+      assert Library.list_watched_files_by_entity_id(movie.id) == [],
+             "async delete must remove the watched-file records"
+
+      patched_to = assert_patch(view)
+
+      refute patched_to =~ "selected=",
+             "modal must close (selection cleared) once no files remain"
+    end
+  end
 end
