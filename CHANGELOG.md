@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.77.2 — 2026-05-30
+
+### Fixed
+
+**Your controller can no longer act on a Media Centaur window you can't see.**
+If a Media Centaur page was left open in the background — hidden behind other
+windows, on another desktop, or minimised — a connected gamepad could still
+drive it, occasionally launching playback in a window you weren't even looking
+at. Gamepad input is now accepted only by the Media Centaur window you actually
+have in front of you.
+
 ## v0.77.1 — 2026-05-30
 
 ### New
