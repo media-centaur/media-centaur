@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Record the marketing-site hero demo clip.
+#
+# Boots the showcase server (reuses one already on :4003), drives a short
+# scripted walkthrough with Playwright while recording video, then encodes
+# a web-optimized, muted, looping MP4 into docs-site/assets/hero-demo.mp4.
+#
+# Does NOT publish — review the clip locally, then commit + push as usual.
+# The hero <video> in docs-site/index.html already points at the output.
+#
+# Prereqs: a seeded showcase DB (scripts/reseed-showcase), ffmpeg, and the
+# Playwright deps under test/e2e/ (bun install).
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$REPO_ROOT"
+
+SHOWCASE_PORT=4003
+SHOWCASE_DB="priv/showcase/media-centaur.db"
+LOG_FILE="$(mktemp -t showcase-server.XXXXXX.log)"
+VIDEO_DIR="$(mktemp -d -t hero-demo.XXXXXX)"
+OUT="docs-site/assets/hero-demo.mp4"
+SERVER_PID=""
+
+cleanup() {
+  if [ -n "$SERVER_PID" ] && kill -0 "$SERVER_PID" 2>/dev/null; then
+    echo "stopping showcase server (pid=$SERVER_PID)"
+    kill "$SERVER_PID" 2>/dev/null || true
+    for _ in 1 2 3 4 5 6 7 8; do
+      sleep 1; kill -0 "$SERVER_PID" 2>/dev/null || break
+    done
+    kill -0 "$SERVER_PID" 2>/dev/null && kill -9 "$SERVER_PID" 2>/dev/null || true
+  fi
+  rm -rf "$VIDEO_DIR"
+  [ -f "$LOG_FILE" ] && rm -f "$LOG_FILE" || true
+}
+trap cleanup EXIT INT TERM
+
+command -v ffmpeg >/dev/null || { echo "error: ffmpeg not found" >&2; exit 1; }
+
+if [ ! -f "$SHOWCASE_DB" ]; then
+  echo "error: showcase DB missing at $SHOWCASE_DB" >&2
+  echo "Seed it first:  TMDB_API_KEY=<real-key> scripts/reseed-showcase" >&2
+  exit 1
+fi
+
+# Reuse a server already on :4003, else boot one.
+if ss -tlnH 2>/dev/null | awk -v p=":$SHOWCASE_PORT" '$4 ~ p {found=1} END {exit !found}'; then
+  echo "reusing existing showcase server on :$SHOWCASE_PORT"
+else
+  echo "starting showcase server (logs → $LOG_FILE)"
+  MEDIA_CENTAUR_CONFIG_OVERRIDE="defaults/media-centaur-showcase.toml" \
+    nohup mise exec -- mix phx.server > "$LOG_FILE" 2>&1 &
+  SERVER_PID=$!
+  for _ in $(seq 1 60); do
+    curl --silent --fail --max-time 1 "http://127.0.0.1:$SHOWCASE_PORT" >/dev/null 2>&1 && break
+    if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+      echo "error: showcase server exited during startup. Last 40 log lines:" >&2
+      tail -n 40 "$LOG_FILE" >&2; exit 1
+    fi
+    sleep 1
+  done
+  curl --silent --fail --max-time 3 "http://127.0.0.1:$SHOWCASE_PORT" >/dev/null 2>&1 \
+    || { echo "error: showcase did not bind :$SHOWCASE_PORT after 60s" >&2; tail -n 40 "$LOG_FILE" >&2; exit 1; }
+  echo "showcase server up (pid=$SERVER_PID)"
+fi
+
+echo "recording walkthrough…"
+( cd test/e2e && DEMO_OUT_DIR="$VIDEO_DIR" node demo-record.mjs )
+
+WEBM="$(ls "$VIDEO_DIR"/*.webm 2>/dev/null | head -1)"
+[ -n "$WEBM" ] || { echo "error: no video recorded in $VIDEO_DIR" >&2; exit 1; }
+
+echo "encoding $OUT …"
+ffmpeg -v error -i "$WEBM" -an -c:v libx264 -pix_fmt yuv420p -crf 30 -preset slow \
+  -movflags +faststart "$OUT" -y
+
+echo "done: $OUT ($(du -h "$OUT" | cut -f1))"
+echo "Review it (the hero <video> already references it), then commit + push to publish."

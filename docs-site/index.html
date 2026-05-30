@@ -594,14 +594,12 @@
 
     <!-- 16:9 stage built to host a looping muted demo video. Screenshot is the poster placeholder. -->
     <div class="hero-stage reveal d3" id="hero-stage">
-      <!-- Drop-in later:  <video class="media" autoplay loop muted playsinline poster="…/home.png"><source src="demo.mp4" type="video/mp4"></video> -->
-      <div class="poster" style="background-image:url('assets/screenshots/home.png')"></div>
+      <video class="media" autoplay loop muted playsinline preload="metadata"
+             poster="assets/screenshots/home.png">
+        <source src="assets/hero-demo.mp4" type="video/mp4" />
+      </video>
       <div class="stage-scrim"></div>
       <span class="stage-chip"><span class="dot"></span>Live preview</span>
-      <button class="play-affordance" type="button" aria-label="Watch it in motion">
-        <span class="disc"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span>
-        Watch it in motion
-      </button>
     </div>
   </div>
 </header>
