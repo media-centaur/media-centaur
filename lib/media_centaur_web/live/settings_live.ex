@@ -2724,6 +2724,36 @@ defmodule MediaCentaurWeb.SettingsLive do
             </div>
           </li>
         </ul>
+
+        <div class="mt-1 pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
+          <p class="text-xs text-base-content/50 min-w-0">
+            Moved or added files? Scan to pick them up now. Files that moved to a
+            new directory are re-linked to their existing library entry automatically.
+          </p>
+          <div class="flex items-center gap-2 shrink-0">
+            <.button
+              :if={@scanning}
+              variant="dismiss"
+              size="sm"
+              phx-click="cancel_scan"
+              data-nav-item
+              tabindex="0"
+            >
+              Cancel
+            </.button>
+            <.button
+              variant="action"
+              size="sm"
+              phx-click="scan"
+              disabled={@scanning}
+              data-nav-item
+              tabindex="0"
+            >
+              <span :if={@scanning} class="loading loading-spinner loading-xs"></span>
+              {if @scanning, do: "Scanning…", else: "Scan now"}
+            </.button>
+          </div>
+        </div>
       </div>
 
       <div class="glass-surface rounded-xl p-4 space-y-3">
