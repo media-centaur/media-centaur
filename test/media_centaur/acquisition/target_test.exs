@@ -66,4 +66,43 @@ defmodule MediaCentaur.Acquisition.TargetTest do
       refute Map.has_key?(changeset.changes, :torrent_hash)
     end
   end
+
+  describe "acquired_changeset/2 :torrent_hash opt" do
+    test "stores the resolved :torrent_hash opt when given" do
+      result = %MediaCentaur.Search.SearchResult{
+        title: "Sample.Release.2024.1080p-GRP",
+        guid: "g1",
+        indexer_id: 1,
+        info_hash: nil,
+        magnet_url: nil
+      }
+
+      changeset =
+        MediaCentaur.Acquisition.Target.acquired_changeset(result,
+          pursuit_id: Ecto.UUID.generate(),
+          torrent_hash: "0123456789abcdef0123456789abcdef01234567"
+        )
+
+      assert Ecto.Changeset.get_change(changeset, :torrent_hash) ==
+               "0123456789abcdef0123456789abcdef01234567"
+    end
+
+    test "falls back to the search result hash when no opt is given" do
+      result = %MediaCentaur.Search.SearchResult{
+        title: "Sample.Release.2024.1080p-GRP",
+        guid: "g1",
+        indexer_id: 1,
+        info_hash: "0123456789ABCDEF0123456789ABCDEF01234567",
+        magnet_url: nil
+      }
+
+      changeset =
+        MediaCentaur.Acquisition.Target.acquired_changeset(result,
+          pursuit_id: Ecto.UUID.generate()
+        )
+
+      assert Ecto.Changeset.get_change(changeset, :torrent_hash) ==
+               "0123456789abcdef0123456789abcdef01234567"
+    end
+  end
 end
