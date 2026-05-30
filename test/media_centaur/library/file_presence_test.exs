@@ -36,6 +36,26 @@ defmodule MediaCentaur.Library.FilePresenceTest do
       assert moved.watch_dir == "/media/extra"
       assert Repo.aggregate(FilePresence, :count) == 1
     end
+
+    test "records byte size when given (for relink-on-move matching)" do
+      now = DateTime.utc_now()
+
+      presence =
+        FilePresence.stamp("/media/movies/sample.mkv", "/media/movies", now, size: 123_456)
+
+      assert presence.size == 123_456
+    end
+
+    test "a restamp without a size leaves an existing size intact" do
+      # The bulk last_seen_at refresh restamps every file with no size; it
+      # must not wipe the size a new-file detection recorded.
+      _first =
+        FilePresence.stamp("/media/movies/sample.mkv", "/media/movies", DateTime.utc_now(), size: 999)
+
+      refreshed = FilePresence.stamp("/media/movies/sample.mkv", "/media/movies")
+
+      assert refreshed.size == 999
+    end
   end
 
   describe "stamp_many/3" do

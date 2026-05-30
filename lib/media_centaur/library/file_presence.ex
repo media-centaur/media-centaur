@@ -46,6 +46,10 @@ defmodule MediaCentaur.Library.FilePresence do
     field :file_path, :string
     field :watch_dir, :string
     field :last_seen_at, :utc_datetime_usec
+    # Byte size on disk, captured at detection. Used by relink-on-move to
+    # recognise a moved file. Nullable — pre-feature rows fall back to a
+    # relative-path-only match (see `Library.MoveMatcher`).
+    field :size, :integer
 
     timestamps()
   end
@@ -53,7 +57,7 @@ defmodule MediaCentaur.Library.FilePresence do
   @doc false
   def changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:file_path, :watch_dir, :last_seen_at])
+    |> cast(attrs, [:file_path, :watch_dir, :last_seen_at, :size])
     |> validate_required([:file_path, :watch_dir, :last_seen_at])
     |> unique_constraint(:file_path)
   end
@@ -68,17 +72,23 @@ defmodule MediaCentaur.Library.FilePresence do
   time (defaulting to `now()`).
 
   Returns the persisted struct.
+
+  `opts` may carry `:size` (bytes on disk) for relink-on-move matching.
+  A stamp *without* a size never clears an existing one — the bulk
+  `last_seen_at` refresh restamps every file size-less, and must not wipe
+  the size a new-file detection recorded.
   """
-  @spec stamp(String.t(), String.t(), DateTime.t() | nil) :: t()
-  def stamp(file_path, watch_dir, seen_at \\ DateTime.utc_now()) do
-    attrs = %{file_path: file_path, watch_dir: watch_dir, last_seen_at: seen_at}
+  @spec stamp(String.t(), String.t(), DateTime.t() | nil, keyword()) :: t()
+  def stamp(file_path, watch_dir, seen_at \\ DateTime.utc_now(), opts \\ []) do
+    size = Keyword.get(opts, :size)
+    attrs = %{file_path: file_path, watch_dir: watch_dir, last_seen_at: seen_at, size: size}
+
+    set = [last_seen_at: seen_at, watch_dir: watch_dir, updated_at: trunc_seconds(seen_at)]
+    set = if is_nil(size), do: set, else: Keyword.put(set, :size, size)
 
     {:ok, presence} =
-      Repo.insert(
-        changeset(attrs),
-        on_conflict: [
-          set: [last_seen_at: seen_at, watch_dir: watch_dir, updated_at: trunc_seconds(seen_at)]
-        ],
+      Repo.insert(changeset(attrs),
+        on_conflict: [set: set],
         conflict_target: :file_path,
         returning: true
       )
