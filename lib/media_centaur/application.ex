@@ -37,6 +37,24 @@ defmodule MediaCentaur.Application do
       %{level: :all, config: %{}}
     )
 
+    # Durable diagnostics capture — an INDEPENDENT peer of the Console handler,
+    # not downstream of it. Both receive logger events directly, so a crash or
+    # backpressure in the volatile Console buffer cannot starve the durable
+    # incident store. `level: :warning` lets :logger pre-filter to the tier we
+    # persist (warning and above) before the handler is even invoked.
+    #
+    # Not installed under :test — a globally-attached handler would funnel the
+    # whole suite's ambient warning/error logs into the shared-sandbox DB via
+    # the global Buckets, racing per-test teardown. The handler, Buckets,
+    # Capture, and Store are all exercised directly in their own tests instead.
+    if Application.get_env(:media_centaur, :environment) != :test do
+      :logger.add_handler(
+        :media_centaur_diagnostics,
+        MediaCentaur.ErrorReports.LogHandler,
+        %{level: :warning, config: %{}}
+      )
+    end
+
     children =
       [
         MediaCentaurWeb.Telemetry,

@@ -79,6 +79,19 @@ rollup. Full `mix precommit` green (4200 Elixir + 484 JS). The prod migration
 is **not yet applied locally** — it ships with the release (additive, no
 backfill).
 
+**Phase 1 hardening (post-review, same day).** Two fumbles caught and fixed:
+(1) durable capture was downstream of the volatile Console buffer — now an
+**independent `:logger` handler** (`ErrorReports.LogHandler`), a peer of
+`Console.Handler`, so a crashed/backed-up buffer can't starve the store
+(entry-building shared via `Console.Entry.from_log_event/3`; durable handler not
+installed under `:test`); (2) every warning/error was an unthrottled per-line DB
+write — now a **per-fingerprint debounce** (`PersistThrottle`): first occurrence
+persists, bursts coalesce into one write/window, count stays accurate (flushed
+periodically + on `terminate/2`). Documented the single-serial-writer invariant
+on `Store.upsert_log_incident`. **Deferred:** incident retention (events prune at
+30d, incidents don't) and the metadata atom→string JSON round-trip — both noted
+for a later pass.
+
 Phases 2–4 remain. Design settled and specced. Visual mockups deliberately
 parked until Phase 4. Three throwaway exploration mockups exist under
 `mockups/observability/` (direction 1 chosen; chip/console styling since

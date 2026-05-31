@@ -197,6 +197,14 @@ the report. No separate "download bundle" UI.
   dedicated durable sink/incidents process does persistence, async vitals
   gathering, and snapshot freezing. Volatile (Console) and durable (Diagnostics)
   paths remain independent — a failure in one must not take down the other.
+  - *Phase 1 realization (2026-05-31):* the durable path is an **independent
+    `:logger` handler** (`ErrorReports.LogHandler`), a peer of `Console.Handler`
+    rather than a subscriber to its PubSub — so a crashed/backed-up Console
+    buffer cannot starve durable capture. The handler only builds an entry (via
+    the shared `Console.Entry.from_log_event/3`) and casts to `Buckets`, which
+    persists under a **per-fingerprint write throttle** (`PersistThrottle`) so an
+    error storm cannot flood the single SQLite writer. Pending coalesced writes
+    flush periodically and on graceful `terminate/2`.
 - **Submission**: a `ReportTransport` behaviour with a GitHub-REST private-repo
   implementation; tests stub it (no network). `IssueUrl`'s public-URL role is
   replaced; `Redactor` + `EnvMetadata` reused. `error_report.js` (`window.open`)

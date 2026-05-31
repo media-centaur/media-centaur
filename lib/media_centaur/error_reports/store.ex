@@ -74,9 +74,17 @@ defmodule MediaCentaur.ErrorReports.Store do
   Opens, or bumps, the `:log` incident grouped by `attrs.fingerprint`.
 
   First occurrence inserts an open incident (`count: 1`, `first_seen ==
-  last_seen == occurred_at`). A recurrence bumps `count`, advances `last_seen`
-  to the latest `occurred_at` seen, keeps the earliest `first_seen`, and
-  reopens the incident if it had been resolved.
+  last_seen == occurred_at`). A recurrence bumps `count` (by `attrs.occurrences`,
+  default 1), advances `last_seen` to the latest `occurred_at` seen, keeps the
+  earliest `first_seen`, and reopens the incident if it had been resolved.
+
+  > #### Single-writer invariant {: .info}
+  > This is a read-then-insert/update, **not** an atomic `ON CONFLICT` upsert.
+  > It is race-free only because the lone `Buckets` GenServer serializes every
+  > `:log` write. The partial unique index on `fingerprint` is the backstop
+  > (a racing insert would `{:error, changeset}`). When Phase 2 lets subsystems
+  > raise incidents directly — a second writer — switch this to a true
+  > `ON CONFLICT` upsert before relying on it concurrently.
   """
   @spec upsert_log_incident(map()) :: {:ok, Incident.t()} | {:error, Ecto.Changeset.t()}
   def upsert_log_incident(attrs) do
@@ -166,20 +174,22 @@ defmodule MediaCentaur.ErrorReports.Store do
 
   defp open_log_incident(attrs) do
     occurred_at = Map.fetch!(attrs, :occurred_at)
+    occurrences = Map.get(attrs, :occurrences, 1)
 
     attrs
-    |> Map.merge(%{first_seen: occurred_at, last_seen: occurred_at, count: 1, status: :open})
+    |> Map.merge(%{first_seen: occurred_at, last_seen: occurred_at, count: occurrences, status: :open})
     |> Incident.log_changeset()
     |> Repo.insert()
   end
 
   defp bump_log_incident(%Incident{} = incident, attrs) do
     occurred_at = Map.fetch!(attrs, :occurred_at)
+    occurrences = Map.get(attrs, :occurrences, 1)
 
     incident
     |> Incident.recurrence_changeset(
       %{
-        count: incident.count + 1,
+        count: incident.count + occurrences,
         first_seen: min_dt(incident.first_seen, occurred_at),
         last_seen: max_dt(incident.last_seen, occurred_at),
         status: reopen_status(incident.status),
