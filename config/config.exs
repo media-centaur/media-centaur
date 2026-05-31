@@ -69,6 +69,13 @@ config :media_centaur, Oban,
      ]}
   ]
 
+# Subsystem diagnostics contributors (observability campaign). Maps a component
+# to its ErrorReports.IncidentContext implementation; ErrorReports resolves
+# these at runtime (boundary-clean IoC). Rolled out incrementally — TMDB first.
+config :media_centaur, :diagnostics_contributors, %{
+  tmdb: MediaCentaur.TMDB.IncidentContext
+}
+
 config :media_centaur,
   ecto_repos: [MediaCentaur.Repo],
   generators: [timestamp_type: :utc_datetime]

@@ -1,5 +1,7 @@
 defmodule MediaCentaur.TMDB do
-  use Boundary, deps: [], exports: [Client, Confidence, Mapper, RateLimiter]
+  use Boundary,
+    deps: [MediaCentaur.ErrorReports],
+    exports: [Client, Confidence, Mapper, RateLimiter]
 
   @moduledoc """
   Boundary anchor for the TMDB external-integration adapter.
