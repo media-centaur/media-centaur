@@ -67,6 +67,7 @@ defmodule MediaCentaur.Library.Views.Detail do
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.CollectionArtwork
   alias MediaCentaur.Library.Episode
   alias MediaCentaur.Library.Image
   alias MediaCentaur.Library.Movie
@@ -506,7 +507,11 @@ defmodule MediaCentaur.Library.Views.Detail do
 
   defp build_shared_entity_data({:movie_series, movie_series_id}) do
     %{
-      images: list_images(:movie_series, movie_series_id),
+      images:
+        CollectionArtwork.effective_images(
+          list_images(:movie_series, movie_series_id),
+          child_movie_images(movie_series_id)
+        ),
       seasons: nil,
       movies: build_movies_for_movie_series(movie_series_id)
     }
@@ -910,6 +915,21 @@ defmodule MediaCentaur.Library.Views.Detail do
     Repo.all(
       from(i in Image,
         where: i.owner_type == ^owner_type and i.owner_id == ^owner_id
+      )
+    )
+  end
+
+  # Artwork from a collection's constituent movies, ordered by collection
+  # position so the earliest movie is the preferred fallback source. Feeds
+  # `CollectionArtwork` so a collection with no TMDB art of its own still
+  # renders a poster/backdrop in the detail hero.
+  defp child_movie_images(movie_series_id) do
+    Repo.all(
+      from(i in Image,
+        join: m in Movie,
+        on: m.id == i.owner_id and i.owner_type == :movie,
+        where: m.movie_series_id == ^movie_series_id,
+        order_by: [asc: m.position]
       )
     )
   end

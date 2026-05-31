@@ -122,6 +122,34 @@ defmodule MediaCentaur.Library.EntityShapeTest do
       assert shape.name == "Sample Trilogy"
       assert shape.movies == [child]
     end
+
+    test "borrows a child movie's art when the collection has none of its own" do
+      child =
+        build_movie(%{
+          position: 1,
+          images: [
+            build_image(%{role: "poster", content_url: "child_poster.jpg"}),
+            build_image(%{role: "backdrop", content_url: "child_backdrop.jpg"})
+          ]
+        })
+
+      series = build_movie_series(%{images: [], movies: [child]})
+
+      shape = EntityShape.to_view_model(series, :movie_series)
+
+      roles = Enum.map(shape.images, & &1.role)
+      assert Enum.sort(roles) == ["backdrop", "poster"]
+    end
+
+    test "keeps the collection's own art and does not borrow" do
+      own_poster = build_image(%{role: "poster", content_url: "own.jpg"})
+      child = build_movie(%{images: [build_image(%{role: "poster", content_url: "child.jpg"})]})
+      series = build_movie_series(%{images: [own_poster], movies: [child]})
+
+      shape = EntityShape.to_view_model(series, :movie_series)
+
+      assert shape.images == [own_poster]
+    end
   end
 
   describe "to_view_model/2 — video_object" do
