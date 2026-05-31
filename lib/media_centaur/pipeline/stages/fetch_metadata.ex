@@ -106,8 +106,17 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
           }
 
         {:error, _reason} ->
+          # Carry the collection's TMDB id even on fetch failure, so
+          # `Library.Inbound` writes the `tmdb_collection` ExternalId. Without
+          # it the MovieSeries is un-findable (the next movie mints a duplicate)
+          # and un-repairable (image-repair skips owners with no tmdb id). The
+          # missing artwork is recovered later by the link-time backfill.
           {
-            %{type: :movie_series, name: movie_data["belongs_to_collection"]["name"]},
+            %{
+              type: :movie_series,
+              tmdb_id: to_string(collection_id),
+              name: movie_data["belongs_to_collection"]["name"]
+            },
             [],
             0
           }

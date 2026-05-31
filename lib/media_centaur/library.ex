@@ -1234,6 +1234,20 @@ defmodule MediaCentaur.Library do
   def destroy_image!(image), do: destroy_bang!(image)
 
   @doc """
+  Lists the `Library.Image` rows owned by `(owner_type, owner_id)`.
+
+  The discriminator pair is the canonical image ownership key
+  (Library Schema v2 Phase 1) — `owner_type` is one of `:movie`,
+  `:episode`, `:tv_series`, `:movie_series`, `:video_object`. Used by the
+  inbound link-time artwork backfill to learn which roles a container is
+  already missing.
+  """
+  @spec list_images(atom(), Ecto.UUID.t()) :: [Image.t()]
+  def list_images(owner_type, owner_id) when is_atom(owner_type) and is_binary(owner_id) do
+    Repo.all(from i in Image, where: i.owner_type == ^owner_type and i.owner_id == ^owner_id)
+  end
+
+  @doc """
   Resolves logo URLs for a list of `{media_type, entity_id}` pairs in a single
   query. Returns a `%{entity_id => "/media-images/<content_url>"}` map for any
   pair whose corresponding entity has a logo image. Entries without a logo are
