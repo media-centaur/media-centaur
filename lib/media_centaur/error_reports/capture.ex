@@ -14,6 +14,7 @@ defmodule MediaCentaur.ErrorReports.Capture do
   names, titles, or non-serialisable terms.
   """
   alias MediaCentaur.Console.Entry
+  alias MediaCentaur.ErrorReports.ContextSnapshot
   alias MediaCentaur.ErrorReports.EnvMetadata
   alias MediaCentaur.ErrorReports.Fingerprint
   alias MediaCentaur.ErrorReports.Store
@@ -61,14 +62,39 @@ defmodule MediaCentaur.ErrorReports.Capture do
       app_version_at_first: EnvMetadata.app_version()
     }
 
-    Repo.transact(fn ->
-      with {:ok, _event} <- Store.insert_event(event_attrs) do
-        Store.upsert_log_incident(incident_attrs)
-      end
-    end)
+    case Repo.transact(fn ->
+           with {:ok, _event} <- Store.insert_event(event_attrs) do
+             Store.upsert_log_incident(incident_attrs)
+           end
+         end) do
+      {:ok, incident} -> {:ok, freeze_first_context(incident, entry)}
+      error -> error
+    end
   end
 
   def persist_entry(%Entry{}, _occurrences), do: :ignored
+
+  # Freeze the context snapshot the first time an incident opens (first_context
+  # still nil). Done outside the insert transaction (it gathers vitals and reads
+  # the Console buffer) and fully guarded — a snapshot failure must never break
+  # capture. Returns the updated incident, or the original on skip/failure.
+  defp freeze_first_context(%{first_context: nil} = incident, %Entry{} = entry) do
+    context =
+      ContextSnapshot.assemble(entry.component, scalar_metadata(entry.metadata),
+        crash_reason: entry.metadata[:crash_reason]
+      )
+
+    case Store.put_first_context(incident, context) do
+      {:ok, updated} -> updated
+      _ -> incident
+    end
+  rescue
+    _ -> incident
+  catch
+    _, _ -> incident
+  end
+
+  defp freeze_first_context(incident, _entry), do: incident
 
   # Severity tracks the log level; `:critical` is reserved for subsystem faults.
   defp severity_for(:error), do: :error

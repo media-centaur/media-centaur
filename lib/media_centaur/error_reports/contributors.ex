@@ -65,4 +65,49 @@ defmodule MediaCentaur.ErrorReports.Contributors do
   catch
     _, _ -> %{}
   end
+
+  @vitals_timeout_ms 250
+
+  @doc """
+  Gathers `vitals/0` from every registered module that implements it, returning
+  `%{component => vitals_map}`. Runs the probes concurrently with a per-probe
+  timeout; a missing, slow, crashing, or non-map probe records `"unavailable"`
+  so one dead subsystem can't block or break the snapshot.
+  """
+  @spec all_vitals(registry()) :: %{optional(component()) => map() | binary()}
+  def all_vitals(registry \\ registry()) do
+    sources =
+      Enum.filter(registry, fn {_component, module} ->
+        is_atom(module) and function_exported?(module, :vitals, 0)
+      end)
+
+    results =
+      sources
+      |> Task.async_stream(fn {_component, module} -> safe_vitals(module) end,
+        timeout: @vitals_timeout_ms,
+        on_timeout: :kill_task,
+        ordered: true
+      )
+      |> Enum.to_list()
+
+    # ordered: true keeps results aligned with `sources`, so a timed-out probe
+    # (`{:exit, _}`) maps back to its component as "unavailable".
+    sources
+    |> Enum.zip(results)
+    |> Map.new(fn
+      {{component, _module}, {:ok, vitals}} -> {component, vitals}
+      {{component, _module}, {:exit, _reason}} -> {component, "unavailable"}
+    end)
+  end
+
+  defp safe_vitals(module) do
+    case module.vitals() do
+      vitals when is_map(vitals) -> vitals
+      _ -> "unavailable"
+    end
+  rescue
+    _ -> "unavailable"
+  catch
+    _, _ -> "unavailable"
+  end
 end

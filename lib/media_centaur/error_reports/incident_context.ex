@@ -36,5 +36,13 @@ defmodule MediaCentaur.ErrorReports.IncidentContext do
   @doc "Structured context for an incident with the given triggering ids."
   @callback gather(ids()) :: map()
 
-  @optional_callbacks assess: 0, gather: 1
+  @doc """
+  Current health vitals for this subsystem — gathered from *every* registered
+  subsystem when a snapshot is frozen (cross-subsystem causality), not just the
+  firing one. Must be cheap and side-effect-free; it runs while something is
+  already wrong. A missing/slow/crashing `vitals/0` degrades to `"unavailable"`.
+  """
+  @callback vitals() :: map()
+
+  @optional_callbacks assess: 0, gather: 1, vitals: 0
 end

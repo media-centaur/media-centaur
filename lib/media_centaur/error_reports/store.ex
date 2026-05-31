@@ -150,6 +150,14 @@ defmodule MediaCentaur.ErrorReports.Store do
     end
   end
 
+  @doc "Freezes the `first_context` snapshot on an incident (set once, at open)."
+  @spec put_first_context(Incident.t(), map()) :: {:ok, Incident.t()} | {:error, Ecto.Changeset.t()}
+  def put_first_context(%Incident{} = incident, context) when is_map(context) do
+    incident
+    |> Ecto.Changeset.change(first_context: context)
+    |> Repo.update()
+  end
+
   @doc "The kinds (strings) of all open `:subsystem` incidents for `component`."
   @spec open_subsystem_kinds(atom() | String.t()) :: [String.t()]
   def open_subsystem_kinds(component) do
