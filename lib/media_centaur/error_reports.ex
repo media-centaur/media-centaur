@@ -1,7 +1,16 @@
 defmodule MediaCentaur.ErrorReports do
   use Boundary,
     deps: [MediaCentaur.Console],
-    exports: [Bucket, DiagnosticEvent, EnvMetadata, Fingerprint, Incident, IssueUrl, Redactor]
+    exports: [
+      Bucket,
+      DiagnosticEvent,
+      EnvMetadata,
+      Fingerprint,
+      Incident,
+      IncidentContext,
+      IssueUrl,
+      Redactor
+    ]
 
   @moduledoc """
   Bounded context for error report aggregation and GitHub issue submission.

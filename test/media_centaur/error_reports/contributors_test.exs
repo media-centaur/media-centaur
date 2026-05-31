@@ -95,9 +95,9 @@ defmodule MediaCentaur.ErrorReports.ContributorsTest do
   end
 
   describe "registry/0" do
-    test "defaults to an empty map when unconfigured" do
-      # No :diagnostics_contributors set in test config.
-      assert Contributors.registry() == %{}
+    test "reads the configured contributor map" do
+      # config.exs registers TMDB as the first contributor.
+      assert Contributors.registry()[:tmdb] == MediaCentaur.TMDB.IncidentContext
     end
   end
 end

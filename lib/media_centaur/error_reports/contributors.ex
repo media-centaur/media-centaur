@@ -39,7 +39,7 @@ defmodule MediaCentaur.ErrorReports.Contributors do
   @spec gather(component(), IncidentContext.ids(), registry()) :: map()
   def gather(component, ids, registry \\ registry()) do
     with module when is_atom(module) and not is_nil(module) <- Map.get(registry, component),
-         true <- function_exported?(module, :gather, 1),
+         true <- exports?(module, :gather, 1),
          result when is_map(result) <- safe_gather(module, ids) do
       result
     else
@@ -53,9 +53,13 @@ defmodule MediaCentaur.ErrorReports.Contributors do
   """
   @spec assessors(registry()) :: [{component(), module()}]
   def assessors(registry \\ registry()) do
-    Enum.filter(registry, fn {_component, module} ->
-      is_atom(module) and function_exported?(module, :assess, 0)
-    end)
+    Enum.filter(registry, fn {_component, module} -> exports?(module, :assess, 0) end)
+  end
+
+  # A registered module may not be loaded yet (lazy loading); ensure it is
+  # before asking whether it implements an optional callback.
+  defp exports?(module, fun, arity) do
+    is_atom(module) and Code.ensure_loaded?(module) and function_exported?(module, fun, arity)
   end
 
   defp safe_gather(module, ids) do
@@ -76,10 +80,7 @@ defmodule MediaCentaur.ErrorReports.Contributors do
   """
   @spec all_vitals(registry()) :: %{optional(component()) => map() | binary()}
   def all_vitals(registry \\ registry()) do
-    sources =
-      Enum.filter(registry, fn {_component, module} ->
-        is_atom(module) and function_exported?(module, :vitals, 0)
-      end)
+    sources = Enum.filter(registry, fn {_component, module} -> exports?(module, :vitals, 0) end)
 
     results =
       sources
