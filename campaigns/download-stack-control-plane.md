@@ -131,15 +131,18 @@ one-client → set-of-clients refactor + the SABnzbd driver).
 
 ## Status
 
-Design settled 2026-05-31; no code yet. ADR-052 (the boundary decision) is the
-first deliverable.
+Design settled 2026-05-31. **ADR-052 written and committed (`2e942044`)** — that
+commit also carries this campaign, the `usenet-download-client` P0 reconciliation,
+and the ADR-035 cross-link. No stack or MC code yet. Next concrete work: P0
+(new repo scaffold + name), or the independently-shippable **P4 handshake
+MC-receiver** in this repo.
 
 ## Decisions made
 
 Append-only log.
 
 * `2026-05-31` — **Stack owns the control plane; MC stays thin** (change-axis
-  isolation). *(Rejected: MC-as-cockpit.)* (ADR-052 planned)
+  isolation). *(Rejected: MC-as-cockpit.)* ([ADR-052](../decisions/architecture/2026-05-31-052-download-stack-control-plane.md), commit `2e942044`)
 * `2026-05-31` — **The problem is a missing control plane, not a brittle
   installer.** Install/configure/observe/reconfigure are the stack's
   operational lifecycle; the installer only covers install.
@@ -170,10 +173,10 @@ Append-only log.
 Phased; each phase ships something real. The handshake MC-receiver (P4) is
 independently valuable and can be sequenced early.
 
-1. **P0 · ADR-052 + repo scaffold.** Write ADR-052 (control-plane-in-stack /
-   thin versioned MC↔stack seam / drain-before-change) — it **amends ADR-035's**
-   single-stack assumptions. Create the new `download-stack` repo; settle the
-   name.
+1. **P0 · ADR-052 + repo scaffold.** ✅ ADR-052 written + committed (`2e942044`)
+   — control-plane-in-stack / thin versioned MC↔stack seam / drain-before-change,
+   amending ADR-035. **Remaining:** create the new `download-stack` repo; settle
+   its name (open — `download-stack` / `acquisition-stack` / TBD).
 2. **P1 · Parity port + SABnzbd.** Bring prowlarr-stack's proven pieces into the
    new repo (compose topology, gluetun kill-switch, mountpoint /
    `RequiresMountsFor` hardening, backup/restore + LAN re-patch) **and add the
