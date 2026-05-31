@@ -88,6 +88,7 @@ defmodule MediaCentaur.Application do
           MediaCentaur.Search.SearchSession
         ] ++
         pubsub_listeners(Application.get_env(:media_centaur, :environment)) ++
+        diagnostics_children(Application.get_env(:media_centaur, :environment)) ++
         [
           MediaCentaur.Playback.Supervisor,
           MediaCentaurWeb.Endpoint
@@ -209,6 +210,12 @@ defmodule MediaCentaur.Application do
   # PubSub listener GenServers — thin wrappers that route messages to public
   # API functions. Not started in test mode because tests call the public
   # functions directly and PubSub broadcasts would cause sandbox errors.
+  # Unclean-shutdown detection. Not under :test — at app boot there is no
+  # sandbox owner, so its raise-fault-on-unclean would fail; the marker logic is
+  # tested directly via ShutdownMarker / a :path-injected ShutdownMonitor.
+  defp diagnostics_children(:test), do: []
+  defp diagnostics_children(_env), do: [{MediaCentaur.ErrorReports.ShutdownMonitor, []}]
+
   defp pubsub_listeners(:test), do: []
 
   defp pubsub_listeners(_env) do
