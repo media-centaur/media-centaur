@@ -10,7 +10,10 @@ defmodule MediaCentaur.ErrorReports.BucketsTest do
   alias MediaCentaur.Topics
 
   setup do
-    start_supervised!({Buckets, name: :buckets_test})
+    # Large persist window so the durable-write throttle is deterministic in
+    # tests: a repeat coalesces and no periodic flush fires mid-test. terminate/2
+    # still flushes pending writes on stop_supervised!.
+    start_supervised!({Buckets, name: :buckets_test, persist_window_ms: 60_000})
     :ok
   end
 
@@ -71,15 +74,18 @@ defmodule MediaCentaur.ErrorReports.BucketsTest do
       assert Store.get_incident_by_fingerprint(fingerprint) == nil
     end
 
-    test "a repeated fingerprint increments cache and incident count" do
+    test "a repeated fingerprint counts in cache immediately but coalesces the durable write" do
       message = "duplicate #{uniq()}"
       fingerprint = fingerprint_of(:tmdb, message)
 
       Buckets.ingest(:buckets_test, entry(message: message))
       Buckets.ingest(:buckets_test, entry(message: message))
 
+      # The cache reflects both occurrences right away...
       assert %Bucket{count: 2} = Buckets.get_bucket(:buckets_test, fingerprint)
-      assert %{count: 2} = Store.get_incident_by_fingerprint(fingerprint)
+      # ...but the durable incident shows only the first; the second is deferred
+      # by the per-fingerprint throttle until the next flush.
+      assert %{count: 1} = Store.get_incident_by_fingerprint(fingerprint)
     end
 
     test "the sandbox-disconnect noise pattern is dropped, not captured" do
@@ -109,6 +115,24 @@ defmodule MediaCentaur.ErrorReports.BucketsTest do
 
       assert %Bucket{count: 1, severity: :warning} =
                Buckets.get_bucket(:buckets_boot, fingerprint)
+    end
+  end
+
+  describe "durable write throttle" do
+    test "flushes coalesced occurrences durably on graceful shutdown" do
+      message = "coalesced #{uniq()}"
+      fingerprint = fingerprint_of(:tmdb, message)
+
+      for _ <- 1..3, do: Buckets.ingest(:buckets_test, entry(message: message))
+
+      # Cache has all three; durable store has only the first (two deferred).
+      assert %Bucket{count: 3} = Buckets.get_bucket(:buckets_test, fingerprint)
+      assert %{count: 1} = Store.get_incident_by_fingerprint(fingerprint)
+
+      # Graceful stop runs terminate/2, which flushes the pending two.
+      stop_supervised!(Buckets)
+
+      assert %{count: 3} = Store.get_incident_by_fingerprint(fingerprint)
     end
   end
 

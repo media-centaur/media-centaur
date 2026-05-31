@@ -1,0 +1,74 @@
+defmodule MediaCentaur.ErrorReports.LogHandlerTest do
+  # The durable handler casts into an isolated Buckets instance — Console.Buffer
+  # is never in the path, which is the whole point: durable capture is a peer of
+  # the volatile console, not downstream of it.
+  use MediaCentaur.DataCase, async: false
+
+  alias MediaCentaur.ErrorReports.{Buckets, Fingerprint, LogHandler, Store}
+
+  setup do
+    start_supervised!({Buckets, name: :lh_buckets})
+    :ok
+  end
+
+  defp uniq do
+    System.unique_integer([:positive])
+    |> Integer.to_string()
+    |> String.to_charlist()
+    |> Enum.map_join(fn digit -> <<digit - ?0 + ?a>> end)
+  end
+
+  defp event(level, message, meta \\ %{component: :tmdb}) do
+    %{level: level, msg: {:string, message}, meta: meta}
+  end
+
+  defp config, do: %{config: %{buckets: :lh_buckets}}
+
+  defp fingerprint_of(message), do: Fingerprint.fingerprint(:tmdb, message).key
+
+  test "an error event is captured durably without touching Console.Buffer" do
+    message = "log handler error #{uniq()}"
+    fingerprint = fingerprint_of(message)
+
+    assert LogHandler.log(event(:error, message), config()) == :ok
+
+    # get_bucket is a GenServer call, so it can only return after the prior
+    # ingest cast was processed — the barrier that makes the durable write
+    # (synchronous inside the cast) observable here.
+    assert Buckets.get_bucket(:lh_buckets, fingerprint)
+    assert %{count: 1, severity: :error, origin: :log} = Store.get_incident_by_fingerprint(fingerprint)
+  end
+
+  test "a warning event is captured as warning severity" do
+    message = "log handler warning #{uniq()}"
+    fingerprint = fingerprint_of(message)
+
+    LogHandler.log(event(:warning, message), config())
+
+    assert Buckets.get_bucket(:lh_buckets, fingerprint)
+    assert %{severity: :warning} = Store.get_incident_by_fingerprint(fingerprint)
+  end
+
+  test "info and debug events are ignored" do
+    info_message = "log handler info #{uniq()}"
+    debug_message = "log handler debug #{uniq()}"
+
+    LogHandler.log(event(:info, info_message), config())
+    LogHandler.log(event(:debug, debug_message), config())
+
+    assert Store.get_incident_by_fingerprint(fingerprint_of(info_message)) == nil
+    assert Store.get_incident_by_fingerprint(fingerprint_of(debug_message)) == nil
+  end
+
+  test "the Buffer's own self-logs are not re-captured" do
+    message = "log handler buffer self log #{uniq()}"
+
+    LogHandler.log(event(:error, message, %{component: :tmdb, mc_log_source: :buffer}), config())
+
+    assert Store.get_incident_by_fingerprint(fingerprint_of(message)) == nil
+  end
+
+  test "malformed events never raise out of the handler" do
+    assert LogHandler.log(%{level: :error, msg: {:weird, make_ref()}, meta: %{}}, config()) == :ok
+  end
+end

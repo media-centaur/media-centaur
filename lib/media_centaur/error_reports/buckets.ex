@@ -6,10 +6,12 @@ defmodule MediaCentaur.ErrorReports.Buckets do
   - On boot it rebuilds the cache from `Store.list_incidents/1` (the
     `:warning`/`:error` `:log` incidents), so a restart no longer loses
     evidence — the central guarantee of the observability backbone.
-  - It subscribes to `Topics.console_logs()` and, for every `:warning`/`:error`
-    entry, **persists durably via `Capture.persist_entry/1`** and folds the
-    entry into the in-memory cache. The durable write is the source of truth;
-    the cache is a projection rebuilt from it on the next boot.
+  - It is fed by `ErrorReports.LogHandler` — an **independent** `:logger`
+    handler, a peer of `Console.Handler`, not downstream of the volatile
+    Console buffer — which casts each captured entry here via `ingest/2`. For
+    every entry it **persists durably via `Capture.persist_entry/2`** and folds
+    the entry into the in-memory cache. The durable write is the source of
+    truth; the cache is a projection rebuilt from it on the next boot.
   - It broadcasts on `Topics.error_reports()` at most once per second.
 
   There is no time-based eviction: incidents are durable and the list is not
@@ -32,15 +34,17 @@ defmodule MediaCentaur.ErrorReports.Buckets do
 
   use GenServer
 
-  alias MediaCentaur.Console
   alias MediaCentaur.Console.Entry
   alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaur.ErrorReports.BucketCache
   alias MediaCentaur.ErrorReports.Capture
+  alias MediaCentaur.ErrorReports.Fingerprint
+  alias MediaCentaur.ErrorReports.PersistThrottle
   alias MediaCentaur.ErrorReports.Store
   alias MediaCentaur.Topics
 
   @broadcast_throttle_ms 1_000
+  @persist_window_ms 1_000
   @captured_levels [:warning, :error]
 
   # --- Public API ---
@@ -71,12 +75,19 @@ defmodule MediaCentaur.ErrorReports.Buckets do
   # --- Callbacks ---
 
   @impl true
-  def init(_opts) do
-    Console.subscribe()
+  def init(opts) do
+    # Trap exits so terminate/2 runs on a graceful supervisor shutdown and can
+    # flush coalesced durable writes that haven't hit their periodic flush yet.
+    Process.flag(:trap_exit, true)
+
+    window = Keyword.get(opts, :persist_window_ms, @persist_window_ms)
+    schedule_flush(window)
 
     {:ok,
      %{
        cache: rebuild_from_store(),
+       throttle: PersistThrottle.new(),
+       persist_window_ms: window,
        last_broadcast_at: now_ms() - @broadcast_throttle_ms,
        broadcast_pending: false
      }}
@@ -101,14 +112,6 @@ defmodule MediaCentaur.ErrorReports.Buckets do
   def handle_cast({:ingest, _other}, state), do: {:noreply, state}
 
   @impl true
-  def handle_info({:log_entry, %Entry{level: level} = entry}, state) when level in @captured_levels do
-    {:noreply, handle_entry(state, entry)}
-  end
-
-  @impl true
-  def handle_info({:log_entry, _other}, state), do: {:noreply, state}
-
-  @impl true
   def handle_info(:flush_broadcast, state) do
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
@@ -120,17 +123,54 @@ defmodule MediaCentaur.ErrorReports.Buckets do
   end
 
   @impl true
+  def handle_info(:flush_persist, state) do
+    throttle = flush_pending(state.throttle, state.persist_window_ms)
+    schedule_flush(state.persist_window_ms)
+    {:noreply, %{state | throttle: throttle}}
+  end
+
+  @impl true
   def handle_info(_other, state), do: {:noreply, state}
 
+  # Flush coalesced writes on graceful shutdown so a clean stop doesn't lose the
+  # pending count. (A hard kill can't run this — the store still reconciles from
+  # what was already persisted on the next boot.)
+  @impl true
+  def terminate(_reason, state) do
+    flush_pending(state.throttle, state.persist_window_ms)
+    :ok
+  end
+
   # --- Internals ---
+
+  defp flush_pending(throttle, window_ms) do
+    {writes, throttle} = PersistThrottle.flush_due(throttle, now_ms(), window_ms)
+    Enum.each(writes, fn {entry, occurrences} -> safe_persist(entry, occurrences) end)
+    throttle
+  end
+
+  defp schedule_flush(window_ms), do: Process.send_after(self(), :flush_persist, window_ms)
 
   defp handle_entry(state, %Entry{} = entry) do
     if test_env_noise?(entry) do
       state
     else
-      _ = safe_persist(entry)
+      # The cache counts every occurrence (accurate live view); the durable
+      # write is debounced per fingerprint so an error storm can't flood the
+      # single SQLite writer. First occurrence persists now; bursts coalesce
+      # into a count flushed by :flush_persist (and by terminate/2 on shutdown).
+      %{key: fingerprint} = Fingerprint.fingerprint(entry.component, entry.message)
 
-      schedule_broadcast(%{state | cache: BucketCache.put_entry(state.cache, entry)})
+      {decision, throttle} =
+        PersistThrottle.record(state.throttle, fingerprint, entry, now_ms(), state.persist_window_ms)
+
+      if decision == :persist_now, do: safe_persist(entry, 1)
+
+      schedule_broadcast(%{
+        state
+        | cache: BucketCache.put_entry(state.cache, entry),
+          throttle: throttle
+      })
     end
   end
 
@@ -140,8 +180,8 @@ defmodule MediaCentaur.ErrorReports.Buckets do
   # could loop. Phase 2's diagnostics self-monitoring will surface a degraded
   # store as a `:subsystem` incident; until then the cache stays live and the
   # store reconciles on the next boot.
-  defp safe_persist(%Entry{} = entry) do
-    Capture.persist_entry(entry)
+  defp safe_persist(%Entry{} = entry, occurrences) do
+    Capture.persist_entry(entry, occurrences)
   rescue
     _ -> :error
   catch

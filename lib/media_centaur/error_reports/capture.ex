@@ -27,9 +27,16 @@ defmodule MediaCentaur.ErrorReports.Capture do
 
   Returns `{:ok, incident}` when captured, `:ignored` for non-captured levels,
   or `{:error, reason}` if persistence fails.
+
+  `occurrences` (default 1) is the number of occurrences this write accounts
+  for — > 1 when the caller has coalesced a burst via `PersistThrottle`. One
+  event row is inserted regardless (the log is sampled under load); the incident
+  count is bumped by `occurrences` so it stays accurate.
   """
-  @spec persist_entry(Entry.t()) :: {:ok, map()} | :ignored | {:error, term()}
-  def persist_entry(%Entry{level: level} = entry) when level in @captured_levels do
+  @spec persist_entry(Entry.t(), pos_integer()) :: {:ok, map()} | :ignored | {:error, term()}
+  def persist_entry(entry, occurrences \\ 1)
+
+  def persist_entry(%Entry{level: level} = entry, occurrences) when level in @captured_levels do
     %{key: fingerprint, normalized_message: message, display_title: display_title} =
       Fingerprint.fingerprint(entry.component, entry.message)
 
@@ -50,6 +57,7 @@ defmodule MediaCentaur.ErrorReports.Capture do
       display_title: display_title,
       severity: severity_for(level),
       occurred_at: entry.timestamp,
+      occurrences: occurrences,
       app_version_at_first: EnvMetadata.app_version()
     }
 
@@ -60,7 +68,7 @@ defmodule MediaCentaur.ErrorReports.Capture do
     end)
   end
 
-  def persist_entry(%Entry{}), do: :ignored
+  def persist_entry(%Entry{}, _occurrences), do: :ignored
 
   # Severity tracks the log level; `:critical` is reserved for subsystem faults.
   defp severity_for(:error), do: :error
