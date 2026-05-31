@@ -775,6 +775,30 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       assert length(item.movies) == 2
     end
 
+    test "movie_series with no own art borrows a child movie's poster + backdrop" do
+      on_exit_clear_table()
+      ms = create_movie_series(%{name: "Sample MS No Art"})
+
+      movie1 = create_movie(%{name: "No Art Part 1", movie_series_id: ms.id, position: 1})
+      movie2 = create_movie(%{name: "No Art Part 2", movie_series_id: ms.id, position: 2})
+
+      # Child movie carries art; the collection itself has none of its own.
+      create_image(%{owner_type: :movie, owner_id: movie1.id, role: "poster", content_url: "p.jpg"})
+      create_image(%{owner_type: :movie, owner_id: movie1.id, role: "backdrop", content_url: "b.jpg"})
+
+      pi1 = create_playable_item_for_movie(movie1)
+      pi2 = create_playable_item_for_movie(movie2)
+      _f1 = create_linked_file(%{playable_item_id: pi1.id, file_path: "/media/test/no-art-1.mkv"})
+      _f2 = create_linked_file(%{playable_item_id: pi2.id, file_path: "/media/test/no-art-2.mkv"})
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail_by_container(:movie_series, ms.id)
+
+      roles = Enum.map(item.images, & &1.role)
+      assert "poster" in roles
+      assert "backdrop" in roles
+    end
+
     test ":subtitle_tracks defaults to empty list for leaves with no detected tracks" do
       on_exit_clear_table()
       {movie, _file} = seed_present_movie("No Subs Movie")

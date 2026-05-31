@@ -79,7 +79,7 @@ defmodule MediaCentaur.Library.EntityShape do
       crew: Map.get(record, :crew) || [],
       imdb_id: extract_external_id(external_ids, "imdb"),
       collection: collection_from(record, type),
-      images: Map.get(record, :images, []),
+      images: effective_images(record, type),
       external_ids: external_ids,
       extras: Map.get(record, :extras, []),
       seasons: Map.get(record, :seasons, []),
@@ -91,6 +91,40 @@ defmodule MediaCentaur.Library.EntityShape do
       updated_at: record.updated_at
     }
   end
+
+  # A collection (MovieSeries) shows blank when TMDB has no collection-level
+  # poster/backdrop. Borrow a constituent movie's art so the browse card
+  # never renders empty. Other types use their own images verbatim. Child
+  # images are preloaded by `Library.Browser`'s movie_series preload chain;
+  # when they aren't (movies not loaded), the borrow degrades to own-only.
+  defp effective_images(record, :movie_series) do
+    MediaCentaur.Library.CollectionArtwork.effective_images(
+      own_images(record),
+      fallback_images_from_movies(Map.get(record, :movies))
+    )
+  end
+
+  defp effective_images(record, _type), do: own_images(record)
+
+  defp own_images(record) do
+    case Map.get(record, :images) do
+      images when is_list(images) -> images
+      _ -> []
+    end
+  end
+
+  defp fallback_images_from_movies(movies) when is_list(movies) do
+    movies
+    |> Enum.sort_by(&(Map.get(&1, :position) || 0))
+    |> Enum.flat_map(fn movie ->
+      case Map.get(movie, :images) do
+        images when is_list(images) -> images
+        _ -> []
+      end
+    end)
+  end
+
+  defp fallback_images_from_movies(_), do: []
 
   defp extract_external_id(external_ids, source_str) when is_list(external_ids) do
     Enum.find_value(external_ids, fn
