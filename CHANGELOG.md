@@ -4,6 +4,24 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.77.6 — 2026-05-31
+
+### Fixed
+
+**Movie collections no longer show up blank — they recover their artwork on their own.**
+When a collection (like a film series or franchise) was first added, its poster and backdrop
+occasionally failed to arrive — usually a brief hiccup talking to the movie database. The
+collection then stayed blank no matter how many more films from it you added. Now, the next time
+you add another film from the same collection, Media Centaur fills in the missing poster and
+backdrop automatically.
+
+### Improved
+
+**Collections always show a poster and backdrop, even when the movie database has none for them.**
+Some collections have no artwork of their own in the movie database. Rather than leave them blank,
+Media Centaur now borrows a poster and backdrop from one of the films inside the collection, so
+your library never has an empty-looking tile.
+
 ## v0.77.5 — 2026-05-31
 
 ### Fixed
