@@ -272,6 +272,36 @@ defmodule MediaCentaur.Library.InboundTest do
       [file] = MediaCentaur.Repo.all(WatchedFile)
       assert container_for(file) == {:movie, movie.id}
     end
+
+    test "existing movie series missing artwork — backfills collection images" do
+      # A collection that was created without its artwork (transient
+      # `get_collection` failure, or minted by an older build). It has no
+      # Library.Image rows of its own.
+      series =
+        create_entity(%{type: :movie_series, name: "Sample Movie Collection", tmdb_id: "263"})
+
+      assert [] = Library.list_images(:movie_series, series.id)
+
+      # The next movie of the same collection arrives. Its event carries the
+      # freshly-fetched collection artwork (poster + backdrop). The link path
+      # must re-queue the collection's missing roles, not just the child's.
+      event =
+        collection_event(
+          images: [
+            %{role: "poster", url: "https://image.tmdb.org/coll_poster.jpg"},
+            %{role: "backdrop", url: "https://image.tmdb.org/coll_backdrop.jpg"}
+          ]
+        )
+
+      assert {:ok, entity, :new_child, pending_images} = Inbound.ingest(event)
+      assert entity.id == series.id
+
+      collection_images = Enum.filter(pending_images, &(&1.owner_type == "movie_series"))
+
+      roles = Enum.sort(Enum.map(collection_images, & &1.role))
+      assert roles == ["backdrop", "poster"]
+      assert Enum.all?(collection_images, &(&1.owner_id == series.id))
+    end
   end
 
   # ---------------------------------------------------------------------------

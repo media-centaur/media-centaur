@@ -100,6 +100,12 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
       assert metadata.entity_type == :movie_series
       assert metadata.entity_attrs.name == "Sample Movie Collection"
       assert metadata.child_movie.attrs.position == 0
+
+      # Even when the collection fetch fails we must carry the collection's
+      # TMDB id, so the MovieSeries gets a `tmdb_collection` ExternalId. Without
+      # it the container is un-findable (the next movie mints a duplicate) and
+      # un-repairable (image-repair skips owners with no tmdb id).
+      assert metadata.entity_attrs.tmdb_id == "263"
     end
   end
 

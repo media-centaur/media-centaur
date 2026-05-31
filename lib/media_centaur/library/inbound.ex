@@ -509,13 +509,15 @@ defmodule MediaCentaur.Library.Inbound do
 
   # Movie series — ensure child movie -> :new_child
   defp do_link_to_existing(entity, %{entity_type: :movie_series} = event) do
+    backfill_images = backfill_collection_images(entity, event)
+
     if event.child_movie do
       case create_child_movie(:movie_series, entity.id, event.child_movie) do
-        {:ok, _movie, images} -> {:ok, entity, :new_child, images}
+        {:ok, _movie, images} -> {:ok, entity, :new_child, backfill_images ++ images}
         {:error, reason} -> {:error, reason}
       end
     else
-      {:ok, entity, :existing, []}
+      {:ok, entity, :existing, backfill_images}
     end
   end
 
@@ -524,6 +526,30 @@ defmodule MediaCentaur.Library.Inbound do
   # dropped the column). The file linkage happens downstream in
   # `link_file/2` via the PlayableItem / WatchedFile chain.
   defp do_link_to_existing(entity, _event), do: {:ok, entity, :existing, []}
+
+  # A collection's own artwork is queued only at creation time. If that
+  # queue was lost — a transient `get_collection` failure, or a MovieSeries
+  # minted by an older build — subsequent movies of the same collection
+  # never recovered it, leaving the collection backdrop-less forever.
+  #
+  # `event.images` carries the freshly-fetched collection artwork from THIS
+  # import, so we self-heal here: re-queue only the roles the container is
+  # still missing (idempotent — no redundant re-download of art already on
+  # disk). When this import's own `get_collection` also failed, `event.images`
+  # is empty and there's nothing to backfill; image-repair remains the
+  # fallback (the hardened error branch now writes the tmdb id it needs).
+  defp backfill_collection_images(entity, %{images: images}) when is_list(images) do
+    existing_roles =
+      :movie_series
+      |> Library.list_images(entity.id)
+      |> MapSet.new(& &1.role)
+
+    images
+    |> Enum.reject(&MapSet.member?(existing_roles, &1.role))
+    |> then(&collect_images(entity.id, "movie_series", &1))
+  end
+
+  defp backfill_collection_images(_entity, _event), do: []
 
   # ---------------------------------------------------------------------------
   # Season + Episode
