@@ -150,6 +150,21 @@ defmodule MediaCentaur.ErrorReports.Store do
     end
   end
 
+  @doc "The kinds (strings) of all open `:subsystem` incidents for `component`."
+  @spec open_subsystem_kinds(atom() | String.t()) :: [String.t()]
+  def open_subsystem_kinds(component) do
+    component = to_string(component)
+
+    Incident
+    |> where(
+      [incident],
+      incident.origin == :subsystem and incident.component == ^component and
+        incident.status != :resolved
+    )
+    |> select([incident], incident.kind)
+    |> Repo.all()
+  end
+
   @doc "The open (non-resolved) `:subsystem` incident for `{component, kind}`, or `nil`."
   @spec get_open_subsystem_incident(atom() | String.t(), atom() | String.t()) :: Incident.t() | nil
   def get_open_subsystem_incident(component, kind) do

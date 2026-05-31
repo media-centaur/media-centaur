@@ -62,7 +62,10 @@ config :media_centaur, Oban,
        {"*/15 * * * *", MediaCentaur.Acquisition.Pursuits.Watcher},
        # Daily retention prune of the durable diagnostic-event log (~30d).
        # Offset minute so it doesn't pile onto the hour boundary.
-       {"33 4 * * *", MediaCentaur.ErrorReports.PruneJob}
+       {"33 4 * * *", MediaCentaur.ErrorReports.PruneJob},
+       # Subsystem health evaluator: polls each registered assess/0 every 5
+       # minutes and reconciles :subsystem incidents (duration/trend faults).
+       {"*/5 * * * *", MediaCentaur.ErrorReports.EvaluatorJob}
      ]}
   ]
 
