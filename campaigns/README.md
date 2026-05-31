@@ -32,6 +32,20 @@ Use [`template.md`](template.md) as a starter.
   now (no patience timers, no upgrades — time is release tracking's job);
   hard search-vs-pursuit boundary (unfound units are reported, never seeking
   leaves). Four phases planned; no code yet. Design settled 2026-05-31.
+* [`usenet-download-client.md`](usenet-download-client.md) —
+  **planning.** Extend downloads from a single client (qBittorrent) to a
+  **set routed by protocol**, with SABnzbd as the first usenet driver, so a
+  user can pursue releases without caring whether each lands via torrent or
+  usenet. Prowlarr routes by protocol (two download clients); MC's real work
+  is the one-client → set-of-clients refactor (`Dispatcher.drivers()`,
+  multi-client `QueueMonitor` merge) plus a SABnzbd driver. SABnzbd owns
+  par2/repair/unrar; usenet completion reads from history. Identity is
+  explicitly provisional (no infohash → title-match → pin `nzo_id`), to be
+  redesigned once a live setup exists. Verification bounded to stubs (no
+  provider yet). Spans two repos (this + `prowlarr-stack`). Five phases;
+  no code yet. Design settled 2026-05-31. Enables — but does not build — the
+  mixed-protocol grab that [`media-search-tmdb-acquisition`](media-search-tmdb-acquisition.md)'s
+  planner will drive.
 * [`relink-on-move.md`](relink-on-move.md) —
   **shipped v0.77.1.** Make "I moved my media to a new drive" smooth.
   The watcher scanned a dir only once (at startup) and identified files
