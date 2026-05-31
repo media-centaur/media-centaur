@@ -22,6 +22,9 @@ defmodule MediaCentaur.ErrorReports do
   """
 
   alias MediaCentaur.ErrorReports.Buckets
+  alias MediaCentaur.ErrorReports.EnvMetadata
+  alias MediaCentaur.ErrorReports.GithubTransport
+  alias MediaCentaur.ErrorReports.ReportPayload
   alias MediaCentaur.ErrorReports.Store
   alias MediaCentaur.Topics
 
@@ -60,6 +63,31 @@ defmodule MediaCentaur.ErrorReports do
           {:ok, __MODULE__.Incident.t()} | {:ok, :none} | {:error, Ecto.Changeset.t()}
   def resolve_fault(component, kind, opts \\ []) do
     Store.resolve_fault(component, kind, opts[:resolved_at] || DateTime.utc_now())
+  end
+
+  @doc """
+  Packages `bucket` into an incident report and submits it via the configured
+  `ReportTransport`.
+
+  Returns `{:ok, url}` on success. On any failure — no token configured
+  (dev/showcase), network error, or a non-201 response — returns
+  `{:fallback, bundle}` where `bundle` is the redacted report text for the user
+  to copy, so a report is never lost. `opts[:transport]` overrides the transport
+  (for tests); other opts pass through to it.
+  """
+  @spec submit_report(__MODULE__.Bucket.t(), keyword()) :: {:ok, String.t()} | {:fallback, String.t()}
+  def submit_report(bucket, opts \\ []) do
+    payload = ReportPayload.build(bucket, EnvMetadata.collect())
+    transport = opts[:transport] || configured_transport()
+
+    case transport.submit(payload, opts) do
+      {:ok, url} -> {:ok, url}
+      {:error, _reason} -> {:fallback, payload.title <> "\n\n" <> payload.body}
+    end
+  end
+
+  defp configured_transport do
+    Application.get_env(:media_centaur, :diagnostics_transport, GithubTransport)
   end
 
   @spec subscribe() :: :ok | {:error, term()}
