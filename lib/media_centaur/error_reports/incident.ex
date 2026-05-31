@@ -107,6 +107,29 @@ defmodule MediaCentaur.ErrorReports.Incident do
   end
 
   @doc """
+  Insert changeset for a freshly-raised `:subsystem` fault.
+
+  Forces `origin: :subsystem`. Grouped by `{component, kind}` (no fingerprint).
+  """
+  @spec subsystem_changeset(map()) :: Ecto.Changeset.t()
+  def subsystem_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [
+      :component,
+      :kind,
+      :message,
+      :display_title,
+      :severity,
+      :status,
+      :count,
+      :first_seen,
+      :last_seen
+    ])
+    |> put_change(:origin, :subsystem)
+    |> validate_required([:component, :kind, :severity, :first_seen, :last_seen])
+  end
+
+  @doc """
   Update changeset for a recurring `:log` incident: bumps `count` and advances
   `last_seen` (and re-opens a resolved incident if it recurs).
   """

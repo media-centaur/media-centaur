@@ -104,6 +104,70 @@ defmodule MediaCentaur.ErrorReports.Store do
   end
 
   @doc """
+  Raises (opens) — or re-asserts — a `:subsystem` fault grouped by
+  `{component, kind}`.
+
+  Opens a new incident if none is currently unresolved for that fault; if one is
+  already open, advances `last_seen` and bumps `count` (a re-assertion of the
+  ongoing condition) rather than opening a duplicate. `attrs` requires
+  `:component`, `:kind`, `:severity`, `:occurred_at`. See the single-writer note
+  on `upsert_log_incident/1` — the same read-then-write caveat applies.
+  """
+  @spec raise_fault(map()) :: {:ok, Incident.t()} | {:error, Ecto.Changeset.t()}
+  def raise_fault(attrs) do
+    attrs =
+      attrs
+      |> Map.new()
+      |> Map.update!(:component, &to_string/1)
+      |> Map.update!(:kind, &to_string/1)
+
+    case get_open_subsystem_incident(attrs.component, attrs.kind) do
+      nil -> open_subsystem_incident(attrs)
+      %Incident{} = incident -> reassert_subsystem_incident(incident, attrs)
+    end
+  end
+
+  @doc """
+  Resolves the open `:subsystem` incident for `{component, kind}`, stamping
+  `resolved_at`. Returns `{:ok, :none}` when nothing is open for that fault.
+  """
+  @spec resolve_fault(atom() | String.t(), atom() | String.t(), DateTime.t()) ::
+          {:ok, Incident.t()} | {:ok, :none} | {:error, Ecto.Changeset.t()}
+  def resolve_fault(component, kind, resolved_at) do
+    case get_open_subsystem_incident(component, kind) do
+      nil ->
+        {:ok, :none}
+
+      %Incident{} = incident ->
+        incident
+        |> Incident.recurrence_changeset(%{
+          count: incident.count,
+          last_seen: incident.last_seen,
+          status: :resolved,
+          resolved_at: resolved_at
+        })
+        |> Repo.update()
+    end
+  end
+
+  @doc "The open (non-resolved) `:subsystem` incident for `{component, kind}`, or `nil`."
+  @spec get_open_subsystem_incident(atom() | String.t(), atom() | String.t()) :: Incident.t() | nil
+  def get_open_subsystem_incident(component, kind) do
+    component = to_string(component)
+    kind = to_string(kind)
+
+    Incident
+    |> where(
+      [incident],
+      incident.origin == :subsystem and incident.component == ^component and
+        incident.kind == ^kind and incident.status != :resolved
+    )
+    |> order_by([incident], desc: incident.last_seen)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  @doc """
   Lists incidents, newest activity first.
 
   Options:
@@ -209,6 +273,28 @@ defmodule MediaCentaur.ErrorReports.Store do
       {:ok, value} -> Map.put(changes, key, value)
       :error -> changes
     end
+  end
+
+  defp open_subsystem_incident(attrs) do
+    occurred_at = Map.fetch!(attrs, :occurred_at)
+
+    attrs
+    |> Map.merge(%{first_seen: occurred_at, last_seen: occurred_at, count: 1, status: :open})
+    |> Incident.subsystem_changeset()
+    |> Repo.insert()
+  end
+
+  defp reassert_subsystem_incident(%Incident{} = incident, attrs) do
+    occurred_at = Map.fetch!(attrs, :occurred_at)
+
+    incident
+    |> Incident.recurrence_changeset(
+      %{count: incident.count + 1, last_seen: max_dt(incident.last_seen, occurred_at)}
+      |> put_latest(:message, attrs)
+      |> put_latest(:display_title, attrs)
+      |> put_latest(:severity, attrs)
+    )
+    |> Repo.update()
   end
 
   defp reopen_status(:resolved), do: :open
