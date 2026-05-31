@@ -21,6 +21,17 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`media-search-tmdb-acquisition.md`](media-search-tmdb-acquisition.md) —
+  **planning.** A second acquisition entry point: start from a TMDB title,
+  pick seasons/episodes, and let Media Centaur autonomously plan a coverage
+  strategy (complete-series → season pack → per-episode) over what's available
+  *now*, steer the plan, then execute it as one composite pursuit. Unifies
+  acquisition on a single pursuit core — file search is adapted onto it (fast
+  path; brace-expansion collapses into one pursuit) and media search layers
+  TMDB enrichments + an opt-in release-tracking handoff on top. Best-available-
+  now (no patience timers, no upgrades — time is release tracking's job);
+  hard search-vs-pursuit boundary (unfound units are reported, never seeking
+  leaves). Four phases planned; no code yet. Design settled 2026-05-31.
 * [`relink-on-move.md`](relink-on-move.md) —
   **shipped v0.77.1.** Make "I moved my media to a new drive" smooth.
   The watcher scanned a dir only once (at startup) and identified files
