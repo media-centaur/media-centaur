@@ -76,6 +76,14 @@ config :media_centaur, :diagnostics_contributors, %{
   tmdb: MediaCentaur.TMDB.IncidentContext
 }
 
+# Incident-report submission inbox (observability Phase 3). The fine-grained
+# token (scoped to Issues:write on the private reports repo) is wired at release
+# time via config/runtime.exs from an env var — never committed. With no token,
+# GithubTransport returns {:error, :no_token} and submission falls back to a
+# copyable bundle, so dev/showcase never need one.
+config :media_centaur, :diagnostics_report_repo, "media-centaur/media-centaur-reports"
+config :media_centaur, :diagnostics_report_token, nil
+
 config :media_centaur,
   ecto_repos: [MediaCentaur.Repo],
   generators: [timestamp_type: :utc_datetime]
