@@ -136,10 +136,17 @@ rejected — do not reuse their visuals).
    warning+error; durable fingerprint grouping; `Buckets` rebuilt from store on
    boot (pure `BucketCache` extracted); daily `PruneJob` retention; `health/0`
    rollup. Context kept as `ErrorReports`.
-2. **Phase 2 — Detection + contributors.** `IncidentContext` behaviour + runtime
-   registry; periodic evaluator + raise/resolve API + lifecycle; frozen context
-   snapshots (lead-up + vitals + ids + correlation, first+latest); first-class
-   contributors for pipeline, tmdb, acquisition; unclean-shutdown marker.
+2. ~~**Phase 2 — Detection + contributors.**~~ ✅ **Done 2026-05-31.**
+   `IncidentContext` behaviour + config-driven runtime registry (`Contributors`,
+   boundary-clean IoC); subsystem fault lifecycle (`raise_fault`/`resolve_fault`,
+   grouped by `{component, kind}`); periodic evaluator (`Evaluator` + Oban-cron
+   `EvaluatorJob`, pure `plan/2`); frozen context snapshot (`ContextSnapshot` —
+   redacted lead-up + id-correlation + cross-subsystem vitals + contributor +
+   crash reason, frozen on first open); unclean-shutdown marker
+   (`ShutdownMarker`/`ShutdownMonitor` → `{:system, :unclean_shutdown}`). First
+   contributor (TMDB vitals) wired end-to-end. **Deferred:** pipeline +
+   acquisition contributors (same pattern, phased rollout); throttled
+   `latest_context` refresh; threaded pipeline correlation id (spec D13).
 3. **Phase 3 — Submission swap.** `ReportTransport` behaviour + GitHub-REST
    private-repo impl; token config + rotation; remove the `window.open` JS hook;
    offline/no-token fallback.
