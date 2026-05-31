@@ -4,6 +4,14 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.77.5 — 2026-05-31
+
+### Fixed
+
+**Pressing Enter on the Downloads page now reliably starts your search.**
+If you typed a query and hit Enter quickly, the search box could lose focus without running the
+search, leaving you to click the Search button instead. Enter now always searches.
+
 ## v0.77.4 — 2026-05-31
 
 ### Fixed
