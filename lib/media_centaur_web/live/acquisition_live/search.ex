@@ -48,10 +48,12 @@ defmodule MediaCentaurWeb.AcquisitionLive.Search do
             onkeydown="if (event.key === 'Escape') { event.preventDefault(); this.form.querySelector('button[type=submit]').focus() }"
           />
         </div>
+        <%!-- Visual-only blocked state via aria-disabled — NEVER the real `disabled` attribute: a disabled default submit button silently swallows the Enter key (HTML implicit-submission), so with the 200ms phx-debounce above, Enter before the preview flushed would do nothing. submit_search guards empty/invalid queries itself. --%>
         <.button
           type="submit"
           variant="secondary"
-          disabled={expansion_blocked?(@session.expansion_preview)}
+          aria-disabled={to_string(expansion_blocked?(@session.expansion_preview))}
+          class={expansion_blocked?(@session.expansion_preview) && "opacity-50"}
           data-nav-item
           tabindex="0"
         >
