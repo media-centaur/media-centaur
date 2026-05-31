@@ -21,6 +21,22 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`observability-dashboard.md`](observability-dashboard.md) —
+  **planning.** Let end users (media lovers, not programmers) notice when
+  something's broken, see which subsystem failed, and hand the developer an
+  **incident report** with enough cross-subsystem context to diagnose it —
+  closing the "users hit bugs I can't reproduce" loop. Evolves the existing
+  volatile `ErrorReports` into a durable, stateful incident store with **three
+  origins** (`:log` fingerprint capture / `:subsystem` self-detection / `:user`
+  report), an `open→resolved` lifecycle, **hybrid context capture** (freeze lean
+  at incident time on first+latest, enrich live at report time), and
+  **per-subsystem `IncidentContext` contributors** wired via a runtime registry
+  (boundary-clean IoC). Reporting is a guided **3-step informed-consent** flow
+  (auto + manual redaction, explicit consent) submitting to a **private
+  `media-centaur-reports` repo via a scoped token** — no user GitHub account, no
+  infra. `/status` is rebuilt into a Subsystem Health Board with **no Console
+  aesthetic and no chip palette** (color = health only). Four phases; mockups
+  parked until Phase 4; no code yet. Design settled 2026-05-31.
 * [`download-stack-control-plane.md`](download-stack-control-plane.md) —
   **planning.** Mature the download infrastructure (`prowlarr-stack`) from a
   one-shot installer into a **managed component with a control plane**, shipped

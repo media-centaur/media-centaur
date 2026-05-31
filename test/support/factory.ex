@@ -893,6 +893,41 @@ defmodule MediaCentaur.TestFactory do
     event
   end
 
+  # ---------------------------------------------------------------------------
+  # ErrorReports — diagnostic events & incidents
+  # ---------------------------------------------------------------------------
+
+  # Attrs map for `ErrorReports.Store.insert_event/1`. `:message`/`:metadata`
+  # are assumed already-redacted (the store does not redact).
+  def build_diagnostic_event_attrs(overrides \\ %{}) do
+    defaults = %{
+      fingerprint: "fp_" <> Integer.to_string(:rand.uniform(999_999)),
+      component: "pipeline",
+      level: :error,
+      message: "[Pipeline] something went wrong",
+      module: "Elixir.MediaCentaur.Pipeline",
+      metadata: %{},
+      occurred_at: DateTime.utc_now()
+    }
+
+    Map.merge(defaults, Map.new(overrides))
+  end
+
+  # Attrs map for `ErrorReports.Store.upsert_log_incident/1`.
+  def build_log_incident_attrs(overrides \\ %{}) do
+    now = DateTime.utc_now()
+
+    defaults = %{
+      fingerprint: "fp_" <> Integer.to_string(:rand.uniform(999_999)),
+      component: "pipeline",
+      severity: :error,
+      occurred_at: now,
+      app_version_at_first: "0.77.6"
+    }
+
+    Map.merge(defaults, Map.new(overrides))
+  end
+
   def create_pursuit(attrs \\ %{}) do
     defaults = %{
       tmdb_id: "12345",

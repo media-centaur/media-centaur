@@ -11,6 +11,7 @@ defmodule MediaCentaurWeb.StatusLive.ErrorSummaryTest do
       component: :tmdb,
       normalized_message: "TMDB returned <status>",
       display_title: "[TMDB] TMDB returned <status>",
+      severity: :error,
       count: 3,
       first_seen: DateTime.utc_now(),
       last_seen: DateTime.utc_now(),
