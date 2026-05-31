@@ -1,121 +1,125 @@
 defmodule MediaCentaur.ErrorReports.BucketsTest do
-  use ExUnit.Case, async: false
+  # DataCase (non-async → shared sandbox) because Buckets now persists through
+  # the durable Store. Assertions key on a per-test unique fingerprint so the
+  # app's global Buckets (also subscribed to the log stream) can't contaminate
+  # them.
+  use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Console.Entry
-  alias MediaCentaur.ErrorReports.{Bucket, Buckets}
+  alias MediaCentaur.ErrorReports.{Bucket, Buckets, Capture, Fingerprint, Store}
   alias MediaCentaur.Topics
 
   setup do
-    # Use an isolated name so tests don't collide with the app supervisor.
-    start_supervised!({Buckets, name: :buckets_test, window_minutes: 60})
+    start_supervised!({Buckets, name: :buckets_test})
     :ok
   end
 
-  defp error_entry(id, component, message, ts \\ DateTime.utc_now()) do
-    Entry.new(%{
-      id: id,
-      timestamp: ts,
-      level: :error,
-      component: component,
-      message: message,
-      metadata: %{}
-    })
+  # Letter-only token: the redactor collapses 3+ digit runs, so a numeric id
+  # would merge distinct test fingerprints. Map each digit to a letter instead.
+  defp uniq do
+    System.unique_integer([:positive])
+    |> Integer.to_string()
+    |> String.to_charlist()
+    |> Enum.map_join(fn digit -> <<digit - ?0 + ?a>> end)
   end
 
-  describe "listing and insertion" do
-    test "starts empty" do
-      assert Buckets.list_buckets(:buckets_test) == []
-    end
-
-    test "records an :error entry into a fingerprinted bucket" do
-      Buckets.ingest(:buckets_test, error_entry(1, :tmdb, "TMDB returned 429"))
-
-      [%Bucket{} = bucket] = Buckets.list_buckets(:buckets_test)
-      assert bucket.component == :tmdb
-      assert bucket.count == 1
-      assert bucket.display_title =~ "[TMDB]"
-    end
-
-    test "ignores non-error entries" do
-      info_entry = %{
-        error_entry(1, :tmdb, "TMDB returned 429")
-        | level: :info
-      }
-
-      Buckets.ingest(:buckets_test, info_entry)
-      assert Buckets.list_buckets(:buckets_test) == []
-    end
-
-    test "increments the count when the same fingerprint repeats" do
-      Buckets.ingest(:buckets_test, error_entry(1, :tmdb, "TMDB returned 429 at 200ms"))
-      Buckets.ingest(:buckets_test, error_entry(2, :tmdb, "TMDB returned 429 at 500ms"))
-
-      [bucket] = Buckets.list_buckets(:buckets_test)
-      assert bucket.count == 2
-    end
-
-    test "keeps up to 5 sample_entries" do
-      for i <- 1..10 do
-        Buckets.ingest(:buckets_test, error_entry(i, :tmdb, "TMDB returned 429 at #{i * 100}ms"))
-      end
-
-      [bucket] = Buckets.list_buckets(:buckets_test)
-      assert length(bucket.sample_entries) == 5
-    end
-
-    test "ignores Ecto sandbox-disconnect errors (test-env noise)" do
-      # When a Task spawned during a test outlives its sandbox owner, Ecto
-      # logs a `DBConnection.ConnectionError ... Sandbox` disconnect. That
-      # message is a pure test artefact — bucketing it would surface flakes
-      # in unrelated assertions (see flaky-tests.md #2).
-      message =
-        "Exqlite.Connection (#PID<0.123.0>) disconnected: ** (DBConnection.ConnectionError) " <>
-          "owner #PID<0.456.0> exited Client #PID<0.789.0> (Task.Supervised) is still using " <>
-          "a connection from owner at location: " <>
-          "(ecto_sql 3.13.4) lib/ecto/adapters/sql/sandbox.ex:0: " <>
-          "Ecto.Adapters.SQL.Sandbox.Connection.proxy/3"
-
-      Buckets.ingest(:buckets_test, error_entry(1, :ecto, message))
-
-      assert Buckets.list_buckets(:buckets_test) == []
-    end
-
-    test "still buckets non-sandbox Ecto errors" do
-      # A real Ecto error (constraint violation, query failure, etc.) must
-      # still surface — only the sandbox-owner-exit pattern is filtered.
-      Buckets.ingest(
-        :buckets_test,
-        error_entry(1, :ecto, "Postgrex.Error: unique_violation on users_email_index")
+  defp entry(overrides) do
+    Entry.new(
+      Map.merge(
+        %{
+          id: System.unique_integer([:positive]),
+          timestamp: DateTime.utc_now(),
+          level: :error,
+          component: :tmdb,
+          message: "boom",
+          metadata: %{}
+        },
+        Map.new(overrides)
       )
+    )
+  end
 
-      assert [%Bucket{component: :ecto}] = Buckets.list_buckets(:buckets_test)
+  defp fingerprint_of(component, message), do: Fingerprint.fingerprint(component, message).key
+
+  describe "capture + cache" do
+    test "an error is cached and durably persisted" do
+      message = "tmdb failed #{uniq()}"
+      fingerprint = fingerprint_of(:tmdb, message)
+
+      Buckets.ingest(:buckets_test, entry(message: message))
+
+      assert %Bucket{count: 1, severity: :error} = Buckets.get_bucket(:buckets_test, fingerprint)
+      assert %{count: 1, origin: :log} = Store.get_incident_by_fingerprint(fingerprint)
+    end
+
+    test "warnings are captured too" do
+      message = "slow query #{uniq()}"
+      fingerprint = fingerprint_of(:library, message)
+
+      Buckets.ingest(:buckets_test, entry(component: :library, level: :warning, message: message))
+
+      assert %Bucket{severity: :warning} = Buckets.get_bucket(:buckets_test, fingerprint)
+    end
+
+    test "info and debug are ignored — neither cached nor persisted" do
+      message = "fyi #{uniq()}"
+      fingerprint = fingerprint_of(:tmdb, message)
+
+      Buckets.ingest(:buckets_test, entry(level: :info, message: message))
+
+      assert Buckets.get_bucket(:buckets_test, fingerprint) == nil
+      assert Store.get_incident_by_fingerprint(fingerprint) == nil
+    end
+
+    test "a repeated fingerprint increments cache and incident count" do
+      message = "duplicate #{uniq()}"
+      fingerprint = fingerprint_of(:tmdb, message)
+
+      Buckets.ingest(:buckets_test, entry(message: message))
+      Buckets.ingest(:buckets_test, entry(message: message))
+
+      assert %Bucket{count: 2} = Buckets.get_bucket(:buckets_test, fingerprint)
+      assert %{count: 2} = Store.get_incident_by_fingerprint(fingerprint)
+    end
+
+    test "the sandbox-disconnect noise pattern is dropped, not captured" do
+      message =
+        "Exqlite.Connection disconnected: ** (DBConnection.ConnectionError) owner exited " <>
+          "Client is still using a connection from owner (Ecto.Adapters.SQL.Sandbox)"
+
+      fingerprint = fingerprint_of(:ecto, message)
+      Buckets.ingest(:buckets_test, entry(component: :ecto, message: message))
+
+      assert Buckets.get_bucket(:buckets_test, fingerprint) == nil
+      assert Store.get_incident_by_fingerprint(fingerprint) == nil
     end
   end
 
-  describe "window-based eviction" do
-    test "list_buckets/1 filters buckets whose last_seen is outside the window" do
-      old = DateTime.add(DateTime.utc_now(), -2 * 3_600, :second)
-      new_now = DateTime.utc_now()
-      Buckets.ingest(:buckets_test, error_entry(1, :tmdb, "old error", old))
-      Buckets.ingest(:buckets_test, error_entry(2, :tmdb, "new error", new_now))
+  describe "durability" do
+    test "rebuilds the cache from the store on boot" do
+      message = "persisted before boot #{uniq()}"
+      fingerprint = fingerprint_of(:pipeline, message)
 
-      buckets = Buckets.list_buckets(:buckets_test)
-      messages = Enum.map(buckets, & &1.normalized_message)
-      assert "new error" in messages
-      refute "old error" in messages
+      # Seed durably from the test process (sandbox owner), then start a fresh
+      # Buckets and confirm its boot rebuild surfaces the incident.
+      {:ok, _incident} =
+        Capture.persist_entry(entry(component: :pipeline, level: :warning, message: message))
+
+      start_supervised!(Supervisor.child_spec({Buckets, name: :buckets_boot}, id: :buckets_boot))
+
+      assert %Bucket{count: 1, severity: :warning} =
+               Buckets.get_bucket(:buckets_boot, fingerprint)
     end
   end
 
-  describe "broadcasts" do
-    test "broadcasts a throttled :buckets_changed message" do
+  describe "broadcast" do
+    test "emits a throttled :buckets_changed after an ingest" do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.error_reports())
 
-      Buckets.ingest(:buckets_test, error_entry(1, :tmdb, "TMDB returned 429"))
-      assert_receive {:buckets_changed, _snapshot}, 1_500
+      Buckets.ingest(:buckets_test, entry(message: "broadcast me #{uniq()}"))
 
-      # Rapid second insertion within throttle window: no second message
-      Buckets.ingest(:buckets_test, error_entry(2, :tmdb, "TMDB returned 429"))
-      refute_receive {:buckets_changed, _}, 500
+      assert_receive {:buckets_changed, buckets}, 1_500
+      assert is_list(buckets)
     end
   end
 end

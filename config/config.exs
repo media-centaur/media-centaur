@@ -48,7 +48,8 @@ config :media_centaur, Oban,
   # self_update: serialized because it writes to the install dir on disk.
   # images: per-entity artwork refresh (TMDB fetch → enqueue), kept low
   # since the heavy download/resize runs in the Broadway image pipeline.
-  queues: [acquisition: 3, self_update: 1, images: 2],
+  # maintenance: low-priority housekeeping (diagnostic-event retention prune).
+  queues: [acquisition: 3, self_update: 1, images: 2, maintenance: 1],
   plugins: [
     # Offset minute (17) so every install doesn't hit the GitHub API
     # on the hour — spreads requests across the 60s window and keeps
@@ -58,7 +59,10 @@ config :media_centaur, Oban,
        {"17 */6 * * *", MediaCentaur.SelfUpdate.CheckerJob},
        # Drives `Pursuits.Policy` for every active pursuit every 15 minutes.
        # Idempotent re-reads on every wake; terminal pursuits are skipped.
-       {"*/15 * * * *", MediaCentaur.Acquisition.Pursuits.Watcher}
+       {"*/15 * * * *", MediaCentaur.Acquisition.Pursuits.Watcher},
+       # Daily retention prune of the durable diagnostic-event log (~30d).
+       # Offset minute so it doesn't pile onto the hour boundary.
+       {"33 4 * * *", MediaCentaur.ErrorReports.PruneJob}
      ]}
   ]
 

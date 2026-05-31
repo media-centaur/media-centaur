@@ -25,6 +25,10 @@ defmodule MediaCentaur.ErrorReports.EnvMetadata do
     }
   end
 
+  @doc "Just the app version string — cheap enough to call per captured event."
+  @spec app_version() :: binary()
+  def app_version, do: to_string(Application.spec(:media_centaur, :vsn))
+
   @spec render(t()) :: binary()
   def render(%{} = meta) do
     String.trim_trailing("""

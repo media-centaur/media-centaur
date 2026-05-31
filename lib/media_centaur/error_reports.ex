@@ -1,7 +1,7 @@
 defmodule MediaCentaur.ErrorReports do
   use Boundary,
     deps: [MediaCentaur.Console],
-    exports: [Bucket, EnvMetadata, Fingerprint, IssueUrl, Redactor]
+    exports: [Bucket, DiagnosticEvent, EnvMetadata, Fingerprint, Incident, IssueUrl, Redactor]
 
   @moduledoc """
   Bounded context for error report aggregation and GitHub issue submission.
@@ -13,6 +13,7 @@ defmodule MediaCentaur.ErrorReports do
   """
 
   alias MediaCentaur.ErrorReports.Buckets
+  alias MediaCentaur.ErrorReports.Store
   alias MediaCentaur.Topics
 
   @spec list_buckets() :: [__MODULE__.Bucket.t()]
@@ -20,6 +21,10 @@ defmodule MediaCentaur.ErrorReports do
 
   @spec get_bucket(binary()) :: __MODULE__.Bucket.t() | nil
   defdelegate get_bucket(fingerprint), to: Buckets
+
+  @doc "Overall diagnostics health rollup — see `Store.health/0`."
+  @spec health() :: Store.health_rollup()
+  defdelegate health(), to: Store
 
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe, do: Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.error_reports())

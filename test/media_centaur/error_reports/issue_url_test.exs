@@ -9,6 +9,7 @@ defmodule MediaCentaur.ErrorReports.IssueUrlTest do
       component: :tmdb,
       normalized_message: "TMDB returned <N>: rate limited (retry after <N>s)",
       display_title: "[TMDB] TMDB returned <N>: rate limited (retry after <N>s)",
+      severity: :error,
       count: 12,
       first_seen: ~U[2026-04-24 13:48:02Z],
       last_seen: ~U[2026-04-24 14:00:19Z],
