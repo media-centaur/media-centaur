@@ -147,14 +147,21 @@ rejected — do not reuse their visuals).
    contributor (TMDB vitals) wired end-to-end. **Deferred:** pipeline +
    acquisition contributors (same pattern, phased rollout); throttled
    `latest_context` refresh; threaded pipeline correlation id (spec D13).
-3. **Phase 3 — Submission swap.** `ReportTransport` behaviour + GitHub-REST
-   private-repo impl; token config + rotation; remove the `window.open` JS hook;
-   offline/no-token fallback.
+3. **Phase 3 — Submission swap.** Backbone ✅ **done 2026-05-31:**
+   `ReportTransport` behaviour + `GithubTransport` (private-repo GitHub REST,
+   fine-grained Bearer token); `ReportPayload` (reuses `IssueUrl` markdown, no
+   URL size ladder); `ErrorReports.submit_report/2` with copy-fallback on
+   no-token/network/non-201; token+repo via app config (release wires the token
+   from an env var). Fully `Req.Test`-stubbed. **Deferred to Phase 4:** the
+   StatusLive rewire to call `submit_report` + removal of the `window.open`
+   `error_report.js` hook — Phase 4 rebuilds that modal as the guided consent
+   flow, so the UI swap lands there.
 4. **Phase 4 — Dashboard + consent reporting.** Rebuild `/status` as the
    Subsystem Health Board (no chips/console); warnings in health; drill-in
    (issues + diagnostics); discovery badge; the guided 3-step consent modal with
-   manual redaction; the `:user`-origin entry points (global + per-entity).
-   Mockups happen here.
+   manual redaction; wire `submit_report` + remove the `window.open` hook (from
+   Phase 3); the `:user`-origin entry points (global + per-entity). Mockups
+   happen here.
 
 Each phase is test-first, no network in tests, and ships with the wiki/privacy
 documentation for its user-visible surface.
