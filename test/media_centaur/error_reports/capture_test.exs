@@ -65,6 +65,15 @@ defmodule MediaCentaur.ErrorReports.CaptureTest do
       {:ok, incident} = Capture.persist_entry(entry(message: "versioned"))
       assert incident.app_version_at_first == to_string(Application.spec(:media_centaur, :vsn))
     end
+
+    test "freezes a context snapshot when the incident first opens" do
+      {:ok, incident} = Capture.persist_entry(entry(message: "first time failure"))
+
+      assert is_map(incident.first_context)
+      assert Map.has_key?(incident.first_context, "lead_up")
+      assert Map.has_key?(incident.first_context, "vitals")
+      assert Map.has_key?(incident.first_context, "triggering_ids")
+    end
   end
 
   describe "persist_entry/1 redaction" do
