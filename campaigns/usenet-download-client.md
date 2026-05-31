@@ -99,12 +99,15 @@ Append-only log.
 Phased; each phase ships something real without depending on the harder logic
 that follows.
 
-1. **P0 · prowlarr-stack: add the SABnzbd service.** New `sabnzbd` compose
-   service, **outside** the gluetun VPN tunnel (usenet is SSL-to-provider, no
-   P2P leak — same posture as qBit today), completed folder volume-mapped into
-   the same downloads location MC watches. Document registering it as
-   Prowlarr's second download client. Provider NNTP creds + usenet indexer stay
-   user-supplied at runtime. *(Independent — separate repo; can land first.)*
+1. **P0 · stack: add the SABnzbd service.** *(Relocated — now owned by
+   [`download-stack-control-plane`](download-stack-control-plane.md)'s P1.)* The
+   stack-side SABnzbd service lands in the **new `download-stack` repo**, not
+   `prowlarr-stack`: new `sabnzbd` compose service, **outside** the gluetun VPN
+   tunnel (usenet is SSL-to-provider, no P2P leak — same posture as qBit today),
+   completed folder volume-mapped into the same downloads location MC watches,
+   registered as Prowlarr's second download client. Provider NNTP creds + usenet
+   indexer stay user-supplied at runtime. This campaign keeps the **MC-side**
+   work below (P1–P4).
 2. **P1 · config & dispatcher.** Single `download_client_*` → two protocol
    slots; backward-compatible migration of the existing config into the torrent
    slot. `Dispatcher.driver()` → `drivers()` returning the configured set.

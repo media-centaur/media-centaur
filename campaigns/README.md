@@ -21,6 +21,22 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`download-stack-control-plane.md`](download-stack-control-plane.md) —
+  **planning.** Mature the download infrastructure (`prowlarr-stack`) from a
+  one-shot installer into a **managed component with a control plane**, shipped
+  as a **new `download-stack` repo** that supersedes the old one. The reframe:
+  install/configure/observe/reconfigure are the stack's *operational
+  lifecycle*; a `curl | sh` installer only covers install — the real gap is a
+  missing control plane. Stack owns that control plane; **MC stays thin**
+  (change-axis isolation — MC moves only when the MC↔stack protocol changes).
+  Config-as-truth (`stack.toml` + `apply` reconciler + read-only `status`), VPN
+  routing becomes a **runtime toggle** not an install-time fork, **v1 contract
+  is drain-before-change** (no live-migration of in-flight/seeding state), and a
+  **versioned, loopback-only, confirm-in-MC provisioning handshake** lets the
+  installer auto-wire MC ("detected MC on :2160 — configure?"). Greenfield-with-
+  heritage: ports prowlarr-stack's proven parts; old repo removed at parity-
+  plus-maturity. ADR-052 (amends ADR-035) is the first deliverable. Seven phases;
+  no code yet. Design settled 2026-05-31.
 * [`media-search-tmdb-acquisition.md`](media-search-tmdb-acquisition.md) —
   **planning.** A second acquisition entry point: start from a TMDB title,
   pick seasons/episodes, and let Media Centaur autonomously plan a coverage

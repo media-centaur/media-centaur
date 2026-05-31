@@ -1,11 +1,15 @@
 ---
 status: accepted
 date: 2026-04-15
-amended-by: decisions/architecture/2026-04-16-037-acquisition-integration-scope.md
+amended-by:
+  - decisions/architecture/2026-04-16-037-acquisition-integration-scope.md
+  - decisions/architecture/2026-05-31-052-download-stack-control-plane.md
 ---
 # Prowlarr as the single optional integration point for media acquisition
 
 > **Amended by ADR-037.** The literal rule "never talks directly to qBittorrent, Transmission, or any other download client" was relaxed: a download-client driver is permitted *only* where Prowlarr has no equivalent capability (today: reading download progress). The spirit — Prowlarr is the integration surface; drivers are the exception — is preserved. See [ADR-037](2026-04-16-037-acquisition-integration-scope.md).
+>
+> **Amended by ADR-052.** This ADR's "single integration point with a narrow API surface" framing assumed a static stack reached only through the grab/search API. [ADR-052](2026-05-31-052-download-stack-control-plane.md) reframes the stack as a *managed component* and adds two further thin, versioned MC↔stack surfaces — a provisioning handshake and a read-only health endpoint. Prowlarr remains the acquisition integration point; the addition governs how MC relates to the stack as a component.
 
 ## Context and Problem Statement
 
