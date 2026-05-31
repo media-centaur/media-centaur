@@ -146,6 +146,65 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
     end
   end
 
+  describe "search submit is never gated by a disabled button" do
+    # The submit button used to be `disabled` whenever the (debounced)
+    # expansion preview was `:idle` or `{:error, _}`. A *disabled default
+    # submit button silently swallows the Enter key* (HTML implicit-submission
+    # rule), so pressing Enter before the 200ms `phx-debounce` flushed did
+    # nothing — the intermittent "Enter doesn't search, I have to click the
+    # button" bug. `submit_search` already guards empty/invalid queries, so the
+    # button must never carry the real `disabled` attribute.
+
+    test "submit button is not disabled with a fresh (idle) preview", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      assert has_element?(view, "section[data-nav-zone='search'] button[type='submit']")
+
+      refute has_element?(
+               view,
+               "section[data-nav-zone='search'] button[type='submit'][disabled]"
+             )
+    end
+
+    test "submit button is not disabled even when the syntax is invalid", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      view
+      |> form("form[phx-change='query_change']", query: "foo {a-}")
+      |> render_change()
+
+      refute has_element?(
+               view,
+               "section[data-nav-zone='search'] button[type='submit'][disabled]"
+             )
+    end
+
+    test "submitting a fresh valid query starts a search (Enter path)", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      Req.Test.allow(:prowlarr, self(), view.pid)
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.request_path do
+          "/api/v1/search" ->
+            Req.Test.json(conn, [sample_release(title: "Movie.A.2024.2160p.BluRay")])
+
+          _ ->
+            Req.Test.json(conn, [])
+        end
+      end)
+
+      # Submit directly from the freshly-mounted page (preview still `:idle`,
+      # mirroring an Enter pressed before the debounce flushed). The search must
+      # still run.
+      view
+      |> form("form[phx-change='query_change']", query: "Movie A")
+      |> render_submit()
+
+      assert render_until(view, "Movie.A.2024.2160p.BluRay") =~ "Movie.A.2024.2160p.BluRay"
+    end
+  end
+
   describe "submit_search and grab_selected" do
     test "renders results, lets user select, and submits a grab", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
