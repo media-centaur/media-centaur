@@ -55,4 +55,36 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
       for s <- HealthBoard.board_subsystems(), do: assert(grouped[s] == [])
     end
   end
+
+  describe "tile_state/1" do
+    defp severity_bucket(severity) do
+      %MediaCentaur.ErrorReports.Bucket{
+        fingerprint: "fp",
+        component: :pipeline,
+        normalized_message: "m",
+        display_title: "t",
+        severity: severity,
+        count: 2,
+        first_seen: ~U[2026-06-01 10:00:00Z],
+        last_seen: ~U[2026-06-01 12:00:00Z],
+        sample_entries: []
+      }
+    end
+
+    test "no buckets => :ok with zero counts" do
+      assert %{state: :ok, error_count: 0, warning_count: 0} = HealthBoard.tile_state([])
+    end
+
+    test "any error/critical => :error; counts reflect severities" do
+      assert %{state: :error, error_count: 1, warning_count: 1} =
+               HealthBoard.tile_state([severity_bucket(:error), severity_bucket(:warning)])
+
+      assert %{state: :error} = HealthBoard.tile_state([severity_bucket(:critical)])
+    end
+
+    test "only warnings => :warning" do
+      assert %{state: :warning, error_count: 0, warning_count: 2} =
+               HealthBoard.tile_state([severity_bucket(:warning), severity_bucket(:warning)])
+    end
+  end
 end

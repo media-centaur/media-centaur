@@ -45,6 +45,28 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     |> then(&Map.merge(base, &1))
   end
 
+  @type tile_state :: %{
+          state: :ok | :warning | :error,
+          error_count: non_neg_integer(),
+          warning_count: non_neg_integer()
+        }
+
+  @doc "Derives a tile's health state from its buckets. critical+error => :error."
+  @spec tile_state([Bucket.t()]) :: tile_state()
+  def tile_state(buckets) do
+    error_count = Enum.count(buckets, &(&1.severity in [:error, :critical]))
+    warning_count = Enum.count(buckets, &(&1.severity == :warning))
+
+    state =
+      cond do
+        error_count > 0 -> :error
+        warning_count > 0 -> :warning
+        true -> :ok
+      end
+
+    %{state: state, error_count: error_count, warning_count: warning_count}
+  end
+
   @spec label(atom()) :: String.t()
   def label(component), do: Map.fetch!(@labels, normalize(component))
 
