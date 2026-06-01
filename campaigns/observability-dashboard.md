@@ -221,19 +221,25 @@ uses the old `window.open` modal. Full precommit green (4280 Elixir + 484 JS).
 (`8b819993`; `IssueUrl` is now just `format_title`/`format_body/3`, reused by
 `ReportPayload` — candidate to fold into `ReportPayload`).
 
-**Still remaining in M2 — the guided 3-step consent flow.** Rebuild the interim
-single-screen `report_modal.ex` into: (1) what-happens + 4 promises → (2) review
-& remove with **manual per-section/per-line redaction** → (3) consent gate +
-Send. Open design/scope to settle when picking this up: the step-2 sections
-(spec lists *App version & system · error details · recent activity (logs) · your
-settings summary*) imply a **structured** payload — the current `ReportPayload`
-body is flat Markdown, and there is **no "settings summary" section yet**; decide
-the structured-report model + what (redacted) settings to include. Storybook
-story per new step component (MC0009).
+**Milestone 2 — the guided 3-step consent flow — DONE 2026-06-01** (commits
+`2d02b8d5 → f80851f5`; design [`2026-06-01-consent-flow-design.md`](../docs/superpowers/specs/2026-06-01-consent-flow-design.md),
+plan [`2026-06-01-consent-flow.md`](../docs/superpowers/plans/2026-06-01-consent-flow.md)).
+A brainstorm reframed step 2: because privacy leaks live *inside* free text
+(a title/username in a message), removal is **editing the exact outgoing text**,
+not per-section toggles — so the structured-payload / settings-summary idea was
+**dropped**. Shipped: `ErrorReports.assemble_body/2` (optional narrative +
+technical body) and `submit_payload/2` (submit an already-edited payload, same
+copy-fallback); three storied step components (`ConsentComponents`); the
+3-step `ReportModal` LiveComponent (1: optional narrative → 2: editable
+title+body = exact outgoing text → 3: consent gate + Send); StatusLive anchors
+the modal to a single incident (`bucket`, fingerprint from "Report this"); old
+parent `report_confirm` gone. Full precommit green (4289 Elixir + 484 JS).
+**Deferred to M4:** the standalone `:user`-origin "something else is wrong"
+entry point (still no `Store` user-incident create path).
 
-Then M3 (per-subsystem Activity widgets + storage fold + section removal) and M4
-(`:user`-origin + discovery badge). Load `user-interface`, `phoenix-thinking`,
-`storybook` first.
+Then **M3** (per-subsystem Activity widgets + storage fold + section removal —
+incl. retiring the old `error_summary_card`) and **M4** (`:user`-origin +
+discovery badge). Load `user-interface`, `phoenix-thinking`, `storybook` first.
 
 **The backend Phase 4 builds on (`MediaCentaur.ErrorReports` public API):**
 - `list_buckets/0`, `get_bucket/1`, and the `{:buckets_changed, buckets}`
