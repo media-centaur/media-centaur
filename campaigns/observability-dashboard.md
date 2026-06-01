@@ -212,18 +212,24 @@ view-model (`build_board/1`, `tile_state/1`, `group_buckets/1`, `tile_summary/1`
 non-destructively** — existing operational sections untouched; reporting still
 uses the old `window.open` modal. Full precommit green (4280 Elixir + 484 JS).
 
-**Milestone 2 (reporting rebuild) — in progress.** Done so far (`7d4f0615`):
-Send now routes through `submit_report/2` with `{:ok, url}` / `{:fallback,
-bundle}` result views (copyable text) — the old `window.open` `push_event` is
-gone from `StatusLive`. **Still remaining in M2:**
-- Rebuild `report_modal.ex` into the **guided 3-step consent flow** (what
-  happens + 4 promises → review & remove w/ manual redaction → consent gate +
-  Send). The modal's *main* view is still the old single-screen framing — it
-  uses `IssueUrl.build/2` for the preview and says "open a public GitHub issue"
-  (wrong — it's a private inbox now).
-- **Dead-code cleanup:** delete the now-orphaned `assets/js/hooks/error_report.js`
-  + its `app.js` import, and remove `IssueUrl.build/2` and its URL-budget helpers
-  (**keep `format_title`/`format_body`** — reused by the preview + `ReportPayload`).
+**Milestone 2 (reporting rebuild) — in progress.** Done: Send routes through
+`submit_report/2` with `{:ok, url}` / `{:fallback, bundle}` result views
+(`7d4f0615`); the modal's main view + copy corrected for the private inbox
+(previews via `ReportPayload`, no public-issue language), and the **whole old
+`window.open` path removed** — `IssueUrl.build/2` + URL-budget helpers,
+`error_report.js` + its `app.js` import, the `phx-hook="ErrorReport"` attr
+(`8b819993`; `IssueUrl` is now just `format_title`/`format_body/3`, reused by
+`ReportPayload` — candidate to fold into `ReportPayload`).
+
+**Still remaining in M2 — the guided 3-step consent flow.** Rebuild the interim
+single-screen `report_modal.ex` into: (1) what-happens + 4 promises → (2) review
+& remove with **manual per-section/per-line redaction** → (3) consent gate +
+Send. Open design/scope to settle when picking this up: the step-2 sections
+(spec lists *App version & system · error details · recent activity (logs) · your
+settings summary*) imply a **structured** payload — the current `ReportPayload`
+body is flat Markdown, and there is **no "settings summary" section yet**; decide
+the structured-report model + what (redacted) settings to include. Storybook
+story per new step component (MC0009).
 
 Then M3 (per-subsystem Activity widgets + storage fold + section removal) and M4
 (`:user`-origin + discovery badge). Load `user-interface`, `phoenix-thinking`,
