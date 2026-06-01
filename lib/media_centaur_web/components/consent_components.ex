@@ -46,10 +46,7 @@ defmodule MediaCentaurWeb.ConsentComponents do
   attr :title, :string, required: true
   attr :body, :string, required: true
 
-  attr :target, :any,
-    required: true,
-    doc: "the owning LiveComponent (@myself)",
-    doc: "the owning LiveComponent (@myself)"
+  attr :target, :any, required: true, doc: "the owning LiveComponent (@myself)"
 
   def consent_review(assigns) do
     ~H"""
