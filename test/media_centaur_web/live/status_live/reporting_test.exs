@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.StatusLive.ReportingTest do
   @moduledoc """
   Reporting flow on /status. Submission goes through
-  `ErrorReports.submit_report/2`; with no token configured (the default in
+  `ErrorReports.submit_payload/2`; with no token configured (the default in
   dev/test) it falls back to presenting the redacted bundle for the user to
   copy — never the old `window.open` GitHub-URL path.
   """
@@ -31,19 +31,45 @@ defmodule MediaCentaurWeb.StatusLive.ReportingTest do
     bucket
   end
 
-  test "confirming a report submits via submit_report and shows the copy-fallback (no token)",
+  test "3-step consent flow submits via submit_payload and shows the copy-fallback (no token)",
        %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/status")
     bucket = seed_bucket("fp-pipeline-error")
     render(view)
 
-    render_click(view, "open_error_report_modal", %{})
-    html = render_click(view, "report_confirm", %{"fingerprint" => bucket.fingerprint})
+    # Open the modal anchored to the seeded bucket fingerprint.
+    render_click(view, "open_error_report_modal", %{"fingerprint" => bucket.fingerprint})
+    assert has_element?(view, "[data-testid='consent-step-1']")
 
-    # The redacted bundle is presented inline for copying — the report title
-    # (drawn from the bucket) appears in the rendered fallback.
-    assert html =~ "Image downloads failing for 11 items"
-    # Fallback path renders a copyable region, not a "open GitHub" success.
+    # Step 1 → enter a narrative in the textarea.
+    view
+    |> element("#error-report-modal [data-testid=consent-step-1] textarea")
+    |> render_keyup(%{"value" => "froze on play"})
+
+    # Advance to step 2.
+    view |> element("#error-report-modal button", "Next") |> render_click()
+    assert has_element?(view, "[data-testid='consent-step-2']")
+
+    # Advance to step 3.
+    view |> element("#error-report-modal button", "Next") |> render_click()
+    assert has_element?(view, "[data-testid='consent-step-3']")
+
+    # Tick the consent checkbox.
+    view
+    |> element("#error-report-modal [data-testid=consent-step-3] input[type=checkbox]")
+    |> render_click()
+
+    # Send the report.
+    view |> element("#error-report-modal button", "Send to the developer") |> render_click()
+
+    # No token → fallback textarea appears.
     assert has_element?(view, "[data-testid=report-fallback]")
+
+    # Fallback bundle includes the report title drawn from the bucket.
+    html = render(view)
+    assert html =~ "Image downloads failing for 11 items"
+
+    # Narrative was entered, so the "What happened" section is present in the bundle.
+    assert html =~ "What happened"
   end
 end
