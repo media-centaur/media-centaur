@@ -64,4 +64,20 @@ defmodule MediaCentaur.ErrorReports.ReportSubmissionTest do
       assert bundle =~ "## Environment"
     end
   end
+
+  describe "assemble_body/2" do
+    test "prepends a narrative section when the narrative is present" do
+      body = ErrorReports.assemble_body("it froze when I hit play", "## Error\nboom")
+      assert body =~ "## What happened (in the user's words)"
+      assert body =~ "it froze when I hit play"
+      assert body =~ "## Error\nboom"
+      # narrative comes before the technical body
+      assert :binary.match(body, "What happened") < :binary.match(body, "## Error")
+    end
+
+    test "returns the technical body unchanged when the narrative is blank" do
+      assert ErrorReports.assemble_body("", "## Error\nboom") == "## Error\nboom"
+      assert ErrorReports.assemble_body("   ", "## Error\nboom") == "## Error\nboom"
+    end
+  end
 end

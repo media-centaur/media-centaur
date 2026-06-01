@@ -87,6 +87,18 @@ defmodule MediaCentaur.ErrorReports do
     end
   end
 
+  @doc """
+  Assembles the final report body: the user's narrative (if any) as a leading
+  section, then the (possibly edited) technical body.
+  """
+  @spec assemble_body(String.t(), String.t()) :: String.t()
+  def assemble_body(narrative, technical_body) do
+    case String.trim(narrative || "") do
+      "" -> technical_body
+      text -> "## What happened (in the user's words)\n\n" <> text <> "\n\n" <> technical_body
+    end
+  end
+
   defp configured_transport do
     Application.get_env(:media_centaur, :diagnostics_transport, GithubTransport)
   end
