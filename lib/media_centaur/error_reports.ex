@@ -18,8 +18,12 @@ defmodule MediaCentaur.ErrorReports do
 
   Subscribes to the Console log stream, groups `:error`-level entries by a
   normalized-message fingerprint, and exposes a 1-hour rolling snapshot.
-  Submission is browser-side: `IssueUrl.build/2` produces a GitHub
-  new-issue URL that the status page opens via `window.open`.
+  Submission is server-side: `ReportPayload` formats the issue body, and
+  `GithubTransport` posts it to a private GitHub repo via the REST API
+  (`submit_payload/2`). When no token is configured or the request fails,
+  the caller receives a `{:fallback, bundle}` with the redacted text for
+  the user to copy. `IssueUrl` is an internal Markdown formatter reused by
+  `ReportPayload` — it no longer drives browser-side submission.
   """
 
   alias MediaCentaur.ErrorReports.Buckets

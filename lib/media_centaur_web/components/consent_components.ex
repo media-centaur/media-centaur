@@ -29,14 +29,14 @@ defmodule MediaCentaurWeb.ConsentComponents do
         <span class="text-sm text-base-content/70">
           In your own words, what happened? <span class="text-base-content/40">(optional)</span>
         </span>
-        <textarea
-          rows="4"
-          class="textarea textarea-bordered w-full"
-          phx-keyup="set_narrative"
-          phx-debounce="300"
-          phx-target={@target}
-          placeholder="e.g. I added a new movie and its poster never showed up…"
-        >{@narrative}</textarea>
+        <form phx-change="set_narrative" phx-target={@target} phx-debounce="300">
+          <textarea
+            name="value"
+            rows="4"
+            class="textarea textarea-bordered w-full"
+            placeholder="e.g. I added a new movie and its poster never showed up…"
+          >{@narrative}</textarea>
+        </form>
       </label>
     </div>
     """
@@ -60,24 +60,24 @@ defmodule MediaCentaurWeb.ConsentComponents do
       </div>
       <label class="flex flex-col gap-1">
         <span class="text-sm text-base-content/70">Title</span>
-        <input
-          type="text"
-          class="input input-bordered w-full font-mono text-xs"
-          value={@title}
-          phx-keyup="set_title"
-          phx-debounce="300"
-          phx-target={@target}
-        />
+        <form phx-change="set_title" phx-target={@target} phx-debounce="300">
+          <input
+            type="text"
+            name="value"
+            class="input input-bordered w-full font-mono text-xs"
+            value={@title}
+          />
+        </form>
       </label>
       <label class="flex flex-col gap-1">
         <span class="text-sm text-base-content/70">Report</span>
-        <textarea
-          rows="14"
-          class="textarea textarea-bordered w-full font-mono text-xs"
-          phx-keyup="set_body"
-          phx-debounce="300"
-          phx-target={@target}
-        >{@body}</textarea>
+        <form phx-change="set_body" phx-target={@target} phx-debounce="300">
+          <textarea
+            name="value"
+            rows="14"
+            class="textarea textarea-bordered w-full font-mono text-xs"
+          >{@body}</textarea>
+        </form>
       </label>
     </div>
     """
