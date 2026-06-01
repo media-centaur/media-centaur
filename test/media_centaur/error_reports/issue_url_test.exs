@@ -30,55 +30,20 @@ defmodule MediaCentaur.ErrorReports.IssueUrlTest do
     }
   end
 
-  describe "build/2" do
-    test "returns a valid github new-issue URL" do
-      {:ok, url, flags} = IssueUrl.build(sample_bucket(), sample_env())
-      parsed = URI.parse(url)
-      assert parsed.host == "github.com"
-      assert parsed.path == "/media-centaur/media-centaur/issues/new"
-      assert is_list(flags)
-    end
-
-    test "title encodes the display title" do
-      {:ok, url, _} = IssueUrl.build(sample_bucket(), sample_env())
-      query = URI.decode_query(URI.parse(url).query)
-      assert query["title"] =~ "[TMDB]"
-      assert query["title"] =~ "rate limited"
-    end
-
-    test "body contains environment + fingerprint + counts" do
-      {:ok, url, _} = IssueUrl.build(sample_bucket(), sample_env())
-      body = URI.parse(url).query |> URI.decode_query() |> Map.get("body")
+  describe "format_body/3" do
+    test "renders environment, fingerprint, and recurrence counts" do
+      body = IssueUrl.format_body(sample_bucket(), sample_env(), [])
       assert body =~ "0.21.0"
       assert body =~ "Fingerprint: 3f9c1a2b4e5d6f70"
       assert body =~ "Count:"
       assert body =~ "12"
+      assert body =~ "First seen:"
     end
 
-    test "drops log-context lines when too long; returns :truncated_log_context flag" do
-      many_entries =
-        for i <- 1..500 do
-          %{
-            timestamp: ~U[2026-04-24 14:00:00Z],
-            message: "error line #{i} " <> String.duplicate("x", 50)
-          }
-        end
-
-      bucket = sample_bucket(%{sample_entries: many_entries})
-      {:ok, url, flags} = IssueUrl.build(bucket, sample_env())
-      assert :truncated_log_context in flags
-      assert byte_size(url) <= 7_500
-    end
-
-    test "always preserves environment + fingerprint even under extreme pressure" do
-      # 100 KB bucket message
-      huge = String.duplicate("x", 100_000)
-      bucket = sample_bucket(%{normalized_message: huge, display_title: "[TMDB] " <> huge})
-      {:ok, url, _flags} = IssueUrl.build(bucket, sample_env())
-      body = URI.parse(url).query |> URI.decode_query() |> Map.get("body")
-      assert body =~ "0.21.0"
-      assert body =~ "Fingerprint:"
-      assert byte_size(url) <= 7_500
+    test "includes the redacted log sample lines" do
+      entries = [%{timestamp: ~U[2026-04-24 14:00:00Z], message: "no such file <path>"}]
+      body = IssueUrl.format_body(sample_bucket(), sample_env(), entries)
+      assert body =~ "no such file <path>"
     end
   end
 

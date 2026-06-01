@@ -212,14 +212,22 @@ view-model (`build_board/1`, `tile_state/1`, `group_buckets/1`, `tile_summary/1`
 non-destructively** — existing operational sections untouched; reporting still
 uses the old `window.open` modal. Full precommit green (4280 Elixir + 484 JS).
 
-**Next — Milestone 2 (reporting rebuild):** guided 3-step consent modal (4
-promises → review & remove w/ manual redaction → consent gate + Send); wire Send
-to `submit_report/2`; render `{:fallback, bundle}` as copyable text; remove
-`error_report.js`, the `error_reports:open_issue` push_event, and
-`IssueUrl.build/2` (keep `format_title`/`format_body`). Resolve the
-incident↔bucket submission mapping. Then M3 (per-subsystem Activity widgets +
-storage fold + section removal) and M4 (`:user`-origin + discovery badge). Load
-`user-interface`, `phoenix-thinking`, `storybook` first.
+**Milestone 2 (reporting rebuild) — in progress.** Done so far (`7d4f0615`):
+Send now routes through `submit_report/2` with `{:ok, url}` / `{:fallback,
+bundle}` result views (copyable text) — the old `window.open` `push_event` is
+gone from `StatusLive`. **Still remaining in M2:**
+- Rebuild `report_modal.ex` into the **guided 3-step consent flow** (what
+  happens + 4 promises → review & remove w/ manual redaction → consent gate +
+  Send). The modal's *main* view is still the old single-screen framing — it
+  uses `IssueUrl.build/2` for the preview and says "open a public GitHub issue"
+  (wrong — it's a private inbox now).
+- **Dead-code cleanup:** delete the now-orphaned `assets/js/hooks/error_report.js`
+  + its `app.js` import, and remove `IssueUrl.build/2` and its URL-budget helpers
+  (**keep `format_title`/`format_body`** — reused by the preview + `ReportPayload`).
+
+Then M3 (per-subsystem Activity widgets + storage fold + section removal) and M4
+(`:user`-origin + discovery badge). Load `user-interface`, `phoenix-thinking`,
+`storybook` first.
 
 **The backend Phase 4 builds on (`MediaCentaur.ErrorReports` public API):**
 - `list_buckets/0`, `get_bucket/1`, and the `{:buckets_changed, buckets}`

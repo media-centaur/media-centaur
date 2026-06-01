@@ -18,7 +18,7 @@ defmodule MediaCentaur.ErrorReports.ReportPayload do
   def build(%Bucket{} = bucket, %{} = env) do
     %{
       title: IssueUrl.format_title(bucket),
-      body: IssueUrl.format_body(bucket, env, bucket.sample_entries, []),
+      body: IssueUrl.format_body(bucket, env, bucket.sample_entries),
       labels: @labels
     }
   end
