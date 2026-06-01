@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.77.7 — 2026-06-01
+
+### Fixed
+
+**Installing an update no longer flashes a scary "not connected" error while the app restarts.**
+When you install an update, Media Centaur briefly restarts itself to load the new version. During
+that moment it used to show a red "Not connected to server" message — as if something had gone
+wrong — even though the restart was perfectly normal. Now it shows a calm "Applying update" notice
+instead, so you know the app is just finishing up and will be right back.
+
 ## v0.77.6 — 2026-05-31
 
 ### Fixed
