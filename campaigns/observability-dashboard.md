@@ -1,7 +1,7 @@
 ---
 status: in_progress
 started: 2026-05-31
-last_updated: 2026-05-31
+last_updated: 2026-06-01
 ---
 # Observability dashboard
 
@@ -181,6 +181,63 @@ documentation for its user-visible surface.
 * Uncategorizable errors are captured, grouped without flooding, and reportable.
 * `/status` reads as a media-app health surface — no Console aesthetic, no chip
   palette, color only signaling health.
+
+## Resuming — Phase 4, start here
+
+Phases 1–3 (the whole backend) are done, committed, and green
+(`a838a198 → 5d59c601`). Phase 4 is the only remaining phase: the user-facing
+surface. **First reconcile this file against `git log` + code (ADR-042), then
+brainstorm visual direction / mockups — do not auto-build the UI.** Load
+`user-interface`, `phoenix-thinking`, `storybook`, `visual-designer` first.
+
+**The backend Phase 4 builds on (`MediaCentaur.ErrorReports` public API):**
+- `list_buckets/0`, `get_bucket/1`, and the `{:buckets_changed, buckets}`
+  broadcast on `Topics.error_reports()` — `StatusLive` already consumes these.
+- `health/0` → `%{status, open_count, by_severity}` (the board header + badge).
+- `submit_report/2` → `{:ok, url} | {:fallback, bundle}` — wire the modal Send to
+  this; render the fallback bundle as copyable text.
+- Incidents (`Store`): `list_incidents(status:/limit:)`,
+  `get_incident_by_fingerprint/1`, `set_status/2` (acknowledge/resolve),
+  `raise_fault/4`/`resolve_fault/3`. An incident's `first_context` (JSON) is the
+  frozen drill-in snapshot.
+
+**Phase 4 work:**
+1. Rebuild `/status` → **Subsystem Health Board**. Constraints, non-negotiable:
+   name + neutral monochrome icon + type; **color only for health/severity**;
+   **no Console look, no chip palette** ([[feedback-no-console-look-or-chip-palette]]).
+   Warnings now appear in health.
+2. Drill-in: ranked grouped issues + that subsystem's diagnostics (render
+   `first_context`). Clean sans-serif rows; monospace only for ids/paths.
+3. **Discovery badge** on the Status nav = unacknowledged open incidents. Open
+   question to finalize here: persist `diagnostics_seen_at` in `Settings`; badge
+   counts open incidents newer than it; visiting `/status` advances it.
+4. **Guided 3-step consent modal** (what-happens + 4 promises → review & remove,
+   manual per-section/per-line redaction → consent gate + Send). Plain-language
+   rendering + "view technical details" expander. Send → `submit_report`.
+5. **Remove the old submission path:** `assets/js/hooks/error_report.js`
+   (`window.open`), the `push_event "error_reports:open_issue"` in `StatusLive`,
+   and `IssueUrl`'s URL builder — **keep `IssueUrl.format_title/format_body`**
+   (reused by `ReportPayload`).
+6. **`:user`-origin entry points** (global + per-entity). NOTE: `Store` has no
+   `:user`-incident create path yet (only `:log`/`:subsystem`) — Phase 4 adds
+   one (origin `:user`, `scope`, `user_description`, attach current context).
+7. Mockups first; a Storybook story per new component (MC0009).
+
+**Test-env gotchas (so Phase 4 tests don't trip):** the durable `LogHandler` and
+`ShutdownMonitor` are **not started under `:test`**, and the global `Buckets` is
+**inert in test** (fed by neither the handler nor PubSub) — exercise capture via
+named `Buckets`/`Capture`/`Store` directly. `submit_report` tests inject
+`opts[:transport]`; `GithubTransport` tests inject a `Req.Test` client. No
+network in tests.
+
+**Phase-2/3 deferrals (pick up if desired, not required for Phase 4):** pipeline
++ acquisition `IncidentContext` contributors (same pattern as `TMDB`); throttled
+`latest_context` refresh; threaded pipeline correlation id (spec D13).
+
+**Architecture reports** (orientation; outside the repo, in `~/.agent/diagrams/`):
+`observability-phase1.html` (durable store), `observability-after-phase1.html`
+(hardening + Phase 2), `observability-phase3.html` (submission, structure &
+coupling).
 
 ## Pointers
 
