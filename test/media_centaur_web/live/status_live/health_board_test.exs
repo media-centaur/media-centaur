@@ -116,4 +116,61 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
       assert "hero-" <> _ = import_view.glyph
     end
   end
+
+  describe "tile_summary/1" do
+    alias MediaCentaurWeb.StatusLive.SubsystemView
+
+    defp view(state, error_count, warning_count) do
+      %SubsystemView{
+        component: :pipeline,
+        label: "Import",
+        glyph: "hero-arrow-down-tray",
+        state: state,
+        error_count: error_count,
+        warning_count: warning_count
+      }
+    end
+
+    test "healthy reads calm" do
+      assert HealthBoard.tile_summary(view(:ok, 0, 0)) == "No issues"
+    end
+
+    test "pluralizes and joins non-zero severity counts" do
+      assert HealthBoard.tile_summary(view(:error, 1, 0)) == "1 error"
+      assert HealthBoard.tile_summary(view(:error, 2, 1)) == "2 errors · 1 warning"
+      assert HealthBoard.tile_summary(view(:warning, 0, 3)) == "3 warnings"
+    end
+  end
+
+  describe "log_lines/1" do
+    test "flattens, newest-first, formats, caps at 20" do
+      bucket = fn entries ->
+        %MediaCentaur.ErrorReports.Bucket{
+          fingerprint: "fp",
+          component: :pipeline,
+          normalized_message: "m",
+          display_title: "t",
+          severity: :error,
+          count: 1,
+          first_seen: ~U[2026-06-01 10:00:00Z],
+          last_seen: ~U[2026-06-01 12:00:00Z],
+          sample_entries: entries
+        }
+      end
+
+      buckets = [
+        bucket.([%{timestamp: ~U[2026-06-01 10:00:00Z], message: "older"}]),
+        bucket.([%{timestamp: ~U[2026-06-01 12:00:00Z], message: "newer"}])
+      ]
+
+      lines = HealthBoard.log_lines(buckets)
+      assert [first | _] = lines
+      assert first =~ "12:00:00"
+      assert first =~ "newer"
+    end
+
+    test "no entries => empty list" do
+      assert HealthBoard.log_lines([]) == []
+    end
+  end
 end

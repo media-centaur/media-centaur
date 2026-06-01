@@ -94,6 +94,32 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   @spec glyph(atom()) :: String.t()
   def glyph(component), do: Map.fetch!(@glyphs, normalize(component))
 
+  @doc "Plain-language one-line summary of a tile's state (e.g. `2 errors · 1 warning`)."
+  @spec tile_summary(SubsystemView.t()) :: String.t()
+  def tile_summary(%SubsystemView{state: :ok}), do: "No issues"
+
+  def tile_summary(%SubsystemView{error_count: error_count, warning_count: warning_count}) do
+    [count_phrase(error_count, "error"), count_phrase(warning_count, "warning")]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  @doc "Newest-first, formatted log lines drawn from a subsystem's buckets (capped at 20)."
+  @spec log_lines([Bucket.t()]) :: [String.t()]
+  def log_lines(buckets) do
+    buckets
+    |> Enum.flat_map(& &1.sample_entries)
+    |> Enum.sort_by(& &1.timestamp, {:desc, DateTime})
+    |> Enum.take(20)
+    |> Enum.map(fn %{timestamp: timestamp, message: message} ->
+      "#{Calendar.strftime(timestamp, "%H:%M:%S")}  #{message}"
+    end)
+  end
+
+  defp count_phrase(0, _word), do: nil
+  defp count_phrase(1, word), do: "1 #{word}"
+  defp count_phrase(n, word), do: "#{n} #{word}s"
+
   # Framework + unknown components fold under :system on the board.
   defp normalize(component) when component in @board_subsystems, do: component
   defp normalize(_), do: :system
