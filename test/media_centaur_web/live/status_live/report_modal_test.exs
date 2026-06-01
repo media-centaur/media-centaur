@@ -40,13 +40,14 @@ defmodule MediaCentaurWeb.StatusLive.ReportModalTest do
     assert has_element?(view, "[data-testid='report-modal']")
   end
 
-  test "confirm emits error_reports:open_issue push_event", %{conn: conn} do
+  test "confirm submits via submit_report and shows the copy-fallback (no token)", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, "/status")
     view |> element("button", "Report errors") |> render_click()
     render_click(view, "report_confirm", %{"fingerprint" => hd(Buckets.list_buckets()).fingerprint})
 
-    assert_push_event(view, "error_reports:open_issue", %{url: url})
-    assert url =~ "https://github.com/media-centaur/media-centaur/issues/new"
+    # No token is configured in test, so submission falls back to presenting
+    # the redacted bundle for the user to copy (never the old window.open path).
+    assert has_element?(view, "[data-testid=report-fallback]")
   end
 
   test "cancel dismisses the modal", %{conn: conn} do
