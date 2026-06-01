@@ -9,7 +9,8 @@ defmodule MediaCentaur.ErrorReports do
       Incident,
       IncidentContext,
       IssueUrl,
-      Redactor
+      Redactor,
+      ReportPayload
     ]
 
   @moduledoc """

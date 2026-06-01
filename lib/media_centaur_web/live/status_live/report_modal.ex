@@ -2,13 +2,18 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
   @moduledoc """
   Modal shown when the user clicks "Report errors" on the Status page.
 
-  Presents the active buckets in a radio list, shows a redacted payload
-  preview, and on confirm emits a `push_event("error_reports:open_issue",
-  %{url: url})` that the `ErrorReport` JS hook handles with `window.open`.
+  Presents the active buckets in a radio list and a redacted payload preview.
+  On confirm, `StatusLive` submits via `ErrorReports.submit_report/2` to the
+  private reports inbox; the result is rendered here — `{:ok, url}` as a sent
+  confirmation, `{:fallback, bundle}` as copyable text when no token is
+  configured or the network is unavailable.
+
+  > Interim single-screen modal; the guided 3-step consent flow is the next
+  > Milestone-2 step.
   """
   use MediaCentaurWeb, :live_component
 
-  alias MediaCentaur.ErrorReports.{EnvMetadata, IssueUrl}
+  alias MediaCentaur.ErrorReports.{EnvMetadata, ReportPayload}
 
   @impl true
   def update(assigns, socket) do
@@ -78,18 +83,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
     selected_bucket =
       Enum.find(assigns.buckets, &(&1.fingerprint == assigns.selected))
 
-    env = EnvMetadata.collect()
-
-    preview =
-      if selected_bucket do
-        {:ok, _url, flags} = IssueUrl.build(selected_bucket, env)
-
-        %{
-          title: IssueUrl.format_title(selected_bucket),
-          body: IssueUrl.format_body(selected_bucket, env, selected_bucket.sample_entries, flags),
-          flags: flags
-        }
-      end
+    preview = selected_bucket && ReportPayload.build(selected_bucket, EnvMetadata.collect())
 
     assigns = assign(assigns, :preview, preview)
 
@@ -111,11 +105,11 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
 
           <div class="alert alert-warning text-sm">
             <span>
-              Review the report below before submitting. It's been automatically
+              Review the report below before sending. It's been automatically
               scrubbed of paths, UUIDs, API keys, IPs, emails, and configured URLs —
               but please glance for anything else personal (titles of private files,
-              usernames in error messages, etc.) before confirming.
-              This will open a public GitHub issue.
+              usernames in error messages, etc.) before confirming. It's sent
+              privately to the developer — not posted anywhere public.
             </span>
           </div>
         </div>
@@ -154,13 +148,6 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
             <div><span class="font-semibold">Title:</span> {@preview.title}</div>
             <div class="mt-2">{@preview.body}</div>
           </div>
-
-          <div
-            :if={@preview && :truncated_log_context in @preview.flags}
-            class="alert alert-info text-sm"
-          >
-            <span>Log context truncated to fit GitHub's URL size limit.</span>
-          </div>
         </div>
 
         <div class="px-6 pt-4 pb-6 flex flex-col items-center gap-2 border-t border-base-300">
@@ -169,7 +156,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
             phx-click={JS.push("report_confirm", value: %{fingerprint: @selected})}
             disabled={is_nil(@selected)}
           >
-            Confirm &amp; open GitHub
+            Send to the developer
           </.button>
           <a
             href="#"
