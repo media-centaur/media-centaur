@@ -27,8 +27,23 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     system: "hero-cpu-chip"
   }
 
+  alias MediaCentaur.ErrorReports.Bucket
+
   @spec board_subsystems() :: [atom()]
   def board_subsystems, do: @board_subsystems
+
+  @doc """
+  Groups buckets by board subsystem. Framework/unknown components fold under
+  `:system`. Every board subsystem is present with at least an empty list.
+  """
+  @spec group_buckets([Bucket.t()]) :: %{atom() => [Bucket.t()]}
+  def group_buckets(buckets) do
+    base = Map.new(@board_subsystems, &{&1, []})
+
+    buckets
+    |> Enum.group_by(fn %Bucket{component: c} -> normalize(c) end)
+    |> then(&Map.merge(base, &1))
+  end
 
   @spec label(atom()) :: String.t()
   def label(component), do: Map.fetch!(@labels, normalize(component))
