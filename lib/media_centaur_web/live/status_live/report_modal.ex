@@ -64,6 +64,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
   @impl true
   def render(assigns) do
     ~H"""
+    <%!-- report_cancel intentionally bubbles to the parent StatusLive (no phx-target) to close the modal --%>
     <div
       id="error-report-modal"
       class="modal-backdrop"
@@ -74,14 +75,24 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
     >
       <div class="modal-panel flex flex-col max-h-[88vh]" phx-click={%Phoenix.LiveView.JS{}}>
         <.result :if={@report_result} result={@report_result} />
-        <.flow :if={is_nil(@report_result)} {assigns} />
+        <.flow
+          :if={is_nil(@report_result)}
+          step={@step}
+          narrative={@narrative}
+          title={@title}
+          body={@body}
+          consent={@consent}
+          myself={@myself}
+        />
       </div>
     </div>
     """
   end
 
   # --- result view (sent / fallback) ---
-  attr :result, :any, required: true
+  attr :result, :any,
+    required: true,
+    doc: "{:ok, url} | {:fallback, text} from ErrorReports.submit_payload/1"
 
   defp result(assigns) do
     ~H"""
@@ -110,6 +121,13 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
   end
 
   # --- the 3-step flow ---
+  attr :step, :integer, required: true
+  attr :narrative, :string, required: true
+  attr :title, :string, required: true
+  attr :body, :string, required: true
+  attr :consent, :boolean, required: true
+  attr :myself, :any, required: true, doc: "the owning LiveComponent (@myself)"
+
   defp flow(assigns) do
     assigns = assign(assigns, :final_text, final_text(assigns))
 
