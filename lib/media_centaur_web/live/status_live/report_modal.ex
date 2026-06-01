@@ -44,6 +44,8 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
   def handle_event("toggle_consent", _p, socket),
     do: {:noreply, assign(socket, :consent, not socket.assigns.consent)}
 
+  def handle_event("send", _p, %{assigns: %{consent: false}} = socket), do: {:noreply, socket}
+
   def handle_event("send", _p, socket) do
     payload = %{
       title: socket.assigns.title,
@@ -92,7 +94,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
   # --- result view (sent / fallback) ---
   attr :result, :any,
     required: true,
-    doc: "{:ok, url} | {:fallback, text} from ErrorReports.submit_payload/1"
+    doc: "{:ok, url} | {:fallback, text} from ErrorReports.submit_payload/2"
 
   defp result(assigns) do
     ~H"""
@@ -144,9 +146,13 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
     </div>
 
     <div class="px-6 pt-4 pb-6 flex items-center gap-2 border-t border-base-300">
-      <a href="#" class="link link-hover text-sm text-base-content/60" phx-click="report_cancel">
+      <button
+        type="button"
+        class="link link-hover text-sm text-base-content/60"
+        phx-click="report_cancel"
+      >
         No, don't send
-      </a>
+      </button>
       <div class="flex-1"></div>
       <.button :if={@step > 1} variant="dismiss" phx-click={JS.push("back", target: @myself)}>
         Back

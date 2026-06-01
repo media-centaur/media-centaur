@@ -41,10 +41,10 @@ defmodule MediaCentaurWeb.StatusLive.ReportingTest do
     render_click(view, "open_error_report_modal", %{"fingerprint" => bucket.fingerprint})
     assert has_element?(view, "[data-testid='consent-step-1']")
 
-    # Step 1 → enter a narrative in the textarea.
+    # Step 1 → enter a narrative via the phx-change form (covers paste + keystrokes).
     view
-    |> element("#error-report-modal [data-testid=consent-step-1] textarea")
-    |> render_keyup(%{"value" => "froze on play"})
+    |> element("#error-report-modal [data-testid=consent-step-1] form")
+    |> render_change(%{"value" => "froze on play"})
 
     # Advance to step 2.
     view |> element("#error-report-modal button", "Next") |> render_click()
