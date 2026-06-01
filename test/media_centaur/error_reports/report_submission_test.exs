@@ -65,6 +65,21 @@ defmodule MediaCentaur.ErrorReports.ReportSubmissionTest do
     end
   end
 
+  describe "submit_payload/2" do
+    test "submits an already-built payload as-is" do
+      payload = %{title: "T", body: "edited body", labels: ["incident"]}
+      assert {:ok, "https://github.com/owner/reports/issues/42"} =
+               ErrorReports.submit_payload(payload, transport: OkTransport)
+    end
+
+    test "falls back to the payload's own text on transport failure" do
+      payload = %{title: "T", body: "edited body", labels: ["incident"]}
+      assert {:fallback, bundle} = ErrorReports.submit_payload(payload, transport: FailTransport)
+      assert bundle =~ "T"
+      assert bundle =~ "edited body"
+    end
+  end
+
   describe "assemble_body/2" do
     test "prepends a narrative section when the narrative is present" do
       body = ErrorReports.assemble_body("it froze when I hit play", "## Error\nboom")

@@ -78,7 +78,18 @@ defmodule MediaCentaur.ErrorReports do
   """
   @spec submit_report(__MODULE__.Bucket.t(), keyword()) :: {:ok, String.t()} | {:fallback, String.t()}
   def submit_report(bucket, opts \\ []) do
-    payload = ReportPayload.build(bucket, EnvMetadata.collect())
+    bucket
+    |> ReportPayload.build(EnvMetadata.collect())
+    |> submit_payload(opts)
+  end
+
+  @doc """
+  Submits an already-built (possibly user-edited) payload via the configured
+  transport. `{:ok, url}` on success; `{:fallback, bundle}` (the payload's own
+  title + body, for the user to copy) on any transport error.
+  """
+  @spec submit_payload(map(), keyword()) :: {:ok, String.t()} | {:fallback, String.t()}
+  def submit_payload(payload, opts \\ []) do
     transport = opts[:transport] || configured_transport()
 
     case transport.submit(payload, opts) do
