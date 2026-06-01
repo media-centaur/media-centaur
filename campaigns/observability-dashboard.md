@@ -128,6 +128,16 @@ rejected — do not reuse their visuals).
   `MediaCentaur.ErrorReports` context (no rename to `ErrorReporting`/
   `Diagnostics`/`Observability`). Revisit only if the moduledoc ends up naming
   two responsibilities with "and" ([[feedback-architectural-modularity]]).
+* `2026-06-01` — **Phase 4 UI settled** in
+  [`2026-06-01-phase4-health-board-ui.md`](../docs/superpowers/specs/2026-06-01-phase4-health-board-ui.md):
+  health-first reframe; drop the Library catalog overview; Watcher Activity
+  widget absorbs per-drive storage capacity (standalone Storage section
+  removed); **reporting is incident-anchored** ("Report this" per incident,
+  no floating global button; quiet `:user`-origin secondary path); drill-in is
+  a **stacked** composition of Issues → Activity widget → collapsed Logs; logs
+  available but never default; **per-subsystem Activity widgets** owned by their
+  subsystem (UI mirror of the `IncidentContext` contributor registry, phased).
+  Chosen mockups: board `1b-health-board-refined`, drill-in `5-drill-in-stacked`.
 
 ## Next steps
 
@@ -186,9 +196,11 @@ documentation for its user-visible surface.
 
 Phases 1–3 (the whole backend) are done, committed, and green
 (`a838a198 → 5d59c601`). Phase 4 is the only remaining phase: the user-facing
-surface. **First reconcile this file against `git log` + code (ADR-042), then
-brainstorm visual direction / mockups — do not auto-build the UI.** Load
-`user-interface`, `phoenix-thinking`, `storybook`, `visual-designer` first.
+surface. **Visual direction is now settled** (2026-06-01 brainstorm) — see
+[`2026-06-01-phase4-health-board-ui.md`](../docs/superpowers/specs/2026-06-01-phase4-health-board-ui.md)
+for the board/drill-in/reporting design and chosen mockups. Next action is an
+implementation plan (writing-plans), not more mockups. Load `user-interface`,
+`phoenix-thinking`, `storybook` first.
 
 **The backend Phase 4 builds on (`MediaCentaur.ErrorReports` public API):**
 - `list_buckets/0`, `get_bucket/1`, and the `{:buckets_changed, buckets}`
