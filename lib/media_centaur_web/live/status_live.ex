@@ -12,8 +12,10 @@ defmodule MediaCentaurWeb.StatusLive do
   require MediaCentaur.Log, as: Log
 
   import MediaCentaurWeb.StatusHelpers
+  import MediaCentaurWeb.HealthComponents
 
   alias MediaCentaur.{Config, ErrorReports, Library, Playback, Status, Storage, WatchHistory}
+  alias MediaCentaurWeb.StatusLive.HealthBoard
   alias MediaCentaur.Library.Availability
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.Pipeline.Image, as: ImagePipeline
@@ -46,6 +48,7 @@ defmodule MediaCentaurWeb.StatusLive do
         socket
         |> assign_defaults()
         |> assign(error_buckets: ErrorReports.list_buckets())
+        |> assign_board()
         |> assign(pipeline_stats: pipeline_stats)
         |> assign(image_pipeline_stats: image_stats)
         |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
@@ -88,10 +91,17 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(history_events: [])
     |> assign(history_stats: %{total_count: 0, total_seconds: 0.0, streak: 0, heatmap: %{}})
     |> assign(error_buckets: [])
+    |> assign(board: HealthBoard.build_board([]))
+    |> assign(selected_subsystem: nil)
     |> assign(storage_drives: [])
     |> assign(at_risk_summary: %{})
     |> assign(dir_health: [])
     |> assign(show_report_modal: false)
+  end
+
+  # Keeps the board view-models in sync with the current `error_buckets`.
+  defp assign_board(socket) do
+    assign(socket, board: HealthBoard.build_board(socket.assigns.error_buckets))
   end
 
   # Owned async (ADR-049): each load runs under the LiveView via
@@ -118,9 +128,41 @@ defmodule MediaCentaurWeb.StatusLive do
     start_async(socket, :status_dir_health, fn -> check_dir_health() end)
   end
 
+  @impl true
+  def handle_params(params, _uri, socket) do
+    {:noreply, assign(socket, selected_subsystem: parse_subsystem(params))}
+  end
+
+  defp parse_subsystem(%{"subsystem" => raw}) do
+    atom = safe_existing_atom(raw)
+    if atom in HealthBoard.board_subsystems(), do: atom
+  end
+
+  defp parse_subsystem(_params), do: nil
+
+  defp safe_existing_atom(raw) do
+    String.to_existing_atom(raw)
+  rescue
+    ArgumentError -> nil
+  end
+
+  defp drill_in_view(board, component), do: Enum.find(board, &(&1.component == component))
+
+  defp drill_in_buckets(error_buckets, component) do
+    HealthBoard.group_buckets(error_buckets)[component]
+  end
+
   # --- Events ---
 
   @impl true
+  def handle_event("select_subsystem", %{"subsystem" => subsystem}, socket) do
+    {:noreply, push_patch(socket, to: ~p"/status?subsystem=#{subsystem}")}
+  end
+
+  def handle_event("close_subsystem", _params, socket) do
+    {:noreply, push_patch(socket, to: ~p"/status")}
+  end
+
   def handle_event("open_error_report_modal", _params, socket) do
     {:noreply, assign(socket, show_report_modal: true)}
   end
@@ -198,7 +240,7 @@ defmodule MediaCentaurWeb.StatusLive do
 
   @impl true
   def handle_info({:buckets_changed, snapshot}, socket) do
-    {:noreply, assign(socket, error_buckets: snapshot)}
+    {:noreply, socket |> assign(error_buckets: snapshot) |> assign_board()}
   end
 
   def handle_info({:watch_event_created, _event}, socket) do
@@ -305,6 +347,26 @@ defmodule MediaCentaurWeb.StatusLive do
       </:overlays>
       <div data-page-behavior="status" data-nav-default-zone="status" class="space-y-6">
         <h1 class="text-2xl font-bold">Status</h1>
+
+        <div class="space-y-4">
+          <div
+            data-nav-zone="health-board"
+            class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
+          >
+            <.subsystem_tile
+              :for={view <- @board}
+              view={view}
+              selected={view.component == @selected_subsystem}
+            />
+          </div>
+
+          <.health_drill_in
+            :if={@selected_subsystem}
+            view={drill_in_view(@board, @selected_subsystem)}
+            buckets={drill_in_buckets(@error_buckets, @selected_subsystem)}
+            on_report="open_error_report_modal"
+          />
+        </div>
 
         <div data-nav-zone="sections" class="space-y-6">
           <.library_stats stats={@library_stats} pending_review_count={@pending_review_count} />
