@@ -34,20 +34,11 @@ defmodule MediaCentaurWeb.StatusLive.ReportModalTest do
     :ok
   end
 
-  test "clicking Report errors opens the modal", %{conn: conn} do
+  test "clicking Report errors opens the modal at step 1", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, "/status")
     view |> element("button", "Report errors") |> render_click()
     assert has_element?(view, "[data-testid='report-modal']")
-  end
-
-  test "confirm submits via submit_report and shows the copy-fallback (no token)", %{conn: conn} do
-    {:ok, view, _html} = live_async!(conn, "/status")
-    view |> element("button", "Report errors") |> render_click()
-    render_click(view, "report_confirm", %{"fingerprint" => hd(Buckets.list_buckets()).fingerprint})
-
-    # No token is configured in test, so submission falls back to presenting
-    # the redacted bundle for the user to copy (never the old window.open path).
-    assert has_element?(view, "[data-testid=report-fallback]")
+    assert has_element?(view, "[data-testid='consent-step-1']")
   end
 
   test "cancel dismisses the modal", %{conn: conn} do
@@ -55,5 +46,31 @@ defmodule MediaCentaurWeb.StatusLive.ReportModalTest do
     view |> element("button", "Report errors") |> render_click()
     render_click(view, "report_cancel", %{})
     refute has_element?(view, "[data-testid='report-modal']")
+  end
+
+  test "3-step flow: consent + send shows the copy-fallback (no token)", %{conn: conn} do
+    {:ok, view, _html} = live_async!(conn, "/status")
+
+    # Open modal — anchors to first bucket automatically (no fingerprint).
+    view |> element("button", "Report errors") |> render_click()
+    assert has_element?(view, "[data-testid='consent-step-1']")
+
+    # Advance through step 1 → 2 → 3.
+    view |> element("#error-report-modal button", "Next") |> render_click()
+    assert has_element?(view, "[data-testid='consent-step-2']")
+
+    view |> element("#error-report-modal button", "Next") |> render_click()
+    assert has_element?(view, "[data-testid='consent-step-3']")
+
+    # Tick consent checkbox.
+    view
+    |> element("#error-report-modal [data-testid=consent-step-3] input[type=checkbox]")
+    |> render_click()
+
+    # Send the report.
+    view |> element("#error-report-modal button", "Send to the developer") |> render_click()
+
+    # No token configured in test → fallback textarea appears.
+    assert has_element?(view, "[data-testid=report-fallback]")
   end
 end
