@@ -23,4 +23,36 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
       assert HealthBoard.glyph(:nonsense) == HealthBoard.glyph(:system)
     end
   end
+
+  describe "group_buckets/1" do
+    alias MediaCentaur.ErrorReports.Bucket
+
+    defp bucket(component, severity) do
+      %Bucket{
+        fingerprint: "fp-#{component}-#{severity}",
+        component: component,
+        normalized_message: "msg",
+        display_title: "Title",
+        severity: severity,
+        count: 1,
+        first_seen: ~U[2026-06-01 10:00:00Z],
+        last_seen: ~U[2026-06-01 12:00:00Z],
+        sample_entries: []
+      }
+    end
+
+    test "groups buckets by component, folding framework comps under :system" do
+      buckets = [bucket(:pipeline, :error), bucket(:ecto, :warning), bucket(:system, :warning)]
+      grouped = HealthBoard.group_buckets(buckets)
+
+      assert [%Bucket{component: :pipeline}] = grouped[:pipeline]
+      # :ecto folds into :system alongside the native :system bucket
+      assert length(grouped[:system]) == 2
+    end
+
+    test "every board subsystem has a (possibly empty) entry" do
+      grouped = HealthBoard.group_buckets([])
+      for s <- HealthBoard.board_subsystems(), do: assert(grouped[s] == [])
+    end
+  end
 end
