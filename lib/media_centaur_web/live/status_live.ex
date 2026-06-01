@@ -97,6 +97,7 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(at_risk_summary: %{})
     |> assign(dir_health: [])
     |> assign(show_report_modal: false)
+    |> assign(report_result: nil)
   end
 
   # Keeps the board view-models in sync with the current `error_buckets`.
@@ -164,30 +165,26 @@ defmodule MediaCentaurWeb.StatusLive do
   end
 
   def handle_event("open_error_report_modal", _params, socket) do
-    {:noreply, assign(socket, show_report_modal: true)}
+    {:noreply, assign(socket, show_report_modal: true, report_result: nil)}
   end
 
   @impl true
   def handle_event("report_cancel", _params, socket) do
-    {:noreply, assign(socket, show_report_modal: false)}
+    {:noreply, assign(socket, show_report_modal: false, report_result: nil)}
   end
 
   @impl true
   def handle_event("report_confirm", %{"fingerprint" => fingerprint}, socket) do
-    bucket = Enum.find(socket.assigns.error_buckets, &(&1.fingerprint == fingerprint))
+    case Enum.find(socket.assigns.error_buckets, &(&1.fingerprint == fingerprint)) do
+      nil ->
+        {:noreply, assign(socket, show_report_modal: false)}
 
-    socket =
-      case bucket do
-        nil ->
-          socket
-
-        bucket ->
-          env = MediaCentaur.ErrorReports.EnvMetadata.collect()
-          {:ok, url, _flags} = MediaCentaur.ErrorReports.IssueUrl.build(bucket, env)
-          push_event(socket, "error_reports:open_issue", %{url: url})
-      end
-
-    {:noreply, assign(socket, show_report_modal: false)}
+      bucket ->
+        # Submit through the durable transport. With no token configured
+        # (dev/showcase) this returns {:fallback, bundle} so the report is
+        # never lost — the modal then presents the bundle to copy.
+        {:noreply, assign(socket, report_result: ErrorReports.submit_report(bucket))}
+    end
   end
 
   # --- Info handlers ---
@@ -343,6 +340,7 @@ defmodule MediaCentaurWeb.StatusLive do
           id="report-modal-component"
           module={ReportModal}
           buckets={@error_buckets}
+          report_result={@report_result}
         />
       </:overlays>
       <div data-page-behavior="status" data-nav-default-zone="status" class="space-y-6">

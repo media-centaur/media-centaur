@@ -32,6 +32,48 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
   # the modal a pure view.
 
   @impl true
+  def render(%{report_result: result} = assigns) when not is_nil(result) do
+    ~H"""
+    <div
+      id="error-report-modal"
+      class="modal-backdrop"
+      data-state="open"
+      data-testid="report-modal"
+      phx-click="report_cancel"
+      phx-window-keydown="report_cancel"
+      phx-key="Escape"
+    >
+      <div class="modal-panel" phx-click={%Phoenix.LiveView.JS{}}>
+        <div :if={match?({:ok, _}, @report_result)} class="p-6 flex flex-col gap-3">
+          <h2 class="text-lg font-semibold">Report sent</h2>
+          <p class="text-sm text-base-content/70">
+            Thanks — this has been sent to the development team.
+          </p>
+          <a href={elem(@report_result, 1)} target="_blank" rel="noopener" class="link text-sm">
+            View the report
+          </a>
+          <.button variant="dismiss" phx-click="report_cancel">Close</.button>
+        </div>
+
+        <div :if={match?({:fallback, _}, @report_result)} class="p-6 flex flex-col gap-3">
+          <h2 class="text-lg font-semibold">Copy this report</h2>
+          <p class="text-sm text-base-content/70">
+            We couldn't send it automatically. Copy the text below and send it to the
+            developer — nothing leaves your machine until you do.
+          </p>
+          <textarea
+            data-testid="report-fallback"
+            readonly
+            rows="12"
+            class="textarea textarea-bordered w-full font-mono text-xs"
+          >{elem(@report_result, 1)}</textarea>
+          <.button variant="dismiss" phx-click="report_cancel">Close</.button>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   def render(assigns) do
     selected_bucket =
       Enum.find(assigns.buckets, &(&1.fingerprint == assigns.selected))
