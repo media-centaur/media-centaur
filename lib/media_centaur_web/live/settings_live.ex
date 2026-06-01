@@ -1076,11 +1076,18 @@ defmodule MediaCentaurWeb.SettingsLive do
     # Surface a diagnostic panel instead of sitting on "Restarting the
     # service…" indefinitely.
     Process.send_after(self(), :apply_done_stuck, 6_000)
-    {:noreply, assign(socket, apply_phase: :done, apply_progress: pct)}
+
+    {:noreply,
+     socket
+     |> assign(apply_phase: :done, apply_progress: pct)
+     |> flag_update_applying()}
   end
 
   def handle_info({:progress, phase, pct}, socket) do
-    {:noreply, assign(socket, apply_phase: phase, apply_progress: pct)}
+    {:noreply,
+     socket
+     |> assign(apply_phase: phase, apply_progress: pct)
+     |> flag_update_applying()}
   end
 
   def handle_info({:apply_failed, reason}, socket) do
@@ -1088,11 +1095,13 @@ defmodule MediaCentaurWeb.SettingsLive do
     # the phase-row timeline in the modal can mark the right step as
     # failed (rather than all of them being grey/pending).
     {:noreply,
-     assign(socket,
+     socket
+     |> assign(
        apply_phase: :failed,
        apply_failed_at: socket.assigns.apply_phase,
        apply_error: reason
-     )}
+     )
+     |> flag_update_aborted()}
   end
 
   def handle_info({:apply_cancelled}, socket) do
@@ -1104,12 +1113,16 @@ defmodule MediaCentaurWeb.SettingsLive do
        apply_error: nil,
        apply_failed_at: nil
      )
+     |> flag_update_aborted()
      |> put_flash(:info, "Update cancelled.")}
   end
 
   def handle_info(:apply_done_stuck, socket) do
     if socket.assigns.apply_phase == :done do
-      {:noreply, assign(socket, apply_phase: :done_stuck)}
+      {:noreply,
+       socket
+       |> assign(apply_phase: :done_stuck)
+       |> flag_update_aborted()}
     else
       {:noreply, socket}
     end
@@ -3151,6 +3164,16 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp update_tone_class(:info), do: "text-info"
   defp update_tone_class(:warning), do: "text-warning"
   defp update_tone_class(:error), do: "text-error"
+
+  # The self-update reboot kills the BEAM, so the disconnect toast that
+  # follows is rendered entirely client-side — by then there is no server
+  # to relabel it. We instead flip a client flag (`data-update-applying`
+  # on <html>, see app.js) *while the update runs*, so the client can swap
+  # the red "Not connected to server" toast for a calm "Applying update"
+  # one. `flag_update_aborted/1` clears it again on failure/stall/cancel so
+  # a genuine later disconnect still shows the red toast.
+  defp flag_update_applying(socket), do: push_event(socket, "mc:update:applying", %{})
+  defp flag_update_aborted(socket), do: push_event(socket, "mc:update:aborted", %{})
 
   # One row in the apply-progress modal's phase list. Renders an icon
   # reflecting the phase's state (pending / active / done / failed), a

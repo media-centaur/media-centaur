@@ -224,11 +224,23 @@ defmodule MediaCentaurWeb.Layouts do
       <.flash kind={:info} flash={@flash} />
       <.flash kind={:error} flash={@flash} />
 
+      <%!--
+        Disconnect toasts. During a self-update reboot the WebSocket drops
+        like any other disconnect, but it is expected — not an error. The
+        LiveView sets `data-update-applying` on <html> while an update is in
+        flight (see SettingsLive + app.js), so we suppress the red "not
+        connected" toasts and show the calm "Applying update" one instead.
+        The `html:not([data-update-applying])` / `html[data-update-applying]`
+        selectors gate which toast `show/1` actually un-hides on disconnect.
+      --%>
       <.flash
         id="client-error"
         kind={:error}
         title={gettext("We can't find the internet")}
-        phx-disconnected={show(".phx-client-error #client-error") |> JS.remove_attribute("hidden")}
+        phx-disconnected={
+          show("html:not([data-update-applying]) .phx-client-error #client-error")
+          |> JS.remove_attribute("hidden")
+        }
         phx-connected={hide("#client-error") |> JS.set_attribute({"hidden", ""})}
         hidden
       >
@@ -240,11 +252,32 @@ defmodule MediaCentaurWeb.Layouts do
         id="server-error"
         kind={:error}
         title={gettext("Not connected to server.")}
-        phx-disconnected={show(".phx-server-error #server-error") |> JS.remove_attribute("hidden")}
+        phx-disconnected={
+          show("html:not([data-update-applying]) .phx-server-error #server-error")
+          |> JS.remove_attribute("hidden")
+        }
         phx-connected={hide("#server-error") |> JS.set_attribute({"hidden", ""})}
         hidden
       >
         {gettext("Attempting to reconnect.")}
+        <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
+      </.flash>
+
+      <.flash
+        id="update-applying"
+        kind={:info}
+        title={gettext("Applying update")}
+        phx-disconnected={
+          show("html[data-update-applying] #update-applying") |> JS.remove_attribute("hidden")
+        }
+        phx-connected={
+          hide("#update-applying")
+          |> JS.set_attribute({"hidden", ""})
+          |> JS.remove_attribute("data-update-applying", to: "html")
+        }
+        hidden
+      >
+        {gettext("Installing the new version. This page will reconnect automatically.")}
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
     </div>
