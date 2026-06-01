@@ -28,9 +28,30 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   }
 
   alias MediaCentaur.ErrorReports.Bucket
+  alias MediaCentaurWeb.StatusLive.SubsystemView
 
   @spec board_subsystems() :: [atom()]
   def board_subsystems, do: @board_subsystems
+
+  @doc "Builds the ordered list of subsystem tile view-models from all buckets."
+  @spec build_board([Bucket.t()]) :: [SubsystemView.t()]
+  def build_board(buckets) do
+    grouped = group_buckets(buckets)
+
+    Enum.map(@board_subsystems, fn component ->
+      %{state: state, error_count: error_count, warning_count: warning_count} =
+        tile_state(grouped[component])
+
+      %SubsystemView{
+        component: component,
+        label: label(component),
+        glyph: glyph(component),
+        state: state,
+        error_count: error_count,
+        warning_count: warning_count
+      }
+    end)
+  end
 
   @doc """
   Groups buckets by board subsystem. Framework/unknown components fold under

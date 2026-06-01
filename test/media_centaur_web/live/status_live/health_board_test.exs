@@ -87,4 +87,33 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
                HealthBoard.tile_state([severity_bucket(:warning), severity_bucket(:warning)])
     end
   end
+
+  describe "build_board/1" do
+    alias MediaCentaurWeb.StatusLive.SubsystemView
+
+    test "returns one SubsystemView per board subsystem, in order, with label/glyph/state" do
+      buckets = [
+        %MediaCentaur.ErrorReports.Bucket{
+          fingerprint: "fp",
+          component: :pipeline,
+          normalized_message: "m",
+          display_title: "t",
+          severity: :error,
+          count: 1,
+          first_seen: ~U[2026-06-01 10:00:00Z],
+          last_seen: ~U[2026-06-01 12:00:00Z],
+          sample_entries: []
+        }
+      ]
+
+      views = HealthBoard.build_board(buckets)
+
+      assert length(views) == 7
+      assert Enum.map(views, & &1.component) == HealthBoard.board_subsystems()
+
+      import_view = Enum.find(views, &(&1.component == :pipeline))
+      assert %SubsystemView{label: "Import", state: :error, error_count: 1} = import_view
+      assert "hero-" <> _ = import_view.glyph
+    end
+  end
 end
