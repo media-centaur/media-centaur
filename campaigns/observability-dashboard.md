@@ -195,12 +195,31 @@ documentation for its user-visible surface.
 ## Resuming — Phase 4, start here
 
 Phases 1–3 (the whole backend) are done, committed, and green
-(`a838a198 → 5d59c601`). Phase 4 is the only remaining phase: the user-facing
-surface. **Visual direction is now settled** (2026-06-01 brainstorm) — see
-[`2026-06-01-phase4-health-board-ui.md`](../docs/superpowers/specs/2026-06-01-phase4-health-board-ui.md)
-for the board/drill-in/reporting design and chosen mockups. Next action is an
-implementation plan (writing-plans), not more mockups. Load `user-interface`,
-`phoenix-thinking`, `storybook` first.
+(`a838a198 → 5d59c601`). Phase 4 (the user-facing surface) is **in progress**,
+broken into milestones — visual direction settled in the 2026-06-01 brainstorm
+([`2026-06-01-phase4-health-board-ui.md`](../docs/superpowers/specs/2026-06-01-phase4-health-board-ui.md)).
+
+**Phase 4 — Milestone 1 (read-surface) — done 2026-06-01** (merged to main,
+`ea3986b1 → b0bf34af`; plan
+[`2026-06-01-health-board-milestone1.md`](../docs/superpowers/plans/2026-06-01-health-board-milestone1.md)).
+`/status` now leads with the Subsystem Health Board: 7 tiles (name + neutral
+glyph + type, color only for health) over a pure `StatusLive.HealthBoard`
+view-model (`build_board/1`, `tile_state/1`, `group_buckets/1`, `tile_summary/1`,
+`log_lines/1`), a `SubsystemView` struct, and `subsystem_tile`/`incident_row`/
+`health_drill_in` components (each storied, MC0008/MC0009 clean). Tile click →
+`push_patch ?subsystem=` → inline stacked drill-in (Issues with incident-anchored
+"Report this" → existing modal · Activity slot · collapsed Logs). **Introduced
+non-destructively** — existing operational sections untouched; reporting still
+uses the old `window.open` modal. Full precommit green (4280 Elixir + 484 JS).
+
+**Next — Milestone 2 (reporting rebuild):** guided 3-step consent modal (4
+promises → review & remove w/ manual redaction → consent gate + Send); wire Send
+to `submit_report/2`; render `{:fallback, bundle}` as copyable text; remove
+`error_report.js`, the `error_reports:open_issue` push_event, and
+`IssueUrl.build/2` (keep `format_title`/`format_body`). Resolve the
+incident↔bucket submission mapping. Then M3 (per-subsystem Activity widgets +
+storage fold + section removal) and M4 (`:user`-origin + discovery badge). Load
+`user-interface`, `phoenix-thinking`, `storybook` first.
 
 **The backend Phase 4 builds on (`MediaCentaur.ErrorReports` public API):**
 - `list_buckets/0`, `get_bucket/1`, and the `{:buckets_changed, buckets}`
