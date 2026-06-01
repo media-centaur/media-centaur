@@ -1,172 +1,149 @@
 defmodule MediaCentaurWeb.StatusLive.ReportModal do
   @moduledoc """
-  Modal shown when the user clicks "Report errors" on the Status page.
-
-  Presents the active buckets in a radio list and a redacted payload preview.
-  On confirm, `StatusLive` submits via `ErrorReports.submit_report/2` to the
-  private reports inbox; the result is rendered here — `{:ok, url}` as a sent
-  confirmation, `{:fallback, bundle}` as copyable text when no token is
-  configured or the network is unavailable.
-
-  > Interim single-screen modal; the guided 3-step consent flow is the next
-  > Milestone-2 step.
+  Guided 3-step, incident-anchored consent flow for submitting an error report:
+  (1) what happened + optional narrative, (2) review & edit the exact outgoing
+  text, (3) consent + send. Owns its step/edit/consent state; submits via
+  `ErrorReports.submit_payload/2` (copy-fallback on no-token/offline).
+  Spec: docs/superpowers/specs/2026-06-01-consent-flow-design.md.
   """
   use MediaCentaurWeb, :live_component
 
+  import MediaCentaurWeb.ConsentComponents
+
+  alias MediaCentaur.ErrorReports
   alias MediaCentaur.ErrorReports.{EnvMetadata, ReportPayload}
 
-  @impl true
-  def update(assigns, socket) do
-    selected =
-      case assigns.buckets do
-        [first | _] -> first.fingerprint
-        _ -> nil
-      end
+  # Same labels ReportPayload.build/2 uses, so submitted issues stay consistent.
+  @labels ["incident", "auto-reported"]
 
-    {:ok, assign(socket, Map.put(assigns, :selected, selected))}
+  @impl true
+  def update(%{bucket: bucket} = assigns, socket) do
+    payload = ReportPayload.build(bucket, EnvMetadata.collect())
+
+    {:ok,
+     socket
+     |> assign(assigns)
+     |> assign_new(:step, fn -> 1 end)
+     |> assign_new(:narrative, fn -> "" end)
+     |> assign_new(:title, fn -> payload.title end)
+     |> assign_new(:body, fn -> payload.body end)
+     |> assign_new(:consent, fn -> false end)
+     |> assign_new(:report_result, fn -> nil end)}
   end
 
   @impl true
-  def handle_event("select", %{"fingerprint" => fp}, socket) do
-    {:noreply, assign(socket, :selected, fp)}
+  def handle_event("next", _p, socket), do: {:noreply, update(socket, :step, &min(&1 + 1, 3))}
+  def handle_event("back", _p, socket), do: {:noreply, update(socket, :step, &max(&1 - 1, 1))}
+
+  def handle_event("set_narrative", %{"value" => v}, socket),
+    do: {:noreply, assign(socket, :narrative, v)}
+
+  def handle_event("set_title", %{"value" => v}, socket), do: {:noreply, assign(socket, :title, v)}
+  def handle_event("set_body", %{"value" => v}, socket), do: {:noreply, assign(socket, :body, v)}
+
+  def handle_event("toggle_consent", _p, socket),
+    do: {:noreply, assign(socket, :consent, not socket.assigns.consent)}
+
+  def handle_event("send", _p, socket) do
+    payload = %{
+      title: socket.assigns.title,
+      body: ErrorReports.assemble_body(socket.assigns.narrative, socket.assigns.body),
+      labels: @labels
+    }
+
+    {:noreply, assign(socket, :report_result, ErrorReports.submit_payload(payload))}
   end
 
-  # `report_confirm` and `report_cancel` are NOT handled here — they
-  # bubble up to StatusLive because the template omits `target: @myself`
-  # on those bindings. Keeping the submission logic in the parent keeps
-  # the modal a pure view.
+  # report_cancel is NOT handled here — it bubbles to StatusLive (no target: @myself) to close the modal.
+
+  defp final_text(assigns) do
+    body = ErrorReports.assemble_body(assigns.narrative, assigns.body)
+    assigns.title <> "\n\n" <> body
+  end
 
   @impl true
-  def render(%{report_result: result} = assigns) when not is_nil(result) do
+  def render(assigns) do
     ~H"""
     <div
       id="error-report-modal"
       class="modal-backdrop"
       data-state="open"
       data-testid="report-modal"
-      phx-click="report_cancel"
       phx-window-keydown="report_cancel"
       phx-key="Escape"
     >
-      <div class="modal-panel" phx-click={%Phoenix.LiveView.JS{}}>
-        <div :if={match?({:ok, _}, @report_result)} class="p-6 flex flex-col gap-3">
-          <h2 class="text-lg font-semibold">Report sent</h2>
-          <p class="text-sm text-base-content/70">
-            Thanks — this has been sent to the development team.
-          </p>
-          <a href={elem(@report_result, 1)} target="_blank" rel="noopener" class="link text-sm">
-            View the report
-          </a>
-          <.button variant="dismiss" phx-click="report_cancel">Close</.button>
-        </div>
-
-        <div :if={match?({:fallback, _}, @report_result)} class="p-6 flex flex-col gap-3">
-          <h2 class="text-lg font-semibold">Copy this report</h2>
-          <p class="text-sm text-base-content/70">
-            We couldn't send it automatically. Copy the text below and send it to the
-            developer — nothing leaves your machine until you do.
-          </p>
-          <textarea
-            data-testid="report-fallback"
-            readonly
-            rows="12"
-            class="textarea textarea-bordered w-full font-mono text-xs"
-          >{elem(@report_result, 1)}</textarea>
-          <.button variant="dismiss" phx-click="report_cancel">Close</.button>
-        </div>
+      <div class="modal-panel flex flex-col max-h-[88vh]" phx-click={%Phoenix.LiveView.JS{}}>
+        <.result :if={@report_result} result={@report_result} />
+        <.flow :if={is_nil(@report_result)} {assigns} />
       </div>
     </div>
     """
   end
 
-  def render(assigns) do
-    selected_bucket =
-      Enum.find(assigns.buckets, &(&1.fingerprint == assigns.selected))
+  # --- result view (sent / fallback) ---
+  attr :result, :any, required: true
 
-    preview = selected_bucket && ReportPayload.build(selected_bucket, EnvMetadata.collect())
+  defp result(assigns) do
+    ~H"""
+    <div :if={match?({:ok, _}, @result)} class="p-6 flex flex-col gap-3">
+      <h2 class="text-lg font-semibold">Report sent</h2>
+      <p class="text-sm text-base-content/70">Thanks — this has been sent to the development team.</p>
+      <a href={elem(@result, 1)} target="_blank" rel="noopener" class="link text-sm">
+        View the report
+      </a>
+      <.button variant="dismiss" phx-click="report_cancel">Close</.button>
+    </div>
+    <div :if={match?({:fallback, _}, @result)} class="p-6 flex flex-col gap-3">
+      <h2 class="text-lg font-semibold">Copy this report</h2>
+      <p class="text-sm text-base-content/70">
+        We couldn't send it automatically. Copy the text below and send it to the developer.
+      </p>
+      <textarea
+        data-testid="report-fallback"
+        readonly
+        rows="12"
+        class="textarea textarea-bordered w-full font-mono text-xs"
+      >{elem(@result, 1)}</textarea>
+      <.button variant="dismiss" phx-click="report_cancel">Close</.button>
+    </div>
+    """
+  end
 
-    assigns = assign(assigns, :preview, preview)
+  # --- the 3-step flow ---
+  defp flow(assigns) do
+    assigns = assign(assigns, :final_text, final_text(assigns))
 
     ~H"""
-    <div
-      id="error-report-modal"
-      class="modal-backdrop"
-      data-state="open"
-      data-testid="report-modal"
-      phx-click="report_cancel"
-      phx-window-keydown="report_cancel"
-      phx-key="Escape"
-    >
-      <div class="modal-panel" phx-click={%Phoenix.LiveView.JS{}}>
-        <div class="px-6 pt-6 pb-3 flex flex-col gap-3">
-          <h2 class="text-lg font-semibold">
-            Send this error report to the Media Centaur developer?
-          </h2>
+    <div class="px-6 pt-5 pb-3">
+      <h2 class="text-base font-semibold">Report this problem to the developer</h2>
+      <p class="text-xs text-base-content/50 mt-0.5">Step {@step} of 3</p>
+    </div>
 
-          <div class="alert alert-warning text-sm">
-            <span>
-              Review the report below before sending. It's been automatically
-              scrubbed of paths, UUIDs, API keys, IPs, emails, and configured URLs —
-              but please glance for anything else personal (titles of private files,
-              usernames in error messages, etc.) before confirming. It's sent
-              privately to the developer — not posted anywhere public.
-            </span>
-          </div>
-        </div>
+    <div class="px-6 flex-1 min-h-0 overflow-y-auto">
+      <.consent_intro :if={@step == 1} narrative={@narrative} target={@myself} />
+      <.consent_review :if={@step == 2} title={@title} body={@body} target={@myself} />
+      <.consent_send :if={@step == 3} consent={@consent} final_text={@final_text} target={@myself} />
+    </div>
 
-        <div class="px-6 flex-1 min-h-0 overflow-y-auto flex flex-col gap-4">
-          <fieldset class="space-y-1">
-            <legend class="text-sm text-base-content/70 mb-1">Which error?</legend>
-            <label
-              :for={bucket <- @buckets}
-              class="flex items-start gap-2 cursor-pointer p-2 rounded hover:bg-base-200"
-            >
-              <input
-                type="radio"
-                class="radio radio-sm mt-1"
-                name="bucket"
-                value={bucket.fingerprint}
-                checked={bucket.fingerprint == @selected}
-                phx-click={
-                  JS.push("select", value: %{fingerprint: bucket.fingerprint}, target: @myself)
-                }
-              />
-              <span class="flex-1 min-w-0">
-                <span class="font-mono text-xs block truncate">{bucket.display_title}</span>
-                <span class="text-xs text-base-content/60">
-                  ×{bucket.count} · {bucket.component}
-                </span>
-              </span>
-            </label>
-          </fieldset>
-
-          <div
-            :if={@preview}
-            class="bg-base-200 rounded p-4 font-mono text-xs whitespace-pre-wrap"
-          >
-            <div class="text-base-content/70 mb-2 font-sans text-sm">Preview</div>
-            <div><span class="font-semibold">Title:</span> {@preview.title}</div>
-            <div class="mt-2">{@preview.body}</div>
-          </div>
-        </div>
-
-        <div class="px-6 pt-4 pb-6 flex flex-col items-center gap-2 border-t border-base-300">
-          <.button
-            variant="primary"
-            phx-click={JS.push("report_confirm", value: %{fingerprint: @selected})}
-            disabled={is_nil(@selected)}
-          >
-            Send to the developer
-          </.button>
-          <a
-            href="#"
-            class="link link-hover text-sm text-base-content/60"
-            phx-click="report_cancel"
-          >
-            No, don't send
-          </a>
-        </div>
-      </div>
+    <div class="px-6 pt-4 pb-6 flex items-center gap-2 border-t border-base-300">
+      <a href="#" class="link link-hover text-sm text-base-content/60" phx-click="report_cancel">
+        No, don't send
+      </a>
+      <div class="flex-1"></div>
+      <.button :if={@step > 1} variant="dismiss" phx-click={JS.push("back", target: @myself)}>
+        Back
+      </.button>
+      <.button :if={@step < 3} variant="primary" phx-click={JS.push("next", target: @myself)}>
+        Next
+      </.button>
+      <.button
+        :if={@step == 3}
+        variant="primary"
+        disabled={not @consent}
+        phx-click={JS.push("send", target: @myself)}
+      >
+        Send to the developer
+      </.button>
     </div>
     """
   end
