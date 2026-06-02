@@ -247,17 +247,28 @@ entry point (still no `Store` user-incident create path).
   `error_summary_card` removed the old board-level "Report errors" entry — the
   consent modal is now reached only via the drill-in's per-incident "Report
   this" (the intended incident-anchored model). Full precommit green.
-- **M3b — Activity-widget registry + widgets (next, the architectural piece).**
-  A runtime registry mapping `component → widget` (mirrors the backend
-  `Contributors`, boundary-clean), rendered into the drill-in's existing
-  `activity` slot; then the Watcher (watch dirs + per-drive storage headroom,
-  folding the storage display), Import/pipeline, TMDB (rate-limiter), Playback
-  widgets — folding `pipeline_card`/`directories`/`external_integrations`/
-  `playback` out of the flat layout into their subsystems' drill-ins. **Open
-  design fork to settle first:** how to dynamically render a runtime-registered
-  *function component* with its data (the data lives in `StatusLive` assigns,
-  loaded async — not fetched in render). Phased per widget, like the backend
-  contributors.
+- **M3b — Activity-widget registry + widgets (the architectural piece).**
+  Design fork **resolved → approach A** (function-component registry + data
+  bundle): config maps `component → {module, fun}`; the drill-in looks up the
+  widget and renders it via `apply(mod, fun, [bundle])`, where the bundle is
+  assembled from `StatusLive`'s already-loaded async assigns (no render-time
+  queries). Mirrors the backend `Contributors`, boundary-clean. Plan:
+  `docs/superpowers/plans/2026-06-02-activity-widgets-m3b1.md`.
+  - **M3b-1 — registry + Watcher widget — DONE 2026-06-02** (`1b0e9d62`,
+    `e10332bb`, `898ca7cf`): `MediaCentaurWeb.StatusLive.ActivityWidgets`
+    (`registry/0`/`widget_for/2`/`render/3`, injectable); `watcher_widget/1`
+    extracted from the old private `directories/1` into public `HealthComponents`
+    (typed attrs + story + index); drill-in `:activity` slot filled conditionally
+    (`:if={ActivityWidgets.widget_for(@selected_subsystem)}`) from `activity_bundle/1`;
+    flat watch-dirs/storage `<.link><.directories/></.link>` section + dead defp/helper
+    removed; `status_live_test.exs` at-risk test now drills into `?subsystem=watcher`.
+    Widget invoked with a plain bundle map (no `__changed__`) → derives values with
+    `Map.put/3`, not `assign/3`. Full precommit green (4297 + 484, 0 failures).
+  - **M3b-2+ — remaining widgets (next).** Import/pipeline (fold `pipeline_card`),
+    TMDB rate-limiter (fold from `external_integrations`), Playback (fold
+    `playback` summary) — each a registered function component + story, folded out
+    of the flat layout into its subsystem's drill-in, same A pattern as the Watcher
+    widget. Phased per widget.
 
 Then **M4** (`:user`-origin entry point + `Store` user-incident create path +
 discovery badge `diagnostics_seen_at`). Load `user-interface`,
