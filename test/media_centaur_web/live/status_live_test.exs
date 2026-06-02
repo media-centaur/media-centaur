@@ -179,11 +179,12 @@ defmodule MediaCentaurWeb.StatusLiveTest do
 
     test "renders an at-risk row when a configured dir is offline with stale files",
          %{conn: conn} do
-      # The status page only renders dir_health rows for watch dirs
-      # listed in config; surface an at-risk warning by configuring
-      # the test dir, then seeding a Library.FilePresence row whose
-      # last_seen_at is older than the TTL threshold. Restore config
-      # on exit so we don't leak to other tests.
+      # The watch-dirs/storage view lives in the Watcher subsystem's
+      # health-board drill-in (?subsystem=watcher), which renders the
+      # dir_health rows for watch dirs listed in config. Surface an
+      # at-risk warning by configuring the test dir, then seeding a
+      # Library.FilePresence row whose last_seen_at is older than the
+      # TTL threshold. Restore config on exit so we don't leak.
       original_watch_dirs = :persistent_term.get({MediaCentaur.Config, :config}).watch_dirs
 
       put_config(:watch_dirs, ["/mnt/cold-storage"])
@@ -200,7 +201,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
         stale_at
       )
 
-      {:ok, view, _html} = live_async!(conn, "/status")
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
 
       # Wait for the async storage + at-risk load (sent from a Task).
       eventually(fn -> render(view) =~ "at risk of TTL purge" end)
