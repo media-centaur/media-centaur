@@ -2,9 +2,9 @@ defmodule MediaCentaurWeb.StatusLive do
   @moduledoc """
   Operational status page at `/status`.
 
-  Surfaces library counts, pipeline health, watcher state, storage metrics,
-  external integrations, recent errors, the recent-changes feed, and the
-  active playback summary. The library itself lives at `/`; this page is the
+  Surfaces the Subsystem Health Board, pending review count, pipeline health,
+  watcher state, storage metrics, external integrations, and active playback
+  summary. The library itself lives at `/`; this page is the
   developer/operator view.
   """
   use MediaCentaurWeb, :live_view
@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.StatusLive do
   import MediaCentaurWeb.StatusHelpers
   import MediaCentaurWeb.HealthComponents
 
-  alias MediaCentaur.{Config, ErrorReports, Library, Playback, Status, Storage, WatchHistory}
+  alias MediaCentaur.{Config, ErrorReports, Library, Playback, Status, Storage}
   alias MediaCentaurWeb.StatusLive.HealthBoard
   alias MediaCentaur.Library.Availability
   alias MediaCentaur.Pipeline.Stats
@@ -32,7 +32,6 @@ defmodule MediaCentaurWeb.StatusLive do
         Watcher.Supervisor.subscribe()
         Library.subscribe()
         Playback.subscribe()
-        WatchHistory.subscribe()
         ErrorReports.subscribe()
 
         Process.send_after(self(), :tick_pipeline, 1_000)
@@ -58,7 +57,6 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(retry_status: fetch_retry_status())
         |> assign(playback: build_playback_state())
         |> start_async_status_stats()
-        |> start_async_watch_history()
         |> start_async_storage()
         |> start_async_dir_health()
       else
@@ -85,11 +83,7 @@ defmodule MediaCentaurWeb.StatusLive do
 
   defp assign_defaults(socket) do
     socket
-    |> assign(library_stats: %{episodes: 0, files: 0, images: 0, by_type: %{}})
     |> assign(pending_review_count: 0)
-    |> assign(recent_changes: [])
-    |> assign(history_events: [])
-    |> assign(history_stats: %{total_count: 0, total_seconds: 0.0, streak: 0, heatmap: %{}})
     |> assign(error_buckets: [])
     |> assign(board: HealthBoard.build_board([]))
     |> assign(selected_subsystem: nil)
@@ -111,12 +105,6 @@ defmodule MediaCentaurWeb.StatusLive do
   # `handle_async/3` clauses below.
   defp start_async_status_stats(socket) do
     start_async(socket, :status_stats, fn -> Status.fetch_stats() end)
-  end
-
-  defp start_async_watch_history(socket) do
-    start_async(socket, :status_history, fn ->
-      %{stats: WatchHistory.stats(), events: WatchHistory.recent_events(5)}
-    end)
   end
 
   defp start_async_storage(socket) do
@@ -225,7 +213,6 @@ defmodule MediaCentaurWeb.StatusLive do
     {:noreply,
      socket
      |> start_async_status_stats()
-     |> start_async_watch_history()
      |> assign(stats_timer: nil)}
   end
 
@@ -291,18 +278,7 @@ defmodule MediaCentaurWeb.StatusLive do
 
   @impl true
   def handle_async(:status_stats, {:ok, stats}, socket) do
-    {:noreply,
-     socket
-     |> assign(library_stats: stats.library)
-     |> assign(pending_review_count: length(stats.pending_review))
-     |> assign(recent_changes: stats.recent_changes)}
-  end
-
-  def handle_async(:status_history, {:ok, %{stats: stats, events: events}}, socket) do
-    {:noreply,
-     socket
-     |> assign(:history_events, events)
-     |> assign(:history_stats, stats)}
+    {:noreply, assign(socket, pending_review_count: length(stats.pending_review))}
   end
 
   def handle_async(:status_storage, {:ok, %{drives: drives, at_risk: at_risk}}, socket) do
@@ -360,14 +336,7 @@ defmodule MediaCentaurWeb.StatusLive do
         </div>
 
         <div data-nav-zone="sections" class="space-y-6">
-          <.library_stats stats={@library_stats} pending_review_count={@pending_review_count} />
-
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <.recent_changes_card entries={@recent_changes} />
-            <.recently_watched_card events={@history_events} />
-          </div>
-
-          <.error_summary_card buckets={@error_buckets} />
+          <.pending_review_card pending_review_count={@pending_review_count} />
 
           <.link navigate="/settings?section=services" data-nav-item tabindex="0" class="block">
             <div class="grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6">
@@ -408,129 +377,19 @@ defmodule MediaCentaurWeb.StatusLive do
 
   # --- Section Components ---
 
-  defp library_stats(assigns) do
-    ~H"""
-    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-      <.link navigate="/library" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
-        <div class="text-2xl font-bold">{@stats.by_type[:movie] || 0}</div>
-        <div class="text-sm text-base-content/60">Movies</div>
-        <div class="text-xs text-base-content/40 mt-1">
-          {@stats.by_type[:movie_series] || 0} collections
-        </div>
-      </.link>
-      <.link navigate="/library" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
-        <div class="text-2xl font-bold">{@stats.by_type[:tv_series] || 0}</div>
-        <div class="text-sm text-base-content/60">TV Series</div>
-        <div class="text-xs text-base-content/40 mt-1">{@stats.episodes} episodes</div>
-      </.link>
-      <.link
-        :if={(@stats.by_type[:video_object] || 0) > 0}
-        navigate="/library"
-        data-nav-item
-        tabindex="0"
-        class="p-4 rounded-lg glass-surface block"
-      >
-        <div class="text-2xl font-bold">{@stats.by_type[:video_object]}</div>
-        <div class="text-sm text-base-content/60">Videos</div>
-      </.link>
-      <.link navigate="/library" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
-        <div class="text-2xl font-bold">{@stats.files}</div>
-        <div class="text-sm text-base-content/60">Files Tracked</div>
-      </.link>
-      <.link navigate="/library" data-nav-item tabindex="0" class="p-4 rounded-lg glass-surface block">
-        <div class="text-2xl font-bold">{@stats.images}</div>
-        <div class="text-sm text-base-content/60">Images Cached</div>
-      </.link>
-      <.link
-        navigate={~p"/review"}
-        data-nav-item
-        tabindex="0"
-        class={[
-          "p-4 rounded-lg glass-surface block",
-          if(@pending_review_count > 0, do: "border-l-3 border-warning")
-        ]}
-      >
-        <div class="text-2xl font-bold">{@pending_review_count}</div>
-        <div class="text-sm text-base-content/60">Pending Review</div>
-      </.link>
-    </div>
-    """
-  end
-
-  defp recent_changes_card(assigns) do
-    ~H"""
-    <div data-nav-item data-status-releases tabindex="0" class="card glass-surface">
-      <div class="card-body">
-        <h2 class="card-title text-lg">Recent Changes</h2>
-
-        <p :if={@entries == []} class="text-base-content/60">No changes yet.</p>
-
-        <ul :if={@entries != []} class="space-y-1">
-          <li :for={entry <- @entries}>
-            <.change_entry_row entry={entry} />
-          </li>
-        </ul>
-      </div>
-    </div>
-    """
-  end
-
-  defp change_entry_row(%{entry: %{kind: :added}} = assigns) do
+  defp pending_review_card(assigns) do
     ~H"""
     <.link
-      navigate={"/library?selected=#{@entry.entity_id}"}
-      class="flex items-center gap-3 py-1 hover:bg-base-content/5 rounded px-2 -mx-2"
+      navigate={~p"/review"}
+      data-nav-item
+      tabindex="0"
+      class={[
+        "p-4 rounded-lg glass-surface block w-fit",
+        if(@pending_review_count > 0, do: "border-l-3 border-warning")
+      ]}
     >
-      <span class="w-2 h-2 rounded-full bg-success shrink-0"></span>
-      <span class="text-sm truncate flex-1">{@entry.entity_name}</span>
-      <span class="text-xs text-base-content/50">
-        {MediaCentaurWeb.LibraryFormatters.format_type(@entry.entity_type)}
-      </span>
-      <span class="text-xs text-base-content/40 whitespace-nowrap">
-        {MediaCentaurWeb.LiveHelpers.time_ago(@entry.inserted_at)}
-      </span>
-    </.link>
-    """
-  end
-
-  defp change_entry_row(%{entry: %{kind: :removed}} = assigns) do
-    ~H"""
-    <div class="flex items-center gap-3 py-1 px-2 -mx-2">
-      <span class="w-2 h-2 rounded-full bg-error shrink-0"></span>
-      <span class="text-sm truncate flex-1 text-base-content/60">{@entry.entity_name}</span>
-      <span class="text-xs text-base-content/50">
-        {MediaCentaurWeb.LibraryFormatters.format_type(@entry.entity_type)}
-      </span>
-      <span class="text-xs text-base-content/40 whitespace-nowrap">
-        {MediaCentaurWeb.LiveHelpers.time_ago(@entry.inserted_at)}
-      </span>
-    </div>
-    """
-  end
-
-  defp recently_watched_card(assigns) do
-    ~H"""
-    <.link navigate={~p"/history"} data-nav-item tabindex="0" class="card glass-surface block">
-      <div class="card-body">
-        <div class="flex items-center justify-between mb-1">
-          <h2 class="card-title text-lg">Recently Watched</h2>
-          <span class="text-xs text-primary/70">view all</span>
-        </div>
-
-        <p :if={@events == []} class="text-base-content/60">Nothing watched yet.</p>
-
-        <ul :if={@events != []} class="space-y-1">
-          <li
-            :for={event <- @events}
-            class="flex items-center justify-between gap-4 py-1"
-          >
-            <span class="text-sm truncate">{event.title}</span>
-            <span class="text-xs text-base-content/40 whitespace-nowrap flex-shrink-0">
-              {time_ago(event.completed_at)}
-            </span>
-          </li>
-        </ul>
-      </div>
+      <div class="text-2xl font-bold">{@pending_review_count}</div>
+      <div class="text-sm text-base-content/60">Pending Review</div>
     </.link>
     """
   end
@@ -845,68 +704,6 @@ defmodule MediaCentaurWeb.StatusLive do
       </div>
     </div>
     """
-  end
-
-  defp error_summary_card(assigns) do
-    ~H"""
-    <div class="card glass-surface" data-testid="error-summary-card" id="error-summary-card">
-      <div class="card-body">
-        <div class="flex justify-between items-start gap-4">
-          <h2 class="card-title text-lg">Errors</h2>
-
-          <.button
-            :if={@buckets != []}
-            variant="outline"
-            size="sm"
-            phx-click="open_error_report_modal"
-          >
-            Report errors
-          </.button>
-        </div>
-
-        <p :if={@buckets == []} class="text-base-content/60">
-          No errors in the last hour.
-        </p>
-
-        <div :if={@buckets != []} class="mt-1">
-          <div class="text-sm text-base-content/70">
-            <span class="text-error font-semibold">{total_count(@buckets)}</span>
-            errors in the last hour, across {length(@buckets)} distinct issues.
-          </div>
-
-          <ul class="mt-2 space-y-1">
-            <li :for={bucket <- top_buckets(@buckets)} class="text-sm">
-              <span class="font-mono text-xs truncate" title={bucket.display_title}>
-                {bucket.display_title}
-              </span>
-              <.badge variant="ghost" class="ml-1">×{bucket.count}</.badge>
-              <span class="text-xs text-base-content/50 ml-1">
-                {bucket.component} · {relative_time(bucket.last_seen)}
-              </span>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  defp total_count(buckets), do: Enum.reduce(buckets, 0, &(&1.count + &2))
-
-  defp top_buckets(buckets) do
-    buckets
-    |> Enum.sort_by(& &1.count, :desc)
-    |> Enum.take(3)
-  end
-
-  defp relative_time(%DateTime{} = dt) do
-    diff = DateTime.diff(DateTime.utc_now(), dt, :second)
-
-    cond do
-      diff < 60 -> "#{diff}s ago"
-      diff < 3_600 -> "#{div(diff, 60)}m ago"
-      true -> "#{div(diff, 3_600)}h ago"
-    end
   end
 
   defp playback_summary_card(assigns) do

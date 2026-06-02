@@ -34,16 +34,16 @@ defmodule MediaCentaurWeb.StatusLive.ReportModalTest do
     :ok
   end
 
-  test "clicking Report errors opens the modal at step 1", %{conn: conn} do
+  test "open_error_report_modal event opens the modal at step 1", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, "/status")
-    view |> element("button", "Report errors") |> render_click()
+    render_click(view, "open_error_report_modal", %{})
     assert has_element?(view, "[data-testid='report-modal']")
     assert has_element?(view, "[data-testid='consent-step-1']")
   end
 
   test "cancel dismisses the modal", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, "/status")
-    view |> element("button", "Report errors") |> render_click()
+    render_click(view, "open_error_report_modal", %{})
     render_click(view, "report_cancel", %{})
     refute has_element?(view, "[data-testid='report-modal']")
   end
@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportModalTest do
     {:ok, view, _html} = live_async!(conn, "/status")
 
     # Open modal — anchors to first bucket automatically (no fingerprint).
-    view |> element("button", "Report errors") |> render_click()
+    render_click(view, "open_error_report_modal", %{})
     assert has_element?(view, "[data-testid='consent-step-1']")
 
     # Advance through step 1 → 2 → 3.
