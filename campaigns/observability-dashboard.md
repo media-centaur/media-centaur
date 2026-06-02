@@ -237,7 +237,7 @@ parent `report_confirm` gone. Full precommit green (4289 Elixir + 484 JS).
 **Deferred to M4:** the standalone `:user`-origin "something else is wrong"
 entry point (still no `Store` user-incident create path).
 
-**M3 — health-board completion (in progress).** Sliced:
+**M3 — health-board completion — DONE 2026-06-02.** Sliced:
 - **M3a — section cleanup — DONE 2026-06-02** (`11c0cc97`): dropped the non-health
   sections from `/status` — `recent_changes_card`, `recently_watched_card`,
   `error_summary_card` (+ dead assigns/async), and the library catalog *counts*;
@@ -264,11 +264,22 @@ entry point (still no `Store` user-incident create path).
     removed; `status_live_test.exs` at-risk test now drills into `?subsystem=watcher`.
     Widget invoked with a plain bundle map (no `__changed__`) → derives values with
     `Map.put/3`, not `assign/3`. Full precommit green (4297 + 484, 0 failures).
-  - **M3b-2+ — remaining widgets (next).** Import/pipeline (fold `pipeline_card`),
-    TMDB rate-limiter (fold from `external_integrations`), Playback (fold
-    `playback` summary) — each a registered function component + story, folded out
-    of the flat layout into its subsystem's drill-in, same A pattern as the Watcher
-    widget. Phased per widget.
+  - **M3b-2 — remaining widgets — DONE 2026-06-02** (`6e6d1363`, `5bebac75`):
+    extracted a dedicated `MediaCentaurWeb.ActivityWidgetComponents` module (the
+    clean board-shell-vs-widgets seam), relocated `watcher_widget` into it, then
+    added `pipeline_widget` (folds `pipeline_card`), `tmdb_widget` (folds
+    `external_integrations` rate-limiter), `playback_widget` (folds
+    `playback_summary_card`) — each registered, storied, with the `assign`→`Map.put`
+    gotcha handled. The flat `<.link section=services>` grid is gone; `/status`'s
+    flat body is now just the health board + `pending_review_card`. Playback
+    regression tests repointed to `?subsystem=playback` (coverage preserved).
+    Full precommit green (4306 + 484, 0 failures); review APPROVED.
+
+  **M3 (health-board completion) is now COMPLETE** — M3a (section cleanup) + M3b
+  (Activity-widget registry + all four subsystem widgets). The flat `/status`
+  scroll is retired in favour of the board + per-subsystem drill-ins. Subsystems
+  without a registered widget (`:library`, `:acquisition`, `:system`) show the
+  health-only floor — add widgets later if those grow diagnostics worth folding.
 
 Then **M4** (`:user`-origin entry point + `Store` user-incident create path +
 discovery badge `diagnostics_seen_at`). Load `user-interface`,
