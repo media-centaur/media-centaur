@@ -7,4 +7,5 @@ defmodule MediaCentaurWeb.Storybook.Status do
   def entry("consent_intro"), do: [icon: {:fa, "shield-check", :thin}, name: "Consent intro"]
   def entry("consent_review"), do: [icon: {:fa, "magnifying-glass", :thin}, name: "Consent review"]
   def entry("consent_send"), do: [icon: {:fa, "paper-plane", :thin}, name: "Consent send"]
+  def entry("watcher_widget"), do: [icon: {:fa, "folder-tree", :thin}, name: "Watcher widget"]
 end
