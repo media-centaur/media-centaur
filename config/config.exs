@@ -86,7 +86,7 @@ config :media_centaur, :diagnostics_report_token, nil
 
 # Health-board Activity widgets (observability Phase 4 M3b). component => {module, fun}.
 config :media_centaur, :health_activity_widgets, %{
-  watcher: {MediaCentaurWeb.HealthComponents, :watcher_widget}
+  watcher: {MediaCentaurWeb.ActivityWidgetComponents, :watcher_widget}
 }
 
 config :media_centaur,
