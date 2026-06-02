@@ -8,4 +8,7 @@ defmodule MediaCentaurWeb.Storybook.Status do
   def entry("consent_review"), do: [icon: {:fa, "magnifying-glass", :thin}, name: "Consent review"]
   def entry("consent_send"), do: [icon: {:fa, "paper-plane", :thin}, name: "Consent send"]
   def entry("watcher_widget"), do: [icon: {:fa, "folder-tree", :thin}, name: "Watcher widget"]
+  def entry("pipeline_widget"), do: [icon: {:fa, "diagram-project", :thin}, name: "Pipeline widget"]
+  def entry("tmdb_widget"), do: [icon: {:fa, "film", :thin}, name: "TMDB widget"]
+  def entry("playback_widget"), do: [icon: {:fa, "play", :thin}, name: "Playback widget"]
 end

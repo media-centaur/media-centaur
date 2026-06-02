@@ -8,11 +8,14 @@ defmodule MediaCentaurWeb.StatusLiveTest do
   describe "GET /status" do
     test "renders without crashing", %{conn: conn} do
       {:ok, _view, html} = live_async!(conn, "/status")
-      assert html =~ "Playback"
+      assert html =~ "Status"
     end
 
+    # Playback now lives in the Playback subsystem's health-board drill-in
+    # (?subsystem=playback) — the M3b fold of the flat status sections into
+    # per-subsystem Activity widgets.
     test "shows idle when no sessions are active", %{conn: conn} do
-      {:ok, _view, html} = live_async!(conn, "/status")
+      {:ok, _view, html} = live_async!(conn, "/status?subsystem=playback")
       assert html =~ "idle" or html =~ "Idle"
     end
   end
@@ -24,7 +27,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
 
     test "playback_state_changed broadcast surfaces the now-playing item",
          %{conn: conn} do
-      {:ok, view, html} = live_async!(conn, "/status")
+      {:ok, view, html} = live_async!(conn, "/status?subsystem=playback")
       refute html =~ "Sample Status Movie"
 
       movie_id = Ecto.UUID.generate()
@@ -58,7 +61,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       # map), then fire :entity_progress_updated with a matching record so
       # the LV's progress_matches_session? predicate returns true and the
       # in-card progress bar moves.
-      {:ok, view, _html} = live_async!(conn, "/status")
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=playback")
       movie_id = Ecto.UUID.generate()
 
       send(
@@ -107,7 +110,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
 
     test "playback_state_changed :stopped removes the session",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, "/status")
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=playback")
       movie_id = Ecto.UUID.generate()
 
       send(
@@ -154,7 +157,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
 
       send(view.pid, {:watch_event_created, %{id: Ecto.UUID.generate()}})
 
-      assert render(view) =~ "Playback"
+      assert render(view) =~ "Status"
     end
 
     test "entities_changed triggers a debounced rerender",
@@ -167,7 +170,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
          %MediaCentaur.Library.Events.EntitiesChanged{entity_ids: [Ecto.UUID.generate()]}}
       )
 
-      assert render(view) =~ "Playback"
+      assert render(view) =~ "Status"
     end
   end
 

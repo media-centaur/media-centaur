@@ -17,6 +17,21 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
     assert has_element?(view, "#health-drill-in [data-testid=watcher-widget]")
   end
 
+  test "drilling into the pipeline subsystem renders its Activity widget", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/status?subsystem=pipeline")
+    assert has_element?(view, "#health-drill-in [data-testid=pipeline-widget]")
+  end
+
+  test "drilling into the tmdb subsystem renders its Activity widget", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/status?subsystem=tmdb")
+    assert has_element?(view, "#health-drill-in [data-testid=tmdb-widget]")
+  end
+
+  test "drilling into the playback subsystem renders its Activity widget", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/status?subsystem=playback")
+    assert has_element?(view, "#health-drill-in [data-testid=playback-widget]")
+  end
+
   test "clicking a tile patches to that subsystem", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/status")
     view |> element("#subsystem-tile-tmdb") |> render_click()
