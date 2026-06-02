@@ -68,6 +68,7 @@ defmodule MediaCentaur.ErrorReports.ReportSubmissionTest do
   describe "submit_payload/2" do
     test "submits an already-built payload as-is" do
       payload = %{title: "T", body: "edited body", labels: ["incident"]}
+
       assert {:ok, "https://github.com/owner/reports/issues/42"} =
                ErrorReports.submit_payload(payload, transport: OkTransport)
     end
