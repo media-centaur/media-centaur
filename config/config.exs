@@ -84,6 +84,11 @@ config :media_centaur, :diagnostics_contributors, %{
 config :media_centaur, :diagnostics_report_repo, "media-centaur/media-centaur-reports"
 config :media_centaur, :diagnostics_report_token, nil
 
+# Health-board Activity widgets (observability Phase 4 M3b). component => {module, fun}.
+config :media_centaur, :health_activity_widgets, %{
+  watcher: {MediaCentaurWeb.HealthComponents, :watcher_widget}
+}
+
 config :media_centaur,
   ecto_repos: [MediaCentaur.Repo],
   generators: [timestamp_type: :utc_datetime]
