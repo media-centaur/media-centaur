@@ -15,8 +15,8 @@ defmodule MediaCentaurWeb.StatusLive do
   import MediaCentaurWeb.HealthComponents
 
   alias MediaCentaur.{Config, ErrorReports, Library, Playback, Status, Storage}
+  alias MediaCentaurWeb.StatusLive.ActivityWidgets
   alias MediaCentaurWeb.StatusLive.HealthBoard
-  alias MediaCentaur.Library.Availability
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.Pipeline.Image, as: ImagePipeline
   alias MediaCentaur.Watcher
@@ -139,6 +139,18 @@ defmodule MediaCentaurWeb.StatusLive do
 
   defp drill_in_buckets(error_buckets, component) do
     HealthBoard.group_buckets(error_buckets)[component]
+  end
+
+  # Data bundle handed to whichever Activity widget is registered for the selected
+  # subsystem. Superset of what any single widget reads; each widget declares (attr) its keys.
+  defp activity_bundle(assigns) do
+    %{
+      dir_health: assigns.dir_health,
+      watcher_statuses: assigns.watcher_statuses,
+      storage_drives: assigns.storage_drives,
+      at_risk_summary: assigns.at_risk_summary,
+      ttl_days: Config.get(:file_absence_ttl_days) || 30
+    }
   end
 
   # --- Events ---
@@ -332,7 +344,11 @@ defmodule MediaCentaurWeb.StatusLive do
             view={drill_in_view(@board, @selected_subsystem)}
             buckets={drill_in_buckets(@error_buckets, @selected_subsystem)}
             on_report="open_error_report_modal"
-          />
+          >
+            <:activity :if={ActivityWidgets.widget_for(@selected_subsystem)}>
+              {ActivityWidgets.render(@selected_subsystem, activity_bundle(assigns))}
+            </:activity>
+          </.health_drill_in>
         </div>
 
         <div data-nav-zone="sections" class="space-y-6">
@@ -353,21 +369,6 @@ defmodule MediaCentaurWeb.StatusLive do
                 <.external_integrations rate_limiter={@rate_limiter} config={@config} />
               </div>
             </div>
-          </.link>
-
-          <.link
-            navigate="/settings?section=configuration"
-            data-nav-item
-            tabindex="0"
-            class="block"
-          >
-            <.directories
-              dir_health={@dir_health}
-              watcher_statuses={@watcher_statuses}
-              storage_drives={@storage_drives}
-              at_risk_summary={@at_risk_summary}
-              ttl_days={Config.get(:file_absence_ttl_days) || 30}
-            />
           </.link>
         </div>
       </div>
@@ -536,142 +537,6 @@ defmodule MediaCentaurWeb.StatusLive do
     """
   end
 
-  defp directories(assigns) do
-    db_drive =
-      Enum.find(assigns.storage_drives, fn drive ->
-        Enum.any?(drive.roles, &(&1.label == "Database"))
-      end)
-
-    assigns =
-      assigns
-      |> assign(:db_drive, db_drive)
-      |> assign(:dir_status, Availability.dir_status())
-      |> assign(:now, DateTime.utc_now())
-
-    ~H"""
-    <div class="card glass-surface">
-      <div class="card-body">
-        <h2 class="card-title text-lg">Directories</h2>
-
-        <p :if={@dir_health == []} class="text-base-content/60">
-          No watch directories configured.
-        </p>
-
-        <div :if={@dir_health != []} class="space-y-4">
-          <div :for={health <- @dir_health}>
-            <% status = resolve_dir_status(health, @watcher_statuses) %>
-            <% drive = find_drive_for_dir(@storage_drives, health.dir) %>
-            <% at_risk =
-              format_at_risk_for_dir(
-                health.dir,
-                @at_risk_summary,
-                @dir_status,
-                @now,
-                @ttl_days
-              ) %>
-
-            <div class="flex items-center gap-3 mb-1">
-              <span
-                :if={health.image_dir_exists}
-                class="text-xs text-success whitespace-nowrap shrink-0"
-              >
-                images: ok
-              </span>
-              <span
-                :if={!health.image_dir_exists}
-                class="text-xs text-error whitespace-nowrap shrink-0"
-              >
-                images: missing
-              </span>
-              <code
-                class="text-sm truncate-left flex-1"
-                title={health.dir}
-              >
-                <bdo dir="ltr">{health.dir}</bdo>
-              </code>
-              <span
-                :if={health.dir_exists && drive}
-                class="text-xs font-mono text-base-content/60 shrink-0"
-              >
-                {format_bytes(drive.used_bytes)} / {format_bytes(drive.total_bytes)}
-              </span>
-              <span :if={!health.dir_exists} class="text-xs text-base-content/40 shrink-0">
-                —
-              </span>
-              <span class={["text-xs shrink-0", dir_status_text_class(status)]}>
-                {dir_status_label(status)}
-              </span>
-            </div>
-
-            <div :if={health.dir_exists && drive} class="flex items-center gap-3 mt-1">
-              <progress
-                class={["progress h-1.5 flex-1", usage_progress_class(drive.usage_percent)]}
-                value={drive.usage_percent}
-                max="100"
-              >
-              </progress>
-              <span class={[
-                "text-xs font-mono w-10 text-right shrink-0",
-                usage_text_class(drive.usage_percent)
-              ]}>
-                {drive.usage_percent}%
-              </span>
-            </div>
-
-            <div
-              :if={at_risk}
-              class="mt-2 flex items-center gap-2 text-xs text-warning"
-              data-component="at-risk-row"
-            >
-              <.icon name="hero-exclamation-triangle-mini" class="size-4 shrink-0" />
-              <span>
-                {at_risk.file_count} {if at_risk.file_count == 1, do: "file", else: "files"} at risk of TTL purge
-                <span :if={at_risk.purge_in_days > 0}>
-                  in {at_risk.purge_in_days} {if at_risk.purge_in_days == 1, do: "day", else: "days"}
-                </span>
-                <span :if={at_risk.purge_in_days == 0} class="text-error font-medium">
-                  — purge eligible now (waiting for drive to come back online)
-                </span>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div :if={@db_drive} class="mt-4 pt-4 border-t border-base-content/10">
-          <div class="flex items-baseline justify-between mb-1">
-            <span class="text-sm font-medium">Database</span>
-            <span class="text-xs text-base-content/60 font-mono">
-              {format_bytes(@db_drive.used_bytes)} / {format_bytes(@db_drive.total_bytes)}
-            </span>
-          </div>
-          <div class="flex items-center gap-3">
-            <progress
-              class={["progress h-1.5 flex-1", usage_progress_class(@db_drive.usage_percent)]}
-              value={@db_drive.usage_percent}
-              max="100"
-            >
-            </progress>
-            <span class={[
-              "text-xs font-mono w-10 text-right",
-              usage_text_class(@db_drive.usage_percent)
-            ]}>
-              {@db_drive.usage_percent}%
-            </span>
-          </div>
-          <% db_role = Enum.find(@db_drive.roles, &(&1.label == "Database")) %>
-          <code
-            :if={db_role}
-            class="text-xs truncate-left text-base-content/50 mt-1 block ml-2"
-            title={db_role.path}
-          >
-            <bdo dir="ltr">{db_role.path}</bdo>
-          </code>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
   defp external_integrations(assigns) do
     ~H"""
     <div class="card glass-surface">
@@ -830,12 +695,6 @@ defmodule MediaCentaurWeb.StatusLive do
         image_dir: image_dir,
         image_dir_exists: File.dir?(image_dir)
       }
-    end)
-  end
-
-  defp find_drive_for_dir(drives, dir) do
-    Enum.find(drives, fn drive ->
-      Enum.any?(drive.roles, &(&1.path == dir))
     end)
   end
 
