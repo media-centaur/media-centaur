@@ -1,7 +1,7 @@
 ---
 status: in_progress
 started: 2026-05-31
-last_updated: 2026-06-01
+last_updated: 2026-06-02
 ---
 # Observability dashboard
 
@@ -237,9 +237,31 @@ parent `report_confirm` gone. Full precommit green (4289 Elixir + 484 JS).
 **Deferred to M4:** the standalone `:user`-origin "something else is wrong"
 entry point (still no `Store` user-incident create path).
 
-Then **M3** (per-subsystem Activity widgets + storage fold + section removal —
-incl. retiring the old `error_summary_card`) and **M4** (`:user`-origin +
-discovery badge). Load `user-interface`, `phoenix-thinking`, `storybook` first.
+**M3 — health-board completion (in progress).** Sliced:
+- **M3a — section cleanup — DONE 2026-06-02** (`11c0cc97`): dropped the non-health
+  sections from `/status` — `recent_changes_card`, `recently_watched_card`,
+  `error_summary_card` (+ dead assigns/async), and the library catalog *counts*;
+  **kept** pending-review as a slim health card and `error_buckets`/board/drill-in.
+  Product calls: Recently Watched / Recent Changes **dropped** from `/status`
+  (not relocated); catalog counts dropped, pending-review kept. Note: retiring
+  `error_summary_card` removed the old board-level "Report errors" entry — the
+  consent modal is now reached only via the drill-in's per-incident "Report
+  this" (the intended incident-anchored model). Full precommit green.
+- **M3b — Activity-widget registry + widgets (next, the architectural piece).**
+  A runtime registry mapping `component → widget` (mirrors the backend
+  `Contributors`, boundary-clean), rendered into the drill-in's existing
+  `activity` slot; then the Watcher (watch dirs + per-drive storage headroom,
+  folding the storage display), Import/pipeline, TMDB (rate-limiter), Playback
+  widgets — folding `pipeline_card`/`directories`/`external_integrations`/
+  `playback` out of the flat layout into their subsystems' drill-ins. **Open
+  design fork to settle first:** how to dynamically render a runtime-registered
+  *function component* with its data (the data lives in `StatusLive` assigns,
+  loaded async — not fetched in render). Phased per widget, like the backend
+  contributors.
+
+Then **M4** (`:user`-origin entry point + `Store` user-incident create path +
+discovery badge `diagnostics_seen_at`). Load `user-interface`,
+`phoenix-thinking`, `storybook` first.
 
 **The backend Phase 4 builds on (`MediaCentaur.ErrorReports` public API):**
 - `list_buckets/0`, `get_bucket/1`, and the `{:buckets_changed, buckets}`
