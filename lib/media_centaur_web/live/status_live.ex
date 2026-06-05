@@ -201,6 +201,13 @@ defmodule MediaCentaurWeb.StatusLive do
      )}
   end
 
+  def handle_event("open_generic_report", _params, socket) do
+    %{snapshot: snapshot, payload: payload} = MediaCentaur.ErrorReports.build_generic_report()
+
+    {:noreply,
+     assign(socket, show_report_modal: true, report_payload: payload, report_snapshot: snapshot)}
+  end
+
   @impl true
   def handle_event("report_cancel", _params, socket) do
     {:noreply, assign(socket, show_report_modal: false, report_payload: nil, report_snapshot: nil)}
@@ -351,7 +358,18 @@ defmodule MediaCentaurWeb.StatusLive do
         />
       </:overlays>
       <div data-page-behavior="status" data-nav-default-zone="status" class="space-y-6">
-        <h1 class="text-2xl font-bold">Status</h1>
+        <div class="flex items-center gap-3">
+          <h1 class="text-2xl font-bold">Status</h1>
+          <div class="flex-1"></div>
+          <.button
+            variant="outline"
+            size="sm"
+            data-testid="report-a-problem"
+            phx-click="open_generic_report"
+          >
+            Report a problem
+          </.button>
+        </div>
 
         <div class="space-y-4">
           <div

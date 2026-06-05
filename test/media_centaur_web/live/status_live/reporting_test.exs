@@ -72,4 +72,29 @@ defmodule MediaCentaurWeb.StatusLive.ReportingTest do
     # Narrative was entered, so the "What happened" section is present in the bundle.
     assert html =~ "What happened"
   end
+
+  test "generic 'Report a problem' opens the modal and files a user report", %{conn: conn} do
+    {:ok, view, _html} = live_async!(conn, "/status")
+
+    view |> element("[data-testid=report-a-problem]") |> render_click()
+    assert has_element?(view, "[data-testid=report-modal]")
+
+    # LiveComponent events carry phx-target={@myself} — drive by clicking elements.
+    view
+    |> element("#error-report-modal [data-testid=consent-step-1] form")
+    |> render_change(%{"value" => "home page is blank"})
+
+    view |> element("#error-report-modal button", "Next") |> render_click()
+    view |> element("#error-report-modal button", "Next") |> render_click()
+
+    view
+    |> element("#error-report-modal [phx-click='toggle_consent']")
+    |> render_click()
+
+    view |> element("#error-report-modal button", "Send to the developer") |> render_click()
+    html = render(view)
+
+    assert html =~ "Report sent" or html =~ "Copy this report"
+    assert Enum.any?(MediaCentaur.ErrorReports.list_incidents(), &(&1.origin == :user))
+  end
 end
