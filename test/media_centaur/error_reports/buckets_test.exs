@@ -116,6 +116,34 @@ defmodule MediaCentaur.ErrorReports.BucketsTest do
       assert %Bucket{count: 1, severity: :warning} =
                Buckets.get_bucket(:buckets_boot, fingerprint)
     end
+
+    test "rebuilds without crashing when a fingerprint-less subsystem incident is durable" do
+      # Subsystem incidents are grouped by {component, kind} and carry no
+      # fingerprint. rebuild_from_store must not ask the store for their recent
+      # events (a `fingerprint == nil` query is forbidden by Ecto and crashes
+      # boot). A co-resident log incident must still rebuild past it.
+      message = "log alongside fault #{uniq()}"
+      fingerprint = fingerprint_of(:pipeline, message)
+
+      {:ok, _fault} =
+        Store.raise_fault(%{
+          component: :watcher,
+          kind: :drive_offline,
+          severity: :error,
+          occurred_at: DateTime.utc_now(),
+          message: "drive /mnt/media is offline"
+        })
+
+      {:ok, _incident} =
+        Capture.persist_entry(entry(component: :pipeline, level: :warning, message: message))
+
+      start_supervised!(
+        Supervisor.child_spec({Buckets, name: :buckets_fault_boot}, id: :buckets_fault_boot)
+      )
+
+      assert %Bucket{count: 1, severity: :warning} =
+               Buckets.get_bucket(:buckets_fault_boot, fingerprint)
+    end
   end
 
   describe "durable write throttle" do

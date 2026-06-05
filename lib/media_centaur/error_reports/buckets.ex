@@ -194,15 +194,21 @@ defmodule MediaCentaur.ErrorReports.Buckets do
   defp rebuild_from_store do
     [limit: BucketCache.max_active_buckets()]
     |> Store.list_incidents()
-    |> Enum.map(fn incident ->
-      samples =
-        incident.fingerprint
-        |> Store.list_recent_events(BucketCache.max_sample_entries())
-        |> Enum.map(&%{timestamp: &1.occurred_at, message: &1.message})
-
-      {incident, samples}
-    end)
+    |> Enum.map(fn incident -> {incident, samples_for(incident)} end)
     |> BucketCache.from_incidents()
+  end
+
+  # Only fingerprint-keyed incidents (`:log`) have recent events to reconstruct
+  # samples from. `:subsystem`/`:user` incidents carry no fingerprint and don't
+  # bucket (BucketCache.from_incidents drops them), so skip the per-incident
+  # event read — a `fingerprint == nil` query is forbidden by Ecto and would
+  # crash the boot rebuild.
+  defp samples_for(%{fingerprint: nil}), do: []
+
+  defp samples_for(%{fingerprint: fingerprint}) do
+    fingerprint
+    |> Store.list_recent_events(BucketCache.max_sample_entries())
+    |> Enum.map(&%{timestamp: &1.occurred_at, message: &1.message})
   end
 
   defp schedule_broadcast(%{broadcast_pending: true} = state), do: state
