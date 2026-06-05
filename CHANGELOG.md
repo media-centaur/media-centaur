@@ -4,6 +4,34 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.77.8 — 2026-06-05
+
+### Fixed
+
+**Media Centaur no longer fails to start after a background problem was recorded.**
+If something went wrong in the background — for example a drive going offline — Media Centaur
+quietly noted it so it could show you later. But once such a note had been saved, the app could
+fail to start up at all, getting stuck in a restart loop. Startup now handles those saved notes
+correctly, so the app opens normally every time.
+
+### New
+
+**A new Status page shows the health of each part of Media Centaur at a glance.**
+The Status page now has a Subsystem Health Board: a tile for each part of the app — file watching,
+the import pipeline, the movie database connection, and playback — coloured by how it's doing. Click
+a tile to drill in and see recent activity and any problems for that area.
+
+**You can now send a diagnostic report when something goes wrong, with full control over what's shared.**
+When the Status page surfaces a problem, you can send a report to help get it fixed. A short,
+step-by-step flow shows you exactly what will be included before anything leaves your machine, and
+if sending isn't possible it falls back to copying the details so you can share them yourself.
+
+### Improved
+
+**The Status page is now focused on health and live activity.**
+Less useful sections (recent changes, recently watched, the old error summary, and catalog counts)
+were removed so the page concentrates on what's actually going on right now.
+
 ## v0.77.7 — 2026-06-01
 
 ### Fixed
