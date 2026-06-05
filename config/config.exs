@@ -76,11 +76,16 @@ config :media_centaur, :diagnostics_contributors, %{
   tmdb: MediaCentaur.TMDB.IncidentContext
 }
 
-# Incident-report submission inbox (observability Phase 3). The fine-grained
-# token (scoped to Issues:write on the private reports repo) is wired at release
-# time via config/runtime.exs from an env var — never committed. With no token,
-# GithubTransport returns {:error, :no_token} and submission falls back to a
-# copyable bundle, so dev/showcase never need one.
+# Incident-report submission inbox (observability Phase 3). Automatic submission
+# is OFF by default: the token is nil here and only set when an operator exports
+# MEDIA_CENTAUR_DIAGNOSTICS_REPORT_TOKEN (read in config/runtime.exs, so the
+# secret never lands in the committed config or the user's plaintext TOML). With
+# no token, GithubTransport returns {:error, :no_token} and the reporter falls
+# back to a copyable bundle, so dev/showcase/unconfigured installs never need one.
+# NOTE: there is currently no mechanism that ships a token to end users, so the
+# centralized "every install reports to one inbox" model is not yet wired — that
+# requires a deliberate decision (embedding a shared token in the public release
+# carries Issues:write abuse risk). Today this is operator-opt-in only.
 config :media_centaur, :diagnostics_report_repo, "media-centaur/media-centaur-reports"
 config :media_centaur, :diagnostics_report_token, nil
 

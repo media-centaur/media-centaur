@@ -4,11 +4,20 @@ defmodule MediaCentaur.ErrorReports.GithubTransport do
   GitHub repo via the REST API — no user GitHub account, no `git`/SSH/`gh`.
 
   Authenticated by a fine-grained token scoped to `Issues:write` on that one
-  repo, shipped with the release and read from app config
-  (`:diagnostics_report_token` / `:diagnostics_report_repo`, overridable per
-  call). With no token or repo configured (dev/showcase), it returns
+  repo, read from app config (`:diagnostics_report_token` /
+  `:diagnostics_report_repo`, overridable per call). The token is opt-in: it is
+  `nil` by default and only populated when an operator exports
+  `MEDIA_CENTAUR_DIAGNOSTICS_REPORT_TOKEN` (wired in `config/runtime.exs`, so the
+  secret stays out of the committed config and the user's plaintext TOML). With
+  no token or repo configured (dev/showcase/unconfigured installs), it returns
   `{:error, :no_token}` / `{:error, :no_repo}` so the caller falls back to the
   copyable bundle — nothing leaves the machine without a configured inbox.
+
+  > There is no mechanism that ships a token to end users, so a fresh install
+  > does not auto-submit anywhere; the copy-paste fallback is the only path until
+  > someone sets the env var. A centralized "every install reports to one inbox"
+  > model would require embedding a shared token in the public release, which
+  > carries Issues:write abuse risk — a deliberate decision, not yet made.
 
   The Req client is injectable (`opts[:client]`) so tests drive it through
   `Req.Test` and never touch the network.
