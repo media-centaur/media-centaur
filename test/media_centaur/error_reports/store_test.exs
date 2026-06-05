@@ -184,6 +184,84 @@ defmodule MediaCentaur.ErrorReports.StoreTest do
     end
   end
 
+  describe "create_user_incident/1" do
+    test "persists an open :user incident with description and frozen context" do
+      {:ok, incident} =
+        Store.create_user_incident(%{
+          user_description: "Something looks off on the home page",
+          first_context: %{"vitals" => %{"tmdb" => %{"ok" => true}}}
+        })
+
+      assert incident.origin == :user
+      assert incident.status == :open
+      assert incident.severity == :warning
+      assert incident.count == 1
+      assert incident.user_description == "Something looks off on the home page"
+      assert incident.first_context == %{"vitals" => %{"tmdb" => %{"ok" => true}}}
+      assert incident.fingerprint =~ "user-"
+    end
+
+    test "does not group — two reports create two incidents" do
+      {:ok, a} = Store.create_user_incident(%{user_description: "one", first_context: %{}})
+      {:ok, b} = Store.create_user_incident(%{user_description: "two", first_context: %{}})
+      refute a.id == b.id
+      assert a.fingerprint != b.fingerprint
+    end
+  end
+
+  describe "count_unseen_incidents/1" do
+    test "counts open detected incidents newer than `since`, excluding :user and resolved" do
+      since = ~U[2026-01-01 00:00:00Z]
+
+      {:ok, _} =
+        Store.upsert_log_incident(
+          log_attrs(
+            fingerprint: "fp-new",
+            first_seen: ~U[2026-06-01 00:00:00Z],
+            last_seen: ~U[2026-06-01 00:00:00Z]
+          )
+        )
+
+      {:ok, _} =
+        Store.upsert_log_incident(
+          log_attrs(
+            fingerprint: "fp-old",
+            first_seen: ~U[2020-01-01 00:00:00Z],
+            last_seen: ~U[2020-01-01 00:00:00Z]
+          )
+        )
+
+      {:ok, _} = Store.create_user_incident(%{user_description: "x", first_context: %{}})
+
+      assert Store.count_unseen_incidents(since) == 1
+    end
+
+    test "epoch `since` counts all open detected incidents" do
+      {:ok, _} = Store.upsert_log_incident(log_attrs(fingerprint: "fp-a"))
+      assert Store.count_unseen_incidents(~U[1970-01-01 00:00:00Z]) >= 1
+    end
+
+    # The Store's open path derives first_seen/last_seen from `occurred_at`, so a
+    # caller-supplied first_seen override is funneled through occurred_at.
+    defp log_attrs(overrides \\ []) do
+      overrides = Map.new(overrides)
+      now = DateTime.utc_now()
+      occurred_at = overrides[:first_seen] || overrides[:occurred_at] || now
+
+      Map.merge(
+        %{
+          fingerprint: "fp_" <> Ecto.UUID.generate(),
+          component: "pipeline",
+          severity: :error,
+          message: "[Pipeline] sample failure",
+          display_title: "Sample failure",
+          occurred_at: occurred_at
+        },
+        Map.drop(overrides, [:first_seen, :last_seen])
+      )
+    end
+  end
+
   describe "health/0" do
     test "is ok with no incidents" do
       assert %{status: :ok, open_count: 0, by_severity: by_severity} = Store.health()
