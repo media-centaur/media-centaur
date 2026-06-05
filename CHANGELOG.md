@@ -4,6 +4,25 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.78.2 — 2026-06-05
+
+### Changed
+
+**Reporting a problem now posts to GitHub, under your own account.**
+When you report a problem, Media Centaur copies the report to your clipboard and opens a pre-filled
+**GitHub issue** for you to post — so reports actually reach the developers and you can follow along as
+they're worked on. Your report is still automatically scrubbed of file paths, keys, IP addresses, and
+emails, and you review and edit the exact text first. One thing to know: the issue is **public**, so
+give it a last glance before posting. No GitHub account? Use the **Copy** button and share the text
+however you like. (Posting needs a free GitHub login.)
+
+### Fixed
+
+**Problem reports no longer silently fail to send.**
+Reports previously tried to send in the background and could quietly fail with a "couldn't send
+automatically" message. Reporting now goes through GitHub every time, so a report you take the time to
+write actually gets through.
+
 ## v0.78.1 — 2026-06-05
 
 ### Fixed
