@@ -5,32 +5,6 @@ defmodule MediaCentaur.ErrorReports.ReportSubmissionTest do
   alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaur.ErrorReports.ReportPayload
 
-  defmodule OkTransport do
-    @behaviour MediaCentaur.ErrorReports.ReportTransport
-    @impl true
-    def submit(_payload, _opts), do: {:ok, "https://github.com/owner/reports/issues/42"}
-  end
-
-  defmodule FailTransport do
-    @behaviour MediaCentaur.ErrorReports.ReportTransport
-    @impl true
-    def submit(_payload, _opts), do: {:error, :no_token}
-  end
-
-  defp bucket do
-    %Bucket{
-      fingerprint: "abc123def456",
-      component: :tmdb,
-      normalized_message: "TMDB returned <N>: rate limited",
-      display_title: "[TMDB] TMDB returned <N>: rate limited",
-      severity: :error,
-      count: 5,
-      first_seen: ~U[2026-05-31 12:00:00Z],
-      last_seen: ~U[2026-05-31 12:05:00Z],
-      sample_entries: [%{timestamp: ~U[2026-05-31 12:05:00Z], message: "TMDB returned <N>"}]
-    }
-  end
-
   describe "ReportPayload.build/2" do
     test "renders title, full body, and labels" do
       env = %{
@@ -42,7 +16,19 @@ defmodule MediaCentaur.ErrorReports.ReportSubmissionTest do
         uptime: "1h"
       }
 
-      payload = ReportPayload.build(bucket(), env)
+      bucket = %Bucket{
+        fingerprint: "abc123def456",
+        component: :tmdb,
+        normalized_message: "TMDB returned <N>: rate limited",
+        display_title: "[TMDB] TMDB returned <N>: rate limited",
+        severity: :error,
+        count: 5,
+        first_seen: ~U[2026-05-31 12:00:00Z],
+        last_seen: ~U[2026-05-31 12:05:00Z],
+        sample_entries: [%{timestamp: ~U[2026-05-31 12:05:00Z], message: "TMDB returned <N>"}]
+      }
+
+      payload = ReportPayload.build(bucket, env)
 
       assert payload.title =~ "[TMDB]"
       assert payload.body =~ "## Environment"
@@ -51,50 +37,25 @@ defmodule MediaCentaur.ErrorReports.ReportSubmissionTest do
     end
   end
 
-  describe "submit_report/2" do
-    test "returns {:ok, url} when the transport succeeds" do
-      assert {:ok, "https://github.com/owner/reports/issues/42"} =
-               ErrorReports.submit_report(bucket(), transport: OkTransport)
-    end
-
-    test "falls back to a copyable bundle when the transport fails" do
-      assert {:fallback, bundle} = ErrorReports.submit_report(bucket(), transport: FailTransport)
-
-      assert bundle =~ "[TMDB]"
-      assert bundle =~ "## Environment"
+  describe "finalize_report/1" do
+    test "returns the title, body, and a prefilled public issue URL" do
+      payload = %{title: "Boom", body: "the body", labels: ["incident"]}
+      assert %{title: "Boom", body: "the body", issue_url: url} = ErrorReports.finalize_report(payload)
+      assert url =~ "github.com/media-centaur/media-centaur/issues/new?"
+      assert url =~ "title=Boom"
     end
   end
 
-  describe "submit_payload/2" do
-    test "submits an already-built payload as-is" do
-      payload = %{title: "T", body: "edited body", labels: ["incident"]}
-
-      assert {:ok, "https://github.com/owner/reports/issues/42"} =
-               ErrorReports.submit_payload(payload, transport: OkTransport)
+  describe "persist_user_incident/1" do
+    test "persists an open :user incident" do
+      snapshot = MediaCentaur.ErrorReports.ContextSnapshot.assemble(:user, %{})
+      :ok = ErrorReports.persist_user_incident(%{user_description: "it broke", snapshot: snapshot})
+      assert [incident | _] = ErrorReports.list_incidents()
+      assert incident.origin == :user
     end
 
-    test "falls back to the payload's own text on transport failure" do
-      payload = %{title: "T", body: "edited body", labels: ["incident"]}
-      assert {:fallback, bundle} = ErrorReports.submit_payload(payload, transport: FailTransport)
-      assert bundle =~ "T"
-      assert bundle =~ "edited body"
-    end
-  end
-
-  describe "create_user_report/2" do
-    test "persists a :user incident and submits the payload" do
-      snapshot = %{"vitals" => %{}, "lead_up" => []}
-      payload = %{title: "T", body: "edited body", labels: ["incident"]}
-
-      assert {:ok, "https://github.com/owner/reports/issues/42"} =
-               ErrorReports.create_user_report(
-                 %{user_description: "broke", snapshot: snapshot, payload: payload},
-                 transport: OkTransport
-               )
-
-      incident = Enum.find(ErrorReports.list_incidents(), &(&1.origin == :user))
-      assert incident.user_description == "broke"
-      assert incident.first_context == snapshot
+    test "never raises if the local write fails" do
+      assert :ok = ErrorReports.persist_user_incident(%{user_description: "x", snapshot: %{}})
     end
   end
 

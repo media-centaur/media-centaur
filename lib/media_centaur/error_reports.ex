@@ -18,18 +18,16 @@ defmodule MediaCentaur.ErrorReports do
 
   Subscribes to the Console log stream, groups `:error`-level entries by a
   normalized-message fingerprint, and exposes a 1-hour rolling snapshot.
-  Submission is server-side: `ReportPayload` formats the issue body, and
-  `GithubTransport` posts it to a private GitHub repo via the REST API
-  (`submit_payload/2`). When no token is configured or the request fails,
-  the caller receives a `{:fallback, bundle}` with the redacted text for
-  the user to copy. `IssueUrl` is an internal Markdown formatter reused by
-  `ReportPayload` — it no longer drives browser-side submission.
+  Submission is browser-side: `ReportPayload` formats the issue body, and
+  `finalize_report/1` returns the redacted text plus a prefilled public
+  new-issue URL (`IssueUrl.new_issue_url/2`). The user posts the issue under
+  their own GitHub login — there is no network call in the submission path.
   """
 
   alias MediaCentaur.ErrorReports.Buckets
   alias MediaCentaur.ErrorReports.ContextSnapshot
   alias MediaCentaur.ErrorReports.EnvMetadata
-  alias MediaCentaur.ErrorReports.GithubTransport
+  alias MediaCentaur.ErrorReports.IssueUrl
   alias MediaCentaur.ErrorReports.ReportPayload
   alias MediaCentaur.ErrorReports.Store
   alias MediaCentaur.Topics
@@ -84,35 +82,23 @@ defmodule MediaCentaur.ErrorReports do
   end
 
   @doc """
-  Packages `bucket` into an incident report and submits it via the configured
-  `ReportTransport`.
-
-  Returns `{:ok, url}` on success. On any failure — no token configured
-  (dev/showcase), network error, or a non-201 response — returns
-  `{:fallback, bundle}` where `bundle` is the redacted report text for the user
-  to copy, so a report is never lost. `opts[:transport]` overrides the transport
-  (for tests); other opts pass through to it.
+  Finalizes a (possibly user-edited) payload for browser-side posting: returns the
+  title, body, and the prefilled public GitHub new-issue URL. No network call.
   """
-  @spec submit_report(__MODULE__.Bucket.t(), keyword()) :: {:ok, String.t()} | {:fallback, String.t()}
-  def submit_report(bucket, opts \\ []) do
-    bucket
-    |> ReportPayload.build(EnvMetadata.collect())
-    |> submit_payload(opts)
+  @spec finalize_report(ReportPayload.payload()) ::
+          %{title: String.t(), body: String.t(), issue_url: String.t()}
+  def finalize_report(%{title: title, body: body} = payload) do
+    %{title: title, body: body, issue_url: IssueUrl.new_issue_url(title, Map.get(payload, :labels, []))}
   end
 
   @doc """
-  Submits an already-built (possibly user-edited) payload via the configured
-  transport. `{:ok, url}` on success; `{:fallback, bundle}` (the payload's own
-  title + body, for the user to copy) on any transport error.
+  Best-effort persistence of the `:user` incident (submission is never blocked by a
+  local write failure).
   """
-  @spec submit_payload(map(), keyword()) :: {:ok, String.t()} | {:fallback, String.t()}
-  def submit_payload(payload, opts \\ []) do
-    transport = opts[:transport] || configured_transport()
-
-    case transport.submit(payload, opts) do
-      {:ok, url} -> {:ok, url}
-      {:error, _reason} -> {:fallback, payload.title <> "\n\n" <> payload.body}
-    end
+  @spec persist_user_incident(map()) :: :ok
+  def persist_user_incident(%{user_description: description, snapshot: snapshot}) do
+    _ = create_user_incident(%{user_description: description, first_context: snapshot})
+    :ok
   end
 
   @doc """
@@ -130,26 +116,12 @@ defmodule MediaCentaur.ErrorReports do
   @doc """
   Assembles a generic (un-anchored) user report: a current-state context snapshot
   plus the `%{title, body, labels}` payload to seed the consent modal. The caller
-  keeps `snapshot` to persist on submit via `create_user_report/2`.
+  keeps `snapshot` to persist on submit via `persist_user_incident/1`.
   """
   @spec build_generic_report() :: %{snapshot: map(), payload: ReportPayload.payload()}
   def build_generic_report do
     snapshot = ContextSnapshot.assemble(:user, %{})
     %{snapshot: snapshot, payload: ReportPayload.build_generic(snapshot, EnvMetadata.collect())}
-  end
-
-  @doc """
-  Persists the `:user` incident (best-effort — submission is not blocked if the
-  local write fails) and submits the (already edited + assembled) payload.
-  """
-  @spec create_user_report(map(), keyword()) :: {:ok, String.t()} | {:fallback, String.t()}
-  def create_user_report(%{user_description: desc, snapshot: snapshot, payload: payload}, opts \\ []) do
-    _ = create_user_incident(%{user_description: desc, first_context: snapshot})
-    submit_payload(payload, opts)
-  end
-
-  defp configured_transport do
-    Application.get_env(:media_centaur, :diagnostics_transport, GithubTransport)
   end
 
   @spec subscribe() :: :ok | {:error, term()}

@@ -1,9 +1,9 @@
 defmodule MediaCentaurWeb.StatusLive.ReportingTest do
   @moduledoc """
-  Reporting flow on /status. Submission goes through
-  `ErrorReports.submit_payload/2`; with no token configured (the default in
-  dev/test) it falls back to presenting the redacted bundle for the user to
-  copy — never the old `window.open` GitHub-URL path.
+  Reporting flow on /status. Submission is browser-side: `ErrorReports.finalize_report/1`
+  returns the redacted report text plus a prefilled public GitHub new-issue URL, and the
+  modal offers Copy + Open-issue affordances so the user posts the issue under their own
+  GitHub account. No network call in the submission path.
   """
   use MediaCentaurWeb.ConnCase, async: false
 
@@ -31,7 +31,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportingTest do
     bucket
   end
 
-  test "3-step consent flow submits via submit_payload and shows the copy-fallback (no token)",
+  test "3-step consent flow finalizes the report and shows the GitHub-post result",
        %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/status")
     bucket = seed_bucket("fp-pipeline-error")
@@ -60,14 +60,16 @@ defmodule MediaCentaurWeb.StatusLive.ReportingTest do
     |> render_click()
 
     # Send the report.
-    view |> element("#error-report-modal button", "Send to the developer") |> render_click()
+    view |> element("#error-report-modal button", "Review & post to GitHub") |> render_click()
 
-    # No token → fallback textarea appears.
     assert has_element?(view, "[data-testid=report-fallback]")
 
-    # Fallback bundle includes the report title drawn from the bucket.
     html = render(view)
-    assert html =~ "Image downloads failing for 11 items"
+    assert html =~ "issues/new"
+
+    # The prefilled issue URL carries the report title drawn from the bucket
+    # (the title is the GitHub issue title field, URL-encoded in the link).
+    assert html =~ "Image+downloads+failing+for+11+items"
 
     # Narrative was entered, so the "What happened" section is present in the bundle.
     assert html =~ "What happened"
@@ -91,10 +93,10 @@ defmodule MediaCentaurWeb.StatusLive.ReportingTest do
     |> element("#error-report-modal [phx-click='toggle_consent']")
     |> render_click()
 
-    view |> element("#error-report-modal button", "Send to the developer") |> render_click()
+    view |> element("#error-report-modal button", "Review & post to GitHub") |> render_click()
     html = render(view)
 
-    assert html =~ "Report sent" or html =~ "Copy this report"
+    assert html =~ "Post this report to GitHub"
     assert Enum.any?(MediaCentaur.ErrorReports.list_incidents(), &(&1.origin == :user))
   end
 end

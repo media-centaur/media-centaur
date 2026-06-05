@@ -2,8 +2,10 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
   @moduledoc """
   Guided 3-step, incident-anchored consent flow for submitting an error report:
   (1) what happened + optional narrative, (2) review & edit the exact outgoing
-  text, (3) consent + send. Owns its step/edit/consent state; submits via
-  `ErrorReports.submit_payload/2` (copy-fallback on no-token/offline).
+  text, (3) consent + send. Owns its step/edit/consent state. On send,
+  `ErrorReports.finalize_report/1` produces the redacted text plus a prefilled
+  public GitHub new-issue URL; the user copies the report and posts the issue
+  under their own GitHub account (no network call here).
   Spec: docs/superpowers/specs/2026-06-01-consent-flow-design.md.
   """
   use MediaCentaurWeb, :live_component
@@ -51,20 +53,14 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
       labels: @labels
     }
 
-    result =
-      case socket.assigns.snapshot do
-        nil ->
-          ErrorReports.submit_payload(assembled)
+    if snapshot = socket.assigns.snapshot do
+      ErrorReports.persist_user_incident(%{
+        user_description: socket.assigns.narrative,
+        snapshot: snapshot
+      })
+    end
 
-        snapshot ->
-          ErrorReports.create_user_report(%{
-            user_description: socket.assigns.narrative,
-            snapshot: snapshot,
-            payload: assembled
-          })
-      end
-
-    {:noreply, assign(socket, :report_result, result)}
+    {:noreply, assign(socket, :report_result, ErrorReports.finalize_report(assembled))}
   end
 
   # report_cancel is NOT handled here — it bubbles to StatusLive (no target: @myself) to close the modal.
@@ -102,33 +98,41 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
     """
   end
 
-  # --- result view (sent / fallback) ---
-  attr :result, :any,
+  # --- result view (copy + open public GitHub issue) ---
+  attr :result, :map,
     required: true,
-    doc: "{:ok, url} | {:fallback, text} from ErrorReports.submit_payload/2"
+    doc: "%{title, body, issue_url} from ErrorReports.finalize_report/1"
 
   defp result(assigns) do
     ~H"""
-    <div :if={match?({:ok, _}, @result)} class="p-6 flex flex-col gap-3">
-      <h2 class="text-lg font-semibold">Report sent</h2>
-      <p class="text-sm text-base-content/70">Thanks — this has been sent to the development team.</p>
-      <a href={elem(@result, 1)} target="_blank" rel="noopener" class="link text-sm">
-        View the report
-      </a>
-      <.button variant="dismiss" phx-click="report_cancel">Close</.button>
-    </div>
-    <div :if={match?({:fallback, _}, @result)} class="p-6 flex flex-col gap-3">
-      <h2 class="text-lg font-semibold">Copy this report</h2>
+    <div class="p-6 flex flex-col gap-3">
+      <h2 class="text-lg font-semibold">Post this report to GitHub</h2>
       <p class="text-sm text-base-content/70">
-        We couldn't send it automatically. Copy the text below and send it to the developer.
+        This opens a <span class="font-medium">public issue</span> under your GitHub account.
+        Copy the report, open the issue, and paste it in.
       </p>
       <textarea
         data-testid="report-fallback"
         readonly
         rows="12"
         class="textarea textarea-bordered w-full font-mono text-xs"
-      >{elem(@result, 1)}</textarea>
-      <.button variant="dismiss" phx-click="report_cancel">Close</.button>
+      >{@result.body}</textarea>
+      <div class="flex items-center gap-2">
+        <.button
+          id="report-copy"
+          variant="neutral"
+          size="sm"
+          phx-hook="CopyButton"
+          data-copy-text={@result.body}
+        >
+          Copy report
+        </.button>
+        <.button variant="primary" size="sm" href={@result.issue_url} target="_blank" rel="noopener">
+          Open GitHub issue
+        </.button>
+        <div class="flex-1"></div>
+        <.button variant="dismiss" phx-click="report_cancel">Close</.button>
+      </div>
     </div>
     """
   end
@@ -177,7 +181,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
         disabled={not @consent}
         phx-click={JS.push("send", target: @myself)}
       >
-        Send to the developer
+        Review & post to GitHub
       </.button>
     </div>
     """
