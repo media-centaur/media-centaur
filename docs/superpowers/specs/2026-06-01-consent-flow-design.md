@@ -1,3 +1,5 @@
+> **Superseded 2026-06-05** by [`2026-06-05-public-issue-reporting-design.md`](2026-06-05-public-issue-reporting-design.md). The private-inbox model and its privacy promises are withdrawn; reports now post to a public GitHub issue.
+
 # Consent Flow — Incident Report Submission (design)
 
 **Date:** 2026-06-01

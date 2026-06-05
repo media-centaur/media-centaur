@@ -57,9 +57,9 @@ Reporting is now available to anyone with a GitHub account; a standalone
   retire candidate; instead it gets its job back).
 - **Repo target** — `config :media_centaur, :diagnostics_issues_repo,
   "media-centaur/media-centaur"` (the public repo; overridable for tests/showcase).
-- **`ReportPost` JS hook** — on a LiveView-pushed event, writes the report text
-  (from a hidden field / data attr) to `navigator.clipboard`, then
-  `window.open(url)`. WS-only, no entrance anim (ADR-012 / MC0016).
+- **Result view actions** — reuses the existing `CopyButton` hook (writes the
+  report body to the clipboard) plus a plain anchor (`<a href={issue_url}
+  target="_blank">`) that opens the prefilled new-issue page. No new JS hook.
 
 ### Rewritten
 
@@ -75,7 +75,7 @@ Reporting is now available to anyone with a GitHub account; a standalone
 - **`StatusLive.ReportModal`** — the `"send"` handler no longer calls a transport.
   It assembles the redacted body, best-effort persists the `:user` incident, then
   shows a result view with **Copy** + **Post to GitHub** actions wired to the
-  `ReportPost` hook. Button label → *"Review & post to GitHub."* The `{:ok,url}` /
+  `CopyButton` hook + anchor (see above). Button label → *"Review & post to GitHub."* The `{:ok,url}` /
   `{:fallback,text}` result shapes are gone.
 - **`ErrorReports`** — remove `submit_payload/2`, `submit_report/2`,
   `create_user_report/2`'s transport call, and `configured_transport/0`. Keep
