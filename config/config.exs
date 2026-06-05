@@ -76,6 +76,10 @@ config :media_centaur, :diagnostics_contributors, %{
   tmdb: MediaCentaur.TMDB.IncidentContext
 }
 
+# Public repo the in-app reporter opens a new issue against (user posts under
+# their own GitHub login). Overridable for tests/showcase.
+config :media_centaur, :diagnostics_issues_repo, "media-centaur/media-centaur"
+
 # Incident-report submission inbox (observability Phase 3). Automatic submission
 # is OFF by default: the token is nil here and only set when an operator exports
 # MEDIA_CENTAUR_DIAGNOSTICS_REPORT_TOKEN (read in config/runtime.exs, so the
