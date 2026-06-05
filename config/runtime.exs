@@ -64,21 +64,6 @@ if config_env() != :test do
     watch_dirs: [System.get_env("MEDIA_DIR", "/mnt/videos/Videos")],
     tmdb_api_key: System.get_env("TMDB_API_KEY", ""),
     auto_approve_threshold: 0.85
-
-  # Incident-report submission inbox (observability Phase 3). A fine-grained
-  # token scoped to `Issues:write` on a private reports repo turns on automatic
-  # submission via `GithubTransport`. It is read here from the environment so it
-  # never lands in the committed config or the user's plaintext TOML. With no
-  # token set (the default), `GithubTransport` returns `{:error, :no_token}` and
-  # the reporter falls back to a copyable bundle — so this is opt-in, and dev /
-  # showcase / unconfigured installs never need it.
-  if token = System.get_env("MEDIA_CENTAUR_DIAGNOSTICS_REPORT_TOKEN") do
-    config :media_centaur, :diagnostics_report_token, token
-  end
-
-  if repo = System.get_env("MEDIA_CENTAUR_DIAGNOSTICS_REPORT_REPO") do
-    config :media_centaur, :diagnostics_report_repo, repo
-  end
 end
 
 if config_env() == :prod do
