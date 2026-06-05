@@ -45,13 +45,26 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
   def handle_event("send", _p, %{assigns: %{consent: false}} = socket), do: {:noreply, socket}
 
   def handle_event("send", _p, socket) do
-    payload = %{
+    assembled = %{
       title: socket.assigns.title,
       body: ErrorReports.assemble_body(socket.assigns.narrative, socket.assigns.body),
       labels: @labels
     }
 
-    {:noreply, assign(socket, :report_result, ErrorReports.submit_payload(payload))}
+    result =
+      case socket.assigns.snapshot do
+        nil ->
+          ErrorReports.submit_payload(assembled)
+
+        snapshot ->
+          ErrorReports.create_user_report(%{
+            user_description: socket.assigns.narrative,
+            snapshot: snapshot,
+            payload: assembled
+          })
+      end
+
+    {:noreply, assign(socket, :report_result, result)}
   end
 
   # report_cancel is NOT handled here — it bubbles to StatusLive (no target: @myself) to close the modal.
