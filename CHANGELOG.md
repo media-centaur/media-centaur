@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.78.0 — 2026-06-05
+
+### New
+
+**You can now report a problem even when Media Centaur didn't catch it.**
+The Status page has a new **Report a problem** button. Use it when something feels off but the app
+hasn't flagged anything itself — Media Centaur attaches a snapshot of how the system is doing right
+now, so your report still gives the developer useful context. As with every report, you review and
+edit exactly what's included before it's sent, and if it can't be sent automatically you get the full
+text to copy and share yourself.
+
+**The Status icon flags problems you haven't seen yet.**
+When Media Centaur detects something worth your attention, a small marker appears on the Status item
+in the sidebar — so you'll notice from anywhere in the app, not only when you happen to open the
+Status page. Opening the Status page clears it.
+
 ## v0.77.8 — 2026-06-05
 
 ### Fixed
