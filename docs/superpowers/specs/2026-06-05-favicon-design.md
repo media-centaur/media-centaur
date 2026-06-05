@@ -60,11 +60,11 @@ A favicon is a **16px problem**. "Matching the app's quality" does not mean a hi
 - **`.ico` is static** — it can't carry a media query, so it ships **navy**. The browsers that ignore SVG favicons and fall back to `.ico` are old and overwhelmingly light-themed, making navy the safe default. (Documented tradeoff, not an oversight.)
 - **apple-touch / PWA icons are cream on a dark tile.** iOS/Android render these on a home screen, not a tab, and ignore transparency. Cream-on-`#0D0F15` matches the app's dark aesthetic and the existing `icon-512` treatment.
 
-## Generation pipeline
+## Generation (one-shot)
 
-A single reproducible, extensionless script — `scripts/gen-favicons` — regenerates **every** artifact from the source logo using only ImageMagick (already installed; **no new dependencies**). Rationale: bake the pipeline so the icon set is regenerable and never hand-assembled (aligns with the repo's "prefer scripts over AI workflows" and componentization bars).
+The icon set is generated **once** with ImageMagick (already installed; **no new dependencies**) and the resulting artifacts are committed as binaries. No committed tooling — a favicon is not a recurring task. The exact commands are recorded here so the set can be re-derived by hand if the source logo ever changes:
 
-Pipeline stages:
+Stages:
 1. **Mask** — flatten `centaur-logo.png` on white, grayscale, threshold → solid black-on-white shape → extract alpha.
 2. **Bold** — `-morphology Dilate Disk:5` to thicken (the "Bold" variant chosen in review). This is the single knob; document it inline.
 3. **Adaptive SVG** — base64 the bold mask, inject into the `favicon.svg` template above.
@@ -120,7 +120,7 @@ The only public surfaces where we control the favicon are the app and the market
 
 ## File inventory
 
-Generated/updated by `scripts/gen-favicons`:
+Generated once and committed as binaries:
 - `priv/static/favicon.ico`
 - `priv/static/images/favicon.svg`
 - `priv/static/images/apple-touch-icon.png`
