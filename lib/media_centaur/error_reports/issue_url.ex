@@ -1,21 +1,39 @@
 defmodule MediaCentaur.ErrorReports.IssueUrl do
   @moduledoc """
-  Renders the redacted Markdown (title + body) for an incident report.
+  Renders the redacted Markdown for an incident report and builds the prefilled GitHub new-issue URL.
 
-  Despite the legacy name, this **no longer builds a URL** — submission moved to
-  `ReportPayload` + `GithubTransport` (private-repo REST, observability Phase 3).
-  `format_title/1` and `format_body/3` remain the single source of the report's
-  human-readable Markdown, reused by `ReportPayload.build/2`. (Candidate to fold
-  into `ReportPayload` and retire this module name.)
+  `format_title/1` and `format_body/3` produce the human-readable Markdown reused by
+  `ReportPayload.build/2`. `new_issue_url/2` builds the prefilled public GitHub
+  new-issue URL for user-submitted reports.
   """
 
   alias MediaCentaur.ErrorReports.{Bucket, EnvMetadata}
 
   @title_limit 140
+  @default_repo "media-centaur/media-centaur"
+  @paste_placeholder "<!-- Paste your report below — it's on your clipboard (Ctrl/Cmd+V). -->\n\n"
 
   @spec format_title(Bucket.t()) :: binary()
   def format_title(%Bucket{display_title: title}) do
     String.slice(title, 0, @title_limit)
+  end
+
+  @doc """
+  Builds the prefilled public GitHub new-issue URL. The full report body travels
+  via the clipboard (not the URL — sidesteps length limits); the `body` param
+  carries only a paste prompt. `labels` are best-effort (GitHub drops `labels=`
+  for reporters without triage rights).
+  """
+  @spec new_issue_url(binary(), [binary()]) :: binary()
+  def new_issue_url(title, labels \\ []) do
+    repo = Application.get_env(:media_centaur, :diagnostics_issues_repo, @default_repo)
+
+    params =
+      then(%{"title" => title, "body" => @paste_placeholder}, fn p ->
+        if labels == [], do: p, else: Map.put(p, "labels", Enum.join(labels, ","))
+      end)
+
+    "https://github.com/#{repo}/issues/new?" <> URI.encode_query(params)
   end
 
   @spec format_body(Bucket.t(), EnvMetadata.t(), [Bucket.sample_entry()]) :: binary()

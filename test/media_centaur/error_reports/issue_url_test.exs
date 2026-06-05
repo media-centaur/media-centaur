@@ -54,4 +54,29 @@ defmodule MediaCentaur.ErrorReports.IssueUrlTest do
       assert String.length(IssueUrl.format_title(bucket)) <= 140
     end
   end
+
+  describe "new_issue_url/2" do
+    test "targets the configured public repo with title + labels + paste placeholder" do
+      url = IssueUrl.new_issue_url("Boom happened", ["incident", "auto-reported"])
+
+      assert url =~ "https://github.com/media-centaur/media-centaur/issues/new?"
+      assert url =~ "title=Boom+happened"
+      assert url =~ "labels=incident%2Cauto-reported"
+      assert url =~ "body=" and url =~ "clipboard"
+    end
+
+    test "percent-encodes special characters in the title" do
+      url = IssueUrl.new_issue_url("crash: a/b #4 — é", [])
+      assert url =~ "title=crash%3A+a%2Fb+%234+%E2%80%94+%C3%A9"
+      refute url =~ "labels="
+    end
+
+    test "honors a :diagnostics_issues_repo override" do
+      original = Application.get_env(:media_centaur, :diagnostics_issues_repo)
+      Application.put_env(:media_centaur, :diagnostics_issues_repo, "acme/widgets")
+      on_exit(fn -> Application.put_env(:media_centaur, :diagnostics_issues_repo, original) end)
+
+      assert IssueUrl.new_issue_url("x", []) =~ "https://github.com/acme/widgets/issues/new?"
+    end
+  end
 end
