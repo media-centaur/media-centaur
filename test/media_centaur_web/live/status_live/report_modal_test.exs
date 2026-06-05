@@ -48,7 +48,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportModalTest do
     refute has_element?(view, "[data-testid='report-modal']")
   end
 
-  test "3-step flow: consent + send shows the copy-fallback (no token)", %{conn: conn} do
+  test "3-step flow: consent + send shows the GitHub-post result", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, "/status")
 
     # Open modal — anchors to first bucket automatically (no fingerprint).
@@ -68,9 +68,11 @@ defmodule MediaCentaurWeb.StatusLive.ReportModalTest do
     |> render_click()
 
     # Send the report.
-    view |> element("#error-report-modal button", "Send to the developer") |> render_click()
+    view |> element("#error-report-modal button", "Review & post to GitHub") |> render_click()
 
-    # No token configured in test → fallback textarea appears.
     assert has_element?(view, "[data-testid=report-fallback]")
+    html = render(view)
+    assert html =~ "issues/new"
+    assert html =~ "Copy report"
   end
 end
