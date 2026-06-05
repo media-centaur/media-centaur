@@ -91,7 +91,8 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(at_risk_summary: %{})
     |> assign(dir_health: [])
     |> assign(show_report_modal: false)
-    |> assign(report_bucket: nil)
+    |> assign(report_payload: nil)
+    |> assign(report_snapshot: nil)
   end
 
   # Keeps the board view-models in sync with the current `error_buckets`.
@@ -185,12 +186,24 @@ defmodule MediaCentaurWeb.StatusLive do
         fp -> Enum.find(buckets, List.first(buckets), &(&1.fingerprint == fp))
       end
 
-    {:noreply, assign(socket, show_report_modal: not is_nil(bucket), report_bucket: bucket)}
+    payload =
+      bucket &&
+        MediaCentaur.ErrorReports.ReportPayload.build(
+          bucket,
+          MediaCentaur.ErrorReports.EnvMetadata.collect()
+        )
+
+    {:noreply,
+     assign(socket,
+       show_report_modal: not is_nil(payload),
+       report_payload: payload,
+       report_snapshot: nil
+     )}
   end
 
   @impl true
   def handle_event("report_cancel", _params, socket) do
-    {:noreply, assign(socket, show_report_modal: false, report_bucket: nil)}
+    {:noreply, assign(socket, show_report_modal: false, report_payload: nil, report_snapshot: nil)}
   end
 
   # --- Info handlers ---
@@ -331,9 +344,10 @@ defmodule MediaCentaurWeb.StatusLive do
       <:overlays>
         <.live_component
           :if={@show_report_modal}
-          id="report-modal-component"
+          id="error-report-modal"
           module={ReportModal}
-          bucket={@report_bucket}
+          payload={@report_payload}
+          snapshot={@report_snapshot}
         />
       </:overlays>
       <div data-page-behavior="status" data-nav-default-zone="status" class="space-y-6">

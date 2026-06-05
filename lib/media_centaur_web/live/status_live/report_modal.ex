@@ -11,15 +11,12 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
   import MediaCentaurWeb.ConsentComponents
 
   alias MediaCentaur.ErrorReports
-  alias MediaCentaur.ErrorReports.{EnvMetadata, ReportPayload}
 
   # Same labels ReportPayload.build/2 uses, so submitted issues stay consistent.
   @labels ["incident", "auto-reported"]
 
   @impl true
-  def update(%{bucket: bucket} = assigns, socket) do
-    payload = ReportPayload.build(bucket, EnvMetadata.collect())
-
+  def update(%{payload: payload} = assigns, socket) do
     {:ok,
      socket
      |> assign(assigns)
@@ -28,6 +25,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
      |> assign_new(:title, fn -> payload.title end)
      |> assign_new(:body, fn -> payload.body end)
      |> assign_new(:consent, fn -> false end)
+     |> assign_new(:snapshot, fn -> Map.get(assigns, :snapshot) end)
      |> assign_new(:report_result, fn -> nil end)}
   end
 
