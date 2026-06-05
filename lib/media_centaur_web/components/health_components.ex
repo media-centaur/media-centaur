@@ -24,6 +24,7 @@ defmodule MediaCentaurWeb.HealthComponents do
       phx-click={@on_select}
       phx-value-subsystem={@view.component}
       data-nav-item
+      data-subsystem-tile
       tabindex="0"
       class={[
         "glass-surface rounded-xl p-4 text-left w-full flex items-start gap-3 transition-colors",

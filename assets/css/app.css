@@ -780,6 +780,20 @@ body:has(.modal-backdrop[data-state="open"]) {
   border-radius: var(--radius-box, 0.5rem);
 }
 
+/* Subsystem health tiles: gold focus highlight (keyboard/gamepad nav). The
+   focused subsystem reads as the active card on the status board — a warmer,
+   stronger cue than the default primary ring. Gold is an intentional
+   theme-independent focus accent (cf. the gamepad HUD), NOT a health/severity
+   signal. Same specificity as the rule above but later in source, so it wins
+   for tiles (which carry both data-nav-item and data-subsystem-tile). */
+[data-input=keyboard] [data-subsystem-tile]:focus,
+[data-input=gamepad] [data-subsystem-tile]:focus {
+  outline: 2px solid oklch(0.83 0.15 88);
+  outline-offset: 2px;
+  border-radius: var(--radius-box, 0.5rem);
+  box-shadow: 0 0 0 4px oklch(0.83 0.15 88 / 0.22);
+}
+
 /* Delegated focus ring — when a nav item has data-nav-focus-target, the ring
    appears on descendant [data-nav-focus-ring] elements instead of the item.
    Use when a nav item is a container with multiple visual children (e.g. the
