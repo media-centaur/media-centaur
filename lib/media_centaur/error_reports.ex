@@ -27,9 +27,11 @@ defmodule MediaCentaur.ErrorReports do
   """
 
   alias MediaCentaur.ErrorReports.Buckets
+  alias MediaCentaur.ErrorReports.ContextSnapshot
   alias MediaCentaur.ErrorReports.EnvMetadata
   alias MediaCentaur.ErrorReports.GithubTransport
   alias MediaCentaur.ErrorReports.ReportPayload
+  alias MediaCentaur.ErrorReports.ReportTransport
   alias MediaCentaur.ErrorReports.Store
   alias MediaCentaur.Topics
 
@@ -50,6 +52,10 @@ defmodule MediaCentaur.ErrorReports do
   @doc "Counts open auto-detected incidents newer than `since` — see `Store.count_unseen_incidents/1`."
   @spec count_unseen_incidents(DateTime.t()) :: non_neg_integer()
   defdelegate count_unseen_incidents(since), to: Store
+
+  @doc "Lists incidents most-recent first — see `Store.list_incidents/1`."
+  @spec list_incidents(keyword()) :: [__MODULE__.Incident.t()]
+  defdelegate list_incidents(opts \\ []), to: Store
 
   @doc """
   Raises (or re-asserts) a `:subsystem` fault grouped by `{component, kind}`.
@@ -120,6 +126,27 @@ defmodule MediaCentaur.ErrorReports do
       "" -> technical_body
       text -> "## What happened (in the user's words)\n\n" <> text <> "\n\n" <> technical_body
     end
+  end
+
+  @doc """
+  Assembles a generic (un-anchored) user report: a current-state context snapshot
+  plus the `%{title, body, labels}` payload to seed the consent modal. The caller
+  keeps `snapshot` to persist on submit via `create_user_report/2`.
+  """
+  @spec build_generic_report() :: %{snapshot: map(), payload: ReportTransport.payload()}
+  def build_generic_report do
+    snapshot = ContextSnapshot.assemble(:user, %{})
+    %{snapshot: snapshot, payload: ReportPayload.build_generic(snapshot, EnvMetadata.collect())}
+  end
+
+  @doc """
+  Persists the `:user` incident (best-effort — submission is not blocked if the
+  local write fails) and submits the (already edited + assembled) payload.
+  """
+  @spec create_user_report(map(), keyword()) :: {:ok, String.t()} | {:fallback, String.t()}
+  def create_user_report(%{user_description: desc, snapshot: snapshot, payload: payload}, opts \\ []) do
+    _ = create_user_incident(%{user_description: desc, first_context: snapshot})
+    submit_payload(payload, opts)
   end
 
   defp configured_transport do
