@@ -4,6 +4,15 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.78.3 — 2026-06-05
+
+### Improved
+
+**A crisp new app icon that adapts to your browser theme.**
+Media Centaur has a redesigned icon — a bold centaur archer that stays sharp in your browser tab, on
+your home screen, and when you install Media Centaur as an app. It automatically switches between a
+light and a dark version to match your system theme. The project website now uses the same icon.
+
 ## v0.78.2 — 2026-06-05
 
 ### Changed
