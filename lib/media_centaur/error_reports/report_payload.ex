@@ -3,9 +3,9 @@ defmodule MediaCentaur.ErrorReports.ReportPayload do
   Packages a bucket + environment into the `{title, body, labels}` an incident
   report is submitted as.
 
-  Reuses the redacted markdown rendering from `IssueUrl` (title + body) but
-  **without its URL size ladder** — the REST API body budget (~65 KB) is far
-  larger than a `window.open` URL, so the full lead-up context ships untruncated.
+  Reuses the redacted markdown rendering from `IssueUrl` (title + body). The
+  full lead-up context ships untruncated — it travels to GitHub via the
+  clipboard, not the URL, so there is no length ladder to apply.
   """
   alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaur.ErrorReports.EnvMetadata
