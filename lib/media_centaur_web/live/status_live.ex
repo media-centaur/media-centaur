@@ -34,6 +34,12 @@ defmodule MediaCentaurWeb.StatusLive do
         Playback.subscribe()
         ErrorReports.subscribe()
 
+        # Visiting /status marks auto-detected incidents as seen, clearing
+        # the discovery badge on the Status nav item. The web layer owns
+        # the diagnostics_seen_at timestamp (DiagnosticsBadge), so the
+        # ErrorReports context stays free of any Settings dependency.
+        MediaCentaurWeb.DiagnosticsBadge.mark_seen()
+
         Process.send_after(self(), :tick_pipeline, 1_000)
         Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
 
@@ -56,6 +62,7 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(rate_limiter: fetch_rate_limiter())
         |> assign(retry_status: fetch_retry_status())
         |> assign(playback: build_playback_state())
+        |> assign(diagnostics_unseen: 0)
         |> start_async_status_stats()
         |> start_async_storage()
         |> start_async_dir_health()
@@ -347,7 +354,12 @@ defmodule MediaCentaurWeb.StatusLive do
   def render(assigns) do
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/status" acquisition_ready={@acquisition_ready}>
+    <Layouts.app
+      flash={@flash}
+      current_path="/status"
+      acquisition_ready={@acquisition_ready}
+      diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
+    >
       <:overlays>
         <.live_component
           :if={@show_report_modal}
