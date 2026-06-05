@@ -1,5 +1,5 @@
 defmodule MediaCentaur.ErrorReports.ReportSubmissionTest do
-  use ExUnit.Case, async: true
+  use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.ErrorReports
   alias MediaCentaur.ErrorReports.Bucket
@@ -78,6 +78,23 @@ defmodule MediaCentaur.ErrorReports.ReportSubmissionTest do
       assert {:fallback, bundle} = ErrorReports.submit_payload(payload, transport: FailTransport)
       assert bundle =~ "T"
       assert bundle =~ "edited body"
+    end
+  end
+
+  describe "create_user_report/2" do
+    test "persists a :user incident and submits the payload" do
+      snapshot = %{"vitals" => %{}, "lead_up" => []}
+      payload = %{title: "T", body: "edited body", labels: ["incident"]}
+
+      assert {:ok, "https://github.com/owner/reports/issues/42"} =
+               ErrorReports.create_user_report(
+                 %{user_description: "broke", snapshot: snapshot, payload: payload},
+                 transport: OkTransport
+               )
+
+      incident = Enum.find(ErrorReports.list_incidents(), &(&1.origin == :user))
+      assert incident.user_description == "broke"
+      assert incident.first_context == snapshot
     end
   end
 
