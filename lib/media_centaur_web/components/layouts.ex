@@ -33,6 +33,16 @@ defmodule MediaCentaurWeb.Layouts do
   """
   attr :flash, :map, required: true, doc: "the map of flash messages"
   attr :current_path, :string, default: nil, doc: "the current request path for nav highlighting"
+
+  attr :diagnostics_unseen, :integer,
+    default: 0,
+    doc: """
+    Count of unseen auto-detected open incidents, rendered as a discovery
+    badge on the Status nav item. Seeded app-wide by
+    `MediaCentaurWeb.DiagnosticsBadge` (default `live_session` on_mount) and
+    live-refreshed via the `error_reports` PubSub topic.
+    """
+
   attr :full_width, :boolean, default: false, doc: "when true, removes max-w-7xl constraint"
 
   attr :acquisition_ready, :boolean,
@@ -142,6 +152,9 @@ defmodule MediaCentaurWeb.Layouts do
           >
             <.icon name="hero-squares-2x2" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Status</span>
+            <.badge :if={@diagnostics_unseen > 0} variant="error" size="xs" class="ml-auto">
+              {@diagnostics_unseen}
+            </.badge>
           </.link>
           <.link
             navigate="/review"

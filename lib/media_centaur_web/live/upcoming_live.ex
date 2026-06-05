@@ -115,6 +115,7 @@ defmodule MediaCentaurWeb.UpcomingLive do
       current_path="/upcoming"
       full_width
       acquisition_ready={@acquisition_ready}
+      diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
     >
       <:overlays>
         <%!-- Track New Show modal (always in DOM) --%>

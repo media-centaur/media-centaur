@@ -361,7 +361,12 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/download" acquisition_ready={@acquisition_ready}>
+    <Layouts.app
+      flash={@flash}
+      current_path="/download"
+      acquisition_ready={@acquisition_ready}
+      diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
+    >
       <:overlays>
         <.cancel_confirmation cancel_confirm={@cancel_confirm} />
         <PursuitModal.pursuit_modal

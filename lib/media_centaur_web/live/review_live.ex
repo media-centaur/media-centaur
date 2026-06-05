@@ -338,7 +338,12 @@ defmodule MediaCentaurWeb.ReviewLive do
   def render(assigns) do
     ~H"""
     <Layouts.console_mount socket={@socket} />
-    <Layouts.app flash={@flash} current_path="/review" acquisition_ready={@acquisition_ready}>
+    <Layouts.app
+      flash={@flash}
+      current_path="/review"
+      acquisition_ready={@acquisition_ready}
+      diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
+    >
       <div
         class="flex flex-col h-full gap-4"
         data-page-behavior="review"

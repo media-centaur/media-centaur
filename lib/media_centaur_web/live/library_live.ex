@@ -324,6 +324,7 @@ defmodule MediaCentaurWeb.LibraryLive do
       current_path="/library"
       full_width
       acquisition_ready={@acquisition_ready}
+      diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
     >
       <div class="relative" data-page-behavior="library" data-nav-default-zone="library">
         <%!-- Calm backdrop band behind the header — a sense of place that
