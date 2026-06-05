@@ -85,7 +85,25 @@ Pipeline stages:
 
 **Static serving** — `static_paths/0` in `lib/media_centaur_web.ex` currently lists `~w(assets fonts images favicon.ico robots.txt)`. Add `site.webmanifest`. The `.svg`, apple-touch, and PWA PNGs live under `priv/static/images/` (already served).
 
-**Marketing site** — `docs-site/index.html` already references `favicon.ico`, `favicon-32x32.png`, `favicon-16x16.png`, `apple-touch-icon.png`, `site.webmanifest`. The script regenerates these in `docs-site/assets/` with the new bold mark; no HTML change required there.
+**Marketing site (media-centaur.net)** — `docs-site/` deploys to GitHub Pages via `.github/workflows/pages.yml`; `media-centaur.net` is that site. `docs-site/index.html` already references `favicon.ico`, `favicon-32x32.png`, `favicon-16x16.png`, `apple-touch-icon.png`, `site.webmanifest` — the script regenerates all of these in `docs-site/assets/` with the new bold mark. **One HTML change needed:** add the adaptive SVG link (the marketing head currently lacks it):
+
+```html
+<link rel="icon" type="image/svg+xml" href="assets/favicon.svg" />
+```
+
+## Properties coverage
+
+Where the new favicon applies across our public surfaces:
+
+| Property | Controllable? | Action |
+|---|---|---|
+| **App** (Phoenix LiveView) | Yes | Add the four head `<link>`s + serve the artifacts (above). |
+| **Marketing site / media-centaur.net** (`docs-site` → GitHub Pages) | Yes | Regenerate `docs-site/assets/` set + add the SVG link. |
+| **GitHub Wiki** (`../media-centaur.wiki`) | **No** | Pure markdown rendered by github.com — GitHub serves its own favicon; no head we control. Not applicable. |
+| **GitHub repo / README** | No | Rendered by github.com; no custom favicon possible. Not applicable. |
+| **Internal mockups** (`mockups/**`) | n/a | Not public; out of scope. |
+
+The only public surfaces where we control the favicon are the app and the marketing site — both covered. The wiki and repo pages are served by GitHub with GitHub's favicon and cannot be themed.
 
 ## Testing & verification
 
@@ -108,9 +126,10 @@ Generated/updated by `scripts/gen-favicons`:
 - `priv/static/images/apple-touch-icon.png`
 - `priv/static/images/icon-192.png`, `icon-512.png`, `icon-maskable-512.png`
 - `priv/static/site.webmanifest`
-- `docs-site/assets/` parity set (`favicon.ico`, `favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `site.webmanifest`)
+- `docs-site/assets/` parity set (`favicon.svg`, `favicon.ico`, `favicon-16x16.png`, `favicon-32x32.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `site.webmanifest`)
 
 Hand-edited:
 - `lib/media_centaur_web/components/layouts/root.html.heex` (head links)
 - `lib/media_centaur_web.ex` (`static_paths/0` adds `site.webmanifest`)
+- `docs-site/index.html` (add the `image/svg+xml` icon link)
 - one web test (head-links assertion)
