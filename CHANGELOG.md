@@ -4,6 +4,20 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.78.1 — 2026-06-05
+
+### Fixed
+
+**Updating no longer flashes a scary red "Not connected" error.**
+While the app restarts to apply an update, you now see a calm "Applying update" notice instead of the
+red connection error. The brief disconnect during an update is expected — and now it looks that way.
+
+### Improved
+
+**The Status board is cleaner and easier to navigate.**
+The pending-review count has been removed from the board, and the subsystem card you're on now stands
+out with a gold highlight when you navigate by keyboard or controller.
+
 ## v0.78.0 — 2026-06-05
 
 ### New
