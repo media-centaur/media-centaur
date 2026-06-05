@@ -43,6 +43,14 @@ defmodule MediaCentaur.ErrorReports do
   @spec health() :: Store.health_rollup()
   defdelegate health(), to: Store
 
+  @doc "Creates an ungrouped open `:user` incident — see `Store.create_user_incident/1`."
+  @spec create_user_incident(map()) :: {:ok, __MODULE__.Incident.t()} | {:error, Ecto.Changeset.t()}
+  defdelegate create_user_incident(attrs), to: Store
+
+  @doc "Counts open auto-detected incidents newer than `since` — see `Store.count_unseen_incidents/1`."
+  @spec count_unseen_incidents(DateTime.t()) :: non_neg_integer()
+  defdelegate count_unseen_incidents(since), to: Store
+
   @doc """
   Raises (or re-asserts) a `:subsystem` fault grouped by `{component, kind}`.
 
