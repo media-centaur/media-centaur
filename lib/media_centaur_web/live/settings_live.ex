@@ -294,13 +294,22 @@ defmodule MediaCentaurWeb.SettingsLive do
   def handle_event("apply_update", _params, socket) do
     case SelfUpdate.apply_pending() do
       :ok ->
+        # Flag the client eagerly — the instant apply starts, before any
+        # progress frame. A fast apply (already-downloaded release) can restart
+        # the BEAM before the first `{:progress, ...}` push_event reaches the
+        # browser, which would leave the disconnect showing the red "Not
+        # connected" toast instead of the calm "Applying update" one. Setting
+        # the `<html>` flag here (it persists across live-navs until reconnect)
+        # closes that race. The abort paths still clear it.
         {:noreply,
-         assign(socket,
+         socket
+         |> assign(
            apply_phase: :preparing,
            apply_progress: nil,
            apply_error: nil,
            apply_failed_at: nil
-         )}
+         )
+         |> flag_update_applying()}
 
       {:error, :already_running} ->
         {:noreply, put_flash(socket, :info, "An update is already in progress.")}
