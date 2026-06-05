@@ -146,33 +146,9 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     end
   end
 
-  describe "live updates from library" do
-    test "watch_event_created triggers a debounced stats refresh",
-         %{conn: conn} do
-      # The status page renders watch counts from a snapshot loaded at mount.
-      # Without the debounced :refresh_stats handler the page would lag
-      # behind reality. We pin the contract by sending a watch_event_created
-      # message and asserting the page does not crash and re-renders.
-      {:ok, view, _html} = live_async!(conn, "/status")
-
-      send(view.pid, {:watch_event_created, %{id: Ecto.UUID.generate()}})
-
-      assert render(view) =~ "Status"
-    end
-
-    test "entities_changed triggers a debounced rerender",
-         %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, "/status")
-
-      send(
-        view.pid,
-        {:entities_changed,
-         %MediaCentaur.Library.Events.EntitiesChanged{entity_ids: [Ecto.UUID.generate()]}}
-      )
-
-      assert render(view) =~ "Status"
-    end
-  end
+  # NOTE: the "live updates from library" tests were removed when the
+  # pending-review count (the only consumer of library broadcasts on /status)
+  # was dropped — the page no longer subscribes to Library events.
 
   describe "at-risk file warning" do
     # Surfaces the silent destruction risk to the user before it

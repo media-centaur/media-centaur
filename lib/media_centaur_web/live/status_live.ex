@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.StatusLive do
   import MediaCentaurWeb.StatusHelpers
   import MediaCentaurWeb.HealthComponents
 
-  alias MediaCentaur.{Config, ErrorReports, Library, Playback, Status, Storage}
+  alias MediaCentaur.{Config, ErrorReports, Playback, Storage}
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
   alias MediaCentaurWeb.StatusLive.HealthBoard
   alias MediaCentaur.Pipeline.Stats
@@ -30,7 +30,6 @@ defmodule MediaCentaurWeb.StatusLive do
     socket =
       if connected?(socket) do
         Watcher.Supervisor.subscribe()
-        Library.subscribe()
         Playback.subscribe()
         ErrorReports.subscribe()
 
@@ -63,7 +62,6 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(retry_status: fetch_retry_status())
         |> assign(playback: build_playback_state())
         |> assign(diagnostics_unseen: 0)
-        |> start_async_status_stats()
         |> start_async_storage()
         |> start_async_dir_health()
       else
@@ -82,7 +80,6 @@ defmodule MediaCentaurWeb.StatusLive do
 
     {:ok,
      assign(socket,
-       stats_timer: nil,
        pipeline_concurrency: MediaCentaur.Pipeline.Discovery.processor_concurrency(),
        image_pipeline_concurrency: 8
      )}
@@ -90,7 +87,6 @@ defmodule MediaCentaurWeb.StatusLive do
 
   defp assign_defaults(socket) do
     socket
-    |> assign(pending_review_count: 0)
     |> assign(error_buckets: [])
     |> assign(board: HealthBoard.build_board([]))
     |> assign(selected_subsystem: nil)
@@ -111,10 +107,6 @@ defmodule MediaCentaurWeb.StatusLive do
   # `start_async/3` — cancelled with it, awaitable in tests, never an
   # orphan under the global supervisor. Results land in the matching
   # `handle_async/3` clauses below.
-  defp start_async_status_stats(socket) do
-    start_async(socket, :status_stats, fn -> Status.fetch_stats() end)
-  end
-
   defp start_async_storage(socket) do
     start_async(socket, :status_storage, fn ->
       %{drives: Storage.measure_all(), at_risk: AbsenceSweeper.at_risk_summary()}
@@ -256,24 +248,9 @@ defmodule MediaCentaurWeb.StatusLive do
      |> start_async_storage()}
   end
 
-  def handle_info({:entities_changed, %{entity_ids: _entity_ids}}, socket) do
-    {:noreply, debounce(socket, :stats_timer, :refresh_stats, 1_000)}
-  end
-
-  def handle_info(:refresh_stats, socket) do
-    {:noreply,
-     socket
-     |> start_async_status_stats()
-     |> assign(stats_timer: nil)}
-  end
-
   @impl true
   def handle_info({:buckets_changed, snapshot}, socket) do
     {:noreply, socket |> assign(error_buckets: snapshot) |> assign_board()}
-  end
-
-  def handle_info({:watch_event_created, _event}, socket) do
-    {:noreply, debounce(socket, :stats_timer, :refresh_stats, 1_000)}
   end
 
   def handle_info(
@@ -328,10 +305,6 @@ defmodule MediaCentaurWeb.StatusLive do
   # --- Async results (owned via start_async/3, ADR-049) ---
 
   @impl true
-  def handle_async(:status_stats, {:ok, stats}, socket) do
-    {:noreply, assign(socket, pending_review_count: length(stats.pending_review))}
-  end
-
   def handle_async(:status_storage, {:ok, %{drives: drives, at_risk: at_risk}}, socket) do
     {:noreply,
      socket
@@ -406,31 +379,8 @@ defmodule MediaCentaurWeb.StatusLive do
             </:activity>
           </.health_drill_in>
         </div>
-
-        <div data-nav-zone="sections" class="space-y-6">
-          <.pending_review_card pending_review_count={@pending_review_count} />
-        </div>
       </div>
     </Layouts.app>
-    """
-  end
-
-  # --- Section Components ---
-
-  defp pending_review_card(assigns) do
-    ~H"""
-    <.link
-      navigate={~p"/review"}
-      data-nav-item
-      tabindex="0"
-      class={[
-        "p-4 rounded-lg glass-surface block w-fit",
-        if(@pending_review_count > 0, do: "border-l-3 border-warning")
-      ]}
-    >
-      <div class="text-2xl font-bold">{@pending_review_count}</div>
-      <div class="text-sm text-base-content/60">Pending Review</div>
-    </.link>
     """
   end
 
