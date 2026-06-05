@@ -20,6 +20,7 @@ defmodule MediaCentaur.ErrorReports.Store do
   import Ecto.Query
 
   alias MediaCentaur.ErrorReports.DiagnosticEvent
+  alias MediaCentaur.ErrorReports.EnvMetadata
   alias MediaCentaur.ErrorReports.Incident
   alias MediaCentaur.Repo
 
@@ -95,6 +96,50 @@ defmodule MediaCentaur.ErrorReports.Store do
       nil -> open_log_incident(attrs)
       %Incident{} = incident -> bump_log_incident(incident, attrs)
     end
+  end
+
+  @doc """
+  Creates an ungrouped open `:user` incident from a user-filed report. Unlike the
+  `:log`/`:subsystem` paths there is no dedup — every report is its own incident
+  (unique `fingerprint`), so this writer is independent of the single-serial-writer
+  invariant on `upsert_log_incident/1`.
+  """
+  @spec create_user_incident(map()) :: {:ok, Incident.t()} | {:error, Ecto.Changeset.t()}
+  def create_user_incident(attrs) do
+    now = DateTime.utc_now()
+
+    %{
+      fingerprint: "user-" <> Ecto.UUID.generate(),
+      severity: :warning,
+      status: :open,
+      count: 1,
+      first_seen: now,
+      last_seen: now,
+      # `incidents.component` is NOT NULL at the DB level (shared table); user
+      # reports have no subsystem, so stamp a constant rather than add a migration.
+      component: "user",
+      display_title: "User report",
+      message: "User-filed report",
+      app_version_at_first: EnvMetadata.app_version()
+    }
+    |> Map.merge(attrs)
+    |> Incident.user_changeset()
+    |> Repo.insert()
+  end
+
+  @doc """
+  Counts open (non-resolved) auto-detected (`:log`/`:subsystem`) incidents first
+  seen after `since`. Powers the discovery badge — `:user` reports are excluded
+  (self-filed, so the user has already "seen" them).
+  """
+  @spec count_unseen_incidents(DateTime.t()) :: non_neg_integer()
+  def count_unseen_incidents(%DateTime{} = since) do
+    Incident
+    |> where([i], i.status != :resolved)
+    |> where([i], i.origin in [:log, :subsystem])
+    |> where([i], i.first_seen > ^since)
+    |> select([i], count(i.id))
+    |> Repo.one()
   end
 
   @doc "Returns the incident grouped under `fingerprint`, or `nil`."

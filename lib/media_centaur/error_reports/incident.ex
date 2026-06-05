@@ -130,6 +130,33 @@ defmodule MediaCentaur.ErrorReports.Incident do
   end
 
   @doc """
+  Insert changeset for a user-filed (`:user`) report. Forces `origin: :user`.
+  Ungrouped — each report is its own incident with a unique `fingerprint`.
+  """
+  @spec user_changeset(map()) :: Ecto.Changeset.t()
+  def user_changeset(attrs) do
+    %__MODULE__{}
+    |> cast(attrs, [
+      :component,
+      :message,
+      :display_title,
+      :fingerprint,
+      :severity,
+      :status,
+      :count,
+      :first_seen,
+      :last_seen,
+      :user_description,
+      :first_context,
+      :scope,
+      :app_version_at_first
+    ])
+    |> put_change(:origin, :user)
+    |> validate_required([:fingerprint, :severity, :first_seen, :last_seen])
+    |> unique_constraint(:fingerprint, name: :incidents_fingerprint_index)
+  end
+
+  @doc """
   Update changeset for a recurring `:log` incident: bumps `count` and advances
   `last_seen` (and re-opens a resolved incident if it recurs).
   """
