@@ -207,6 +207,18 @@
   .intro-block h2 .az { color: var(--primary-bright); }
   .intro-block p { font-size: 17px; color: var(--text-dim); line-height: 1.6; margin: 0; }
   .intro-block p b { color: var(--text); font-weight: 600; }
+  /* Six fixed capability cards: a centered, scannable grid (not a carousel) so
+     all six are visible at once and the block aligns to the page's --maxw column
+     instead of bleeding edge-to-edge on ultrawide. */
+  .cap-grid {
+    max-width: 1180px; margin: 0 auto; padding: 8px var(--pad) 28px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+  }
+  /* Align the section header to the grid's narrower column (not the page --maxw). */
+  #capabilities .rail-head { max-width: 1180px; }
+  .cap-grid .cap-tile { width: auto; min-width: 0; }
+  @media (max-width: 920px) { .cap-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .cap-grid { grid-template-columns: 1fr; } }
   .cap-tile {
     width: 348px; min-height: 168px;
     background:
@@ -502,15 +514,7 @@
     <span class="rail-label">Six things, one binary</span>
     <span class="rail-sub">Scannable summaries — open any one for the full story</span>
   </div>
-  <div class="rail-outer">
-    <button class="chev left" data-target="cap-rail" aria-label="Scroll left">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-    <div class="rail" id="cap-rail"><!-- populated by JS --></div>
-    <button class="chev right" data-target="cap-rail" aria-label="Scroll right">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 18l6-6-6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>
-  </div>
+  <div class="cap-grid" id="cap-rail"><!-- populated by JS --></div>
 </section>
 
 <!-- ============ PRIVACY PILLAR ============ -->
