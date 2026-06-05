@@ -92,10 +92,15 @@ on `Store.upsert_log_incident`. **Deferred:** incident retention (events prune a
 30d, incidents don't) and the metadata atom→string JSON round-trip — both noted
 for a later pass.
 
-Phases 2–4 remain. Design settled and specced. Visual mockups deliberately
-parked until Phase 4. Three throwaway exploration mockups exist under
-`mockups/observability/` (direction 1 chosen; chip/console styling since
-rejected — do not reuse their visuals).
+**CAMPAIGN COMPLETE — 2026-06-02.** All four phases shipped. Phase 4 finished
+with M1 (read surface), M2 (guided consent modal), M3 (health board + Activity
+widgets), and M4 (user-origin generic reports + discovery badge). See the
+per-milestone records below and the closure note at the end of this file for the
+destination-bucketed deferrals.
+
+Three throwaway exploration mockups exist under `mockups/observability/`
+(direction 1 chosen; chip/console styling since rejected — do not reuse their
+visuals).
 
 ## Decisions made
 
@@ -182,17 +187,20 @@ documentation for its user-visible surface.
   an hour later.
 * A subsystem can assert a fault that opens and later auto-resolves without a
   logged error.
-* A user can file a problem from the dashboard (and a per-entity surface),
-  review and remove parts of the payload, consent, and have it land as an issue
-  in the private `media-centaur-reports` repo — with no GitHub account and no
-  understanding of the internals.
+* A user can file a problem from the dashboard — either an identified incident
+  (drill-in "Report this") or a generic "something's wrong" report from the
+  status page carrying a current-state snapshot — review and remove parts of the
+  payload, consent, and have it land as an issue in the private
+  `media-centaur-reports` repo, with no GitHub account and no understanding of the
+  internals. (Per-entity/per-media reporting was **de-scoped** in the M4
+  brainstorm 2026-06-02 — reporting is always status-page, not about titles.) ✅
 * An incident report carries cross-subsystem lead-up + vitals + the firing
   subsystem's contributed context, frozen at incident time, plus live-now state.
 * Uncategorizable errors are captured, grouped without flooding, and reportable.
 * `/status` reads as a media-app health surface — no Console aesthetic, no chip
   palette, color only signaling health.
 
-## Resuming — Phase 4, start here
+## Resuming — Phase 4, start here (historical — campaign COMPLETE; see Closure)
 
 Phases 1–3 (the whole backend) are done, committed, and green
 (`a838a198 → 5d59c601`). Phase 4 (the user-facing surface) is **in progress**,
@@ -281,9 +289,23 @@ entry point (still no `Store` user-incident create path).
   without a registered widget (`:library`, `:acquisition`, `:system`) show the
   health-only floor — add widgets later if those grow diagnostics worth folding.
 
-Then **M4** (`:user`-origin entry point + `Store` user-incident create path +
-discovery badge `diagnostics_seen_at`). Load `user-interface`,
-`phoenix-thinking`, `storybook` first.
+**M4 — user-origin reports + discovery badge — DONE 2026-06-02**
+(`d18d1be → 23db7c2`; spec
+[`2026-06-02-user-origin-reports-design.md`](../docs/superpowers/specs/2026-06-02-user-origin-reports-design.md),
+plan [`2026-06-02-user-origin-reports.md`](../docs/superpowers/plans/2026-06-02-user-origin-reports.md)).
+`Store.create_user_incident/1` (ungrouped `:user` write path — no migration, the
+schema already had `origin: :user`/`user_description`/`scope`/`first_context`);
+`count_unseen_incidents/1`; `ReportPayload.build_generic/2` +
+`ErrorReports.create_user_report/2` (snapshot → persist `:user` incident →
+submit). The M2 consent modal was **generalized** to accept a pre-built `payload`
+(decoupled from `Bucket`); a board-header "Report a problem" opens it in generic
+mode with a fresh `ContextSnapshot.assemble(:user, %{})`. Discovery badge:
+`MediaCentaurWeb.DiagnosticsBadge` owns `diagnostics_seen_at` in `Settings`
+(so `ErrorReports` gains **no** `Settings` dep), an `on_mount` hook assigns
+`:diagnostics_unseen` app-wide + live-refreshes on `{:buckets_changed, _}`, the
+`/status` nav shows an error dot (hidden at 0), and visiting `/status` advances
+the timestamp. Per-entity/per-media reporting was de-scoped. Full precommit green
+(4317 + 484); both review passes APPROVED.
 
 **The backend Phase 4 builds on (`MediaCentaur.ErrorReports` public API):**
 - `list_buckets/0`, `get_bucket/1`, and the `{:buckets_changed, buckets}`
@@ -333,6 +355,29 @@ network in tests.
 `observability-phase1.html` (durable store), `observability-after-phase1.html`
 (hardening + Phase 2), `observability-phase3.html` (submission, structure &
 coupling).
+
+## Closure (2026-06-02) — deferred items, bucketed by destination
+
+The campaign's completion criteria are all met. No item ships or needs
+verification now; the remaining work is enrichment, re-homed so nothing is an
+undifferentiated "open follow-up":
+
+- **Incident retention** — events prune at 30d, incidents are never pruned.
+  *Defer →* a maintenance/retention pass (extend the existing `PruneJob`); not
+  urgent until the incidents table grows.
+- **`IncidentContext` contributors for pipeline + acquisition** — same registry
+  pattern as the shipped `TMDB` contributor; richer drill-in/report context.
+  *Defer →* whenever pipeline/acquisition debugging needs the extra vitals.
+- **Throttled `latest_context` refresh** — currently only `first_context` is
+  frozen; a live-now refresh was scoped out. *Defer →* same workstream as the
+  contributors above.
+- **Threaded pipeline correlation id** (spec D13) — improves id-correlation in
+  the lead-up. *Defer →* a Broadway/pipeline-observability pass.
+- **Metadata atom→string JSON round-trip** (Phase 1 note) — cosmetic key
+  fidelity in stored context. *Defer →* fold into the next `Store` touch.
+
+These are tracked here rather than as a new campaign; promote one to its own
+campaign only if it grows past a single session.
 
 ## Pointers
 

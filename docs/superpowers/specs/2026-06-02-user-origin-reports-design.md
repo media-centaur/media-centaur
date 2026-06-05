@@ -133,17 +133,23 @@ timestamp. Read via `Settings.get_by_key/1`; write via the existing upsert path.
 **When absent (never visited), the count treats it as the epoch** — every open
 detected incident is "unseen" — so a first-run user sees the badge immediately.
 
-**Count.** `ErrorReports.unseen_incident_count/0`:
+**Count.** `Store.count_unseen_incidents(since)` (delegated as
+`ErrorReports.count_unseen_incidents/1`) — the web layer passes `since` so the
+context gains no `Settings` dependency:
 
 - counts incidents where `status != :resolved` AND `origin in [:log, :subsystem]`
-  AND `first_seen > diagnostics_seen_at`.
+  AND `first_seen > since`.
 - **Excludes `:user`** (self-created — the user already knows) and resolved.
-- Backed by a `Store.count_unseen_incidents(since)` query (one indexed count).
+- One indexed count.
 
 **Render.** The sidebar `/status` nav item (`layouts.ex`) shows the count as a
-small badge — `variant` driven by severity (error/warning), color only for
-severity, **hidden when 0**. No Console look / chip palette
-([[feedback-no-console-look-or-chip-palette]]).
+small badge. The badge is a single **`variant="error"`** attention dot —
+intentionally NOT severity-graded: it carries only a count (no max-severity), and
+a discovery dot collapsing to one attention color reads more clearly than a
+two-tone nav indicator. Color is still reserved for signal, **hidden when 0**. No
+Console look / chip palette ([[feedback-no-console-look-or-chip-palette]]). The
+count is assigned as `:diagnostics_unseen` (threaded to `Layouts.app` like
+`current_path`).
 
 **Clearing + liveness.**
 - Visiting `/status` advances `diagnostics_seen_at` to `now` (in StatusLive
