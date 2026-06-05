@@ -31,7 +31,6 @@ defmodule MediaCentaur.ErrorReports do
   alias MediaCentaur.ErrorReports.EnvMetadata
   alias MediaCentaur.ErrorReports.GithubTransport
   alias MediaCentaur.ErrorReports.ReportPayload
-  alias MediaCentaur.ErrorReports.ReportTransport
   alias MediaCentaur.ErrorReports.Store
   alias MediaCentaur.Topics
 
@@ -133,7 +132,7 @@ defmodule MediaCentaur.ErrorReports do
   plus the `%{title, body, labels}` payload to seed the consent modal. The caller
   keeps `snapshot` to persist on submit via `create_user_report/2`.
   """
-  @spec build_generic_report() :: %{snapshot: map(), payload: ReportTransport.payload()}
+  @spec build_generic_report() :: %{snapshot: map(), payload: ReportPayload.payload()}
   def build_generic_report do
     snapshot = ContextSnapshot.assemble(:user, %{})
     %{snapshot: snapshot, payload: ReportPayload.build_generic(snapshot, EnvMetadata.collect())}

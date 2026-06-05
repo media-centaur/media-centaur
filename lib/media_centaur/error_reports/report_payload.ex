@@ -10,11 +10,12 @@ defmodule MediaCentaur.ErrorReports.ReportPayload do
   alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaur.ErrorReports.EnvMetadata
   alias MediaCentaur.ErrorReports.IssueUrl
-  alias MediaCentaur.ErrorReports.ReportTransport
+
+  @type payload :: %{title: String.t(), body: String.t(), labels: [String.t()]}
 
   @labels ["incident", "auto-reported"]
 
-  @spec build(Bucket.t(), EnvMetadata.t()) :: ReportTransport.payload()
+  @spec build(Bucket.t(), EnvMetadata.t()) :: payload()
   def build(%Bucket{} = bucket, %{} = env) do
     %{
       title: IssueUrl.format_title(bucket),
@@ -30,7 +31,7 @@ defmodule MediaCentaur.ErrorReports.ReportPayload do
   snapshot, so a user can file "something looks wrong" without a detected
   incident.
   """
-  @spec build_generic(map(), EnvMetadata.t()) :: ReportTransport.payload()
+  @spec build_generic(map(), EnvMetadata.t()) :: payload()
   def build_generic(snapshot, %{} = env) when is_map(snapshot) do
     %{
       title: "User report — something looks wrong",
