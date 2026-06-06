@@ -166,6 +166,11 @@ export class Orchestrator {
     // The DOM may transiently show zero items during morphdom patching.
     if (this._expectedPresentation !== undefined) return
 
+    // Yield to foreign focus for the same reason as _reconcileFocus: seeding
+    // cursor-start focus here would steal the cursor from an unmanaged overlay
+    // the user is interacting with over an empty page context.
+    if (this.reader.hasForeignFocus?.()) return
+
     const context = this.focusMachine.context
     const count = this.reader.getItemCount(context)
     if (count > 0) return
@@ -380,6 +385,15 @@ export class Orchestrator {
    * contexts are left to `_ensureCursorStart`.
    */
   _reconcileFocus() {
+    // Only reconcile focus the system owns. When focus lives on an element
+    // outside every managed nav region (an unmanaged overlay's input, button,
+    // or card), the system does not own it — re-asserting nav focus here would
+    // yank the cursor onto a page row mid-interaction. The reader treats
+    // foreign focus the same as focus-fell-to-body (both report no nav item),
+    // so without this guard the restore below steals focus on every patch. See
+    // ADR-053 and the Track-new-release modal focus-steal regression.
+    if (this.reader.hasForeignFocus?.()) return
+
     // Sub-focus is layered: reconcile the sub-item within its parent, which
     // morphdom may have replaced (e.g. a watched-state class toggle).
     if (this.focusMachine.subFocus && this._subFocusIndex != null) {

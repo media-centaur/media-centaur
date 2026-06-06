@@ -54,6 +54,33 @@ export function createDomReader(config = {}) {
     },
 
     /**
+     * True when focus currently lives on an element the input system does NOT
+     * own — the ownership-by-containment signal the post-patch reconciler uses
+     * to decide whether to re-assert nav focus.
+     *
+     * Focus is the system's to manage only when it sits inside a managed nav
+     * region (`[data-nav-item]` / `[data-nav-zone]`), or when it has genuinely
+     * dropped to `<body>` / `<html>` / nothing (a patch destroyed the focused
+     * item — the reconciler restores it). Focus is *foreign* when a real
+     * element outside every managed region holds it: an unmanaged overlay's
+     * input, button, or card (the Track-new-release modal is a plain
+     * `data-state` overlay, not a `data-detail-mode` context), or anything that
+     * captures its own keys. Re-asserting nav focus over foreign focus yanks
+     * the cursor mid-interaction, so the reconciler cedes. See ADR-053.
+     *
+     * This is the containment generalization of "is the user typing": it
+     * protects an overlay's non-editable controls too, and — unlike a
+     * tag-based editable check — it does NOT cede for a managed filter input
+     * that lives inside a nav zone (those still navigate by arrow keys).
+     */
+    hasForeignFocus() {
+      const active = document.activeElement
+      if (!active || active === document.body || active === document.documentElement) return false
+      if (active.closest("[data-captures-keys]")) return true
+      return !active.closest("[data-nav-item],[data-nav-zone]")
+    },
+
+    /**
      * Get the nav item at a given index within a context.
      */
     getItemAt(context, index) {
