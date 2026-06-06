@@ -92,6 +92,7 @@ function createMockReader(overrides = {}) {
     getPageBehavior: () => null,
     getCurrentFocusedSubItem: () => null,
     getItemAt: () => null,
+    hasForeignFocus: () => false,
     ...overrides,
   }
 }
@@ -2599,6 +2600,91 @@ describe("Orchestrator", () => {
         c => (c.method === "focusByIndex" || c.method === "focusFirst") && c.args[0] === Context.TOOLBAR,
       )
       expect(restore.length).toBeGreaterThan(0)
+    })
+  })
+
+  describe("focus reconciler yields to focus it does not own", () => {
+    // The reconciler re-asserts the focus the system OWNS after a patch. When
+    // focus lives on an element outside every managed nav context — an
+    // unmanaged overlay's input, button, or card (the Track-new-release modal
+    // is a plain data-state overlay, invisible to the input system) — the
+    // system does not own that focus and must cede: re-asserting nav focus
+    // there yanks focus onto a page row mid-interaction, 1–2s after the user
+    // clicked into the overlay. `hasForeignFocus()` is the signal. It is the
+    // containment generalization of "is the user typing", so it protects the
+    // overlay's non-editable controls too, not just its text field. See
+    // ADR-053.
+    test("reconciler does not restore content focus while foreign focus is active", () => {
+      const { system, calls } = setup({
+        getZone: () => "library",
+        getItemCount: (ctx) => (ctx === "sidebar" ? 4 : 5),
+        getGridColumnCount: () => 7,
+        // Focus is on an element outside all managed contexts, so the reader
+        // reports no current nav item — same shape as focus-fell-to-body.
+        getCurrentFocusedItem: () => null,
+        hasForeignFocus: () => true,
+      })
+      system.start({})
+      system.focusMachine.forceContext(Context.GRID)
+
+      calls.length = 0
+      system.onViewChanged()
+
+      const steal = calls.filter(
+        c => c.method === "focusByEntityId" || c.method === "focusFirst" || c.method === "focusByIndex",
+      )
+      expect(steal.length).toBe(0)
+    })
+
+    test("cursor-start seeding does not steal foreign focus on an empty context", () => {
+      const { system, calls } = setup({
+        getZone: () => "library",
+        // Current context (grid) is empty, so cursor-start would normally seed
+        // focus into the toolbar — but foreign focus is active, so it must not.
+        getItemCount: (ctx) => (ctx === "grid" ? 0 : 3),
+        getCurrentFocusedItem: () => null,
+        hasForeignFocus: () => true,
+      })
+      system.start({})
+      system.focusMachine.forceContext(Context.GRID)
+
+      calls.length = 0
+      system.onViewChanged()
+
+      const steal = calls.filter(
+        c => c.method === "focusByEntityId" || c.method === "focusFirst" || c.method === "focusByIndex",
+      )
+      expect(steal.length).toBe(0)
+    })
+
+    test("still restores when focus genuinely dropped to body (not foreign)", () => {
+      // The complement: getCurrentFocusedItem() is null because a patch dropped
+      // focus to <body>, NOT because focus moved to a foreign element. The
+      // system OWNS this — it must restore, exactly as before the guard existed.
+      // This pins that the guard does not over-broaden into normal nav.
+      const card = { dataset: { entityId: "entity-4" }, hasAttribute: () => false, click() {} }
+      let focusLost = false
+      const { system, calls } = setup({
+        getZone: () => "library",
+        getItemCount: (ctx) => (ctx === "sidebar" ? 4 : 5),
+        getGridColumnCount: () => 7,
+        getCurrentFocusedItem: () => (focusLost ? null : card),
+        getFocusedIndex: () => (focusLost ? -1 : 3),
+        hasForeignFocus: () => false,
+      })
+      system.start({})
+      system.focusMachine.forceContext(Context.GRID)
+      system._handleAction(Action.NAVIGATE_LEFT)
+
+      focusLost = true
+      calls.length = 0
+      system.onViewChanged()
+
+      const restore = calls.filter(
+        c => c.method === "focusByEntityId" && c.args[0] === Context.GRID,
+      )
+      expect(restore.length).toBe(1)
+      expect(restore[0].args[1]).toBe("entity-4")
     })
   })
 })

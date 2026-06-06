@@ -399,6 +399,8 @@ Two hooks keep focus stable across patches:
 
 Drawer focus on open and origin-card restore on overlay close are transition-driven (handled in the presentation block of `_syncState`); empty contexts are left to `_ensureCursorStart`.
 
+**Reconcile only the focus the system owns ([ADR-053](../decisions/architecture/2026-06-06-053-focus-ownership-boundary.md)).** `getCurrentFocusedItem() === null` is ambiguous: it means *either* a patch dropped focus to `<body>` (the system owns this — restore) *or* focus moved to an element outside every managed nav region (the system does not own this — cede). Both `_reconcileFocus` and `_ensureCursorStart` guard on `reader.hasForeignFocus()` and return early when focus is foreign — a live element outside `[data-nav-item]`/`[data-nav-zone]`, or one that captures its own keys. This is what keeps an *unmanaged* overlay (a plain `data-state` modal like the Track-new-release dialog, invisible to the input system) usable while the page behind it re-renders: without the guard, every patch re-asserts the page context's focus and yanks the cursor out of the overlay. A managed filter input inside a nav zone is *not* foreign — it still navigates by arrow keys (see Text Input Handling).
+
 ## Text Input Handling
 
 Two modes for `<input>` and `<textarea>` elements:
