@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.78.4 — 2026-06-06
+
+### Improved
+
+**The Status page is easier to work through.** The item you have selected is now
+clearly highlighted, you can dismiss issues you have already dealt with, and you
+can drill into the details of each area in a tabbed panel.
+
+### Fixed
+
+**The "Track New Releases" search box no longer loses focus while you type.** When
+you opened the tracking dialog and clicked into the search field, it could
+unexpectedly lose focus a second or two later as suggestions and results loaded —
+kicking you out of the box mid-search. It now stays put so you can type and search
+without interruption.
+
 ## v0.78.3 — 2026-06-05
 
 ### Improved
