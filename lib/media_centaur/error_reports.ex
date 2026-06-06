@@ -20,7 +20,7 @@ defmodule MediaCentaur.ErrorReports do
   normalized-message fingerprint, and exposes a 1-hour rolling snapshot.
   Submission is browser-side: `ReportPayload` formats the issue body, and
   `finalize_report/1` returns the redacted text plus a prefilled public
-  new-issue URL (`IssueUrl.new_issue_url/2`). The user posts the issue under
+  new-issue URL (`IssueUrl.new_issue_url/3`). The user posts the issue under
   their own GitHub login — there is no network call in the submission path.
   """
 
@@ -37,6 +37,10 @@ defmodule MediaCentaur.ErrorReports do
 
   @spec get_bucket(binary()) :: __MODULE__.Bucket.t() | nil
   defdelegate get_bucket(fingerprint), to: Buckets
+
+  @doc "Dismisses the issues behind the given fingerprints — see `Buckets.dismiss/2`."
+  @spec dismiss([binary()]) :: :ok
+  defdelegate dismiss(fingerprints), to: Buckets
 
   @doc "Overall diagnostics health rollup — see `Store.health/0`."
   @spec health() :: Store.health_rollup()
@@ -88,7 +92,11 @@ defmodule MediaCentaur.ErrorReports do
   @spec finalize_report(ReportPayload.payload()) ::
           %{title: String.t(), body: String.t(), issue_url: String.t()}
   def finalize_report(%{title: title, body: body} = payload) do
-    %{title: title, body: body, issue_url: IssueUrl.new_issue_url(title, Map.get(payload, :labels, []))}
+    %{
+      title: title,
+      body: body,
+      issue_url: IssueUrl.new_issue_url(title, body, Map.get(payload, :labels, []))
+    }
   end
 
   @doc """

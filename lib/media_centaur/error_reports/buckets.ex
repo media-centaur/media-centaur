@@ -72,6 +72,20 @@ defmodule MediaCentaur.ErrorReports.Buckets do
     GenServer.cast(server, {:ingest, entry})
   end
 
+  @doc """
+  Dismisses the given fingerprints: resolves each backing `:log` incident in the
+  durable store (the source of truth), evicts the buckets from the in-memory
+  cache, and broadcasts the new list immediately (a user action, not throttled).
+
+  A dismissed incident reopens on its own if the same error recurs — the
+  LogHandler reasserts it (`Store.upsert_log_incident/1`), so dismiss clears the
+  *current* evidence without permanently silencing a live fault.
+  """
+  @spec dismiss(GenServer.server(), [binary()]) :: :ok
+  def dismiss(server \\ __MODULE__, fingerprints) when is_list(fingerprints) do
+    GenServer.call(server, {:dismiss, fingerprints})
+  end
+
   # --- Callbacks ---
 
   @impl true
@@ -104,6 +118,16 @@ defmodule MediaCentaur.ErrorReports.Buckets do
   end
 
   @impl true
+  def handle_call({:dismiss, fingerprints}, _from, state) do
+    Enum.each(fingerprints, &resolve_in_store/1)
+
+    cache = Enum.reduce(fingerprints, state.cache, &BucketCache.delete(&2, &1))
+    broadcast(cache)
+
+    {:reply, :ok, %{state | cache: cache, last_broadcast_at: now_ms(), broadcast_pending: false}}
+  end
+
+  @impl true
   def handle_cast({:ingest, %Entry{level: level} = entry}, state) when level in @captured_levels do
     {:noreply, handle_entry(state, entry)}
   end
@@ -113,12 +137,7 @@ defmodule MediaCentaur.ErrorReports.Buckets do
 
   @impl true
   def handle_info(:flush_broadcast, state) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
-      Topics.error_reports(),
-      {:buckets_changed, BucketCache.to_list(state.cache)}
-    )
-
+    broadcast(state.cache)
     {:noreply, %{state | last_broadcast_at: now_ms(), broadcast_pending: false}}
   end
 
@@ -142,6 +161,32 @@ defmodule MediaCentaur.ErrorReports.Buckets do
   end
 
   # --- Internals ---
+
+  defp broadcast(cache) do
+    Phoenix.PubSub.broadcast(
+      MediaCentaur.PubSub,
+      Topics.error_reports(),
+      {:buckets_changed, BucketCache.to_list(cache)}
+    )
+  end
+
+  # Resolve the durable `:log` incident behind a dismissed bucket. A failed
+  # store write must not crash the cache (mirrors safe_persist/2): the bucket is
+  # already evicted from the working set, and the store reconciles on next boot.
+  defp resolve_in_store(fingerprint) do
+    case Store.get_incident_by_fingerprint(fingerprint) do
+      %{status: status} = incident when status != :resolved -> safe_resolve(incident)
+      _ -> :ok
+    end
+  end
+
+  defp safe_resolve(incident) do
+    Store.set_status(incident, :resolved)
+  rescue
+    _ -> :error
+  catch
+    _, _ -> :error
+  end
 
   defp flush_pending(throttle, window_ms) do
     {writes, throttle} = PersistThrottle.flush_due(throttle, now_ms(), window_ms)
