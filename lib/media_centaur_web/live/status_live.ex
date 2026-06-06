@@ -135,6 +135,18 @@ defmodule MediaCentaurWeb.StatusLive do
     ArgumentError -> nil
   end
 
+  # Resolves the durable incidents and optimistically evicts the buckets from the
+  # local view (the Buckets cache also broadcasts the new list, which reconciles
+  # any drift — but the optimistic update keeps the click instant).
+  defp dismiss(socket, fingerprints) do
+    ErrorReports.dismiss(fingerprints)
+    remaining = Enum.reject(socket.assigns.error_buckets, &(&1.fingerprint in fingerprints))
+
+    socket
+    |> assign(error_buckets: remaining)
+    |> assign_board()
+  end
+
   defp drill_in_view(board, component), do: Enum.find(board, &(&1.component == component))
 
   defp drill_in_buckets(error_buckets, component) do
@@ -174,6 +186,20 @@ defmodule MediaCentaurWeb.StatusLive do
 
   def handle_event("close_subsystem", _params, socket) do
     {:noreply, push_patch(socket, to: ~p"/status")}
+  end
+
+  def handle_event("dismiss_incident", %{"fingerprint" => fingerprint}, socket) do
+    {:noreply, dismiss(socket, [fingerprint])}
+  end
+
+  def handle_event("dismiss_all", _params, socket) do
+    fingerprints =
+      Enum.map(
+        drill_in_buckets(socket.assigns.error_buckets, socket.assigns.selected_subsystem) || [],
+        & &1.fingerprint
+      )
+
+    {:noreply, dismiss(socket, fingerprints)}
   end
 
   def handle_event("open_error_report_modal", params, socket) do
@@ -356,7 +382,7 @@ defmodule MediaCentaurWeb.StatusLive do
           </.button>
         </div>
 
-        <div class="space-y-4">
+        <div class="space-y-7">
           <div
             data-nav-zone="health-board"
             class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"

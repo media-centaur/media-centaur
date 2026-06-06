@@ -92,6 +92,10 @@ defmodule MediaCentaur.ErrorReports.BucketCache do
   @spec get(t(), binary()) :: Bucket.t() | nil
   def get(cache, fingerprint), do: Map.get(cache, fingerprint)
 
+  @doc "Removes a bucket by fingerprint (the projection side of a dismiss). No-op if absent."
+  @spec delete(t(), binary()) :: t()
+  def delete(cache, fingerprint), do: Map.delete(cache, fingerprint)
+
   @doc "Buckets ordered newest-active first."
   @spec to_list(t()) :: [Bucket.t()]
   def to_list(cache) do

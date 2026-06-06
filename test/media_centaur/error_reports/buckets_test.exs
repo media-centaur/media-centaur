@@ -164,6 +164,30 @@ defmodule MediaCentaur.ErrorReports.BucketsTest do
     end
   end
 
+  describe "dismiss" do
+    test "resolves the durable incident, evicts the bucket, and broadcasts the new list" do
+      message = "dismiss me #{uniq()}"
+      fingerprint = fingerprint_of(:tmdb, message)
+
+      Buckets.ingest(:buckets_test, entry(message: message))
+      assert %Bucket{} = Buckets.get_bucket(:buckets_test, fingerprint)
+      assert %{status: :open} = Store.get_incident_by_fingerprint(fingerprint)
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.error_reports())
+      :ok = Buckets.dismiss(:buckets_test, [fingerprint])
+
+      assert Buckets.get_bucket(:buckets_test, fingerprint) == nil
+      assert %{status: :resolved} = Store.get_incident_by_fingerprint(fingerprint)
+
+      assert_receive {:buckets_changed, buckets}, 1_500
+      refute Enum.any?(buckets, &(&1.fingerprint == fingerprint))
+    end
+
+    test "is a no-op for a fingerprint that isn't cached" do
+      assert :ok = Buckets.dismiss(:buckets_test, ["no-such-fingerprint"])
+    end
+  end
+
   describe "broadcast" do
     test "emits a throttled :buckets_changed after an ingest" do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.error_reports())

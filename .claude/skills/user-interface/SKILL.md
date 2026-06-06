@@ -7,7 +7,7 @@ description: "Use this skill before any UI work — LiveView templates, componen
 
 - **Readability first.** Every visual choice serves readability above aesthetics.
 - **Color is signal.** Calm when healthy, color draws attention to problems.
-- **Dark-first, light-right.** Cool slate grays (hue 264). Both themes genuinely good.
+- **Dark-only.** Cool slate grays (hue 264). One daisyUI theme (`dark`, `default: true`); there is no light theme and no theme toggle.
 - **System fonts.** Monospace only for functional alignment (paths, IDs, tables).
 - **Cards for grouping.** Scannable, self-contained sections.
 - **Live data feels alive.** Smooth real-time updates, quiet when idle.
@@ -51,7 +51,7 @@ Enforced by `MediaCentaur.Credo.Checks.ImgAttributeDefaults` (MC0016). `loading=
 
 ## Theme System
 
-Two themes via daisyUI plugin. Colors use oklch color space with hue 264 (cool slate).
+One dark theme via the daisyUI plugin (`name: "dark"`, `default: true`, `themes: false`). There is no light theme and no theme toggle — the app is dark-only. Colors use oklch color space with hue 264 (cool slate).
 
 **Always use theme variables** — never hardcode oklch for themeable colors:
 - Tailwind: `text-base-content/60`, `bg-primary/10`
@@ -335,7 +335,6 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `list/1` | `core_components.ex` | Key-value display list | ✅ stub |
 | `icon/1` | `core_components.ex` | Heroicon rendering | ✅ stub |
 | `app/1` | `layouts.ex` | Root layout (sidebar + content) |
-| `theme_toggle/1` | `layouts.ex` | System/Light/Dark picker |
 | `poster_card/1` | `library_cards.ex` | 2:3 poster grid card |
 | `cw_card/1` | `library_cards.ex` | 16:9 continue-watching backdrop card |
 | `toolbar/1` | `library_cards.ex` | Type tabs + sort + filter |
@@ -350,7 +349,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 
 ## Page Structure
 
-**Stack:** Tailwind CSS v4 + daisyUI. System fonts. Two themes (light/dark). Inspiration: Linear.app.
+**Stack:** Tailwind CSS v4 + daisyUI. System fonts. Dark-only theme. Inspiration: Linear.app.
 
 | Page | Path | Role |
 |------|------|------|

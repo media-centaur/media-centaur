@@ -172,6 +172,36 @@ html.psb .psb-variation-block .media-centaur {
   box-shadow: 0 4px 16px var(--glass-shadow);
 }
 
+/* Subsystem health tile — SELECTED state. A dedicated rule, NOT Tailwind
+   `ring-*` / `bg-*` utilities: `.glass-surface` sets its own (unlayered)
+   `background` and `box-shadow`, which clobber those utilities. This selector
+   (two attributes = specificity 0,2,0) outranks `.glass-surface` (0,1,0), so
+   the blue selection accent always wins. Primary (blue) is the selection
+   accent — health stays on the status dot, so this never aliases severity. */
+[data-subsystem-tile][data-selected] {
+  border-color: var(--color-primary);
+  background:
+    linear-gradient(
+      oklch(from var(--color-primary) l c h / 0.14),
+      oklch(from var(--color-primary) l c h / 0.14)
+    ),
+    var(--glass-bg);
+  box-shadow:
+    0 0 0 2px var(--color-primary),
+    0 4px 16px var(--glass-shadow);
+}
+
+/* The drill-in is the selected tile's content panel. The tiles read as a
+   sub-nav "tab" grid; this panel is the open tab's content. The tile and panel
+   aren't adjacent (tiles wrap into rows), so shared blue is the connective cue:
+   a primary top accent + a faint primary border pull the panel into the same
+   "selected" family as the blue tile, while clearly setting it apart from the
+   tile grid above. id selector (1,0,0) outranks `.glass-surface` (0,1,0). */
+#health-drill-in {
+  border-color: oklch(from var(--color-primary) l c h / 0.35);
+  border-top: 3px solid var(--color-primary);
+}
+
 /* Nested inset — inner panels, toggle items, placeholders */
 .glass-inset {
   background: var(--glass-inset-bg);
@@ -286,11 +316,10 @@ html.psb .psb-variation-block .media-centaur {
   padding: 0.75rem 0.5rem 0.25rem 0.5rem;
 }
 
+/* Collapsed: hide the label text but KEEP its box (padding + line height)
+   so the icon rows below it don't shift between expanded and collapsed. */
 [data-sidebar=collapsed] .sidebar-group-label {
   opacity: 0;
-  padding-top: 0.5rem;
-  padding-bottom: 0;
-  height: 0.5rem;
   overflow: hidden;
 }
 

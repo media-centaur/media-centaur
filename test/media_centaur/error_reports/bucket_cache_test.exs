@@ -109,6 +109,26 @@ defmodule MediaCentaur.ErrorReports.BucketCacheTest do
     end
   end
 
+  describe "delete/2" do
+    test "removes a bucket by fingerprint" do
+      cache =
+        BucketCache.new()
+        |> BucketCache.put_entry(entry(message: "keep"))
+        |> BucketCache.put_entry(entry(message: "drop"))
+
+      drop_fp = Fingerprint.fingerprint(:tmdb, "drop").key
+      cache = BucketCache.delete(cache, drop_fp)
+
+      assert BucketCache.get(cache, drop_fp) == nil
+      assert ["keep"] == Enum.map(BucketCache.to_list(cache), & &1.normalized_message)
+    end
+
+    test "is a no-op for an unknown fingerprint" do
+      cache = BucketCache.put_entry(BucketCache.new(), entry(message: "boom"))
+      assert BucketCache.delete(cache, "nope") == cache
+    end
+  end
+
   describe "from_incidents/1" do
     test "projects incidents with their samples into buckets" do
       now = DateTime.utc_now()

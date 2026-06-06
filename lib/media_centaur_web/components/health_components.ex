@@ -25,12 +25,13 @@ defmodule MediaCentaurWeb.HealthComponents do
       phx-value-subsystem={@view.component}
       data-nav-item
       data-subsystem-tile
+      data-selected={@selected}
+      aria-pressed={to_string(@selected)}
       tabindex="0"
       class={[
-        "glass-surface rounded-xl p-4 text-left w-full flex items-start gap-3 transition-colors",
+        "glass-surface rounded-xl p-4 text-left w-full flex items-start gap-3 cursor-pointer transition-colors",
         @view.state == :error && "border-l-2 border-error",
-        @view.state == :warning && "border-l-2 border-warning",
-        @selected && "ring-1 ring-primary/40"
+        @view.state == :warning && "border-l-2 border-warning"
       ]}
     >
       <.icon name={@view.glyph} class="size-5 shrink-0 text-base-content/65 mt-0.5" />
@@ -53,6 +54,7 @@ defmodule MediaCentaurWeb.HealthComponents do
   @doc "One reportable incident row in the drill-in Issues section."
   attr :bucket, Bucket, required: true
   attr :on_report, :string, default: "report_incident"
+  attr :on_dismiss, :string, default: "dismiss_incident"
 
   def incident_row(assigns) do
     ~H"""
@@ -79,6 +81,16 @@ defmodule MediaCentaurWeb.HealthComponents do
       >
         Report this
       </.button>
+      <.button
+        variant="dismiss"
+        size="xs"
+        shape="square"
+        aria-label="Dismiss"
+        phx-click={@on_dismiss}
+        phx-value-fingerprint={@bucket.fingerprint}
+      >
+        <.icon name="hero-x-mark-mini" class="size-4" />
+      </.button>
     </div>
     """
   end
@@ -87,6 +99,8 @@ defmodule MediaCentaurWeb.HealthComponents do
   attr :view, SubsystemView, required: true
   attr :buckets, :list, required: true, doc: "[Bucket.t()] for this subsystem"
   attr :on_report, :string, default: "report_incident"
+  attr :on_dismiss, :string, default: "dismiss_incident"
+  attr :on_dismiss_all, :string, default: "dismiss_all"
   attr :on_close, :string, default: "close_subsystem"
   slot :activity, doc: "the subsystem's bespoke Activity widget"
 
@@ -102,8 +116,16 @@ defmodule MediaCentaurWeb.HealthComponents do
       </header>
 
       <div :if={@buckets != []} class="space-y-2">
-        <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">Issues</h3>
-        <.incident_row :for={bucket <- @buckets} bucket={bucket} on_report={@on_report} />
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">Issues</h3>
+          <.button variant="dismiss" size="xs" phx-click={@on_dismiss_all}>Dismiss all</.button>
+        </div>
+        <.incident_row
+          :for={bucket <- @buckets}
+          bucket={bucket}
+          on_report={@on_report}
+          on_dismiss={@on_dismiss}
+        />
       </div>
       <p :if={@buckets == []} class="text-sm text-base-content/55">No issues for this subsystem.</p>
 
