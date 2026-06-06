@@ -108,8 +108,11 @@
   .spotlight { position: relative; min-height: 56vh; display: flex; align-items: center; overflow: hidden; margin: 30px 0; }
   .spot-bg { position: absolute; inset: 0; background-size: cover; background-position: center 38%; transform: scale(1.04); filter: saturate(.95); }
   .spot-scrim { position: absolute; inset: 0;
-    background: linear-gradient(100deg, oklch(13% 0.015 264 / .97) 0%, oklch(13% 0.015 264 / .8) 42%, oklch(13% 0.015 264 / .3) 100%); }
+    background: linear-gradient(100deg, oklch(13% 0.015 264 / .98) 0%, oklch(13% 0.015 264 / .95) 48%, oklch(13% 0.015 264 / .55) 100%); }
   .spot-content { position: relative; z-index: 3; max-width: 640px; padding: 68px 0; }
+  /* Wider column so the 4-stage lifecycle row isn't crammed into 640px (the
+     intro paragraph stays capped at 64ch via the rule below). */
+  .spot-content.wide { max-width: 1080px; }
   .spot-content h2 { font-weight: 800; font-size: clamp(32px, 5vw, 56px); line-height: 1.0; letter-spacing: -.035em; margin: 0 0 20px; }
   .spot-content p { font-size: 17px; line-height: 1.62; color: var(--text-dim); margin: 0 0 22px; }
   .spot-content p b { color: var(--primary-bright); font-weight: 600; }
@@ -318,7 +321,7 @@
   <div class="spot-bg" style="background-image:url('assets/screenshots/download-activity.png')"></div>
   <div class="spot-scrim"></div>
   <div class="wrap">
-    <div class="spot-content">
+    <div class="spot-content wide">
       <span class="rail-tag">Honest states</span>
       <h2>The grab <span class="thin">lifecycle.</span></h2>
       <p>When acquisition is enabled, a request isn't a black box. It walks a visible path, and the dead ends are
