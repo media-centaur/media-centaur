@@ -4,6 +4,15 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.79.2 — 2026-06-07
+
+### Improved
+
+**Update settings now have their own place.** The "automatically check" and
+"install automatically" options moved out of the System card into a dedicated
+**Updates** section in Settings. The System card keeps the manual *Check for
+updates* / *Update now* actions and now briefly explains how updating works.
+
 ## v0.79.1 — 2026-06-07
 
 ### Improved
