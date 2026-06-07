@@ -1,8 +1,8 @@
 defmodule MediaCentaurWeb.SettingsLiveSystemTest do
   @moduledoc """
   Integration tests for the system content on Settings > Overview — version
-  display, the auto-check-on-landing flow, the 5-minute cache, and the
-  manual "Check for updates" button.
+  display, the no-auto-check-on-landing behaviour (the scheduled CheckerJob
+  owns polling), the 5-minute cache, and the manual "Check for updates" button.
 
   Update network activity only happens on the prod release channel
   (`SelfUpdate.enabled?()`); dev/test rebuild from source and never poll or
@@ -61,14 +61,21 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
     assert html =~ MediaCentaur.Version.current_version()
   end
 
-  test "landing on overview auto-triggers an update check when cache is empty",
+  test "landing on overview does not trigger an update check (the scheduled job owns polling)",
        %{conn: conn} do
+    # Arriving on the page must never kick a network poll — the background
+    # CheckerJob is the single scheduled poller. With an empty cache the card
+    # renders the idle/current state, never the freshly-fetched v99.0.0.
     {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
 
-    # Allow the async task to run under Req.Test.
+    # Permit the stub so that *if* a stray check fired, it would resolve to
+    # v99.0.0 and fail the assertion below — otherwise this proves nothing.
     Req.Test.allow(:github_releases_live, self(), view.pid)
 
-    assert_eventually(fn -> render(view) =~ "v99.0.0" end)
+    # Give any would-be auto-check a window to run; none should.
+    Process.sleep(100)
+
+    refute render(view) =~ "v99.0.0"
   end
 
   test "landing on overview uses the cached result and does not fetch", %{conn: conn} do
@@ -125,9 +132,10 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
     assert_eventually(fn -> render(view) =~ "v99.0.0" end)
   end
 
-  test "check results are written back to the cache", %{conn: conn} do
+  test "a manual check writes results back to the cache", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
     Req.Test.allow(:github_releases_live, self(), view.pid)
+    render_click(view, "check_updates", %{})
 
     assert_eventually(fn -> render(view) =~ "v99.0.0" end)
 
