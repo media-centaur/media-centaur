@@ -107,6 +107,47 @@ defmodule MediaCentaurWeb.Live.SettingsLive.SystemSection do
   defp pluralize(1, unit), do: "1 #{unit}"
   defp pluralize(n, unit), do: "#{n} #{unit}s"
 
+  @doc """
+  Human phrase for a poll interval in minutes: `"6 hours"`, `"1 hour"`,
+  `"15 minutes"`.
+  """
+  @spec interval_phrase(pos_integer()) :: String.t()
+  def interval_phrase(minutes) when rem(minutes, 60) == 0, do: pluralize(div(minutes, 60), "hour")
+  def interval_phrase(minutes), do: pluralize(minutes, "minute")
+
+  @doc """
+  One-line summary of the update-check cadence for the System card: how
+  often checks run and, loosely, when the next one is due.
+
+  The "next check" estimate is deliberately coarse (no seconds, hour-grained
+  buckets past the first hour) so the card can refresh on a slow timer
+  without the text behaving like a ticking countdown.
+  """
+  @spec update_schedule_label(boolean(), pos_integer(), {:ok, DateTime.t()} | :none, DateTime.t()) ::
+          String.t()
+  def update_schedule_label(false, _interval, _last, _now),
+    do: "Automatic checks are off — Media Centaur only checks when you ask."
+
+  def update_schedule_label(true, interval_minutes, last_check_at, now) do
+    "Checks automatically every #{interval_phrase(interval_minutes)} — " <>
+      "next check #{next_check_phrase(interval_minutes, last_check_at, now)}."
+  end
+
+  defp next_check_phrase(_interval, :none, _now), do: "any moment now"
+
+  defp next_check_phrase(interval_minutes, {:ok, %DateTime{} = last}, %DateTime{} = now) do
+    next_at = DateTime.add(last, interval_minutes * 60, :second)
+    seconds = DateTime.diff(next_at, now, :second)
+
+    cond do
+      seconds <= 60 -> "any moment now"
+      seconds < 3600 -> "in less than an hour"
+      seconds < 7200 -> "in about an hour"
+      seconds < 86_400 -> "in about #{pluralize(round(seconds / 3600), "hour")}"
+      true -> "in about #{pluralize(round(seconds / 86_400), "day")}"
+    end
+  end
+
   @doc "Maps an `update_status/0` to a semantic tone for styling."
   @spec update_status_tone(update_status()) :: tone()
   def update_status_tone(:idle), do: :neutral

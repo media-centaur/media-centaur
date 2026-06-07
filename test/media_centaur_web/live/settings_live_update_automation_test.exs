@@ -52,6 +52,13 @@ defmodule MediaCentaurWeb.SettingsLiveUpdateAutomationTest do
     assert html =~ "waits until playback ends"
   end
 
+  test "the System card shows the check cadence and a loose next-check time", %{conn: conn} do
+    {:ok, _view, html} = live(conn, ~p"/settings?section=system")
+
+    assert html =~ "Checks automatically every"
+    refute html =~ "second"
+  end
+
   test "toggling auto-install persists to Config", %{conn: conn} do
     refute Config.get(:auto_update_enabled)
 

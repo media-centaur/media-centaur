@@ -72,6 +72,11 @@ defmodule MediaCentaurWeb.SettingsLive do
       SelfUpdate.subscribe_progress()
       Config.subscribe()
       Controls.subscribe()
+      # Coarse heartbeat so the "next check" estimate on the Updates card stays
+      # roughly current without behaving like a per-second countdown. The
+      # labels are hour-grained, so a 60s recompute is almost always a no-op
+      # for morphdom.
+      Process.send_after(self(), :refresh_update_schedule, 60_000)
     end
 
     {:ok,
@@ -147,13 +152,18 @@ defmodule MediaCentaurWeb.SettingsLive do
   # checking is on, the configured poll interval (clamped to the rate-limit
   # floor), whether auto-install is on, and the relative "last checked" label.
   defp put_update_automation_assigns(socket) do
+    enabled = Config.get(:update_check_enabled)
+    interval = Config.update_check_interval_minutes()
+    last_check_at = SelfUpdate.last_check_at()
+    now = DateTime.utc_now()
+
     assign(socket,
-      update_check_enabled: Config.get(:update_check_enabled),
+      update_check_enabled: enabled,
       auto_update_enabled: Config.get(:auto_update_enabled),
-      update_check_interval_minutes: Config.update_check_interval_minutes(),
+      update_check_interval_minutes: interval,
       update_check_interval_floor: Config.update_check_interval_floor_minutes(),
-      last_checked_label:
-        SystemSection.last_checked_label(SelfUpdate.last_check_at(), DateTime.utc_now())
+      last_checked_label: SystemSection.last_checked_label(last_check_at, now),
+      update_schedule_label: SystemSection.update_schedule_label(enabled, interval, last_check_at, now)
     )
   end
 
@@ -1201,6 +1211,11 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   def handle_info({:check_started}, socket), do: {:noreply, socket}
 
+  def handle_info(:refresh_update_schedule, socket) do
+    Process.send_after(self(), :refresh_update_schedule, 60_000)
+    {:noreply, put_update_automation_assigns(socket)}
+  end
+
   def handle_info({:config_updated, :watch_dirs, entries}, socket) do
     {:noreply, assign(socket, :watch_dirs, entries)}
   end
@@ -1476,6 +1491,7 @@ defmodule MediaCentaurWeb.SettingsLive do
             update_check_interval_minutes={@update_check_interval_minutes}
             update_check_interval_floor={@update_check_interval_floor}
             last_checked_label={@last_checked_label}
+            update_schedule_label={@update_schedule_label}
             tmdb_missing={@tmdb_missing}
             show_setup_banner?={@show_setup_banner?}
             critical_failures={@critical_failures}
@@ -1633,6 +1649,7 @@ defmodule MediaCentaurWeb.SettingsLive do
             <p class="text-sm opacity-50 mt-0.5">
               Check GitHub for a newer release.
             </p>
+            <p class="text-xs text-base-content/50 mt-1.5">{@update_schedule_label}</p>
           </div>
           <.button
             variant="secondary"
