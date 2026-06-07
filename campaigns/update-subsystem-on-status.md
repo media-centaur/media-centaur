@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-06-07
 last_updated: 2026-06-07
 ---
@@ -18,9 +18,9 @@ a failed auto-install) is exactly the kind of thing that page exists to catch.
 
 ## Status
 
-Planning. Design settled 2026-06-07 (brainstorm). No code yet. Builds directly
-on the self-update fixes shipped in v0.80.0 (interval honoured, checks routed
-through the context, prod-channel gating).
+**Phase 1 (health half) complete** — the **Updates** tile is live on the board
+and reports the three fault kinds through the existing evaluator. Phase 2 (the
+drill-in Activity widget) is next. Builds on the v0.80.0 self-update fixes.
 
 ## Decisions made
 
@@ -52,28 +52,41 @@ Append-only log.
   `:system` (CPU) tile.
 * `2026-06-07` — Thresholds: `:check_failing` ≥3 consecutive failures;
   `:checks_stalled` ≥3× interval since last success.
+* `2026-06-07` — **Phase 1 shipped** (commit pending). `SelfUpdate.Health`
+  (durable `update.check_failure_streak` + `update.last_apply`), writers in
+  `CheckerJob` (check outcome) and `Updater` (clear on apply start, record on
+  the two failure transitions), `SelfUpdate.IncidentContext` (pure `decide/4` +
+  `assess/0`), registered in `:diagnostics_contributors`, and the `:self_update`
+  "Updates" tile (glyph `hero-arrow-down-circle`).
+* `2026-06-07` — **`IncidentContext` fulfils the `assess/0` contract
+  structurally, not via `@behaviour`.** Declaring the behaviour adds a
+  compile-time `SelfUpdate → ErrorReports` edge that closes a Boundary cycle
+  (`SelfUpdate → ErrorReports → Console → SelfUpdate`; `Console` already depends
+  on `SelfUpdate` for `detected_unit/0`). The registry binds assessors by
+  `function_exported?(module, :assess, 0)` — name-based — so the behaviour
+  declaration is unnecessary, and omitting it keeps the boundary acyclic. (TMDB
+  can declare `@behaviour` because nothing depends back into it.)
 
 ## Next steps
 
 Concrete, ordered. Three phases.
 
-### Phase 1 — Health half (tile reports correctly)
+### Phase 1 — Health half (tile reports correctly) — ✅ DONE
 
-1. **`SelfUpdate.Health` projection** — durable record holding
+1. ✅ **`SelfUpdate.Health` projection** — durable record holding
    `consecutive_check_failures` and `last_apply_outcome` (`{result, version,
    reason, at}`), stored under `update.*` `Settings.Entry` keys. A pure builder
    + read function. Writers: `CheckerJob` (success resets the streak, failure
    increments) and `Updater` (records the terminal apply outcome on
    `:done` / `:failed`).
-2. **`SelfUpdate.IncidentContext`** — implements `ErrorReports.IncidentContext`.
-   `assess/0` is a pure function over `Health` + `last_check_at` age + config
-   (`update_check_enabled`, `update_check_interval_minutes`) returning the
-   dominant fault or `:ok`. Register in `config :media_centaur,
-   :diagnostics_contributors`.
-3. **Board entry** — add `:self_update` to `HealthBoard` subsystems, icon, and
-   label ("Updates"). Confirm the evaluator raises/resolves on the new component.
-4. **Tests** — pure `assess/0` across every fault/clear transition; `Health`
-   projection tests through the public seam. (Test-first per repo policy.)
+2. ✅ **`SelfUpdate.IncidentContext`** — pure `decide/4` + `assess/0` over
+   `Health` + `last_check_at` age + config, returning the dominant fault or
+   `:ok`. Registered in `:diagnostics_contributors` (bound by name, not
+   `@behaviour` — see Decisions).
+3. ✅ **Board entry** — `:self_update` added to `HealthBoard` subsystems / label
+   ("Updates") / glyph (`hero-arrow-down-circle`); board tests updated to 8.
+4. ✅ **Tests** — pure `decide/4` matrix, `Health` projection, and `assess/0`
+   wiring (registry + reads). Full `mix precommit` green (4409 tests).
 
 ### Phase 2 — Observe half (drill-in widget)
 

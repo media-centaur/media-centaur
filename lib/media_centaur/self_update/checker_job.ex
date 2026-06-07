@@ -26,7 +26,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Config
-  alias MediaCentaur.SelfUpdate.{Storage, UpdateChecker}
+  alias MediaCentaur.SelfUpdate.{Health, Storage, UpdateChecker}
   alias MediaCentaur.Topics
 
   @impl Oban.Worker
@@ -107,9 +107,11 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
   defp run_check do
     case Storage.record_check_result(UpdateChecker.latest_release()) do
       {:ok, classification, release} ->
+        Health.record_check_success()
         {classification, release}
 
       {:error, reason} = error ->
+        Health.record_check_failure()
         Log.warning(:system, "update check failed: #{inspect(reason)}")
         error
     end

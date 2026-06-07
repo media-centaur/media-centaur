@@ -5,7 +5,16 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   No DB, no rendering — unit-tested in isolation (ADR-030).
   """
 
-  @board_subsystems [:watcher, :pipeline, :tmdb, :playback, :library, :acquisition, :system]
+  @board_subsystems [
+    :watcher,
+    :pipeline,
+    :tmdb,
+    :playback,
+    :library,
+    :acquisition,
+    :self_update,
+    :system
+  ]
 
   @labels %{
     watcher: "Watcher",
@@ -14,6 +23,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     playback: "Playback",
     library: "Library",
     acquisition: "Downloads",
+    self_update: "Updates",
     system: "System"
   }
 
@@ -24,6 +34,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     playback: "hero-play-circle",
     library: "hero-rectangle-stack",
     acquisition: "hero-arrow-down-tray",
+    self_update: "hero-arrow-down-circle",
     system: "hero-cpu-chip"
   }
 
