@@ -37,6 +37,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         {"/status", "status"},
         {"/status?subsystem=pipeline", "status subsystem drill-in"},
         {"/status?subsystem=self_update", "status self_update drill-in"},
+        {"/status?subsystem=library", "status library drill-in"},
         {"/settings", "settings"},
         {"/setup", "setup tour"},
         {"/review", "review"},
@@ -50,12 +51,12 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
-  # The bare `/status` smoke above renders the library overview in its
-  # empty/zeroed state. This seeds a library so the populated render branches
-  # are exercised: the recently-added poster strip (glance card), a review
-  # backlog (pending-work card), and all three completeness-gap rows
+  # The library overview is the Library subsystem's drill-in Activity widget
+  # (`/status?subsystem=library`). This seeds a library so the populated render
+  # branches are exercised: the recently-added poster strip (glance card), a
+  # review backlog (pending-work card), and all three completeness-gap rows
   # (missing artwork, missing metadata, season gap).
-  describe "/status with a populated library overview" do
+  describe "/status?subsystem=library with a populated library overview" do
     setup do
       movie =
         create_movie(%{name: "Sample Overview Movie", tmdb_id: "100", content_url: "/media/sample.mkv"})
@@ -90,12 +91,12 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       :ok
     end
 
-    test "status overview renders populated cards without crashing", %{conn: conn} do
-      assert {:ok, _view, html} = live_async!(conn, "/status")
-      assert html =~ "Your library"
+    test "library drill-in renders populated overview cards without crashing", %{conn: conn} do
+      assert {:ok, _view, html} = live_async!(conn, "/status?subsystem=library")
+      assert html =~ "Recently added"
       assert html =~ "Pending work"
       assert html =~ "Completeness gaps"
-      assert html =~ "System health"
+      assert html =~ "Storage outlook"
     end
   end
 

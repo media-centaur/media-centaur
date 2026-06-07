@@ -85,6 +85,7 @@ config :media_centaur, :diagnostics_issues_repo, "media-centaur/media-centaur"
 
 # Health-board Activity widgets (observability Phase 4 M3b). component => {module, fun}.
 config :media_centaur, :health_activity_widgets, %{
+  library: {MediaCentaurWeb.ActivityWidgetComponents, :library_widget},
   watcher: {MediaCentaurWeb.ActivityWidgetComponents, :watcher_widget},
   pipeline: {MediaCentaurWeb.ActivityWidgetComponents, :pipeline_widget},
   tmdb: {MediaCentaurWeb.ActivityWidgetComponents, :tmdb_widget},

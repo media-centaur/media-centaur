@@ -1,7 +1,19 @@
 # Library overview on the Status page
 
 **Date:** 2026-06-07
-**Status:** Implemented
+**Status:** Implemented (revised — see "Placement revision" below)
+
+## Placement revision (post-feedback)
+
+The overview originally shipped as a top-level "Your library" section above the
+health board. Per feedback, it was relocated to be the **Library subsystem's
+drill-in Activity widget** — it now fleshes out the Library tile's drill-in
+(which previously only showed "No issues for this subsystem" + technical logs),
+using the existing `ActivityWidgets` registry (`library:
+{ActivityWidgetComponents, :library_widget}`). The `LibraryOverview` read-model,
+`Library.Completeness`, the cards, and all tests are unchanged; only the render
+location moved. The rest of this doc describes the original top-section design
+for context.
 
 ## Goal
 
