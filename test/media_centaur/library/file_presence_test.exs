@@ -4,6 +4,26 @@ defmodule MediaCentaur.Library.FilePresenceTest do
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Repo
 
+  describe "total_size_bytes/0" do
+    test "sums the recorded sizes of all presence rows" do
+      FilePresence.stamp("/media/a.mkv", "/media", DateTime.utc_now(), size: 1_000)
+      FilePresence.stamp("/media/b.mkv", "/media", DateTime.utc_now(), size: 2_500)
+
+      assert FilePresence.total_size_bytes() == 3_500
+    end
+
+    test "treats rows with a nil size as zero" do
+      FilePresence.stamp("/media/a.mkv", "/media", DateTime.utc_now(), size: 1_000)
+      FilePresence.stamp("/media/sizeless.mkv", "/media", DateTime.utc_now())
+
+      assert FilePresence.total_size_bytes() == 1_000
+    end
+
+    test "returns zero when there are no presence rows" do
+      assert FilePresence.total_size_bytes() == 0
+    end
+  end
+
   describe "stamp/3" do
     test "inserts a new presence row for an unseen path" do
       now = DateTime.utc_now()

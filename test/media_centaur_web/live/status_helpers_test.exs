@@ -4,6 +4,60 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
   alias MediaCentaur.Library.WatchProgress
   alias MediaCentaurWeb.StatusHelpers
 
+  # --- Library overview helpers ---
+
+  describe "gap_count_class/1" do
+    test "warns when the gap count is positive" do
+      assert StatusHelpers.gap_count_class(1) == "text-warning"
+      assert StatusHelpers.gap_count_class(42) == "text-warning"
+    end
+
+    test "is muted when there is no gap" do
+      assert StatusHelpers.gap_count_class(0) == "text-base-content/40"
+    end
+  end
+
+  describe "summarize_at_risk/4" do
+    setup do
+      %{now: ~U[2026-06-07 12:00:00Z], ttl_days: 30}
+    end
+
+    test "returns nil when nothing is at risk", %{now: now, ttl_days: ttl} do
+      assert StatusHelpers.summarize_at_risk(%{}, %{}, now, ttl) == nil
+    end
+
+    test "ignores dirs that are currently available", %{now: now, ttl_days: ttl} do
+      summary = %{"/media" => %{file_count: 5, earliest_absent_since: now}}
+      dir_status = %{"/media" => :available}
+
+      assert StatusHelpers.summarize_at_risk(summary, dir_status, now, ttl) == nil
+    end
+
+    test "aggregates file counts across offline dirs and reports the soonest purge",
+         %{now: now, ttl_days: ttl} do
+      summary = %{
+        "/media/a" => %{file_count: 3, earliest_absent_since: DateTime.add(now, -25, :day)},
+        "/media/b" => %{file_count: 2, earliest_absent_since: DateTime.add(now, -10, :day)}
+      }
+
+      dir_status = %{"/media/a" => :unavailable, "/media/b" => :unavailable}
+
+      result = StatusHelpers.summarize_at_risk(summary, dir_status, now, ttl)
+
+      assert result.file_count == 5
+      # /media/a is older (25 days) so it purges soonest: 30 - 25 = 5 days
+      assert result.purge_in_days == 5
+    end
+
+    test "treats unknown dir status as offline", %{now: now, ttl_days: ttl} do
+      summary = %{"/media" => %{file_count: 1, earliest_absent_since: now}}
+
+      result = StatusHelpers.summarize_at_risk(summary, %{}, now, ttl)
+
+      assert result.file_count == 1
+    end
+  end
+
   # --- derive_playback/1 ---
 
   describe "derive_playback/1" do

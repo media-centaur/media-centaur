@@ -13,8 +13,10 @@ defmodule MediaCentaurWeb.StatusLive do
 
   import MediaCentaurWeb.StatusHelpers
   import MediaCentaurWeb.HealthComponents
+  import MediaCentaurWeb.LibraryOverviewComponents
 
-  alias MediaCentaur.{Config, ErrorReports, Playback, SelfUpdate, Storage}
+  alias MediaCentaur.{Config, ErrorReports, Playback, SelfUpdate, Status, Storage}
+  alias MediaCentaur.Library.Availability
   alias MediaCentaur.Version
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
   alias MediaCentaurWeb.StatusLive.HealthBoard
@@ -35,6 +37,7 @@ defmodule MediaCentaurWeb.StatusLive do
         ErrorReports.subscribe()
         SelfUpdate.subscribe()
         SelfUpdate.subscribe_progress()
+        MediaCentaur.Library.subscribe()
 
         # Visiting /status marks auto-detected incidents as seen, clearing
         # the discovery badge on the Status nav item. The web layer owns
@@ -68,6 +71,7 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign_self_update()
         |> start_async_storage()
         |> start_async_dir_health()
+        |> start_async_overview()
       else
         socket
         |> assign_defaults()
@@ -94,6 +98,8 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(error_buckets: [])
     |> assign(board: HealthBoard.build_board([]))
     |> assign(selected_subsystem: nil)
+    |> assign(overview: nil)
+    |> assign(overview_refresh_pending: false)
     |> assign(storage_drives: [])
     |> assign(at_risk_summary: %{})
     |> assign(dir_health: [])
@@ -140,6 +146,13 @@ defmodule MediaCentaurWeb.StatusLive do
 
   defp start_async_dir_health(socket) do
     start_async(socket, :status_dir_health, fn -> check_dir_health() end)
+  end
+
+  # The overview runs a per-image disk check (Maintenance.missing_images_summary/0)
+  # and several library counts, so it never belongs on the mount path — it lands
+  # via `handle_async(:status_overview, …)`.
+  defp start_async_overview(socket) do
+    start_async(socket, :status_overview, fn -> Status.fetch_overview() end)
   end
 
   @impl true
@@ -293,7 +306,23 @@ defmodule MediaCentaurWeb.StatusLive do
 
   def handle_info(:refresh_storage, socket) do
     Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
-    {:noreply, start_async_storage(socket)}
+    {:noreply, socket |> start_async_storage() |> start_async_overview()}
+  end
+
+  # Library changed (import, edit, delete). Debounce: a bulk import fires this
+  # many times, but a single recompute 2s after the last change suffices. The
+  # pending flag collapses the storm into one refresh.
+  def handle_info({:entities_changed, _payload}, socket) do
+    if socket.assigns.overview_refresh_pending do
+      {:noreply, socket}
+    else
+      Process.send_after(self(), :refresh_overview, 2_000)
+      {:noreply, assign(socket, overview_refresh_pending: true)}
+    end
+  end
+
+  def handle_info(:refresh_overview, socket) do
+    {:noreply, socket |> assign(overview_refresh_pending: false) |> start_async_overview()}
   end
 
   def handle_info({:dir_state_changed, _dir, _role, _state}, socket) do
@@ -410,6 +439,10 @@ defmodule MediaCentaurWeb.StatusLive do
     {:noreply, assign(socket, dir_health: dir_health)}
   end
 
+  def handle_async(:status_overview, {:ok, overview}, socket) do
+    {:noreply, assign(socket, overview: overview)}
+  end
+
   def handle_async(name, {:exit, reason}, socket) do
     Log.warning(:status, "status async #{inspect(name)} failed — #{inspect(reason)}")
     {:noreply, socket}
@@ -450,7 +483,28 @@ defmodule MediaCentaurWeb.StatusLive do
           </.button>
         </div>
 
+        <section data-component="library-overview" class="space-y-3">
+          <h2 class="text-lg font-semibold">Your library</h2>
+
+          <div :if={@overview} class="space-y-3">
+            <.glance_card overview={@overview} />
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <.pending_work_card overview={@overview} />
+              <.completeness_card overview={@overview} />
+              <.storage_outlook_card drives={@storage_drives} at_risk={overview_at_risk(assigns)} />
+            </div>
+          </div>
+
+          <div
+            :if={!@overview}
+            class="glass-surface rounded-xl p-4 text-sm text-base-content/40"
+          >
+            Loading library overview…
+          </div>
+        </section>
+
         <div class="space-y-7">
+          <h2 class="text-lg font-semibold">System health</h2>
           <div
             data-nav-zone="health-board"
             class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
@@ -476,6 +530,18 @@ defmodule MediaCentaurWeb.StatusLive do
       </div>
     </Layouts.app>
     """
+  end
+
+  # Summarized drive-offline at-risk warning for the storage-outlook card,
+  # reusing the page's already-measured `at_risk_summary` assign. Reads live
+  # dir availability (mirrors the watcher widget) and the TTL config.
+  defp overview_at_risk(assigns) do
+    summarize_at_risk(
+      assigns.at_risk_summary,
+      Availability.dir_status(),
+      DateTime.utc_now(),
+      Config.get(:file_absence_ttl_days) || 30
+    )
   end
 
   # --- Playback State ---
