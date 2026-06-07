@@ -13,10 +13,8 @@ defmodule MediaCentaurWeb.StatusLive do
 
   import MediaCentaurWeb.StatusHelpers
   import MediaCentaurWeb.HealthComponents
-  import MediaCentaurWeb.LibraryOverviewComponents
 
   alias MediaCentaur.{Config, ErrorReports, Playback, SelfUpdate, Status, Storage}
-  alias MediaCentaur.Library.Availability
   alias MediaCentaur.Version
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
   alias MediaCentaurWeb.StatusLive.HealthBoard
@@ -195,6 +193,8 @@ defmodule MediaCentaurWeb.StatusLive do
   # subsystem. Superset of what any single widget reads; each widget declares (attr) its keys.
   defp activity_bundle(assigns) do
     %{
+      # library overview
+      overview: assigns.overview,
       # watcher
       dir_health: assigns.dir_health,
       watcher_statuses: assigns.watcher_statuses,
@@ -483,28 +483,7 @@ defmodule MediaCentaurWeb.StatusLive do
           </.button>
         </div>
 
-        <section data-component="library-overview" class="space-y-3">
-          <h2 class="text-lg font-semibold">Your library</h2>
-
-          <div :if={@overview} class="space-y-3">
-            <.glance_card overview={@overview} />
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <.pending_work_card overview={@overview} />
-              <.completeness_card overview={@overview} />
-              <.storage_outlook_card drives={@storage_drives} at_risk={overview_at_risk(assigns)} />
-            </div>
-          </div>
-
-          <div
-            :if={!@overview}
-            class="glass-surface rounded-xl p-4 text-sm text-base-content/40"
-          >
-            Loading library overview…
-          </div>
-        </section>
-
         <div class="space-y-7">
-          <h2 class="text-lg font-semibold">System health</h2>
           <div
             data-nav-zone="health-board"
             class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
@@ -530,18 +509,6 @@ defmodule MediaCentaurWeb.StatusLive do
       </div>
     </Layouts.app>
     """
-  end
-
-  # Summarized drive-offline at-risk warning for the storage-outlook card,
-  # reusing the page's already-measured `at_risk_summary` assign. Reads live
-  # dir availability (mirrors the watcher widget) and the TTL config.
-  defp overview_at_risk(assigns) do
-    summarize_at_risk(
-      assigns.at_risk_summary,
-      Availability.dir_status(),
-      DateTime.utc_now(),
-      Config.get(:file_absence_ttl_days) || 30
-    )
   end
 
   # --- Playback State ---
