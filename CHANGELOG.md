@@ -4,6 +4,15 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.79.3 — 2026-06-07
+
+### Improved
+
+**The Updates card now shows when the next check will happen.** Settings →
+System tells you how often Media Centaur checks for updates and, roughly, when
+the next check is due (for example, "every 6 hours — next check in about 2
+hours"), or that automatic checks are off.
+
 ## v0.79.2 — 2026-06-07
 
 ### Improved
