@@ -4,6 +4,14 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.79.1 — 2026-06-07
+
+### Improved
+
+**Tidied the update-frequency setting.** The "check every … minutes" field in
+Settings → System → Updates now reads as a single plain sentence instead of an
+all-caps label, matching the rest of the card.
+
 ## v0.79.0 — 2026-06-07
 
 ### New
