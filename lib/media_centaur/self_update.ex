@@ -97,6 +97,18 @@ defmodule MediaCentaur.SelfUpdate do
   end
 
   @doc """
+  Last-known release classification and release map, read from the hot cache
+  with **no side effects** — never triggers a check (unlike `view_status/0`).
+
+  Returns `{:idle, nil}` when nothing has been observed yet. Used by passive
+  surfaces like the Status board's Updates widget that should display the
+  current state without provoking a network poll.
+  """
+  @spec last_known_status() ::
+          {UpdateChecker.classification() | :idle, map() | nil}
+  def last_known_status, do: last_known()
+
+  @doc """
   Timestamp of the last successful release check, or `:none` if no check
   has ever succeeded. Used by the Settings UI for the "Last checked …" label.
   """

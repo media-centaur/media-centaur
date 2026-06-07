@@ -88,7 +88,8 @@ config :media_centaur, :health_activity_widgets, %{
   watcher: {MediaCentaurWeb.ActivityWidgetComponents, :watcher_widget},
   pipeline: {MediaCentaurWeb.ActivityWidgetComponents, :pipeline_widget},
   tmdb: {MediaCentaurWeb.ActivityWidgetComponents, :tmdb_widget},
-  playback: {MediaCentaurWeb.ActivityWidgetComponents, :playback_widget}
+  playback: {MediaCentaurWeb.ActivityWidgetComponents, :playback_widget},
+  self_update: {MediaCentaurWeb.ActivityWidgetComponents, :self_update_widget}
 }
 
 config :media_centaur,

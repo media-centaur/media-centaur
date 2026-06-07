@@ -14,7 +14,8 @@ defmodule MediaCentaurWeb.StatusLive do
   import MediaCentaurWeb.StatusHelpers
   import MediaCentaurWeb.HealthComponents
 
-  alias MediaCentaur.{Config, ErrorReports, Playback, Storage}
+  alias MediaCentaur.{Config, ErrorReports, Playback, SelfUpdate, Storage}
+  alias MediaCentaur.Version
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
   alias MediaCentaurWeb.StatusLive.HealthBoard
   alias MediaCentaur.Pipeline.Stats
@@ -32,6 +33,8 @@ defmodule MediaCentaurWeb.StatusLive do
         Watcher.Supervisor.subscribe()
         Playback.subscribe()
         ErrorReports.subscribe()
+        SelfUpdate.subscribe()
+        SelfUpdate.subscribe_progress()
 
         # Visiting /status marks auto-detected incidents as seen, clearing
         # the discovery badge on the Status nav item. The web layer owns
@@ -62,6 +65,7 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(retry_status: fetch_retry_status())
         |> assign(playback: build_playback_state())
         |> assign(diagnostics_unseen: 0)
+        |> assign_self_update()
         |> start_async_storage()
         |> start_async_dir_health()
       else
@@ -96,6 +100,27 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(show_report_modal: false)
     |> assign(report_payload: nil)
     |> assign(report_snapshot: nil)
+    |> assign(self_update_status: :idle)
+    |> assign(self_update_release: nil)
+    |> assign(self_update_last_check_at: :none)
+    |> assign(self_update_apply_phase: nil)
+    |> assign(self_update_apply_progress: nil)
+  end
+
+  # Snapshot of the self-update subsystem for the Updates Activity widget,
+  # read with no side effects. `last_check_at` (a Settings read) is captured
+  # into assigns here so `activity_bundle/1` stays free of DB queries on the
+  # render path (ADR-012); it refreshes on `{:check_complete, …}`.
+  defp assign_self_update(socket) do
+    {status, release} = SelfUpdate.last_known_status()
+    %{phase: phase} = SelfUpdate.current_status()
+
+    assign(socket,
+      self_update_status: status,
+      self_update_release: release,
+      self_update_last_check_at: SelfUpdate.last_check_at(),
+      self_update_apply_phase: if(phase != :idle, do: phase)
+    )
   end
 
   # Keeps the board view-models in sync with the current `error_buckets`.
@@ -173,7 +198,18 @@ defmodule MediaCentaurWeb.StatusLive do
       rate_limiter: assigns.rate_limiter,
       config: assigns.config,
       # playback
-      playback: assigns.playback
+      playback: assigns.playback,
+      # self_update — assigns + persistent_term (Config) + utc_now only, no DB
+      version: Version.current_version(),
+      status: assigns.self_update_status,
+      latest_release: assigns.self_update_release,
+      last_check_at: assigns.self_update_last_check_at,
+      now: DateTime.utc_now(),
+      check_enabled?: Config.get(:update_check_enabled) == true,
+      interval_minutes: Config.update_check_interval_minutes(),
+      auto_install?: Config.get(:auto_update_enabled) == true,
+      apply_phase: assigns.self_update_apply_phase,
+      apply_progress: assigns.self_update_apply_progress
     }
   end
 
@@ -322,6 +358,38 @@ defmodule MediaCentaurWeb.StatusLive do
       end
 
     {:noreply, socket}
+  end
+
+  # --- Self-update subsystem (Updates widget) ---
+
+  def handle_info({:check_started}, socket) do
+    {:noreply, assign(socket, self_update_status: :checking)}
+  end
+
+  def handle_info({:check_complete, {classification, release}}, socket)
+      when classification in [:update_available, :up_to_date, :ahead_of_release] do
+    {:noreply,
+     assign(socket,
+       self_update_status: classification,
+       self_update_release: release,
+       self_update_last_check_at: SelfUpdate.last_check_at()
+     )}
+  end
+
+  def handle_info({:check_complete, {:error, reason}}, socket) do
+    {:noreply, assign(socket, self_update_status: {:error, reason})}
+  end
+
+  def handle_info({:progress, phase, pct}, socket) do
+    {:noreply, assign(socket, self_update_apply_phase: phase, self_update_apply_progress: pct)}
+  end
+
+  def handle_info({:apply_failed, _reason}, socket) do
+    {:noreply, assign(socket, self_update_apply_phase: :failed)}
+  end
+
+  def handle_info({:apply_cancelled}, socket) do
+    {:noreply, assign(socket, self_update_apply_phase: nil, self_update_apply_progress: nil)}
   end
 
   def handle_info(_msg, socket) do

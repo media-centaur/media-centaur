@@ -3302,11 +3302,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     """
   end
 
-  defp update_tone_class(:neutral), do: "text-base-content/60"
-  defp update_tone_class(:success), do: "text-success"
-  defp update_tone_class(:info), do: "text-info"
-  defp update_tone_class(:warning), do: "text-warning"
-  defp update_tone_class(:error), do: "text-error"
+  defp update_tone_class(tone), do: SystemSection.tone_class(tone)
 
   # The self-update reboot kills the BEAM, so the disconnect toast that
   # follows is rendered entirely client-side — by then there is no server
