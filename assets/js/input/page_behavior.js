@@ -22,16 +22,23 @@ import { createReviewBehavior } from "./review_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
 import { createDownloadBehavior } from "./download_behavior"
 import { createWatchHistoryBehavior } from "./watch_history_behavior"
+import { createUpcomingBehavior } from "./upcoming_behavior"
 import { createHomeBehavior, homeDom } from "./home_behavior"
+import { withWipNotice } from "./wip_notice"
 
+// Pages still mid-redesign carry the "UI overhaul in progress" notice via
+// withWipNotice (see wip_notice.js). The set of wrapped entries below is the
+// single source of truth for which pages show it; unwrap an entry once its
+// in-page navigation is finished.
 const BEHAVIOR_REGISTRY = {
   home: () => createHomeBehavior(homeDom),
-  status: () => createStatusBehavior(),
+  status: () => withWipNotice(createStatusBehavior()),
   library: () => createLibraryBehavior(libraryDom),
   review: () => createReviewBehavior(),
   settings: () => createSettingsBehavior(),
-  download: () => createDownloadBehavior(),
-  "watch-history": () => createWatchHistoryBehavior(),
+  download: () => withWipNotice(createDownloadBehavior()),
+  "watch-history": () => withWipNotice(createWatchHistoryBehavior()),
+  upcoming: () => withWipNotice(createUpcomingBehavior()),
 }
 
 /**
