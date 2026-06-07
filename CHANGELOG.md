@@ -4,6 +4,15 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.80.2 — 2026-06-07
+
+### Fixed
+
+**"Check for updates" no longer gets stuck on "Checking…".** When you checked
+for updates manually — or simply opened Settings — the card could stay on
+"Checking…" indefinitely even though the check had already finished. It now
+always shows the result: up to date, an available update, or a clear error.
+
 ## v0.80.1 — 2026-06-07
 
 ### New
