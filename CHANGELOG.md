@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.82.1 — 2026-06-07
+
+### Improved
+
+**The "Your library" overview now lives inside the Library tile on the Status
+page.** Instead of sitting at the top of the page, the library summary — counts
+and size, recently added, pending work, completeness gaps, and storage outlook —
+now appears when you select **Library** in the System Health board, fleshing out
+that subsystem's panel alongside its technical logs.
+
 ## v0.82.0 — 2026-06-07
 
 ### New
