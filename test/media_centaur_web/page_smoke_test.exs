@@ -49,6 +49,20 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
+  # Settings is a multi-section LiveView; each `?section=<id>` is effectively a
+  # zone with its own render branch (the bare `/settings` smoke above only
+  # exercises the default section). Mount every section so a section-specific
+  # render crash — e.g. the gated Updates card, which renders nothing in the
+  # default System view — surfaces here instead of in a user's browser. Keep in
+  # sync with `MediaCentaurWeb.SettingsLive` @sections.
+  for section <- ~w(system updates services preferences controls library tmdb
+                    acquisition pipeline playback language release_tracking danger) do
+    test "settings section #{section} renders without crashing", %{conn: conn} do
+      assert {:ok, _view, html} = live_async!(conn, ~p"/settings?section=#{unquote(section)}")
+      assert is_binary(html)
+    end
+  end
+
   # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
   defp record_present(_file), do: :ok
 
