@@ -4,6 +4,25 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.79.0 — 2026-06-07
+
+### New
+
+**Media Centaur can now install updates on its own.** Turn on *Install updates
+automatically* in Settings → System → Updates and new versions are downloaded and
+installed without you lifting a finger. If something is playing when an update is
+found, it waits until playback ends — your session is never interrupted by a
+restart. It's off by default, so you stay in control unless you opt in.
+
+### Improved
+
+**You can choose how often Media Centaur checks for updates.** Settings → System →
+Updates now lets you set how frequently the background check runs, or switch it off
+entirely and only check when you press *Check for updates*. The card also shows
+when it last checked. Checks use GitHub's public release feed, which has an hourly
+limit per network, so the minimum is every 15 minutes — plenty, since new releases
+are infrequent.
+
 ## v0.78.4 — 2026-06-06
 
 ### Improved
