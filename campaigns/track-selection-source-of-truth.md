@@ -180,8 +180,8 @@ moment before enforcement turns it off — see Risks.
 
 ## Interim workaround (already works, no code)
 
-A per-title override is the escape hatch *today*: while playing The
-Wire, turn subtitles off once — `OverrideCapture` persists
+A per-title override is the escape hatch *today*: while playing Sample
+Show, turn subtitles off once — `OverrideCapture` persists
 `subtitles_off = true` for the series
 (`override_capture.ex` `subtitles_off_override/2`), and the next launch
 applies `--sid=no` (`build_disable_subs/2` →
