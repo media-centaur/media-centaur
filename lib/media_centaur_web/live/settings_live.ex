@@ -1700,23 +1700,28 @@ defmodule MediaCentaurWeb.SettingsLive do
               event="toggle_update_check"
             />
             <div :if={@update_check_enabled} class="glass-inset rounded-lg p-3.5 space-y-3">
-              <form phx-submit="save_update_interval" class="flex items-end gap-3">
-                <div>
-                  <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-                    Check every (minutes)
-                  </label>
-                  <input
-                    type="number"
-                    name="interval_minutes"
-                    value={@update_check_interval_minutes}
-                    min={@update_check_interval_floor}
-                    step="1"
-                    class="input input-bordered input-sm w-28 font-mono text-sm"
-                    data-nav-item
-                    tabindex="0"
-                  />
-                </div>
-                <.button variant="neutral" size="sm" type="submit" data-nav-item tabindex="0">
+              <form phx-submit="save_update_interval" class="flex items-center gap-2.5 text-sm">
+                <label for="update-check-interval" class="text-base-content/70">Check every</label>
+                <input
+                  id="update-check-interval"
+                  type="number"
+                  name="interval_minutes"
+                  value={@update_check_interval_minutes}
+                  min={@update_check_interval_floor}
+                  step="1"
+                  class="input input-bordered input-sm w-20 font-mono text-sm"
+                  data-nav-item
+                  tabindex="0"
+                />
+                <span class="text-base-content/70">minutes</span>
+                <.button
+                  variant="neutral"
+                  size="sm"
+                  type="submit"
+                  class="ml-1"
+                  data-nav-item
+                  tabindex="0"
+                >
                   Save
                 </.button>
               </form>
