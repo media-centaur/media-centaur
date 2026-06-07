@@ -252,6 +252,36 @@ defmodule MediaCentaur.ErrorReports.Store do
   end
 
   @doc """
+  Permanently deletes the incident grouped under `fingerprint`, along with all of
+  its diagnostic events.
+
+  This is the durable half of *dismiss*: the user asked for the incident gone, so
+  it is purged rather than marked `:resolved`. A merely-resolved row reloads into
+  the cache on the next boot rebuild (`list_incidents/1` is not status-filtered) —
+  which is exactly the "dismissed incidents come back" complaint. Deleting the
+  evidence too keeps a future recurrence from resurfacing stale samples.
+
+  Idempotent — a no-op when nothing is grouped under the fingerprint.
+  """
+  @spec delete_incident_by_fingerprint(String.t()) :: :ok
+  def delete_incident_by_fingerprint(fingerprint) when is_binary(fingerprint) do
+    {:ok, :purged} =
+      Repo.transact(fn ->
+        DiagnosticEvent
+        |> where([event], event.fingerprint == ^fingerprint)
+        |> Repo.delete_all()
+
+        Incident
+        |> where([incident], incident.fingerprint == ^fingerprint)
+        |> Repo.delete_all()
+
+        {:ok, :purged}
+      end)
+
+    :ok
+  end
+
+  @doc """
   Sets an incident's lifecycle status. Resolving stamps `resolved_at`; moving
   back to `:open`/`:acknowledged` clears it.
   """

@@ -137,6 +137,39 @@ defmodule MediaCentaur.ErrorReports.StoreTest do
     end
   end
 
+  describe "delete_incident_by_fingerprint/1" do
+    test "removes the incident and all of its diagnostic events" do
+      fingerprint = "fp_purge"
+      {:ok, _} = Store.upsert_log_incident(build_log_incident_attrs(fingerprint: fingerprint))
+      {:ok, _} = Store.insert_event(build_diagnostic_event_attrs(fingerprint: fingerprint))
+      {:ok, _} = Store.insert_event(build_diagnostic_event_attrs(fingerprint: fingerprint))
+
+      assert Store.get_incident_by_fingerprint(fingerprint)
+      assert length(Store.list_recent_events(fingerprint)) == 2
+
+      assert :ok = Store.delete_incident_by_fingerprint(fingerprint)
+
+      assert Store.get_incident_by_fingerprint(fingerprint) == nil
+      assert Store.list_recent_events(fingerprint) == []
+    end
+
+    test "is a no-op for an unknown fingerprint" do
+      assert :ok = Store.delete_incident_by_fingerprint("fp_absent")
+    end
+
+    test "leaves other fingerprints untouched" do
+      {:ok, _} = Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_keep"))
+      {:ok, _} = Store.insert_event(build_diagnostic_event_attrs(fingerprint: "fp_keep"))
+      {:ok, _} = Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_drop"))
+
+      assert :ok = Store.delete_incident_by_fingerprint("fp_drop")
+
+      assert Store.get_incident_by_fingerprint("fp_keep")
+      assert length(Store.list_recent_events("fp_keep")) == 1
+      assert Store.get_incident_by_fingerprint("fp_drop") == nil
+    end
+  end
+
   describe "list_incidents/1" do
     test "filters by status and orders by last_seen descending" do
       old = DateTime.add(DateTime.utc_now(), -120, :second)

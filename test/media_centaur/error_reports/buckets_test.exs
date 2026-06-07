@@ -165,7 +165,7 @@ defmodule MediaCentaur.ErrorReports.BucketsTest do
   end
 
   describe "dismiss" do
-    test "resolves the durable incident, evicts the bucket, and broadcasts the new list" do
+    test "deletes the durable incident, evicts the bucket, and broadcasts the new list" do
       message = "dismiss me #{uniq()}"
       fingerprint = fingerprint_of(:tmdb, message)
 
@@ -177,10 +177,30 @@ defmodule MediaCentaur.ErrorReports.BucketsTest do
       :ok = Buckets.dismiss(:buckets_test, [fingerprint])
 
       assert Buckets.get_bucket(:buckets_test, fingerprint) == nil
-      assert %{status: :resolved} = Store.get_incident_by_fingerprint(fingerprint)
+      # Dismiss purges the incident from the store — it does not linger as a
+      # `:resolved` row that would reappear on the next cache rebuild.
+      assert Store.get_incident_by_fingerprint(fingerprint) == nil
 
       assert_receive {:buckets_changed, buckets}, 1_500
       refute Enum.any?(buckets, &(&1.fingerprint == fingerprint))
+    end
+
+    test "a dismissed incident does not reappear when the cache is rebuilt" do
+      message = "stay gone #{uniq()}"
+      fingerprint = fingerprint_of(:pipeline, message)
+
+      Buckets.ingest(:buckets_test, entry(component: :pipeline, message: message))
+      assert %Bucket{} = Buckets.get_bucket(:buckets_test, fingerprint)
+
+      :ok = Buckets.dismiss(:buckets_test, [fingerprint])
+
+      # A fresh Buckets rebuilds its cache from the durable store on boot. The
+      # dismissed incident is gone from the store, so it must not surface again.
+      start_supervised!(
+        Supervisor.child_spec({Buckets, name: :buckets_dismiss_boot}, id: :buckets_dismiss_boot)
+      )
+
+      assert Buckets.get_bucket(:buckets_dismiss_boot, fingerprint) == nil
     end
 
     test "is a no-op for a fingerprint that isn't cached" do
