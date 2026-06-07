@@ -131,10 +131,41 @@ defmodule MediaCentaur.SelfUpdateTest do
       assert Storage.get_last_check_at() == :none
     end
 
-    test "kicks a forced background check and reports :checking when the cache is stale" do
+    test "is a pure read — never contacts GitHub, even when the cache is stale" do
+      # view_status/0 no longer triggers a check; the caller owns the trigger
+      # (refresh_due?/0 + run_check/0).
+      UpdateChecker.clear_cache()
+
+      assert {:idle, nil} = SelfUpdate.view_status()
+      assert Storage.get_last_check_at() == :none
+    end
+  end
+
+  describe "refresh_due?/0" do
+    test "false off the prod release channel (dev/test never poll)" do
+      UpdateChecker.clear_cache()
+      refute SelfUpdate.refresh_due?()
+    end
+
+    test "true on the prod channel when checks are enabled and the cache is stale" do
       Application.put_env(:media_centaur, :environment, :prod)
       on_exit(fn -> Application.put_env(:media_centaur, :environment, :test) end)
+      UpdateChecker.clear_cache()
 
+      assert SelfUpdate.refresh_due?()
+    end
+
+    test "false when the hot cache is still fresh" do
+      Application.put_env(:media_centaur, :environment, :prod)
+      on_exit(fn -> Application.put_env(:media_centaur, :environment, :test) end)
+      UpdateChecker.cache_result({:ok, %{version: "1.0.0", tag: "v1.0.0"}})
+
+      refute SelfUpdate.refresh_due?()
+    end
+  end
+
+  describe "run_check/0" do
+    test "fetches, records, broadcasts, and returns the success outcome" do
       Req.Test.stub(:github_releases_facade, fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
@@ -146,19 +177,18 @@ defmodule MediaCentaur.SelfUpdateTest do
 
       :ok = SelfUpdate.subscribe()
 
-      assert {:checking, _release} = SelfUpdate.view_status()
-      # The check runs through the broadcasting job path so AutoApply and any
-      # open LiveView react uniformly.
+      assert {:update_available, %{version: "99.0.0"}} = SelfUpdate.run_check()
+      assert_receive {:check_started}
       assert_receive {:check_complete, {:update_available, %{version: "99.0.0"}}}
+      assert {:ok, %DateTime{}} = Storage.get_last_check_at()
     end
 
-    test "stays off the network on the non-prod release channel when the cache is stale" do
-      # enabled?() is false in dev/test — no check is kicked, and the card
-      # falls back to whatever the hot cache last held (nothing here).
-      UpdateChecker.clear_cache()
+    test "returns and broadcasts an error outcome on failure" do
+      # The default stub returns 404, which maps to :not_found.
+      :ok = SelfUpdate.subscribe()
 
-      assert {:idle, nil} = SelfUpdate.view_status()
-      assert Storage.get_last_check_at() == :none
+      assert {:error, :not_found} = SelfUpdate.run_check()
+      assert_receive {:check_complete, {:error, :not_found}}
     end
   end
 end

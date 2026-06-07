@@ -23,20 +23,18 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
     # boot enqueue racing a cron tick; the real interval lives in the gate.
     unique: [period: 120]
 
-  require MediaCentaur.Log, as: Log
-
   alias MediaCentaur.Config
-  alias MediaCentaur.SelfUpdate.{Health, Storage, UpdateChecker}
-  alias MediaCentaur.Topics
+  alias MediaCentaur.SelfUpdate
+  alias MediaCentaur.SelfUpdate.Storage
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args}) do
     forced? = Map.get(args, "force", false) == true
 
-    if MediaCentaur.SelfUpdate.enabled?() and check_due?(forced?) do
-      broadcast({:check_started})
-      outcome = run_check()
-      broadcast({:check_complete, outcome})
+    if SelfUpdate.enabled?() and check_due?(forced?) do
+      # The check itself (fetch + record + broadcast) lives in the context, so
+      # the scheduled path and the LiveView's manual check share one impl.
+      SelfUpdate.run_check()
     end
 
     :ok
@@ -102,26 +100,5 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
   @spec enqueue_after(pos_integer()) :: {:ok, Oban.Job.t()} | {:error, term()}
   def enqueue_after(delay_seconds) when delay_seconds > 0 do
     Oban.insert(new(%{}, schedule_in: delay_seconds))
-  end
-
-  defp run_check do
-    case Storage.record_check_result(UpdateChecker.latest_release()) do
-      {:ok, classification, release} ->
-        Health.record_check_success()
-        {classification, release}
-
-      {:error, reason} = error ->
-        Health.record_check_failure()
-        Log.warning(:system, "update check failed: #{inspect(reason)}")
-        error
-    end
-  end
-
-  defp broadcast(message) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
-      Topics.self_update_status(),
-      message
-    )
   end
 end

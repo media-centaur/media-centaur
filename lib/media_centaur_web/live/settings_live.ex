@@ -273,12 +273,12 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp maybe_auto_check_updates(socket, "system") do
     if connected?(socket) do
-      # All cache-read, version classification, and manual-only policy lives
-      # in the context — the LiveView just renders the snapshot. A `:checking`
-      # status means a background check was kicked; its result arrives via the
-      # `{:check_complete, …}` broadcast this LiveView already subscribes to.
+      # Cache-read + classification policy live in the context; the view just
+      # renders the snapshot, and owns the trigger so it can guarantee the
+      # "Checking…" state resolves (start_async → handle_async).
       {status, release} = SelfUpdate.view_status()
-      assign(socket, update_status: status, latest_release: release)
+      socket = assign(socket, update_status: status, latest_release: release)
+      if SelfUpdate.refresh_due?(), do: start_update_check(socket), else: socket
     else
       socket
     end
@@ -286,14 +286,21 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp maybe_auto_check_updates(socket, _section), do: socket
 
+  # Runs a check in a LiveView-owned task so the UI is *guaranteed* to resolve
+  # via `handle_async/3`, independent of the `{:check_complete, …}` broadcast
+  # that feeds AutoApply and other views. A worker→view PubSub gap previously
+  # left the card stuck on "Checking…" with the check having silently succeeded.
+  defp start_update_check(socket) do
+    socket
+    |> start_async(:update_check, &SelfUpdate.run_check/0)
+    |> assign(update_status: :checking)
+  end
+
   # --- Events ---
 
   @impl true
   def handle_event("check_updates", _params, socket) do
-    # Trigger a forced check through the context (one path for manual and
-    # scheduled checks); the result lands via `{:check_complete, …}`.
-    _ = SelfUpdate.check_now()
-    {:noreply, assign(socket, update_status: :checking)}
+    {:noreply, start_update_check(socket)}
   end
 
   def handle_event("apply_update", _params, socket) do
@@ -1271,7 +1278,33 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   # --- Async results (owned via start_async/3, ADR-049) ---
 
+  # Update check — guaranteed UI resolution. `{:error, reason}` must precede the
+  # `{classification, release}` clause: the 2-tuple `{:error, reason}` would
+  # otherwise bind as `classification = :error, release = reason`.
   @impl true
+  def handle_async(:update_check, {:ok, {:error, reason}}, socket) do
+    {:noreply,
+     socket
+     |> assign(update_status: {:error, reason}, latest_release: nil)
+     |> put_update_automation_assigns()}
+  end
+
+  def handle_async(:update_check, {:ok, {classification, release}}, socket) do
+    {:noreply,
+     socket
+     |> assign(update_status: classification, latest_release: release)
+     |> put_update_automation_assigns()}
+  end
+
+  def handle_async(:update_check, {:exit, reason}, socket) do
+    Log.warning(:settings, "update check task exited — #{inspect(reason)}")
+
+    {:noreply,
+     socket
+     |> assign(update_status: {:error, :check_crashed})
+     |> put_update_automation_assigns()}
+  end
+
   def handle_async(:tmdb_test_result, {:ok, status}, socket) do
     info = save_test_result(:tmdb, status)
     {:noreply, assign(socket, tmdb_testing: false, tmdb_test: info)}

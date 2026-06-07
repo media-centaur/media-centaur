@@ -68,7 +68,13 @@ defmodule MediaCentaur.SelfUpdate.UpdateChecker do
       headers: [
         {"accept", "application/vnd.github+json"},
         {"user-agent", "media-centaur"}
-      ]
+      ],
+      # Bound the request so a stalled GitHub connection can't hang the caller
+      # (the LiveView-owned check task or the Oban worker) indefinitely.
+      connect_options: [timeout: 10_000],
+      receive_timeout: 10_000,
+      retry: :transient,
+      max_retries: 2
     )
   end
 

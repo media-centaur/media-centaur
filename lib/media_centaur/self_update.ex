@@ -27,8 +27,10 @@ defmodule MediaCentaur.SelfUpdate do
   as a follow-up.
   """
 
+  require MediaCentaur.Log, as: Log
+
   alias MediaCentaur.Platform.Autostart
-  alias MediaCentaur.SelfUpdate.{CheckerJob, Storage, UpdateChecker, Updater}
+  alias MediaCentaur.SelfUpdate.{CheckerJob, Health, Storage, UpdateChecker, Updater}
   alias MediaCentaur.Topics
 
   @boot_check_delay_seconds 30
@@ -63,37 +65,71 @@ defmodule MediaCentaur.SelfUpdate do
   def check_now, do: CheckerJob.enqueue_now()
 
   @doc """
-  UI snapshot for the Updates card: the last-known release classification
-  and release map, read without forcing a network round-trip.
+  UI snapshot for the Updates card: the last-known release classification and
+  release map, read from the hot cache with **no side effects** — it never
+  triggers a network round-trip. A `:stale` cache falls back to the last-known
+  state (or `{:idle, nil}` when nothing has been observed).
 
-  When the hot cache has gone stale and background checks are enabled on
-  the prod release channel, a forced check is kicked in the background and
-  `:checking` is returned; its result arrives as `{:check_complete, …}` on
-  `self_update:status` (subscribe via `subscribe/0`). Off the prod channel,
-  or with background checks disabled, the last-known state is returned and
-  the manual button stays the only network trigger.
-
-  This is the seam that keeps the Settings LiveView a thin UI layer — all
-  the cache-read, version classification, and manual-only policy lives here.
+  Pair with `refresh_due?/0` to decide whether the caller should kick a fresh
+  check. The trigger and its guaranteed UI resolution live in the view (via
+  `start_async` + `run_check/0`); the classification policy lives here.
   """
   @spec view_status() ::
-          {UpdateChecker.classification() | :checking | :idle | {:error, term()}, map() | nil}
+          {UpdateChecker.classification() | :idle | {:error, term()}, map() | nil}
   def view_status do
     case UpdateChecker.cached_latest_release() do
-      {:fresh, {:ok, release}} ->
-        {classify(release), release}
-
-      {:fresh, {:error, reason}} ->
-        {{:error, reason}, last_known_release()}
-
-      :stale ->
-        if enabled?() and MediaCentaur.Config.get(:update_check_enabled) do
-          _ = check_now()
-          {:checking, last_known_release()}
-        else
-          last_known()
-        end
+      {:fresh, {:ok, release}} -> {classify(release), release}
+      {:fresh, {:error, reason}} -> {{:error, reason}, last_known_release()}
+      :stale -> last_known()
     end
+  end
+
+  @doc """
+  True when a fresh check is warranted on view: the hot cache is stale,
+  background checks are enabled, and this is the prod release channel (dev and
+  test never poll). The caller runs the check itself via `run_check/0`.
+  """
+  @spec refresh_due?() :: boolean()
+  def refresh_due? do
+    enabled?() and MediaCentaur.Config.get(:update_check_enabled) == true and
+      UpdateChecker.cached_latest_release() == :stale
+  end
+
+  @doc """
+  Runs an update check **synchronously** and returns its outcome —
+  `{classification, release}` or `{:error, reason}`. Fetches the latest release,
+  records it across the durable store, the hot cache, and the health projection,
+  then broadcasts `{:check_started}` and `{:check_complete, outcome}` on
+  `self_update:status` so AutoApply and passive views react.
+
+  The single check implementation: the scheduled `CheckerJob` calls it, and the
+  Settings LiveView wraps it in `start_async/3` so a manual check resolves its
+  UI through `handle_async` — a guaranteed completion path that does not hinge
+  on the broadcast being delivered to that view.
+  """
+  @spec run_check() :: {UpdateChecker.classification(), map()} | {:error, term()}
+  def run_check do
+    broadcast({:check_started})
+    outcome = do_run_check()
+    broadcast({:check_complete, outcome})
+    outcome
+  end
+
+  defp do_run_check do
+    case Storage.record_check_result(UpdateChecker.latest_release()) do
+      {:ok, classification, release} ->
+        Health.record_check_success()
+        {classification, release}
+
+      {:error, reason} = error ->
+        Health.record_check_failure()
+        Log.warning(:system, "update check failed: #{inspect(reason)}")
+        error
+    end
+  end
+
+  defp broadcast(message) do
+    Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.self_update_status(), message)
   end
 
   @doc """
