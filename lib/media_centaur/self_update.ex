@@ -63,6 +63,13 @@ defmodule MediaCentaur.SelfUpdate do
   def check_now, do: CheckerJob.enqueue_now()
 
   @doc """
+  Timestamp of the last successful release check, or `:none` if no check
+  has ever succeeded. Used by the Settings UI for the "Last checked …" label.
+  """
+  @spec last_check_at() :: {:ok, DateTime.t()} | :none
+  def last_check_at, do: Storage.get_last_check_at()
+
+  @doc """
   Returns the last known release — either freshly cached in
   `:persistent_term` or hydrated from Settings.Entry at boot — or
   `:none` when nothing has been observed yet.

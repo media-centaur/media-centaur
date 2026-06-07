@@ -85,6 +85,7 @@ defmodule MediaCentaur.Application do
           MediaCentaur.Library.AbsenceSweeper,
           MediaCentaur.Library.FileEventHandler,
           MediaCentaur.SelfUpdate.Updater,
+          MediaCentaur.SelfUpdate.AutoApply,
           MediaCentaur.Search.SearchSession
         ] ++
         pubsub_listeners(Application.get_env(:media_centaur, :environment)) ++
