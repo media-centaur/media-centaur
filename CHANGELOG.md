@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.80.3 — 2026-06-07
+
+### Fixed
+
+**Dismissing an issue on the Status page now removes it for good.** Previously a
+dismissed issue could quietly come back — most noticeably after a restart —
+because it was only marked resolved rather than deleted. Dismissing now clears
+the issue and its recorded history from Media Centaur entirely. (If the same
+fault genuinely happens again, it'll surface as a fresh issue, so you're never
+left in the dark about a live problem.)
+
 ## v0.80.2 — 2026-06-07
 
 ### Fixed
