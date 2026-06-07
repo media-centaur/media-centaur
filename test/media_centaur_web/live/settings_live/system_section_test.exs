@@ -62,6 +62,57 @@ defmodule MediaCentaurWeb.Live.SettingsLive.SystemSectionTest do
     end
   end
 
+  describe "interval_phrase/1" do
+    test "renders whole hours" do
+      assert SystemSection.interval_phrase(60) == "1 hour"
+      assert SystemSection.interval_phrase(360) == "6 hours"
+    end
+
+    test "renders minutes when not a whole hour" do
+      assert SystemSection.interval_phrase(15) == "15 minutes"
+      assert SystemSection.interval_phrase(90) == "90 minutes"
+    end
+  end
+
+  describe "update_schedule_label/4" do
+    test "says checks are off when background checking is disabled" do
+      label = SystemSection.update_schedule_label(false, 360, :none, ~U[2026-06-07 12:00:00Z])
+      assert label =~ "off"
+    end
+
+    test "states the frequency and a loose next-check time" do
+      last = {:ok, ~U[2026-06-07 10:00:00Z]}
+      label = SystemSection.update_schedule_label(true, 360, last, ~U[2026-06-07 12:00:00Z])
+      assert label =~ "every 6 hours"
+      # last check 2h ago, 6h interval -> next ~4h away
+      assert label =~ "about 4 hours"
+    end
+
+    test "reports any moment now when a check is overdue" do
+      last = {:ok, ~U[2026-06-07 04:00:00Z]}
+      label = SystemSection.update_schedule_label(true, 360, last, ~U[2026-06-07 12:00:00Z])
+      assert label =~ "any moment now"
+    end
+
+    test "reports any moment now when no check has ever run" do
+      label = SystemSection.update_schedule_label(true, 360, :none, ~U[2026-06-07 12:00:00Z])
+      assert label =~ "any moment now"
+    end
+
+    test "uses a coarse 'less than an hour' bucket for sub-hour waits" do
+      last = {:ok, ~U[2026-06-07 11:55:00Z]}
+      label = SystemSection.update_schedule_label(true, 15, last, ~U[2026-06-07 12:00:00Z])
+      assert label =~ "every 15 minutes"
+      assert label =~ "less than an hour"
+    end
+
+    test "carries no seconds-granularity text" do
+      last = {:ok, ~U[2026-06-07 11:58:30Z]}
+      label = SystemSection.update_schedule_label(true, 360, last, ~U[2026-06-07 12:00:00Z])
+      refute label =~ "second"
+    end
+  end
+
   describe "update_status_label/2" do
     test "idle shows a neutral prompt" do
       assert SystemSection.update_status_label(:idle, nil) =~ "Check for updates"
