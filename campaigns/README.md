@@ -21,6 +21,16 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`update-subsystem-on-status.md`](update-subsystem-on-status.md) —
+  **planning.** Surface the self-update subsystem on the Status page's health
+  board: a new **Updates** tile that reports health like every other subsystem
+  (`:apply_failed` error, `:check_failing` / `:checks_stalled` warnings — "update
+  available" is never a fault) plus a drill-in **Activity widget** showing live
+  version / last+next check / classification / auto-install / apply progress.
+  Pull model — a small durable `update.*` health projection feeds a pure
+  `assess/0` polled by the existing incident evaluator. Scope is **observe +
+  faults**; controls and history stay deferred. Three phases; no code yet. Builds
+  on the v0.80.0 self-update fixes. Design settled 2026-06-07.
 * [`download-stack-control-plane.md`](download-stack-control-plane.md) —
   **planning.** Mature the download infrastructure (`prowlarr-stack`) from a
   one-shot installer into a **managed component with a control plane**, shipped
