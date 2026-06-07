@@ -3,10 +3,12 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
   Oban worker that polls the GitHub Releases API for the latest Media
   Centaur tag and persists the result.
 
-  Runs on a 6-hour cron and is also enqueued on app boot when the
-  persisted `last_check_at` is stale. Deduplicated within a 1-hour
-  window so rapid restarts and cron firings don't pile up duplicate
-  jobs.
+  Runs on a 15-minute cron (the rate-limit floor) and is also enqueued
+  on app boot when the persisted `last_check_at` is stale. The
+  user-facing interval is honoured by the `due_for_check?/5` gate, not
+  the cron — so the `unique` window only guards against a boot enqueue
+  racing a cron tick, and must stay *below* the cron interval or it
+  would silently cap the user's setting to its own period.
 
   The job broadcasts `{:check_complete, outcome}` on the
   `self_update:status` topic so LiveViews can react without polling.
@@ -14,7 +16,12 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
 
   use Oban.Worker,
     queue: :self_update,
-    unique: [period: 3600]
+    # Must stay below the 15-minute cron interval. A longer window (this
+    # was 3600s) deduplicates legitimate scheduled ticks and caps the
+    # user's check interval to its own period — the bug that made a
+    # 15-minute setting behave as roughly hourly. 2 minutes only guards a
+    # boot enqueue racing a cron tick; the real interval lives in the gate.
+    unique: [period: 120]
 
   require MediaCentaur.Log, as: Log
 
@@ -75,12 +82,16 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
   end
 
   @doc """
-  Enqueues an immediate check, bypassing the 1-hour unique window by
-  using `replace: [:scheduled]` so a manual "Check now" always wins.
+  Enqueues an immediate, **forced** check, bypassing the unique window via
+  `replace: [:scheduled]` so a manual "Check now" always wins. `force`
+  also bypasses the `due_for_check?/5` interval gate — a manual check must
+  contact GitHub even if a scheduled check ran moments ago — and routes
+  through the broadcasting job path so AutoApply and any open LiveView
+  react to the result uniformly.
   """
   @spec enqueue_now() :: {:ok, Oban.Job.t()} | {:error, term()}
   def enqueue_now do
-    Oban.insert(new(%{}, replace: [scheduled: [:scheduled_at, :args]]))
+    Oban.insert(new(%{"force" => true}, replace: [scheduled: [:scheduled_at, :args]]))
   end
 
   @doc """

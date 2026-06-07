@@ -3,6 +3,11 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
   Integration tests for the system content on Settings > Overview — version
   display, the auto-check-on-landing flow, the 5-minute cache, and the
   manual "Check for updates" button.
+
+  Update network activity only happens on the prod release channel
+  (`SelfUpdate.enabled?()`); dev/test rebuild from source and never poll or
+  self-update. These tests therefore run with the environment set to `:prod`
+  to exercise the real check flow.
   """
 
   use MediaCentaurWeb.ConnCase, async: false
@@ -37,24 +42,13 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
     # from a known empty state and can't be polluted by prior runs.
     UpdateChecker.clear_cache()
 
+    # Checks (scheduled, landing, and manual) only run on the prod release
+    # channel; flip the environment so the check flow under test actually
+    # executes. Restored on exit.
+    Application.put_env(:media_centaur, :environment, :prod)
+
     on_exit(fn ->
-      # Wait for in-flight TaskSupervisor children spawned by
-      # `start_update_check/1` to complete before the sandbox owner is
-      # checked back in. Without this, the Task's DB write to
-      # `Settings.find_or_create_entry!` races with sandbox teardown and
-      # raises `DBConnection.OwnershipError`. See flaky-tests.md #3.
-      MediaCentaur.TaskSupervisor
-      |> Task.Supervisor.children()
-      |> Enum.each(fn pid ->
-        ref = Process.monitor(pid)
-
-        receive do
-          {:DOWN, ^ref, _, _, _} -> :ok
-        after
-          2_000 -> :ok
-        end
-      end)
-
+      Application.put_env(:media_centaur, :environment, :test)
       :persistent_term.erase({UpdateChecker, :client})
       UpdateChecker.clear_cache()
     end)

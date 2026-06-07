@@ -113,4 +113,52 @@ defmodule MediaCentaur.SelfUpdateTest do
       assert {:ok, ^release} = SelfUpdate.cached_release()
     end
   end
+
+  describe "view_status/0" do
+    test "returns the cached classification without contacting GitHub when fresh" do
+      release = %{
+        version: "99.0.0",
+        tag: "v99.0.0",
+        published_at: ~U[2099-01-01 00:00:00Z],
+        html_url: "https://github.com/media-centaur/media-centaur/releases/tag/v99.0.0",
+        body: ""
+      }
+
+      UpdateChecker.cache_result({:ok, release})
+
+      assert {:update_available, ^release} = SelfUpdate.view_status()
+      # A fresh cache is a pure read — no check is kicked.
+      assert Storage.get_last_check_at() == :none
+    end
+
+    test "kicks a forced background check and reports :checking when the cache is stale" do
+      Application.put_env(:media_centaur, :environment, :prod)
+      on_exit(fn -> Application.put_env(:media_centaur, :environment, :test) end)
+
+      Req.Test.stub(:github_releases_facade, fn conn ->
+        conn
+        |> Plug.Conn.put_resp_content_type("application/json")
+        |> Plug.Conn.send_resp(
+          200,
+          JSON.encode!(%{"tag_name" => "v99.0.0", "published_at" => "2099-01-01T00:00:00Z"})
+        )
+      end)
+
+      :ok = SelfUpdate.subscribe()
+
+      assert {:checking, _release} = SelfUpdate.view_status()
+      # The check runs through the broadcasting job path so AutoApply and any
+      # open LiveView react uniformly.
+      assert_receive {:check_complete, {:update_available, %{version: "99.0.0"}}}
+    end
+
+    test "stays off the network on the non-prod release channel when the cache is stale" do
+      # enabled?() is false in dev/test — no check is kicked, and the card
+      # falls back to whatever the hot cache last held (nothing here).
+      UpdateChecker.clear_cache()
+
+      assert {:idle, nil} = SelfUpdate.view_status()
+      assert Storage.get_last_check_at() == :none
+    end
+  end
 end

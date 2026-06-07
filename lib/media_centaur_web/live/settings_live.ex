@@ -14,7 +14,6 @@ defmodule MediaCentaurWeb.SettingsLive do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.{Capabilities, Config, SelfUpdate, Settings, Version}
-  alias MediaCentaur.SelfUpdate.UpdateChecker
 
   alias MediaCentaurWeb.Live.SettingsLive.{
     ConnectionTest,
@@ -230,7 +229,8 @@ defmodule MediaCentaurWeb.SettingsLive do
   # GenServer calls, image-health summary, systemd service-state probe,
   # connection-test reads, setup-banner probes) are all local, so there is
   # no traffic-scaling reason to defer them. Do not re-add a `connected?`
-  # gate. The networked update-check stays async — see `start_update_check/1`.
+  # gate. The networked update-check stays off the mount path — see
+  # `SelfUpdate.view_status/0`, which kicks a background check at most.
   defp ensure_loaded(socket) do
     if socket.assigns.loaded? do
       socket
@@ -273,26 +273,12 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp maybe_auto_check_updates(socket, "system") do
     if connected?(socket) do
-      case UpdateChecker.cached_latest_release() do
-        {:fresh, {:ok, release}} ->
-          status = UpdateChecker.compare(release, socket.assigns.app_version)
-          assign(socket, update_status: status, latest_release: release)
-
-        {:fresh, {:error, reason}} ->
-          # Preserve any hydrated `latest_release` so the card can keep
-          # showing the last-known release alongside the error status.
-          assign(socket, update_status: {:error, reason})
-
-        :stale ->
-          # Honour "manual only": when background checking is disabled we
-          # don't auto-poll on mount — the card keeps showing the last-known
-          # release and the manual button stays the only network trigger.
-          if Config.get(:update_check_enabled) do
-            start_update_check(socket)
-          else
-            socket
-          end
-      end
+      # All cache-read, version classification, and manual-only policy lives
+      # in the context — the LiveView just renders the snapshot. A `:checking`
+      # status means a background check was kicked; its result arrives via the
+      # `{:check_complete, …}` broadcast this LiveView already subscribes to.
+      {status, release} = SelfUpdate.view_status()
+      assign(socket, update_status: status, latest_release: release)
     else
       socket
     end
@@ -300,28 +286,14 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp maybe_auto_check_updates(socket, _section), do: socket
 
-  defp start_update_check(socket) do
-    socket =
-      start_async(socket, :update_check, fn ->
-        # Dual-write via SelfUpdate so Settings.Entry stays in sync with
-        # the in-memory cache. Without this, a manual check would refresh
-        # only the 5-min hot-path cache; on next boot the stale persisted
-        # row would hydrate back and the UI would regress to the old value.
-        result = UpdateChecker.latest_release()
-        _ = SelfUpdate.record_check_result(result)
-        result
-      end)
-
-    # Keep `latest_release` (hydrated from Storage or a previous fetch)
-    # visible while the new check runs — no "blanking" flash.
-    assign(socket, update_status: :checking)
-  end
-
   # --- Events ---
 
   @impl true
   def handle_event("check_updates", _params, socket) do
-    {:noreply, start_update_check(socket)}
+    # Trigger a forced check through the context (one path for manual and
+    # scheduled checks); the result lands via `{:check_complete, …}`.
+    _ = SelfUpdate.check_now()
+    {:noreply, assign(socket, update_status: :checking)}
   end
 
   def handle_event("apply_update", _params, socket) do
@@ -1313,21 +1285,6 @@ defmodule MediaCentaurWeb.SettingsLive do
   def handle_async(:download_client_test_result, {:ok, status}, socket) do
     info = save_test_result(:download_client, status)
     {:noreply, assign(socket, download_client_testing: false, download_client_test: info)}
-  end
-
-  def handle_async(:update_check, {:ok, {:ok, release}}, socket) do
-    status = UpdateChecker.compare(release, socket.assigns.app_version)
-
-    {:noreply,
-     socket
-     |> assign(update_status: status, latest_release: release)
-     |> put_update_automation_assigns()}
-  end
-
-  def handle_async(:update_check, {:ok, {:error, reason}}, socket) do
-    # Keep the last-known release visible on the card during a transient
-    # outage; the error surfaces via update_status.
-    {:noreply, assign(socket, update_status: {:error, reason})}
   end
 
   def handle_async(name, {:exit, reason}, socket) do

@@ -112,4 +112,40 @@ defmodule MediaCentaur.SelfUpdate.AutoApplyTest do
       refute_receive :applied, 200
     end
   end
+
+  describe "dev/test release channel (real env gate)" do
+    test "never self-installs in dev/test even when auto-update is enabled in config" do
+      # The environment is :test, so SelfUpdate.enabled?() is false. Even with
+      # the user's auto-update toggle ON, dev/test must never self-install —
+      # dev rebuilds from source. This uses the *real* `auto_update_armed?/0`
+      # (no injected `auto_enabled_fun`), so it locks the prod-channel gate.
+      set_config(:auto_update_enabled, true)
+      test_pid = self()
+
+      start_supervised!(
+        {AutoApply,
+         name: :"auto_apply_envgate_#{System.unique_integer([:positive])}",
+         apply_fun: fn -> send(test_pid, :applied) end}
+      )
+
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        Topics.self_update_status(),
+        {:check_complete, {:update_available, %{version: "9.9.9"}}}
+      )
+
+      refute_receive :applied, 300
+    end
+  end
+
+  defp set_config(key, value) do
+    config = :persistent_term.get({MediaCentaur.Config, :config})
+    original = Map.get(config, key)
+    :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, key, value))
+
+    on_exit(fn ->
+      current = :persistent_term.get({MediaCentaur.Config, :config})
+      :persistent_term.put({MediaCentaur.Config, :config}, Map.put(current, key, original))
+    end)
+  end
 end

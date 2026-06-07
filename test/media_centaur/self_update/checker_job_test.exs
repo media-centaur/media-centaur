@@ -186,6 +186,19 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
     end
   end
 
+  describe "enqueue_now/0" do
+    test "marks the job forced so a manual check ignores the interval gate" do
+      # A manual "Check for updates" must always contact GitHub *and* run
+      # through the broadcasting job path (so AutoApply and any open LiveView
+      # react uniformly). The interval gate would otherwise swallow a manual
+      # check that lands inside the last scheduled check's window.
+      Req.Test.allow(:github_releases_job, self(), self())
+
+      assert {:ok, %Oban.Job{} = job} = CheckerJob.enqueue_now()
+      assert job.args == %{"force" => true}
+    end
+  end
+
   defp set_config(key, value) do
     config = :persistent_term.get({MediaCentaur.Config, :config})
     original = Map.get(config, key)
