@@ -14,7 +14,9 @@ defmodule MediaCentaur.ParserTest do
   describe "movie — dot-separated filename" do
     test "simple title + year + quality tags" do
       result =
-        Parser.parse("/mnt/videos/Videos/Sample.Movie.Two.1991.BluRay.Remux.1080p.AVC.DTS-HD.MA.5.1-HiFi.mkv")
+        Parser.parse(
+          "/mnt/videos/Videos/Sample.Movie.Two.1991.BluRay.Remux.1080p.AVC.DTS-HD.MA.5.1-HiFi.mkv"
+        )
 
       assert result.title == "Sample Movie Two"
       assert result.year == 1991
@@ -34,9 +36,7 @@ defmodule MediaCentaur.ParserTest do
 
     test "Slay Foe Vol. 1 — number after word is part of title not year" do
       result =
-        Parser.parse(
-          "/mnt/videos/Videos/Slay.Foe.Vol.1.2003.4K.HDR.DV.2160p.BDRemux Ita Eng x265-NAHOM"
-        )
+        Parser.parse("/mnt/videos/Videos/Slay.Foe.Vol.1.2003.4K.HDR.DV.2160p.BDRemux Ita Eng x265-NAHOM")
 
       assert result.title == "Slay Foe Vol 1"
       assert result.year == 2003
@@ -87,7 +87,9 @@ defmodule MediaCentaur.ParserTest do
 
     test "Sample Movie One as directory name (no extension)" do
       result =
-        Parser.parse("/mnt/videos/Videos/Sample Movie One.1967.Criterion.1080p.BluRay.x265.HEVC.EAC3-SARTRE")
+        Parser.parse(
+          "/mnt/videos/Videos/Sample Movie One.1967.Criterion.1080p.BluRay.x265.HEVC.EAC3-SARTRE"
+        )
 
       assert result.title == "Sample Movie One"
       assert result.year == 1967
@@ -120,7 +122,9 @@ defmodule MediaCentaur.ParserTest do
 
     test "Sample Movie Twelve 2 — sequel number not confused for year" do
       result =
-        Parser.parse("/mnt/videos/Videos/Sample.Movie.Twelve.2.2024.4K.HDR.DV.2160p.WEBDL Ita Eng x265-NAHOM")
+        Parser.parse(
+          "/mnt/videos/Videos/Sample.Movie.Twelve.2.2024.4K.HDR.DV.2160p.WEBDL Ita Eng x265-NAHOM"
+        )
 
       assert result.title == "Sample Movie Twelve 2"
       assert result.year == 2024
@@ -262,7 +266,9 @@ defmodule MediaCentaur.ParserTest do
 
     test "year before SxxExx marker" do
       result =
-        Parser.parse("/mnt/videos/Videos/Sample Show Fourteen.2024.S01E06.2160p.WEB.H265-SuccessfulCrab[TGx]")
+        Parser.parse(
+          "/mnt/videos/Videos/Sample Show Fourteen.2024.S01E06.2160p.WEB.H265-SuccessfulCrab[TGx]"
+        )
 
       assert result.title == "Sample Show Fourteen"
       assert result.year == 2024
@@ -298,7 +304,9 @@ defmodule MediaCentaur.ParserTest do
 
     test "simple format no quality tags" do
       result =
-        Parser.parse("/mnt/videos/Videos/Sample Show Three Season 1 Mp4 1080p/Sample Show Three S01E01.mp4")
+        Parser.parse(
+          "/mnt/videos/Videos/Sample Show Three Season 1 Mp4 1080p/Sample Show Three S01E01.mp4"
+        )
 
       assert result.title == "Sample Show Three"
       assert result.season == 1
@@ -321,7 +329,9 @@ defmodule MediaCentaur.ParserTest do
 
     test "Sample Show Four dot-separated no ep title" do
       result =
-        Parser.parse("/mnt/videos/Videos/Sample Show Four.S05E04.Sample.Episode.How.You.Go.720p.H.264.mp4")
+        Parser.parse(
+          "/mnt/videos/Videos/Sample Show Four.S05E04.Sample.Episode.How.You.Go.720p.H.264.mp4"
+        )
 
       assert result.title == "Sample Show Four"
       assert result.season == 5
@@ -335,7 +345,9 @@ defmodule MediaCentaur.ParserTest do
 
   describe "tv — episode file inside named season directory" do
     test "Sample Show One: generic SxxExx filename inside Season N directory" do
-      result = Parser.parse("/mnt/videos/Videos/Sample Show One/Season 1/S01E01 - Sample Episode One.avi")
+      result =
+        Parser.parse("/mnt/videos/Videos/Sample Show One/Season 1/S01E01 - Sample Episode One.avi")
+
       assert result.title == "Sample Show One"
       assert result.season == 1
       assert result.episode == 1
@@ -345,7 +357,9 @@ defmodule MediaCentaur.ParserTest do
 
     test "Sample Show One season 3" do
       result =
-        Parser.parse("/mnt/videos/Videos/Sample Show One/Season 3/S03E05 - Sample Episode, Sample Keeper.avi")
+        Parser.parse(
+          "/mnt/videos/Videos/Sample Show One/Season 3/S03E05 - Sample Episode, Sample Keeper.avi"
+        )
 
       assert result.title == "Sample Show One"
       assert result.season == 3
@@ -355,7 +369,9 @@ defmodule MediaCentaur.ParserTest do
 
     test "Sample Show One: NxNN format (7x02) inside Season directory" do
       result =
-        Parser.parse("/home/shawn/videos/media-library/Sample Show One/Season 7/Sample Show One 7x02 - Sample Episode Toil.avi")
+        Parser.parse(
+          "/home/shawn/videos/media-library/Sample Show One/Season 7/Sample Show One 7x02 - Sample Episode Toil.avi"
+        )
 
       assert result.title == "Sample Show One"
       assert result.season == 7
@@ -366,7 +382,9 @@ defmodule MediaCentaur.ParserTest do
 
     test "Sample Show One: compact 3-digit season+episode (501) inside Season directory" do
       result =
-        Parser.parse("/home/shawn/videos/media-library/Sample Show One/Season 5/501- Sample Intern's Eyes.avi")
+        Parser.parse(
+          "/home/shawn/videos/media-library/Sample Show One/Season 5/501- Sample Intern's Eyes.avi"
+        )
 
       assert result.title == "Sample Show One"
       assert result.season == 5
@@ -495,7 +513,9 @@ defmodule MediaCentaur.ParserTest do
   describe "tv — season pack directory (no episode)" do
     test "dot-separated season pack" do
       result =
-        Parser.parse("/mnt/videos/Videos/Sample Show Four.S01.COMPLETE.720p.HULU.WEBRip.x264-GalaxyTV[TGx]")
+        Parser.parse(
+          "/mnt/videos/Videos/Sample Show Four.S01.COMPLETE.720p.HULU.WEBRip.x264-GalaxyTV[TGx]"
+        )
 
       assert result.title == "Sample Show Four"
       assert result.season == 1
