@@ -4,6 +4,23 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.80.0 — 2026-06-07
+
+### Fixed
+
+**Automatic updates now work the way the settings describe.** If you choose how
+often Media Centaur checks for updates, it now honours that interval — a short
+setting like 15 minutes was previously stretched to roughly once an hour. And
+when *Install updates automatically* is on, a new version now downloads and
+installs on its own once it's found, instead of quietly waiting for you to press
+*Update now*.
+
+### New
+
+**A short notice marks the pages that are still being built.** The Upcoming,
+History, Downloads, and Status pages now show a small "work in progress" banner,
+so it's clear what's finished and what's still on the way.
+
 ## v0.79.3 — 2026-06-07
 
 ### Improved
