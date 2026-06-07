@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.81.0 — 2026-06-07
+
+### Improved
+
+**Opening Settings no longer kicks off its own update check.** Media Centaur
+already checks for new releases on a regular schedule in the background, so the
+extra check that fired every time you opened the Settings page was redundant
+network traffic. The page now just shows the latest known result instantly, and
+the **Check for updates** button is still there whenever you want to look right
+now.
+
 ## v0.80.3 — 2026-06-07
 
 ### Fixed
