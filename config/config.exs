@@ -75,7 +75,8 @@ config :media_centaur, Oban,
 # to its ErrorReports.IncidentContext implementation; ErrorReports resolves
 # these at runtime (boundary-clean IoC). Rolled out incrementally — TMDB first.
 config :media_centaur, :diagnostics_contributors, %{
-  tmdb: MediaCentaur.TMDB.IncidentContext
+  tmdb: MediaCentaur.TMDB.IncidentContext,
+  self_update: MediaCentaur.SelfUpdate.IncidentContext
 }
 
 # Public repo the in-app reporter opens a new issue against (user posts under

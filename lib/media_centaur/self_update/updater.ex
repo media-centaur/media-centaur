@@ -34,7 +34,7 @@ defmodule MediaCentaur.SelfUpdate.Updater do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Platform.ReleaseArtifact
-  alias MediaCentaur.SelfUpdate.{Downloader, Handoff, Stager, UpdateChecker}
+  alias MediaCentaur.SelfUpdate.{Downloader, Handoff, Health, Stager, UpdateChecker}
   alias MediaCentaur.Topics
   alias MediaCentaur.Version
 
@@ -178,6 +178,10 @@ defmodule MediaCentaur.SelfUpdate.Updater do
           error: nil
       }
 
+      # A retry supersedes any prior failure — clear the health fault now so a
+      # clean apply (which ends in a restart, not a success message) leaves the
+      # Updates tile green without a write racing the hand-off.
+      Health.clear_apply_failure()
       broadcast({:progress, :preparing, nil})
 
       {:reply, :ok, new_state}
@@ -229,6 +233,7 @@ defmodule MediaCentaur.SelfUpdate.Updater do
   end
 
   def handle_info({:apply_failed, reason}, %State{} = state) do
+    Health.record_apply_failed(reason)
     broadcast({:apply_failed, reason})
     Log.warning(:system, "update apply failed: #{inspect(reason)}")
     {:noreply, %{state | phase: :failed, error: reason}}
@@ -251,6 +256,7 @@ defmodule MediaCentaur.SelfUpdate.Updater do
   end
 
   def handle_info({:DOWN, ref, :process, _pid, reason}, %State{task_ref: ref} = state) do
+    Health.record_apply_failed({:task_crashed, reason})
     Log.warning(:system, "update task crashed: #{inspect(reason)}")
     broadcast({:apply_failed, {:task_crashed, reason}})
 
