@@ -29,4 +29,29 @@ defmodule MediaCentaur.SelfUpdate.IncidentContextAssessTest do
 
     assert {:fault, :check_failing, :warning, _ids} = IncidentContext.assess()
   end
+
+  describe "vitals/0" do
+    test "returns a side-effect-free health snapshot" do
+      vitals = IncidentContext.vitals()
+
+      assert is_map(vitals)
+      assert is_binary(vitals["version"])
+      assert Map.has_key?(vitals, "classification")
+      assert Map.has_key?(vitals, "check_failure_streak")
+      assert Map.has_key?(vitals, "apply_failed")
+
+      # Reading vitals must never trigger a check.
+      assert MediaCentaur.SelfUpdate.last_check_at() == :none
+    end
+
+    test "reflects a recorded apply failure and check-failure streak" do
+      :ok = Health.record_apply_failed(:checksum_mismatch)
+      Health.record_check_failure()
+
+      vitals = IncidentContext.vitals()
+
+      assert vitals["apply_failed"] == true
+      assert vitals["check_failure_streak"] == 1
+    end
+  end
 end

@@ -55,6 +55,34 @@ defmodule MediaCentaur.SelfUpdate.IncidentContext do
   end
 
   @doc """
+  Cross-subsystem vitals — a cheap, side-effect-free snapshot of update state,
+  folded into every frozen incident report so a failure elsewhere can be
+  correlated with "was an update applying / failing at the time?".
+  """
+  @spec vitals() :: map()
+  def vitals do
+    {classification, release} = SelfUpdate.last_known_status()
+    %{check_failure_streak: streak, last_apply_failure: apply_failure} = Health.snapshot()
+
+    %{
+      "version" => MediaCentaur.Version.current_version(),
+      "classification" => classification_label(classification),
+      "latest_tag" => release && release.tag,
+      "last_check_at" => last_check_iso(SelfUpdate.last_check_at()),
+      "check_failure_streak" => streak,
+      "apply_failed" => apply_failure != nil,
+      "check_enabled" => Config.get(:update_check_enabled) == true,
+      "auto_update_enabled" => Config.get(:auto_update_enabled) == true
+    }
+  end
+
+  defp classification_label({:error, _reason}), do: "error"
+  defp classification_label(classification), do: to_string(classification)
+
+  defp last_check_iso(:none), do: nil
+  defp last_check_iso({:ok, %DateTime{} = at}), do: DateTime.to_iso8601(at)
+
+  @doc """
   Pure fault decision. Returns the single dominant fault or `:ok`.
 
     * `snapshot` — `Health.snapshot/0` (streak + last apply failure).

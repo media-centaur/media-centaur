@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: complete
 started: 2026-06-07
 last_updated: 2026-06-07
 ---
@@ -18,10 +18,11 @@ a failed auto-install) is exactly the kind of thing that page exists to catch.
 
 ## Status
 
-**Phases 1 & 2 complete** — the **Updates** tile reports the three fault kinds,
-and drilling in shows a live Activity widget (version, last/next check,
-classification, auto-install, apply progress) wired to the two self-update
-PubSub topics. Only Phase 3 (polish: `vitals/0`, edge cases, wiki) remains.
+**Complete.** All three phases shipped: the **Updates** tile reports the three
+fault kinds, the drill-in shows a live Activity widget, and `vitals/0` folds
+update state into every incident report. Wiki (Troubleshooting) documents the
+tile. Safe to remove once a release ships and the tile/widget are confirmed live
+(git history is the archive). Commits: `76b719ad` (P1), `dda4848b` (P2), P3 pending.
 
 ## Decisions made
 
@@ -72,6 +73,10 @@ Append-only log.
   registration. The render-path `activity_bundle/1` is kept DB-free by holding
   `last_check_at` in assigns; `SystemSection.tone_class/1` promoted to dedupe the
   tone→CSS map shared with the Settings card.
+* `2026-06-07` — **Phase 3 shipped** (commit pending). `vitals/0` (name-bound,
+  side-effect-free) folds update state into incident reports; wiki Troubleshooting
+  documents the tile. Campaign complete — remove the file once a release ships
+  and the surface is confirmed live.
 
 ## Next steps
 
@@ -108,13 +113,15 @@ Concrete, ordered. Three phases.
 7. ✅ **Storybook story** (7-variation matrix) + index entry; `/status?subsystem=
    self_update` page-smoke entry. Full `mix precommit` green (4412 tests).
 
-### Phase 3 — Polish
+### Phase 3 — Polish — ✅ DONE
 
-8. **`vitals/0`** on the IncidentContext for cross-subsystem causality (current
-   version, last check, classification).
-9. Edge cases (never-checked install, deferred-while-playing apply, prod vs
-   dev/test where `enabled?()` is false), then wiki/docs (Status page +
-   Troubleshooting).
+8. ✅ **`vitals/0`** on the IncidentContext — side-effect-free snapshot (version,
+   classification, last check, failure streak, apply-failed, check/auto-install
+   flags) folded into every frozen incident report. Bound by name like `assess/0`.
+9. ✅ Edge cases verified by the pure `decide/4` matrix (never-checked → `:ok`;
+   dev/test where `enabled?()` is false → Health untouched → `:ok`; dominance
+   ordering). Wiki **Troubleshooting** documents the Updates tile + its three
+   fault states.
 
 ## Completion criteria
 
