@@ -70,9 +70,9 @@ defmodule MediaCentaur.SelfUpdate do
   triggers a network round-trip. A `:stale` cache falls back to the last-known
   state (or `{:idle, nil}` when nothing has been observed).
 
-  Pair with `refresh_due?/0` to decide whether the caller should kick a fresh
-  check. The trigger and its guaranteed UI resolution live in the view (via
-  `start_async` + `run_check/0`); the classification policy lives here.
+  Passive surfaces (the Settings Updates card, the Status board widget) read
+  this snapshot only — the networked poll is owned entirely by the scheduled
+  `CheckerJob`. A manual refresh runs `run_check/0` directly.
   """
   @spec view_status() ::
           {UpdateChecker.classification() | :idle | {:error, term()}, map() | nil}
@@ -82,17 +82,6 @@ defmodule MediaCentaur.SelfUpdate do
       {:fresh, {:error, reason}} -> {{:error, reason}, last_known_release()}
       :stale -> last_known()
     end
-  end
-
-  @doc """
-  True when a fresh check is warranted on view: the hot cache is stale,
-  background checks are enabled, and this is the prod release channel (dev and
-  test never poll). The caller runs the check itself via `run_check/0`.
-  """
-  @spec refresh_due?() :: boolean()
-  def refresh_due? do
-    enabled?() and MediaCentaur.Config.get(:update_check_enabled) == true and
-      UpdateChecker.cached_latest_release() == :stale
   end
 
   @doc """

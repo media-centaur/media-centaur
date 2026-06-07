@@ -198,7 +198,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       socket
       |> ensure_loaded()
       |> assign(active_section: section)
-      |> maybe_auto_check_updates(section)
+      |> assign_update_snapshot(section)
       |> open_watch_dir_dialog(WatchDirsLogic.new_entry())
 
     {:noreply, socket}
@@ -217,7 +217,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       socket
       |> ensure_loaded()
       |> assign(active_section: section)
-      |> maybe_auto_check_updates(section)
+      |> assign_update_snapshot(section)
 
     {:noreply, socket}
   end
@@ -229,8 +229,9 @@ defmodule MediaCentaurWeb.SettingsLive do
   # GenServer calls, image-health summary, systemd service-state probe,
   # connection-test reads, setup-banner probes) are all local, so there is
   # no traffic-scaling reason to defer them. Do not re-add a `connected?`
-  # gate. The networked update-check stays off the mount path — see
-  # `SelfUpdate.view_status/0`, which kicks a background check at most.
+  # gate. No networked update-check runs on landing at all — the scheduled
+  # `CheckerJob` is the single poller; the page only reads the cached
+  # snapshot via `SelfUpdate.view_status/0` (a pure, side-effect-free read).
   defp ensure_loaded(socket) do
     if socket.assigns.loaded? do
       socket
@@ -271,20 +272,21 @@ defmodule MediaCentaurWeb.SettingsLive do
     )
   end
 
-  defp maybe_auto_check_updates(socket, "system") do
+  # Renders the last-known update snapshot only — arriving on the page never
+  # kicks a network poll. The scheduled `CheckerJob` is the single poller
+  # (every 15 min, runtime-tunable); duplicating that on every landing was
+  # redundant traffic. A fresh check is still one click away via the
+  # "check_updates" event. `view_status/0` is a pure cache read.
+  defp assign_update_snapshot(socket, "system") do
     if connected?(socket) do
-      # Cache-read + classification policy live in the context; the view just
-      # renders the snapshot, and owns the trigger so it can guarantee the
-      # "Checking…" state resolves (start_async → handle_async).
       {status, release} = SelfUpdate.view_status()
-      socket = assign(socket, update_status: status, latest_release: release)
-      if SelfUpdate.refresh_due?(), do: start_update_check(socket), else: socket
+      assign(socket, update_status: status, latest_release: release)
     else
       socket
     end
   end
 
-  defp maybe_auto_check_updates(socket, _section), do: socket
+  defp assign_update_snapshot(socket, _section), do: socket
 
   # Runs a check in a LiveView-owned task so the UI is *guaranteed* to resolve
   # via `handle_async/3`, independent of the `{:check_complete, …}` broadcast

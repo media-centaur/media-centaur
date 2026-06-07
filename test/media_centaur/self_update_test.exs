@@ -132,35 +132,12 @@ defmodule MediaCentaur.SelfUpdateTest do
     end
 
     test "is a pure read — never contacts GitHub, even when the cache is stale" do
-      # view_status/0 no longer triggers a check; the caller owns the trigger
-      # (refresh_due?/0 + run_check/0).
+      # view_status/0 never triggers a check; the scheduled CheckerJob is the
+      # single poller. A stale cache reads as idle, not as a fresh fetch.
       UpdateChecker.clear_cache()
 
       assert {:idle, nil} = SelfUpdate.view_status()
       assert Storage.get_last_check_at() == :none
-    end
-  end
-
-  describe "refresh_due?/0" do
-    test "false off the prod release channel (dev/test never poll)" do
-      UpdateChecker.clear_cache()
-      refute SelfUpdate.refresh_due?()
-    end
-
-    test "true on the prod channel when checks are enabled and the cache is stale" do
-      Application.put_env(:media_centaur, :environment, :prod)
-      on_exit(fn -> Application.put_env(:media_centaur, :environment, :test) end)
-      UpdateChecker.clear_cache()
-
-      assert SelfUpdate.refresh_due?()
-    end
-
-    test "false when the hot cache is still fresh" do
-      Application.put_env(:media_centaur, :environment, :prod)
-      on_exit(fn -> Application.put_env(:media_centaur, :environment, :test) end)
-      UpdateChecker.cache_result({:ok, %{version: "1.0.0", tag: "v1.0.0"}})
-
-      refute SelfUpdate.refresh_due?()
     end
   end
 
