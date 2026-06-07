@@ -138,7 +138,22 @@ defmodule MediaCentaurWeb.SettingsLive do
        service_status_output: nil,
        listening: nil
      )
-     |> put_language_assigns()}
+     |> put_language_assigns()
+     |> put_update_automation_assigns()}
+  end
+
+  # Seeds (and re-syncs) the update-automation controls: whether background
+  # checking is on, the configured poll interval (clamped to the rate-limit
+  # floor), whether auto-install is on, and the relative "last checked" label.
+  defp put_update_automation_assigns(socket) do
+    assign(socket,
+      update_check_enabled: Config.get(:update_check_enabled),
+      auto_update_enabled: Config.get(:auto_update_enabled),
+      update_check_interval_minutes: Config.update_check_interval_minutes(),
+      update_check_interval_floor: Config.update_check_interval_floor_minutes(),
+      last_checked_label:
+        SystemSection.last_checked_label(SelfUpdate.last_check_at(), DateTime.utc_now())
+    )
   end
 
   # Loads the saved language policy and seeds the picker's working state:
@@ -258,7 +273,14 @@ defmodule MediaCentaurWeb.SettingsLive do
           assign(socket, update_status: {:error, reason})
 
         :stale ->
-          start_update_check(socket)
+          # Honour "manual only": when background checking is disabled we
+          # don't auto-poll on mount — the card keeps showing the last-known
+          # release and the manual button stays the only network trigger.
+          if Config.get(:update_check_enabled) do
+            start_update_check(socket)
+          else
+            socket
+          end
       end
     else
       socket
@@ -630,6 +652,32 @@ defmodule MediaCentaurWeb.SettingsLive do
     })
 
     {:noreply, assign(socket, show_card_info: enabled)}
+  end
+
+  def handle_event("toggle_update_check", _params, socket) do
+    Config.update(:update_check_enabled, !socket.assigns.update_check_enabled)
+    {:noreply, put_update_automation_assigns(socket)}
+  end
+
+  def handle_event("toggle_auto_update", _params, socket) do
+    Config.update(:auto_update_enabled, !socket.assigns.auto_update_enabled)
+    {:noreply, put_update_automation_assigns(socket)}
+  end
+
+  def handle_event("save_update_interval", params, socket) do
+    minutes =
+      SystemSection.normalize_interval_minutes(
+        params["interval_minutes"],
+        socket.assigns.update_check_interval_floor,
+        socket.assigns.update_check_interval_minutes
+      )
+
+    Config.update(:update_check_interval_minutes, minutes)
+
+    {:noreply,
+     socket
+     |> put_update_automation_assigns()
+     |> put_flash(:info, "Update check interval saved")}
   end
 
   # Save + Test share one form-submit handler per service. The Save and
@@ -1140,7 +1188,10 @@ defmodule MediaCentaurWeb.SettingsLive do
   # Scheduled CheckerJob broadcast — refresh the visible card.
   def handle_info({:check_complete, {classification, release}}, socket)
       when classification in [:update_available, :up_to_date, :ahead_of_release] do
-    {:noreply, assign(socket, update_status: classification, latest_release: release)}
+    {:noreply,
+     socket
+     |> assign(update_status: classification, latest_release: release)
+     |> put_update_automation_assigns()}
   end
 
   def handle_info({:check_complete, {:error, reason}}, socket) do
@@ -1250,7 +1301,11 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   def handle_async(:update_check, {:ok, {:ok, release}}, socket) do
     status = UpdateChecker.compare(release, socket.assigns.app_version)
-    {:noreply, assign(socket, update_status: status, latest_release: release)}
+
+    {:noreply,
+     socket
+     |> assign(update_status: status, latest_release: release)
+     |> put_update_automation_assigns()}
   end
 
   def handle_async(:update_check, {:ok, {:error, reason}}, socket) do
@@ -1415,6 +1470,11 @@ defmodule MediaCentaurWeb.SettingsLive do
             update_status={@update_status}
             latest_release={@latest_release}
             apply_phase={@apply_phase}
+            update_check_enabled={@update_check_enabled}
+            auto_update_enabled={@auto_update_enabled}
+            update_check_interval_minutes={@update_check_interval_minutes}
+            update_check_interval_floor={@update_check_interval_floor}
+            last_checked_label={@last_checked_label}
             tmdb_missing={@tmdb_missing}
             show_setup_banner?={@show_setup_banner?}
             critical_failures={@critical_failures}
@@ -1628,6 +1688,61 @@ defmodule MediaCentaurWeb.SettingsLive do
               </div>
             </div>
           </details>
+        </div>
+
+        <div class="mt-4 pt-4 border-t border-base-content/10 space-y-5">
+          <%!-- Checking for updates --%>
+          <div class="space-y-2">
+            <.settings_row
+              label="Automatically check for updates"
+              description="Poll GitHub for new releases in the background. Turn off to check only when you press Check for updates."
+              checked={@update_check_enabled}
+              event="toggle_update_check"
+            />
+            <div :if={@update_check_enabled} class="glass-inset rounded-lg p-3.5 space-y-3">
+              <form phx-submit="save_update_interval" class="flex items-end gap-3">
+                <div>
+                  <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+                    Check every (minutes)
+                  </label>
+                  <input
+                    type="number"
+                    name="interval_minutes"
+                    value={@update_check_interval_minutes}
+                    min={@update_check_interval_floor}
+                    step="1"
+                    class="input input-bordered input-sm w-28 font-mono text-sm"
+                    data-nav-item
+                    tabindex="0"
+                  />
+                </div>
+                <.button variant="neutral" size="sm" type="submit" data-nav-item tabindex="0">
+                  Save
+                </.button>
+              </form>
+              <p class="text-xs text-base-content/50 leading-relaxed">
+                Media Centaur asks the GitHub Releases API whether a newer version exists. GitHub
+                allows about 60 unauthenticated requests an hour from your network, so checking more
+                often than every {@update_check_interval_floor} minutes risks temporary rate-limiting
+                with no benefit — releases are infrequent.
+              </p>
+              <p class="text-xs text-base-content/40">{@last_checked_label}</p>
+            </div>
+          </div>
+
+          <%!-- Installing updates --%>
+          <div class="space-y-2">
+            <.settings_row
+              label="Install updates automatically"
+              description="When a new version is found, download and install it without asking — the app restarts to finish."
+              checked={@auto_update_enabled}
+              event="toggle_auto_update"
+            />
+            <p class="text-xs text-base-content/50 leading-relaxed px-3.5">
+              If something is playing, the update waits until playback ends, so your session is never
+              interrupted. Leave this off to review the release and press Update now yourself.
+            </p>
+          </div>
         </div>
       </div>
 

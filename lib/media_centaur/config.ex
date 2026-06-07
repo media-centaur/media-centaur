@@ -62,8 +62,19 @@ defmodule MediaCentaur.Config do
     :exclude_dirs,
     :showcase_mode,
     :data_dir,
-    :setup_wizard_dismissed
+    :setup_wizard_dismissed,
+    :update_check_enabled,
+    :update_check_interval_minutes,
+    :auto_update_enabled
   ]
+
+  # Floor on the GitHub release-poll interval. The check hits the
+  # unauthenticated GitHub API (~60 requests/hour per network IP), so a
+  # tighter interval risks rate-limiting with no benefit — releases are
+  # infrequent. Enforced on read so a stale/bad stored value can't
+  # out-poll the limit.
+  @update_check_interval_floor_minutes 15
+  @update_check_interval_default_minutes 360
 
   @doc """
   Returns the absolute path to the active TOML config file.
@@ -104,6 +115,21 @@ defmodule MediaCentaur.Config do
   def get(key) do
     Map.get(:persistent_term.get({__MODULE__, :config}), key)
   end
+
+  @doc """
+  The minimum minutes between background release checks, clamped up to
+  the rate-limit floor. Read this rather than `get(:update_check_interval_minutes)`
+  so the floor is always enforced, regardless of what's stored.
+  """
+  @spec update_check_interval_minutes() :: pos_integer()
+  def update_check_interval_minutes do
+    stored = get(:update_check_interval_minutes) || @update_check_interval_default_minutes
+    max(@update_check_interval_floor_minutes, stored)
+  end
+
+  @doc "The rate-limit floor (minutes) for the release-check interval."
+  @spec update_check_interval_floor_minutes() :: pos_integer()
+  def update_check_interval_floor_minutes, do: @update_check_interval_floor_minutes
 
   @doc """
   The config keys that can be updated at runtime via `update/2` and
@@ -446,7 +472,10 @@ defmodule MediaCentaur.Config do
       download_client_url: nil,
       download_client_username: nil,
       download_client_password: nil,
-      showcase_mode: false
+      showcase_mode: false,
+      update_check_enabled: true,
+      update_check_interval_minutes: @update_check_interval_default_minutes,
+      auto_update_enabled: false
     }
 
     if Application.get_env(:media_centaur, :skip_user_config, false) do

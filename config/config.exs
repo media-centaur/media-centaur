@@ -51,12 +51,14 @@ config :media_centaur, Oban,
   # maintenance: low-priority housekeeping (diagnostic-event retention prune).
   queues: [acquisition: 3, self_update: 1, images: 2, maintenance: 1],
   plugins: [
-    # Offset minute (17) so every install doesn't hit the GitHub API
-    # on the hour — spreads requests across the 60s window and keeps
-    # us far under the 60/h unauthenticated rate limit.
+    # The CheckerJob ticks at the rate-limit floor (every 15 min) but only
+    # contacts GitHub when the user's configured interval has elapsed and
+    # checking is enabled — see CheckerJob.due_for_check?/5. This keeps the
+    # poll interval runtime-tunable without reconfiguring Oban's cron. Minute
+    # offset (2) so the tick doesn't pile onto the hour boundary.
     {Oban.Plugins.Cron,
      crontab: [
-       {"17 */6 * * *", MediaCentaur.SelfUpdate.CheckerJob},
+       {"2-59/15 * * * *", MediaCentaur.SelfUpdate.CheckerJob},
        # Drives `Pursuits.Policy` for every active pursuit every 15 minutes.
        # Idempotent re-reads on every wake; terminal pursuits are skipped.
        {"*/15 * * * *", MediaCentaur.Acquisition.Pursuits.Watcher},

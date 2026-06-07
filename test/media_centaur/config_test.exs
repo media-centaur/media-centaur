@@ -152,6 +152,50 @@ defmodule MediaCentaur.ConfigTest do
   end
 
   # ---------------------------------------------------------------------------
+  # Update checking / auto-update keys
+  # ---------------------------------------------------------------------------
+
+  describe "update-check / auto-update config" do
+    test "the three keys are runtime-settable" do
+      keys = Config.runtime_settable_keys()
+      assert :update_check_enabled in keys
+      assert :update_check_interval_minutes in keys
+      assert :auto_update_enabled in keys
+    end
+
+    test "ships with current behaviour preserved as defaults" do
+      assert Config.get(:update_check_enabled) == true
+      assert Config.get(:auto_update_enabled) == false
+      assert Config.get(:update_check_interval_minutes) == 360
+    end
+
+    test "update_check_interval_minutes/0 clamps to the 15-minute floor" do
+      put_config(:update_check_interval_minutes, 5)
+      assert Config.update_check_interval_minutes() == 15
+
+      put_config(:update_check_interval_minutes, 15)
+      assert Config.update_check_interval_minutes() == 15
+
+      put_config(:update_check_interval_minutes, 600)
+      assert Config.update_check_interval_minutes() == 600
+    end
+
+    test "update_check_interval_minutes/0 falls back to the default when unset" do
+      put_config(:update_check_interval_minutes, nil)
+      assert Config.update_check_interval_minutes() == 360
+    end
+
+    test "update_check_interval_floor_minutes/0 exposes the floor" do
+      assert Config.update_check_interval_floor_minutes() == 15
+    end
+  end
+
+  defp put_config(key, value) do
+    config = :persistent_term.get({Config, :config})
+    :persistent_term.put({Config, :config}, Map.put(config, key, value))
+  end
+
+  # ---------------------------------------------------------------------------
   # Config path resolution
   # ---------------------------------------------------------------------------
 

@@ -21,6 +21,47 @@ defmodule MediaCentaurWeb.Live.SettingsLive.SystemSectionTest do
     end
   end
 
+  describe "normalize_interval_minutes/3" do
+    test "parses a valid integer string" do
+      assert SystemSection.normalize_interval_minutes("60", 15, 360) == 60
+    end
+
+    test "clamps below the floor up to the floor" do
+      assert SystemSection.normalize_interval_minutes("5", 15, 360) == 15
+    end
+
+    test "falls back to the default on unparseable input" do
+      assert SystemSection.normalize_interval_minutes("", 15, 360) == 360
+      assert SystemSection.normalize_interval_minutes("abc", 15, 360) == 360
+      assert SystemSection.normalize_interval_minutes(nil, 15, 360) == 360
+    end
+
+    test "ignores trailing junk after a leading integer" do
+      assert SystemSection.normalize_interval_minutes("90 minutes", 15, 360) == 90
+    end
+  end
+
+  describe "last_checked_label/2" do
+    test "reports never when no check has run" do
+      assert SystemSection.last_checked_label(:none, ~U[2026-06-07 12:00:00Z]) =~ "Never"
+    end
+
+    test "reports minutes ago" do
+      at = ~U[2026-06-07 11:57:00Z]
+      assert SystemSection.last_checked_label({:ok, at}, ~U[2026-06-07 12:00:00Z]) =~ "3 minutes ago"
+    end
+
+    test "reports hours ago" do
+      at = ~U[2026-06-07 09:00:00Z]
+      assert SystemSection.last_checked_label({:ok, at}, ~U[2026-06-07 12:00:00Z]) =~ "3 hours ago"
+    end
+
+    test "reports just now for a very recent check" do
+      at = ~U[2026-06-07 11:59:30Z]
+      assert SystemSection.last_checked_label({:ok, at}, ~U[2026-06-07 12:00:00Z]) =~ "just now"
+    end
+  end
+
   describe "update_status_label/2" do
     test "idle shows a neutral prompt" do
       assert SystemSection.update_status_label(:idle, nil) =~ "Check for updates"

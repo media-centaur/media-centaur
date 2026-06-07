@@ -72,6 +72,41 @@ defmodule MediaCentaurWeb.Live.SettingsLive.SystemSection do
     Calendar.strftime(datetime, "%H:%M UTC")
   end
 
+  @doc """
+  Parses the update-check interval the user typed, clamping it up to the
+  rate-limit `floor` and falling back to `default` when the input can't be
+  read as an integer.
+  """
+  @spec normalize_interval_minutes(String.t() | nil, pos_integer(), pos_integer()) ::
+          pos_integer()
+  def normalize_interval_minutes(raw, floor, default) do
+    case Integer.parse(to_string(raw)) do
+      {minutes, _rest} -> max(floor, minutes)
+      :error -> default
+    end
+  end
+
+  @doc """
+  Relative "last checked …" label for the update card, e.g. `"just now"`,
+  `"3 minutes ago"`, `"3 hours ago"`, `"2 days ago"`, or `"Never checked"`.
+  """
+  @spec last_checked_label({:ok, DateTime.t()} | :none, DateTime.t()) :: String.t()
+  def last_checked_label(:none, _now), do: "Never checked"
+
+  def last_checked_label({:ok, %DateTime{} = at}, %DateTime{} = now) do
+    seconds = max(0, DateTime.diff(now, at, :second))
+
+    cond do
+      seconds < 60 -> "Last checked just now"
+      seconds < 3600 -> "Last checked #{pluralize(div(seconds, 60), "minute")} ago"
+      seconds < 86_400 -> "Last checked #{pluralize(div(seconds, 3600), "hour")} ago"
+      true -> "Last checked #{pluralize(div(seconds, 86_400), "day")} ago"
+    end
+  end
+
+  defp pluralize(1, unit), do: "1 #{unit}"
+  defp pluralize(n, unit), do: "#{n} #{unit}s"
+
   @doc "Maps an `update_status/0` to a semantic tone for styling."
   @spec update_status_tone(update_status()) :: tone()
   def update_status_tone(:idle), do: :neutral
