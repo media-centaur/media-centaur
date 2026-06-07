@@ -50,6 +50,55 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
+  # The bare `/status` smoke above renders the library overview in its
+  # empty/zeroed state. This seeds a library so the populated render branches
+  # are exercised: the recently-added poster strip (glance card), a review
+  # backlog (pending-work card), and all three completeness-gap rows
+  # (missing artwork, missing metadata, season gap).
+  describe "/status with a populated library overview" do
+    setup do
+      movie =
+        create_movie(%{name: "Sample Overview Movie", tmdb_id: "100", content_url: "/media/sample.mkv"})
+
+      MediaCentaur.Library.FilePresence.stamp(
+        "/media/sample.mkv",
+        "/media",
+        DateTime.utc_now(),
+        size: 8_000_000_000
+      )
+
+      # Metadata gap — a container with no TMDB external id.
+      create_movie(%{name: "Unmatched Overview Movie"})
+
+      # Season gap — episodes 1 and 3, missing 2.
+      series = create_tv_series(%{name: "Gappy Overview Show", tmdb_id: "200"})
+      season = create_season(%{season_number: 1, tv_series_id: series.id})
+      create_episode(%{episode_number: 1, season_id: season.id})
+      create_episode(%{episode_number: 3, season_id: season.id})
+
+      # Missing artwork — an image row whose cached file is absent on disk.
+      create_image(%{
+        owner_type: :movie,
+        owner_id: movie.id,
+        role: "poster",
+        content_url: "/cache/missing-overview-poster.jpg"
+      })
+
+      # Review backlog.
+      create_pending_file(%{file_path: "/media/incoming/overview-mystery.mkv"})
+
+      :ok
+    end
+
+    test "status overview renders populated cards without crashing", %{conn: conn} do
+      assert {:ok, _view, html} = live_async!(conn, "/status")
+      assert html =~ "Your library"
+      assert html =~ "Pending work"
+      assert html =~ "Completeness gaps"
+      assert html =~ "System health"
+    end
+  end
+
   # Settings is a multi-section LiveView; each `?section=<id>` is effectively a
   # zone with its own render branch (the bare `/settings` smoke above only
   # exercises the default section). Mount every section so a section-specific

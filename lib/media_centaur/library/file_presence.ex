@@ -236,6 +236,17 @@ defmodule MediaCentaur.Library.FilePresence do
     )
   end
 
+  @doc """
+  Total bytes-on-disk across every tracked presence row. Rows with a `nil`
+  `size` (pre-relink-feature rows) coalesce to 0. Pure DB read — a single
+  `SUM` aggregate. Used by the Status page's library-overview "size on disk"
+  figure.
+  """
+  @spec total_size_bytes() :: non_neg_integer()
+  def total_size_bytes do
+    Repo.one(from(p in __MODULE__, select: coalesce(sum(p.size), 0)))
+  end
+
   @type t :: %__MODULE__{}
 
   # SQLite's `utc_datetime` column resolution is seconds; the

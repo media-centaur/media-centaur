@@ -151,6 +151,58 @@ defmodule MediaCentaurWeb.StatusHelpers do
   def usage_text_class(percent) when percent >= 75, do: "text-warning"
   def usage_text_class(_percent), do: "text-success"
 
+  # --- Library overview (Status "Your library" section) ---
+
+  @doc """
+  Text-color class for a completeness-gap counter: amber when there is a gap
+  to act on, muted otherwise. Color is reserved for signal — a zero count is
+  not a problem and stays quiet.
+  """
+  @spec gap_count_class(non_neg_integer()) :: String.t()
+  def gap_count_class(0), do: "text-base-content/40"
+  def gap_count_class(count) when count > 0, do: "text-warning"
+
+  @doc """
+  Aggregates the per-dir at-risk summary into a single overview-card warning,
+  counting only dirs that are currently offline (their TTL clock is ticking
+  without the user's awareness — available dirs resolve themselves on the next
+  scan). Returns `nil` when nothing is at risk, otherwise the total file count
+  and the soonest purge horizon across the offline dirs.
+
+  `dir_status` is `Library.Availability.dir_status/0`; an unknown dir is treated
+  as offline so a warning is never silently suppressed. `now` and `ttl_days` are
+  passed in so the helper stays pure and async-testable (ADR-030).
+  """
+  @spec summarize_at_risk(
+          %{String.t() => %{file_count: non_neg_integer(), earliest_absent_since: DateTime.t()}},
+          %{String.t() => atom()},
+          DateTime.t(),
+          non_neg_integer()
+        ) :: nil | %{file_count: non_neg_integer(), purge_in_days: non_neg_integer()}
+  def summarize_at_risk(at_risk_summary, dir_status, now, ttl_days) do
+    offline =
+      Enum.filter(at_risk_summary, fn {dir, _info} ->
+        Map.get(dir_status, dir, :unavailable) == :unavailable
+      end)
+
+    case offline do
+      [] ->
+        nil
+
+      entries ->
+        file_count = entries |> Enum.map(fn {_dir, info} -> info.file_count end) |> Enum.sum()
+
+        purge_in_days =
+          entries
+          |> Enum.map(fn {_dir, info} ->
+            max(ttl_days - DateTime.diff(now, info.earliest_absent_since, :day), 0)
+          end)
+          |> Enum.min()
+
+        %{file_count: file_count, purge_in_days: purge_in_days}
+    end
+  end
+
   # --- At-risk file warning (drive-offline durability surface) ---
 
   @doc """
