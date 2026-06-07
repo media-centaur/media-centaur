@@ -4,6 +4,24 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.82.0 — 2026-06-07
+
+### New
+
+**The Status page now opens with a "Your library" overview.** Above the usual
+system-health board you'll find a quick read on the library itself: how many
+movies, shows, and episodes you have and how much space they take up, a strip of
+your most recently added titles, and three at-a-glance cards —
+
+- **Pending work** — how many files are waiting for review and how many downloads
+  are in progress, each linking straight to where you handle them.
+- **Completeness gaps** — titles missing artwork or details, and series with gaps
+  in their seasons, so you can spot what's worth tidying up.
+- **Storage outlook** — free space on each drive, with a warning when files on an
+  offline drive are at risk of being dropped from the library.
+
+The overview updates on its own as your library changes.
+
 ## v0.81.0 — 2026-06-07
 
 ### Improved
