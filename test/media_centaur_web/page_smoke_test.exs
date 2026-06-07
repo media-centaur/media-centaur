@@ -36,6 +36,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         {"/library", "library browse"},
         {"/status", "status"},
         {"/status?subsystem=pipeline", "status subsystem drill-in"},
+        {"/status?subsystem=self_update", "status self_update drill-in"},
         {"/settings", "settings"},
         {"/setup", "setup tour"},
         {"/review", "review"},

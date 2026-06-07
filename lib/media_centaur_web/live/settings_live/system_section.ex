@@ -157,6 +157,14 @@ defmodule MediaCentaurWeb.Live.SettingsLive.SystemSection do
   def update_status_tone(:ahead_of_release), do: :warning
   def update_status_tone({:error, _}), do: :error
 
+  @doc "Maps a semantic `tone()` to its muted text colour class."
+  @spec tone_class(tone()) :: String.t()
+  def tone_class(:neutral), do: "text-base-content/60"
+  def tone_class(:success), do: "text-success"
+  def tone_class(:info), do: "text-info"
+  def tone_class(:warning), do: "text-warning"
+  def tone_class(:error), do: "text-error"
+
   # --- Apply (Update now) state helpers -----------------------------------
 
   @type apply_phase ::

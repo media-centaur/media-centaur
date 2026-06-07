@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
   import MediaCentaurWeb.StatusHelpers
 
   alias MediaCentaur.Library.Availability
+  alias MediaCentaurWeb.Live.SettingsLive.SystemSection
 
   @doc "Watcher subsystem Activity widget: watch directories + per-drive storage headroom + at-risk state."
   attr :dir_health, :list,
@@ -455,6 +456,92 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
     </div>
     """
   end
+
+  @doc "Self-update Activity widget: running version, check cadence, auto-install state, and live apply progress."
+  attr :version, :string, required: true, doc: "running app version, e.g. \"0.80.0\""
+
+  attr :status, :any,
+    required: true,
+    doc: "classification | :checking | :idle | {:error, reason} from SelfUpdate.last_known_status/0"
+
+  attr :latest_release, :map,
+    default: nil,
+    doc: "last-known release map (tag/published_at/html_url/...) or nil"
+
+  attr :last_check_at, :any,
+    required: true,
+    doc: "{:ok, DateTime.t()} | :none — timestamp of the last successful check"
+
+  attr :now, DateTime, required: true, doc: "current time, for relative labels"
+  attr :check_enabled?, :boolean, required: true, doc: "are background update checks enabled?"
+  attr :interval_minutes, :integer, required: true, doc: "configured check interval in minutes"
+  attr :auto_install?, :boolean, required: true, doc: "is automatic installation enabled?"
+
+  attr :apply_phase, :atom,
+    default: nil,
+    doc: "current Updater apply phase, or nil when no apply is in flight"
+
+  attr :apply_progress, :integer, default: nil, doc: "apply progress percent (0-100), or nil"
+
+  def self_update_widget(assigns) do
+    ~H"""
+    <div class="card glass-surface" data-testid="self-update-widget">
+      <div class="card-body">
+        <div class="flex items-center justify-between">
+          <h2 class="card-title text-lg">Updates</h2>
+          <span class="text-sm font-mono text-base-content/60">v{@version}</span>
+        </div>
+
+        <p class={["text-sm", SystemSection.tone_class(SystemSection.update_status_tone(@status))]}>
+          {SystemSection.update_status_label(@status, @latest_release)}
+        </p>
+
+        <div class="text-xs text-base-content/50 space-y-0.5">
+          <p>{SystemSection.last_checked_label(@last_check_at, @now)}</p>
+          <p>
+            {SystemSection.update_schedule_label(
+              @check_enabled?,
+              @interval_minutes,
+              @last_check_at,
+              @now
+            )}
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2 text-xs">
+          <span class="text-base-content/50">Automatic install</span>
+          <span class={if @auto_install?, do: "text-success", else: "text-base-content/40"}>
+            {if @auto_install?, do: "on", else: "off"}
+          </span>
+        </div>
+
+        <div :if={apply_active?(@apply_phase)} class="mt-1 space-y-1" data-component="apply-progress">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-base-content/70">{SystemSection.apply_phase_label(@apply_phase)}</span>
+            <span :if={@apply_progress} class="font-mono text-base-content/50">
+              {@apply_progress}%
+            </span>
+          </div>
+          <div class="h-[3px] bg-base-content/10 rounded-full overflow-hidden">
+            <div
+              class="progress-fill h-full bg-primary rounded-full"
+              style={"width: #{@apply_progress || 0}%"}
+            >
+            </div>
+          </div>
+        </div>
+
+        <p :if={@apply_phase == :failed} class="mt-1 text-xs text-error" data-component="apply-failed">
+          {SystemSection.apply_phase_label(:failed)} — see Settings → Updates.
+        </p>
+      </div>
+    </div>
+    """
+  end
+
+  # The phases where an apply is genuinely in flight (a progress bar makes sense).
+  defp apply_active?(phase),
+    do: phase in [:preparing, :downloading, :verifying, :extracting, :handing_off]
 
   defp now_playing_title(%{episode_name: _} = now_playing),
     do: now_playing[:entity_name] || now_playing.entity_id

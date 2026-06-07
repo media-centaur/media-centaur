@@ -18,9 +18,10 @@ a failed auto-install) is exactly the kind of thing that page exists to catch.
 
 ## Status
 
-**Phase 1 (health half) complete** — the **Updates** tile is live on the board
-and reports the three fault kinds through the existing evaluator. Phase 2 (the
-drill-in Activity widget) is next. Builds on the v0.80.0 self-update fixes.
+**Phases 1 & 2 complete** — the **Updates** tile reports the three fault kinds,
+and drilling in shows a live Activity widget (version, last/next check,
+classification, auto-install, apply progress) wired to the two self-update
+PubSub topics. Only Phase 3 (polish: `vitals/0`, edge cases, wiki) remains.
 
 ## Decisions made
 
@@ -66,6 +67,11 @@ Append-only log.
   `function_exported?(module, :assess, 0)` — name-based — so the behaviour
   declaration is unnecessary, and omitting it keeps the boundary acyclic. (TMDB
   can declare `@behaviour` because nothing depends back into it.)
+* `2026-06-07` — **Phase 2 shipped** (commit pending). `self_update_widget`
+  Activity widget + story, `StatusLive` PubSub wiring, `:health_activity_widgets`
+  registration. The render-path `activity_bundle/1` is kept DB-free by holding
+  `last_check_at` in assigns; `SystemSection.tone_class/1` promoted to dedupe the
+  tone→CSS map shared with the Settings card.
 
 ## Next steps
 
@@ -88,16 +94,19 @@ Concrete, ordered. Three phases.
 4. ✅ **Tests** — pure `decide/4` matrix, `Health` projection, and `assess/0`
    wiring (registry + reads). Full `mix precommit` green (4409 tests).
 
-### Phase 2 — Observe half (drill-in widget)
+### Phase 2 — Observe half (drill-in widget) — ✅ DONE
 
-5. **`self_update_widget`** in `ActivityWidgetComponents` (typed attrs), rendering
-   current version, last-checked + next-check estimate (reuse `SystemSection`
-   helpers), classification ("up to date" / "update available: vX"), auto-install
-   on/off, and a live apply-progress bar. Register in `:health_activity_widgets`.
-6. **Live wiring** — `StatusLive` subscribes to `self_update:status` +
-   `self_update:progress` and folds a `self_update` slice into `activity_bundle/1`.
-7. **Storybook story** (MC0009) covering the widget's state matrix; `/status?
-   subsystem=self_update` page-smoke entry.
+5. ✅ **`self_update_widget`** in `ActivityWidgetComponents` — version, last/next
+   check (reuses `SystemSection` helpers), classification, auto-install state,
+   and a live apply-progress bar. Registered in `:health_activity_widgets`.
+   `SystemSection.tone_class/1` promoted to a shared helper (was duplicated in
+   `settings_live`). New side-effect-free `SelfUpdate.last_known_status/0` feeds it.
+6. ✅ **Live wiring** — `StatusLive` subscribes to both self-update topics and
+   folds a `self_update` slice into `activity_bundle/1`. The slice reads only
+   assigns + `Config` (persistent_term) + `utc_now` — `last_check_at` is captured
+   into assigns so the render path stays DB-free (ADR-012, no_db_on_render green).
+7. ✅ **Storybook story** (7-variation matrix) + index entry; `/status?subsystem=
+   self_update` page-smoke entry. Full `mix precommit` green (4412 tests).
 
 ### Phase 3 — Polish
 
