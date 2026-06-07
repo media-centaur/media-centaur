@@ -86,5 +86,14 @@
         <span class="hint"><span class="hint-btn" data-btn="start"></span> Play</span>
       </div>
     </div>
+
+    <%!-- Work-in-progress nav notice — flashed briefly when a key/gamepad nav
+          action fires on a page whose in-page navigation is still being built
+          (driven by assets/js/input/wip_notice.js). Sits just above the gamepad
+          hint bar; toggled by class (not data-input) so it surfaces for
+          keyboard users too. --%>
+    <div class="wip-notice" data-wip-notice aria-hidden="true">
+      UI overhaul in progress, key nav is being added to this page.
+    </div>
   </body>
 </html>

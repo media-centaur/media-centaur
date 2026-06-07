@@ -1286,6 +1286,49 @@ body:has(.modal-backdrop[data-state="open"]) {
 [data-gamepad-type="playstation"] .hint-btn[data-btn="start"]::before { content: "⏸"; }
 [data-gamepad-type="playstation"] .hint-btn[data-btn="lb-rb"]::before { content: "L1/R1"; }
 
+/* ----------------------------------------------------------------------------
+   Work-in-progress nav notice
+
+   Flashed briefly when a key/gamepad nav action fires on a page whose in-page
+   navigation is still being built (driven by assets/js/input/wip_notice.js,
+   which toggles `.wip-notice-visible`). Stays mounted in the DOM and sits just
+   above the gamepad hint bar (bottom: 1.5rem). Unlike the hint bar it is not
+   gated on data-input, so it surfaces for keyboard users too. Achromatic
+   overlay color matches the hint bar — a theme-independent HUD element.
+   Only opacity/transform animate (compositor-only, per CLAUDE.md CSS rules).
+   -------------------------------------------------------------------------- */
+.wip-notice {
+  position: fixed;
+  bottom: 5rem;
+  left: 0;
+  right: 0;
+  width: fit-content;
+  max-width: min(90vw, 32rem);
+  margin-inline: auto;
+  padding: 0.5rem 1.25rem;
+  border-radius: 9999px;
+  background: oklch(20% 0 0 / 0.7);
+  @apply backdrop-blur-[12px];
+  border: 1px solid oklch(100% 0 0 / 0.08);
+  font-size: 0.8125rem;
+  line-height: 1.2;
+  text-align: center;
+  color: oklch(85% 0 0);
+  z-index: 41;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(0.5rem);
+  transition: opacity 200ms ease, transform 200ms ease, visibility 0s 200ms;
+  pointer-events: none;
+}
+
+.wip-notice.wip-notice-visible {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
 /* ============================================================================
    Console Overlay (Guake-style dropdown)
    ============================================================================
