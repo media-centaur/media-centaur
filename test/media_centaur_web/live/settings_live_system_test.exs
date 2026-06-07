@@ -134,6 +134,25 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
     assert {:fresh, {:ok, %{version: "99.0.0"}}} = UpdateChecker.cached_latest_release()
   end
 
+  test "a failed check resolves the card to an error instead of hanging on 'Checking…'",
+       %{conn: conn} do
+    # The card's checking state must resolve through the owned async task, not
+    # rely on a completion broadcast reaching this view (the prod hang fixed in
+    # v0.80.x — a worker→view PubSub gap left it stuck on "Checking…").
+    Req.Test.stub(:github_releases_live, fn conn ->
+      Plug.Conn.send_resp(conn, 404, "not found")
+    end)
+
+    {:ok, view, _html} = live_async!(conn, ~p"/settings?section=overview")
+    Req.Test.allow(:github_releases_live, self(), view.pid)
+    render_click(view, "check_updates", %{})
+
+    assert_eventually(fn ->
+      html = render(view)
+      html =~ "Update check error" and not (html =~ "Checking GitHub releases")
+    end)
+  end
+
   defp assert_eventually(check, remaining \\ 20) do
     if check.() do
       :ok
