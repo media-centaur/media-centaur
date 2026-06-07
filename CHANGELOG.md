@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.80.1 — 2026-06-07
+
+### New
+
+**The Status page now shows an Updates tile.** Media Centaur's self-update has
+joined the Status board: a calm tile that turns amber or red only if updating
+itself runs into trouble — checks repeatedly failing to reach GitHub, checks
+that have stalled, or an install that failed. Drill into the tile to see your
+current version, when it last checked and when the next check is due, whether
+automatic install is on, and a live progress bar while an update is applying. An
+available update is shown as information, never flagged as a problem.
+
 ## v0.80.0 — 2026-06-07
 
 ### Fixed
