@@ -57,9 +57,14 @@ defmodule MediaCentaur.TMDB.ConfidenceTest do
     wrong_2005 = %{"title" => "Sample Movie Twelve", "release_date" => "2005-01-01"}
     wrong_2024 = %{"title" => "Sample Movie Twelve", "release_date" => "2024-10-18"}
 
-    correct_score = Confidence.score("Sample Movie Twelve", 2022, correct, "title", "release_date", false)
-    wrong_2005_score = Confidence.score("Sample Movie Twelve", 2022, wrong_2005, "title", "release_date", false)
-    wrong_2024_score = Confidence.score("Sample Movie Twelve", 2022, wrong_2024, "title", "release_date", false)
+    correct_score =
+      Confidence.score("Sample Movie Twelve", 2022, correct, "title", "release_date", false)
+
+    wrong_2005_score =
+      Confidence.score("Sample Movie Twelve", 2022, wrong_2005, "title", "release_date", false)
+
+    wrong_2024_score =
+      Confidence.score("Sample Movie Twelve", 2022, wrong_2024, "title", "release_date", false)
 
     assert correct_score > wrong_2005_score
     assert correct_score > wrong_2024_score

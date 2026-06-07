@@ -60,7 +60,7 @@ defmodule Mix.Tasks.Seed.Review do
 
       # Single-file — Low confidence (movie)
       %{
-        file_path: "/media/movies/Sample.Movie.Twelve.2022.1080p.BluRay.mkv",
+        file_path: "/media/movies/Sample Movie Twelve.2022.1080p.BluRay.mkv",
         watch_directory: "/media/movies",
         parsed_title: "Sample Movie Twelve",
         parsed_year: 2022,

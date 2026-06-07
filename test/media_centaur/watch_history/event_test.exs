@@ -139,7 +139,9 @@ defmodule MediaCentaur.WatchHistory.EventTest do
     test "resets watch progress to incomplete" do
       movie = create_movie(%{name: "Sample Movie Fourteen"})
       _progress = create_watch_progress(%{movie_id: movie.id, completed: true})
-      event = create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie Fourteen"})
+
+      event =
+        create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Sample Movie Fourteen"})
 
       MediaCentaur.WatchHistory.delete_event!(event, reset_progress: true)
 
