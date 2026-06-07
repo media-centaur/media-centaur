@@ -63,6 +63,40 @@ defmodule MediaCentaur.SelfUpdate do
   def check_now, do: CheckerJob.enqueue_now()
 
   @doc """
+  UI snapshot for the Updates card: the last-known release classification
+  and release map, read without forcing a network round-trip.
+
+  When the hot cache has gone stale and background checks are enabled on
+  the prod release channel, a forced check is kicked in the background and
+  `:checking` is returned; its result arrives as `{:check_complete, …}` on
+  `self_update:status` (subscribe via `subscribe/0`). Off the prod channel,
+  or with background checks disabled, the last-known state is returned and
+  the manual button stays the only network trigger.
+
+  This is the seam that keeps the Settings LiveView a thin UI layer — all
+  the cache-read, version classification, and manual-only policy lives here.
+  """
+  @spec view_status() ::
+          {UpdateChecker.classification() | :checking | :idle | {:error, term()}, map() | nil}
+  def view_status do
+    case UpdateChecker.cached_latest_release() do
+      {:fresh, {:ok, release}} ->
+        {classify(release), release}
+
+      {:fresh, {:error, reason}} ->
+        {{:error, reason}, last_known_release()}
+
+      :stale ->
+        if enabled?() and MediaCentaur.Config.get(:update_check_enabled) do
+          _ = check_now()
+          {:checking, last_known_release()}
+        else
+          last_known()
+        end
+    end
+  end
+
+  @doc """
   Timestamp of the last successful release check, or `:none` if no check
   has ever succeeded. Used by the Settings UI for the "Last checked …" label.
   """
@@ -116,8 +150,8 @@ defmodule MediaCentaur.SelfUpdate do
 
   @doc """
   Records the outcome of a release check into both the durable store and
-  the hot-path cache. Called by `CheckerJob` and by the LiveView's
-  manual check path so the two layers never drift.
+  the hot-path cache. Called by `CheckerJob` — the single check path —
+  so the durable and hot-path layers never drift.
 
   See `Storage.record_check_result/1` for the full contract.
   """
@@ -158,8 +192,9 @@ defmodule MediaCentaur.SelfUpdate do
   stale persisted row survive indefinitely on installs that restart
   often, because each boot would rehydrate it with a fresh 5-minute
   TTL before the UI ever asked for a new check. Always enqueueing is
-  safe: `CheckerJob`'s 1-hour `unique` constraint dedupes with a cron
-  tick that just fired, so this can't spam the GitHub API.
+  safe: `CheckerJob`'s `unique` window dedupes with a cron tick that
+  just fired, and the `due_for_check?/5` gate skips a boot check that
+  isn't actually due, so this can't spam the GitHub API.
   """
   @spec boot!() :: :ok
   def boot! do
@@ -168,5 +203,24 @@ defmodule MediaCentaur.SelfUpdate do
     # hot path — the app is serving requests long before this fires.
     _ = CheckerJob.enqueue_after(@boot_check_delay_seconds)
     :ok
+  end
+
+  defp classify(release), do: UpdateChecker.compare(release, MediaCentaur.Version.current_version())
+
+  # Last-known release for *display*, read from the hot cache only — never
+  # the database, so `view_status/0` stays safe on the render path. The cache
+  # is hydrated from durable storage at boot, so it survives a lapsed TTL.
+  defp last_known do
+    case UpdateChecker.last_cached_release() do
+      {:ok, release} -> {classify(release), release}
+      _ -> {:idle, nil}
+    end
+  end
+
+  defp last_known_release do
+    case UpdateChecker.last_cached_release() do
+      {:ok, release} -> release
+      _ -> nil
+    end
   end
 end

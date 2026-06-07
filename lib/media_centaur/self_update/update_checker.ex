@@ -240,6 +240,22 @@ defmodule MediaCentaur.SelfUpdate.UpdateChecker do
     end
   end
 
+  @doc """
+  Returns the most recently cached outcome **ignoring the TTL**, or `:none`
+  when nothing is cached. Use for *display* of the last-known release on a
+  render path that must not touch the database — the cache is hydrated from
+  durable storage at boot (`SelfUpdate.boot!/0`), so it holds the last-known
+  release even once the freshness window has lapsed. For "should we re-check"
+  decisions use `cached_latest_release/0`, which honours the TTL.
+  """
+  @spec last_cached_release() :: cache_outcome() | :none
+  def last_cached_release do
+    case :persistent_term.get({__MODULE__, :cache}, nil) do
+      %{result: result} -> result
+      nil -> :none
+    end
+  end
+
   @doc "Records the outcome of an update check for later reuse within the TTL."
   @spec cache_result(cache_outcome()) :: :ok
   def cache_result(result) do
