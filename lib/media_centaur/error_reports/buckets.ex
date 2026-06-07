@@ -73,13 +73,17 @@ defmodule MediaCentaur.ErrorReports.Buckets do
   end
 
   @doc """
-  Dismisses the given fingerprints: resolves each backing `:log` incident in the
-  durable store (the source of truth), evicts the buckets from the in-memory
-  cache, and broadcasts the new list immediately (a user action, not throttled).
+  Dismisses the given fingerprints: permanently deletes each backing `:log`
+  incident (and its diagnostic events) from the durable store, evicts the buckets
+  from the in-memory cache, and broadcasts the new list immediately (a user
+  action, not throttled).
 
-  A dismissed incident reopens on its own if the same error recurs — the
-  LogHandler reasserts it (`Store.upsert_log_incident/1`), so dismiss clears the
-  *current* evidence without permanently silencing a live fault.
+  Dismiss honours the user's intent literally — the incident is *removed*, not
+  marked `:resolved`. A resolved row would reload on the next cache rebuild and
+  reappear, which is the "dismissed incidents come back" complaint. If the same
+  fault later recurs, the LogHandler opens a *fresh* incident from the new
+  evidence (`Store.upsert_log_incident/1`); dismiss never permanently silences a
+  live fault, it only clears what has happened so far.
   """
   @spec dismiss(GenServer.server(), [binary()]) :: :ok
   def dismiss(server \\ __MODULE__, fingerprints) when is_list(fingerprints) do
@@ -119,7 +123,7 @@ defmodule MediaCentaur.ErrorReports.Buckets do
 
   @impl true
   def handle_call({:dismiss, fingerprints}, _from, state) do
-    Enum.each(fingerprints, &resolve_in_store/1)
+    Enum.each(fingerprints, &purge_from_store/1)
 
     cache = Enum.reduce(fingerprints, state.cache, &BucketCache.delete(&2, &1))
     broadcast(cache)
@@ -170,18 +174,12 @@ defmodule MediaCentaur.ErrorReports.Buckets do
     )
   end
 
-  # Resolve the durable `:log` incident behind a dismissed bucket. A failed
-  # store write must not crash the cache (mirrors safe_persist/2): the bucket is
-  # already evicted from the working set, and the store reconciles on next boot.
-  defp resolve_in_store(fingerprint) do
-    case Store.get_incident_by_fingerprint(fingerprint) do
-      %{status: status} = incident when status != :resolved -> safe_resolve(incident)
-      _ -> :ok
-    end
-  end
-
-  defp safe_resolve(incident) do
-    Store.set_status(incident, :resolved)
+  # Permanently delete the durable `:log` incident (and its events) behind a
+  # dismissed bucket. A failed store write must not crash the cache (mirrors
+  # safe_persist/2): the bucket is already evicted from the working set, and a
+  # surviving row would simply be re-dismissed on the next attempt.
+  defp purge_from_store(fingerprint) do
+    Store.delete_incident_by_fingerprint(fingerprint)
   rescue
     _ -> :error
   catch
