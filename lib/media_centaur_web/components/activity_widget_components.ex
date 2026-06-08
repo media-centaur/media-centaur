@@ -529,6 +529,10 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
   attr :apply_progress, :integer, default: nil, doc: "apply progress percent (0-100), or nil"
 
+  attr :history, :list,
+    default: [],
+    doc: "upgrade history, newest-first: [%{version, recorded_at}] — version + date only"
+
   def self_update_widget(assigns) do
     ~H"""
     <div class="card glass-surface" data-testid="self-update-widget">
@@ -561,6 +565,24 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
           </span>
         </div>
 
+        <div
+          :if={@history != []}
+          class="mt-1 border-t border-base-content/10 pt-2"
+          data-component="update-history"
+        >
+          <h3 class="text-xs text-base-content/50 mb-1">History</h3>
+          <ul class="space-y-0.5">
+            <li
+              :for={entry <- @history}
+              id={"update-history-#{entry.version}"}
+              class="flex items-center justify-between text-xs"
+            >
+              <span class="font-mono text-base-content/70">v{entry.version}</span>
+              <span class="text-base-content/40">{history_date(entry.recorded_at)}</span>
+            </li>
+          </ul>
+        </div>
+
         <div :if={apply_active?(@apply_phase)} class="mt-1 space-y-1" data-component="apply-progress">
           <div class="flex items-center justify-between text-xs">
             <span class="text-base-content/70">{SystemSection.apply_phase_label(@apply_phase)}</span>
@@ -588,6 +610,9 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
   # The phases where an apply is genuinely in flight (a progress bar makes sense).
   defp apply_active?(phase),
     do: phase in [:preparing, :downloading, :verifying, :extracting, :handing_off]
+
+  # Friendly, non-zero-padded date for the upgrade-history rows, e.g. "Jun 7, 2026".
+  defp history_date(%DateTime{} = at), do: Calendar.strftime(at, "%b %-d, %Y")
 
   defp now_playing_title(%{episode_name: _} = now_playing),
     do: now_playing[:entity_name] || now_playing.entity_id
