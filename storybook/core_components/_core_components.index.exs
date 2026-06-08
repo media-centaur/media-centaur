@@ -10,5 +10,6 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents do
   def entry("icon"), do: [icon: {:fa, "icons", :thin}]
   def entry("input"), do: [icon: {:fa, "input-text", :thin}]
   def entry("list"), do: [icon: {:fa, "list", :thin}]
+  def entry("modal"), do: [icon: {:fa, "window-maximize", :thin}]
   def entry("table"), do: [icon: {:fa, "table", :thin}]
 end
