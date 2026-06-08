@@ -4,6 +4,25 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.82.3 — 2026-06-08
+
+### Improved
+
+**Each subsystem panel on the Status page now opens with a plain-language
+summary.** When you select a subsystem in the System Health board — Watcher,
+Import, Metadata, Playback, Library, Downloads, Updates, or System — the panel
+now leads with a short description of what that part of Media Centaur does and
+what you'd notice if it stopped working, before showing its recent activity,
+any issues, and technical logs. The panel reads top-to-bottom as an explanation
+rather than just a status light.
+
+### Fixed
+
+**A manual update check no longer installs an update on its own.** Pressing
+*Check for updates* now only tells you whether a new version is available;
+installing stays a deliberate, separate step. Automatic installs (when you've
+opted into them) are unaffected.
+
 ## v0.82.2 — 2026-06-08
 
 ### New
