@@ -4,6 +4,14 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.83.1 — 2026-06-08
+
+### Fixed
+
+**Incident lookup by ID is reliable again.** Finding a specific incident by its
+ID — the value in a `/status` incident link — could silently come up empty in
+the troubleshooting tools. Those IDs now resolve correctly.
+
 ## v0.83.0 — 2026-06-08
 
 ### Improved
