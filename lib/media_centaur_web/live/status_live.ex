@@ -109,11 +109,13 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(self_update_last_check_at: :none)
     |> assign(self_update_apply_phase: nil)
     |> assign(self_update_apply_progress: nil)
+    |> assign(self_update_history: [])
   end
 
   # Snapshot of the self-update subsystem for the Updates Activity widget.
-  # `last_check_at` (a Settings read) is captured into assigns and refreshed on
-  # `{:check_complete, …}` — because it changes rarely, not because the render
+  # `last_check_at` and `upgrade_history` (both Settings reads) are captured into
+  # assigns here — `last_check_at` refreshes on `{:check_complete, …}`, history
+  # changes only at boot — because they change rarely, not because the render
   # path must avoid DB reads.
   #
   # Tombstone: this used to defer the read "to keep `activity_bundle/1` free of
@@ -129,6 +131,7 @@ defmodule MediaCentaurWeb.StatusLive do
       self_update_status: status,
       self_update_release: release,
       self_update_last_check_at: SelfUpdate.last_check_at(),
+      self_update_history: SelfUpdate.upgrade_history(),
       self_update_apply_phase: if(phase != :idle, do: phase)
     )
   end
@@ -223,6 +226,7 @@ defmodule MediaCentaurWeb.StatusLive do
       status: assigns.self_update_status,
       latest_release: assigns.self_update_release,
       last_check_at: assigns.self_update_last_check_at,
+      history: assigns.self_update_history,
       now: DateTime.utc_now(),
       check_enabled?: Config.get(:update_check_enabled) == true,
       interval_minutes: Config.update_check_interval_minutes(),
