@@ -4,6 +4,24 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.82.4 — 2026-06-08
+
+### New
+
+**Click an issue on the Status page to see what's going on.** When a subsystem
+flags a problem, you can now click the issue to open a detail view — what that
+part of Media Centaur does, when and how often the problem happened, and the
+recent log lines — so you can understand it before deciding whether to report
+it. The *Report this* button now lives inside that view, so reporting follows
+reading the issue rather than coming first.
+
+### Improved
+
+**The problem-report wizard no longer closes if you click outside it or press
+Escape.** While you're writing up a report, a stray click or keypress won't
+discard what you've typed — close it deliberately with the buttons in the
+dialog. Quick pop-up dialogs elsewhere in the app still close the easy way.
+
 ## v0.82.3 — 2026-06-08
 
 ### Improved
