@@ -24,29 +24,42 @@ defmodule MediaCentaur.Log do
   - Shorten paths with `Path.basename/1` when full path adds noise
   - For decisions, log outcome AND reason: `"approved, confidence 0.92 >= 0.85 threshold"`
   - Use `fn -> ... end` for messages with expensive interpolation
+
+  ## Extra metadata
+
+  Each macro accepts an optional keyword list of additional `:logger` metadata.
+  The one option the diagnostics layer reads is **`mc_incident: :skip`** — it
+  keeps the line in the volatile console but tells `ErrorReports.LogHandler` not
+  to mint a durable `:log` incident from it (ADR-054). Use it for a warning whose
+  incident a subsystem `assess/0` already owns — e.g. download-client
+  connectivity failures, owned by `Downloads.IncidentContext` — so one health
+  condition is one auto-resolving incident instead of a per-log-line duplicate:
+
+      Log.warning(:acquisition, "qbittorrent sync_maindata error — \#{inspect(reason)}",
+        mc_incident: :skip)
   """
 
   @doc "Emits an info-level log tagged with the given component."
-  defmacro info(component, message) do
+  defmacro info(component, message, metadata \\ []) do
     quote do
       require Logger
-      Logger.info(unquote(message), component: unquote(component))
+      Logger.info(unquote(message), [{:component, unquote(component)} | unquote(metadata)])
     end
   end
 
   @doc "Emits a warning-level log tagged with the given component."
-  defmacro warning(component, message) do
+  defmacro warning(component, message, metadata \\ []) do
     quote do
       require Logger
-      Logger.warning(unquote(message), component: unquote(component))
+      Logger.warning(unquote(message), [{:component, unquote(component)} | unquote(metadata)])
     end
   end
 
   @doc "Emits an error-level log tagged with the given component."
-  defmacro error(component, message) do
+  defmacro error(component, message, metadata \\ []) do
     quote do
       require Logger
-      Logger.error(unquote(message), component: unquote(component))
+      Logger.error(unquote(message), [{:component, unquote(component)} | unquote(metadata)])
     end
   end
 end

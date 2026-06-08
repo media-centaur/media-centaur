@@ -76,7 +76,8 @@ config :media_centaur, Oban,
 # these at runtime (boundary-clean IoC). Rolled out incrementally — TMDB first.
 config :media_centaur, :diagnostics_contributors, %{
   tmdb: MediaCentaur.TMDB.IncidentContext,
-  self_update: MediaCentaur.SelfUpdate.IncidentContext
+  self_update: MediaCentaur.SelfUpdate.IncidentContext,
+  acquisition: MediaCentaur.Downloads.IncidentContext
 }
 
 # Public repo the in-app reporter opens a new issue against (user posts under

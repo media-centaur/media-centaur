@@ -277,7 +277,10 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
         %{state | queue: queue, history: %{}}
 
       {:error, reason} ->
-        Log.warning(:library, "queue monitor poll failed: #{inspect(reason)}")
+        # The connectivity condition is owned by Downloads.IncidentContext.assess/0
+        # (it reads the very last_error set just below) — console-only, no
+        # duplicate :log incident (ADR-054).
+        Log.warning(:library, "queue monitor poll failed: #{inspect(reason)}", mc_incident: :skip)
 
         queue = %{
           state.queue

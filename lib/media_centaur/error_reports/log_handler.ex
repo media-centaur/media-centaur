@@ -13,9 +13,11 @@ defmodule MediaCentaur.ErrorReports.LogHandler do
 
   Runs in the caller's process per log call, so it stays cheap and crash-free:
   it only builds an entry and casts (the DB write happens later, in `Buckets`).
-  The `mc_log_source: :buffer` guard drops the Buffer's own self-logs; the level
-  guard is belt-and-suspenders behind the `level: :warning` filter configured at
-  install time.
+  The `mc_log_source: :buffer` guard drops the Buffer's own self-logs; the
+  `mc_incident: :skip` guard drops logs whose incident a subsystem `assess/0`
+  already owns (ADR-054 — they stay in the console but must not mint a duplicate
+  `:log` incident); the level guard is belt-and-suspenders behind the
+  `level: :warning` filter configured at install time.
 
   The target `Buckets` server is read from the handler config (`config.buckets`),
   defaulting to the named global — which lets tests drive `log/2` against an
@@ -33,7 +35,8 @@ defmodule MediaCentaur.ErrorReports.LogHandler do
   @doc false
   def log(%{level: level, msg: msg, meta: meta}, config) do
     try do
-      if meta[:mc_log_source] != :buffer and level in @captured_levels do
+      if meta[:mc_log_source] != :buffer and meta[:mc_incident] != :skip and
+           level in @captured_levels do
         entry = Entry.from_log_event(level, msg, meta)
         Buckets.ingest(buckets_target(config), entry)
       end

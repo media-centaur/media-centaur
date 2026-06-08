@@ -68,6 +68,25 @@ defmodule MediaCentaur.ErrorReports.LogHandlerTest do
     assert Store.get_incident_by_fingerprint(fingerprint_of(message)) == nil
   end
 
+  test "events marked mc_incident: :skip are not captured as :log incidents (ADR-054)" do
+    # An assessor-owned connectivity log: it still reaches the volatile console,
+    # but a subsystem `assess/0` owns the incident, so it must NOT mint a
+    # duplicate `:log` incident here.
+    skipped = "qbittorrent sync_maindata error #{uniq()}"
+    sentinel = "ordinary acquisition warning #{uniq()}"
+
+    LogHandler.log(event(:warning, skipped, %{component: :acquisition, mc_incident: :skip}), config())
+    LogHandler.log(event(:warning, sentinel, %{component: :acquisition}), config())
+
+    # Barrier: get_bucket is a GenServer call, so it only returns after every
+    # prior ingest cast has been processed — including the suppressed one, had it
+    # (wrongly) enqueued a cast. The sentinel proves the path is live.
+    assert Buckets.get_bucket(:lh_buckets, Fingerprint.fingerprint(:acquisition, sentinel).key)
+
+    assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:acquisition, skipped).key) ==
+             nil
+  end
+
   test "malformed events never raise out of the handler" do
     assert LogHandler.log(%{level: :error, msg: {:weird, make_ref()}, meta: %{}}, config()) == :ok
   end
