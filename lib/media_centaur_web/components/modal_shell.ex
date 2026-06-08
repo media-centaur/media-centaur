@@ -75,71 +75,67 @@ defmodule MediaCentaurWeb.Components.ModalShell do
     assigns = assign(assigns, :backdrop_url, backdrop_url)
 
     ~H"""
-    <div
+    <.modal
       id="detail-modal"
-      class="modal-backdrop"
-      data-state={if @open, do: "open", else: "closed"}
-      phx-click={@open && @on_close}
-      phx-window-keydown={@open && @on_close}
-      phx-key="Escape"
+      open={@open}
+      dismiss={:ephemeral}
+      on_close={@on_close}
       data-detail-mode={@open && "modal"}
       data-detail-view={@open && to_string(@detail_view)}
     >
-      <div class="modal-panel" phx-click={%Phoenix.LiveView.JS{}}>
-        <%!-- No close-X — backdrop click and Escape both close, and the
-              URL preserves history so browser-back also works. --%>
+      <%!-- No close-X — backdrop click and Escape both close, and the
+            URL preserves history so browser-back also works. --%>
 
-        <%!-- Single scroll surface for the entire detail. Backdrop image
+      <%!-- Single scroll surface for the entire detail. Backdrop image
               and atmospheric scrim live inside the scroll container so
               they scroll with the content, mirroring HomeLive's
               page-level `.page-backdrop` treatment. The hero, metadata,
               and content list all flow as one continuous document. --%>
-        <div
-          :if={@entity}
-          class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative thin-scrollbar"
-        >
-          <div :if={@backdrop_url} class="modal-page-backdrop" aria-hidden="true">
-            <img
-              src={@backdrop_url}
-              alt=""
-              loading="eager"
-              decoding="sync"
-              fetchpriority="high"
-            />
-          </div>
+      <div
+        :if={@entity}
+        class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative thin-scrollbar"
+      >
+        <div :if={@backdrop_url} class="modal-page-backdrop" aria-hidden="true">
+          <img
+            src={@backdrop_url}
+            alt=""
+            loading="eager"
+            decoding="sync"
+            fetchpriority="high"
+          />
+        </div>
 
-          <%!-- Atmosphere + content share a positioning anchor that grows
+        <%!-- Atmosphere + content share a positioning anchor that grows
                 with the content, so the absolute atmosphere covers the full
                 scroll height (not just the viewport-sized scroll padding box,
                 which would scroll off and cut the dim partway down). --%>
-          <div class="modal-page-content">
-            <div class="modal-page-atmosphere" aria-hidden="true"></div>
+        <div class="modal-page-content">
+          <div class="modal-page-atmosphere" aria-hidden="true"></div>
 
-            <div class="relative z-[2]">
-              <DetailPanel.detail_panel
-                entity={@entity}
-                progress={@progress}
-                resume={@resume}
-                progress_records={@progress_records}
-                seasons_view={@seasons_view}
-                expanded_seasons={@expanded_seasons}
-                on_play={@on_play}
-                on_close={@on_close}
-                rematch_confirm={@rematch_confirm}
-                detail_view={@detail_view}
-                detail_files={@detail_files}
-                delete_confirm={@delete_confirm}
-                deleting={@deleting}
-                spoiler_free={@spoiler_free}
-                tracking_status={@tracking_status}
-                available={@available}
-                tmdb_ready={@tmdb_ready}
-              />
-            </div>
+          <div class="relative z-[2]">
+            <DetailPanel.detail_panel
+              entity={@entity}
+              progress={@progress}
+              resume={@resume}
+              progress_records={@progress_records}
+              seasons_view={@seasons_view}
+              expanded_seasons={@expanded_seasons}
+              on_play={@on_play}
+              on_close={@on_close}
+              rematch_confirm={@rematch_confirm}
+              detail_view={@detail_view}
+              detail_files={@detail_files}
+              delete_confirm={@delete_confirm}
+              deleting={@deleting}
+              spoiler_free={@spoiler_free}
+              tracking_status={@tracking_status}
+              available={@available}
+              tmdb_ready={@tmdb_ready}
+            />
           </div>
         </div>
       </div>
-    </div>
+    </.modal>
     """
   end
 end
