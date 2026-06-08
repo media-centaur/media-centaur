@@ -23,6 +23,7 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Watcher
   alias MediaCentaur.Library.AbsenceSweeper
   alias MediaCentaurWeb.StatusLive.ReportModal
+  alias MediaCentaurWeb.Components.IssueView
 
   @storage_refresh_ms 5 * 60 * 1_000
 
@@ -96,6 +97,7 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(error_buckets: [])
     |> assign(board: HealthBoard.build_board([]))
     |> assign(selected_subsystem: nil)
+    |> assign(selected_incident: nil)
     |> assign(overview: nil)
     |> assign(overview_refresh_pending: false)
     |> assign(storage_drives: [])
@@ -247,8 +249,25 @@ defmodule MediaCentaurWeb.StatusLive do
     {:noreply, push_patch(socket, to: ~p"/status")}
   end
 
+  def handle_event("select_incident", %{"fingerprint" => fingerprint}, socket) do
+    bucket = Enum.find(socket.assigns.error_buckets, &(&1.fingerprint == fingerprint))
+    {:noreply, assign(socket, :selected_incident, bucket)}
+  end
+
+  def handle_event("close_incident", _params, socket) do
+    {:noreply, assign(socket, :selected_incident, nil)}
+  end
+
+  # Hand off from the (ephemeral) issue view to the (persistent) report wizard:
+  # close the issue view, then reuse open_error_report_modal/2 with the same
+  # fingerprint to open the wizard pre-loaded for this incident.
+  def handle_event("report_incident_from_issue", %{"fingerprint" => _fp} = params, socket) do
+    socket = assign(socket, :selected_incident, nil)
+    handle_event("open_error_report_modal", params, socket)
+  end
+
   def handle_event("dismiss_incident", %{"fingerprint" => fingerprint}, socket) do
-    {:noreply, dismiss(socket, [fingerprint])}
+    {:noreply, dismiss(assign(socket, :selected_incident, nil), [fingerprint])}
   end
 
   def handle_event("dismiss_all", _params, socket) do
@@ -486,6 +505,9 @@ defmodule MediaCentaurWeb.StatusLive do
             snapshot={@report_snapshot}
           />
         </.modal>
+        <%!-- Always mounted (toggles via data-state) like our best modals, so the
+              blur layer stays warm; inner content is guarded on the bucket. --%>
+        <IssueView.issue_view bucket={@selected_incident} />
       </:overlays>
       <div data-page-behavior="status" data-nav-default-zone="status" class="space-y-6">
         <div class="flex items-center gap-3">
