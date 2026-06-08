@@ -116,6 +116,8 @@ defmodule MediaCentaurWeb do
       import Phoenix.HTML
       # Core UI components
       import MediaCentaurWeb.CoreComponents
+      # The modal seam (the only place modal-backdrop/modal-panel may live)
+      import MediaCentaurWeb.Components.Modal
 
       # Common modules used in templates
       alias Phoenix.LiveView.JS
