@@ -162,6 +162,27 @@ defmodule MediaCentaur.ErrorReports.StoreTest do
       assert id == incident.id
     end
 
+    # Regression: real fingerprints are 16 lowercase hex chars (see
+    # Fingerprint.compute_key/2) — i.e. exactly 16 bytes. `Ecto.UUID.cast/1`
+    # misreads any 16-byte binary as a raw UUID, so the old detection routed
+    # every real fingerprint (the form deep-linked in /status?incident=) to a
+    # primary-key lookup that always missed. Test fixtures using short prefixed
+    # fingerprints ("fp_by_finger") dodged this, so the suite stayed green.
+    test "resolves a real 16-hex-char fingerprint (not misread as a UUID)" do
+      {:ok, incident} =
+        Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "af3d007b96861edc"))
+
+      assert %Incident{id: id} = Store.find_incident("af3d007b96861edc")
+      assert id == incident.id
+    end
+
+    test "resolves a full dashed incident id (UUID path still works)" do
+      {:ok, incident} = Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_uuid_path"))
+
+      assert %Incident{id: id} = Store.find_incident(incident.id)
+      assert id == incident.id
+    end
+
     test "returns nil for an unknown reference" do
       {:ok, _} = Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_present"))
 

@@ -169,11 +169,19 @@ defmodule MediaCentaur.ErrorReports.Store do
   end
 
   def find_incident(ref) when is_binary(ref) do
-    case Ecto.UUID.cast(ref) do
-      {:ok, uuid} -> Repo.get(Incident, uuid)
-      :error -> get_incident_by_fingerprint(ref) || get_incident_by_id_prefix(ref)
+    if uuid_text?(ref) do
+      Repo.get(Incident, ref)
+    else
+      get_incident_by_fingerprint(ref) || get_incident_by_id_prefix(ref)
     end
   end
+
+  # True only for a canonical textual UUID. We must NOT use `Ecto.UUID.cast/1`
+  # here: it treats any 16-byte binary as a *raw* UUID, and a real fingerprint
+  # is exactly 16 hex chars (Fingerprint.compute_key/2) — 16 bytes — so cast
+  # would misread every deep-linked `?incident=<fingerprint>` as a primary key.
+  # `dump/1` validates the dashed string form and rejects that ambiguity.
+  defp uuid_text?(ref), do: match?({:ok, _}, Ecto.UUID.dump(ref))
 
   @doc """
   Raises (opens) — or re-asserts — a `:subsystem` fault grouped by
