@@ -72,28 +72,22 @@ defmodule MediaCentaurWeb.StatusLive.ReportModal do
 
   @impl true
   def render(assigns) do
+    # Panel content only — the persistent `<.modal>` wrapper lives in StatusLive's
+    # overlays (a stateful component needs a single static root tag, which a
+    # function-component call is not). report_cancel bubbles to StatusLive
+    # (no phx-target) from the explicit "No, don't send" / "Close" buttons.
     ~H"""
-    <%!-- report_cancel intentionally bubbles to the parent StatusLive (no phx-target) to close the modal --%>
-    <div
-      id="error-report-modal"
-      class="modal-backdrop"
-      data-state="open"
-      data-testid="report-modal"
-      phx-window-keydown="report_cancel"
-      phx-key="Escape"
-    >
-      <div class="modal-panel flex flex-col max-h-[88vh]" phx-click={%Phoenix.LiveView.JS{}}>
-        <.result :if={@report_result} result={@report_result} />
-        <.flow
-          :if={is_nil(@report_result)}
-          step={@step}
-          narrative={@narrative}
-          title={@title}
-          body={@body}
-          consent={@consent}
-          myself={@myself}
-        />
-      </div>
+    <div class="flex flex-col min-h-0">
+      <.result :if={@report_result} result={@report_result} />
+      <.flow
+        :if={is_nil(@report_result)}
+        step={@step}
+        narrative={@narrative}
+        title={@title}
+        body={@body}
+        consent={@consent}
+        myself={@myself}
+      />
     </div>
     """
   end

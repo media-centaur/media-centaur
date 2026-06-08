@@ -75,6 +75,22 @@ defmodule MediaCentaurWeb.StatusLive.ReportingTest do
     assert html =~ "What happened"
   end
 
+  test "report wizard is persistent — no Escape/backdrop dismissal wiring", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/status")
+    bucket = seed_bucket("fp-pipeline-error")
+    render(view)
+
+    render_click(view, "open_error_report_modal", %{"fingerprint" => bucket.fingerprint})
+    assert has_element?(view, "[data-testid=report-modal]")
+
+    # Persistent modals expose no casual-exit wiring: neither a window-keydown
+    # (Escape) handler nor a backdrop phx-click. Dismissal is the explicit
+    # "No, don't send" / "Close" buttons only, so in-progress edits survive a
+    # stray Escape or backdrop click.
+    refute has_element?(view, "#error-report-modal[phx-window-keydown]")
+    refute has_element?(view, "#error-report-modal[phx-click]")
+  end
+
   test "generic 'Report a problem' opens the modal and files a user report", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, "/status")
 
