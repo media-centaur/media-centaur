@@ -94,78 +94,69 @@ defmodule MediaCentaurWeb.Components.TrackModal do
 
   def track_modal(assigns) do
     ~H"""
-    <div
-      id="track-modal"
-      class="modal-backdrop"
-      data-state={if @open, do: "open", else: "closed"}
-      phx-click={@open && "close_track_modal"}
-      phx-window-keydown={@open && "close_track_modal"}
-      phx-key="Escape"
-    >
-      <div class="modal-panel" phx-click={%Phoenix.LiveView.JS{}}>
-        <div class="flex flex-col flex-1 min-h-0 max-h-[80vh]">
-          <%!-- Header --%>
-          <div class="flex items-center justify-between px-5 py-4 border-b border-base-content/10">
-            <h2 class="text-lg font-semibold">Track New Releases</h2>
-            <.button
-              variant="dismiss"
-              size="sm"
-              shape="circle"
-              phx-click="close_track_modal"
-              aria-label="Close"
-            >
-              <.icon name="hero-x-mark-mini" class="size-5" />
-            </.button>
+    <.modal id="track-modal" open={@open} dismiss={:ephemeral} on_close="close_track_modal">
+      <div class="flex flex-col flex-1 min-h-0 max-h-[80vh]">
+        <%!-- Header --%>
+        <div class="flex items-center justify-between px-5 py-4 border-b border-base-content/10">
+          <h2 class="text-lg font-semibold">Track New Releases</h2>
+          <.button
+            variant="dismiss"
+            size="sm"
+            shape="circle"
+            phx-click="close_track_modal"
+            aria-label="Close"
+          >
+            <.icon name="hero-x-mark-mini" class="size-5" />
+          </.button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-5 space-y-5">
+          <%!-- Suggestions section --%>
+          <.suggestions_section
+            suggestions={@suggestions}
+            loading={@suggestions_loading}
+            confirmed_ids={@confirmed_ids}
+          />
+
+          <%!-- Search bar --%>
+          <div>
+            <form phx-change="track_search" phx-submit="track_search">
+              <input
+                id="track-search-input"
+                type="text"
+                name="query"
+                value={@search_query}
+                placeholder="Search movies & shows…"
+                class="input input-bordered w-full focus:outline-none focus:border-base-content/20"
+                autocomplete="off"
+                phx-debounce="300"
+              />
+            </form>
           </div>
 
-          <div class="flex-1 overflow-y-auto p-5 space-y-5">
-            <%!-- Suggestions section --%>
-            <.suggestions_section
-              suggestions={@suggestions}
-              loading={@suggestions_loading}
-              confirmed_ids={@confirmed_ids}
+          <%!-- Search results --%>
+          <div :if={@search_loading} class="flex justify-center py-4">
+            <span class="loading loading-spinner loading-sm text-base-content/50"></span>
+          </div>
+
+          <div :if={@search_results != []} class="space-y-2">
+            <.search_result
+              :for={result <- @search_results}
+              result={result}
+              scope_item={@scope_item}
+              collection_item={@collection_item}
             />
+          </div>
 
-            <%!-- Search bar --%>
-            <div>
-              <form phx-change="track_search" phx-submit="track_search">
-                <input
-                  id="track-search-input"
-                  type="text"
-                  name="query"
-                  value={@search_query}
-                  placeholder="Search movies & shows…"
-                  class="input input-bordered w-full focus:outline-none focus:border-base-content/20"
-                  autocomplete="off"
-                  phx-debounce="300"
-                />
-              </form>
-            </div>
-
-            <%!-- Search results --%>
-            <div :if={@search_loading} class="flex justify-center py-4">
-              <span class="loading loading-spinner loading-sm text-base-content/50"></span>
-            </div>
-
-            <div :if={@search_results != []} class="space-y-2">
-              <.search_result
-                :for={result <- @search_results}
-                result={result}
-                scope_item={@scope_item}
-                collection_item={@collection_item}
-              />
-            </div>
-
-            <div
-              :if={@search_query != "" && @search_results == [] && !@search_loading}
-              class="text-center text-base-content/40 py-4"
-            >
-              No results found
-            </div>
+          <div
+            :if={@search_query != "" && @search_results == [] && !@search_loading}
+            class="text-center text-base-content/40 py-4"
+          >
+            No results found
           </div>
         </div>
       </div>
-    </div>
+    </.modal>
     """
   end
 
