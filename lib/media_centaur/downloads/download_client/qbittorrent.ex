@@ -94,15 +94,22 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
           {:error, {:http_error, 403, body}}
 
         {:ok, %{status: status, body: body}} ->
+          # Owned by Downloads.IncidentContext.assess/0 (the failed poll sets
+          # QueueMonitor's last_error) — console-only, no duplicate :log incident
+          # (ADR-054).
           Log.warning(
             :acquisition,
-            "qbittorrent sync_maindata failed — status=#{status} body=#{inspect(body)}"
+            "qbittorrent sync_maindata failed — status=#{status} body=#{inspect(body)}",
+            mc_incident: :skip
           )
 
           {:error, {:http_error, status, body}}
 
         {:error, reason} ->
-          Log.warning(:acquisition, "qbittorrent sync_maindata error — #{inspect(reason)}")
+          Log.warning(:acquisition, "qbittorrent sync_maindata error — #{inspect(reason)}",
+            mc_incident: :skip
+          )
+
           {:error, reason}
       end
     end)

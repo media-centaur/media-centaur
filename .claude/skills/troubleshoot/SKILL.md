@@ -54,6 +54,18 @@ data, and the triggering ids). This is usually the fastest way to understand a
 production fault *after the fact*, since the live log buffer may already have
 rolled over.
 
+Incidents come from two tracks (ADR-054). **`:log`** incidents are minted 1:1
+from any `warning`/`error` log line — the safety net for unexpected, un-owned
+errors. **`:subsystem`** incidents come from a subsystem's `assess/0` health
+probe polled by the evaluator: grouped by `{component, kind}`, threshold-gated,
+and **auto-resolving** when health recovers. External-dependency connectivity
+(e.g. the download client — `Downloads.IncidentContext`) lives on the
+`:subsystem` track, so a transient qBittorrent timeout no longer mints a flock
+of duplicate `:log` incidents — a sustained outage opens exactly one
+`{:acquisition, :download_client_unreachable}` incident that closes itself on
+recovery. Those connectivity `Log.warning` lines still appear in the console
+(tagged `mc_incident: :skip`); they just no longer create `:log` incidents.
+
 ```bash
 scripts/troubleshoot incidents          # list recent incidents (short id, severity, title)
 scripts/troubleshoot incidents 50       # list the 50 most recent
