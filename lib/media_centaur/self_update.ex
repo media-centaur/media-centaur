@@ -35,6 +35,14 @@ defmodule MediaCentaur.SelfUpdate do
 
   @boot_check_delay_seconds 30
 
+  @typedoc """
+  What initiated a check. `:scheduled` is the unattended background poll (the
+  only source that may auto-apply). `:manual` is a user-pressed "Check for
+  updates" — an attended action that presents the result for a deliberate
+  Update press and never auto-installs.
+  """
+  @type check_source :: :scheduled | :manual
+
   @doc """
   True only when update checks should run. Returns false in dev and test —
   dev builds update by rebuilding from source; test builds never hit the
@@ -47,8 +55,9 @@ defmodule MediaCentaur.SelfUpdate do
 
   @doc """
   Subscribes the caller to `self_update:status` — `{:check_started}` and
-  `{:check_complete, outcome}` messages fire here when the scheduled or
-  manual check runs.
+  `{:check_complete, outcome, source}` messages fire here when the scheduled or
+  manual check runs. `source` is `:scheduled | :manual`; only `:scheduled`
+  drives AutoApply (a manual check presents, the user decides).
   """
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
@@ -88,19 +97,25 @@ defmodule MediaCentaur.SelfUpdate do
   Runs an update check **synchronously** and returns its outcome —
   `{classification, release}` or `{:error, reason}`. Fetches the latest release,
   records it across the durable store, the hot cache, and the health projection,
-  then broadcasts `{:check_started}` and `{:check_complete, outcome}` on
+  then broadcasts `{:check_started}` and `{:check_complete, outcome, source}` on
   `self_update:status` so AutoApply and passive views react.
 
-  The single check implementation: the scheduled `CheckerJob` calls it, and the
-  Settings LiveView wraps it in `start_async/3` so a manual check resolves its
-  UI through `handle_async` — a guaranteed completion path that does not hinge
-  on the broadcast being delivered to that view.
+  `source` (`:scheduled | :manual`, default `:scheduled`) tags who initiated the
+  check. AutoApply only auto-installs on `:scheduled`; a `:manual` check still
+  refreshes every view's displayed status but never triggers an install — the
+  user pressed the button to decide, so the manual path presents the update for
+  a deliberate Update press.
+
+  The single check implementation: the scheduled `CheckerJob` calls it with
+  `:scheduled`, and the Settings LiveView wraps it in `start_async/3` with
+  `:manual` so a manual check resolves its UI through `handle_async` — a
+  guaranteed completion path that does not hinge on the broadcast.
   """
-  @spec run_check() :: {UpdateChecker.classification(), map()} | {:error, term()}
-  def run_check do
+  @spec run_check(check_source()) :: {UpdateChecker.classification(), map()} | {:error, term()}
+  def run_check(source \\ :scheduled) when source in [:scheduled, :manual] do
     broadcast({:check_started})
     outcome = do_run_check()
-    broadcast({:check_complete, outcome})
+    broadcast({:check_complete, outcome, source})
     outcome
   end
 

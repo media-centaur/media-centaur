@@ -10,8 +10,10 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
   racing a cron tick, and must stay *below* the cron interval or it
   would silently cap the user's setting to its own period.
 
-  The job broadcasts `{:check_complete, outcome}` on the
-  `self_update:status` topic so LiveViews can react without polling.
+  The job broadcasts `{:check_complete, outcome, :scheduled}` on the
+  `self_update:status` topic so LiveViews can react without polling. The
+  `:scheduled` source is what lets AutoApply auto-install from this path (a
+  manual check passes `:manual` and is never auto-applied).
   """
 
   use Oban.Worker,
@@ -33,8 +35,10 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
 
     if SelfUpdate.enabled?() and check_due?(forced?) do
       # The check itself (fetch + record + broadcast) lives in the context, so
-      # the scheduled path and the LiveView's manual check share one impl.
-      SelfUpdate.run_check()
+      # the scheduled path and the LiveView's manual check share one impl. This
+      # is the unattended poll — `:scheduled` is the only source AutoApply will
+      # auto-install on.
+      SelfUpdate.run_check(:scheduled)
     end
 
     :ok

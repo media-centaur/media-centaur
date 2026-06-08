@@ -4,18 +4,26 @@ defmodule MediaCentaur.SelfUpdate.AutoApplyTest do
   alias MediaCentaur.SelfUpdate.AutoApply
   alias MediaCentaur.Topics
 
-  describe "detection_action/2 (a new version was detected)" do
+  describe "detection_action/3 (a new version was detected)" do
     test "ignores detection when auto-update is off" do
-      assert AutoApply.detection_action(false, false) == :ignore
-      assert AutoApply.detection_action(false, true) == :ignore
+      assert AutoApply.detection_action(false, false, :scheduled) == :ignore
+      assert AutoApply.detection_action(false, true, :scheduled) == :ignore
     end
 
-    test "applies immediately when auto-update is on and nothing is playing" do
-      assert AutoApply.detection_action(true, false) == :apply
+    test "applies immediately when a scheduled check finds one and nothing is playing" do
+      assert AutoApply.detection_action(true, false, :scheduled) == :apply
     end
 
-    test "defers when auto-update is on but something is playing" do
-      assert AutoApply.detection_action(true, true) == :defer
+    test "defers when a scheduled check finds one but something is playing" do
+      assert AutoApply.detection_action(true, true, :scheduled) == :defer
+    end
+
+    test "never auto-applies a manually-triggered check, even when idle and auto-update on" do
+      # A manual "Check for updates" is an attended action: the user pressed the
+      # button to *decide*, so the check presents the update rather than applying
+      # it. Auto-apply is reserved for the unattended scheduled poll.
+      assert AutoApply.detection_action(true, false, :manual) == :ignore
+      assert AutoApply.detection_action(true, true, :manual) == :ignore
     end
   end
 
@@ -55,7 +63,15 @@ defmodule MediaCentaur.SelfUpdate.AutoApplyTest do
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
         Topics.self_update_status(),
-        {:check_complete, {:update_available, %{version: "9.9.9"}}}
+        {:check_complete, {:update_available, %{version: "9.9.9"}}, :scheduled}
+      )
+    end
+
+    defp detect_manual_update do
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        Topics.self_update_status(),
+        {:check_complete, {:update_available, %{version: "9.9.9"}}, :manual}
       )
     end
 
@@ -67,9 +83,14 @@ defmodule MediaCentaur.SelfUpdate.AutoApplyTest do
       )
     end
 
-    test "applies when a version is detected and nothing is playing" do
+    test "applies when a scheduled check finds a version and nothing is playing" do
       detect_update()
       assert_receive :applied, 500
+    end
+
+    test "never applies on a manually-triggered check, even when idle and auto-update on" do
+      detect_manual_update()
+      refute_receive :applied, 300
     end
 
     test "defers while something is playing, then applies once it stops" do
@@ -100,13 +121,13 @@ defmodule MediaCentaur.SelfUpdate.AutoApplyTest do
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
         Topics.self_update_status(),
-        {:check_complete, {:up_to_date, %{version: "1.0.0"}}}
+        {:check_complete, {:up_to_date, %{version: "1.0.0"}}, :scheduled}
       )
 
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
         Topics.self_update_status(),
-        {:check_complete, {:error, :not_found}}
+        {:check_complete, {:error, :not_found}, :scheduled}
       )
 
       refute_receive :applied, 200
@@ -131,7 +152,7 @@ defmodule MediaCentaur.SelfUpdate.AutoApplyTest do
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
         Topics.self_update_status(),
-        {:check_complete, {:update_available, %{version: "9.9.9"}}}
+        {:check_complete, {:update_available, %{version: "9.9.9"}}, :scheduled}
       )
 
       refute_receive :applied, 300

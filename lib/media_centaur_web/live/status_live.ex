@@ -405,7 +405,7 @@ defmodule MediaCentaurWeb.StatusLive do
     {:noreply, assign(socket, self_update_status: :checking)}
   end
 
-  def handle_info({:check_complete, {classification, release}}, socket)
+  def handle_info({:check_complete, {classification, release}, _source}, socket)
       when classification in [:update_available, :up_to_date, :ahead_of_release] do
     {:noreply,
      assign(socket,
@@ -415,7 +415,7 @@ defmodule MediaCentaurWeb.StatusLive do
      )}
   end
 
-  def handle_info({:check_complete, {:error, reason}}, socket) do
+  def handle_info({:check_complete, {:error, reason}, _source}, socket) do
     {:noreply, assign(socket, self_update_status: {:error, reason})}
   end
 

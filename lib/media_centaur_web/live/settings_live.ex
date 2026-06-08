@@ -292,9 +292,14 @@ defmodule MediaCentaurWeb.SettingsLive do
   # via `handle_async/3`, independent of the `{:check_complete, …}` broadcast
   # that feeds AutoApply and other views. A worker→view PubSub gap previously
   # left the card stuck on "Checking…" with the check having silently succeeded.
+  #
+  # `:manual` is load-bearing: a user-pressed check must never auto-install,
+  # even with auto-update on. It surfaces the available update here; the user
+  # then presses Update deliberately. AutoApply ignores any non-`:scheduled`
+  # source.
   defp start_update_check(socket) do
     socket
-    |> start_async(:update_check, &SelfUpdate.run_check/0)
+    |> start_async(:update_check, fn -> SelfUpdate.run_check(:manual) end)
     |> assign(update_status: :checking)
   end
 
@@ -1177,8 +1182,9 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
-  # Scheduled CheckerJob broadcast — refresh the visible card.
-  def handle_info({:check_complete, {classification, release}}, socket)
+  # A check completed (scheduled or manual) — refresh the visible card. The card
+  # only *displays* status here; the source matters to AutoApply, not the UI.
+  def handle_info({:check_complete, {classification, release}, _source}, socket)
       when classification in [:update_available, :up_to_date, :ahead_of_release] do
     {:noreply,
      socket
@@ -1186,7 +1192,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> put_update_automation_assigns()}
   end
 
-  def handle_info({:check_complete, {:error, reason}}, socket) do
+  def handle_info({:check_complete, {:error, reason}, _source}, socket) do
     {:noreply, assign(socket, update_status: {:error, reason}, latest_release: nil)}
   end
 
