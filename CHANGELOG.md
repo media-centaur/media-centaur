@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.82.2 — 2026-06-08
+
+### New
+
+**The Updates panel now keeps a history of the versions you've run.** Open
+**Updates** in the Status page's System Health board and you'll see the versions
+Media Centaur has updated through, each with the date it started running — so you
+can tell at a glance when you last updated and what you were on before. The list
+starts building from this release onward.
+
 ## v0.82.1 — 2026-06-07
 
 ### Improved
