@@ -517,7 +517,7 @@ defmodule MediaCentaurWeb.StatusLive do
             :if={@selected_subsystem}
             view={drill_in_view(@board, @selected_subsystem)}
             buckets={drill_in_buckets(@error_buckets, @selected_subsystem)}
-            on_report="open_error_report_modal"
+            on_select="select_incident"
           >
             <:activity :if={ActivityWidgets.widget_for(@selected_subsystem)}>
               {ActivityWidgets.render(@selected_subsystem, activity_bundle(assigns))}

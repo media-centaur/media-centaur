@@ -51,41 +51,44 @@ defmodule MediaCentaurWeb.HealthComponents do
     """
   end
 
-  @doc "One reportable incident row in the drill-in Issues section."
+  @doc """
+  One incident row in the drill-in Issues section. The row body is a button that
+  opens the issue view (`on_select`); the X dismisses (`on_dismiss`). Reporting
+  is no longer on the row — it lives inside the issue view, so it follows reading
+  the incident rather than preceding it.
+  """
   attr :bucket, Bucket, required: true
-  attr :on_report, :string, default: "report_incident"
+  attr :on_select, :string, default: "select_incident"
   attr :on_dismiss, :string, default: "dismiss_incident"
 
   def incident_row(assigns) do
     ~H"""
-    <div
-      id={"incident-#{@bucket.fingerprint}"}
-      class="glass-inset rounded-lg p-3 flex items-start gap-3"
-    >
-      <span class={[
-        "size-2 rounded-full shrink-0 mt-1.5",
-        @bucket.severity == :warning && "bg-warning",
-        @bucket.severity in [:error, :critical] && "bg-error"
-      ]} />
-      <div class="min-w-0 flex-1">
-        <p class="text-sm">{@bucket.display_title}</p>
-        <p class="text-xs text-base-content/50 mt-0.5">
-          {@bucket.count}× · since {Calendar.strftime(@bucket.first_seen, "%b %-d, %H:%M")}
-        </p>
-      </div>
-      <.button
-        variant="neutral"
-        size="xs"
-        phx-click={@on_report}
+    <div id={"incident-#{@bucket.fingerprint}"} class="glass-inset rounded-lg flex items-stretch">
+      <button
+        type="button"
+        phx-click={@on_select}
         phx-value-fingerprint={@bucket.fingerprint}
+        data-nav-item
+        class="flex-1 min-w-0 flex items-start gap-3 p-3 text-left rounded-l-lg cursor-pointer hover:bg-base-content/5 transition-colors"
       >
-        Report this
-      </.button>
+        <span class={[
+          "size-2 rounded-full shrink-0 mt-1.5",
+          @bucket.severity == :warning && "bg-warning",
+          @bucket.severity in [:error, :critical] && "bg-error"
+        ]} />
+        <span class="min-w-0 flex-1">
+          <span class="block text-sm truncate">{@bucket.display_title}</span>
+          <span class="block text-xs text-base-content/50 mt-0.5">
+            {@bucket.count}× · since {Calendar.strftime(@bucket.first_seen, "%b %-d, %H:%M")}
+          </span>
+        </span>
+      </button>
       <.button
         variant="dismiss"
         size="xs"
         shape="square"
         aria-label="Dismiss"
+        class="m-2 self-center"
         phx-click={@on_dismiss}
         phx-value-fingerprint={@bucket.fingerprint}
       >
@@ -98,7 +101,7 @@ defmodule MediaCentaurWeb.HealthComponents do
   @doc "Inline stacked drill-in for one subsystem: Summary → Activity → Issues → collapsed Logs."
   attr :view, SubsystemView, required: true
   attr :buckets, :list, required: true, doc: "[Bucket.t()] for this subsystem"
-  attr :on_report, :string, default: "report_incident"
+  attr :on_select, :string, default: "select_incident"
   attr :on_dismiss, :string, default: "dismiss_incident"
   attr :on_dismiss_all, :string, default: "dismiss_all"
   attr :on_close, :string, default: "close_subsystem"
@@ -132,7 +135,7 @@ defmodule MediaCentaurWeb.HealthComponents do
         <.incident_row
           :for={bucket <- @buckets}
           bucket={bucket}
-          on_report={@on_report}
+          on_select={@on_select}
           on_dismiss={@on_dismiss}
         />
       </div>
