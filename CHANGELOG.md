@@ -4,6 +4,15 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.83.3 — 2026-06-08
+
+### Fixed
+
+**The TMDB search box on the Review page stays open.** When matching a file to
+a movie or show, starting a search used to snap the search box shut the instant
+you clicked Search (or pressed Enter), so its results never had a chance to
+appear. The box now stays open and shows its matches so you can pick one.
+
 ## v0.83.2 — 2026-06-08
 
 ### Improved
