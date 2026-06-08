@@ -105,9 +105,39 @@ cmd_status() {
     banner "Playback"
     diag "playback()"
 
+    banner "Open Incidents"
+    diag "incidents(5)"
+
     banner "Recent Errors (last 5 min)"
     journalctl --user -u "$service" --no-pager --since "5 min ago" -p err 2>/dev/null | tail -20 || info "None"
   fi
+}
+
+cmd_incidents() {
+  require_release
+  require_running
+  local limit="${1:-20}"
+  banner "Incidents (most recent $limit)"
+  diag "incidents($limit)"
+}
+
+cmd_incident() {
+  require_release
+  require_running
+  local ref="${1:-}"
+
+  if [ -z "$ref" ]; then
+    diag "incident(:latest)"
+    return
+  fi
+
+  if ! printf '%s' "$ref" | grep -qE '^[A-Za-z0-9_-]+$'; then
+    echo "Invalid incident reference: '$ref'"
+    echo "Use :latest (omit the arg), a short id, a full id, or a fingerprint."
+    exit 1
+  fi
+
+  diag "incident(\"$ref\")"
 }
 
 cmd_logs() {
@@ -223,6 +253,11 @@ Commands:
   logs [N]            Tail journal logs (default: last 100, follows)
   errors [PERIOD]     Show error-level logs (default: 1h)
   remote              Open remote IEx shell (Ctrl+\\ to disconnect)
+  incidents [N]       List the N most recent durable incidents (default: 20)
+  incident [REF]      Full forensic dump for one incident — header plus its
+                      frozen context (lead-up logs, cross-subsystem vitals,
+                      contributor data, triggering ids). REF is a short id (from
+                      'incidents'), a full id, or a fingerprint; omit for :latest
   log recent [N]      Print the N most recent console buffer entries (default: 20)
   mpv-env             Check display env on the service process (Wayland/X11)
                       — catches the silent "mpv exited (status 1)" failure
@@ -234,6 +269,9 @@ on any page, or navigate to http://127.0.0.1:$port/console).
 
 Examples:
   scripts/troubleshoot                        # quick health check + recent entries
+  scripts/troubleshoot incidents              # list recent durable incidents
+  scripts/troubleshoot incident               # full dump of the latest incident
+  scripts/troubleshoot incident 95e0a7c8      # full dump for incident 95e0a7c8…
   scripts/troubleshoot log recent 50          # last 50 buffered log entries
   scripts/troubleshoot logs                   # tail the raw systemd journal
   scripts/troubleshoot errors 24h             # error-level logs from last 24h
@@ -252,6 +290,8 @@ case "$cmd" in
   logs|log-tail)  cmd_logs "$@" ;;
   errors)         cmd_errors "$@" ;;
   remote)         cmd_remote ;;
+  incidents)      cmd_incidents "$@" ;;
+  incident)       cmd_incident "$@" ;;
   log)            cmd_log "$@" ;;
   mpv-env)        cmd_mpv_env ;;
   help|-h|--help) cmd_help ;;

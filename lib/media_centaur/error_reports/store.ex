@@ -149,6 +149,33 @@ defmodule MediaCentaur.ErrorReports.Store do
   end
 
   @doc """
+  Resolves a human-supplied incident reference to a single incident, or `nil`.
+
+  The reference is whatever is easiest to hand in from a CLI or REPL, tried in
+  order of specificity:
+
+    - `:latest` — the incident with the most recent activity (`last_seen`).
+    - a full UUID — exact lookup by primary key.
+    - any other string — an exact `fingerprint` match first, then an `id`
+      *prefix* match (the short id shown in a listing), most-recent first if a
+      prefix is ambiguous.
+  """
+  @spec find_incident(:latest | String.t()) :: Incident.t() | nil
+  def find_incident(:latest) do
+    Incident
+    |> order_by([incident], desc: incident.last_seen)
+    |> limit(1)
+    |> Repo.one()
+  end
+
+  def find_incident(ref) when is_binary(ref) do
+    case Ecto.UUID.cast(ref) do
+      {:ok, uuid} -> Repo.get(Incident, uuid)
+      :error -> get_incident_by_fingerprint(ref) || get_incident_by_id_prefix(ref)
+    end
+  end
+
+  @doc """
   Raises (opens) — or re-asserts — a `:subsystem` fault grouped by
   `{component, kind}`.
 
@@ -400,6 +427,16 @@ defmodule MediaCentaur.ErrorReports.Store do
 
   defp reopen_resolved_at(%Incident{status: :resolved}), do: nil
   defp reopen_resolved_at(%Incident{resolved_at: resolved_at}), do: resolved_at
+
+  defp get_incident_by_id_prefix(prefix) do
+    pattern = prefix <> "%"
+
+    Incident
+    |> where([incident], like(fragment("CAST(? AS TEXT)", incident.id), ^pattern))
+    |> order_by([incident], desc: incident.last_seen)
+    |> limit(1)
+    |> Repo.one()
+  end
 
   defp filter_status(query, nil), do: query
   defp filter_status(query, status), do: where(query, [incident], incident.status == ^status)

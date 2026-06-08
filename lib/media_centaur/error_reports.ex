@@ -58,6 +58,10 @@ defmodule MediaCentaur.ErrorReports do
   @spec list_incidents(keyword()) :: [__MODULE__.Incident.t()]
   defdelegate list_incidents(opts \\ []), to: Store
 
+  @doc "Resolves an incident by `:latest`, full id, id-prefix, or fingerprint — see `Store.find_incident/1`."
+  @spec find_incident(:latest | String.t()) :: __MODULE__.Incident.t() | nil
+  defdelegate find_incident(ref), to: Store
+
   @doc """
   Raises (or re-asserts) a `:subsystem` fault grouped by `{component, kind}`.
 

@@ -121,6 +121,54 @@ defmodule MediaCentaur.ErrorReports.StoreTest do
     end
   end
 
+  describe "find_incident/1" do
+    test ":latest returns the incident with the most recent activity" do
+      old = DateTime.add(DateTime.utc_now(), -120, :second)
+      recent = DateTime.utc_now()
+
+      {:ok, _older} =
+        Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_old", occurred_at: old))
+
+      {:ok, newer} =
+        Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_new", occurred_at: recent))
+
+      assert %Incident{id: id} = Store.find_incident(:latest)
+      assert id == newer.id
+    end
+
+    test ":latest returns nil when no incidents exist" do
+      assert Store.find_incident(:latest) == nil
+    end
+
+    test "resolves a full incident id" do
+      {:ok, incident} = Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_id"))
+
+      assert %Incident{id: id} = Store.find_incident(incident.id)
+      assert id == incident.id
+    end
+
+    test "resolves an id prefix to its incident" do
+      {:ok, incident} = Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_prefix"))
+      prefix = String.slice(incident.id, 0, 8)
+
+      assert %Incident{id: id} = Store.find_incident(prefix)
+      assert id == incident.id
+    end
+
+    test "resolves a fingerprint to its incident" do
+      {:ok, incident} = Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_by_finger"))
+
+      assert %Incident{id: id} = Store.find_incident("fp_by_finger")
+      assert id == incident.id
+    end
+
+    test "returns nil for an unknown reference" do
+      {:ok, _} = Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_present"))
+
+      assert Store.find_incident("absent-no-match") == nil
+    end
+  end
+
   describe "set_status/2" do
     test "stamps resolved_at on resolve and clears it on reopen" do
       {:ok, incident} = Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_status"))
@@ -276,7 +324,7 @@ defmodule MediaCentaur.ErrorReports.StoreTest do
 
     # The Store's open path derives first_seen/last_seen from `occurred_at`, so a
     # caller-supplied first_seen override is funneled through occurred_at.
-    defp log_attrs(overrides \\ []) do
+    defp log_attrs(overrides) do
       overrides = Map.new(overrides)
       now = DateTime.utc_now()
       occurred_at = overrides[:first_seen] || overrides[:occurred_at] || now

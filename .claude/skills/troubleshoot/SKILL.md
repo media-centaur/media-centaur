@@ -41,7 +41,37 @@ scripts/troubleshoot
 ```
 
 Shows: service status, port, HTTP, database, supervision tree, recent console
-entries, services, playback, and recent errors from the systemd journal.
+entries, services, playback, open incidents, and recent errors from the
+systemd journal.
+
+### Investigating an Incident
+
+An **incident** is a durable record (the `incidents` table), distinct from the
+volatile Console log buffer: it survives restarts and freezes its own
+cross-subsystem context at capture time (`first_context`/`latest_context` — the
+lead-up logs, every subsystem's vitals, the firing subsystem's contributor
+data, and the triggering ids). This is usually the fastest way to understand a
+production fault *after the fact*, since the live log buffer may already have
+rolled over.
+
+```bash
+scripts/troubleshoot incidents          # list recent incidents (short id, severity, title)
+scripts/troubleshoot incidents 50       # list the 50 most recent
+scripts/troubleshoot incident           # full dump of the most recent incident
+scripts/troubleshoot incident 95e0a7c8  # full dump by short id (from the listing)
+scripts/troubleshoot incident fp_xyz    # ...or by fingerprint
+```
+
+`incident` resolves its reference in order: `:latest` (omit the arg) → full id
+→ short id prefix → fingerprint. The dump renders the header plus the frozen
+context, with lead-up log lines that share a triggering id flagged
+`(correlated)` — the causal chain. Incidents whose context predates the
+snapshot rollout show *"No frozen context captured"*; fall back to `log recent`
+for those.
+
+Resolution lives in `ErrorReports.Store.find_incident/1`; rendering lives in
+the pure `MediaCentaur.Diagnostics.format_incident/1` (so the same dump is
+reachable from any REPL — e.g. `mc-rpc 'MediaCentaur.Diagnostics.incident("95e0a7c8")'`).
 
 ### Tailing Logs
 
@@ -102,6 +132,8 @@ filtering. Choose whichever is faster for the task at hand.
 
 ```bash
 scripts/troubleshoot                        # dashboard (service health + recent console entries)
+scripts/troubleshoot incidents              # list recent durable incidents
+scripts/troubleshoot incident 95e0a7c8      # full forensic dump for one incident
 scripts/troubleshoot log recent 50          # last 50 buffered log entries
 scripts/troubleshoot logs                   # tail systemd journal
 scripts/troubleshoot errors 24h             # error-level journal entries, last 24h
@@ -150,6 +182,8 @@ Call functions directly on the running dev node:
 - `MediaCentaur.Diagnostics.playback()` — active playback state
 - `MediaCentaur.Diagnostics.services()` — watcher/pipeline/session counts
 - `MediaCentaur.Diagnostics.status()` — supervision tree health
+- `MediaCentaur.Diagnostics.incidents(20)` — recent durable incidents
+- `MediaCentaur.Diagnostics.incident(:latest)` — full dump of one incident
 
 ## Common Debugging Workflows
 
