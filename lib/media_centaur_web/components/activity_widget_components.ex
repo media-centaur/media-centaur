@@ -574,7 +574,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
           <ul class="space-y-0.5">
             <li
               :for={entry <- @history}
-              id={"update-history-#{entry.version}"}
+              id={history_row_id(entry)}
               class="flex items-center justify-between text-xs"
             >
               <span class="font-mono text-base-content/70">v{entry.version}</span>
@@ -613,6 +613,12 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
   # Friendly, non-zero-padded date for the upgrade-history rows, e.g. "Jun 7, 2026".
   defp history_date(%DateTime{} = at), do: Calendar.strftime(at, "%b %-d, %Y")
+
+  # Stable, unique iterator id (ADR-012). `recorded_at` makes it collision-proof
+  # even if the same version appears twice (a deliberate downgrade-then-re-upgrade
+  # records two rows, since dedup only compares against the newest entry).
+  defp history_row_id(%{version: version, recorded_at: at}),
+    do: "update-history-#{version}-#{DateTime.to_unix(at, :microsecond)}"
 
   defp now_playing_title(%{episode_name: _} = now_playing),
     do: now_playing[:entity_name] || now_playing.entity_id
