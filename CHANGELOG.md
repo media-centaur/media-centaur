@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.83.0 — 2026-06-08
+
+### Improved
+
+**Share a link straight to an issue.** When you open an issue from the Status
+page, the address bar now points at that exact issue. Copy the link and a
+bookmark or a paste into chat reopens the same detail view — already focused on
+the problem — instead of dropping you on the generic Status page. The browser's
+back button closes the issue and returns you to where you were.
+
 ## v0.82.5 — 2026-06-08
 
 ### Improved
