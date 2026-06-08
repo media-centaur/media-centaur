@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.82.5 — 2026-06-08
+
+### Improved
+
+**Faster diagnosis when something goes wrong.** When you report a problem, the
+recorded incident now keeps a full snapshot of what was happening at the time —
+the surrounding log lines, the health of each part of the app, and the details
+the affected component reported. That picture survives restarts, so an issue
+can be understood after the fact even once the live log has scrolled past it.
+
 ## v0.82.4 — 2026-06-08
 
 ### New
