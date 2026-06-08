@@ -38,6 +38,36 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
     system: "hero-cpu-chip"
   }
 
+  # Plain-language briefing for each subsystem: what it is responsible for and
+  # what the experience degrades to when it isn't working. Shown at the top of
+  # the drill-in so the board reads as an explanation, not just a status light.
+  @descriptions %{
+    watcher:
+      "Watches your media folders for files that appear, move, or vanish and hands new arrivals to Import. " <>
+        "If it stalls, newly added media won't show up in your library until the next manual scan.",
+    pipeline:
+      "Turns raw files into library entries — parsing filenames, matching them to the right movie or episode, and fetching artwork. " <>
+        "If it falls behind, files land on disk but never become browsable, fully identified entries with posters.",
+    tmdb:
+      "Fetches titles, descriptions, cast, and images from The Movie Database, staying within its rate limits. " <>
+        "If it's degraded, entries appear with missing or stale details and blank artwork.",
+    playback:
+      "Tracks what's playing and records your watch progress. " <>
+        "If it's off, resume points and Continue Watching stop updating and in-app playback control gets unreliable.",
+    library:
+      "The catalog of everything you own — entities, files, watch state, and storage. " <>
+        "If it's unhealthy, library counts and browse results can be wrong or incomplete.",
+    acquisition:
+      "Drives acquisitions through your download client and Prowlarr — sending grabs, tracking progress, and linking finished downloads back into the library. " <>
+        "If it breaks, requested media never downloads or never gets linked once it lands.",
+    self_update:
+      "Checks for new Media Centaur releases and applies in-app updates. " <>
+        "If it fails, you stay on an old version or an update stalls partway through.",
+    system:
+      "Overall application-runtime health and anything not owned by a specific subsystem. " <>
+        "If it's flagging problems, the app itself may be unstable — crashes, restarts, or framework-level errors."
+  }
+
   alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaurWeb.StatusLive.SubsystemView
 
@@ -104,6 +134,10 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
 
   @spec glyph(atom()) :: String.t()
   def glyph(component), do: Map.fetch!(@glyphs, normalize(component))
+
+  @doc "Plain-language briefing: what the subsystem does and how it degrades if it fails."
+  @spec description(atom()) :: String.t()
+  def description(component), do: Map.fetch!(@descriptions, normalize(component))
 
   @doc "Plain-language one-line summary of a tile's state (e.g. `2 errors · 1 warning`)."
   @spec tile_summary(SubsystemView.t()) :: String.t()

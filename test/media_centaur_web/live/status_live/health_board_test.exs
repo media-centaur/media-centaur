@@ -26,6 +26,21 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
     end
   end
 
+  describe "description/1" do
+    test "every board subsystem has a non-empty plain-language description" do
+      for component <- HealthBoard.board_subsystems() do
+        description = HealthBoard.description(component)
+        assert is_binary(description)
+        assert String.length(description) > 0
+      end
+    end
+
+    test "unknown component falls back to the system description" do
+      assert HealthBoard.description(:phoenix) == HealthBoard.description(:system)
+      assert HealthBoard.description(:nonsense) == HealthBoard.description(:system)
+    end
+  end
+
   describe "group_buckets/1" do
     alias MediaCentaur.ErrorReports.Bucket
 

@@ -95,7 +95,7 @@ defmodule MediaCentaurWeb.HealthComponents do
     """
   end
 
-  @doc "Inline stacked drill-in for one subsystem: Issues → Activity → collapsed Logs."
+  @doc "Inline stacked drill-in for one subsystem: Summary → Activity → Issues → collapsed Logs."
   attr :view, SubsystemView, required: true
   attr :buckets, :list, required: true, doc: "[Bucket.t()] for this subsystem"
   attr :on_report, :string, default: "report_incident"
@@ -115,6 +115,15 @@ defmodule MediaCentaurWeb.HealthComponents do
         <.button variant="dismiss" size="sm" phx-click={@on_close}>Close</.button>
       </header>
 
+      <p class="text-sm text-base-content/65 leading-relaxed max-w-prose">
+        {HealthBoard.description(@view.component)}
+      </p>
+
+      <div :if={@activity != []} class="space-y-2">
+        <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">Activity</h3>
+        {render_slot(@activity)}
+      </div>
+
       <div :if={@buckets != []} class="space-y-2">
         <div class="flex items-center justify-between">
           <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">Issues</h3>
@@ -128,11 +137,6 @@ defmodule MediaCentaurWeb.HealthComponents do
         />
       </div>
       <p :if={@buckets == []} class="text-sm text-base-content/55">No issues for this subsystem.</p>
-
-      <div :if={@activity != []} class="space-y-2">
-        <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">Activity</h3>
-        {render_slot(@activity)}
-      </div>
 
       <details class="glass-inset rounded-lg">
         <summary class="cursor-pointer select-none px-3 py-2 text-sm text-base-content/60">
