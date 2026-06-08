@@ -38,4 +38,14 @@ defmodule MediaCentaur.SelfUpdate.HistoryTest do
       assert History.list() == []
     end
   end
+
+  describe "SelfUpdate.upgrade_history/0" do
+    test "delegates to History.list/0, newest-first" do
+      :ok = History.record_boot_version("0.82.0")
+      :ok = History.record_boot_version("0.83.0")
+
+      assert [%{version: "0.83.0"}, %{version: "0.82.0"}] =
+               MediaCentaur.SelfUpdate.upgrade_history()
+    end
+  end
 end
