@@ -471,13 +471,21 @@ defmodule MediaCentaurWeb.StatusLive do
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
     >
       <:overlays>
-        <.live_component
+        <.modal
           :if={@show_report_modal}
           id="error-report-modal"
-          module={ReportModal}
-          payload={@report_payload}
-          snapshot={@report_snapshot}
-        />
+          open
+          dismiss={:persistent}
+          data-testid="report-modal"
+          panel_class="flex flex-col max-h-[88vh]"
+        >
+          <.live_component
+            id="report-modal-body"
+            module={ReportModal}
+            payload={@report_payload}
+            snapshot={@report_snapshot}
+          />
+        </.modal>
       </:overlays>
       <div data-page-behavior="status" data-nav-default-zone="status" class="space-y-6">
         <div class="flex items-center gap-3">
