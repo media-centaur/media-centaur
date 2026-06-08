@@ -76,7 +76,8 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
     # The error tile gains its accent and the drill-in renders the incident row.
     assert render(view) =~ "Image downloads failing for 11 items"
     assert has_element?(view, "#incident-fp-pipeline-error")
-    assert has_element?(view, "#incident-fp-pipeline-error button", "Report this")
+    # The row body is a button that opens the issue view (report now lives there).
+    assert has_element?(view, "#incident-fp-pipeline-error button[phx-click=select_incident]")
   end
 
   defp inject_bucket(view, fingerprint) do

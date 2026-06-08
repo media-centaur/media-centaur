@@ -1,8 +1,9 @@
 defmodule MediaCentaurWeb.Storybook.Health.IncidentRow do
   @moduledoc """
-  Story for the `<.incident_row>` component — one reportable incident in the
-  drill-in's Issues section. Severity is the only color; each row carries its
-  own incident-anchored "Report this" action (Phase 4 design P4-4).
+  Story for the `<.incident_row>` component — one incident in the drill-in's
+  Issues section. Severity is the only color. The row body is a button that
+  opens the issue view (`on_select`); the X dismisses. Reporting moved off the
+  row into the issue view.
   """
   use PhoenixStorybook.Story, :component
 
