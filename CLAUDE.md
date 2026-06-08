@@ -170,7 +170,7 @@ Decision records live in `decisions/` ([MADR 4.0](https://adr.github.io/madr/)).
 
 ## Defaults
 
-`defaults/` contains git-tracked starter configs — seed values shipped with the repo, **never overwritten at runtime**. Keep `defaults/media-centaur.toml` complete: every key recognised by `MediaCentaur.Config` must have an entry with a logical default and a comment. The file must always be valid TOML.
+`defaults/` contains git-tracked starter configs — seed values shipped with the repo, **never overwritten at runtime**. `defaults/media-centaur.toml` carries **only bootstrap state** — `database_path`, `port`, and the initial `watch_dirs` seed (the values the app needs before its database is reachable). Every runtime preference lives in the Settings database and is set in-app; TOML is no longer read for those keys (see the `MediaCentaur.Config` moduledoc). Keep each bootstrap key entered with a logical default and a comment, and the file must always be valid TOML.
 
 <!-- usage-rules-start -->
 <!-- usage_rules-start -->

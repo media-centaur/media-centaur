@@ -138,11 +138,9 @@ defmodule MediaCentaur.Application do
 
   defp init_services do
     toml_entries = Application.get_env(:media_centaur, :__raw_toml_watch_dirs, [])
-    toml_runtime = Application.get_env(:media_centaur, :__raw_toml_runtime_keys, %{})
 
     try do
       :ok = MediaCentaur.Config.migrate_watch_dirs_from_toml(toml_entries)
-      :ok = MediaCentaur.Config.migrate_runtime_keys_from_toml(toml_runtime)
       :ok = MediaCentaur.Config.refresh_watch_dirs_from_settings()
       :ok = MediaCentaur.Config.load_runtime_overrides()
 

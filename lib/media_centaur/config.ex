@@ -2,9 +2,22 @@ defmodule MediaCentaur.Config do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @moduledoc """
-  Loads and serves application configuration from the user's
-  TOML config file (`~/.config/media-centaur/media-centaur.toml`),
-  falling back to application environment defaults.
+  Loads and serves application configuration.
+
+  Configuration has two tiers with different sources of truth:
+
+  * **Bootstrap state** — `database_path`, `port`, and the initial
+    `watch_dirs` seed. These are read from the user's TOML config file
+    (`~/.config/media-centaur/media-centaur.toml`) because the app needs
+    them before the database is reachable. They fall back to application
+    environment defaults.
+  * **Runtime preferences** — everything else (TMDB key, Prowlarr,
+    download client, mpv/ffprobe paths, pipeline dirs, intervals, update
+    flags, …). These live exclusively in the Settings database, are set
+    in the app's Settings UI (or via `update/2`), and are overlaid onto
+    `:persistent_term` by `load_runtime_overrides/0` once the Repo is up.
+    Runtime keys are **not** read from TOML — a value left in the TOML
+    for one is ignored, so the database is the single source of truth.
 
   Call `load!/0` once at startup (before the supervision tree).
   Use `get/1` anywhere to read a config key from `:persistent_term`.
@@ -252,61 +265,6 @@ defmodule MediaCentaur.Config do
   end
 
   @doc """
-  One-shot import of any runtime-settable config keys present in TOML but
-  absent from Settings. Called once per boot from `Application.init_services`.
-  Idempotent — only writes keys that don't already have a Settings row.
-
-  After this runs, the TOML is no longer consulted for runtime keys; the
-  Settings database is the sole source of truth.
-  """
-  @spec migrate_runtime_keys_from_toml(map()) :: :ok
-  def migrate_runtime_keys_from_toml(toml_runtime) when is_map(toml_runtime) do
-    Enum.each(runtime_settable_keys(), fn key ->
-      case MediaCentaur.Settings.get_by_key("config:#{key}") do
-        {:ok, %MediaCentaur.Settings.Entry{}} ->
-          :ok
-
-        _ ->
-          case Map.get(toml_runtime, key) do
-            nil -> :ok
-            value -> persist_migrated_value(key, value)
-          end
-      end
-    end)
-
-    :ok
-  end
-
-  defp persist_migrated_value(key, value) do
-    # Sensitive keys arrive wrapped in %Secret{} — unwrap at the boundary
-    # before persisting. Settings stores plaintext JSON and re-wraps on read
-    # via load_runtime_overrides/0.
-    raw =
-      if key in @sensitive_keys do
-        Secret.expose(value)
-      else
-        value
-      end
-
-    case raw do
-      nil ->
-        :ok
-
-      "" ->
-        :ok
-
-      _ ->
-        {:ok, _} =
-          MediaCentaur.Settings.find_or_create_entry(%{
-            key: "config:#{key}",
-            value: %{"value" => raw}
-          })
-
-        :ok
-    end
-  end
-
-  @doc """
   One-shot import of TOML `watch_dirs` into the Settings entry. No-op if the
   entry already exists. Called once per boot from `MediaCentaur.Application`.
   """
@@ -480,23 +438,12 @@ defmodule MediaCentaur.Config do
 
     if Application.get_env(:media_centaur, :skip_user_config, false) do
       Application.put_env(:media_centaur, :__raw_toml_watch_dirs, [])
-      Application.put_env(:media_centaur, :__raw_toml_runtime_keys, %{})
       defaults
     else
-      toml_merged = load_toml(defaults)
-
-      # Snapshot TOML-derived runtime-key values so the migration can
-      # import them on first boot. After this point we revert those keys
-      # to defaults so persistent_term is TOML-independent — the DB is
-      # the runtime source of truth.
-      runtime_snapshot =
-        Map.new(runtime_settable_keys(), fn key -> {key, Map.get(toml_merged, key)} end)
-
-      Application.put_env(:media_centaur, :__raw_toml_runtime_keys, runtime_snapshot)
-
-      Enum.reduce(runtime_settable_keys(), toml_merged, fn key, acc ->
-        Map.put(acc, key, Map.get(defaults, key))
-      end)
+      # `merge_toml/2` overrides only bootstrap keys, so runtime keys are
+      # already at their defaults here — the DB overlay applies in
+      # `load_runtime_overrides/0` once the Repo is up.
+      load_toml(defaults)
     end
   end
 
@@ -534,40 +481,18 @@ defmodule MediaCentaur.Config do
 
     Application.put_env(:media_centaur, :__raw_toml_watch_dirs, raw_watch_dirs)
 
-    %{
+    # Only bootstrap state is read from TOML: values the app needs before
+    # the database is reachable (`database_path`, `port`) and the initial
+    # `watch_dirs` seed. Every runtime preference lives in the Settings
+    # database and is overlaid by `load_runtime_overrides/0` — any runtime
+    # key present in the TOML is intentionally ignored, so the DB is the
+    # single source of truth and the TOML schema can't drift.
+    Map.merge(defaults, %{
       port: get_in(toml, ["port"]) || defaults.port,
       database_path: expand(get_in(toml, ["database_path"]) || defaults.database_path),
-      data_dir: expand(get_in(toml, ["data_dir"]) || defaults.data_dir),
       watch_dirs: watch_dirs,
-      watch_dir_images: watch_dir_images,
-      exclude_dirs: expand_list(get_in(toml, ["exclude_dirs"]) || defaults.exclude_dirs),
-      tmdb_api_key: Secret.wrap(get_in(toml, ["tmdb", "api_key"])) || defaults.tmdb_api_key,
-      auto_approve_threshold:
-        get_in(toml, ["pipeline", "auto_approve_threshold"]) || defaults.auto_approve_threshold,
-      mpv_path: get_in(toml, ["playback", "mpv_path"]) || defaults.mpv_path,
-      mpv_socket_dir: get_in(toml, ["playback", "socket_dir"]) || defaults.mpv_socket_dir,
-      mpv_socket_timeout_ms:
-        get_in(toml, ["playback", "socket_timeout_ms"]) || defaults.mpv_socket_timeout_ms,
-      extras_dirs: get_in(toml, ["pipeline", "extras_dirs"]) || defaults.extras_dirs,
-      skip_dirs: get_in(toml, ["pipeline", "skip_dirs"]) || defaults.skip_dirs,
-      file_absence_ttl_days: get_in(toml, ["file_absence_ttl_days"]) || defaults.file_absence_ttl_days,
-      recent_changes_days:
-        get_in(toml, ["status", "recent_changes_days"]) || defaults.recent_changes_days,
-      release_tracking_refresh_interval_hours:
-        get_in(toml, ["release_tracking", "refresh_interval_hours"]) ||
-          defaults.release_tracking_refresh_interval_hours,
-      release_tracking_sweep_interval_minutes:
-        get_in(toml, ["release_tracking", "sweep_interval_minutes"]) ||
-          defaults.release_tracking_sweep_interval_minutes,
-      prowlarr_url: get_in(toml, ["prowlarr", "url"]),
-      prowlarr_api_key: Secret.wrap(get_in(toml, ["prowlarr", "api_key"])),
-      download_client_type: get_in(toml, ["download_client", "type"]),
-      download_client_url: get_in(toml, ["download_client", "url"]),
-      download_client_username: get_in(toml, ["download_client", "username"]),
-      # Password is intentionally NOT read from TOML — it must be entered
-      # via the Settings UI so it's never committed/backed up via dotfiles.
-      download_client_password: nil
-    }
+      watch_dir_images: watch_dir_images
+    })
   end
 
   # Supports plain string lists and inline table arrays.

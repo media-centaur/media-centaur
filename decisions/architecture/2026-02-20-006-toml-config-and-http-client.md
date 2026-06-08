@@ -16,7 +16,28 @@ The application needs user-editable configuration (watch directories, TMDB API k
 
 ### Consequences
 
-* Good, because `defaults/media-manager.toml` documents every configurable option in one place
+* Good, because `defaults/media-centaur.toml` documents the bootstrap options in one place
 * Good, because TOML comments explain what each key controls — the config file is self-documenting
 * Good, because `Req.Test` enables per-test HTTP stubs without a mocking library — used extensively in pipeline tests
 * Bad, because TOML has limited expressiveness for complex nested structures (acceptable — our config is flat)
+
+## Amendment — 2026-06-09: TOML is bootstrap-only; the database owns runtime config
+
+The "TOML holds every configurable key" model was progressively unwound.
+The watch-dirs runtime-config work (v0.14 / v0.15) moved most settings into
+the SQLite database, edited via the Settings UI; this amendment completes
+the move.
+
+* `MediaCentaur.Config` is **not** a GenServer — it loads bootstrap state
+  into `:persistent_term` at startup and overlays DB-backed runtime values
+  via `load_runtime_overrides/0` once the Repo is up.
+* **TOML carries only bootstrap state**: `database_path`, `port`, and the
+  initial `watch_dirs` seed (imported once on first boot). These are the
+  values needed before the database is reachable.
+* **Runtime preferences live exclusively in the Settings database.** A
+  runtime key placed in the TOML is now ignored — the database is the
+  single source of truth. This removes the schema drift between
+  `defaults/media-centaur.toml` and `MediaCentaur.Config` that the original
+  "every configurable key" rule kept inviting.
+
+The Req HTTP-client decision is unaffected.
