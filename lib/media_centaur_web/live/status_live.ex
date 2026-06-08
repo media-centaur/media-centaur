@@ -164,9 +164,19 @@ defmodule MediaCentaurWeb.StatusLive do
     start_async(socket, :status_overview, fn -> Status.fetch_overview() end)
   end
 
+  # Both the subsystem drill-in and the incident issue view are URL-driven
+  # (deep-linkable): the URL is the single source of truth, events only
+  # `push_patch/2`, and `handle_params/3` derives the open state from it. The
+  # incident is layered view-state on top of the page (not a distinct
+  # resource), so it composes as a second query param rather than a path
+  # segment — `/status?subsystem=acquisition&incident=<fingerprint>`.
   @impl true
   def handle_params(params, _uri, socket) do
-    {:noreply, assign(socket, selected_subsystem: parse_subsystem(params))}
+    {:noreply,
+     assign(socket,
+       selected_subsystem: parse_subsystem(params),
+       selected_incident: parse_incident(params, socket.assigns.error_buckets)
+     )}
   end
 
   defp parse_subsystem(%{"subsystem" => raw}) do
@@ -176,10 +186,29 @@ defmodule MediaCentaurWeb.StatusLive do
 
   defp parse_subsystem(_params), do: nil
 
+  # Resolve the open incident from the currently-displayed buckets. On a cold
+  # deep-link this is the cache snapshot loaded in mount; after an optimistic
+  # dismiss it reflects the local eviction, so a just-dismissed fingerprint
+  # resolves to nil (the modal closes) rather than re-opening from the cache.
+  defp parse_incident(%{"incident" => fingerprint}, error_buckets) when is_binary(fingerprint) do
+    Enum.find(error_buckets, &(&1.fingerprint == fingerprint))
+  end
+
+  defp parse_incident(_params, _error_buckets), do: nil
+
   defp safe_existing_atom(raw) do
     String.to_existing_atom(raw)
   rescue
     ArgumentError -> nil
+  end
+
+  # Builds the `/status` URL preserving whichever of subsystem / incident are
+  # set; both are query params, nils are dropped.
+  defp status_path(subsystem, fingerprint) do
+    case Enum.reject([subsystem: subsystem, incident: fingerprint], fn {_k, v} -> is_nil(v) end) do
+      [] -> ~p"/status"
+      query -> ~p"/status?#{query}"
+    end
   end
 
   # Resolves the durable incidents and optimistically evicts the buckets from the
@@ -242,32 +271,32 @@ defmodule MediaCentaurWeb.StatusLive do
 
   @impl true
   def handle_event("select_subsystem", %{"subsystem" => subsystem}, socket) do
-    {:noreply, push_patch(socket, to: ~p"/status?subsystem=#{subsystem}")}
+    {:noreply, push_patch(socket, to: status_path(subsystem, nil))}
   end
 
   def handle_event("close_subsystem", _params, socket) do
-    {:noreply, push_patch(socket, to: ~p"/status")}
+    {:noreply, push_patch(socket, to: status_path(nil, nil))}
   end
 
   def handle_event("select_incident", %{"fingerprint" => fingerprint}, socket) do
-    bucket = Enum.find(socket.assigns.error_buckets, &(&1.fingerprint == fingerprint))
-    {:noreply, assign(socket, :selected_incident, bucket)}
+    {:noreply, push_patch(socket, to: status_path(socket.assigns.selected_subsystem, fingerprint))}
   end
 
   def handle_event("close_incident", _params, socket) do
-    {:noreply, assign(socket, :selected_incident, nil)}
+    {:noreply, push_patch(socket, to: status_path(socket.assigns.selected_subsystem, nil))}
   end
 
   # Hand off from the (ephemeral) issue view to the (persistent) report wizard:
-  # close the issue view, then reuse open_error_report_modal/2 with the same
-  # fingerprint to open the wizard pre-loaded for this incident.
+  # open the wizard pre-loaded for this incident, then patch the incident out of
+  # the URL so the issue view closes behind it (it can't co-exist with the wizard).
   def handle_event("report_incident_from_issue", %{"fingerprint" => _fp} = params, socket) do
-    socket = assign(socket, :selected_incident, nil)
-    handle_event("open_error_report_modal", params, socket)
+    {:noreply, socket} = handle_event("open_error_report_modal", params, socket)
+    {:noreply, push_patch(socket, to: status_path(socket.assigns.selected_subsystem, nil))}
   end
 
   def handle_event("dismiss_incident", %{"fingerprint" => fingerprint}, socket) do
-    {:noreply, dismiss(assign(socket, :selected_incident, nil), [fingerprint])}
+    socket = dismiss(socket, [fingerprint])
+    {:noreply, push_patch(socket, to: status_path(socket.assigns.selected_subsystem, nil))}
   end
 
   def handle_event("dismiss_all", _params, socket) do
