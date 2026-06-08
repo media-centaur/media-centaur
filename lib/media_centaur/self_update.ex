@@ -30,7 +30,7 @@ defmodule MediaCentaur.SelfUpdate do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Platform.Autostart
-  alias MediaCentaur.SelfUpdate.{CheckerJob, Health, Storage, UpdateChecker, Updater}
+  alias MediaCentaur.SelfUpdate.{CheckerJob, Health, History, Storage, UpdateChecker, Updater}
   alias MediaCentaur.Topics
 
   @boot_check_delay_seconds 30
@@ -141,6 +141,13 @@ defmodule MediaCentaur.SelfUpdate do
   def last_check_at, do: Storage.get_last_check_at()
 
   @doc """
+  Returns the upgrade history newest-first — `[%{version, recorded_at}]` — for
+  the Status → Updates drill-in. See `MediaCentaur.SelfUpdate.History`.
+  """
+  @spec upgrade_history() :: [History.entry()]
+  def upgrade_history, do: History.list()
+
+  @doc """
   Returns the last known release — either freshly cached in
   `:persistent_term` or hydrated from Settings.Entry at boot — or
   `:none` when nothing has been observed yet.
@@ -236,6 +243,11 @@ defmodule MediaCentaur.SelfUpdate do
   @spec boot!() :: :ok
   def boot! do
     :ok = Storage.hydrate_cache()
+    # Record the version we just booted into, if it changed since last boot.
+    # Path-agnostic upgrade capture: keys off the running version, not any one
+    # apply path. Prod-gated by the `enabled?/0` guard around boot!/0 in
+    # application.ex — dev rebuilds from source and must not pollute the log.
+    :ok = History.record_boot_version()
     # Boot delay keeps the first HTTP call off the supervision-start
     # hot path — the app is serving requests long before this fires.
     _ = CheckerJob.enqueue_after(@boot_check_delay_seconds)
