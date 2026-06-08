@@ -1,8 +1,10 @@
 defmodule MediaCentaurWeb.Storybook.Health.HealthDrillIn do
   @moduledoc """
   Story for the `<.health_drill_in>` component — the inline stacked subsystem
-  detail (Issues → Activity → collapsed Logs, Phase 4 design P4-6). Covers the
-  with-issues and healthy (empty-issues) states.
+  detail (Summary → Activity → Issues → collapsed Logs, Phase 4 design P4-6).
+  Covers the with-issues and healthy (empty-issues) states. The summary is
+  derived from `view.component`; the Activity slot is supplied by the LiveView,
+  so it's absent here.
   """
   use PhoenixStorybook.Story, :component
 
