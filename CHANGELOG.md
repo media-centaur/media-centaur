@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.84.0 — 2026-06-08
+
+### Fixed
+
+**Multi-season box sets are matched automatically instead of piling up in
+Review.** When a show was stored as a full-series pack — a folder named
+something like "Show Name (2006) Season 1-7 S01-S07" with each season in its
+own subfolder — the season-range text got tangled into the show's name. The
+result didn't match anything online, so every episode landed in the Review
+queue. These packs are now read correctly and matched on their own.
+
 ## v0.83.3 — 2026-06-08
 
 ### Fixed
