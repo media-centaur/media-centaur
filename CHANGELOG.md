@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.83.2 — 2026-06-08
+
+### Improved
+
+**Download-client connection alerts are quieter and clear themselves.** A brief
+network hiccup with your download client used to raise a cluster of duplicate
+alerts on the Status page that lingered even after the connection was fine. Now
+a momentary blip raises nothing at all, and a genuine outage shows a single
+alert that clears itself automatically once the connection recovers.
+
 ## v0.83.1 — 2026-06-08
 
 ### Fixed
