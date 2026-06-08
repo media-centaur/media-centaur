@@ -19,6 +19,33 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
   alias MediaCentaur.Status.LibraryOverview
   alias MediaCentaurWeb.Live.SettingsLive.SystemSection
 
+  @doc false
+  # Wraps a status-page reference to a configured value so it deep-links to the
+  # Settings section that owns it (e.g. the update-automation row → ?section=updates).
+  # Keeps the wrapped content's own colour; adds a muted cog that brightens to
+  # primary on hover, signalling "this jumps to Settings".
+  attr :section, :string,
+    required: true,
+    doc: ~s|Settings section id, e.g. "updates", "library", "tmdb"|
+
+  attr :class, :any, default: nil, doc: "extra classes for the link wrapper"
+  slot :inner_block, required: true
+
+  defp settings_link(assigns) do
+    ~H"""
+    <.link
+      navigate={~p"/settings?section=#{@section}"}
+      class={["group/setting inline-flex items-center hover:text-primary transition-colors", @class]}
+    >
+      {render_slot(@inner_block)}
+      <.icon
+        name="hero-cog-6-tooth-mini"
+        class="size-3 ml-1 shrink-0 text-base-content/30 group-hover/setting:text-primary transition-colors"
+      />
+    </.link>
+    """
+  end
+
   @doc """
   Library subsystem Activity widget: the "Your library" overview — counts,
   size and recently-added (glance), pending review + in-flight acquisitions,
@@ -97,10 +124,14 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
     ~H"""
     <div class="card glass-surface" data-testid="watcher-widget">
       <div class="card-body">
-        <h2 class="card-title text-lg">Directories</h2>
+        <h2 class="card-title text-lg">
+          <.settings_link section="library">Directories</.settings_link>
+        </h2>
 
         <p :if={@dir_health == []} class="text-base-content/60">
-          No watch directories configured.
+          <.settings_link section="library">
+            No watch directories configured — add one in Settings.
+          </.settings_link>
         </p>
 
         <div :if={@dir_health != []} class="space-y-4">
@@ -406,12 +437,20 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <span class="text-sm font-medium">TMDB</span>
-              <span :if={@config[:tmdb_configured]} class="text-success text-xs">
+              <.settings_link
+                :if={@config[:tmdb_configured]}
+                section="tmdb"
+                class="text-success text-xs"
+              >
                 configured
-              </span>
-              <span :if={!@config[:tmdb_configured]} class="text-error text-xs">
+              </.settings_link>
+              <.settings_link
+                :if={!@config[:tmdb_configured]}
+                section="tmdb"
+                class="text-error text-xs"
+              >
                 not configured
-              </span>
+              </.settings_link>
             </div>
 
             <div :if={@rate_limiter} class="flex items-center gap-3 text-sm">
@@ -549,21 +588,23 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
         <div class="text-xs text-base-content/50 space-y-0.5">
           <p>{SystemSection.last_checked_label(@last_check_at, @now)}</p>
           <p>
-            {SystemSection.update_schedule_label(
-              @check_enabled?,
-              @interval_minutes,
-              @last_check_at,
-              @now
-            )}
+            <.settings_link section="updates">
+              {SystemSection.update_schedule_label(
+                @check_enabled?,
+                @interval_minutes,
+                @last_check_at,
+                @now
+              )}
+            </.settings_link>
           </p>
         </div>
 
-        <div class="flex items-center gap-2 text-xs">
+        <.settings_link section="updates" class="gap-2 text-xs">
           <span class="text-base-content/50">Automatic install</span>
           <span class={if @auto_install?, do: "text-success", else: "text-base-content/40"}>
             {if @auto_install?, do: "on", else: "off"}
           </span>
-        </div>
+        </.settings_link>
 
         <div
           :if={@history != []}
@@ -600,7 +641,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
         </div>
 
         <p :if={@apply_phase == :failed} class="mt-1 text-xs text-error" data-component="apply-failed">
-          {SystemSection.apply_phase_label(:failed)} — see Settings → Updates.
+          {SystemSection.apply_phase_label(:failed)} — see <.settings_link section="updates">Settings → Updates</.settings_link>.
         </p>
       </div>
     </div>
