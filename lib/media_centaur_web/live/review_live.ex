@@ -77,14 +77,24 @@ defmodule MediaCentaurWeb.ReviewLive do
   def handle_event("select_item", %{"key" => key}, socket) do
     group_key = decode_key(key)
 
-    {:noreply,
-     socket
-     |> assign(selected_key: group_key)
-     |> assign(search_open: nil)
-     |> assign(search_query: "")
-     |> assign(search_results: [])
-     |> assign(searching: false)
-     |> assign(searched: false)}
+    if group_key == socket.assigns.selected_key do
+      # Re-selecting the row that is already selected is a no-op. The spatial
+      # input system re-fires `select_item` for the focused row during
+      # re-renders; tearing down transient detail state — most visibly the
+      # open TMDB search panel — on those redundant activations is what
+      # collapsed the panel ~12ms after a search submit. State only resets
+      # when the selection actually changes.
+      {:noreply, socket}
+    else
+      {:noreply,
+       socket
+       |> assign(selected_key: group_key)
+       |> assign(search_open: nil)
+       |> assign(search_query: "")
+       |> assign(search_results: [])
+       |> assign(searching: false)
+       |> assign(searched: false)}
+    end
   end
 
   def handle_event("approve", %{"key" => key}, socket) do

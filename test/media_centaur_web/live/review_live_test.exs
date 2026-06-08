@@ -47,6 +47,47 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
     end
   end
 
+  describe "search panel" do
+    test "re-selecting the already-selected row keeps an open search panel open",
+         %{conn: conn} do
+      # Regression: in the real browser, `select_item` for the already-selected
+      # row got re-fired during a re-render (observed ~12ms after a search
+      # submit, via the spatial-input focus path — exact trigger still under
+      # investigation). It reset `search_open: nil` unconditionally, collapsing
+      # the open TMDB search panel. The guard is idempotency: re-selecting the
+      # row you are already on must be a no-op, whatever re-fired it.
+      _file =
+        create_pending_file(%{
+          parsed_title: "Panel Pending Show",
+          parsed_type: "tv",
+          season_number: 1,
+          episode_number: 1
+        })
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+
+      # The group key is on the (always-rendered) list row. The "Search TMDB"
+      # button is gated on tmdb_ready (false in tests), so drive the events
+      # directly with that key rather than through the hidden button.
+      key =
+        view
+        |> element("[phx-click='select_item']")
+        |> render()
+        |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
+
+      render_click(view, "open_search", %{"key" => key})
+      assert has_element?(view, "form[phx-submit='search']"), "search panel should open"
+
+      # Re-select the row that is already selected — the redundant activation
+      # the input system fires on every re-render. Panel must survive.
+      render_click(view, "select_item", %{"key" => key})
+
+      assert has_element?(view, "form[phx-submit='search']"),
+             "re-selecting the current row must not close the open search panel"
+    end
+  end
+
   describe "live updates from review intake" do
     # The review queue is the user's choke point — every file the
     # auto-matcher couldn't decide on lands here. If the LV doesn't react
