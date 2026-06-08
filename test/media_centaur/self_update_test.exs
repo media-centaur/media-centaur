@@ -35,10 +35,10 @@ defmodule MediaCentaur.SelfUpdateTest do
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
         MediaCentaur.Topics.self_update_status(),
-        {:check_complete, {:up_to_date, %{version: "0.7.0"}}}
+        {:check_complete, {:up_to_date, %{version: "0.7.0"}}, :scheduled}
       )
 
-      assert_receive {:check_complete, {:up_to_date, %{version: "0.7.0"}}}
+      assert_receive {:check_complete, {:up_to_date, %{version: "0.7.0"}}, :scheduled}
     end
   end
 
@@ -141,7 +141,7 @@ defmodule MediaCentaur.SelfUpdateTest do
     end
   end
 
-  describe "run_check/0" do
+  describe "run_check/1" do
     test "fetches, records, broadcasts, and returns the success outcome" do
       Req.Test.stub(:github_releases_facade, fn conn ->
         conn
@@ -156,8 +156,23 @@ defmodule MediaCentaur.SelfUpdateTest do
 
       assert {:update_available, %{version: "99.0.0"}} = SelfUpdate.run_check()
       assert_receive {:check_started}
-      assert_receive {:check_complete, {:update_available, %{version: "99.0.0"}}}
+      assert_receive {:check_complete, {:update_available, %{version: "99.0.0"}}, :scheduled}
       assert {:ok, %DateTime{}} = Storage.get_last_check_at()
+    end
+
+    test "defaults the broadcast source to :scheduled" do
+      :ok = SelfUpdate.subscribe()
+
+      # Default stub returns 404 → :not_found, which is enough to observe source.
+      assert {:error, :not_found} = SelfUpdate.run_check()
+      assert_receive {:check_complete, {:error, :not_found}, :scheduled}
+    end
+
+    test "tags the broadcast with :manual when the manual path runs it" do
+      :ok = SelfUpdate.subscribe()
+
+      assert {:error, :not_found} = SelfUpdate.run_check(:manual)
+      assert_receive {:check_complete, {:error, :not_found}, :manual}
     end
 
     test "returns and broadcasts an error outcome on failure" do
@@ -165,7 +180,7 @@ defmodule MediaCentaur.SelfUpdateTest do
       :ok = SelfUpdate.subscribe()
 
       assert {:error, :not_found} = SelfUpdate.run_check()
-      assert_receive {:check_complete, {:error, :not_found}}
+      assert_receive {:check_complete, {:error, :not_found}, :scheduled}
     end
   end
 end

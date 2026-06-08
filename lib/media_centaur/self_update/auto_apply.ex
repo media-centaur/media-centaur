@@ -6,8 +6,9 @@ defmodule MediaCentaur.SelfUpdate.AutoApply do
   Owns the single decision "should we install this update *now*?", reacting
   to two event streams:
 
-    * `self_update:status` — `{:check_complete, {:update_available, _}}` means
-      a newer release exists.
+    * `self_update:status` — `{:check_complete, {:update_available, _}, source}`
+      means a newer release exists. Only a `:scheduled` source can auto-apply;
+      a `:manual` check is always ignored here (it presents, the user decides).
     * `playback:events` — `{:playback_state_changed, %{state: :playing | :paused
       | :stopped}}` lets it track whether anything is on screen.
 
@@ -60,8 +61,8 @@ defmodule MediaCentaur.SelfUpdate.AutoApply do
   end
 
   @impl GenServer
-  def handle_info({:check_complete, {:update_available, _release}}, state) do
-    case detection_action(state.auto_enabled?.(), playing?(state.active)) do
+  def handle_info({:check_complete, {:update_available, _release}, source}, state) do
+    case detection_action(state.auto_enabled?.(), playing?(state.active), source) do
       :apply ->
         state.apply.()
         {:noreply, %{state | deferred?: false}}
@@ -98,13 +99,20 @@ defmodule MediaCentaur.SelfUpdate.AutoApply do
 
   @doc """
   What to do when a newer release is detected: `:apply` it now, `:defer`
-  until the screen is idle, or `:ignore` (auto-update is off).
+  until the screen is idle, or `:ignore`.
+
+  `:manual` checks are always ignored — a user-initiated "Check for updates" is
+  an attended action that should *present* the update for a deliberate Update
+  press, never auto-install. Auto-apply is reserved for the unattended
+  `:scheduled` poll: ignore when auto-update is off, defer while something is
+  playing, otherwise apply.
   """
-  @spec detection_action(boolean(), boolean()) :: detection_action()
-  def detection_action(auto_enabled?, playing?)
-  def detection_action(false, _playing?), do: :ignore
-  def detection_action(true, true), do: :defer
-  def detection_action(true, false), do: :apply
+  @spec detection_action(boolean(), boolean(), SelfUpdate.check_source()) :: detection_action()
+  def detection_action(auto_enabled?, playing?, source)
+  def detection_action(_auto_enabled?, _playing?, :manual), do: :ignore
+  def detection_action(false, _playing?, _source), do: :ignore
+  def detection_action(true, true, _source), do: :defer
+  def detection_action(true, false, _source), do: :apply
 
   @doc """
   What to do when playback stops: `:apply` a deferred update if the screen

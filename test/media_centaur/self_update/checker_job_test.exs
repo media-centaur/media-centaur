@@ -59,7 +59,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
 
       assert {:ok, %DateTime{}} = Storage.get_last_check_at()
 
-      assert_receive {:check_complete, {^classification, %{version: "99.0.0"}}}
+      assert_receive {:check_complete, {^classification, %{version: "99.0.0"}}, :scheduled}
     end
 
     test "refreshes the :persistent_term cache" do
@@ -92,7 +92,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
       assert {:ok, _} = perform_job(CheckerJob, %{})
 
       assert Storage.get_last_check_at() == :none
-      assert_receive {:check_complete, {:error, :not_found}}
+      assert_receive {:check_complete, {:error, :not_found}, :scheduled}
     end
 
     test "does not write latest_known when the API returns a bogus tag" do
