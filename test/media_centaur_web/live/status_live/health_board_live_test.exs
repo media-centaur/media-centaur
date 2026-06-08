@@ -3,6 +3,9 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias MediaCentaur.Console.Entry
+  alias MediaCentaur.ErrorReports.Buckets
+
   test "renders a tile per subsystem and opens a drill-in on ?subsystem=", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/status")
     assert has_element?(view, "#subsystem-tile-pipeline")
@@ -121,5 +124,60 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
 
     refute has_element?(view, "#incident-fp-dismiss-all")
     assert has_element?(view, "#health-drill-in", "No issues for this subsystem")
+  end
+
+  # The issue view is open when its footer Dismiss button (which carries the
+  # bucket's fingerprint) is in the DOM — that subtree only renders when a
+  # bucket is selected.
+  defp incident_open?(view, fingerprint) do
+    has_element?(view, "#issue-view button[phx-value-fingerprint='#{fingerprint}']")
+  end
+
+  test "clicking an incident patches in ?incident= and opens the issue view", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/status?subsystem=pipeline")
+    inject_bucket(view, "fp-deeplink")
+
+    view |> element("#incident-fp-deeplink button[phx-click=select_incident]") |> render_click()
+
+    assert_patch(view, ~p"/status?subsystem=pipeline&incident=fp-deeplink")
+    assert incident_open?(view, "fp-deeplink")
+  end
+
+  test "closing the issue view drops ?incident= but keeps the subsystem", %{conn: conn} do
+    {:ok, view, _html} = live(conn, ~p"/status?subsystem=pipeline")
+    inject_bucket(view, "fp-close")
+    view |> element("#incident-fp-close button[phx-click=select_incident]") |> render_click()
+    assert_patch(view, ~p"/status?subsystem=pipeline&incident=fp-close")
+
+    view |> element("#issue-view button", "Close") |> render_click()
+
+    assert_patch(view, ~p"/status?subsystem=pipeline")
+    refute incident_open?(view, "fp-close")
+  end
+
+  test "a deep link to ?incident= opens the issue view on a cold load", %{conn: conn} do
+    # Seed the buckets cache the way production does (the LogHandler ingests
+    # entries), then cold-load the URL and assert the modal is already open.
+    Buckets.ingest(
+      Entry.new(%{
+        id: 1,
+        timestamp: ~U[2026-06-08 08:11:00Z],
+        level: :error,
+        component: :pipeline,
+        message: "cold-load deep link probe",
+        metadata: %{}
+      })
+    )
+
+    bucket =
+      Enum.find(Buckets.list_buckets(), fn bucket ->
+        Enum.any?(bucket.sample_entries, &(&1.message == "cold-load deep link probe"))
+      end)
+
+    on_exit(fn -> Buckets.dismiss([bucket.fingerprint]) end)
+
+    {:ok, view, _html} = live(conn, ~p"/status?incident=#{bucket.fingerprint}")
+
+    assert incident_open?(view, bucket.fingerprint)
   end
 end
