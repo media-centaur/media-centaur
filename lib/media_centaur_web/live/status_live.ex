@@ -111,10 +111,16 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(self_update_apply_progress: nil)
   end
 
-  # Snapshot of the self-update subsystem for the Updates Activity widget,
-  # read with no side effects. `last_check_at` (a Settings read) is captured
-  # into assigns here so `activity_bundle/1` stays free of DB queries on the
-  # render path (ADR-012); it refreshes on `{:check_complete, …}`.
+  # Snapshot of the self-update subsystem for the Updates Activity widget.
+  # `last_check_at` (a Settings read) is captured into assigns and refreshed on
+  # `{:check_complete, …}` — because it changes rarely, not because the render
+  # path must avoid DB reads.
+  #
+  # Tombstone: this used to defer the read "to keep `activity_bundle/1` free of
+  # DB queries on the render path (ADR-012)." That rule is retired — ADR-051
+  # supersedes the "no DB on the render/mount path" gate for local reads (it
+  # caused first-paint flashes, and a local query is one user's millisecond).
+  # Don't re-add a "keep the render path DB-free" gate here.
   defp assign_self_update(socket) do
     {status, release} = SelfUpdate.last_known_status()
     %{phase: phase} = SelfUpdate.current_status()
@@ -212,7 +218,7 @@ defmodule MediaCentaurWeb.StatusLive do
       config: assigns.config,
       # playback
       playback: assigns.playback,
-      # self_update — assigns + persistent_term (Config) + utc_now only, no DB
+      # self_update — sourced from assigns + persistent_term (Config) + utc_now
       version: Version.current_version(),
       status: assigns.self_update_status,
       latest_release: assigns.self_update_release,
