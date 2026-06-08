@@ -186,6 +186,7 @@
           {MediaCentaur.Credo.Checks.NoSysIntrospection, []},
           {MediaCentaur.Credo.Checks.LogMacroPreferred, []},
           {MediaCentaur.Credo.Checks.ModalPanelNoClickAway, []},
+          {MediaCentaur.Credo.Checks.ModalBackdropViaComponent, []},
           {MediaCentaur.Credo.Checks.RawButtonClass, []},
           {MediaCentaur.Credo.Checks.RawBadgeClass, []},
           {MediaCentaur.Credo.Checks.StorybookCoverage, []},
