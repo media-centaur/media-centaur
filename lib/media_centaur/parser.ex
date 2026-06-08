@@ -329,14 +329,15 @@ defmodule MediaCentaur.Parser do
 
     cond do
       # File is inside a "Season N" or "S01" directory → use grandparent (show name) + file base
-      # Skip prepend if the base already starts with the show name (e.g. "Show Name 7x02")
+      # Skip the prepend when the base already carries its own show title before the
+      # episode marker — otherwise a junk-laden pack folder (e.g. "Show (2006) Season 1-7
+      # S01-S07 (...)") leaks its descriptor into the title. The prepend is only needed
+      # for bare/partial episode filenames that lack a show name of their own.
       parent && season_directory?(parent) ->
-        show_name = grandparent || base
-
-        if grandparent && String.starts_with?(String.downcase(base), String.downcase(grandparent)) do
-          base
-        else
-          show_name <> " " <> base
+        cond do
+          base_has_own_tv_title?(base) -> base
+          grandparent -> grandparent <> " " <> base
+          true -> base
         end
 
       # Bare episode filename (e.g. "S01E03") → prepend parent directory name
@@ -358,6 +359,21 @@ defmodule MediaCentaur.Parser do
 
   defp bare_episode?(base) do
     Regex.match?(~r/^[Ss]\d{1,2}[Ee]\d{1,2}$/, base)
+  end
+
+  # True when the filename already contains its own show title ahead of the
+  # episode marker (SxxExx or NxNN) — i.e. cleaning the captured leading text
+  # leaves a non-empty title. Such filenames are self-sufficient and must not
+  # have an ancestor directory prepended (see candidate_name/1).
+  defp base_has_own_tv_title?(base) do
+    match =
+      Regex.run(@tv_pattern, base, capture: :all_but_first) ||
+        Regex.run(@tv_nxnn_pattern, base, capture: :all_but_first)
+
+    case match do
+      [raw_title | _] -> extract_tv_title(raw_title, base) != ""
+      _ -> false
+    end
   end
 
   # Only strip the extension if it's a known media format — prevents confusing

@@ -476,6 +476,20 @@ defmodule MediaCentaur.ParserTest do
       assert result.type == :tv
     end
 
+    test "Sample Show Pack: multi-season pack folder + Season N subdir does not leak pack descriptor into title" do
+      result =
+        Parser.parse(
+          "/home/shawn/videos/media-library/Sample Show Pack (2006) Season 1-7 S01-S07 (1080p AMZN WEBRip x265 HEVC 10bit AAC 5.1 Group)/Season 1/Sample Show Pack (2006) - S01E13 - Sample Episode (1080p AMZN WEBRip x265 Group).mkv"
+        )
+
+      assert result.title == "Sample Show Pack"
+      assert result.year == 2006
+      assert result.season == 1
+      assert result.episode == 13
+      assert result.episode_title == "Sample Episode"
+      assert result.type == :tv
+    end
+
     test "Sample Show Four: spelled-out Season N Episode N with year and episode title" do
       result =
         Parser.parse(
