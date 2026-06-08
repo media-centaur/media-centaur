@@ -49,51 +49,47 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
 
   def pursuit_modal(assigns) do
     ~H"""
-    <div
+    <.modal
       id="pursuit-modal"
-      class="modal-backdrop"
-      data-state={if @open, do: "open", else: "closed"}
+      open={@open}
+      dismiss={:ephemeral}
+      on_close={@on_close}
       data-pursuit-modal
-      phx-click={@open && @on_close}
-      phx-window-keydown={@open && @on_close}
-      phx-key="Escape"
     >
-      <div class="modal-panel" phx-click={%Phoenix.LiveView.JS{}}>
-        <%!-- No close-X — backdrop click and Escape both close, and the
-              URL preserves history so browser-back also works. --%>
-        <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden thin-scrollbar">
-          <div :if={@not_found?} class="p-8 text-center text-sm text-base-content/60">
-            Pursuit not found.
-          </div>
+      <%!-- No close-X — backdrop click and Escape both close, and the
+            URL preserves history so browser-back also works. --%>
+      <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden thin-scrollbar">
+        <div :if={@not_found?} class="p-8 text-center text-sm text-base-content/60">
+          Pursuit not found.
+        </div>
 
-          <div :if={!@not_found? && @header} class="p-6 space-y-4">
-            <PursuitHeader.pursuit_header vm={@header} />
+        <div :if={!@not_found? && @header} class="p-6 space-y-4">
+          <PursuitHeader.pursuit_header vm={@header} />
 
-            <%!-- Activity hides when the pursuit is awaiting a decision
+          <%!-- Activity hides when the pursuit is awaiting a decision
                   (decision_card present). In that case the Decision
                   card carries the prompt and ALL actions, so the
                   Activity card would otherwise duplicate the heading,
                   meta-narrate the layout ("use the decision card
                   below…"), and float Cancel pursuit in a weird spot. --%>
-            <PursuitActivity.pursuit_activity
-              :if={@status && !@decision_card}
-              vm={@status}
-              on_cancel={@on_cancel}
-              on_change_target={@on_change_target}
-              on_request_decision={@on_request_decision}
-            />
+          <PursuitActivity.pursuit_activity
+            :if={@status && !@decision_card}
+            vm={@status}
+            on_cancel={@on_cancel}
+            on_change_target={@on_change_target}
+            on_request_decision={@on_request_decision}
+          />
 
-            <DecisionCard.decision_card
-              :if={@decision_card}
-              vm={@decision_card}
-              on_cancel={@on_cancel}
-            />
+          <DecisionCard.decision_card
+            :if={@decision_card}
+            vm={@decision_card}
+            on_cancel={@on_cancel}
+          />
 
-            <PursuitTimeline.timeline :if={@timeline} vm={@timeline} />
-          </div>
+          <PursuitTimeline.timeline :if={@timeline} vm={@timeline} />
         </div>
       </div>
-    </div>
+    </.modal>
     """
   end
 end
