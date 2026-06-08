@@ -1176,21 +1176,20 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     doc:
       "transient cancel-confirmation state — `nil` or a `%{id, title}` map. Heterogeneous nil-or-map shape; `:any` is intentional."
 
-  defp cancel_confirmation(%{cancel_confirm: nil} = assigns), do: ~H""
-
   defp cancel_confirmation(assigns) do
     ~H"""
-    <div
-      class="modal-backdrop"
-      data-state="open"
-      data-detail-mode="modal"
+    <.modal
+      id="cancel-download-modal"
+      open={!is_nil(@cancel_confirm)}
+      dismiss={:ephemeral}
+      on_close="cancel_download_cancel"
+      size={:sm}
+      panel_class="p-6"
+      data-detail-mode={!is_nil(@cancel_confirm) && "modal"}
       data-dismiss-event="cancel_download_cancel"
-      phx-click="cancel_download_cancel"
-      phx-window-keydown="cancel_download_cancel"
-      phx-key="Escape"
       style="z-index: 60;"
     >
-      <div class="modal-panel modal-panel-sm p-6" phx-click={%Phoenix.LiveView.JS{}}>
+      <div :if={@cancel_confirm}>
         <h3 class="text-lg font-bold text-error">Cancel download?</h3>
         <p class="mt-2 text-sm text-base-content/70">
           The torrent and any downloaded files will be deleted from qBittorrent.
@@ -1207,7 +1206,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           </.button>
         </div>
       </div>
-    </div>
+    </.modal>
     """
   end
 end
