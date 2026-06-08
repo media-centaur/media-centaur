@@ -36,7 +36,8 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.Modal do
           id: "story-modal-ephemeral",
           open: true,
           dismiss: :ephemeral,
-          on_close: "psb-noop"
+          on_close: "psb-noop",
+          size: :md
         },
         slots: [body()]
       },
