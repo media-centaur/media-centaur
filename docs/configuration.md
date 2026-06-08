@@ -1,25 +1,26 @@
 # Configuration
 
-As of v0.14.0, virtually all runtime settings are managed in the app UI and stored in the SQLite database. The TOML file is now minimal — it contains only the two keys that must exist before the database can be opened.
+All runtime settings are managed in the app UI and stored in the SQLite database. The TOML file is minimal — it carries only **bootstrap state**: the values the app needs before the database can be opened, plus the initial watch-directory seed.
 
-## TOML file (minimal)
+## TOML file (bootstrap only)
 
 ```
 ~/.config/media-centaur/media-centaur.toml
 ```
 
-**Only two keys belong here:**
+**Only these keys are read:**
 
 | Key | Purpose |
 |---|---|
-| `port` | TCP port the HTTP server listens on (default: `2160`) |
 | `database_path` | Absolute path to the SQLite file |
+| `port` | TCP port the HTTP server listens on (default: `2160`) |
+| `watch_dirs` | Initial watch-directory seed, imported into the DB on first boot only (managed in the UI thereafter) |
 
-Everything else (watch directories, excluded directories, TMDB API key, Prowlarr URL + key, download client, MPV path + socket dir + timeout, extras dirs, skip dirs, file absence TTL, recent changes days, auto-approve threshold, release-tracking refresh interval) is stored in the Settings DB and edited through the Settings UI.
+Everything else (excluded directories, data directory, TMDB API key, Prowlarr URL + key, download client, MPV path + socket dir + timeout, extras dirs, skip dirs, file absence TTL, recent changes days, auto-approve threshold, release-tracking intervals, update behaviour) is stored in the Settings DB and edited through the Settings UI. **A runtime value placed in the TOML is ignored** — the database is the single source of truth.
 
-## One-shot TOML migration
+## Watch-directory seeding
 
-On first boot after upgrading from v0.13.x or earlier, Media Centaur reads any runtime keys present in the TOML file, imports them into the Settings DB, and then ignores the TOML for those keys from that point on. No data is lost. After the migration, editing the TOML keys that were imported has no effect — use the Settings UI instead.
+`watch_dirs` is the only key with first-boot seeding: if the Settings DB has no watch-directory entry yet, any `watch_dirs` in the TOML are imported once, after which the key is ignored and edits live in the UI. Runtime preferences are **not** imported from TOML — set them in Settings.
 
 ## DB-managed settings (edit in the UI)
 

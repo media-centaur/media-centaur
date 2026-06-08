@@ -3,33 +3,30 @@
 # Shipped default configuration for Media Centaur — Backend.
 # Copy this file to ~/.config/media-centaur/media-centaur.toml and edit as needed.
 #
-# This file now contains only the structural keys that require a restart
-# to change (database_path, port, exclude_dirs). All other settings are
-# configured in the app — open Settings to adjust them. Any values found
-# here on first boot are imported into the app's database and this file
-# is no longer consulted for those keys.
+# This file carries only bootstrap state — the values the app needs
+# before its database is reachable: the database file location, the HTTP
+# port, and the initial watch-directory seed. Every other setting is
+# configured in the app (open Settings to adjust them) and lives in the
+# database. Runtime values left in this file are ignored — the database
+# is the single source of truth.
 
 # Path to the SQLite database file.
 database_path = "~/.local/share/media-centaur/media-centaur.db"
-
-# Root directory for app-managed caches that live outside the SQLite DB
-# and outside the watch directories — currently tracking-item poster /
-# backdrop images. Defaults to the parent directory of `database_path`.
-# Configurable in Settings → Library → Data directory.
-# data_dir = "~/.local/share/media-centaur"
 
 # HTTP port the web UI listens on. Requires restart to change.
 # Default: 2160 (prod), 1080 (dev).
 # port = 2160
 
-# Watch directories are configured in the app — open Settings → Library →
-# Watch Directories. Any TOML `watch_dirs` present here (or in an existing
-# user config) are imported into the app's database on first boot, after
-# which this key is ignored and edits live in the UI.
+# Watch directories are seeded from here on first boot only — open
+# Settings → Library → Watch Directories to manage them thereafter. Any
+# TOML `watch_dirs` present here (or in an existing user config) are
+# imported into the app's database on first boot, after which this key is
+# ignored and edits live in the UI.
 
 # ---------------------------------------------------------------------------
-# All other settings (TMDB, pipeline, playback, Prowlarr, download client,
-# release tracking, etc.) are managed through the Settings page in the app.
-# Values set here on first boot are imported; subsequent TOML edits are
-# ignored in favour of the database.
+# Everything else — TMDB, pipeline thresholds, playback paths, Prowlarr,
+# download client, the data directory, excluded directories, release
+# tracking, update behaviour, … — is managed through the Settings page in
+# the app and stored in the database. Values for those keys placed in this
+# file are NOT read; set them in Settings instead.
 # ---------------------------------------------------------------------------

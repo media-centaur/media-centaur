@@ -62,7 +62,7 @@ stateDiagram-v2
 - `watch_dirs` — directories to monitor (see [configuration.md](configuration.md))
 - `exclude_dirs` — paths inside a watch directory to skip (absolute paths)
 
-Both are DB-managed since v0.14.0 / v0.15.0 — edits happen in **Settings → Library** and flow through `Settings` to the watchers without a restart. The TOML only holds `port` and `database_path`.
+Both are DB-managed since v0.14.0 / v0.15.0 — edits happen in **Settings → Library** and flow through `Settings` to the watchers without a restart. The TOML holds only bootstrap state: `database_path`, `port`, and the initial `watch_dirs` seed (imported once on first boot, managed in the UI thereafter).
 
 Each watcher also auto-excludes its own images directory and staging directory.
 
