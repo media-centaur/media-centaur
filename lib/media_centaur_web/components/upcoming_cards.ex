@@ -6,6 +6,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   use Phoenix.Component
   alias Phoenix.LiveView.JS
   import MediaCentaurWeb.CoreComponents
+  import MediaCentaurWeb.Components.Modal
 
   @weekdays ~w(Mon Tue Wed Thu Fri Sat Sun)
 
@@ -1172,46 +1173,45 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
     assigns = assign(assigns, :open, open)
 
     ~H"""
-    <div
-      class="modal-backdrop"
-      data-state={if @open, do: "open", else: "closed"}
+    <.modal
+      id="stop-tracking-modal"
+      open={@open}
+      dismiss={:ephemeral}
+      on_close="cancel_stop_tracking"
+      size={:sm}
+      panel_class="p-6"
       data-detail-mode={@open && "modal"}
       data-dismiss-event={@open && "cancel_stop_tracking"}
-      phx-click={@open && "cancel_stop_tracking"}
-      phx-window-keydown={@open && "cancel_stop_tracking"}
-      phx-key="Escape"
       style="z-index: 60;"
     >
-      <div class="modal-panel modal-panel-sm p-6" phx-click={%Phoenix.LiveView.JS{}}>
-        <div :if={@item}>
-          <h3 class="text-lg font-bold text-error">Stop tracking?</h3>
-          <p class="mt-2 text-sm text-base-content/70">
-            Stop tracking <span class="font-semibold">{@item.name}</span>?
-            You won't see upcoming releases for this title anymore.
-          </p>
-          <div class="mt-4 flex justify-end gap-2">
-            <.button
-              variant="dismiss"
-              size="sm"
-              data-nav-item
-              tabindex="0"
-              phx-click="cancel_stop_tracking"
-            >
-              Cancel
-            </.button>
-            <.button
-              variant="danger"
-              size="sm"
-              data-nav-item
-              tabindex="0"
-              phx-click="confirm_stop_tracking"
-            >
-              Stop tracking
-            </.button>
-          </div>
+      <div :if={@item}>
+        <h3 class="text-lg font-bold text-error">Stop tracking?</h3>
+        <p class="mt-2 text-sm text-base-content/70">
+          Stop tracking <span class="font-semibold">{@item.name}</span>?
+          You won't see upcoming releases for this title anymore.
+        </p>
+        <div class="mt-4 flex justify-end gap-2">
+          <.button
+            variant="dismiss"
+            size="sm"
+            data-nav-item
+            tabindex="0"
+            phx-click="cancel_stop_tracking"
+          >
+            Cancel
+          </.button>
+          <.button
+            variant="danger"
+            size="sm"
+            data-nav-item
+            tabindex="0"
+            phx-click="confirm_stop_tracking"
+          >
+            Stop tracking
+          </.button>
         </div>
       </div>
-    </div>
+    </.modal>
     """
   end
 
