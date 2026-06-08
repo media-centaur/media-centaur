@@ -20,7 +20,8 @@ defmodule MediaCentaurWeb.Storybook.Status.SelfUpdateWidget do
       interval_minutes: 15,
       auto_install?: true,
       apply_phase: nil,
-      apply_progress: nil
+      apply_progress: nil,
+      history: []
     }
   end
 
@@ -32,6 +33,18 @@ defmodule MediaCentaurWeb.Storybook.Status.SelfUpdateWidget do
         id: :up_to_date,
         description: "On the latest release, auto-install on",
         attributes: variant(%{})
+      },
+      %Variation{
+        id: :with_history,
+        description: "On the latest release, with prior upgrades listed",
+        attributes:
+          variant(
+            history: [
+              %{version: "0.80.0", recorded_at: ~U[2026-06-07 15:00:00Z]},
+              %{version: "0.79.1", recorded_at: ~U[2026-05-28 11:30:00Z]},
+              %{version: "0.79.0", recorded_at: ~U[2026-05-21 08:15:00Z]}
+            ]
+          )
       },
       %Variation{
         id: :update_available,
@@ -71,7 +84,11 @@ defmodule MediaCentaurWeb.Storybook.Status.SelfUpdateWidget do
               body: ""
             },
             apply_phase: :downloading,
-            apply_progress: 42
+            apply_progress: 42,
+            history: [
+              %{version: "0.80.0", recorded_at: ~U[2026-06-07 15:00:00Z]},
+              %{version: "0.79.1", recorded_at: ~U[2026-05-28 11:30:00Z]}
+            ]
           )
       },
       %Variation{
