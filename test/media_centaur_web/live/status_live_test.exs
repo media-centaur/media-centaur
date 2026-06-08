@@ -187,6 +187,19 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     end
   end
 
+  describe "Updates drill-in — upgrade history" do
+    test "lists recorded versions in the Updates activity widget", %{conn: conn} do
+      :ok = MediaCentaur.SelfUpdate.History.record_boot_version("0.81.0")
+      :ok = MediaCentaur.SelfUpdate.History.record_boot_version("0.82.0")
+
+      {:ok, _view, html} = live_async!(conn, "/status?subsystem=self_update")
+
+      assert html =~ "update-history"
+      assert html =~ "v0.82.0"
+      assert html =~ "v0.81.0"
+    end
+  end
+
   defp put_config(key, value) do
     config = :persistent_term.get({MediaCentaur.Config, :config})
     :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, key, value))
