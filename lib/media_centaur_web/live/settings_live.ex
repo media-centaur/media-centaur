@@ -3442,127 +3442,96 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp apply_progress_modal(assigns) do
     ~H"""
-    <div
-      class="modal-backdrop"
-      data-state={if SystemSection.apply_visible?(@apply_phase), do: "open", else: "closed"}
+    <.modal
+      id="apply-progress-modal"
+      open={SystemSection.apply_visible?(@apply_phase)}
+      dismiss={:persistent}
+      size={:sm}
+      panel_class="p-6 space-y-5"
       role="dialog"
       aria-modal="true"
       aria-labelledby="apply-modal-title"
     >
-      <div class="modal-panel modal-panel-sm p-6 space-y-5">
+      <div class="space-y-1">
+        <h3 id="apply-modal-title" class="text-lg font-semibold">
+          Updating
+          <span :if={@latest_release} class="font-mono text-sm text-base-content/60 ml-1">
+            {@latest_release.tag}
+          </span>
+        </h3>
+        <p class="text-sm text-base-content/60">
+          This usually takes under a minute. The app will restart when it finishes.
+        </p>
+      </div>
+
+      <ol class="space-y-3">
+        <.apply_phase_row
+          :for={phase <- SystemSection.visible_phases()}
+          phase={phase}
+          current={@apply_phase}
+          failed_at={@apply_failed_at}
+          progress={@apply_progress}
+        />
+      </ol>
+
+      <div
+        :if={SystemSection.apply_cancelable?(@apply_phase) or @apply_phase in [:handing_off, :done]}
+        class="flex justify-end pt-2"
+      >
+        <.button
+          :if={SystemSection.apply_cancelable?(@apply_phase)}
+          variant="dismiss"
+          size="sm"
+          phx-click="cancel_update"
+          data-nav-item
+          tabindex="0"
+        >
+          <.icon name="hero-x-mark-mini" class="size-4" /> Cancel update
+        </.button>
+        <%!-- Once the install/restart begins the cancel option is gone, but
+                we keep the slot occupied with a disabled spinner so the user
+                sees that work is still happening while the BEAM restarts. --%>
+        <.button
+          :if={@apply_phase in [:handing_off, :done]}
+          variant="dismiss"
+          size="sm"
+          class="pointer-events-none"
+          disabled
+          tabindex="-1"
+          aria-live="polite"
+        >
+          <span class="loading loading-spinner loading-xs"></span> Installing…
+        </.button>
+      </div>
+
+      <div
+        :if={@apply_phase == :failed}
+        class="pt-4 border-t border-base-content/10 space-y-3"
+      >
         <div class="space-y-1">
-          <h3 id="apply-modal-title" class="text-lg font-semibold">
-            Updating
-            <span :if={@latest_release} class="font-mono text-sm text-base-content/60 ml-1">
-              {@latest_release.tag}
-            </span>
-          </h3>
-          <p class="text-sm text-base-content/60">
-            This usually takes under a minute. The app will restart when it finishes.
+          <p class="text-sm text-error">
+            {SystemSection.apply_error_label(@apply_error)}
+          </p>
+          <p class="text-xs text-base-content/50">
+            The running install is untouched.
           </p>
         </div>
 
-        <ol class="space-y-3">
-          <.apply_phase_row
-            :for={phase <- SystemSection.visible_phases()}
-            phase={phase}
-            current={@apply_phase}
-            failed_at={@apply_failed_at}
-            progress={@apply_progress}
-          />
-        </ol>
-
-        <div
-          :if={SystemSection.apply_cancelable?(@apply_phase) or @apply_phase in [:handing_off, :done]}
-          class="flex justify-end pt-2"
-        >
-          <.button
-            :if={SystemSection.apply_cancelable?(@apply_phase)}
-            variant="dismiss"
-            size="sm"
-            phx-click="cancel_update"
-            data-nav-item
-            tabindex="0"
-          >
-            <.icon name="hero-x-mark-mini" class="size-4" /> Cancel update
-          </.button>
-          <%!-- Once the install/restart begins the cancel option is gone, but
-                we keep the slot occupied with a disabled spinner so the user
-                sees that work is still happening while the BEAM restarts. --%>
-          <.button
-            :if={@apply_phase in [:handing_off, :done]}
-            variant="dismiss"
-            size="sm"
-            class="pointer-events-none"
-            disabled
-            tabindex="-1"
-            aria-live="polite"
-          >
-            <span class="loading loading-spinner loading-xs"></span> Installing…
-          </.button>
-        </div>
-
-        <div
-          :if={@apply_phase == :failed}
-          class="pt-4 border-t border-base-content/10 space-y-3"
-        >
-          <div class="space-y-1">
-            <p class="text-sm text-error">
-              {SystemSection.apply_error_label(@apply_error)}
-            </p>
-            <p class="text-xs text-base-content/50">
-              The running install is untouched.
-            </p>
-          </div>
-
-          <div class="space-y-1">
-            <p class="text-xs font-medium text-base-content/70">
-              If it keeps failing, update from a terminal:
-            </p>
-            <div class="glass-inset rounded-md p-2 flex items-center gap-2">
-              <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
-                {SystemSection.terminal_recovery_command()}
-              </code>
-              <.button
-                id="copy-terminal-recovery"
-                variant="dismiss"
-                size="xs"
-                class="shrink-0"
-                phx-hook="CopyButton"
-                data-copy-text={SystemSection.terminal_recovery_command()}
-                data-nav-item
-                tabindex="0"
-              >
-                Copy
-              </.button>
-            </div>
-          </div>
-        </div>
-
-        <div
-          :if={@apply_phase == :done_stuck}
-          class="pt-4 border-t border-base-content/10 space-y-3"
-        >
-          <div class="space-y-1">
-            <p class="text-sm text-warning">
-              The service didn't restart on its own.
-            </p>
-            <p class="text-xs text-base-content/60">
-              The new release was staged successfully. Restart the service manually to finish:
-            </p>
-          </div>
-
+        <div class="space-y-1">
+          <p class="text-xs font-medium text-base-content/70">
+            If it keeps failing, update from a terminal:
+          </p>
           <div class="glass-inset rounded-md p-2 flex items-center gap-2">
             <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
-              systemctl --user restart media-centaur
+              {SystemSection.terminal_recovery_command()}
             </code>
             <.button
-              id="copy-stuck-restart"
+              id="copy-terminal-recovery"
               variant="dismiss"
               size="xs"
               class="shrink-0"
               phx-hook="CopyButton"
-              data-copy-text="systemctl --user restart media-centaur"
+              data-copy-text={SystemSection.terminal_recovery_command()}
               data-nav-item
               tabindex="0"
             >
@@ -3570,33 +3539,65 @@ defmodule MediaCentaurWeb.SettingsLive do
             </.button>
           </div>
         </div>
+      </div>
 
-        <div
-          :if={@apply_phase in [:failed, :done_stuck]}
-          class="flex justify-end gap-2 pt-2"
-        >
+      <div
+        :if={@apply_phase == :done_stuck}
+        class="pt-4 border-t border-base-content/10 space-y-3"
+      >
+        <div class="space-y-1">
+          <p class="text-sm text-warning">
+            The service didn't restart on its own.
+          </p>
+          <p class="text-xs text-base-content/60">
+            The new release was staged successfully. Restart the service manually to finish:
+          </p>
+        </div>
+
+        <div class="glass-inset rounded-md p-2 flex items-center gap-2">
+          <code class="font-mono text-[11px] text-base-content/80 flex-1 truncate">
+            systemctl --user restart media-centaur
+          </code>
           <.button
+            id="copy-stuck-restart"
             variant="dismiss"
-            size="sm"
-            phx-click="dismiss_apply_modal"
+            size="xs"
+            class="shrink-0"
+            phx-hook="CopyButton"
+            data-copy-text="systemctl --user restart media-centaur"
             data-nav-item
             tabindex="0"
           >
-            Close
-          </.button>
-          <.button
-            :if={@apply_phase == :failed}
-            variant="primary"
-            size="sm"
-            phx-click="apply_update"
-            data-nav-item
-            tabindex="0"
-          >
-            Retry
+            Copy
           </.button>
         </div>
       </div>
-    </div>
+
+      <div
+        :if={@apply_phase in [:failed, :done_stuck]}
+        class="flex justify-end gap-2 pt-2"
+      >
+        <.button
+          variant="dismiss"
+          size="sm"
+          phx-click="dismiss_apply_modal"
+          data-nav-item
+          tabindex="0"
+        >
+          Close
+        </.button>
+        <.button
+          :if={@apply_phase == :failed}
+          variant="primary"
+          size="sm"
+          phx-click="apply_update"
+          data-nav-item
+          tabindex="0"
+        >
+          Retry
+        </.button>
+      </div>
+    </.modal>
     """
   end
 
@@ -3610,49 +3611,48 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp service_action_modal(assigns) do
     ~H"""
-    <div
-      class="modal-backdrop"
-      data-state={if @action, do: "open", else: "closed"}
+    <.modal
+      id="service-action-modal"
+      open={!is_nil(@action)}
+      dismiss={:ephemeral}
+      on_close="service_cancel"
+      size={:sm}
+      panel_class="p-6 space-y-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="service-confirm-title"
-      phx-click-away={@action && JS.push("service_cancel")}
-      phx-window-keydown={@action && JS.push("service_cancel")}
-      phx-key="Escape"
     >
-      <div class="modal-panel modal-panel-sm p-6 space-y-4">
-        <div class="space-y-1">
-          <h3 id="service-confirm-title" class="text-lg font-semibold">
-            {service_confirm_title(@action)}
-          </h3>
-          <p class="text-sm text-base-content/70">
-            {service_confirm_body(@action)}
-          </p>
-        </div>
-
-        <div class="flex justify-end gap-2 pt-2">
-          <.button
-            variant="dismiss"
-            size="sm"
-            phx-click="service_cancel"
-            data-nav-item
-            tabindex="0"
-          >
-            Cancel
-          </.button>
-          <.button
-            variant={service_confirm_button_variant(@action)}
-            size="sm"
-            phx-click="service_execute"
-            phx-value-action={@action || ""}
-            data-nav-item
-            tabindex="0"
-          >
-            {service_confirm_cta(@action)}
-          </.button>
-        </div>
+      <div class="space-y-1">
+        <h3 id="service-confirm-title" class="text-lg font-semibold">
+          {service_confirm_title(@action)}
+        </h3>
+        <p class="text-sm text-base-content/70">
+          {service_confirm_body(@action)}
+        </p>
       </div>
-    </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <.button
+          variant="dismiss"
+          size="sm"
+          phx-click="service_cancel"
+          data-nav-item
+          tabindex="0"
+        >
+          Cancel
+        </.button>
+        <.button
+          variant={service_confirm_button_variant(@action)}
+          size="sm"
+          phx-click="service_execute"
+          phx-value-action={@action || ""}
+          data-nav-item
+          tabindex="0"
+        >
+          {service_confirm_cta(@action)}
+        </.button>
+      </div>
+    </.modal>
     """
   end
 
@@ -3667,122 +3667,119 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp watch_dir_dialog(assigns) do
     ~H"""
-    <div
-      class="modal-backdrop"
-      data-state={if @watch_dir_dialog, do: "open", else: "closed"}
+    <.modal
+      id="watch-dir-dialog"
+      open={!is_nil(@watch_dir_dialog)}
+      dismiss={:ephemeral}
+      on_close="watch_dir:close"
+      size={:sm}
+      panel_class="p-6"
       role="dialog"
       aria-modal="true"
       aria-labelledby="watch-dir-dialog-title"
-      phx-window-keydown={@watch_dir_dialog && "watch_dir:close"}
-      phx-key="Escape"
     >
-      <div
-        class="modal-panel modal-panel-sm p-6"
-        phx-click-away={@watch_dir_dialog && "watch_dir:close"}
+      <.button
+        variant="dismiss"
+        size="sm"
+        shape="circle"
+        class="absolute top-3 right-3 z-10"
+        phx-click="watch_dir:close"
+        aria-label="Close"
       >
-        <.button
-          variant="dismiss"
-          size="sm"
-          shape="circle"
-          class="absolute top-3 right-3 z-10"
-          phx-click="watch_dir:close"
-          aria-label="Close"
-        >
-          <.icon name="hero-x-mark-mini" class="size-5" />
-        </.button>
+        <.icon name="hero-x-mark-mini" class="size-5" />
+      </.button>
 
-        <h3 id="watch-dir-dialog-title" class="text-lg font-semibold mb-4">
-          {if @watch_dir_dialog &&
-                Enum.any?(@watch_dirs, &(&1["id"] == @watch_dir_dialog.entry["id"])),
-              do: "Edit watch directory",
-              else: "Add watch directory"}
-        </h3>
+      <h3 id="watch-dir-dialog-title" class="text-lg font-semibold mb-4">
+        {if @watch_dir_dialog &&
+              Enum.any?(@watch_dirs, &(&1["id"] == @watch_dir_dialog.entry["id"])),
+            do: "Edit watch directory",
+            else: "Add watch directory"}
+      </h3>
 
-        <form
-          :if={@watch_dir_dialog}
-          phx-change="watch_dir:validate"
-          phx-submit="watch_dir:save"
-          class="space-y-3"
-        >
-          <div>
-            <label class="text-sm font-medium">Directory</label>
+      <form
+        :if={@watch_dir_dialog}
+        phx-change="watch_dir:validate"
+        phx-submit="watch_dir:save"
+        class="space-y-3"
+      >
+        <div>
+          <label class="text-sm font-medium">Directory</label>
+          <input
+            type="text"
+            name="entry[dir]"
+            value={@watch_dir_dialog.entry["dir"]}
+            class="library-filter w-full"
+          />
+          <.watch_dir_errors errors={@watch_dir_dialog.validation.errors} field={:dir} />
+        </div>
+
+        <div>
+          <label class="text-sm font-medium">
+            Name <span class="text-base-content/50">(optional)</span>
+          </label>
+          <input
+            type="text"
+            name="entry[name]"
+            value={@watch_dir_dialog.entry["name"]}
+            class="library-filter w-full"
+          />
+          <.watch_dir_errors errors={@watch_dir_dialog.validation.errors} field={:name} />
+        </div>
+
+        <details>
+          <summary class="cursor-pointer text-sm text-base-content/60">
+            Advanced — images directory
+          </summary>
+          <div class="mt-2 space-y-1">
             <input
               type="text"
-              name="entry[dir]"
-              value={@watch_dir_dialog.entry["dir"]}
+              name="entry[images_dir]"
+              value={@watch_dir_dialog.entry["images_dir"]}
               class="library-filter w-full"
+              placeholder="Leave blank to use the default"
             />
-            <.watch_dir_errors errors={@watch_dir_dialog.validation.errors} field={:dir} />
-          </div>
-
-          <div>
-            <label class="text-sm font-medium">
-              Name <span class="text-base-content/50">(optional)</span>
-            </label>
-            <input
-              type="text"
-              name="entry[name]"
-              value={@watch_dir_dialog.entry["name"]}
-              class="library-filter w-full"
+            <p class="text-xs text-base-content/50">
+              If blank, artwork is cached at
+              <code class="font-mono">
+                {WatchDirsLogic.default_images_dir_hint(@watch_dir_dialog.entry["dir"])}
+              </code>
+              and automatically skipped by the file watcher.
+            </p>
+            <.watch_dir_errors
+              errors={@watch_dir_dialog.validation.errors}
+              field={:images_dir}
             />
-            <.watch_dir_errors errors={@watch_dir_dialog.validation.errors} field={:name} />
           </div>
+        </details>
 
-          <details>
-            <summary class="cursor-pointer text-sm text-base-content/60">
-              Advanced — images directory
-            </summary>
-            <div class="mt-2 space-y-1">
-              <input
-                type="text"
-                name="entry[images_dir]"
-                value={@watch_dir_dialog.entry["images_dir"]}
-                class="library-filter w-full"
-                placeholder="Leave blank to use the default"
-              />
-              <p class="text-xs text-base-content/50">
-                If blank, artwork is cached at
-                <code class="font-mono">
-                  {WatchDirsLogic.default_images_dir_hint(@watch_dir_dialog.entry["dir"])}
-                </code>
-                and automatically skipped by the file watcher.
-              </p>
-              <.watch_dir_errors
-                errors={@watch_dir_dialog.validation.errors}
-                field={:images_dir}
-              />
-            </div>
-          </details>
+        <div
+          :if={@watch_dir_dialog.validation.preview}
+          class="glass-inset rounded-lg p-3 text-sm text-base-content/70"
+        >
+          Found {@watch_dir_dialog.validation.preview.video_count} video files, {@watch_dir_dialog.validation.preview.subdir_count} subdirectories.
+        </div>
 
-          <div
-            :if={@watch_dir_dialog.validation.preview}
-            class="glass-inset rounded-lg p-3 text-sm text-base-content/70"
+        <div
+          :for={warning <- @watch_dir_dialog.validation.warnings}
+          class="text-warning text-sm"
+        >
+          {WatchDirsLogic.error_message(warning)}
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <.button variant="dismiss" phx-click="watch_dir:close">
+            Cancel
+          </.button>
+          <.button
+            type="submit"
+            variant="primary"
+            disabled={not WatchDirsLogic.saveable?(@watch_dir_dialog.validation)}
           >
-            Found {@watch_dir_dialog.validation.preview.video_count} video files, {@watch_dir_dialog.validation.preview.subdir_count} subdirectories.
-          </div>
-
-          <div
-            :for={warning <- @watch_dir_dialog.validation.warnings}
-            class="text-warning text-sm"
-          >
-            {WatchDirsLogic.error_message(warning)}
-          </div>
-
-          <div class="flex justify-end gap-2 pt-2">
-            <.button variant="dismiss" phx-click="watch_dir:close">
-              Cancel
-            </.button>
-            <.button
-              type="submit"
-              variant="primary"
-              disabled={not WatchDirsLogic.saveable?(@watch_dir_dialog.validation)}
-            >
-              Save
-            </.button>
-          </div>
-        </form>
-      </div>
-    </div>
+            Save
+          </.button>
+        </div>
+      </form>
+    </.modal>
     """
   end
 
