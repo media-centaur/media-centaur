@@ -6,22 +6,32 @@ defmodule MediaCentaurWeb.Storybook.Status.SelfUpdateWidget do
 
   def render_source, do: :function
 
-  @now ~U[2026-06-07 16:00:00Z]
-  @recent {:ok, ~U[2026-06-07 15:54:00Z]}
+  @now ~U[2026-06-09 12:00:00Z]
+  @recent {:ok, ~U[2026-06-09 11:55:00Z]}
+
+  @history [
+    %{
+      version: "0.86.1",
+      recorded_at: ~U[2026-06-09 09:00:00Z],
+      notes_body:
+        "### Fixed\n\n**The Watcher tile no longer blanks the Status page.** It degrades gracefully during a restart."
+    },
+    %{version: "0.86.0", recorded_at: ~U[2026-06-08 09:00:00Z], notes_body: nil}
+  ]
 
   defp base do
     %{
-      version: "0.80.0",
+      version: "0.86.1",
       status: :up_to_date,
       latest_release: nil,
       last_check_at: @recent,
       now: @now,
       check_enabled?: true,
-      interval_minutes: 15,
-      auto_install?: true,
+      interval_minutes: 360,
+      auto_install?: false,
       apply_phase: nil,
       apply_progress: nil,
-      history: []
+      history: @history
     }
   end
 
@@ -31,33 +41,23 @@ defmodule MediaCentaurWeb.Storybook.Status.SelfUpdateWidget do
     [
       %Variation{
         id: :up_to_date,
-        description: "On the latest release, auto-install on",
+        description: "On the latest release — history has one entry with notes and one plain row",
         attributes: variant(%{})
       },
       %Variation{
-        id: :with_history,
-        description: "On the latest release, with prior upgrades listed",
-        attributes:
-          variant(
-            history: [
-              %{version: "0.80.0", recorded_at: ~U[2026-06-07 15:00:00Z]},
-              %{version: "0.79.1", recorded_at: ~U[2026-05-28 11:30:00Z]},
-              %{version: "0.79.0", recorded_at: ~U[2026-05-21 08:15:00Z]}
-            ]
-          )
-      },
-      %Variation{
         id: :update_available,
-        description: "A newer release exists, auto-install off",
+        description: "A newer release exists with what's-new notes",
         attributes:
           variant(
             status: :update_available,
             auto_install?: false,
             latest_release: %{
-              tag: "v0.81.0",
-              published_at: ~U[2026-06-07 09:00:00Z],
-              html_url: "https://example.test/releases/v0.81.0",
-              body: ""
+              version: "0.87.0",
+              tag: "v0.87.0",
+              published_at: @now,
+              html_url: "https://example.com",
+              body:
+                "### Improved\n\n**The Updates tile now shows what each release brings.** Expand any version to read its notes."
             }
           )
       },
@@ -78,17 +78,14 @@ defmodule MediaCentaurWeb.Storybook.Status.SelfUpdateWidget do
           variant(
             status: :update_available,
             latest_release: %{
-              tag: "v0.81.0",
-              published_at: ~U[2026-06-07 09:00:00Z],
-              html_url: "https://example.test/releases/v0.81.0",
-              body: ""
+              version: "0.87.0",
+              tag: "v0.87.0",
+              published_at: @now,
+              html_url: "https://example.com",
+              body: "### Improved\n\n**The Updates tile now shows what each release brings.**"
             },
             apply_phase: :downloading,
-            apply_progress: 42,
-            history: [
-              %{version: "0.80.0", recorded_at: ~U[2026-06-07 15:00:00Z]},
-              %{version: "0.79.1", recorded_at: ~U[2026-05-28 11:30:00Z]}
-            ]
+            apply_progress: 42
           )
       },
       %Variation{
@@ -98,9 +95,10 @@ defmodule MediaCentaurWeb.Storybook.Status.SelfUpdateWidget do
           variant(
             status: :update_available,
             latest_release: %{
-              tag: "v0.81.0",
-              published_at: ~U[2026-06-07 09:00:00Z],
-              html_url: "https://example.test/releases/v0.81.0",
+              version: "0.87.0",
+              tag: "v0.87.0",
+              published_at: @now,
+              html_url: "https://example.com",
               body: ""
             },
             apply_phase: :failed
@@ -114,7 +112,8 @@ defmodule MediaCentaurWeb.Storybook.Status.SelfUpdateWidget do
             status: :idle,
             last_check_at: :none,
             check_enabled?: false,
-            auto_install?: false
+            auto_install?: false,
+            history: []
           )
       }
     ]
