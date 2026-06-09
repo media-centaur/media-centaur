@@ -33,6 +33,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitRow do
   @type state ::
           :active
           | :satisfied
+          | :partial
           | :exhausted
           | :cancelled
 

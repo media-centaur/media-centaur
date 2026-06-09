@@ -3,7 +3,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.TerminalCommandsTest do
 
   import MediaCentaur.TestFactory
 
-  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit}
+  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, Units}
   alias MediaCentaur.Acquisition.Pursuits.Commands.{Cancel, Exhaust, Satisfy}
 
   alias MediaCentaur.Acquisition.Pursuits.Events.{
@@ -16,23 +16,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.TerminalCommandsTest do
   alias MediaCentaur.Topics
 
   defp insert_active_pursuit(state \\ "active") do
-    {:ok, pursuit} =
-      Repo.insert(
-        Pursuit.create_changeset(%{
-          tmdb_id: "12345",
-          tmdb_type: "movie",
-          title: "Sample Movie",
-          origin: "auto"
-        })
-      )
-
-    if state == "active" do
-      pursuit
-    else
-      pursuit
-      |> Ecto.Changeset.change(state: state)
-      |> Repo.update!()
-    end
+    create_pursuit(%{state: state})
   end
 
   describe "Satisfy.execute/1" do
@@ -61,7 +45,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.TerminalCommandsTest do
     test "rejects already-terminal pursuit" do
       pursuit = insert_active_pursuit("satisfied")
 
-      assert {:error, %Ecto.Changeset{}} =
+      assert {:error, :not_eligible} =
                Satisfy.execute(%{
                  pursuit_id: pursuit.id,
                  final_target_id: Ecto.UUID.generate(),
@@ -155,17 +139,18 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.TerminalCommandsTest do
       assert_receive %PursuitExhausted{}
     end
 
-    test "exhausting an awaiting-decision pursuit clears the awaiting flag" do
-      pursuit =
-        insert_active_pursuit("active")
-        |> Ecto.Changeset.change(awaiting_decision_at: DateTime.utc_now(:second))
-        |> Repo.update!()
+    test "exhausting an awaiting-decision pursuit clears the unit's awaiting flag" do
+      pursuit = create_pursuit(%{awaiting_decision_at: DateTime.utc_now(:second)})
 
-      assert {:ok, %Pursuit{state: "exhausted", awaiting_decision_at: nil}} =
+      assert {:ok, %Pursuit{state: "exhausted"}} =
                Exhaust.execute(%{
                  pursuit_id: pursuit.id,
                  reason: :no_alternatives
                })
+
+      unit = Units.single!(pursuit.id)
+      assert unit.state == "exhausted"
+      assert unit.awaiting_decision_at == nil
     end
 
     test "cancels in-flight targets" do

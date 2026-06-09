@@ -4,7 +4,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancelTest do
   import Ecto.Query
   import MediaCentaur.TestFactory
 
-  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit}
+  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, Units}
   alias MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel
   alias MediaCentaur.Acquisition.Pursuits.Events.AutoCancelled
   alias MediaCentaur.Acquisition.Target
@@ -31,10 +31,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancelTest do
       assert {:ok, %Pursuit{} = pivoted} =
                run(%{pursuit_id: pursuit.id, reason: :zero_seeders})
 
-      # Pursuit stays active and points at a new target.
+      # Pursuit stays active; its unit points at a new target.
       assert pivoted.state == "active"
-      refute pivoted.current_target_id == current_target.id
-      refute is_nil(pivoted.current_target_id)
+      unit = Units.single!(pursuit.id)
+      refute unit.current_target_id == current_target.id
+      refute is_nil(unit.current_target_id)
 
       # Previous target is now terminal with the auto-cancel reason.
       old_target = Repo.get!(Target, current_target.id)
@@ -42,13 +43,13 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancelTest do
       assert old_target.cancelled_reason == "zero_seeders"
 
       # New target is seeking.
-      new_target = Repo.get!(Target, pivoted.current_target_id)
+      new_target = Repo.get!(Target, unit.current_target_id)
       assert new_target.status == "seeking"
       assert new_target.pursuit_id == pursuit.id
 
-      # The dead release's guid is on tried_release_guids so the next
-      # search won't re-pick it.
-      assert "dead-release-1" in pivoted.tried_release_guids
+      # The dead release's guid is on the unit's tried_release_guids so
+      # the next search won't re-pick it.
+      assert "dead-release-1" in unit.tried_release_guids
 
       # The receive order doesn't matter; both events fired.
       assert_receive %AutoCancelled{reason: "zero_seeders"}
@@ -77,10 +78,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancelTest do
     test "enqueues a PursueTarget Oban job for the new target" do
       {pursuit, _target} = create_pursuit_with_target(%{status: "acquired", prowlarr_guid: "g1"})
 
-      assert {:ok, pivoted} = run(%{pursuit_id: pursuit.id, reason: :zero_seeders})
+      assert {:ok, _pivoted} = run(%{pursuit_id: pursuit.id, reason: :zero_seeders})
 
       [job] = enqueued_pursue_target_jobs()
-      assert job.args["target_id"] == pivoted.current_target_id
+      assert job.args["target_id"] == Units.single!(pursuit.id).current_target_id
       assert job.queue == "acquisition"
     end
   end
@@ -89,8 +90,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancelTest do
     test "records auto_cancelled, does not create a new target, does not enqueue" do
       pursuit = create_pursuit()
 
-      assert {:ok, %Pursuit{state: "active", current_target_id: nil}} =
+      assert {:ok, %Pursuit{state: "active"}} =
                run(%{pursuit_id: pursuit.id, reason: :zero_seeders})
+
+      assert Units.single!(pursuit.id).current_target_id == nil
 
       assert [%{kind: "auto_cancelled"}] = Repo.all(Event)
       assert [] = enqueued_pursue_target_jobs()

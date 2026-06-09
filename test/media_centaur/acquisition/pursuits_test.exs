@@ -53,6 +53,17 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
     target
   end
 
+  # Sets the awaiting flag on the pursuit's unit (ADR-055) and returns
+  # the pursuit unchanged.
+  defp set_awaiting(pursuit) do
+    pursuit.id
+    |> MediaCentaur.Acquisition.Pursuits.Units.single!()
+    |> Ecto.Changeset.change(awaiting_decision_at: DateTime.utc_now(:second))
+    |> Repo.update!()
+
+    pursuit
+  end
+
   describe "get/1" do
     test "returns the pursuit by id" do
       pursuit = insert_pursuit()
@@ -79,10 +90,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
     end
 
     test "awaiting-decision pursuits still count as active (state stays active, flag is orthogonal)" do
-      pursuit =
-        insert_pursuit()
-        |> Ecto.Changeset.change(awaiting_decision_at: DateTime.utc_now(:second))
-        |> Repo.update!()
+      pursuit = set_awaiting(insert_pursuit())
 
       ids = Enum.map(Pursuits.list_active(), & &1.id)
       assert pursuit.id in ids
@@ -155,10 +163,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
     end
 
     test "includes awaiting-decision pursuits (state still active, just blocked)" do
-      pursuit =
-        insert_pursuit(%{tmdb_id: "555", tmdb_type: "movie"})
-        |> Ecto.Changeset.change(awaiting_decision_at: DateTime.utc_now(:second))
-        |> Repo.update!()
+      pursuit = set_awaiting(insert_pursuit(%{tmdb_id: "555", tmdb_type: "movie"}))
 
       [result] = Pursuits.find_active_for_target(%{tmdb_id: "555", tmdb_type: "movie"})
       assert result.id == pursuit.id
@@ -347,11 +352,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
 
     test "row.status reflects awaiting_decision_at on an active pursuit" do
       pursuit = insert_pursuit()
-
-      _ =
-        pursuit
-        |> Ecto.Changeset.change(awaiting_decision_at: DateTime.utc_now(:second))
-        |> MediaCentaur.Repo.update!()
+      _ = set_awaiting(pursuit)
 
       [row] = Pursuits.list_active_rows()
 
@@ -391,10 +392,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
     test ":active matches list_active_rows/0 — every pursuit with state == :active" do
       active = insert_pursuit(%{title: "Active Show", tmdb_id: "2001"})
 
-      awaiting =
-        insert_pursuit(%{title: "Decision Show", tmdb_id: "2002"})
-        |> Ecto.Changeset.change(awaiting_decision_at: DateTime.utc_now(:second))
-        |> MediaCentaur.Repo.update!()
+      awaiting = set_awaiting(insert_pursuit(%{title: "Decision Show", tmdb_id: "2002"}))
 
       _terminal = set_state(insert_pursuit(%{title: "Done Show", tmdb_id: "2003"}), "satisfied")
 

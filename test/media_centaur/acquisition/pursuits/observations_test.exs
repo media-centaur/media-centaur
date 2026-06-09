@@ -4,14 +4,20 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
   import Ecto.Query
   import MediaCentaur.TestFactory
 
-  alias MediaCentaur.Acquisition.Pursuits.{Event, Observations}
+  alias MediaCentaur.Acquisition.Pursuits.{Event, Observations, Units}
   alias MediaCentaur.Downloads.QueueItem
 
-  defp insert_pursuit_with_target(release_title) do
+  defp insert_pursuit_with_unit(release_title) do
     {pursuit, _target} =
       create_pursuit_with_target(%{release_title: release_title})
 
-    pursuit
+    {pursuit, Units.single!(pursuit.id)}
+  end
+
+  defp set_unit(unit, attrs) do
+    unit
+    |> Ecto.Changeset.change(attrs)
+    |> Repo.update!()
   end
 
   defp events_for(pursuit_id) do
@@ -38,46 +44,44 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
     }
   end
 
-  describe "refresh!/3" do
+  describe "refresh!/4" do
     setup do
       now = ~U[2026-05-07 12:00:00Z]
       %{now: now}
     end
 
     test "no torrent found in queue → both timestamps cleared", %{now: now} do
-      pursuit =
-        insert_pursuit_with_target("Sample.Movie.2024.1080p")
-        |> Ecto.Changeset.change(
+      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+
+      unit =
+        set_unit(unit,
           stall_first_seen_at: ~U[2026-05-07 11:00:00Z],
           zero_seeders_first_seen_at: ~U[2026-05-07 11:00:00Z]
         )
-        |> Repo.update!()
 
-      refreshed = Observations.refresh!(pursuit, [], now)
+      refreshed = Observations.refresh!(pursuit, unit, [], now)
 
       assert refreshed.stall_first_seen_at == nil
       assert refreshed.zero_seeders_first_seen_at == nil
     end
 
     test "torrent found and healthy → both timestamps cleared", %{now: now} do
-      pursuit =
-        insert_pursuit_with_target("Sample.Movie.2024.1080p")
-        |> Ecto.Changeset.change(stall_first_seen_at: ~U[2026-05-07 11:00:00Z])
-        |> Repo.update!()
+      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+      unit = set_unit(unit, stall_first_seen_at: ~U[2026-05-07 11:00:00Z])
 
       queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :healthy)]
 
-      refreshed = Observations.refresh!(pursuit, queue, now)
+      refreshed = Observations.refresh!(pursuit, unit, queue, now)
 
       assert refreshed.stall_first_seen_at == nil
       assert refreshed.zero_seeders_first_seen_at == nil
     end
 
     test "torrent newly soft-stalled → stall_first_seen_at set to now", %{now: now} do
-      pursuit = insert_pursuit_with_target("Sample.Movie.2024.1080p")
+      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
       queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :soft_stall)]
 
-      refreshed = Observations.refresh!(pursuit, queue, now)
+      refreshed = Observations.refresh!(pursuit, unit, queue, now)
 
       assert refreshed.stall_first_seen_at == now
       assert refreshed.zero_seeders_first_seen_at == nil
@@ -86,58 +90,52 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
     test "torrent already stalling → stall_first_seen_at preserved across refreshes", %{now: now} do
       original_seen = ~U[2026-05-06 12:00:00Z]
 
-      pursuit =
-        insert_pursuit_with_target("Sample.Movie.2024.1080p")
-        |> Ecto.Changeset.change(stall_first_seen_at: original_seen)
-        |> Repo.update!()
+      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+      unit = set_unit(unit, stall_first_seen_at: original_seen)
 
       queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :frozen)]
 
-      refreshed = Observations.refresh!(pursuit, queue, now)
+      refreshed = Observations.refresh!(pursuit, unit, queue, now)
 
       assert refreshed.stall_first_seen_at == original_seen
     end
 
     test "torrent in :stalled state → zero_seeders_first_seen_at set", %{now: now} do
-      pursuit = insert_pursuit_with_target("Sample.Movie.2024.1080p")
+      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
       queue = [queue_item("Sample.Movie.2024.1080p", state: :stalled, health: :frozen)]
 
-      refreshed = Observations.refresh!(pursuit, queue, now)
+      refreshed = Observations.refresh!(pursuit, unit, queue, now)
 
       assert refreshed.zero_seeders_first_seen_at == now
       assert refreshed.stall_first_seen_at == now
     end
 
     test "torrent recovered from :stalled → zero_seeders timestamp cleared", %{now: now} do
-      pursuit =
-        insert_pursuit_with_target("Sample.Movie.2024.1080p")
-        |> Ecto.Changeset.change(zero_seeders_first_seen_at: ~U[2026-05-07 06:00:00Z])
-        |> Repo.update!()
+      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+      unit = set_unit(unit, zero_seeders_first_seen_at: ~U[2026-05-07 06:00:00Z])
 
       queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :healthy)]
 
-      refreshed = Observations.refresh!(pursuit, queue, now)
+      refreshed = Observations.refresh!(pursuit, unit, queue, now)
 
       assert refreshed.zero_seeders_first_seen_at == nil
     end
 
     test "queue_state == :unknown → no changes (download client unreachable)", %{now: now} do
-      pursuit =
-        insert_pursuit_with_target("Sample.Movie.2024.1080p")
-        |> Ecto.Changeset.change(stall_first_seen_at: ~U[2026-05-07 11:00:00Z])
-        |> Repo.update!()
+      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+      unit = set_unit(unit, stall_first_seen_at: ~U[2026-05-07 11:00:00Z])
 
-      refreshed = Observations.refresh!(pursuit, :unknown, now)
+      refreshed = Observations.refresh!(pursuit, unit, :unknown, now)
 
       assert refreshed.stall_first_seen_at == ~U[2026-05-07 11:00:00Z]
     end
 
     test "first observation of the torrent → DownloadStarted event recorded; last_queue_state set",
          %{now: now} do
-      pursuit = insert_pursuit_with_target("Sample.Movie.2024.1080p")
+      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
       queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :healthy)]
 
-      refreshed = Observations.refresh!(pursuit, queue, now)
+      refreshed = Observations.refresh!(pursuit, unit, queue, now)
 
       assert refreshed.last_queue_state == "downloading"
       assert refreshed.last_queue_health == "healthy"
@@ -149,13 +147,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
     end
 
     test "queue (state, health) unchanged → no event recorded", %{now: now} do
-      pursuit = insert_pursuit_with_target("Sample.Movie.2024.1080p")
+      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
       queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :healthy)]
 
-      _ = Observations.refresh!(pursuit, queue, now)
-
-      pursuit_after_first = Repo.get!(MediaCentaur.Acquisition.Pursuits.Pursuit, pursuit.id)
-      _ = Observations.refresh!(pursuit_after_first, queue, ~U[2026-05-07 13:00:00Z])
+      unit_after_first = Observations.refresh!(pursuit, unit, queue, now)
+      _ = Observations.refresh!(pursuit, unit_after_first, queue, ~U[2026-05-07 13:00:00Z])
 
       events =
         Event
@@ -167,14 +163,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
     end
 
     test "state transition (:downloading → :stalled) → HealthChanged event recorded", %{now: now} do
-      pursuit =
-        insert_pursuit_with_target("Sample.Movie.2024.1080p")
-        |> Ecto.Changeset.change(last_queue_state: "downloading", last_queue_health: "healthy")
-        |> Repo.update!()
+      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+      unit = set_unit(unit, last_queue_state: "downloading", last_queue_health: "healthy")
 
       queue = [queue_item("Sample.Movie.2024.1080p", state: :stalled, health: :frozen)]
 
-      refreshed = Observations.refresh!(pursuit, queue, now)
+      refreshed = Observations.refresh!(pursuit, unit, queue, now)
 
       assert refreshed.last_queue_state == "stalled"
       assert refreshed.last_queue_health == "frozen"
@@ -187,14 +181,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
     end
 
     test "health-axis-only change → HealthChanged event still records both axes", %{now: now} do
-      pursuit =
-        insert_pursuit_with_target("Sample.Movie.2024.1080p")
-        |> Ecto.Changeset.change(last_queue_state: "downloading", last_queue_health: "healthy")
-        |> Repo.update!()
+      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+      unit = set_unit(unit, last_queue_state: "downloading", last_queue_health: "healthy")
 
       queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :slow)]
 
-      _ = Observations.refresh!(pursuit, queue, now)
+      _ = Observations.refresh!(pursuit, unit, queue, now)
 
       [event] = events_for(pursuit.id, "health_changed")
       assert event.payload["from_state"] == "downloading"
@@ -204,12 +196,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
     end
 
     test "torrent absent from queue this tick → last_queue_state preserved, no event", %{now: now} do
-      pursuit =
-        insert_pursuit_with_target("Sample.Movie.2024.1080p")
-        |> Ecto.Changeset.change(last_queue_state: "downloading", last_queue_health: "healthy")
-        |> Repo.update!()
+      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+      unit = set_unit(unit, last_queue_state: "downloading", last_queue_health: "healthy")
 
-      refreshed = Observations.refresh!(pursuit, [], now)
+      refreshed = Observations.refresh!(pursuit, unit, [], now)
 
       assert refreshed.last_queue_state == "downloading"
       assert refreshed.last_queue_health == "healthy"
@@ -223,16 +213,14 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
           tmdb_id: "999",
           tmdb_type: "movie",
           title: "Lonely Pursuit",
-          origin: "auto"
+          origin: "auto",
+          stall_first_seen_at: ~U[2026-05-07 11:00:00Z]
         })
 
-      pursuit =
-        pursuit
-        |> Ecto.Changeset.change(stall_first_seen_at: ~U[2026-05-07 11:00:00Z])
-        |> Repo.update!()
+      unit = Units.single!(pursuit.id)
 
       queue = [queue_item("Some.Other.Title", state: :downloading)]
-      refreshed = Observations.refresh!(pursuit, queue, now)
+      refreshed = Observations.refresh!(pursuit, unit, queue, now)
 
       assert refreshed.stall_first_seen_at == nil
     end

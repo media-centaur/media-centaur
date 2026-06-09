@@ -60,7 +60,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   alias MediaCentaur.Search.{Prowlarr, Quality, QualityWindow, QueryBuilder, TitleMatcher}
 
-  alias MediaCentaur.Acquisition.Pursuits.{Commands, Pursuit, Recipe, State}
+  alias MediaCentaur.Acquisition.Pursuits.{Commands, Pursuit, Recipe, State, Unit, UnitState, Units}
   alias MediaCentaur.Repo
 
   @max_attempts 12
@@ -80,28 +80,30 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
         {:ok, :no_pursuit}
 
       {%Target{} = target, %Pursuit{} = pursuit} ->
-        dispatch(target, pursuit)
+        dispatch(target, pursuit, covered_unit(target, pursuit))
     end
   end
 
-  # Pursuit state is checked before target status: the pursuit is the
-  # authority. Never pursue on a terminal pursuit, even if the target
-  # row somehow survived as `seeking`. Defense in depth — the
-  # terminal-pursuit commands (`Satisfy` / `Exhaust` / `Cancel`)
-  # already cancel in-flight targets, which the target-status guard
-  # below also catches. This branch closes any remaining race window
-  # and any future code path that creates a target on a pursuit that's
-  # already terminal.
-  defp dispatch(%Target{} = target, %Pursuit{state: state} = pursuit) do
+  # Pursuit and unit state are checked before target status: the
+  # aggregate is the authority. Never pursue on a terminal pursuit or a
+  # terminal unit, even if the target row somehow survived as
+  # `seeking`. Defense in depth — the terminal commands already cancel
+  # in-flight targets, which the target-status guard below also
+  # catches. This branch closes any remaining race window and any
+  # future code path that creates a target on an already-closed goal.
+  defp dispatch(%Target{} = target, %Pursuit{state: state} = pursuit, unit) do
     cond do
       State.terminal?(state) ->
         {:ok, :pursuit_terminal}
+
+      match?(%Unit{}, unit) and UnitState.terminal?(unit.state) ->
+        {:ok, :unit_terminal}
 
       target.status in ["acquired", "succeeded", "failed", "cancelled"] ->
         {:ok, String.to_existing_atom(target.status)}
 
       true ->
-        pursue(target, pursuit)
+        pursue(target, pursuit, unit)
     end
   end
 
@@ -121,21 +123,41 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     end
   end
 
-  defp pursue(%Target{} = target, %Pursuit{} = pursuit) do
+  # The unit this target covers (exactly one until packs land —
+  # ADR-055). Falls back to the pursuit's sole unit for legacy targets
+  # without coverage rows.
+  defp covered_unit(%Target{} = target, %Pursuit{} = pursuit) do
+    case Units.covered_by(target.id) do
+      [unit | _] -> unit
+      [] -> Units.single!(pursuit.id)
+    end
+  end
+
+  defp pursue(%Target{} = target, %Pursuit{} = pursuit, %Unit{} = unit) do
     Log.info(
       :library,
       "acquisition search — #{target.title} (attempt #{target.attempt_count + 1})"
     )
 
     bounds = effective_bounds(pursuit)
-    criteria = pursuit |> Recipe.from() |> Recipe.to_criteria()
+    criteria = pursuit |> recipe_for_unit(unit) |> Recipe.to_criteria()
 
-    case search_until_match(target, pursuit, criteria, QueryBuilder.build(criteria), bounds) do
+    case search_until_match(target, unit, criteria, QueryBuilder.build(criteria), bounds) do
       {:ok, best} -> handle_found(target, pursuit, best)
-      {:needs_decision, _results} -> handle_needs_decision(target, pursuit)
+      {:needs_decision, _results} -> handle_needs_decision(target, pursuit, unit)
       {:no_match, outcome} -> handle_no_results(target, pursuit, outcome)
       {:error, reason} -> handle_prowlarr_error(target, reason)
     end
+  end
+
+  # The unit's concrete query (set on query-door units) overrides the
+  # pursuit-level manual_query, so each unit of a collapsed
+  # brace-expansion searches for its own thing. TMDB recipes derive
+  # queries from the parent recipe and carry no unit query.
+  defp recipe_for_unit(%Pursuit{} = pursuit, %Unit{query: nil}), do: Recipe.from(pursuit)
+
+  defp recipe_for_unit(%Pursuit{} = pursuit, %Unit{query: query}) do
+    %{Recipe.from(pursuit) | manual_query: query}
   end
 
   # Quality bounds live on the pursuit's `criteria` map. The
@@ -165,21 +187,21 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     "grab_failed" => 2
   }
 
-  defp search_until_match(target, pursuit, criteria, queries, bounds) do
-    case pursuit.recipe_type do
-      "tmdb" -> search_until_tmdb_match(target, pursuit, criteria, queries, bounds)
-      "prowlarr_query" -> search_until_any_result(queries)
+  defp search_until_match(target, unit, criteria, queries, bounds) do
+    case criteria.type do
+      :tmdb -> search_until_tmdb_match(target, unit, criteria, queries, bounds)
+      :prowlarr_query -> search_until_any_result(queries)
     end
   end
 
-  defp search_until_tmdb_match(_target, pursuit, criteria, queries, bounds) do
+  defp search_until_tmdb_match(_target, unit, criteria, queries, bounds) do
     Enum.reduce_while(queries, {:no_match, "no_results"}, fn {query, opts}, acc ->
       case Prowlarr.search(query, opts) do
         {:ok, []} ->
           {:cont, acc}
 
         {:ok, results} ->
-          case best_match(results, pursuit, criteria, bounds) do
+          case best_match(results, unit, criteria, bounds) do
             {:found, best} -> {:halt, {:ok, best}}
             {:none, outcome} -> {:cont, keep_more_informative(acc, outcome)}
           end
@@ -211,9 +233,10 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   # `reject |> filter |> filter |> sort_by` chain into one `reduce`. The
   # outcome distinction "no_title_match" vs "no_acceptable_quality" is
   # preserved by upgrading the outcome the first time we see a
-  # title-matching but quality-unacceptable result.
-  defp best_match(results, pursuit, criteria, {min, max}) do
-    excluded = MapSet.new(pursuit.tried_release_guids || [])
+  # title-matching but quality-unacceptable result. Exclusions come
+  # from the unit's thread (ADR-055).
+  defp best_match(results, unit, criteria, {min, max}) do
+    excluded = MapSet.new(unit.tried_release_guids || [])
 
     results
     |> Enum.reduce({nil, "no_title_match"}, fn result, {best, outcome} = acc ->
@@ -270,11 +293,12 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     end
   end
 
-  defp handle_needs_decision(target, pursuit) do
+  defp handle_needs_decision(target, pursuit, unit) do
     {:ok, _updated} = Repo.update(Target.attempt_changeset(target, "needs_decision"))
 
     case Commands.RequestDecision.execute(%{
            pursuit_id: pursuit.id,
+           unit_id: unit.id,
            prompt: @needs_decision_prompt
          }) do
       {:ok, _pursuit} ->

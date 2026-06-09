@@ -170,7 +170,8 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
         create_pursuit_with_target(%{state: "active", title: "Sample Show", status: "seeking"})
 
       {:ok, _} =
-        pursuit
+        pursuit.id
+        |> MediaCentaur.Acquisition.Pursuits.Units.single!()
         |> Ecto.Changeset.change(awaiting_decision_at: DateTime.utc_now(:second))
         |> Repo.update()
 
@@ -223,7 +224,7 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
       assert Repo.get_by(Event, pursuit_id: pursuit.id, kind: "target_changed")
     end
 
-    test "Request decision sets awaiting_decision_at on the pursuit", %{conn: conn} do
+    test "Request decision sets awaiting_decision_at on the pursuit's unit", %{conn: conn} do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
@@ -232,7 +233,9 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
 
       reloaded = Repo.reload(pursuit)
       assert reloaded.state == "active"
-      assert %DateTime{} = reloaded.awaiting_decision_at
+
+      unit = MediaCentaur.Acquisition.Pursuits.Units.single!(pursuit.id)
+      assert %DateTime{} = unit.awaiting_decision_at
     end
   end
 

@@ -1,34 +1,23 @@
 defmodule MediaCentaur.Acquisition.Pursuits.Commands.RequestDecisionTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit}
+  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, Unit, Units}
   alias MediaCentaur.Acquisition.Pursuits.Commands.RequestDecision
   alias MediaCentaur.Acquisition.Pursuits.Events.UserDecisionRequested
-
-  defp insert_active_pursuit do
-    {:ok, pursuit} =
-      Repo.insert(
-        Pursuit.create_changeset(%{
-          tmdb_id: "12345",
-          tmdb_type: "movie",
-          title: "Sample Movie",
-          origin: "auto"
-        })
-      )
-
-    pursuit
-  end
+  alias MediaCentaur.TestFactory
 
   describe "execute/1" do
-    test "sets awaiting_decision_at and records UserDecisionRequested event" do
+    test "sets the unit's awaiting_decision_at and records UserDecisionRequested event" do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_updates())
-      pursuit = insert_active_pursuit()
+      pursuit = TestFactory.create_pursuit()
 
-      assert {:ok, %Pursuit{state: "active", awaiting_decision_at: %DateTime{}}} =
+      assert {:ok, %Pursuit{state: "active"}} =
                RequestDecision.execute(%{
                  pursuit_id: pursuit.id,
                  prompt: "Download stalled for 24+ hours"
                })
+
+      assert %Unit{awaiting_decision_at: %DateTime{}} = Units.single!(pursuit.id)
 
       [event] = Repo.all(Event)
       assert event.kind == "user_decision_requested"
@@ -37,18 +26,15 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.RequestDecisionTest do
       assert_receive %UserDecisionRequested{prompt: "Download stalled for 24+ hours"}
     end
 
-    test "idempotent — re-issuing on an already-awaiting pursuit is a no-op (no event)" do
+    test "idempotent — re-issuing on an already-awaiting unit is a no-op (no event)" do
       original_ts = DateTime.add(DateTime.utc_now(:second), -3600, :second)
+      pursuit = TestFactory.create_pursuit(%{awaiting_decision_at: original_ts})
 
-      pursuit =
-        insert_active_pursuit()
-        |> Ecto.Changeset.change(awaiting_decision_at: original_ts)
-        |> Repo.update!()
-
-      assert {:ok, %Pursuit{awaiting_decision_at: ^original_ts, id: id}} =
+      assert {:ok, %Pursuit{id: id}} =
                RequestDecision.execute(%{pursuit_id: pursuit.id, prompt: "X"})
 
       assert id == pursuit.id
+      assert %Unit{awaiting_decision_at: ^original_ts} = Units.single!(pursuit.id)
       # No new event recorded — idempotent path returns early.
       assert Repo.aggregate(Event, :count) == 0
     end

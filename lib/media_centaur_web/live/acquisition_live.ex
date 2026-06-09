@@ -732,7 +732,8 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           start_async(socket, {:alternatives_refresh, pursuit_id}, fn ->
             case Pursuits.get(pursuit_id) do
               {:ok, pursuit} ->
-                build_decision(pursuit, Pursuits.header_from(pursuit).recipe.search_queries, nil)
+                header = Pursuits.header_from(pursuit)
+                build_decision(pursuit, header.awaiting_decision?, header.recipe.search_queries, nil)
 
               _ ->
                 %{card: nil, results_by_guid: %{}}
@@ -946,6 +947,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         {card, results_by_guid, needs_fetch?} =
           decision_card_or_placeholder(
             pursuit,
+            header.awaiting_decision?,
             header.recipe.search_queries,
             socket.assigns.pursuit_detail
           )
@@ -992,11 +994,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   #     lands on the `{:alternatives_loaded, _, _}` handle_info clause
   #     below.
   #   * `{nil, %{}, false}` — pursuit is not awaiting decision; no card.
-  defp decision_card_or_placeholder(
-         %Pursuit{awaiting_decision_at: %DateTime{}} = pursuit,
-         queries,
-         cached
-       ) do
+  defp decision_card_or_placeholder(%Pursuit{} = pursuit, true = _awaiting?, queries, cached) do
     case cached do
       %{
         decision_card: %ViewModels.DecisionCard{pursuit_id: id, loading?: false} = vm,
@@ -1018,7 +1016,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     end
   end
 
-  defp decision_card_or_placeholder(_pursuit, _queries, _cached), do: {nil, %{}, false}
+  defp decision_card_or_placeholder(_pursuit, _awaiting?, _queries, _cached), do: {nil, %{}, false}
 
   # Owned async (ADR-049): runs off the LV process via start_async/3 so the
   # WebSocket handler returns immediately, the task is cancelled with the
@@ -1029,8 +1027,8 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     start_async(socket, {:alternatives_fetch, pursuit_id}, fn ->
       case Pursuits.get(pursuit_id) do
         {:ok, pursuit} ->
-          queries = Pursuits.header_from(pursuit).recipe.search_queries
-          build_decision(pursuit, queries, nil)
+          header = Pursuits.header_from(pursuit)
+          build_decision(pursuit, header.awaiting_decision?, header.recipe.search_queries, nil)
 
         _ ->
           %{card: nil, results_by_guid: %{}}
@@ -1077,7 +1075,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # `handle_event("pick_alternative", ...)` can pass the cached struct
   # straight to `Acquisition.pick_alternative/3`, skipping the otherwise
   # mandatory Prowlarr round-trip to look the result up by guid.
-  defp build_decision(%Pursuit{awaiting_decision_at: %DateTime{}} = pursuit, search_queries, cached) do
+  defp build_decision(%Pursuit{} = pursuit, true = _awaiting?, search_queries, cached) do
     case cached do
       %{decision_card: %ViewModels.DecisionCard{pursuit_id: id} = vm, decision_results_by_guid: results}
       when id == pursuit.id ->
@@ -1098,7 +1096,8 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     end
   end
 
-  defp build_decision(_pursuit, _search_queries, _cached), do: %{card: nil, results_by_guid: %{}}
+  defp build_decision(_pursuit, _awaiting?, _search_queries, _cached),
+    do: %{card: nil, results_by_guid: %{}}
 
   defp search_result_to_alternative(result) do
     %Alternative{

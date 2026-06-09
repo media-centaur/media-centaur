@@ -11,7 +11,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
 
   import Ecto.Query
 
-  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, State}
+  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, State, Unit, UnitState, Units}
   alias MediaCentaur.Acquisition.Pursuits.Recipe, as: PursuitRecipe
   alias MediaCentaur.Acquisition.{QueueMatcher, Target}
   alias MediaCentaur.Search.QueryBuilder
@@ -47,23 +47,34 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   end
 
   @doc """
-  Like `list_active/0` but also returns each pursuit's `current_target`
-  in a single batched lookup, paired as `[{pursuit, target_or_nil}]`.
-  Used by `Pursuits.Watcher` so its per-tick pass costs 2 queries total
-  (pursuits + targets) instead of `1 + N` (pursuits + N current_target
-  fetches).
+  Every `active` unit of every in-flight pursuit, paired with its parent
+  pursuit and its current target, as `[{pursuit, unit, target_or_nil}]`
+  in three batched queries total. Used by `Pursuits.Watcher` so its
+  per-tick pass cost is constant in the unit count (ADR-055 — the
+  watcher loop runs per unit, not per pursuit).
   """
-  @spec list_active_with_current_targets() :: [{Pursuit.t(), Target.t() | nil}]
-  def list_active_with_current_targets do
+  @spec list_active_units_with_context() :: [{Pursuit.t(), Unit.t(), Target.t() | nil}]
+  def list_active_units_with_context do
     pursuits = list_active()
+    units_by_pursuit = Units.for_pursuits(Enum.map(pursuits, & &1.id))
+
+    active_units =
+      Enum.flat_map(pursuits, fn pursuit ->
+        units_by_pursuit
+        |> Map.get(pursuit.id, [])
+        |> Enum.filter(&UnitState.in_flight?(&1.state))
+        |> Enum.map(&{pursuit, &1})
+      end)
 
     targets =
-      pursuits
-      |> Enum.map(& &1.current_target_id)
+      active_units
+      |> Enum.map(fn {_pursuit, unit} -> unit.current_target_id end)
       |> Enum.reject(&is_nil/1)
       |> fetch_targets_by_id()
 
-    Enum.map(pursuits, fn p -> {p, Map.get(targets, p.current_target_id)} end)
+    Enum.map(active_units, fn {pursuit, unit} ->
+      {pursuit, unit, Map.get(targets, unit.current_target_id)}
+    end)
   end
 
   @doc """
@@ -115,8 +126,12 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       |> order_by([p], desc: p.updated_at)
       |> Repo.all()
 
+    units_by_pursuit = Units.for_pursuits(Enum.map(pursuits, & &1.id))
+
     current_targets =
-      pursuits
+      units_by_pursuit
+      |> Map.values()
+      |> List.flatten()
       |> Enum.map(& &1.current_target_id)
       |> Enum.reject(&is_nil/1)
       |> fetch_targets_by_id()
@@ -124,8 +139,13 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     pending_paths = Review.pending_file_paths()
 
     Enum.map(pursuits, fn pursuit ->
-      target = Map.get(current_targets, pursuit.current_target_id)
-      build_row(pursuit, target, download_location(target, pending_paths))
+      units = Map.get(units_by_pursuit, pursuit.id, [])
+      # The row renders the lead thread — the sole unit today; the first
+      # unit with a target once composites go multi-unit (drill-down
+      # lands with campaign Phase 1c).
+      lead_unit = Enum.find(units, &(&1.current_target_id != nil)) || List.first(units)
+      target = lead_unit && Map.get(current_targets, lead_unit.current_target_id)
+      build_row(pursuit, units, lead_unit, target, download_location(target, pending_paths))
     end)
   end
 
@@ -199,7 +219,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       status
     else
       {current_action, next_step, actions} =
-        PursuitStatus.derive(status.pursuit, status.target, queue_item)
+        PursuitStatus.derive(status.pursuit, status.unit, status.target, queue_item)
 
       %{
         status
@@ -225,10 +245,14 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   @spec status_from(Pursuit.t(), [MediaCentaur.Downloads.QueueItem.t()] | :persistent_term) ::
           PursuitStatus.t()
   def status_from(%Pursuit{} = pursuit, queue_items \\ :persistent_term) do
-    target = current_target(pursuit)
+    unit = lead_unit(pursuit)
+    target = (unit && Units.current_target(unit)) || nil
     queue_item = find_queue_match(target, queue_items)
     location = download_location(target, Review.pending_file_paths())
-    {current_action, next_step, actions} = PursuitStatus.derive(pursuit, target, queue_item, location)
+
+    {current_action, next_step, actions} =
+      PursuitStatus.derive(pursuit, unit, target, queue_item, location)
+
     last_activity_at = latest_event_at(pursuit.id)
 
     %PursuitStatus{
@@ -245,8 +269,19 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       last_activity_at: last_activity_at,
       available_actions: actions,
       pursuit: pursuit,
+      unit: unit,
       target: target
     }
+  end
+
+  # The thread the detail modal renders — the sole unit today; the first
+  # unit with a target once composites go multi-unit (ADR-055).
+  defp lead_unit(%Pursuit{} = pursuit) do
+    case Units.for_pursuit(pursuit.id) do
+      [] -> nil
+      [unit] -> unit
+      units -> Enum.find(units, &(&1.current_target_id != nil)) || List.first(units)
+    end
   end
 
   @doc "Returns a `Timeline` view-model containing every event for a pursuit."
@@ -320,12 +355,28 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   end
 
   @doc """
-  Returns the pursuit's current target (the row pointed at by
-  `pursuit.current_target_id`), if any.
+  Returns the target the pursuit's lead unit is currently chasing, if
+  any (ADR-055 — targets are unit-scoped; this is the pursuit-level
+  convenience used by detail assembly).
   """
   @spec current_target(Pursuit.t()) :: Target.t() | nil
-  def current_target(%Pursuit{current_target_id: nil}), do: nil
-  def current_target(%Pursuit{current_target_id: id}), do: Repo.get(Target, id)
+  def current_target(%Pursuit{} = pursuit) do
+    case lead_unit(pursuit) do
+      nil -> nil
+      %Unit{} = unit -> Units.current_target(unit)
+    end
+  end
+
+  @doc """
+  True when any of the pursuit's units is awaiting a user decision —
+  the pursuit-level read of the unit-level flag (ADR-055).
+  """
+  @spec awaiting_decision?(Pursuit.t()) :: boolean()
+  def awaiting_decision?(%Pursuit{} = pursuit) do
+    Unit
+    |> where([u], u.pursuit_id == ^pursuit.id and not is_nil(u.awaiting_decision_at))
+    |> Repo.exists?()
+  end
 
   @doc """
   Idempotency lookup — exact match on a pursuit's TMDB recipe tuple,
@@ -396,7 +447,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     |> Map.new(fn target -> {target.id, target} end)
   end
 
-  defp build_row(%Pursuit{} = pursuit, target, location) do
+  defp build_row(%Pursuit{} = pursuit, units, lead_unit, target, location) do
     {release_title, target_status, torrent_hash} =
       case target do
         %Target{release_title: rt, status: status, torrent_hash: hash} ->
@@ -411,13 +462,13 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     # footer is paired — derive here without a queue item so the row
     # is independent of QueueMonitor cadence. `location` resolves the
     # post-download stage when the torrent has left the client.
-    {status, _next_step, _actions} = PursuitStatus.derive(pursuit, target, nil, location)
+    {status, _next_step, _actions} = PursuitStatus.derive(pursuit, lead_unit, target, nil, location)
 
     %PursuitRow{
       id: pursuit.id,
       title: pursuit.title,
       state: state_to_atom(pursuit.state),
-      awaiting_decision?: State.awaiting_decision?(pursuit),
+      awaiting_decision?: Enum.any?(units, &UnitState.awaiting_decision?/1),
       season_number: pursuit.season_number,
       episode_number: pursuit.episode_number,
       release_title: release_title,
@@ -431,9 +482,10 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   # Explicit string→atom mapping for the row VM so the function doesn't
   # depend on atom-loading side effects from other modules being
   # compiled into the same release. The pursuit `state` column is
-  # constrained by `Pursuits.State` to these four values.
+  # constrained by `Pursuits.State` to these five values.
   defp state_to_atom("active"), do: :active
   defp state_to_atom("satisfied"), do: :satisfied
+  defp state_to_atom("partial"), do: :partial
   defp state_to_atom("exhausted"), do: :exhausted
   defp state_to_atom("cancelled"), do: :cancelled
 
@@ -449,7 +501,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       id: pursuit.id,
       title: pursuit.title,
       state: String.to_existing_atom(pursuit.state),
-      awaiting_decision?: State.awaiting_decision?(pursuit),
+      awaiting_decision?: awaiting_decision?(pursuit),
       recipe: build_recipe(pursuit),
       criteria_summary: summarize_criteria(pursuit.criteria)
     }

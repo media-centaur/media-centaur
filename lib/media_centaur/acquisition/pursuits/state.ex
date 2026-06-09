@@ -29,15 +29,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.State do
 
   ## Awaiting-decision flag
 
-  Whether a pursuit is blocked on user input is *orthogonal* to its
-  lifecycle state and lives on the pursuit row as
-  `awaiting_decision_at :: utc_datetime`. Read via
-  `awaiting_decision?/1`. The flag is set by
-  `Pursuits.Commands.RequestDecision` and cleared by `PickTarget` /
-  `ChangeTarget` / any terminal-transition command.
+  Whether a pursuit is blocked on user input is a *unit-level* fact
+  (`Unit.awaiting_decision_at`, read via `UnitState.awaiting_decision?/1`).
+  Pursuit-level "awaiting decision" means "any unit awaiting" and is
+  computed by the read side.
   """
-
-  alias MediaCentaur.Acquisition.Pursuits.Pursuit
 
   @in_flight_strings ~w(active)
   @terminal_success_strings ~w(satisfied partial)
@@ -63,16 +59,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.State do
 
   @spec terminal?(String.t() | atom()) :: boolean()
   def terminal?(state), do: normalize(state) in @terminal_strings
-
-  @doc """
-  True when the pursuit is waiting on user input — `awaiting_decision_at`
-  is set. Orthogonal to `terminal?/1`; a terminal pursuit may still have
-  a residual timestamp from the historical record, but the meaningful
-  check is "in_flight AND awaiting_decision".
-  """
-  @spec awaiting_decision?(Pursuit.t()) :: boolean()
-  def awaiting_decision?(%Pursuit{awaiting_decision_at: nil}), do: false
-  def awaiting_decision?(%Pursuit{awaiting_decision_at: %DateTime{}}), do: true
 
   @doc """
   Folds a composite pursuit's unit states into the pursuit state

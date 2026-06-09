@@ -1,55 +1,56 @@
 defmodule MediaCentaur.Acquisition.Pursuits.Snapshots do
   @moduledoc "Builder that assembles a Snapshot from live sources."
 
-  alias MediaCentaur.Acquisition.Pursuits
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Snapshot, Thresholds}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Snapshot, Thresholds, Unit, Units}
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Downloads.QueueMonitor
 
   @doc """
-  Assembles a Snapshot for the given pursuit. Reads the current target,
-  the current queue snapshot, and live thresholds side-by-side so Policy
+  Assembles a Snapshot for the given pursuit + unit (ADR-055 — the
+  watcher loop runs per unit). Reads the unit's current target, the
+  current queue snapshot, and live thresholds side-by-side so Policy
   sees a coherent view. Derives `*_observed?` and `*_window_elapsed?`
-  flags from the pursuit's persisted observation timestamps — those
-  timestamps are kept current by `Pursuits.Observations.refresh!/3`,
+  flags from the unit's persisted observation timestamps — those
+  timestamps are kept current by `Pursuits.Observations.refresh!/4`,
   which the Watcher calls before invoking this builder.
 
   Pass an explicit `queue_state` (a `[QueueItem.t()]` list or `:unknown`)
-  to reuse the same snapshot the Watcher already loaded — the no-arg form
-  reads it from `QueueMonitor`, which is convenient for tests but means
-  one extra ETS read per pursuit on the watcher's hot path.
+  to reuse the same snapshot the Watcher already loaded — the 2-arity
+  form reads it from `QueueMonitor`, which is convenient for tests but
+  means one extra ETS read per unit on the watcher's hot path.
   """
-  @spec build(Pursuit.t()) :: Snapshot.t()
-  def build(%Pursuit{} = pursuit), do: build(pursuit, read_queue_state())
+  @spec build(Pursuit.t(), Unit.t()) :: Snapshot.t()
+  def build(%Pursuit{} = pursuit, %Unit{} = unit), do: build(pursuit, unit, read_queue_state())
 
-  @spec build(Pursuit.t(), Snapshot.queue_state()) :: Snapshot.t()
-  def build(%Pursuit{} = pursuit, queue_state),
-    do: build(pursuit, queue_state, Pursuits.current_target(pursuit))
+  @spec build(Pursuit.t(), Unit.t(), Snapshot.queue_state()) :: Snapshot.t()
+  def build(%Pursuit{} = pursuit, %Unit{} = unit, queue_state),
+    do: build(pursuit, unit, queue_state, Units.current_target(unit))
 
   @doc """
   Pre-fetched variant — accepts an already-loaded `current_target` (or
   `nil`) so the builder does not re-issue a `Repo.get/2` per call. Used
-  by `Pursuits.Watcher` after batch-loading active pursuits + their
+  by `Pursuits.Watcher` after batch-loading active units + their
   current targets in one go.
   """
-  @spec build(Pursuit.t(), Snapshot.queue_state(), Target.t() | nil) :: Snapshot.t()
-  def build(%Pursuit{} = pursuit, queue_state, current_target) do
+  @spec build(Pursuit.t(), Unit.t(), Snapshot.queue_state(), Target.t() | nil) :: Snapshot.t()
+  def build(%Pursuit{} = pursuit, %Unit{} = unit, queue_state, current_target) do
     now = DateTime.utc_now(:second)
     thresholds = Thresholds.load()
 
     %Snapshot{
       pursuit: pursuit,
+      unit: unit,
       current_target: current_target,
       queue_state: queue_state,
       now: now,
       thresholds: thresholds,
-      stall_observed?: not is_nil(pursuit.stall_first_seen_at),
+      stall_observed?: not is_nil(unit.stall_first_seen_at),
       stall_window_elapsed?:
-        window_elapsed?(pursuit.stall_first_seen_at, thresholds.stall_window_hours, now),
-      zero_seeders_observed?: not is_nil(pursuit.zero_seeders_first_seen_at),
+        window_elapsed?(unit.stall_first_seen_at, thresholds.stall_window_hours, now),
+      zero_seeders_observed?: not is_nil(unit.zero_seeders_first_seen_at),
       zero_seeders_window_elapsed?:
         window_elapsed?(
-          pursuit.zero_seeders_first_seen_at,
+          unit.zero_seeders_first_seen_at,
           thresholds.zero_seeders_window_hours,
           now
         )

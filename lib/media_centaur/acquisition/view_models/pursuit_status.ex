@@ -3,12 +3,15 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   Display contract for the pursuit detail page.
 
   Built by `MediaCentaur.Acquisition.Pursuits.status_for/1` — joins the
-  pursuit row with its current target and any matching download-client
-  queue item, then routes through the pure `derive/3` function to
-  produce `current_action`, `next_step`, and `available_actions`.
+  pursuit row with its unit, the unit's current target, and any
+  matching download-client queue item, then routes through the pure
+  `derive/4` function to produce `current_action`, `next_step`, and
+  `available_actions`. The unit carries the attempt thread (ADR-055);
+  the modal shows the sole unit's thread until the multi-unit
+  drill-down lands.
   """
 
-  alias MediaCentaur.Acquisition.Pursuits.Pursuit
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Unit}
   alias MediaCentaur.Acquisition.Pursuits.State
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Format
@@ -44,12 +47,13 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     :download,
     :staleness,
     :last_activity_at,
-    # Loaded pursuit + target structs are stashed so the queue-tick
-    # refresh path (`Pursuits.refresh_status_download/2`) can re-derive
-    # the dynamic fields against a fresh queue snapshot without a DB
-    # round-trip. Not consumed by the template — purely a memoisation
-    # handle for the refresh path.
+    # Loaded pursuit + unit + target structs are stashed so the
+    # queue-tick refresh path (`Pursuits.refresh_status_download/2`) can
+    # re-derive the dynamic fields against a fresh queue snapshot
+    # without a DB round-trip. Not consumed by the template — purely a
+    # memoisation handle for the refresh path.
     :pursuit,
+    :unit,
     :target,
     available_actions: []
   ]
@@ -72,21 +76,24 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
           last_activity_at: DateTime.t() | nil,
           available_actions: [action()],
           pursuit: Pursuit.t() | nil,
+          unit: Unit.t() | nil,
           target: Target.t() | nil
         }
 
   @doc """
-  Pure mapping from (pursuit, target, queue_item) to the dynamic display
-  fields. No DB, no PubSub.
+  Pure mapping from (pursuit, unit, target, queue_item) to the dynamic
+  display fields. No DB, no PubSub. The unit carries the attempt thread
+  (decision flag, attempt count — ADR-055); the target carries the
+  per-release facts.
 
   The recipe lives on the pursuit and drives whether `ChangeTarget` is
   going to auto-pick or surface results for the user — but from the
   view-model's perspective, both recipes offer `:change_target` as the
   recovery action; the worker handles the divergence.
   """
-  @spec derive(Pursuit.t(), Target.t() | nil, QueueItem.t() | nil) ::
+  @spec derive(Pursuit.t(), Unit.t() | nil, Target.t() | nil, QueueItem.t() | nil) ::
           {CurrentAction.t(), NextStep.t() | nil, [action()]}
-  def derive(%Pursuit{state: "satisfied"}, _target, _qi) do
+  def derive(%Pursuit{state: "satisfied"}, _unit, _target, _qi) do
     {
       %CurrentAction{
         verb: "Done",
@@ -98,11 +105,25 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "exhausted"} = p, _target, _qi) do
+  def derive(%Pursuit{state: "partial"}, _unit, _target, _qi) do
+    {
+      %CurrentAction{
+        verb: "Partially done",
+        description: "Some of this pursuit landed; the rest didn't.",
+        severity: :warning
+      },
+      nil,
+      []
+    }
+  end
+
+  def derive(%Pursuit{state: "exhausted"}, unit, _target, _qi) do
+    attempt_count = (unit && unit.attempt_count) || 0
+
     {
       %CurrentAction{
         verb: "Gave up",
-        description: "Exhausted after #{p.attempt_count} attempts.",
+        description: "Exhausted after #{attempt_count} attempts.",
         severity: :error
       },
       %NextStep{description: "Start a new pursuit if you still want this."},
@@ -110,7 +131,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "cancelled"}, _target, _qi) do
+  def derive(%Pursuit{state: "cancelled"}, _unit, _target, _qi) do
     {
       %CurrentAction{verb: "Cancelled", description: "Pursuit cancelled.", severity: :info},
       nil,
@@ -119,9 +140,9 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   end
 
   # Awaiting-decision takes precedence over the regular state:"active"
-  # clauses. The pursuit is still active in lifecycle terms, but the
+  # clauses. The unit is still active in lifecycle terms, but the
   # user-visible status is "we're blocked on your pick".
-  def derive(%Pursuit{state: "active", awaiting_decision_at: %DateTime{}}, _target, _qi) do
+  def derive(%Pursuit{state: "active"}, %Unit{awaiting_decision_at: %DateTime{}}, _target, _qi) do
     {
       %CurrentAction{
         verb: "Decision needed",
@@ -133,7 +154,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "active"}, nil, _qi) do
+  def derive(%Pursuit{state: "active"}, _unit, nil, _qi) do
     {
       %CurrentAction{
         verb: "Unknown",
@@ -145,7 +166,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "active"}, %Target{status: "seeking"} = t, _qi) do
+  def derive(%Pursuit{state: "active"}, _unit, %Target{status: "seeking"} = t, _qi) do
     {
       %CurrentAction{
         verb: "Searching",
@@ -157,7 +178,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "active"}, %Target{status: "failed"} = t, _qi) do
+  def derive(%Pursuit{state: "active"}, _unit, %Target{status: "failed"} = t, _qi) do
     {
       %CurrentAction{
         verb: "Stopped",
@@ -169,7 +190,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "active"}, %Target{status: "cancelled"}, _qi) do
+  def derive(%Pursuit{state: "active"}, _unit, %Target{status: "cancelled"}, _qi) do
     {
       %CurrentAction{
         verb: "Stopped",
@@ -181,10 +202,15 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "active"}, %Target{status: "acquired"}, %QueueItem{state: qstate} = qi)
+  def derive(
+        %Pursuit{state: "active"},
+        _unit,
+        %Target{status: "acquired"},
+        %QueueItem{state: qstate} = qi
+      )
       when not is_nil(qstate), do: derive_acquired_in_queue(qi)
 
-  def derive(%Pursuit{state: "active"}, %Target{status: "acquired"}, _qi) do
+  def derive(%Pursuit{state: "active"}, _unit, %Target{status: "acquired"}, _qi) do
     {
       %CurrentAction{
         verb: "Downloaded",
@@ -199,7 +225,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(%Pursuit{state: "active"}, %Target{status: "succeeded"}, _qi) do
+  def derive(%Pursuit{state: "active"}, _unit, %Target{status: "succeeded"}, _qi) do
     {
       %CurrentAction{
         verb: "Done",
@@ -216,11 +242,11 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   lifecycle stage of an `acquired` target that's no longer in the queue:
   `:in_review` (the file is sitting in the review queue) vs `:none`
   (no matching file in review or library yet). For every other case the
-  location is irrelevant and this delegates to `derive/3`.
+  location is irrelevant and this delegates to `derive/4`.
   """
-  @spec derive(Pursuit.t(), Target.t() | nil, QueueItem.t() | nil, location()) ::
+  @spec derive(Pursuit.t(), Unit.t() | nil, Target.t() | nil, QueueItem.t() | nil, location()) ::
           {CurrentAction.t(), NextStep.t() | nil, [action()]}
-  def derive(%Pursuit{state: "active"}, %Target{status: "acquired"}, nil, :in_review) do
+  def derive(%Pursuit{state: "active"}, _unit, %Target{status: "acquired"}, nil, :in_review) do
     {
       %CurrentAction{
         verb: "In review",
@@ -232,7 +258,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
-  def derive(pursuit, target, queue_item, _location), do: derive(pursuit, target, queue_item)
+  def derive(pursuit, unit, target, queue_item, _location), do: derive(pursuit, unit, target, queue_item)
 
   # The seeking-state description tells the user what to expect next.
   # When the worker has scheduled a snooze (`next_attempt_at` is set),

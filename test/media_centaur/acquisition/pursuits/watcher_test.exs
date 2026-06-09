@@ -3,9 +3,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
 
   import MediaCentaur.TestFactory
 
-  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, Watcher}
+  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, TargetUnit, Units, Watcher}
   alias MediaCentaur.Downloads.QueueItem
 
+  # Thread overrides (attempt_count, inserted_at, observation
+  # timestamps) land on the unit — the thread carrier the Policy loop
+  # reads (ADR-055).
   defp insert_pursuit(overrides) do
     pursuit_overrides =
       Map.merge(
@@ -16,14 +19,27 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
         overrides
       )
 
-    {pursuit, _target} = create_pursuit_with_target(pursuit_overrides)
+    {pursuit, _target} = create_pursuit_with_target(Map.delete(pursuit_overrides, :inserted_at))
+
+    unit_overrides =
+      Map.take(pursuit_overrides, [
+        :attempt_count,
+        :inserted_at,
+        :stall_first_seen_at,
+        :zero_seeders_first_seen_at
+      ])
+
+    pursuit.id
+    |> Units.single!()
+    |> Ecto.Changeset.change(unit_overrides)
+    |> Repo.update!()
 
     pursuit
-    |> Ecto.Changeset.change(pursuit_overrides)
-    |> Repo.update!()
   end
 
   defp set_current_target_release(pursuit, release_title) do
+    unit = Units.single!(pursuit.id)
+
     %MediaCentaur.Acquisition.Target{}
     |> Ecto.Changeset.change(
       pursuit_id: pursuit.id,
@@ -34,7 +50,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
     )
     |> Repo.insert!()
     |> tap(fn target ->
-      pursuit
+      %TargetUnit{}
+      |> Ecto.Changeset.change(target_id: target.id, unit_id: unit.id)
+      |> Repo.insert!()
+
+      unit
       |> Ecto.Changeset.change(current_target_id: target.id)
       |> Repo.update!()
     end)
@@ -176,7 +196,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
 
       refreshed = Repo.get!(Pursuit, pursuit.id)
       assert refreshed.state == "active"
-      assert %DateTime{} = refreshed.awaiting_decision_at
+      assert %DateTime{} = Units.single!(pursuit.id).awaiting_decision_at
 
       events =
         Event
@@ -227,9 +247,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
 
       assert :ok = Watcher.perform(%Oban.Job{args: %{}})
 
-      reloaded = Repo.get!(Pursuit, pursuit.id)
-      assert reloaded.stall_first_seen_at == nil
-      assert reloaded.state == "active"
+      assert Units.single!(pursuit.id).stall_first_seen_at == nil
+      assert Repo.get!(Pursuit, pursuit.id).state == "active"
     end
   end
 end

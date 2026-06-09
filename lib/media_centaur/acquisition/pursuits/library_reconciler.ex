@@ -57,14 +57,14 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
 
   @spec reconcile_active() :: :ok
   def reconcile_active do
-    pairs = Pursuits.list_active_with_current_targets()
+    triples = Pursuits.list_active_units_with_context()
     present_paths = Library.list_present_file_paths()
     present_set = MapSet.new(present_paths)
     segment_index = segment_index(present_paths)
 
-    Enum.each(pairs, fn {pursuit, target} ->
+    Enum.each(triples, fn {pursuit, unit, target} ->
       case landed_file(pursuit, target, present_set, segment_index) do
-        {:ok, path} -> satisfy(pursuit, path)
+        {:ok, path} -> satisfy(pursuit, unit, path)
         :not_found -> :ok
       end
     end)
@@ -72,7 +72,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
     :ok
   end
 
-  defp satisfy(%Pursuit{} = pursuit, path) do
+  defp satisfy(%Pursuit{} = pursuit, unit, path) do
     Log.info(
       :acquisition,
       "library reconciler — file present, satisfying #{pursuit.title} (#{pursuit.id})"
@@ -80,7 +80,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
 
     Satisfy.execute(%{
       pursuit_id: pursuit.id,
-      final_target_id: pursuit.current_target_id,
+      final_target_id: unit.current_target_id,
       final_release_title: Path.basename(path)
     })
   end

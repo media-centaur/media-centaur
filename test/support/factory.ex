@@ -929,6 +929,22 @@ defmodule MediaCentaur.TestFactory do
     Map.merge(defaults, Map.new(overrides))
   end
 
+  # Unit-level thread attrs (ADR-055) — routed onto the pursuit's unit
+  # rather than the pursuit row.
+  @pursuit_unit_keys [
+    :awaiting_decision_at,
+    :tried_release_guids,
+    :attempt_count,
+    :current_target_id,
+    :stall_first_seen_at,
+    :zero_seeders_first_seen_at,
+    :last_queue_state,
+    :last_queue_health,
+    :label,
+    :query,
+    :position
+  ]
+
   def create_pursuit(attrs \\ %{}) do
     defaults = %{
       tmdb_id: "12345",
@@ -951,22 +967,54 @@ defmodule MediaCentaur.TestFactory do
     ]
 
     cast_attrs = Map.take(merged, cast_keys)
-    internal_attrs = Map.drop(merged, cast_keys)
+    unit_attrs = Map.take(merged, @pursuit_unit_keys)
+    internal_attrs = merged |> Map.drop(cast_keys) |> Map.drop(@pursuit_unit_keys)
 
     {:ok, pursuit} =
       MediaCentaur.Repo.insert(MediaCentaur.Acquisition.Pursuits.Pursuit.create_changeset(cast_attrs))
 
-    if internal_attrs == %{} do
-      pursuit
-    else
-      {:ok, updated} =
+    pursuit =
+      if internal_attrs == %{} do
         pursuit
-        |> Ecto.Changeset.change(internal_attrs)
-        |> MediaCentaur.Repo.update()
+      else
+        {:ok, updated} =
+          pursuit
+          |> Ecto.Changeset.change(internal_attrs)
+          |> MediaCentaur.Repo.update()
 
-      updated
-    end
+        updated
+      end
+
+    create_pursuit_unit(pursuit, unit_attrs)
+    pursuit
   end
+
+  @doc """
+  Inserts the pursuit's unit — the attempt-thread carrier (ADR-055).
+  Unit state mirrors the pursuit state unless overridden. Every factory
+  pursuit is single-unit; multi-unit composites are built by the
+  batch-grab collapse paths under test.
+  """
+  def create_pursuit_unit(pursuit, attrs \\ %{}) do
+    now = DateTime.utc_now(:second)
+
+    base = %{
+      pursuit_id: pursuit.id,
+      state: Map.get(attrs, :state, pursuit.state),
+      inserted_at: now,
+      updated_at: now
+    }
+
+    {:ok, unit} =
+      %MediaCentaur.Acquisition.Pursuits.Unit{}
+      |> Ecto.Changeset.change(Map.merge(Map.take(attrs, @pursuit_unit_keys), base))
+      |> MediaCentaur.Repo.insert()
+
+    unit
+  end
+
+  @doc "The pursuit's sole unit — factory pursuits are single-unit (ADR-055)."
+  def pursuit_unit(pursuit), do: MediaCentaur.Acquisition.Pursuits.Units.single!(pursuit.id)
 
   def create_pursuit_event(pursuit, kind, attrs \\ %{}) do
     defaults = %{
@@ -1039,7 +1087,11 @@ defmodule MediaCentaur.TestFactory do
     }
 
     merged = Map.merge(defaults, attrs)
-    pursuit_attrs = Map.take(merged, pursuit_keys)
+    # Thread-level keys (tried_release_guids, awaiting_decision_at, …)
+    # route onto the unit (ADR-055); attempt_count intentionally lands
+    # on both the unit and the target, mirroring the legacy dual write.
+    pursuit_attrs = merged |> Map.take(pursuit_keys) |> Map.drop([:attempt_count, :tried_release_guids])
+    unit_attrs = Map.take(merged, @pursuit_unit_keys)
     target_attrs = Map.take(merged, target_keys)
 
     now = DateTime.utc_now(:second)
@@ -1064,10 +1116,17 @@ defmodule MediaCentaur.TestFactory do
       |> Ecto.Changeset.change(target_base)
       |> MediaCentaur.Repo.insert()
 
-    {:ok, pursuit} =
-      pursuit
-      |> Ecto.Changeset.change(current_target_id: target.id)
-      |> MediaCentaur.Repo.update()
+    unit = create_pursuit_unit(pursuit, Map.put(unit_attrs, :current_target_id, target.id))
+
+    {:ok, _coverage} =
+      %MediaCentaur.Acquisition.Pursuits.TargetUnit{}
+      |> Ecto.Changeset.change(%{
+        target_id: target.id,
+        unit_id: unit.id,
+        inserted_at: now,
+        updated_at: now
+      })
+      |> MediaCentaur.Repo.insert()
 
     {pursuit, target}
   end

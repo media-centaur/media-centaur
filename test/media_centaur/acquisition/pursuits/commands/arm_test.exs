@@ -32,7 +32,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ArmTest do
       assert pursuit.recipe_type == "tmdb"
       assert pursuit.tmdb_id == "603"
       assert pursuit.year == 2010
-      assert pursuit.current_target_id == target.id
+      assert MediaCentaur.Acquisition.Pursuits.Units.single!(pursuit.id).current_target_id == target.id
 
       [job] = enqueued_pursue_target_jobs()
       assert job.args["target_id"] == target.id
