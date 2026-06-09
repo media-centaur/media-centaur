@@ -881,27 +881,27 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
         <%!-- Runtime detail rows (color = signal) --%>
         <div
           data-component="system-detail"
-          class="mt-3 pt-3 border-t border-base-content/10 grid grid-cols-2 gap-x-6 gap-y-1 text-xs"
+          class="mt-3 pt-3 border-t border-base-content/10 grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs"
         >
-          <div class="flex items-center justify-between">
+          <div class="flex items-baseline gap-2">
             <span class="text-base-content/50">Schedulers</span>
-            <span class="tabular-nums text-base-content/70">{@system_vitals.schedulers}</span>
+            <span class="tabular-nums text-base-content/80">{@system_vitals.schedulers}</span>
           </div>
-          <div class="flex items-center justify-between">
+          <div class="flex items-baseline gap-2">
             <span class="text-base-content/50">Run queue</span>
             <span class={["tabular-nums", vital_value_class(@rq_tone)]}>
               {@system_vitals.run_queue}
             </span>
           </div>
-          <div class="flex items-center justify-between">
-            <span class="text-base-content/50">Processes / limit</span>
+          <div class="flex items-baseline gap-2">
+            <span class="text-base-content/50">Processes</span>
             <span class={["tabular-nums", vital_value_class(@proc_tone)]}>
               {@system_vitals.process_count} / {@system_vitals.process_limit}
             </span>
           </div>
-          <div class="flex items-center justify-between">
+          <div class="flex items-baseline gap-2">
             <span class="text-base-content/50">WAL</span>
-            <span class="tabular-nums text-base-content/70">
+            <span class="tabular-nums text-base-content/80">
               {format_bytes(@system_vitals.db.wal_bytes)}
             </span>
           </div>
