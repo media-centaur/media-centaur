@@ -23,6 +23,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.TMDB,
       MediaCentaur.Controls,
       MediaCentaur.IntegrationHealth,
+      MediaCentaur.Runtime,
       MediaCentaur.Setup
     ],
     exports: [Endpoint]
