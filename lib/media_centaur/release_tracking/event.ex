@@ -17,6 +17,7 @@ defmodule MediaCentaur.ReleaseTracking.Event do
         :removed_from_schedule,
         :new_season_announced,
         :new_episodes_announced,
+        :release_scheduled,
         :began_tracking,
         :stopped_tracking
       ]

@@ -96,6 +96,7 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
       %{
         air_date: release.air_date,
         title: release.title,
+        release_type: release.release_type,
         season_number: nil,
         episode_number: nil
       }

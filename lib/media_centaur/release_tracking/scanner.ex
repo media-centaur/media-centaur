@@ -136,6 +136,7 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
         title: release[:title],
         season_number: release[:season_number],
         episode_number: release[:episode_number],
+        release_type: release[:release_type],
         released: release[:released] || false
       })
     end)
