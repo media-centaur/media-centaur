@@ -924,7 +924,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
     do: phase in [:preparing, :downloading, :verifying, :extracting, :handing_off]
 
   # Friendly, non-zero-padded date for the upgrade-history rows, e.g. "Jun 7, 2026".
-  defp history_date(%DateTime{} = at), do: Calendar.strftime(at, "%b %-d, %Y")
+  defp history_date(%DateTime{} = at), do: Calendar.strftime(at, "%H:%M · %b %-d, %Y")
 
   # Stable, unique iterator id (ADR-012). `recorded_at` makes it collision-proof
   # even if the same version appears twice (a deliberate downgrade-then-re-upgrade
