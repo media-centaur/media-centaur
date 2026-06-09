@@ -218,14 +218,34 @@ the seven risks below.
    constraints by construction (subtract present units from the want
    list; assignment maps each unit to exactly one candidate) — they
    land with Phase 3's planner.*
-3. **Media-search front door.** TMDB targeting UI (series / season /
-   episode picker with library + tracked overlays and quick actions:
-   *Everything aired*, *Continue from where my library ends*, *Latest
-   season*), the autonomous planner driving the ladder, the **durable draft
-   plan** + coverage board + activity feed, and plan feedback (swap release
-   / force re-search / approve). Rich TMDB card on the pursuit. Settle the
-   downloads-page restructure here: media search primary, naked search's
-   standalone placement.
+3. **Media-search front door.** Backend spine ✅ SHIPPED 2026-06-09
+   (commits `3d9d1e0a` + `b4066cf2`):
+   * `Acquisition.Targeting` — TMDB series → unit universe (aired per
+     season, specials excluded, library-presence + tracked flags shown
+     not silent; `default_units/1` = aired-minus-library).
+   * `Acquisition.Planner` — pure coverage optimizer; objective
+     hierarchy Coverage → User preference → Consolidation → Health;
+     broad-first ladder judged against per-unit-best ensembles.
+   * `Acquisition.Plans` + `Jobs.RunPlan` — the durable draft plan
+     (planning → ready → committed/discarded), ladder searches through
+     the corpus, assignments/unfound on plan units, feedback verbs
+     (exclude_release plan-wide + corpus-only re-solve, exclude_unit,
+     replan w/ force), `PlanEvents` broadcasts for the live board.
+   * `Plans.CommitPlan` — the approval gate: **generalized ADR-055
+     overlap check** (unit-level + legacy pursuit-key fallback), found
+     units → ONE composite pursuit (per-release grabs covering their
+     units; failed grabs degrade to seeking + PursueTarget), unfound
+     never crosses the search→pursuit boundary. Pursuit units now carry
+     season/episode identity; `Recipe.for_unit` narrows tmdb re-search
+     to the unit's episode.
+
+   ⬜ **REMAINING — the UI** (the next session's design work, WITH the
+   user): TMDB search → targeting picker (quick actions: *Everything
+   aired*, *Continue from where my library ends*, *Latest season*),
+   the coverage board + activity feed over `PlanEvents`, plan feedback
+   surfaces, rich TMDB card on the pursuit, and the downloads-page
+   restructure (media search primary; naked search's standalone
+   placement — explicitly reserved user decisions).
 4. **Release-tracking handoffs + polish.** "Grab future" opt-in →
    on-completion spin-up of a release-tracking entry; **gap handoff at
    approval** (track the units planning couldn't find); dedup so a
