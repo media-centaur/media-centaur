@@ -99,4 +99,52 @@ defmodule MediaCentaur.ReleaseTracking.DifferTest do
       assert String.contains?(event.description, "removed")
     end
   end
+
+  describe "diff/3 — movies" do
+    # Regression: a movie release has nil season/episode. The TV addition path
+    # rolled nil into a "new season," minting a bogus "Season  announced" event
+    # (the I Love Boosters bug). A movie has no season to announce.
+    test "movie release addition produces no season announcement" do
+      old = []
+
+      new = [%{season_number: nil, episode_number: nil, air_date: ~D[2026-06-23], title: "Sample Film"}]
+
+      events = Differ.diff(old, new, :movie)
+
+      refute Enum.any?(events, &(&1.event_type == :new_season_announced))
+      assert events == []
+    end
+
+    test "movie date change is still detected" do
+      old = [
+        build_tracking_release(%{
+          season_number: nil,
+          episode_number: nil,
+          air_date: ~D[2026-05-22],
+          title: "Sample Film"
+        })
+      ]
+
+      new = [%{season_number: nil, episode_number: nil, air_date: ~D[2026-06-23], title: "Sample Film"}]
+
+      assert [event] = Differ.diff(old, new, :movie)
+      assert event.event_type == :upcoming_release_date_changed
+      assert event.metadata.old_date == ~D[2026-05-22]
+      assert event.metadata.new_date == ~D[2026-06-23]
+    end
+
+    test "movie removal is still detected" do
+      old = [
+        build_tracking_release(%{
+          season_number: nil,
+          episode_number: nil,
+          air_date: ~D[2026-06-23],
+          title: "Sample Film"
+        })
+      ]
+
+      assert [event] = Differ.diff(old, [], :movie)
+      assert event.event_type == :removed_from_schedule
+    end
+  end
 end

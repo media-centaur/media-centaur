@@ -2,13 +2,28 @@ defmodule MediaCentaur.ReleaseTracking.Differ do
   @moduledoc """
   Pure functions that compare stored releases against freshly extracted releases
   and produce change events.
+
+  The comparison is split into two layers:
+
+    * **Structural diff** (`diff/3`) — type-agnostic set math over release keys:
+      which keys were added, removed, or had their air date change. It never
+      reasons about "seasons" and never treats a `nil` field as a sentinel.
+    * **Event presentation** (the `detect_*` helpers) — turns the structural
+      diff into human-facing events. Additions are the only type-sensitive
+      step, so `detect_additions/4` dispatches on `media_type`: a TV series
+      groups additions into season / episode announcements, while a movie has
+      no "season" to announce.
+
+  `media_type` defaults to `:tv_series` so the structural-diff tests can call
+  `diff/2`; the production caller (`Refresher.commit_refresh/3`) always passes
+  the tracked item's `media_type` explicitly.
   """
 
   @doc """
   Compares old stored releases (Ecto structs) against new extracted releases (maps).
   Returns a list of event maps with `:event_type`, `:description`, and `:metadata`.
   """
-  def diff(old_releases, new_releases) do
+  def diff(old_releases, new_releases, media_type \\ :tv_series) do
     old_by_key = index_by_key(old_releases)
     new_by_key = index_by_key(new_releases)
 
@@ -20,7 +35,7 @@ defmodule MediaCentaur.ReleaseTracking.Differ do
     common_keys = MapSet.intersection(old_keys, new_keys)
 
     date_changes = detect_date_changes(common_keys, old_by_key, new_by_key)
-    additions = detect_additions(added_keys, new_by_key, old_by_key)
+    additions = detect_additions(media_type, added_keys, new_by_key, old_by_key)
     removals = detect_removals(removed_keys, old_by_key)
 
     date_changes ++ additions ++ removals
@@ -68,7 +83,14 @@ defmodule MediaCentaur.ReleaseTracking.Differ do
     end)
   end
 
-  defp detect_additions(keys, _new_by_key, old_by_key) do
+  # A movie has no seasons or episodes; its schedule is a set of dated
+  # releases. An added movie release is just a date the user already learns
+  # from `:began_tracking` (initial) or `:upcoming_release_date_changed`
+  # (subsequent moves), so the addition path mints no event rather than a
+  # phantom "new season."
+  defp detect_additions(:movie, _keys, _new_by_key, _old_by_key), do: []
+
+  defp detect_additions(:tv_series, keys, _new_by_key, old_by_key) do
     new_seasons =
       keys
       |> Enum.map(fn {season, _episode, _title} -> season end)

@@ -205,7 +205,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
   defp commit_refresh(item, response, new_releases) do
     old_releases = ReleaseTracking.list_releases_for_item(item.id)
-    events = Differ.diff(old_releases, new_releases)
+    events = Differ.diff(old_releases, new_releases, item.media_type)
     write_events(item, events)
     replace_releases(item, new_releases)
     update_item_metadata(item, response)
