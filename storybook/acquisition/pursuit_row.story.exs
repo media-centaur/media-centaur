@@ -305,6 +305,65 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
         ]
       },
       %VariationGroup{
+        id: :composite_axis,
+        description:
+          "Composite pursuits (ADR-055) — a brace-expanded batch grab is one pursuit with many units. Rows show unit progress as a `N of M` chip; single-unit pursuits show no chip.",
+        variations: [
+          %Variation{
+            id: :composite_active,
+            description: "Multi-unit composite mid-flight — 3 of 10 units satisfied.",
+            attributes: %{
+              vm:
+                row(:active, "Sample Show S01E{01-10}",
+                  units_wanted: 10,
+                  units_satisfied: 3,
+                  status: %CurrentAction{
+                    verb: "Downloading",
+                    description: "7 releases still in flight.",
+                    severity: :info
+                  }
+                ),
+              density: :full
+            }
+          },
+          %Variation{
+            id: :composite_partial,
+            description:
+              "Terminal `partial` outcome — some units landed, the rest didn't. Buckets as success; badge tells the truth.",
+            attributes: %{
+              vm:
+                row(:partial, "Sample Show S01E{01-10}",
+                  units_wanted: 10,
+                  units_satisfied: 7,
+                  status: %CurrentAction{
+                    verb: "Partially done",
+                    description: "Some of this pursuit landed; the rest didn't.",
+                    severity: :warning
+                  }
+                ),
+              density: :full
+            }
+          },
+          %Variation{
+            id: :composite_compact,
+            description: "Compact density keeps the unit-progress chip beside the status.",
+            attributes: %{
+              vm:
+                row(:active, "Sample Show S01E{01-10}",
+                  units_wanted: 10,
+                  units_satisfied: 9,
+                  status: %CurrentAction{
+                    verb: "Downloading",
+                    description: "1 release still in flight.",
+                    severity: :info
+                  }
+                ),
+              density: :compact
+            }
+          }
+        ]
+      },
+      %VariationGroup{
         id: :density_axis,
         description:
           "Compact density renders a single dense line — title + severity-colored status, no state badge. Used when there's no paired download.",
@@ -445,6 +504,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
       episode_number: Keyword.get(opts, :episode),
       release_title: Keyword.get(opts, :release_title),
       target_status: Keyword.get(opts, :target_status),
+      units_wanted: Keyword.get(opts, :units_wanted, 1),
+      units_satisfied: Keyword.get(opts, :units_satisfied, 0),
       status: Keyword.fetch!(opts, :status)
     }
   end

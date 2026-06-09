@@ -24,6 +24,8 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
   alias MediaCentaur.Downloads.QueueState
   alias MediaCentaur.Repo
   alias MediaCentaur.Secret
+  alias MediaCentaur.Acquisition.Pursuits.Units
+  alias MediaCentaur.Acquisition.Target
 
   @queue_cache_key {MediaCentaur.Downloads.QueueMonitor, :state}
 
@@ -171,7 +173,7 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
 
       {:ok, _} =
         pursuit.id
-        |> MediaCentaur.Acquisition.Pursuits.Units.single!()
+        |> Units.single!()
         |> Ecto.Changeset.change(awaiting_decision_at: DateTime.utc_now(:second))
         |> Repo.update()
 
@@ -187,11 +189,22 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
       {:ok, view, html} = live(conn, "/download?selected=#{pursuit.id}")
       open_ms = System.monotonic_time(:millisecond) - start_ms
 
-      assert open_ms < 150,
+      # The failure mode this guards is a SYNCHRONOUS Prowlarr fetch,
+      # which would add the stub's full 300 ms on top of the mount
+      # (~470 ms+). The 250 ms ceiling discriminates that unambiguously
+      # while clearing environmental jitter — DB-only mounts measure
+      # 170–200 ms on a loaded dev box (observed 2026-06-09, identical
+      # with and without the unit-board queries).
+      assert open_ms < 250,
              "modal open took #{open_ms} ms — should not block on Prowlarr (ADR-044)"
 
       assert has_element?(view, "#pursuit-modal[data-state='open']")
       assert html =~ "Searching for alternatives"
+
+      # The un-drained mount is the assertion; the drain happens AFTER
+      # so the 300 ms-sleeping fetch task can't outlive the test and
+      # race the next test's teardown (ADR-049).
+      render_async(view, 1000)
     end
 
     test "no `?selected=` param leaves the modal closed", %{conn: conn} do
@@ -231,11 +244,68 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
       {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
       render_click(view, "request_decision", %{})
 
+      # The click flips the unit to awaiting, which spawns the owned
+      # alternatives fetch — drive it to completion before the test
+      # ends so the task can't race teardown (ADR-049).
+      render_async(view)
+
       reloaded = Repo.reload(pursuit)
       assert reloaded.state == "active"
 
-      unit = MediaCentaur.Acquisition.Pursuits.Units.single!(pursuit.id)
+      unit = Units.single!(pursuit.id)
       assert %DateTime{} = unit.awaiting_decision_at
+    end
+  end
+
+  describe "composite drill-down — the unit board (ADR-055)" do
+    test "multi-unit pursuit renders one board row per unit; unit-scoped change target pivots only that unit",
+         %{conn: conn} do
+      {pursuit, _first_target} =
+        create_pursuit_with_target(%{
+          recipe_type: "prowlarr_query",
+          manual_query: "Sample Show S01E{01-02}",
+          title: "Sample Show S01E{01-02}",
+          label: "Sample Show S01E01",
+          query: "Sample Show S01E01",
+          status: "acquired"
+        })
+
+      second_unit =
+        create_pursuit_unit(pursuit, %{
+          label: "Sample Show S01E02",
+          query: "Sample Show S01E02",
+          position: 1
+        })
+
+      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
+
+      first_unit = pursuit.id |> Units.for_pursuit() |> hd()
+      assert has_element?(view, "#unit-board-row-#{first_unit.id}")
+      assert has_element?(view, "#unit-board-row-#{second_unit.id}")
+
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        view
+        |> element("#unit-board-row-#{second_unit.id} button[phx-click='change_target']")
+        |> render_click()
+      end)
+
+      pivoted = Repo.reload(second_unit)
+      refute is_nil(pivoted.current_target_id)
+      assert Repo.get!(Target, pivoted.current_target_id).status == "seeking"
+
+      # The sibling unit's thread is untouched.
+      untouched = Repo.reload(first_unit)
+      assert untouched.current_target_id == first_unit.current_target_id
+    end
+
+    test "single-unit pursuit renders no unit board", %{conn: conn} do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
+
+      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
+
+      unit = Units.single!(pursuit.id)
+      refute has_element?(view, "#unit-board-row-#{unit.id}")
     end
   end
 

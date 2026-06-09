@@ -375,6 +375,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           header={@pursuit_detail && @pursuit_detail.header}
           status={@pursuit_detail && @pursuit_detail.status}
           timeline={@pursuit_detail && @pursuit_detail.timeline}
+          unit_board={@pursuit_detail && @pursuit_detail.unit_board}
           decision_card={@pursuit_detail && @pursuit_detail.decision_card}
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
         />
@@ -655,8 +656,19 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     end
   end
 
-  def handle_event("change_target", _params, socket) do
-    case ChangeTarget.execute(%{pursuit_id: socket.assigns.selected_pursuit_id}) do
+  def handle_event("change_target", params, socket) do
+    # An optional `unit-id` (from the unit-board drill-down) scopes the
+    # pivot to one unit of a composite; without it the lead unit pivots.
+    args =
+      case params do
+        %{"unit-id" => unit_id} when is_binary(unit_id) ->
+          %{pursuit_id: socket.assigns.selected_pursuit_id, unit_id: unit_id}
+
+        _ ->
+          %{pursuit_id: socket.assigns.selected_pursuit_id}
+      end
+
+    case ChangeTarget.execute(args) do
       {:ok, _pursuit} ->
         {:noreply, socket |> put_flash(:info, "Looking for a new target…") |> load_pursuit_detail()}
 
@@ -957,6 +969,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         header = Pursuits.header_from(pursuit)
         status = Pursuits.status_from(pursuit)
         timeline = Pursuits.timeline_for(pursuit.id)
+        unit_board = Pursuits.unit_board_for(pursuit)
 
         {card, results_by_guid, needs_fetch?} =
           decision_card_or_placeholder(
@@ -972,6 +985,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
               header: header,
               status: status,
               timeline: timeline,
+              unit_board: unit_board,
               decision_card: card,
               decision_results_by_guid: results_by_guid,
               not_found?: false
@@ -986,6 +1000,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
             header: nil,
             status: nil,
             timeline: nil,
+            unit_board: nil,
             decision_card: nil,
             decision_results_by_guid: %{},
             not_found?: true
