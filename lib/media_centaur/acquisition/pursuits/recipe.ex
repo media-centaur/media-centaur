@@ -86,6 +86,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
     %{from(pursuit) | manual_query: query}
   end
 
+  def for_unit(%Pursuit{recipe_type: "tmdb"} = pursuit, %Unit{season_number: season} = unit)
+      when is_integer(season) do
+    %{from(pursuit) | season_number: season, episode_number: unit.episode_number}
+  end
+
   def for_unit(%Pursuit{} = pursuit, _unit), do: from(pursuit)
 
   defp tmdb_type_atom("movie"), do: :movie

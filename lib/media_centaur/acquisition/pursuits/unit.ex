@@ -53,6 +53,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.Unit do
     # The concrete search query for this unit (query-door pursuits).
     # Nullable — TMDB-recipe units derive queries from the parent recipe.
     field :query, :string
+    # TMDB-door unit identity (media-search campaign Phase 3): which
+    # episode this unit wants. Nullable — query-door units are
+    # identified by their term, movies by the parent recipe.
+    field :season_number, :integer
+    field :episode_number, :integer
 
     field :current_target_id, Ecto.UUID
     field :tried_release_guids, {:array, :string}, default: []
@@ -71,7 +76,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Unit do
   @doc "Builds a new unit in `active` state for a pursuit."
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:pursuit_id, :label, :query, :position])
+    |> cast(attrs, [:pursuit_id, :label, :query, :position, :season_number, :episode_number])
     |> validate_required([:pursuit_id])
   end
 

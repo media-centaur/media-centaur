@@ -56,6 +56,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Start do
         pursuit_id: pursuit.id,
         label: Map.get(spec, :label),
         query: Map.get(spec, :query),
+        season_number: Map.get(spec, :season_number),
+        episode_number: Map.get(spec, :episode_number),
         position: Map.get(spec, :position, index)
       }
 
