@@ -22,6 +22,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
   @impl true
   def init(_opts) do
     children = [
+      MediaCentaur.Watcher.ScanStats,
       {Registry, keys: :unique, name: MediaCentaur.Watcher.Registry},
       {Registry, keys: :unique, name: MediaCentaur.Watcher.DirMonitor.Registry},
       {DynamicSupervisor, name: MediaCentaur.Watcher.DynamicSupervisor, strategy: :one_for_one},
@@ -279,20 +280,34 @@ defmodule MediaCentaur.Watcher.Supervisor do
   end
 
   @doc """
-  Returns a list of `%{dir: path, state: atom}` for all running watchers.
+  Returns a list of per-watcher status maps for all running watchers:
+
+      %{dir: path, state: atom, reason: atom | nil,
+        settling_count: non_neg_integer, pending_deletions: non_neg_integer}
+
+  `dir` and `state` are the load-bearing keys (consumed by `status/0` and, via
+  `MediaCentaur.WatcherStatus`, by `Library.Availability`); the rest drive the
+  Status page's watcher activity narrative and are purely additive.
   """
   def statuses do
     MediaCentaur.Watcher.Registry
     |> registered_pids()
     |> Enum.flat_map(fn {dir, pid} ->
       try do
-        [%{dir: dir, state: MediaCentaur.Watcher.status(pid)}]
+        [Map.put(MediaCentaur.Watcher.status_detail(pid), :dir, dir)]
       catch
         :exit, _ -> []
       end
     end)
     |> Enum.sort_by(& &1.dir)
   end
+
+  @doc """
+  Returns the retained `%{dir => last_scan_summary}` map from
+  `MediaCentaur.Watcher.ScanStats` — the boundary-clean door for the web layer,
+  which may only call this exported `Supervisor`.
+  """
+  defdelegate scan_stats(), to: MediaCentaur.Watcher.ScanStats, as: :all
 
   @doc """
   Scans all watched directories for video files not yet tracked.

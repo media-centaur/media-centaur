@@ -31,11 +31,22 @@ defmodule MediaCentaur.WatcherStatus do
   """
 
   @doc """
-  Returns a list of `%{dir: path, state: atom}` for all running watchers.
+  Returns a list of per-watcher status maps for all running watchers.
 
   Same shape as `MediaCentaur.Watcher.Supervisor.statuses/0` — this
-  module is a thin, boundary-neutral pass-through.
+  module is a thin, boundary-neutral pass-through. Only `dir` and `state`
+  are load-bearing for `Library.Availability`; the additional keys
+  (`reason`, `settling_count`, `pending_deletions`) carry the Status
+  page's activity narrative and are ignored here.
   """
-  @spec statuses() :: [%{dir: String.t(), state: atom()}]
+  @spec statuses() :: [
+          %{
+            dir: String.t(),
+            state: atom(),
+            reason: atom() | nil,
+            settling_count: non_neg_integer(),
+            pending_deletions: non_neg_integer()
+          }
+        ]
   defdelegate statuses(), to: MediaCentaur.Watcher.Supervisor
 end

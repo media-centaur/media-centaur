@@ -80,6 +80,7 @@ defmodule MediaCentaur.Watcher do
     :deletion_timer,
     :device_id,
     state: :initializing,
+    unavailable_reason: nil,
     was_unavailable: false,
     pending_files: %{},
     deletion_buffer: %DeletionBuffer{},
@@ -93,6 +94,20 @@ defmodule MediaCentaur.Watcher do
 
   def status(pid), do: GenServer.call(pid, :status)
   def dir(pid), do: GenServer.call(pid, :dir)
+
+  @doc """
+  Returns a per-dir status detail used by the Status page's watcher activity
+  narrative: the current state, the failure cause when `:unavailable`, and the
+  live in-flight counts (files in the size-stability poll, deletions buffered
+  for the debounce flush).
+  """
+  @spec status_detail(pid()) :: %{
+          state: atom(),
+          reason: atom() | nil,
+          settling_count: non_neg_integer(),
+          pending_deletions: non_neg_integer()
+        }
+  def status_detail(pid), do: GenServer.call(pid, :status_detail)
 
   @doc """
   Walks the watched directory recursively, detects video files not yet tracked.
@@ -154,6 +169,17 @@ defmodule MediaCentaur.Watcher do
   def handle_call(:status, _from, state), do: {:reply, state.state, state}
   def handle_call(:dir, _from, state), do: {:reply, state.dir, state}
 
+  def handle_call(:status_detail, _from, state) do
+    detail = %{
+      state: state.state,
+      reason: state.unavailable_reason,
+      settling_count: map_size(state.pending_files),
+      pending_deletions: deletion_count(state)
+    }
+
+    {:reply, detail, state}
+  end
+
   def handle_call(:scan, from, state) do
     dir = state.dir
     exclude_dirs = state.exclude_dirs
@@ -182,13 +208,13 @@ defmodule MediaCentaur.Watcher do
 
         schedule_health_check(nil)
         broadcast_state(state.dir, :unavailable)
-        {:noreply, %{state | state: :unavailable, was_unavailable: true, device_id: nil}}
+        {:noreply, mark_unavailable(state, :backend_error)}
 
       :ignore ->
         Log.warning(:watcher, "watcher unavailable — inotify-tools missing?")
         schedule_health_check(nil)
         broadcast_state(state.dir, :unavailable)
-        {:noreply, %{state | state: :unavailable, was_unavailable: true, device_id: nil}}
+        {:noreply, mark_unavailable(state, :inotify_missing)}
     end
   end
 
@@ -203,7 +229,7 @@ defmodule MediaCentaur.Watcher do
       :unmounted in domain_events ->
         Log.warning(:watcher, "directory unmounted — #{state.dir}")
         broadcast_state(state.dir, :unavailable)
-        {:noreply, %{state | state: :unavailable, was_unavailable: true, device_id: nil}}
+        {:noreply, mark_unavailable(state, :unmounted)}
 
       :scan_required in domain_events ->
         # FSEvents advisory signals (dropped events, event-ID rollover,
@@ -219,7 +245,7 @@ defmodule MediaCentaur.Watcher do
       :created in domain_events or :modified in domain_events ->
         Log.info(:watcher, "detected file event — #{Path.basename(path)}, checking size")
         send(self(), {:check_size, path, nil, 0})
-        {:noreply, state}
+        {:noreply, track_settling(state, path)}
 
       :deleted in domain_events ->
         {:noreply, buffer_deletion(state, path)}
@@ -243,14 +269,14 @@ defmodule MediaCentaur.Watcher do
         # path, not this live path — a bulk move surfaces via the startup
         # scan when the watch dir changes.
         detect_file(path, state.dir, size)
-        {:noreply, state}
+        {:noreply, untrack_settling(state, path)}
 
       {:ok, %{size: size}} ->
         Process.send_after(self(), {:check_size, path, size, count + 1}, @size_stability_interval)
         {:noreply, state}
 
       {:error, _} ->
-        {:noreply, state}
+        {:noreply, untrack_settling(state, path)}
     end
   end
 
@@ -280,7 +306,7 @@ defmodule MediaCentaur.Watcher do
         Log.warning(:watcher, "directory inaccessible — #{state.dir}")
         broadcast_state(state.dir, :unavailable)
         schedule_health_check(nil)
-        {:noreply, %{state | state: :unavailable, was_unavailable: true, device_id: nil}}
+        {:noreply, mark_unavailable(state, :inaccessible)}
     end
   end
 
@@ -341,8 +367,7 @@ defmodule MediaCentaur.Watcher do
         schedule_health_check(nil)
         broadcast_state(state.dir, :unavailable)
 
-        {:noreply,
-         %{state | watcher_pid: nil, state: :unavailable, was_unavailable: true, device_id: nil}}
+        {:noreply, %{mark_unavailable(state, :never_mounted) | watcher_pid: nil}}
 
       device_id ->
         FileSystem.subscribe(pid)
@@ -358,6 +383,7 @@ defmodule MediaCentaur.Watcher do
            state
            | watcher_pid: pid,
              state: :watching,
+             unavailable_reason: nil,
              was_unavailable: false,
              device_id: device_id
          }}
@@ -562,6 +588,25 @@ defmodule MediaCentaur.Watcher do
       Enum.filter([images_dir, staging_base], &String.starts_with?(&1, watch_dir <> "/"))
 
     Enum.uniq(configured ++ auto_excludes)
+  end
+
+  # Single place that flips a watcher into the unavailable state, tagging the
+  # cause so the Status page can explain *why* live detection stopped instead of
+  # showing a bare "unavailable". `device_id` is cleared so the health-check loop
+  # treats the next successful stat as a fresh mount.
+  defp mark_unavailable(state, reason) do
+    %{state | state: :unavailable, unavailable_reason: reason, was_unavailable: true, device_id: nil}
+  end
+
+  # In-flight size-stability poll bookkeeping. `pending_files` is keyed by path
+  # so repeated create/modify events for the same arrival collapse to one entry;
+  # `map_size/1` of it is the "N files settling" count surfaced via status_detail.
+  defp track_settling(state, path) do
+    %{state | pending_files: Map.put(state.pending_files, path, true)}
+  end
+
+  defp untrack_settling(state, path) do
+    %{state | pending_files: Map.delete(state.pending_files, path)}
   end
 
   defp broadcast_state(dir, internal_state) do

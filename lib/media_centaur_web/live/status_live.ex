@@ -62,6 +62,7 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(image_pipeline_stats: image_stats)
         |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
         |> assign(image_dir_statuses: MediaCentaur.Watcher.Supervisor.image_dir_statuses())
+        |> assign(scan_stats: MediaCentaur.Watcher.Supervisor.scan_stats())
         |> assign(config: load_config())
         |> assign(rate_limiter: fetch_rate_limiter())
         |> assign(retry_status: fetch_retry_status())
@@ -103,6 +104,7 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(storage_drives: [])
     |> assign(at_risk_summary: %{})
     |> assign(dir_health: [])
+    |> assign(scan_stats: %{})
     |> assign(show_report_modal: false)
     |> assign(report_payload: nil)
     |> assign(report_snapshot: nil)
@@ -238,6 +240,7 @@ defmodule MediaCentaurWeb.StatusLive do
       # watcher
       dir_health: assigns.dir_health,
       watcher_statuses: assigns.watcher_statuses,
+      scan_stats: assigns.scan_stats,
       storage_drives: assigns.storage_drives,
       at_risk_summary: assigns.at_risk_summary,
       ttl_days: Config.get(:file_absence_ttl_days) || 30,
@@ -394,6 +397,7 @@ defmodule MediaCentaurWeb.StatusLive do
      socket
      |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
      |> assign(image_dir_statuses: MediaCentaur.Watcher.Supervisor.image_dir_statuses())
+     |> assign(scan_stats: MediaCentaur.Watcher.Supervisor.scan_stats())
      |> start_async_storage()}
   end
 

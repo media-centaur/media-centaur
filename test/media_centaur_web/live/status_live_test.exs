@@ -187,6 +187,62 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     end
   end
 
+  describe "watcher activity narrative" do
+    # End-to-end wiring proof the storybook variations can't give us: a real
+    # watcher reaching :watching feeds Supervisor.statuses/0, a scan telemetry
+    # event feeds Supervisor.scan_stats/0, and both flow through the activity
+    # bundle into the widget's "Last scan …" line. If any seam in that chain
+    # breaks the line silently vanishes — this catches that. The per-piece
+    # formatting is unit-tested in StatusHelpersTest.
+    test "renders the last-scan line for a watching dir", %{conn: conn} do
+      original_watch_dirs = :persistent_term.get({MediaCentaur.Config, :config}).watch_dirs
+
+      tmp_dir =
+        Path.join(
+          System.tmp_dir!(),
+          "status_watcher_narrative_#{:erlang.unique_integer([:positive])}"
+        )
+
+      File.mkdir_p!(tmp_dir)
+      put_config(:watch_dirs, [tmp_dir])
+
+      MediaCentaur.Watcher.Supervisor.stop_watchers()
+      MediaCentaur.Watcher.Supervisor.start_watchers()
+
+      on_exit(fn ->
+        MediaCentaur.Watcher.Supervisor.stop_watchers()
+        put_config(:watch_dirs, original_watch_dirs)
+        File.rm_rf!(tmp_dir)
+      end)
+
+      # 1. Wait for the watcher to attach to the (real, existing) temp dir.
+      eventually(fn ->
+        Enum.any?(MediaCentaur.Watcher.Supervisor.statuses(), fn status ->
+          status.dir == tmp_dir and status.state == :watching
+        end)
+      end)
+
+      # 2. Let the one-shot startup scan land in ScanStats first, then emit a
+      #    scan event with known counts as the final recorded scan for this dir.
+      eventually(fn -> MediaCentaur.Watcher.ScanStats.last_scan(tmp_dir) != nil end)
+
+      :telemetry.execute(
+        [:media_centaur, :watcher, :scan, :stop],
+        %{duration: 1_000},
+        %{dir: tmp_dir, total_video_files: 1_432, known: 1_429, dispatched: 3, relinked: 0}
+      )
+
+      eventually(fn -> match?(%{new: 3}, MediaCentaur.Watcher.ScanStats.last_scan(tmp_dir)) end)
+
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=watcher")
+
+      eventually(fn ->
+        html = render(view)
+        html =~ "Last scan" and html =~ "1,432 files · 3 new"
+      end)
+    end
+  end
+
   describe "Updates drill-in — upgrade history" do
     test "lists recorded versions in the Updates activity widget", %{conn: conn} do
       :ok = MediaCentaur.SelfUpdate.History.record_boot_version("0.81.0")
