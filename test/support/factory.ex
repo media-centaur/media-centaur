@@ -922,7 +922,8 @@ defmodule MediaCentaur.TestFactory do
       component: "pipeline",
       severity: :error,
       occurred_at: now,
-      app_version_at_first: "0.77.6"
+      app_version_at_first: "0.77.6",
+      app_version_at_last: "0.77.6"
     }
 
     Map.merge(defaults, Map.new(overrides))

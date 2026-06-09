@@ -36,7 +36,7 @@ defmodule MediaCentaur.ErrorReports.LogHandler do
   def log(%{level: level, msg: msg, meta: meta}, config) do
     try do
       if meta[:mc_log_source] != :buffer and meta[:mc_incident] != :skip and
-           level in @captured_levels do
+           level in @captured_levels and not transport_disconnect?(meta) do
         entry = Entry.from_log_event(level, msg, meta)
         Buckets.ingest(buckets_target(config), entry)
       end
@@ -46,6 +46,19 @@ defmodule MediaCentaur.ErrorReports.LogHandler do
 
     :ok
   end
+
+  # A `Bandit.TransportError` with a client-gone reason (`:timeout` = the client
+  # stopped reading/writing; `:closed` = it dropped the socket) is web-server
+  # connection lifecycle, not an application fault — so it must not mint a `:log`
+  # incident. Matched by Bandit's typed `crash_reason` metadata (not message
+  # text). The line still reaches the console via the peer `Console.Handler`;
+  # this only keeps it out of the durable/incident path. Any *other* transport
+  # reason (e.g. `:emfile`) still mints, so a genuinely unusual socket condition
+  # isn't hidden.
+  defp transport_disconnect?(%{crash_reason: {%Bandit.TransportError{error: reason}, _stacktrace}})
+       when reason in [:timeout, :closed], do: true
+
+  defp transport_disconnect?(_meta), do: false
 
   # :logger handler lifecycle callbacks
   @doc false

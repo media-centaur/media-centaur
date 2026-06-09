@@ -43,7 +43,8 @@ defmodule MediaCentaur.ErrorReports.Incident do
           latest_context: map() | nil,
           user_description: String.t() | nil,
           scope: map() | nil,
-          app_version_at_first: String.t() | nil
+          app_version_at_first: String.t() | nil,
+          app_version_at_last: String.t() | nil
         }
 
   schema "incidents" do
@@ -64,6 +65,7 @@ defmodule MediaCentaur.ErrorReports.Incident do
     field :user_description, :string
     field :scope, :map
     field :app_version_at_first, :string
+    field :app_version_at_last, :string
 
     timestamps()
   end
@@ -99,7 +101,8 @@ defmodule MediaCentaur.ErrorReports.Incident do
       :count,
       :first_seen,
       :last_seen,
-      :app_version_at_first
+      :app_version_at_first,
+      :app_version_at_last
     ])
     |> put_change(:origin, :log)
     |> validate_required([:component, :fingerprint, :severity, :first_seen, :last_seen])
@@ -158,7 +161,9 @@ defmodule MediaCentaur.ErrorReports.Incident do
 
   @doc """
   Update changeset for a recurring `:log` incident: bumps `count` and advances
-  `last_seen` (and re-opens a resolved incident if it recurs).
+  `last_seen` (and re-opens a resolved incident if it recurs). Also refreshes
+  `app_version_at_last` to the recurrence's version, so a still-recurring
+  incident is never mistaken for one belonging to a superseded build.
   """
   @spec recurrence_changeset(t(), map()) :: Ecto.Changeset.t()
   def recurrence_changeset(incident, attrs) do
@@ -171,7 +176,8 @@ defmodule MediaCentaur.ErrorReports.Incident do
       :display_title,
       :severity,
       :status,
-      :resolved_at
+      :resolved_at,
+      :app_version_at_last
     ])
     |> validate_required([:count, :last_seen])
   end

@@ -14,7 +14,12 @@ defmodule MediaCentaur.SelfUpdate.IncidentContext do
       failure does not fault.
     * `:checks_stalled` (**warning**) — background checks are enabled but no
       successful check has landed in at least three times the configured
-      interval, i.e. the scheduler looks wedged.
+      interval, i.e. the scheduler looks wedged. Gated on the app having been up
+      (this run) at least that long: `last_check_at` is persisted wall-clock, so
+      a boot/resume after downtime or a machine suspend loads a stale timestamp.
+      Only once we've been running long enough to have *attempted* several checks
+      and recorded none is the scheduler genuinely stalled — before that, a stale
+      timestamp just means we haven't checked yet.
 
   An *available update is never a fault* — that is normal, expected state.
 
@@ -49,9 +54,22 @@ defmodule MediaCentaur.SelfUpdate.IncidentContext do
       DateTime.utc_now(),
       %{
         enabled: Config.get(:update_check_enabled) == true,
-        interval_minutes: Config.update_check_interval_minutes()
+        interval_minutes: Config.update_check_interval_minutes(),
+        uptime_minutes: uptime_minutes()
       }
     )
+  end
+
+  # Monotonic uptime of this run, in minutes. On Linux `CLOCK_MONOTONIC` pauses
+  # during suspend, so this excludes time the machine was asleep — exactly the
+  # window in which a stale persisted `last_check_at` is *not* a stalled
+  # scheduler. No boot wiring needed: the BEAM exposes its own start time.
+  defp uptime_minutes do
+    native = :erlang.monotonic_time() - :erlang.system_info(:start_time)
+
+    native
+    |> System.convert_time_unit(:native, :millisecond)
+    |> div(60_000)
   end
 
   @doc """
@@ -88,13 +106,20 @@ defmodule MediaCentaur.SelfUpdate.IncidentContext do
     * `snapshot` — `Health.snapshot/0` (streak + last apply failure).
     * `last_check_at` — `{:ok, DateTime.t()}` or `:none`.
     * `now` — current time.
-    * `config` — `%{enabled: boolean(), interval_minutes: pos_integer()}`.
+    * `config` — `%{enabled: boolean(), interval_minutes: pos_integer(),
+      uptime_minutes: non_neg_integer()}`. `uptime_minutes` gates the stall
+      check (defaults to the stall threshold when absent, preserving the
+      stall-on-stale behaviour for callers that don't supply it).
   """
   @spec decide(
           Health.snapshot(),
           {:ok, DateTime.t()} | :none,
           DateTime.t(),
-          %{enabled: boolean(), interval_minutes: pos_integer()}
+          %{
+            :enabled => boolean(),
+            :interval_minutes => pos_integer(),
+            optional(:uptime_minutes) => non_neg_integer()
+          }
         ) :: :ok | {:fault, atom(), :warning | :error, map()}
   def decide(snapshot, last_check_at, now, config) do
     cond do
@@ -113,7 +138,10 @@ defmodule MediaCentaur.SelfUpdate.IncidentContext do
   defp checks_stalled?(:none, _now, _config), do: false
   defp checks_stalled?(_last, _now, %{enabled: false}), do: false
 
-  defp checks_stalled?({:ok, %DateTime{} = last}, now, %{interval_minutes: interval}) do
-    DateTime.diff(now, last, :minute) >= @stalled_interval_multiplier * interval
+  defp checks_stalled?({:ok, %DateTime{} = last}, now, %{interval_minutes: interval} = config) do
+    stall_threshold = @stalled_interval_multiplier * interval
+    uptime_minutes = Map.get(config, :uptime_minutes, stall_threshold)
+
+    DateTime.diff(now, last, :minute) >= stall_threshold and uptime_minutes >= stall_threshold
   end
 end

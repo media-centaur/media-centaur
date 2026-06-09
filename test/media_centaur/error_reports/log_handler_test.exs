@@ -90,4 +90,59 @@ defmodule MediaCentaur.ErrorReports.LogHandlerTest do
   test "malformed events never raise out of the handler" do
     assert LogHandler.log(%{level: :error, msg: {:weird, make_ref()}, meta: %{}}, config()) == :ok
   end
+
+  defp crash_event(level, message, crash_reason) do
+    %{
+      level: level,
+      msg: {:string, message},
+      meta: %{component: :system, crash_reason: crash_reason}
+    }
+  end
+
+  test "Bandit transport timeouts are not minted as :log incidents (client disconnect)" do
+    # A read/write socket timeout means the client stopped responding — a
+    # transport-layer event, not an application fault. It still reaches the
+    # console, but must not mint a durable `:log` incident.
+    skipped = "Unrecoverable error: timeout #{uniq()}"
+    sentinel = "ordinary system error #{uniq()}"
+
+    LogHandler.log(
+      crash_event(:error, skipped, {%Bandit.TransportError{error: :timeout, message: skipped}, []}),
+      config()
+    )
+
+    LogHandler.log(event(:error, sentinel, %{component: :system}), config())
+
+    # Barrier: the sentinel's GenServer call returns only after every prior
+    # ingest cast is processed — proving the path is live and the skip silent.
+    assert Buckets.get_bucket(:lh_buckets, Fingerprint.fingerprint(:system, sentinel).key)
+    assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, skipped).key) == nil
+  end
+
+  test "Bandit client closures are not minted as :log incidents" do
+    skipped = "closed #{uniq()}"
+    sentinel = "ordinary system error #{uniq()}"
+
+    LogHandler.log(
+      crash_event(:error, skipped, {%Bandit.TransportError{error: :closed, message: skipped}, []}),
+      config()
+    )
+
+    LogHandler.log(event(:error, sentinel, %{component: :system}), config())
+
+    assert Buckets.get_bucket(:lh_buckets, Fingerprint.fingerprint(:system, sentinel).key)
+    assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, skipped).key) == nil
+  end
+
+  test "an unusual transport reason still mints — we don't blind ourselves" do
+    minted = "Unrecoverable error: emfile #{uniq()}"
+
+    LogHandler.log(
+      crash_event(:error, minted, {%Bandit.TransportError{error: :emfile, message: minted}, []}),
+      config()
+    )
+
+    assert Buckets.get_bucket(:lh_buckets, Fingerprint.fingerprint(:system, minted).key)
+    assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, minted).key)
+  end
 end

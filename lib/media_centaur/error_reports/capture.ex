@@ -59,7 +59,8 @@ defmodule MediaCentaur.ErrorReports.Capture do
       severity: severity_for(level),
       occurred_at: entry.timestamp,
       occurrences: occurrences,
-      app_version_at_first: EnvMetadata.app_version()
+      app_version_at_first: EnvMetadata.app_version(),
+      app_version_at_last: EnvMetadata.app_version()
     }
 
     case Repo.transact(fn ->
