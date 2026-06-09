@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.85.3 — 2026-06-09
+
+### Improved
+
+**Upcoming movies now report their release dates reliably.** A tracked movie now
+announces when a release is scheduled — including separate theatrical and digital
+dates — and a date that shifts is shown as a change rather than piling up
+duplicate entries. Past releases are no longer announced as if they were still to
+come.
+
 ## v0.85.2 — 2026-06-09
 
 ### Fixed
