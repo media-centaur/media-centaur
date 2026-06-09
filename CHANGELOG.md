@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.87.1 — 2026-06-09
+
+### Fixed
+
+- The System tile on the Status page now shows memory and database sizes in sensible units (MiB, KiB) instead of rounding everything up to GiB.
+- Detail rows on the System tile are easier to scan — each value now sits beside its label instead of being pushed to the far edge of the panel.
+
 ## v0.87.0 — 2026-06-09
 
 ### Improved
