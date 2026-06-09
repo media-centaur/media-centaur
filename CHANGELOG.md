@@ -4,6 +4,20 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.86.0 — 2026-06-09
+
+### Improved
+
+**The Status page now shows what your folder watcher is actually doing.** Open
+Status and click the Watcher tile to see, per folder, when it last scanned and
+what it found ("Last scan 2m ago · 1,432 files · 3 new"), how many files it's
+currently checking before importing them ("2 files settling"), and — when a
+folder is unavailable — a plain reason why, such as "drive not mounted — waiting
+for it to come back" or "inotify-tools not installed — live detection off".
+Previously a folder just read "unavailable" with no explanation, and there was no
+way to tell a healthy idle watcher from a stuck one. Now you can answer "I added a
+file — why don't I see it yet?" at a glance.
+
 ## v0.85.3 — 2026-06-09
 
 ### Improved
