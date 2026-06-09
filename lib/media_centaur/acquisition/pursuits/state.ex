@@ -12,11 +12,20 @@ defmodule MediaCentaur.Acquisition.Pursuits.State do
   |---------------|----------------|--------------------|
   | `:active`     | `"active"`     | `:in_flight`       |
   | `:satisfied`  | `"satisfied"`  | `:terminal_success`|
+  | `:partial`    | `"partial"`    | `:terminal_success`|
   | `:exhausted`  | `"exhausted"`  | `:terminal_failure`|
   | `:cancelled`  | `"cancelled"`  | `:terminal_failure`|
 
   Predicates accept either the string form (DB shape) or the atom form
   (typed code shape).
+
+  ## Composite fold (ADR-055)
+
+  A pursuit is a composite over units; its state is `fold_units/1`
+  applied to the unit states (`Pursuits.UnitState`). `"partial"` exists
+  only at the pursuit level — a terminal composite where some, but not
+  all, units were satisfied. It buckets as `:terminal_success` because
+  something landed; the UI badges it distinctly.
 
   ## Awaiting-decision flag
 
@@ -31,13 +40,13 @@ defmodule MediaCentaur.Acquisition.Pursuits.State do
   alias MediaCentaur.Acquisition.Pursuits.Pursuit
 
   @in_flight_strings ~w(active)
-  @terminal_success_strings ~w(satisfied)
+  @terminal_success_strings ~w(satisfied partial)
   @terminal_failure_strings ~w(exhausted cancelled)
   @terminal_strings @terminal_success_strings ++ @terminal_failure_strings
   @all_strings @in_flight_strings ++ @terminal_strings
 
   @type bucket :: :in_flight | :terminal_success | :terminal_failure
-  @type t :: :active | :satisfied | :exhausted | :cancelled
+  @type t :: :active | :satisfied | :partial | :exhausted | :cancelled
 
   @spec all() :: [String.t()]
   def all, do: @all_strings
@@ -64,6 +73,34 @@ defmodule MediaCentaur.Acquisition.Pursuits.State do
   @spec awaiting_decision?(Pursuit.t()) :: boolean()
   def awaiting_decision?(%Pursuit{awaiting_decision_at: nil}), do: false
   def awaiting_decision?(%Pursuit{awaiting_decision_at: %DateTime{}}), do: true
+
+  @doc """
+  Folds a composite pursuit's unit states into the pursuit state
+  (ADR-055). Pure — callers pass the unit state strings.
+
+  * any unit `"active"` → `"active"`
+  * all units `"satisfied"` → `"satisfied"`
+  * terminal with ≥1 `"satisfied"` → `"partial"`
+  * terminal, none satisfied, ≥1 `"exhausted"` → `"exhausted"`
+  * terminal, none satisfied, all `"cancelled"` → `"cancelled"`
+
+  Raises on an empty list — a pursuit with zero units is a bug, not a
+  state.
+  """
+  @spec fold_units([String.t()]) :: String.t()
+  def fold_units([]) do
+    raise ArgumentError, "cannot fold an empty unit list — every pursuit has at least one unit"
+  end
+
+  def fold_units(unit_states) when is_list(unit_states) do
+    cond do
+      "active" in unit_states -> "active"
+      Enum.all?(unit_states, &(&1 == "satisfied")) -> "satisfied"
+      "satisfied" in unit_states -> "partial"
+      "exhausted" in unit_states -> "exhausted"
+      true -> "cancelled"
+    end
+  end
 
   @spec bucket(String.t() | atom()) :: bucket()
   def bucket(state) do
