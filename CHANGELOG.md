@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.85.0 — 2026-06-09
+
+### Improved
+
+**All preferences now live in Settings.** The configuration file
+(`media-centaur.toml`) holds only the essentials the app needs before it
+starts: the database location, the web port, and your initial watch
+folders. Everything else — your TMDB key, download client, playback
+paths, and so on — is managed in the app on the **Settings** page. If you
+used to hand-edit the config file for those, your existing values are
+already saved in the app and any leftover entries in the file are simply
+ignored. There's nothing you need to do.
+
 ## v0.84.0 — 2026-06-08
 
 ### Fixed
