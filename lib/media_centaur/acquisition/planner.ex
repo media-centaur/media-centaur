@@ -149,9 +149,8 @@ defmodule MediaCentaur.Acquisition.Planner do
   # under judgement (it can't be its own competition).
   defp best_single_for(unit, options, judged_option) do
     options
-    |> Enum.reject(&(&1 == judged_option))
-    |> Enum.filter(fn %Option{scope: scope} ->
-      ReleaseCoverage.covers?(scope, elem(unit, 0), elem(unit, 1))
+    |> Enum.filter(fn %Option{scope: scope} = option ->
+      option != judged_option and ReleaseCoverage.covers?(scope, elem(unit, 0), elem(unit, 1))
     end)
     |> Enum.max_by(&{quality_rank(&1), seeders(&1)}, fn -> nil end)
     |> case do
