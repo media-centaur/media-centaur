@@ -89,5 +89,23 @@ defmodule MediaCentaur.SelfUpdate.IncidentContextTest do
       disabled = %{enabled: false, interval_minutes: 15}
       assert IncidentContext.decide(snapshot(), {:ok, old}, @now, disabled) == :ok
     end
+
+    test "stall is suppressed when the app hasn't been up long enough to have checked" do
+      # last success 50min ago (> the 45min stall window), but the app has only
+      # been up 10min this run — the persisted timestamp is stale because we were
+      # down/suspended, not because the scheduler is wedged.
+      old = DateTime.add(@now, -50, :minute)
+      just_booted = %{enabled: true, interval_minutes: 15, uptime_minutes: 10}
+
+      assert IncidentContext.decide(snapshot(), {:ok, old}, @now, just_booted) == :ok
+    end
+
+    test "stall still faults once the app has been up past the stall window" do
+      old = DateTime.add(@now, -50, :minute)
+      long_up = %{enabled: true, interval_minutes: 15, uptime_minutes: 60}
+
+      assert {:fault, :checks_stalled, :warning, _} =
+               IncidentContext.decide(snapshot(), {:ok, old}, @now, long_up)
+    end
   end
 end

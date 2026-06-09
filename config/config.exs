@@ -23,7 +23,18 @@ config :logger, :default_formatter,
   metadata: [:request_id]
 
 config :media_centaur, MediaCentaur.Repo,
-  database: Path.expand("~/.local/share/media-centaur/media-centaur.db")
+  database: Path.expand("~/.local/share/media-centaur/media-centaur.db"),
+  # SQLite is a single writer: concurrent writers don't queue, they get
+  # SQLITE_BUSY once busy_timeout elapses. The 2000ms adapter default is too
+  # short for our burst-ingest write paths — a folder of images landing fans
+  # out many concurrent writers (Library.Inbound, image queue, review intake,
+  # release tracking), and on 2026-06-08 that produced a crash storm of
+  # `Exqlite.Error: Database busy` + pool queue_timeouts across seven
+  # subsystems. Make writers wait for the lock instead of failing fast. Mirrors
+  # the value config/test.exs already adopted after hitting the same error
+  # under async-test contention. (Bounding the fan-out itself is the deeper
+  # fix — see the FAN-OUT note in lib/media_centaur/library/inbound.ex.)
+  busy_timeout: 10_000
 
 # Configures the endpoint
 config :media_centaur, MediaCentaurWeb.Endpoint,
@@ -65,6 +76,9 @@ config :media_centaur, Oban,
        # Daily retention prune of the durable diagnostic-event log (~30d).
        # Offset minute so it doesn't pile onto the hour boundary.
        {"33 4 * * *", MediaCentaur.ErrorReports.PruneJob},
+       # Daily sweep that auto-resolves open :log incidents from a superseded
+       # app version (they have no other recovery signal). Offset off the hour.
+       {"37 4 * * *", MediaCentaur.ErrorReports.SupersededSweepJob},
        # Subsystem health evaluator: polls each registered assess/0 every 5
        # minutes and reconciles :subsystem incidents (duration/trend faults).
        {"*/5 * * * *", MediaCentaur.ErrorReports.EvaluatorJob}

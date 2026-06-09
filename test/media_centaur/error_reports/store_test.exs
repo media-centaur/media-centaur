@@ -406,4 +406,65 @@ defmodule MediaCentaur.ErrorReports.StoreTest do
       assert %{status: :error, open_count: 1} = Store.health()
     end
   end
+
+  describe "resolve_superseded_log_incidents/2" do
+    test "resolves open :log incidents last seen on a different version" do
+      now = DateTime.utc_now()
+
+      {:ok, stale} =
+        Store.upsert_log_incident(
+          build_log_incident_attrs(fingerprint: "fp_stale", app_version_at_last: "0.83.2")
+        )
+
+      assert {1, _} = Store.resolve_superseded_log_incidents("0.85.0", now)
+
+      reloaded = Repo.get!(Incident, stale.id)
+      assert reloaded.status == :resolved
+      assert reloaded.resolved_at == now
+    end
+
+    test "resolves open :log incidents with no recorded version" do
+      {:ok, unknown} =
+        Store.upsert_log_incident(
+          build_log_incident_attrs(fingerprint: "fp_unknown", app_version_at_last: nil)
+        )
+
+      assert {1, _} = Store.resolve_superseded_log_incidents("0.85.0", DateTime.utc_now())
+
+      assert Repo.get!(Incident, unknown.id).status == :resolved
+    end
+
+    test "leaves open :log incidents still seen on the current version" do
+      {:ok, current} =
+        Store.upsert_log_incident(
+          build_log_incident_attrs(fingerprint: "fp_current", app_version_at_last: "0.85.0")
+        )
+
+      assert {0, _} = Store.resolve_superseded_log_incidents("0.85.0", DateTime.utc_now())
+
+      assert Repo.get!(Incident, current.id).status == :open
+    end
+
+    test "never touches :subsystem incidents, whatever their version" do
+      {:ok, fault} = MediaCentaur.ErrorReports.raise_fault(:system, :some_fault, :warning)
+
+      assert {0, _} = Store.resolve_superseded_log_incidents("0.85.0", DateTime.utc_now())
+
+      assert Repo.get!(Incident, fault.id).status == :open
+    end
+
+    test "is idempotent — already-resolved incidents are not re-stamped" do
+      {:ok, incident} =
+        Store.upsert_log_incident(
+          build_log_incident_attrs(fingerprint: "fp_done", app_version_at_last: "0.83.2")
+        )
+
+      {:ok, _} = Store.set_status(incident, :resolved)
+      resolved_first = Repo.get!(Incident, incident.id).resolved_at
+
+      assert {0, _} = Store.resolve_superseded_log_incidents("0.85.0", DateTime.utc_now())
+
+      assert Repo.get!(Incident, incident.id).resolved_at == resolved_first
+    end
+  end
 end

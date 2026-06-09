@@ -230,6 +230,33 @@ defmodule MediaCentaur.ErrorReports.Store do
     end
   end
 
+  @doc """
+  Resolves every open `:log` incident that was last seen on a version other than
+  `current_version` (including incidents with no recorded version), stamping
+  `resolved_at`. Returns the `Repo.update_all/3` `{count, nil}` result.
+
+  Unlike `:subsystem` incidents — which auto-resolve when their `assess/0` probe
+  recovers — a `:log` incident has no recovery signal and would otherwise stay
+  open forever. A deploy is that signal: the binary that produced the error no
+  longer runs, so the fault cannot recur in the same form. A still-recurring
+  incident keeps `app_version_at_last` refreshed to the current version (see
+  `recurrence_changeset/2`), so it is never swept while genuinely active.
+
+  Idempotent: already-resolved incidents are excluded, so a repeated sweep is a
+  no-op and never re-stamps `resolved_at`.
+  """
+  @spec resolve_superseded_log_incidents(String.t(), DateTime.t()) :: {non_neg_integer(), nil}
+  def resolve_superseded_log_incidents(current_version, now) when is_binary(current_version) do
+    Repo.update_all(
+      from(incident in Incident,
+        where:
+          incident.origin == :log and incident.status != :resolved and
+            (is_nil(incident.app_version_at_last) or incident.app_version_at_last != ^current_version)
+      ),
+      set: [status: :resolved, resolved_at: now, updated_at: now]
+    )
+  end
+
   @doc "Freezes the `first_context` snapshot on an incident (set once, at open)."
   @spec put_first_context(Incident.t(), map()) :: {:ok, Incident.t()} | {:error, Ecto.Changeset.t()}
   def put_first_context(%Incident{} = incident, context) when is_map(context) do
@@ -394,6 +421,7 @@ defmodule MediaCentaur.ErrorReports.Store do
       }
       |> put_latest(:message, attrs)
       |> put_latest(:display_title, attrs)
+      |> put_latest(:app_version_at_last, attrs)
     )
     |> Repo.update()
   end

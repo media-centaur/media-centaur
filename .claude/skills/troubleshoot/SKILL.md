@@ -56,7 +56,16 @@ rolled over.
 
 Incidents come from two tracks (ADR-054). **`:log`** incidents are minted 1:1
 from any `warning`/`error` log line — the safety net for unexpected, un-owned
-errors. **`:subsystem`** incidents come from a subsystem's `assess/0` health
+errors. They have no live recovery signal (a log line is a point-in-time
+event), so they don't auto-resolve on health recovery the way `:subsystem`
+incidents do; instead a daily maintenance sweep (`SupersededSweepJob`) resolves
+any open `:log` incident last seen on a version no longer running — a deploy is
+the terminal signal, since that exact code can't recur. They're resolved (with
+`resolved_at`), not deleted, so the audit trail survives. A still-recurring
+incident keeps `app_version_at_last` current and is never swept. (Note: a
+transport-layer client disconnect — `Bandit.TransportError` `:timeout`/`:closed`
+— is not an application fault and never mints a `:log` incident, though it still
+shows in the console.) **`:subsystem`** incidents come from a subsystem's `assess/0` health
 probe polled by the evaluator: grouped by `{component, kind}`, threshold-gated,
 and **auto-resolving** when health recovers. External-dependency connectivity
 (e.g. the download client — `Downloads.IncidentContext`) lives on the

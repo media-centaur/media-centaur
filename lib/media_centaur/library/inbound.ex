@@ -210,31 +210,66 @@ defmodule MediaCentaur.Library.Inbound do
   # Callbacks
   # ---------------------------------------------------------------------------
 
-  # `ingest/1`, `process_image_ready/1`, and `handle_rematch/1` all do real
-  # DB work. Running them inline blocks the mailbox during burst ingest from
-  # the import Broadway pipeline. Offload to the task supervisor so the
-  # GenServer can drain its mailbox; SQLite single-writer semantics serialize
-  # the actual writes downstream, and `race_winner/2` already handles the
-  # rare concurrent same-entity case via the unique constraint.
+  # `ingest/1`, `process_image_ready/1`, and `handle_rematch/1` all end in a
+  # SQLite write. They run **inline** in the GenServer, which serializes them
+  # to exactly one writer at a time — which is precisely what SQLite's
+  # single-writer model wants. The mailbox is the queue: under burst ingest
+  # (a folder of images landing at once) messages wait in the mailbox instead
+  # of becoming concurrent writers. `race_winner/2` still handles the rare
+  # concurrent same-entity case via the unique constraint.
+  #
+  # This replaced an unbounded `Task.Supervisor.start_child`-per-event fan-out
+  # whose rationale wrongly assumed "SQLite single-writer semantics serialize
+  # the actual writes downstream." SQLite does not queue concurrent writers —
+  # it rejects them with SQLITE_BUSY — so that fan-out manufactured contention
+  # and produced a crash storm under burst on 2026-06-08 (busy_timeout +
+  # bumped pool queue_timeouts across seven subsystems). Inlining removes the
+  # contention at its source; `busy_timeout` (config :media_centaur, Repo) is
+  # the belt-and-suspenders for any remaining concurrent writer (e.g. Oban).
+  #
+  # Inlining is safe here: `Inbound` has no `handle_call` and no synchronous
+  # callers, so a busy mailbox is backpressure, never a caller timeout. If a
+  # future throughput need appears, batch writes via a transaction rather than
+  # reintroducing unbounded concurrency (see the FAN-OUT discussion).
   @impl true
   def handle_info({:entity_published, event}, state) do
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn -> ingest(event) end)
+    isolate("entity_published", fn -> ingest(event) end)
     {:noreply, state}
   end
 
   @impl true
   def handle_info({:image_ready, attrs}, state) do
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn -> process_image_ready(attrs) end)
+    isolate("image_ready", fn -> process_image_ready(attrs) end)
     {:noreply, state}
   end
 
   @impl true
   def handle_info({:rematch_requested, entity_id}, state) do
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn -> handle_rematch(entity_id) end)
+    isolate("rematch_requested", fn -> handle_rematch(entity_id) end)
     {:noreply, state}
   end
 
   def handle_info(_msg, state), do: {:noreply, state}
+
+  # Per-event fault boundary for the inline write path. Inbound processes a
+  # stream of independent events; one poison event must not crash the GenServer
+  # and drop the rest of the mailbox (the fault isolation the old per-event task
+  # fan-out provided incidentally). Expected failures are already handled inside
+  # each function as `{:error, _}` tuples and logged there — this only catches
+  # the unexpected, turning a raw `gen_server terminate` crash dump into a clean,
+  # attributable `:library` error and letting the stream continue.
+  defp isolate(label, fun) do
+    fun.()
+  rescue
+    error ->
+      Log.error(
+        :library,
+        "inbound #{label} failed: #{Exception.message(error)}"
+      )
+  catch
+    kind, reason ->
+      Log.error(:library, "inbound #{label} crashed: #{inspect({kind, reason})}")
+  end
 
   # ---------------------------------------------------------------------------
   # Entity creation / linking
