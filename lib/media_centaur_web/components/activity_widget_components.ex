@@ -18,6 +18,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
   alias MediaCentaur.Library.Availability
   alias MediaCentaur.Status.LibraryOverview
+  alias MediaCentaurWeb.Live.SettingsLive.ReleaseNotes
   alias MediaCentaurWeb.Live.SettingsLive.SystemSection
 
   @doc false
@@ -718,12 +719,14 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
   attr :history, :list,
     default: [],
-    doc: "upgrade history, newest-first: [%{version, recorded_at}] — version + date only"
+    doc:
+      "upgrade history, newest-first: [%{version, recorded_at, notes_body}] — notes_body is the version's CHANGELOG markdown (Changelog.for_version/1) or nil"
 
   def self_update_widget(assigns) do
     ~H"""
     <div class="card glass-surface" data-testid="self-update-widget">
       <div class="card-body">
+        <%!-- Header: title + running version --%>
         <div class="flex items-center justify-between">
           <h2 class="card-title text-lg">Updates</h2>
           <span class="text-sm font-mono text-base-content/60">v{@version}</span>
@@ -733,7 +736,20 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
           {SystemSection.update_status_label(@status, @latest_release)}
         </p>
 
-        <div class="text-xs text-base-content/50 space-y-0.5">
+        <%!-- What's new in the available update (reuses the Settings renderer) --%>
+        <div
+          :if={@status == :update_available && @latest_release}
+          class="mt-3 border-t border-base-content/10 pt-3"
+          data-component="whats-new"
+        >
+          <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-2">
+            What's new in v{Map.get(@latest_release, :version, "")}
+          </h3>
+          <ReleaseNotes.release_notes body={Map.get(@latest_release, :body, "")} class="text-xs" />
+        </div>
+
+        <%!-- Check cadence + automatic install --%>
+        <div class="mt-3 text-xs text-base-content/50 space-y-0.5">
           <p>{SystemSection.last_checked_label(@last_check_at, @now)}</p>
           <p>
             <.settings_link section="updates">
@@ -745,34 +761,53 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
               )}
             </.settings_link>
           </p>
+          <.settings_link section="updates" class="gap-2">
+            <span class="text-base-content/50">Automatic install</span>
+            <span class={if @auto_install?, do: "text-success", else: "text-base-content/40"}>
+              {if @auto_install?, do: "on", else: "off"}
+            </span>
+          </.settings_link>
         </div>
 
-        <.settings_link section="updates" class="gap-2 text-xs">
-          <span class="text-base-content/50">Automatic install</span>
-          <span class={if @auto_install?, do: "text-success", else: "text-base-content/40"}>
-            {if @auto_install?, do: "on", else: "off"}
-          </span>
-        </.settings_link>
-
+        <%!-- History: recent versions, each expandable to its improvements --%>
         <div
           :if={@history != []}
-          class="mt-1 border-t border-base-content/10 pt-2"
+          class="mt-3 border-t border-base-content/10 pt-3"
           data-component="update-history"
         >
-          <h3 class="text-xs text-base-content/50 mb-1">History</h3>
-          <ul class="space-y-0.5">
-            <li
-              :for={entry <- @history}
-              id={history_row_id(entry)}
-              class="flex items-center justify-between text-xs"
-            >
-              <span class="font-mono text-base-content/70">v{entry.version}</span>
-              <span class="text-base-content/40">{history_date(entry.recorded_at)}</span>
+          <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-1">
+            History
+          </h3>
+          <ul class="space-y-1">
+            <li :for={entry <- @history} id={history_row_id(entry)}>
+              <details :if={Map.get(entry, :notes_body)} class="group">
+                <summary class="flex items-center justify-between text-xs cursor-pointer list-none py-0.5">
+                  <span class="flex items-center gap-1.5">
+                    <.icon
+                      name="hero-chevron-right-mini"
+                      class="size-3.5 shrink-0 text-base-content/40 transition-transform group-open:rotate-90"
+                    />
+                    <span class="font-mono text-base-content/70">v{entry.version}</span>
+                  </span>
+                  <span class="text-base-content/40">{history_date(entry.recorded_at)}</span>
+                </summary>
+                <div class="mt-1.5 mb-2 pl-5">
+                  <ReleaseNotes.release_notes body={Map.get(entry, :notes_body)} class="text-xs" />
+                </div>
+              </details>
+              <div
+                :if={!Map.get(entry, :notes_body)}
+                class="flex items-center justify-between text-xs pl-5 py-0.5"
+              >
+                <span class="font-mono text-base-content/70">v{entry.version}</span>
+                <span class="text-base-content/40">{history_date(entry.recorded_at)}</span>
+              </div>
             </li>
           </ul>
         </div>
 
-        <div :if={apply_active?(@apply_phase)} class="mt-1 space-y-1" data-component="apply-progress">
+        <%!-- Apply progress (unchanged) --%>
+        <div :if={apply_active?(@apply_phase)} class="mt-3 space-y-1" data-component="apply-progress">
           <div class="flex items-center justify-between text-xs">
             <span class="text-base-content/70">{SystemSection.apply_phase_label(@apply_phase)}</span>
             <span :if={@apply_progress} class="font-mono text-base-content/50">
@@ -788,7 +823,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
           </div>
         </div>
 
-        <p :if={@apply_phase == :failed} class="mt-1 text-xs text-error" data-component="apply-failed">
+        <p :if={@apply_phase == :failed} class="mt-3 text-xs text-error" data-component="apply-failed">
           {SystemSection.apply_phase_label(:failed)} — see <.settings_link section="updates">Settings → Updates</.settings_link>.
         </p>
       </div>
