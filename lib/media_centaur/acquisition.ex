@@ -13,6 +13,7 @@ defmodule MediaCentaur.Acquisition do
       AutoGrabSettings,
       CancelReasons,
       Pursuits,
+      Pursuits.Throughput,
       Pursuits.Commands.Cancel,
       Pursuits.Commands.ChangeTarget,
       Pursuits.Commands.RequestDecision,
