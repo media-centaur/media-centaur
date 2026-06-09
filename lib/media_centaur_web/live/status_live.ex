@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.StatusLive do
   import MediaCentaurWeb.HealthComponents
 
   alias MediaCentaur.{Config, ErrorReports, Playback, SelfUpdate, Status, Storage}
+  alias MediaCentaur.SelfUpdate.Changelog
   alias MediaCentaur.Version
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
   alias MediaCentaurWeb.StatusLive.HealthBoard
@@ -153,9 +154,18 @@ defmodule MediaCentaurWeb.StatusLive do
       self_update_status: status,
       self_update_release: release,
       self_update_last_check_at: SelfUpdate.last_check_at(),
-      self_update_history: SelfUpdate.upgrade_history(),
+      self_update_history: recent_update_history(),
       self_update_apply_phase: if(phase != :idle, do: phase)
     )
+  end
+
+  # Recent upgrade history (newest-first, capped) with each version's CHANGELOG
+  # notes attached for the Updates tile's inline-expandable detail. Versions with
+  # no changelog match carry notes_body: nil and render as a plain row.
+  defp recent_update_history do
+    SelfUpdate.upgrade_history()
+    |> Enum.take(5)
+    |> Enum.map(fn entry -> Map.put(entry, :notes_body, Changelog.for_version(entry.version)) end)
   end
 
   # Keeps the board view-models in sync with the current `error_buckets`.
