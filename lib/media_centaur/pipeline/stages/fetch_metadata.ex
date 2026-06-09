@@ -40,12 +40,34 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
 
     case fetch_metadata(payload, fetch_type) do
       {:ok, metadata} ->
+        emit_enriched(metadata)
         {:ok, %{payload | metadata: metadata}}
 
       {:error, reason} ->
         {:error, reason}
     end
   end
+
+  # Announces a successful enrichment with the *resolved title* — the Status
+  # page's metadata-activity feed retains these (the stage wrapper's telemetry
+  # only carries the file path). A movie landing in a collection reads as the
+  # movie, not the collection, since that's what the user recognises.
+  defp emit_enriched(metadata) do
+    {kind, title} = enriched_identity(metadata)
+
+    :telemetry.execute(
+      [:media_centaur, :metadata, :enriched],
+      %{system_time: System.system_time()},
+      %{kind: kind, title: title, year: enriched_year(metadata)}
+    )
+  end
+
+  defp enriched_identity(%{child_movie: %{attrs: %{name: name}}}), do: {:movie, name}
+  defp enriched_identity(%{entity_type: type, entity_attrs: attrs}), do: {type, attrs[:name]}
+
+  defp enriched_year(%{child_movie: %{attrs: %{date_published: %Date{year: year}}}}), do: year
+  defp enriched_year(%{entity_attrs: %{date_published: %Date{year: year}}}), do: year
+  defp enriched_year(_metadata), do: nil
 
   # ---------------------------------------------------------------------------
   # Movie

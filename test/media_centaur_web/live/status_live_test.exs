@@ -18,6 +18,16 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       {:ok, _view, html} = live_async!(conn, "/status?subsystem=playback")
       assert html =~ "idle" or html =~ "Idle"
     end
+
+    # The metadata-activity section requires the `metadata_stats` assign to flow
+    # through the activity bundle into the TMDB widget; a missing assign would
+    # crash the required-attr render. Asserting the section marker proves the
+    # wiring without depending on the shared MetadataStats singleton's volatile
+    # contents (the populated states are covered by the storybook variations).
+    test "tmdb drill-in renders the metadata-activity section", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, "/status?subsystem=tmdb")
+      assert html =~ "metadata-activity"
+    end
   end
 
   describe "live updates from playback" do

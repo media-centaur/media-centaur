@@ -65,6 +65,7 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(scan_stats: MediaCentaur.Watcher.Supervisor.scan_stats())
         |> assign(config: load_config())
         |> assign(rate_limiter: fetch_rate_limiter())
+        |> assign(metadata_stats: MediaCentaur.TMDB.MetadataStats.snapshot())
         |> assign(retry_status: fetch_retry_status())
         |> assign(playback: build_playback_state())
         |> assign(diagnostics_unseen: 0)
@@ -105,6 +106,7 @@ defmodule MediaCentaurWeb.StatusLive do
     |> assign(at_risk_summary: %{})
     |> assign(dir_health: [])
     |> assign(scan_stats: %{})
+    |> assign(metadata_stats: MediaCentaur.TMDB.MetadataStats.empty_snapshot())
     |> assign(show_report_modal: false)
     |> assign(report_payload: nil)
     |> assign(report_snapshot: nil)
@@ -253,6 +255,8 @@ defmodule MediaCentaurWeb.StatusLive do
       # tmdb
       rate_limiter: assigns.rate_limiter,
       config: assigns.config,
+      metadata_stats: assigns.metadata_stats,
+      low_confidence_count: assigns.overview && assigns.overview.pending_review_count,
       # playback
       playback: assigns.playback,
       # self_update — sourced from assigns + persistent_term (Config) + utc_now
