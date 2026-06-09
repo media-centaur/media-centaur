@@ -58,7 +58,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
   defp do_execute(id) do
     result =
       Runner.run(id, "pursuit target changed", fn pursuit ->
-        unit = Units.single!(pursuit.id)
+        # The lead unit is the thread the modal displays — pursuit-scoped
+        # intervention acts on the same thread the user is looking at
+        # (Units.lead_of/1); per-unit drill-down lands with Phase 1c.
+        unit = Units.lead(pursuit.id)
 
         with {:ok, _previous} <- maybe_fail_current_target(unit),
              {:ok, new_target} <- insert_seeking_target(pursuit),

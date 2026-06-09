@@ -72,6 +72,28 @@ defmodule MediaCentaur.Acquisition.Pursuits.Units do
     end
   end
 
+  @doc """
+  The unit a pursuit-scoped surface (detail modal, decision card,
+  pursuit-level intervention) shows or acts on, until per-unit
+  drill-down lands. Preference order: the active unit awaiting a
+  decision, then the first active unit with a current target, then the
+  first active unit, then the first unit at all. Nil for a unitless
+  list.
+  """
+  @spec lead_of([Unit.t()]) :: Unit.t() | nil
+  def lead_of(units) when is_list(units) do
+    active = Enum.filter(units, &(&1.state == "active"))
+
+    Enum.find(active, &(&1.awaiting_decision_at != nil)) ||
+      Enum.find(active, &(&1.current_target_id != nil)) ||
+      List.first(active) ||
+      List.first(units)
+  end
+
+  @doc "Query-backed `lead_of/1` — loads the pursuit's units in display order first."
+  @spec lead(Ecto.UUID.t()) :: Unit.t() | nil
+  def lead(pursuit_id), do: pursuit_id |> for_pursuit() |> lead_of()
+
   @doc "The units covered by a target's release, via the coverage join."
   @spec covered_by(Ecto.UUID.t()) :: [Unit.t()]
   def covered_by(target_id) do

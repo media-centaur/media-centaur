@@ -140,10 +140,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
 
     Enum.map(pursuits, fn pursuit ->
       units = Map.get(units_by_pursuit, pursuit.id, [])
-      # The row renders the lead thread — the sole unit today; the first
-      # unit with a target once composites go multi-unit (drill-down
-      # lands with campaign Phase 1c).
-      lead_unit = Enum.find(units, &(&1.current_target_id != nil)) || List.first(units)
+      # The row renders the lead thread (Units.lead_of/1); per-unit
+      # drill-down lands with campaign Phase 1c.
+      lead_unit = Units.lead_of(units)
       target = lead_unit && Map.get(current_targets, lead_unit.current_target_id)
       build_row(pursuit, units, lead_unit, target, download_location(target, pending_paths))
     end)
@@ -274,15 +273,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     }
   end
 
-  # The thread the detail modal renders — the sole unit today; the first
-  # unit with a target once composites go multi-unit (ADR-055).
-  defp lead_unit(%Pursuit{} = pursuit) do
-    case Units.for_pursuit(pursuit.id) do
-      [] -> nil
-      [unit] -> unit
-      units -> Enum.find(units, &(&1.current_target_id != nil)) || List.first(units)
-    end
-  end
+  # The thread the detail modal renders — Units.lead_of/1 is the single
+  # definition of "which unit a pursuit-scoped surface acts on" (ADR-055).
+  defp lead_unit(%Pursuit{} = pursuit), do: Units.lead(pursuit.id)
 
   @doc "Returns a `Timeline` view-model containing every event for a pursuit."
   @spec timeline_for(Ecto.UUID.t()) :: Timeline.t()

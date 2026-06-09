@@ -18,10 +18,14 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
       `title`, `manual_query` (brace syntax allowed; expanded by
       `QueryExpander`).
 
-  Build with `from/1`. Pure module — no I/O, no DB.
+  Build with `from/1`, or `for_unit/2` when searching on behalf of one
+  unit of a composite (ADR-055) — the unit's concrete `query`
+  overrides the pursuit-level `manual_query`, so each unit of a
+  collapsed brace-expansion searches for its own thing. Pure module —
+  no I/O, no DB.
   """
 
-  alias MediaCentaur.Acquisition.Pursuits.Pursuit
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Unit}
 
   @enforce_keys [:type, :title]
   defstruct [
@@ -69,6 +73,20 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
       manual_query: pursuit.manual_query
     }
   end
+
+  @doc """
+  Like `from/1`, scoped to one unit of the composite: the unit's
+  concrete `query` (when set) overrides the pursuit-level
+  `manual_query`. TMDB recipes are unaffected — their units carry no
+  query and derive everything from the parent recipe.
+  """
+  @spec for_unit(Pursuit.t(), Unit.t() | nil) :: t()
+  def for_unit(%Pursuit{recipe_type: "prowlarr_query"} = pursuit, %Unit{query: query})
+      when is_binary(query) do
+    %{from(pursuit) | manual_query: query}
+  end
+
+  def for_unit(%Pursuit{} = pursuit, _unit), do: from(pursuit)
 
   defp tmdb_type_atom("movie"), do: :movie
   defp tmdb_type_atom("tv"), do: :tv

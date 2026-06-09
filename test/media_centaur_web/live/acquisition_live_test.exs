@@ -249,6 +249,69 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       html = render_until(view, "1 grab(s) submitted")
       assert html =~ "1 grab(s) submitted"
     end
+
+    test "brace-expanded batch grab collapses into ONE composite pursuit (ADR-055)", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      Req.Test.allow(:prowlarr, self(), view.pid)
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        # Grabs POST to /api/v1/search too (the Prowlarr grab gotcha) —
+        # discriminate searches from grabs by method.
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+
+            Req.Test.json(conn, [
+              %{
+                "title" => "#{query}.1080p.WEB-DL",
+                "guid" => "guid-#{query}",
+                "indexerId" => 1,
+                "seeders" => 10,
+                "indexer" => "indexer-a"
+              }
+            ])
+
+          {"POST", "/api/v1/search"} ->
+            Req.Test.json(conn, %{"approved" => true})
+
+          {_, "/api/v1/release"} ->
+            Req.Test.json(conn, %{"approved" => true})
+
+          {_, "/api/v1/queue"} ->
+            Req.Test.json(conn, [])
+        end
+      end)
+
+      view
+      |> form("form[phx-change='query_change']", query: "Sample Show S01E{01-02}")
+      |> render_submit()
+
+      html = render_until(view, "Grab 2 selected")
+      assert html =~ "Grab 2 selected"
+
+      view
+      |> element("button[phx-click='grab_selected']")
+      |> render_click()
+
+      render_until(view, "2 grab(s) submitted")
+
+      # One composite pursuit holding both expanded terms as units, each
+      # with its own acquired target.
+      [pursuit] = MediaCentaur.Repo.all(MediaCentaur.Acquisition.Pursuits.Pursuit)
+      assert pursuit.manual_query == "Sample Show S01E{01-02}"
+
+      units = MediaCentaur.Acquisition.Pursuits.Units.for_pursuit(pursuit.id)
+
+      assert units |> Enum.map(& &1.query) |> Enum.sort() == [
+               "Sample Show S01E01",
+               "Sample Show S01E02"
+             ]
+
+      for unit <- units do
+        assert %Target{status: "acquired"} = MediaCentaur.Repo.get(Target, unit.current_target_id)
+      end
+    end
   end
 
   describe "cancel download" do

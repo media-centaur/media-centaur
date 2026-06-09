@@ -384,23 +384,76 @@ defmodule MediaCentaur.Acquisition do
   """
   @spec pick_target(SearchResult.t(), String.t()) :: {:ok, Target.t()} | {:error, term()}
   def pick_target(%SearchResult{} = result, query) when is_binary(query) do
+    case pick_targets([%{term: trim_query(query), result: result}], query) do
+      {:ok, [{_pick, outcome}]} -> outcome
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Submits a batch of manual picks as **one composite pursuit**
+  (ADR-055): each pick is `%{term, result}` — the expanded query term
+  and the chosen release — and becomes one unit of the pursuit, so a
+  brace-expanded grab (`Sample Show S01E{01-03}` with three picks)
+  lands as a single pursuit with three units instead of three
+  pursuits.
+
+  Each release is submitted to Prowlarr first; only successful grabs
+  become units. Returns `{:ok, pairs}` where `pairs` aligns with the
+  input picks as `{pick, {:ok, target} | {:error, reason}}`. When
+  every grab fails, no pursuit is created (the pairs still report the
+  per-pick errors). Broadcasts `{:target_picked, target}` per landed
+  pick.
+
+  Returns `{:error, :not_configured}` when Prowlarr is not configured.
+  """
+  @spec pick_targets([%{term: String.t() | nil, result: SearchResult.t()}], String.t()) ::
+          {:ok, [{map(), {:ok, Target.t()} | {:error, term()}}]} | {:error, :not_configured}
+  def pick_targets(picks, query) when is_list(picks) and is_binary(query) do
     if available?() do
-      with :ok <- Prowlarr.grab(result),
-           {:ok, pursuit} <-
-             StartFromPick.execute(%{
-               result: result,
-               manual_query: trim_query(query),
-               origin: "manual"
-             }) do
-        target = PursuitsContext.current_target(pursuit)
-        broadcast(%TargetEvents.Picked{target: target})
-        Log.info(:library, "manual pick submitted — #{result.title}")
-        {:ok, target}
+      grabbed = Enum.map(picks, fn pick -> {pick, Prowlarr.grab(pick.result)} end)
+      successful = for {pick, :ok} <- grabbed, do: pick
+
+      case start_from_picks(successful, query) do
+        {:ok, targets_by_guid} ->
+          {:ok, Enum.map(grabbed, &pair_outcome(&1, targets_by_guid))}
+
+        {:error, reason} ->
+          {:error, reason}
       end
     else
       {:error, :not_configured}
     end
   end
+
+  defp start_from_picks([], _query), do: {:ok, %{}}
+
+  defp start_from_picks(successful, query) do
+    with {:ok, %{pursuit: pursuit, targets: targets}} <-
+           StartFromPick.execute(%{
+             picks: successful,
+             manual_query: trim_query(query),
+             origin: "manual"
+           }) do
+      Enum.each(targets, &broadcast(%TargetEvents.Picked{target: &1}))
+
+      Log.info(
+        :library,
+        "manual pick submitted — #{pursuit.title} (#{length(targets)} release(s))"
+      )
+
+      {:ok, Map.new(targets, &{&1.prowlarr_guid, &1})}
+    end
+  end
+
+  defp pair_outcome({pick, :ok}, targets_by_guid) do
+    case Map.get(targets_by_guid, pick.result.guid) do
+      %Target{} = target -> {pick, {:ok, target}}
+      nil -> {pick, {:error, :not_persisted}}
+    end
+  end
+
+  defp pair_outcome({pick, {:error, reason}}, _targets_by_guid), do: {pick, {:error, reason}}
 
   defp trim_query(query) do
     case String.trim(query) do
@@ -484,11 +537,15 @@ defmodule MediaCentaur.Acquisition do
   """
   @spec list_alternatives_for(Pursuit.t()) :: [SearchResult.t()]
   def list_alternatives_for(%Pursuit{} = pursuit) do
-    case do_search_for_pursuit(pursuit) do
+    # The decision card serves the awaiting-or-lead unit (ADR-055):
+    # exclusions come from that unit's thread, and its concrete query
+    # (when set) scopes the search to the unit's own term rather than
+    # re-expanding the whole braced query.
+    unit = Units.lead(pursuit.id)
+
+    case do_search_for_pursuit(pursuit, unit) do
       {:ok, results} ->
-        # Exclusions live on the unit's thread (ADR-055); the decision
-        # card is sole-unit until unit-scoped intervention lands.
-        excluded = MapSet.new(Units.single!(pursuit.id).tried_release_guids)
+        excluded = MapSet.new((unit && unit.tried_release_guids) || [])
 
         results
         |> Enum.reject(&MapSet.member?(excluded, &1.guid))
@@ -500,12 +557,12 @@ defmodule MediaCentaur.Acquisition do
   end
 
   # Single source of truth for "search Prowlarr the way THIS pursuit
-  # wants to be searched". Brace-aware, type-aware, year-aware. Adding
-  # a new consumer just calls `list_alternatives_for/1` (filtered) or
-  # `do_search_for_pursuit/1` (raw, internal-only) — the recipe can't
-  # drift between call sites.
-  defp do_search_for_pursuit(%Pursuit{} = pursuit) do
-    pursuit |> Recipe.from() |> do_search_for_recipe()
+  # wants to be searched". Brace-aware, type-aware, year-aware,
+  # unit-aware. Adding a new consumer just calls
+  # `list_alternatives_for/1` (filtered) or `do_search_for_pursuit/2`
+  # (raw, internal-only) — the recipe can't drift between call sites.
+  defp do_search_for_pursuit(%Pursuit{} = pursuit, unit \\ nil) do
+    pursuit |> Recipe.for_unit(unit) |> do_search_for_recipe()
   end
 
   defp do_search_for_recipe(%Recipe{type: :tmdb} = recipe) do

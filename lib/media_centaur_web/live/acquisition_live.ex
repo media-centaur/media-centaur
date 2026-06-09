@@ -561,14 +561,21 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     if map_size(selections) == 0 do
       {:noreply, socket}
     else
-      results =
+      # Keep the expanded term with its picked result — the batch
+      # collapses into one composite pursuit whose units each carry
+      # their term as the concrete search query (ADR-055).
+      picks =
         selections
-        |> Map.values()
-        |> Enum.map(&Logic.find_result(socket.assigns.search_session.groups, &1))
+        |> Enum.map(fn {term, guid} ->
+          case Logic.find_result(socket.assigns.search_session.groups, guid) do
+            nil -> nil
+            result -> %{term: term, result: result}
+          end
+        end)
         |> Enum.reject(&is_nil/1)
 
       session = Acquisition.set_grabbing(true)
-      send(self(), {:run_grabs, results})
+      send(self(), {:run_grabs, picks})
       {:noreply, assign(socket, search_session: session)}
     end
   end
@@ -773,13 +780,20 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     {:noreply, assign(socket, search_session: session)}
   end
 
-  def handle_info({:run_grabs, results}, socket) do
+  def handle_info({:run_grabs, picks}, socket) do
     query = socket.assigns.search_session.query
-    pairs = Enum.map(results, fn result -> {result, Acquisition.pick_target(result, query)} end)
+
+    # One composite pursuit for the whole batch (ADR-055) — pairs still
+    # report per-pick outcomes for the grab message.
+    pairs =
+      case Acquisition.pick_targets(picks, query) do
+        {:ok, pairs} -> pairs
+        {:error, reason} -> Enum.map(picks, fn pick -> {pick, {:error, reason}} end)
+      end
 
     Enum.each(pairs, fn
-      {result, {:error, reason}} ->
-        Log.warning(:acquisition, "manual pick failed — #{result.title} — #{inspect(reason)}")
+      {pick, {:error, reason}} ->
+        Log.warning(:acquisition, "manual pick failed — #{pick.result.title} — #{inspect(reason)}")
 
       _ ->
         :ok

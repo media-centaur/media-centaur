@@ -7,7 +7,7 @@ defmodule MediaCentaur.AcquisitionTest do
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
   alias MediaCentaur.Search.{Prowlarr, SearchResult}
-  alias MediaCentaur.Acquisition.Pursuits.Pursuit
+  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, Units}
   alias MediaCentaur.Repo
 
   setup do
@@ -335,6 +335,118 @@ defmodule MediaCentaur.AcquisitionTest do
       pursuit = Repo.get!(Pursuit, target.pursuit_id)
       assert pursuit.origin == "manual"
       assert pursuit.recipe_type == "prowlarr_query"
+    end
+  end
+
+  describe "pick_targets/2 — batch collapse into one composite pursuit (ADR-055)" do
+    setup do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_updates())
+      :ok
+    end
+
+    defp pick(term, guid) do
+      %{
+        term: term,
+        result: %SearchResult{
+          title: "#{term}.1080p.WEB-DL",
+          guid: guid,
+          indexer_id: 1,
+          quality: :hd_1080p
+        }
+      }
+    end
+
+    test "three picks land as one pursuit with three units, each covered by its acquired target" do
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, %{}) end)
+
+      picks = [
+        pick("Sample Show S01E01", "guid-e1"),
+        pick("Sample Show S01E02", "guid-e2"),
+        pick("Sample Show S01E03", "guid-e3")
+      ]
+
+      assert {:ok, pairs} = Acquisition.pick_targets(picks, "Sample Show S01E{01-03}")
+      assert Enum.all?(pairs, fn {_pick, outcome} -> match?({:ok, %Target{}}, outcome) end)
+
+      # One pursuit, named for the user's braced intent.
+      [pursuit] = Repo.all(Pursuit)
+      assert pursuit.recipe_type == "prowlarr_query"
+      assert pursuit.manual_query == "Sample Show S01E{01-03}"
+      assert pursuit.title == "Sample Show S01E{01-03}"
+
+      # Three units in selection order, each carrying its concrete query.
+      units = Units.for_pursuit(pursuit.id)
+
+      assert Enum.map(units, & &1.query) == [
+               "Sample Show S01E01",
+               "Sample Show S01E02",
+               "Sample Show S01E03"
+             ]
+
+      # Each unit's current target is acquired, covers exactly that unit,
+      # and the unit's thread recorded the pick.
+      for {unit, guid} <- Enum.zip(units, ~w(guid-e1 guid-e2 guid-e3)) do
+        target = Repo.get!(Target, unit.current_target_id)
+        assert target.status == "acquired"
+        assert target.prowlarr_guid == guid
+        assert [covered] = Units.covered_by(target.id)
+        assert covered.id == unit.id
+        assert unit.tried_release_guids == [guid]
+        assert unit.attempt_count == 1
+      end
+
+      # One pursuit_started, three release_picked events.
+      events = Repo.all(Event)
+      assert Enum.count(events, &(&1.kind == "pursuit_started")) == 1
+      assert Enum.count(events, &(&1.kind == "release_picked")) == 3
+
+      # A Picked broadcast per target.
+      assert_received %TargetEvents.Picked{}
+      assert_received %TargetEvents.Picked{}
+      assert_received %TargetEvents.Picked{}
+    end
+
+    test "a failed grab drops only that unit — the pursuit holds the successes" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+
+        if body =~ "guid-bad" do
+          Plug.Conn.send_resp(conn, 500, "boom")
+        else
+          Req.Test.json(conn, %{})
+        end
+      end)
+
+      picks = [pick("Sample Show S01E01", "guid-ok"), pick("Sample Show S01E02", "guid-bad")]
+
+      assert {:ok, pairs} = Acquisition.pick_targets(picks, "Sample Show S01E{01-02}")
+
+      assert [{_, {:ok, %Target{}}}, {_, {:error, _}}] = pairs
+
+      [pursuit] = Repo.all(Pursuit)
+      units = Units.for_pursuit(pursuit.id)
+      assert Enum.map(units, & &1.query) == ["Sample Show S01E01"]
+    end
+
+    test "all grabs failing creates no pursuit at all" do
+      Req.Test.stub(:prowlarr, fn conn -> Plug.Conn.send_resp(conn, 500, "boom") end)
+
+      picks = [pick("Sample Show S01E01", "g1")]
+
+      assert {:ok, [{_, {:error, _}}]} = Acquisition.pick_targets(picks, "Sample Show S01E01")
+      assert Repo.aggregate(Pursuit, :count) == 0
+      assert Repo.aggregate(Target, :count) == 0
+    end
+
+    test "a single pick keeps the release title as the pursuit title (legacy naming)" do
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, %{}) end)
+
+      [pick] = [pick("Sample Movie 2010", "guid-solo")]
+
+      assert {:ok, [{_, {:ok, %Target{}}}]} = Acquisition.pick_targets([pick], "Sample Movie 2010")
+
+      [pursuit] = Repo.all(Pursuit)
+      assert pursuit.title == pick.result.title
     end
   end
 
