@@ -7,7 +7,8 @@ defmodule MediaCentaur.Acquisition do
       MediaCentaur.ReleaseTracking,
       MediaCentaur.Review,
       MediaCentaur.Search,
-      MediaCentaur.Settings
+      MediaCentaur.Settings,
+      MediaCentaur.TMDB
     ],
     exports: [
       AutoGrabSettings,
