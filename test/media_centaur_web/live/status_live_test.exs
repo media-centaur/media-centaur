@@ -160,6 +160,39 @@ defmodule MediaCentaurWeb.StatusLiveTest do
   # pending-review count (the only consumer of library broadcasts on /status)
   # was dropped — the page no longer subscribes to Library events.
 
+  describe "playback activity widget" do
+    test "idle tile shows lifetime stats and the recorder-ready line", %{conn: conn} do
+      MediaCentaur.WatchHistory.create_event(%{
+        entity_type: :movie,
+        title: "Movie A",
+        duration_seconds: 3600.0,
+        completed_at: ~U[2026-06-09 12:00:00.000000Z]
+      })
+
+      {:ok, _view, html} = live_async!(conn, "/status?subsystem=playback")
+
+      assert html =~ "Movie A"
+      assert html =~ "Recorder ready"
+      assert html =~ "watched"
+    end
+
+    test "a watch_event_created message refreshes the snapshot", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/status?subsystem=playback")
+      refute render(view) =~ "Movie A"
+
+      {:ok, event} =
+        MediaCentaur.WatchHistory.create_event(%{
+          entity_type: :movie,
+          title: "Movie A",
+          duration_seconds: 3600.0,
+          completed_at: ~U[2026-06-09 12:00:00.000000Z]
+        })
+
+      send(view.pid, {:watch_event_created, event})
+      assert render(view) =~ "Movie A"
+    end
+  end
+
   describe "at-risk file warning" do
     # Surfaces the silent destruction risk to the user before it
     # happens — the user-facing complement to AbsenceSweeper's TTL
