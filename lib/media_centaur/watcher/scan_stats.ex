@@ -44,16 +44,27 @@ defmodule MediaCentaur.Watcher.ScanStats do
     GenServer.start_link(__MODULE__, opts, name: name)
   end
 
-  @doc "Returns the most recent scan summary for `dir`, or nil if never scanned."
+  @doc """
+  Returns the most recent scan summary for `dir`, or nil if never scanned (or if
+  the server is briefly down during a supervisor restart — reads degrade rather
+  than crash the Status-page render).
+  """
   @spec last_scan(String.t(), GenServer.server()) :: map() | nil
   def last_scan(dir, server \\ __MODULE__) do
     GenServer.call(server, {:last_scan, dir})
+  catch
+    :exit, _ -> nil
   end
 
-  @doc "Returns the full `%{dir => summary}` map of retained scans."
+  @doc """
+  Returns the full `%{dir => summary}` map of retained scans, or `%{}` if the
+  server is not currently running (see `last_scan/2`).
+  """
   @spec all(GenServer.server()) :: %{optional(String.t()) => map()}
   def all(server \\ __MODULE__) do
     GenServer.call(server, :all)
+  catch
+    :exit, _ -> %{}
   end
 
   # --- GenServer callbacks ---

@@ -54,6 +54,20 @@ defmodule MediaCentaur.Watcher.ScanStatsTest do
     end
   end
 
+  describe "resilience when the server is down" do
+    # The Status page reads these on every render. ScanStats lives under the
+    # watcher's :one_for_all tree, so a sibling crash briefly takes it down —
+    # a bare GenServer.call would then crash the drill-in render. Reads must
+    # degrade to empty instead, mirroring Supervisor.statuses/0's try/catch.
+    test "all/0 returns an empty map when the server is not running" do
+      assert ScanStats.all(:scan_stats_definitely_not_started) == %{}
+    end
+
+    test "last_scan/1 returns nil when the server is not running" do
+      assert ScanStats.last_scan("/whatever", :scan_stats_definitely_not_started) == nil
+    end
+  end
+
   describe "all/0" do
     test "includes every scanned dir, keyed by dir" do
       dir_a = unique_dir()
