@@ -28,16 +28,6 @@ Use [`template.md`](template.md) as a starter.
   transient blip. Codifies [ADR-054](../decisions/architecture/2026-06-08-054-external-dependency-faults-are-subsystem-health.md);
   a download-client `assess/0` over `QueueMonitor` health plus a `LogHandler`
   suppression marker for assessor-owned connectivity logs.
-* [`update-subsystem-on-status.md`](update-subsystem-on-status.md) —
-  **complete (unshipped).** Surfaced the self-update subsystem on the Status
-  page's health board: a new **Updates** tile that reports health like every
-  other subsystem (`:apply_failed` error, `:check_failing` / `:checks_stalled`
-  warnings — "update available" is never a fault) plus a drill-in **Activity
-  widget** showing live version / last+next check / classification / auto-install
-  / apply progress, and `vitals/0` folding update state into incident reports.
-  Pull model — a durable `update.*` health projection feeds a pure `assess/0`
-  polled by the existing incident evaluator. All three phases done; wiki synced.
-  Safe to remove once a release ships and the surface is confirmed live.
 * [`download-stack-control-plane.md`](download-stack-control-plane.md) —
   **planning.** Mature the download infrastructure (`prowlarr-stack`) from a
   one-shot installer into a **managed component with a control plane**, shipped
@@ -79,17 +69,6 @@ Use [`template.md`](template.md) as a starter.
   no code yet. Design settled 2026-05-31. Enables — but does not build — the
   mixed-protocol grab that [`media-search-tmdb-acquisition`](media-search-tmdb-acquisition.md)'s
   planner will drive.
-* [`relink-on-move.md`](relink-on-move.md) —
-  **shipped v0.77.1.** Make "I moved my media to a new drive" smooth.
-  The watcher scanned a dir only once (at startup) and identified files
-  by TMDB id + exact path, so a move orphaned the library. Now a scan
-  detects files that simply moved (relative-path + filesize, old path
-  gone) and re-points the existing entity instead of re-importing —
-  `MoveMatcher` → `size` ingestion → `relink_moved_files/3` → scan hook
-  → Scan-now in Library settings. Two robustness fixes rode the same
-  release (image-plug 500 `3027a358`; `clear_database` was leaving the
-  `FilePresence` skip-ledger `2695dc0d`). Wiki documented. Safe to remove
-  once v0.77.1 is confirmed live (git history is the archive).
 * [`install-repro-matrix.md`](install-repro-matrix.md) —
   **planning.** Reproducible install environments for media-centaur and
   prowlarr-stack. Phase 1 (Linux Mint 22.3 only) spec written
@@ -114,11 +93,3 @@ Use [`template.md`](template.md) as a starter.
   (`--warnings-as-errors`). Next up: `Autostart.Launchd`,
   `DriveProbe.BsdDf`, `LogSource.Files`, darwin-arm64 in
   `ReleaseArtifact`.
-* [`test-isolation-hardening.md`](test-isolation-hardening.md) —
-  **shipped 2026-05-21.** Categories A/B/D/E closed; C/F
-  watching brief. `MC0018 NoDbInOnExit` Credo check enforces
-  Category A mechanically. `DataCase` snapshot+drain pattern
-  isolates `:persistent_term` and Task.Supervisor children.
-  Will be removed (git history is the archive) after the
-  macos-platform-support Phase 5 push sequence proves CI stability
-  through its commits.
