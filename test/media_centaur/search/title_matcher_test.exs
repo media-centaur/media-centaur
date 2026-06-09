@@ -140,4 +140,58 @@ defmodule MediaCentaur.Search.TitleMatcherTest do
       assert TitleMatcher.matches?(result("Sample.Movie.2024.1080p.WEB-DL"), criteria)
     end
   end
+
+  describe "coverage/2 — identity + scope for the coverage ladder (ADR-055 Phase 2)" do
+    test "an exact-episode release for the right show reads as its episode scope" do
+      criteria = tv_criteria(%{title: "Sample Show", season_number: 1, episode_number: 3})
+
+      assert {:ok, {:episode, 1, 3}} =
+               TitleMatcher.coverage(result("Sample.Show.S01E03.1080p.WEB-DL.x264-GROUP"), criteria)
+    end
+
+    test "a season pack for the right show reads as its season scope" do
+      criteria = tv_criteria(%{title: "Sample Show", season_number: 2})
+
+      assert {:ok, {:season, 2}} =
+               TitleMatcher.coverage(result("Sample.Show.S02.COMPLETE.1080p.WEB-DL"), criteria)
+    end
+
+    test "a multi-season range and a complete series read as their scopes" do
+      criteria = tv_criteria(%{title: "Sample Show"})
+
+      assert {:ok, {:seasons, 1, 5}} =
+               TitleMatcher.coverage(result("Sample.Show.S01-S05.1080p.WEB-DL.x264"), criteria)
+
+      assert {:ok, :series} =
+               TitleMatcher.coverage(result("Sample.Show.COMPLETE.1080p.WEB-DL"), criteria)
+    end
+
+    test "the wrong show never matches, whatever its scope" do
+      criteria = tv_criteria(%{title: "Sample Show", season_number: 2})
+
+      assert :no_match = TitleMatcher.coverage(result("Other.Show.S02.COMPLETE.1080p"), criteria)
+      assert :no_match = TitleMatcher.coverage(result("Other.Show.S02E01.1080p"), criteria)
+      assert :no_match = TitleMatcher.coverage(result("Sample.Show.Fifteen.S02.1080p"), criteria)
+    end
+
+    test "a year token in the release title is tolerated for identity" do
+      criteria = tv_criteria(%{title: "Sample Show", season_number: 2})
+
+      assert {:ok, {:season, 2}} =
+               TitleMatcher.coverage(result("Sample.Show.2025.S02.COMPLETE.1080p"), criteria)
+    end
+
+    test "movie criteria and unclassifiable titles read as no_match" do
+      movie = movie_criteria(%{title: "Sample Movie"})
+      assert :no_match = TitleMatcher.coverage(result("Sample.Movie.2010.1080p.BluRay"), movie)
+
+      tv = tv_criteria(%{title: "Sample Show"})
+      assert :no_match = TitleMatcher.coverage(result("Sample Show behind the scenes featurette"), tv)
+    end
+
+    test "prowlarr_query criteria never coverage-match (no canonical title to verify)" do
+      criteria = %Criteria{type: :prowlarr_query, title: "n/a"}
+      assert :no_match = TitleMatcher.coverage(result("Sample.Show.S01.COMPLETE.1080p"), criteria)
+    end
+  end
 end

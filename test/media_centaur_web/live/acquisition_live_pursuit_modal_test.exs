@@ -222,6 +222,12 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
       {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
       render_click(view, "cancel_pursuit", %{})
 
+      # The command's PubSub broadcasts trigger handle_info DB work in
+      # the LV — a render call queues behind those messages, so the LV
+      # is settled before the test exits (ADR-049: tests drive async
+      # to completion; an LV killed mid-query poisons the pool).
+      _ = render(view)
+
       reloaded = Repo.reload(pursuit)
       assert reloaded.state == "cancelled"
     end
@@ -233,6 +239,9 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
 
       {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
       render_click(view, "change_target", %{})
+
+      # Settle the broadcast-triggered handle_info work (see above).
+      _ = render(view)
 
       assert Repo.get_by(Event, pursuit_id: pursuit.id, kind: "target_changed")
     end
@@ -287,6 +296,9 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
         view
         |> element("#unit-board-row-#{second_unit.id} button[phx-click='change_target']")
         |> render_click()
+
+        # Settle the broadcast-triggered handle_info work (see above).
+        _ = render(view)
       end)
 
       pivoted = Repo.reload(second_unit)

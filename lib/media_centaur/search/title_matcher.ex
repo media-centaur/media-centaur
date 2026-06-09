@@ -32,8 +32,13 @@ defmodule MediaCentaur.Search.TitleMatcher do
   Pure module — no I/O, no DB.
   """
 
-  alias MediaCentaur.Search.{Criteria, SearchResult}
+  alias MediaCentaur.Search.{Criteria, ReleaseCoverage, SearchResult}
   alias MediaCentaur.Parser
+
+  # Tokens that begin a release's scope/quality tail — everything before
+  # the first one is the show-identity prefix `coverage/2` verifies.
+  @scope_tail ~r/\b(?:S\d{1,2}\b|Season[\s._-]+\d{1,2}\b|COMPLETE\b|Complete[\s._-]+(?:Series|Collection)\b)/i
+  @trailing_year ~r/\b(?:19|20)\d{2}\s*$/
 
   @spec matches?(SearchResult.t(), Criteria.t()) :: boolean()
   def matches?(%SearchResult{title: title}, %Criteria{type: :tmdb} = criteria) do
@@ -43,6 +48,61 @@ defmodule MediaCentaur.Search.TitleMatcher do
   end
 
   def matches?(%SearchResult{}, %Criteria{}), do: false
+
+  @doc """
+  Identity + scope for the coverage ladder (media-search campaign
+  Phase 2): verifies the release belongs to the criteria's show, then
+  returns its classified `ReleaseCoverage` scope so the planner can
+  compute which wanted units it covers.
+
+  Unlike `matches?/2` — which stays the strict want-equality gate the
+  auto-grab worker uses (an episode pursuit must never silently grab a
+  season pack) — `coverage/2` accepts every scope shape; choosing
+  *whether* a pack is the right grab is the planner's decision, not the
+  matcher's.
+
+  TV criteria only: movies have no episode scope, and prowlarr-query
+  criteria carry no canonical title to verify against.
+  """
+  @spec coverage(SearchResult.t(), Criteria.t()) :: {:ok, ReleaseCoverage.t()} | :no_match
+  def coverage(%SearchResult{title: title}, %Criteria{type: :tmdb, tmdb_type: :tv} = criteria) do
+    case ReleaseCoverage.classify(title) do
+      :unknown ->
+        :no_match
+
+      {:episode, _season, _episode} = scope ->
+        # Single episodes go through the Parser path — the same
+        # battle-tested identity check `matches?/2` uses.
+        parsed = Parser.parse(title)
+
+        if parsed.type == :tv and title_matches?(parsed.title, criteria.title),
+          do: {:ok, scope},
+          else: :no_match
+
+      scope ->
+        if pack_title_matches?(title, criteria.title), do: {:ok, scope}, else: :no_match
+    end
+  end
+
+  def coverage(%SearchResult{}, %Criteria{}), do: :no_match
+
+  # Pack shapes (S02.COMPLETE, S01-S05, Complete Series) don't parse as
+  # files, so identity comes from the prefix before the first scope
+  # token — normalized, with a trailing year token tolerated (release
+  # groups often bake the show's year in).
+  defp pack_title_matches?(title, expected_title) do
+    case Regex.split(@scope_tail, title, parts: 2) do
+      [prefix, _tail] ->
+        prefix
+        |> normalize()
+        |> String.replace(@trailing_year, "")
+        |> String.trim()
+        |> Kernel.==(normalize(expected_title))
+
+      _no_scope_token ->
+        false
+    end
+  end
 
   defp matches_criteria?(%Parser.Result{type: :tv} = parsed, %Criteria{tmdb_type: :tv} = criteria) do
     title_matches?(parsed.title, criteria.title) and

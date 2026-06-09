@@ -8,6 +8,7 @@ defmodule MediaCentaur.Search do
       QueryExpander,
       Quality,
       QualityWindow,
+      ReleaseCoverage,
       SearchProvider,
       SearchResult,
       SearchSession,
