@@ -22,6 +22,7 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Pipeline.Image, as: ImagePipeline
   alias MediaCentaur.Watcher
   alias MediaCentaur.Library.AbsenceSweeper
+  alias MediaCentaur.WatchHistory.Views.PlaybackActivity
   alias MediaCentaurWeb.StatusLive.ReportModal
   alias MediaCentaurWeb.Components.IssueView
 
@@ -37,6 +38,7 @@ defmodule MediaCentaurWeb.StatusLive do
         SelfUpdate.subscribe()
         SelfUpdate.subscribe_progress()
         MediaCentaur.Library.subscribe()
+        MediaCentaur.WatchHistory.subscribe()
 
         # Visiting /status marks auto-detected incidents as seen, clearing
         # the discovery badge on the Status nav item. The web layer owns
@@ -68,6 +70,7 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(metadata_stats: MediaCentaur.TMDB.MetadataStats.snapshot())
         |> assign(retry_status: fetch_retry_status())
         |> assign(playback: build_playback_state())
+        |> assign(playback_activity: PlaybackActivity.snapshot())
         |> assign(diagnostics_unseen: 0)
         |> assign_self_update()
         |> start_async_storage()
@@ -85,6 +88,7 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(rate_limiter: nil)
         |> assign(retry_status: nil)
         |> assign(playback: %{state: :idle, now_playing: nil, sessions: %{}})
+        |> assign(playback_activity: PlaybackActivity.empty())
       end
 
     {:ok,
@@ -259,6 +263,7 @@ defmodule MediaCentaurWeb.StatusLive do
       low_confidence_count: assigns.overview && assigns.overview.pending_review_count,
       # playback
       playback: assigns.playback,
+      playback_activity: assigns.playback_activity,
       # self_update — sourced from assigns + persistent_term (Config) + utc_now
       version: Version.current_version(),
       status: assigns.self_update_status,
@@ -485,6 +490,15 @@ defmodule MediaCentaurWeb.StatusLive do
 
   def handle_info({:apply_cancelled}, socket) do
     {:noreply, assign(socket, self_update_apply_phase: nil, self_update_apply_progress: nil)}
+  end
+
+  @impl true
+  def handle_info({msg, _payload}, socket)
+      when msg in [:watch_event_created, :watch_completed, :watch_event_deleted] do
+    {:noreply,
+     assign(socket,
+       playback_activity: PlaybackActivity.snapshot()
+     )}
   end
 
   def handle_info(_msg, socket) do
