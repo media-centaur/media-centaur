@@ -1,5 +1,5 @@
 ---
-status: in-progress (Phase 1 core shipped; UI + corpus remain)
+status: in-progress (Phases 1–2 complete; Phase 3 backend spine shipped; NEXT = Phase 3 UI design session with the user)
 started: 2026-05-31
 last_updated: 2026-06-09
 ---
@@ -161,6 +161,12 @@ Append-only log.
 * `2026-06-09` — **Phase 1 core SHIPPED** (3 commits, unpushed): schema + backfill (`b92e8433`), thread flip onto units (`8c7705ef`), batch-grab collapse (`4f43e7ec`). Every existing pursuit migrated losslessly to a single-unit composite; `Sample Show S01E{01-02}`-style batch grabs now land as ONE pursuit with per-term units (verified end-to-end in `acquisition_live_test`).
 * `2026-06-09` — **Interim unit resolution for pursuit-scoped surfaces**: `Units.lead_of/1` (awaiting-decision unit → active w/ target → active → first) is the single definition of which thread the modal/decision-card/ChangeTarget act on until per-unit drill-down lands. `Units.single!/1` remains only where single-unit is a true invariant (TMDB `Arm`) — it raises on multi-unit pursuits as a deliberate tripwire.
 * `2026-06-09` — **Unit-scoped search**: `Recipe.for_unit/2` overrides `manual_query` with the unit's concrete term — worker re-search and decision-card alternatives stay scoped to the unit, never re-expanding the whole braced query.
+* `2026-06-09` — **`matches?/2` stays the strict want-equality gate; `coverage/2` is the planner's reader.** The auto-grab worker must never silently pull a season pack for one episode — pack-vs-episode is exclusively the planner's decision. Pack identity is verified by prefix-before-scope-token (trailing-year tolerant); classification is conservative (inverted ranges = `:unknown`; `COMPLETE` reads as series only with no season token) per risk #3.
+* `2026-06-09` — **Plan-wide exclusions.** "Not this release" on one unit removes the release from the whole plan's option pool — a release the user rejected for one episode is almost never what they want for another (especially packs). The exclusion is still *stored* per unit for future refinement.
+* `2026-06-09` — **Exclusion re-solve is corpus-only.** Swapping resolves among already-known candidates with zero new indexer traffic; a live re-search is a separate, explicit user act (`replan(force_search: true)`).
+* `2026-06-09` — **Commit degradation.** A failed grab at commit time degrades that release's units to `seeking` targets handled by the regular `PursueTarget` machinery — the plan's promise survives an indexer hiccup rather than dropping units.
+* `2026-06-09` — **Corpus constants:** 30-minute freshness window, 14-day retention (pruned per watcher tick), result-affecting opts (`type`, `year`) in the key, empty result sets recorded as fresh negative knowledge, failures never recorded.
+* `2026-06-09` — **Phases 2 + 3-backend SHIPPED** (commits `2b44d136`, `3d9d1e0a`, `b4066cf2`): ReleaseCoverage + TitleMatcher.coverage; Targeting; pure Planner; durable Plans + RunPlan + feedback verbs + CommitPlan with the generalized overlap check. Full lifecycle proven in `plans_test.exs` (create → solve w/ pack consolidation → steer → approve → one composite pursuit; overlap rejection; movie path).
 
 ## Next steps
 
@@ -258,12 +264,12 @@ Seven independent ways to ship something subtly broken — guardrails for every
 phase. `(exists)` = works today, `(extends)` = grows existing code,
 `(net-new)` = new mechanism.
 
-1. **Pack → episode accounting** *(net-new)* — one pack satisfies many units; partial packs are the normal case. Wrong → re-grab what we have, or "done" with holes. *(2026-06-09: restated as a schema-level rule — leaves are per-release, progress is per-unit; see Vocabulary.)*
-2. **Ladder redundancy within the current corpus** *(net-new, reduced)* — don't grab the pack *and* singles for the same episodes. Now a pure dedup problem (no timers, per the best-available-now decision).
-3. **Fuzzy pack detection** *(extends)* — `S01-S05`, `Complete`, `Season.2`, `S02.COMPLETE`. `TitleMatcher` validates one S/E today; false-positives grab wrong, false-negatives never fall back.
-4. **Overlap with release tracking** *(extends)* — "whole series" media-search + an existing track = double pursuits. `find_by_tmdb_recipe` dedup only knows per-episode recipes. *(2026-06-09: the composite-identity overlap check is the designated mechanism; gap handoff and "grab future" both depend on it.)*
-5. **Per-episode model strain** *(extends)* — `TitleMatcher`, `AutoGrabPolicy`, `PursueTarget`, the reactor all assume one target = one episode.
-6. **Composite-pursuit lifecycle** *(net-new)* — parent/child progress, "X of N / partial / cancelled" semantics, reconciliation against what's already on disk.
+1. **Pack → episode accounting** *(✅ mechanism shipped)* — schema-level rule (leaves per-release, progress per-unit; Vocabulary) + `ReleaseCoverage.covered_units/2`; `Satisfy` satisfies exactly the covered units of the landed target. Real-world pack grabs (Phase 3 UI usage) will be the live proof.
+2. **Ladder redundancy within the current corpus** *(✅ by construction)* — the planner's assignment maps each unit to exactly one candidate; a pack and singles can never both claim the same unit (`plans_test` exercises the pack↔singles flip).
+3. **Fuzzy pack detection** *(✅ shipped, conservative)* — `ReleaseCoverage.classify/1` with append-only parser-class tests; inverted ranges = `:unknown`, `COMPLETE` reads as series only without a season token. Extend the test table as real-world shapes appear (ADR-027 append-only).
+4. **Overlap with release tracking** *(½ shipped)* — pursuit×pursuit overlap is enforced in `CommitPlan` (unit-level + legacy pursuit-key fallback). Pursuit×**track** dedup remains Phase 4 (gap handoff + "grab future" both depend on it); targeting currently surfaces tracked-ness as a series-level flag only.
+5. **Per-episode model strain** *(✅ resolved)* — units carry season/episode identity; `Recipe.for_unit/2` narrows tmdb re-search per unit; the watcher loop is per-unit. *Known residual:* see resumption note on multi-unit tmdb satisfaction matching.
+6. **Composite-pursuit lifecycle** *(✅ core shipped)* — fold semantics (`partial`), unit-based progress everywhere, reconciler runs per (pursuit, unit, target). *Known residual:* `LibraryReconciler.tmdb_match/1` still reads pursuit-level season/episode (nil on multi-unit parents), so multi-unit tmdb pursuits satisfy via content-path/release-name matching only — works (targets carry per-unit identity), but per-unit tmdb-identity matching should be added when Phase 3 UI makes multi-unit tmdb pursuits common.
 7. **(retired)** — interacting patience timers; dissolved by the best-available-now / no-upgrades decision. Left numbered so the risk list maps to the design discussion.
 
 ## Completion criteria
@@ -280,9 +286,90 @@ phase. `(exists)` = works today, `(extends)` = grows existing code,
 * Downloads page presents media search as the primary path; naked search has a settled secondary placement.
 * Wiki updated (new acquisition flow + the media-search/naked-search distinction).
 
+## Resumption state (written 2026-06-09, end of the build sessions)
+
+**Where things stand.** Sixteen-ish commits on `main`, `947c7bd4..e9b63dcf`,
+**unpushed** (push when the user says so; release-tagging is reasonable —
+5 release-safe migrations pending, all additive or expand/contract,
+backfill dry-run-verified against a prod-DB copy). `mix precommit` green
+at every commit (4,671 tests at the last gate). Per ADR-042, **reconcile
+this file against `git log` before any new work.**
+
+**The very next step is a UI design session WITH the user** — explicitly
+reserved decisions, do not build first:
+
+1. **Downloads-page restructure** — media search as the primary door;
+   where the naked search's standalone entry lives. Everything else
+   hangs off this.
+2. **Targeting picker** — TMDB search → series view; season rows w/
+   tri-state checkboxes + episode drill-in; have/aired counts; quick
+   actions (*Everything aired* = `Targeting.default_units/1`, *Continue
+   from where my library ends*, *Latest season*); quality override +
+   "grab future" opt-in (field already on the plan).
+3. **Coverage board + activity feed** — render over
+   `PlanEvents.Changed` / `PlanEvents.SearchActivity` (already
+   broadcast on `acquisition:updates`); plan rows are the state of
+   record so the board is just a re-read. The existing `UnitBoard`
+   component is the embryo (pursuit-side); the plan board is its
+   sibling surface.
+4. **Approval screen** — assignments grouped by release (consolidation
+   visible), gaps listed, approve/discard; Phase 4's gap-handoff
+   affordance lands here too.
+
+Load `user-interface` + `storybook` skills first; `track_modal.ex` is
+the TMDB-search UI to mirror for the picker.
+
+**Backend API the UI consumes (all tested):**
+`Targeting.series_selection/1` + `default_units/1` →
+`Plans.create_series_plan/3` / `create_movie_plan/2` (inline RunPlan
+solves; plan lands `ready`) → reads via `Plans.get/1`, `units_for/1`,
+`list_drafts/0` → feedback `Plans.exclude_release/2`, `exclude_unit/1`,
+`replan/2 (force_search:)` → `Plans.approve/1` (→ `{:error,
+{:overlap, units}}` | `{:error, :nothing_to_grab}` possible) /
+`Plans.discard/1`.
+
+**Known residuals / deferred (each deliberate, none blocking):**
+* Multi-unit tmdb satisfaction matching: reconciler/inbound rely on
+  content-path + release-name per target; add per-unit tmdb-identity
+  matching when multi-unit tmdb pursuits are common (risk #6 note).
+* Pursuit×track dedup + gap handoff + "grab future" = Phase 4 (the
+  approval screen is their surface).
+* Targeting marks tracked-ness series-level only (per-unit tracked
+  subtraction folds into Phase 4 dedup).
+* `Units.lead_of/1` interim on pursuit-scoped surfaces (decision card,
+  pursuit-level change-target) — fine while the UnitBoard carries
+  per-unit affordances; revisit with the plan board.
+* `Units.single!/1` tripwire: raises on multi-unit pursuits at call
+  sites that still need unit-scoped args (`Arm` is legitimately
+  single-unit). Don't swallow raises — grow `unit_id` args.
+* Wiki update deferred under the WIP carve-out until the Phase 3 UI
+  settles the user-visible shape (completion criterion stands).
+* TMDB collections; per-search quality-pref UI (plan.criteria accepts
+  min/max already — falls back to AutoGrabSettings).
+
+**Gotchas rediscovered this build (cost time once already):**
+* `"acquired"` is terminal-**success** in `TargetStatus` — pivots
+  don't fail acquired targets.
+* The worker's 4K-patience window elevates young pursuits' quality
+  floor (test fixtures need `:uhd_4k`); the planner deliberately has
+  NO patience (best-available-now).
+* Prowlarr grabs POST to `/api/v1/search` — stubs must discriminate by
+  method.
+* LV tests that fire a command then assert on the DB must settle with
+  `_ = render(view)` first (broadcast-triggered handle_info races
+  teardown otherwise).
+* `ReleaseTracking.Item.media_type` is the enum `:movie | :tv_series`
+  (not `"tv"`).
+* `TmdbStubs.stub_routes/1` matches by path substring — season routes
+  before the bare `/tv/<id>` route.
+
 ## Pointers
 
-* **Composite core (new, ADR-055)** — `acquisition/pursuits/unit.ex` (thread carrier), `units.ex` (read side; `lead_of/1`, `single!/1`, `covered_by/1`), `target_unit.ex` (coverage join), `unit_state.ex`, `commands/refold.ex` (parent fold), `Acquisition.pick_targets/2` + `commands/start_from_pick.ex` (batch collapse), `Recipe.for_unit/2` (unit-scoped search).
+* **Plans / planner / targeting (new, Phase 3 spine)** — `acquisition/plans.ex` (context + feedback verbs), `plans/plan.ex` + `plans/plan_unit.ex` (durable draft), `plans/commit_plan.ex` (approval gate + overlap check), `jobs/run_plan.ex` (ladder runner), `acquisition/planner.ex` (pure optimizer), `acquisition/targeting.ex` (TMDB → unit universe), `acquisition/plan_events.ex` (board/feed broadcasts).
+* **Corpus (new, Phase 1)** — `acquisition/corpus.ex` (consult-first `search/2`, `record!/3`, `prune_stale!/0`), `corpus/search_record.ex`, `corpus/candidate.ex`.
+* **Pack machinery (new, Phase 2)** — `search/release_coverage.ex` (classify + accounting primitives), `TitleMatcher.coverage/2`.
+* **Composite core (new, ADR-055)** — `acquisition/pursuits/unit.ex` (thread carrier; now with season/episode), `units.ex` (read side; `lead_of/1`, `single!/1`, `covered_by/1`), `target_unit.ex` (coverage join), `unit_state.ex`, `commands/refold.ex` (parent fold), `Acquisition.pick_targets/2` + `commands/start_from_pick.ex` (batch collapse), `Recipe.for_unit/2` (unit-scoped search).
+* **Composite UI (Phase 1)** — `components/acquisition/unit_board.ex` (+ story), unit-progress chip in `pursuit_row.ex`, `Pursuits.unit_board_for/1`.
 * **Acquisition** — `lib/media_centaur/acquisition.ex` (facade, `enqueue`), `acquisition/pursuits/pursuit.ex` (the composite parent), `acquisition/target.ex` (grab attempt), `acquisition/reactor.ex` + `reactor/handlers.ex` (release-ready → pursuit), `acquisition/auto_grab_policy.ex`, `acquisition/auto_grab_settings.ex`.
 * **Search** — `lib/media_centaur/search/prowlarr.ex` (search/grab API; note the `POST /api/v1/search` grab gotcha), `search/search_result.ex`. Release-title parsing: `MediaCentaur.Parser` + `TitleMatcher` (the S/E-only validator to extend for packs).
 * **TMDB** — `lib/media_centaur/tmdb/client.ex` (`search_movie`, `search_tv`, `get_tv`, `get_movie`, `get_collection`) + `Mapper`.
