@@ -1052,10 +1052,13 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
   defp format_recent_title(%{title: title}) when is_binary(title) and title != "", do: title
   defp format_recent_title(_), do: "Untitled"
 
-  defp format_uptime(s) when s < 60, do: "#{s}s"
-  defp format_uptime(s) when s < 3600, do: "#{div(s, 60)}m"
-  defp format_uptime(s) when s < 86_400, do: "#{div(s, 3600)}h #{rem(div(s, 60), 60)}m"
-  defp format_uptime(s), do: "#{div(s, 86_400)}d #{rem(div(s, 3600), 24)}h"
+  defp format_uptime(seconds) when seconds < 60, do: "#{seconds}s"
+  defp format_uptime(seconds) when seconds < 3600, do: "#{div(seconds, 60)}m"
+
+  defp format_uptime(seconds) when seconds < 86_400,
+    do: "#{div(seconds, 3600)}h #{rem(div(seconds, 60), 60)}m"
+
+  defp format_uptime(seconds), do: "#{div(seconds, 86_400)}d #{rem(div(seconds, 3600), 24)}h"
 
   # Stable iterator id (ADR-012): completion timestamps are seconds apart.
   defp watch_row_id(%{at: %DateTime{} = at}), do: "watch-#{DateTime.to_unix(at, :microsecond)}"
