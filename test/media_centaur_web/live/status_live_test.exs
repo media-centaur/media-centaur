@@ -286,6 +286,13 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     end
   end
 
+  describe "system activity widget" do
+    test "system drill-in renders the runtime-vitals widget", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, "/status?subsystem=system")
+      assert html =~ ~s(data-testid="system-widget")
+    end
+  end
+
   describe "downloads activity widget" do
     test "acquisition drill-in renders the connectivity + throughput widget", %{conn: conn} do
       {:ok, _view, html} = live_async!(conn, "/status?subsystem=acquisition")

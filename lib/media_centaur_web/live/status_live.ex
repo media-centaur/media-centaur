@@ -31,6 +31,7 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Acquisition.Pursuits.Throughput
   alias MediaCentaur.Downloads.QueueMonitor
   alias MediaCentaur.Downloads.QueueStatus
+  alias MediaCentaur.Runtime.Vitals
 
   @storage_refresh_ms 5 * 60 * 1_000
   # Mirrors AcquisitionLive's watched cadence — the rhythm QueueMonitor polls at
@@ -82,6 +83,7 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(retry_status: fetch_retry_status())
         |> assign(playback: build_playback_state())
         |> assign(playback_activity: PlaybackActivity.snapshot())
+        |> assign(system_vitals: Vitals.snapshot())
         |> assign(acquisition_activity: build_acquisition_activity())
         |> assign(diagnostics_unseen: 0)
         |> assign_self_update()
@@ -101,6 +103,7 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(retry_status: nil)
         |> assign(playback: %{state: :idle, now_playing: nil, sessions: %{}})
         |> assign(playback_activity: PlaybackActivity.empty())
+        |> assign(system_vitals: empty_system_vitals())
         |> assign(acquisition_activity: empty_acquisition_activity())
       end
 
@@ -286,6 +289,8 @@ defmodule MediaCentaurWeb.StatusLive do
       # playback
       playback: assigns.playback,
       playback_activity: assigns.playback_activity,
+      # system runtime vitals
+      system_vitals: assigns.system_vitals,
       # acquisition
       acquisition_activity: assigns.acquisition_activity,
       # self_update — sourced from assigns + persistent_term (Config) + utc_now
@@ -400,6 +405,7 @@ defmodule MediaCentaurWeb.StatusLive do
 
   def handle_info(:refresh_storage, socket) do
     Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
+    socket = assign(socket, system_vitals: Vitals.snapshot())
     {:noreply, socket |> start_async_storage() |> start_async_overview()}
   end
 
@@ -646,6 +652,19 @@ defmodule MediaCentaurWeb.StatusLive do
       last_poll_at: state.last_successful_poll_at,
       prowlarr_ready?: Capabilities.prowlarr_ready?(),
       throughput: Throughput.stats()
+    }
+  end
+
+  defp empty_system_vitals do
+    %{
+      uptime_seconds: 0,
+      memory: %{total: 0, processes: 0, ets: 0, binary: 0},
+      process_count: 0,
+      process_limit: 0,
+      run_queue: 0,
+      schedulers: 0,
+      host: %{otp: "", elixir: "", os: "", version: ""},
+      db: %{size_bytes: 0, wal_bytes: 0}
     }
   end
 
