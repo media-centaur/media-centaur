@@ -1,0 +1,156 @@
+defmodule MediaCentaur.Acquisition.Targeting do
+  @moduledoc """
+  The targeting (Select) phase of media search: enumerates a TMDB
+  series into the unit universe a plan can want — every aired episode,
+  annotated with what the library already has and whether release
+  tracking covers the series. Subtractions are **shown, not silent**
+  (campaign decision 2026-06-09): the picker greys out owned units
+  rather than hiding them.
+
+  Specials (season 0) are excluded — they're extras, not coverage
+  units. Unaired episodes are enumerated but flagged `aired?: false`;
+  media search is bounded to what exists now (the future is release
+  tracking's job).
+
+  Read-only: TMDB + Library + ReleaseTracking lookups, no writes.
+  """
+
+  alias MediaCentaur.Library
+  alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.TMDB
+
+  defmodule Episode do
+    @moduledoc "One unit of the targeting universe — an episode with its pickability facts."
+
+    @enforce_keys [:season_number, :episode_number, :label, :aired?, :in_library?]
+    defstruct [:season_number, :episode_number, :label, :air_date, :aired?, :in_library?]
+
+    @type t :: %__MODULE__{
+            season_number: pos_integer(),
+            episode_number: pos_integer(),
+            label: String.t(),
+            air_date: Date.t() | nil,
+            aired?: boolean(),
+            in_library?: boolean()
+          }
+  end
+
+  defmodule Season do
+    @moduledoc "One season row of the picker: its episodes in order."
+
+    @enforce_keys [:season_number, :episodes]
+    defstruct [:season_number, :episodes]
+
+    @type t :: %__MODULE__{season_number: pos_integer(), episodes: [Episode.t()]}
+  end
+
+  defmodule Selection do
+    @moduledoc "The full targeting universe for one series."
+
+    @enforce_keys [:tmdb_id, :title, :seasons, :tracked?]
+    defstruct [:tmdb_id, :title, :seasons, :tracked?]
+
+    @type t :: %__MODULE__{
+            tmdb_id: String.t(),
+            title: String.t(),
+            seasons: [Season.t()],
+            tracked?: boolean()
+          }
+  end
+
+  @doc """
+  Enumerates the series' targeting universe: per-season aired/unaired
+  episodes with library presence, plus the series-level tracked flag.
+  One `get_tv` plus one `get_season` per real season.
+  """
+  @spec series_selection(String.t() | integer(), Req.Request.t() | nil) ::
+          {:ok, Selection.t()} | {:error, term()}
+  def series_selection(tmdb_id, client \\ nil) do
+    tmdb_id = to_string(tmdb_id)
+    client = client || TMDB.Client.default_client()
+
+    with {:ok, tv} <- TMDB.Client.get_tv(tmdb_id, client),
+         {:ok, seasons} <- load_seasons(tmdb_id, tv, client) do
+      {:ok,
+       %Selection{
+         tmdb_id: tmdb_id,
+         title: tv["name"],
+         seasons: seasons,
+         tracked?: tracked?(tmdb_id)
+       }}
+    end
+  end
+
+  @doc """
+  The design-session default: **everything aired, minus what the
+  library already has** — as `{season, episode}` units in airing order.
+  """
+  @spec default_units(Selection.t()) :: [{pos_integer(), pos_integer()}]
+  def default_units(%Selection{seasons: seasons}) do
+    for season <- seasons,
+        episode <- season.episodes,
+        episode.aired? and not episode.in_library?,
+        do: {episode.season_number, episode.episode_number}
+  end
+
+  defp load_seasons(tmdb_id, tv, client) do
+    today = Date.utc_today()
+
+    tv
+    |> Map.get("seasons", [])
+    |> Enum.map(& &1["season_number"])
+    |> Enum.filter(&(is_integer(&1) and &1 > 0))
+    |> Enum.sort()
+    |> Enum.reduce_while({:ok, []}, fn season_number, {:ok, seasons} ->
+      case TMDB.Client.get_season(tmdb_id, season_number, client) do
+        {:ok, season_data} ->
+          {:cont, {:ok, [build_season(tmdb_id, season_number, season_data, today) | seasons]}}
+
+        {:error, reason} ->
+          {:halt, {:error, reason}}
+      end
+    end)
+    |> case do
+      {:ok, seasons} -> {:ok, Enum.reverse(seasons)}
+      error -> error
+    end
+  end
+
+  defp build_season(tmdb_id, season_number, season_data, today) do
+    episodes =
+      season_data
+      |> Map.get("episodes", [])
+      |> Enum.map(fn episode_data ->
+        episode_number = episode_data["episode_number"]
+        air_date = TMDB.Mapper.parse_date(episode_data["air_date"])
+
+        %Episode{
+          season_number: season_number,
+          episode_number: episode_number,
+          label: episode_data["name"] || "Episode #{episode_number}",
+          air_date: air_date,
+          aired?: aired?(air_date, today),
+          in_library?: in_library?(tmdb_id, season_number, episode_number)
+        }
+      end)
+
+    %Season{season_number: season_number, episodes: episodes}
+  end
+
+  defp aired?(nil, _today), do: false
+  defp aired?(%Date{} = air_date, today), do: Date.compare(air_date, today) != :gt
+
+  defp in_library?(tmdb_id, season_number, episode_number) do
+    case Library.find_present_episode(tmdb_id, season_number, episode_number) do
+      {:ok, _path} -> true
+      :not_found -> false
+    end
+  end
+
+  defp tracked?(tmdb_id) do
+    case Integer.parse(tmdb_id) do
+      {numeric_id, ""} -> ReleaseTracking.get_item_by_tmdb(numeric_id, :tv_series) != nil
+      _ -> false
+    end
+  end
+end
