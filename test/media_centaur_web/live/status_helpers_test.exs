@@ -174,6 +174,20 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
       gib = Float.pow(1024.0, 3)
       assert StatusHelpers.format_bytes(100.0 * gib) == "100.0 GiB"
     end
+
+    test "scales down to megabytes below a gigabyte" do
+      mib = Float.pow(1024.0, 2)
+      assert StatusHelpers.format_bytes(419.4 * mib) == "419.4 MiB"
+      assert StatusHelpers.format_bytes(8.2 * mib) == "8.2 MiB"
+    end
+
+    test "scales down to kilobytes below a megabyte" do
+      assert StatusHelpers.format_bytes(512.0 * 1024.0) == "512.0 KiB"
+    end
+
+    test "shows whole bytes below a kilobyte" do
+      assert StatusHelpers.format_bytes(900) == "900 B"
+    end
   end
 
   # --- stage display ---

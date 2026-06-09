@@ -73,14 +73,16 @@ defmodule MediaCentaurWeb.StatusHelpers do
 
   @gib Float.pow(1024.0, 3)
   @tib Float.pow(1024.0, 4)
+  @kib 1024.0
+  @mib Float.pow(1024.0, 2)
 
-  def format_bytes(bytes) when bytes >= @tib do
-    "#{Float.round(bytes / @tib, 1)} TiB"
-  end
-
-  def format_bytes(bytes) do
-    "#{Float.round(bytes / @gib, 1)} GiB"
-  end
+  # Magnitude-aware: pick the largest unit that keeps the number readable, so a
+  # sub-gigabyte value (e.g. an 8 MiB database) doesn't collapse to "0.0 GiB".
+  def format_bytes(bytes) when bytes >= @tib, do: "#{Float.round(bytes / @tib, 1)} TiB"
+  def format_bytes(bytes) when bytes >= @gib, do: "#{Float.round(bytes / @gib, 1)} GiB"
+  def format_bytes(bytes) when bytes >= @mib, do: "#{Float.round(bytes / @mib, 1)} MiB"
+  def format_bytes(bytes) when bytes >= @kib, do: "#{Float.round(bytes / @kib, 1)} KiB"
+  def format_bytes(bytes), do: "#{round(bytes)} B"
 
   # --- Pipeline Stage Display ---
 
