@@ -20,6 +20,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.Pursuits
 
   alias MediaCentaur.Acquisition.Pursuits.{
@@ -70,6 +71,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
     # pursuits whose file is already in the library but never got
     # picked up by `InboundListener` → `IdentityVerifier` → `Satisfy`.
     LibraryReconciler.reconcile_active()
+
+    # Corpus retention (ADR-033 — delete over hide): searches and
+    # candidates beyond the retention window are deleted each tick.
+    Corpus.prune_stale!()
 
     :ok
   end

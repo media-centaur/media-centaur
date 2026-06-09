@@ -53,6 +53,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   alias MediaCentaur.Acquisition.{
     AutoGrabSettings,
+    Corpus,
     InfoHash,
     Target,
     TargetEvents
@@ -184,9 +185,13 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     end
   end
 
+  # Searches go through the corpus (consult-first, ADR-055): a term
+  # searched within the freshness window serves from durable knowledge
+  # with zero indexer traffic — the snooze-retry loop is exactly the
+  # automated caller the citizenship gate exists for.
   defp search_until_tmdb_match(_target, unit, criteria, queries, bounds) do
     Enum.reduce_while(queries, {:no_match, "no_results"}, fn {query, opts}, acc ->
-      case Prowlarr.search(query, opts) do
+      case Corpus.search(query, opts) do
         {:ok, []} ->
           {:cont, acc}
 
@@ -204,7 +209,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
 
   defp search_until_any_result(queries) do
     Enum.reduce_while(queries, {:no_match, "no_results"}, fn {query, opts}, acc ->
-      case Prowlarr.search(query, opts) do
+      case Corpus.search(query, opts) do
         {:ok, []} -> {:cont, acc}
         {:ok, results} -> {:halt, {:needs_decision, results}}
         {:error, reason} -> {:halt, {:error, reason}}

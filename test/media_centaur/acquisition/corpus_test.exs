@@ -1,0 +1,182 @@
+defmodule MediaCentaur.Acquisition.CorpusTest do
+  use MediaCentaur.DataCase, async: false
+
+  alias MediaCentaur.Acquisition.Corpus
+  alias MediaCentaur.Search.{Prowlarr, SearchResult}
+
+  setup do
+    Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
+    client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
+    :persistent_term.put({Prowlarr, :client}, client)
+
+    on_exit(fn -> :persistent_term.erase({Prowlarr, :client}) end)
+
+    :ok
+  end
+
+  defp result(guid, attrs \\ %{}) do
+    struct(
+      %SearchResult{
+        title: "Sample.Show.S01E01.1080p.WEB-DL",
+        guid: guid,
+        indexer_id: 1,
+        indexer_name: "indexer-a",
+        quality: :hd_1080p,
+        size_bytes: 1_000_000,
+        seeders: 12,
+        leechers: 1,
+        publish_date: "2026-06-01T00:00:00Z",
+        info_hash: "abc123"
+      },
+      attrs
+    )
+  end
+
+  describe "record!/3 + candidates_for/2" do
+    test "round-trips search results through the durable corpus" do
+      results = [result("guid-1"), result("guid-2", %{quality: :uhd_4k, seeders: 99})]
+
+      Corpus.record!("Sample Show S01E01", [type: :tv], results)
+
+      candidates = Corpus.candidates_for("Sample Show S01E01", type: :tv)
+
+      assert [%SearchResult{} = first, %SearchResult{} = second] = candidates
+      # Ordered most-seeded first.
+      assert first.guid == "guid-2"
+      assert first.quality == :uhd_4k
+      assert second.guid == "guid-1"
+      assert second.info_hash == "abc123"
+      assert second.indexer_name == "indexer-a"
+    end
+
+    test "search opts are part of the key — same term, different type, different corpus" do
+      Corpus.record!("Sample Title", [type: :tv], [result("guid-tv")])
+      Corpus.record!("Sample Title", [type: :movie], [result("guid-movie")])
+
+      assert [%{guid: "guid-tv"}] = Corpus.candidates_for("Sample Title", type: :tv)
+      assert [%{guid: "guid-movie"}] = Corpus.candidates_for("Sample Title", type: :movie)
+      assert [] = Corpus.candidates_for("Sample Title", [])
+    end
+
+    test "re-recording upserts: mutable fields refresh, no duplicate rows" do
+      Corpus.record!("Sample Show S01E01", [], [result("guid-1", %{seeders: 5})])
+      Corpus.record!("Sample Show S01E01", [], [result("guid-1", %{seeders: 50})])
+
+      assert [%{guid: "guid-1", seeders: 50}] = Corpus.candidates_for("Sample Show S01E01", [])
+    end
+
+    test "an empty result set is recorded — negative knowledge is still freshness" do
+      Corpus.record!("Obscure Query", [], [])
+
+      assert Corpus.fresh?("Obscure Query", [])
+      assert [] = Corpus.candidates_for("Obscure Query", [])
+    end
+  end
+
+  describe "fresh?/2" do
+    test "false for a never-searched term" do
+      refute Corpus.fresh?("Never Searched", [])
+    end
+
+    test "true within the freshness window, false beyond it" do
+      Corpus.record!("Sample Show S01E01", [], [result("guid-1")])
+      assert Corpus.fresh?("Sample Show S01E01", [])
+
+      age_search!("Sample Show S01E01", [], minutes_ago: 45)
+      refute Corpus.fresh?("Sample Show S01E01", [])
+    end
+  end
+
+  describe "search/2 — consult-first (indexer citizenship)" do
+    test "a fresh corpus serves without touching Prowlarr" do
+      Corpus.record!("Sample Show S01E01", [], [result("guid-cached")])
+
+      # Poison the stub: any HTTP call would fail loudly.
+      Req.Test.stub(:prowlarr, fn _conn -> raise "Prowlarr was consulted despite a fresh corpus" end)
+
+      assert {:ok, [%SearchResult{guid: "guid-cached"}]} = Corpus.search("Sample Show S01E01", [])
+    end
+
+    test "a stale corpus live-searches and records the results" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{
+            "title" => "Sample.Show.S01E01.1080p",
+            "guid" => "guid-live",
+            "indexerId" => 1,
+            "seeders" => 3
+          }
+        ])
+      end)
+
+      assert {:ok, [%SearchResult{guid: "guid-live"}]} = Corpus.search("Sample Show S01E01", [])
+
+      # The live search landed in the corpus and is now fresh.
+      assert Corpus.fresh?("Sample Show S01E01", [])
+      assert [%{guid: "guid-live"}] = Corpus.candidates_for("Sample Show S01E01", [])
+    end
+
+    test "force: true bypasses a fresh corpus (user-initiated refresh)" do
+      Corpus.record!("Sample Show S01E01", [], [result("guid-old")])
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [
+          %{
+            "title" => "Sample.Show.S01E01.1080p",
+            "guid" => "guid-new",
+            "indexerId" => 1,
+            "seeders" => 3
+          }
+        ])
+      end)
+
+      assert {:ok, [%SearchResult{guid: "guid-new"}]} =
+               Corpus.search("Sample Show S01E01", force: true)
+    end
+
+    test "a live-search failure neither records nor poisons freshness" do
+      Req.Test.stub(:prowlarr, fn conn -> Plug.Conn.send_resp(conn, 500, "boom") end)
+
+      assert {:error, _reason} = Corpus.search("Sample Show S01E01", [])
+      refute Corpus.fresh?("Sample Show S01E01", [])
+    end
+  end
+
+  describe "prune_stale!/0 (ADR-033 — delete over hide)" do
+    test "removes searches and candidates beyond the retention window; keeps recent ones" do
+      Corpus.record!("Old Query", [], [result("guid-old")])
+      Corpus.record!("Recent Query", [], [result("guid-recent")])
+
+      age_search!("Old Query", [], days_ago: 15)
+
+      Corpus.prune_stale!()
+
+      assert [] = Corpus.candidates_for("Old Query", [])
+      refute Corpus.fresh?("Old Query", [])
+      assert [%{guid: "guid-recent"}] = Corpus.candidates_for("Recent Query", [])
+    end
+  end
+
+  # Backdates a corpus search row (and its candidates' last_seen_at) so
+  # freshness/retention tests don't sleep.
+  defp age_search!(term, opts, age) do
+    seconds =
+      case age do
+        [minutes_ago: minutes] -> minutes * 60
+        [days_ago: days] -> days * 86_400
+      end
+
+    past = DateTime.add(DateTime.utc_now(:second), -seconds, :second)
+    key = Corpus.search_key(term, opts)
+
+    Repo.update_all(
+      from(s in Corpus.SearchRecord, where: s.search_key == ^key),
+      set: [last_searched_at: past]
+    )
+
+    Repo.update_all(
+      from(c in Corpus.Candidate, where: c.search_key == ^key),
+      set: [last_seen_at: past]
+    )
+  end
+end
