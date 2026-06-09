@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.85.2 — 2026-06-09
+
+### Fixed
+
+**Movies no longer show a "Season announced" note in release tracking.** A
+tracked movie was being described as if it had a TV season — producing a stray
+"Season announced (1 episode)" entry in its release history. Movies don't have
+seasons, so those phantom entries are gone, and existing ones have been cleared.
+Genuine changes — like a release date moving — are still reported as before.
+
 ## v0.85.1 — 2026-06-09
 
 ### Improved
