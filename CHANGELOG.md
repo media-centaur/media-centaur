@@ -4,6 +4,14 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.86.1 — 2026-06-09
+
+### Fixed
+
+**The Watcher tile no longer risks a blank Status page during a watcher restart.**
+The new last-scan/settling display now degrades gracefully if the watcher is
+momentarily restarting, instead of interrupting the Status page render.
+
 ## v0.86.0 — 2026-06-09
 
 ### Improved
