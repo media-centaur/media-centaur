@@ -54,7 +54,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
     end
 
     Runner.run(id, log_label, fn pursuit ->
-      unit = Units.single!(pursuit.id)
+      # Awaiting-or-lead: a pick from the decision card lands on the
+      # unit that asked for it (Units.lead_of/1 prefers the awaiting
+      # unit); per-unit drill-down lands with Phase 1c.
+      unit = Units.lead(pursuit.id)
       previous_guid = List.last(unit.tried_release_guids || [])
       now = DateTime.utc_now(:second)
 

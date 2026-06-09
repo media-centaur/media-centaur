@@ -140,7 +140,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     )
 
     bounds = effective_bounds(pursuit)
-    criteria = pursuit |> recipe_for_unit(unit) |> Recipe.to_criteria()
+    criteria = pursuit |> Recipe.for_unit(unit) |> Recipe.to_criteria()
 
     case search_until_match(target, unit, criteria, QueryBuilder.build(criteria), bounds) do
       {:ok, best} -> handle_found(target, pursuit, best)
@@ -148,16 +148,6 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
       {:no_match, outcome} -> handle_no_results(target, pursuit, outcome)
       {:error, reason} -> handle_prowlarr_error(target, reason)
     end
-  end
-
-  # The unit's concrete query (set on query-door units) overrides the
-  # pursuit-level manual_query, so each unit of a collapsed
-  # brace-expansion searches for its own thing. TMDB recipes derive
-  # queries from the parent recipe and carry no unit query.
-  defp recipe_for_unit(%Pursuit{} = pursuit, %Unit{query: nil}), do: Recipe.from(pursuit)
-
-  defp recipe_for_unit(%Pursuit{} = pursuit, %Unit{query: query}) do
-    %{Recipe.from(pursuit) | manual_query: query}
   end
 
   # Quality bounds live on the pursuit's `criteria` map. The
