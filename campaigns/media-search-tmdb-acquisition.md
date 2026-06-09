@@ -180,12 +180,16 @@ the seven risks below.
    * ✅ Batch-grab collapse: one composite pursuit per brace-expanded
      grab, one unit per term (`Acquisition.pick_targets/2`,
      batch `StartFromPick`).
-   * ⬜ **Parent/leaf UI** — unit-based progress ("N of M") on
-     `PursuitRow` + the downloads card, drill-down to per-unit threads
-     in the pursuit modal, per-unit intervention (`ChangeTarget` /
-     decision card gain `unit_id` args; replace the `Units.lead_of/1`
-     interim). Storybook stories per MC0009. *(Next session — load
-     `user-interface` + `storybook` skills first.)*
+   * ✅ **Parent/leaf UI** (2026-06-09, commit `457f4df6`) — "N of M"
+     unit-progress chip on `PursuitRow` (both densities), the
+     **UnitBoard** drill-down in the pursuit modal (one row per unit:
+     state, covering release, unit-scoped Change-target via
+     `ChangeTarget` `unit_id`), `partial` state badge. Stories:
+     composite axis on pursuit_row, new unit_board story, composite
+     modal variation. Remaining lead-interim: the pursuit-level
+     Change-target button and the decision card still act on the
+     awaiting-or-lead unit — fine while the board carries the per-unit
+     affordances; revisit with the Phase 3 coverage board.
    * ⬜ **Search corpus + living-intent re-resolution** — durable
      candidate corpus w/ freshness policy; at grab time re-resolve only
      among already-found candidates; exhaustion = leaf failure →
