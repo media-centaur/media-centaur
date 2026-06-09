@@ -43,11 +43,15 @@ defmodule MediaCentaur.ReleaseTracking.Differ do
 
   defp index_by_key(releases) do
     Map.new(releases, fn release ->
-      # Include title in key to distinguish multiple movie releases (both nil/nil)
+      # season/episode identify a TV episode; title + release_type identify a
+      # movie release. A movie's theatrical/digital/physical dates share
+      # {nil, nil, title}, so release_type is what keeps them distinct (for TV
+      # it is nil and changes nothing).
       key = {
         field(release, :season_number),
         field(release, :episode_number),
-        field(release, :title)
+        field(release, :title),
+        field(release, :release_type)
       }
 
       {key, release}
@@ -83,25 +87,44 @@ defmodule MediaCentaur.ReleaseTracking.Differ do
     end)
   end
 
-  # A movie has no seasons or episodes; its schedule is a set of dated
-  # releases. An added movie release is just a date the user already learns
-  # from `:began_tracking` (initial) or `:upcoming_release_date_changed`
-  # (subsequent moves), so the addition path mints no event rather than a
-  # phantom "new season."
-  defp detect_additions(:movie, _keys, _new_by_key, _old_by_key), do: []
+  # A movie has no seasons or episodes; its schedule is a set of dated, typed
+  # releases. Each added release with a known date is announced as a scheduled
+  # release. The initial release set is persisted at track time (alongside
+  # `:began_tracking`), so the first refresh sees it as unchanged and this path
+  # only fires for genuinely new dates — a later digital window, a sequel in a
+  # tracked collection. Undated rows carry no schedule, so they are skipped.
+  defp detect_additions(:movie, keys, new_by_key, _old_by_key) do
+    keys
+    |> Enum.map(&new_by_key[&1])
+    |> Enum.filter(&(field(&1, :air_date) && !field(&1, :released)))
+    |> Enum.map(fn release ->
+      title = field(release, :title) || "Unknown"
+      air_date = field(release, :air_date)
+
+      %{
+        event_type: :release_scheduled,
+        description: "#{title} scheduled for #{Date.to_iso8601(air_date)}",
+        metadata: %{
+          title: title,
+          air_date: air_date,
+          release_type: field(release, :release_type)
+        }
+      }
+    end)
+  end
 
   defp detect_additions(:tv_series, keys, _new_by_key, old_by_key) do
     new_seasons =
       keys
-      |> Enum.map(fn {season, _episode, _title} -> season end)
+      |> Enum.map(fn {season, _episode, _title, _type} -> season end)
       |> Enum.uniq()
       |> Enum.reject(fn season ->
-        Enum.any?(Map.keys(old_by_key), fn {old_season, _e, _t} -> old_season == season end)
+        Enum.any?(Map.keys(old_by_key), fn {old_season, _e, _t, _rt} -> old_season == season end)
       end)
 
     season_events =
       Enum.map(new_seasons, fn season ->
-        count = Enum.count(keys, fn {key_season, _e, _t} -> key_season == season end)
+        count = Enum.count(keys, fn {key_season, _e, _t, _rt} -> key_season == season end)
 
         %{
           event_type: :new_season_announced,
@@ -111,7 +134,7 @@ defmodule MediaCentaur.ReleaseTracking.Differ do
       end)
 
     episode_keys =
-      MapSet.reject(keys, fn {season, _e, _t} -> season in new_seasons end)
+      MapSet.reject(keys, fn {season, _e, _t, _rt} -> season in new_seasons end)
 
     episode_events =
       if MapSet.size(episode_keys) > 0 do
