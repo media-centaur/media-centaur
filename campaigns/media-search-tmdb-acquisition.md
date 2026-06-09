@@ -205,10 +205,19 @@ the seven risks below.
    `b92e8433` → `03cc07ca`; the composite-pursuit core, its UI, and the
    corpus are live for the query door. Next: **Phase 2 — pack strategy
    + coverage ladder.**
-2. **Pack strategy + coverage ladder.** The matcher work (`TitleMatcher`
-   recognizing complete-series / season packs, not just one S/E) and the
-   pack→episode **accounting** (one pack download satisfies many wanted
-   units; partial packs; dedup against library and within the corpus).
+2. **Pack strategy + coverage ladder.** ✅ machinery shipped 2026-06-09
+   (commit `2b44d136`): `Search.ReleaseCoverage` classifies release
+   scope (episode / span / season / season-range / series; conservative
+   against risk #3) and provides the accounting primitives
+   (`covers?/3`, `covered_units/2` — partial packs are the normal
+   case); `TitleMatcher.coverage/2` verifies show identity for pack
+   shapes and returns the scope. `matches?/2` deliberately keeps strict
+   want-equality — pack-vs-episode is the planner's call, so the
+   auto-grab worker can't silently pull a season pack for one episode.
+   *Dedup-against-library and within-corpus dedup are planner
+   constraints by construction (subtract present units from the want
+   list; assignment maps each unit to exactly one candidate) — they
+   land with Phase 3's planner.*
 3. **Media-search front door.** TMDB targeting UI (series / season /
    episode picker with library + tracked overlays and quick actions:
    *Everything aired*, *Continue from where my library ends*, *Latest
