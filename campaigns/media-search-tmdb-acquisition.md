@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress (Phase 1 core shipped; UI + corpus remain)
 started: 2026-05-31
 last_updated: 2026-06-09
 ---
@@ -157,6 +157,10 @@ Append-only log.
 * `2026-06-09` — **Targeting defaults**: aired-to-date minus library minus tracked, subtractions shown not silent; quality from settings with per-search override.
 * `2026-06-09` — **Movies are a single unit; TMDB collections deferred** (the client's `get_collection` keeps the door open).
 * `2026-06-09` — **Core-first phasing confirmed** despite the primary repositioning — Phase 1 still proves the composite core on file search before any TMDB UI.
+* `2026-06-09` — **ADR-055 written and accepted** (`decisions/architecture/2026-06-09-055-composite-pursuits.md`): units carry the attempt thread; parent state is a transactional fold (`State.fold_units/1` via `Commands.Refold`); target↔unit coverage is a join table; `partial` is the mixed-outcome terminal state.
+* `2026-06-09` — **Phase 1 core SHIPPED** (3 commits, unpushed): schema + backfill (`b92e8433`), thread flip onto units (`8c7705ef`), batch-grab collapse (`4f43e7ec`). Every existing pursuit migrated losslessly to a single-unit composite; `Sample Show S01E{01-02}`-style batch grabs now land as ONE pursuit with per-term units (verified end-to-end in `acquisition_live_test`).
+* `2026-06-09` — **Interim unit resolution for pursuit-scoped surfaces**: `Units.lead_of/1` (awaiting-decision unit → active w/ target → active → first) is the single definition of which thread the modal/decision-card/ChangeTarget act on until per-unit drill-down lands. `Units.single!/1` remains only where single-unit is a true invariant (TMDB `Arm`) — it raises on multi-unit pursuits as a deliberate tripwire.
+* `2026-06-09` — **Unit-scoped search**: `Recipe.for_unit/2` overrides `manual_query` with the unit's concrete term — worker re-search and decision-card alternatives stay scoped to the unit, never re-expanding the whole braced query.
 
 ## Next steps
 
@@ -164,14 +168,28 @@ Phased rollout, sequenced to de-risk: each phase ships a real improvement
 without depending on the harder logic that follows. Each phase must not break
 the seven risks below.
 
-1. **Pursuit core + migrate file search onto it.** Grow `Pursuit` into a
-   composite (parent + leaves + covered units, per the Vocabulary —
-   unit-based progress from day one); collapse brace-expanded
-   `prowlarr_query` grabs into one pursuit; build the parent/leaf progress +
-   drill-down + intervention UI; wire the search corpus + living-intent
-   re-resolution. No TMDB, no planner. Proves the core on the simplest,
-   already-working case. **Write the composite-pursuit ADR here** (includes
-   the overlap-check identity rule).
+1. **Pursuit core + migrate file search onto it.** Status 2026-06-09:
+   * ✅ ADR-055 written/accepted (composite shape, fold, overlap-check rule).
+   * ✅ Schema: `acquisition_pursuit_units` + `acquisition_target_units`,
+     backfilled; thread columns dropped from pursuits (2 migrations,
+     backfill dry-run-verified against a prod DB copy).
+   * ✅ Thread flip: commands / PursueTarget / Watcher loop
+     (Observations → Snapshot → Policy, now per-unit) / view-models /
+     LiveView re-pointed; `partial` state live; unit-based fold is the
+     only writer of pursuit state.
+   * ✅ Batch-grab collapse: one composite pursuit per brace-expanded
+     grab, one unit per term (`Acquisition.pick_targets/2`,
+     batch `StartFromPick`).
+   * ⬜ **Parent/leaf UI** — unit-based progress ("N of M") on
+     `PursuitRow` + the downloads card, drill-down to per-unit threads
+     in the pursuit modal, per-unit intervention (`ChangeTarget` /
+     decision card gain `unit_id` args; replace the `Units.lead_of/1`
+     interim). Storybook stories per MC0009. *(Next session — load
+     `user-interface` + `storybook` skills first.)*
+   * ⬜ **Search corpus + living-intent re-resolution** — durable
+     candidate corpus w/ freshness policy; at grab time re-resolve only
+     among already-found candidates; exhaustion = leaf failure →
+     intervention.
 2. **Pack strategy + coverage ladder.** The matcher work (`TitleMatcher`
    recognizing complete-series / season packs, not just one S/E) and the
    pack→episode **accounting** (one pack download satisfies many wanted
@@ -220,7 +238,8 @@ phase. `(exists)` = works today, `(extends)` = grows existing code,
 
 ## Pointers
 
-* **Acquisition** — `lib/media_centaur/acquisition.ex` (facade, `enqueue`), `acquisition/pursuits/pursuit.ex` (the aggregate to grow), `acquisition/target.ex` (grab attempt), `acquisition/reactor.ex` + `reactor/handlers.ex` (release-ready → pursuit), `acquisition/auto_grab_policy.ex`, `acquisition/auto_grab_settings.ex`.
+* **Composite core (new, ADR-055)** — `acquisition/pursuits/unit.ex` (thread carrier), `units.ex` (read side; `lead_of/1`, `single!/1`, `covered_by/1`), `target_unit.ex` (coverage join), `unit_state.ex`, `commands/refold.ex` (parent fold), `Acquisition.pick_targets/2` + `commands/start_from_pick.ex` (batch collapse), `Recipe.for_unit/2` (unit-scoped search).
+* **Acquisition** — `lib/media_centaur/acquisition.ex` (facade, `enqueue`), `acquisition/pursuits/pursuit.ex` (the composite parent), `acquisition/target.ex` (grab attempt), `acquisition/reactor.ex` + `reactor/handlers.ex` (release-ready → pursuit), `acquisition/auto_grab_policy.ex`, `acquisition/auto_grab_settings.ex`.
 * **Search** — `lib/media_centaur/search/prowlarr.ex` (search/grab API; note the `POST /api/v1/search` grab gotcha), `search/search_result.ex`. Release-title parsing: `MediaCentaur.Parser` + `TitleMatcher` (the S/E-only validator to extend for packs).
 * **TMDB** — `lib/media_centaur/tmdb/client.ex` (`search_movie`, `search_tv`, `get_tv`, `get_movie`, `get_collection`) + `Mapper`.
 * **Release tracking** (the forward-monitor sibling + handoff target) — `lib/media_centaur/release_tracking.ex`, `release_tracking/item.ex`, `release_tracking/refresher.ex`, `components/track_modal.ex` (TMDB search UI to mirror for the select phase).
