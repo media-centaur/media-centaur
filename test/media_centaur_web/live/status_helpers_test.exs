@@ -457,4 +457,46 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
                StatusHelpers.format_at_risk_for_dir("/mnt/orphan", summary, %{}, now, 30)
     end
   end
+
+  # --- Watcher activity narrative ---
+
+  describe "dir_failure_reason_label/1" do
+    test "explains a missing mount in plain language" do
+      label = "drive not mounted — waiting for it to come back"
+      assert StatusHelpers.dir_failure_reason_label(:unmounted) == label
+      assert StatusHelpers.dir_failure_reason_label(:never_mounted) == label
+    end
+
+    test "names the inotify-tools gap" do
+      assert StatusHelpers.dir_failure_reason_label(:inotify_missing) ==
+               "inotify-tools not installed — live detection off"
+    end
+
+    test "covers backend-start and inaccessible causes" do
+      assert StatusHelpers.dir_failure_reason_label(:backend_error) =~ "couldn't start"
+      assert StatusHelpers.dir_failure_reason_label(:inaccessible) =~ "inaccessible"
+    end
+
+    test "falls back to a generic line for an unknown or nil reason" do
+      assert StatusHelpers.dir_failure_reason_label(nil) =~ "not being watched"
+      assert StatusHelpers.dir_failure_reason_label(:something_new) =~ "not being watched"
+    end
+  end
+
+  describe "format_scan_counts/1" do
+    test "groups thousands and pluralizes files" do
+      assert StatusHelpers.format_scan_counts(%{total: 1_432, new: 3, relinked: 0}) ==
+               "1,432 files · 3 new"
+    end
+
+    test "uses the singular for a one-file scan" do
+      assert StatusHelpers.format_scan_counts(%{total: 1, new: 0, relinked: 0}) ==
+               "1 file · 0 new"
+    end
+
+    test "appends relinked only when present" do
+      assert StatusHelpers.format_scan_counts(%{total: 50, new: 2, relinked: 1}) ==
+               "50 files · 2 new · 1 relinked"
+    end
+  end
 end

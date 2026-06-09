@@ -14,6 +14,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
   import MediaCentaurWeb.StatusHelpers
   import MediaCentaurWeb.LibraryOverviewComponents
+  import MediaCentaurWeb.LiveHelpers, only: [time_ago: 1]
 
   alias MediaCentaur.Library.Availability
   alias MediaCentaur.Status.LibraryOverview
@@ -97,7 +98,13 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
   attr :watcher_statuses, :list,
     required: true,
-    doc: "Watcher.Supervisor.statuses/0 entries used to resolve each dir's running state"
+    doc:
+      "Watcher.Supervisor.statuses/0 entries (dir/state/reason/settling_count/pending_deletions) used to resolve each dir's running state and in-flight activity"
+
+  attr :scan_stats, :map,
+    required: true,
+    doc:
+      "Watcher.Supervisor.scan_stats/0 result — %{dir => %{at, total, new, relinked}} for the last-scan narrative line"
 
   attr :storage_drives, :list,
     required: true,
@@ -137,6 +144,8 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
         <div :if={@dir_health != []} class="space-y-4">
           <div :for={health <- @dir_health}>
             <% status = resolve_dir_status(health, @watcher_statuses) %>
+            <% watcher = Enum.find(@watcher_statuses, &(&1.dir == health.dir)) %>
+            <% last_scan = Map.get(@scan_stats, health.dir) %>
             <% drive = find_drive_for_dir(@storage_drives, health.dir) %>
             <% at_risk =
               format_at_risk_for_dir(
@@ -193,6 +202,33 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
               ]}>
                 {drive.usage_percent}%
               </span>
+            </div>
+
+            <div
+              :if={status == :watching && last_scan}
+              class="mt-1 text-xs text-base-content/50"
+              data-component="last-scan-row"
+            >
+              Last scan {time_ago(last_scan.at)} · {format_scan_counts(last_scan)}
+            </div>
+
+            <div
+              :if={watcher && watcher.settling_count > 0}
+              class="mt-1 flex items-center gap-1.5 text-xs text-base-content/60"
+              data-component="settling-row"
+            >
+              <.icon name="hero-arrow-path-mini" class="size-3.5 shrink-0" />
+              <span>
+                {watcher.settling_count} {if watcher.settling_count == 1, do: "file", else: "files"} settling
+              </span>
+            </div>
+
+            <div
+              :if={status == :unavailable}
+              class={["mt-1 text-xs", dir_status_text_class(status)]}
+              data-component="failure-reason-row"
+            >
+              {dir_failure_reason_label(watcher && watcher.reason)}
             </div>
 
             <div

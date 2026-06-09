@@ -126,6 +126,57 @@ defmodule MediaCentaurWeb.StatusHelpers do
   def dir_status_text_class(:initializing), do: "text-warning"
   def dir_status_text_class(_), do: "text-error"
 
+  # --- Watcher activity narrative ---
+
+  @doc """
+  Plain-language explanation of *why* a watch directory is unavailable, from the
+  `reason` tagged by `MediaCentaur.Watcher` at the transition. Turns a bare
+  "unavailable" into something a curious user can act on (or wait out). Unknown
+  or `nil` reasons fall back to a neutral line rather than leaking an atom.
+  """
+  @spec dir_failure_reason_label(atom() | nil) :: String.t()
+  def dir_failure_reason_label(reason) when reason in [:unmounted, :never_mounted],
+    do: "drive not mounted — waiting for it to come back"
+
+  def dir_failure_reason_label(:inotify_missing), do: "inotify-tools not installed — live detection off"
+
+  def dir_failure_reason_label(:backend_error), do: "file watcher couldn't start — check the directory"
+
+  def dir_failure_reason_label(:inaccessible),
+    do: "directory became inaccessible — waiting for it to come back"
+
+  def dir_failure_reason_label(_other), do: "this directory is not being watched right now"
+
+  @doc """
+  Shapes the counts half of the last-scan line, e.g. `"1,432 files · 3 new"`,
+  appending `" · N relinked"` only when the scan re-pointed moved files. The
+  relative-time prefix is rendered separately in the template via
+  `MediaCentaurWeb.LiveHelpers.time_ago/1`, keeping this helper pure and
+  time-independent (ADR-030).
+  """
+  @spec format_scan_counts(%{
+          total: non_neg_integer(),
+          new: non_neg_integer(),
+          relinked: non_neg_integer()
+        }) ::
+          String.t()
+  def format_scan_counts(%{total: total, new: new_count, relinked: relinked}) do
+    base = "#{format_count(total)} #{pluralize(total, "file")} · #{format_count(new_count)} new"
+    if relinked > 0, do: base <> " · #{format_count(relinked)} relinked", else: base
+  end
+
+  defp pluralize(1, word), do: word
+  defp pluralize(_count, word), do: word <> "s"
+
+  # Thousands-separated integer for display (e.g. 1432 -> "1,432").
+  defp format_count(n) do
+    n
+    |> Integer.to_string()
+    |> String.reverse()
+    |> String.replace(~r/(\d{3})(?=\d)/, "\\1,")
+    |> String.reverse()
+  end
+
   # --- Playback Display ---
 
   def playback_text_class(:idle), do: "text-base-content/60"
