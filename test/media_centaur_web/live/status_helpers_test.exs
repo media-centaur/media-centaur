@@ -499,4 +499,33 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
                "50 files · 2 new · 1 relinked"
     end
   end
+
+  describe "metadata_kind_label/1" do
+    test "maps entity kinds to friendly nouns" do
+      assert StatusHelpers.metadata_kind_label(:movie) == "Movie"
+      assert StatusHelpers.metadata_kind_label(:tv_series) == "Show"
+      assert StatusHelpers.metadata_kind_label(:movie_series) == "Collection"
+      assert StatusHelpers.metadata_kind_label(:video_object) == "Video"
+    end
+
+    test "falls back to a generic noun for an unknown kind" do
+      assert StatusHelpers.metadata_kind_label(:something_else) == "Item"
+    end
+  end
+
+  describe "format_enriched_title/1" do
+    test "appends the year when present" do
+      assert StatusHelpers.format_enriched_title(%{title: "Sample Movie", year: 2024}) ==
+               "Sample Movie (2024)"
+    end
+
+    test "omits the year when missing" do
+      assert StatusHelpers.format_enriched_title(%{title: "Sample Show", year: nil}) ==
+               "Sample Show"
+    end
+
+    test "labels a missing title rather than rendering nil" do
+      assert StatusHelpers.format_enriched_title(%{title: nil, year: 2024}) == "Untitled"
+    end
+  end
 end

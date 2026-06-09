@@ -72,6 +72,7 @@ defmodule MediaCentaur.Application do
           MediaCentaur.ErrorReports.Buckets,
           {Task.Supervisor, name: MediaCentaur.TaskSupervisor},
           MediaCentaur.TMDB.RateLimiter,
+          MediaCentaur.TMDB.MetadataStats,
           MediaCentaur.Watcher.Supervisor,
           MediaCentaur.Library.BroadcastCoalescer,
           MediaCentaur.Library.Availability,

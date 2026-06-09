@@ -165,6 +165,25 @@ defmodule MediaCentaurWeb.StatusHelpers do
     if relinked > 0, do: base <> " · #{format_count(relinked)} relinked", else: base
   end
 
+  @doc "Friendly noun for an enriched entity's kind, for the metadata-activity feed."
+  @spec metadata_kind_label(atom()) :: String.t()
+  def metadata_kind_label(:movie), do: "Movie"
+  def metadata_kind_label(:tv_series), do: "Show"
+  def metadata_kind_label(:movie_series), do: "Collection"
+  def metadata_kind_label(:video_object), do: "Video"
+  def metadata_kind_label(_other), do: "Item"
+
+  @doc """
+  Renders a recent-enrichment entry's title, appending `(year)` when known and
+  falling back to `"Untitled"` rather than leaking a nil (e.g. an extra with no
+  matched title).
+  """
+  @spec format_enriched_title(%{title: String.t() | nil, year: integer() | nil}) :: String.t()
+  def format_enriched_title(%{title: nil}), do: "Untitled"
+  def format_enriched_title(%{title: title, year: year}) when is_integer(year), do: "#{title} (#{year})"
+
+  def format_enriched_title(%{title: title}), do: title
+
   defp pluralize(1, word), do: word
   defp pluralize(_count, word), do: word <> "s"
 

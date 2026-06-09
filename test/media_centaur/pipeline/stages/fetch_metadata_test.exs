@@ -232,4 +232,42 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
       assert {:error, _reason} = FetchMetadata.run(payload)
     end
   end
+
+  # The Status page's metadata-activity feed is fed by this event — it's the
+  # one piece of enrichment signal that carries the resolved title (the stage
+  # wrapper's telemetry only knows the file path). A failed fetch emits nothing.
+  describe "enrichment telemetry" do
+    setup do
+      test_pid = self()
+
+      :telemetry.attach(
+        "test-metadata-enriched",
+        [:media_centaur, :metadata, :enriched],
+        fn _event, _measurements, metadata, _config ->
+          send(test_pid, {:enriched, metadata})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach("test-metadata-enriched") end)
+    end
+
+    test "emits a metadata.enriched event with kind and title on movie success" do
+      stub_routes([{"/movie/550", movie_detail()}])
+
+      assert {:ok, _result} = FetchMetadata.run(payload_for())
+
+      assert_received {:enriched, metadata}
+      assert metadata.kind == :movie
+      assert metadata.title == "Sample Movie"
+    end
+
+    test "emits nothing when the fetch fails" do
+      stub_tmdb_error("/movie/550", 500)
+
+      assert {:error, _reason} = FetchMetadata.run(payload_for())
+
+      refute_received {:enriched, _metadata}
+    end
+  end
 end
