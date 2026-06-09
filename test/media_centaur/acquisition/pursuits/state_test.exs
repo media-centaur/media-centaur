@@ -5,7 +5,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.StateTest do
 
   describe "all/0" do
     test "lists every valid state as a DB string" do
-      assert State.all() == ~w(active satisfied exhausted cancelled)
+      assert State.all() == ~w(active satisfied partial exhausted cancelled)
     end
   end
 
@@ -17,7 +17,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.StateTest do
 
   describe "terminal/0" do
     test "lists every terminal state" do
-      assert State.terminal() == ~w(satisfied exhausted cancelled)
+      assert State.terminal() == ~w(satisfied partial exhausted cancelled)
     end
   end
 
@@ -63,8 +63,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.StateTest do
       assert State.bucket("active") == :in_flight
     end
 
-    test "satisfied is :terminal_success" do
+    test "satisfied and partial are :terminal_success" do
       assert State.bucket("satisfied") == :terminal_success
+      assert State.bucket("partial") == :terminal_success
     end
 
     test "exhausted and cancelled are :terminal_failure" do
@@ -82,6 +83,38 @@ defmodule MediaCentaur.Acquisition.Pursuits.StateTest do
       assert State.in_flight?(:active) == State.in_flight?("active")
       assert State.terminal?(:satisfied) == State.terminal?("satisfied")
       assert State.bucket(:exhausted) == State.bucket("exhausted")
+    end
+  end
+
+  describe "fold_units/1" do
+    test "any active unit keeps the pursuit active" do
+      assert State.fold_units(~w(active satisfied exhausted)) == "active"
+      assert State.fold_units(~w(active)) == "active"
+    end
+
+    test "all units satisfied folds to satisfied" do
+      assert State.fold_units(~w(satisfied)) == "satisfied"
+      assert State.fold_units(~w(satisfied satisfied)) == "satisfied"
+    end
+
+    test "terminal with a mix of satisfied and not folds to partial" do
+      assert State.fold_units(~w(satisfied exhausted)) == "partial"
+      assert State.fold_units(~w(satisfied cancelled)) == "partial"
+      assert State.fold_units(~w(satisfied exhausted cancelled)) == "partial"
+    end
+
+    test "terminal with no satisfaction and at least one exhausted folds to exhausted" do
+      assert State.fold_units(~w(exhausted)) == "exhausted"
+      assert State.fold_units(~w(exhausted cancelled)) == "exhausted"
+    end
+
+    test "all units cancelled folds to cancelled" do
+      assert State.fold_units(~w(cancelled)) == "cancelled"
+      assert State.fold_units(~w(cancelled cancelled)) == "cancelled"
+    end
+
+    test "raises on an empty unit list — a pursuit without units is a bug" do
+      assert_raise ArgumentError, fn -> State.fold_units([]) end
     end
   end
 end
