@@ -71,6 +71,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         <div class="min-w-0 flex-1 truncate text-sm font-medium">
           {display_title(@vm)}
         </div>
+        <.unit_progress_chip vm={@vm} />
         <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
       </div>
 
@@ -106,12 +107,28 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
       <div class="min-w-0 flex-1 truncate text-sm font-medium">
         {display_title(@vm)}
       </div>
+      <.unit_progress_chip vm={@vm} />
       <div class={"flex-shrink-0 max-w-[50%] truncate text-xs #{PursuitStyle.severity_text_class(@vm.status.severity)}"}>
         {@vm.status.verb} — {@vm.status.description}
       </div>
     </div>
     """
   end
+
+  # Composite progress (ADR-055): progress is units satisfied / units
+  # wanted. Single-unit pursuits render no chip — their state badge
+  # already says everything.
+  attr :vm, PursuitRow, required: true
+
+  defp unit_progress_chip(%{vm: %PursuitRow{units_wanted: wanted}} = assigns) when wanted > 1 do
+    ~H"""
+    <.badge variant="ghost" class="flex-shrink-0 tabular-nums">
+      {@vm.units_satisfied} of {@vm.units_wanted}
+    </.badge>
+    """
+  end
+
+  defp unit_progress_chip(assigns), do: ~H""
 
   # `Format.episode_label/2` returns "" when both season and episode are
   # nil — strip the trailing space so movies render cleanly.

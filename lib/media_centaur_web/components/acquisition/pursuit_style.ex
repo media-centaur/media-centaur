@@ -40,6 +40,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitStyle do
 
   def state_badge(%{state: :satisfied} = assigns), do: ~H|<.badge variant="success">Satisfied</.badge>|
 
+  def state_badge(%{state: :partial} = assigns), do: ~H|<.badge variant="warning">Partial</.badge>|
+
   def state_badge(%{state: :exhausted} = assigns), do: ~H|<.badge variant="error">Exhausted</.badge>|
 
   def state_badge(%{state: :cancelled} = assigns), do: ~H|<.badge variant="ghost">Cancelled</.badge>|

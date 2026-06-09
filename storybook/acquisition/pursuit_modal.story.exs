@@ -98,6 +98,20 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
         }
       },
       %Variation{
+        id: :open_composite_pursuit,
+        description:
+          "Open — composite pursuit (ADR-055): the unit board renders between the header and the activity card, one row per unit with per-unit change-target.",
+        attributes: %{
+          open: true,
+          pursuit_id: "story-composite",
+          header: active_movie_header(),
+          status: downloading_status(),
+          unit_board: composite_unit_board(),
+          timeline: short_timeline(),
+          on_close: close_event(:open_composite_pursuit)
+        }
+      },
+      %Variation{
         id: :open_not_found,
         description: "Open — pursuit id resolves to nothing (deleted or invalid deep link).",
         attributes: %{
@@ -309,6 +323,35 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
         ),
         entry("download_started", "Download started", :info, ago(180)),
         entry("pursuit_started", "Pursuit started (auto)", :info, ago(259_200))
+      ]
+    }
+  end
+
+  defp composite_unit_board do
+    %MediaCentaur.Acquisition.ViewModels.UnitBoard{
+      pursuit_id: "story-composite",
+      wanted: 3,
+      satisfied: 1,
+      units: [
+        %MediaCentaur.Acquisition.ViewModels.UnitBoard.Row{
+          id: "story-unit-1",
+          label: "Sample Show S01E01",
+          state: :satisfied,
+          release_title: "Sample.Show.S01E01.1080p.WEB-DL"
+        },
+        %MediaCentaur.Acquisition.ViewModels.UnitBoard.Row{
+          id: "story-unit-2",
+          label: "Sample Show S01E02",
+          state: :active,
+          release_title: "Sample.Show.S01E02.1080p.WEB-DL",
+          actionable?: true
+        },
+        %MediaCentaur.Acquisition.ViewModels.UnitBoard.Row{
+          id: "story-unit-3",
+          label: "Sample Show S01E03",
+          state: :active,
+          awaiting_decision?: true
+        }
       ]
     }
   end

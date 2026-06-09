@@ -8,6 +8,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition do
   def entry("pursuit_group"), do: [icon: {:fa, "layer-group", :thin}, name: "Pursuit group"]
   def entry("pursuit_header"), do: [icon: {:fa, "heading", :thin}, name: "Pursuit header"]
   def entry("pursuit_modal"), do: [icon: {:fa, "rectangle-history", :thin}, name: "Pursuit modal"]
+  def entry("unit_board"), do: [icon: {:fa, "table-cells", :thin}, name: "Unit board"]
   def entry("timeline"), do: [icon: {:fa, "timeline", :thin}, name: "Pursuit timeline"]
   def entry("decision_card"), do: [icon: {:fa, "wand-magic-sparkles", :thin}, name: "Decision card"]
 

@@ -618,4 +618,56 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
       assert status.download == nil
     end
   end
+
+  describe "unit_board_for/1 (ADR-055 drill-down)" do
+    test "one row per unit, in position order, with release and counts" do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "prowlarr_query",
+          manual_query: "Sample Show S01E{01-02}",
+          title: "Sample Show S01E{01-02}",
+          label: "Sample Show S01E01",
+          query: "Sample Show S01E01",
+          status: "acquired",
+          release_title: "Sample.Show.S01E01.1080p"
+        })
+
+      satisfied_unit =
+        create_pursuit_unit(pursuit, %{
+          label: "Sample Show S01E02",
+          query: "Sample Show S01E02",
+          position: 1,
+          state: "satisfied"
+        })
+
+      board = Pursuits.unit_board_for(pursuit)
+
+      assert board.pursuit_id == pursuit.id
+      assert board.wanted == 2
+      assert board.satisfied == 1
+
+      [first, second] = board.units
+      assert first.label == "Sample Show S01E01"
+      assert first.state == :active
+      assert first.release_title == "Sample.Show.S01E01.1080p"
+      assert first.actionable?
+
+      assert second.id == satisfied_unit.id
+      assert second.state == :satisfied
+      assert second.release_title == nil
+      refute second.actionable?
+    end
+
+    test "an awaiting-decision unit is flagged and not actionable" do
+      pursuit = create_pursuit(%{awaiting_decision_at: DateTime.utc_now(:second)})
+
+      board = Pursuits.unit_board_for(pursuit)
+
+      assert [row] = board.units
+      assert row.awaiting_decision?
+      refute row.actionable?
+      # Unitless label falls back to the pursuit title.
+      assert row.label == pursuit.title
+    end
+  end
 end

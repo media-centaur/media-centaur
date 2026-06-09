@@ -22,7 +22,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     PursuitStatus,
     Recipe,
     Timeline,
-    TimelineEntry
+    TimelineEntry,
+    UnitBoard
   }
 
   alias MediaCentaur.Downloads.QueueMonitor
@@ -277,6 +278,52 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   # definition of "which unit a pursuit-scoped surface acts on" (ADR-055).
   defp lead_unit(%Pursuit{} = pursuit), do: Units.lead(pursuit.id)
 
+  @doc """
+  Builds the `UnitBoard` view-model for a pursuit's per-unit drill-down
+  (ADR-055): one row per unit in display order, each paired with the
+  release its current target carries. Two queries total (units +
+  batched targets).
+  """
+  @spec unit_board_for(Pursuit.t()) :: UnitBoard.t()
+  def unit_board_for(%Pursuit{} = pursuit) do
+    units = Units.for_pursuit(pursuit.id)
+
+    targets =
+      units
+      |> Enum.map(& &1.current_target_id)
+      |> Enum.reject(&is_nil/1)
+      |> fetch_targets_by_id()
+
+    rows =
+      Enum.map(units, fn unit ->
+        target = Map.get(targets, unit.current_target_id)
+        awaiting? = UnitState.awaiting_decision?(unit)
+
+        %UnitBoard.Row{
+          id: unit.id,
+          label: unit.label || unit.query || pursuit.title,
+          state: unit_state_to_atom(unit.state),
+          release_title: target && target.release_title,
+          awaiting_decision?: awaiting?,
+          # Awaiting units pivot through the decision card, not the
+          # board — offering both would race the user against themselves.
+          actionable?: unit.state == "active" and not awaiting?
+        }
+      end)
+
+    %UnitBoard{
+      pursuit_id: pursuit.id,
+      wanted: max(length(units), 1),
+      satisfied: Enum.count(units, &(&1.state == "satisfied")),
+      units: rows
+    }
+  end
+
+  defp unit_state_to_atom("active"), do: :active
+  defp unit_state_to_atom("satisfied"), do: :satisfied
+  defp unit_state_to_atom("exhausted"), do: :exhausted
+  defp unit_state_to_atom("cancelled"), do: :cancelled
+
   @doc "Returns a `Timeline` view-model containing every event for a pursuit."
   @spec timeline_for(Ecto.UUID.t()) :: Timeline.t()
   def timeline_for(pursuit_id) do
@@ -468,7 +515,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       target_status: target_status,
       status: status,
       normalized_release_title: release_title && QueueMatcher.normalize_title(release_title),
-      torrent_hash: torrent_hash
+      torrent_hash: torrent_hash,
+      units_wanted: max(length(units), 1),
+      units_satisfied: Enum.count(units, &(&1.state == "satisfied"))
     }
   end
 

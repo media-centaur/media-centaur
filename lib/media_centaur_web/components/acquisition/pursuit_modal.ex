@@ -20,7 +20,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
     DecisionCard,
     PursuitActivity,
     PursuitHeader,
-    PursuitTimeline
+    PursuitTimeline,
+    UnitBoard
   }
 
   attr :open, :boolean, required: true
@@ -39,6 +40,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
   attr :decision_card, :any,
     default: nil,
     doc: "%DecisionCard{} | nil — only present when the pursuit is awaiting a decision."
+
+  attr :unit_board, :any,
+    default: nil,
+    doc:
+      "%UnitBoard{} | nil — per-unit drill-down for composite pursuits (ADR-055). Renders nothing for single-unit pursuits."
 
   attr :not_found?, :boolean, default: false
 
@@ -65,6 +71,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
 
         <div :if={!@not_found? && @header} class="p-6 space-y-4">
           <PursuitHeader.pursuit_header vm={@header} />
+
+          <UnitBoard.unit_board vm={@unit_board} on_change_target={@on_change_target} />
 
           <%!-- Activity hides when the pursuit is awaiting a decision
                   (decision_card present). In that case the Decision

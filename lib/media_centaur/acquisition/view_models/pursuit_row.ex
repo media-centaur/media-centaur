@@ -27,7 +27,12 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitRow do
     # of the title — immune to tracker-prefixed torrent names. Nil falls
     # back to (prefix-tolerant) title matching.
     :torrent_hash,
-    awaiting_decision?: false
+    awaiting_decision?: false,
+    # Composite progress (ADR-055): progress is always units satisfied /
+    # units wanted, never a count of targets. Single-unit pursuits carry
+    # 1/0-or-1 and render no progress chip.
+    units_wanted: 1,
+    units_satisfied: 0
   ]
 
   @type state ::
@@ -51,6 +56,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitRow do
           status: CurrentAction.t(),
           normalized_release_title: String.t() | nil,
           torrent_hash: String.t() | nil,
-          awaiting_decision?: boolean()
+          awaiting_decision?: boolean(),
+          units_wanted: pos_integer(),
+          units_satisfied: non_neg_integer()
         }
 end

@@ -38,32 +38,37 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
   alias MediaCentaur.Acquisition.Pursuits.Commands.Runner
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.TargetChanged
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, State, TargetUnit, Unit, Units}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, State, TargetUnit, Unit, UnitState, Units}
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Acquisition.TargetStatus
   alias MediaCentaur.Repo
 
+  @doc """
+  Optional `:unit_id` scopes the pivot to one unit of a composite (the
+  unit-board drill-down). Without it, the pivot acts on the lead unit —
+  the same thread the modal displays (`Units.lead_of/1`).
+  """
   @spec execute(%{pursuit_id: Ecto.UUID.t()}) ::
           {:ok, Pursuit.t()} | {:error, :not_found | :not_eligible | term()}
-  def execute(%{pursuit_id: id}) when is_binary(id) do
+  def execute(%{pursuit_id: id} = args) when is_binary(id) do
     with {:ok, %Pursuit{state: state} = _pursuit} <- Pursuits.get(id),
          true <- state in State.in_flight() do
-      do_execute(id)
+      do_execute(id, args)
     else
       false -> {:error, :not_eligible}
       {:error, :not_found} = error -> error
     end
   end
 
-  defp do_execute(id) do
+  defp do_execute(id, args) do
     result =
       Runner.run(id, "pursuit target changed", fn pursuit ->
-        # The lead unit is the thread the modal displays — pursuit-scoped
-        # intervention acts on the same thread the user is looking at
-        # (Units.lead_of/1); per-unit drill-down lands with Phase 1c.
-        unit = Units.lead(pursuit.id)
+        unit = resolve_unit(pursuit, args)
 
-        with {:ok, _previous} <- maybe_fail_current_target(unit),
+        # A terminal unit doesn't pivot — a fresh seeking target on a
+        # satisfied unit would re-grab something already landed.
+        with true <- unit.state in UnitState.in_flight() || {:error, :not_eligible},
+             {:ok, _previous} <- maybe_fail_current_target(unit),
              {:ok, new_target} <- insert_seeking_target(pursuit),
              {:ok, _coverage} <-
                Repo.insert(TargetUnit.create_changeset(%{target_id: new_target.id, unit_id: unit.id})),
@@ -91,6 +96,13 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
         other
     end
   end
+
+  defp resolve_unit(_pursuit, %{unit_id: unit_id}) when is_binary(unit_id) do
+    {:ok, unit} = Units.get(unit_id)
+    unit
+  end
+
+  defp resolve_unit(pursuit, _args), do: Units.lead(pursuit.id)
 
   defp maybe_fail_current_target(%Unit{current_target_id: nil}), do: {:ok, nil}
 

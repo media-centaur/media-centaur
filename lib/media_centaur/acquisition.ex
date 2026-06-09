@@ -42,7 +42,9 @@ defmodule MediaCentaur.Acquisition do
       ViewModels.PursuitWithDownload,
       ViewModels.Recipe,
       ViewModels.Timeline,
-      ViewModels.TimelineEntry
+      ViewModels.TimelineEntry,
+      ViewModels.UnitBoard,
+      ViewModels.UnitBoard.Row
     ]
 
   @moduledoc """
