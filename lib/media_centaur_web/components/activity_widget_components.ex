@@ -831,6 +831,91 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
     """
   end
 
+  @doc "System (runtime) Activity widget: uptime, BEAM vitals, host facts, datastore footprint."
+  attr :system_vitals, :map,
+    required: true,
+    doc:
+      "Runtime.Vitals.snapshot/0 bundle (uptime_seconds, memory, process_*, run_queue, schedulers, host, db)"
+
+  def system_widget(assigns) do
+    v = assigns.system_vitals
+    proc_tone = if v.process_count > v.process_limit * 0.8, do: :warn, else: :ok
+    rq_tone = if v.run_queue > v.schedulers, do: :warn, else: :ok
+
+    assigns =
+      assigns
+      |> Map.put(:proc_tone, proc_tone)
+      |> Map.put(:rq_tone, rq_tone)
+
+    ~H"""
+    <div class="card glass-surface" data-testid="system-widget">
+      <div class="card-body">
+        <%!-- Header + uptime (stability headline) --%>
+        <div class="flex items-center justify-between">
+          <h2 class="card-title text-lg">System</h2>
+          <span class="text-xs text-base-content/60">
+            Up {format_uptime(@system_vitals.uptime_seconds)}
+          </span>
+        </div>
+
+        <%!-- Vitals stat figures (neutral) --%>
+        <div data-component="system-vitals" class="mt-2 grid grid-cols-3 gap-3">
+          <div>
+            <div class="text-2xl font-semibold tabular-nums">
+              {format_bytes(@system_vitals.memory.total)}
+            </div>
+            <div class="text-xs uppercase tracking-wider text-base-content/50">Memory</div>
+          </div>
+          <div>
+            <div class="text-2xl font-semibold tabular-nums">{@system_vitals.process_count}</div>
+            <div class="text-xs uppercase tracking-wider text-base-content/50">Processes</div>
+          </div>
+          <div>
+            <div class="text-2xl font-semibold tabular-nums">
+              {format_bytes(@system_vitals.db.size_bytes)}
+            </div>
+            <div class="text-xs uppercase tracking-wider text-base-content/50">Database</div>
+          </div>
+        </div>
+
+        <%!-- Runtime detail rows (color = signal) --%>
+        <div
+          data-component="system-detail"
+          class="mt-3 pt-3 border-t border-base-content/10 grid grid-cols-2 gap-x-6 gap-y-1 text-xs"
+        >
+          <div class="flex items-center justify-between">
+            <span class="text-base-content/50">Schedulers</span>
+            <span class="tabular-nums text-base-content/70">{@system_vitals.schedulers}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-base-content/50">Run queue</span>
+            <span class={["tabular-nums", tone_chrome(@rq_tone).text]}>
+              {@system_vitals.run_queue}
+            </span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-base-content/50">Processes / limit</span>
+            <span class={["tabular-nums", tone_chrome(@proc_tone).text]}>
+              {@system_vitals.process_count} / {@system_vitals.process_limit}
+            </span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-base-content/50">WAL</span>
+            <span class="tabular-nums text-base-content/70">
+              {format_bytes(@system_vitals.db.wal_bytes)}
+            </span>
+          </div>
+        </div>
+
+        <%!-- Host / build footer (quiet) --%>
+        <div data-component="system-host" class="mt-3 text-xs text-base-content/40">
+          OTP {@system_vitals.host.otp} · Elixir {@system_vitals.host.elixir} · {@system_vitals.host.os}
+        </div>
+      </div>
+    </div>
+    """
+  end
+
   @doc "Downloads (acquisition) Activity widget: connectivity health + throughput figures."
   attr :acquisition_activity, :map,
     required: true,
@@ -966,6 +1051,11 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
   defp format_recent_title(%{title: title}) when is_binary(title) and title != "", do: title
   defp format_recent_title(_), do: "Untitled"
+
+  defp format_uptime(s) when s < 60, do: "#{s}s"
+  defp format_uptime(s) when s < 3600, do: "#{div(s, 60)}m"
+  defp format_uptime(s) when s < 86_400, do: "#{div(s, 3600)}h #{rem(div(s, 60), 60)}m"
+  defp format_uptime(s), do: "#{div(s, 86_400)}d #{rem(div(s, 3600), 24)}h"
 
   # Stable iterator id (ADR-012): completion timestamps are seconds apart.
   defp watch_row_id(%{at: %DateTime{} = at}), do: "watch-#{DateTime.to_unix(at, :microsecond)}"
