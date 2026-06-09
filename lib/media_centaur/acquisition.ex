@@ -94,6 +94,7 @@ defmodule MediaCentaur.Acquisition do
   alias MediaCentaur.Acquisition.{
     AutoGrabService,
     Config,
+    Corpus,
     Target,
     TargetEvents,
     Targets
@@ -325,6 +326,11 @@ defmodule MediaCentaur.Acquisition do
           kind, reason -> {:error, {kind, reason}}
         end
 
+      # User-initiated searches always hit the indexers live, but their
+      # findings still feed the durable corpus (ADR-055) — the
+      # citizenship gate and pivot fallbacks get to reuse them.
+      with {:ok, results} <- outcome, do: Corpus.record!(query, [], results)
+
       record_search_result(query, outcome)
     end)
 
@@ -350,10 +356,13 @@ defmodule MediaCentaur.Acquisition do
   def search_expanded(query, opts \\ []) when is_binary(query) do
     if available?() do
       with {:ok, queries} <- QueryExpander.expand(query) do
+        # Per-term searches go through the corpus (consult-first,
+        # ADR-055); pass `force: true` in opts for a user-initiated
+        # refresh that must bypass the freshness gate.
         results =
           queries
           |> Task.async_stream(
-            fn q -> Prowlarr.search(q, opts) end,
+            fn q -> Corpus.search(q, opts) end,
             max_concurrency: 5,
             timeout: 15_000,
             on_timeout: :kill_task
@@ -535,17 +544,21 @@ defmodule MediaCentaur.Acquisition do
   could pivot to". Both the decision-card refresh path and the
   `pick_alternative` validation lookup go through the same private
   search helper, so the pursuit→Prowlarr translation (query selection,
-  type/year opts, brace expansion) lives in one place and can't drift.
+  type/year opts, brace expansion, corpus consult) lives in one place
+  and can't drift.
+
+  Searches consult the corpus first (ADR-055 citizenship); pass
+  `force: true` for the user-initiated "Search Prowlarr again" refresh.
   """
-  @spec list_alternatives_for(Pursuit.t()) :: [SearchResult.t()]
-  def list_alternatives_for(%Pursuit{} = pursuit) do
+  @spec list_alternatives_for(Pursuit.t(), keyword()) :: [SearchResult.t()]
+  def list_alternatives_for(%Pursuit{} = pursuit, search_opts \\ []) do
     # The decision card serves the awaiting-or-lead unit (ADR-055):
     # exclusions come from that unit's thread, and its concrete query
     # (when set) scopes the search to the unit's own term rather than
     # re-expanding the whole braced query.
     unit = Units.lead(pursuit.id)
 
-    case do_search_for_pursuit(pursuit, unit) do
+    case do_search_for_pursuit(pursuit, unit, search_opts) do
       {:ok, results} ->
         excluded = MapSet.new((unit && unit.tried_release_guids) || [])
 
@@ -560,24 +573,27 @@ defmodule MediaCentaur.Acquisition do
 
   # Single source of truth for "search Prowlarr the way THIS pursuit
   # wants to be searched". Brace-aware, type-aware, year-aware,
-  # unit-aware. Adding a new consumer just calls
-  # `list_alternatives_for/1` (filtered) or `do_search_for_pursuit/2`
+  # unit-aware, corpus-aware. Adding a new consumer just calls
+  # `list_alternatives_for/2` (filtered) or `do_search_for_pursuit/3`
   # (raw, internal-only) — the recipe can't drift between call sites.
-  defp do_search_for_pursuit(%Pursuit{} = pursuit, unit \\ nil) do
-    pursuit |> Recipe.for_unit(unit) |> do_search_for_recipe()
+  defp do_search_for_pursuit(%Pursuit{} = pursuit, unit \\ nil, search_opts \\ []) do
+    pursuit |> Recipe.for_unit(unit) |> do_search_for_recipe(search_opts)
   end
 
-  defp do_search_for_recipe(%Recipe{type: :tmdb} = recipe) do
+  defp do_search_for_recipe(%Recipe{type: :tmdb} = recipe, search_opts) do
     opts =
-      []
+      search_opts
       |> put_when_present(:type, recipe.tmdb_type)
       |> put_when_present(:year, recipe.year)
 
     search_expanded(recipe.title, opts)
   end
 
-  defp do_search_for_recipe(%Recipe{type: :prowlarr_query, manual_query: query, title: title}) do
-    search_expanded(query || title, [])
+  defp do_search_for_recipe(
+         %Recipe{type: :prowlarr_query, manual_query: query, title: title},
+         search_opts
+       ) do
+    search_expanded(query || title, search_opts)
   end
 
   defp find_alternative(%Pursuit{} = pursuit, guid) do

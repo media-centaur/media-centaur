@@ -5,6 +5,7 @@ defmodule MediaCentaur.AcquisitionTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Acquisition
+  alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
   alias MediaCentaur.Search.{Prowlarr, SearchResult}
   alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, Units}
@@ -335,6 +336,69 @@ defmodule MediaCentaur.AcquisitionTest do
       pursuit = Repo.get!(Pursuit, target.pursuit_id)
       assert pursuit.origin == "manual"
       assert pursuit.recipe_type == "prowlarr_query"
+    end
+  end
+
+  describe "living-intent re-resolution from the corpus (ADR-055)" do
+    test "a pivoted unit re-resolves among already-known candidates with zero search traffic" do
+      # The unit already tried guid-tried; the corpus knows an
+      # alternative from the original discovery. On the next worker
+      # wake the alternative must be grabbed WITHOUT a fresh indexer
+      # search — only the grab POST is allowed through.
+      Corpus.record!("Sample Show S01E01", [type: :tv], [
+        %SearchResult{
+          title: "Sample.Show.S01E01.1080p.WEB-DL.x264-TRIED",
+          guid: "guid-tried",
+          indexer_id: 1,
+          quality: :hd_1080p,
+          seeders: 50,
+          info_hash: "aaaa000000000000000000000000000000000000"
+        },
+        # 4K so the young pursuit's quality-patience window (which
+        # elevates the floor to uhd_4k) accepts it.
+        %SearchResult{
+          title: "Sample.Show.S01E01.2160p.WEB-DL.x265-GROUP",
+          guid: "guid-alt",
+          indexer_id: 1,
+          quality: :uhd_4k,
+          seeders: 10,
+          info_hash: "bbbb000000000000000000000000000000000000"
+        }
+      ])
+
+      {pursuit, target} =
+        create_pursuit_with_target(%{
+          recipe_type: "tmdb",
+          tmdb_id: "777",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 1,
+          status: "seeking",
+          tried_release_guids: ["guid-tried"]
+        })
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.method do
+          # The grab gotcha: grabs POST to /api/v1/search.
+          "POST" -> Req.Test.json(conn, %{"approved" => true})
+          method -> raise "indexer searched (#{method} #{conn.request_path}) despite a fresh corpus"
+        end
+      end)
+
+      assert {:ok, _} =
+               MediaCentaur.Acquisition.Jobs.PursueTarget.perform(%Oban.Job{
+                 args: %{"target_id" => target.id}
+               })
+
+      reloaded = Repo.get!(Target, target.id)
+      assert reloaded.status == "acquired"
+      assert reloaded.prowlarr_guid == "guid-alt"
+
+      # The tried release stayed excluded by the unit's thread.
+      refute reloaded.prowlarr_guid == "guid-tried"
+
+      assert "guid-tried" in MediaCentaur.Acquisition.Pursuits.Units.single!(pursuit.id).tried_release_guids
     end
   end
 

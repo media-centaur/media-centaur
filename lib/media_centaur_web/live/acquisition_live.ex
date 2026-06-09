@@ -752,7 +752,16 @@ defmodule MediaCentaurWeb.AcquisitionLive do
             case Pursuits.get(pursuit_id) do
               {:ok, pursuit} ->
                 header = Pursuits.header_from(pursuit)
-                build_decision(pursuit, header.awaiting_decision?, header.recipe.search_queries, nil)
+
+                # "Search Prowlarr again" is the user-initiated refresh —
+                # it bypasses the corpus freshness gate (ADR-055).
+                build_decision(
+                  pursuit,
+                  header.awaiting_decision?,
+                  header.recipe.search_queries,
+                  nil,
+                  force: true
+                )
 
               _ ->
                 %{card: nil, results_by_guid: %{}}
@@ -1104,14 +1113,16 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # `handle_event("pick_alternative", ...)` can pass the cached struct
   # straight to `Acquisition.pick_alternative/3`, skipping the otherwise
   # mandatory Prowlarr round-trip to look the result up by guid.
-  defp build_decision(%Pursuit{} = pursuit, true = _awaiting?, search_queries, cached) do
+  defp build_decision(pursuit, awaiting?, search_queries, cached, search_opts \\ [])
+
+  defp build_decision(%Pursuit{} = pursuit, true = _awaiting?, search_queries, cached, search_opts) do
     case cached do
       %{decision_card: %ViewModels.DecisionCard{pursuit_id: id} = vm, decision_results_by_guid: results}
       when id == pursuit.id ->
         %{card: vm, results_by_guid: results}
 
       _ ->
-        results = Acquisition.list_alternatives_for(pursuit)
+        results = Acquisition.list_alternatives_for(pursuit, search_opts)
 
         card = %ViewModels.DecisionCard{
           pursuit_id: pursuit.id,
@@ -1125,7 +1136,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     end
   end
 
-  defp build_decision(_pursuit, _awaiting?, _search_queries, _cached),
+  defp build_decision(_pursuit, _awaiting?, _search_queries, _cached, _search_opts),
     do: %{card: nil, results_by_guid: %{}}
 
   defp search_result_to_alternative(result) do
