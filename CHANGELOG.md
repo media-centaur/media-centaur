@@ -4,6 +4,24 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.85.1 — 2026-06-09
+
+### Improved
+
+**A quieter, more trustworthy status board.** Diagnostics no longer reports
+normal, recovered situations as problems. Reports tied to an older version
+clear themselves automatically after you update, so the board reflects what's
+happening now instead of piling up old history. And everyday events — closing
+a browser tab, a dropped connection, or your computer waking from sleep — are
+recognized as normal and no longer raise false alarms.
+
+### Fixed
+
+**A burst of background activity no longer floods the board with errors.** When
+a lot of artwork or files were processed at once, the database could be briefly
+overwhelmed and surface a cluster of error reports. That work is now handled
+smoothly — without the false alarms, and recovering cleanly on its own.
+
 ## v0.85.0 — 2026-06-09
 
 ### Improved
