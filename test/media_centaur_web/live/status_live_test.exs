@@ -161,7 +161,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
   # was dropped — the page no longer subscribes to Library events.
 
   describe "playback activity widget" do
-    test "idle tile shows lifetime stats and the recorder-ready line", %{conn: conn} do
+    test "idle tile shows the recent feed and lifetime stat figures", %{conn: conn} do
       MediaCentaur.WatchHistory.create_event(%{
         entity_type: :movie,
         title: "Movie A",
@@ -172,8 +172,8 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       {:ok, _view, html} = live_async!(conn, "/status?subsystem=playback")
 
       assert html =~ "Movie A"
-      assert html =~ "Recorder ready"
-      assert html =~ "watched"
+      assert html =~ "Recently watched"
+      assert html =~ "Day streak"
     end
 
     test "a watch_event_created message refreshes the snapshot", %{conn: conn} do
