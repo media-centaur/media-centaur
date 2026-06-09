@@ -1,23 +1,40 @@
 defmodule MediaCentaur.Acquisition.Pursuits.PolicyTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentaur.Acquisition.Pursuits.{Policy, Pursuit, Snapshot, Thresholds}
+  alias MediaCentaur.Acquisition.Pursuits.{Policy, Pursuit, Snapshot, Thresholds, Unit}
 
-  defp build_snapshot(pursuit_overrides, snapshot_overrides \\ %{}) do
-    pursuit_attrs =
+  # The thread overrides (attempt_count, awaiting_decision_at,
+  # inserted_at) land on the unit — the thread carrier (ADR-055). The
+  # unit's lifecycle state mirrors the pursuit's, matching how the
+  # commands keep them folded in production.
+  defp build_snapshot(overrides, snapshot_overrides \\ %{}) do
+    pursuit_id = Ecto.UUID.generate()
+    state = Map.get(overrides, :state, "active")
+
+    pursuit =
+      struct(Pursuit, %{
+        id: pursuit_id,
+        state: state,
+        inserted_at: ~U[2026-04-01 00:00:00Z],
+        updated_at: ~U[2026-04-01 00:00:00Z]
+      })
+
+    unit_attrs =
       Map.merge(
         %{
           id: Ecto.UUID.generate(),
-          state: "active",
+          pursuit_id: pursuit_id,
+          state: state,
           attempt_count: 0,
           inserted_at: ~U[2026-04-01 00:00:00Z],
           updated_at: ~U[2026-04-01 00:00:00Z]
         },
-        pursuit_overrides
+        overrides
       )
 
     base = %Snapshot{
-      pursuit: struct(Pursuit, pursuit_attrs),
+      pursuit: pursuit,
+      unit: struct(Unit, unit_attrs),
       current_target: nil,
       queue_state: :unknown,
       now: ~U[2026-04-10 00:00:00Z],

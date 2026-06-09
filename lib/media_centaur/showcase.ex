@@ -56,7 +56,8 @@ defmodule MediaCentaur.Showcase do
   persistent-term stub used by tests — so `mix test` never hits the real API.
   """
 
-  alias MediaCentaur.Acquisition.{Pursuits.Pursuit, Target}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit}
+  alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Library
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Repo
@@ -824,9 +825,29 @@ defmodule MediaCentaur.Showcase do
       |> Ecto.Changeset.change(target_base)
       |> Repo.insert!()
 
+    # The attempt thread lives on the unit (ADR-055): one unit mirroring
+    # the pursuit's state, pointing at the target, plus the coverage row.
+    unit =
+      %Unit{}
+      |> Ecto.Changeset.change(%{
+        pursuit_id: pursuit.id,
+        state: pursuit_base[:state] || "active",
+        current_target_id: target.id,
+        inserted_at: now,
+        updated_at: now
+      })
+      |> Repo.insert!()
+
+    %TargetUnit{}
+    |> Ecto.Changeset.change(%{
+      target_id: target.id,
+      unit_id: unit.id,
+      inserted_at: now,
+      updated_at: now
+    })
+    |> Repo.insert!()
+
     pursuit
-    |> Ecto.Changeset.change(current_target_id: target.id)
-    |> Repo.update!()
   end
 
   # Fake Prowlarr + download-client configuration and a recorded "ok"

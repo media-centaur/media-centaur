@@ -100,12 +100,11 @@ defmodule MediaCentaur.Acquisition do
   alias MediaCentaur.Search.{Prowlarr, QueryExpander, SearchResult}
 
   alias MediaCentaur.Acquisition.Pursuits.Commands.{Arm, ArmAll, PickTarget, StartFromPick}
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Recipe}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Recipe, Units}
   alias MediaCentaur.Acquisition.Pursuits, as: PursuitsContext
 
   alias MediaCentaur.Downloads.DownloadClient.Dispatcher
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.Repo
   alias MediaCentaur.Topics
 
   # ---------------------------------------------------------------------------
@@ -393,7 +392,7 @@ defmodule MediaCentaur.Acquisition do
                manual_query: trim_query(query),
                origin: "manual"
              }) do
-        target = Repo.get(Target, pursuit.current_target_id)
+        target = PursuitsContext.current_target(pursuit)
         broadcast(%TargetEvents.Picked{target: target})
         Log.info(:library, "manual pick submitted — #{result.title}")
         {:ok, target}
@@ -466,7 +465,7 @@ defmodule MediaCentaur.Acquisition do
              result: result,
              choice_label: label
            }) do
-      target = Repo.get(Target, updated.current_target_id)
+      target = PursuitsContext.current_target(updated)
       broadcast(%TargetEvents.Picked{target: target})
       {:ok, updated}
     end
@@ -487,7 +486,9 @@ defmodule MediaCentaur.Acquisition do
   def list_alternatives_for(%Pursuit{} = pursuit) do
     case do_search_for_pursuit(pursuit) do
       {:ok, results} ->
-        excluded = MapSet.new(pursuit.tried_release_guids)
+        # Exclusions live on the unit's thread (ADR-055); the decision
+        # card is sole-unit until unit-scoped intervention lands.
+        excluded = MapSet.new(Units.single!(pursuit.id).tried_release_guids)
 
         results
         |> Enum.reject(&MapSet.member?(excluded, &1.guid))

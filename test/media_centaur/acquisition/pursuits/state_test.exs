@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Acquisition.Pursuits.StateTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, State}
+  alias MediaCentaur.Acquisition.Pursuits.State
 
   describe "all/0" do
     test "lists every valid state as a DB string" do
@@ -43,18 +43,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.StateTest do
 
     test "false for active" do
       refute State.terminal?("active")
-    end
-  end
-
-  describe "awaiting_decision?/1" do
-    test "true when awaiting_decision_at is set" do
-      pursuit = %Pursuit{awaiting_decision_at: DateTime.utc_now(:second)}
-      assert State.awaiting_decision?(pursuit)
-    end
-
-    test "false when awaiting_decision_at is nil" do
-      pursuit = %Pursuit{awaiting_decision_at: nil}
-      refute State.awaiting_decision?(pursuit)
     end
   end
 

@@ -31,7 +31,7 @@ defmodule MediaCentaur.Acquisition.Targets do
 
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.Jobs.PursueTarget
-  alias MediaCentaur.Acquisition.Pursuits.Pursuit
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Unit}
   alias MediaCentaur.Acquisition.{Target, TargetEvents, TargetStatus}
   alias MediaCentaur.Repo
 
@@ -200,14 +200,18 @@ defmodule MediaCentaur.Acquisition.Targets do
   """
   @spec cancel_active_targets_for(String.t(), String.t(), String.t()) :: :ok
   def cancel_active_targets_for(tmdb_id, tmdb_type, reason) when is_binary(reason) do
-    pursuits =
+    # Current targets live on the units (ADR-055) — one join query
+    # collects every matching pursuit's unit-level current_target_id.
+    target_ids =
       Repo.all(
-        from(p in Pursuit,
-          where: p.recipe_type == "tmdb" and p.tmdb_id == ^tmdb_id and p.tmdb_type == ^tmdb_type
+        from(u in Unit,
+          join: p in Pursuit,
+          on: p.id == u.pursuit_id,
+          where: p.recipe_type == "tmdb" and p.tmdb_id == ^tmdb_id and p.tmdb_type == ^tmdb_type,
+          where: not is_nil(u.current_target_id),
+          select: u.current_target_id
         )
       )
-
-    target_ids = pursuits |> Enum.map(& &1.current_target_id) |> Enum.reject(&is_nil/1)
 
     case target_ids do
       [] ->

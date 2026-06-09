@@ -35,11 +35,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPickTest do
       assert pursuit.manual_query == "Sample Show S01E01"
       assert pursuit.origin == "manual"
       assert pursuit.state == "active"
-      assert pursuit.attempt_count == 1
-      refute is_nil(pursuit.current_target_id)
-      assert pursuit.tried_release_guids == ["abc-123"]
+      unit = MediaCentaur.Acquisition.Pursuits.Units.single!(pursuit.id)
+      assert unit.attempt_count == 1
+      refute is_nil(unit.current_target_id)
+      assert unit.tried_release_guids == ["abc-123"]
 
-      target = Repo.get!(Target, pursuit.current_target_id)
+      target = Repo.get!(Target, unit.current_target_id)
       assert target.status == "acquired"
       assert target.prowlarr_guid == "abc-123"
       assert target.release_title == "Sample.Show.S01E01.1080p.WEB-DL.x264"

@@ -3,12 +3,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.Observations do
   Observation-state accounting and signal-derived event emission.
 
   This module owns two responsibilities that are intentionally co-located
-  because both consume the same per-tick `(pursuit, queue_item)` pair:
+  because both consume the same per-tick `(unit, queue_item)` pair:
 
-  1. **Reconcile observation state** on the pursuit row so `Policy` can
-     stay pure. `Policy` reads `stall_first_seen_at` and friends as
-     opaque inputs; the deciding-whether-the-signal-is-present logic
-     lives here.
+  1. **Reconcile observation state** on the unit row so `Policy` can
+     stay pure (ADR-055 — the unit carries the attempt thread).
+     `Policy` reads `stall_first_seen_at` and friends as opaque inputs;
+     the deciding-whether-the-signal-is-present logic lives here.
 
   2. **Emit raw lifecycle events** to the timeline (`DownloadStarted`,
      `HealthChanged`). These are *signal-derived* events — facts about
@@ -18,19 +18,19 @@ defmodule MediaCentaur.Acquisition.Pursuits.Observations do
      belong in the pre-Policy phase because their existence is a
      property of the observed transition, not a choice. Co-locating
      them with the state reconciliation keeps the rule "one full pass
-     per pursuit per tick" intact.
+     per unit per tick" intact.
 
-  `refresh!/3` reconciles a pursuit's persisted observation state against
+  `refresh!/4` reconciles a unit's persisted observation state against
   one snapshot of the download-client queue. The Watcher calls this once
-  per pursuit per tick before building a `Snapshot`. Three things are
-  reconciled:
+  per active unit per tick before building a `Snapshot`. Three things
+  are reconciled:
 
     * `stall_first_seen_at` / `zero_seeders_first_seen_at` — set on the
       first observation of the corresponding signal, preserved while
       observed, cleared once recovered. Drive Policy's stall and
       zero-seeders rules.
     * `last_queue_state` / `last_queue_health` — the last observed
-      `(state, health)` tuple for the pursuit's tracked queue item.
+      `(state, health)` tuple for the unit's tracked queue item.
       Used to detect lifecycle transitions across ticks.
     * Signal-derived lifecycle events on the timeline — when the
       observed `(state, health)` differs from
@@ -50,63 +50,66 @@ defmodule MediaCentaur.Acquisition.Pursuits.Observations do
   When a queue item recovers (no longer matching either signal), the
   corresponding timestamp is cleared so the window starts fresh next
   time. When the queue is `:unknown` (download client unreachable) the
-  pursuit is left as-is — we don't penalise the user for an
-  infrastructure outage. When the pursuit's tracked torrent is missing
+  unit is left as-is — we don't penalise the user for an
+  infrastructure outage. When the unit's tracked torrent is missing
   from the queue this tick, `last_queue_state`/`last_queue_health` are
   preserved (a transient absence shouldn't synthesize a transition).
   """
 
   import Ecto.Query
 
-  alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit}
+  alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.{DownloadStarted, HealthChanged}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Unit}
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Downloads.QueueItem
   alias MediaCentaur.Repo
 
   @doc """
-  Refreshes a pursuit's observation state in-place. Returns the
-  refreshed pursuit. Idempotent — calling repeatedly with the same
-  inputs yields the same persisted state and emits no duplicate events.
+  Refreshes a unit's observation state in-place. Returns the refreshed
+  unit. Idempotent — calling repeatedly with the same inputs yields the
+  same persisted state and emits no duplicate events. The pursuit rides
+  along for event identity (pursuit_id, title — events stay
+  pursuit-scoped).
 
   The 3-arity issues one extra DB query per call to find the latest
-  release title for the pursuit; callers that already have that value
-  in hand (e.g. `Pursuits.Watcher` after batch-fetching) should use
-  `refresh!/4` to skip the query.
+  release title for the unit's pursuit; callers that already have that
+  value in hand (e.g. `Pursuits.Watcher` after batch-fetching) should
+  use `refresh!/5` to skip the query.
   """
-  @spec refresh!(Pursuit.t(), [QueueItem.t()] | :unknown, DateTime.t()) :: Pursuit.t()
-  def refresh!(%Pursuit{} = pursuit, queue_items_or_unknown, now) do
+  @spec refresh!(Pursuit.t(), Unit.t(), [QueueItem.t()] | :unknown, DateTime.t()) :: Unit.t()
+  def refresh!(%Pursuit{} = pursuit, %Unit{} = unit, queue_items_or_unknown, now) do
     release_title = latest_release_title(pursuit.id)
-    refresh!(pursuit, queue_items_or_unknown, now, release_title)
+    refresh!(pursuit, unit, queue_items_or_unknown, now, release_title)
   end
 
   @doc """
-  Pre-fetched variant of `refresh!/3`. `release_title` is the pursuit's
+  Pre-fetched variant of `refresh!/4`. `release_title` is the pursuit's
   latest non-nil `Target.release_title` (or `nil` if none). Used by the
   Watcher's batched pass so per-tick DB cost is constant rather than
-  scaling with the active-pursuit count.
+  scaling with the active-unit count.
   """
-  @spec refresh!(Pursuit.t(), [QueueItem.t()] | :unknown, DateTime.t(), String.t() | nil) ::
-          Pursuit.t()
-  def refresh!(%Pursuit{} = pursuit, :unknown, _now, _release_title), do: pursuit
+  @spec refresh!(Pursuit.t(), Unit.t(), [QueueItem.t()] | :unknown, DateTime.t(), String.t() | nil) ::
+          Unit.t()
+  def refresh!(%Pursuit{}, %Unit{} = unit, :unknown, _now, _release_title), do: unit
 
-  def refresh!(%Pursuit{} = pursuit, queue_items, %DateTime{} = now, release_title)
+  def refresh!(%Pursuit{} = pursuit, %Unit{} = unit, queue_items, %DateTime{} = now, release_title)
       when is_list(queue_items) do
     queue_item = find_queue_item(queue_items, release_title)
 
     refreshed =
-      pursuit
+      unit
       |> Ecto.Changeset.change(
-        stall_first_seen_at: next_timestamp(pursuit.stall_first_seen_at, stalling?(queue_item), now),
+        stall_first_seen_at: next_timestamp(unit.stall_first_seen_at, stalling?(queue_item), now),
         zero_seeders_first_seen_at:
-          next_timestamp(pursuit.zero_seeders_first_seen_at, no_seeders?(queue_item), now),
-        last_queue_state: next_observed(pursuit.last_queue_state, observed_state(queue_item)),
-        last_queue_health: next_observed(pursuit.last_queue_health, observed_health(queue_item))
+          next_timestamp(unit.zero_seeders_first_seen_at, no_seeders?(queue_item), now),
+        last_queue_state: next_observed(unit.last_queue_state, observed_state(queue_item)),
+        last_queue_health: next_observed(unit.last_queue_health, observed_health(queue_item))
       )
       |> Repo.update!()
 
     pursuit
-    |> derive_transition_event(queue_item, now)
+    |> derive_transition_event(unit, queue_item, now)
     |> emit()
 
     refreshed
@@ -153,13 +156,13 @@ defmodule MediaCentaur.Acquisition.Pursuits.Observations do
   defp next_observed(existing, nil), do: existing
   defp next_observed(_existing, observed), do: observed
 
-  defp derive_transition_event(%Pursuit{}, nil, _now), do: nil
+  defp derive_transition_event(%Pursuit{}, %Unit{}, nil, _now), do: nil
 
-  defp derive_transition_event(%Pursuit{} = pursuit, %QueueItem{} = queue_item, now) do
+  defp derive_transition_event(%Pursuit{} = pursuit, %Unit{} = unit, %QueueItem{} = queue_item, now) do
     to_state = observed_state(queue_item)
     to_health = observed_health(queue_item)
-    from_state = pursuit.last_queue_state
-    from_health = pursuit.last_queue_health
+    from_state = unit.last_queue_state
+    from_health = unit.last_queue_health
 
     cond do
       is_nil(from_state) and is_nil(from_health) and not (is_nil(to_state) and is_nil(to_health)) ->

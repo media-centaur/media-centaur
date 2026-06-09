@@ -22,8 +22,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.PursuitTest do
       assert changeset.changes.origin == "auto"
       # default applies via DB; not present in changes when not set explicitly
       assert Ecto.Changeset.get_field(changeset, :state) == "active"
-      assert Ecto.Changeset.get_field(changeset, :attempt_count) == 0
-      assert Ecto.Changeset.get_field(changeset, :tried_release_guids) == []
     end
 
     test "TV episode pursuit captures season and episode numbers" do
@@ -92,99 +90,26 @@ defmodule MediaCentaur.Acquisition.Pursuits.PursuitTest do
     end
   end
 
-  describe "set_awaiting_decision_changeset/2" do
-    test "sets awaiting_decision_at when nil" do
-      pursuit = %Pursuit{state: "active", awaiting_decision_at: nil}
-      now = DateTime.utc_now(:second)
-      changeset = Pursuit.set_awaiting_decision_changeset(pursuit, now)
-      assert changeset.valid?
-      assert changeset.changes.awaiting_decision_at == now
-    end
-
-    test "preserves existing timestamp on second call (idempotent)" do
-      original = DateTime.add(DateTime.utc_now(:second), -3600, :second)
-      pursuit = %Pursuit{state: "active", awaiting_decision_at: original}
-      changeset = Pursuit.set_awaiting_decision_changeset(pursuit, DateTime.utc_now(:second))
-      refute Map.has_key?(changeset.changes, :awaiting_decision_at)
-    end
-  end
-
-  describe "clear_awaiting_decision_changeset/1" do
-    test "clears the timestamp" do
-      pursuit = %Pursuit{state: "active", awaiting_decision_at: DateTime.utc_now(:second)}
-      changeset = Pursuit.clear_awaiting_decision_changeset(pursuit)
-      assert changeset.changes.awaiting_decision_at == nil
-    end
-  end
-
-  describe "satisfy_changeset/1" do
-    test "transitions in-flight -> satisfied" do
+  describe "fold_changeset/2" do
+    test "same state is a no-op changeset" do
       pursuit = %Pursuit{state: "active"}
-      changeset = Pursuit.satisfy_changeset(pursuit)
+      changeset = Pursuit.fold_changeset(pursuit, "active")
       assert changeset.valid?
-      assert changeset.changes.state == "satisfied"
+      assert changeset.changes == %{}
     end
 
-    test "rejects already-terminal pursuit" do
-      pursuit = %Pursuit{state: "exhausted"}
-      changeset = Pursuit.satisfy_changeset(pursuit)
+    test "transitions in-flight to each terminal fold outcome" do
+      for folded <- ~w(satisfied partial exhausted cancelled) do
+        changeset = Pursuit.fold_changeset(%Pursuit{state: "active"}, folded)
+        assert changeset.valid?
+        assert changeset.changes.state == folded
+      end
+    end
+
+    test "rejects a fold from an already-terminal state" do
+      changeset = Pursuit.fold_changeset(%Pursuit{state: "exhausted"}, "satisfied")
       refute changeset.valid?
-    end
-  end
-
-  describe "exhaust_changeset/1" do
-    test "transitions in-flight -> exhausted" do
-      pursuit = %Pursuit{state: "active"}
-      changeset = Pursuit.exhaust_changeset(pursuit)
-      assert changeset.valid?
-      assert changeset.changes.state == "exhausted"
-    end
-
-    test "clears awaiting_decision_at when exhausting an awaiting pursuit" do
-      pursuit = %Pursuit{state: "active", awaiting_decision_at: DateTime.utc_now(:second)}
-      changeset = Pursuit.exhaust_changeset(pursuit)
-      assert changeset.valid?
-      assert changeset.changes.state == "exhausted"
-      assert changeset.changes.awaiting_decision_at == nil
-    end
-  end
-
-  describe "cancel_changeset/1" do
-    test "transitions in-flight -> cancelled" do
-      pursuit = %Pursuit{state: "active"}
-      changeset = Pursuit.cancel_changeset(pursuit)
-      assert changeset.valid?
-      assert changeset.changes.state == "cancelled"
-    end
-  end
-
-  describe "record_attempt_changeset/2" do
-    test "increments attempt_count and appends a release guid to tried_release_guids" do
-      pursuit = %Pursuit{attempt_count: 1, tried_release_guids: ["existing-guid"]}
-      changeset = Pursuit.record_attempt_changeset(pursuit, "new-guid")
-
-      assert changeset.valid?
-      assert changeset.changes.attempt_count == 2
-      assert changeset.changes.tried_release_guids == ["existing-guid", "new-guid"]
-    end
-
-    test "permits nil guid (failed attempt with no specific release)" do
-      pursuit = %Pursuit{attempt_count: 0, tried_release_guids: []}
-      changeset = Pursuit.record_attempt_changeset(pursuit, nil)
-
-      assert changeset.valid?
-      assert changeset.changes.attempt_count == 1
-      refute Map.has_key?(changeset.changes, :tried_release_guids)
-    end
-
-    test "ignores duplicate guid (idempotent re-tries)" do
-      pursuit = %Pursuit{attempt_count: 1, tried_release_guids: ["guid-a"]}
-      changeset = Pursuit.record_attempt_changeset(pursuit, "guid-a")
-
-      # attempt_count still bumps because it's a new attempt — the dedup is on the guid list
-      assert changeset.valid?
-      assert changeset.changes.attempt_count == 2
-      refute Map.has_key?(changeset.changes, :tried_release_guids)
+      assert Keyword.has_key?(changeset.errors, :state)
     end
   end
 end

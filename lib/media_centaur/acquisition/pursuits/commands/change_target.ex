@@ -1,27 +1,28 @@
 defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
   @moduledoc """
-  Pivots an active pursuit to a fresh target — abandoning the current
-  release attempt and starting a new search.
+  Pivots an active pursuit's unit to a fresh target — abandoning the
+  current release attempt and starting a new search.
 
   Replaces v0.54/0.55's `ReSearch` command. The recipe lives on the
   pursuit, so this command is uniform regardless of how the pursuit
   was initiated:
 
   - **TMDB recipe** — new target enters `seeking`; the `PursueTarget`
-    worker auto-picks the best Prowlarr result (excluding
+    worker auto-picks the best Prowlarr result (excluding the unit's
     `tried_release_guids`).
   - **Prowlarr-query recipe** — new target enters `seeking`; the
-    worker fetches Prowlarr results and sets the pursuit's
+    worker fetches Prowlarr results and sets the unit's
     `awaiting_decision_at` flag for the user to pick.
 
   ## Side effects
 
-  Inside one Repo transaction:
+  Inside one Repo transaction, on the pursuit's unit (`Units.single!/1`
+  until unit-scoped args land — ADR-055):
 
-  1. Mark the previous `current_target` as `failed` (reason
+  1. Mark the unit's previous `current_target` as `failed` (reason
      `"replaced_by_user_pivot"`) if it isn't already terminal.
-  2. Insert a fresh target in `seeking` for the pursuit.
-  3. Update `pursuit.current_target_id` to the new target.
+  2. Insert a fresh target in `seeking`, covering the unit.
+  3. Update `unit.current_target_id` to the new target.
   4. Record a `target_changed` event.
 
   After the transaction commits, enqueue `Jobs.PursueTarget` for the
@@ -34,9 +35,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
 
   alias MediaCentaur.Acquisition.Jobs.PursueTarget, as: PursueTargetWorker
   alias MediaCentaur.Acquisition.Pursuits
-  alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit, State}
   alias MediaCentaur.Acquisition.Pursuits.Commands.Runner
+  alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.TargetChanged
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, State, TargetUnit, Unit, Units}
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Acquisition.TargetStatus
   alias MediaCentaur.Repo
@@ -56,20 +58,24 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
   defp do_execute(id) do
     result =
       Runner.run(id, "pursuit target changed", fn pursuit ->
-        with {:ok, _previous} <- maybe_fail_current_target(pursuit),
+        unit = Units.single!(pursuit.id)
+
+        with {:ok, _previous} <- maybe_fail_current_target(unit),
              {:ok, new_target} <- insert_seeking_target(pursuit),
-             {:ok, updated_pursuit} <-
-               Repo.update(Pursuit.set_current_target_changeset(pursuit, new_target.id)),
-             {:ok, cleared} <-
-               Repo.update(Pursuit.clear_awaiting_decision_changeset(updated_pursuit)),
+             {:ok, _coverage} <-
+               Repo.insert(TargetUnit.create_changeset(%{target_id: new_target.id, unit_id: unit.id})),
+             {:ok, updated_unit} <-
+               Repo.update(Unit.set_current_target_changeset(unit, new_target.id)),
+             {:ok, _cleared} <-
+               Repo.update(Unit.clear_awaiting_decision_changeset(updated_unit)),
              {:ok, _event} <-
                Events.record(%TargetChanged{
-                 pursuit_id: cleared.id,
-                 pursuit_title: cleared.title,
+                 pursuit_id: pursuit.id,
+                 pursuit_title: pursuit.title,
                  occurred_at: DateTime.utc_now(:second),
                  target_id: new_target.id
                }) do
-          {:ok, {cleared, new_target}}
+          {:ok, {pursuit, new_target}}
         end
       end)
 
@@ -83,9 +89,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
     end
   end
 
-  defp maybe_fail_current_target(%Pursuit{current_target_id: nil}), do: {:ok, nil}
+  defp maybe_fail_current_target(%Unit{current_target_id: nil}), do: {:ok, nil}
 
-  defp maybe_fail_current_target(%Pursuit{current_target_id: target_id}) do
+  defp maybe_fail_current_target(%Unit{current_target_id: target_id}) do
     case Repo.get(Target, target_id) do
       nil ->
         {:ok, nil}

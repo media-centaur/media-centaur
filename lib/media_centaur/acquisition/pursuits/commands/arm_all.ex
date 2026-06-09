@@ -29,7 +29,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ArmAll do
   import Ecto.Query
 
   alias MediaCentaur.Acquisition.Pursuits.Commands.{Arm, ChangeTarget}
-  alias MediaCentaur.Acquisition.Pursuits.Pursuit
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Units}
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Repo
 
@@ -108,12 +108,23 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ArmAll do
       |> where(^predicate)
       |> Repo.all()
 
-    target_ids = pursuits |> Enum.map(& &1.current_target_id) |> Enum.reject(&is_nil/1)
+    # Current targets live on the units (ADR-055); auto-grab pursuits
+    # are single-unit, so the first unit's pointer is the pursuit's.
+    units_by_pursuit = Units.for_pursuits(Enum.map(pursuits, & &1.id))
+
+    current_target_id = fn pursuit ->
+      case Map.get(units_by_pursuit, pursuit.id, []) do
+        [unit | _] -> unit.current_target_id
+        [] -> nil
+      end
+    end
+
+    target_ids = pursuits |> Enum.map(current_target_id) |> Enum.reject(&is_nil/1)
     targets_by_id = targets_by_id(target_ids)
 
     Map.new(pursuits, fn pursuit ->
       key = {pursuit.tmdb_id, pursuit.tmdb_type, pursuit.season_number, pursuit.episode_number}
-      target = Map.get(targets_by_id, pursuit.current_target_id)
+      target = Map.get(targets_by_id, current_target_id.(pursuit))
       {key, {pursuit, target}}
     end)
   end

@@ -6,7 +6,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Arm do
   Acquisition.enqueue facade, ArmAll bulk classifier) to:
 
     1. Find or create a pursuit for the given TMDB tuple.
-    2. Ensure the pursuit has an in-flight target — reusing the
+    2. Ensure the pursuit's unit has an in-flight target — reusing the
        existing one when it's seeking/acquired, creating a fresh
        seeking target when the existing one is terminal-non-success
        or when no current target exists.
@@ -16,6 +16,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Arm do
   fresh one. The `PursueTarget` Oban job uses `unique` keys so the
   enqueue is also idempotent.
 
+  Auto-grab pursuits are single-unit composites (ADR-055): the TMDB
+  tuple identifies one wanted thing, so the unit resolves via
+  `Units.single!/1`.
+
   Returns `{:ok, target}` carrying the target the worker will pursue
   (either freshly inserted or the pre-existing in-flight one).
   """
@@ -23,7 +27,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Arm do
   alias MediaCentaur.Acquisition.Jobs.PursueTarget
   alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Acquisition.Pursuits.Commands.Start
-  alias MediaCentaur.Acquisition.Pursuits.Pursuit
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit, Units}
   alias MediaCentaur.Acquisition.{Target, TargetStatus}
   alias MediaCentaur.Repo
 
@@ -66,27 +70,31 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Arm do
   end
 
   defp ensure_in_flight_target(%Pursuit{} = pursuit) do
-    case Pursuits.current_target(pursuit) do
+    unit = Units.single!(pursuit.id)
+
+    case Units.current_target(unit) do
       %Target{status: status} = target ->
         if TargetStatus.terminal?(status) and status != "succeeded" do
           # Existing terminal-non-success — start a fresh seeking target.
-          new_seeking_target(pursuit)
+          new_seeking_target(pursuit, unit)
         else
           {:ok, target}
         end
 
       nil ->
-        new_seeking_target(pursuit)
+        new_seeking_target(pursuit, unit)
     end
   end
 
-  defp new_seeking_target(%Pursuit{} = pursuit) do
+  defp new_seeking_target(%Pursuit{} = pursuit, %Unit{} = unit) do
     with {:ok, target} <-
            %{pursuit_id: pursuit.id, title: pursuit.title, origin: pursuit.origin}
            |> Target.create_changeset()
            |> Repo.insert(),
-         {:ok, _pursuit} <-
-           Repo.update(Pursuit.set_current_target_changeset(pursuit, target.id)) do
+         {:ok, _coverage} <-
+           Repo.insert(TargetUnit.create_changeset(%{target_id: target.id, unit_id: unit.id})),
+         {:ok, _unit} <-
+           Repo.update(Unit.set_current_target_changeset(unit, target.id)) do
       Oban.insert(PursueTarget.new(%{"target_id" => target.id}))
       {:ok, target}
     end

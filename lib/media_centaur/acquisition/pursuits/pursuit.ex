@@ -3,9 +3,13 @@ defmodule MediaCentaur.Acquisition.Pursuits.Pursuit do
   Schema for the pursuit aggregate row — the durable intent.
 
   A pursuit owns the *goal* ("get S01E03 of Sample Show at 1080p") and
-  the *recipe* (how to search for it) across many target attempts. The
-  recipe lives on the pursuit so it survives the failure of any single
-  target.
+  the *recipe* (how to search for it). Since ADR-055 the pursuit is a
+  **composite**: the wanted things live as `Pursuits.Unit` children,
+  each carrying its own attempt thread (current target, tried releases,
+  decision flag, download observations). The parent row holds only the
+  goal and an **outcome state** folded from its units
+  (`Pursuits.State.fold_units/1`); progress is always *units satisfied
+  / units wanted*.
 
   ## Recipe (`recipe_type`)
 
@@ -19,28 +23,26 @@ defmodule MediaCentaur.Acquisition.Pursuits.Pursuit do
     Reads `manual_query` (brace syntax allowed; expanded by
     `Acquisition.QueryExpander`). The worker can't auto-match against
     canonical metadata, so results route through the decision card
-    where the user picks.
+    where the user picks. Each unit's concrete query lives on the unit.
 
   `tmdb_id` and `tmdb_type` are nullable: a `prowlarr_query` pursuit
   holds neither.
 
-  ## State transitions
+  ## State
 
-  Named per-transition changesets, each validating the source state.
-  `Acquisition.Pursuits.State` is the single source of truth for
-  which state strings exist.
-
-  Whether the pursuit is waiting on user input is encoded *orthogonally*
-  as `awaiting_decision_at :utc_datetime` — set by
-  `Commands.RequestDecision`, cleared by `Commands.PickTarget` /
-  `Commands.ChangeTarget` / terminal-transition commands. The flag
-  doesn't change `state`; the pursuit is still `active`, just blocked.
+  `Acquisition.Pursuits.State` is the single source of truth for the
+  state strings. The parent state is written only by
+  `Commands.Refold` (via `fold_changeset/2`) so it can never disagree
+  with the units. Whether the pursuit is waiting on user input is a
+  *unit-level* fact (`Unit.awaiting_decision_at`) — pursuit-level
+  "awaiting decision" means "any unit awaiting" and is computed on
+  read.
 
   ## Pillar placement (ADR-041)
 
-  Pillar 1 (Long-term storage). State, recipe, attempt history, and
-  observation timestamps must survive restart so the watcher and
-  timeline reconstruct correctly across in-place updates.
+  Pillar 1 (Long-term storage). State and recipe must survive restart
+  so the watcher and timeline reconstruct correctly across in-place
+  updates.
   """
 
   use Ecto.Schema
@@ -73,14 +75,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Pursuit do
 
     field :title, :string
     field :criteria, :map, default: %{}
-    field :tried_release_guids, {:array, :string}, default: []
-    field :attempt_count, :integer, default: 0
-    field :current_target_id, Ecto.UUID
-    field :awaiting_decision_at, :utc_datetime
-    field :stall_first_seen_at, :utc_datetime
-    field :zero_seeders_first_seen_at, :utc_datetime
-    field :last_queue_state, :string
-    field :last_queue_health, :string
 
     timestamps()
   end
@@ -129,80 +123,27 @@ defmodule MediaCentaur.Acquisition.Pursuits.Pursuit do
   end
 
   @doc """
-  Sets `awaiting_decision_at` on a pursuit. State is unchanged — the
-  pursuit is still `active`, just blocked on user input. Idempotent;
-  calling with an already-set timestamp leaves the original value.
+  Applies the unit-state fold to the parent (ADR-055). The only write
+  path for `state` — used exclusively by `Commands.Refold`. A change
+  is valid only from an in-flight state; terminal pursuits don't
+  refold (re-arming semantics are a campaign Phase 1c concern).
   """
-  def set_awaiting_decision_changeset(%__MODULE__{awaiting_decision_at: nil} = pursuit, now) do
-    change(pursuit, awaiting_decision_at: DateTime.truncate(now, :second))
-  end
+  def fold_changeset(%__MODULE__{state: current} = pursuit, new_state) do
+    cond do
+      new_state == current ->
+        change(pursuit)
 
-  def set_awaiting_decision_changeset(%__MODULE__{} = pursuit, _now), do: change(pursuit)
+      current in State.in_flight() and new_state in State.all() ->
+        change(pursuit, state: new_state)
 
-  @doc "Clears `awaiting_decision_at` (user picked, command moved on, etc.)."
-  def clear_awaiting_decision_changeset(%__MODULE__{} = pursuit) do
-    change(pursuit, awaiting_decision_at: nil)
-  end
-
-  @doc "Closes a pursuit on verified arrival. Clears any pending awaiting-decision flag."
-  def satisfy_changeset(%__MODULE__{} = pursuit) do
-    pursuit
-    |> change_state("satisfied", from: State.in_flight())
-    |> put_change(:awaiting_decision_at, nil)
-  end
-
-  @doc "Closes a pursuit at give-up time. Clears any pending awaiting-decision flag."
-  def exhaust_changeset(%__MODULE__{} = pursuit) do
-    pursuit
-    |> change_state("exhausted", from: State.in_flight())
-    |> put_change(:awaiting_decision_at, nil)
-  end
-
-  @doc "Closes a pursuit by user request. Clears any pending awaiting-decision flag."
-  def cancel_changeset(%__MODULE__{} = pursuit) do
-    pursuit
-    |> change_state("cancelled", from: State.in_flight())
-    |> put_change(:awaiting_decision_at, nil)
-  end
-
-  @doc """
-  Records a target attempt against this pursuit. Always bumps
-  `attempt_count`. Appends `release_guid` to `tried_release_guids` when
-  non-nil and not already present.
-  """
-  def record_attempt_changeset(%__MODULE__{} = pursuit, release_guid) do
-    base = change(pursuit, attempt_count: pursuit.attempt_count + 1)
-
-    case release_guid do
-      nil -> base
-      guid when is_binary(guid) -> maybe_append_guid(base, pursuit.tried_release_guids, guid)
-    end
-  end
-
-  @doc "Sets `current_target_id` (nullable — `nil` clears it)."
-  def set_current_target_changeset(%__MODULE__{} = pursuit, target_id) do
-    change(pursuit, current_target_id: target_id)
-  end
-
-  defp maybe_append_guid(changeset, existing_guids, guid) do
-    if guid in existing_guids do
-      changeset
-    else
-      put_change(changeset, :tried_release_guids, existing_guids ++ [guid])
-    end
-  end
-
-  defp change_state(%__MODULE__{state: current} = pursuit, new_state, from: allowed_from) do
-    if current in allowed_from do
-      change(pursuit, state: new_state)
-    else
-      pursuit
-      |> change()
-      |> add_error(
-        :state,
-        "cannot transition from #{current} to #{new_state}",
-        valid_from: allowed_from
-      )
+      true ->
+        pursuit
+        |> change()
+        |> add_error(
+          :state,
+          "cannot fold from #{current} to #{new_state}",
+          valid_from: State.in_flight()
+        )
     end
   end
 end

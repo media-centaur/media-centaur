@@ -1,41 +1,44 @@
 defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
   @moduledoc """
-  Auto-pivots a pursuit when a safe-case is confirmed (zero-seeders,
-  irrecoverable error). Cancels the dead release and immediately starts
-  a fresh search — the previous release's guid lands on
-  `tried_release_guids` so the next attempt can't re-pick it.
+  Auto-pivots a pursuit's unit when a safe-case is confirmed
+  (zero-seeders, irrecoverable error). Cancels the dead release and
+  immediately starts a fresh search — the previous release's guid lands
+  on the unit's `tried_release_guids` so the next attempt can't re-pick
+  it.
 
   ## Why pivot, not just cancel
 
   Policy emits `{:auto_cancel, reason}` for safe cases (zero-seeders is
-  the canonical example — the release is definitively dead). The
-  pursuit's goal is unchanged, only this particular release attempt
-  failed. Leaving the pursuit `active` with a cancelled `current_target`
-  is the precise failure mode pursuits were built to prevent: the user
-  ends up with a dangling row that nothing else moves forward.
+  the canonical example — the release is definitively dead). The unit's
+  goal is unchanged, only this particular release attempt failed.
+  Leaving the unit `active` with a cancelled `current_target` is the
+  precise failure mode pursuits were built to prevent: the user ends up
+  with a dangling row that nothing else moves forward.
 
   Stall confirmations go through `RequestDecision` instead — those are
   taste cases where the user picks the alternative.
 
   ## Side effects
 
-  Inside one Repo transaction:
+  Inside one Repo transaction, on the unit (`Units.single!/1` unless a
+  `:unit_id` is given — ADR-055):
 
-  1. Mark every in-flight target on the pursuit as `cancelled` with
-     the auto-cancel reason (typically just the `current_target`, but
-     `Repo.update_all` is uniform).
-  2. Bump `pursuit.attempt_count` and append the previous target's
-     `prowlarr_guid` to `tried_release_guids` (so the next search
+  1. Mark every in-flight target *covering this unit* as `cancelled`
+     with the auto-cancel reason (typically just the unit's
+     `current_target`).
+  2. Bump `unit.attempt_count` and append the previous target's
+     `prowlarr_guid` to `unit.tried_release_guids` (so the next search
      filters it out).
   3. Record `auto_cancelled` event.
-  4. If a target was cancelled, insert a fresh `seeking` target, update
-     `pursuit.current_target_id`, and record `target_changed` event.
+  4. If a target was cancelled, insert a fresh `seeking` target covering
+     the unit, update `unit.current_target_id`, and record a
+     `target_changed` event.
 
   After the transaction commits, enqueue `Jobs.PursueTarget` for the
-  new target. Pursuit state remains `active` throughout — the goal is
-  still chasing, just chasing a different release.
+  new target. Unit and pursuit states remain `active` throughout — the
+  goal is still chasing, just chasing a different release.
 
-  When the pursuit has no current target (idle edge case), the command
+  When the unit has no current target (idle edge case), the command
   records `auto_cancelled` only — there's nothing to pivot to.
   """
 
@@ -44,33 +47,35 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition.Jobs.PursueTarget, as: PursueTargetWorker
-  alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit}
   alias MediaCentaur.Acquisition.Pursuits.Commands.Runner
+  alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.{AutoCancelled, TargetChanged}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit, Units}
   alias MediaCentaur.Acquisition.{Target, TargetStatus}
   alias MediaCentaur.Repo
 
   @spec execute(map()) ::
           {:ok, Pursuit.t()} | {:error, :not_found | Ecto.Changeset.t()}
-  def execute(%{pursuit_id: id, reason: reason}) when is_atom(reason) do
+  def execute(%{pursuit_id: id, reason: reason} = args) when is_atom(reason) do
     label = fn pursuit -> "pursuit auto-cancelled (#{reason}) — #{pursuit.title}" end
     now = DateTime.utc_now(:second)
 
     result =
       Runner.run(id, label, fn pursuit ->
-        prior_guid = previous_target_guid(pursuit)
-        cancel_in_flight_targets(pursuit, reason, now)
+        unit = resolve_unit(pursuit, args)
+        prior_guid = previous_target_guid(unit)
+        cancel_in_flight_targets(unit, reason, now)
 
-        with {:ok, attempted} <-
-               Repo.update(Pursuit.record_attempt_changeset(pursuit, prior_guid)),
+        with {:ok, attempted_unit} <-
+               Repo.update(Unit.record_attempt_changeset(unit, prior_guid)),
              {:ok, _auto_cancelled} <-
                Events.record(%AutoCancelled{
-                 pursuit_id: attempted.id,
-                 pursuit_title: attempted.title,
+                 pursuit_id: pursuit.id,
+                 pursuit_title: pursuit.title,
                  occurred_at: now,
                  reason: Atom.to_string(reason)
                }) do
-          pivot_if_had_target(attempted, pursuit, now)
+          pivot_if_had_target(pursuit, attempted_unit, unit, now)
         end
       end)
 
@@ -87,18 +92,29 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
     end
   end
 
-  defp previous_target_guid(%Pursuit{current_target_id: nil}), do: nil
+  defp resolve_unit(_pursuit, %{unit_id: unit_id}) when is_binary(unit_id) do
+    {:ok, unit} = Units.get(unit_id)
+    unit
+  end
 
-  defp previous_target_guid(%Pursuit{current_target_id: id}) do
+  defp resolve_unit(pursuit, _args), do: Units.single!(pursuit.id)
+
+  defp previous_target_guid(%Unit{current_target_id: nil}), do: nil
+
+  defp previous_target_guid(%Unit{current_target_id: id}) do
     case Repo.get(Target, id) do
       %Target{prowlarr_guid: guid} -> guid
       _ -> nil
     end
   end
 
-  defp cancel_in_flight_targets(pursuit, reason, now) do
+  # Cancels in-flight targets covering THIS unit only — sibling units'
+  # downloads are untouched (ADR-055).
+  defp cancel_in_flight_targets(%Unit{} = unit, reason, now) do
+    covering = from(tu in TargetUnit, where: tu.unit_id == ^unit.id, select: tu.target_id)
+
     Target
-    |> where([t], t.pursuit_id == ^pursuit.id and t.status in ^TargetStatus.cancellable())
+    |> where([t], t.id in subquery(covering) and t.status in ^TargetStatus.cancellable())
     |> Repo.update_all(
       set: [
         status: "cancelled",
@@ -110,23 +126,27 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
     )
   end
 
-  # Only pivot when the pursuit had a current target — idle pursuits
+  # Only pivot when the unit had a current target — idle units
   # (current_target_id == nil) have nothing to pivot to.
-  defp pivot_if_had_target(attempted, %Pursuit{current_target_id: nil}, _now),
-    do: {:ok, {attempted, nil}}
+  defp pivot_if_had_target(pursuit, _attempted_unit, %Unit{current_target_id: nil}, _now),
+    do: {:ok, {pursuit, nil}}
 
-  defp pivot_if_had_target(attempted, _original, now) do
-    with {:ok, new_target} <- insert_seeking_target(attempted),
-         {:ok, updated} <-
-           Repo.update(Pursuit.set_current_target_changeset(attempted, new_target.id)),
+  defp pivot_if_had_target(pursuit, attempted_unit, _original_unit, now) do
+    with {:ok, new_target} <- insert_seeking_target(pursuit),
+         {:ok, _coverage} <-
+           Repo.insert(
+             TargetUnit.create_changeset(%{target_id: new_target.id, unit_id: attempted_unit.id})
+           ),
+         {:ok, _updated_unit} <-
+           Repo.update(Unit.set_current_target_changeset(attempted_unit, new_target.id)),
          {:ok, _event} <-
            Events.record(%TargetChanged{
-             pursuit_id: updated.id,
-             pursuit_title: updated.title,
+             pursuit_id: pursuit.id,
+             pursuit_title: pursuit.title,
              occurred_at: now,
              target_id: new_target.id
            }) do
-      {:ok, {updated, new_target}}
+      {:ok, {pursuit, new_target}}
     end
   end
 

@@ -1,14 +1,14 @@
 defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
   @moduledoc """
-  Periodic orchestrator driving Policy for every active pursuit.
+  Periodic orchestrator driving Policy for every active unit (ADR-055).
 
   Each tick:
 
     1. Reads the current download-client queue snapshot once (consistent
        across the whole pass).
-    2. For each active pursuit, calls `Observations.refresh!/3` to update
-       persistent stall / zero-seeder timestamps.
-    3. Builds a `Snapshot` over the refreshed pursuit, runs `Policy`, and
+    2. For each active unit, calls `Observations.refresh!/5` to update
+       the unit's persistent stall / zero-seeder timestamps.
+    3. Builds a `Snapshot` over the refreshed unit, runs `Policy`, and
        dispatches the resulting `Action` to the corresponding command.
 
   The Watcher contains zero domain logic — every action is exercised by
@@ -43,26 +43,27 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
     queue = read_queue_state()
     now = DateTime.utc_now(:second)
 
-    # Batch-fetch the three things every active pursuit needs:
-    # (1) the pursuit + its current_target, (2) the latest release_title
-    # per pursuit. Reduces the per-tick DB cost from `1 + 3N` queries to
-    # a constant 3 regardless of how many pursuits are in flight.
-    pursuit_target_pairs = Pursuits.list_active_with_current_targets()
-    pursuit_ids = Enum.map(pursuit_target_pairs, fn {p, _t} -> p.id end)
+    # Batch-fetch the three things every active unit needs:
+    # (1) the pursuit + unit + its current_target, (2) the latest
+    # release_title per pursuit. Reduces the per-tick DB cost to a
+    # constant handful of queries regardless of how many units are in
+    # flight.
+    triples = Pursuits.list_active_units_with_context()
+    pursuit_ids = triples |> Enum.map(fn {pursuit, _unit, _target} -> pursuit.id end) |> Enum.uniq()
     release_titles = Pursuits.latest_release_titles_for(pursuit_ids)
 
-    Enum.each(pursuit_target_pairs, fn {pursuit, current_target} ->
+    Enum.each(triples, fn {pursuit, unit, current_target} ->
       release_title = Map.get(release_titles, pursuit.id)
-      refreshed = Observations.refresh!(pursuit, queue, now, release_title)
+      refreshed = Observations.refresh!(pursuit, unit, queue, now, release_title)
 
       # First-observation capture of the download's durable file link onto
       # the current target (write-once); later resolves the lifecycle stage.
       DownloadIdentity.capture!(current_target, queue, release_title)
 
-      refreshed
-      |> Snapshots.build(queue, current_target)
+      pursuit
+      |> Snapshots.build(refreshed, queue, current_target)
       |> Policy.evaluate()
-      |> dispatch(refreshed)
+      |> dispatch(pursuit, refreshed)
     end)
 
     # Safety-net for the PubSub-driven completion path — closes
@@ -73,29 +74,29 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
     :ok
   end
 
-  defp dispatch(:no_action, _pursuit), do: :ok
+  defp dispatch(:no_action, _pursuit, _unit), do: :ok
 
-  defp dispatch({:auto_cancel, reason}, pursuit) do
+  defp dispatch({:auto_cancel, reason}, pursuit, unit) do
     Log.info(
       :acquisition,
       "pursuit watcher dispatch — auto_cancel (#{reason}) — #{pursuit.title}"
     )
 
-    AutoCancel.execute(%{pursuit_id: pursuit.id, reason: reason})
+    AutoCancel.execute(%{pursuit_id: pursuit.id, unit_id: unit.id, reason: reason})
   end
 
-  defp dispatch({:request_decision, prompt}, pursuit) do
+  defp dispatch({:request_decision, prompt}, pursuit, unit) do
     Log.info(
       :acquisition,
       "pursuit watcher dispatch — request_decision — #{pursuit.title}"
     )
 
-    RequestDecision.execute(%{pursuit_id: pursuit.id, prompt: prompt})
+    RequestDecision.execute(%{pursuit_id: pursuit.id, unit_id: unit.id, prompt: prompt})
   end
 
-  defp dispatch({:exhaust, reason}, pursuit) do
+  defp dispatch({:exhaust, reason}, pursuit, unit) do
     Log.info(:acquisition, "pursuit watcher dispatch — exhaust (#{reason}) — #{pursuit.title}")
-    Exhaust.execute(%{pursuit_id: pursuit.id, reason: reason})
+    Exhaust.execute(%{pursuit_id: pursuit.id, unit_id: unit.id, reason: reason})
   end
 
   defp read_queue_state do

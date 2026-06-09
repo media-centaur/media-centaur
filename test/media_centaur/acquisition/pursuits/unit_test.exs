@@ -66,7 +66,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.UnitTest do
     end
 
     test "terminal transitions reject a unit that is not in flight" do
-      for transition <- [&Unit.satisfy_changeset/1, &Unit.exhaust_changeset/1, &Unit.cancel_changeset/1] do
+      transitions = [&Unit.satisfy_changeset/1, &Unit.exhaust_changeset/1, &Unit.cancel_changeset/1]
+
+      for transition <- transitions do
         changeset = transition.(%Unit{state: "satisfied"})
 
         refute changeset.valid?
