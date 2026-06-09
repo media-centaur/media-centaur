@@ -4,6 +4,20 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.87.0 — 2026-06-09
+
+### Improved
+
+**The Status page tiles now show what each part of Media Centaur is doing — not just whether it's healthy.** Open Status and click any subsystem tile to drill in:
+
+- **Playback** shows what's playing now with progress, or — when nothing's playing — what you've recently watched, plus lifetime totals: hours watched, titles completed, and your current day streak.
+- **Downloads** shows whether your download client and Prowlarr indexers are reachable at a glance, plus throughput totals — how many acquisitions have succeeded, your success rate, and how many are active right now (which links straight through to the Downloads page).
+- **Updates** previews **what's new** in an available release before you install it, and keeps an expandable history of the versions you've run — open any one to read the improvements it brought.
+- **System** reports the app's runtime health: how long it's been running, memory and process usage, your database size, and host details (operating system, Erlang/Elixir versions).
+- **Metadata** shows recent activity from The Movie Database — the last few titles enriched and any low-confidence matches waiting for review.
+
+Throughout, colour is reserved for things that need attention, so a healthy Status page stays calm and anything that needs a look stands out.
+
 ## v0.86.1 — 2026-06-09
 
 ### Fixed
