@@ -561,6 +561,11 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
     required: true,
     doc: "playback view (%{state, now_playing, sessions}) derived by StatusHelpers.derive_playback/1"
 
+  attr :playback_activity, :map,
+    required: true,
+    doc:
+      "watch-activity snapshot from WatchHistory.Views.PlaybackActivity (%{recent, last_write_at, lifetime})"
+
   def playback_widget(assigns) do
     sessions =
       assigns.playback.sessions
@@ -571,10 +576,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
     ~H"""
     <div
-      class={[
-        "card glass-surface border-l-3",
-        playback_border_class(@playback.state)
-      ]}
+      class={["card glass-surface border-l-3", playback_border_class(@playback.state)]}
       data-testid="playback-widget"
     >
       <div class="card-body">
@@ -586,43 +588,92 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
           </span>
         </div>
 
-        <div :if={@sessions == []} class="mt-1 text-sm text-base-content/60">Idle</div>
-
-        <div :for={session <- @sessions} class="mt-2">
-          <div class="flex items-center gap-2">
-            <span class={["text-xs", playback_text_class(session.state)]}>
-              {session.state}
-            </span>
-            <span class="text-base font-medium truncate">
-              {now_playing_title(session.now_playing)}
-            </span>
-          </div>
-          <div
-            :if={now_playing_detail(session.now_playing)}
-            class="text-sm text-base-content/60 truncate"
-          >
-            {now_playing_detail(session.now_playing)}
-          </div>
-          <div
-            :if={
-              session.now_playing[:duration_seconds] != nil &&
-                session.now_playing[:duration_seconds] > 0
-            }
-            class="flex items-center gap-2 mt-1"
-          >
-            <progress
-              class={["progress h-1.5 flex-1", playback_progress_class(session.state)]}
-              value={session.now_playing[:position_seconds] || 0}
-              max={session.now_playing.duration_seconds}
+        <%!-- Band 1 · Now / Recently --%>
+        <div data-component="playback-narrative" class="mt-1">
+          <%!-- playing: one block per active session (unchanged) --%>
+          <div :for={session <- @sessions} class="mt-2">
+            <div class="flex items-center gap-2">
+              <span class={["text-xs", playback_text_class(session.state)]}>{session.state}</span>
+              <span class="text-base font-medium truncate">
+                {now_playing_title(session.now_playing)}
+              </span>
+            </div>
+            <div
+              :if={now_playing_detail(session.now_playing)}
+              class="text-sm text-base-content/60 truncate"
             >
-            </progress>
-            <span class="text-xs text-base-content/50 whitespace-nowrap">
-              {format_remaining(
-                session.now_playing.duration_seconds -
-                  (session.now_playing[:position_seconds] || 0)
-              )}
-            </span>
+              {now_playing_detail(session.now_playing)}
+            </div>
+            <div
+              :if={
+                session.now_playing[:duration_seconds] != nil &&
+                  session.now_playing[:duration_seconds] > 0
+              }
+              class="flex items-center gap-2 mt-1"
+            >
+              <progress
+                class={["progress h-1.5 flex-1", playback_progress_class(session.state)]}
+                value={session.now_playing[:position_seconds] || 0}
+                max={session.now_playing.duration_seconds}
+              >
+              </progress>
+              <span class="text-xs text-base-content/50 whitespace-nowrap">
+                {format_remaining(
+                  session.now_playing.duration_seconds -
+                    (session.now_playing[:position_seconds] || 0)
+                )}
+              </span>
+            </div>
           </div>
+
+          <%!-- idle: last-watched line + recent feed --%>
+          <div :if={@sessions == [] and @playback_activity.recent != []}>
+            <p class="text-sm text-base-content/70">
+              Last watched {format_recent_title(hd(@playback_activity.recent))} · {time_ago(
+                hd(@playback_activity.recent).at
+              )}
+            </p>
+            <ul class="mt-2 space-y-0.5">
+              <li
+                :for={entry <- @playback_activity.recent}
+                id={watch_row_id(entry)}
+                class="flex items-baseline gap-2 text-xs"
+              >
+                <span class="text-base-content/40 w-16 shrink-0">{watch_kind_label(entry.kind)}</span>
+                <span class="truncate text-base-content/70">{format_recent_title(entry)}</span>
+                <span class="ml-auto text-base-content/40 shrink-0">{time_ago(entry.at)}</span>
+              </li>
+            </ul>
+          </div>
+
+          <p
+            :if={@sessions == [] and @playback_activity.recent == []}
+            class="mt-1 text-sm text-base-content/60"
+          >
+            Nothing watched yet.
+          </p>
+        </div>
+
+        <%!-- Band 2 · Plumbing health (only band that carries state color) --%>
+        <div
+          data-component="playback-health"
+          class="mt-4 pt-3 border-t border-base-content/10 flex items-center gap-2 text-xs"
+        >
+          <% health = playback_link_health(@playback.state, @playback_activity.last_write_at) %>
+          <span class={["size-2 rounded-full shrink-0", health.dot_class]}></span>
+          <span class={health.text_class}>{health.label}</span>
+        </div>
+
+        <%!-- Band 3 · Lifetime stats (neutral) --%>
+        <div data-component="playback-lifetime" class="mt-3 text-xs text-base-content/50">
+          {@playback_activity.lifetime.hours} {pluralize(@playback_activity.lifetime.hours, "hour")} watched
+          · {@playback_activity.lifetime.titles} {pluralize(
+            @playback_activity.lifetime.titles,
+            "title"
+          )} completed
+          <span :if={@playback_activity.lifetime.streak > 0}>
+            · {@playback_activity.lifetime.streak}-day streak
+          </span>
         </div>
       </div>
     </div>
@@ -764,4 +815,44 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
   end
 
   defp now_playing_detail(_), do: nil
+
+  # Band 2: honest, state-aware plumbing health. The mpv link is per-session, so
+  # at rest we report the recorder's proof-of-life (last write), not a fake link.
+  defp playback_link_health(state, _last_write_at) when state in [:playing, :paused] do
+    %{label: "Link connected", dot_class: "bg-success", text_class: "text-success"}
+  end
+
+  defp playback_link_health(:starting, _last_write_at) do
+    %{label: "Connecting…", dot_class: "bg-warning", text_class: "text-warning"}
+  end
+
+  defp playback_link_health(_idle, nil) do
+    %{
+      label: "Recorder ready · no writes yet",
+      dot_class: "bg-base-content/30",
+      text_class: "text-base-content/50"
+    }
+  end
+
+  defp playback_link_health(_idle, last_write_at) do
+    %{
+      label: "Recorder ready · last write #{time_ago(last_write_at)}",
+      dot_class: "bg-success/60",
+      text_class: "text-base-content/50"
+    }
+  end
+
+  defp watch_kind_label(:movie), do: "Movie"
+  defp watch_kind_label(:episode), do: "Episode"
+  defp watch_kind_label(:video_object), do: "Video"
+  defp watch_kind_label(_), do: "Watch"
+
+  defp format_recent_title(%{title: title}) when is_binary(title) and title != "", do: title
+  defp format_recent_title(_), do: "Untitled"
+
+  defp pluralize(1, word), do: word
+  defp pluralize(_n, word), do: word <> "s"
+
+  # Stable iterator id (ADR-012): completion timestamps are seconds apart.
+  defp watch_row_id(%{at: %DateTime{} = at}), do: "watch-#{DateTime.to_unix(at, :microsecond)}"
 end
