@@ -190,10 +190,21 @@ the seven risks below.
      Change-target button and the decision card still act on the
      awaiting-or-lead unit — fine while the board carries the per-unit
      affordances; revisit with the Phase 3 coverage board.
-   * ⬜ **Search corpus + living-intent re-resolution** — durable
-     candidate corpus w/ freshness policy; at grab time re-resolve only
-     among already-found candidates; exhaustion = leaf failure →
-     intervention.
+   * ✅ **Search corpus + living-intent re-resolution** (2026-06-09,
+     commit `03cc07ca`) — `Acquisition.Corpus`: durable
+     searches+candidates keyed by term + result-affecting opts;
+     consult-first (`Corpus.search/2`, 30-min freshness, empty results
+     = fresh negative knowledge, failures never record) wired into the
+     worker loop, the alternatives path (user refresh passes
+     `force: true`), and manual-zone recording; 14-day retention pruned
+     per watcher tick. A pivoted unit re-resolves among already-known
+     candidates with zero search traffic (worker test poisons the
+     search route to prove it).
+
+   **Phase 1 is COMPLETE.** All five sub-items shipped across commits
+   `b92e8433` → `03cc07ca`; the composite-pursuit core, its UI, and the
+   corpus are live for the query door. Next: **Phase 2 — pack strategy
+   + coverage ladder.**
 2. **Pack strategy + coverage ladder.** The matcher work (`TitleMatcher`
    recognizing complete-series / season packs, not just one S/E) and the
    pack→episode **accounting** (one pack download satisfies many wanted
