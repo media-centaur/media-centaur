@@ -889,13 +889,13 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
           </div>
           <div class="flex items-center justify-between">
             <span class="text-base-content/50">Run queue</span>
-            <span class={["tabular-nums", tone_chrome(@rq_tone).text]}>
+            <span class={["tabular-nums", vital_value_class(@rq_tone)]}>
               {@system_vitals.run_queue}
             </span>
           </div>
           <div class="flex items-center justify-between">
             <span class="text-base-content/50">Processes / limit</span>
-            <span class={["tabular-nums", tone_chrome(@proc_tone).text]}>
+            <span class={["tabular-nums", vital_value_class(@proc_tone)]}>
               {@system_vitals.process_count} / {@system_vitals.process_limit}
             </span>
           </div>
@@ -1051,6 +1051,12 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
   defp format_recent_title(%{title: title}) when is_binary(title) and title != "", do: title
   defp format_recent_title(_), do: "Untitled"
+
+  # System vitals read calm-when-healthy: neutral by default, amber only when a
+  # vital is concerning (color = signal). Distinct from `tone_chrome/1`, whose
+  # `:ok` is success-green (right for a "Connected" status, wrong for a fine metric).
+  defp vital_value_class(:warn), do: "text-warning"
+  defp vital_value_class(_ok), do: "text-base-content/70"
 
   defp format_uptime(seconds) when seconds < 60, do: "#{seconds}s"
   defp format_uptime(seconds) when seconds < 3600, do: "#{div(seconds, 60)}m"
