@@ -286,6 +286,14 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     end
   end
 
+  describe "downloads activity widget" do
+    test "acquisition drill-in renders the connectivity + throughput widget", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, "/status?subsystem=acquisition")
+
+      assert html =~ ~s(data-testid="acquisition-widget")
+    end
+  end
+
   describe "Updates drill-in — upgrade history" do
     test "lists recorded versions in the Updates activity widget", %{conn: conn} do
       :ok = MediaCentaur.SelfUpdate.History.record_boot_version("0.81.0")

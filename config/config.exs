@@ -105,6 +105,7 @@ config :media_centaur, :health_activity_widgets, %{
   pipeline: {MediaCentaurWeb.ActivityWidgetComponents, :pipeline_widget},
   tmdb: {MediaCentaurWeb.ActivityWidgetComponents, :tmdb_widget},
   playback: {MediaCentaurWeb.ActivityWidgetComponents, :playback_widget},
+  acquisition: {MediaCentaurWeb.ActivityWidgetComponents, :acquisition_widget},
   self_update: {MediaCentaurWeb.ActivityWidgetComponents, :self_update_widget}
 }
 

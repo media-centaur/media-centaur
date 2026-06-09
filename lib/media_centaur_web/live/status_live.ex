@@ -25,8 +25,16 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.WatchHistory.Views.PlaybackActivity
   alias MediaCentaurWeb.StatusLive.ReportModal
   alias MediaCentaurWeb.Components.IssueView
+  alias MediaCentaur.Capabilities
+  alias MediaCentaur.Acquisition
+  alias MediaCentaur.Acquisition.Pursuits.Throughput
+  alias MediaCentaur.Downloads.QueueMonitor
+  alias MediaCentaur.Downloads.QueueStatus
 
   @storage_refresh_ms 5 * 60 * 1_000
+  # Mirrors AcquisitionLive's watched cadence — the rhythm QueueMonitor polls at
+  # when a LiveView is subscribed; QueueStatus.derive grades freshness in multiples of it.
+  @queue_cadence_ms 1_500
 
   @impl true
   def mount(_params, _session, socket) do
@@ -39,6 +47,8 @@ defmodule MediaCentaurWeb.StatusLive do
         SelfUpdate.subscribe_progress()
         MediaCentaur.Library.subscribe()
         MediaCentaur.WatchHistory.subscribe()
+        Acquisition.subscribe_queue()
+        Capabilities.subscribe_changes()
 
         # Visiting /status marks auto-detected incidents as seen, clearing
         # the discovery badge on the Status nav item. The web layer owns
@@ -71,6 +81,7 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(retry_status: fetch_retry_status())
         |> assign(playback: build_playback_state())
         |> assign(playback_activity: PlaybackActivity.snapshot())
+        |> assign(acquisition_activity: build_acquisition_activity())
         |> assign(diagnostics_unseen: 0)
         |> assign_self_update()
         |> start_async_storage()
@@ -89,6 +100,7 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(retry_status: nil)
         |> assign(playback: %{state: :idle, now_playing: nil, sessions: %{}})
         |> assign(playback_activity: PlaybackActivity.empty())
+        |> assign(acquisition_activity: empty_acquisition_activity())
       end
 
     {:ok,
@@ -264,6 +276,8 @@ defmodule MediaCentaurWeb.StatusLive do
       # playback
       playback: assigns.playback,
       playback_activity: assigns.playback_activity,
+      # acquisition
+      acquisition_activity: assigns.acquisition_activity,
       # self_update — sourced from assigns + persistent_term (Config) + utc_now
       version: Version.current_version(),
       status: assigns.self_update_status,
@@ -501,6 +515,15 @@ defmodule MediaCentaurWeb.StatusLive do
      )}
   end
 
+  @impl true
+  def handle_info({:queue_state, _state}, socket) do
+    {:noreply, assign(socket, acquisition_activity: build_acquisition_activity())}
+  end
+
+  def handle_info(:capabilities_changed, socket) do
+    {:noreply, assign(socket, acquisition_activity: build_acquisition_activity())}
+  end
+
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
@@ -600,6 +623,30 @@ defmodule MediaCentaurWeb.StatusLive do
       </div>
     </Layouts.app>
     """
+  end
+
+  # --- Acquisition Activity ---
+
+  defp build_acquisition_activity do
+    state = QueueMonitor.state()
+
+    %{
+      configured?: Capabilities.download_client_ready?() or Capabilities.prowlarr_ready?(),
+      client_grade: QueueStatus.derive(state, @queue_cadence_ms),
+      last_poll_at: state.last_successful_poll_at,
+      prowlarr_ready?: Capabilities.prowlarr_ready?(),
+      throughput: Throughput.stats()
+    }
+  end
+
+  defp empty_acquisition_activity do
+    %{
+      configured?: false,
+      client_grade: :initializing,
+      last_poll_at: nil,
+      prowlarr_ready?: false,
+      throughput: Throughput.empty()
+    }
   end
 
   # --- Playback State ---
