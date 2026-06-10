@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.88.2 — 2026-06-10
+
+### Fixed
+
+- **A multi-episode download plan no longer collapses when its first file arrives.** The post-download check compared every arriving file against the plan's first episode, decided the download was "wrong", and cancelled the entire pursuit — leaving the remaining torrents downloading with no owner under "Other downloads". Each arriving episode now checks off exactly its own slot, and the pursuit completes only when everything you asked for has landed.
+- **Plans no longer grab the same episodes twice.** When a season pack and individual episodes were both available, the planner could pick the pack *and* several episodes it already contains — duplicate downloads and wasted disk. Season packs now win outright; a higher-quality single episode stays one click away under the release's Options instead of being added on top.
+
 ## v0.88.1 — 2026-06-10
 
 ### Improved
