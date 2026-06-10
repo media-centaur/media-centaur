@@ -308,10 +308,19 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     |> Enum.uniq_by(& &1.id)
     |> Enum.flat_map(fn %Target{} = t ->
       case find_queue_match(t, queue_items) do
-        nil -> []
-        item -> [%{download: QueueMatcher.to_download(item), release_title: t.release_title}]
+        nil ->
+          []
+
+        item ->
+          [%{item_id: item.id, download: QueueMatcher.to_download(item), release_title: t.release_title}]
       end
     end)
+    # Several targets can resolve to ONE torrent (a re-pick keeps the
+    # durable infohash, so the old seeking target still matches) — one
+    # bar per torrent, preferring the entry that knows its release name.
+    |> Enum.sort_by(&is_nil(&1.release_title))
+    |> Enum.uniq_by(& &1.item_id)
+    |> Enum.map(&Map.delete(&1, :item_id))
   end
 
   @doc """
