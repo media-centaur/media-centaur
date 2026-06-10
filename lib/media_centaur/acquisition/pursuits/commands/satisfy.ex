@@ -5,8 +5,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Satisfy do
 
   The units to satisfy are resolved from `final_target_id`'s coverage
   (`Units.covered_by/1`) — the target whose release actually landed.
-  When coverage is missing (legacy rows), falls back to the pursuit's
-  sole unit.
+  When coverage is missing, an explicit `fallback_unit_id` (the landed
+  unit, passed by the IdentityVerifier) scopes the satisfy to that one
+  unit; without either, falls back to every unit on the pursuit
+  (legacy single-unit rows).
 
   When the refold lands the pursuit in a terminal state, the command
   also closes out every in-flight target row on the pursuit: the
@@ -29,13 +31,15 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Satisfy do
 
   @spec execute(map()) ::
           {:ok, Pursuit.t()} | {:error, :not_found | Ecto.Changeset.t()}
-  def execute(%{pursuit_id: id, final_target_id: target_id, final_release_title: title}) do
+  def execute(%{pursuit_id: id, final_target_id: target_id, final_release_title: title} = command) do
+    fallback_unit_id = Map.get(command, :fallback_unit_id)
+
     result =
       Runner.run(id, "pursuit satisfied", fn pursuit ->
         # Terminal pursuits don't re-satisfy — without this guard a second
         # call would record a duplicate pursuit_satisfied event.
         with true <- pursuit.state in State.in_flight() || {:error, :not_eligible},
-             {:ok, _units} <- satisfy_covered_units(pursuit, target_id),
+             {:ok, _units} <- satisfy_covered_units(pursuit, target_id, fallback_unit_id),
              {:ok, refolded, _transition} <- Refold.refold!(pursuit),
              :ok <- maybe_close_and_record(refolded, target_id, title) do
           {:ok, refolded}
@@ -52,9 +56,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Satisfy do
     result
   end
 
-  defp satisfy_covered_units(pursuit, target_id) do
+  defp satisfy_covered_units(pursuit, target_id, fallback_unit_id) do
     pursuit
-    |> units_to_satisfy(target_id)
+    |> units_to_satisfy(target_id, fallback_unit_id)
     |> Enum.reject(&UnitState.terminal?(&1.state))
     |> Enum.reduce_while({:ok, []}, fn unit, {:ok, satisfied} ->
       case Repo.update(Unit.satisfy_changeset(unit)) do
@@ -64,10 +68,16 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Satisfy do
     end)
   end
 
-  defp units_to_satisfy(pursuit, target_id) do
+  defp units_to_satisfy(pursuit, target_id, fallback_unit_id) do
     case target_id && Units.covered_by(target_id) do
-      covered when is_list(covered) and covered != [] -> covered
-      _ -> Units.for_pursuit(pursuit.id)
+      covered when is_list(covered) and covered != [] ->
+        covered
+
+      _ ->
+        case fallback_unit_id && Repo.get(Unit, fallback_unit_id) do
+          %Unit{} = unit -> [unit]
+          _ -> Units.for_pursuit(pursuit.id)
+        end
     end
   end
 

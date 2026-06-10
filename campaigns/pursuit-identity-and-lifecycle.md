@@ -19,9 +19,16 @@ and a pursuit concludes only when its units do.
 
 ## Status
 
-Diagnosed against prod (incident `2968cf13`, pursuit
-`8d90a1af…` cancelled 21:16:57 UTC by `cancelled_by: :system,
-reason: "identity_mismatch"`); no code yet. Settled design principle
+Verifier rework implemented 2026-06-10 (same session as diagnosis):
+`InboundListener` passes the landed unit's season/episode in job args;
+`IdentityVerifier` is now a landing satisfier (satisfies the landed
+unit's target span via `Satisfy` + `fallback_unit_id`, no-ops on
+unwanted/duplicate landings, defers identity-less landings to
+`LibraryReconciler`) — TitleMatcher gate, mismatch event producer, and
+whole-pursuit `Cancel`/`Satisfy` all retired from this path. Regression
+tests pin the Orville shape (composite pursuit, out-of-order non-lead
+landing). REMAINING: the cancelled-pursuit ↔ live-torrent contract
+(next step 1) and prod verification with a real multi-release plan. Settled design principle
 recorded below. Sibling campaign:
 [`plan-solver-consolidation.md`](plan-solver-consolidation.md)
 (overlapping grabs made this fire sooner, but any multi-release plan
@@ -48,25 +55,23 @@ which closes the whole pursuit on the *first* verified file).
 * `2026-06-10` — Pursuit conclusion is an aggregate over unit states
   (all units terminal → pursuit concludes), not a reaction to any
   single landing.
+* `2026-06-10` — Implemented: listener job args carry unit identity;
+  the verifier satisfies the landed unit's target span
+  (`Satisfy.fallback_unit_id` scopes target-less units to one unit);
+  unwanted-episode and duplicate landings are no-ops;
+  TV landings without unit identity defer to `LibraryReconciler`.
+  `identity_mismatch` event kind and cancel reason stay registered so
+  historical rows keep rendering — they just have no producer.
 
 ## Next steps
 
-1. Regression tests first (user-mandated): multi-unit pursuit,
-   out-of-order landings — (a) a correct file for a non-lead unit must
-   not cancel; (b) first verified file must not satisfy/close a
-   pursuit with open units; (c) orphaning: cancellation must not leave
-   live targets unaccounted (decide: re-link surface vs. explicit
-   orphan adoption vs. client cleanup prompt).
-2. Rework the landing path: resolve file→unit via the Identity ladder
-   (content path / infohash → assigned units; pack members via
-   episode extraction within the known show/season), then conclude
-   *units*, not pursuits.
-3. Retire or scope `IdentityVerifier` to `prowlarr_query` +
-   hashless-fallback pursuits; mismatch → unit-level review flag.
-4. Decide the cancelled-pursuit ↔ live-torrent contract (today: cancel
+1. Decide the cancelled-pursuit ↔ live-torrent contract (today: cancel
    is DB-only; torrents keep downloading with no owner, files still
-   ingest via the watcher).
-5. Verify on prod with a real multi-release plan.
+   ingest via the watcher) — NEEDS USER: re-link surface vs. explicit
+   orphan adoption vs. client cleanup prompt. Also covers cleaning up
+   the 2026-06-10 orphaned Orville torrents.
+2. Verify on prod with a real multi-release plan after the next
+   release ships.
 
 ## Completion criteria
 
@@ -82,9 +87,10 @@ which closes the whole pursuit on the *first* verified file).
 
 * `lib/media_centaur/acquisition/pursuits/identity.ex` — the ladder
   (the architecture this campaign enforces).
-* `lib/media_centaur/acquisition/pursuits/identity_verifier.ex` — the
-  offender: `TitleMatcher` on basename vs. `Units.lead/1`, then
-  `Cancel`/`Satisfy` on the whole pursuit.
+* `lib/media_centaur/acquisition/pursuits/identity_verifier.ex` —
+  reworked 2026-06-10 into the landing satisfier (was: `TitleMatcher`
+  on basename vs. `Units.lead/1`, then `Cancel`/`Satisfy` on the whole
+  pursuit).
 * `lib/media_centaur/acquisition/pursuits/{inbound_listener,
   library_reconciler, download_identity}.ex` — landing path.
 * Prod evidence: incident `2968cf13`; Reactor crash storm 20:41–21:11

@@ -1142,6 +1142,50 @@ defmodule MediaCentaur.TestFactory do
     target
   end
 
+  @doc """
+  A Target on `pursuit` covering the given `units` (composite ADR-055
+  shape — e.g. a season pack covering several episode units). Writes
+  the TargetUnit coverage rows and points each unit's
+  `current_target_id` at the new target.
+  """
+  def create_covering_target(pursuit, units, attrs \\ %{}) do
+    now = DateTime.utc_now(:second)
+
+    target_base =
+      attrs
+      |> Map.put_new(:status, "seeking")
+      |> Map.put_new(:release_title, "Sample.Release.Pack")
+      |> Map.put(:pursuit_id, pursuit.id)
+      |> Map.put(:title, pursuit.title)
+      |> Map.put(:origin, pursuit.origin)
+      |> Map.put(:inserted_at, now)
+      |> Map.put(:updated_at, now)
+
+    {:ok, target} =
+      %MediaCentaur.Acquisition.Target{}
+      |> Ecto.Changeset.change(target_base)
+      |> MediaCentaur.Repo.insert()
+
+    for unit <- units do
+      {:ok, _coverage} =
+        %MediaCentaur.Acquisition.Pursuits.TargetUnit{}
+        |> Ecto.Changeset.change(%{
+          target_id: target.id,
+          unit_id: unit.id,
+          inserted_at: now,
+          updated_at: now
+        })
+        |> MediaCentaur.Repo.insert()
+
+      {:ok, _unit} =
+        unit
+        |> Ecto.Changeset.change(current_target_id: target.id)
+        |> MediaCentaur.Repo.update()
+    end
+
+    target
+  end
+
   # ---------------------------------------------------------------------------
   # Polymorphic owner translation (Library Schema v2 Phase 2 Tasks D, E, F)
   # ---------------------------------------------------------------------------

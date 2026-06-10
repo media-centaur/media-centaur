@@ -112,6 +112,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.InboundListenerTest do
 
       [job] = enqueued_jobs()
       assert job.args["pursuit_id"] == pursuit.id
+
+      # Unit identity rides along so the verifier satisfies the landed
+      # unit — never the lead (campaign pursuit-identity-and-lifecycle).
+      assert job.args["season_number"] == 2
+      assert job.args["episode_number"] == 5
     end
 
     test "does not match a different episode of the same series" do

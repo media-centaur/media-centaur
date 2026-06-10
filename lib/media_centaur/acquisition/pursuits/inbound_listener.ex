@@ -5,8 +5,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.InboundListener do
   Subscribes to `Topics.pipeline_publish/0` and, for each
   `{:entity_published, event}`, looks up active pursuits whose target
   matches the event's TMDB identifier (and, for TV, season + episode)
-  and enqueues an `IdentityVerifier` Oban job per match. The verifier
-  runs asynchronously and either satisfies or cancels the pursuit.
+  and enqueues an `IdentityVerifier` Oban job per match. The job args
+  carry the event's unit identity (season + episode for TV) so the
+  verifier satisfies the *landed* unit, never the lead
+  (campaign: pursuit-identity-and-lifecycle).
 
   The listener is intentionally thin — it derives a target map and
   delegates the read to `Pursuits.find_active_for_target/1` and the
@@ -53,7 +55,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.InboundListener do
         target
         |> Pursuits.find_active_for_target()
         |> Enum.reduce(0, fn pursuit, acc ->
-          case enqueue_for(pursuit, event[:file_path] || event["file_path"]) do
+          case enqueue_for(pursuit, target, event[:file_path] || event["file_path"]) do
             {:ok, _job} ->
               Log.info(
                 :acquisition,
@@ -104,11 +106,19 @@ defmodule MediaCentaur.Acquisition.Pursuits.InboundListener do
 
   defp target_for(_), do: nil
 
-  defp enqueue_for(_pursuit, nil), do: {:error, :no_file_path}
+  defp enqueue_for(_pursuit, _target, nil), do: {:error, :no_file_path}
 
-  defp enqueue_for(pursuit, file_path) when is_binary(file_path) do
+  defp enqueue_for(pursuit, target, file_path) when is_binary(file_path) do
     %{"pursuit_id" => pursuit.id, "file_path" => file_path}
+    |> put_unit_identity(target)
     |> IdentityVerifier.new()
     |> Oban.insert()
   end
+
+  defp put_unit_identity(args, %{season_number: season, episode_number: episode})
+       when is_integer(season) and is_integer(episode) do
+    Map.merge(args, %{"season_number" => season, "episode_number" => episode})
+  end
+
+  defp put_unit_identity(args, _target), do: args
 end
