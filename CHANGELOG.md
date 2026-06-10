@@ -4,6 +4,39 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.88.0 — 2026-06-10
+
+### New
+
+**Search for what you want to watch — Media Centaur plans the downloads.** The Downloads page now opens with one question: *What do you want to watch?*
+
+- Type a movie or show name and pick from the results — no release-name guesswork needed.
+- For shows, choose what you want: everything aired, continue from where your library ends, or just the latest season — or hand-pick seasons and episodes.
+- Media Centaur searches your indexers and lays out a coverage plan — which releases cover which episodes, preferring season packs when they're the better deal — with file sizes shown throughout.
+- Review the board, swap any release for an alternative (a picker shows your options; suspicious undersized releases are flagged and pushed down rather than hidden), then approve. Nothing is grabbed until you do.
+- Plans are durable drafts — leave mid-review and resume later from the Downloads page.
+
+**A season grab is now one pursuit, not a pile of rows.** Grabbing several episodes creates a single pursuit with per-episode progress — a segmented strip shows what's landed, in flight, or failed, and you can drill into any episode to swap its release or retry it.
+
+**Release tracking and downloads now speak the same language.** When a show you're tracking drops a new episode, it flows through the same planning path as a manual search. Episodes that can't be found yet are remembered and watched — the Downloads page shows a quiet "Watching for N releases" pointer, and tracked-but-unfound episodes surface on the Upcoming page too.
+
+**"Ask first" auto-grab mode.** A new Settings option makes tracked releases prepare a plan and wait for your approval instead of grabbing automatically.
+
+### Improved
+
+- **The Downloads page got a full visual overhaul.** Pursuits with known artwork render as identity banners with backdrop and logo treatment, the pursuit detail view opens with a proper hero, and every page now carries its own ambient backdrop.
+- **Wide displays get a command-center layout.** On big screens the page splits into a main column for search and active pursuits and a side rail where History and other downloads are always in view — and the backdrop artifact that clipped mid-screen on 4K is gone. Smaller windows keep the familiar single column.
+- When a pursuit needs a different release, you always pick from a list of options — the app never silently re-rolls the dice for you.
+- Plan review is comfortable from the couch — larger type and cells in the plan view.
+
+### Fixed
+
+- A multi-episode pursuit now claims every torrent it started — season packs no longer show up as unrelated "other downloads".
+- Releases that already failed for a pursuit are excluded when re-planning, ending retry loops on known-bad releases.
+- Discarding a draft plan asks for confirmation, the same as cancelling a download.
+- The pursuit detail view no longer stacks duplicate progress bars when a pursuit has several torrents.
+- The home page hero no longer overlaps the content below it at certain window sizes.
+
 ## v0.87.1 — 2026-06-09
 
 ### Fixed
