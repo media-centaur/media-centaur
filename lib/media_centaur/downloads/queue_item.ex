@@ -95,7 +95,7 @@ defmodule MediaCentaur.Downloads.QueueItem do
   end
 
   # Inlined normalisation — kept verbatim against
-  # `MediaCentaur.Acquisition.QueueMatcher.normalize_title/1` so the
+  # `MediaCentaur.Acquisition.Pursuits.Identity.normalize_title/1` so the
   # cached value is the same one the matcher would compute. Asserted by
   # `QueueItemTest`.
   defp normalize_title(nil), do: ""

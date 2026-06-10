@@ -46,6 +46,38 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconcilerTest do
       assert Enum.any?(pursuit_events(pursuit.id), &(&1.kind == "pursuit_satisfied"))
     end
 
+    test "tmdb match reads the unit's identity — plan-created pursuits carry none on the parent" do
+      tv_series = create_tv_series(%{name: "Sample Show", tmdb_id: "888"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      _episode =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 4,
+          name: "Sample Episode",
+          content_url: "/library/Sample.Show.S01E04.mkv"
+        })
+
+      pursuit =
+        insert_active_pursuit(%{
+          tmdb_id: "888",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 4
+        })
+
+      # CommitPlan-created pursuits carry identity only on units.
+      {:ok, _pursuit} =
+        pursuit
+        |> Ecto.Changeset.change(season_number: nil, episode_number: nil)
+        |> Repo.update()
+
+      assert :ok = LibraryReconciler.reconcile_active()
+
+      assert Repo.get!(Pursuit, pursuit.id).state == "satisfied"
+    end
+
     test "leaves an active TV pursuit untouched when no matching library episode exists" do
       tv_series = create_tv_series(%{name: "Sample Show", tmdb_id: "777"})
       season = create_season(%{tv_series_id: tv_series.id, season_number: 2})

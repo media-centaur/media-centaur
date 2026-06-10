@@ -11,7 +11,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
 
   import Ecto.Query
 
-  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, State, Unit, UnitState, Units}
+  alias MediaCentaur.Acquisition.Pursuits.{Event, Identity, Pursuit, State, Unit, UnitState, Units}
   alias MediaCentaur.Acquisition.Pursuits.Recipe, as: PursuitRecipe
   alias MediaCentaur.Acquisition.{QueueMatcher, Target}
   alias MediaCentaur.Search.QueryBuilder
@@ -559,7 +559,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       release_title: release_title,
       target_status: target_status,
       status: status,
-      normalized_release_title: release_title && QueueMatcher.normalize_title(release_title),
+      normalized_release_title: release_title && Identity.normalize_title(release_title),
       torrent_hash: torrent_hash,
       pairing_keys: pairing_keys(units, target, current_targets),
       units_wanted: max(length(units), 1),

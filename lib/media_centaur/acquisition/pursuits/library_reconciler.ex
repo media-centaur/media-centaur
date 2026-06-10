@@ -51,7 +51,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
   alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Acquisition.Pursuits.Commands.Satisfy
   alias MediaCentaur.Acquisition.Pursuits.Pursuit
-  alias MediaCentaur.Acquisition.QueueMatcher
+  alias MediaCentaur.Acquisition.Pursuits.Identity
+  alias MediaCentaur.Acquisition.Pursuits.Unit
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Library
 
@@ -63,7 +64,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
     segment_index = segment_index(present_paths)
 
     Enum.each(triples, fn {pursuit, unit, target} ->
-      case landed_file(pursuit, target, present_set, segment_index) do
+      case landed_file(pursuit, unit, target, present_set, segment_index) do
         {:ok, path} -> satisfy(pursuit, unit, path)
         :not_found -> :ok
       end
@@ -85,9 +86,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
     })
   end
 
-  defp landed_file(pursuit, target, present_set, segment_index) do
+  defp landed_file(pursuit, unit, target, present_set, segment_index) do
     with :not_found <- content_path_match(target, present_set),
-         :not_found <- tmdb_match(pursuit) do
+         :not_found <- tmdb_match(pursuit, unit) do
       release_match(target, segment_index)
     end
   end
@@ -108,9 +109,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
 
   defp content_path_match(_target, _present_set), do: :not_found
 
-  defp tmdb_match(%Pursuit{
-         tmdb_type: "tv",
-         tmdb_id: tmdb_id,
+  # Episode identity lives on the unit (ADR-055 retirement): the
+  # reconciler runs per (pursuit, unit, target), so multi-unit tmdb
+  # pursuits get an authoritative per-episode match — previously this
+  # read the parent's season/episode, which is nil on plan-created
+  # pursuits (campaign risk #6 residual, now closed).
+  defp tmdb_match(%Pursuit{tmdb_type: "tv", tmdb_id: tmdb_id}, %Unit{
          season_number: season,
          episode_number: episode
        })
@@ -118,11 +122,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
     Library.find_present_episode(tmdb_id, season, episode)
   end
 
-  defp tmdb_match(%Pursuit{tmdb_type: "movie", tmdb_id: tmdb_id}) when is_binary(tmdb_id) do
+  defp tmdb_match(%Pursuit{tmdb_type: "movie", tmdb_id: tmdb_id}, _unit) when is_binary(tmdb_id) do
     Library.find_present_movie(tmdb_id)
   end
 
-  defp tmdb_match(_pursuit), do: :not_found
+  defp tmdb_match(_pursuit, _unit), do: :not_found
 
   # Tries every name the pursuit knows its release by — the prowlarr
   # `release_title` and the basename of the captured `content_path`
@@ -133,7 +137,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
     [target.release_title, content_path_name(target.content_path)]
     |> Enum.reject(&is_nil/1)
     |> Enum.find_value(:not_found, fn name ->
-      case Map.get(segment_index, QueueMatcher.normalize_title(name)) do
+      case Map.get(segment_index, Identity.normalize_title(name)) do
         nil -> nil
         path -> {:ok, path}
       end
@@ -160,7 +164,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
       path
       |> path_segments()
       |> Enum.reduce(acc, fn segment, inner ->
-        Map.put_new(inner, QueueMatcher.normalize_title(segment), path)
+        Map.put_new(inner, Identity.normalize_title(segment), path)
       end)
     end)
   end
