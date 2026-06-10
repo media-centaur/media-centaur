@@ -77,7 +77,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
 
         <div
           :if={!@not_found? && @header && @header.backdrop_url}
-          class="modal-page-backdrop"
+          class="modal-page-backdrop modal-page-backdrop--early-fade"
           aria-hidden="true"
         >
           <img src={@header.backdrop_url} alt="" loading="eager" decoding="sync" fetchpriority="high" />

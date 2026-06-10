@@ -1701,3 +1701,18 @@ body:has(.modal-backdrop[data-state="open"]) {
       oklch(19% 0.04 calc(var(--banner-hue, 264) + 40)) 100%
     );
 }
+
+/* Pursuit-modal variant: the header is short (one title block, no tall
+   hero), so the shared 45%-transparent fade leaves the backdrop fighting
+   the coverage list. Darkness sets in right where content begins
+   (~coverage header) and is essentially settled by mid-panel. */
+.modal-page-backdrop--early-fade::after {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    transparent 12%,
+    oklch(from var(--color-base-100) l c h / 0.72) 30%,
+    oklch(from var(--color-base-100) l c h / 0.94) 48%,
+    var(--color-base-100) 62%
+  );
+}
