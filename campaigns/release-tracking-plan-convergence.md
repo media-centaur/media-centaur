@@ -424,21 +424,43 @@ use-case inventory.
    pickable (explicit override). User-initiated "plan now" drafts share
    the cancel-dismisses back-pointer (`tracking_item_id` regardless of
    origin). **Closes media-search campaign Phase 4.**
-4. **Retirement + surfaces** — IN PROGRESS. Ordering constraint
-   (risk #5, now LIVE post-cutover): the upcoming-page release
-   decoration still reads pursuits via `statuses_for_releases`/`ArmAll`
-   — with the reactor no longer arming, fresh wants show no "searching"
-   state anywhere. **Re-point the decoration onto the want ledger
-   FIRST** (want states: watching / planned / pursued / satisfied),
-   then Downloads open-wants count+link, then the `ask` mode in the
-   auto-grab settings UI, then the deletion sweep
-   (`Handlers.release_ready`, `AutoGrabPolicy`, `ArmAll` +
-   `enqueue_all_pending_for_item`, `find_by_tmdb_recipe`, the sweep's
-   per-release `release_ready` broadcast + `broadcast_releases_ready`,
-   the worker's 4K-patience window — feature tests delete with their
-   features), then wiki sync (auto-grab modes, drop-plan flow,
-   media-search pages). Note: mode-off mid-flight auto-cancel (Q11
-   deferral) belongs here too.
+4. **Retirement + surfaces** — IN PROGRESS.
+   * ✅ **`:watching` decoration** (commit `bf488b3e`) — risk #5
+     closed: Upcoming tiles layer the want ledger under the
+     pursuit-derived status (`with_want_fallback/3`; one resolver
+     replaced four duplicated computations); `Wants.sync_item`
+     broadcasts `releases_updated` only when the ledger actually
+     changed. Open wants now read "watching" (eye icon) instead of
+     nothing.
+   * REMAINING, in order:
+     1. Downloads page open-wants **count + link** to Tracking (Q7's
+        second half).
+     2. **`ask` mode in the auto-grab settings UI** — the per-item
+        selector and the global default need the third option
+        (validation + resolution already accept it; mode strings:
+        `off | ask | all_releases`, label "all releases" as Auto).
+     3. **Deletion sweep**: `Reactor`'s release_ready clause +
+        `Handlers.release_ready` + `AutoGrabPolicy`, `ArmAll` +
+        `Acquisition.enqueue_all_pending_for_item` +
+        `list_pending_acquirable_releases_for_item` (RT), the sweep's
+        per-release `release_ready` broadcast +
+        `Refresher.broadcast_releases_ready/1`, the worker's
+        4K-patience window (find it in PursueTarget/QualityWindow —
+        query-door pursuits lose quality patience by design, Q9),
+        `Pursuits.find_by_tmdb_recipe`. **Gotcha:**
+        `Acquisition.statuses_for_releases/1` lives in `ArmAll` — move
+        it to a read module (Targets/Pursuits) before deleting the
+        command. Feature tests delete with their features (not
+        ADR-027 classes).
+     4. **Mode-off mid-flight** (Q11): flipping an item to `off` should
+        cancel its active tracking pursuits + discard its drafts (the
+        legacy lazy-cancel died with release_ready). Natural seam:
+        `update_auto_grab` broadcast → Reactor, or a DropPlanner tick
+        reconciliation pass.
+     5. **Wiki sync** — auto-grab modes (incl. ask), the drop-plan
+        flow, "plan now" replacing queue-all, the watching state,
+        media-search pages (the expired carve-out from the sibling
+        campaign).
 
 ## Risk surface
 
