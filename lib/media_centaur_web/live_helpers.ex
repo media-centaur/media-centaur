@@ -122,4 +122,21 @@ defmodule MediaCentaurWeb.LiveHelpers do
       _ -> ""
     end
   end
+
+  @doc """
+  Release/file size for display — decimal units (GB/MB), one decimal
+  for GB, the indexer convention. Returns nil for nil so callers can
+  `:if` on the result.
+  """
+  def format_size(nil), do: nil
+
+  def format_size(bytes) when is_integer(bytes) and bytes >= 1_000_000_000 do
+    "#{Float.round(bytes / 1_000_000_000, 1)} GB"
+  end
+
+  def format_size(bytes) when is_integer(bytes) and bytes >= 1_000_000 do
+    "#{div(bytes, 1_000_000)} MB"
+  end
+
+  def format_size(bytes) when is_integer(bytes), do: "#{bytes} B"
 end

@@ -47,7 +47,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
     @moduledoc "One chosen release: the evidence row beneath the grid."
 
     @enforce_keys [:guid, :title, :units_count, :swap_unit_id]
-    defstruct [:guid, :title, :scope_label, :quality, :seeders, :units_count, :swap_unit_id]
+    defstruct [:guid, :title, :scope_label, :quality, :seeders, :size_bytes, :units_count, :swap_unit_id]
 
     @type t :: %__MODULE__{
             guid: String.t(),
@@ -55,6 +55,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
             scope_label: String.t() | nil,
             quality: String.t() | nil,
             seeders: integer() | nil,
+            size_bytes: integer() | nil,
             units_count: pos_integer(),
             # Any covered plan-unit id — exclusions are plan-wide, so one
             # representative carries the swap/exclude verb.
@@ -71,7 +72,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
     """
 
     @enforce_keys [:guid, :title]
-    defstruct [:guid, :title, :scope_label, :quality, :seeders, suspicious?: false]
+    defstruct [:guid, :title, :scope_label, :quality, :seeders, :size_bytes, suspicious?: false]
 
     @type t :: %__MODULE__{
             guid: String.t(),
@@ -79,6 +80,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
             scope_label: String.t() | nil,
             quality: String.t() | nil,
             seeders: integer() | nil,
+            size_bytes: integer() | nil,
             suspicious?: boolean()
           }
   end
@@ -94,6 +96,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
     :seasons,
     :releases,
     :gaps,
+    :total_size_bytes,
     movie?: false
   ]
 
@@ -109,6 +112,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
           seasons: [SeasonRow.t()],
           releases: [Release.t()],
           gaps: [String.t()],
+          total_size_bytes: integer() | nil,
           movie?: boolean()
         }
 end

@@ -183,6 +183,7 @@ defmodule MediaCentaur.Acquisition.Plans do
           scope_label: first.assigned_scope,
           quality: first.assigned_quality,
           seeders: first.assigned_seeders,
+          size_bytes: first.assigned_size_bytes,
           units_count: length(group),
           swap_unit_id: first.id
         }
@@ -202,8 +203,14 @@ defmodule MediaCentaur.Acquisition.Plans do
       seasons: seasons,
       releases: releases,
       gaps: units |> Enum.filter(&(&1.status == "unfound")) |> Enum.map(& &1.label),
+      total_size_bytes: total_size(releases),
       movie?: plan.tmdb_type == "movie"
     }
+  end
+
+  defp total_size(releases) do
+    sizes = releases |> Enum.map(& &1.size_bytes) |> Enum.filter(&is_integer/1)
+    if sizes != [], do: Enum.sum(sizes)
   end
 
   defp cell_state("found", _planning?), do: :assigned
@@ -253,7 +260,8 @@ defmodule MediaCentaur.Acquisition.Plans do
             scope_label: scope_display(scope),
             quality: Quality.label(result.quality),
             seeders: result.seeders,
-            suspicious?: ReleaseRedFlags.suspicious?(result.title)
+            size_bytes: result.size_bytes,
+            suspicious?: ReleaseRedFlags.suspicious?(result.title, result.size_bytes)
           }
         end)
         |> Enum.sort_by(&{&1.suspicious?, -quality_rank(&1.quality), -(&1.seeders || 0)})
@@ -287,6 +295,7 @@ defmodule MediaCentaur.Acquisition.Plans do
         assigned_term: term,
         assigned_quality: Quality.label(result.quality),
         assigned_seeders: result.seeders,
+        assigned_size_bytes: result.size_bytes,
         assigned_scope: scope_display(scope)
       }
 

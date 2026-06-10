@@ -23,6 +23,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.LiveHelpers, only: [format_size: 1]
+
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaurWeb.AcquisitionLive.PlanLogic
@@ -432,6 +434,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               <span :if={release.seeders} class="flex-shrink-0 text-xs text-success/80 tabular-nums">
                 ▲ {release.seeders}
               </span>
+              <span
+                :if={release.size_bytes}
+                class="flex-shrink-0 text-xs text-base-content/50 tabular-nums"
+              >
+                {format_size(release.size_bytes)}
+              </span>
               <.button
                 :if={@board.status == :ready}
                 variant="neutral"
@@ -486,6 +494,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         <span class="text-xs text-base-content/50 tabular-nums">
           {@board.covered} of {@board.wanted} covered · {length(@board.releases)}
           {if length(@board.releases) == 1, do: "release", else: "releases"}
+          <span :if={@board.total_size_bytes}>· ≈ {format_size(@board.total_size_bytes)}</span>
         </span>
         <div class="flex items-center gap-2">
           <.button
@@ -551,6 +560,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         </.badge>
         <span :if={alternative.seeders} class="flex-shrink-0 text-xs text-success/80 tabular-nums">
           ▲ {alternative.seeders}
+        </span>
+        <span
+          :if={alternative.size_bytes}
+          class="flex-shrink-0 text-xs text-base-content/50 tabular-nums"
+        >
+          {format_size(alternative.size_bytes)}
         </span>
         <.button
           variant="neutral"

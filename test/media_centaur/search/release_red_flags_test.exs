@@ -27,6 +27,21 @@ defmodule MediaCentaur.Search.ReleaseRedFlagsTest do
     end
   end
 
+  describe "suspicious?/2 — the size floor" do
+    test "a video release under 25MB is bait regardless of its name" do
+      assert ReleaseRedFlags.suspicious?("Sample.Movie.2026.1080p.BluRay.x264", 4 * 1024 * 1024)
+      assert ReleaseRedFlags.suspicious?("Sample.Show.S01E01.720p.WEB-DL", 24 * 1024 * 1024)
+    end
+
+    test "plausible sizes pass; unknown size falls back to the title check" do
+      refute ReleaseRedFlags.suspicious?("Sample.Movie.2026.1080p.BluRay.x264", 8_000_000_000)
+      refute ReleaseRedFlags.suspicious?("Sample.Show.S01E01.480p", 90 * 1024 * 1024)
+      refute ReleaseRedFlags.suspicious?("Sample.Movie.2026.1080p.BluRay.x264", nil)
+      assert ReleaseRedFlags.suspicious?("Sample.Movie.2026.exe", nil)
+      assert ReleaseRedFlags.suspicious?("Sample.Movie.2026.exe", 8_000_000_000)
+    end
+  end
+
   describe "suspicious?/1 — legitimate releases pass" do
     test "ordinary video releases" do
       refute ReleaseRedFlags.suspicious?("Sample.Movie.2026.1080p.BluRay.x264-GROUP")

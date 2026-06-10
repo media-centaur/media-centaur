@@ -10,6 +10,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
   use Phoenix.Component
 
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [format_size: 1]
 
   alias MediaCentaur.Acquisition.ViewModels.{Alternative, DecisionCard}
 
@@ -121,17 +122,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
     </div>
     """
   end
-
-  defp format_size(bytes) when is_integer(bytes) and bytes >= 1_000_000_000 do
-    "#{Float.round(bytes / 1_000_000_000, 1)} GB"
-  end
-
-  defp format_size(bytes) when is_integer(bytes) and bytes >= 1_000_000 do
-    "#{div(bytes, 1_000_000)} MB"
-  end
-
-  defp format_size(bytes) when is_integer(bytes), do: "#{bytes} B"
-  defp format_size(_), do: ""
 
   defp search_label([_]), do: "Search query"
   defp search_label(_), do: "Search queries"
