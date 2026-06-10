@@ -18,6 +18,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Plans.{CommitPlan, Plan, PlanUnit}
   alias MediaCentaur.Acquisition.Targeting
+  alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaur.Repo
   alias MediaCentaur.Topics
 
@@ -132,6 +133,82 @@ defmodule MediaCentaur.Acquisition.Plans do
     |> order_by([u], asc: u.position, asc: u.inserted_at)
     |> Repo.all()
   end
+
+  @doc """
+  Builds the `PlanBoard` view-model for the coverage board (UIDR-014):
+  unit cells in season rows, the chosen releases grouped from the
+  units' assignments, and the gaps. One units query.
+  """
+  @spec board_for(Plan.t()) :: PlanBoard.t()
+  def board_for(%Plan{} = plan) do
+    units = units_for(plan.id)
+    planning? = plan.status == "planning"
+
+    cells =
+      Enum.map(units, fn unit ->
+        %PlanBoard.Cell{
+          plan_unit_id: unit.id,
+          season_number: unit.season_number,
+          episode_number: unit.episode_number,
+          label: unit.label,
+          state: cell_state(unit.status, planning?),
+          release_guid: unit.assigned_guid,
+          release_title: unit.assigned_title
+        }
+      end)
+
+    seasons =
+      cells
+      |> Enum.group_by(& &1.season_number)
+      |> Enum.sort_by(fn {season, _cells} -> season || 0 end)
+      |> Enum.map(fn {season, season_cells} ->
+        %PlanBoard.SeasonRow{
+          season_number: season,
+          cells: Enum.sort_by(season_cells, & &1.episode_number)
+        }
+      end)
+
+    releases =
+      units
+      |> Enum.filter(&(&1.status == "found"))
+      |> Enum.group_by(& &1.assigned_guid)
+      |> Enum.map(fn {guid, group} ->
+        [first | _] = Enum.sort_by(group, & &1.position)
+
+        %PlanBoard.Release{
+          guid: guid,
+          title: first.assigned_title,
+          scope_label: first.assigned_scope,
+          quality: first.assigned_quality,
+          seeders: first.assigned_seeders,
+          units_count: length(group),
+          swap_unit_id: first.id
+        }
+      end)
+      |> Enum.sort_by(&(-&1.units_count))
+
+    wanted = Enum.count(units, &(&1.status != "excluded"))
+    covered = Enum.count(units, &(&1.status == "found"))
+
+    %PlanBoard{
+      plan_id: plan.id,
+      title: plan.title,
+      status: String.to_existing_atom(plan.status),
+      error: plan.error,
+      wanted: wanted,
+      covered: covered,
+      seasons: seasons,
+      releases: releases,
+      gaps: units |> Enum.filter(&(&1.status == "unfound")) |> Enum.map(& &1.label),
+      movie?: plan.tmdb_type == "movie"
+    }
+  end
+
+  defp cell_state("found", _planning?), do: :assigned
+  defp cell_state("unfound", _planning?), do: :unfound
+  defp cell_state("excluded", _planning?), do: :excluded
+  defp cell_state("pending", true), do: :searching
+  defp cell_state("pending", false), do: :unfound
 
   @doc "Draft plans still in flight (planning or ready), newest first."
   @spec list_drafts() :: [Plan.t()]

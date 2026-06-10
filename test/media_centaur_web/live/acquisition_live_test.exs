@@ -3,7 +3,10 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias MediaCentaur.Acquisition.Plans
+  alias MediaCentaur.Acquisition.Pursuits.Units
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent
+  alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Acquisition.{Target, TargetEvents}
   alias MediaCentaur.Search.Prowlarr
   alias MediaCentaur.Capabilities
@@ -224,13 +227,153 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
     end
   end
 
+  describe "plan flow — targeting → board → approve (UIDR-014)" do
+    defp stub_plan_tmdb do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_routes([
+        {"/tv/246810/season/1",
+         TmdbStubs.season_detail(%{
+           "season_number" => 1,
+           "episodes" => [
+             %{"episode_number" => 1, "name" => "Pilot", "air_date" => "2020-01-01"},
+             %{"episode_number" => 2, "name" => "Second", "air_date" => "2020-01-08"}
+           ]
+         })},
+        {"/tv/246810",
+         TmdbStubs.tv_detail(%{
+           "id" => 246_810,
+           "name" => "Sample Show",
+           "seasons" => [%{"season_number" => 1, "episode_count" => 2}]
+         })}
+      ])
+    end
+
+    defp stub_plan_prowlarr do
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+
+            results =
+              if query == "Sample Show Season 1" do
+                [
+                  %{
+                    "title" => "Sample.Show.S01.COMPLETE.1080p.WEB-DL",
+                    "guid" => "plan-pack",
+                    "indexerId" => 1,
+                    "seeders" => 30,
+                    "indexer" => "indexer-a"
+                  }
+                ]
+              else
+                []
+              end
+
+            Req.Test.json(conn, results)
+
+          {"POST", "/api/v1/search"} ->
+            Req.Test.json(conn, %{"approved" => true})
+
+          _other ->
+            Req.Test.json(conn, %{})
+        end
+      end)
+    end
+
+    test "the whole door: pick → picker defaults → plan → board → approve → pursuit modal", %{
+      conn: conn
+    } do
+      stub_plan_tmdb()
+      stub_plan_prowlarr()
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download?plan=new&tmdb_id=246810&tmdb_type=tv")
+
+      # Targeting stage loads async; default preset = everything aired.
+      html = render_async(view)
+      assert html =~ "Sample Show"
+      assert html =~ "2 selected"
+      assert html =~ "Plan 2 episodes"
+
+      # Unchecking one unit updates the live count.
+      view
+      |> element("[phx-click='plan_toggle_unit'][phx-value-season='1'][phx-value-episode='2']")
+      |> render_click()
+
+      assert render(view) =~ "1 selected"
+
+      view
+      |> element("[phx-click='plan_preset'][phx-value-preset='everything_aired']")
+      |> render_click()
+
+      # Create: inline Oban solves immediately; the patch carries the plan id.
+      view
+      |> element("button[phx-click='plan_create']")
+      |> render_click()
+
+      _ = render(view)
+      [draft] = Plans.list_drafts()
+      assert_patch(view, "/download?plan=#{draft.id}")
+
+      # The board: ready, both cells assigned to the pack (a capsule),
+      # the release row beneath, approve enabled.
+      html = render(view)
+      assert html =~ "Plan ready · 2 of 2 covered"
+      assert html =~ "Sample.Show.S01.COMPLETE.1080p.WEB-DL"
+      assert html =~ "Season 1 pack"
+      assert html =~ "Approve &amp; grab"
+
+      view
+      |> element("button[phx-click='plan_approve']")
+      |> render_click()
+
+      _ = render(view)
+
+      # Approval hands off to the pursuit modal — the board became the pursuit.
+      {:ok, plan} = Plans.get(draft.id)
+      assert plan.status == "committed"
+      assert_patch(view, "/download?selected=#{plan.pursuit_id}")
+
+      units = Units.for_pursuit(plan.pursuit_id)
+      assert length(units) == 2
+    end
+
+    test "a draft plan resumes from the page and can be discarded", %{conn: conn} do
+      stub_plan_tmdb()
+
+      {:ok, plan} =
+        Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      assert has_element?(view, "#plan-draft-#{plan.id}")
+
+      view
+      |> element("#plan-draft-#{plan.id} button[phx-click='resume_plan']")
+      |> render_click()
+
+      assert_patch(view, "/download?plan=#{plan.id}")
+
+      view
+      |> element("button[phx-click='plan_discard']")
+      |> render_click()
+
+      _ = render(view)
+      assert_patch(view, "/download")
+
+      {:ok, discarded} = Plans.get(plan.id)
+      assert discarded.status == "discarded"
+      refute has_element?(view, "#plan-draft-#{plan.id}")
+    end
+  end
+
   describe "omnibox — one search surface, two modes (UIDR-014)" do
     test "typing in media mode surfaces TMDB results; picking patches into the plan flow", %{
       conn: conn
     } do
-      MediaCentaur.TmdbStubs.setup_tmdb_client()
+      TmdbStubs.setup_tmdb_client()
 
-      MediaCentaur.TmdbStubs.stub_search_both(
+      TmdbStubs.stub_search_both(
         [%{"id" => 777, "title" => "Sample Movie", "release_date" => "2010-03-05"}],
         [%{"id" => 246_810, "name" => "Sample Show", "first_air_date" => "2010-06-16"}]
       )
@@ -386,7 +529,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       [pursuit] = MediaCentaur.Repo.all(MediaCentaur.Acquisition.Pursuits.Pursuit)
       assert pursuit.manual_query == "Sample Show S01E{01-02}"
 
-      units = MediaCentaur.Acquisition.Pursuits.Units.for_pursuit(pursuit.id)
+      units = Units.for_pursuit(pursuit.id)
 
       assert units |> Enum.map(& &1.query) |> Enum.sort() == [
                "Sample Show S01E01",

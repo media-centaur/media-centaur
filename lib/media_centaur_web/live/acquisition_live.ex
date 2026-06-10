@@ -84,8 +84,12 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
   alias MediaCentaur.ReleaseTracking
 
+  alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
+  alias MediaCentaurWeb.AcquisitionLive.PlanLogic
+
   alias MediaCentaurWeb.Components.Acquisition.{
     MediaOmnibox,
+    PlanModal,
     PursuitGroup,
     PursuitModal,
     PursuitRow,
@@ -130,7 +134,17 @@ defmodule MediaCentaurWeb.AcquisitionLive do
          omnibox_mode: :media,
          omnibox_query: "",
          omnibox_results: [],
-         omnibox_searching?: false
+         omnibox_searching?: false,
+         plan_param: nil,
+         plan_stage: :loading,
+         plan_selection: nil,
+         plan_chosen: MapSet.new(),
+         plan_movie: nil,
+         plan_board: nil,
+         plan_grab_future: false,
+         plan_error: nil,
+         plan_last_activity: nil,
+         plan_drafts: []
        )}
     else
       {:ok, push_navigate(socket, to: "/")}
@@ -176,6 +190,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       # one-search-surface flip must not hide work in progress (UIDR-014).
       omnibox_mode: if(session.query != "" or session.groups != [], do: :release, else: :media),
       download_client_ready: Capabilities.download_client_ready?(),
+      plan_drafts: Plans.list_drafts(),
       pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows(),
       history_rows: compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search)
     )
@@ -245,6 +260,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       |> ensure_loaded()
       |> maybe_load_history(was_loaded?)
       |> apply_pursuit_modal_params(params)
+      |> apply_plan_modal_params(params)
       |> maybe_trigger_prowlarr_search(Map.get(params, "prowlarr_search"))
 
     {:noreply, socket}
@@ -381,6 +397,17 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     >
       <:overlays>
         <.cancel_confirmation cancel_confirm={@cancel_confirm} />
+        <PlanModal.plan_modal
+          open={@plan_param != nil}
+          stage={@plan_stage}
+          selection={@plan_selection}
+          chosen={@plan_chosen}
+          movie={@plan_movie}
+          board={@plan_board}
+          grab_future={@plan_grab_future}
+          error={@plan_error}
+          last_activity={@plan_last_activity}
+        />
         <PursuitModal.pursuit_modal
           open={@selected_pursuit_id != nil}
           pursuit_id={@selected_pursuit_id}
@@ -414,6 +441,38 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           any_loading?={@any_loading?}
           timeout_terms={@timeout_terms}
         />
+
+        <section :if={@plan_drafts != []} data-nav-zone="drafts" class="space-y-3">
+          <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+            Draft plans
+          </h2>
+          <div class="grid grid-cols-1 gap-2">
+            <div
+              :for={draft <- @plan_drafts}
+              id={"plan-draft-#{draft.id}"}
+              class="glass-surface rounded-xl px-4 py-3 flex items-center gap-3"
+            >
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium truncate">{draft.title}</p>
+                <p class="text-xs text-info/90">
+                  {if draft.status == "planning",
+                    do: "Planning…",
+                    else: "Plan ready — review and approve"}
+                </p>
+              </div>
+              <.button
+                variant="secondary"
+                size="sm"
+                phx-click="resume_plan"
+                phx-value-id={draft.id}
+                data-nav-item
+                tabindex="0"
+              >
+                Review plan
+              </.button>
+            </div>
+          </div>
+        </section>
 
         <p
           :if={!@download_client_ready}
@@ -576,6 +635,154 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
   def handle_event("cancel_download_cancel", _params, socket) do
     {:noreply, assign(socket, cancel_confirm: nil)}
+  end
+
+  # ---------------------------------------------------------------------------
+  # Plan flow (UIDR-014) — URL-driven, refresh-safe by construction:
+  # `?plan=new&tmdb_id=…&tmdb_type=…` opens targeting; `?plan=<id>`
+  # opens the durable draft's board.
+  # ---------------------------------------------------------------------------
+
+  def handle_event("plan_preset", %{"preset" => preset}, socket)
+      when preset in ~w(everything_aired continue latest_season) do
+    selection = socket.assigns.plan_selection
+
+    {:noreply,
+     assign(socket, plan_chosen: PlanLogic.apply_preset(selection, String.to_existing_atom(preset)))}
+  end
+
+  def handle_event("plan_toggle_season", %{"season" => season}, socket) do
+    chosen =
+      PlanLogic.toggle_season(
+        socket.assigns.plan_chosen,
+        socket.assigns.plan_selection,
+        String.to_integer(season)
+      )
+
+    {:noreply, assign(socket, plan_chosen: chosen)}
+  end
+
+  def handle_event("plan_toggle_unit", %{"season" => season, "episode" => episode}, socket) do
+    chosen =
+      PlanLogic.toggle_unit(
+        socket.assigns.plan_chosen,
+        socket.assigns.plan_selection,
+        {String.to_integer(season), String.to_integer(episode)}
+      )
+
+    {:noreply, assign(socket, plan_chosen: chosen)}
+  end
+
+  def handle_event("plan_toggle_grab_future", _params, socket) do
+    {:noreply, assign(socket, plan_grab_future: !socket.assigns.plan_grab_future)}
+  end
+
+  def handle_event("plan_create", _params, socket) do
+    grab_future = socket.assigns.plan_grab_future
+
+    result =
+      case socket.assigns.plan_stage do
+        :targeting ->
+          selection = socket.assigns.plan_selection
+          units = PlanLogic.chosen_in_order(socket.assigns.plan_chosen, selection)
+
+          if units == [],
+            do: :noop,
+            else: Plans.create_series_plan(selection, units, grab_future: grab_future)
+
+        :movie_confirm ->
+          movie = socket.assigns.plan_movie
+          if movie.in_library?, do: :noop, else: Plans.create_movie_plan(movie, grab_future: grab_future)
+      end
+
+    case result do
+      :noop ->
+        {:noreply, socket}
+
+      {:ok, plan} ->
+        {:noreply,
+         socket
+         |> assign(plan_drafts: Plans.list_drafts())
+         |> push_patch(to: "/download?plan=#{plan.id}")}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "plan create failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "Could not create the plan.")}
+    end
+  end
+
+  def handle_event("plan_swap_release", %{"unit-id" => unit_id, "guid" => guid}, socket) do
+    case Plans.exclude_release(unit_id, guid) do
+      {:ok, _plan} ->
+        {:noreply, socket}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "plan swap failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "Could not swap that release.")}
+    end
+  end
+
+  def handle_event("plan_search_again", _params, socket) do
+    with %{plan_id: plan_id} <- socket.assigns.plan_board,
+         {:ok, plan} <- Plans.get(plan_id),
+         {:ok, _plan} <- Plans.replan(plan, force_search: true) do
+      {:noreply, socket}
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Could not re-run the search.")}
+    end
+  end
+
+  def handle_event("plan_approve", _params, socket) do
+    with %{plan_id: plan_id} <- socket.assigns.plan_board,
+         {:ok, plan} <- Plans.get(plan_id) do
+      case Plans.approve(plan) do
+        {:ok, committed} ->
+          {:noreply,
+           socket
+           |> assign(plan_drafts: Plans.list_drafts())
+           |> put_flash(:info, "Pursuit started.")
+           |> push_patch(to: "/download?selected=#{committed.pursuit_id}")}
+
+        {:error, {:overlap, units}} ->
+          {:noreply,
+           put_flash(
+             socket,
+             :error,
+             "Already being pursued: #{Logic.overlap_labels(units)}. Remove the overlap first."
+           )}
+
+        {:error, :nothing_to_grab} ->
+          {:noreply, put_flash(socket, :error, "Nothing in this plan is grabbable yet.")}
+
+        {:error, reason} ->
+          Log.warning(:acquisition, "plan approve failed — #{inspect(reason)}")
+          {:noreply, put_flash(socket, :error, "Could not commit the plan.")}
+      end
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("plan_discard", _params, socket) do
+    with %{plan_id: plan_id} <- socket.assigns.plan_board,
+         {:ok, plan} <- Plans.get(plan_id),
+         {:ok, _discarded} <- Plans.discard(plan) do
+      {:noreply,
+       socket
+       |> assign(plan_drafts: Plans.list_drafts())
+       |> put_flash(:info, "Plan discarded.")
+       |> push_patch(to: "/download")}
+    else
+      _ -> {:noreply, put_flash(socket, :error, "Could not discard the plan.")}
+    end
+  end
+
+  def handle_event("close_plan", _params, socket) do
+    {:noreply, push_patch(socket, to: "/download")}
+  end
+
+  def handle_event("resume_plan", %{"id" => plan_id}, socket) do
+    {:noreply, push_patch(socket, to: "/download?plan=#{plan_id}")}
   end
 
   # ---------------------------------------------------------------------------
@@ -912,6 +1119,17 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # Pursuits.Events trigger a pursuit-row reload + modal sync.
   def handle_info(%struct{} = event, socket) do
     cond do
+      struct == PlanEvents.Changed ->
+        socket =
+          socket
+          |> assign(plan_drafts: Plans.list_drafts())
+          |> maybe_reload_plan_board(event)
+
+        {:noreply, socket}
+
+      struct == PlanEvents.SearchActivity ->
+        {:noreply, maybe_note_plan_activity(socket, event)}
+
       TargetEvents.event?(struct) ->
         {:noreply, debounce(socket, :reload_timer, :reload_history, 500)}
 
@@ -961,6 +1179,30 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # closed the modal or pivoted to another pursuit. No flash on empty — the
   # empty card's "Search Prowlarr again" CTA is self-explanatory.
   @impl true
+  def handle_async(:plan_targeting, {:ok, outcome}, socket) do
+    case outcome do
+      {:tv, selection} ->
+        {:noreply,
+         assign(socket,
+           plan_stage: :targeting,
+           plan_selection: selection,
+           plan_chosen: PlanLogic.apply_preset(selection, :everything_aired)
+         )}
+
+      {:movie, movie} ->
+        {:noreply, assign(socket, plan_stage: :movie_confirm, plan_movie: movie)}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "plan targeting failed — #{inspect(reason)}")
+        {:noreply, assign(socket, plan_stage: :error, plan_error: "Couldn't load this title from TMDB.")}
+    end
+  end
+
+  def handle_async(:plan_targeting, {:exit, reason}, socket) do
+    Log.warning(:acquisition, "plan targeting crashed — #{inspect(reason)}")
+    {:noreply, assign(socket, plan_stage: :error, plan_error: "Couldn't load this title from TMDB.")}
+  end
+
   def handle_async(:omnibox_search, {:ok, {query, results}}, socket) do
     # Stale guard: only the newest query's results land.
     if query == socket.assigns.omnibox_query do
@@ -1184,6 +1426,128 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   end
 
   defp maybe_reload_modal_for_event(socket, _event), do: socket
+
+  defp apply_plan_modal_params(socket, params) do
+    case Map.get(params, "plan") do
+      nil ->
+        assign(socket,
+          plan_param: nil,
+          plan_selection: nil,
+          plan_movie: nil,
+          plan_board: nil,
+          plan_error: nil
+        )
+
+      "new" ->
+        open_plan_targeting(socket, params)
+
+      plan_id ->
+        open_plan_board(socket, plan_id)
+    end
+  end
+
+  defp open_plan_targeting(socket, %{"tmdb_id" => tmdb_id, "tmdb_type" => tmdb_type} = _params)
+       when tmdb_type in ~w(movie tv) do
+    param = {tmdb_id, tmdb_type}
+
+    if socket.assigns.plan_param == param do
+      socket
+    else
+      socket
+      |> assign(
+        plan_param: param,
+        plan_stage: :loading,
+        plan_selection: nil,
+        plan_movie: nil,
+        plan_board: nil,
+        plan_chosen: MapSet.new(),
+        plan_grab_future: false,
+        plan_error: nil
+      )
+      |> start_async(:plan_targeting, fn -> load_targeting(tmdb_id, tmdb_type) end)
+    end
+  end
+
+  defp open_plan_targeting(socket, _params) do
+    assign(socket, plan_param: nil, plan_stage: :error, plan_error: "Malformed plan link.")
+  end
+
+  # Runs in the :plan_targeting async task — TMDB + library reads only.
+  defp load_targeting(tmdb_id, "tv") do
+    case Targeting.series_selection(tmdb_id) do
+      {:ok, selection} -> {:tv, selection}
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp load_targeting(tmdb_id, "movie") do
+    case MediaCentaur.TMDB.Client.get_movie(tmdb_id) do
+      {:ok, movie} ->
+        in_library? =
+          case MediaCentaur.Library.find_present_movie(to_string(tmdb_id)) do
+            {:ok, _path} -> true
+            :not_found -> false
+          end
+
+        {:movie,
+         %{
+           tmdb_id: to_string(tmdb_id),
+           title: movie["title"],
+           year: extract_year(movie["release_date"]),
+           in_library?: in_library?
+         }}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp extract_year(<<year::binary-size(4), _rest::binary>>), do: String.to_integer(year)
+  defp extract_year(_release_date), do: nil
+
+  defp open_plan_board(socket, plan_id) do
+    case Plans.get(plan_id) do
+      {:ok, plan} ->
+        assign(socket,
+          plan_param: plan_id,
+          plan_stage: :board,
+          plan_board: Plans.board_for(plan),
+          plan_error: nil
+        )
+
+      {:error, :not_found} ->
+        assign(socket,
+          plan_param: plan_id,
+          plan_stage: :error,
+          plan_error: "Plan not found — it may have been discarded."
+        )
+    end
+  end
+
+  # The durable plan rows are the state of record — a Changed event for
+  # the open plan just re-reads the board.
+  defp maybe_reload_plan_board(socket, %PlanEvents.Changed{plan_id: plan_id}) do
+    if socket.assigns.plan_param == plan_id do
+      open_plan_board(socket, plan_id)
+    else
+      socket
+    end
+  end
+
+  defp maybe_note_plan_activity(socket, %PlanEvents.SearchActivity{} = activity) do
+    if socket.assigns.plan_param == activity.plan_id do
+      line =
+        case activity.outcome do
+          :error -> "Search failed: #{activity.term}"
+          :corpus -> "#{activity.term} — #{activity.result_count} known (corpus)"
+          :live -> "Searched: #{activity.term} — #{activity.result_count} found"
+        end
+
+      assign(socket, plan_last_activity: line)
+    else
+      socket
+    end
+  end
 
   # Reuse the cached decision card while the pursuit is awaiting a
   # decision — the alternatives don't refresh until the user acts or

@@ -1,0 +1,157 @@
+defmodule MediaCentaurWeb.AcquisitionLive.PlanLogic do
+  @moduledoc """
+  Pure selection logic for the targeting picker (UIDR-014, ADR-030):
+  the chosen-units set, season tri-states, and the quick-action
+  presets. The LiveView holds a `MapSet` of `{season, episode}` tuples;
+  every function here maps `(selection, chosen)` to a new `chosen` or a
+  derived display fact. Checkbox state is the single source of truth —
+  presets only write into it.
+
+  Only **pickable** units participate: aired and not already in the
+  library (in-library rows render greyed; unaired rows render inert —
+  subtractions shown, never silently applied).
+  """
+
+  alias MediaCentaur.Acquisition.Targeting
+
+  @type unit :: {pos_integer(), pos_integer()}
+
+  @doc "All pickable `{season, episode}` units of a selection."
+  @spec pickable_units(Targeting.Selection.t()) :: [unit()]
+  def pickable_units(%Targeting.Selection{seasons: seasons}) do
+    for season <- seasons,
+        episode <- season.episodes,
+        episode.aired? and not episode.in_library?,
+        do: {episode.season_number, episode.episode_number}
+  end
+
+  @doc "The pickable units of one season."
+  @spec pickable_units(Targeting.Selection.t(), pos_integer()) :: [unit()]
+  def pickable_units(%Targeting.Selection{} = selection, season_number) do
+    selection
+    |> pickable_units()
+    |> Enum.filter(fn {season, _episode} -> season == season_number end)
+  end
+
+  @doc "Toggles one unit in the chosen set (no-op for unpickable units)."
+  @spec toggle_unit(MapSet.t(), Targeting.Selection.t(), unit()) :: MapSet.t()
+  def toggle_unit(chosen, %Targeting.Selection{} = selection, unit) do
+    cond do
+      unit not in pickable_units(selection) -> chosen
+      MapSet.member?(chosen, unit) -> MapSet.delete(chosen, unit)
+      true -> MapSet.put(chosen, unit)
+    end
+  end
+
+  @doc """
+  Toggles a whole season: any pickable unit unchosen → choose them all;
+  all chosen → clear the season.
+  """
+  @spec toggle_season(MapSet.t(), Targeting.Selection.t(), pos_integer()) :: MapSet.t()
+  def toggle_season(chosen, %Targeting.Selection{} = selection, season_number) do
+    season_units = pickable_units(selection, season_number)
+
+    if Enum.all?(season_units, &MapSet.member?(chosen, &1)) do
+      Enum.reduce(season_units, chosen, &MapSet.delete(&2, &1))
+    else
+      Enum.reduce(season_units, chosen, &MapSet.put(&2, &1))
+    end
+  end
+
+  @doc """
+  The season checkbox's display state: `:checked` (every pickable unit
+  chosen, and there are some), `:indeterminate` (some chosen, or all
+  chosen but unpickable rows exist in the season — the subtraction
+  stays visible), `:unchecked`, or `:disabled` (nothing pickable).
+  """
+  @spec season_state(MapSet.t(), Targeting.Selection.t(), Targeting.Season.t()) ::
+          :checked | :indeterminate | :unchecked | :disabled
+  def season_state(chosen, %Targeting.Selection{} = selection, %Targeting.Season{} = season) do
+    season_units = pickable_units(selection, season.season_number)
+    chosen_count = Enum.count(season_units, &MapSet.member?(chosen, &1))
+    unpickable? = length(season.episodes) > length(season_units)
+
+    cond do
+      season_units == [] -> :disabled
+      chosen_count == 0 -> :unchecked
+      chosen_count < length(season_units) -> :indeterminate
+      unpickable? -> :indeterminate
+      true -> :checked
+    end
+  end
+
+  @doc """
+  Quick-action presets writing into the chosen set:
+
+  * `:everything_aired` — every pickable unit (the design default).
+  * `:continue` — pickable units strictly after the library's last
+    present episode (everything when the library has none).
+  * `:latest_season` — the pickable units of the last season that has
+    any.
+  """
+  @spec apply_preset(Targeting.Selection.t(), :everything_aired | :continue | :latest_season) ::
+          MapSet.t()
+  def apply_preset(%Targeting.Selection{} = selection, :everything_aired) do
+    selection |> pickable_units() |> MapSet.new()
+  end
+
+  def apply_preset(%Targeting.Selection{} = selection, :continue) do
+    last_owned =
+      for season <- selection.seasons,
+          episode <- season.episodes,
+          episode.in_library?,
+          reduce: nil do
+        acc -> max_unit(acc, {episode.season_number, episode.episode_number})
+      end
+
+    selection
+    |> pickable_units()
+    |> Enum.filter(fn unit -> last_owned == nil or unit > last_owned end)
+    |> MapSet.new()
+  end
+
+  def apply_preset(%Targeting.Selection{} = selection, :latest_season) do
+    selection.seasons
+    |> Enum.map(& &1.season_number)
+    |> Enum.sort(:desc)
+    |> Enum.find_value(MapSet.new(), fn season_number ->
+      case pickable_units(selection, season_number) do
+        [] -> nil
+        units -> MapSet.new(units)
+      end
+    end)
+  end
+
+  defp max_unit(nil, unit), do: unit
+  defp max_unit(acc, unit) when unit > acc, do: unit
+  defp max_unit(acc, _unit), do: acc
+
+  @doc "Chosen units in airing order — the shape `Plans.create_series_plan/3` takes."
+  @spec chosen_in_order(MapSet.t(), Targeting.Selection.t()) :: [unit()]
+  def chosen_in_order(chosen, %Targeting.Selection{} = selection) do
+    selection
+    |> pickable_units()
+    |> Enum.filter(&MapSet.member?(chosen, &1))
+  end
+
+  @doc """
+  Chunks a season row's cells into render runs for the coverage grid:
+  consecutive `:assigned` cells sharing one release fuse into a
+  `{:capsule, guid, cells}` (the consolidation visual — one pack, one
+  outline); everything else renders as `{:cell, cell}` singles.
+  """
+  @spec cell_runs([struct()]) :: [{:capsule, String.t(), [struct()]} | {:cell, struct()}]
+  def cell_runs(cells) do
+    cells
+    |> Enum.chunk_by(fn cell ->
+      if cell.state == :assigned, do: {:assigned, cell.release_guid}, else: :single
+    end)
+    |> Enum.flat_map(fn
+      [%{state: :assigned, release_guid: guid} | _rest] = run when length(run) > 1 ->
+        [{:capsule, guid, run}]
+
+      run ->
+        Enum.map(run, &{:cell, &1})
+    end)
+  end
+end

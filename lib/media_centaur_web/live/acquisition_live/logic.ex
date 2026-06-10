@@ -582,4 +582,18 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
   @doc "Text-color class for the expansion-preview line."
   def expansion_color({:error, _reason}), do: "text-error"
   def expansion_color(_preview), do: "text-base-content/50"
+
+  @doc """
+  Human labels for overlap-rejected units (`Plans.approve/1` →
+  `{:error, {:overlap, units}}`): `[{1, 2}]` → `"S01E02"`; the movie
+  unit `{nil, nil}` → `"this movie"`.
+  """
+  def overlap_labels(units) do
+    Enum.map_join(units, ", ", fn
+      {nil, nil} -> "this movie"
+      {season, episode} -> "S#{pad2(season)}E#{pad2(episode)}"
+    end)
+  end
+
+  defp pad2(number), do: number |> Integer.to_string() |> String.pad_leading(2, "0")
 end
