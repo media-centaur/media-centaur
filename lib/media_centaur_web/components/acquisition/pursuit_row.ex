@@ -111,7 +111,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
 
     <div
       :if={@density == :full && @vm.door == :query}
-      class="glass-surface rounded-xl p-4 space-y-2 block hover:bg-base-content/[0.03] transition-colors cursor-pointer"
+      class="identity-row rounded-xl p-4 space-y-2 block hover:brightness-110 transition-[filter] cursor-pointer"
+      style={"--banner-hue: #{banner_hue(@vm.title)}"}
       data-nav-item
       tabindex="0"
       role="button"
@@ -146,9 +147,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
     <div
       :if={@density == :compact}
       class={[
-        "px-3 py-2 flex items-baseline gap-3 hover:bg-base-content/[0.03] transition-colors cursor-pointer",
-        @framed && "glass-surface rounded-lg"
+        "px-3 py-2 flex items-baseline gap-3 cursor-pointer",
+        @framed && "identity-row rounded-lg hover:brightness-110 transition-[filter]",
+        !@framed && "hover:bg-base-content/[0.03] transition-colors"
       ]}
+      style={@framed && "--banner-hue: #{banner_hue(@vm.title)}"}
       data-nav-item
       tabindex="0"
       role="button"

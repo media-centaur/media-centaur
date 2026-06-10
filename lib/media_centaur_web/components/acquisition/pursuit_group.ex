@@ -21,6 +21,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitGroup do
   use Phoenix.Component
 
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [banner_hue: 1]
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow, as: PursuitRowVM
   alias MediaCentaurWeb.Components.Acquisition.PursuitRow
@@ -41,7 +42,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitGroup do
 
   def pursuit_group(assigns) do
     ~H"""
-    <div class="glass-surface rounded-lg overflow-hidden">
+    <div class="identity-row rounded-lg overflow-hidden" style={"--banner-hue: #{banner_hue(@title)}"}>
       <div
         class="px-3 py-2 flex items-baseline gap-3 hover:bg-base-content/[0.03] transition-colors cursor-pointer"
         data-nav-item

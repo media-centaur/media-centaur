@@ -47,6 +47,28 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
         do: term
   end
 
+  @doc """
+  One-line page-header subtitle for the Downloads page — mirrors the
+  library header's "X movies · Y shows" vocabulary. Counts arrive
+  pre-derived from the render-time `QueueMatcher.match/2` partition:
+  every paired pursuit is "active"; those with a live torrent are
+  additionally "downloading".
+  """
+  @spec pursuit_summary(non_neg_integer(), non_neg_integer()) :: String.t()
+  def pursuit_summary(0, _downloading_count), do: "Nothing in flight"
+
+  def pursuit_summary(active_count, downloading_count) do
+    active = "#{active_count} active #{pluralize(active_count, "pursuit")}"
+
+    case downloading_count do
+      0 -> active
+      count -> "#{active} · #{count} downloading"
+    end
+  end
+
+  defp pluralize(1, word), do: word
+  defp pluralize(_count, word), do: word <> "s"
+
   @doc "True when no group is still in `:loading`."
   @spec all_loaded?([group()]) :: boolean()
   def all_loaded?(groups) do

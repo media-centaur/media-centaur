@@ -64,7 +64,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.Search do
     ~H"""
     <button
       type="button"
-      class="glass-surface rounded-lg w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-base-content/5"
+      class="scrim-surface rounded-lg w-full px-4 py-3 flex items-center gap-3 text-left hover:brightness-110 transition-[filter]"
       phx-click="toggle_group"
       phx-value-term={@group.term}
       data-nav-item

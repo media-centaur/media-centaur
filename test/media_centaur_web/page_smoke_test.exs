@@ -507,10 +507,15 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       # The seeded active pursuit must render its card, exercising the
       # PursuitRow component's no-match hint path (no queue item matches).
       assert html =~ "Sample Movie"
-      # The History zone (default filter :failed) must render the
+      # History is collapsed by default — the disclosure header renders,
+      # the rows don't.
+      assert html =~ "History"
+      refute html =~ "Sample Show"
+
+      # Expanded, the zone (default filter :failed) must render the
       # exhausted pursuit row. With two same-title same-state pursuits
       # seeded, the group-render path fires (header reads "2 episodes").
-      assert html =~ "History"
+      html = view |> element("[phx-click='toggle_history']") |> render_click()
       assert html =~ "Sample Show"
       assert html =~ "2 episodes"
     end

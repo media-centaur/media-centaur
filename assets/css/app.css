@@ -1676,6 +1676,45 @@ body:has(.modal-backdrop[data-state="open"]) {
   backdrop-filter: blur(8px);
 }
 
+/* Scrim surface — the identity banner's dark base, without the hue or
+   highlight blob, for the NON-titled surfaces around the banners
+   (omnibox, empty states, notices, orphan queue). These are chrome,
+   not identity, so they stay quieter than any banner while still
+   reading as the same tonal family — the Downloads page's answer to
+   `.glass-surface`, which washed out flat grey next to the banners. */
+.scrim-surface {
+  border: 1px solid oklch(90% 0.01 264 / 0.08);
+  background:
+    linear-gradient(
+      90deg,
+      oklch(13% 0.02 264 / 0.88) 0%,
+      oklch(13% 0.02 264 / 0.6) 100%
+    ),
+    linear-gradient(110deg, oklch(26% 0.03 264) 0%, oklch(17% 0.025 304) 100%);
+  box-shadow: 0 4px 16px oklch(0% 0 0 / 0.25);
+}
+
+/* Compact sibling of `.identity-banner` — the same hue-under-scrim
+   recipe at one-line row scale (compact pursuit rows, group rows).
+   The per-title hue is a tint here, not a hero: these rows sit between
+   full banners and must read as the same family while staying visually
+   quieter. No border-radius of its own — callers pick rounded-lg/xl. */
+.identity-row {
+  border: 1px solid oklch(90% 0.01 264 / 0.08);
+  background:
+    linear-gradient(
+      90deg,
+      oklch(13% 0.02 264 / 0.88) 0%,
+      oklch(13% 0.02 264 / 0.55) 100%
+    ),
+    linear-gradient(
+      110deg,
+      oklch(30% 0.05 var(--banner-hue, 264)) 0%,
+      oklch(18% 0.035 calc(var(--banner-hue, 264) + 40)) 100%
+    );
+  box-shadow: 0 4px 16px oklch(0% 0 0 / 0.25);
+}
+
 /* Full-bleed variant for modal headers (UIDR-014): the identity
    gradient becomes the panel's *background* at the top — edge to edge,
    no rounding of its own (the panel clips), fading downward into the

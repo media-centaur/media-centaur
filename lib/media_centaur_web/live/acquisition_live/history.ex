@@ -14,11 +14,18 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
 
   use Phoenix.Component
 
+  import MediaCentaurWeb.CoreComponents, only: [icon: 1]
+
   alias MediaCentaurWeb.AcquisitionLive.HistoryLogic
 
   attr :empty?, :boolean, required: true
   attr :filter, :atom, required: true
   attr :search, :string, required: true
+
+  attr :open?, :boolean,
+    default: false,
+    doc:
+      "Disclosure state — History is terminal-state bookkeeping, collapsed by default so the page leads with active pursuits. The parent toggles via `toggle_history` and auto-expands on history deep-links."
 
   slot :inner_block,
     required: true,
@@ -28,13 +35,20 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
   def history_zone(assigns) do
     ~H"""
     <section data-nav-zone="history" class="space-y-3">
-      <div class="flex items-baseline justify-between gap-3">
-        <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-          History
-        </h2>
-      </div>
+      <button
+        type="button"
+        phx-click="toggle_history"
+        class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-base-content/50 hover:text-base-content/80 transition-colors"
+        data-nav-item
+        tabindex="0"
+      >
+        <.icon
+          name={if @open?, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
+          class="size-3.5"
+        /> History
+      </button>
 
-      <div class="flex flex-wrap items-center gap-2">
+      <div :if={@open?} class="flex flex-wrap items-center gap-2">
         <button
           :for={f <- HistoryLogic.filter_atoms()}
           phx-click="set_history_filter"
@@ -63,15 +77,15 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
         </form>
       </div>
 
-      <%= if @empty? do %>
-        <section class="glass-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40">
-          {HistoryLogic.empty_state(@filter)}
-        </section>
-      <% else %>
-        <div class="grid grid-cols-1 gap-2">
-          {render_slot(@inner_block)}
-        </div>
-      <% end %>
+      <section
+        :if={@open? && @empty?}
+        class="scrim-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40"
+      >
+        {HistoryLogic.empty_state(@filter)}
+      </section>
+      <div :if={@open? && !@empty?} class="grid grid-cols-1 gap-2">
+        {render_slot(@inner_block)}
+      </div>
     </section>
     """
   end

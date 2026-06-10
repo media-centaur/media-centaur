@@ -851,4 +851,23 @@ defmodule MediaCentaurWeb.AcquisitionLive.LogicTest do
       assert Logic.group_pursuit_rows([], MapSet.new()) == []
     end
   end
+
+  describe "pursuit_summary/2" do
+    # Page-header subtitle — mirrors the library header's
+    # "X movies · Y shows" vocabulary.
+
+    test "nothing in flight" do
+      assert Logic.pursuit_summary(0, 0) == "Nothing in flight"
+    end
+
+    test "active pursuits without a live download" do
+      assert Logic.pursuit_summary(1, 0) == "1 active pursuit"
+      assert Logic.pursuit_summary(3, 0) == "3 active pursuits"
+    end
+
+    test "active pursuits with live downloads" do
+      assert Logic.pursuit_summary(1, 1) == "1 active pursuit · 1 downloading"
+      assert Logic.pursuit_summary(5, 2) == "5 active pursuits · 2 downloading"
+    end
+  end
 end
