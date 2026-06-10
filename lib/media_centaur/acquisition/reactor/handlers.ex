@@ -19,16 +19,19 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Acquisition.{AutoGrabSettings, DropPlanner, PlanEvents, Plans}
+  alias MediaCentaur.Acquisition.{AutoGrabSettings, DropPlanner, ModeReconciler, PlanEvents, Plans}
   alias MediaCentaur.Acquisition.Plans.Plan
   alias MediaCentaur.ReleaseTracking
 
   @doc """
-  Runs the drop planner tick — called when the refresher's sweep
-  completes a want-ledger sync pass.
+  Runs the sweep-tick pipeline — called when the refresher's sweep
+  completes a want-ledger sync pass. Mode-off reconciliation (Q11)
+  goes first so a flipped-off item's parked drafts and seeking
+  pursuits are withdrawn before any new planning.
   """
   @spec tracking_sweep_completed() :: :ok
   def tracking_sweep_completed do
+    ModeReconciler.run_pass()
     DropPlanner.run_tick()
   end
 
