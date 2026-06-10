@@ -329,6 +329,13 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       |> element("[phx-click='plan_preset'][phx-value-preset='everything_aired']")
       |> render_click()
 
+      # A live omnibox query survives the picker being open…
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "z"})
+      |> render_change()
+
+      assert render(view) =~ ~s(value="z")
+
       # Create: inline Oban solves immediately; the patch carries the plan id.
       view
       |> element("button[phx-click='plan_create']")
@@ -337,6 +344,9 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       _ = render(view)
       [draft] = Plans.list_drafts()
       assert_patch(view, "/download?plan=#{draft.id}")
+
+      # …but materializing the intent into a draft resets the omnibox.
+      refute render(view) =~ ~s(value="z")
 
       # The board: ready, both cells assigned to the pack (a capsule),
       # the release row beneath, approve enabled.
@@ -350,6 +360,8 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       |> element("button[phx-click='plan_approve']")
       |> render_click()
 
+      # Approval grabs run async (the LV must stay responsive).
+      _ = render_async(view)
       _ = render(view)
 
       # Approval hands off to the pursuit modal — the board became the pursuit.

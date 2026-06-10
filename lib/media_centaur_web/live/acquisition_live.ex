@@ -146,6 +146,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
          plan_error: nil,
          plan_last_activity: nil,
          plan_alternatives: nil,
+         plan_approving?: false,
          plan_drafts: []
        )}
     else
@@ -410,6 +411,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           error={@plan_error}
           last_activity={@plan_last_activity}
           alternatives={@plan_alternatives}
+          approving={@plan_approving?}
         />
         <PursuitModal.pursuit_modal
           open={@selected_pursuit_id != nil}
@@ -707,9 +709,18 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         {:noreply, socket}
 
       {:ok, plan} ->
+        # The intent just materialized into a draft — the omnibox hunt is
+        # over, so it resets to its resting question. (Canceling the flow
+        # before this point keeps the query alive for another pick.)
         {:noreply,
          socket
-         |> assign(plan_drafts: Plans.list_drafts())
+         |> assign(
+           plan_drafts: Plans.list_drafts(),
+           omnibox_query: "",
+           omnibox_results: [],
+           omnibox_searching?: false,
+           omnibox_searched: nil
+         )
          |> push_patch(to: "/download?plan=#{plan.id}")}
 
       {:error, reason} ->
@@ -764,32 +775,18 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     end
   end
 
+  # Approval submits real grabs (Prowlarr → indexer → download client) —
+  # seconds of network per release. Running it inline froze the LV, so it
+  # rides an owned async (ADR-049) behind an "Approving…" button state.
   def handle_event("plan_approve", _params, socket) do
-    with %{plan_id: plan_id} <- socket.assigns.plan_board,
-         {:ok, plan} <- Plans.get(plan_id) do
-      case Plans.approve(plan) do
-        {:ok, committed} ->
-          {:noreply,
-           socket
-           |> assign(plan_drafts: Plans.list_drafts())
-           |> put_flash(:info, "Pursuit started.")
-           |> push_patch(to: "/download?selected=#{committed.pursuit_id}")}
-
-        {:error, {:overlap, units}} ->
-          {:noreply,
-           put_flash(
-             socket,
-             :error,
-             "Already being pursued: #{Logic.overlap_labels(units)}. Remove the overlap first."
-           )}
-
-        {:error, :nothing_to_grab} ->
-          {:noreply, put_flash(socket, :error, "Nothing in this plan is grabbable yet.")}
-
-        {:error, reason} ->
-          Log.warning(:acquisition, "plan approve failed — #{inspect(reason)}")
-          {:noreply, put_flash(socket, :error, "Could not commit the plan.")}
-      end
+    with false <- socket.assigns.plan_approving?,
+         %{plan_id: plan_id} <- socket.assigns.plan_board do
+      {:noreply,
+       socket
+       |> assign(plan_approving?: true)
+       |> start_async(:plan_approve, fn ->
+         with {:ok, plan} <- Plans.get(plan_id), do: Plans.approve(plan)
+       end)}
     else
       _ -> {:noreply, socket}
     end
@@ -1243,6 +1240,43 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   def handle_async(:plan_targeting, {:exit, reason}, socket) do
     Log.warning(:acquisition, "plan targeting crashed — #{inspect(reason)}")
     {:noreply, assign(socket, plan_stage: :error, plan_error: "Couldn't load this title from TMDB.")}
+  end
+
+  def handle_async(:plan_approve, {:ok, outcome}, socket) do
+    socket = assign(socket, plan_approving?: false)
+
+    case outcome do
+      {:ok, committed} ->
+        {:noreply,
+         socket
+         |> assign(plan_drafts: Plans.list_drafts())
+         |> put_flash(:info, "Pursuit started.")
+         |> push_patch(to: "/download?selected=#{committed.pursuit_id}")}
+
+      {:error, {:overlap, units}} ->
+        {:noreply,
+         put_flash(
+           socket,
+           :error,
+           "Already being pursued: #{Logic.overlap_labels(units)}. Remove the overlap first."
+         )}
+
+      {:error, :nothing_to_grab} ->
+        {:noreply, put_flash(socket, :error, "Nothing in this plan is grabbable yet.")}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "plan approve failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "Could not commit the plan.")}
+    end
+  end
+
+  def handle_async(:plan_approve, {:exit, reason}, socket) do
+    Log.warning(:acquisition, "plan approve crashed — #{inspect(reason)}")
+
+    {:noreply,
+     socket
+     |> assign(plan_approving?: false)
+     |> put_flash(:error, "Could not commit the plan.")}
   end
 
   def handle_async(:omnibox_search, {:ok, {query, results}}, socket) do
