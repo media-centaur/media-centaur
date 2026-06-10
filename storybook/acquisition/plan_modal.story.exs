@@ -65,6 +65,44 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         }
       },
       %Variation{
+        id: :board_alternatives_open,
+        description:
+          "The swap picker — corpus alternatives under the release row: clean candidates first, bait-pattern titles flagged ('looks fake') but choosable; exclude-and-re-solve and re-search as the escape hatches.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          board: board(:ready),
+          alternatives: %{
+            unit_id: "story-unit-1-1",
+            items: [
+              %PlanBoard.Alternative{
+                guid: "alt-uhd",
+                title: "Sample.Show.S01.2160p.WEB-DL.x265-GROUP",
+                scope_label: "Season 1 pack",
+                quality: "4K",
+                seeders: 12
+              },
+              %PlanBoard.Alternative{
+                guid: "alt-single",
+                title: "Sample.Show.S01E01.1080p.WEB-DL.x264",
+                scope_label: "S01E01",
+                quality: "1080p",
+                seeders: 41
+              },
+              %PlanBoard.Alternative{
+                guid: "alt-evil",
+                title: "Sample.Show.S01E01.1080p.HD.X264.1080p.exe",
+                scope_label: "S01E01",
+                quality: "1080p",
+                seeders: 999,
+                suspicious?: true
+              }
+            ]
+          },
+          last_activity: "9 searches · 6 from corpus"
+        }
+      },
+      %Variation{
         id: :error,
         description: "Targeting failed — honest dead end, one way out.",
         attributes: %{

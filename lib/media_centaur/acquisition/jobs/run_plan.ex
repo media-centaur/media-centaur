@@ -27,9 +27,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition.{AutoGrabSettings, Corpus, PlanEvents, Planner, Plans}
-  alias MediaCentaur.Acquisition.Plans.{Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Plans.{LadderTerms, Plan, PlanUnit}
   alias MediaCentaur.Repo
-  alias MediaCentaur.Search.{Criteria, Quality, TitleMatcher}
+  alias MediaCentaur.Search.{Criteria, Quality, ReleaseRedFlags, TitleMatcher}
   alias MediaCentaur.Topics
 
   @impl Oban.Worker
@@ -105,13 +105,14 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
 
     results_by_term =
       plan
-      |> ladder_terms(wanted)
+      |> LadderTerms.for_plan(wanted)
       |> Enum.map(fn {term, opts} -> {term, search(plan, term, opts, force?)} end)
 
     {options, terms_by_guid} =
       Enum.reduce(results_by_term, {[], %{}}, fn {term, results}, acc ->
         Enum.reduce(results, acc, fn result, {options, terms_by_guid} ->
-          with false <- MapSet.member?(excluded, result.guid),
+          with false <- ReleaseRedFlags.suspicious?(result.title),
+               false <- MapSet.member?(excluded, result.guid),
                false <- Map.has_key?(terms_by_guid, result.guid),
                {:ok, scope} <- TitleMatcher.coverage(result, identity) do
             {[%Planner.Option{result: result, scope: scope} | options],
@@ -123,27 +124,6 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       end)
 
     {Enum.reverse(options), terms_by_guid}
-  end
-
-  defp ladder_terms(plan, wanted) do
-    seasons = wanted |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.sort()
-
-    series_terms = [{plan.title, [type: :tv]}]
-
-    season_terms =
-      Enum.flat_map(seasons, fn season ->
-        [
-          {"#{plan.title} Season #{season}", [type: :tv]},
-          {"#{plan.title} S#{pad(season)}", [type: :tv]}
-        ]
-      end)
-
-    episode_terms =
-      Enum.map(wanted, fn {season, episode} ->
-        {"#{plan.title} S#{pad(season)}E#{pad(episode)}", [type: :tv]}
-      end)
-
-    series_terms ++ season_terms ++ episode_terms
   end
 
   defp series_criteria(plan) do
@@ -179,7 +159,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   # ---------------------------------------------------------------------------
 
   defp run_movie(plan, units, force?) do
-    term = if plan.year, do: "#{plan.title} #{plan.year}", else: plan.title
+    [{term, _opts}] = LadderTerms.for_plan(plan, [])
     excluded = units |> Enum.flat_map(& &1.excluded_release_guids) |> MapSet.new()
 
     criteria = %Criteria{type: :tmdb, title: plan.title, tmdb_type: :movie, year: plan.year}
@@ -189,7 +169,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       plan
       |> search(term, [type: :movie], force?)
       |> Enum.filter(fn result ->
-        not MapSet.member?(excluded, result.guid) and
+        not ReleaseRedFlags.suspicious?(result.title) and
+          not MapSet.member?(excluded, result.guid) and
           TitleMatcher.matches?(result, criteria) and
           Quality.acceptable?(result.quality, plan_prefs.min_quality, plan_prefs.max_quality)
       end)

@@ -9,6 +9,7 @@ defmodule MediaCentaur.Search do
       Quality,
       QualityWindow,
       ReleaseCoverage,
+      ReleaseRedFlags,
       SearchProvider,
       SearchResult,
       SearchSession,

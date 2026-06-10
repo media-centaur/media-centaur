@@ -16,9 +16,11 @@ defmodule MediaCentaur.Acquisition.Plans do
 
   alias MediaCentaur.Acquisition.Jobs.RunPlan
   alias MediaCentaur.Acquisition.PlanEvents
-  alias MediaCentaur.Acquisition.Plans.{CommitPlan, Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Corpus
+  alias MediaCentaur.Acquisition.Plans.{CommitPlan, LadderTerms, Plan, PlanUnit}
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
+  alias MediaCentaur.Search.{Criteria, Quality, ReleaseCoverage, ReleaseRedFlags, TitleMatcher}
   alias MediaCentaur.Repo
   alias MediaCentaur.Topics
 
@@ -218,6 +220,169 @@ defmodule MediaCentaur.Acquisition.Plans do
     |> order_by([p], desc: p.updated_at)
     |> Repo.all()
   end
+
+  # ---------------------------------------------------------------------------
+  # The swap picker (UIDR-014 follow-up): see the options, choose one.
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  The choosable alternatives for one plan unit — corpus candidates
+  across the unit's ladder terms (zero indexer traffic), identity-
+  verified, covering the unit, minus exclusions and the current
+  assignment. Suspicious (bait-pattern) titles are **flagged, not
+  hidden** — never auto-picked, but a deliberate human may choose one.
+  Sorted: clean before suspicious, then quality, then seeders.
+  """
+  @spec alternatives_for(Ecto.UUID.t()) ::
+          {:ok, [PlanBoard.Alternative.t()]} | {:error, :not_found}
+  def alternatives_for(plan_unit_id) do
+    with {:ok, unit} <- get_unit(plan_unit_id),
+         {:ok, plan} <- get(unit.plan_id) do
+      excluded = MapSet.new(unit.excluded_release_guids)
+
+      alternatives =
+        plan
+        |> unit_candidates(unit)
+        |> Enum.reject(fn {result, _scope} ->
+          result.guid == unit.assigned_guid or MapSet.member?(excluded, result.guid)
+        end)
+        |> Enum.map(fn {result, scope} ->
+          %PlanBoard.Alternative{
+            guid: result.guid,
+            title: result.title,
+            scope_label: scope_display(scope),
+            quality: Quality.label(result.quality),
+            seeders: result.seeders,
+            suspicious?: ReleaseRedFlags.suspicious?(result.title)
+          }
+        end)
+        |> Enum.sort_by(&{&1.suspicious?, -quality_rank(&1.quality), -(&1.seeders || 0)})
+        |> Enum.take(12)
+
+      {:ok, alternatives}
+    end
+  end
+
+  @doc """
+  Deliberately assigns a corpus candidate to a unit (the swap picker's
+  choice). The candidate claims **every** non-excluded plan unit its
+  scope covers — accounting stays per-unit total — and the plan
+  broadcasts. Only `ready` plans accept choices.
+  """
+  @spec choose_release(Ecto.UUID.t(), String.t()) :: {:ok, Plan.t()} | {:error, term()}
+  def choose_release(plan_unit_id, guid) when is_binary(guid) do
+    with {:ok, unit} <- get_unit(plan_unit_id),
+         {:ok, %Plan{status: "ready"} = plan} <- ready_plan(unit.plan_id),
+         {:ok, {result, scope, term}} <- find_candidate(plan, unit, guid) do
+      covered_units =
+        plan.id
+        |> units_for()
+        |> Enum.filter(fn candidate_unit ->
+          candidate_unit.status != "excluded" and covers_unit?(plan, scope, candidate_unit, unit)
+        end)
+
+      attrs = %{
+        assigned_guid: result.guid,
+        assigned_title: result.title,
+        assigned_term: term,
+        assigned_quality: Quality.label(result.quality),
+        assigned_seeders: result.seeders,
+        assigned_scope: scope_display(scope)
+      }
+
+      {:ok, _} =
+        Repo.transaction(fn ->
+          Enum.each(covered_units, fn covered ->
+            {:ok, _} = Repo.update(PlanUnit.assign_changeset(covered, attrs))
+          end)
+        end)
+
+      broadcast_changed(plan)
+      {:ok, plan}
+    else
+      {:ok, %Plan{}} -> {:error, :not_ready}
+      error -> error
+    end
+  end
+
+  defp ready_plan(plan_id) do
+    get(plan_id)
+  end
+
+  # All identity-verified corpus candidates that can cover this unit,
+  # as {result, scope} pairs (movies carry the :movie pseudo-scope).
+  defp unit_candidates(plan, unit) do
+    plan
+    |> LadderTerms.for_unit(unit)
+    |> Enum.flat_map(fn {term, opts} ->
+      term
+      |> Corpus.candidates_for(Keyword.take(opts, [:type, :year]))
+      |> Enum.map(&{term, &1})
+    end)
+    |> Enum.uniq_by(fn {_term, result} -> result.guid end)
+    |> Enum.flat_map(fn {term, result} ->
+      case verify(plan, unit, result) do
+        {:ok, scope} -> [{result, scope, term}]
+        :no_match -> []
+      end
+    end)
+    |> Enum.map(fn {result, scope, _term} -> {result, scope} end)
+  end
+
+  defp find_candidate(plan, unit, guid) do
+    plan
+    |> LadderTerms.for_unit(unit)
+    |> Enum.find_value({:error, :alternative_unavailable}, fn {term, opts} ->
+      candidate =
+        term
+        |> Corpus.candidates_for(Keyword.take(opts, [:type, :year]))
+        |> Enum.find(&(&1.guid == guid))
+
+      with %{} <- candidate,
+           {:ok, scope} <- verify(plan, unit, candidate) do
+        {:ok, {candidate, scope, term}}
+      else
+        _ -> nil
+      end
+    end)
+  end
+
+  defp verify(%Plan{tmdb_type: "movie"} = plan, _unit, result) do
+    criteria = %Criteria{type: :tmdb, title: plan.title, tmdb_type: :movie, year: plan.year}
+    if TitleMatcher.matches?(result, criteria), do: {:ok, :movie}, else: :no_match
+  end
+
+  defp verify(%Plan{tmdb_type: "tv"} = plan, unit, result) do
+    criteria = %Criteria{type: :tmdb, title: plan.title, tmdb_type: :tv}
+
+    with {:ok, scope} <- TitleMatcher.coverage(result, criteria),
+         true <- ReleaseCoverage.covers?(scope, unit.season_number, unit.episode_number) do
+      {:ok, scope}
+    else
+      _ -> :no_match
+    end
+  end
+
+  defp covers_unit?(%Plan{tmdb_type: "movie"}, :movie, candidate_unit, chosen_unit),
+    do: candidate_unit.id == chosen_unit.id
+
+  defp covers_unit?(_plan, scope, candidate_unit, _chosen_unit) do
+    ReleaseCoverage.covers?(scope, candidate_unit.season_number, candidate_unit.episode_number)
+  end
+
+  defp scope_display(:movie), do: nil
+  defp scope_display({:episode, season, episode}), do: "S#{pad(season)}E#{pad(episode)}"
+
+  defp scope_display({:episodes, season, first, last}), do: "S#{pad(season)}E#{pad(first)}-#{pad(last)}"
+
+  defp scope_display({:season, season}), do: "Season #{season} pack"
+  defp scope_display({:seasons, first, last}), do: "Seasons #{first}–#{last} pack"
+  defp scope_display(:series), do: "Complete series"
+  defp scope_display(:unknown), do: nil
+
+  defp quality_rank("4K"), do: 2
+  defp quality_rank("1080p"), do: 1
+  defp quality_rank(_quality), do: 0
 
   # ---------------------------------------------------------------------------
   # Feedback verbs
