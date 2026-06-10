@@ -124,4 +124,57 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
       assert {:error, _} = Targeting.series_selection("999999")
     end
   end
+
+  describe "per-unit tracked subtraction (ADR-056)" do
+    defp track_with_want(mode) do
+      item =
+        create_tracking_item(%{tmdb_id: 246_810, media_type: :tv_series, name: "Sample Show"})
+
+      {:ok, item} = MediaCentaur.ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: mode})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 2,
+        episode_number: 1,
+        air_date: ~D[2021-01-01],
+        released: true
+      })
+
+      :ok = MediaCentaur.ReleaseTracking.sync_wants(item)
+      item
+    end
+
+    test "an open want marks its episode tracked and leaves the defaults" do
+      stub_sample_show()
+      track_with_want("all_releases")
+
+      {:ok, selection} = Targeting.series_selection("246810")
+
+      tracked_episode =
+        for season <- selection.seasons,
+            episode <- season.episodes,
+            episode.tracked?,
+            do: {episode.season_number, episode.episode_number}
+
+      assert tracked_episode == [{2, 1}]
+
+      # Defaults subtract tracked wants — shown in the picker, not
+      # pre-chosen (the cadence is already on it).
+      assert Targeting.default_units(selection) == [{1, 1}, {1, 2}]
+    end
+
+    test "mode off means no subtraction — media search is the expected path" do
+      stub_sample_show()
+      track_with_want("off")
+
+      {:ok, selection} = Targeting.series_selection("246810")
+
+      refute Enum.any?(
+               for(season <- selection.seasons, episode <- season.episodes, do: episode),
+               & &1.tracked?
+             )
+
+      assert {2, 1} in Targeting.default_units(selection)
+    end
+  end
 end

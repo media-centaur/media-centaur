@@ -24,21 +24,32 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Satisfy do
   alias MediaCentaur.Acquisition.Pursuits.{State, Unit, UnitState, Units}
   alias MediaCentaur.Acquisition.Pursuits.Pursuit
   alias MediaCentaur.Acquisition.Targets
+  alias MediaCentaur.Acquisition.TrackingHandoffs
   alias MediaCentaur.Repo
 
   @spec execute(map()) ::
           {:ok, Pursuit.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def execute(%{pursuit_id: id, final_target_id: target_id, final_release_title: title}) do
-    Runner.run(id, "pursuit satisfied", fn pursuit ->
-      # Terminal pursuits don't re-satisfy — without this guard a second
-      # call would record a duplicate pursuit_satisfied event.
-      with true <- pursuit.state in State.in_flight() || {:error, :not_eligible},
-           {:ok, _units} <- satisfy_covered_units(pursuit, target_id),
-           {:ok, refolded, _transition} <- Refold.refold!(pursuit),
-           :ok <- maybe_close_and_record(refolded, target_id, title) do
-        {:ok, refolded}
-      end
-    end)
+    result =
+      Runner.run(id, "pursuit satisfied", fn pursuit ->
+        # Terminal pursuits don't re-satisfy — without this guard a second
+        # call would record a duplicate pursuit_satisfied event.
+        with true <- pursuit.state in State.in_flight() || {:error, :not_eligible},
+             {:ok, _units} <- satisfy_covered_units(pursuit, target_id),
+             {:ok, refolded, _transition} <- Refold.refold!(pursuit),
+             :ok <- maybe_close_and_record(refolded, target_id, title) do
+          {:ok, refolded}
+        end
+      end)
+
+    # Post-transaction by design: the grab-future handoff fetches TMDB
+    # when it fires, which must never run inside the Runner's
+    # transaction nor fail the satisfy.
+    with {:ok, pursuit} <- result do
+      TrackingHandoffs.maybe_grab_future(pursuit)
+    end
+
+    result
   end
 
   defp satisfy_covered_units(pursuit, target_id) do

@@ -266,6 +266,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <span :if={episode.in_library?} class="flex-shrink-0 text-xs text-base-content/40">
             In library
           </span>
+          <span
+            :if={episode.tracked? && !episode.in_library?}
+            class="flex-shrink-0 text-xs text-info/70"
+            title="Release tracking is already watching for this — check it to grab it in this plan instead"
+          >
+            Tracked
+          </span>
           <span :if={!episode.aired?} class="flex-shrink-0 text-xs text-base-content/40">
             Unaired
           </span>
@@ -485,8 +492,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <.button
             variant="neutral"
             size="xs"
-            disabled
-            title="Coming soon — hands the gaps to release tracking on approval (campaign Phase 4)"
+            phx-click="plan_track_gaps"
+            title="Keep watching for these — opens gap wants on the title's tracking entry"
+            data-nav-item
+            tabindex="0"
           >
             Track these later
           </.button>

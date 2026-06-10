@@ -83,16 +83,21 @@ defmodule MediaCentaurWeb.AcquisitionLive.PlanLogic do
   @doc """
   Quick-action presets writing into the chosen set:
 
-  * `:everything_aired` — every pickable unit (the design default).
-  * `:continue` — pickable units strictly after the library's last
+  * `:everything_aired` — the design default: every pickable unit
+    minus tracked wants (`Targeting.default_units/1` — release
+    tracking is already on those; ADR-056).
+  * `:continue` — default units strictly after the library's last
     present episode (everything when the library has none).
-  * `:latest_season` — the pickable units of the last season that has
+  * `:latest_season` — the default units of the last season that has
     any.
+
+  Presets skip tracked units; the units themselves stay pickable —
+  checking one is the user's explicit override.
   """
   @spec apply_preset(Targeting.Selection.t(), :everything_aired | :continue | :latest_season) ::
           MapSet.t()
   def apply_preset(%Targeting.Selection{} = selection, :everything_aired) do
-    selection |> pickable_units() |> MapSet.new()
+    selection |> Targeting.default_units() |> MapSet.new()
   end
 
   def apply_preset(%Targeting.Selection{} = selection, :continue) do
@@ -105,17 +110,24 @@ defmodule MediaCentaurWeb.AcquisitionLive.PlanLogic do
       end
 
     selection
-    |> pickable_units()
+    |> Targeting.default_units()
     |> Enum.filter(fn unit -> last_owned == nil or unit > last_owned end)
     |> MapSet.new()
   end
 
   def apply_preset(%Targeting.Selection{} = selection, :latest_season) do
+    default_units = MapSet.new(Targeting.default_units(selection))
+
     selection.seasons
     |> Enum.map(& &1.season_number)
     |> Enum.sort(:desc)
     |> Enum.find_value(MapSet.new(), fn season_number ->
-      case pickable_units(selection, season_number) do
+      units =
+        selection
+        |> pickable_units(season_number)
+        |> Enum.filter(&MapSet.member?(default_units, &1))
+
+      case units do
         [] -> nil
         units -> MapSet.new(units)
       end

@@ -849,6 +849,26 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     end
   end
 
+  # The gap handoff (ADR-056): unfound units become gap wants on the
+  # title's tracking entry. Context-layer async — creating the track
+  # fetches TMDB, which doesn't belong inline in an event handler.
+  def handle_event("plan_track_gaps", _params, socket) do
+    case socket.assigns.plan_board do
+      %{plan_id: plan_id, gaps: gaps} when gaps != [] ->
+        Acquisition.track_plan_gaps_async(plan_id)
+
+        {:noreply,
+         put_flash(
+           socket,
+           :info,
+           "Watching for #{length(gaps)} missing #{if length(gaps) == 1, do: "episode", else: "episodes"} — release tracking will keep looking"
+         )}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
   # Approval submits real grabs (Prowlarr → indexer → download client) —
   # seconds of network per release. Running it inline froze the LV, so it
   # rides an owned async (ADR-049) behind an "Approving…" button state.

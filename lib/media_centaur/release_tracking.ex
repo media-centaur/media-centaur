@@ -590,6 +590,9 @@ defmodule MediaCentaur.ReleaseTracking do
   @doc "See `MediaCentaur.ReleaseTracking.Wants.dismiss_units/2`."
   defdelegate dismiss_want_units(item_id, unit_keys), to: Wants, as: :dismiss_units
 
+  @doc "See `MediaCentaur.ReleaseTracking.Wants.open_gap_wants/2`."
+  defdelegate open_gap_wants(item, unit_specs), to: Wants
+
   # --- Events ---
 
   def create_event(attrs) do

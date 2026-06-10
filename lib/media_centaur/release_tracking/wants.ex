@@ -101,6 +101,50 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   end
 
   @doc """
+  Opens gap-provenance wants on an item — the media-search gap handoff
+  (ADR-056 Q15): units a plan couldn't find become standing intent on
+  the track. Unit specs carry `season_number`/`episode_number` (TV) or
+  `part_tmdb_id` (movies) plus an optional `title`. Idempotent against
+  the ledger (existing wants of any status win); returns the number of
+  wants actually opened. `wanted_since` is now — the gap is fresh
+  intent even when the episode aired long ago, so patience and back-off
+  start from the handoff.
+  """
+  @spec open_gap_wants(Item.t(), [map()]) :: non_neg_integer()
+  def open_gap_wants(%Item{} = item, unit_specs) when is_list(unit_specs) do
+    existing_keys =
+      MapSet.new(Repo.all(from(w in Want, where: w.item_id == ^item.id, select: w.unit_key)))
+
+    now = DateTime.utc_now(:second)
+
+    unit_specs
+    |> Enum.map(fn spec ->
+      %{
+        season_number: Map.get(spec, :season_number),
+        episode_number: Map.get(spec, :episode_number),
+        part_tmdb_id: Map.get(spec, :part_tmdb_id),
+        title: Map.get(spec, :title)
+      }
+    end)
+    |> Enum.reject(fn spec ->
+      key = Want.unit_key(spec.season_number, spec.episode_number, spec.part_tmdb_id)
+      is_nil(key) or MapSet.member?(existing_keys, key)
+    end)
+    |> Enum.reduce(0, fn spec, opened ->
+      insert_result =
+        spec
+        |> Map.merge(%{item_id: item.id, provenance: :gap, wanted_since: now})
+        |> Want.create_changeset()
+        |> Repo.insert(on_conflict: :nothing)
+
+      case insert_result do
+        {:ok, _want} -> opened + 1
+        {:error, _changeset} -> opened
+      end
+    end)
+  end
+
+  @doc """
   Stamps `last_searched_at` on the given wants — called by the drop
   planner when a plan run is about to search their terms. The stamp is
   the back-off anchor (ADR-056 Q6).
