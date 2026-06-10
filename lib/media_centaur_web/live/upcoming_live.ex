@@ -51,6 +51,7 @@ defmodule MediaCentaurWeb.UpcomingLive do
         upcoming_events: [],
         upcoming_images: %{},
         release_grab_statuses: %{},
+        release_want_keys: MapSet.new(),
         tracked_items: [],
         reload_timer: nil,
         grab_statuses_timer: nil,
@@ -102,8 +103,15 @@ defmodule MediaCentaurWeb.UpcomingLive do
       upcoming_images: load_tracking_images(releases),
       tracked_items: build_tracked_items_from(watching_items),
       release_grab_statuses: load_release_grab_statuses(releases),
+      release_want_keys: load_want_keys(),
       acquisition_ready: Capabilities.prowlarr_ready?()
     )
+  end
+
+  # The want ledger as a membership set for the `:watching` decoration
+  # (ADR-056) — one query for the whole page.
+  defp load_want_keys do
+    MapSet.new(ReleaseTracking.list_open_wants(), &{&1.item_id, &1.unit_key})
   end
 
   @impl true
@@ -146,6 +154,7 @@ defmodule MediaCentaurWeb.UpcomingLive do
           confirm_stop_item={@confirm_stop_item}
           tmdb_ready={@tmdb_ready}
           grab_statuses={@release_grab_statuses}
+          want_keys={@release_want_keys}
           queue_items={@queue_items}
           acquisition_ready={@acquisition_ready}
         />
@@ -398,7 +407,8 @@ defmodule MediaCentaurWeb.UpcomingLive do
 
   def handle_info(:reload_grab_statuses, socket) do
     grab_statuses = load_release_grab_statuses(socket.assigns.upcoming_releases)
-    {:noreply, assign(socket, release_grab_statuses: grab_statuses)}
+
+    {:noreply, assign(socket, release_grab_statuses: grab_statuses, release_want_keys: load_want_keys())}
   end
 
   def handle_info({:queue_state, %MediaCentaur.Downloads.QueueState{items: items}}, socket) do
