@@ -21,6 +21,17 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`pursuit-identity-and-lifecycle.md`](pursuit-identity-and-lifecycle.md) —
+  **planning.** Composite pursuits die on their first landing:
+  `IdentityVerifier` fuzzy-matches the filename against the *lead* unit
+  and cancels the whole pursuit on mismatch (live S2+S3 pursuit nuked at
+  one S03E07 landing; six torrents orphaned), and the twin `Satisfy`
+  path closes a pursuit on the first verified file. Settled direction:
+  provenance over filenames — file→unit identity from the grab-time
+  envelope (`Pursuits.Identity` strategies 1–3), title-matching scoped
+  to `prowlarr_query` + hashless fallback, mismatch = per-unit review
+  flag, conclusion = aggregate over unit states. Sibling of
+  `plan-solver-consolidation`. No code yet.
 * [`plan-solver-consolidation.md`](plan-solver-consolidation.md) —
   **planning.** The media-search plan solver grabs overlapping releases:
   a real S2+S3 plan produced 7 grabs / ~59.5 GB where 2 season packs
