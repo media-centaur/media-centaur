@@ -148,15 +148,9 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
   defp normalized_for(%QueueItem{normalized_title: norm}) when is_binary(norm), do: norm
   defp normalized_for(%QueueItem{title: title}), do: normalize_title(title)
 
-  @doc "Normalizes a title for matching — lowercased, non-alphanumeric stripped."
+  @doc "Normalizes a title for matching. Delegates to `Pursuits.Identity` — the strategy owner."
   @spec normalize_title(String.t() | nil) :: String.t()
-  def normalize_title(nil), do: ""
-
-  def normalize_title(title) when is_binary(title) do
-    title
-    |> String.downcase()
-    |> String.replace(~r/[^a-z0-9]+/, "")
-  end
+  defdelegate normalize_title(title), to: MediaCentaur.Acquisition.Pursuits.Identity
 
   @doc "Wraps a `QueueItem` into the `DownloadProgress` VM consumed by the row footer."
   @spec to_download(QueueItem.t() | nil) :: DownloadProgress.t() | nil
