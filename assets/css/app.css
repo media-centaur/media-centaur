@@ -936,7 +936,12 @@ body:has(.modal-backdrop[data-state="open"]) {
    A short, heavily-faded backdrop band behind the library header. Escapes
    the page's 1.5rem padding (like `.page-backdrop`) so it bleeds to the
    content edges, but is bounded in height and dimmed — the browse page
-   gets a sense of place without a full hero competing with the home page. */
+   gets a sense of place without a full hero competing with the home page.
+
+   The fades are masks (band → transparent), not painted gradients toward
+   base-100: the body behind the band is a two-tone radial gradient, so
+   painting base-100 over a 0.7-opacity band leaves a visible step at the
+   band's bottom edge wherever content doesn't cover it. */
 .page-atmosphere {
   position: absolute;
   top: -1.5rem;
@@ -947,6 +952,10 @@ body:has(.modal-backdrop[data-state="open"]) {
   pointer-events: none;
   overflow: hidden;
   opacity: 0.7;
+  mask-image:
+    linear-gradient(to right, transparent 0%, oklch(0% 0 0 / 1) 55%),
+    linear-gradient(to bottom, oklch(0% 0 0 / 0.65) 0%, transparent 92%);
+  mask-composite: intersect;
 }
 
 .page-atmosphere img {
@@ -956,19 +965,6 @@ body:has(.modal-backdrop[data-state="open"]) {
   height: 100%;
   object-fit: cover;
   object-position: center 25%;
-}
-
-.page-atmosphere::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(to right, var(--color-base-100) 0%, transparent 55%),
-    linear-gradient(
-      to bottom,
-      oklch(from var(--color-base-100) l c h / 0.35) 0%,
-      var(--color-base-100) 92%
-    );
 }
 
 /* Library dark scrim — same vocabulary as `.page-side-dim` (home) but a
