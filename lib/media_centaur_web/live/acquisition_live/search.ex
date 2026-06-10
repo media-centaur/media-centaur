@@ -1,10 +1,13 @@
 defmodule MediaCentaurWeb.AcquisitionLive.Search do
   @moduledoc """
-  Search zone of the unified Downloads page — Prowlarr brace-expansion
-  query form, expansion preview, group rendering, and the bulk-grab
-  footer. Pure function component; all events bubble to the parent
-  `AcquisitionLive` (`submit_search`, `query_change`, `toggle_group`,
-  `select_result`, `retry_search`, `retry_all_timeouts`, `grab_selected`).
+  Release-search results zone of the Downloads page — grab feedback,
+  group rendering, and the bulk-grab footer. **Headless since
+  UIDR-014**: the query form, syntax hint, and expansion preview live
+  in the omnibox hero (`MediaOmnibox`, release mode); this component
+  renders what the session found. Pure function component; all events
+  bubble to the parent `AcquisitionLive` (`toggle_group`,
+  `select_result`, `retry_search`, `retry_all_timeouts`,
+  `grab_selected`).
   """
   use Phoenix.Component
 
@@ -23,67 +26,6 @@ defmodule MediaCentaurWeb.AcquisitionLive.Search do
 
   def search_zone(assigns) do
     ~H"""
-    <section data-nav-zone="search" class="glass-surface rounded-xl p-4 space-y-3">
-      <form
-        phx-change="query_change"
-        phx-submit="submit_search"
-        onsubmit="this.querySelector('button[type=submit]').focus()"
-        class="flex gap-3 items-end"
-      >
-        <div class="flex-1">
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-            Query
-          </label>
-          <input
-            type="text"
-            name="query"
-            value={@session.query}
-            class="input input-bordered w-full font-mono text-sm"
-            placeholder="Title S01E{01-10}"
-            autofocus
-            phx-debounce="200"
-            data-nav-item
-            data-captures-keys
-            tabindex="0"
-            onkeydown="if (event.key === 'Escape') { event.preventDefault(); this.form.querySelector('button[type=submit]').focus() }"
-          />
-        </div>
-        <%!-- Visual-only blocked state via aria-disabled — NEVER the real `disabled` attribute: a disabled default submit button silently swallows the Enter key (HTML implicit-submission), so with the 200ms phx-debounce above, Enter before the preview flushed would do nothing. submit_search guards empty/invalid queries itself. --%>
-        <.button
-          type="submit"
-          variant="secondary"
-          aria-disabled={to_string(expansion_blocked?(@session.expansion_preview))}
-          class={expansion_blocked?(@session.expansion_preview) && "opacity-50"}
-          data-nav-item
-          tabindex="0"
-        >
-          <span :if={@any_loading?} class="loading loading-spinner loading-sm"></span>
-          <.icon :if={!@any_loading?} name="hero-magnifying-glass" class="size-4" /> Search
-        </.button>
-      </form>
-
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs">
-        <span class="text-base-content/40">Syntax:</span>
-        <span class="flex items-center gap-2">
-          <span class="text-base-content/50">List</span>
-          <code class="font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/70">
-            {"{a,b,c}"}
-          </code>
-        </span>
-        <span class="flex items-center gap-2">
-          <span class="text-base-content/50">Range</span>
-          <code class="font-mono px-2 py-0.5 rounded bg-base-content/10 text-base-content/70">
-            {"{00-09}"}
-          </code>
-        </span>
-        <span class="text-base-content/30">— each expansion runs as its own search</span>
-      </div>
-
-      <p class={["text-xs", expansion_color(@session.expansion_preview)]}>
-        {expansion_text(@session.expansion_preview)}
-      </p>
-    </section>
-
     <div
       :if={@session.grab_message}
       class={[
@@ -324,18 +266,6 @@ defmodule MediaCentaurWeb.AcquisitionLive.Search do
       "size-4 shrink-0 text-base-content/30"
     end
   end
-
-  defp expansion_blocked?({:error, _}), do: true
-  defp expansion_blocked?(:idle), do: true
-  defp expansion_blocked?(_), do: false
-
-  defp expansion_text(:idle), do: "Type a title and press Enter to search."
-  defp expansion_text({:ok, 1}), do: "1 query — press Enter to search."
-  defp expansion_text({:ok, n}), do: "#{n} queries in parallel — press Enter to search."
-  defp expansion_text({:error, :invalid_syntax}), do: "Invalid brace syntax — see examples above."
-
-  defp expansion_color({:error, _}), do: "text-error"
-  defp expansion_color(_), do: "text-base-content/50"
 
   defp grab_message_color({:ok, _}), do: "text-success"
   defp grab_message_color({:partial, _}), do: "text-warning"

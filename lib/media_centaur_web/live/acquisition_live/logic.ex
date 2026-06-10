@@ -567,4 +567,19 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
     do: age_label(DateTime.diff(DateTime.utc_now(), since, :millisecond))
 
   defp since_label(_), do: "—"
+
+  @doc "True when the expansion preview blocks submitting (idle or invalid syntax)."
+  def expansion_blocked?({:error, _reason}), do: true
+  def expansion_blocked?(:idle), do: true
+  def expansion_blocked?(_preview), do: false
+
+  @doc "User-facing expansion-preview line for the release-search form."
+  def expansion_text(:idle), do: "Type a title and press Enter to search."
+  def expansion_text({:ok, 1}), do: "1 query — press Enter to search."
+  def expansion_text({:ok, n}), do: "#{n} queries in parallel — press Enter to search."
+  def expansion_text({:error, :invalid_syntax}), do: "Invalid brace syntax — see examples above."
+
+  @doc "Text-color class for the expansion-preview line."
+  def expansion_color({:error, _reason}), do: "text-error"
+  def expansion_color(_preview), do: "text-base-content/50"
 end

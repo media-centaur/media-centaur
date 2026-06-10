@@ -4,6 +4,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition do
   def folder_open?, do: false
   def folder_icon, do: {:fa, "arrow-down-to-bracket", :light, "psb:mr-1"}
 
+  def entry("media_omnibox"), do: [icon: {:fa, "magnifying-glass", :thin}, name: "Media omnibox"]
   def entry("pursuit_row"), do: [icon: {:fa, "list-tree", :thin}, name: "Pursuit row"]
   def entry("pursuit_group"), do: [icon: {:fa, "layer-group", :thin}, name: "Pursuit group"]
   def entry("pursuit_header"), do: [icon: {:fa, "heading", :thin}, name: "Pursuit header"]

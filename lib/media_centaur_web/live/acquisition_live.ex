@@ -82,7 +82,10 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   alias MediaCentaur.Capabilities
   alias MediaCentaurWeb.AcquisitionLive.{History, HistoryLogic, Logic, OrphanQueue, Search}
 
+  alias MediaCentaur.ReleaseTracking
+
   alias MediaCentaurWeb.Components.Acquisition.{
+    MediaOmnibox,
     PursuitGroup,
     PursuitModal,
     PursuitRow,
@@ -123,7 +126,11 @@ defmodule MediaCentaurWeb.AcquisitionLive do
          pursuits_reload_timer: nil,
          reload_timer: nil,
          selected_pursuit_id: nil,
-         pursuit_detail: nil
+         pursuit_detail: nil,
+         omnibox_mode: :media,
+         omnibox_query: "",
+         omnibox_results: [],
+         omnibox_searching?: false
        )}
     else
       {:ok, push_navigate(socket, to: "/")}
@@ -161,8 +168,13 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # session, download-client capability, active pursuit rows, history
   # rows). All local; running them inline keeps the first paint correct.
   defp load_acquisition(socket) do
+    session = Acquisition.current_search_session()
+
     assign(socket,
-      search_session: Acquisition.current_search_session(),
+      search_session: session,
+      # An active release-search session resumes in release mode — the
+      # one-search-surface flip must not hide work in progress (UIDR-014).
+      omnibox_mode: if(session.query != "" or session.groups != [], do: :release, else: :media),
       download_client_ready: Capabilities.download_client_ready?(),
       pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows(),
       history_rows: compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search)
@@ -387,6 +399,22 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       >
         <h1 class="text-2xl font-bold">Downloads</h1>
 
+        <MediaOmnibox.media_omnibox
+          mode={@omnibox_mode}
+          query={@omnibox_query}
+          results={@omnibox_results}
+          searching?={@omnibox_searching?}
+          session={@search_session}
+          any_loading?={@any_loading?}
+        />
+
+        <Search.search_zone
+          :if={@omnibox_mode == :release}
+          session={@search_session}
+          any_loading?={@any_loading?}
+          timeout_terms={@timeout_terms}
+        />
+
         <p
           :if={!@download_client_ready}
           class="glass-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/50"
@@ -441,12 +469,6 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         </History.history_zone>
 
         <OrphanQueue.orphan_zone items={@orphan_queue} />
-
-        <Search.search_zone
-          session={@search_session}
-          any_loading?={@any_loading?}
-          timeout_terms={@timeout_terms}
-        />
       </div>
     </Layouts.app>
     """
@@ -554,6 +576,41 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
   def handle_event("cancel_download_cancel", _params, socket) do
     {:noreply, assign(socket, cancel_confirm: nil)}
+  end
+
+  # ---------------------------------------------------------------------------
+  # Omnibox (UIDR-014) — one search surface, two modes.
+  # ---------------------------------------------------------------------------
+
+  def handle_event("omnibox_change", %{"query" => query}, socket) do
+    socket = assign(socket, omnibox_query: query)
+
+    if String.length(String.trim(query)) >= 2 do
+      {:noreply,
+       socket
+       |> assign(omnibox_searching?: true)
+       |> cancel_async(:omnibox_search, :superseded)
+       |> start_async(:omnibox_search, fn -> {query, ReleaseTracking.search_tmdb(query)} end)}
+    else
+      {:noreply, assign(socket, omnibox_results: [], omnibox_searching?: false)}
+    end
+  end
+
+  def handle_event("omnibox_mode", %{"mode" => mode}, socket) when mode in ~w(media release) do
+    {:noreply,
+     assign(socket,
+       omnibox_mode: String.to_existing_atom(mode),
+       omnibox_results: [],
+       omnibox_query: "",
+       omnibox_searching?: false
+     )}
+  end
+
+  def handle_event("omnibox_pick", %{"tmdb-id" => tmdb_id, "media-type" => media_type}, socket)
+      when media_type in ~w(movie tv_series) do
+    plan_type = if media_type == "movie", do: "movie", else: "tv"
+
+    {:noreply, push_patch(socket, to: "/download?plan=new&tmdb_id=#{tmdb_id}&tmdb_type=#{plan_type}")}
   end
 
   def handle_event("grab_selected", _params, socket) do
@@ -904,6 +961,32 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # closed the modal or pivoted to another pursuit. No flash on empty — the
   # empty card's "Search Prowlarr again" CTA is self-explanatory.
   @impl true
+  def handle_async(:omnibox_search, {:ok, {query, results}}, socket) do
+    # Stale guard: only the newest query's results land.
+    if query == socket.assigns.omnibox_query do
+      rows =
+        results
+        |> Enum.take(8)
+        |> Enum.map(fn result ->
+          %MediaOmnibox.Result{
+            tmdb_id: result.tmdb_id,
+            media_type: result.media_type,
+            name: result.name,
+            year: result.year,
+            tracked?: result.already_tracked
+          }
+        end)
+
+      {:noreply, assign(socket, omnibox_results: rows, omnibox_searching?: false)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_async(:omnibox_search, {:exit, _reason}, socket) do
+    {:noreply, assign(socket, omnibox_searching?: false)}
+  end
+
   def handle_async({:alternatives_fetch, pursuit_id}, {:ok, decision}, socket) do
     case socket.assigns do
       %{selected_pursuit_id: ^pursuit_id, pursuit_detail: %{} = detail} ->
