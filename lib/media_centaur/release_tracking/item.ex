@@ -58,7 +58,10 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     timestamps()
   end
 
-  @auto_grab_modes ~w(global off all_releases)
+  # "ask" (ADR-056 Q3): drop plans land as ready-awaiting-approval
+  # drafts instead of auto-committing. "all_releases" is the full-auto
+  # posture (legacy name preserved across the plan-convergence cutover).
+  @auto_grab_modes ~w(global off ask all_releases)
   @quality_values ~w(hd_1080p uhd_4k)
 
   def create_changeset(attrs) do

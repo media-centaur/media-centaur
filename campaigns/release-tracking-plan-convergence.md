@@ -25,11 +25,11 @@ tracking's job (a search act on a cadence), never a pursuit's.
 
 ## Status
 
-Design COMPLETE 2026-06-10: option B settled, all nine Phase-0
-questions answered in one design session (see the settled index +
-decisions log), [ADR-056](../decisions/architecture/2026-06-10-056-release-tracking-wants.md)
-written and accepted. Subsumes media-search campaign Phase 4
-(handoffs + dedup). Next: Phase 1 — the want ledger, shipped dark.
+Design COMPLETE 2026-06-10 (ADR-056, all nine Phase-0 questions);
+**Phase 1 SHIPPED 2026-06-10** (commit `1cb4e0a5`, unpushed) — the want
+ledger is live and dark: every seam syncs it, nothing consumes it yet.
+Subsumes media-search campaign Phase 4. Next: Phase 2 — the drop→plan
+pipeline + cutover.
 
 ## The model
 
@@ -351,16 +351,31 @@ use-case inventory.
    [ADR-056](../decisions/architecture/2026-06-10-056-release-tracking-wants.md)
    accepted (want ledger as the track side of ADR-055's overlap rule;
    supersedes the Reactor→Arm shape).
-1. **Want ledger** — schema (identity + provenance + `wanted_since` +
-   `last_searched_at` + `satisfied_at`/`satisfied_quality` +
-   `dismissed_at`) + backfill (released ∧ !in_library ∧ !dismissed
-   calendar rows; `wanted_since` = air date; `last_searched_at` = nil)
-   + satisfaction wiring (library arrivals close wants and record
-   quality; schedule churn maintains calendar wants; dismissals;
-   collection parts gain `part_tmdb_id` through the extractor). Ships
-   dark: ledger shadows the existing path, no grab-behavior change.
-   Per-unit targeting subtraction in media search can land here (read
-   side of the ledger; respects effective mode per Q3).
+1. ✅ **Want ledger** — SHIPPED 2026-06-10 (commit `1cb4e0a5`, dark).
+   `release_tracking_wants` + `Wants.sync_item/1` hooked at every seam
+   (sweep, refresh commit, track-from-search, watermark updates,
+   auto-track); satisfaction by real library presence (episode rows /
+   tmdb-id-matched movies — never the watermark, so future gap wants
+   can't falsely satisfy); `satisfied_quality` recorded off the
+   playable chain (`PlayableItem` → `playable_file_path` →
+   `Search.Quality.parse`); `part_tmdb_id` threaded extractor→helpers→
+   calendar. **Build discoveries** (each deliberate):
+   * **No backfill migration** — the sweep self-backfills the ledger on
+     the first post-deploy tick (sync is idempotent, batch = state).
+   * **Wants are never auto-dropped on calendar vanish** — collection
+     refreshes drop *past* parts from the calendar and the TV fetch
+     window moves forward, so set-difference dropping would kill live
+     wants. Schedule-churn dismissal lands in Phase 2 as an explicit
+     differ-event (`:removed_from_schedule`) hook instead.
+   * **`dismiss_released_before` is vestigial** — schema column with no
+     setter/reader anywhere in lib or web. The sync guard honors any
+     existing data; `dismiss_wants_before/2` is the live API; decide in
+     Phase 4 whether the column gets a UI or gets dropped.
+   * Legacy collection rows without `part_tmdb_id` are skipped until
+     the next refresh stamps them (≤6h window post-upgrade; residual).
+   * RT boundary gained the `MediaCentaur.Search` dep (Quality).
+   * Per-unit targeting subtraction NOT landed here — it consumes the
+     ledger, so it ships with Phase 2/3 alongside mode-awareness (Q3).
 2. **Drop → plan pipeline** — cadence tick batches open ∧ unclaimed ∧
    search-due wants per title → `Plans` draft (criteria with per-want
    patience floor-elevation) → RunPlan → auto-approve (`auto`) or

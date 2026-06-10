@@ -33,11 +33,11 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
   alias MediaCentaur.Acquisition.Corpus
   alias MediaCentaur.Acquisition.Jobs.PursueTarget
   alias MediaCentaur.Acquisition.PlanEvents
-  alias MediaCentaur.Acquisition.Plans.{Plan, PlanUnit}
+  alias MediaCentaur.Acquisition.Plans.{Claims, Plan, PlanUnit}
   alias MediaCentaur.Acquisition.Pursuits.Commands.Start
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.ReleasePicked
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit, Units}
+  alias MediaCentaur.Acquisition.Pursuits.{TargetUnit, Unit, Units}
   alias MediaCentaur.Acquisition.{InfoHash, Target}
   alias MediaCentaur.Repo
   alias MediaCentaur.Search.{Prowlarr, SearchResult}
@@ -74,28 +74,16 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
   # ---------------------------------------------------------------------------
 
   defp ensure_no_overlap(%Plan{tmdb_type: "movie"} = plan, _units) do
-    claimed =
-      Pursuit
-      |> where([p], p.state == "active" and p.recipe_type == "tmdb")
-      |> where([p], p.tmdb_id == ^plan.tmdb_id and p.tmdb_type == "movie")
-      |> Repo.exists?()
-
-    if claimed, do: {:error, {:overlap, [{nil, nil}]}}, else: :ok
+    if Claims.movie_pursuit_claimed?(plan.tmdb_id) do
+      {:error, {:overlap, [{nil, nil}]}}
+    else
+      :ok
+    end
   end
 
   defp ensure_no_overlap(%Plan{tmdb_type: "tv"} = plan, units) do
     wanted = MapSet.new(units, &{&1.season_number, &1.episode_number})
-
-    active_pursuits =
-      Pursuit
-      |> where([p], p.state == "active" and p.recipe_type == "tmdb")
-      |> where([p], p.tmdb_id == ^plan.tmdb_id and p.tmdb_type == "tv")
-      |> Repo.all()
-
-    claimed =
-      active_pursuits
-      |> Enum.flat_map(&claimed_units/1)
-      |> MapSet.new()
+    claimed = Claims.pursuit_claimed_units(plan.tmdb_id)
 
     MapSet.intersection(wanted, claimed)
     |> MapSet.to_list()
@@ -103,18 +91,6 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
       [] -> :ok
       overlapping -> {:error, {:overlap, Enum.sort(overlapping)}}
     end
-  end
-
-  # A pursuit's claimed units. Identity lives on units (ADR-055):
-  # `Commands.Arm` stamps season/episode at creation and the
-  # `BackfillUnitIdentity` data migration covered pre-existing rows, so
-  # there is no parent-level fallback here.
-  defp claimed_units(%Pursuit{} = pursuit) do
-    pursuit.id
-    |> Units.for_pursuit()
-    |> Enum.filter(&(&1.state == "active"))
-    |> Enum.map(&{&1.season_number, &1.episode_number})
-    |> Enum.reject(&(&1 == {nil, nil}))
   end
 
   # ---------------------------------------------------------------------------
@@ -138,11 +114,17 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
       tmdb_type: plan.tmdb_type,
       title: plan.title,
       year: plan.year,
-      origin: "manual",
+      origin: pursuit_origin(plan),
       criteria: plan.criteria,
       units: unit_specs
     })
   end
+
+  # Tracking-born pursuits keep the "auto" origin the rest of the app
+  # already understands (filters, cards); media-search commits stay
+  # "manual" user acts.
+  defp pursuit_origin(%Plan{origin: "tracking"}), do: "auto"
+  defp pursuit_origin(%Plan{}), do: "manual"
 
   defp grab_assignments(pursuit, found_units) do
     pursuit_units = Units.for_pursuit(pursuit.id)
@@ -207,7 +189,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
       result
       |> Target.acquired_changeset(
         pursuit_id: pursuit.id,
-        origin: "manual",
+        origin: pursuit.origin,
         torrent_hash: torrent_hash
       )
       |> Repo.insert()
@@ -236,7 +218,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
   defp degrade_to_seeking(pursuit, covered_units) do
     Enum.each(covered_units, fn unit ->
       {:ok, target} =
-        %{pursuit_id: pursuit.id, title: pursuit.title, origin: "manual"}
+        %{pursuit_id: pursuit.id, title: pursuit.title, origin: pursuit.origin}
         |> Target.create_changeset()
         |> Repo.insert()
 

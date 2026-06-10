@@ -74,13 +74,26 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
 
     {options, terms_by_guid} = gather_options(plan, wanted, excluded, force?)
 
-    solution = Planner.solve(wanted, options, prefs(plan))
+    plan_prefs = prefs(plan)
 
+    # One solve per quality-floor group (ADR-056 Q4: a unit inside its
+    # patience window carries an elevated `min_quality`; the planner
+    # stays time-blind). Media-search plans have uniform nil floors, so
+    # they take exactly one pass — identical behavior to before.
+    # Same-release assignments across groups merge by guid downstream
+    # (plan units store per-unit rows; commit groups grabs by guid).
     assignment_by_unit =
-      for assignment <- solution.assignments,
-          unit <- assignment.units,
-          into: %{},
-          do: {unit, assignment}
+      units
+      |> Enum.group_by(&(&1.min_quality || plan_prefs.min_quality))
+      |> Enum.reduce(%{}, fn {group_min, group_units}, acc ->
+        group_wanted = Enum.map(group_units, &{&1.season_number, &1.episode_number})
+        solution = Planner.solve(group_wanted, options, %{plan_prefs | min_quality: group_min})
+
+        for assignment <- solution.assignments,
+            unit <- assignment.units,
+            into: acc,
+            do: {unit, assignment}
+      end)
 
     Enum.each(units, fn unit ->
       key = {unit.season_number, unit.episode_number}
@@ -166,6 +179,14 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     criteria = %Criteria{type: :tmdb, title: plan.title, tmdb_type: :movie, year: plan.year}
     plan_prefs = prefs(plan)
 
+    # A movie plan has one unit; its floor override (patience
+    # elevation) wins over the plan criteria when present.
+    min_quality =
+      case units do
+        [%PlanUnit{min_quality: floor} | _] when is_binary(floor) -> floor
+        _ -> plan_prefs.min_quality
+      end
+
     best =
       plan
       |> search(term, [type: :movie], force?)
@@ -173,7 +194,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
         not ReleaseRedFlags.suspicious?(result.title, result.size_bytes) and
           not MapSet.member?(excluded, result.guid) and
           TitleMatcher.matches?(result, criteria) and
-          Quality.acceptable?(result.quality, plan_prefs.min_quality, plan_prefs.max_quality)
+          Quality.acceptable?(result.quality, min_quality, plan_prefs.max_quality)
       end)
       |> Enum.max_by(&{Quality.rank(&1.quality), &1.seeders || 0}, fn -> nil end)
 

@@ -27,6 +27,7 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
 
   @statuses ~w(planning ready committed discarded)
   @tmdb_types ~w(movie tv)
+  @origins ~w(manual tracking)
 
   schema "acquisition_plans" do
     field :status, :string, default: "planning"
@@ -38,6 +39,13 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
     field :grab_future, :boolean, default: false
     field :pursuit_id, Ecto.UUID
     field :error, :string
+    # "manual" = media-search door; "tracking" = release-tracking drop
+    # plan (ADR-056). tracking_item_id is the back-pointer to the
+    # ReleaseTracking.Item — required for cancel-dismisses and the
+    # one-active-draft-per-title rule (the tmdb id alone can't find the
+    # item for collection parts).
+    field :origin, :string, default: "manual"
+    field :tracking_item_id, Ecto.UUID
 
     timestamps()
   end
@@ -47,9 +55,19 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
   @doc "Builds a new plan in `planning`."
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:tmdb_id, :tmdb_type, :title, :year, :criteria, :grab_future])
+    |> cast(attrs, [
+      :tmdb_id,
+      :tmdb_type,
+      :title,
+      :year,
+      :criteria,
+      :grab_future,
+      :origin,
+      :tracking_item_id
+    ])
     |> validate_required([:tmdb_id, :tmdb_type, :title])
     |> validate_inclusion(:tmdb_type, @tmdb_types)
+    |> validate_inclusion(:origin, @origins)
   end
 
   @doc "Transitions the plan's status, validating the source state."
