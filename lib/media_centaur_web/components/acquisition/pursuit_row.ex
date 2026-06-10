@@ -58,7 +58,49 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
   def pursuit_row(assigns) do
     ~H"""
     <div
-      :if={@density == :full}
+      :if={@density == :full && @vm.door == :media}
+      class="identity-banner block hover:brightness-110 transition-[filter] cursor-pointer"
+      style={"--banner-hue: #{banner_hue(@vm.title)}"}
+      data-nav-item
+      tabindex="0"
+      role="button"
+      data-pursuit-id={@vm.id}
+      phx-click="select_pursuit"
+      phx-value-id={@vm.id}
+    >
+      <div class="relative p-4 space-y-2">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <div class="identity-logotype truncate text-lg leading-tight">
+              {display_title(@vm)}
+            </div>
+            <div
+              :if={is_nil(@download)}
+              class={"mt-1 text-xs [text-shadow:0_1px_3px_oklch(0%_0_0/0.5)] #{PursuitStyle.severity_text_class(@vm.status.severity)}"}
+            >
+              {@vm.status.verb} — {@vm.status.description}
+            </div>
+          </div>
+          <.unit_progress_chip vm={@vm} />
+          <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
+        </div>
+
+        <.segmented_units vm={@vm} />
+      </div>
+
+      <div :if={@download} class="identity-banner-strip px-4 py-2">
+        <.download_footer
+          download={@download}
+          queue_item_id={@queue_item_id}
+          cancel_title={@vm.release_title || @vm.title}
+          telemetry_age={@telemetry_age}
+          bare
+        />
+      </div>
+    </div>
+
+    <div
+      :if={@density == :full && @vm.door == :query}
       class="glass-surface rounded-xl p-4 space-y-2 block hover:bg-base-content/[0.03] transition-colors cursor-pointer"
       data-nav-item
       tabindex="0"
@@ -107,6 +149,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
       <div class="min-w-0 flex-1 truncate text-sm font-medium">
         {display_title(@vm)}
       </div>
+      <span
+        :if={@vm.door == :query}
+        class="flex-shrink-0 text-[10px] uppercase tracking-wider text-base-content/30"
+      >
+        release search
+      </span>
       <.unit_progress_chip vm={@vm} />
       <div class={"flex-shrink-0 max-w-[50%] truncate text-xs #{PursuitStyle.severity_text_class(@vm.status.severity)}"}>
         {@vm.status.verb} — {@vm.status.description}
@@ -139,14 +187,49 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
     end
   end
 
+  # Segmented unit progress (UIDR-014): the shape of completion, not a
+  # percentage — one square per unit (landed / in flight / failed),
+  # the same cell vocabulary as the plan board and the UnitBoard.
+  # Hidden for singles; very large composites fall back to the chip.
+  attr :vm, PursuitRow, required: true
+
+  defp segmented_units(%{vm: %PursuitRow{units_wanted: wanted, unit_states: states}} = assigns)
+       when wanted > 1 and length(states) > 1 and length(states) <= 30 do
+    ~H"""
+    <div class="flex flex-wrap gap-1">
+      <span
+        :for={{state, index} <- Enum.with_index(@vm.unit_states)}
+        id={"unit-segment-#{@vm.id}-#{index}"}
+        class={[
+          "w-2 h-2 rounded-sm",
+          state == "satisfied" && "bg-success/80",
+          state == "active" && "bg-primary/30",
+          state in ["exhausted", "cancelled"] && "border border-warning/50"
+        ]}
+      >
+      </span>
+    </div>
+    """
+  end
+
+  defp segmented_units(assigns), do: ~H""
+
+  # Stable per-title hue for the synthetic banner gradient — the same
+  # show always lands the same tint (chroma stays low; scrim rule).
+  defp banner_hue(title), do: :erlang.phash2(title, 360)
+
   attr :download, DownloadProgress, required: true
   attr :queue_item_id, :string, required: true
   attr :cancel_title, :string, required: true
   attr :telemetry_age, :string, default: nil
 
+  attr :bare, :boolean,
+    default: false,
+    doc: "Skips the top border/padding — the identity-banner strip provides its own framing."
+
   defp download_footer(assigns) do
     ~H"""
-    <div class="border-t border-base-content/5 pt-2 space-y-1.5">
+    <div class={[@bare && "space-y-1.5", !@bare && "border-t border-base-content/5 pt-2 space-y-1.5"]}>
       <div class="flex items-center gap-3">
         <.badge variant={Logic.state_badge_variant(@download.state)} size="md" class="text-xs">
           {Logic.state_label(@download.state)}

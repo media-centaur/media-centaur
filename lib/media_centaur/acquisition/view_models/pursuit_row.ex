@@ -32,7 +32,14 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitRow do
     # units wanted, never a count of targets. Single-unit pursuits carry
     # 1/0-or-1 and render no progress chip.
     units_wanted: 1,
-    units_satisfied: 0
+    units_satisfied: 0,
+    # Which acquisition door created this pursuit (UIDR-014): :media
+    # (TMDB-doored — earns the identity-banner treatment) or :query
+    # (naked release search — stays a plain row).
+    door: :query,
+    # Ordered unit states ("satisfied"/"active"/…) for the segmented
+    # progress row on composite media-door cards. Empty for singles.
+    unit_states: []
   ]
 
   @type state ::
@@ -58,6 +65,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitRow do
           torrent_hash: String.t() | nil,
           awaiting_decision?: boolean(),
           units_wanted: pos_integer(),
-          units_satisfied: non_neg_integer()
+          units_satisfied: non_neg_integer(),
+          door: :media | :query,
+          unit_states: [String.t()]
         }
 end

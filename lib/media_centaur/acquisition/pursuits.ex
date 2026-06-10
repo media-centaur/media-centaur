@@ -517,7 +517,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       normalized_release_title: release_title && QueueMatcher.normalize_title(release_title),
       torrent_hash: torrent_hash,
       units_wanted: max(length(units), 1),
-      units_satisfied: Enum.count(units, &(&1.state == "satisfied"))
+      units_satisfied: Enum.count(units, &(&1.state == "satisfied")),
+      door: if(pursuit.recipe_type == "tmdb", do: :media, else: :query),
+      unit_states: Enum.map(units, & &1.state)
     }
   end
 
