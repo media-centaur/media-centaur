@@ -932,7 +932,7 @@ body:has(.modal-backdrop[data-state="open"]) {
    the page's 1.5rem padding (like `.page-backdrop`) so it bleeds to the
    content edges, but is bounded in height and dimmed — the browse page
    gets a sense of place without a full hero competing with the home page. */
-.library-atmosphere {
+.page-atmosphere {
   position: absolute;
   top: -1.5rem;
   left: -1.5rem;
@@ -944,7 +944,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   opacity: 0.7;
 }
 
-.library-atmosphere img {
+.page-atmosphere img {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -953,7 +953,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   object-position: center 25%;
 }
 
-.library-atmosphere::after {
+.page-atmosphere::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -970,7 +970,7 @@ body:has(.modal-backdrop[data-state="open"]) {
    touch lighter, since the browse grid wants a calmer backdrop than the
    home hero. Fixed so it holds as the grid scrolls; behind the grid (z-0),
    so it darkens the background, never the posters. */
-.library-side-dim {
+.page-side-dim {
   position: fixed;
   inset: 0;
   z-index: 0;
