@@ -25,6 +25,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   import MediaCentaurWeb.LiveHelpers, only: [format_size: 1]
 
+  alias MediaCentaurWeb.Components.Acquisition.CellVocabulary
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaurWeb.AcquisitionLive.PlanLogic
@@ -484,6 +485,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <.button
             variant="neutral"
             size="xs"
+            disabled
+            title="Coming soon — hands the gaps to release tracking on approval (campaign Phase 4)"
+          >
+            Track these later
+          </.button>
+          <.button
+            variant="neutral"
+            size="xs"
             phx-click="plan_search_again"
             data-nav-item
             tabindex="0"
@@ -623,13 +632,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       title={cell_title(@cell)}
       class={[
         "w-9 h-9 rounded-md flex items-center justify-center text-[13px] tabular-nums select-none",
-        @cell.state == :searching &&
-          "border border-dashed border-base-content/25 text-base-content/40 animate-pulse",
-        @cell.state == :assigned && !@in_capsule &&
-          "bg-primary/25 border border-primary/60 text-base-content/80",
-        @cell.state == :assigned && @in_capsule && "bg-primary/20 text-base-content/80 rounded",
-        @cell.state == :unfound && "border border-warning/50 text-warning/80",
-        @cell.state == :excluded && "bg-base-content/5 text-base-content/25 line-through"
+        @cell.state |> CellVocabulary.from_plan_state(@in_capsule) |> CellVocabulary.cell_treatment()
       ]}
     >
       {@cell.episode_number}

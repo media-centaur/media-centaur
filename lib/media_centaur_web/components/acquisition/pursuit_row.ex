@@ -25,6 +25,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
 
   import MediaCentaurWeb.CoreComponents, only: [badge: 1, button: 1, icon: 1]
 
+  alias MediaCentaurWeb.Components.Acquisition.CellVocabulary
   alias MediaCentaur.Acquisition.ViewModels.{DownloadProgress, PursuitRow}
   alias MediaCentaur.Format
   alias MediaCentaurWeb.AcquisitionLive.Logic
@@ -211,9 +212,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         id={"unit-segment-#{@vm.id}-#{index}"}
         class={[
           "w-2 h-2 rounded-sm",
-          state == "satisfied" && "bg-success/80",
-          state == "active" && "bg-primary/30",
-          state in ["exhausted", "cancelled"] && "border border-warning/50"
+          state |> CellVocabulary.from_unit_state() |> CellVocabulary.segment_treatment()
         ]}
       >
       </span>
