@@ -1675,3 +1675,29 @@ body:has(.modal-backdrop[data-state="open"]) {
   background: oklch(13% 0.02 264 / 0.7);
   backdrop-filter: blur(8px);
 }
+
+/* Full-bleed variant for modal headers (UIDR-014): the identity
+   gradient becomes the panel's *background* at the top — edge to edge,
+   no rounding of its own (the panel clips), fading downward into the
+   panel surface the way the library detail hero does. */
+.identity-backdrop {
+  position: relative;
+  background:
+    linear-gradient(180deg, transparent 0%, transparent 35%, var(--color-base-100) 100%),
+    linear-gradient(
+      90deg,
+      oklch(13% 0.02 264 / 0.8) 0%,
+      oklch(13% 0.02 264 / 0.45) 50%,
+      oklch(13% 0.02 264 / 0.15) 100%
+    ),
+    radial-gradient(
+      ellipse 60% 120% at 85% 0%,
+      oklch(55% 0.07 var(--banner-hue, 264) / 0.55) 0%,
+      transparent 70%
+    ),
+    linear-gradient(
+      110deg,
+      oklch(34% 0.06 var(--banner-hue, 264)) 0%,
+      oklch(19% 0.04 calc(var(--banner-hue, 264) + 40)) 100%
+    );
+}
