@@ -237,9 +237,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
     ~H"""
     <div class={[@bare && "space-y-1.5", !@bare && "border-t border-base-content/5 pt-2 space-y-1.5"]}>
       <div class="flex items-center gap-3">
-        <.badge variant={Logic.state_badge_variant(@download.state)} size="md" class="text-xs">
+        <span class={[
+          "text-xs font-medium uppercase tracking-wider",
+          Logic.state_text_class(@download.state)
+        ]}>
           {Logic.state_label(@download.state)}
-        </.badge>
+        </span>
         <span :if={@download.progress_pct} class="text-xs text-base-content/60 tabular-nums">
           {round(@download.progress_pct)}%
         </span>
