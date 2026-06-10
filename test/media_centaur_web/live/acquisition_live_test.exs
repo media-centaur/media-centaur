@@ -513,9 +513,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       refute kept.status == "discarded"
     end
 
-    test "gaps row offers the disabled track-later slot (UIDR-014; wiring is Phase 4)", %{
-      conn: conn
-    } do
+    test "gaps row offers the live track-later handoff (ADR-056)", %{conn: conn} do
       stub_plan_tmdb()
 
       # Default Prowlarr stub returns nothing — every wanted unit is a gap.
@@ -525,7 +523,10 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       html = render(view)
 
       assert html =~ "not available right now"
-      assert has_element?(view, "button[disabled]", "Track these later")
+      # Wired, not disabled — the click path itself (track creation +
+      # gap wants) is covered synchronously in tracking_handoffs_test.
+      assert has_element?(view, "button[phx-click='plan_track_gaps']", "Track these later")
+      refute has_element?(view, "button[disabled]", "Track these later")
     end
 
     test "empty pursuits state offers a CTA into the omnibox", %{conn: conn} do

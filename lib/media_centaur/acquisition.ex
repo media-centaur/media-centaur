@@ -114,7 +114,8 @@ defmodule MediaCentaur.Acquisition do
     DropPlanner,
     Target,
     TargetEvents,
-    Targets
+    Targets,
+    TrackingHandoffs
   }
 
   alias MediaCentaur.Search.{Prowlarr, QueryExpander, SearchResult}
@@ -677,6 +678,9 @@ defmodule MediaCentaur.Acquisition do
   `enqueue_all_pending_for_item/1` as the bulk gesture (ADR-056).
   """
   defdelegate plan_tracked_item_now(item_id), to: DropPlanner, as: :plan_item_now
+
+  @doc "See `MediaCentaur.Acquisition.TrackingHandoffs.track_plan_gaps_async/1`."
+  defdelegate track_plan_gaps_async(plan_id), to: TrackingHandoffs
 
   @doc """
   Bulk-enqueues acquisitions for every release of a tracked item that

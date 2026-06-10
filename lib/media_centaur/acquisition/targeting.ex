@@ -20,10 +20,25 @@ defmodule MediaCentaur.Acquisition.Targeting do
   alias MediaCentaur.TMDB
 
   defmodule Episode do
-    @moduledoc "One unit of the targeting universe — an episode with its pickability facts."
+    @moduledoc """
+    One unit of the targeting universe — an episode with its
+    pickability facts. `tracked?` means release tracking holds an open
+    want for the unit *and* the item's effective auto-grab mode
+    actually grabs (ADR-056 Q3: with mode off, media search is the
+    expected path, so nothing is marked). Tracked units stay pickable —
+    subtraction is shown, never silent — but the presets skip them.
+    """
 
     @enforce_keys [:season_number, :episode_number, :label, :aired?, :in_library?]
-    defstruct [:season_number, :episode_number, :label, :air_date, :aired?, :in_library?]
+    defstruct [
+      :season_number,
+      :episode_number,
+      :label,
+      :air_date,
+      :aired?,
+      :in_library?,
+      tracked?: false
+    ]
 
     @type t :: %__MODULE__{
             season_number: pos_integer(),
@@ -31,7 +46,8 @@ defmodule MediaCentaur.Acquisition.Targeting do
             label: String.t(),
             air_date: Date.t() | nil,
             aired?: boolean(),
-            in_library?: boolean()
+            in_library?: boolean(),
+            tracked?: boolean()
           }
   end
 
@@ -83,18 +99,22 @@ defmodule MediaCentaur.Acquisition.Targeting do
 
   @doc """
   The design-session default: **everything aired, minus what the
-  library already has** — as `{season, episode}` units in airing order.
+  library already has, minus what release tracking is already wanting**
+  (ADR-056) — as `{season, episode}` units in airing order. Tracked
+  units stay visible and pickable in the picker; they just aren't
+  pre-chosen, since the cadence is already on them.
   """
   @spec default_units(Selection.t()) :: [{pos_integer(), pos_integer()}]
   def default_units(%Selection{seasons: seasons}) do
     for season <- seasons,
         episode <- season.episodes,
-        episode.aired? and not episode.in_library?,
+        episode.aired? and not episode.in_library? and not episode.tracked?,
         do: {episode.season_number, episode.episode_number}
   end
 
   defp load_seasons(tmdb_id, tv, client) do
     today = Date.utc_today()
+    tracked_units = tracked_want_units(tmdb_id)
 
     tv
     |> Map.get("seasons", [])
@@ -104,7 +124,8 @@ defmodule MediaCentaur.Acquisition.Targeting do
     |> Enum.reduce_while({:ok, []}, fn season_number, {:ok, seasons} ->
       case TMDB.Client.get_season(tmdb_id, season_number, client) do
         {:ok, season_data} ->
-          {:cont, {:ok, [build_season(tmdb_id, season_number, season_data, today) | seasons]}}
+          {:cont,
+           {:ok, [build_season(tmdb_id, season_number, season_data, today, tracked_units) | seasons]}}
 
         {:error, reason} ->
           {:halt, {:error, reason}}
@@ -116,7 +137,7 @@ defmodule MediaCentaur.Acquisition.Targeting do
     end
   end
 
-  defp build_season(tmdb_id, season_number, season_data, today) do
+  defp build_season(tmdb_id, season_number, season_data, today, tracked_units) do
     episodes =
       season_data
       |> Map.get("episodes", [])
@@ -130,11 +151,34 @@ defmodule MediaCentaur.Acquisition.Targeting do
           label: episode_data["name"] || "Episode #{episode_number}",
           air_date: air_date,
           aired?: aired?(air_date, today),
-          in_library?: in_library?(tmdb_id, season_number, episode_number)
+          in_library?: in_library?(tmdb_id, season_number, episode_number),
+          tracked?: MapSet.member?(tracked_units, {season_number, episode_number})
         }
       end)
 
     %Season{season_number: season_number, episodes: episodes}
+  end
+
+  # Open wants of the title's tracking item, as a `{season, episode}`
+  # set — empty when untracked or when the effective auto-grab mode is
+  # off (nothing is going to grab them, so media search shouldn't
+  # subtract them).
+  defp tracked_want_units(tmdb_id) do
+    with {numeric_id, ""} <- Integer.parse(tmdb_id),
+         %{} = item <- ReleaseTracking.get_item_by_tmdb(numeric_id, :tv_series),
+         mode when mode != "off" <-
+           MediaCentaur.Acquisition.AutoGrabSettings.effective_mode(
+             item.auto_grab_mode,
+             MediaCentaur.Acquisition.AutoGrabSettings.load()
+           ) do
+      item.id
+      |> ReleaseTracking.open_wants_for_item()
+      |> Enum.map(&{&1.season_number, &1.episode_number})
+      |> Enum.reject(&(&1 == {nil, nil}))
+      |> MapSet.new()
+    else
+      _ -> MapSet.new()
+    end
   end
 
   defp aired?(nil, _today), do: false
