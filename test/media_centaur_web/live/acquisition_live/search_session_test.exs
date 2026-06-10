@@ -1,7 +1,7 @@
-defmodule MediaCentaur.Search.SearchSessionTest do
+defmodule MediaCentaurWeb.AcquisitionLive.SearchSessionTest do
   use ExUnit.Case, async: true
 
-  alias MediaCentaur.Search.SearchSession
+  alias MediaCentaurWeb.AcquisitionLive.SearchSession
 
   describe "default state" do
     test "fresh GenServer returns empty session" do

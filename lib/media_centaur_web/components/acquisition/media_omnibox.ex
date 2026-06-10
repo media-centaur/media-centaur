@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
 
-  alias MediaCentaur.Search.SearchSession
+  alias MediaCentaurWeb.AcquisitionLive.SearchSession
   alias MediaCentaurWeb.AcquisitionLive.Logic
 
   defmodule Result do

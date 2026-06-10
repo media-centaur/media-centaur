@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Search.SearchSession do
+defmodule MediaCentaurWeb.AcquisitionLive.SearchSession do
   @moduledoc """
   Singleton GenServer holding the user's current acquisition search session.
 
@@ -7,8 +7,11 @@ defmodule MediaCentaur.Search.SearchSession do
   user selections, grab feedback — survives navigation, reconnect, and
   browser refresh. Lost on BEAM restart.
 
-  All public access goes through the `MediaCentaur.Acquisition` facade —
-  no module outside the Acquisition context calls this GenServer directly.
+  This is web-layer UI infrastructure, not a domain concept: it holds
+  transient workflow state for one surface. Search execution and corpus
+  citizenship stay in the contexts —
+  `MediaCentaur.Acquisition.run_search_one_async/2` takes a report
+  callback, so no context module references this GenServer.
 
   See `docs/superpowers/specs/2026-04-30-acquisition-search-session-design.md`.
   """
@@ -59,6 +62,12 @@ defmodule MediaCentaur.Search.SearchSession do
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
     GenServer.start_link(__MODULE__, opts, name: name)
+  end
+
+  @doc "Subscribes the caller to `{:search_session, t()}` broadcasts."
+  @spec subscribe() :: :ok
+  def subscribe do
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.acquisition_search())
   end
 
   @doc "Returns the current session struct."

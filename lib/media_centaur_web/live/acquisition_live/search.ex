@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.Search do
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
 
   alias MediaCentaur.Search.Quality
-  alias MediaCentaur.Search.SearchSession
+  alias MediaCentaurWeb.AcquisitionLive.SearchSession
   alias MediaCentaurWeb.AcquisitionLive.Logic
 
   attr :session, SearchSession, required: true
