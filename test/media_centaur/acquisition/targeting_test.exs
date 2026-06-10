@@ -67,6 +67,15 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
       refute unaired.aired?
     end
 
+    test "carries the series poster path for the picker header" do
+      stub_sample_show()
+
+      assert {:ok, selection} = Targeting.series_selection("246810")
+
+      # tv_detail fixture default — flows through untouched.
+      assert selection.poster_path == "/ggFHVNu6YYI5L9pCfOacjizRGt.jpg"
+    end
+
     test "marks library-present units (subtractions shown, not silent)" do
       stub_sample_show()
 

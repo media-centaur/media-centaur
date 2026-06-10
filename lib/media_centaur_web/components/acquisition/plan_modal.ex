@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   attr :movie, :any,
     default: nil,
-    doc: "%{tmdb_id, title, year, in_library?} | nil — the movie fast path's facts."
+    doc: "%{tmdb_id, title, year, poster_path, in_library?} | nil — the movie fast path's facts."
 
   attr :board, :any,
     default: nil,
@@ -125,7 +125,18 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     ~H"""
     <div class="flex flex-col max-h-full">
       <div class="p-6 pb-4 space-y-4">
-        <div class="flex items-baseline justify-between gap-3">
+        <div class="flex items-center gap-4">
+          <span class="flex-shrink-0 w-14 h-[84px] rounded-lg bg-base-content/10 overflow-hidden flex items-center justify-center">
+            <img
+              :if={@selection.poster_path}
+              src={"https://image.tmdb.org/t/p/w154#{@selection.poster_path}"}
+              alt=""
+              class="w-full h-full object-cover"
+              loading="eager"
+              decoding="sync"
+            />
+            <.icon :if={!@selection.poster_path} name="hero-tv" class="size-6 text-base-content/25" />
+          </span>
           <div class="min-w-0">
             <h2 class="text-2xl font-semibold truncate">
               {@selection.title}
@@ -327,7 +338,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   attr :movie, :map,
     required: true,
-    doc: "%{tmdb_id, title, year, in_library?} — assembled by the host LiveView."
+    doc: "%{tmdb_id, title, year, poster_path, in_library?} — assembled by the host LiveView."
 
   attr :on_close, :string, required: true
 
@@ -335,8 +346,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     ~H"""
     <div class="p-6 space-y-4">
       <div class="flex items-center gap-4">
-        <span class="flex-shrink-0 w-14 h-[84px] rounded-lg bg-base-content/10 flex items-center justify-center">
-          <.icon name="hero-film" class="size-6 text-base-content/25" />
+        <span class="flex-shrink-0 w-14 h-[84px] rounded-lg bg-base-content/10 overflow-hidden flex items-center justify-center">
+          <img
+            :if={@movie.poster_path}
+            src={"https://image.tmdb.org/t/p/w154#{@movie.poster_path}"}
+            alt=""
+            class="w-full h-full object-cover"
+            loading="eager"
+            decoding="sync"
+          />
+          <.icon :if={!@movie.poster_path} name="hero-film" class="size-6 text-base-content/25" />
         </span>
         <div class="min-w-0">
           <h2 class="text-2xl font-semibold truncate">{@movie.title}</h2>

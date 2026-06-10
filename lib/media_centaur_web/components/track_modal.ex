@@ -262,7 +262,15 @@ defmodule MediaCentaurWeb.Components.TrackModal do
       <div class="flex items-center gap-3 p-3">
         <%!-- Poster thumbnail --%>
         <div class="flex-shrink-0 w-10 h-14 rounded bg-base-300 overflow-hidden flex items-center justify-center">
+          <img
+            :if={@result.poster_path}
+            src={"https://image.tmdb.org/t/p/w92#{@result.poster_path}"}
+            alt=""
+            class="w-full h-full object-cover"
+            loading="lazy"
+          />
           <.icon
+            :if={!@result.poster_path}
             name={if @result.media_type == :movie, do: "hero-film-mini", else: "hero-tv-mini"}
             class="size-5 text-base-content/20"
           />

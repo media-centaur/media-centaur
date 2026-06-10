@@ -616,11 +616,6 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
 
   defp since_label(_), do: "—"
 
-  @doc "True when the expansion preview blocks submitting (idle or invalid syntax)."
-  def expansion_blocked?({:error, _reason}), do: true
-  def expansion_blocked?(:idle), do: true
-  def expansion_blocked?(_preview), do: false
-
   @doc "User-facing expansion-preview line for the release-search form."
   def expansion_text(:idle), do: "Type a title and press Enter to search."
   def expansion_text({:ok, 1}), do: "1 query — press Enter to search."
