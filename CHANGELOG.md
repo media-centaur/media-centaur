@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.88.1 — 2026-06-10
+
+### Improved
+
+- **Search results now show poster artwork.** The Downloads search, the Track New Releases dialog, and the download-planning screens all display the title's poster instead of a generic icon.
+- **Release search is now a single search box.** Type your query and press Enter — same as the media search; the separate Search button is gone.
+- The Downloads page is back to a single column everywhere, with bookkeeping like download history collapsed at the bottom.
+
+### Fixed
+
+- The search boxes' magnifying-glass and command-line icons were invisible — the input field painted over them. They now show up.
+- Page background artwork fades out smoothly instead of ending in a hard painted edge.
+
 ## v0.88.0 — 2026-06-10
 
 ### New
