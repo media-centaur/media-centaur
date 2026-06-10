@@ -299,4 +299,85 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
       assert :counters.get(counter, 1) == 2
     end
   end
+
+  describe "sync/2 (DownloadClient sync contract)" do
+    defp maindata_full(rid) do
+      %{
+        "rid" => rid,
+        "full_update" => true,
+        "torrents" => %{
+          "hash-a" => %{
+            "name" => "Sample.Show.S01E01.1080p.WEB-DL.mkv",
+            "state" => "downloading",
+            "size" => 1000,
+            "amount_left" => 500,
+            "progress" => 0.5
+          }
+        },
+        "server_state" => %{"dl_info_speed" => 100}
+      }
+    end
+
+    test "nil driver state starts the conversation at rid=0 and returns items + state", %{
+      client: client
+    } do
+      Req.Test.stub(:qbittorrent, fn conn ->
+        assert conn.request_path == "/api/v2/sync/maindata"
+        assert conn.params == %{"rid" => "0"}
+        Req.Test.json(conn, maindata_full(7))
+      end)
+
+      assert {:ok, result} = QBittorrent.sync(nil, client)
+      assert [%QueueItem{id: "hash-a"}] = result.items
+      assert result.movement?
+      assert result.summary =~ "rid=7"
+    end
+
+    test "the returned driver state carries the rid conversation forward", %{client: client} do
+      Req.Test.stub(:qbittorrent, fn conn -> Req.Test.json(conn, maindata_full(7)) end)
+      {:ok, first} = QBittorrent.sync(nil, client)
+
+      Req.Test.stub(:qbittorrent, fn conn ->
+        assert conn.params == %{"rid" => "7"}
+        # Steady-state echo: full update repeating the same set.
+        Req.Test.json(conn, maindata_full(8))
+      end)
+
+      assert {:ok, second} = QBittorrent.sync(first.driver_state, client)
+      assert [%QueueItem{id: "hash-a"}] = second.items
+      refute second.movement?, "a full-update echo with a stable set is not movement"
+    end
+
+    test "a partial delta merges into the mirror and counts as movement", %{client: client} do
+      Req.Test.stub(:qbittorrent, fn conn -> Req.Test.json(conn, maindata_full(7)) end)
+      {:ok, first} = QBittorrent.sync(nil, client)
+
+      Req.Test.stub(:qbittorrent, fn conn ->
+        Req.Test.json(conn, %{
+          "rid" => 8,
+          "torrents" => %{"hash-a" => %{"progress" => 0.9}}
+        })
+      end)
+
+      assert {:ok, second} = QBittorrent.sync(first.driver_state, client)
+      assert [%QueueItem{id: "hash-a", progress: progress}] = second.items
+      assert progress > 0.5
+      assert second.movement?
+    end
+
+    test "an error resets the conversation so the next poll is a full update", %{client: client} do
+      Req.Test.stub(:qbittorrent, fn conn -> Req.Test.json(conn, maindata_full(7)) end)
+      {:ok, first} = QBittorrent.sync(nil, client)
+
+      Req.Test.stub(:qbittorrent, fn conn -> Plug.Conn.send_resp(conn, 500, "boom") end)
+      assert {:error, _reason, recovery_state} = QBittorrent.sync(first.driver_state, client)
+
+      Req.Test.stub(:qbittorrent, fn conn ->
+        assert conn.params == %{"rid" => "0"}
+        Req.Test.json(conn, maindata_full(9))
+      end)
+
+      assert {:ok, _recovered} = QBittorrent.sync(recovery_state, client)
+    end
+  end
 end

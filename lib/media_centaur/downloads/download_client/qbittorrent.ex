@@ -43,8 +43,10 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Downloads.QueueItem
   alias MediaCentaur.Config
+  alias MediaCentaur.Downloads.DownloadClient.QBittorrent.Sync
+  alias MediaCentaur.Downloads.DownloadClient.SyncResult
+  alias MediaCentaur.Downloads.QueueItem
 
   @impl true
   def list_downloads(filter \\ :all, client \\ default_client()) do
@@ -113,6 +115,43 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
           {:error, reason}
       end
     end)
+  end
+
+  @doc """
+  One incremental-sync tick (`DownloadClient.sync/1`): wraps
+  `sync_maindata/2` in the client-neutral contract. The opaque driver
+  state is a `Sync.State` carrying the `rid` conversation and the
+  torrent mirror; `nil` starts fresh with a full update.
+  """
+  @impl true
+  def sync(driver_state, client \\ default_client())
+  def sync(nil, client), do: sync(%Sync.State{}, client)
+
+  def sync(%Sync.State{} = bookmark, client) do
+    case sync_maindata(bookmark.rid, client) do
+      {:ok, response} ->
+        torrents = Sync.apply_maindata(bookmark.torrents, response)
+        counts = Sync.counts(response, bookmark.torrents, torrents)
+
+        next_bookmark = %Sync.State{
+          rid: Map.get(response, "rid", bookmark.rid),
+          torrents: torrents,
+          server_state: Map.merge(bookmark.server_state, Map.get(response, "server_state", %{}))
+        }
+
+        {:ok,
+         %SyncResult{
+           items: Sync.to_queue_items(torrents),
+           driver_state: next_bookmark,
+           movement?: Sync.movement?(counts),
+           summary: Sync.summary(counts)
+         }}
+
+      {:error, reason} ->
+        # rid 0 forces a full update on the next successful poll — the
+        # rid we have may be stale or the server may have lost it.
+        {:error, reason, %{bookmark | rid: 0}}
+    end
   end
 
   @impl true
