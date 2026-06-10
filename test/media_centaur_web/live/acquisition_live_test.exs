@@ -228,6 +228,29 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
   end
 
   describe "plan flow — targeting → board → approve (UIDR-014)" do
+    defp stub_selection do
+      %MediaCentaur.Acquisition.Targeting.Selection{
+        tmdb_id: "246810",
+        title: "Sample Show",
+        tracked?: false,
+        seasons: [
+          %MediaCentaur.Acquisition.Targeting.Season{
+            season_number: 1,
+            episodes:
+              for episode <- 1..2 do
+                %MediaCentaur.Acquisition.Targeting.Episode{
+                  season_number: 1,
+                  episode_number: episode,
+                  label: "Episode #{episode}",
+                  aired?: true,
+                  in_library?: false
+                }
+              end
+          }
+        ]
+      }
+    end
+
     defp stub_plan_tmdb do
       TmdbStubs.setup_tmdb_client()
 
@@ -336,6 +359,78 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
       units = Units.for_pursuit(plan.pursuit_id)
       assert length(units) == 2
+    end
+
+    test "the swap picker: Options lists corpus alternatives; choosing reassigns the unit", %{
+      conn: conn
+    } do
+      stub_plan_tmdb()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+
+            results =
+              case query do
+                "Sample Show Season 1" ->
+                  [
+                    %{
+                      "title" => "Sample.Show.S01.COMPLETE.1080p.WEB-DL",
+                      "guid" => "ui-pack",
+                      "indexerId" => 1,
+                      "seeders" => 30,
+                      "indexer" => "indexer-a"
+                    }
+                  ]
+
+                "Sample Show S01E01" ->
+                  [
+                    %{
+                      "title" => "Sample.Show.S01E01.2160p.WEB-DL.x265",
+                      "guid" => "ui-uhd",
+                      "indexerId" => 1,
+                      "seeders" => 8,
+                      "indexer" => "indexer-a"
+                    }
+                  ]
+
+                _other ->
+                  []
+              end
+
+            Req.Test.json(conn, results)
+
+          {"POST", "/api/v1/search"} ->
+            Req.Test.json(conn, %{"approved" => true})
+
+          _other ->
+            Req.Test.json(conn, %{})
+        end
+      end)
+
+      {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download?plan=#{plan.id}")
+
+      [unit | _] = Plans.units_for(plan.id)
+
+      view
+      |> element("button[phx-click='plan_show_alternatives'][phx-value-unit-id='#{unit.id}']")
+      |> render_click()
+
+      html = render(view)
+      assert html =~ "Sample.Show.S01E01.2160p.WEB-DL.x265"
+      assert html =~ "None of these"
+
+      view
+      |> element("button[phx-click='plan_choose_release'][phx-value-guid='ui-uhd']")
+      |> render_click()
+
+      _ = render(view)
+
+      reloaded = plan.id |> Plans.units_for() |> Enum.find(&(&1.id == unit.id))
+      assert reloaded.assigned_guid == "ui-uhd"
     end
 
     test "a draft plan resumes from the page and can be discarded", %{conn: conn} do

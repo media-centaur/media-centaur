@@ -47,6 +47,7 @@ defmodule MediaCentaur.Acquisition do
       ViewModels.DownloadProgress,
       ViewModels.NextStep,
       ViewModels.PlanBoard,
+      ViewModels.PlanBoard.Alternative,
       ViewModels.PlanBoard.Cell,
       ViewModels.PlanBoard.SeasonRow,
       ViewModels.PlanBoard.Release,

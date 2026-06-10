@@ -59,7 +59,14 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     TargetEvents
   }
 
-  alias MediaCentaur.Search.{Prowlarr, Quality, QualityWindow, QueryBuilder, TitleMatcher}
+  alias MediaCentaur.Search.{
+    Prowlarr,
+    Quality,
+    QualityWindow,
+    QueryBuilder,
+    ReleaseRedFlags,
+    TitleMatcher
+  }
 
   alias MediaCentaur.Acquisition.Pursuits.{Commands, Pursuit, Recipe, State, Unit, UnitState, Units}
   alias MediaCentaur.Repo
@@ -236,6 +243,9 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     results
     |> Enum.reduce({nil, "no_title_match"}, fn result, {best, outcome} = acc ->
       cond do
+        ReleaseRedFlags.suspicious?(result.title) ->
+          acc
+
         MapSet.member?(excluded, result.guid) ->
           acc
 

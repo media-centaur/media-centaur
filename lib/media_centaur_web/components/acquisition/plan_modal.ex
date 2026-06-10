@@ -56,6 +56,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     default: nil,
     doc: "Latest PlanEvents.SearchActivity line for the board's ticker, or nil."
 
+  attr :alternatives, :any,
+    default: nil,
+    doc: "%{unit_id, items: [PlanBoard.Alternative.t()]} | nil — the open swap picker (board stage)."
+
   attr :on_close, :string, default: "close_plan"
 
   def plan_modal(assigns) do
@@ -89,6 +93,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         <.board_stage
           :if={@stage == :board && @board}
           board={@board}
+          alternatives={@alternatives}
           last_activity={@last_activity}
           on_close={@on_close}
         />
@@ -355,6 +360,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   # ---------------------------------------------------------------------------
 
   attr :board, PlanBoard, required: true
+
+  attr :alternatives, :any,
+    required: true,
+    doc: "%{unit_id, items} | nil — typed at the public attr."
+
   attr :last_activity, :string, required: true
   attr :on_close, :string, required: true
 
@@ -402,41 +412,50 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
             Releases — {length(@board.releases)}
           </h3>
-          <div
-            :for={release <- @board.releases}
-            id={"plan-release-#{release.swap_unit_id}"}
-            class="glass-inset rounded-lg px-3 py-2 flex items-center gap-3"
-          >
-            <.badge :if={release.scope_label} variant="ghost" size="xs" class="flex-shrink-0">
-              {release.scope_label}
-            </.badge>
-            <span
-              class="min-w-0 flex-1 truncate font-mono text-xs text-base-content/60"
-              title={release.title}
+          <div :for={release <- @board.releases} class="space-y-1.5">
+            <div
+              id={"plan-release-#{release.swap_unit_id}"}
+              class="glass-inset rounded-lg px-3 py-2 flex items-center gap-3"
             >
-              {release.title}
-            </span>
-            <.badge :if={release.quality} variant="info" size="xs" class="flex-shrink-0">
-              {release.quality}
-            </.badge>
-            <span :if={release.seeders} class="flex-shrink-0 text-xs text-success/80 tabular-nums">
-              ▲ {release.seeders}
-            </span>
-            <.button
-              :if={@board.status == :ready}
-              variant="neutral"
-              size="xs"
-              shape="circle"
-              class="flex-shrink-0"
-              phx-click="plan_swap_release"
-              phx-value-unit-id={release.swap_unit_id}
-              phx-value-guid={release.guid}
-              title="Not this release — pick another"
-              data-nav-item
-              tabindex="0"
-            >
-              <.icon name="hero-arrow-path-mini" class="size-3" />
-            </.button>
+              <.badge :if={release.scope_label} variant="ghost" size="xs" class="flex-shrink-0">
+                {release.scope_label}
+              </.badge>
+              <span
+                class="min-w-0 flex-1 truncate font-mono text-xs text-base-content/60"
+                title={release.title}
+              >
+                {release.title}
+              </span>
+              <.badge :if={release.quality} variant="info" size="xs" class="flex-shrink-0">
+                {release.quality}
+              </.badge>
+              <span :if={release.seeders} class="flex-shrink-0 text-xs text-success/80 tabular-nums">
+                ▲ {release.seeders}
+              </span>
+              <.button
+                :if={@board.status == :ready}
+                variant="neutral"
+                size="xs"
+                class="flex-shrink-0"
+                phx-click={
+                  if @alternatives && @alternatives.unit_id == release.swap_unit_id,
+                    do: "plan_hide_alternatives",
+                    else: "plan_show_alternatives"
+                }
+                phx-value-unit-id={release.swap_unit_id}
+                title="See the other options for this"
+                data-nav-item
+                tabindex="0"
+              >
+                Options
+              </.button>
+            </div>
+
+            <.alternatives_panel
+              :if={@alternatives && @alternatives.unit_id == release.swap_unit_id}
+              alternatives={@alternatives}
+              release={release}
+            />
           </div>
         </div>
 
@@ -491,6 +510,78 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             {if length(@board.releases) == 1, do: "release", else: "releases"}
           </.button>
         </div>
+      </div>
+    </div>
+    """
+  end
+
+  attr :alternatives, :map, required: true, doc: "%{unit_id, items} — typed at the public attr."
+  attr :release, PlanBoard.Release, required: true
+
+  defp alternatives_panel(assigns) do
+    ~H"""
+    <div class="glass-inset rounded-lg px-3 py-2 ml-4 space-y-1.5 border border-base-content/10">
+      <p :if={@alternatives.items == []} class="text-xs text-base-content/40 py-1">
+        Nothing else in the corpus right now — try a re-search.
+      </p>
+
+      <div
+        :for={alternative <- @alternatives.items}
+        id={"plan-alternative-#{@alternatives.unit_id}-#{:erlang.phash2(alternative.guid)}"}
+        class="flex items-center gap-3"
+      >
+        <.badge :if={alternative.scope_label} variant="ghost" size="xs" class="flex-shrink-0">
+          {alternative.scope_label}
+        </.badge>
+        <span
+          class="min-w-0 flex-1 truncate font-mono text-xs text-base-content/60"
+          title={alternative.title}
+        >
+          {alternative.title}
+        </span>
+        <span
+          :if={alternative.suspicious?}
+          class="flex-shrink-0 text-[10px] uppercase tracking-wider text-error/80"
+          title="The release name looks like executable bait — only grab it if you're sure."
+        >
+          ⚠ looks fake
+        </span>
+        <.badge :if={alternative.quality} variant="info" size="xs" class="flex-shrink-0">
+          {alternative.quality}
+        </.badge>
+        <span :if={alternative.seeders} class="flex-shrink-0 text-xs text-success/80 tabular-nums">
+          ▲ {alternative.seeders}
+        </span>
+        <.button
+          variant="neutral"
+          size="xs"
+          class="flex-shrink-0"
+          phx-click="plan_choose_release"
+          phx-value-unit-id={@alternatives.unit_id}
+          phx-value-guid={alternative.guid}
+          data-nav-item
+          tabindex="0"
+        >
+          Choose
+        </.button>
+      </div>
+
+      <div class="flex items-center justify-end gap-2 pt-1 border-t border-base-content/5">
+        <.button
+          variant="dismiss"
+          size="xs"
+          phx-click="plan_swap_release"
+          phx-value-unit-id={@alternatives.unit_id}
+          phx-value-guid={@release.guid}
+          title="Exclude this release everywhere and let the planner re-solve"
+          data-nav-item
+          tabindex="0"
+        >
+          None of these — re-solve
+        </.button>
+        <.button variant="dismiss" size="xs" phx-click="plan_search_again" data-nav-item tabindex="0">
+          Search again
+        </.button>
       </div>
     </div>
     """

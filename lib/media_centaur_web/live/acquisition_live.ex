@@ -145,6 +145,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
          plan_grab_future: false,
          plan_error: nil,
          plan_last_activity: nil,
+         plan_alternatives: nil,
          plan_drafts: []
        )}
     else
@@ -408,6 +409,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           grab_future={@plan_grab_future}
           error={@plan_error}
           last_activity={@plan_last_activity}
+          alternatives={@plan_alternatives}
         />
         <PursuitModal.pursuit_modal
           open={@selected_pursuit_id != nil}
@@ -716,10 +718,35 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     end
   end
 
+  def handle_event("plan_show_alternatives", %{"unit-id" => unit_id}, socket) do
+    case Plans.alternatives_for(unit_id) do
+      {:ok, items} ->
+        {:noreply, assign(socket, plan_alternatives: %{unit_id: unit_id, items: items})}
+
+      {:error, :not_found} ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("plan_hide_alternatives", _params, socket) do
+    {:noreply, assign(socket, plan_alternatives: nil)}
+  end
+
+  def handle_event("plan_choose_release", %{"unit-id" => unit_id, "guid" => guid}, socket) do
+    case Plans.choose_release(unit_id, guid) do
+      {:ok, _plan} ->
+        {:noreply, assign(socket, plan_alternatives: nil)}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "plan choose failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "Could not pick that release.")}
+    end
+  end
+
   def handle_event("plan_swap_release", %{"unit-id" => unit_id, "guid" => guid}, socket) do
     case Plans.exclude_release(unit_id, guid) do
       {:ok, _plan} ->
-        {:noreply, socket}
+        {:noreply, assign(socket, plan_alternatives: nil)}
 
       {:error, reason} ->
         Log.warning(:acquisition, "plan swap failed — #{inspect(reason)}")
@@ -1450,6 +1477,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           plan_selection: nil,
           plan_movie: nil,
           plan_board: nil,
+          plan_alternatives: nil,
           plan_error: nil
         )
 

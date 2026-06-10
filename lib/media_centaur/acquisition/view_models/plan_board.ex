@@ -62,6 +62,27 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
           }
   end
 
+  defmodule Alternative do
+    @moduledoc """
+    One choosable candidate in the swap picker — corpus-known, identity-
+    verified, covering the unit. `suspicious?` marks bait-pattern titles
+    (`Search.ReleaseRedFlags`): never auto-picked, but visible and
+    deliberately choosable — the heuristic demotes, it doesn't hide.
+    """
+
+    @enforce_keys [:guid, :title]
+    defstruct [:guid, :title, :scope_label, :quality, :seeders, suspicious?: false]
+
+    @type t :: %__MODULE__{
+            guid: String.t(),
+            title: String.t(),
+            scope_label: String.t() | nil,
+            quality: String.t() | nil,
+            seeders: integer() | nil,
+            suspicious?: boolean()
+          }
+  end
+
   @enforce_keys [:plan_id, :title, :status, :wanted, :covered, :seasons, :releases, :gaps]
   defstruct [
     :plan_id,

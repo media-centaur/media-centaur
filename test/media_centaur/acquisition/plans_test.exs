@@ -181,6 +181,67 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert covered.id == unit.id
     end
 
+    test "the swap picker: alternatives are listed from the corpus, suspicious flagged not hidden, choice reassigns" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+
+            results =
+              case query do
+                "Sample Show Season 1" ->
+                  [release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})]
+
+                "Sample Show S01E01" ->
+                  [
+                    release("Sample.Show.S01E01.2160p.WEB-DL.x265", "e1-uhd", %{seeders: 8}),
+                    # Bait: must never be auto-picked, must appear flagged.
+                    release("Sample.Show.S01E01.1080p.HD.X264.1080p.exe", "e1-evil", %{
+                      seeders: 999
+                    })
+                  ]
+
+                _other ->
+                  []
+              end
+
+            Req.Test.json(conn, results)
+
+          {"POST", "/api/v1/search"} ->
+            Req.Test.json(conn, %{"approved" => true})
+
+          _other ->
+            Req.Test.json(conn, %{})
+        end
+      end)
+
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}, {1, 3}])
+      {:ok, plan} = Plans.get(plan.id)
+      assert plan.status == "ready"
+
+      units = Plans.units_for(plan.id)
+      # The bait was never auto-picked despite 999 seeders.
+      assert Enum.all?(units, &(&1.assigned_guid == "pack-s1"))
+
+      [first_unit | _rest] = units
+      {:ok, alternatives} = Plans.alternatives_for(first_unit.id)
+
+      # Clean candidate first; the bait visible but flagged and sorted last.
+      assert [clean, evil] = alternatives
+      assert clean.guid == "e1-uhd"
+      refute clean.suspicious?
+      assert evil.guid == "e1-evil"
+      assert evil.suspicious?
+
+      # Deliberate choice reassigns exactly the units the choice covers.
+      assert {:ok, _plan} = Plans.choose_release(first_unit.id, "e1-uhd")
+
+      units = Plans.units_for(plan.id)
+      assert Enum.find(units, &(&1.episode_number == 1)).assigned_guid == "e1-uhd"
+      assert Enum.find(units, &(&1.episode_number == 2)).assigned_guid == "pack-s1"
+      assert Enum.find(units, &(&1.episode_number == 3)).assigned_guid == "pack-s1"
+    end
+
     test "approve rejects a plan whose units an active pursuit already claims (overlap check)" do
       stub_ladder_results()
 
