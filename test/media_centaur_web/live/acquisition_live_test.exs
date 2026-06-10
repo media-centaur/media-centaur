@@ -630,7 +630,10 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       |> form("form[phx-change='omnibox_change']", %{query: "sample"})
       |> render_change()
 
-      html = render_async(view)
+      # Generous deadline: the omnibox async runs two stubbed TMDB
+      # calls plus a Repo read; the 100ms render_async default flakes
+      # under load (observed in isolation, 2026-06-10).
+      html = render_async(view, 2000)
       assert html =~ "Sample Movie"
 
       # Same query with a trailing space: poison the stub — any further
