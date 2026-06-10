@@ -36,11 +36,19 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       },
       %Variation{
         id: :movie_confirm,
-        description: "The movie fast path — two clicks from omnibox to plan.",
+        description:
+          "The movie fast path — two clicks from omnibox to plan. " <>
+            "poster_path nil here pins the icon fallback; the poster render is pinned by the LiveView tests.",
         attributes: %{
           open: true,
           stage: :movie_confirm,
-          movie: %{tmdb_id: "777", title: "Sample Movie", year: 2010, in_library?: false}
+          movie: %{
+            tmdb_id: "777",
+            title: "Sample Movie",
+            year: 2010,
+            poster_path: nil,
+            in_library?: false
+          }
         }
       },
       %Variation{

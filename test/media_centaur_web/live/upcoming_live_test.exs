@@ -39,6 +39,43 @@ defmodule MediaCentaurWeb.UpcomingLiveTest do
     end
   end
 
+  describe "track modal search" do
+    test "results render TMDB poster thumbnails, icon fallback without one", %{conn: conn} do
+      MediaCentaur.TmdbStubs.setup_tmdb_client()
+
+      MediaCentaur.TmdbStubs.stub_search_both(
+        [
+          %{
+            "id" => 777,
+            "title" => "Sample Movie",
+            "release_date" => "2010-03-05",
+            "poster_path" => "/sample-movie-poster.jpg"
+          }
+        ],
+        [%{"id" => 246_810, "name" => "Sample Show", "first_air_date" => "2010-06-16"}]
+      )
+
+      {:ok, view, _html} = live_async!(conn, "/upcoming")
+
+      view
+      |> form("form[phx-change='track_search']", %{query: "sample"})
+      |> render_change()
+
+      # `track_search` defers the TMDB hit via `send(self(), …)` — the
+      # queued message is processed before the next synchronous render call.
+      html = render(view)
+      assert html =~ "Sample Movie"
+
+      assert has_element?(
+               view,
+               "img[src='https://image.tmdb.org/t/p/w92/sample-movie-poster.jpg']"
+             )
+
+      # The TV result has no poster — its row keeps the icon placeholder.
+      refute html =~ "image.tmdb.org/t/p/w92/sample-show"
+    end
+  end
+
   describe "debounce on broadcast-driven reloads" do
     test "five rapid broadcasts trigger only one reload after the debounce window", %{conn: conn} do
       # Regression guard: :releases_updated, :entities_changed, and grab-event

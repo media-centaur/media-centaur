@@ -32,7 +32,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
       },
       %Variation{
         id: :media_results,
-        description: "Typed query with TMDB results — type chips, years, a tracked annotation.",
+        description:
+          "Typed query with TMDB results — poster thumbnail (fake path, renders broken " <>
+            "outside the app), icon fallback, type chips, years, a tracked annotation.",
         attributes: %{
           mode: :media,
           query: "sample",
@@ -42,6 +44,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
               media_type: :tv_series,
               name: "Sample Show",
               year: "2010",
+              poster_path: "/sample-show-poster.jpg",
               tracked?: true
             },
             %MediaOmnibox.Result{
@@ -72,7 +75,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
       %Variation{
         id: :release_mode,
         description:
-          "The flipped box — monospace brace-expansion form, syntax hint, expansion preview, and the way back to media mode.",
+          "The flipped box — monospace brace-expansion input (Enter to search, no button), " <>
+            "syntax hint, expansion preview, and the way back to media mode.",
         attributes: %{
           mode: :release,
           session: %SearchSession{
@@ -84,7 +88,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
       %Variation{
         id: :release_invalid_syntax,
         description:
-          "Invalid braces — error-colored preview; the submit stays clickable (aria-disabled only).",
+          "Invalid braces — error-colored preview; Enter still submits (submit_search guards server-side).",
         attributes: %{
           mode: :release,
           session: %SearchSession{

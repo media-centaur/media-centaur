@@ -164,40 +164,21 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
   end
 
   describe "search submit is never gated by a disabled button" do
-    # The submit button used to be `disabled` whenever the (debounced)
-    # expansion preview was `:idle` or `{:error, _}`. A *disabled default
-    # submit button silently swallows the Enter key* (HTML implicit-submission
-    # rule), so pressing Enter before the 200ms `phx-debounce` flushed did
-    # nothing — the intermittent "Enter doesn't search, I have to click the
-    # button" bug. `submit_search` already guards empty/invalid queries, so the
-    # button must never carry the real `disabled` attribute.
+    # History: the release form's submit button used to be `disabled`
+    # whenever the (debounced) expansion preview was `:idle` or
+    # `{:error, _}`. A *disabled default submit button silently swallows
+    # the Enter key* (HTML implicit-submission rule) — the intermittent
+    # "Enter doesn't search, I have to click the button" bug. The button
+    # is now gone entirely (release mode mirrors media mode: Enter is the
+    # only submit path), which makes that bug class unrepresentable.
+    # `submit_search` still guards empty/invalid queries server-side.
 
-    test "submit button is not disabled with a fresh (idle) preview", %{conn: conn} do
+    test "the release form has no submit button — Enter is the only submit path", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       enter_release_mode(view)
 
-      assert has_element?(view, "section[data-nav-zone='omnibox'] button[type='submit']")
-
-      refute has_element?(
-               view,
-               "section[data-nav-zone='omnibox'] button[type='submit'][disabled]"
-             )
-    end
-
-    test "submit button is not disabled even when the syntax is invalid", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/download")
-
-      enter_release_mode(view)
-
-      view
-      |> form("form[phx-change='query_change']", query: "foo {a-}")
-      |> render_change()
-
-      refute has_element?(
-               view,
-               "section[data-nav-zone='omnibox'] button[type='submit'][disabled]"
-             )
+      refute has_element?(view, "section[data-nav-zone='omnibox'] button[type='submit']")
     end
 
     test "submitting a fresh valid query starts a search (Enter path)", %{conn: conn} do
@@ -303,6 +284,35 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
             Req.Test.json(conn, %{})
         end
       end)
+    end
+
+    test "the TV picker header renders the series poster", %{conn: conn} do
+      stub_plan_tmdb()
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download?plan=new&tmdb_id=246810&tmdb_type=tv")
+      render_async(view)
+
+      # tv_detail fixture default poster, w154 for the larger header slot.
+      assert has_element?(
+               view,
+               "[data-plan-modal] img[src='https://image.tmdb.org/t/p/w154/ggFHVNu6YYI5L9pCfOacjizRGt.jpg']"
+             )
+    end
+
+    test "the movie confirm stage renders the movie poster", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail())
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download?plan=new&tmdb_id=550&tmdb_type=movie")
+      html = render_async(view)
+
+      assert html =~ "Sample Movie"
+
+      # movie_detail fixture default poster.
+      assert has_element?(
+               view,
+               "[data-plan-modal] img[src='https://image.tmdb.org/t/p/w154/pB8BM7pdSp6B6Ih7QI4S2t0POD5.jpg']"
+             )
     end
 
     test "the whole door: pick → picker defaults → plan → board → approve → pursuit modal", %{
@@ -572,6 +582,40 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       assert_patch(view, "/download?plan=new&tmdb_id=246810&tmdb_type=tv")
     end
 
+    test "media-mode results render TMDB poster thumbnails, icon fallback without one", %{
+      conn: conn
+    } do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_both(
+        [
+          %{
+            "id" => 777,
+            "title" => "Sample Movie",
+            "release_date" => "2010-03-05",
+            "poster_path" => "/sample-movie-poster.jpg"
+          }
+        ],
+        [%{"id" => 246_810, "name" => "Sample Show", "first_air_date" => "2010-06-16"}]
+      )
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view)
+
+      assert has_element?(
+               view,
+               "#omnibox-result-movie-777 img[src='https://image.tmdb.org/t/p/w92/sample-movie-poster.jpg']"
+             )
+
+      # No poster on the TV result — icon placeholder, never a broken image.
+      refute has_element?(view, "#omnibox-result-tv_series-246810 img")
+    end
+
     test "a re-fire of the same effective query never searches TMDB again", %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
 
@@ -607,7 +651,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
       enter_release_mode(view)
       assert has_element?(view, "form[phx-change='query_change']")
-      assert has_element?(view, "section[data-nav-zone='omnibox'] button[type='submit']")
+      assert has_element?(view, "form[phx-change='query_change'] input[name='query']")
 
       view
       |> element("button[phx-click='omnibox_mode'][phx-value-mode='media']")

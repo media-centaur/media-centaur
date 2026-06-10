@@ -1440,6 +1440,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
             media_type: result.media_type,
             name: result.name,
             year: result.year,
+            poster_path: result.poster_path,
             tracked?: result.already_tracked
           }
         end)
@@ -1740,6 +1741,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
            tmdb_id: to_string(tmdb_id),
            title: movie["title"],
            year: extract_year(movie["release_date"]),
+           poster_path: movie["poster_path"],
            in_library?: in_library?
          }}
 

@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
   searches TMDB and the results drop down inside the card; picking a
   title starts a download plan. **Release mode** is the naked
   release-name search — the same box flips to the brace-expansion
-  query form (monospace input, Search button, syntax hint, expansion
+  query form (monospace input, Enter to search, syntax hint, expansion
   preview) whose results render below the hero in the existing search
   zone. The flip toggle lives inside the card so the demoted naked
   search stays one click away, never buried.
@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
+  import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
   alias MediaCentaurWeb.AcquisitionLive.SearchSession
   alias MediaCentaurWeb.AcquisitionLive.Logic
@@ -29,13 +29,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
     @moduledoc "One TMDB result row of the media-mode dropdown."
 
     @enforce_keys [:tmdb_id, :media_type, :name]
-    defstruct [:tmdb_id, :media_type, :name, :year, tracked?: false, in_library?: false]
+    defstruct [:tmdb_id, :media_type, :name, :year, :poster_path, tracked?: false, in_library?: false]
 
     @type t :: %__MODULE__{
             tmdb_id: integer() | String.t(),
             media_type: :movie | :tv_series,
             name: String.t(),
             year: String.t() | nil,
+            poster_path: String.t() | nil,
             tracked?: boolean(),
             in_library?: boolean()
           }
@@ -111,7 +112,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
       <div class="relative">
         <.icon
           name="hero-magnifying-glass"
-          class="size-5 text-base-content/40 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
+          class="size-5 text-base-content/50 absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none"
         />
         <input
           id="omnibox-media-input"
@@ -135,17 +136,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   defp release_form(assigns) do
     ~H"""
-    <form
-      phx-change="query_change"
-      phx-submit="submit_search"
-      onsubmit="this.querySelector('button[type=submit]').focus()"
-      class="flex gap-3 items-center"
-      autocomplete="off"
-    >
-      <div class="relative flex-1">
+    <%!-- No submit button, mirroring the media form — Enter is the only
+          submit path (HTML implicit submission, single-field form). A
+          disabled submit button once silently swallowed Enter here;
+          buttonless makes that bug class unrepresentable. submit_search
+          guards empty/invalid queries server-side. --%>
+    <form phx-change="query_change" phx-submit="submit_search" autocomplete="off">
+      <div class="relative">
         <.icon
           name="hero-command-line-mini"
-          class="size-5 text-base-content/40 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
+          class="size-5 text-base-content/50 absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none"
         />
         <input
           type="text"
@@ -157,24 +157,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           data-nav-item
           data-captures-keys
           tabindex="0"
-          onkeydown="if (event.key === 'Escape') { event.preventDefault(); this.form.querySelector('button[type=submit]').focus() }"
         />
+        <span
+          :if={@any_loading?}
+          class="loading loading-spinner loading-sm absolute right-4 top-1/2 -translate-y-1/2 text-base-content/40"
+        >
+        </span>
       </div>
-      <%!-- aria-disabled, never the real `disabled` attribute — a disabled
-            default submit button swallows Enter (HTML implicit submission),
-            and with the 200ms debounce above, Enter before the preview
-            flushed would do nothing. submit_search guards bad queries. --%>
-      <.button
-        type="submit"
-        variant="secondary"
-        aria-disabled={to_string(Logic.expansion_blocked?(@session.expansion_preview))}
-        class={Logic.expansion_blocked?(@session.expansion_preview) && "opacity-50"}
-        data-nav-item
-        tabindex="0"
-      >
-        <span :if={@any_loading?} class="loading loading-spinner loading-sm"></span>
-        <.icon :if={!@any_loading?} name="hero-magnifying-glass" class="size-4" /> Search
-      </.button>
     </form>
     """
   end
@@ -200,8 +189,17 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
         data-nav-item
         tabindex="0"
       >
-        <span class="flex-shrink-0 w-9 h-[54px] rounded bg-base-content/10 flex items-center justify-center">
+        <span class="flex-shrink-0 w-9 h-[54px] rounded bg-base-content/10 overflow-hidden flex items-center justify-center">
+          <img
+            :if={result.poster_path}
+            src={"https://image.tmdb.org/t/p/w92#{result.poster_path}"}
+            alt=""
+            class="w-full h-full object-cover"
+            loading="eager"
+            decoding="sync"
+          />
           <.icon
+            :if={!result.poster_path}
             name={if result.media_type == :movie, do: "hero-film-mini", else: "hero-tv-mini"}
             class="size-4 text-base-content/25"
           />
