@@ -376,16 +376,43 @@ use-case inventory.
    * RT boundary gained the `MediaCentaur.Search` dep (Quality).
    * Per-unit targeting subtraction NOT landed here — it consumes the
      ledger, so it ships with Phase 2/3 alongside mode-awareness (Q3).
-2. **Drop → plan pipeline** — cadence tick batches open ∧ unclaimed ∧
-   search-due wants per title → `Plans` draft (criteria with per-want
-   patience floor-elevation) → RunPlan → auto-approve (`auto`) or
-   ready-awaiting-approval (`ask`); unfound wants recycle per back-off;
-   tried-and-failed planner exclusion; user-cancel-dismisses; overlap
-   check covers track-born plans both directions. Cutover: reactor
-   stops arming; seekers system-cancelled (`superseded`, no dismissal).
-   The multi-unit tmdb satisfaction-matching residual (media-search
-   risk #6 note) becomes due here — multi-unit tmdb pursuits are now
-   common.
+2. ✅ **Drop → plan pipeline + cutover** — SHIPPED 2026-06-10 (commits
+   `e8075bda` pipeline + `ef407eef` cutover). DropPlanner tick (driven
+   by `{:tracking_sweep_completed}` → Reactor), `WantSchedule` (pure
+   back-off + patience), per-unit floors as `plan_units.min_quality`
+   with **solve-per-floor-group in RunPlan** (planner untouched;
+   media-search plans take one pass exactly as before), `Plans.Claims`
+   extraction (pursuit half = CommitPlan's check; + live-draft claims
+   for the tick), plan `origin`/`tracking_item_id` provenance,
+   tracking pursuits/targets land origin `auto`, mode gate in
+   `Reactor.Handlers.plan_changed` (auto-approve / ask leaves ready /
+   zero-found drafts are **deleted** not discarded — no churn rows),
+   user-cancel-dismisses in `Commands.Cancel` (system cancels leave
+   wants open), `SupersedeLegacySeekers` data migration (conservative
+   per Q8), Upcoming bulk button → `plan_item_now` (ready draft,
+   origin manual + tracking provenance, no floors, mode-gate-immune).
+   **Build discoveries:**
+   * **Differ-event want dismissal is unnecessary, not deferred** —
+     wants only exist for aired units; aired-row calendar removals are
+     collection parts aging out (must NOT dismiss). Schedule churn
+     never touches the ledger. (Closes the Phase-1 deferral.)
+   * Hot-window interval set to 30 min (= corpus freshness) rather
+     than literal every-tick; zero-found drafts deleted to avoid
+     plan-row churn while a fresh want retries.
+   * Q2's opportunistic plan-over-everything-open refinement NOT
+     implemented (due wants only) — per-unit ladder terms would search
+     non-due wants' terms, violating due-gating; and the user was
+     lukewarm on it. Revisit only if gap-coverage misses hurt.
+   * Tried-and-failed planner exclusion (Q5 loop-breaker) **not yet
+     wired** — moved to Phase 3 scope (needs a failed-target → corpus
+     exclusion read in RunPlan/DropPlanner). The grab-fail-regrab loop
+     is currently only mitigated by back-off cadence.
+   * Mode-off mid-flight auto-cancel (Q11) deferred to Phase 4 (the
+     legacy lazy-cancel died with release_ready; flipping off now only
+     stops future planning).
+   * The multi-unit tmdb satisfaction residual (media-search risk #6)
+     still open — multi-unit tracking pursuits are now common; watch
+     reconciler behavior during soak.
 3. **Handoffs** — gap handoff at plan approval (unfound → gap-provenance
    wants); "grab future" opt-in → track on pursuit completion. Closes
    media-search Phase 4.
