@@ -432,13 +432,18 @@ use-case inventory.
      broadcasts `releases_updated` only when the ledger actually
      changed. Open wants now read "watching" (eye icon) instead of
      nothing.
+   * ✅ **Downloads open-wants pointer** (commit `d174071b`) —
+     "Watching for N releases across M titles" → /upcoming;
+     `Wants.open_summary/0`; line vanishes at zero.
+   * ✅ **`ask` in the global default-mode selector** (commit
+     `8653e7f1`). *Discovery:* there is NO per-item mode UI anywhere —
+     `update_auto_grab/2` has zero web callers; per-item selector is a
+     future enhancement, note when designing the tracking-item drawer.
+     *Second discovery:* the Console drawer renders the GLOBAL log ring
+     buffer into every page, so whole-page `=~` smoke assertions are
+     order-dependent against pipeline log lines — scope smokes with
+     `has_element?` (fixed /download's history smoke).
    * REMAINING, in order:
-     1. Downloads page open-wants **count + link** to Tracking (Q7's
-        second half).
-     2. **`ask` mode in the auto-grab settings UI** — the per-item
-        selector and the global default need the third option
-        (validation + resolution already accept it; mode strings:
-        `off | ask | all_releases`, label "all releases" as Auto).
      3. **Deletion sweep**: `Reactor`'s release_ready clause +
         `Handlers.release_ready` + `AutoGrabPolicy`, `ArmAll` +
         `Acquisition.enqueue_all_pending_for_item` +
