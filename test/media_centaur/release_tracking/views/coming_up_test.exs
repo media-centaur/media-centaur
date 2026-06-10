@@ -43,7 +43,13 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpTest do
     test "accepts release-tracking update events" do
       assert ComingUp.relevant?({:releases_updated, [1, 2]})
       assert ComingUp.relevant?({:item_removed, 123, "tv"})
-      assert ComingUp.relevant?({:release_ready, %{}, %{}})
+    end
+
+    test "accepts the sweep tick (released flags flip without a releases_updated)" do
+      # The sweep marks past releases as released in bulk; nothing else
+      # broadcasts for in-library units, so the tick is the projection's
+      # signal to re-read (and rolls the date window past midnight).
+      assert ComingUp.relevant?({:tracking_sweep_completed})
     end
 
     test "rejects unrelated messages" do

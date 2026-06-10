@@ -1,5 +1,5 @@
 ---
-status: design complete (ADR-056 accepted; all 9 Phase-0 questions settled; NEXT = Phase 1 want ledger)
+status: Phase 4 nearly done (deletion sweep SHIPPED; remaining = Q11 mode-off mid-flight + wiki sync)
 started: 2026-06-10
 last_updated: 2026-06-10
 ---
@@ -25,11 +25,13 @@ tracking's job (a search act on a cadence), never a pursuit's.
 
 ## Status
 
-Design COMPLETE 2026-06-10 (ADR-056, all nine Phase-0 questions);
-**Phase 1 SHIPPED 2026-06-10** (commit `1cb4e0a5`, unpushed) — the want
-ledger is live and dark: every seam syncs it, nothing consumes it yet.
-Subsumes media-search campaign Phase 4. Next: Phase 2 — the drop→plan
-pipeline + cutover.
+Phases 0–3 COMPLETE 2026-06-10; **Phase 4 deletion sweep SHIPPED
+2026-06-10** — the legacy auto path is gone (Reactor→Arm,
+`AutoGrabPolicy`, `ArmAll`/`enqueue_all_pending_for_item`, `Arm`/
+`Acquisition.enqueue/4`, `find_by_tmdb_recipe`, the `release_ready`
+broadcast, the worker's `QualityWindow` patience). Subsumes
+media-search campaign Phase 4. Remaining: Q11 mode-off mid-flight,
+wiki sync.
 
 ## The model
 
@@ -443,20 +445,34 @@ use-case inventory.
      buffer into every page, so whole-page `=~` smoke assertions are
      order-dependent against pipeline log lines — scope smokes with
      `has_element?` (fixed /download's history smoke).
+   * ✅ **Deletion sweep** (this session) — the full Q9 kill-list:
+     `Reactor` release_ready clause + `Handlers.release_ready` +
+     `AutoGrabPolicy`, `ArmAll` + `enqueue_all_pending_for_item` +
+     `list_pending_acquirable_releases_for_item` (RT), `Arm` +
+     `Acquisition.enqueue/4` (zero callers once the handler died),
+     `Pursuits.find_by_tmdb_recipe`, the sweep/refresh `release_ready`
+     broadcast + `Refresher.broadcast_releases_ready/1`, and the
+     worker's `QualityWindow` patience (module + test deleted;
+     `effective_bounds` reads criteria as-is). **Build discoveries:**
+     * `statuses_for_releases/1` moved to `Pursuits` (the read module,
+       reusing its `fetch_targets_by_id/1`); facade delegate retargeted
+       — web callers unchanged.
+     * **ComingUp projection refreshed on `release_ready`** — replaced
+       with `{:tracking_sweep_completed}` relevance (the sweep flips
+       `released` flags in bulk with no per-item broadcast for
+       in-library units; the tick also bounds midnight rollover). New
+       pin test: the sweep broadcast now has direct coverage (it had
+       none, despite being the drop planner's clock).
+     * **Global auto-grab pause still holds with zero handler checks**:
+       `RunPlan` + `PursueTarget` both run on the `:acquisition` Oban
+       queue, which `AutoGrabService.pause/0` pauses — tracking plans
+       never solve while paused. Enforcement collapsed into the queue;
+       `auto_grab_running?/0` survives only for the settings UI.
+     * Tests whose *fixture* was `Acquisition.enqueue` (worker snooze,
+       statuses, claims-gating, overlap-vs-legacy-pursuit pin) migrated
+       to `create_pursuit_with_target`; tests whose *subject* was
+       enqueue/Arm deleted with the feature.
    * REMAINING, in order:
-     3. **Deletion sweep**: `Reactor`'s release_ready clause +
-        `Handlers.release_ready` + `AutoGrabPolicy`, `ArmAll` +
-        `Acquisition.enqueue_all_pending_for_item` +
-        `list_pending_acquirable_releases_for_item` (RT), the sweep's
-        per-release `release_ready` broadcast +
-        `Refresher.broadcast_releases_ready/1`, the worker's
-        4K-patience window (find it in PursueTarget/QualityWindow —
-        query-door pursuits lose quality patience by design, Q9),
-        `Pursuits.find_by_tmdb_recipe`. **Gotcha:**
-        `Acquisition.statuses_for_releases/1` lives in `ArmAll` — move
-        it to a read module (Targets/Pursuits) before deleting the
-        command. Feature tests delete with their features (not
-        ADR-027 classes).
      4. **Mode-off mid-flight** (Q11): flipping an item to `off` should
         cancel its active tracking pursuits + discard its drafts (the
         legacy lazy-cancel died with release_ready). Natural seam:

@@ -24,7 +24,7 @@ defmodule MediaCentaur.Topics do
   | `library:progress` | `Library.Progress` | `{:progress_ticked, _}`, `{:progress_flushed, _}`, `{:progress_hydrated, _}` |
   | `playback:events` | `Playback` | progress + state-change events |
   | `watch_history:events` | `WatchHistory` | `{:watch_event_created, _}`, `{:watch_event_deleted, _}` |
-  | `release_tracking:updates` | `ReleaseTracking` | `{:releases_updated, _}`, `{:item_removed, _, _}`, `{:release_ready, _, _}` |
+  | `release_tracking:updates` | `ReleaseTracking` | `{:releases_updated, _}`, `{:item_removed, _, _}`, `{:tracking_sweep_completed}` |
   | `acquisition:updates` | `Acquisition` | grab lifecycle |
   | `acquisition:queue` | `Downloads` | download-client queue snapshots (topic name kept — rename deferred per ADR-043) |
   | `acquisition:search` | `Acquisition` | per-search results |

@@ -100,6 +100,92 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     |> Enum.reduce(%{}, fn {pid, title}, acc -> Map.put_new(acc, pid, title) end)
   end
 
+  @typedoc "TMDB release identity: `{tmdb_id, tmdb_type, season_number, episode_number}`."
+  @type release_key :: {String.t(), String.t(), integer() | nil, integer() | nil}
+
+  @doc """
+  Batch lookup: given a list of `(tmdb_id, tmdb_type, season_number,
+  episode_number)` keys, returns a map keyed by the same tuple →
+  `{pursuit, current_target | nil}`.
+
+  Used by the upcoming-zone renderer to decorate each release card with
+  its acquisition status without N+1ing the DB.
+  """
+  @spec statuses_for_releases([release_key()]) :: %{release_key() => {Pursuit.t(), Target.t() | nil}}
+  def statuses_for_releases([]), do: %{}
+
+  def statuses_for_releases(keys) when is_list(keys) do
+    # SQL-side tuple filter: build an OR-chain of exact-tuple matches so
+    # the DB returns only requested rows. Prior implementation widened
+    # the WHERE to `tmdb_id in ^ids and tmdb_type in ^types`, then
+    # dropped non-requested tuples in BEAM — a wasted round-trip when a
+    # series has many pursuits but only a few requested episodes.
+    predicate =
+      Enum.reduce(keys, dynamic(false), fn key, acc ->
+        dynamic([p], ^acc or ^key_predicate(key))
+      end)
+
+    pursuits =
+      Pursuit
+      |> where([p], p.recipe_type == "tmdb")
+      |> where(^predicate)
+      |> Repo.all()
+
+    # Current targets live on the units (ADR-055); auto-grab pursuits
+    # are single-unit, so the first unit's pointer is the pursuit's.
+    units_by_pursuit = Units.for_pursuits(Enum.map(pursuits, & &1.id))
+
+    current_target_id = fn pursuit ->
+      case Map.get(units_by_pursuit, pursuit.id, []) do
+        [unit | _] -> unit.current_target_id
+        [] -> nil
+      end
+    end
+
+    target_ids = pursuits |> Enum.map(current_target_id) |> Enum.reject(&is_nil/1)
+    targets_by_id = fetch_targets_by_id(target_ids)
+
+    Map.new(pursuits, fn pursuit ->
+      key = {pursuit.tmdb_id, pursuit.tmdb_type, pursuit.season_number, pursuit.episode_number}
+      target = Map.get(targets_by_id, current_target_id.(pursuit))
+      {key, {pursuit, target}}
+    end)
+  end
+
+  # One dynamic per nil/non-nil shape so Ecto sees only top-level
+  # `^interpolation`s in the outer `dynamic`.
+  defp key_predicate({id, type, nil, nil}) do
+    dynamic(
+      [p],
+      p.tmdb_id == ^id and p.tmdb_type == ^type and
+        is_nil(p.season_number) and is_nil(p.episode_number)
+    )
+  end
+
+  defp key_predicate({id, type, season, nil}) do
+    dynamic(
+      [p],
+      p.tmdb_id == ^id and p.tmdb_type == ^type and
+        p.season_number == ^season and is_nil(p.episode_number)
+    )
+  end
+
+  defp key_predicate({id, type, nil, episode}) do
+    dynamic(
+      [p],
+      p.tmdb_id == ^id and p.tmdb_type == ^type and
+        is_nil(p.season_number) and p.episode_number == ^episode
+    )
+  end
+
+  defp key_predicate({id, type, season, episode}) do
+    dynamic(
+      [p],
+      p.tmdb_id == ^id and p.tmdb_type == ^type and
+        p.season_number == ^season and p.episode_number == ^episode
+    )
+  end
+
   @doc "Lists active pursuits as `PursuitRow` view-models for the Downloads index."
   @spec list_active_rows() :: [PursuitRow.t()]
   def list_active_rows, do: list_rows(:active)
@@ -462,35 +548,6 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     |> where([u], u.pursuit_id == ^pursuit.id and not is_nil(u.awaiting_decision_at))
     |> Repo.exists?()
   end
-
-  @doc """
-  Idempotency lookup — exact match on a pursuit's TMDB recipe tuple,
-  regardless of pursuit state. Returns one pursuit or nil.
-
-  Unlike `find_active_for_target/1`, this is "exact" — a `season_number: nil`
-  match-arg only matches pursuits with `season_number IS NULL`. Used by
-  `Acquisition` to find-or-create pursuits on the auto-acquisition path
-  where re-using an existing (possibly terminal) row is the desired
-  idempotency.
-
-  Requires `tmdb_id` and `tmdb_type` in the target map; `season_number`
-  and `episode_number` are optional (nil → matches NULL exactly).
-  """
-  @spec find_by_tmdb_recipe(map()) :: Pursuit.t() | nil
-  def find_by_tmdb_recipe(%{tmdb_id: tmdb_id, tmdb_type: tmdb_type} = target)
-      when is_binary(tmdb_id) and is_binary(tmdb_type) do
-    season = Map.get(target, :season_number)
-    episode = Map.get(target, :episode_number)
-
-    Pursuit
-    |> where([p], p.recipe_type == "tmdb" and p.tmdb_id == ^tmdb_id and p.tmdb_type == ^tmdb_type)
-    |> exact_match(:season_number, season)
-    |> exact_match(:episode_number, episode)
-    |> Repo.one()
-  end
-
-  defp exact_match(query, field, nil), do: where(query, [p], is_nil(field(p, ^field)))
-  defp exact_match(query, field, value), do: where(query, [p], field(p, ^field) == ^value)
 
   @doc """
   Returns the most recently inserted target linked to a pursuit

@@ -13,9 +13,9 @@ defmodule MediaCentaur.AcquisitionTest do
 
   setup do
     # Oban runs jobs inline in tests (`testing: :inline` in config/test.exs).
-    # Calling Acquisition.enqueue/4 triggers PursueTarget.perform immediately,
-    # which calls Prowlarr.search — install an empty-response stub so the
-    # worker snoozes cleanly instead of crashing.
+    # Running PursueTarget calls Prowlarr.search — install an
+    # empty-response stub so the worker snoozes cleanly instead of
+    # crashing.
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
     client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
     :persistent_term.put({Prowlarr, :client}, client)
@@ -37,20 +37,6 @@ defmodule MediaCentaur.AcquisitionTest do
     :ok
   end
 
-  describe "enqueue/4 — origin" do
-    test "defaults to origin = auto" do
-      assert {:ok, target} = Acquisition.enqueue("100", "movie", "M")
-      assert target.origin == "auto"
-      pursuit = Repo.get!(Pursuit, target.pursuit_id)
-      assert pursuit.origin == "auto"
-    end
-
-    test "accepts explicit origin opt" do
-      assert {:ok, target} = Acquisition.enqueue("101", "movie", "M2", origin: "auto")
-      assert target.origin == "auto"
-    end
-  end
-
   describe "PursueTarget snooze — next_attempt_at denormalisation" do
     # The suite-level setup stubs Prowlarr with empty results, so the
     # worker runs through `handle_no_results/3` and snoozes — perfect
@@ -58,7 +44,13 @@ defmodule MediaCentaur.AcquisitionTest do
     # the same transaction.
     test "writes next_attempt_at when snoozing after a no-results attempt" do
       before = DateTime.utc_now()
-      assert {:ok, target} = Acquisition.enqueue("snooze-1", "movie", "Sample Movie")
+      target = create_target(%{tmdb_id: "snooze-1", title: "Sample Movie"})
+
+      assert {:snooze, _seconds} =
+               perform_job(MediaCentaur.Acquisition.Jobs.PursueTarget, %{
+                 "target_id" => target.id
+               })
+
       after_call = DateTime.utc_now()
 
       latest = Repo.get!(Target, target.id)
@@ -125,16 +117,25 @@ defmodule MediaCentaur.AcquisitionTest do
 
   describe "statuses_for_releases/1" do
     test "returns a map keyed by (tmdb_id, tmdb_type, season, episode) → {pursuit, target}" do
-      {:ok, movie_target} = Acquisition.enqueue("100", "movie", "M")
+      {_pursuit, movie_target} =
+        create_pursuit_with_target(%{tmdb_id: "100", tmdb_type: "movie", title: "M"})
 
-      {:ok, episode_target} =
-        Acquisition.enqueue("200", "tv", "S",
+      {_pursuit, episode_target} =
+        create_pursuit_with_target(%{
+          tmdb_id: "200",
+          tmdb_type: "tv",
+          title: "S",
           season_number: 3,
           episode_number: 4
-        )
+        })
 
-      {:ok, season_pack_target} =
-        Acquisition.enqueue("200", "tv", "S", season_number: 5)
+      {_pursuit, season_pack_target} =
+        create_pursuit_with_target(%{
+          tmdb_id: "200",
+          tmdb_type: "tv",
+          title: "S",
+          season_number: 5
+        })
 
       keys = [
         {"100", "movie", nil, nil},
@@ -160,81 +161,6 @@ defmodule MediaCentaur.AcquisitionTest do
 
     test "returns an empty map for an empty input list (no DB query)" do
       assert Acquisition.statuses_for_releases([]) == %{}
-    end
-  end
-
-  describe "enqueue/4 — granularity" do
-    test "movie key uses NULL season and episode" do
-      assert {:ok, %Target{} = target} =
-               Acquisition.enqueue("12345", "movie", "Sample Movie", year: 2010)
-
-      pursuit = Repo.get!(Pursuit, target.pursuit_id)
-      assert pursuit.season_number == nil
-      assert pursuit.episode_number == nil
-      assert pursuit.year == 2010
-      assert target.status == "seeking"
-    end
-
-    test "TV episode key carries season and episode on the pursuit" do
-      assert {:ok, %Target{} = target} =
-               Acquisition.enqueue("999", "tv", "Sample Show",
-                 season_number: 3,
-                 episode_number: 4
-               )
-
-      pursuit = Repo.get!(Pursuit, target.pursuit_id)
-      assert pursuit.tmdb_type == "tv"
-      assert pursuit.season_number == 3
-      assert pursuit.episode_number == 4
-    end
-
-    test "TV season pack uses non-NULL season with NULL episode on the pursuit" do
-      assert {:ok, %Target{} = target} =
-               Acquisition.enqueue("999", "tv", "Sample Show", season_number: 3)
-
-      pursuit = Repo.get!(Pursuit, target.pursuit_id)
-      assert pursuit.season_number == 3
-      assert pursuit.episode_number == nil
-    end
-  end
-
-  describe "enqueue/4 — idempotency on the four-tuple" do
-    test "second call for same (tmdb_id, type, season, episode) returns the existing target" do
-      assert {:ok, first} =
-               Acquisition.enqueue("999", "tv", "Sample Show",
-                 season_number: 3,
-                 episode_number: 4
-               )
-
-      assert {:ok, second} =
-               Acquisition.enqueue("999", "tv", "Sample Show",
-                 season_number: 3,
-                 episode_number: 4
-               )
-
-      assert first.id == second.id
-    end
-
-    test "different episode of same series creates a separate target" do
-      assert {:ok, e4} =
-               Acquisition.enqueue("999", "tv", "Sample Show",
-                 season_number: 3,
-                 episode_number: 4
-               )
-
-      assert {:ok, e5} =
-               Acquisition.enqueue("999", "tv", "Sample Show",
-                 season_number: 3,
-                 episode_number: 5
-               )
-
-      assert e4.id != e5.id
-    end
-
-    test "movie and TV with the same tmdb_id are independent (different tmdb_type)" do
-      assert {:ok, movie} = Acquisition.enqueue("999", "movie", "Same Number")
-      assert {:ok, tv} = Acquisition.enqueue("999", "tv", "Same Number")
-      assert movie.id != tv.id
     end
   end
 
@@ -297,28 +223,6 @@ defmodule MediaCentaur.AcquisitionTest do
   end
 
   describe "pursuit linkage" do
-    test "enqueue/4 creates a pursuit and links the new target to it" do
-      assert {:ok, target} = Acquisition.enqueue("8001", "movie", "Sample Movie")
-
-      refute is_nil(target.pursuit_id)
-
-      pursuit = Repo.get!(Pursuit, target.pursuit_id)
-      assert pursuit.tmdb_id == "8001"
-      assert pursuit.tmdb_type == "movie"
-      assert pursuit.title == "Sample Movie"
-      assert pursuit.state == "active"
-      assert pursuit.origin == "auto"
-      assert pursuit.recipe_type == "tmdb"
-    end
-
-    test "enqueue/4 idempotency: second call for same key returns existing target and same pursuit" do
-      assert {:ok, first} = Acquisition.enqueue("8002", "movie", "Sample Movie")
-      assert {:ok, second} = Acquisition.enqueue("8002", "movie", "Sample Movie")
-
-      assert first.id == second.id
-      assert first.pursuit_id == second.pursuit_id
-    end
-
     test "pick_target/2 (manual) creates a pursuit linked to the target" do
       result = %SearchResult{
         title: "Sample.Movie.2010.2160p.UHD.BluRay-FGT",

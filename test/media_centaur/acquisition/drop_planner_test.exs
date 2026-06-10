@@ -1,7 +1,6 @@
 defmodule MediaCentaur.Acquisition.DropPlannerTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.{DropPlanner, PlanEvents, Plans}
   alias MediaCentaur.Acquisition.Pursuits.Commands.Cancel
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Units}
@@ -255,8 +254,14 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       create_aired_release(item, 1, 1, @last_month)
       :ok = ReleaseTracking.sync_wants(item)
 
-      {:ok, _target} =
-        Acquisition.enqueue("246810", "tv", "Sample Show", season_number: 1, episode_number: 1)
+      {_pursuit, _target} =
+        create_pursuit_with_target(%{
+          tmdb_id: "246810",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 1
+        })
 
       tick_and_gate()
 

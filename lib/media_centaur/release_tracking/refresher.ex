@@ -35,10 +35,11 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   end
 
   @doc """
-  Run the cheap sweep synchronously: mark past releases as released
-  and broadcast `:release_ready` for available, not-in-library
-  releases. Persists `last_swept_at`. Safe to call without the
-  GenServer running — used by the timer, by tests, and by ops.
+  Run the cheap sweep synchronously: mark past releases as released,
+  sync the want ledger per watched item, and broadcast
+  `{:tracking_sweep_completed}` (the drop planner's clock, ADR-056).
+  Persists `last_swept_at`. Safe to call without the GenServer
+  running — used by the timer, by tests, and by ops.
   """
   def sweep_now do
     do_sweep()
@@ -209,7 +210,6 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     write_events(item, events)
     replace_releases(item, new_releases)
     update_item_metadata(item, response)
-    broadcast_releases_ready(item)
     :ok
   end
 
@@ -277,7 +277,6 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
       # sync per tick means the ledger self-backfills on first deploy
       # and self-heals after any missed seam.
       ReleaseTracking.sync_wants(item)
-      broadcast_releases_ready(item)
     end)
 
     # The drop planner's clock (ADR-056 Q2): the Reactor runs a tick
@@ -584,34 +583,5 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
       MediaCentaur.Topics.release_tracking_updates(),
       {:releases_updated, item_ids}
     )
-  end
-
-  @doc """
-  Broadcasts one `{:release_ready, item, release}` per release of `item`
-  that is available (air_date on or before today) and not yet in the library.
-
-  Public so the unit test can exercise it without going through TMDB.
-  Idempotent — receivers (e.g. `Acquisition`) must handle re-broadcasts;
-  refreshes can fire repeatedly while a release stays available-and-ungrabbed.
-  """
-  def broadcast_releases_ready(item) do
-    today = Date.utc_today()
-
-    item.id
-    |> ReleaseTracking.list_releases_for_item()
-    |> Enum.filter(&release_ready?(&1, today))
-    |> Enum.each(fn release ->
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
-        MediaCentaur.Topics.release_tracking_updates(),
-        {:release_ready, item, release}
-      )
-    end)
-  end
-
-  defp release_ready?(release, today) do
-    release.air_date != nil and
-      Date.compare(release.air_date, today) != :gt and
-      not release.in_library
   end
 end

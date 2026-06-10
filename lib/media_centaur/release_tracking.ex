@@ -672,66 +672,15 @@ defmodule MediaCentaur.ReleaseTracking do
   releases are informational only — the date the movie hits theaters has
   nothing to do with downloads.
 
-  Single source of truth so `mark_in_library_releases/1`, the bulk-queue
-  orchestration, and any UI code that needs to classify a release type all
-  agree.
+  Single source of truth so `mark_in_library_releases/1`, the want
+  ledger (`Wants`), and any UI code that needs to classify a release
+  type all agree.
   """
   @spec acquirable_release_type?(String.t() | nil) :: boolean()
   def acquirable_release_type?(nil), do: true
   def acquirable_release_type?(type) when is_binary(type), do: type in acquirable_release_types()
 
   defp acquirable_release_types, do: ["digital", "physical"]
-
-  @doc """
-  Returns the item's identifying info plus a deduped list of release coordinates
-  (`%{season_number: …, episode_number: …}`) for releases that are released,
-  not in the library, and of an acquirable type.
-
-  `tmdb_type` is the TMDB-standard string (`"tv"`, `"movie"`) — what Acquisition's
-  Grab table and QueryBuilder both consume. This is *not* a stringified media_type
-  enum (which would yield `"tv_series"` and break the QueryBuilder downstream).
-
-  Used by `Acquisition.enqueue_all_pending_for_item/1` to bulk-arm grabs for
-  a tracked item with one click. Movie items collapse digital + physical rows
-  to a single `{nil, nil}` coordinate since they share an Acquisition grab key.
-  """
-  @spec list_pending_acquirable_releases_for_item(item_id :: String.t()) ::
-          {:ok,
-           %{
-             tmdb_id: String.t(),
-             tmdb_type: String.t(),
-             name: String.t(),
-             pending_releases: [
-               %{season_number: integer() | nil, episode_number: integer() | nil}
-             ]
-           }}
-          | {:error, :not_found}
-  def list_pending_acquirable_releases_for_item(item_id) do
-    case Repo.get(Item, item_id) do
-      nil ->
-        {:error, :not_found}
-
-      item ->
-        pending =
-          Repo.all(
-            from(r in Release,
-              where: r.item_id == ^item.id and r.released == true and r.in_library == false,
-              order_by: [asc: r.season_number, asc: r.episode_number]
-            )
-          )
-          |> Enum.filter(&acquirable_release_type?(&1.release_type))
-          |> Enum.map(&%{season_number: &1.season_number, episode_number: &1.episode_number})
-          |> Enum.uniq()
-
-        {:ok,
-         %{
-           tmdb_id: to_string(item.tmdb_id),
-           tmdb_type: tmdb_type_for(item.media_type),
-           name: item.name,
-           pending_releases: pending
-         }}
-    end
-  end
 
   @doc """
   Translates a tracking-item `media_type` atom to the TMDB-standard

@@ -350,8 +350,8 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
   @spec section_reloaders(term()) :: [atom()]
   # Source events that previously drove section reloads
   # (`:entities_changed`, `:watch_event_created`, `:entity_progress_updated`,
-  # `:availability_changed`, `:releases_updated`, `:item_removed`,
-  # `:release_ready`) now flow into the Library.Views and
+  # `:availability_changed`, `:releases_updated`, `:item_removed`)
+  # now flow into the Library.Views and
   # ReleaseTracking.Views projections, which broadcast
   # `{:library_view_updated, view_id}` / `{:release_tracking_view_updated, view_id}`
   # after each ETS rebuild. The reloads happen via those broadcasts.
