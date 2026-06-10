@@ -129,6 +129,25 @@ defmodule MediaCentaur.Acquisition.Targets do
   end
 
   @doc """
+  Torrent hashes of the pursuit's in-flight (cancellable-status)
+  targets that have a captured download — the client items a pursuit
+  cancellation must stop (campaign pursuit-identity-and-lifecycle:
+  cancel must not mint orphans). Read *before* `close_in_flight_for/3`
+  flips their status.
+  """
+  @spec in_flight_hashes(Ecto.UUID.t()) :: [String.t()]
+  def in_flight_hashes(pursuit_id) when is_binary(pursuit_id) do
+    Repo.all(
+      from(t in Target,
+        where:
+          t.pursuit_id == ^pursuit_id and t.status in ^TargetStatus.cancellable() and
+            not is_nil(t.torrent_hash),
+        select: t.torrent_hash
+      )
+    )
+  end
+
+  @doc """
   Closes every in-flight target for a pursuit at the moment the pursuit
   itself transitions to a terminal state.
 
