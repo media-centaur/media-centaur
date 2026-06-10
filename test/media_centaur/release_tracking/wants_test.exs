@@ -349,6 +349,23 @@ defmodule MediaCentaur.ReleaseTracking.WantsTest do
     end
   end
 
+  describe "change broadcasts" do
+    test "a sync that opens or satisfies wants broadcasts releases_updated" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, "release_tracking:updates")
+
+      item = create_tv_item(%{tmdb_id: 444, name: "Broadcast Show"})
+      create_episode_release(item)
+
+      :ok = ReleaseTracking.sync_wants(item)
+      item_id = item.id
+      assert_received {:releases_updated, [^item_id]}
+
+      # Unchanged re-sync stays silent — the sweep must not churn views.
+      :ok = ReleaseTracking.sync_wants(item)
+      refute_received {:releases_updated, [^item_id]}
+    end
+  end
+
   describe "sweep integration" do
     test "sweep_now/0 opens wants for newly released episodes" do
       item = create_tv_item(%{tmdb_id: 333, name: "Sweep Show"})

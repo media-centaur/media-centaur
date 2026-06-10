@@ -49,8 +49,20 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   def sync_item(%Item{} = item) do
     releases = ReleaseTracking.list_releases_for_item(item.id)
 
-    open_missing_wants(item, releases)
-    satisfy_present_wants(item)
+    opened = open_missing_wants(item, releases)
+    satisfied = satisfy_present_wants(item)
+
+    # Surfaces decorate from the ledger (the Upcoming page's :watching
+    # state); a sync that changed nothing stays silent so the 15-minute
+    # sweep doesn't churn LiveViews.
+    if opened + satisfied > 0 do
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        MediaCentaur.Topics.release_tracking_updates(),
+        {:releases_updated, [item.id]}
+      )
+    end
+
     :ok
   end
 
@@ -216,21 +228,24 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
     item
     |> want_candidates(releases)
     |> Enum.reject(&MapSet.member?(existing_keys, &1.unit_key))
-    |> Enum.each(fn candidate ->
-      %{
-        item_id: item.id,
-        season_number: candidate.season_number,
-        episode_number: candidate.episode_number,
-        part_tmdb_id: candidate.part_tmdb_id,
-        title: candidate.title,
-        air_date: candidate.air_date,
-        provenance: :calendar,
-        wanted_since: wanted_since_for(candidate.air_date, now)
-      }
-      |> Want.create_changeset()
-      # A concurrent sync racing on the unique (item_id, unit_key) index
-      # is benign — the want already exists, which is all we need.
-      |> Repo.insert(on_conflict: :nothing)
+    |> Enum.count(fn candidate ->
+      insert_result =
+        %{
+          item_id: item.id,
+          season_number: candidate.season_number,
+          episode_number: candidate.episode_number,
+          part_tmdb_id: candidate.part_tmdb_id,
+          title: candidate.title,
+          air_date: candidate.air_date,
+          provenance: :calendar,
+          wanted_since: wanted_since_for(candidate.air_date, now)
+        }
+        |> Want.create_changeset()
+        # A concurrent sync racing on the unique (item_id, unit_key) index
+        # is benign — the want already exists, which is all we need.
+        |> Repo.insert(on_conflict: :nothing)
+
+      match?({:ok, _}, insert_result)
     end)
   end
 
@@ -320,7 +335,7 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
 
   defp satisfy_present_wants(item) do
     case open_wants_for_item(item.id) do
-      [] -> :ok
+      [] -> 0
       open_wants -> satisfy_wants(item, open_wants)
     end
   end
@@ -328,13 +343,13 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   defp satisfy_wants(%Item{media_type: :tv_series} = item, open_wants) do
     case present_episodes(item) do
       empty when empty == %{} ->
-        :ok
+        0
 
       present ->
-        Enum.each(open_wants, fn want ->
+        Enum.reduce(open_wants, 0, fn want, satisfied ->
           case Map.get(present, {want.season_number, want.episode_number}) do
-            nil -> :ok
-            episode_id -> satisfy!(want, quality_for_container(:episode, episode_id))
+            nil -> satisfied
+            episode_id -> satisfied + satisfy!(want, quality_for_container(:episode, episode_id))
           end
         end)
     end
@@ -343,10 +358,10 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   defp satisfy_wants(%Item{media_type: :movie}, open_wants) do
     present = present_movies(open_wants)
 
-    Enum.each(open_wants, fn want ->
+    Enum.reduce(open_wants, 0, fn want, satisfied ->
       case Map.get(present, want.part_tmdb_id) do
-        nil -> :ok
-        movie_id -> satisfy!(want, quality_for_container(:movie, movie_id))
+        nil -> satisfied
+        movie_id -> satisfied + satisfy!(want, quality_for_container(:movie, movie_id))
       end
     end)
   end
@@ -393,14 +408,17 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   end
 
   defp satisfy!(want, quality) do
-    Repo.update_all(
-      from(w in Want, where: w.id == ^want.id and w.status == :open),
-      set: [
-        status: :satisfied,
-        satisfied_at: DateTime.utc_now(:second),
-        satisfied_quality: quality
-      ]
-    )
+    {count, _} =
+      Repo.update_all(
+        from(w in Want, where: w.id == ^want.id and w.status == :open),
+        set: [
+          status: :satisfied,
+          satisfied_at: DateTime.utc_now(:second),
+          satisfied_quality: quality
+        ]
+      )
+
+    count
   end
 
   # Best-effort quality of the file that satisfied the unit, read off

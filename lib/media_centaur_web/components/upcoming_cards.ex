@@ -34,6 +34,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   @doc_releases_map "release pair `%{upcoming: [Release.t()], released: [Release.t()]}` from `UpcomingLive.load_upcoming/0`. `Release` is `MediaCentaur.ReleaseTracking.Release` (Ecto schema) preloaded with `:item`."
   @doc_releases_list "list of `MediaCentaur.ReleaseTracking.Release.t()` rows."
   @doc_grab_statuses "map `%{{tmdb_id, tmdb_type, season, episode} => {MediaCentaur.Acquisition.Pursuits.Pursuit.t(), MediaCentaur.Acquisition.Target.t() | nil}}` from `Acquisition.statuses_for_releases/1`."
+  @doc_want_keys "MapSet of `{item_id, unit_key}` for the open want ledger (ADR-056) — drives the `:watching` decoration when no pursuit target exists. Nil disables the fallback."
   @doc_queue_items "list of `MediaCentaur.Downloads.QueueItem.t()` rows from `Acquisition.queue_snapshot/0`."
   @doc_images_map "map `%{Ecto.UUID.t() => %{atom() => String.t()}}` keyed by tracked-item id, value is the image-role → URL map. Built by `UpcomingLive.load_tracking_images/1`."
   @doc_calendar_month_tuple "tuple `{year :: integer(), month :: 1..12}` — current calendar viewport. Phoenix has no tuple type."
@@ -56,6 +57,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   attr :confirm_stop_item, :any, default: nil, doc: @doc_confirm_item_or_nil
   attr :tmdb_ready, :boolean, default: true
   attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :want_keys, :any, default: nil, doc: @doc_want_keys
   attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
@@ -176,6 +178,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
             releases={@selected_releases}
             images={@images}
             grab_statuses={@grab_statuses}
+            want_keys={@want_keys}
             queue_items={@queue_items}
             acquisition_ready={@acquisition_ready}
           />
@@ -196,6 +199,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
               released={@released}
               upcoming={@dated_upcoming}
               grab_statuses={@grab_statuses}
+              want_keys={@want_keys}
               queue_items={@queue_items}
               acquisition_ready={@acquisition_ready}
               images={@images}
@@ -461,6 +465,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   attr :releases, :list, required: true, doc: @doc_releases_list
   attr :images, :map, default: %{}, doc: @doc_images_map
   attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :want_keys, :any, default: nil, doc: @doc_want_keys
   attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
@@ -481,6 +486,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           release={release}
           images={@images}
           grab_statuses={@grab_statuses}
+          want_keys={@want_keys}
           queue_items={@queue_items}
           acquisition_ready={@acquisition_ready}
         />
@@ -496,6 +502,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
 
   attr :images, :map, default: %{}, doc: @doc_images_map
   attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :want_keys, :any, default: nil, doc: @doc_want_keys
   attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
@@ -528,13 +535,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       |> assign(:is_released, assigns.release.released)
 
     status =
-      if assigns.acquisition_ready do
-        grab = lookup_grab(assigns.release, assigns.grab_statuses)
-        queue_item = lookup_queue_item(assigns.release, assigns.queue_items)
-        release_status(assigns.release.in_library, grab, queue_item)
-      else
-        :none
-      end
+      resolve_release_status(assigns.release, assigns)
 
     assigns =
       assign(assigns, :destination, row_destination(assigns.release, status, assigns.acquisition_ready))
@@ -579,6 +580,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           <.release_status_icon
             release={@release}
             grab_statuses={@grab_statuses}
+            want_keys={@want_keys}
             queue_items={@queue_items}
             acquisition_ready={@acquisition_ready}
           />
@@ -613,6 +615,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   attr :released, :list, required: true, doc: @doc_releases_list
   attr :upcoming, :list, required: true, doc: @doc_releases_list
   attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :want_keys, :any, default: nil, doc: @doc_want_keys
   attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
   attr :images, :map, default: %{}, doc: @doc_images_map
@@ -631,6 +634,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
         upcoming_overflow={group.upcoming_overflow}
         images={@images}
         grab_statuses={@grab_statuses}
+        want_keys={@want_keys}
         queue_items={@queue_items}
         acquisition_ready={@acquisition_ready}
       />
@@ -724,6 +728,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   attr :upcoming_overflow, :integer, default: 0
   attr :images, :map, default: %{}, doc: @doc_images_map
   attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :want_keys, :any, default: nil, doc: @doc_want_keys
   attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
@@ -745,14 +750,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
     card_destination =
       case {kind, single_release} do
         {:movie_streaming, release} ->
-          status =
-            if assigns.acquisition_ready do
-              grab = lookup_grab(release, assigns.grab_statuses)
-              queue_item = lookup_queue_item(release, assigns.queue_items)
-              release_status(release.in_library, grab, queue_item)
-            else
-              :none
-            end
+          status = resolve_release_status(release, assigns)
 
           row_destination(release, status, assigns.acquisition_ready)
 
@@ -782,6 +780,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           logo={@logo}
           kind={@kind}
           grab_statuses={@grab_statuses}
+          want_keys={@want_keys}
           queue_items={@queue_items}
           acquisition_ready={@acquisition_ready}
         />
@@ -796,6 +795,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
         logo={@logo}
         kind={@kind}
         grab_statuses={@grab_statuses}
+        want_keys={@want_keys}
         queue_items={@queue_items}
         acquisition_ready={@acquisition_ready}
       />
@@ -818,6 +818,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   attr :logo, :string, default: nil
   attr :kind, :atom, required: true
   attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :want_keys, :any, default: nil, doc: @doc_want_keys
   attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
@@ -883,6 +884,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
                 :for={release <- @released}
                 release={release}
                 grab_statuses={@grab_statuses}
+                want_keys={@want_keys}
                 queue_items={@queue_items}
                 acquisition_ready={@acquisition_ready}
               />
@@ -918,6 +920,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
             <.release_status_icon
               release={hd(seed_releases(@released, @upcoming))}
               grab_statuses={@grab_statuses}
+              want_keys={@want_keys}
               queue_items={@queue_items}
               acquisition_ready={@acquisition_ready}
             />
@@ -992,18 +995,13 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       "single `MediaCentaur.ReleaseTracking.Release.t()` — preloaded with `:item`. See `release_tile/1` for the boundary-prose contract rationale."
 
   attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :want_keys, :any, default: nil, doc: @doc_want_keys
   attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
   defp active_episode_row(assigns) do
     status =
-      if assigns.acquisition_ready do
-        grab = lookup_grab(assigns.release, assigns.grab_statuses)
-        queue_item = lookup_queue_item(assigns.release, assigns.queue_items)
-        release_status(assigns.release.in_library, grab, queue_item)
-      else
-        :none
-      end
+      resolve_release_status(assigns.release, assigns)
 
     assigns =
       assigns
@@ -1029,6 +1027,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
         <.release_status_icon
           release={@release}
           grab_statuses={@grab_statuses}
+          want_keys={@want_keys}
           queue_items={@queue_items}
           acquisition_ready={@acquisition_ready}
         />
@@ -1331,6 +1330,46 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   end
 
   @doc """
+  Layers the want ledger under the pursuit-derived status (ADR-056):
+  when no target tells a story (`:none`) but the unit has an open want,
+  the truthful state is `:watching` — release tracking re-searches it
+  on cadence. Any pursuit-derived status wins; a nil key set disables
+  the fallback.
+  """
+  @spec with_want_fallback(atom(), struct(), MapSet.t() | nil) :: atom()
+  def with_want_fallback(:none, release, %MapSet{} = want_keys) do
+    unit_key =
+      ReleaseTracking.Want.unit_key(
+        release.season_number,
+        release.episode_number,
+        release.part_tmdb_id
+      )
+
+    if unit_key && MapSet.member?(want_keys, {release.item_id, unit_key}) do
+      :watching
+    else
+      :none
+    end
+  end
+
+  def with_want_fallback(status, _release, _want_keys), do: status
+
+  # One resolver for every decoration site: pursuit-derived status
+  # first, want-ledger fallback under it.
+  defp resolve_release_status(release, assigns) do
+    base =
+      if assigns.acquisition_ready do
+        grab = lookup_grab(release, assigns.grab_statuses)
+        queue_item = lookup_queue_item(release, assigns.queue_items)
+        release_status(release.in_library, grab, queue_item)
+      else
+        :none
+      end
+
+    with_want_fallback(base, release, Map.get(assigns, :want_keys))
+  end
+
+  @doc """
   Walks a movie's release rows once and picks the earliest air_date per
   release type. Returns a struct-like map with `:theatrical`, `:digital`,
   and `:physical` keys, each `Date.t()` or `nil`.
@@ -1485,18 +1524,13 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       "single `MediaCentaur.ReleaseTracking.Release.t()`. See `release_tile/1` for the boundary-prose contract rationale."
 
   attr :grab_statuses, :map, default: %{}, doc: @doc_grab_statuses
+  attr :want_keys, :any, default: nil, doc: @doc_want_keys
   attr :queue_items, :list, default: [], doc: @doc_queue_items
   attr :acquisition_ready, :boolean, default: false
 
   defp release_status_icon(assigns) do
     status =
-      if assigns.acquisition_ready do
-        grab = lookup_grab(assigns.release, assigns.grab_statuses)
-        queue_item = lookup_queue_item(assigns.release, assigns.queue_items)
-        release_status(assigns.release.in_library, grab, queue_item)
-      else
-        :none
-      end
+      resolve_release_status(assigns.release, assigns)
 
     assigns = assign(assigns, status: status)
 
@@ -1521,6 +1555,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   defp status_icon_name(:paused), do: "hero-pause-circle-mini"
   defp status_icon_name(:errored), do: "hero-exclamation-triangle-mini"
   defp status_icon_name(:searching), do: "hero-clock-mini"
+  defp status_icon_name(:watching), do: "hero-eye-mini"
   defp status_icon_name(:abandoned), do: "hero-exclamation-triangle-mini"
 
   defp status_color(:completed), do: "text-success"
@@ -1529,6 +1564,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   defp status_color(:paused), do: "text-base-content/60"
   defp status_color(:errored), do: "text-warning"
   defp status_color(:searching), do: "text-info"
+  defp status_color(:watching), do: "text-info/70"
   defp status_color(:abandoned), do: "text-error/70"
 
   defp status_tooltip(:completed), do: "Completed — in library"
@@ -1537,6 +1573,8 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   defp status_tooltip(:paused), do: "Paused"
   defp status_tooltip(:errored), do: "Download error"
   defp status_tooltip(:searching), do: "Searching for a release"
+
+  defp status_tooltip(:watching), do: "Watching — release tracking grabs this when a release appears"
   defp status_tooltip(:abandoned), do: "Couldn't find a release — re-arm in Downloads"
 
   @doc """
@@ -1560,7 +1598,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
           do: "/library?selected=#{release.item.library_container_id}",
           else: "/"
 
-      status in [:none, :searching, :cancelled] ->
+      status in [:none, :searching, :watching, :cancelled] ->
         "/download?prowlarr_search=" <> URI.encode_www_form(release.item.name)
 
       true ->

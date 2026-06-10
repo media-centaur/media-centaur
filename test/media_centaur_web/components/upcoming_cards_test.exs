@@ -439,4 +439,43 @@ defmodule MediaCentaurWeb.Components.UpcomingCardsTest do
       end
     end
   end
+
+  describe "with_want_fallback/3 — the want ledger under the pursuit status (ADR-056)" do
+    @item_id "00000000-0000-0000-0000-0000000000aa"
+
+    defp tv_release(season, episode) do
+      %{item_id: @item_id, season_number: season, episode_number: episode, part_tmdb_id: nil}
+    end
+
+    test "an open want shows :watching where nothing else tells a story" do
+      want_keys = MapSet.new([{@item_id, "s2e7"}])
+
+      assert UpcomingCards.with_want_fallback(:none, tv_release(2, 7), want_keys) == :watching
+    end
+
+    test "no want means :none stays :none" do
+      assert UpcomingCards.with_want_fallback(:none, tv_release(2, 8), MapSet.new()) == :none
+    end
+
+    test "a pursuit-derived status always wins over the ledger" do
+      want_keys = MapSet.new([{@item_id, "s2e7"}])
+
+      assert UpcomingCards.with_want_fallback(:downloading, tv_release(2, 7), want_keys) ==
+               :downloading
+
+      assert UpcomingCards.with_want_fallback(:searching, tv_release(2, 7), want_keys) ==
+               :searching
+    end
+
+    test "movie wants key on the part id" do
+      want_keys = MapSet.new([{@item_id, "m603"}])
+      release = %{item_id: @item_id, season_number: nil, episode_number: nil, part_tmdb_id: 603}
+
+      assert UpcomingCards.with_want_fallback(:none, release, want_keys) == :watching
+    end
+
+    test "a nil key set disables the fallback" do
+      assert UpcomingCards.with_want_fallback(:none, tv_release(2, 7), nil) == :none
+    end
+  end
 end
