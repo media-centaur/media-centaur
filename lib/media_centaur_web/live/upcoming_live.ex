@@ -295,13 +295,22 @@ defmodule MediaCentaurWeb.UpcomingLive do
   end
 
   def handle_event("queue_all_show", %{"item-id" => item_id}, socket) do
-    case Acquisition.enqueue_all_pending_for_item(item_id) do
-      {:error, :not_found} ->
-        {:noreply, put_flash(socket, :error, "Show not found — couldn't queue")}
+    case Acquisition.plan_tracked_item_now(item_id) do
+      {:ok, :planned} ->
+        {:noreply,
+         put_flash(socket, :info, "Coverage plan started — review and approve it on Downloads")}
 
-      {:ok, summary} ->
-        {kind, message} = queue_all_summary_message(summary)
-        {:noreply, put_flash(socket, kind, message)}
+      {:ok, :nothing_pending} ->
+        {:noreply, put_flash(socket, :info, "Nothing pending — everything is in progress or landed")}
+
+      {:error, :not_found} ->
+        {:noreply, put_flash(socket, :error, "Show not found — couldn't plan")}
+
+      {:error, :acquisition_unavailable} ->
+        {:noreply, put_flash(socket, :error, "Prowlarr isn't ready — check Settings → Integrations")}
+
+      {:error, _reason} ->
+        {:noreply, put_flash(socket, :error, "Couldn't start the plan")}
     end
   end
 
@@ -442,46 +451,6 @@ defmodule MediaCentaurWeb.UpcomingLive do
   def handle_info(_msg, socket), do: {:noreply, socket}
 
   # --- Private ---
-
-  defp queue_all_summary_message(%{
-         queued: queued,
-         rearmed: rearmed,
-         in_progress: in_progress,
-         already_grabbed: already_grabbed,
-         failed: failed
-       }) do
-    action = queued + rearmed
-    total = action + in_progress + already_grabbed + length(failed)
-
-    cond do
-      total == 0 ->
-        {:info, "Nothing to queue"}
-
-      failed != [] ->
-        {:error, "Queued #{action} of #{total} — #{length(failed)} failed"}
-
-      action == 0 and in_progress > 0 and already_grabbed == 0 ->
-        {:info, "Already in progress — #{in_progress} #{pluralize("release", in_progress)} searching"}
-
-      action == 0 and already_grabbed > 0 and in_progress == 0 ->
-        {:info, "All #{already_grabbed} #{pluralize("release", already_grabbed)} already grabbed"}
-
-      action == 0 ->
-        {:info, "Nothing new — #{in_progress} in progress, #{already_grabbed} already grabbed"}
-
-      queued > 0 and rearmed > 0 ->
-        {:info, "Queued #{queued}, re-armed #{rearmed}"}
-
-      rearmed > 0 ->
-        {:info, "Re-armed #{rearmed} #{pluralize("release", rearmed)}"}
-
-      true ->
-        {:info, "Queued #{queued} #{pluralize("episode", queued)}"}
-    end
-  end
-
-  defp pluralize(word, 1), do: word
-  defp pluralize(word, _), do: word <> "s"
 
   defp load_release_grab_statuses(%{upcoming: upcoming, released: released}) do
     if Capabilities.prowlarr_ready?() do

@@ -89,7 +89,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   @spec create_tracking_plan(map(), [map()]) :: {:ok, Plan.t()} | {:error, term()}
   def create_tracking_plan(plan_attrs, unit_specs) do
     plan_attrs
-    |> Map.put(:origin, "tracking")
+    |> Map.put_new(:origin, "tracking")
     |> create_plan(unit_specs)
   end
 
@@ -109,13 +109,15 @@ defmodule MediaCentaur.Acquisition.Plans do
 
   @doc """
   The tracking item id behind a committed pursuit, when the pursuit was
-  born from a tracking plan — the cancel-dismisses back-pointer. Nil
-  for media-search and legacy pursuits.
+  born from a plan carrying tracking provenance — the cancel-dismisses
+  back-pointer. Covers both automated drop plans (origin "tracking")
+  and user-initiated "plan now" drafts (origin "manual" with a
+  tracking_item_id). Nil for plain media-search and legacy pursuits.
   """
   @spec tracking_item_id_for_pursuit(Ecto.UUID.t()) :: Ecto.UUID.t() | nil
   def tracking_item_id_for_pursuit(pursuit_id) do
     Plan
-    |> where([p], p.pursuit_id == ^pursuit_id and p.origin == "tracking")
+    |> where([p], p.pursuit_id == ^pursuit_id and not is_nil(p.tracking_item_id))
     |> select([p], p.tracking_item_id)
     |> limit(1)
     |> Repo.one()

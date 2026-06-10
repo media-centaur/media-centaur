@@ -17,6 +17,7 @@ defmodule MediaCentaur.Acquisition.CancelReasons do
   | `abandoned`         | max snooze attempts reached without a grab             |
   | `zero_seeders`      | sustained zero-seeders signal confirmed                |
   | `stall`             | sustained stall signal confirmed                       |
+  | `superseded_by_plans` | legacy seeker system-cancelled at the ADR-056 cutover |
   """
 
   @user_disabled "user_disabled"
@@ -27,6 +28,7 @@ defmodule MediaCentaur.Acquisition.CancelReasons do
   @abandoned "abandoned"
   @zero_seeders "zero_seeders"
   @stall "stall"
+  @superseded_by_plans "superseded_by_plans"
 
   @all [
     @user_disabled,
@@ -36,7 +38,8 @@ defmodule MediaCentaur.Acquisition.CancelReasons do
     @identity_mismatch,
     @abandoned,
     @zero_seeders,
-    @stall
+    @stall,
+    @superseded_by_plans
   ]
 
   @type t :: String.t()
@@ -64,6 +67,9 @@ defmodule MediaCentaur.Acquisition.CancelReasons do
 
   @spec stall() :: t()
   def stall, do: @stall
+
+  @spec superseded_by_plans() :: t()
+  def superseded_by_plans, do: @superseded_by_plans
 
   @doc "Returns every recognised cancel reason string."
   @spec all() :: [t()]

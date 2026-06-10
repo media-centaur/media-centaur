@@ -4,9 +4,6 @@ defmodule MediaCentaurWeb.UpcomingLiveTest do
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
-  import Ecto.Query
-
-  alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Repo
 
   test "GET /upcoming renders the page", %{conn: conn} do
@@ -65,10 +62,11 @@ defmodule MediaCentaurWeb.UpcomingLiveTest do
     end
   end
 
-  describe "queue_all_show event" do
+  describe "queue_all_show event (ADR-056: the bulk gesture is plan-now)" do
     setup do
-      # Oban runs inline in tests, so enqueue/4 triggers SearchAndGrab → Prowlarr.search.
-      # Stub a no-result response so the worker snoozes cleanly.
+      # Oban runs inline in tests, so plan creation triggers RunPlan →
+      # Prowlarr.search. Stub a no-result response so the plan solves
+      # to unfound cleanly; the ready draft is what we assert on.
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
 
       client =
@@ -76,20 +74,37 @@ defmodule MediaCentaurWeb.UpcomingLiveTest do
 
       :persistent_term.put({MediaCentaur.Search.Prowlarr, :client}, client)
 
-      on_exit(fn -> :persistent_term.erase({MediaCentaur.Search.Prowlarr, :client}) end)
+      config = :persistent_term.get({MediaCentaur.Config, :config})
+
+      :persistent_term.put(
+        {MediaCentaur.Config, :config},
+        config
+        |> Map.put(:prowlarr_url, "http://prowlarr.test")
+        |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
+      )
+
+      MediaCentaur.Capabilities.save_test_result(:prowlarr, :ok)
+
+      on_exit(fn ->
+        :persistent_term.erase({MediaCentaur.Search.Prowlarr, :client})
+        :persistent_term.put({MediaCentaur.Config, :config}, config)
+      end)
 
       :ok
     end
 
-    test "enqueues a grab per pending release and flashes the count", %{conn: conn} do
+    test "plans all pending releases as one ready draft for approval", %{conn: conn} do
       item =
         create_tracking_item(%{tmdb_id: 8_001, media_type: :tv_series, name: "Bulk Queue"})
+
+      yesterday = Date.add(Date.utc_today(), -1)
 
       Enum.each(1..3, fn episode ->
         create_tracking_release(%{
           item_id: item.id,
           season_number: 5,
           episode_number: episode,
+          air_date: yesterday,
           released: true
         })
       end)
@@ -98,20 +113,17 @@ defmodule MediaCentaurWeb.UpcomingLiveTest do
 
       result = render_hook(view, "queue_all_show", %{"item-id" => item.id})
 
-      assert result =~ "Queued 3"
+      assert result =~ "Coverage plan started"
 
-      # Three targets created — one per pursuit (enqueue creates a
-      # pursuit + target tuple per (tmdb_id, type, season, episode) key).
-      targets =
-        Repo.all(
-          from(t in Target,
-            join: p in MediaCentaur.Acquisition.Pursuits.Pursuit,
-            on: p.id == t.pursuit_id,
-            where: p.tmdb_id == "8001" and p.tmdb_type == "tv"
-          )
-        )
+      # One draft plan with tracking provenance, left ready for the
+      # user to steer and approve — never an unreviewed grab.
+      [plan] = Repo.all(MediaCentaur.Acquisition.Plans.Plan)
+      assert plan.status == "ready"
+      assert plan.tracking_item_id == item.id
+      assert length(MediaCentaur.Acquisition.Plans.units_for(plan.id)) == 3
 
-      assert length(targets) == 3
+      # No pursuit was armed by the gesture itself.
+      assert Repo.all(MediaCentaur.Acquisition.Pursuits.Pursuit) == []
     end
 
     test "flashes an error when the item is not found", %{conn: conn} do

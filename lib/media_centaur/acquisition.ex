@@ -111,6 +111,7 @@ defmodule MediaCentaur.Acquisition do
     AutoGrabService,
     Config,
     Corpus,
+    DropPlanner,
     Target,
     TargetEvents,
     Targets
@@ -670,6 +671,14 @@ defmodule MediaCentaur.Acquisition do
   defdelegate statuses_for_releases(keys), to: ArmAll
 
   @doc """
+  User-initiated "plan now" for a tracked item — plans all open
+  unclaimed wants as a ready draft for the user to steer and approve.
+  See `MediaCentaur.Acquisition.DropPlanner.plan_item_now/2`. Replaces
+  `enqueue_all_pending_for_item/1` as the bulk gesture (ADR-056).
+  """
+  defdelegate plan_tracked_item_now(item_id), to: DropPlanner, as: :plan_item_now
+
+  @doc """
   Bulk-enqueues acquisitions for every release of a tracked item that
   is released, not in the library, and of an acquirable type. Behaviour
   by pursuit/target state:
@@ -678,6 +687,9 @@ defmodule MediaCentaur.Acquisition do
   - **Cancelled / failed target** → re-arm via `ChangeTarget` (`rearmed`)
   - **In flight** (`seeking`) or **acquired** → skip (`in_progress`)
   - **Succeeded** → skip (`already_acquired`)
+
+  > **Deprecated by ADR-056** — no remaining UI caller; retired fully
+  > in the convergence campaign's Phase 4 along with `ArmAll`.
   """
   @spec enqueue_all_pending_for_item(item_id :: String.t()) ::
           {:ok, ArmAll.summary()} | {:error, :not_found}
