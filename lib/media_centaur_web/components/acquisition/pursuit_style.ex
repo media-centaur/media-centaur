@@ -45,11 +45,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitStyle do
   def state_badge(%{state: :satisfied} = assigns),
     do: state_text(assigns, "text-success/80", "Satisfied")
 
-  def state_badge(%{state: :partial} = assigns),
-    do: state_text(assigns, "text-warning/80", "Partial")
+  def state_badge(%{state: :partial} = assigns), do: state_text(assigns, "text-warning/80", "Partial")
 
-  def state_badge(%{state: :exhausted} = assigns),
-    do: state_text(assigns, "text-error/80", "Exhausted")
+  def state_badge(%{state: :exhausted} = assigns), do: state_text(assigns, "text-error/80", "Exhausted")
 
   def state_badge(%{state: :cancelled} = assigns),
     do: state_text(assigns, "text-base-content/40", "Cancelled")

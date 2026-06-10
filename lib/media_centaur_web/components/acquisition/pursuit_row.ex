@@ -90,14 +90,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
               {@vm.status.verb} — {@vm.status.description}
             </div>
           </div>
-          <.unit_progress_chip vm={@vm} />
           <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
         </div>
 
         <.segmented_units vm={@vm} />
       </div>
 
-      <div :if={@paired_downloads != []} class="identity-banner-strip px-4 py-2 space-y-2">
+      <div :if={@paired_downloads != []} class="identity-banner-strip px-4 pt-2 pb-3 space-y-2">
         <.download_footer
           :for={paired <- @paired_downloads}
           download={paired.download}

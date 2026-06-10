@@ -55,7 +55,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     :pursuit,
     :unit,
     :target,
-    available_actions: []
+    available_actions: [],
+    downloads: []
   ]
 
   @type action :: :cancel | :change_target | :request_decision
@@ -72,6 +73,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
           current_action: CurrentAction.t(),
           next_step: NextStep.t() | nil,
           download: DownloadProgress.t() | nil,
+          downloads: [%{download: DownloadProgress.t(), release_title: String.t() | nil}],
           staleness: staleness(),
           last_activity_at: DateTime.t() | nil,
           available_actions: [action()],

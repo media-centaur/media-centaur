@@ -50,7 +50,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
 
   attr :on_close, :string, default: "close_pursuit"
   attr :on_cancel, :string, default: "cancel_pursuit"
-  attr :on_change_target, :string, default: "change_target"
+
+  attr :on_change_target, :string,
+    default: "request_decision",
+    doc:
+      "Unit-board swap event — opens the per-unit release picker (decision card); the blind auto-pivot is no longer a UI verb."
+
   attr :on_request_decision, :string, default: "request_decision"
 
   def pursuit_modal(assigns) do
@@ -102,7 +107,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
                 :if={@status && !@decision_card}
                 vm={@status}
                 on_cancel={@on_cancel}
-                on_change_target={@on_change_target}
                 on_request_decision={@on_request_decision}
               />
 
