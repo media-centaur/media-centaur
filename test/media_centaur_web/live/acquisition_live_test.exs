@@ -72,6 +72,15 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
     :ok
   end
 
+  # The release-search form lives behind the omnibox mode flip
+  # (UIDR-014) — fresh mounts open in media mode; an active session
+  # auto-resumes release mode, so re-mounts don't need the flip.
+  defp enter_release_mode(view) do
+    view
+    |> element("button[phx-click='omnibox_mode'][phx-value-mode='release']")
+    |> render_click()
+  end
+
   describe "mount" do
     test "redirects to library when Prowlarr is not configured", %{conn: conn} do
       config = :persistent_term.get({MediaCentaur.Config, :config})
@@ -126,6 +135,8 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
     test "updates expansion preview for valid syntax", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
 
+      enter_release_mode(view)
+
       html =
         view
         |> form("form[phx-change='query_change']", query: "Sample Show S01E{01-10}")
@@ -136,6 +147,8 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
     test "shows error for invalid brace syntax", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      enter_release_mode(view)
 
       html =
         view
@@ -158,16 +171,20 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
     test "submit button is not disabled with a fresh (idle) preview", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
 
-      assert has_element?(view, "section[data-nav-zone='search'] button[type='submit']")
+      enter_release_mode(view)
+
+      assert has_element?(view, "section[data-nav-zone='omnibox'] button[type='submit']")
 
       refute has_element?(
                view,
-               "section[data-nav-zone='search'] button[type='submit'][disabled]"
+               "section[data-nav-zone='omnibox'] button[type='submit'][disabled]"
              )
     end
 
     test "submit button is not disabled even when the syntax is invalid", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      enter_release_mode(view)
 
       view
       |> form("form[phx-change='query_change']", query: "foo {a-}")
@@ -175,12 +192,14 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
       refute has_element?(
                view,
-               "section[data-nav-zone='search'] button[type='submit'][disabled]"
+               "section[data-nav-zone='omnibox'] button[type='submit'][disabled]"
              )
     end
 
     test "submitting a fresh valid query starts a search (Enter path)", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      enter_release_mode(view)
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -205,9 +224,73 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
     end
   end
 
+  describe "omnibox — one search surface, two modes (UIDR-014)" do
+    test "typing in media mode surfaces TMDB results; picking patches into the plan flow", %{
+      conn: conn
+    } do
+      MediaCentaur.TmdbStubs.setup_tmdb_client()
+
+      MediaCentaur.TmdbStubs.stub_search_both(
+        [%{"id" => 777, "title" => "Sample Movie", "release_date" => "2010-03-05"}],
+        [%{"id" => 246_810, "name" => "Sample Show", "first_air_date" => "2010-06-16"}]
+      )
+
+      {:ok, view, html} = live_async!(conn, ~p"/download")
+
+      # Media mode is the fresh-mount default; no release form visible.
+      assert html =~ "What do you want to watch?"
+      refute has_element?(view, "form[phx-change='query_change']")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      html = render_async(view)
+      assert html =~ "Sample Movie"
+      assert html =~ "Sample Show"
+
+      # Picking a result opens the plan flow via URL patch (refresh-safe).
+      view
+      |> element("#omnibox-result-tv_series-246810")
+      |> render_click()
+
+      assert_patch(view, "/download?plan=new&tmdb_id=246810&tmdb_type=tv")
+    end
+
+    test "the mode flip swaps in the full release-search form and back", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      enter_release_mode(view)
+      assert has_element?(view, "form[phx-change='query_change']")
+      assert has_element?(view, "section[data-nav-zone='omnibox'] button[type='submit']")
+
+      view
+      |> element("button[phx-click='omnibox_mode'][phx-value-mode='media']")
+      |> render_click()
+
+      refute has_element?(view, "form[phx-change='query_change']")
+      assert has_element?(view, "form[phx-change='omnibox_change']")
+    end
+
+    test "an active release session resumes in release mode on a fresh mount", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+      enter_release_mode(view)
+
+      view
+      |> form("form[phx-change='query_change']", query: "Sample Show S01E0{1,2}")
+      |> render_change()
+
+      # Re-mount: the in-flight session must not hide behind media mode.
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+      assert has_element?(view, "form[phx-change='query_change']")
+    end
+  end
+
   describe "submit_search and grab_selected" do
     test "renders results, lets user select, and submits a grab", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      enter_release_mode(view)
 
       # Allow the LiveView (and tasks it spawns via $callers) to use the stub.
       Req.Test.allow(:prowlarr, self(), view.pid)
@@ -252,6 +335,8 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
     test "brace-expanded batch grab collapses into ONE composite pursuit (ADR-055)", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      enter_release_mode(view)
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -558,6 +643,8 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
          %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
 
+      enter_release_mode(view)
+
       Req.Test.allow(:prowlarr, self(), view.pid)
 
       # First search — every Prowlarr call fails with a transport timeout.
@@ -605,6 +692,8 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
          %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
 
+      enter_release_mode(view)
+
       Req.Test.allow(:prowlarr, self(), view.pid)
 
       Req.Test.stub(:prowlarr, fn conn -> Req.Test.transport_error(conn, :timeout) end)
@@ -646,6 +735,8 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
     test "does not appear when no searches timed out", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      enter_release_mode(view)
 
       Req.Test.allow(:prowlarr, self(), view.pid)
 
@@ -706,6 +797,8 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
       {:ok, view, _html} = live_async!(conn, "/download")
 
+      enter_release_mode(view)
+
       view
       |> form("form[phx-change='query_change']", %{"query" => "Sample Show"})
       |> render_submit()
@@ -732,6 +825,8 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       ])
 
       {:ok, view, _html} = live_async!(conn, "/download")
+
+      enter_release_mode(view)
       Req.Test.allow(:prowlarr, self(), view.pid)
 
       view
@@ -759,6 +854,8 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       end)
 
       {:ok, view, _html} = live_async!(conn, "/download")
+
+      enter_release_mode(view)
 
       view
       |> form("form[phx-change='query_change']", %{"query" => "Pending Show"})
