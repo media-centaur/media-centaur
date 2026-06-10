@@ -62,6 +62,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     default: nil,
     doc: "%{unit_id, items: [PlanBoard.Alternative.t()]} | nil — the open swap picker (board stage)."
 
+  attr :approving, :boolean,
+    default: false,
+    doc: "Approval grabs in flight — the footer button shows progress and ignores clicks."
+
   attr :on_close, :string, default: "close_plan"
 
   def plan_modal(assigns) do
@@ -96,6 +100,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           :if={@stage == :board && @board}
           board={@board}
           alternatives={@alternatives}
+          approving={@approving}
           last_activity={@last_activity}
           on_close={@on_close}
         />
@@ -367,6 +372,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     required: true,
     doc: "%{unit_id, items} | nil — typed at the public attr."
 
+  attr :approving, :boolean, required: true
   attr :last_activity, :string, required: true
   attr :on_close, :string, required: true
 
@@ -512,11 +518,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             variant="primary"
             size="sm"
             phx-click="plan_approve"
+            aria-disabled={to_string(@approving)}
+            class={@approving && "opacity-70"}
             data-nav-item
             tabindex="0"
           >
-            Approve & grab {length(@board.releases)}
-            {if length(@board.releases) == 1, do: "release", else: "releases"}
+            <span :if={@approving} class="loading loading-spinner loading-xs"></span>
+            {if @approving,
+              do: "Approving…",
+              else:
+                "Approve & grab #{length(@board.releases)} #{if length(@board.releases) == 1, do: "release", else: "releases"}"}
           </.button>
         </div>
       </div>
