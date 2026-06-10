@@ -12,7 +12,6 @@ defmodule MediaCentaur.Search do
       ReleaseRedFlags,
       SearchProvider,
       SearchResult,
-      SearchSession,
       TitleMatcher
     ]
 
@@ -30,19 +29,18 @@ defmodule MediaCentaur.Search do
     * **Result classification** — `Quality`, `QualityWindow`, and
       `TitleMatcher` rank and filter results into the windows
       pursuits can act on.
-    * **In-flight search UX state** — `SearchSession` GenServer holds
-      transient state for the AcquisitionLive search form (Pillar 2,
-      desktop-rearchitecture).
     * **Provider abstraction** — `SearchProvider` is the seam for
       future indexer drivers (e.g. Jackett); every cross-boundary
       caller goes through this layer.
+
+  In-flight search *UX* state is deliberately not here — it lives in
+  `MediaCentaurWeb.AcquisitionLive.SearchSession` (web-layer UI
+  infrastructure). This boundary stays pure operations.
 
   ## Where to start
 
   * `search/2`, `find_best/2` — the Prowlarr-facing entry points
     (delegated from `MediaCentaur.Acquisition` for grab callers).
-  * `SearchSession` — the LiveView-facing GenServer for the manual
-    search UX.
 
   ## Boundary deps
 
@@ -58,9 +56,7 @@ defmodule MediaCentaur.Search do
 
   ## Topics
 
-  Currently consumes nothing; emits on `Topics.acquisition_search/0`
-  (legacy topic name — kept for compatibility with `acquisition:*`
-  subscribers; rename to `search:results` is a planned cosmetic
-  follow-up). See ADR-043 §"PubSub topic implications".
+  Consumes nothing and emits nothing — `Topics.acquisition_search/0`
+  broadcasts moved to the web layer with `SearchSession`.
   """
 end

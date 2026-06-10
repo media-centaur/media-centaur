@@ -4,6 +4,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Acquisition.Plans
+  alias MediaCentaurWeb.AcquisitionLive.SearchSession
   alias MediaCentaur.Acquisition.Pursuits.Units
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent
   alias MediaCentaur.TmdbStubs
@@ -64,12 +65,12 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
     # The SearchSession GenServer is a singleton — reset it between tests
     # so leaked state from a prior test doesn't leak into the next one.
-    MediaCentaur.Acquisition.clear_search_session()
+    SearchSession.clear()
 
     on_exit(fn ->
       :persistent_term.erase({Prowlarr, :client})
       :persistent_term.put({MediaCentaur.Config, :config}, config)
-      MediaCentaur.Acquisition.clear_search_session()
+      SearchSession.clear()
     end)
 
     :ok
@@ -1107,7 +1108,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
   describe "search session persistence" do
     setup do
-      MediaCentaur.Acquisition.clear_search_session()
+      SearchSession.clear()
       :ok
     end
 
@@ -1155,15 +1156,15 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       _ = render_until(view, "Sample.Show.S01E01")
 
       # Override the auto-default selection with a user-driven choice.
-      MediaCentaur.Acquisition.set_selection("Sample Show", "guid-2")
+      SearchSession.set_selection("Sample Show", "guid-2")
 
-      session_before = MediaCentaur.Acquisition.current_search_session()
+      session_before = SearchSession.current()
       assert session_before.selections == %{"Sample Show" => "guid-2"}
 
       {:ok, _other_view, _other_html} = live_async!(conn, "/")
       {:ok, _view2, _html2} = live_async!(conn, "/download")
 
-      session_after = MediaCentaur.Acquisition.current_search_session()
+      session_after = SearchSession.current()
       assert session_after.selections == %{"Sample Show" => "guid-2"}
     end
 
@@ -1435,7 +1436,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
   end
 
   defp do_await_session_groups(status, deadline) do
-    session = MediaCentaur.Acquisition.current_search_session()
+    session = SearchSession.current()
 
     cond do
       session.groups != [] and Enum.all?(session.groups, &(&1.status == status)) ->

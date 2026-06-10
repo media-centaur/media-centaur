@@ -35,8 +35,17 @@ defmodule MediaCentaur.Credo.Checks.ContextSubscribeFacade do
     end
   end
 
+  # Files under live/ that OWN a PubSub topic and expose the facade
+  # themselves. `AcquisitionLive.SearchSession` is the sole broadcaster
+  # of `acquisition:search` and provides `subscribe/0` — exactly the
+  # facade this check steers LiveViews toward. It lives in the web layer
+  # because the session is UI infrastructure, not a domain concept
+  # (downloads-debt-retirement campaign, item 5).
+  @topic_owner_files ["lib/media_centaur_web/live/acquisition_live/search_session.ex"]
+
   defp liveview_path?(filename) do
-    String.contains?(filename, "lib/media_centaur_web/live/")
+    String.contains?(filename, "lib/media_centaur_web/live/") and
+      not Enum.any?(@topic_owner_files, &String.ends_with?(filename, &1))
   end
 
   # Phoenix.PubSub.subscribe(...)

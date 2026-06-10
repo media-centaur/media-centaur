@@ -174,14 +174,6 @@ defmodule MediaCentaur.Acquisition do
   @type queue_message ::
           {:queue_state, MediaCentaur.Downloads.QueueState.t()}
 
-  @typedoc """
-  Messages broadcast on `Topics.acquisition_search/0`. Subscribe with
-  `subscribe_search/0`. Each broadcast carries the entire current
-  session — there are no incremental deltas.
-  """
-  @type search_message ::
-          {:search_session, MediaCentaur.Search.SearchSession.t()}
-
   @doc "Subscribes the caller to target lifecycle events."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
@@ -198,90 +190,6 @@ defmodule MediaCentaur.Acquisition do
     :ok = Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.acquisition_queue())
     MediaCentaur.Downloads.QueueMonitor.register_subscriber(self())
   end
-
-  @doc "Subscribes the caller to search session updates."
-  @spec subscribe_search() :: :ok
-  def subscribe_search do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.acquisition_search())
-  end
-
-  @doc "Returns the current search session struct (always present; may be empty)."
-  @spec current_search_session() :: MediaCentaur.Search.SearchSession.t()
-  defdelegate current_search_session,
-    to: MediaCentaur.Search.SearchSession,
-    as: :current
-
-  @doc """
-  Starts a new search session, replacing any existing one. Returns
-  `{:ok, %{session: ..., queries: [...]}}` so the caller (the LiveView)
-  can spawn Tasks for each expanded query.
-  """
-  @spec start_search(String.t()) ::
-          {:ok, %{session: MediaCentaur.Search.SearchSession.t(), queries: [String.t()]}}
-          | {:error, :invalid_syntax}
-  defdelegate start_search(query), to: MediaCentaur.Search.SearchSession
-
-  @doc "Records a per-query Prowlarr result against the current session."
-  @spec record_search_result(
-          String.t(),
-          {:ok, [SearchResult.t()]} | {:error, term()}
-        ) :: :ok
-  defdelegate record_search_result(term, outcome),
-    to: MediaCentaur.Search.SearchSession
-
-  @doc """
-  Updates the query input box value and recomputes the expansion preview.
-  Returns the updated session so the caller can assign it directly.
-  """
-  @spec set_query_preview(String.t()) :: MediaCentaur.Search.SearchSession.t()
-  defdelegate set_query_preview(query), to: MediaCentaur.Search.SearchSession
-
-  @doc "Sets `term => guid` in the session selections map. Returns the new session."
-  @spec set_selection(String.t(), String.t()) :: MediaCentaur.Search.SearchSession.t()
-  defdelegate set_selection(term, guid), to: MediaCentaur.Search.SearchSession
-
-  @doc "Removes `term` from the session selections map. Returns the new session."
-  @spec clear_selection(String.t()) :: MediaCentaur.Search.SearchSession.t()
-  defdelegate clear_selection(term), to: MediaCentaur.Search.SearchSession
-
-  @doc "Empties the session selections map. Returns the new session."
-  @spec clear_selections() :: MediaCentaur.Search.SearchSession.t()
-  defdelegate clear_selections(), to: MediaCentaur.Search.SearchSession
-
-  @doc "Toggles `expanded?` on the named group. Returns the new session."
-  @spec toggle_group(String.t()) :: MediaCentaur.Search.SearchSession.t()
-  defdelegate toggle_group(term), to: MediaCentaur.Search.SearchSession
-
-  @doc "Sets the boolean `grabbing?` flag on the session. Returns the new session."
-  @spec set_grabbing(boolean()) :: MediaCentaur.Search.SearchSession.t()
-  defdelegate set_grabbing(value), to: MediaCentaur.Search.SearchSession
-
-  @doc "Sets the last-grab outcome message on the session. Returns the new session."
-  @spec set_grab_message({:ok | :partial | :error, String.t()}) ::
-          MediaCentaur.Search.SearchSession.t()
-  defdelegate set_grab_message(message), to: MediaCentaur.Search.SearchSession
-
-  @doc "Resets the entire search session to the default empty state. Returns the new session."
-  @spec clear_search_session() :: MediaCentaur.Search.SearchSession.t()
-  defdelegate clear_search_session(), to: MediaCentaur.Search.SearchSession, as: :clear
-
-  @doc """
-  Clears search results (groups + selections) but preserves the user's
-  query string and expansion preview. Used after a grab batch completes.
-  Returns the new session.
-  """
-  @spec clear_search_results() :: MediaCentaur.Search.SearchSession.t()
-  defdelegate clear_search_results(),
-    to: MediaCentaur.Search.SearchSession,
-    as: :clear_results
-
-  @doc """
-  Re-arms named groups (`:abandoned` / `{:failed, _}` -> `:loading`).
-  The caller's pid becomes the monitored `searching_pid`. The caller is
-  responsible for spawning Tasks for these terms. Returns the new session.
-  """
-  @spec retry_search_terms([String.t()]) :: MediaCentaur.Search.SearchSession.t()
-  defdelegate retry_search_terms(terms), to: MediaCentaur.Search.SearchSession
 
   @doc """
   Returns the latest cached download-client queue snapshot (items only).
@@ -328,12 +236,18 @@ defmodule MediaCentaur.Acquisition do
 
   @doc """
   Fire-and-forget single-query search. Runs `search/1` on a supervised
-  context-layer task and records the outcome into the live `SearchSession`
-  (which broadcasts `{:search_session, …}`). Per-query searches must
-  outlive the triggering LiveView so a navigated-away user's in-flight
-  fan-out still populates the shared session (ADR-049).
+  context-layer task and hands the outcome to `report` —
+  `report.(query, {:ok, results} | {:error, reason})`. Per-query searches
+  must outlive the triggering LiveView so a navigated-away user's
+  in-flight fan-out still lands (ADR-049); the report callback is how the
+  web layer's session state receives results without this context knowing
+  it exists.
   """
-  def run_search_one_async(query) do
+  @spec run_search_one_async(
+          String.t(),
+          (String.t(), {:ok, [SearchResult.t()]} | {:error, term()} -> any())
+        ) :: :ok
+  def run_search_one_async(query, report) when is_function(report, 2) do
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
       outcome =
         try do
@@ -347,7 +261,7 @@ defmodule MediaCentaur.Acquisition do
       # citizenship gate and pivot fallbacks get to reuse them.
       with {:ok, results} <- outcome, do: Corpus.record!(query, [], results)
 
-      record_search_result(query, outcome)
+      report.(query, outcome)
     end)
 
     :ok

@@ -79,7 +79,7 @@ defmodule MediaCentaur.DataCase do
   # This is the permanent teardown safety net, not a temporary bridge.
   # The web layer no longer spawns fire-and-forget tasks (ADR-049 /
   # MC0019), but context-layer background work — searches, library
-  # maintenance, rescans (`Acquisition.run_search_one_async/1`,
+  # maintenance, rescans (`Acquisition.run_search_one_async/2`,
   # `Maintenance.*_async/1`, `Watcher.Supervisor.scan_async/0`, …) —
   # legitimately runs under the global supervisor and can outlive a
   # test. The drain bounds that to O(grace) per orphaned child.

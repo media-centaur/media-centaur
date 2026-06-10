@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
   without rendering or mounting a socket.
 
   Search session mutators (build/toggle/record/select) moved to
-  `MediaCentaur.Search.SearchSession` — the LiveView calls those
+  `MediaCentaurWeb.AcquisitionLive.SearchSession` — the LiveView calls those
   through the `MediaCentaur.Acquisition` facade.
 
   Per ADR-030 (LiveView logic extraction).

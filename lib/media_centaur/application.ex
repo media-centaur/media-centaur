@@ -87,7 +87,7 @@ defmodule MediaCentaur.Application do
           MediaCentaur.Library.FileEventHandler,
           MediaCentaur.SelfUpdate.Updater,
           MediaCentaur.SelfUpdate.AutoApply,
-          MediaCentaur.Search.SearchSession
+          MediaCentaurWeb.AcquisitionLive.SearchSession
         ] ++
         pubsub_listeners(Application.get_env(:media_centaur, :environment)) ++
         diagnostics_children(Application.get_env(:media_centaur, :environment)) ++

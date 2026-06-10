@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
       Acquisition.subscribe()        # acquisition:updates  → grab lifecycle
       Acquisition.subscribe_queue()  # acquisition:queue    → queue snapshots
-      Acquisition.subscribe_search() # acquisition:search   → search session
+      SearchSession.subscribe() # acquisition:search   → search session
 
   See the matching `subscribe_*/0` functions on `MediaCentaur.Acquisition`
   for the message types each topic carries.
@@ -80,7 +80,15 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   alias MediaCentaur.Acquisition.ViewModels
   alias MediaCentaur.Acquisition.ViewModels.{Alternative, PursuitWithDownload}
   alias MediaCentaur.Capabilities
-  alias MediaCentaurWeb.AcquisitionLive.{History, HistoryLogic, Logic, OrphanQueue, Search}
+
+  alias MediaCentaurWeb.AcquisitionLive.{
+    History,
+    HistoryLogic,
+    Logic,
+    OrphanQueue,
+    Search,
+    SearchSession
+  }
 
   alias MediaCentaur.ReleaseTracking
 
@@ -110,14 +118,14 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       if connected?(socket) do
         Acquisition.subscribe()
         Acquisition.subscribe_queue()
-        Acquisition.subscribe_search()
+        SearchSession.subscribe()
       end
 
       {:ok,
        assign(socket,
          loaded?: false,
          page_backdrop: page_backdrop(),
-         search_session: %MediaCentaur.Search.SearchSession{},
+         search_session: %SearchSession{},
          active_queue: [],
          queue_status: :initializing,
          queue_loaded?: false,
@@ -198,7 +206,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   end
 
   defp load_acquisition(socket) do
-    session = Acquisition.current_search_session()
+    session = SearchSession.current()
 
     assign(socket,
       search_session: session,
@@ -348,7 +356,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         socket
 
       trimmed ->
-        case Acquisition.start_search(trimmed) do
+        case SearchSession.start_search(trimmed) do
           {:ok, %{queries: queries}} ->
             Enum.each(queries, fn q -> send(self(), {:run_search_one, q}) end)
             socket
@@ -578,7 +586,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
   @impl true
   def handle_event("query_change", %{"query" => query}, socket) do
-    session = Acquisition.set_query_preview(query)
+    session = SearchSession.set_query_preview(query)
     {:noreply, assign(socket, search_session: session)}
   end
 
@@ -586,10 +594,10 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     if socket.assigns.search_session.grabbing? do
       {:noreply, socket}
     else
-      session = Acquisition.set_query_preview(query)
+      session = SearchSession.set_query_preview(query)
 
       session =
-        case Acquisition.start_search(query) do
+        case SearchSession.start_search(query) do
           {:ok, %{session: started, queries: queries}} ->
             Enum.each(queries, fn q -> send(self(), {:run_search_one, q}) end)
             started
@@ -612,15 +620,15 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   end
 
   def handle_event("toggle_group", %{"term" => term}, socket) do
-    session = Acquisition.toggle_group(term)
+    session = SearchSession.toggle_group(term)
     {:noreply, assign(socket, search_session: session)}
   end
 
   def handle_event("select_result", %{"term" => term, "guid" => guid}, socket) do
     session =
       case Map.get(socket.assigns.search_session.selections, term) do
-        ^guid -> Acquisition.clear_selection(term)
-        _ -> Acquisition.set_selection(term, guid)
+        ^guid -> SearchSession.clear_selection(term)
+        _ -> SearchSession.set_selection(term, guid)
       end
 
     {:noreply, assign(socket, search_session: session)}
@@ -922,7 +930,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         end)
         |> Enum.reject(&is_nil/1)
 
-      session = Acquisition.set_grabbing(true)
+      session = SearchSession.set_grabbing(true)
       send(self(), {:run_grabs, picks})
       {:noreply, assign(socket, search_session: session)}
     end
@@ -1149,7 +1157,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   end
 
   def handle_info({:run_search_one, query}, socket) do
-    Acquisition.run_search_one_async(query)
+    Acquisition.run_search_one_async(query, &SearchSession.record_search_result/2)
     {:noreply, socket}
   end
 
@@ -1180,9 +1188,9 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     err_count = length(pairs) - ok_count
     Log.info(:acquisition, "manual pick batch complete — #{ok_count} ok, #{err_count} failed")
 
-    Acquisition.set_grab_message(Logic.build_grab_message(pairs))
-    Acquisition.clear_search_results()
-    Acquisition.set_grabbing(false)
+    SearchSession.set_grab_message(Logic.build_grab_message(pairs))
+    SearchSession.clear_results()
+    SearchSession.set_grabbing(false)
 
     {:noreply, socket}
   end
@@ -1779,7 +1787,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   defp retry_terms(socket, []), do: socket.assigns.search_session
 
   defp retry_terms(_socket, terms) do
-    session = Acquisition.retry_search_terms(terms)
+    session = SearchSession.retry_search_terms(terms)
     Enum.each(terms, fn term -> send(self(), {:run_search_one, term}) end)
     session
   end
