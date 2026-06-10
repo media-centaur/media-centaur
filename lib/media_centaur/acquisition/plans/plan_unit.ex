@@ -40,6 +40,7 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
     field :assigned_term, :string
     field :assigned_quality, :string
     field :assigned_seeders, :integer
+    field :assigned_size_bytes, :integer
     field :assigned_scope, :string
     field :excluded_release_guids, {:array, :string}, default: []
 
@@ -64,6 +65,7 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
       :assigned_term,
       :assigned_quality,
       :assigned_seeders,
+      :assigned_size_bytes,
       :assigned_scope
     ])
     |> validate_required([:assigned_guid, :assigned_title])

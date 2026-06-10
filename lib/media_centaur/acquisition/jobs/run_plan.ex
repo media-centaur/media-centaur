@@ -111,7 +111,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     {options, terms_by_guid} =
       Enum.reduce(results_by_term, {[], %{}}, fn {term, results}, acc ->
         Enum.reduce(results, acc, fn result, {options, terms_by_guid} ->
-          with false <- ReleaseRedFlags.suspicious?(result.title),
+          with false <- ReleaseRedFlags.suspicious?(result.title, result.size_bytes),
                false <- MapSet.member?(excluded, result.guid),
                false <- Map.has_key?(terms_by_guid, result.guid),
                {:ok, scope} <- TitleMatcher.coverage(result, identity) do
@@ -143,6 +143,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       assigned_term: Map.get(terms_by_guid, assignment.result.guid),
       assigned_quality: Quality.label(assignment.result.quality),
       assigned_seeders: assignment.result.seeders,
+      assigned_size_bytes: assignment.result.size_bytes,
       assigned_scope: scope_label(assignment.scope)
     }
   end
@@ -169,7 +170,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       plan
       |> search(term, [type: :movie], force?)
       |> Enum.filter(fn result ->
-        not ReleaseRedFlags.suspicious?(result.title) and
+        not ReleaseRedFlags.suspicious?(result.title, result.size_bytes) and
           not MapSet.member?(excluded, result.guid) and
           TitleMatcher.matches?(result, criteria) and
           Quality.acceptable?(result.quality, plan_prefs.min_quality, plan_prefs.max_quality)
@@ -190,6 +191,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
                 assigned_term: term,
                 assigned_quality: Quality.label(result.quality),
                 assigned_seeders: result.seeders,
+                assigned_size_bytes: result.size_bytes,
                 assigned_scope: nil
               })
             )

@@ -80,14 +80,16 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
                 title: "Sample.Show.S01.2160p.WEB-DL.x265-GROUP",
                 scope_label: "Season 1 pack",
                 quality: "4K",
-                seeders: 12
+                seeders: 12,
+                size_bytes: 28_000_000_000
               },
               %PlanBoard.Alternative{
                 guid: "alt-single",
                 title: "Sample.Show.S01E01.1080p.WEB-DL.x264",
                 scope_label: "S01E01",
                 quality: "1080p",
-                seeders: 41
+                seeders: 41,
+                size_bytes: 2_100_000_000
               },
               %PlanBoard.Alternative{
                 guid: "alt-evil",
@@ -95,6 +97,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
                 scope_label: "S01E01",
                 quality: "1080p",
                 seeders: 999,
+                size_bytes: 4_000_000,
                 suspicious?: true
               }
             ]
@@ -171,7 +174,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         %PlanBoard.SeasonRow{season_number: 2, cells: [cell(2, 1, :searching, nil)]}
       ],
       releases: [release("pack", "Season 1 pack", 2)],
-      gaps: []
+      gaps: [],
+      total_size_bytes: 6_200_000_000
     }
   end
 
@@ -200,7 +204,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         release("pack", "Season 1 pack", 3),
         release("single", "S02E01", 1)
       ],
-      gaps: ["S02E02 · Finale"]
+      gaps: ["S02E02 · Finale"],
+      total_size_bytes: 12_400_000_000
     }
   end
 
@@ -223,6 +228,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       scope_label: scope,
       quality: "1080p",
       seeders: 34,
+      size_bytes: 3_100_000_000 * units_count,
       units_count: units_count,
       swap_unit_id: "story-unit-1-1"
     }

@@ -190,14 +190,24 @@ defmodule MediaCentaur.Acquisition.PlansTest do
             results =
               case query do
                 "Sample Show Season 1" ->
-                  [release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})]
+                  [
+                    release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{
+                      seeders: 30,
+                      size: 9_200_000_000
+                    })
+                  ]
 
                 "Sample Show S01E01" ->
                   [
-                    release("Sample.Show.S01E01.2160p.WEB-DL.x265", "e1-uhd", %{seeders: 8}),
-                    # Bait: must never be auto-picked, must appear flagged.
-                    release("Sample.Show.S01E01.1080p.HD.X264.1080p.exe", "e1-evil", %{
-                      seeders: 999
+                    release("Sample.Show.S01E01.2160p.WEB-DL.x265", "e1-uhd", %{
+                      seeders: 8,
+                      size: 2_400_000_000
+                    }),
+                    # Bait: clean-looking name, implausible 4MB payload —
+                    # the size floor must catch it without the exe token.
+                    release("Sample.Show.S01E01.1080p.WEB-DL.x264", "e1-evil", %{
+                      seeders: 999,
+                      size: 4_000_000
                     })
                   ]
 
@@ -230,6 +240,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert [clean, evil] = alternatives
       assert clean.guid == "e1-uhd"
       refute clean.suspicious?
+      assert clean.size_bytes == 2_400_000_000
       assert evil.guid == "e1-evil"
       assert evil.suspicious?
 
@@ -237,7 +248,9 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert {:ok, _plan} = Plans.choose_release(first_unit.id, "e1-uhd")
 
       units = Plans.units_for(plan.id)
-      assert Enum.find(units, &(&1.episode_number == 1)).assigned_guid == "e1-uhd"
+      chosen_unit = Enum.find(units, &(&1.episode_number == 1))
+      assert chosen_unit.assigned_guid == "e1-uhd"
+      assert chosen_unit.assigned_size_bytes == 2_400_000_000
       assert Enum.find(units, &(&1.episode_number == 2)).assigned_guid == "pack-s1"
       assert Enum.find(units, &(&1.episode_number == 3)).assigned_guid == "pack-s1"
     end

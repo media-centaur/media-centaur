@@ -243,7 +243,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     results
     |> Enum.reduce({nil, "no_title_match"}, fn result, {best, outcome} = acc ->
       cond do
-        ReleaseRedFlags.suspicious?(result.title) ->
+        ReleaseRedFlags.suspicious?(result.title, result.size_bytes) ->
           acc
 
         MapSet.member?(excluded, result.guid) ->

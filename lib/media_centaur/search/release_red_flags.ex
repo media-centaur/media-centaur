@@ -23,8 +23,26 @@ defmodule MediaCentaur.Search.ReleaseRedFlags do
   # Password-protected archive bait.
   @password_bait ~r/\bpassword\b/i
 
+  # No legitimate video release is this small — the classic bait payload
+  # is a 1–5MB executable. Conservative floor: real episodes start around
+  # 50MB even at SD; 25MB keeps a wide margin against false positives.
+  @min_plausible_video_bytes 25 * 1024 * 1024
+
   @spec suspicious?(String.t()) :: boolean()
   def suspicious?(title) when is_binary(title) do
     Regex.match?(@executable_token, title) or Regex.match?(@password_bait, title)
+  end
+
+  @doc """
+  Full-result check: the title patterns plus a size floor — a release
+  claiming video content at under #{div(@min_plausible_video_bytes, 1024 * 1024)}MB
+  is bait regardless of what it's named. Unknown size falls back to the
+  title check alone.
+  """
+  @spec suspicious?(String.t(), integer() | nil) :: boolean()
+  def suspicious?(title, nil), do: suspicious?(title)
+
+  def suspicious?(title, size_bytes) when is_integer(size_bytes) do
+    suspicious?(title) or size_bytes < @min_plausible_video_bytes
   end
 end
