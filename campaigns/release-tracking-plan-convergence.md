@@ -413,14 +413,32 @@ use-case inventory.
    * The multi-unit tmdb satisfaction residual (media-search risk #6)
      still open — multi-unit tracking pursuits are now common; watch
      reconciler behavior during soak.
-3. **Handoffs** — gap handoff at plan approval (unfound → gap-provenance
-   wants); "grab future" opt-in → track on pursuit completion. Closes
-   media-search Phase 4.
-4. **Retirement + surfaces** — delete the legacy auto path
-   (Reactor/Handlers arm, `AutoGrabPolicy`, `ArmAll`, worker patience
-   window + auto re-search, `find_by_tmdb_recipe`); tracking-page
-   "watching for" states; awaiting-approval drop-plan surface on
-   Downloads; wiki sync (auto-grab behavior, modes, new flow).
+3. ✅ **Handoffs** — SHIPPED 2026-06-10 (commit `8a6b8137`).
+   `TrackingHandoffs`: gap handoff live on the plan board's pre-built
+   "Track these later" button (unfound units → gap-provenance wants;
+   track created via supervised TMDB fetch when needed; idempotent);
+   grab-future fires post-transaction in `Commands.Satisfy` strictly on
+   `satisfied` (never `partial`). Targeting closes the per-unit
+   residual: `Episode.tracked?` (open want ∧ mode grabs), picker
+   "Tracked" tag, defaults/presets subtract tracked while units stay
+   pickable (explicit override). User-initiated "plan now" drafts share
+   the cancel-dismisses back-pointer (`tracking_item_id` regardless of
+   origin). **Closes media-search campaign Phase 4.**
+4. **Retirement + surfaces** — IN PROGRESS. Ordering constraint
+   (risk #5, now LIVE post-cutover): the upcoming-page release
+   decoration still reads pursuits via `statuses_for_releases`/`ArmAll`
+   — with the reactor no longer arming, fresh wants show no "searching"
+   state anywhere. **Re-point the decoration onto the want ledger
+   FIRST** (want states: watching / planned / pursued / satisfied),
+   then Downloads open-wants count+link, then the `ask` mode in the
+   auto-grab settings UI, then the deletion sweep
+   (`Handlers.release_ready`, `AutoGrabPolicy`, `ArmAll` +
+   `enqueue_all_pending_for_item`, `find_by_tmdb_recipe`, the sweep's
+   per-release `release_ready` broadcast + `broadcast_releases_ready`,
+   the worker's 4K-patience window — feature tests delete with their
+   features), then wiki sync (auto-grab modes, drop-plan flow,
+   media-search pages). Note: mode-off mid-flight auto-cancel (Q11
+   deferral) belongs here too.
 
 ## Risk surface
 

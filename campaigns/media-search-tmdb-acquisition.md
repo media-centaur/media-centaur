@@ -1,5 +1,5 @@
 ---
-status: in-progress (Phases 1–3 COMPLETE incl. UI; Phase 4 re-homed to release-tracking-plan-convergence; remaining here = wiki sync + closure reconciliation)
+status: in-progress (Phases 1–3 COMPLETE incl. UI; Phase 4 re-homed AND SHIPPED 2026-06-10 via release-tracking-plan-convergence commit 8a6b8137; remaining here = wiki sync + closure reconciliation)
 started: 2026-05-31
 last_updated: 2026-06-10
 ---
