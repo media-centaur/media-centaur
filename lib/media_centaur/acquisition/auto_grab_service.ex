@@ -9,8 +9,8 @@ defmodule MediaCentaur.Acquisition.AutoGrabService do
   snoozed/searching grabs stop firing.
 
   Manual grabs and `:item_removed` cancellation always work regardless
-  of this flag; it gates only `:release_ready`-triggered arming and the
-  Oban-driven search/snooze loop.
+  of this flag; it gates only the Oban-driven search/snooze loop (the
+  `:acquisition` queue).
   """
 
   alias MediaCentaur.Settings

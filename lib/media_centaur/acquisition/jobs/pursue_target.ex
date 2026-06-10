@@ -62,7 +62,6 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   alias MediaCentaur.Search.{
     Prowlarr,
     Quality,
-    QualityWindow,
     QueryBuilder,
     ReleaseRedFlags,
     TitleMatcher
@@ -158,24 +157,17 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     end
   end
 
-  # Quality bounds live on the pursuit's `criteria` map. The
-  # 4K-patience window can elevate the floor to "uhd_4k" while the
-  # pursuit is young and max includes 4K.
+  # Quality bounds live on the pursuit's `criteria` map, read as-is.
+  # 4K patience is a want-ledger concern applied at plan time as a
+  # quality-floor elevation (ADR-056 Q4) — the worker serves query-door
+  # pursuits and failed-grab degradation, where the user already picked
+  # the release, so a time-based floor has no meaning here.
   defp effective_bounds(%Pursuit{} = pursuit) do
     settings = AutoGrabSettings.load()
     criteria = pursuit.criteria || %{}
     min = Map.get(criteria, "min_quality") || settings.default_min_quality
     max = Map.get(criteria, "max_quality") || settings.default_max_quality
-    patience_hours = Map.get(criteria, "quality_4k_patience_hours") || settings.patience_hours
-
-    snapshot = %{
-      min_quality: min,
-      max_quality: max,
-      quality_4k_patience_hours: patience_hours,
-      inserted_at: pursuit.inserted_at
-    }
-
-    {QualityWindow.min_at(snapshot, DateTime.utc_now()), max}
+    {min, max}
   end
 
   @outcome_rank %{

@@ -120,12 +120,11 @@ defmodule MediaCentaur.Acquisition do
 
   alias MediaCentaur.Search.{Prowlarr, QueryExpander, SearchResult}
 
-  alias MediaCentaur.Acquisition.Pursuits.Commands.{Arm, ArmAll, PickTarget, StartFromPick}
+  alias MediaCentaur.Acquisition.Pursuits.Commands.{PickTarget, StartFromPick}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Recipe, Units}
   alias MediaCentaur.Acquisition.Pursuits, as: PursuitsContext
 
   alias MediaCentaur.Downloads.DownloadClient.Dispatcher
-  alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.Topics
 
   # ---------------------------------------------------------------------------
@@ -621,45 +620,6 @@ defmodule MediaCentaur.Acquisition do
   end
 
   @doc """
-  Enqueues an automated acquisition for a TMDB target.
-
-  Idempotent on the four-tuple `(tmdb_id, tmdb_type, season_number,
-  episode_number)` — a second call for the same tuple returns the
-  existing pursuit's current target without re-enqueueing the job
-  (the Oban worker is unique-keyed too).
-
-  Options:
-  - `:season_number` — integer season (TV episodes/season packs)
-  - `:episode_number` — integer episode (TV episodes only)
-  - `:year` — integer release year (movies — used in the Prowlarr query)
-  - `:min_quality`, `:max_quality`, `:quality_4k_patience_hours` —
-    recorded on the pursuit's `criteria` map for the worker to read
-  """
-  @spec enqueue(String.t(), String.t(), String.t(), keyword()) ::
-          {:ok, Target.t()} | {:error, term()}
-  def enqueue(tmdb_id, tmdb_type, title, opts \\ []) do
-    criteria =
-      %{
-        "min_quality" => Keyword.get(opts, :min_quality),
-        "max_quality" => Keyword.get(opts, :max_quality),
-        "quality_4k_patience_hours" => Keyword.get(opts, :quality_4k_patience_hours)
-      }
-      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
-      |> Map.new()
-
-    Arm.execute(%{
-      tmdb_id: tmdb_id,
-      tmdb_type: tmdb_type,
-      title: title,
-      year: Keyword.get(opts, :year),
-      season_number: Keyword.get(opts, :season_number),
-      episode_number: Keyword.get(opts, :episode_number),
-      origin: Keyword.get(opts, :origin, "auto"),
-      criteria: criteria
-    })
-  end
-
-  @doc """
   Batch lookup: given a list of `(tmdb_id, tmdb_type, season_number,
   episode_number)` keys, returns a map keyed by the same tuple →
   `{pursuit, current_target | nil}`.
@@ -667,52 +627,20 @@ defmodule MediaCentaur.Acquisition do
   Used by the upcoming-zone renderer to decorate each release card
   with its acquisition status without N+1ing the DB.
   """
-  @spec statuses_for_releases([ArmAll.key()]) ::
-          %{ArmAll.key() => {Pursuit.t(), Target.t() | nil}}
-  defdelegate statuses_for_releases(keys), to: ArmAll
+  @spec statuses_for_releases([PursuitsContext.release_key()]) ::
+          %{PursuitsContext.release_key() => {Pursuit.t(), Target.t() | nil}}
+  defdelegate statuses_for_releases(keys), to: PursuitsContext
 
   @doc """
   User-initiated "plan now" for a tracked item — plans all open
   unclaimed wants as a ready draft for the user to steer and approve.
-  See `MediaCentaur.Acquisition.DropPlanner.plan_item_now/2`. Replaces
-  `enqueue_all_pending_for_item/1` as the bulk gesture (ADR-056).
+  See `MediaCentaur.Acquisition.DropPlanner.plan_item_now/2`. The bulk
+  gesture since ADR-056 (the legacy queue-everything path is gone).
   """
   defdelegate plan_tracked_item_now(item_id), to: DropPlanner, as: :plan_item_now
 
   @doc "See `MediaCentaur.Acquisition.TrackingHandoffs.track_plan_gaps_async/1`."
   defdelegate track_plan_gaps_async(plan_id), to: TrackingHandoffs
-
-  @doc """
-  Bulk-enqueues acquisitions for every release of a tracked item that
-  is released, not in the library, and of an acquirable type. Behaviour
-  by pursuit/target state:
-
-  - **No pursuit** → enqueue a new one (`queued`)
-  - **Cancelled / failed target** → re-arm via `ChangeTarget` (`rearmed`)
-  - **In flight** (`seeking`) or **acquired** → skip (`in_progress`)
-  - **Succeeded** → skip (`already_acquired`)
-
-  > **Deprecated by ADR-056** — no remaining UI caller; retired fully
-  > in the convergence campaign's Phase 4 along with `ArmAll`.
-  """
-  @spec enqueue_all_pending_for_item(item_id :: String.t()) ::
-          {:ok, ArmAll.summary()} | {:error, :not_found}
-  def enqueue_all_pending_for_item(item_id) do
-    with {:ok,
-          %{
-            tmdb_id: tmdb_id,
-            tmdb_type: tmdb_type,
-            name: name,
-            pending_releases: pending
-          }} <- ReleaseTracking.list_pending_acquirable_releases_for_item(item_id) do
-      ArmAll.execute(%{
-        tmdb_id: tmdb_id,
-        tmdb_type: tmdb_type,
-        name: name,
-        releases: pending
-      })
-    end
-  end
 
   @doc "See `Acquisition.Targets.list_auto_targets/1`."
   defdelegate list_auto_targets(filter \\ :all), to: Targets

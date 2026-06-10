@@ -7,7 +7,6 @@ defmodule MediaCentaur.Search do
       QueryBuilder,
       QueryExpander,
       Quality,
-      QualityWindow,
       ReleaseCoverage,
       ReleaseRedFlags,
       SearchProvider,
@@ -26,9 +25,8 @@ defmodule MediaCentaur.Search do
     * **Query construction** — `QueryBuilder` and `QueryExpander`
       assemble TMDB-derived inputs into the search-string variants
       that Prowlarr supports.
-    * **Result classification** — `Quality`, `QualityWindow`, and
-      `TitleMatcher` rank and filter results into the windows
-      pursuits can act on.
+    * **Result classification** — `Quality` and `TitleMatcher` rank
+      and filter results into the windows pursuits can act on.
     * **Provider abstraction** — `SearchProvider` is the seam for
       future indexer drivers (e.g. Jackett); every cross-boundary
       caller goes through this layer.

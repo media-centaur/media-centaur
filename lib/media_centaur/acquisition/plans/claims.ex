@@ -74,9 +74,9 @@ defmodule MediaCentaur.Acquisition.Plans.Claims do
   end
 
   # A pursuit's claimed units. Identity lives on units (ADR-055):
-  # `Commands.Arm` stamps season/episode at creation and the
-  # `BackfillUnitIdentity` data migration covered pre-existing rows, so
-  # there is no parent-level fallback here.
+  # every pursuit creation path stamps season/episode on the unit and
+  # the `BackfillUnitIdentity` data migration covered pre-existing
+  # rows, so there is no parent-level fallback here.
   defp claimed_units(%Pursuit{} = pursuit) do
     pursuit.id
     |> Units.for_pursuit()

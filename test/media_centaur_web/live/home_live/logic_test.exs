@@ -513,8 +513,8 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
   describe "section_reloaders/1" do
     test "raw source events no longer reload anything directly" do
       # Source events (`:entities_changed`, `:watch_event_created`,
-      # `:entity_progress_updated`, `:releases_updated`, `:item_removed`,
-      # `:release_ready`) now flow into the Library.Views and
+      # `:entity_progress_updated`, `:releases_updated`, `:item_removed`)
+      # now flow into the Library.Views and
       # ReleaseTracking.Views projections, which broadcast
       # `:library_view_updated` / `:release_tracking_view_updated`
       # after each ETS rebuild. The LiveView reacts only to those
@@ -526,7 +526,6 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
 
       assert Logic.section_reloaders({:releases_updated, ["item-1"]}) == []
       assert Logic.section_reloaders({:item_removed, "12345", "movie"}) == []
-      assert Logic.section_reloaders({:release_ready, %{id: "item"}, %{id: "release"}}) == []
       assert Logic.section_reloaders({:watch_event_created, %{id: "event-1"}}) == []
 
       msg =
