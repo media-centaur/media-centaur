@@ -187,10 +187,10 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # session, download-client capability, active pursuit rows, history
   # rows). All local; running them inline keeps the first paint correct.
   # Ambient page backdrop — same ETS-backed hero-candidate pool the
-  # home/library pages draw from; the alt-hero pick keeps it from
-  # mirroring the home hero. Nil (no library content) renders nothing.
+  # home/library pages draw from, in the downloads page's own slot so
+  # no backdrop repeats across pages when the pool allows.
   defp page_backdrop do
-    case HomeLogic.select_alt_hero(MediaCentaur.Library.Views.hero_candidates()) do
+    case HomeLogic.select_page_hero(MediaCentaur.Library.Views.hero_candidates(), 2) do
       %{backdrop_url: url} when is_binary(url) -> url
       _ -> nil
     end

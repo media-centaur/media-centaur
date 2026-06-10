@@ -87,6 +87,43 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
     end
   end
 
+  describe "select_page_hero/3 — one backdrop per page" do
+    test "the three page slots are pairwise distinct when the pool allows" do
+      candidates = Enum.map(1..6, &%{id: &1})
+      now = ~U[2026-06-10 12:00:00Z]
+
+      picks = for page <- 0..2, do: Logic.select_page_hero(candidates, page, now)
+
+      assert length(Enum.uniq_by(picks, & &1.id)) == 3
+    end
+
+    test "a three-candidate pool still gives every page its own pick" do
+      candidates = Enum.map(1..3, &%{id: &1})
+      now = ~U[2026-06-10 12:00:00Z]
+
+      picks = for page <- 0..2, do: Logic.select_page_hero(candidates, page, now)
+
+      assert length(Enum.uniq_by(picks, & &1.id)) == 3
+    end
+
+    test "tiny pools degrade gracefully" do
+      now = ~U[2026-06-10 12:00:00Z]
+      [a, b] = candidates = [%{id: 1}, %{id: 2}]
+
+      assert Logic.select_page_hero(candidates, 0, now) in [a, b]
+      assert Logic.select_page_hero([%{id: 1}], 2, now) == %{id: 1}
+      assert Logic.select_page_hero([], 1, now) == nil
+    end
+
+    test "select_alt_hero remains page slot 1" do
+      candidates = Enum.map(1..5, &%{id: &1})
+      now = ~U[2026-06-10 12:00:00Z]
+
+      assert Logic.select_alt_hero(candidates, now) ==
+               Logic.select_page_hero(candidates, 1, now)
+    end
+  end
+
   describe "select_alt_hero/2" do
     test "returns nil for an empty candidate list" do
       assert Logic.select_alt_hero([], ~U[2026-04-27 12:00:00Z]) == nil

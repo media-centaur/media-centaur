@@ -57,14 +57,31 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
   returns that sole candidate. Returns `nil` for an empty list.
   """
   @spec select_alt_hero([map()], DateTime.t()) :: map() | nil
-  def select_alt_hero(candidates, now \\ DateTime.utc_now())
-  def select_alt_hero([], _now), do: nil
-  def select_alt_hero([single], _now), do: single
+  def select_alt_hero(candidates, now \\ DateTime.utc_now()) do
+    select_page_hero(candidates, 1, now)
+  end
 
-  def select_alt_hero(candidates, %DateTime{} = now) do
+  # Pages that render an ambient backdrop, in slot order: 0 = home hero,
+  # 1 = library, 2 = downloads. Used to space the picks across the pool.
+  @hero_pages 3
+
+  @doc """
+  Page-keyed hero pick: every backdrop-bearing page gets its own slot so
+  no two pages show the same artwork whenever the pool allows
+  (`count >= #{@hero_pages}`). Slots are spaced evenly across the pool
+  and ride the same #{@rotation_hours}-hour rotation. Small pools
+  degrade gracefully: two candidates alternate, one is shared.
+  """
+  @spec select_page_hero([map()], non_neg_integer(), DateTime.t()) :: map() | nil
+  def select_page_hero(candidates, page_index, now \\ DateTime.utc_now())
+  def select_page_hero([], _page_index, _now), do: nil
+  def select_page_hero([single], _page_index, _now), do: single
+
+  def select_page_hero(candidates, page_index, %DateTime{} = now) do
     blocks = div(DateTime.to_unix(now), @rotation_hours * 3600)
     count = length(candidates)
-    Enum.at(candidates, rem(blocks + div(count, 2), count))
+    spacing = max(div(count, @hero_pages), 1)
+    Enum.at(candidates, rem(blocks + page_index * spacing, count))
   end
 
   @doc "Shape Library progress rows into ContinueWatchingRow items."
