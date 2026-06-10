@@ -1709,16 +1709,11 @@ body:has(.modal-backdrop[data-state="open"]) {
    classes handle the glyph-level shadow). */
 .identity-hero-scrim {
   background:
-    linear-gradient(
-      180deg,
-      oklch(13% 0.02 264 / 0.25) 0%,
-      oklch(13% 0.02 264 / 0.35) 30%,
-      var(--color-base-100) 100%
-    ),
+    linear-gradient(180deg, transparent 0%, transparent 30%, var(--color-base-100) 100%),
     linear-gradient(
       90deg,
-      oklch(13% 0.02 264 / 0.85) 0%,
-      oklch(13% 0.02 264 / 0.55) 55%,
-      oklch(13% 0.02 264 / 0.3) 100%
+      oklch(13% 0.02 264 / 0.75) 0%,
+      oklch(13% 0.02 264 / 0.35) 55%,
+      oklch(13% 0.02 264 / 0.1) 100%
     );
 }
