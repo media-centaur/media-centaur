@@ -70,6 +70,41 @@ defmodule MediaCentaur.Acquisition.Pursuits.IdentityVerifierTest do
       assert mismatch.payload["observed"] =~ "Different"
     end
 
+    test "mismatch description reads the unit's identity, not the parent's (ADR-055)" do
+      # Plan-created tmdb pursuits carry season/episode only on units —
+      # the parent columns are the auto-path idempotency key and may be
+      # nil. The "expected X" description must still name the episode.
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          tmdb_id: "300",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          year: nil,
+          season_number: 2,
+          episode_number: 7
+        })
+
+      {:ok, pursuit} =
+        pursuit
+        |> Ecto.Changeset.change(season_number: nil, episode_number: nil)
+        |> Repo.update()
+
+      unit = MediaCentaur.Acquisition.Pursuits.Units.single!(pursuit.id)
+
+      {:ok, _unit} =
+        unit
+        |> Ecto.Changeset.change(season_number: 2, episode_number: 7)
+        |> Repo.update()
+
+      path = "/watch/tv/Other.Show.S05E05.1080p.WEB-DL.mkv"
+
+      assert :ok = IdentityVerifier.perform(job(pursuit, path))
+
+      events = Repo.all(Event)
+      mismatch = Enum.find(events, &(&1.kind == "identity_mismatch"))
+      assert mismatch.payload["expected"] == "Sample Show S02E07"
+    end
+
     test "wrong episode number → mismatch (S01E04 should not satisfy a S01E03 pursuit)" do
       {pursuit, _target} =
         create_pursuit_with_target(%{

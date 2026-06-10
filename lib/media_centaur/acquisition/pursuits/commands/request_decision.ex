@@ -14,9 +14,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.RequestDecision do
   Alternatives are fetched just-in-time when the user opens the
   decision card.
 
-  Accepts an optional `:unit_id`; without one the unit resolves via
-  `Units.single!/1` (every pursuit is single-unit until the batch-grab
-  collapse lands — ADR-055).
+  Accepts an optional `:unit_id` (the unit-board drill-down passes
+  one). Without it, the request acts on the lead unit — the same
+  thread the modal displays (`Units.lead_of/1`), so the pursuit-level
+  button works on multi-unit composites too.
 
   Idempotent: re-issuing the command on a unit that already has
   `awaiting_decision_at` set is a no-op and returns `{:ok, pursuit}`.
@@ -56,5 +57,5 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.RequestDecision do
     unit
   end
 
-  defp resolve_unit(pursuit, _args), do: Units.single!(pursuit.id)
+  defp resolve_unit(pursuit, _args), do: Units.lead(pursuit.id)
 end

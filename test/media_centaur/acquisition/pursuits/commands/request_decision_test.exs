@@ -43,5 +43,19 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.RequestDecisionTest do
       assert {:error, :not_found} =
                RequestDecision.execute(%{pursuit_id: Ecto.UUID.generate(), prompt: "X"})
     end
+
+    test "without unit_id on a multi-unit pursuit, acts on the lead unit instead of raising" do
+      # Plan-created composites are multi-unit; the pursuit-level
+      # decision request (modal button, no unit-id param) must land on
+      # the lead thread — the same one the modal displays.
+      pursuit = TestFactory.create_pursuit()
+      _second_unit = TestFactory.create_pursuit_unit(pursuit, %{position: 1})
+
+      assert {:ok, %Pursuit{}} =
+               RequestDecision.execute(%{pursuit_id: pursuit.id, prompt: "X"})
+
+      lead = Units.lead(pursuit.id)
+      assert %DateTime{} = lead.awaiting_decision_at
+    end
   end
 end

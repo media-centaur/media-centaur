@@ -62,6 +62,15 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Arm do
         |> Map.put(:recipe_type, "tmdb")
         |> Map.put_new(:origin, "auto")
         |> Map.put_new(:criteria, %{})
+        # Identity lives on the unit (ADR-055): the single unit carries
+        # the episode it covers, so unit-level readers (overlap check,
+        # identity description) never fall back to the parent.
+        |> Map.put(:units, [
+          %{
+            season_number: Map.get(args, :season_number),
+            episode_number: Map.get(args, :episode_number)
+          }
+        ])
         |> Start.execute()
 
       %Pursuit{} = pursuit ->

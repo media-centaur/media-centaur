@@ -105,16 +105,15 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
     end
   end
 
-  # A pursuit's claimed units: unit-level identity where present,
-  # falling back to the legacy pursuit-level key (single-unit auto
-  # pursuits carry season/episode on the parent).
+  # A pursuit's claimed units. Identity lives on units (ADR-055):
+  # `Commands.Arm` stamps season/episode at creation and the
+  # `BackfillUnitIdentity` data migration covered pre-existing rows, so
+  # there is no parent-level fallback here.
   defp claimed_units(%Pursuit{} = pursuit) do
     pursuit.id
     |> Units.for_pursuit()
     |> Enum.filter(&(&1.state == "active"))
-    |> Enum.map(fn unit ->
-      {unit.season_number || pursuit.season_number, unit.episode_number || pursuit.episode_number}
-    end)
+    |> Enum.map(&{&1.season_number, &1.episode_number})
     |> Enum.reject(&(&1 == {nil, nil}))
   end
 

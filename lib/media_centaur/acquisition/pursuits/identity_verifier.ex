@@ -26,7 +26,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.IdentityVerifier do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition.Pursuits
-  alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit, Recipe, State}
+  alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit, Recipe, State, Unit, Units}
   alias MediaCentaur.Acquisition.Pursuits.Commands.{Cancel, Satisfy}
   alias MediaCentaur.Acquisition.Pursuits.Events.{IdentityMismatch, IdentityVerified}
   alias MediaCentaur.Search.{SearchResult, TitleMatcher}
@@ -80,9 +80,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.IdentityVerifier do
   end
 
   defp reject(pursuit, file_path, basename) do
+    expected = describe(pursuit, Units.lead(pursuit.id))
+
     Log.warning(
       :acquisition,
-      "identity mismatch — pursuit expected #{describe(pursuit)}, file is #{basename}"
+      "identity mismatch — pursuit expected #{expected}, file is #{basename}"
     )
 
     {:ok, _event} =
@@ -90,7 +92,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.IdentityVerifier do
         pursuit_id: pursuit.id,
         pursuit_title: pursuit.title,
         occurred_at: DateTime.utc_now(:second),
-        expected: describe(pursuit),
+        expected: expected,
         observed: basename,
         file_path: file_path
       })
@@ -102,14 +104,19 @@ defmodule MediaCentaur.Acquisition.Pursuits.IdentityVerifier do
     })
   end
 
-  defp describe(%Pursuit{tmdb_type: "tv", title: title, season_number: season, episode_number: episode})
+  # Episode identity lives on the unit (ADR-055) — plan-created tmdb
+  # pursuits carry no parent-level season/episode at all.
+  defp describe(%Pursuit{tmdb_type: "tv", title: title}, %Unit{
+         season_number: season,
+         episode_number: episode
+       })
        when is_integer(season) and is_integer(episode) do
     "#{title} #{Format.episode_label(season, episode)}"
   end
 
-  defp describe(%Pursuit{title: title, year: year}) when is_integer(year) do
+  defp describe(%Pursuit{title: title, year: year}, _unit) when is_integer(year) do
     "#{title} (#{year})"
   end
 
-  defp describe(%Pursuit{title: title}), do: title
+  defp describe(%Pursuit{title: title}, _unit), do: title
 end

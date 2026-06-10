@@ -268,6 +268,29 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert {:error, {:overlap, [{1, 1}]}} = Plans.approve(second_plan)
     end
 
+    test "approve rejects against an auto-armed pursuit purely via unit identity" do
+      # Pin for the ADR-055 retirement: the overlap check reads unit
+      # identity only (no parent-level fallback), so an Arm-created
+      # pursuit must be visible through its unit.
+      stub_ladder_results()
+
+      {:ok, _target} =
+        Oban.Testing.with_testing_mode(:manual, fn ->
+          MediaCentaur.Acquisition.Pursuits.Commands.Arm.execute(%{
+            tmdb_id: selection().tmdb_id,
+            tmdb_type: "tv",
+            title: "Sample Show",
+            season_number: 1,
+            episode_number: 1
+          })
+        end)
+
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+      {:ok, plan} = Plans.get(plan.id)
+
+      assert {:error, {:overlap, [{1, 1}]}} = Plans.approve(plan)
+    end
+
     test "a plan with nothing found cannot be approved; discard closes it out" do
       # Default stub returns no results anywhere.
       {:ok, plan} = Plans.create_series_plan(selection(), [{2, 1}])
