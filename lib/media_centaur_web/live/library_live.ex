@@ -329,15 +329,15 @@ defmodule MediaCentaurWeb.LibraryLive do
       <div class="relative" data-page-behavior="library" data-nav-default-zone="library">
         <%!-- Calm backdrop band behind the header — a sense of place that
               ties the browse page to the home page's visual language without
-              a full hero. Masked + dimmed by `.library-atmosphere`. --%>
-        <div :if={@hero_backdrop} class="library-atmosphere" aria-hidden="true">
+              a full hero. Masked + dimmed by `.page-atmosphere`. --%>
+        <div :if={@hero_backdrop} class="page-atmosphere" aria-hidden="true">
           <img src={@hero_backdrop} alt="" loading="eager" decoding="sync" />
         </div>
         <%!-- Same fixed dark scrim the home page uses (left-weighted + a
               vertical dim that holds down the page) so the library reads as a
               rich dark surface rather than flat grey. It sits behind the grid
               (z-0), so it darkens the background, never the posters. --%>
-        <div :if={@hero_backdrop} class="library-side-dim" aria-hidden="true"></div>
+        <div :if={@hero_backdrop} class="page-side-dim" aria-hidden="true"></div>
 
         <div class="relative z-[1]">
           <header class="mb-5">

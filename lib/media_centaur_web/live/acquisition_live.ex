@@ -86,6 +86,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
   alias MediaCentaurWeb.AcquisitionLive.PlanLogic
+  alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
 
   alias MediaCentaurWeb.Components.Acquisition.{
     MediaOmnibox,
@@ -115,6 +116,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       {:ok,
        assign(socket,
          loaded?: false,
+         page_backdrop: page_backdrop(),
          search_session: %MediaCentaur.Search.SearchSession{},
          active_queue: [],
          queue_status: :initializing,
@@ -184,6 +186,16 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # Synchronous first-render load of the four initial reads (search
   # session, download-client capability, active pursuit rows, history
   # rows). All local; running them inline keeps the first paint correct.
+  # Ambient page backdrop — same ETS-backed hero-candidate pool the
+  # home/library pages draw from; the alt-hero pick keeps it from
+  # mirroring the home hero. Nil (no library content) renders nothing.
+  defp page_backdrop do
+    case HomeLogic.select_alt_hero(MediaCentaur.Library.Views.hero_candidates()) do
+      %{backdrop_url: url} when is_binary(url) -> url
+      _ -> nil
+    end
+  end
+
   defp load_acquisition(socket) do
     session = Acquisition.current_search_session()
 
@@ -424,119 +436,127 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
         />
       </:overlays>
-      <div
-        data-page-behavior="download"
-        data-nav-default-zone="pursuits"
-        class="max-w-4xl mx-auto space-y-6 py-6"
-      >
-        <h1 class="text-2xl font-bold">Downloads</h1>
+      <div class="relative" data-page-behavior="download" data-nav-default-zone="pursuits">
+        <%!-- Same ambient treatment as the home/library pages: a calm
+              backdrop band behind the header (masked + dimmed by
+              `.page-atmosphere`) plus the fixed side scrim, both behind
+              the content (z-0) so they enrich the surface, never the
+              cards. --%>
+        <div :if={@page_backdrop} class="page-atmosphere" aria-hidden="true">
+          <img src={@page_backdrop} alt="" loading="eager" decoding="sync" />
+        </div>
+        <div :if={@page_backdrop} class="page-side-dim" aria-hidden="true"></div>
 
-        <MediaOmnibox.media_omnibox
-          mode={@omnibox_mode}
-          query={@omnibox_query}
-          results={@omnibox_results}
-          searching?={@omnibox_searching?}
-          session={@search_session}
-          any_loading?={@any_loading?}
-        />
+        <div class="relative z-[1] max-w-4xl mx-auto space-y-6 py-6">
+          <h1 class="text-2xl font-bold">Downloads</h1>
 
-        <Search.search_zone
-          :if={@omnibox_mode == :release}
-          session={@search_session}
-          any_loading?={@any_loading?}
-          timeout_terms={@timeout_terms}
-        />
+          <MediaOmnibox.media_omnibox
+            mode={@omnibox_mode}
+            query={@omnibox_query}
+            results={@omnibox_results}
+            searching?={@omnibox_searching?}
+            session={@search_session}
+            any_loading?={@any_loading?}
+          />
 
-        <section :if={@plan_drafts != []} data-nav-zone="drafts" class="space-y-3">
-          <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-            Draft plans
-          </h2>
-          <div class="grid grid-cols-1 gap-2">
-            <div
-              :for={draft <- @plan_drafts}
-              id={"plan-draft-#{draft.id}"}
-              class="identity-banner flex items-center gap-3 px-4 py-3"
-              style={"--banner-hue: #{banner_hue(draft.title)}"}
-            >
-              <span class="absolute top-2 left-3 text-[10px] uppercase tracking-wider text-base-content/40">
-                Draft
-              </span>
-              <div class="min-w-0 flex-1 pt-3">
-                <p class="identity-logotype truncate text-base leading-tight">{draft.title}</p>
-                <p class="text-xs text-info/90 mt-1 [text-shadow:0_1px_3px_oklch(0%_0_0/0.5)]">
-                  {if draft.status == "planning",
-                    do: "Planning…",
-                    else: "Plan ready — review and approve"}
-                </p>
-              </div>
-              <.button
-                variant="secondary"
-                size="sm"
-                phx-click="resume_plan"
-                phx-value-id={draft.id}
-                data-nav-item
-                tabindex="0"
-              >
-                Review plan
-              </.button>
-            </div>
-          </div>
-        </section>
+          <Search.search_zone
+            :if={@omnibox_mode == :release}
+            session={@search_session}
+            any_loading?={@any_loading?}
+            timeout_terms={@timeout_terms}
+          />
 
-        <p
-          :if={!@download_client_ready}
-          class="glass-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/50"
-        >
-          Connect a download client in
-          <.link navigate="/settings?section=acquisition" class="link link-primary">Settings</.link>
-          to see live torrent activity under each pursuit.
-        </p>
-
-        <section :if={@paired_rows != []} data-nav-zone="pursuits" class="space-y-3">
-          <div class="flex items-center justify-between gap-3">
+          <section :if={@plan_drafts != []} data-nav-zone="drafts" class="space-y-3">
             <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-              Active pursuits
+              Draft plans
             </h2>
-            <div :if={@download_client_ready} class="flex items-center gap-2">
-              <QueueStatusBadge.queue_status_badge status={@queue_status} />
-              <span
-                :if={!@queue_loaded?}
-                class="loading loading-spinner loading-xs text-base-content/30"
+            <div class="grid grid-cols-1 gap-2">
+              <div
+                :for={draft <- @plan_drafts}
+                id={"plan-draft-#{draft.id}"}
+                class="identity-banner flex items-center gap-3 px-4 py-3"
+                style={"--banner-hue: #{banner_hue(draft.title)}"}
               >
-              </span>
+                <span class="absolute top-2 left-3 text-[10px] uppercase tracking-wider text-base-content/40">
+                  Draft
+                </span>
+                <div class="min-w-0 flex-1 pt-3">
+                  <p class="identity-logotype truncate text-base leading-tight">{draft.title}</p>
+                  <p class="text-xs text-info/90 mt-1 [text-shadow:0_1px_3px_oklch(0%_0_0/0.5)]">
+                    {if draft.status == "planning",
+                      do: "Planning…",
+                      else: "Plan ready — review and approve"}
+                  </p>
+                </div>
+                <.button
+                  variant="secondary"
+                  size="sm"
+                  phx-click="resume_plan"
+                  phx-value-id={draft.id}
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Review plan
+                </.button>
+              </div>
             </div>
-          </div>
-          <div class="grid grid-cols-1 gap-2">
-            <PursuitRow.pursuit_row
-              :for={
-                %PursuitWithDownload{row: row, download: download, queue_item_id: qid} <-
-                  @download_cards
-              }
-              vm={row}
-              download={download}
-              queue_item_id={qid}
-              telemetry_age={@telemetry_age}
-            />
-            <.grouped_compact_rows entries={@active_compact} />
-          </div>
-        </section>
+          </section>
 
-        <section
-          :if={@paired_rows == [] && @loaded? && @download_client_ready}
-          class="glass-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40"
-        >
-          No active pursuits.
-        </section>
+          <p
+            :if={!@download_client_ready}
+            class="glass-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/50"
+          >
+            Connect a download client in
+            <.link navigate="/settings?section=acquisition" class="link link-primary">Settings</.link>
+            to see live torrent activity under each pursuit.
+          </p>
 
-        <History.history_zone
-          empty?={@history_rows == []}
-          filter={@history_filter}
-          search={@history_search}
-        >
-          <.grouped_compact_rows entries={@history_compact} />
-        </History.history_zone>
+          <section :if={@paired_rows != []} data-nav-zone="pursuits" class="space-y-3">
+            <div class="flex items-center justify-between gap-3">
+              <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+                Active pursuits
+              </h2>
+              <div :if={@download_client_ready} class="flex items-center gap-2">
+                <QueueStatusBadge.queue_status_badge status={@queue_status} />
+                <span
+                  :if={!@queue_loaded?}
+                  class="loading loading-spinner loading-xs text-base-content/30"
+                >
+                </span>
+              </div>
+            </div>
+            <div class="grid grid-cols-1 gap-2">
+              <PursuitRow.pursuit_row
+                :for={
+                  %PursuitWithDownload{row: row, download: download, queue_item_id: qid} <-
+                    @download_cards
+                }
+                vm={row}
+                download={download}
+                queue_item_id={qid}
+                telemetry_age={@telemetry_age}
+              />
+              <.grouped_compact_rows entries={@active_compact} />
+            </div>
+          </section>
 
-        <OrphanQueue.orphan_zone items={@orphan_queue} />
+          <section
+            :if={@paired_rows == [] && @loaded? && @download_client_ready}
+            class="glass-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40"
+          >
+            No active pursuits.
+          </section>
+
+          <History.history_zone
+            empty?={@history_rows == []}
+            filter={@history_filter}
+            search={@history_search}
+          >
+            <.grouped_compact_rows entries={@history_compact} />
+          </History.history_zone>
+
+          <OrphanQueue.orphan_zone items={@orphan_queue} />
+        </div>
       </div>
     </Layouts.app>
     """
