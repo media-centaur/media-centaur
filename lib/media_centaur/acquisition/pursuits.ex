@@ -222,8 +222,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   def refresh_status_download(%PursuitStatus{} = status, queue_items) when is_list(queue_items) do
     queue_item = find_queue_match(status.target, queue_items)
     download = QueueMatcher.to_download(queue_item)
+    downloads = all_downloads(status.pursuit, status.target, queue_items)
 
-    if status.download == download do
+    if status.download == download and status.downloads == downloads do
       status
     else
       {current_action, next_step, actions} =
@@ -234,7 +235,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
         | current_action: current_action,
           next_step: next_step,
           available_actions: actions,
-          download: download
+          download: download,
+          downloads: downloads
       }
     end
   end
@@ -273,6 +275,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       current_action: current_action,
       next_step: next_step,
       download: QueueMatcher.to_download(queue_item),
+      downloads: all_downloads(pursuit, target, queue_items),
       staleness: staleness_for(last_activity_at),
       last_activity_at: last_activity_at,
       available_actions: actions,
@@ -285,6 +288,31 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   # The thread the detail modal renders — Units.lead_of/1 is the single
   # definition of "which unit a pursuit-scoped surface acts on" (ADR-055).
   defp lead_unit(%Pursuit{} = pursuit), do: Units.lead(pursuit.id)
+
+  # Every distinct current target's live queue match, lead target first —
+  # a composite pursuit has several torrents in flight at once and the
+  # modal must show them all (same plural rule as the index pairing).
+  defp all_downloads(%Pursuit{} = pursuit, lead_target, queue_items) do
+    units = Units.for_pursuit(pursuit.id)
+
+    targets =
+      units
+      |> Enum.map(& &1.current_target_id)
+      |> Enum.reject(&is_nil/1)
+      |> fetch_targets_by_id()
+
+    units
+    |> Enum.map(&Map.get(targets, &1.current_target_id))
+    |> Enum.reject(&is_nil/1)
+    |> then(fn list -> if lead_target, do: [lead_target | list], else: list end)
+    |> Enum.uniq_by(& &1.id)
+    |> Enum.flat_map(fn %Target{} = t ->
+      case find_queue_match(t, queue_items) do
+        nil -> []
+        item -> [%{download: QueueMatcher.to_download(item), release_title: t.release_title}]
+      end
+    end)
+  end
 
   @doc """
   Builds the `UnitBoard` view-model for a pursuit's per-unit drill-down

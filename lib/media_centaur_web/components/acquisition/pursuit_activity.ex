@@ -15,7 +15,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
 
   attr :vm, PursuitStatus, required: true
   attr :on_cancel, :string, default: nil
-  attr :on_change_target, :string, default: nil
   attr :on_request_decision, :string, default: nil
 
   def pursuit_activity(assigns) do
@@ -45,12 +44,32 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
         </ul>
       </div>
 
-      <div :if={@vm.download && @vm.download.progress_pct} class="space-y-1">
-        <div class="h-2 rounded-full bg-base-content/10 overflow-hidden">
+      <div :if={@vm.downloads != []} class="space-y-2">
+        <div :for={entry <- @vm.downloads} class="space-y-1">
           <div
-            class="h-full bg-primary transition-all duration-300"
-            style={"width: #{progress_width(@vm.download.progress_pct)}%"}
-          />
+            :if={length(@vm.downloads) > 1}
+            class="flex items-baseline justify-between gap-3 text-xs"
+          >
+            <span class="min-w-0 truncate font-mono text-base-content/50" title={entry.release_title}>
+              {entry.release_title}
+            </span>
+            <span
+              :if={entry.download.progress_pct}
+              class="flex-shrink-0 text-base-content/60 tabular-nums"
+            >
+              {round(entry.download.progress_pct)}%{if entry.download.eta,
+                do: " · ETA #{entry.download.eta}"}
+            </span>
+          </div>
+          <div
+            :if={entry.download.progress_pct}
+            class="h-2 rounded-full bg-base-content/10 overflow-hidden"
+          >
+            <div
+              class="h-full bg-primary transition-all duration-300"
+              style={"width: #{progress_width(entry.download.progress_pct)}%"}
+            />
+          </div>
         </div>
       </div>
 
@@ -59,14 +78,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
       </div>
 
       <div :if={@vm.available_actions != []} class="flex flex-wrap gap-2 justify-end pt-1">
-        <.button
-          :if={:change_target in @vm.available_actions and @on_change_target}
-          variant="neutral"
-          size="sm"
-          phx-click={@on_change_target}
-        >
-          Change target
-        </.button>
         <.button
           :if={:request_decision in @vm.available_actions and @on_request_decision}
           variant="neutral"

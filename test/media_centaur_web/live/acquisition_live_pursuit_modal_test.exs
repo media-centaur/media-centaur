@@ -267,7 +267,7 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
   end
 
   describe "composite drill-down — the unit board (ADR-055)" do
-    test "multi-unit pursuit renders one board row per unit; unit-scoped change target pivots only that unit",
+    test "multi-unit pursuit renders one board row per unit; the unit swap opens the per-unit picker",
          %{conn: conn} do
       {pursuit, _first_target} =
         create_pursuit_with_target(%{
@@ -292,21 +292,24 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
       assert has_element?(view, "#unit-board-row-#{first_unit.id}")
       assert has_element?(view, "#unit-board-row-#{second_unit.id}")
 
-      Oban.Testing.with_testing_mode(:manual, fn ->
-        view
-        |> element("#unit-board-row-#{second_unit.id} button[phx-click='change_target']")
-        |> render_click()
+      # The swap is a PICKER, never a die roll (user control): clicking it
+      # marks that unit awaiting-decision and surfaces the decision card —
+      # nothing pivots until the user picks.
+      view
+      |> element("#unit-board-row-#{second_unit.id} button[phx-click='request_decision']")
+      |> render_click()
 
-        # Settle the broadcast-triggered handle_info work (see above).
-        _ = render(view)
-      end)
+      html = render_async(view)
+      assert html =~ "Recommended" or html =~ "No alternatives are currently available"
 
-      pivoted = Repo.reload(second_unit)
-      refute is_nil(pivoted.current_target_id)
-      assert Repo.get!(Target, pivoted.current_target_id).status == "seeking"
+      awaiting = Repo.reload(second_unit)
+      refute is_nil(awaiting.awaiting_decision_at)
+      # The unit's thread is untouched — no auto-pivot happened.
+      assert awaiting.current_target_id == second_unit.current_target_id
 
-      # The sibling unit's thread is untouched.
+      # The sibling unit is not awaiting.
       untouched = Repo.reload(first_unit)
+      assert is_nil(untouched.awaiting_decision_at)
       assert untouched.current_target_id == first_unit.current_target_id
     end
 

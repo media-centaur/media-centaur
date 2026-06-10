@@ -1012,11 +1012,20 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     end
   end
 
-  def handle_event("request_decision", _params, socket) do
-    case RequestDecision.execute(%{
-           pursuit_id: socket.assigns.selected_pursuit_id,
-           prompt: @decision_prompt
-         }) do
+  def handle_event("request_decision", params, socket) do
+    # An optional `unit-id` (unit-board swap) scopes the decision to one
+    # unit of a composite — the alternatives list follows it because the
+    # awaiting unit becomes the lead (Units.lead_of/1).
+    args =
+      case params do
+        %{"unit-id" => unit_id} when is_binary(unit_id) ->
+          %{pursuit_id: socket.assigns.selected_pursuit_id, unit_id: unit_id, prompt: @decision_prompt}
+
+        _other ->
+          %{pursuit_id: socket.assigns.selected_pursuit_id, prompt: @decision_prompt}
+      end
+
+    case RequestDecision.execute(args) do
       {:ok, _pursuit} ->
         {:noreply, socket |> put_flash(:info, "Pick a release below.") |> load_pursuit_detail()}
 
