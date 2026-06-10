@@ -18,6 +18,9 @@ defmodule MediaCentaur.ReleaseTracking.Release do
     field :in_library, :boolean, default: false
     field :in_library_at, :utc_datetime
     field :release_type, :string
+    # The film's own TMDB id for movie/collection rows (nil for TV rows) —
+    # the unit identity the want ledger keys movie wants on (ADR-056).
+    field :part_tmdb_id, :integer
 
     belongs_to :item, MediaCentaur.ReleaseTracking.Item
 
@@ -34,6 +37,7 @@ defmodule MediaCentaur.ReleaseTracking.Release do
       :released,
       :in_library,
       :release_type,
+      :part_tmdb_id,
       :item_id
     ])
     |> validate_required([:item_id])

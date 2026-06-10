@@ -298,15 +298,22 @@ phase. `(exists)` = works today, `(extends)` = grows existing code,
 * File search produces the *same* composite-pursuit shape (one pursuit per brace-expanded query) with the new progress / drill-down / intervention UI — no parallel pursuit system remains.
 * The planner honors the objective hierarchy and the automatic ladder; pack downloads correctly satisfy their covered episodes (no re-grabs, no false "done").
 * Unfound units are reported at plan time, never as perpetually-seeking pursuit leaves.
-* "Grab future" opt-in creates a release-tracking entry on completion, with no double-grabbing against existing tracks.
+* ~~"Grab future" opt-in creates a release-tracking entry on completion, with no double-grabbing against existing tracks.~~ → re-homed to [`release-tracking-plan-convergence.md`](release-tracking-plan-convergence.md) (2026-06-10).
 * Progress everywhere is unit-based (a failed pack leaf shows as its covered units missing, not one failed item).
 * A browser refresh or app restart mid-planning loses nothing — the draft plan resumes from Downloads.
-* Plan gaps offer the one-click release-tracking handoff at approval.
-* No unit of a title is ever claimed by two active pursuers (pursuit×pursuit or pursuit×track) — enforced, not best-effort.
+* ~~Plan gaps offer the one-click release-tracking handoff at approval.~~ → re-homed to `release-tracking-plan-convergence` (2026-06-10).
+* No unit of a title is ever claimed by two active pursuers — pursuit×pursuit enforced here; the pursuit×**track** direction re-homed to `release-tracking-plan-convergence` (ADR-056 want ledger).
 * Downloads page presents media search as the primary path; naked search has a settled secondary placement.
 * Wiki updated (new acquisition flow + the media-search/naked-search distinction).
 
 ## Resumption state (written 2026-06-09, end of the build sessions)
+
+> **2026-06-10 note:** the UI design session below HAPPENED (UIDR-014;
+> Phase 3 UI shipped — see the decisions log). The Phase-4 residuals in
+> this section (pursuit×track dedup, gap handoff, "grab future",
+> per-unit tracked subtraction) are re-homed to
+> [`release-tracking-plan-convergence.md`](release-tracking-plan-convergence.md)
+> / ADR-056. Treat the rest of this section as a historical snapshot.
 
 **Where things stand.** Sixteen-ish commits on `main`, `947c7bd4..e9b63dcf`,
 **unpushed** (push when the user says so; release-tagging is reasonable —

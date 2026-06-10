@@ -97,6 +97,7 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
         air_date: release.air_date,
         title: release.title,
         release_type: release.release_type,
+        part_tmdb_id: response["id"],
         season_number: nil,
         episode_number: nil
       }
@@ -118,12 +119,19 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
 
   @doc """
   Normalizes collection releases (from Extractor) into the standard release
-  shape with nil season/episode, then marks released status.
+  shape with nil season/episode, then marks released status. Keeps the
+  part's own TMDB id — the want ledger keys collection-part wants on it.
   """
   def normalize_collection_releases(releases) do
     releases
     |> Enum.map(fn release ->
-      %{air_date: release.air_date, title: release.title, season_number: nil, episode_number: nil}
+      %{
+        air_date: release.air_date,
+        title: release.title,
+        part_tmdb_id: release.tmdb_id,
+        season_number: nil,
+        episode_number: nil
+      }
     end)
     |> mark_released()
   end

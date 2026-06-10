@@ -1,11 +1,12 @@
 defmodule MediaCentaur.ReleaseTracking do
   use Boundary,
-    deps: [MediaCentaur.TMDB, MediaCentaur.Library, MediaCentaur.Settings],
+    deps: [MediaCentaur.TMDB, MediaCentaur.Library, MediaCentaur.Search, MediaCentaur.Settings],
     exports: [
       Item,
       Release,
       Event,
       ImageStore,
+      Want,
       Views,
       Views.ComingUp,
       Views.ComingUpItem,
@@ -23,7 +24,7 @@ defmodule MediaCentaur.ReleaseTracking do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Repo
-  alias MediaCentaur.ReleaseTracking.{Item, Release, Event, Extractor, Helpers, ImageStore}
+  alias MediaCentaur.ReleaseTracking.{Item, Release, Event, Extractor, Helpers, ImageStore, Wants}
   alias MediaCentaur.Topics
   alias MediaCentaur.TMDB.Client
 
@@ -397,9 +398,12 @@ defmodule MediaCentaur.ReleaseTracking do
         air_date: release.air_date,
         title: release.title,
         release_type: release.release_type,
+        part_tmdb_id: item.tmdb_id,
         released: released
       })
     end)
+
+    Wants.sync_item(item)
   end
 
   defp broadcast_releases_updated(item_ids) do
@@ -423,6 +427,7 @@ defmodule MediaCentaur.ReleaseTracking do
     end)
 
     mark_in_library_releases(item)
+    Wants.sync_item(item)
   end
 
   defp create_began_tracking_event(item) do
@@ -507,13 +512,18 @@ defmodule MediaCentaur.ReleaseTracking do
     DateTime.add(DateTime.utc_now(:second), -@recent_completion_hours * 3600, :second)
   end
 
-  @doc "Dismiss a single release by deleting it."
+  @doc """
+  Dismiss a single release by deleting it. Also dismisses the matching
+  open want — "dismiss this release" means stop wanting the unit, not
+  just hide the calendar row.
+  """
   def dismiss_release(release_id) do
     case Repo.get(Release, release_id) do
       nil ->
         {:error, :not_found}
 
       release ->
+        Wants.dismiss_for_release(release)
         result = Repo.delete(release)
         broadcast_releases_updated([release.item_id])
         result
@@ -559,6 +569,20 @@ defmodule MediaCentaur.ReleaseTracking do
   def delete_releases_for_item(item_id) do
     Repo.delete_all(from(r in Release, where: r.item_id == ^item_id))
   end
+
+  # --- Wants (ADR-056 ledger) ---
+
+  @doc "See `MediaCentaur.ReleaseTracking.Wants.sync_item/1`."
+  defdelegate sync_wants(item), to: Wants, as: :sync_item
+
+  @doc "See `MediaCentaur.ReleaseTracking.Wants.open_wants_for_item/1`."
+  defdelegate open_wants_for_item(item_id), to: Wants
+
+  @doc "See `MediaCentaur.ReleaseTracking.Wants.list_open_wants/0`."
+  defdelegate list_open_wants(), to: Wants
+
+  @doc "See `MediaCentaur.ReleaseTracking.Wants.dismiss_before/2`."
+  defdelegate dismiss_wants_before(item, cutoff), to: Wants, as: :dismiss_before
 
   # --- Events ---
 

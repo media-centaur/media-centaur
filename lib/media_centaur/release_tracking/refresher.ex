@@ -236,11 +236,13 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
         season_number: release[:season_number],
         episode_number: release[:episode_number],
         release_type: release[:release_type],
+        part_tmdb_id: release[:part_tmdb_id],
         released: release[:released] || false
       })
     end)
 
     ReleaseTracking.mark_in_library_releases(item)
+    ReleaseTracking.sync_wants(item)
   end
 
   defp update_item_metadata(item, response) do
@@ -269,7 +271,15 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   defp do_sweep do
     Log.info(:library, "release tracking: sweep")
     ReleaseTracking.mark_past_releases_as_released()
-    Enum.each(ReleaseTracking.list_watching_items(), &broadcast_releases_ready/1)
+
+    Enum.each(ReleaseTracking.list_watching_items(), fn item ->
+      # The sweep is the want ledger's heartbeat (ADR-056): idempotent
+      # sync per tick means the ledger self-backfills on first deploy
+      # and self-heals after any missed seam.
+      ReleaseTracking.sync_wants(item)
+      broadcast_releases_ready(item)
+    end)
+
     persist_last_swept_at()
     :ok
   end
@@ -369,6 +379,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
                  }) do
               {:ok, updated_item} ->
                 ReleaseTracking.mark_in_library_releases(updated_item)
+                ReleaseTracking.sync_wants(updated_item)
 
               {:error, changeset} ->
                 Log.info(
@@ -486,6 +497,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
         end)
 
         ReleaseTracking.mark_in_library_releases(item)
+        ReleaseTracking.sync_wants(item)
 
         ReleaseTracking.create_event!(%{
           item_id: item.id,
