@@ -15,7 +15,7 @@ episodes may come from usenet and some from torrents, transparently.
 
 This campaign builds the **infrastructure** for that. The "user doesn't care"
 mixed grab is a *consequence* once both clients exist — the coverage planner
-(see [`media-search-tmdb-acquisition`](media-search-tmdb-acquisition.md))
+(see the media-search campaign — complete 2026-06-10, in git history)
 picks best-available-now per unit and Prowlarr routes each grab to the right
 client. **No mixed-grab UX is built here.**
 
@@ -173,4 +173,4 @@ that follows.
 * **Lifecycle** — `lib/media_centaur/acquisition/pursuits/pursuit.ex`, `acquisition/target.ex`, `acquisition/pursuits/inbound_listener.ex` (file-landed → IdentityVerifier).
 * **prowlarr-stack** — `~/src/media-centaur/prowlarr-stack/docker-compose.yml` (qBit + gluetun today), `README.md`, `defaults/`.
 * [ADR-035](../decisions/architecture/2026-04-15-035-acquisition-prowlarr-integration.md) (Prowlarr integration), [ADR-037](../decisions/architecture/2026-04-16-037-acquisition-integration-scope.md) (integration scope / direct-driver relaxation), [ADR-043](../decisions/architecture/2026-05-10-043-acquisition-split.md) (Search/Downloads context split), [ADR-042](../decisions/architecture/2026-05-10-042-multi-session-campaigns.md) (campaign convention).
-* **Sibling campaign** — [`media-search-tmdb-acquisition.md`](media-search-tmdb-acquisition.md): the coverage planner that turns this infrastructure into the "user doesn't care" mixed grab.
+* **Sibling campaign** — media-search (complete 2026-06-10, in git history): the coverage planner that turns this infrastructure into the "user doesn't care" mixed grab.

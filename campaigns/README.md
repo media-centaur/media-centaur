@@ -44,31 +44,6 @@ Use [`template.md`](template.md) as a starter.
   heritage: ports prowlarr-stack's proven parts; old repo removed at parity-
   plus-maturity. ADR-052 (amends ADR-035) is the first deliverable. Seven phases;
   no code yet. Design settled 2026-05-31.
-* [`media-search-tmdb-acquisition.md`](media-search-tmdb-acquisition.md) —
-  **Phases 1–3 complete** (composite-pursuit core + corpus, pack
-  machinery, planner/plans backend, and the full front-door UI shipped
-  2026-06-09/10). Media search is the primary acquisition path: TMDB
-  title → targeting → autonomous coverage plan → steer → one composite
-  pursuit. Phase 4 (release-tracking handoffs + dedup) re-homed to
-  [`release-tracking-plan-convergence.md`](release-tracking-plan-convergence.md);
-  remaining here = wiki sync, then closure reconciliation.
-* [`release-tracking-plan-convergence.md`](release-tracking-plan-convergence.md) —
-  **planning.** Convert release tracking's materialization path onto the
-  media-search plan→composite-pursuit core: a track is a *standing
-  targeting intent*; each cadence tick batches newly-ready wants into a
-  per-drop plan (corpus → planner → pack consolidation), the commit gate
-  owns 4K patience, and unfound episodes stay visible *wants* on the
-  track — never open-ended seeking pursuits. Keystone schema = per-unit
-  want ledger (enables gap handoff, grab-future, pursuit×track dedup,
-  per-unit targeting subtraction — subsumes media-search Phase 4).
-  Retires the legacy Reactor→Arm auto-grab path. **Design complete
-  2026-06-10** — all nine Phase-0 questions settled,
-  [ADR-056](../decisions/architecture/2026-06-10-056-release-tracking-wants.md)
-  accepted (patience = plan-time quality-floor elevation, not a commit
-  gate; claims derived, never stored; cancel dismisses, failure retries
-  politely; quality *upgrades* explicitly deferred with a
-  `satisfied_quality` hook). No code yet; next = Phase 1 want ledger,
-  shipped dark.
 * [`usenet-download-client.md`](usenet-download-client.md) —
   **planning.** Extend downloads from a single client (qBittorrent) to a
   **set routed by protocol**, with SABnzbd as the first usenet driver, so a
@@ -81,8 +56,8 @@ Use [`template.md`](template.md) as a starter.
   redesigned once a live setup exists. Verification bounded to stubs (no
   provider yet). Spans two repos (this + `prowlarr-stack`). Five phases;
   no code yet. Design settled 2026-05-31. Enables — but does not build — the
-  mixed-protocol grab that [`media-search-tmdb-acquisition`](media-search-tmdb-acquisition.md)'s
-  planner will drive.
+  mixed-protocol grab that the media-search planner (campaign complete
+  2026-06-10; see git history) will drive.
 * [`install-repro-matrix.md`](install-repro-matrix.md) —
   **planning.** Reproducible install environments for media-centaur and
   prowlarr-stack. Phase 1 (Linux Mint 22.3 only) spec written

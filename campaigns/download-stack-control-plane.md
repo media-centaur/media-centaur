@@ -268,5 +268,5 @@ independently valuable and can be sequenced early.
   lands in the new repo; the multi-client refactor is MC-side and independent),
   [`install-repro-matrix.md`](install-repro-matrix.md) (reproducible installs —
   its prowlarr-stack references move to the new repo at cutover),
-  [`media-search-tmdb-acquisition.md`](media-search-tmdb-acquisition.md) (the
+  the media-search campaign — complete 2026-06-10, in git history (the
   planner that drives acquisition over this infrastructure).
