@@ -508,16 +508,20 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       # PursuitRow component's no-match hint path (no queue item matches).
       assert html =~ "Sample Movie"
       # History is collapsed by default — the disclosure header renders,
-      # the rows don't.
+      # the rows don't. Scoped to the history zone: a whole-page `=~`
+      # also sweeps the Console drawer, whose GLOBAL log ring buffer
+      # carries titles logged by earlier tests in the run (the
+      # drop-planner pipeline logs item names) — an order-dependent
+      # false match.
       assert html =~ "History"
-      refute html =~ "Sample Show"
+      refute has_element?(view, "section[data-nav-zone='history']", "Sample Show")
 
       # Expanded, the zone (default filter :failed) must render the
       # exhausted pursuit row. With two same-title same-state pursuits
       # seeded, the group-render path fires (header reads "2 episodes").
-      html = view |> element("[phx-click='toggle_history']") |> render_click()
-      assert html =~ "Sample Show"
-      assert html =~ "2 episodes"
+      view |> element("[phx-click='toggle_history']") |> render_click()
+      assert has_element?(view, "section[data-nav-zone='history']", "Sample Show")
+      assert has_element?(view, "section[data-nav-zone='history']", "2 episodes")
     end
   end
 
