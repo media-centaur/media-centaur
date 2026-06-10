@@ -62,16 +62,38 @@ which closes the whole pursuit on the *first* verified file).
   TV landings without unit identity defer to `LibraryReconciler`.
   `identity_mismatch` event kind and cancel reason stay registered so
   historical rows keep rendering — they just have no producer.
+* `2026-06-11` — **Nothing unsurfaced in the download client
+  (user-settled).** Everything in the client is either visible in MC
+  or removed: completed/seeding items get surfaced (today
+  `QueueMonitor` drops `:completed` from the snapshot — invisible
+  indefinite seeding is the default), a retention policy governs
+  post-completion removal, and cancelling a pursuit takes its
+  in-flight client items with it (closes this campaign's open
+  contract question).
+* `2026-06-11` — **Post-completion lifecycle is client-agnostic
+  (user-settled).** Built against the `DownloadClient` behaviour, not
+  qBittorrent: `QueueItem` carries nilable retention facts
+  (`ratio`, `seeding_seconds`), drivers declare capabilities
+  (`seeding?`), and a pure `RetentionPolicy` above the seam decides
+  removals — so the SABnzbd driver
+  ([usenet-download-client](usenet-download-client.md)) inherits the
+  same lifecycle (its retention = remove-after-import / history
+  cleanup; no seeding concepts leak into core).
 
 ## Next steps
 
-1. Decide the cancelled-pursuit ↔ live-torrent contract (today: cancel
-   is DB-only; torrents keep downloading with no owner, files still
-   ingest via the watcher) — NEEDS USER: re-link surface vs. explicit
-   orphan adoption vs. client cleanup prompt. Also covers cleaning up
-   the 2026-06-10 orphaned Orville torrents.
+1. **Download-client hygiene slice** (settled 2026-06-11, see
+   Decisions): surface completed/seeding items (collapsed *Seeding*
+   disclosure on Downloads), retention policy in Settings (default
+   pending user pick), cancellation cancels+deletes its in-flight
+   client items by default. Built against the `DownloadClient`
+   behaviour only — protocol-neutral (see abstraction decision).
 2. Verify on prod with a real multi-release plan after the next
    release ships.
+
+(2026-06-10 orphaned Orville torrents: cleaned up same day via
+`Acquisition.cancel_download/1`; the active tracking pursuit's
+S01–S03 pack kept.)
 
 ## Completion criteria
 
