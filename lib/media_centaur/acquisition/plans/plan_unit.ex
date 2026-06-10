@@ -43,6 +43,11 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
     field :assigned_size_bytes, :integer
     field :assigned_scope, :string
     field :excluded_release_guids, {:array, :string}, default: []
+    # Per-unit quality floor override (nil = inherit the plan's
+    # criteria). The patience elevation (ADR-056 Q4: `min := max`
+    # inside a want's window) is stamped here at plan creation, so the
+    # planner stays time-blind.
+    field :min_quality, :string
 
     timestamps()
   end
@@ -52,7 +57,7 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
   @doc "Builds a new pending unit for a plan."
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:plan_id, :season_number, :episode_number, :label, :position])
+    |> cast(attrs, [:plan_id, :season_number, :episode_number, :label, :position, :min_quality])
     |> validate_required([:plan_id, :label])
   end
 

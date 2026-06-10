@@ -101,6 +101,43 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   end
 
   @doc """
+  Stamps `last_searched_at` on the given wants — called by the drop
+  planner when a plan run is about to search their terms. The stamp is
+  the back-off anchor (ADR-056 Q6).
+  """
+  @spec mark_searched([Ecto.UUID.t()], DateTime.t()) :: non_neg_integer()
+  def mark_searched(want_ids, %DateTime{} = searched_at) when is_list(want_ids) do
+    {count, _} =
+      Repo.update_all(
+        from(w in Want, where: w.id in ^want_ids),
+        set: [last_searched_at: searched_at]
+      )
+
+    count
+  end
+
+  @doc """
+  Dismisses the item's open wants matching the given unit keys — the
+  Q5 cancel-dismisses semantics: a *user* cancelling a tracking-born
+  pursuit means "stop wanting these units". Returns the dismissed
+  count.
+  """
+  @spec dismiss_units(Ecto.UUID.t(), [String.t()]) :: non_neg_integer()
+  def dismiss_units(_item_id, []), do: 0
+
+  def dismiss_units(item_id, unit_keys) when is_list(unit_keys) do
+    {count, _} =
+      Repo.update_all(
+        from(w in Want,
+          where: w.item_id == ^item_id and w.unit_key in ^unit_keys and w.status == :open
+        ),
+        set: [status: :dismissed, dismissed_at: DateTime.utc_now(:second)]
+      )
+
+    count
+  end
+
+  @doc """
   Dismisses the open want matching a calendar release row, if any. Used
   by per-release dismissal so "dismiss this release" also stops the
   want. Returns the dismissed count (0 or 1).

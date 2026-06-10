@@ -79,6 +79,48 @@ defmodule MediaCentaur.Acquisition.Plans do
     )
   end
 
+  @doc """
+  Creates a release-tracking drop plan (ADR-056 Phase 2) and starts the
+  planning run. `plan_attrs` carries the tmdb identity plus
+  `tracking_item_id`; `unit_specs` come from the item's due wants and
+  may carry per-unit `min_quality` floors (the patience elevation,
+  stamped by the drop planner so the planner stays time-blind).
+  """
+  @spec create_tracking_plan(map(), [map()]) :: {:ok, Plan.t()} | {:error, term()}
+  def create_tracking_plan(plan_attrs, unit_specs) do
+    plan_attrs
+    |> Map.put(:origin, "tracking")
+    |> create_plan(unit_specs)
+  end
+
+  @doc """
+  Whether a live tracking draft (planning or ready) already exists for
+  this tmdb identity — the one-active-draft-per-title rule (ADR-056
+  Q2): wants opening mid-draft wait for the next tick rather than
+  mutating a plan under review.
+  """
+  @spec active_tracking_draft?(String.t(), String.t()) :: boolean()
+  def active_tracking_draft?(tmdb_id, tmdb_type) do
+    Plan
+    |> where([p], p.origin == "tracking" and p.status in ["planning", "ready"])
+    |> where([p], p.tmdb_id == ^tmdb_id and p.tmdb_type == ^tmdb_type)
+    |> Repo.exists?()
+  end
+
+  @doc """
+  The tracking item id behind a committed pursuit, when the pursuit was
+  born from a tracking plan — the cancel-dismisses back-pointer. Nil
+  for media-search and legacy pursuits.
+  """
+  @spec tracking_item_id_for_pursuit(Ecto.UUID.t()) :: Ecto.UUID.t() | nil
+  def tracking_item_id_for_pursuit(pursuit_id) do
+    Plan
+    |> where([p], p.pursuit_id == ^pursuit_id and p.origin == "tracking")
+    |> select([p], p.tracking_item_id)
+    |> limit(1)
+    |> Repo.one()
+  end
+
   defp create_plan(plan_attrs, unit_specs) do
     if unit_specs == [] do
       {:error, :no_units}
@@ -450,6 +492,22 @@ defmodule MediaCentaur.Acquisition.Plans do
       broadcast_changed(discarded)
       {:ok, discarded}
     end
+  end
+
+  @doc """
+  Deletes a tracking draft outright — used by the mode gate when a drop
+  plan solves to zero found units. Unlike user-facing discards there is
+  no record value in an automated tick that found nothing (the wants
+  remain the durable intent, stamped searched), and the cadence would
+  otherwise accrete discarded rows every interval an unfound want
+  retries.
+  """
+  @spec delete_tracking_draft(Plan.t()) :: :ok
+  def delete_tracking_draft(%Plan{origin: "tracking"} = plan) do
+    Repo.delete_all(where(PlanUnit, [u], u.plan_id == ^plan.id))
+    Repo.delete_all(where(Plan, [p], p.id == ^plan.id))
+    broadcast_changed(%{plan | status: "discarded"})
+    :ok
   end
 
   defp get_unit(plan_unit_id) do

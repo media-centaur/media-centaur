@@ -280,6 +280,14 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
       broadcast_releases_ready(item)
     end)
 
+    # The drop planner's clock (ADR-056 Q2): the Reactor runs a tick
+    # after every completed sweep, once the ledger sync is in.
+    Phoenix.PubSub.broadcast(
+      MediaCentaur.PubSub,
+      MediaCentaur.Topics.release_tracking_updates(),
+      {:tracking_sweep_completed}
+    )
+
     persist_last_swept_at()
     :ok
   end
