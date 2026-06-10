@@ -28,6 +28,14 @@ Use [`template.md`](template.md) as a starter.
   transient blip. Codifies [ADR-054](../decisions/architecture/2026-06-08-054-external-dependency-faults-are-subsystem-health.md);
   a download-client `assess/0` over `QueueMonitor` health plus a `LogHandler`
   suppression marker for assessor-owned connectivity logs.
+* [`downloads-debt-retirement.md`](downloads-debt-retirement.md) —
+  **in-progress.** Close the gap between the downloads system as evolved and
+  the from-scratch ideal, per the 2026-06-10 audit: guard plan discard, unify
+  the five identity-matching mechanisms behind one strategy module, retire the
+  ADR-055 interim layer (dual identity schema, `Units.lead` call sites), put
+  the sync contract on the `DownloadClient` behaviour (usenet prerequisite),
+  move SearchSession out of the Search context, and align the plan/pursuit
+  cell vocabulary. Seven items, priority-ordered.
 * [`download-stack-control-plane.md`](download-stack-control-plane.md) —
   **planning.** Mature the download infrastructure (`prowlarr-stack`) from a
   one-shot installer into a **managed component with a control plane**, shipped
