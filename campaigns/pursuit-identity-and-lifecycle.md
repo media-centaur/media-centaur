@@ -83,21 +83,31 @@ which closes the whole pursuit on the *first* verified file).
   (user-corrected).** Download clients already own seeding lifecycle
   (qBittorrent: per-category/global share-ratio and seed-time rules)
   and MC must not impact that. A `RetentionPolicy`/`RetentionSettings`
-  implementation was started and reverted uncommitted. What remains of
-  the hygiene slice is **visibility only**: surface completed/seeding
-  items (today dropped from the snapshot) with a manual per-item
-  remove affordance; the client enforces its own rules. The
-  "nothing unsurfaced" principle stands — satisfied by surfacing, not
-  by managing.
+  implementation was started and reverted uncommitted.
+* `2026-06-11` — **No seeding surface either (user-settled).** The
+  "seeding a year unnoticed" concern was withdrawn — it is completely
+  managed by the client's own rules. MC will not mirror the client's
+  completed/seeding list (duplicate-surface anti-pattern); the
+  hygiene principle reduces to *MC must not create ungoverned client
+  state*: pursuits surface in-flight work, the Other-downloads zone
+  surfaces orphans, and cancellation stops its downloads.
+* `2026-06-11` — **Implemented: cancelling a pursuit stops its
+  downloads.** `Commands.Cancel` reads the in-flight targets\' hashes
+  before the transaction, then removes each from the client
+  post-commit (with data — unwanted content), best-effort and
+  driver-neutral via `Acquisition.cancel_download/1`. Pinned by
+  `terminal_commands_test.exs` (delete fired, hash-less targets
+  skipped, unconfigured client degrades to no-op). OPEN sibling
+  question: target-level abandonment (`AutoCancel` pivots,
+  `ChangeTarget` swaps) leaves the *old* release\'s download in the
+  client — same orphan-minting shape, needs its own pass.
 
 ## Next steps
 
-1. **Download-client hygiene slice** (re-scoped 2026-06-11, see
-   Decisions): surface completed/seeding items (collapsed disclosure
-   on Downloads with per-item manual remove); **no MC retention
-   engine** — the client owns its own seeding lifecycle. Cancellation
-   contract (cancel removes in-flight client items) pending
-   confirmation. Built against the `DownloadClient` behaviour only.
+1. Target-level abandonment: decide whether `AutoCancel` pivots and
+   `ChangeTarget` swaps should also remove the abandoned release\'s
+   download from the client (same no-orphans rationale as pursuit
+   cancel; needs user confirmation on scope).
 2. Verify on prod with a real multi-release plan after the next
    release ships.
 

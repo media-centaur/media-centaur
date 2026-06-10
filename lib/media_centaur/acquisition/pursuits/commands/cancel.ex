@@ -6,7 +6,16 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Cancel do
   every in-flight target so snoozed `PursueTarget` Oban jobs
   early-exit on their next wake, and records the `pursuit_cancelled`
   event.
+
+  After the transaction commits, the cancelled targets' downloads are
+  removed from the download client (with their partial data — the
+  content is unwanted): a cancelled pursuit must not mint orphans
+  (campaign pursuit-identity-and-lifecycle). Client I/O is
+  best-effort — a failure is logged and never blocks the cancel; the
+  Other-downloads zone remains the safety net.
   """
+
+  require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Pursuits.Commands.{Refold, Runner}
@@ -21,6 +30,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Cancel do
           {:ok, Pursuit.t()} | {:error, :not_found | Ecto.Changeset.t()}
   def execute(%{pursuit_id: id, cancelled_by: by, reason: reason})
       when is_atom(by) and is_binary(reason) do
+    # Read before the transaction flips target statuses to "cancelled".
+    in_flight_hashes = Targets.in_flight_hashes(id)
+
     result =
       Runner.run(id, "pursuit cancelled", fn pursuit ->
         with true <- pursuit.state in State.in_flight() || {:error, :not_eligible},
@@ -41,8 +53,34 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Cancel do
 
     with {:ok, pursuit} <- result do
       if by == :user, do: dismiss_tracking_wants(pursuit)
+      stop_client_downloads(pursuit, in_flight_hashes)
       {:ok, pursuit}
     end
+  end
+
+  # Post-transaction, best-effort: remove each cancelled target's
+  # download from the client. Hash-keyed and driver-neutral
+  # (`Acquisition.cancel_download/1` dispatches to the configured
+  # driver); an unconfigured client degrades to a no-op.
+  defp stop_client_downloads(_pursuit, []), do: :ok
+
+  defp stop_client_downloads(pursuit, hashes) do
+    Enum.each(hashes, fn hash ->
+      case MediaCentaur.Acquisition.cancel_download(hash) do
+        :ok ->
+          Log.info(
+            :acquisition,
+            "cancelled pursuit download — #{pursuit.title} (#{String.slice(hash, 0, 10)})"
+          )
+
+        {:error, reason} ->
+          Log.warning(
+            :acquisition,
+            "could not stop a cancelled pursuit's download — " <>
+              "#{pursuit.title} (#{String.slice(hash, 0, 10)}): #{inspect(reason)}"
+          )
+      end
+    end)
   end
 
   # ADR-056 Q5: a *user* cancelling a tracking-born pursuit means "stop
