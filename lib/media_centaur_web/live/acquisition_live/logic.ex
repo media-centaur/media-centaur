@@ -66,6 +66,19 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
     end
   end
 
+  @doc """
+  The Downloads page's quiet open-wants pointer (ADR-056 Q7: a count
+  and a link to Tracking, never want cards — waiting is not
+  acquisition activity). Nil when the ledger is empty so the line
+  disappears entirely.
+  """
+  @spec watching_summary_label({non_neg_integer(), non_neg_integer()}) :: String.t() | nil
+  def watching_summary_label({0, _items}), do: nil
+
+  def watching_summary_label({wants, items}) do
+    "Watching for #{wants} #{pluralize(wants, "release")} across #{items} #{pluralize(items, "title")}"
+  end
+
   defp pluralize(1, word), do: word
   defp pluralize(_count, word), do: word <> "s"
 
