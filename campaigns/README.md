@@ -21,6 +21,16 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`plan-solver-consolidation.md`](plan-solver-consolidation.md) —
+  **planning.** The media-search plan solver grabs overlapping releases:
+  a real S2+S3 plan produced 7 grabs / ~59.5 GB where 2 season packs
+  sufficed (one 4K single vetoed the S3 pack via the summed-quality
+  ensemble comparison; the pack was then grabbed anyway for leftovers,
+  next to ~11.6 GB of singles duplicating its content). Diagnosed in
+  `Acquisition.Planner` (`beats_ensemble?` fantasy ensemble +
+  `assign_singles` seeders-over-consolidation); direction: pack wins at
+  equal quality, strictly-better singles upgrade individual units.
+  No code yet.
 * [`external-dependency-health-classification.md`](external-dependency-health-classification.md) —
   **shipped v0.83.2; prod-reconcile remains.** Move download-client connectivity faults off the noisy `:log`
   incident track onto the existing `:subsystem` assessor track, so one qBit
