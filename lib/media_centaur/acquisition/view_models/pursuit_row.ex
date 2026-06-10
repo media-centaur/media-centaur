@@ -33,6 +33,11 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitRow do
     # 1/0-or-1 and render no progress chip.
     units_wanted: 1,
     units_satisfied: 0,
+    # Every in-flight target's pairing identity — one {torrent_hash,
+    # release_title} per DISTINCT current target across the units, lead
+    # first. A composite pursuit grabs several releases at once; the
+    # queue matcher claims a torrent when ANY key matches (ADR-055).
+    pairing_keys: [],
     # Which acquisition door created this pursuit (UIDR-014): :media
     # (TMDB-doored — earns the identity-banner treatment) or :query
     # (naked release search — stays a plain row).
@@ -66,6 +71,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitRow do
           awaiting_decision?: boolean(),
           units_wanted: pos_integer(),
           units_satisfied: non_neg_integer(),
+          pairing_keys: [{String.t() | nil, String.t() | nil}],
           door: :media | :query,
           unit_states: [String.t()]
         }

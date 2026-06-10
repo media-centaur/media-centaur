@@ -14,6 +14,10 @@ defmodule MediaCentaur.Acquisition.QueueMatcherTest do
       state: :active,
       release_title: release_title,
       torrent_hash: Keyword.get(opts, :torrent_hash),
+      pairing_keys:
+        Keyword.get(opts, :pairing_keys, [
+          {Keyword.get(opts, :torrent_hash), release_title}
+        ]),
       status: @stub_status
     }
   end
@@ -117,6 +121,50 @@ defmodule MediaCentaur.Acquisition.QueueMatcherTest do
       {paired, [%QueueItem{id: "hash-a"}]} = QueueMatcher.match(rows, queue)
 
       assert [%PursuitWithDownload{download: nil, queue_item_id: nil}] = paired
+    end
+
+    test "a composite row claims every queue item its in-flight targets grabbed (ADR-055)" do
+      composite =
+        row("p1", "Sample.Show.S01.1080p.BluRay",
+          pairing_keys: [
+            {nil, "Sample.Show.S01.1080p.BluRay"},
+            {nil, "Sample.Show.S02.2160p.WEB-DL"}
+          ]
+        )
+
+      queue = [
+        item("q1", "Sample.Show.S01.1080p.BluRay"),
+        item("q2", "Sample.Show.S02.2160p.WEB-DL"),
+        item("q3", "Unrelated.Movie.2020.1080p")
+      ]
+
+      {[paired], orphans} = QueueMatcher.match([composite], queue)
+
+      assert [%{queue_item_id: "q1"}, %{queue_item_id: "q2"}] = paired.downloads
+      # The primary download stays the first key's match (the lead).
+      assert paired.queue_item_id == "q1"
+      assert paired.download.state == :downloading
+      assert [%QueueItem{id: "q3"}] = orphans
+    end
+
+    test "pairing keys match by infohash first, title fallback per key" do
+      composite =
+        row("p1", "Sample.Show.S01.1080p",
+          pairing_keys: [
+            {"HASH-A", "Sample.Show.S01.1080p"},
+            {nil, "Sample.Show.S02.2160p.WEB-DL"}
+          ]
+        )
+
+      queue = [
+        item("hash-a", "Renamed.By.Client"),
+        item("q2", "Sample.Show.S02.2160p.WEB-DL")
+      ]
+
+      {[paired], orphans} = QueueMatcher.match([composite], queue)
+
+      assert [%{queue_item_id: "hash-a"}, %{queue_item_id: "q2"}] = paired.downloads
+      assert orphans == []
     end
 
     test "queue items unmatched by any row land in orphans" do

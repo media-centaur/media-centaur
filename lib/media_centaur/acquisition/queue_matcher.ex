@@ -54,21 +54,41 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
   def match(rows, queue) when is_list(rows) and is_list(queue) do
     {paired_rev, claimed} =
       Enum.reduce(rows, {[], MapSet.new()}, fn %PursuitRow{} = row, {acc, claimed} ->
-        item = find_item(queue, row.torrent_hash, row.release_title, claimed)
+        {downloads_rev, claimed} =
+          row
+          |> row_pairing_keys()
+          |> Enum.reduce({[], claimed}, fn {hash, title}, {found, claimed} ->
+            case find_item(queue, hash, title, claimed) do
+              nil ->
+                {found, claimed}
+
+              item ->
+                {[%{download: to_download(item), queue_item_id: item.id} | found], claim(claimed, item)}
+            end
+          end)
+
+        downloads = Enum.reverse(downloads_rev)
+        primary = List.first(downloads)
 
         entry = %PursuitWithDownload{
           row: row,
-          download: to_download(item),
-          queue_item_id: item && item.id
+          download: primary && primary.download,
+          queue_item_id: primary && primary.queue_item_id,
+          downloads: downloads
         }
 
-        {[entry | acc], claim(claimed, item)}
+        {[entry | acc], claimed}
       end)
 
     orphans = Enum.reject(queue, fn %QueueItem{id: id} -> MapSet.member?(claimed, id) end)
 
     {Enum.reverse(paired_rev), orphans}
   end
+
+  # Rows built before pairing_keys existed (or test fixtures) fall back
+  # to the singular lead identity.
+  defp row_pairing_keys(%PursuitRow{pairing_keys: [_ | _] = keys}), do: keys
+  defp row_pairing_keys(%PursuitRow{torrent_hash: hash, release_title: title}), do: [{hash, title}]
 
   @doc """
   Finds the queue item identifying a pursuit — the single shared matcher

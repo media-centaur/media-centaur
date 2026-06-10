@@ -344,6 +344,30 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                     severity: :info
                   }
                 ),
+              downloads: [
+                %{
+                  download: %DownloadProgress{
+                    state: :downloading,
+                    progress_pct: 76.0,
+                    size_bytes: 14_500_000_000,
+                    size_left_bytes: 3_500_000_000,
+                    eta: "9m",
+                    client: "qBittorrent"
+                  },
+                  queue_item_id: "hash-s1-pack"
+                },
+                %{
+                  download: %DownloadProgress{
+                    state: :downloading,
+                    progress_pct: 18.0,
+                    size_bytes: 51_600_000_000,
+                    size_left_bytes: 42_300_000_000,
+                    eta: "1h 4m",
+                    client: "qBittorrent"
+                  },
+                  queue_item_id: "hash-s2-pack"
+                }
+              ],
               density: :full
             }
           },

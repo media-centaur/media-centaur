@@ -145,7 +145,15 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       # drill-down lands with campaign Phase 1c.
       lead_unit = Units.lead_of(units)
       target = lead_unit && Map.get(current_targets, lead_unit.current_target_id)
-      build_row(pursuit, units, lead_unit, target, download_location(target, pending_paths))
+
+      build_row(
+        pursuit,
+        units,
+        lead_unit,
+        target,
+        download_location(target, pending_paths),
+        current_targets
+      )
     end)
   end
 
@@ -487,7 +495,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     |> Map.new(fn target -> {target.id, target} end)
   end
 
-  defp build_row(%Pursuit{} = pursuit, units, lead_unit, target, location) do
+  defp build_row(%Pursuit{} = pursuit, units, lead_unit, target, location, current_targets) do
     {release_title, target_status, torrent_hash} =
       case target do
         %Target{release_title: rt, status: status, torrent_hash: hash} ->
@@ -516,11 +524,25 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       status: status,
       normalized_release_title: release_title && QueueMatcher.normalize_title(release_title),
       torrent_hash: torrent_hash,
+      pairing_keys: pairing_keys(units, target, current_targets),
       units_wanted: max(length(units), 1),
       units_satisfied: Enum.count(units, &(&1.state == "satisfied")),
       door: if(pursuit.recipe_type == "tmdb", do: :media, else: :query),
       unit_states: Enum.map(units, & &1.state)
     }
+  end
+
+  # One pairing identity per distinct current target across the units,
+  # lead target first — a composite pursuit has several grabs in the
+  # client at once and the queue matcher must claim them all.
+  defp pairing_keys(units, lead_target, current_targets) do
+    units
+    |> Enum.map(&Map.get(current_targets, &1.current_target_id))
+    |> Enum.reject(&is_nil/1)
+    |> then(fn targets -> if lead_target, do: [lead_target | targets], else: targets end)
+    |> Enum.uniq_by(& &1.id)
+    |> Enum.map(fn %Target{} = t -> {t.torrent_hash, t.release_title} end)
+    |> Enum.reject(fn {hash, title} -> is_nil(hash) and is_nil(title) end)
   end
 
   # Explicit string→atom mapping for the row VM so the function doesn't
