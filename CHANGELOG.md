@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.88.3 — 2026-06-11
+
+### Improved
+
+- **Cancelling a download plan now cleans up after itself.** When you cancel a pursuit, its in-flight downloads are removed from your download client too (partial data deleted; files already in your library are untouched) — no more ownerless torrents quietly downloading under "Other downloads".
+
 ## v0.88.2 — 2026-06-10
 
 ### Fixed
