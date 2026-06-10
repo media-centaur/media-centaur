@@ -2,7 +2,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Acquisition.{DropPlanner, PlanEvents, Plans}
-  alias MediaCentaur.Acquisition.Pursuits.Commands.Cancel
+  alias MediaCentaur.Acquisition.Pursuits.Commands.{AutoCancel, Cancel}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Units}
   alias MediaCentaur.Acquisition.Reactor.Handlers
   alias MediaCentaur.Capabilities
@@ -245,6 +245,124 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       assert Repo.all(Plans.Plan) == []
       assert [want] = ReleaseTracking.open_wants_for_item(item.id)
       assert want.last_searched_at
+    end
+  end
+
+  describe "sweep tick — mode-off reconciliation (Q11)" do
+    # Use-case 11: flipping an item to `off` mid-flight. Entry point is
+    # the real one — `Handlers.tracking_sweep_completed/0`, which runs
+    # the reconciliation pass before the drop planner tick.
+
+    defp episode_stub do
+      stub_results(%{
+        "Sample Show S01E01" => [
+          release("Sample.Show.S01E01.1080p.WEB-DL", "e1-hd", %{seeders: 20})
+        ]
+      })
+    end
+
+    test "a parked ask draft is discarded on the tick after the flip; wants stay open" do
+      episode_stub()
+
+      item = create_tracked_show()
+      {:ok, item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "ask"})
+      create_aired_release(item, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      tick_and_gate()
+      [parked] = Plans.list_drafts()
+      assert parked.status == "ready"
+
+      {:ok, _item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "off"})
+      Handlers.tracking_sweep_completed()
+
+      assert Plans.list_drafts() == []
+      {:ok, discarded} = Plans.get(parked.id)
+      assert discarded.status == "discarded"
+
+      # Mode off ≠ stop wanting — media search remains the expected
+      # path (Q3), so the ledger keeps the intent.
+      assert [_want] = ReleaseTracking.open_wants_for_item(item.id)
+    end
+
+    test "a still-seeking tracking pursuit is system-cancelled; wants stay open" do
+      episode_stub()
+
+      item = create_tracked_show()
+      create_aired_release(item, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      tick_and_gate()
+      pursuit = sole_pursuit()
+
+      # Degrade the grab the way production does: the safe-case pivot
+      # cancels the dead release and re-arms a seeking target (the
+      # worker snoozes against the now-empty stub).
+      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
+      {:ok, _pivoted} = AutoCancel.execute(%{pursuit_id: pursuit.id, reason: :zero_seeders})
+
+      {:ok, _item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "off"})
+      Handlers.tracking_sweep_completed()
+
+      assert Repo.get!(Pursuit, pursuit.id).state == "cancelled"
+      assert [want] = ReleaseTracking.open_wants_for_item(item.id)
+      assert want.season_number == 1
+    end
+
+    test "a tracking pursuit with a live download is left alone" do
+      episode_stub()
+
+      item = create_tracked_show()
+      create_aired_release(item, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      tick_and_gate()
+      pursuit = sole_pursuit()
+
+      {:ok, _item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "off"})
+      Handlers.tracking_sweep_completed()
+
+      assert Repo.get!(Pursuit, pursuit.id).state == "active"
+    end
+
+    test "a user-initiated plan-now draft survives the flip" do
+      episode_stub()
+
+      item = create_tracked_show()
+      {:ok, item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "off"})
+      create_aired_release(item, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      {:ok, :planned} = DropPlanner.plan_item_now(item.id)
+      [draft] = Plans.list_drafts()
+      assert draft.origin == "manual"
+
+      Handlers.tracking_sweep_completed()
+
+      assert [_still_there] = Plans.list_drafts()
+    end
+
+    test "an item inheriting a global default of off is reconciled too" do
+      episode_stub()
+
+      item = create_tracked_show()
+      {:ok, item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "ask"})
+      create_aired_release(item, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      tick_and_gate()
+      assert [_parked] = Plans.list_drafts()
+
+      {:ok, _item} = ReleaseTracking.update_auto_grab(item, %{auto_grab_mode: "global"})
+
+      MediaCentaur.Settings.find_or_create_entry!(%{
+        key: "auto_grab.default_mode",
+        value: %{"value" => "off"}
+      })
+
+      Handlers.tracking_sweep_completed()
+
+      assert Plans.list_drafts() == []
     end
   end
 

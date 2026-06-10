@@ -18,6 +18,7 @@ defmodule MediaCentaur.Acquisition.CancelReasons do
   | `zero_seeders`      | sustained zero-seeders signal confirmed                |
   | `stall`             | sustained stall signal confirmed                       |
   | `superseded_by_plans` | legacy seeker system-cancelled at the ADR-056 cutover |
+  | `auto_grab_disabled` | auto-grab switched off for the item mid-flight (Q11)   |
   """
 
   @user_disabled "user_disabled"
@@ -29,6 +30,7 @@ defmodule MediaCentaur.Acquisition.CancelReasons do
   @zero_seeders "zero_seeders"
   @stall "stall"
   @superseded_by_plans "superseded_by_plans"
+  @auto_grab_disabled "auto_grab_disabled"
 
   @all [
     @user_disabled,
@@ -39,10 +41,14 @@ defmodule MediaCentaur.Acquisition.CancelReasons do
     @abandoned,
     @zero_seeders,
     @stall,
-    @superseded_by_plans
+    @superseded_by_plans,
+    @auto_grab_disabled
   ]
 
   @type t :: String.t()
+
+  @spec auto_grab_disabled() :: t()
+  def auto_grab_disabled, do: @auto_grab_disabled
 
   @spec user_disabled() :: t()
   def user_disabled, do: @user_disabled

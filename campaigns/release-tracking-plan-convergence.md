@@ -1,5 +1,5 @@
 ---
-status: Phase 4 nearly done (deletion sweep SHIPPED; remaining = Q11 mode-off mid-flight + wiki sync)
+status: Phase 4 code COMPLETE (deletion sweep + Q11 shipped; remaining = wiki sync only)
 started: 2026-06-10
 last_updated: 2026-06-10
 ---
@@ -472,12 +472,23 @@ use-case inventory.
        statuses, claims-gating, overlap-vs-legacy-pursuit pin) migrated
        to `create_pursuit_with_target`; tests whose *subject* was
        enqueue/Arm deleted with the feature.
-   * REMAINING, in order:
-     4. **Mode-off mid-flight** (Q11): flipping an item to `off` should
-        cancel its active tracking pursuits + discard its drafts (the
-        legacy lazy-cancel died with release_ready). Natural seam:
-        `update_auto_grab` broadcast → Reactor, or a DropPlanner tick
-        reconciliation pass.
+   * ✅ **Mode-off mid-flight (Q11)** (this session) —
+     `ModeReconciler.run_pass/0` on the sweep tick, before the drop
+     planner (`Handlers.tracking_sweep_completed`). Tick-driven (not
+     flip-driven): one enforcement point covers per-item flips, the
+     global-default flip (which no `update_auto_grab` broadcast could
+     see), and restarts — Q2's state-not-delta philosophy; latency =
+     sweep cadence, same laziness as the legacy per-event policy.
+     Withdraws parked ask drafts (`Plans.discard`) and system-cancels
+     still-seeking tracking pursuits (new `auto_grab_disabled` cancel
+     reason; wants stay OPEN — mode off ≠ stop wanting, Q3).
+     **Legacy parity pins:** cancellable = still-seeking only (the old
+     `@cancellable_statuses` was searching/snoozed) — a pursuit with
+     any acquired/succeeded target is a live download and survives the
+     flip; manual plan-now drafts survive (user action outranks the
+     automation dial); solving drafts self-handle via the existing
+     plan-ready mode gate.
+   * REMAINING:
      5. **Wiki sync** — auto-grab modes (incl. ask), the drop-plan
         flow, "plan now" replacing queue-all, the watching state,
         media-search pages (the expired carve-out from the sibling
