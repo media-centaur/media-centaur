@@ -1411,6 +1411,50 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
     end
   end
 
+  describe "history disclosure" do
+    # History is terminal-state bookkeeping, not live activity — it stays
+    # collapsed by default so the page leads with active pursuits. The
+    # filter chips are the cheapest "is the zone expanded?" probe: they
+    # only render inside the open disclosure body.
+
+    test "history starts collapsed — toggle present, filter chips hidden", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      assert has_element?(view, "[phx-click='toggle_history']")
+      refute has_element?(view, "button[phx-click='set_history_filter']")
+    end
+
+    test "toggling expands and collapses the zone", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      view |> element("[phx-click='toggle_history']") |> render_click()
+      assert has_element?(view, "button[phx-click='set_history_filter']")
+
+      view |> element("[phx-click='toggle_history']") |> render_click()
+      refute has_element?(view, "button[phx-click='set_history_filter']")
+    end
+
+    test "deep-linking with history params auto-expands the zone", %{conn: conn} do
+      # The upcoming-zone badges link to /download?filter=all&search=<title>
+      # — a user following that link came FOR the history zone, so it
+      # must not greet them collapsed.
+      {:ok, view, _html} = live_async!(conn, ~p"/download?filter=all&search=Sample")
+
+      assert has_element?(view, "button[phx-click='set_history_filter']")
+    end
+
+    test "opening the pursuit modal does not auto-expand history", %{conn: conn} do
+      # build_pursuit_modal_path/2 always carries filter= in the patch URL;
+      # only the FIRST load's params may auto-expand, otherwise clicking
+      # any pursuit row would pop the history zone open underneath the modal.
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      render_patch(view, "/download?filter=failed&selected=#{Ecto.UUID.generate()}")
+
+      refute has_element?(view, "button[phx-click='set_history_filter']")
+    end
+  end
+
   describe "live updates from grab lifecycle" do
     # The activity zone shows recent grabs and their state. PubSub events
     # from acquisition coalesce through a 500ms debounce so a season-grab

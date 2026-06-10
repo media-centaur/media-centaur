@@ -134,6 +134,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
          download_client_ready: false,
          history_filter: :failed,
          history_search: "",
+         history_open?: false,
          history_rows: [],
          pursuit_rows: [],
          expanded_pursuit_groups: MapSet.new(),
@@ -281,6 +282,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         history_search: Map.get(params, "search", ""),
         history_filter: HistoryLogic.parse_filter(Map.get(params, "filter"))
       )
+      |> maybe_open_history(params, was_loaded?)
       |> ensure_loaded()
       |> maybe_load_history(was_loaded?)
       |> apply_pursuit_modal_params(params)
@@ -288,6 +290,22 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       |> maybe_trigger_prowlarr_search(Map.get(params, "prowlarr_search"))
 
     {:noreply, socket}
+  end
+
+  # History is collapsed by default — a deep-link that carries history
+  # params (`?filter=…` from the upcoming-zone badges, `?search=…`) came
+  # FOR that zone, so it auto-expands. Only the FIRST handle_params may
+  # do this: `build_pursuit_modal_path/2` re-emits `filter=` on every
+  # modal patch, and without the `was_loaded?` gate clicking any pursuit
+  # row would pop History open underneath the modal.
+  defp maybe_open_history(socket, _params, true), do: socket
+
+  defp maybe_open_history(socket, params, false) do
+    if Map.has_key?(params, "filter") or Map.get(params, "search", "") != "" do
+      assign(socket, history_open?: true)
+    else
+      socket
+    end
   end
 
   # Skip the sync history reload on first load — the async task spawned
@@ -459,8 +477,16 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         </div>
         <div :if={@page_backdrop} class="page-side-dim" aria-hidden="true"></div>
 
-        <div class="relative z-[1] max-w-4xl mx-auto space-y-6 py-6">
-          <h1 class="text-2xl font-bold">Downloads</h1>
+        <%!-- Same header recipe + column placement as the library page
+              (left-aligned, text-3xl, muted count subtitle) so moving
+              between the two pages doesn't shift the title around. --%>
+        <div class="relative z-[1] max-w-4xl space-y-6">
+          <header>
+            <h1 class="text-3xl font-bold tracking-tight">Downloads</h1>
+            <p class="mt-1 text-sm text-base-content/60">
+              {Logic.pursuit_summary(length(@paired_rows), length(@download_cards))}
+            </p>
+          </header>
 
           <MediaOmnibox.media_omnibox
             mode={@omnibox_mode}
@@ -516,7 +542,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
           <p
             :if={!@download_client_ready}
-            class="glass-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/50"
+            class="scrim-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/50"
           >
             Connect a download client in
             <.link navigate="/settings?section=acquisition" class="link link-primary">Settings</.link>
@@ -560,7 +586,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
           <section
             :if={@paired_rows == [] && @loaded? && @download_client_ready}
-            class="glass-surface rounded-xl px-4 py-6 text-center space-y-3"
+            class="scrim-surface rounded-xl px-4 py-6 text-center space-y-3"
           >
             <p class="text-sm text-base-content/40">No active pursuits.</p>
             <.button
@@ -578,6 +604,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
             empty?={@history_rows == []}
             filter={@history_filter}
             search={@history_search}
+            open?={@history_open?}
           >
             <.grouped_compact_rows entries={@history_compact} />
           </History.history_zone>
@@ -948,6 +975,10 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # History-zone events (filter, search). Row-level cancel / re-arm
   # actions are gone — rows are passive and clicking one opens the
   # pursuit modal where Cancel / Change target live.
+
+  def handle_event("toggle_history", _params, socket) do
+    {:noreply, assign(socket, history_open?: !socket.assigns.history_open?)}
+  end
 
   def handle_event("set_history_filter", %{"filter" => filter}, socket) do
     {:noreply,

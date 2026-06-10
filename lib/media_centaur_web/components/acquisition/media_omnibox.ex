@@ -54,6 +54,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   def media_omnibox(assigns) do
     ~H"""
+    <%!-- Deliberately glass, not scrim — the search card stays a light
+          floating surface above the page's scrim-toned cards (user call:
+          the scrim version read too heavy here). --%>
     <section data-nav-zone="omnibox" class="glass-surface rounded-xl p-4 space-y-3">
       <.media_form :if={@mode == :media} query={@query} />
       <.release_form :if={@mode == :release} session={@session} any_loading?={@any_loading?} />
