@@ -116,7 +116,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           value={@query}
           class="input input-bordered w-full h-12 pl-12 text-base"
           placeholder="What do you want to watch?"
-          phx-debounce="300"
+          phx-debounce="500"
           data-nav-item
           data-captures-keys
           tabindex="0"

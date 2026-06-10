@@ -400,6 +400,36 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       assert_patch(view, "/download?plan=new&tmdb_id=246810&tmdb_type=tv")
     end
 
+    test "a re-fire of the same effective query never searches TMDB again", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_both(
+        [%{"id" => 777, "title" => "Sample Movie", "release_date" => "2010-03-05"}],
+        []
+      )
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      html = render_async(view)
+      assert html =~ "Sample Movie"
+
+      # Same query with a trailing space: poison the stub — any further
+      # TMDB call fails loudly. The dedup memo must short-circuit.
+      Req.Test.stub(:tmdb, fn _conn -> raise "TMDB searched twice for the same query" end)
+
+      html =
+        view
+        |> form("form[phx-change='omnibox_change']", %{query: "sample "})
+        |> render_change()
+
+      refute html =~ "Searching TMDB"
+      assert render(view) =~ "Sample Movie"
+    end
+
     test "the mode flip swaps in the full release-search form and back", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
 
