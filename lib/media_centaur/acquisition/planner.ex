@@ -1,10 +1,9 @@
 defmodule MediaCentaur.Acquisition.Planner do
   @moduledoc """
   The coverage optimizer (media-search campaign Phase 3): maps wanted
-  units to release candidates, applying the campaign's settled
-  objective hierarchy
+  units to release candidates, applying the objective hierarchy
 
-      Coverage → User preference → Consolidation → Health
+      Coverage → Consolidation → User preference → Health
 
   and the automatic granularity ladder (complete series → season range
   → season pack → episode span → single episode). The user picks
@@ -13,22 +12,24 @@ defmodule MediaCentaur.Acquisition.Planner do
   ## Algorithm
 
   Acceptability-filter the options (quality bounds — best-available-now
-  has **no** patience window), then resolve broad-first: for each
-  multi-unit option, compare it against the ensemble of per-unit best
-  picks restricted to the option's covered span —
+  has **no** patience window), then consolidate broad-first: every
+  multi-unit option still covering two or more remaining wanted units
+  claims them, in `{breadth, quality, seeders}` order — so the widest
+  acceptable consolidation wins its span, a 4K pack outranks a 1080p
+  pack, and seeders break ties between equals. Remaining units get
+  their per-unit best (quality, then seeders); units nothing acceptable
+  covers come back as `unfound` — search results, never pursuit leaves
+  (campaign hard boundary).
 
-  1. **Coverage**: whichever covers more of the span's wanted units
-     wins outright (a pack with holes never beats singles that fill
-     them, and singles with holes never beat a pack that fills them).
-  2. **User preference**: equal coverage → higher summed quality rank
-     wins (acceptable 4K singles beat an acceptable 1080p pack).
-  3. **Consolidation**: equal quality → fewer grabs wins (the pack).
-  4. **Health**: equal grabs → more seeders wins.
-
-  Winning consolidations claim their covered units; remaining units get
-  their per-unit best; units nothing acceptable covers come back as
-  `unfound` — search results, never pursuit leaves (campaign hard
-  boundary).
+  **Within a span, consolidation outranks per-unit quality** (campaign
+  plan-solver-consolidation, 2026-06-10 — supersedes the original
+  summed-quality ensemble comparison): an acceptable pack is never
+  fragmented into singles for a quality upgrade, because every claimed
+  unit's higher-quality alternatives stay one click away in the plan
+  board's swap picker, while overlapping grabs are unconditionally
+  duplicate data. The retired comparison let one 4K single veto a
+  whole season pack and then re-grab the pack anyway for the leftovers
+  (7 grabs where 2 sufficed).
 
   Pure module — no I/O, no DB. Inputs are pre-verified: the plan runner
   is responsible for show-identity (`TitleMatcher.coverage/2`) and for
@@ -87,8 +88,13 @@ defmodule MediaCentaur.Acquisition.Planner do
   end
 
   # ---------------------------------------------------------------------------
-  # Consolidation pass — broad scopes first, each judged against the
-  # per-unit-best ensemble over its own span.
+  # Consolidation pass — broad scopes first. Any option still covering
+  # two or more remaining wanted units claims them; the sort order
+  # (breadth, then quality, then seeders) IS the policy, so the better
+  # pack is judged — and claims — first. No per-unit ensemble
+  # comparison: fragmenting a span for quality is never automatic (see
+  # moduledoc), and an option whose span has real holes only ever
+  # claims what it covers — singles fill the rest in the next pass.
   # ---------------------------------------------------------------------------
 
   defp consolidate(wanted, options) do
@@ -98,7 +104,7 @@ defmodule MediaCentaur.Acquisition.Planner do
     |> Enum.reduce({[], wanted}, fn option, {assignments, remaining} ->
       covered = ReleaseCoverage.covered_units(option.scope, remaining)
 
-      if length(covered) > 1 and beats_ensemble?(option, covered, remaining, options) do
+      if length(covered) > 1 do
         assignment = %Assignment{result: option.result, scope: option.scope, units: covered}
         {[assignment | assignments], remaining -- covered}
       else
@@ -111,60 +117,6 @@ defmodule MediaCentaur.Acquisition.Planner do
   defp multi_unit?(%Option{scope: scope}, wanted) do
     scope |> ReleaseCoverage.covered_units(wanted) |> length() > 1
   end
-
-  # Objective comparison of one consolidating option against the best
-  # per-unit picks over the option's covered span.
-  defp beats_ensemble?(option, covered, remaining, options) do
-    span = ReleaseCoverage.covered_units(option.scope, remaining)
-
-    ensemble =
-      span
-      |> Enum.map(&best_single_for(&1, options, option))
-      |> Enum.reject(&is_nil/1)
-
-    ensemble_covered = Enum.map(ensemble, fn {unit, _option} -> unit end)
-
-    cond do
-      # 1. Coverage — more of the span covered wins outright.
-      length(covered) != length(ensemble_covered) ->
-        length(covered) > length(ensemble_covered)
-
-      # 2. User preference — higher summed quality rank wins.
-      quality_rank(option) * length(covered) !=
-          Enum.sum(Enum.map(ensemble, fn {_unit, o} -> quality_rank(o) end)) ->
-        quality_rank(option) * length(covered) >
-          Enum.sum(Enum.map(ensemble, fn {_unit, o} -> quality_rank(o) end))
-
-      # 3. Consolidation — one grab beats N distinct grabs.
-      distinct_grabs(ensemble) > 1 ->
-        true
-
-      # 4. Health — seeders decide between single-grab equals.
-      true ->
-        seeders(option) >= max_seeders(ensemble)
-    end
-  end
-
-  # The best alternative provider for one unit, excluding the option
-  # under judgement (it can't be its own competition).
-  defp best_single_for(unit, options, judged_option) do
-    options
-    |> Enum.filter(fn %Option{scope: scope} = option ->
-      option != judged_option and ReleaseCoverage.covers?(scope, elem(unit, 0), elem(unit, 1))
-    end)
-    |> Enum.max_by(&{quality_rank(&1), seeders(&1)}, fn -> nil end)
-    |> case do
-      nil -> nil
-      best -> {unit, best}
-    end
-  end
-
-  defp distinct_grabs(ensemble) do
-    ensemble |> Enum.map(fn {_unit, option} -> option.result.guid end) |> Enum.uniq() |> length()
-  end
-
-  defp max_seeders([]), do: 0
-  defp max_seeders(ensemble), do: ensemble |> Enum.map(fn {_unit, o} -> seeders(o) end) |> Enum.max()
 
   # ---------------------------------------------------------------------------
   # Singles pass — best remaining provider per unit.

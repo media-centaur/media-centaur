@@ -97,7 +97,12 @@ defmodule MediaCentaur.Acquisition.PlannerTest do
       assert solution.unfound == []
     end
 
-    test "user preference beats consolidation: complete singles at higher quality beat the pack" do
+    test "consolidation beats per-unit quality upgrades: the pack wins even when every unit has a higher-quality single" do
+      # Supersedes the original "user preference beats consolidation"
+      # rule (campaign plan-solver-consolidation, 2026-06-10): within an
+      # acceptable-quality span, the solver never fragments a
+      # consolidation for quality — upgrades stay reachable through the
+      # plan board's per-release alternatives picker.
       wanted = [{1, 1}, {1, 2}]
 
       options = [
@@ -108,8 +113,43 @@ defmodule MediaCentaur.Acquisition.PlannerTest do
 
       solution = Planner.solve(wanted, options, @prefs)
 
-      assert assigned_guid_for(solution, {1, 1}) == "e1-uhd"
-      assert assigned_guid_for(solution, {1, 2}) == "e2-uhd"
+      assert [assignment] = solution.assignments
+      assert assignment.result.guid == "pack"
+      assert Enum.sort(assignment.units) == [{1, 1}, {1, 2}]
+    end
+
+    test "the Orville regression: one 4K single must not fragment a season into pack-plus-duplicating-singles" do
+      # Real plan, 2026-06-10 (v0.88.1): S2+S3 wanted; both seasons had
+      # 1080p packs, S3 also had a 4K E01 single and high-seeder 1080p
+      # singles. The old summed-quality ensemble comparison let the lone
+      # 4K single veto the S3 pack, then the per-unit pass scattered to
+      # whatever had more seeders — 7 grabs, ~11.6 GB of duplicate
+      # content. The plan must be exactly the two packs.
+      wanted = for episode <- 1..3, do: {2, episode}
+      wanted = wanted ++ for episode <- 1..4, do: {3, episode}
+
+      options = [
+        option("s2-pack", {:season, 2}, quality: :hd_1080p, seeders: 2),
+        option("s3-pack", {:season, 3}, quality: :hd_1080p, seeders: 89),
+        # The second S3 pack is load-bearing: it let the old ensemble
+        # "cover" the holes between singles, so the singles+pack-b
+        # fantasy lineup tied the pack on coverage and beat it on
+        # summed quality via the lone 4K single.
+        option("s3-pack-b", {:season, 3}, quality: :hd_1080p, seeders: 30),
+        option("s3e1-uhd", {:episode, 3, 1}, quality: :uhd_4k, seeders: 2),
+        option("s3e2", {:episode, 3, 2}, quality: :hd_1080p, seeders: 589),
+        option("s3e4", {:episode, 3, 4}, quality: :hd_1080p, seeders: 531)
+      ]
+
+      solution = Planner.solve(wanted, options, @prefs)
+
+      assert solution.unfound == []
+      assert solution.assignments |> Enum.map(& &1.result.guid) |> Enum.sort() == ["s2-pack", "s3-pack"]
+
+      # No unit is assigned twice — overlapping grabs are duplicate data.
+      assigned_units = Enum.flat_map(solution.assignments, & &1.units)
+      assert assigned_units == Enum.uniq(assigned_units)
+      assert Enum.sort(assigned_units) == Enum.sort(wanted)
     end
 
     test "consolidation breaks quality ties: equal-quality pack beats equal-quality singles" do

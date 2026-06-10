@@ -19,12 +19,17 @@ quality singles never fragment a pack.
 
 ## Status
 
-Diagnosed against the live plan board and the solver source; no code
-yet. Root cause confirmed in `MediaCentaur.Acquisition.Planner` —
-two compounding flaws (see Decisions). Library-side duplicate handling
-also audited: duplicates collapse to one Episode entity (no UI
-double), but playback picks an arbitrary (insertion-order) WatchedFile
-and both files persist on disk.
+Solver fix implemented 2026-06-10 (same session as diagnosis): the
+per-unit-ensemble comparison is retired; consolidation claims spans
+greedily in `{breadth, quality, seeders}` order and the hierarchy is
+now **Coverage → Consolidation → User preference → Health**. The
+Orville shape is pinned by a regression test (two 1080p packs + a 4K
+single + high-seeder singles → exactly the two packs, no overlap).
+REMAINING: live verification on prod after the next release. The
+library-side audit stands: duplicates collapse to one Episode entity
+(no UI double), but playback picks an arbitrary (insertion-order)
+WatchedFile and both files persist on disk — deterministic file pick
+stays a candidate follow-up.
 
 ## Decisions made
 
@@ -38,25 +43,21 @@ and both files persist on disk.
   singles with more seeders fragment a span, violating the module's own
   documented hierarchy (Coverage → Preference → Consolidation →
   Health).
-* `2026-06-10` — Direction (user-aligned, not yet final design): pack
-  wins consolidation at equal quality; strictly-better-quality singles
-  may override *individual* units on top of an assigned pack (the 4K
-  E01 case becomes pack + one upgrade, 2 grabs for the season). Open
-  question: should a lone quality upgrade be auto-added or offered as
-  a swap option only?
+* `2026-06-10` — Direction (user-aligned): pack wins consolidation at
+  equal quality.
+* `2026-06-10` — Open question resolved (autonomous, per "resolve what
+  you can"): quality upgrades are **offer-as-swap only**, never
+  auto-added — the user's stated expectation was "only the 2 season
+  packs", and an auto-added upgrade is deliberate duplicate content.
+  Within a span, consolidation now outranks per-unit quality; the
+  plan board's alternatives picker keeps upgrades one click away.
+  Supersedes the original summed-quality ensemble rule in the
+  `Planner` moduledoc.
 
 ## Next steps
 
-1. Design session: settle the upgrade-on-top-of-pack semantics
-   (auto-add vs. offer-as-option) and whether the duplicate-content
-   cost should be an explicit objective term.
-2. Test-first in `planner_test.exs`: reproduce the Orville shape —
-   1080p pack covering a full span + 4K single for one unit +
-   higher-seeder 1080p singles for several units → assert pack-led
-   solution, no overlapping assignments.
-3. Implement in the pure solver (`Planner`); no I/O changes needed —
-   the plan runner's search-all-rungs behavior is by design and stays.
-4. Verify against a live re-plan of a multi-season show.
+1. Verify against a live re-plan of a multi-season show on prod after
+   the next release.
 
 ## Completion criteria
 
@@ -64,8 +65,8 @@ and both files persist on disk.
   covered by another assigned release (no duplicate content grabs).
 * Equal-quality, higher-seeder singles do not displace units from an
   assigned pack.
-* A strictly-higher-quality single can still take its unit per the
-  settled upgrade semantics.
+* A strictly-higher-quality single is reachable per unit via the plan
+  board's alternatives picker (offer-as-swap) — never auto-assigned.
 * Regression test pinning the Orville shape (append-only per ADR-027).
 
 ## Pointers
