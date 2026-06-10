@@ -402,6 +402,19 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
   def state_badge_variant(_), do: "metric"
 
   @doc """
+  Text-color class for a queue state rendered as plain colored text
+  (UIDR-002 #1 — status labels are text, not chips).
+  """
+  @spec state_text_class(QueueItem.state() | nil) :: String.t()
+  def state_text_class(:downloading), do: "text-info/80"
+  def state_text_class(:completed), do: "text-success/80"
+  def state_text_class(:error), do: "text-error/80"
+  def state_text_class(:paused), do: "text-warning/80"
+  def state_text_class(:stalled), do: "text-warning/80"
+  def state_text_class(:queued), do: "text-base-content/50"
+  def state_text_class(_state), do: "text-base-content/60"
+
+  @doc """
   Whether the Downloads page should render a health-secondary line for
   this item. Suppresses the line for items where `Acquisition.Health`
   has nothing actionable to add (`:healthy`, `:warming_up`, or `nil`).

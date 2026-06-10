@@ -33,18 +33,32 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitStyle do
   attr :state, :atom, required: true
   attr :awaiting_decision?, :boolean, default: false
 
+  # States render as plain colored text per UIDR-002 #1 — solid chips
+  # carried far too much visual weight on every card and hero. The
+  # awaiting-decision case keeps a soft badge: it's a call to action,
+  # not a state label.
   def state_badge(%{awaiting_decision?: true} = assigns),
     do: ~H|<.badge variant="warning">Decision</.badge>|
 
-  def state_badge(%{state: :active} = assigns), do: ~H|<.badge variant="info">Active</.badge>|
+  def state_badge(%{state: :active} = assigns), do: state_text(assigns, "text-info/80", "Active")
 
-  def state_badge(%{state: :satisfied} = assigns), do: ~H|<.badge variant="success">Satisfied</.badge>|
+  def state_badge(%{state: :satisfied} = assigns),
+    do: state_text(assigns, "text-success/80", "Satisfied")
 
-  def state_badge(%{state: :partial} = assigns), do: ~H|<.badge variant="warning">Partial</.badge>|
+  def state_badge(%{state: :partial} = assigns),
+    do: state_text(assigns, "text-warning/80", "Partial")
 
-  def state_badge(%{state: :exhausted} = assigns), do: ~H|<.badge variant="error">Exhausted</.badge>|
+  def state_badge(%{state: :exhausted} = assigns),
+    do: state_text(assigns, "text-error/80", "Exhausted")
 
-  def state_badge(%{state: :cancelled} = assigns), do: ~H|<.badge variant="ghost">Cancelled</.badge>|
+  def state_badge(%{state: :cancelled} = assigns),
+    do: state_text(assigns, "text-base-content/40", "Cancelled")
+
+  defp state_text(assigns, color, label) do
+    assigns = Phoenix.Component.assign(assigns, color: color, label: label)
+
+    ~H|<span class={["text-xs font-medium uppercase tracking-wider", @color]}>{@label}</span>|
+  end
 
   @doc "Tailwind background-color class for a timeline-entry severity dot."
   @spec severity_dot_class(TimelineEntry.severity()) :: String.t()
