@@ -403,10 +403,10 @@ use-case inventory.
      implemented (due wants only) — per-unit ladder terms would search
      non-due wants' terms, violating due-gating; and the user was
      lukewarm on it. Revisit only if gap-coverage misses hurt.
-   * Tried-and-failed planner exclusion (Q5 loop-breaker) **not yet
-     wired** — moved to Phase 3 scope (needs a failed-target → corpus
-     exclusion read in RunPlan/DropPlanner). The grab-fail-regrab loop
-     is currently only mitigated by back-off cadence.
+   * Tried-and-failed exclusion (Q5 loop-breaker) shipped same-day
+     (commit `bb1ac8a9`): drop plans seed unit exclusions from
+     terminally-failed pursuit units' `tried_release_guids` — re-plans
+     only assign genuinely new releases.
    * Mode-off mid-flight auto-cancel (Q11) deferred to Phase 4 (the
      legacy lazy-cancel died with release_ready; flipping off now only
      stops future planning).

@@ -56,13 +56,19 @@ defmodule MediaCentaurWeb.Components.HeroCard do
     <section
       :if={@item}
       data-component="hero"
-      class="hero-fluid relative overflow-hidden"
+      class="hero-fluid relative flex flex-col justify-center px-12 lg:px-16 py-12"
     >
       <%!-- No own scrims: page-level atmosphere (`.page-side-dim` in
             HomeLive) provides both the vertical fade-to-constant-dim and
             the left-side darkening, so the effect doesn't end at the
-            hero's edge. --%>
-      <div class="absolute inset-y-0 left-0 px-12 lg:px-16 max-w-2xl flex flex-col justify-center gap-3">
+            hero's edge.
+
+            Content sits in normal flow (not absolutely positioned) so its
+            intrinsic height is the hero's true minimum — a scrunched
+            viewport grows the section rather than bleeding the CTAs under
+            the next row. py-12 outlasts the content wrapper's -mt-8
+            overlap in HomeLive. --%>
+      <div class="max-w-2xl flex flex-col gap-3">
         <%!-- Logo replaces the title text when present. The PNG is sized by
               max-height (preserves aspect) and capped on width so very wide
               logos don't push past the hero's text column. --%>
