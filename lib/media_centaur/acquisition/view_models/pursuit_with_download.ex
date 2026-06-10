@@ -12,11 +12,18 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitWithDownload do
   alias MediaCentaur.Acquisition.ViewModels.{DownloadProgress, PursuitRow}
 
   @enforce_keys [:row]
-  defstruct [:row, :download, :queue_item_id]
+  defstruct [:row, :download, :queue_item_id, downloads: []]
+
+  @typedoc "One claimed torrent — the card renders a strip per entry."
+  @type paired_download :: %{download: DownloadProgress.t(), queue_item_id: String.t()}
 
   @type t :: %__MODULE__{
           row: PursuitRow.t(),
+          # The lead pairing (first key's match) — status derivation and
+          # single-download surfaces read these; `downloads` carries every
+          # claimed torrent for composite pursuits (ADR-055).
           download: DownloadProgress.t() | nil,
-          queue_item_id: String.t() | nil
+          queue_item_id: String.t() | nil,
+          downloads: [paired_download()]
         }
 end

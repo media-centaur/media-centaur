@@ -37,6 +37,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
     doc:
       "Matched `DownloadProgress.t()` or `nil`. When non-nil, the status line is hidden and the download footer renders instead. Forces `:full` density."
 
+  attr :downloads, :list,
+    default: [],
+    doc:
+      "`PursuitWithDownload.paired_download()` maps — every claimed torrent; composite pursuits render one strip each."
+
   attr :queue_item_id, :string,
     default: nil,
     doc: "Queue-client id (qBittorrent hash) for the matched torrent. Required to fire cancel."
@@ -58,6 +63,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
       "Compact mode only — when true (default), the row wraps in its own glass-surface rounded card. When false, it renders as a flat row meant to sit inside a parent container that provides framing (e.g. inside `PursuitGroup`, where the group itself is the card and per-episode rows are flat dividers within it). Ignored in `:full` density."
 
   def pursuit_row(assigns) do
+    assigns = assign(assigns, :paired_downloads, paired_downloads(assigns))
+
     ~H"""
     <div
       :if={@density == :full && @vm.door == :media}
@@ -90,10 +97,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         <.segmented_units vm={@vm} />
       </div>
 
-      <div :if={@download} class="identity-banner-strip px-4 py-2">
+      <div :if={@paired_downloads != []} class="identity-banner-strip px-4 py-2 space-y-2">
         <.download_footer
-          download={@download}
-          queue_item_id={@queue_item_id}
+          :for={paired <- @paired_downloads}
+          download={paired.download}
+          queue_item_id={paired.queue_item_id}
           cancel_title={@vm.release_title || @vm.title}
           telemetry_age={@telemetry_age}
           bare
@@ -127,9 +135,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
       </div>
 
       <.download_footer
-        :if={@download}
-        download={@download}
-        queue_item_id={@queue_item_id}
+        :for={paired <- @paired_downloads}
+        download={paired.download}
+        queue_item_id={paired.queue_item_id}
         cancel_title={@vm.release_title || @vm.title}
         telemetry_age={@telemetry_age}
       />
@@ -281,4 +289,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
 
   defp progress_width(pct) when is_number(pct), do: max(0, min(100, round(pct)))
   defp progress_width(_), do: 0
+
+  # The LV passes every claimed torrent via `downloads`; single-download
+  # callers (stories, older call sites) pass just `download` — normalize
+  # to one list so the footer renders identically either way.
+  defp paired_downloads(%{downloads: [_ | _] = downloads}), do: downloads
+
+  defp paired_downloads(%{download: %{} = download, queue_item_id: queue_item_id}),
+    do: [%{download: download, queue_item_id: queue_item_id}]
+
+  defp paired_downloads(_assigns), do: []
 end

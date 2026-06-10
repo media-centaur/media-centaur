@@ -381,7 +381,9 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     # History rows always go through the grouping path (no downloads
     # paired in that zone).
     {download_cards, undownloaded_pwd} =
-      Enum.split_with(paired_rows, fn %PursuitWithDownload{download: d} -> not is_nil(d) end)
+      Enum.split_with(paired_rows, fn %PursuitWithDownload{downloads: downloads} ->
+        downloads != []
+      end)
 
     active_compact =
       Logic.group_pursuit_rows(
@@ -528,11 +530,17 @@ defmodule MediaCentaurWeb.AcquisitionLive do
             <div class="grid grid-cols-1 gap-2">
               <PursuitRow.pursuit_row
                 :for={
-                  %PursuitWithDownload{row: row, download: download, queue_item_id: qid} <-
+                  %PursuitWithDownload{
+                    row: row,
+                    download: download,
+                    queue_item_id: qid,
+                    downloads: downloads
+                  } <-
                     @download_cards
                 }
                 vm={row}
                 download={download}
+                downloads={downloads}
                 queue_item_id={qid}
                 telemetry_age={@telemetry_age}
               />
