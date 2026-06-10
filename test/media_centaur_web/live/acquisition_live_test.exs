@@ -1413,26 +1413,32 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
   end
 
   describe "history disclosure" do
-    # History is terminal-state bookkeeping, not live activity — it stays
-    # collapsed by default so the page leads with active pursuits. The
-    # filter chips are the cheapest "is the zone expanded?" probe: they
-    # only render inside the open disclosure body.
+    # History is terminal-state bookkeeping, not live activity — below the
+    # 2xl breakpoint it stays collapsed by default so the stacked page
+    # leads with active pursuits. Since the command-center layout the
+    # disclosure body always renders (the 2xl+ ledger rail shows it
+    # unconditionally); collapsed-ness is the `.hidden` class on the
+    # filter-row wrapper, so that wrapper is the "is the zone expanded?"
+    # probe.
+
+    @collapsed_filter_chips "section[data-nav-zone='history'] div.hidden button[phx-click='set_history_filter']"
 
     test "history starts collapsed — toggle present, filter chips hidden", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       assert has_element?(view, "[phx-click='toggle_history']")
-      refute has_element?(view, "button[phx-click='set_history_filter']")
+      assert has_element?(view, @collapsed_filter_chips)
     end
 
     test "toggling expands and collapses the zone", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/download")
 
       view |> element("[phx-click='toggle_history']") |> render_click()
+      refute has_element?(view, @collapsed_filter_chips)
       assert has_element?(view, "button[phx-click='set_history_filter']")
 
       view |> element("[phx-click='toggle_history']") |> render_click()
-      refute has_element?(view, "button[phx-click='set_history_filter']")
+      assert has_element?(view, @collapsed_filter_chips)
     end
 
     test "deep-linking with history params auto-expands the zone", %{conn: conn} do
@@ -1442,6 +1448,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/download?filter=all&search=Sample")
 
       assert has_element?(view, "button[phx-click='set_history_filter']")
+      refute has_element?(view, @collapsed_filter_chips)
     end
 
     test "opening the pursuit modal does not auto-expand history", %{conn: conn} do
@@ -1452,7 +1459,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
       render_patch(view, "/download?filter=failed&selected=#{Ecto.UUID.generate()}")
 
-      refute has_element?(view, "button[phx-click='set_history_filter']")
+      assert has_element?(view, @collapsed_filter_chips)
     end
   end
 

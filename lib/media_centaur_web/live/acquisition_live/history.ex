@@ -4,8 +4,10 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
   terminal pursuits (failed / cancelled / succeeded), filtered by
   lifecycle bucket and searchable by title or release filename.
 
-  Pure function component. State (filter, search, entries) lives on
-  the parent `AcquisitionLive` socket. Entries are the
+  Pure function component. Lives in the ledger rail of the command-center
+  layout at 2xl+ (always visible there); below 2xl it joins the stacked
+  page as a collapsed-by-default disclosure. State (filter, search,
+  entries) lives on the parent `AcquisitionLive` socket. Entries are the
   `Logic.group_pursuit_rows/2` mixed list of `{:single, vm}` and
   `{:group, data}` tagged tuples — the rendering helper on the parent
   pattern-matches and dispatches to `PursuitRow` (compact density) or
@@ -25,7 +27,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
   attr :open?, :boolean,
     default: false,
     doc:
-      "Disclosure state — History is terminal-state bookkeeping, collapsed by default so the page leads with active pursuits. The parent toggles via `toggle_history` and auto-expands on history deep-links."
+      "Disclosure state below the 2xl breakpoint — History is terminal-state bookkeeping, collapsed by default so the stacked page leads with active pursuits. The parent toggles via `toggle_history` and auto-expands on history deep-links. At 2xl+ the zone sits in the ledger rail and is always visible; this attr has no visual effect there."
 
   slot :inner_block,
     required: true,
@@ -35,10 +37,14 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
   def history_zone(assigns) do
     ~H"""
     <section data-nav-zone="history" class="max-w-4xl space-y-3 2xl:max-w-none">
+      <%!-- Below 2xl: disclosure toggle (collapsed by default). At 2xl+ the
+            zone lives in the ledger rail where History IS the content — the
+            toggle hides and a static heading shows instead; `@open?` has no
+            visual effect at rail widths. --%>
       <button
         type="button"
         phx-click="toggle_history"
-        class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-base-content/50 hover:text-base-content/80 transition-colors"
+        class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-base-content/50 hover:text-base-content/80 transition-colors 2xl:hidden"
         data-nav-item
         tabindex="0"
       >
@@ -47,8 +53,11 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
           class="size-3.5"
         /> History
       </button>
+      <h2 class="hidden text-xs font-medium uppercase tracking-wider text-base-content/50 2xl:block">
+        History
+      </h2>
 
-      <div :if={@open?} class="flex flex-wrap items-center gap-2">
+      <div class={["flex flex-wrap items-center gap-2", !@open? && "hidden 2xl:flex"]}>
         <button
           :for={f <- HistoryLogic.filter_atoms()}
           phx-click="set_history_filter"
@@ -78,15 +87,15 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
       </div>
 
       <section
-        :if={@open? && @empty?}
-        class="scrim-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40"
+        :if={@empty?}
+        class={[
+          "scrim-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40",
+          !@open? && "hidden 2xl:block"
+        ]}
       >
         {HistoryLogic.empty_state(@filter)}
       </section>
-      <div
-        :if={@open? && !@empty?}
-        class="grid grid-cols-1 items-start gap-2 2xl:grid-cols-2 min-[2200px]:grid-cols-3"
-      >
+      <div :if={!@empty?} class={["grid grid-cols-1 gap-2", !@open? && "hidden 2xl:grid"]}>
         {render_slot(@inner_block)}
       </div>
     </section>
