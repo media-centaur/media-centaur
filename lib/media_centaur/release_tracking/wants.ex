@@ -94,6 +94,24 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   end
 
   @doc """
+  Counts the open ledger across watching items — `{want_count,
+  item_count}`. Drives the Downloads page's quiet "watching for…"
+  pointer (ADR-056 Q7: count + link, never want cards — open wants are
+  not acquisition activity).
+  """
+  @spec open_summary() :: {non_neg_integer(), non_neg_integer()}
+  def open_summary do
+    Repo.one(
+      from(w in Want,
+        join: i in Item,
+        on: i.id == w.item_id,
+        where: w.status == :open and i.status == :watching,
+        select: {count(w.id), count(w.item_id, :distinct)}
+      )
+    ) || {0, 0}
+  end
+
+  @doc """
   Dismisses the item's open wants that aired before `cutoff`. Returns
   the dismissed count.
   """

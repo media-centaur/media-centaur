@@ -593,6 +593,9 @@ defmodule MediaCentaur.ReleaseTracking do
   @doc "See `MediaCentaur.ReleaseTracking.Wants.open_gap_wants/2`."
   defdelegate open_gap_wants(item, unit_specs), to: Wants
 
+  @doc "See `MediaCentaur.ReleaseTracking.Wants.open_summary/0`."
+  defdelegate open_wants_summary(), to: Wants, as: :open_summary
+
   # --- Events ---
 
   def create_event(attrs) do

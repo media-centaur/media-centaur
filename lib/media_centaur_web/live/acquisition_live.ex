@@ -159,7 +159,8 @@ defmodule MediaCentaurWeb.AcquisitionLive do
          plan_alternatives: nil,
          plan_approving?: false,
          plan_discard_confirm?: false,
-         plan_drafts: []
+         plan_drafts: [],
+         watching_summary: {0, 0}
        )}
     else
       {:ok, push_navigate(socket, to: "/")}
@@ -216,6 +217,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       omnibox_mode: if(session.query != "" or session.groups != [], do: :release, else: :media),
       download_client_ready: Capabilities.download_client_ready?(),
       plan_drafts: Plans.list_drafts(),
+      watching_summary: ReleaseTracking.open_wants_summary(),
       pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows(),
       history_rows: compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search)
     )
@@ -486,6 +488,16 @@ defmodule MediaCentaurWeb.AcquisitionLive do
             <p class="mt-1 text-sm text-base-content/60">
               {Logic.pursuit_summary(length(@paired_rows), length(@download_cards))}
             </p>
+            <%!-- Open wants are not acquisition activity (ADR-056 Q7):
+                  a quiet count + pointer to Tracking, never want cards. --%>
+            <.link
+              :if={Logic.watching_summary_label(@watching_summary)}
+              navigate="/upcoming"
+              class="mt-1 inline-flex items-center gap-1.5 text-sm text-base-content/50 transition-colors hover:text-base-content/80"
+            >
+              <.icon name="hero-eye-mini" class="size-4 text-info/60" />
+              {Logic.watching_summary_label(@watching_summary)}
+            </.link>
           </header>
 
           <MediaOmnibox.media_omnibox

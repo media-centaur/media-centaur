@@ -870,4 +870,21 @@ defmodule MediaCentaurWeb.AcquisitionLive.LogicTest do
       assert Logic.pursuit_summary(5, 2) == "5 active pursuits · 2 downloading"
     end
   end
+
+  describe "watching_summary_label/1" do
+    # The open-wants pointer (ADR-056 Q7): count + link to Tracking,
+    # never want cards; nil hides the line entirely.
+
+    test "nil when the ledger is empty" do
+      assert Logic.watching_summary_label({0, 0}) == nil
+    end
+
+    test "singular forms" do
+      assert Logic.watching_summary_label({1, 1}) == "Watching for 1 release across 1 title"
+    end
+
+    test "plural forms" do
+      assert Logic.watching_summary_label({5, 3}) == "Watching for 5 releases across 3 titles"
+    end
+  end
 end
