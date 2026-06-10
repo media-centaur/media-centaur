@@ -120,7 +120,7 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
           |> Repo.insert()
 
         {:ok, _target} =
-          %MediaCentaur.Acquisition.Target{}
+          %Target{}
           |> Ecto.Changeset.change(%{
             pursuit_id: pursuit.id,
             title: pursuit.title,

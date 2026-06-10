@@ -5,9 +5,11 @@ defmodule MediaCentaur.Downloads.QueueState do
   read-only by LiveViews and other subscribers via PubSub or
   `Acquisition.queue_state/0`.
 
-  Phase 1 carries the existing list of items plus the timestamps and
-  error flag needed to derive a freshness status. Phase 2 will add
-  `:rid` and a `torrents` map keyed by hash for incremental sync.
+  Carries the client-neutral list of items plus the timestamps and
+  error flag needed to derive a freshness status. Driver-native sync
+  internals (qBittorrent's `rid` conversation, the torrent mirror) are
+  NOT here — they live behind `DownloadClient.sync/1` as the opaque
+  driver state.
   """
 
   alias MediaCentaur.Downloads.QueueItem
@@ -21,18 +23,12 @@ defmodule MediaCentaur.Downloads.QueueState do
 
   @type t :: %__MODULE__{
           items: [QueueItem.t()],
-          torrents: %{required(String.t()) => map()},
-          rid: non_neg_integer(),
-          server_state: map(),
           last_polled_at: DateTime.t() | nil,
           last_successful_poll_at: DateTime.t() | nil,
           last_error: error_reason()
         }
 
   defstruct items: [],
-            torrents: %{},
-            rid: 0,
-            server_state: %{},
             last_polled_at: nil,
             last_successful_poll_at: nil,
             last_error: nil

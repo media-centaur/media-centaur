@@ -49,11 +49,11 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Downloads.DownloadClient.QBittorrent
-  alias MediaCentaur.Downloads.DownloadClient.QBittorrent.Sync
+  alias MediaCentaur.Capabilities
+  alias MediaCentaur.Downloads.DownloadClient.Dispatcher
+  alias MediaCentaur.Downloads.DownloadClient.SyncResult
   alias MediaCentaur.Downloads.HealthHistory
   alias MediaCentaur.Downloads.QueueState
-  alias MediaCentaur.Capabilities
   alias MediaCentaur.Topics
 
   @cache_key {__MODULE__, :state}
@@ -136,51 +136,6 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   def cadence_ms(_subscribers, true, _error), do: @poll_watched_ms
 
   @doc """
-  Computes the display fields for one sync log line from a
-  `sync/maindata` response and the before/after torrent maps. Movement
-  detection (`sync_movement?/1`) and the log message both read from this
-  single result so they can never drift. Pure — extracted for unit
-  testing the contract.
-  """
-  @spec sync_counts(map(), map(), map()) :: %{
-          rid: integer(),
-          full?: boolean(),
-          total: non_neg_integer(),
-          added: non_neg_integer(),
-          changed: non_neg_integer(),
-          removed: non_neg_integer()
-        }
-  def sync_counts(response, before_torrents, after_torrents) do
-    removed = response |> Map.get("torrents_removed", []) |> length()
-
-    %{
-      rid: Map.get(response, "rid", 0),
-      full?: Map.get(response, "full_update", false),
-      total: map_size(after_torrents),
-      added: max(0, map_size(after_torrents) - map_size(before_torrents) + removed),
-      changed: response |> Map.get("torrents", %{}) |> map_size(),
-      removed: removed
-    }
-  end
-
-  @doc """
-  True when a sync tick reflects real queue movement — a torrent added
-  or removed, or a partial delta carrying field changes. A `full_update`
-  echo that merely repeats the prior set (`added: 0, removed: 0`) is NOT
-  movement: its `changed` count is just the full snapshot size, not a
-  delta, so it is ignored unless the update is partial.
-  """
-  @spec sync_movement?(%{
-          required(:full?) => boolean(),
-          required(:added) => non_neg_integer(),
-          required(:removed) => non_neg_integer(),
-          required(:changed) => non_neg_integer()
-        }) :: boolean()
-  def sync_movement?(%{full?: full?, added: added, removed: removed, changed: changed}) do
-    added > 0 or removed > 0 or (not full? and changed > 0)
-  end
-
-  @doc """
   Log level for a sync tick. Real movement always logs at `:info`.
   Steady-state ticks (no movement — the common case, repeating every
   #{@poll_watched_ms} ms while watched) are `:skip`ped so they don't
@@ -196,7 +151,19 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   @impl GenServer
   def init(_opts) do
     Process.send_after(self(), :poll, 0)
-    {:ok, %{queue: %QueueState{}, subscribers: %{}, history: %{}, last_sync_log_ms: nil}}
+
+    {:ok,
+     %{
+       queue: %QueueState{},
+       subscribers: %{},
+       history: %{},
+       last_sync_log_ms: nil,
+       # The configured driver module + its opaque sync bookmark
+       # (`DownloadClient.driver_state`). The bookmark is reset whenever
+       # the driver module changes between polls.
+       driver: nil,
+       driver_state: nil
+     }}
   end
 
   @impl GenServer
@@ -232,68 +199,72 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   end
 
   defp poll_and_broadcast(state) do
+    case Dispatcher.driver() do
+      {:ok, driver} -> run_sync(state, driver)
+      {:error, _not_configured_or_unknown} -> mark_not_configured(state)
+    end
+  end
+
+  defp run_sync(state, driver) do
     now = DateTime.utc_now()
+    # A driver swap (user reconfigured the client type) invalidates the
+    # old driver's opaque bookmark — start its conversation fresh.
+    driver_state = if driver == state.driver, do: state.driver_state
 
-    case QBittorrent.sync_maindata(state.queue.rid) do
-      {:ok, response} ->
-        torrents = Sync.apply_maindata(state.queue.torrents, response)
-        rid = Map.get(response, "rid", state.queue.rid)
-        server_state = Map.merge(state.queue.server_state, Map.get(response, "server_state", %{}))
-
-        last_sync_log_ms =
-          log_sync_tick(response, state.queue.torrents, torrents, state.last_sync_log_ms)
-
-        all_items = Sync.to_queue_items(torrents)
-        active = Enum.reject(all_items, &(&1.state == :completed))
+    case driver.sync(driver_state) do
+      {:ok, %SyncResult{} = result} ->
+        last_sync_log_ms = log_sync_tick(result, state.last_sync_log_ms)
+        active = Enum.reject(result.items, &(&1.state == :completed))
 
         {history, enriched} =
           HealthHistory.update(state.history, active, System.monotonic_time(:microsecond))
 
         queue = %QueueState{
           items: enriched,
-          torrents: torrents,
-          rid: rid,
-          server_state: server_state,
           last_polled_at: now,
           last_successful_poll_at: now,
           last_error: nil
         }
 
         store_and_broadcast(queue)
-        %{state | queue: queue, history: history, last_sync_log_ms: last_sync_log_ms}
 
-      {:error, :not_configured} ->
-        queue = %QueueState{
-          items: [],
-          torrents: %{},
-          rid: 0,
-          server_state: %{},
-          last_polled_at: now,
-          last_successful_poll_at: state.queue.last_successful_poll_at,
-          last_error: :not_configured
+        %{
+          state
+          | queue: queue,
+            history: history,
+            last_sync_log_ms: last_sync_log_ms,
+            driver: driver,
+            driver_state: result.driver_state
         }
 
-        store_and_broadcast(queue)
-        %{state | queue: queue, history: %{}}
+      {:error, :not_configured, _driver_state} ->
+        mark_not_configured(state)
 
-      {:error, reason} ->
+      {:error, reason, next_driver_state} ->
         # The connectivity condition is owned by Downloads.IncidentContext.assess/0
         # (it reads the very last_error set just below) — console-only, no
-        # duplicate :log incident (ADR-054).
+        # duplicate :log incident (ADR-054). The driver hands back the
+        # bookmark to carry forward (it resets its own conversation so the
+        # next successful poll is a full update).
         Log.warning(:library, "queue monitor poll failed: #{inspect(reason)}", mc_incident: :skip)
 
-        queue = %{
-          state.queue
-          | last_polled_at: now,
-            last_error: classify_error(reason),
-            # Force a full update on the next successful poll — the
-            # rid we have may be stale or the server may have lost it.
-            rid: 0
-        }
+        queue = %{state.queue | last_polled_at: now, last_error: classify_error(reason)}
 
         store_and_broadcast(queue)
-        %{state | queue: queue}
+        %{state | queue: queue, driver: driver, driver_state: next_driver_state}
     end
+  end
+
+  defp mark_not_configured(state) do
+    queue = %QueueState{
+      items: [],
+      last_polled_at: DateTime.utc_now(),
+      last_successful_poll_at: state.queue.last_successful_poll_at,
+      last_error: :not_configured
+    }
+
+    store_and_broadcast(queue)
+    %{state | queue: queue, history: %{}, driver: nil, driver_state: nil}
   end
 
   defp store_and_broadcast(%QueueState{} = queue) do
@@ -311,22 +282,20 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   defp classify_error(_), do: :unreachable
 
   # Emits the grep-able "is the subsystem actually polling?" signal —
-  # but only for ticks worth seeing. Real movement (added/removed/partial
-  # delta) logs at :info immediately; steady-state echoes are skipped
-  # except for a periodic heartbeat so the Console ring buffer isn't
-  # flooded (see @sync_log_heartbeat_ms). Returns the monotonic ms of the
-  # last logged line so the caller can thread the heartbeat clock.
-  defp log_sync_tick(response, before_torrents, after_torrents, last_log_ms) do
-    counts = sync_counts(response, before_torrents, after_torrents)
+  # but only for ticks worth seeing. Real movement always logs at :info
+  # immediately; steady-state echoes are skipped except for a periodic
+  # heartbeat so the Console ring buffer isn't flooded (see
+  # @sync_log_heartbeat_ms). Movement detection and the line body come
+  # from the driver (it knows its own delta format); the cadence policy
+  # lives here. Returns the monotonic ms of the last logged line so the
+  # caller can thread the heartbeat clock.
+  defp log_sync_tick(%SyncResult{} = result, last_log_ms) do
     now_ms = System.monotonic_time(:millisecond)
     ms_since = if last_log_ms, do: now_ms - last_log_ms, else: @sync_log_heartbeat_ms
 
-    message =
-      "queue sync — rid=#{counts.rid} full=#{counts.full?} torrents=#{counts.total} added=#{counts.added} changed=#{counts.changed} removed=#{counts.removed}"
-
-    case sync_log_level(sync_movement?(counts), ms_since) do
+    case sync_log_level(result.movement?, ms_since) do
       :info ->
-        Log.info(:acquisition, message)
+        Log.info(:acquisition, result.summary || "queue sync")
         now_ms
 
       :skip ->

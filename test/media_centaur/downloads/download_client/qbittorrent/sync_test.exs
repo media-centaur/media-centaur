@@ -103,4 +103,66 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent.SyncTest do
       assert Sync.to_queue_items(%{}) == []
     end
   end
+
+  describe "counts/3" do
+    # The display fields for the one-line sync log. Movement detection
+    # and the message text both read from this single computation so
+    # they can't drift apart.
+
+    test "full-update echo: stable torrent set reports no movement counts" do
+      response = %{"full_update" => true, "rid" => 7, "torrents" => %{"a" => %{}, "b" => %{}}}
+      before_torrents = %{"a" => %{}, "b" => %{}}
+      after_torrents = %{"a" => %{}, "b" => %{}}
+
+      assert Sync.counts(response, before_torrents, after_torrents) ==
+               %{rid: 7, full?: true, total: 2, added: 0, changed: 2, removed: 0}
+    end
+
+    test "partial delta: one torrent's fields changed, set size unchanged" do
+      response = %{"rid" => 8, "torrents" => %{"a" => %{"progress" => 0.5}}}
+      torrents = %{"a" => %{}, "b" => %{}}
+
+      counts = Sync.counts(response, torrents, torrents)
+      assert counts.full? == false
+      assert counts.changed == 1
+      assert counts.added == 0
+      assert counts.removed == 0
+    end
+
+    test "added torrent: after set is larger than before" do
+      response = %{"full_update" => true, "torrents" => %{"a" => %{}}}
+      counts = Sync.counts(response, %{}, %{"a" => %{}})
+      assert counts.added == 1
+    end
+
+    test "removed torrent: counted from torrents_removed and excluded from added math" do
+      response = %{"torrents_removed" => ["a"]}
+      counts = Sync.counts(response, %{"a" => %{}, "b" => %{}}, %{"b" => %{}})
+      assert counts.removed == 1
+      assert counts.added == 0
+    end
+  end
+
+  describe "movement?/1" do
+    # Decides whether a tick reflects real queue movement worth an info
+    # log. A full_update snapshot that simply repeats the prior set is
+    # NOT movement — that's the line that was flooding the Console ring
+    # buffer every 1.5 s.
+
+    test "full-update echo with a stable set is not movement" do
+      refute Sync.movement?(%{full?: true, added: 0, removed: 0, changed: 2})
+    end
+
+    test "a partial delta carrying changes is movement" do
+      assert Sync.movement?(%{full?: false, added: 0, removed: 0, changed: 1})
+    end
+
+    test "an added torrent is movement (even on a full update)" do
+      assert Sync.movement?(%{full?: true, added: 1, removed: 0, changed: 1})
+    end
+
+    test "a removed torrent is movement" do
+      assert Sync.movement?(%{full?: false, added: 0, removed: 1, changed: 0})
+    end
+  end
 end

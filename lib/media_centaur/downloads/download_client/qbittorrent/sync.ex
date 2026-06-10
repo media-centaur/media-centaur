@@ -27,6 +27,23 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent.Sync do
 
   alias MediaCentaur.Downloads.QueueItem
 
+  defmodule State do
+    @moduledoc """
+    qBittorrent's opaque sync bookmark (`DownloadClient.driver_state`):
+    the `rid` conversation id, the torrent mirror the deltas apply to,
+    and the merged global `server_state`. Held by `QueueMonitor` between
+    ticks but never inspected above the driver.
+    """
+
+    defstruct rid: 0, torrents: %{}, server_state: %{}
+
+    @type t :: %__MODULE__{
+            rid: non_neg_integer(),
+            torrents: %{required(String.t()) => map()},
+            server_state: map()
+          }
+  end
+
   @type torrent_map :: %{required(String.t()) => map()}
 
   @doc """
@@ -76,5 +93,56 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent.Sync do
     torrents
     |> Map.values()
     |> Enum.map(&QueueItem.from_qbittorrent/1)
+  end
+
+  @doc """
+  Computes the display fields for one sync tick from a `sync/maindata`
+  response and the before/after torrent maps. Movement detection
+  (`movement?/1`) and the log summary both read from this single result
+  so they can never drift. Pure.
+  """
+  @spec counts(map(), torrent_map(), torrent_map()) :: %{
+          rid: integer(),
+          full?: boolean(),
+          total: non_neg_integer(),
+          added: non_neg_integer(),
+          changed: non_neg_integer(),
+          removed: non_neg_integer()
+        }
+  def counts(response, before_torrents, after_torrents) do
+    removed = response |> Map.get("torrents_removed", []) |> length()
+
+    %{
+      rid: Map.get(response, "rid", 0),
+      full?: Map.get(response, "full_update", false),
+      total: map_size(after_torrents),
+      added: max(0, map_size(after_torrents) - map_size(before_torrents) + removed),
+      changed: response |> Map.get("torrents", %{}) |> map_size(),
+      removed: removed
+    }
+  end
+
+  @doc """
+  True when a sync tick reflects real queue movement — a torrent added
+  or removed, or a partial delta carrying field changes. A `full_update`
+  echo that merely repeats the prior set (`added: 0, removed: 0`) is NOT
+  movement: its `changed` count is just the full snapshot size, not a
+  delta, so it is ignored unless the update is partial.
+  """
+  @spec movement?(%{
+          required(:full?) => boolean(),
+          required(:added) => non_neg_integer(),
+          required(:removed) => non_neg_integer(),
+          required(:changed) => non_neg_integer()
+        }) :: boolean()
+  def movement?(%{full?: full?, added: added, removed: removed, changed: changed}) do
+    added > 0 or removed > 0 or (not full? and changed > 0)
+  end
+
+  @doc "The qBittorrent-shaped log line body for one sync tick."
+  @spec summary(map()) :: String.t()
+  def summary(counts) do
+    "queue sync — rid=#{counts.rid} full=#{counts.full?} torrents=#{counts.total} " <>
+      "added=#{counts.added} changed=#{counts.changed} removed=#{counts.removed}"
   end
 end
