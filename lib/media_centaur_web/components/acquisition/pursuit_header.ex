@@ -32,16 +32,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
         class="relative flex items-end"
         style={"--banner-hue: #{banner_hue(@display_title)}; min-height: 13rem;"}
       >
-        <img
-          :if={@vm.backdrop_url}
-          src={@vm.backdrop_url}
-          alt=""
-          class="absolute inset-0 h-full w-full object-cover"
-          style="object-position: center 25%"
-          loading="eager"
-          decoding="sync"
-        />
-        <div :if={@vm.backdrop_url} class="identity-hero-scrim absolute inset-0"></div>
+        <%!-- With cached artwork the panel itself carries the backdrop +
+              atmosphere (pursuit_modal); this block only supplies the
+              synthetic fallback. --%>
         <div :if={!@vm.backdrop_url} class="identity-backdrop absolute inset-0"></div>
 
         <div class="relative z-[1] w-full space-y-2 px-6 pb-4 pt-14">
