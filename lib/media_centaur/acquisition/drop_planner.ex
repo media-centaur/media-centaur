@@ -51,6 +51,124 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
     :ok
   end
 
+  @doc """
+  User-initiated "plan now" for one tracked item (replaces the legacy
+  bulk-arm button): plans ALL of the item's open unclaimed wants
+  immediately — no due-ness gate, no patience floors (the user asked
+  for what's available now), and as an origin-"manual" draft with
+  tracking provenance, so the mode gate leaves it `ready` for the
+  user's approval regardless of the item's auto-grab mode.
+  """
+  @spec plan_item_now(Ecto.UUID.t(), DateTime.t()) ::
+          {:ok, :planned} | {:ok, :nothing_pending} | {:error, term()}
+  def plan_item_now(item_id, now \\ DateTime.utc_now(:second)) do
+    case ReleaseTracking.get_item(item_id) do
+      nil ->
+        {:error, :not_found}
+
+      item ->
+        if Capabilities.prowlarr_ready?() do
+          # Defensive sync: the user may click right after tracking,
+          # before any sweep has opened the wants.
+          :ok = ReleaseTracking.sync_wants(item)
+          plan_now(item, ReleaseTracking.open_wants_for_item(item.id), now)
+        else
+          {:error, :acquisition_unavailable}
+        end
+    end
+  end
+
+  defp plan_now(_item, [], _now), do: {:ok, :nothing_pending}
+
+  defp plan_now(%Item{media_type: :tv_series} = item, wants, now) do
+    tmdb_id = to_string(item.tmdb_id)
+    claimed = Claims.claimed_units(tmdb_id, "tv")
+
+    unclaimed =
+      Enum.reject(wants, fn want ->
+        MapSet.member?(claimed, {want.season_number, want.episode_number})
+      end)
+
+    if unclaimed == [] or Plans.active_tracking_draft?(tmdb_id, "tv") do
+      {:ok, :nothing_pending}
+    else
+      {min_quality, max_quality} = bounds(item, AutoGrabSettings.load())
+
+      unit_specs =
+        unclaimed
+        |> Enum.with_index()
+        |> Enum.map(fn {want, index} ->
+          %{
+            season_number: want.season_number,
+            episode_number: want.episode_number,
+            label: unit_label(want),
+            position: index
+          }
+        end)
+
+      case Plans.create_tracking_plan(
+             %{
+               tmdb_id: tmdb_id,
+               tmdb_type: "tv",
+               title: item.name,
+               tracking_item_id: item.id,
+               origin: "manual",
+               criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
+             },
+             unit_specs
+           ) do
+        {:ok, _plan} ->
+          ReleaseTracking.mark_wants_searched(Enum.map(unclaimed, & &1.id), now)
+          {:ok, :planned}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  defp plan_now(%Item{media_type: :movie} = item, wants, now) do
+    plannable =
+      Enum.reject(wants, fn want ->
+        is_nil(want.part_tmdb_id) or
+          Claims.claimed_units(to_string(want.part_tmdb_id), "movie") or
+          Plans.active_tracking_draft?(to_string(want.part_tmdb_id), "movie")
+      end)
+
+    if plannable == [] do
+      {:ok, :nothing_pending}
+    else
+      {min_quality, max_quality} = bounds(item, AutoGrabSettings.load())
+
+      Enum.each(plannable, fn want ->
+        {:ok, _plan} =
+          Plans.create_tracking_plan(
+            %{
+              tmdb_id: to_string(want.part_tmdb_id),
+              tmdb_type: "movie",
+              title: want.title || item.name,
+              year: want.air_date && want.air_date.year,
+              tracking_item_id: item.id,
+              origin: "manual",
+              criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
+            },
+            [
+              %{
+                season_number: nil,
+                episode_number: nil,
+                label: want.title || item.name,
+                position: 0
+              }
+            ]
+          )
+
+        ReleaseTracking.mark_wants_searched([want.id], now)
+      end)
+
+      {:ok, :planned}
+    end
+  end
+
   defp plan_item(item_id, wants, settings, now) do
     with %Item{} = item <- ReleaseTracking.get_item(item_id),
          mode when mode != "off" <- AutoGrabSettings.effective_mode(item.auto_grab_mode, settings) do

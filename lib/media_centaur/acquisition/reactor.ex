@@ -6,12 +6,10 @@ defmodule MediaCentaur.Acquisition.Reactor do
   `Topics.acquisition_updates/0` and dispatches each domain event to
   `Acquisition.Reactor.Handlers`:
 
-  - `{:release_ready, item, release}` — a tracked release is now available.
-    Routed through `Handlers.release_ready/2`, which asks
-    `AutoGrabPolicy.decide/3` whether to enqueue, skip, or cancel. The
-    capability gate is enforced inside the policy — when Prowlarr is
-    not configured, the message is dropped. *(Legacy path — retires with
-    the ADR-056 cutover; the drop planner below replaces it.)*
+  - `{:release_ready, item, release}` — **ignored since the ADR-056
+    cutover** (the drop planner below is the materialization path).
+    The broadcast and the dormant `Handlers.release_ready/2` machinery
+    are deleted in the convergence campaign's Phase 4 after soak.
   - `{:tracking_sweep_completed}` — the refresher's sweep finished a
     want-ledger sync pass. Runs the drop planner tick
     (`Handlers.tracking_sweep_completed/0`).
@@ -45,8 +43,11 @@ defmodule MediaCentaur.Acquisition.Reactor do
   end
 
   @impl GenServer
-  def handle_info({:release_ready, item, release}, state) do
-    Handlers.release_ready(item, release)
+  # ADR-056 cutover: the per-event arm path no longer fires — the drop
+  # planner (tick below) is the materialization path. The broadcast
+  # itself and `Handlers.release_ready/2` are deleted in Phase 4 of the
+  # convergence campaign after the new pipeline has soaked.
+  def handle_info({:release_ready, _item, _release}, state) do
     {:noreply, state}
   end
 
