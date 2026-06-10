@@ -512,6 +512,28 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       {:ok, kept} = Plans.get(plan.id)
       refute kept.status == "discarded"
     end
+
+    test "gaps row offers the disabled track-later slot (UIDR-014; wiring is Phase 4)", %{
+      conn: conn
+    } do
+      stub_plan_tmdb()
+
+      # Default Prowlarr stub returns nothing — every wanted unit is a gap.
+      {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download?plan=#{plan.id}")
+      html = render(view)
+
+      assert html =~ "not available right now"
+      assert has_element?(view, "button[disabled]", "Track these later")
+    end
+
+    test "empty pursuits state offers a CTA into the omnibox", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      assert has_element?(view, "section", "No active pursuits")
+      assert has_element?(view, "button", "Search for something to watch")
+    end
   end
 
   describe "omnibox — one search surface, two modes (UIDR-014)" do

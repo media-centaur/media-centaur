@@ -560,9 +560,18 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
           <section
             :if={@paired_rows == [] && @loaded? && @download_client_ready}
-            class="glass-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40"
+            class="glass-surface rounded-xl px-4 py-6 text-center space-y-3"
           >
-            No active pursuits.
+            <p class="text-sm text-base-content/40">No active pursuits.</p>
+            <.button
+              variant="secondary"
+              size="sm"
+              phx-click={Phoenix.LiveView.JS.focus(to: "#omnibox-media-input")}
+              data-nav-item
+              tabindex="0"
+            >
+              Search for something to watch
+            </.button>
           </section>
 
           <History.history_zone

@@ -61,6 +61,13 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
         attributes: %{open: false}
       },
       %Variation{
+        id: :not_found,
+        description:
+          "Open with `not_found?` — the URL named a pursuit that no longer exists " <>
+            "(deleted, or a stale link).",
+        attributes: %{open: true, not_found?: true}
+      },
+      %Variation{
         id: :open_active_pursuit,
         description: "Open — active pursuit, downloading at 42%, no decision needed.",
         attributes: %{

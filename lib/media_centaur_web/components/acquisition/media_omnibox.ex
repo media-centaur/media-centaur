@@ -111,6 +111,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           class="size-5 text-base-content/40 absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none"
         />
         <input
+          id="omnibox-media-input"
           type="text"
           name="query"
           value={@query}
