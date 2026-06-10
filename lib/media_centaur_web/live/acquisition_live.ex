@@ -456,7 +456,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
               :for={draft <- @plan_drafts}
               id={"plan-draft-#{draft.id}"}
               class="identity-banner flex items-center gap-3 px-4 py-3"
-              style={"--banner-hue: #{:erlang.phash2(draft.title, 360)}"}
+              style={"--banner-hue: #{banner_hue(draft.title)}"}
             >
               <span class="absolute top-2 left-3 text-[10px] uppercase tracking-wider text-base-content/40">
                 Draft
