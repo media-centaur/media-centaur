@@ -1,7 +1,7 @@
 ---
-status: in-progress (Phases 1–3 COMPLETE incl. UI; NEXT = Phase 4 release-tracking handoffs + wiki sync)
+status: in-progress (Phases 1–3 COMPLETE incl. UI; Phase 4 re-homed to release-tracking-plan-convergence; remaining here = wiki sync + closure reconciliation)
 started: 2026-05-31
-last_updated: 2026-06-09
+last_updated: 2026-06-10
 ---
 # Media search (TMDB-first acquisition)
 
@@ -167,6 +167,7 @@ Append-only log.
 * `2026-06-09` — **Commit degradation.** A failed grab at commit time degrades that release's units to `seeking` targets handled by the regular `PursueTarget` machinery — the plan's promise survives an indexer hiccup rather than dropping units.
 * `2026-06-09` — **Corpus constants:** 30-minute freshness window, 14-day retention (pruned per watcher tick), result-affecting opts (`type`, `year`) in the key, empty result sets recorded as fresh negative knowledge, failures never recorded.
 * `2026-06-09` — **Phases 2 + 3-backend SHIPPED** (commits `2b44d136`, `3d9d1e0a`, `b4066cf2`): ReleaseCoverage + TitleMatcher.coverage; Targeting; pure Planner; durable Plans + RunPlan + feedback verbs + CommitPlan with the generalized overlap check. Full lifecycle proven in `plans_test.exs` (create → solve w/ pack consolidation → steer → approve → one composite pursuit; overlap rejection; movie path).
+* `2026-06-10` — **Phase 4 re-homed and expanded** into [`release-tracking-plan-convergence.md`](release-tracking-plan-convergence.md): release tracking's whole materialization path converts onto the plan→composite-pursuit core (per-drop plans; want ledger; patience as commit gate), not just the handoffs. Gap handoff, grab-future, pursuit×track dedup, and per-unit tracked subtraction all land there. This campaign's remaining scope: wiki sync, then closure reconciliation.
 
 ## Next steps
 
@@ -268,11 +269,14 @@ the seven risks below.
    title-doored identity w/ scrim discipline + gradient-logotype
    fallback (no TMDB hot-linking in v1).
 
-4. **Release-tracking handoffs + polish.** "Grab future" opt-in →
-   on-completion spin-up of a release-tracking entry; **gap handoff at
-   approval** (track the units planning couldn't find); dedup so a
-   media-search pursuit and an existing track don't double-grab;
-   freshness-policy tuning.
+4. **Release-tracking handoffs + polish.** → **Re-homed 2026-06-10** to
+   [`release-tracking-plan-convergence.md`](release-tracking-plan-convergence.md),
+   which subsumes and expands this phase: the handoffs only make sense
+   once tracks emit plan-provenance pursuits, so the conversion of
+   release tracking's materialization path and the handoffs ship as one
+   campaign. Remaining in *this* campaign: wiki sync (carve-out
+   expired), then closure reconciliation per the
+   closure-by-destination convention.
 
 ## Risk surface
 

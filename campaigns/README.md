@@ -45,16 +45,25 @@ Use [`template.md`](template.md) as a starter.
   plus-maturity. ADR-052 (amends ADR-035) is the first deliverable. Seven phases;
   no code yet. Design settled 2026-05-31.
 * [`media-search-tmdb-acquisition.md`](media-search-tmdb-acquisition.md) —
-  **planning.** A second acquisition entry point: start from a TMDB title,
-  pick seasons/episodes, and let Media Centaur autonomously plan a coverage
-  strategy (complete-series → season pack → per-episode) over what's available
-  *now*, steer the plan, then execute it as one composite pursuit. Unifies
-  acquisition on a single pursuit core — file search is adapted onto it (fast
-  path; brace-expansion collapses into one pursuit) and media search layers
-  TMDB enrichments + an opt-in release-tracking handoff on top. Best-available-
-  now (no patience timers, no upgrades — time is release tracking's job);
-  hard search-vs-pursuit boundary (unfound units are reported, never seeking
-  leaves). Four phases planned; no code yet. Design settled 2026-05-31.
+  **Phases 1–3 complete** (composite-pursuit core + corpus, pack
+  machinery, planner/plans backend, and the full front-door UI shipped
+  2026-06-09/10). Media search is the primary acquisition path: TMDB
+  title → targeting → autonomous coverage plan → steer → one composite
+  pursuit. Phase 4 (release-tracking handoffs + dedup) re-homed to
+  [`release-tracking-plan-convergence.md`](release-tracking-plan-convergence.md);
+  remaining here = wiki sync, then closure reconciliation.
+* [`release-tracking-plan-convergence.md`](release-tracking-plan-convergence.md) —
+  **planning.** Convert release tracking's materialization path onto the
+  media-search plan→composite-pursuit core: a track is a *standing
+  targeting intent*; each cadence tick batches newly-ready wants into a
+  per-drop plan (corpus → planner → pack consolidation), the commit gate
+  owns 4K patience, and unfound episodes stay visible *wants* on the
+  track — never open-ended seeking pursuits. Keystone schema = per-unit
+  want ledger (enables gap handoff, grab-future, pursuit×track dedup,
+  per-unit targeting subtraction — subsumes media-search Phase 4).
+  Retires the legacy Reactor→Arm auto-grab path. Direction settled
+  2026-06-10 (per-drop plans, over per-event modernization and rolling
+  per-title pursuits); Phase 0 design questions open; no code yet.
 * [`usenet-download-client.md`](usenet-download-client.md) —
   **planning.** Extend downloads from a single client (qBittorrent) to a
   **set routed by protocol**, with SABnzbd as the first usenet driver, so a
