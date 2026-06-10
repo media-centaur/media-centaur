@@ -450,11 +450,15 @@ defmodule MediaCentaurWeb.AcquisitionLive do
             <div
               :for={draft <- @plan_drafts}
               id={"plan-draft-#{draft.id}"}
-              class="glass-surface rounded-xl px-4 py-3 flex items-center gap-3"
+              class="identity-banner flex items-center gap-3 px-4 py-3"
+              style={"--banner-hue: #{:erlang.phash2(draft.title, 360)}"}
             >
-              <div class="min-w-0 flex-1">
-                <p class="text-sm font-medium truncate">{draft.title}</p>
-                <p class="text-xs text-info/90">
+              <span class="absolute top-2 left-3 text-[10px] uppercase tracking-wider text-base-content/40">
+                Draft
+              </span>
+              <div class="min-w-0 flex-1 pt-3">
+                <p class="identity-logotype truncate text-base leading-tight">{draft.title}</p>
+                <p class="text-xs text-info/90 mt-1 [text-shadow:0_1px_3px_oklch(0%_0_0/0.5)]">
                   {if draft.status == "planning",
                     do: "Planning…",
                     else: "Plan ready — review and approve"}

@@ -305,6 +305,69 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
         ]
       },
       %VariationGroup{
+        id: :identity_banners,
+        description:
+          "Title-doored pursuits (door: :media) render as identity banners (UIDR-014): per-title-hued scrimmed gradient, logotype title, semantic colors staying the brightest accents. Query-door pursuits keep plain rows — imagery means a title you chose.",
+        variations: [
+          %Variation{
+            id: :media_movie_banner,
+            description: "A TMDB-door movie pursuit — banner identity, state badge on the scrim.",
+            attributes: %{
+              vm:
+                row(:active, "Night of the Living Dead",
+                  door: :media,
+                  status: %CurrentAction{
+                    verb: "Searching",
+                    description: "Looking for an acceptable release (attempt 1).",
+                    severity: :info
+                  }
+                ),
+              density: :full
+            }
+          },
+          %Variation{
+            id: :media_composite_banner,
+            description:
+              "A composite TMDB-door pursuit — segmented unit progress (landed / in flight / failed) instead of a bare percentage.",
+            attributes: %{
+              vm:
+                row(:active, "Sample Show",
+                  door: :media,
+                  units_wanted: 13,
+                  units_satisfied: 7,
+                  unit_states:
+                    List.duplicate("satisfied", 7) ++
+                      List.duplicate("active", 4) ++ List.duplicate("exhausted", 2),
+                  status: %CurrentAction{
+                    verb: "Downloading",
+                    description: "4 releases still in flight.",
+                    severity: :info
+                  }
+                ),
+              density: :full
+            }
+          },
+          %Variation{
+            id: :query_door_chip,
+            description: "Query-door compact row — plain text plus the small door chip.",
+            attributes: %{
+              vm:
+                row(:active, "Sample Show S01E{01-04}",
+                  door: :query,
+                  units_wanted: 4,
+                  units_satisfied: 3,
+                  status: %CurrentAction{
+                    verb: "Downloading",
+                    description: "1 release still in flight.",
+                    severity: :info
+                  }
+                ),
+              density: :compact
+            }
+          }
+        ]
+      },
+      %VariationGroup{
         id: :composite_axis,
         description:
           "Composite pursuits (ADR-055) — a brace-expanded batch grab is one pursuit with many units. Rows show unit progress as a `N of M` chip; single-unit pursuits show no chip.",
@@ -506,6 +569,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
       target_status: Keyword.get(opts, :target_status),
       units_wanted: Keyword.get(opts, :units_wanted, 1),
       units_satisfied: Keyword.get(opts, :units_satisfied, 0),
+      door: Keyword.get(opts, :door, :query),
+      unit_states: Keyword.get(opts, :unit_states, []),
       status: Keyword.fetch!(opts, :status)
     }
   end

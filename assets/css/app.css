@@ -1624,3 +1624,54 @@ body:has(.modal-backdrop[data-state="open"]) {
 .release-notes-disclosure[open] > summary .disclosure-caret {
   transform: rotate(90deg);
 }
+
+/* ── Identity banners (UIDR-014) ─────────────────────────────────────
+   Backdrop/logo treatment for title-doored cards (draft plans,
+   TMDB-door pursuits). v1 renders the synthetic fallback everywhere:
+   a per-title-hued, heavily desaturated gradient under a strong
+   left-to-right scrim, so semantic status colors stay the brightest
+   accents (the "color is signal" rule survives imagery). Real
+   backdrop_path/logo plumbing for non-library titles is a follow-up.
+   The per-title hue arrives via the inline `--banner-hue` custom
+   property (derived from the title hash). */
+
+.identity-banner {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px solid oklch(90% 0.01 264 / 0.08);
+  min-height: 7rem;
+  /* Layer 3→1: scrim (content sits left), highlight blob, moody base. */
+  background:
+    linear-gradient(
+      90deg,
+      oklch(13% 0.02 264 / 0.92) 0%,
+      oklch(13% 0.02 264 / 0.72) 45%,
+      oklch(13% 0.02 264 / 0.3) 100%
+    ),
+    radial-gradient(
+      ellipse 60% 120% at 85% 20%,
+      oklch(55% 0.07 var(--banner-hue, 264) / 0.5) 0%,
+      transparent 70%
+    ),
+    linear-gradient(
+      110deg,
+      oklch(34% 0.06 var(--banner-hue, 264)) 0%,
+      oklch(19% 0.04 calc(var(--banner-hue, 264) + 40)) 100%
+    );
+}
+
+/* Logo-style title: reads as a show logotype, not body text. */
+.identity-logotype {
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  filter: drop-shadow(0 2px 6px oklch(0% 0 0 / 0.6));
+}
+
+/* Full-width footer strip inside a banner (download progress etc.) —
+   its own scrim so live figures stay legible over imagery. */
+.identity-banner-strip {
+  background: oklch(13% 0.02 264 / 0.7);
+  backdrop-filter: blur(8px);
+}
