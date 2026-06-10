@@ -4,14 +4,14 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
   terminal pursuits (failed / cancelled / succeeded), filtered by
   lifecycle bucket and searchable by title or release filename.
 
-  Pure function component. Lives in the ledger rail of the command-center
-  layout at 2xl+ (always visible there); below 2xl it joins the stacked
-  page as a collapsed-by-default disclosure. State (filter, search,
-  entries) lives on the parent `AcquisitionLive` socket. Entries are the
-  `Logic.group_pursuit_rows/2` mixed list of `{:single, vm}` and
-  `{:group, data}` tagged tuples — the rendering helper on the parent
-  pattern-matches and dispatches to `PursuitRow` (compact density) or
-  `PursuitGroup` accordingly.
+  Pure function component. Sits at the bottom of the page as a
+  collapsed-by-default disclosure at every width — History is
+  terminal-state bookkeeping, so the page leads with active pursuits.
+  State (filter, search, entries) lives on the parent `AcquisitionLive`
+  socket. Entries are the `Logic.group_pursuit_rows/2` mixed list of
+  `{:single, vm}` and `{:group, data}` tagged tuples — the rendering
+  helper on the parent pattern-matches and dispatches to `PursuitRow`
+  (compact density) or `PursuitGroup` accordingly.
   """
 
   use Phoenix.Component
@@ -27,7 +27,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
   attr :open?, :boolean,
     default: false,
     doc:
-      "Disclosure state below the 2xl breakpoint — History is terminal-state bookkeeping, collapsed by default so the stacked page leads with active pursuits. The parent toggles via `toggle_history` and auto-expands on history deep-links. At 2xl+ the zone sits in the ledger rail and is always visible; this attr has no visual effect there."
+      "Disclosure state — History is terminal-state bookkeeping, collapsed by default so the page leads with active pursuits. The parent toggles via `toggle_history` and auto-expands on history deep-links."
 
   slot :inner_block,
     required: true,
@@ -36,15 +36,11 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
 
   def history_zone(assigns) do
     ~H"""
-    <section data-nav-zone="history" class="max-w-4xl space-y-3 2xl:max-w-none">
-      <%!-- Below 2xl: disclosure toggle (collapsed by default). At 2xl+ the
-            zone lives in the ledger rail where History IS the content — the
-            toggle hides and a static heading shows instead; `@open?` has no
-            visual effect at rail widths. --%>
+    <section data-nav-zone="history" class="space-y-3">
       <button
         type="button"
         phx-click="toggle_history"
-        class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-base-content/50 hover:text-base-content/80 transition-colors 2xl:hidden"
+        class="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-base-content/50 hover:text-base-content/80 transition-colors"
         data-nav-item
         tabindex="0"
       >
@@ -53,11 +49,8 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
           class="size-3.5"
         /> History
       </button>
-      <h2 class="hidden text-xs font-medium uppercase tracking-wider text-base-content/50 2xl:block">
-        History
-      </h2>
 
-      <div class={["flex flex-wrap items-center gap-2", !@open? && "hidden 2xl:flex"]}>
+      <div :if={@open?} class="flex flex-wrap items-center gap-2">
         <button
           :for={f <- HistoryLogic.filter_atoms()}
           phx-click="set_history_filter"
@@ -87,15 +80,12 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
       </div>
 
       <section
-        :if={@empty?}
-        class={[
-          "scrim-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40",
-          !@open? && "hidden 2xl:block"
-        ]}
+        :if={@open? && @empty?}
+        class="scrim-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40"
       >
         {HistoryLogic.empty_state(@filter)}
       </section>
-      <div :if={!@empty?} class={["grid grid-cols-1 gap-2", !@open? && "hidden 2xl:grid"]}>
+      <div :if={@open? && !@empty?} class="grid grid-cols-1 gap-2">
         {render_slot(@inner_block)}
       </div>
     </section>
