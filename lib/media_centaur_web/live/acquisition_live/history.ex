@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
 
   def history_zone(assigns) do
     ~H"""
-    <section data-nav-zone="history" class="space-y-3">
+    <section data-nav-zone="history" class="max-w-4xl space-y-3 2xl:max-w-none">
       <button
         type="button"
         phx-click="toggle_history"
@@ -83,7 +83,10 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
       >
         {HistoryLogic.empty_state(@filter)}
       </section>
-      <div :if={@open? && !@empty?} class="grid grid-cols-1 gap-2">
+      <div
+        :if={@open? && !@empty?}
+        class="grid grid-cols-1 items-start gap-2 2xl:grid-cols-2 min-[2200px]:grid-cols-3"
+      >
         {render_slot(@inner_block)}
       </div>
     </section>
