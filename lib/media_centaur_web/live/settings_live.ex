@@ -4399,6 +4399,9 @@ defmodule MediaCentaurWeb.SettingsLive do
             <option value="all_releases" selected={@auto_grab.default_mode == "all_releases"}>
               Auto-grab all releases
             </option>
+            <option value="ask" selected={@auto_grab.default_mode == "ask"}>
+              Ask first (plans await approval)
+            </option>
             <option value="off" selected={@auto_grab.default_mode == "off"}>
               Off (notify only)
             </option>
