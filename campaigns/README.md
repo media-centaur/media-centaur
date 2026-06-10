@@ -22,7 +22,7 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`external-dependency-health-classification.md`](external-dependency-health-classification.md) —
-  **planning.** Move download-client connectivity faults off the noisy `:log`
+  **shipped v0.83.2; prod-reconcile remains.** Move download-client connectivity faults off the noisy `:log`
   incident track onto the existing `:subsystem` assessor track, so one qBit
   outage is one auto-closing incident instead of 2–3 stale duplicates from a
   transient blip. Codifies [ADR-054](../decisions/architecture/2026-06-08-054-external-dependency-faults-are-subsystem-health.md);

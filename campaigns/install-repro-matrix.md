@@ -1,7 +1,7 @@
 ---
 status: planning
 started: 2026-05-27
-last_updated: 2026-05-27
+last_updated: 2026-06-10
 ---
 # Install reproduction matrix
 
@@ -12,6 +12,10 @@ Build out a multi-distro, snapshot-driven reproduction environment for the Media
 ## Status
 
 **Phase 1 in progress.** Brainstorm complete; design spec written at [`docs/superpowers/specs/2026-05-27-install-repro-env-design.md`](../docs/superpowers/specs/2026-05-27-install-repro-env-design.md). Implementation plan to be written next via the writing-plans skill. No code yet.
+
+*Reconciled 2026-06-10:* no `install-repro/` directory exists — untouched
+since the spec. Note the macOS public-installer support (v0.72.10) does not
+change the scope decision here (macOS repro stays out, per Decisions).
 
 ## Decisions made
 

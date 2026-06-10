@@ -1,7 +1,7 @@
 ---
 status: planning
 started: 2026-05-31
-last_updated: 2026-05-31
+last_updated: 2026-06-10
 ---
 # Download stack: control plane + new repo
 
@@ -136,6 +136,13 @@ commit also carries this campaign, the `usenet-download-client` P0 reconciliatio
 and the ADR-035 cross-link. No stack or MC code yet. Next concrete work: P0
 (new repo scaffold + name), or the independently-shippable **P4 handshake
 MC-receiver** in this repo.
+
+*Reconciled 2026-06-10:* still no `download-stack` repo and no MC-side
+receiver — untouched since design. One context shift since: the
+media-search planner + the release-tracking convergence (ADR-056) are
+now fully shipped, so the acquisition side that would consume this
+stack's health endpoint and drive mixed-protocol grabs is live and
+waiting.
 
 ## Decisions made
 

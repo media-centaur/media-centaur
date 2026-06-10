@@ -1,7 +1,7 @@
 ---
 status: in-progress
 started: 2026-05-21
-last_updated: 2026-05-21
+last_updated: 2026-06-10
 ---
 # macOS platform support
 
@@ -34,10 +34,14 @@ Public-facing READMEs and the docs-site landing carry visible
 "UI overhaul in progress" + "macOS — experimental" status banners
 (commit `cb0ce0aa`).
 
-**Phase 7 next — real-Mac parity smoke.** First tag after Phase 6
-will produce both tarballs. Manual verification of install +
-in-app self-update on hardware is the remaining unknown. We don't
-own a Mac (see banner copy); first user reports will substitute.
+**Phase 7 next — real-Mac parity smoke.** Reconciled 2026-06-10:
+every tag since v0.72.10 produces both tarballs, and the public
+one-line installer supports macOS (Apple Silicon) since
+`f85d49c6` / v0.72.10 — the funnel is fully open. **No macOS user
+feedback or issues have arrived yet** (zero `macos` issues on the
+repo as of v0.87.1). Manual verification of install + in-app
+self-update on hardware remains the unknown; we don't own a Mac
+(see banner copy); first user reports will substitute.
 
 ## Resumption checkpoint
 
@@ -649,7 +653,7 @@ Append-only log.
   Category A (on_exit DB writes — MC0018 Credo check), B (async
   Task DB ownership — DataCase drain), D (NoDbOnRender budget),
   E (Config persistent_term cache — DataCase snapshot+restore).
-  See `campaigns/test-isolation-hardening.md`.
+  (Campaign completed and removed per ADR-042 — see git history.)
 * `2026-05-21` — **Phase 6 shipped.** Per-platform release-artifact
   infrastructure landed in four narrow commits:
   * `8ac48f89` — overlay restructure under `rel/platforms/{linux,shared}/`
@@ -682,6 +686,11 @@ Append-only log.
      Single `media_centaur` release entry with `overlays_for_target/0`
      selecting per-OS overlays at evaluation time keeps
      `bin/media_centaur` stable across both platforms.
+
+* `2026-06-10` — **Public installer supports macOS** (`f85d49c6`,
+  v0.72.10): `curl … install.sh | sh` detects Apple Silicon and
+  installs the darwin-arm64 tarball — Phase 7's funnel needs no
+  further plumbing, only a user with hardware.
 
 ## Next steps
 

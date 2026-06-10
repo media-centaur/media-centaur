@@ -1,7 +1,7 @@
 ---
-status: planning
+status: planning (reconciled 2026-06-10 — no code yet; the media-search planner that makes mixed grabs fall out is now shipped)
 started: 2026-05-31
-last_updated: 2026-05-31
+last_updated: 2026-06-10
 ---
 # Usenet download client (SABnzbd) + multi-client downloads
 

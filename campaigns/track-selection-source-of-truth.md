@@ -1,7 +1,7 @@
 ---
 status: planning
 started: 2026-05-24
-last_updated: 2026-05-24
+last_updated: 2026-06-10
 ---
 # Track selection: resolver as source of truth (kill mislabeled-forced subs)
 
@@ -25,6 +25,11 @@ rips.
 Planning only — diagnosis confirmed end-to-end against a real file, no
 code written yet. This campaign is the resumable record; the
 reconciliation rule applies before any coding starts.
+
+*Reconciled 2026-06-10:* still untouched as of v0.87.1 — `Track` has no
+`default` field and `handle_track_list_update/2` still only logs. The
+per-title override workaround remains the only mitigation. Line-number
+pointers below date from 2026-05-24; re-verify them on resume.
 
 ## Background — the confirmed bug
 
