@@ -27,7 +27,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.OrphanQueue do
     ~H"""
     <section
       data-nav-zone="other_downloads"
-      class="max-w-4xl scrim-surface rounded-xl overflow-hidden 2xl:max-w-6xl"
+      class="max-w-4xl scrim-surface rounded-xl overflow-hidden 2xl:max-w-none"
     >
       <div class="px-4 py-2 border-b border-base-content/5">
         <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
