@@ -121,13 +121,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       <div class="p-6 pb-4 space-y-4">
         <div class="flex items-baseline justify-between gap-3">
           <div class="min-w-0">
-            <h2 class="text-xl font-semibold truncate">
+            <h2 class="text-2xl font-semibold truncate">
               {@selection.title}
               <.badge :if={@selection.tracked?} variant="warning" size="xs" class="ml-2 align-middle">
                 Tracked
               </.badge>
             </h2>
-            <p class="text-xs text-base-content/50 mt-1">{selection_meta(@selection)}</p>
+            <p class="text-sm text-base-content/50 mt-1">{selection_meta(@selection)}</p>
           </div>
         </div>
 
@@ -162,7 +162,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           >
             Latest season
           </.button>
-          <span class="ml-auto text-xs text-base-content/50 tabular-nums">
+          <span class="ml-auto text-sm text-base-content/50 tabular-nums">
             {@chosen_count} selected
           </span>
         </div>
@@ -230,7 +230,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           phx-value-season={@season.season_number}
         />
         <span class="text-sm font-medium">Season {@season.season_number}</span>
-        <span class="text-xs text-base-content/40">{season_meta(@season)}</span>
+        <span class="text-sm text-base-content/40">{season_meta(@season)}</span>
       </div>
       <ul :if={@state != :disabled} class="border-t border-base-content/5">
         <li
@@ -326,7 +326,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <.icon name="hero-film" class="size-6 text-base-content/25" />
         </span>
         <div class="min-w-0">
-          <h2 class="text-xl font-semibold truncate">{@movie.title}</h2>
+          <h2 class="text-2xl font-semibold truncate">{@movie.title}</h2>
           <p class="text-xs text-base-content/50 mt-1">
             <.badge variant="type" size="xs">Movie</.badge>
             <span :if={@movie.year} class="ml-2">{@movie.year}</span>
@@ -375,8 +375,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     <div class="flex flex-col max-h-full">
       <div class="p-6 pb-4 space-y-4">
         <div>
-          <h2 class="text-xl font-semibold truncate">{@board.title}</h2>
-          <p class="text-xs mt-1">
+          <h2 class="text-2xl font-semibold truncate">{@board.title}</h2>
+          <p class="text-sm mt-1">
             <span :if={@board.status == :planning} class="text-base-content/50">
               <span class="loading loading-spinner loading-xs align-middle mr-1"></span>
               Planning · {@board.wanted} {if @board.movie?, do: "unit", else: "episodes"} wanted
@@ -392,7 +392,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
         <div :if={!@board.movie?} class="space-y-2">
           <div :for={season <- @board.seasons} class="flex items-start gap-3">
-            <span class="flex-shrink-0 w-8 pt-1.5 text-xs text-base-content/40 tabular-nums">
+            <span class="flex-shrink-0 w-10 pt-2 text-sm text-base-content/40 tabular-nums">
               S{season.season_number}
             </span>
             <div class="flex flex-wrap items-center gap-1">
@@ -423,7 +423,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
                 {release.scope_label}
               </.badge>
               <span
-                class="min-w-0 flex-1 truncate font-mono text-xs text-base-content/60"
+                class="min-w-0 flex-1 truncate font-mono text-[13px] text-base-content/60"
                 title={release.title}
               >
                 {release.title}
@@ -431,12 +431,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               <.badge :if={release.quality} variant="info" size="xs" class="flex-shrink-0">
                 {release.quality}
               </.badge>
-              <span :if={release.seeders} class="flex-shrink-0 text-xs text-success/80 tabular-nums">
+              <span :if={release.seeders} class="flex-shrink-0 text-sm text-success/80 tabular-nums">
                 ▲ {release.seeders}
               </span>
               <span
                 :if={release.size_bytes}
-                class="flex-shrink-0 text-xs text-base-content/50 tabular-nums"
+                class="flex-shrink-0 text-sm text-base-content/50 tabular-nums"
               >
                 {format_size(release.size_bytes)}
               </span>
@@ -487,11 +487,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         </div>
 
         <p :if={@board.error} class="text-xs text-error/80">{@board.error}</p>
-        <p :if={@last_activity} class="text-xs text-base-content/40">{@last_activity}</p>
+        <p :if={@last_activity} class="text-sm text-base-content/40">{@last_activity}</p>
       </div>
 
       <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-between gap-4">
-        <span class="text-xs text-base-content/50 tabular-nums">
+        <span class="text-sm text-base-content/50 tabular-nums">
           {@board.covered} of {@board.wanted} covered · {length(@board.releases)}
           {if length(@board.releases) == 1, do: "release", else: "releases"}
           <span :if={@board.total_size_bytes}>· ≈ {format_size(@board.total_size_bytes)}</span>
@@ -543,7 +543,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           {alternative.scope_label}
         </.badge>
         <span
-          class="min-w-0 flex-1 truncate font-mono text-xs text-base-content/60"
+          class="min-w-0 flex-1 truncate font-mono text-[13px] text-base-content/60"
           title={alternative.title}
         >
           {alternative.title}
@@ -558,12 +558,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         <.badge :if={alternative.quality} variant="info" size="xs" class="flex-shrink-0">
           {alternative.quality}
         </.badge>
-        <span :if={alternative.seeders} class="flex-shrink-0 text-xs text-success/80 tabular-nums">
+        <span :if={alternative.seeders} class="flex-shrink-0 text-sm text-success/80 tabular-nums">
           ▲ {alternative.seeders}
         </span>
         <span
           :if={alternative.size_bytes}
-          class="flex-shrink-0 text-xs text-base-content/50 tabular-nums"
+          class="flex-shrink-0 text-sm text-base-content/50 tabular-nums"
         >
           {format_size(alternative.size_bytes)}
         </span>
@@ -611,7 +611,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       id={"plan-cell-#{@cell.plan_unit_id}"}
       title={cell_title(@cell)}
       class={[
-        "w-7 h-7 rounded-md flex items-center justify-center text-[11px] tabular-nums select-none",
+        "w-9 h-9 rounded-md flex items-center justify-center text-[13px] tabular-nums select-none",
         @cell.state == :searching &&
           "border border-dashed border-base-content/25 text-base-content/40 animate-pulse",
         @cell.state == :assigned && !@in_capsule &&
