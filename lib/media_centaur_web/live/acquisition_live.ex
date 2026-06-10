@@ -135,6 +135,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
          omnibox_query: "",
          omnibox_results: [],
          omnibox_searching?: false,
+         omnibox_searched: nil,
          plan_param: nil,
          plan_stage: :loading,
          plan_selection: nil,
@@ -794,16 +795,25 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # ---------------------------------------------------------------------------
 
   def handle_event("omnibox_change", %{"query" => query}, socket) do
+    trimmed = String.trim(query)
     socket = assign(socket, omnibox_query: query)
 
-    if String.length(String.trim(query)) >= 2 do
-      {:noreply,
-       socket
-       |> assign(omnibox_searching?: true)
-       |> cancel_async(:omnibox_search, :superseded)
-       |> start_async(:omnibox_search, fn -> {query, ReleaseTracking.search_tmdb(query)} end)}
-    else
-      {:noreply, assign(socket, omnibox_results: [], omnibox_searching?: false)}
+    cond do
+      String.length(trimmed) < 2 ->
+        {:noreply, assign(socket, omnibox_results: [], omnibox_searching?: false, omnibox_searched: nil)}
+
+      # TMDB citizenship: a re-fire of the same effective query (trailing
+      # space, blur/focus echo) never searches again — each debounce fire
+      # costs two API calls (movie + tv).
+      trimmed == socket.assigns.omnibox_searched ->
+        {:noreply, socket}
+
+      true ->
+        {:noreply,
+         socket
+         |> assign(omnibox_searching?: true, omnibox_searched: trimmed)
+         |> cancel_async(:omnibox_search, :superseded)
+         |> start_async(:omnibox_search, fn -> {query, ReleaseTracking.search_tmdb(trimmed)} end)}
     end
   end
 
@@ -813,7 +823,8 @@ defmodule MediaCentaurWeb.AcquisitionLive do
        omnibox_mode: String.to_existing_atom(mode),
        omnibox_results: [],
        omnibox_query: "",
-       omnibox_searching?: false
+       omnibox_searching?: false,
+       omnibox_searched: nil
      )}
   end
 
