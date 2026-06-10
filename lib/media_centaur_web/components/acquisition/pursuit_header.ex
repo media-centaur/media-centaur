@@ -23,14 +23,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
           treatment as their page card, scrim rule keeping the state
           badge the brightest accent. Query-door pursuits keep the flat
           title row: imagery means a title you chose (UIDR-014). --%>
-    <header class="space-y-2">
+    <header>
       <div
         :if={@vm.recipe.recipe_type == :tmdb}
-        class="identity-banner flex items-end"
-        style={"--banner-hue: #{banner_hue(@display_title)}; min-height: 5.5rem;"}
+        class="identity-backdrop flex items-end"
+        style={"--banner-hue: #{banner_hue(@display_title)}; min-height: 9rem;"}
       >
-        <div class="flex w-full items-end justify-between gap-3 p-4">
-          <h2 class="identity-logotype min-w-0 truncate text-xl leading-tight">
+        <div class="flex w-full items-end justify-between gap-3 px-6 pb-3 pt-10">
+          <h2 class="identity-logotype min-w-0 truncate text-2xl leading-tight">
             {@display_title}
           </h2>
           <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
@@ -39,51 +39,53 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
 
       <div
         :if={@vm.recipe.recipe_type != :tmdb}
-        class="flex items-baseline justify-between gap-3"
+        class="flex items-baseline justify-between gap-3 px-6 pt-6"
       >
         <h2 class="text-lg font-medium truncate">{@display_title}</h2>
         <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
       </div>
 
-      <%!-- Prowlarr-query pursuits store the picked release filename in
+      <div class="px-6 pt-2 space-y-2">
+        <%!-- Prowlarr-query pursuits store the picked release filename in
             `vm.title` once an alternative is chosen, but the user-meaningful
             identity is the query they typed. We hoist the query to the
             heading and demote the release filename to a monospace
             subtitle so the file is still visible but doesn't dominate. --%>
-      <div
-        :if={@release_subtitle}
-        class="text-xs font-mono text-base-content/50 truncate"
-        title={@release_subtitle}
-      >
-        {@release_subtitle}
-      </div>
+        <div
+          :if={@release_subtitle}
+          class="text-xs font-mono text-base-content/50 truncate"
+          title={@release_subtitle}
+        >
+          {@release_subtitle}
+        </div>
 
-      <div :if={recipe_summary(@vm.recipe)} class="text-xs text-base-content/70">
-        {recipe_summary(@vm.recipe)}
-      </div>
+        <div :if={recipe_summary(@vm.recipe)} class="text-xs text-base-content/70">
+          {recipe_summary(@vm.recipe)}
+        </div>
 
-      <div :if={@vm.criteria_summary} class="text-xs text-base-content/60">
-        Criteria: {@vm.criteria_summary}
-      </div>
+        <div :if={@vm.criteria_summary} class="text-xs text-base-content/60">
+          Criteria: {@vm.criteria_summary}
+        </div>
 
-      <%!-- The literal Prowlarr query/queries this pursuit runs. Always
+        <%!-- The literal Prowlarr query/queries this pursuit runs. Always
             visible — "Searching Prowlarr" should never be abstract; the
             user can compare these strings to what they'd paste into
             Prowlarr by hand. For TMDB recipes this is the worker's
             attempt sequence; for prowlarr_query recipes it is the
             brace-expanded list (or the literal query when expansion
             fails). --%>
-      <div :if={@vm.recipe.search_queries != []} class="text-xs text-base-content/60 space-y-0.5">
-        <div class="text-base-content/50">{search_label(@vm.recipe.search_queries)}</div>
-        <ul class="space-y-0.5">
-          <li
-            :for={query <- @vm.recipe.search_queries}
-            class="font-mono text-base-content/80 truncate"
-            title={query}
-          >
-            {query}
-          </li>
-        </ul>
+        <div :if={@vm.recipe.search_queries != []} class="text-xs text-base-content/60 space-y-0.5">
+          <div class="text-base-content/50">{search_label(@vm.recipe.search_queries)}</div>
+          <ul class="space-y-0.5">
+            <li
+              :for={query <- @vm.recipe.search_queries}
+              class="font-mono text-base-content/80 truncate"
+              title={query}
+            >
+              {query}
+            </li>
+          </ul>
+        </div>
       </div>
     </header>
     """

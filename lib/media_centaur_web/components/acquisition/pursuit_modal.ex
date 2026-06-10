@@ -69,32 +69,37 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
           Pursuit not found.
         </div>
 
-        <div :if={!@not_found? && @header} class="p-6 space-y-4">
+        <%!-- The header renders full-bleed (its identity backdrop is the
+              panel's background at the top); everything below keeps the
+              usual panel padding. --%>
+        <div :if={!@not_found? && @header} class="pb-6 space-y-4">
           <PursuitHeader.pursuit_header vm={@header} />
 
-          <UnitBoard.unit_board vm={@unit_board} on_change_target={@on_change_target} />
+          <div class="px-6 space-y-4">
+            <UnitBoard.unit_board vm={@unit_board} on_change_target={@on_change_target} />
 
-          <%!-- Activity hides when the pursuit is awaiting a decision
+            <%!-- Activity hides when the pursuit is awaiting a decision
                   (decision_card present). In that case the Decision
                   card carries the prompt and ALL actions, so the
                   Activity card would otherwise duplicate the heading,
                   meta-narrate the layout ("use the decision card
                   below…"), and float Cancel pursuit in a weird spot. --%>
-          <PursuitActivity.pursuit_activity
-            :if={@status && !@decision_card}
-            vm={@status}
-            on_cancel={@on_cancel}
-            on_change_target={@on_change_target}
-            on_request_decision={@on_request_decision}
-          />
+            <PursuitActivity.pursuit_activity
+              :if={@status && !@decision_card}
+              vm={@status}
+              on_cancel={@on_cancel}
+              on_change_target={@on_change_target}
+              on_request_decision={@on_request_decision}
+            />
 
-          <DecisionCard.decision_card
-            :if={@decision_card}
-            vm={@decision_card}
-            on_cancel={@on_cancel}
-          />
+            <DecisionCard.decision_card
+              :if={@decision_card}
+              vm={@decision_card}
+              on_cancel={@on_cancel}
+            />
 
-          <PursuitTimeline.timeline :if={@timeline} vm={@timeline} />
+            <PursuitTimeline.timeline :if={@timeline} vm={@timeline} />
+          </div>
         </div>
       </div>
     </.modal>
