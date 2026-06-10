@@ -507,7 +507,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             :if={@board.status in [:planning, :ready]}
             variant="dismiss"
             size="sm"
-            phx-click="plan_discard"
+            phx-click="plan_discard_prompt"
             data-nav-item
             tabindex="0"
           >

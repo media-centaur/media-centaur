@@ -149,6 +149,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
          plan_last_activity: nil,
          plan_alternatives: nil,
          plan_approving?: false,
+         plan_discard_confirm?: false,
          plan_drafts: []
        )}
     else
@@ -414,6 +415,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     >
       <:overlays>
         <.cancel_confirmation cancel_confirm={@cancel_confirm} />
+        <.plan_discard_confirmation open={@plan_discard_confirm?} board={@plan_board} />
         <PlanModal.plan_modal
           open={@plan_param != nil}
           stage={@plan_stage}
@@ -820,7 +822,21 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     end
   end
 
-  def handle_event("plan_discard", _params, socket) do
+  def handle_event("plan_discard_prompt", _params, socket) do
+    {:noreply, assign(socket, plan_discard_confirm?: true)}
+  end
+
+  def handle_event("plan_discard_cancel", _params, socket) do
+    {:noreply, assign(socket, plan_discard_confirm?: false)}
+  end
+
+  def handle_event("plan_discard_confirm", _params, %{assigns: %{plan_discard_confirm?: false}} = socket) do
+    {:noreply, socket}
+  end
+
+  def handle_event("plan_discard_confirm", _params, socket) do
+    socket = assign(socket, plan_discard_confirm?: false)
+
     with %{plan_id: plan_id} <- socket.assigns.plan_board,
          {:ok, plan} <- Plans.get(plan_id),
          {:ok, _discarded} <- Plans.discard(plan) do
@@ -1585,7 +1601,8 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           plan_movie: nil,
           plan_board: nil,
           plan_alternatives: nil,
-          plan_error: nil
+          plan_error: nil,
+          plan_discard_confirm?: false
         )
 
       "new" ->
@@ -1839,6 +1856,47 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           </.button>
           <.button variant="danger" size="sm" phx-click="cancel_download_confirm">
             Cancel download
+          </.button>
+        </div>
+      </div>
+    </.modal>
+    """
+  end
+
+  # Discard-confirmation modal — kept on the parent for the same reason
+  # as cancel-confirmation: the confirm/cancel events flip parent socket
+  # assigns, and discarding a solved-and-steered draft is destructive.
+
+  attr :open, :boolean, required: true
+  attr :board, MediaCentaur.Acquisition.ViewModels.PlanBoard, default: nil
+
+  defp plan_discard_confirmation(assigns) do
+    ~H"""
+    <.modal
+      id="plan-discard-modal"
+      open={@open}
+      dismiss={:ephemeral}
+      on_close="plan_discard_cancel"
+      size={:sm}
+      panel_class="p-6"
+      data-detail-mode={@open && "modal"}
+      data-dismiss-event="plan_discard_cancel"
+      style="z-index: 60;"
+    >
+      <div :if={@open}>
+        <h3 class="text-lg font-bold text-error">Discard plan?</h3>
+        <p class="mt-2 text-sm text-base-content/70">
+          The draft plan and any release choices you made will be lost. Nothing has been grabbed.
+        </p>
+        <div :if={@board} class="mt-3 rounded-lg bg-base-content/5 p-3 text-sm break-words">
+          {@board.title}
+        </div>
+        <div class="mt-4 flex justify-end gap-2">
+          <.button variant="dismiss" size="sm" phx-click="plan_discard_cancel">
+            Keep
+          </.button>
+          <.button variant="danger" size="sm" phx-click="plan_discard_confirm">
+            Discard plan
           </.button>
         </div>
       </div>

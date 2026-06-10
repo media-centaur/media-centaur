@@ -462,7 +462,11 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       assert_patch(view, "/download?plan=#{plan.id}")
 
       view
-      |> element("button[phx-click='plan_discard']")
+      |> element("button[phx-click='plan_discard_prompt']")
+      |> render_click()
+
+      view
+      |> element("button[phx-click='plan_discard_confirm']")
       |> render_click()
 
       _ = render(view)
@@ -471,6 +475,41 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       {:ok, discarded} = Plans.get(plan.id)
       assert discarded.status == "discarded"
       refute has_element?(view, "#plan-draft-#{plan.id}")
+    end
+
+    test "discarding a draft plan requires confirmation", %{conn: conn} do
+      stub_plan_tmdb()
+
+      {:ok, plan} =
+        Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      view
+      |> element("#plan-draft-#{plan.id} button[phx-click='resume_plan']")
+      |> render_click()
+
+      assert_patch(view, "/download?plan=#{plan.id}")
+
+      # The footer button only prompts — the plan is untouched.
+      html =
+        view
+        |> element("button[phx-click='plan_discard_prompt']")
+        |> render_click()
+
+      assert html =~ "Discard plan?"
+      {:ok, untouched} = Plans.get(plan.id)
+      refute untouched.status == "discarded"
+
+      # Keep — the confirmation closes, the draft survives.
+      html =
+        view
+        |> element("button[phx-click='plan_discard_cancel']")
+        |> render_click()
+
+      refute html =~ "Discard plan?"
+      {:ok, kept} = Plans.get(plan.id)
+      refute kept.status == "discarded"
     end
   end
 
