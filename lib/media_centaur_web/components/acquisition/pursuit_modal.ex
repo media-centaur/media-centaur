@@ -64,41 +64,56 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
     >
       <%!-- No close-X — backdrop click and Escape both close, and the
             URL preserves history so browser-back also works. --%>
-      <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden thin-scrollbar">
+      <%!-- Same panel-level treatment as the library detail modal: the
+            backdrop spans 70% of the scroll height fading into the panel,
+            the atmosphere dim covers the full scroll height, and the
+            header/content flow over both (z-2). The header renders only
+            the overlaid identity facts — or its synthetic gradient when
+            no artwork is cached. --%>
+      <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative thin-scrollbar">
         <div :if={@not_found?} class="p-8 text-center text-sm text-base-content/60">
           Pursuit not found.
         </div>
 
-        <%!-- The header renders full-bleed (its identity backdrop is the
-              panel's background at the top); everything below keeps the
-              usual panel padding. --%>
-        <div :if={!@not_found? && @header} class="pb-6 space-y-4">
-          <PursuitHeader.pursuit_header vm={@header} />
+        <div
+          :if={!@not_found? && @header && @header.backdrop_url}
+          class="modal-page-backdrop"
+          aria-hidden="true"
+        >
+          <img src={@header.backdrop_url} alt="" loading="eager" decoding="sync" fetchpriority="high" />
+        </div>
 
-          <div class="px-6 space-y-4">
-            <UnitBoard.unit_board vm={@unit_board} on_change_target={@on_change_target} />
+        <div :if={!@not_found? && @header} class="modal-page-content">
+          <div :if={@header.backdrop_url} class="modal-page-atmosphere" aria-hidden="true"></div>
 
-            <%!-- Activity hides when the pursuit is awaiting a decision
+          <div class="relative z-[2] pb-6 space-y-4">
+            <PursuitHeader.pursuit_header vm={@header} />
+
+            <div class="px-6 space-y-4">
+              <UnitBoard.unit_board vm={@unit_board} on_change_target={@on_change_target} />
+
+              <%!-- Activity hides when the pursuit is awaiting a decision
                   (decision_card present). In that case the Decision
                   card carries the prompt and ALL actions, so the
                   Activity card would otherwise duplicate the heading,
                   meta-narrate the layout ("use the decision card
                   below…"), and float Cancel pursuit in a weird spot. --%>
-            <PursuitActivity.pursuit_activity
-              :if={@status && !@decision_card}
-              vm={@status}
-              on_cancel={@on_cancel}
-              on_change_target={@on_change_target}
-              on_request_decision={@on_request_decision}
-            />
+              <PursuitActivity.pursuit_activity
+                :if={@status && !@decision_card}
+                vm={@status}
+                on_cancel={@on_cancel}
+                on_change_target={@on_change_target}
+                on_request_decision={@on_request_decision}
+              />
 
-            <DecisionCard.decision_card
-              :if={@decision_card}
-              vm={@decision_card}
-              on_cancel={@on_cancel}
-            />
+              <DecisionCard.decision_card
+                :if={@decision_card}
+                vm={@decision_card}
+                on_cancel={@on_cancel}
+              />
 
-            <PursuitTimeline.timeline :if={@timeline} vm={@timeline} />
+              <PursuitTimeline.timeline :if={@timeline} vm={@timeline} />
+            </div>
           </div>
         </div>
       </div>
