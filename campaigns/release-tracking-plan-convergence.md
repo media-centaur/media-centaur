@@ -1,5 +1,5 @@
 ---
-status: Phase 4 code COMPLETE (deletion sweep + Q11 shipped; remaining = wiki sync only)
+status: COMPLETE 2026-06-10 (all phases shipped; wiki synced; closure reconciliation below)
 started: 2026-06-10
 last_updated: 2026-06-10
 ---
@@ -25,13 +25,15 @@ tracking's job (a search act on a cadence), never a pursuit's.
 
 ## Status
 
-Phases 0–3 COMPLETE 2026-06-10; **Phase 4 deletion sweep SHIPPED
-2026-06-10** — the legacy auto path is gone (Reactor→Arm,
-`AutoGrabPolicy`, `ArmAll`/`enqueue_all_pending_for_item`, `Arm`/
-`Acquisition.enqueue/4`, `find_by_tmdb_recipe`, the `release_ready`
-broadcast, the worker's `QualityWindow` patience). Subsumes
-media-search campaign Phase 4. Remaining: Q11 mode-off mid-flight,
-wiki sync.
+**CAMPAIGN COMPLETE 2026-06-10** — all phases shipped in one day:
+design (ADR-056), want ledger, drop→plan pipeline + cutover,
+handoffs, surfaces, the legacy-path deletion sweep, Q11 mode-off
+reconciliation, and the wiki sync. The legacy auto path is gone
+(Reactor→Arm, `AutoGrabPolicy`, `ArmAll`/`enqueue_all_pending_for_item`,
+`Arm`/`Acquisition.enqueue/4`, `find_by_tmdb_recipe`, the
+`release_ready` broadcast, the worker's `QualityWindow` patience).
+Subsumed and closed media-search campaign Phase 4. See "Closure
+reconciliation" for residual dispositions.
 
 ## The model
 
@@ -488,11 +490,39 @@ use-case inventory.
      flip; manual plan-now drafts survive (user action outranks the
      automation dial); solving drafts self-handle via the existing
      plan-ready mode gate.
-   * REMAINING:
-     5. **Wiki sync** — auto-grab modes (incl. ask), the drop-plan
-        flow, "plan now" replacing queue-all, the watching state,
-        media-search pages (the expired carve-out from the sibling
-        campaign).
+   * ✅ **Wiki sync** (this session, wiki commit `9fc15a4`) — new
+     `Searching-and-Downloading` page (omnibox, plans, pursuits,
+     handoffs — closes the media-search carve-out too);
+     `Release-Tracking` rewritten around automatic downloads
+     (auto/ask/off, the watching state, Queue all → plan,
+     cancel-sticks, mode-off); `Settings-Reference` auto-acquisition
+     defaults; `Prowlarr-Integration` + `Home-Page` badge vocabulary.
+
+## Closure reconciliation (closure-by-destination)
+
+Every completion criterion is met; residuals each have a destination:
+
+* **`prefer_season_packs` is formally replaced by planner
+  consolidation** (the criteria's "or" branch): the planner weighs
+  packs vs episodes on its own judgment; the per-item boolean was
+  never wired and remains a vestigial column. Destination: wire as a
+  per-item planner weight or drop the column when the tracking-item
+  drawer / quality-upgrades campaign next touches this schema.
+* **`dismiss_released_before`** (Phase 1 discovery) — also vestigial;
+  the want-sync guard honors existing data. Same destination: drop or
+  surface when next touching the RT schema.
+* **No per-item mode UI** — `update_auto_grab/2` has zero web
+  callers; effective modes work via the global default. Destination:
+  the future tracking-item drawer design.
+* **Multi-unit tmdb satisfaction matching** (media-search risk #6) —
+  reconciler matches per target by content-path + release-name; add
+  per-unit tmdb-identity matching if soak shows misses. Destination:
+  watch during soak.
+* **Q2 opportunistic plan-over-everything-open** — deliberately not
+  implemented (due wants only). Destination: revisit only if
+  gap-coverage misses hurt in practice.
+* **Quality upgrades** — deferred to its own campaign by design;
+  `satisfied_quality` hook is recorded at satisfaction time.
 
 ## Risk surface
 

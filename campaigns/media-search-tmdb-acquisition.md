@@ -1,5 +1,5 @@
 ---
-status: in-progress (Phases 1–3 COMPLETE incl. UI; Phase 4 re-homed AND SHIPPED 2026-06-10 via release-tracking-plan-convergence commit 8a6b8137; remaining here = wiki sync + closure reconciliation)
+status: COMPLETE 2026-06-10 (Phases 1–3 shipped here; Phase 4 shipped via release-tracking-plan-convergence; wiki synced — Searching-and-Downloading page, wiki commit 9fc15a4; residual dispositions recorded in the convergence campaign's closure reconciliation)
 started: 2026-05-31
 last_updated: 2026-06-10
 ---
@@ -369,17 +369,20 @@ solves; plan lands `ready`) → reads via `Plans.get/1`, `units_for/1`,
 * `Units.single!/1` tripwire: raises on multi-unit pursuits at call
   sites that still need unit-scoped args (`Arm` is legitimately
   single-unit). Don't swallow raises — grow `unit_id` args.
-* Wiki update — **the WIP carve-out has expired** (Phase 3 UI shipped
-  2026-06-10); sync the wiki with Phase 4 or before any release.
+* Wiki update — ✅ DONE 2026-06-10 (wiki commit `9fc15a4`): new
+  `Searching-and-Downloading` page covers the omnibox, plans,
+  pursuits, and both handoffs.
 * TMDB collections; per-search quality-pref UI (plan.criteria accepts
   min/max already — falls back to AutoGrabSettings).
 
 **Gotchas rediscovered this build (cost time once already):**
 * `"acquired"` is terminal-**success** in `TargetStatus` — pivots
   don't fail acquired targets.
-* The worker's 4K-patience window elevates young pursuits' quality
-  floor (test fixtures need `:uhd_4k`); the planner deliberately has
-  NO patience (best-available-now).
+* ~~The worker's 4K-patience window elevates young pursuits' quality
+  floor (test fixtures need `:uhd_4k`)~~ — the window was deleted in
+  the convergence Phase 4 sweep; the planner deliberately has NO
+  patience (best-available-now; patience is plan-time floor
+  elevation).
 * Prowlarr grabs POST to `/api/v1/search` — stubs must discriminate by
   method.
 * LV tests that fire a command then assert on the DB must settle with
