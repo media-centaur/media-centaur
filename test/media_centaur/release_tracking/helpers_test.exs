@@ -40,5 +40,25 @@ defmodule MediaCentaur.ReleaseTracking.HelpersTest do
       assert release.release_type == "theatrical"
       assert release.air_date == ~D[2026-06-23]
     end
+
+    test "stamps every row with the movie's own tmdb id (want-ledger unit identity)" do
+      response = %{"id" => 603, "title" => "Sample Film", "release_date" => "2026-06-23"}
+
+      assert [release] = Helpers.fetch_movie_releases(response)
+      assert release.part_tmdb_id == 603
+    end
+  end
+
+  describe "normalize_collection_releases/1" do
+    test "keeps each part's own tmdb id as part_tmdb_id" do
+      extracted = [
+        %{air_date: ~D[2030-01-01], title: "Sample Saga Part II", tmdb_id: 2002}
+      ]
+
+      assert [release] = Helpers.normalize_collection_releases(extracted)
+      assert release.part_tmdb_id == 2002
+      assert release.title == "Sample Saga Part II"
+      assert release.season_number == nil
+    end
   end
 end
