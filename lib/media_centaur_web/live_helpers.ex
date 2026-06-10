@@ -139,4 +139,11 @@ defmodule MediaCentaurWeb.LiveHelpers do
   end
 
   def format_size(bytes) when is_integer(bytes), do: "#{bytes} B"
+
+  @doc """
+  Stable per-title hue for synthetic identity banners (UIDR-014) — the
+  same title always lands the same tint. Chroma stays low in the CSS;
+  the scrim rule keeps semantic colors the brightest accents.
+  """
+  def banner_hue(title), do: :erlang.phash2(title, 360)
 end

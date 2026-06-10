@@ -21,7 +21,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
     [
       %Variation{
         id: :movie_with_year,
-        description: "Movie pursuit with year and 1080–4K criteria",
+        description:
+          "Movie pursuit — TMDB door, so the title sits on the identity-banner band (UIDR-014)",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-movie",
@@ -40,7 +41,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
       },
       %Variation{
         id: :tv_episode,
-        description: "TV episode pursuit",
+        description: "TV episode pursuit — identity-banner band, per-title hue",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-tv",

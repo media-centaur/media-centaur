@@ -21,6 +21,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
 
   use Phoenix.Component
 
+  import MediaCentaurWeb.LiveHelpers, only: [banner_hue: 1]
+
   import MediaCentaurWeb.CoreComponents, only: [badge: 1, button: 1, icon: 1]
 
   alias MediaCentaur.Acquisition.ViewModels.{DownloadProgress, PursuitRow}
@@ -213,10 +215,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
   end
 
   defp segmented_units(assigns), do: ~H""
-
-  # Stable per-title hue for the synthetic banner gradient — the same
-  # show always lands the same tint (chroma stays low; scrim rule).
-  defp banner_hue(title), do: :erlang.phash2(title, 360)
 
   attr :download, DownloadProgress, required: true
   attr :queue_item_id, :string, required: true

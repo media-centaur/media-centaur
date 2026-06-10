@@ -3,6 +3,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
 
   use Phoenix.Component
 
+  import MediaCentaurWeb.LiveHelpers, only: [banner_hue: 1]
+
   alias MediaCentaur.Acquisition.ViewModels.PursuitHeader
   alias MediaCentaurWeb.Components.Acquisition.PursuitStyle
 
@@ -15,12 +17,30 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
       |> Phoenix.Component.assign(:release_subtitle, release_subtitle(assigns.vm))
 
     ~H"""
-    <%!-- Flat section, not its own card. The modal panel is the
-          container; nesting another `glass-surface` here created a
-          card-on-card-on-card stack with the activity / decision /
-          timeline rows below. --%>
+    <%!-- Flat section, not its own card (a nested glass-surface here
+          created card-on-card-on-card with the rows below). TMDB-door
+          pursuits get the identity-banner band behind the title — same
+          treatment as their page card, scrim rule keeping the state
+          badge the brightest accent. Query-door pursuits keep the flat
+          title row: imagery means a title you chose (UIDR-014). --%>
     <header class="space-y-2">
-      <div class="flex items-baseline justify-between gap-3">
+      <div
+        :if={@vm.recipe.recipe_type == :tmdb}
+        class="identity-banner flex items-end"
+        style={"--banner-hue: #{banner_hue(@display_title)}; min-height: 5.5rem;"}
+      >
+        <div class="flex w-full items-end justify-between gap-3 p-4">
+          <h2 class="identity-logotype min-w-0 truncate text-xl leading-tight">
+            {@display_title}
+          </h2>
+          <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
+        </div>
+      </div>
+
+      <div
+        :if={@vm.recipe.recipe_type != :tmdb}
+        class="flex items-baseline justify-between gap-3"
+      >
         <h2 class="text-lg font-medium truncate">{@display_title}</h2>
         <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
       </div>
