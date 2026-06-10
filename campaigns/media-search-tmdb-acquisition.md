@@ -1,5 +1,5 @@
 ---
-status: in-progress (Phases 1–2 complete; Phase 3 backend spine shipped; NEXT = Phase 3 UI design session with the user)
+status: in-progress (Phases 1–3 COMPLETE incl. UI; NEXT = Phase 4 release-tracking handoffs + wiki sync)
 started: 2026-05-31
 last_updated: 2026-06-09
 ---
@@ -245,7 +245,20 @@ the seven risks below.
      season/episode identity; `Recipe.for_unit` narrows tmdb re-search
      to the unit's episode.
 
-   ✅ **UI DESIGN APPROVED 2026-06-10** —
+   ✅ **UI SHIPPED 2026-06-10** (commits `6e4def2f` omnibox,
+   `7935ff61` plan flow, `cafddc49` identity banners) — built exactly
+   to UIDR-014: omnibox hero w/ release-mode flip (search zone now
+   headless; an active session auto-resumes release mode); URL-driven
+   plan modal (?plan=new&tmdb_id=… → ?plan=<id>) with picker
+   (PlanLogic pure selection + presets), live board (PlanBoard VM via
+   `Plans.board_for/1`, capsule consolidation, gap row, activity
+   ticker over PlanEvents), approve → patches straight to the pursuit
+   modal; resumable draft cards; identity banners (synthetic per-title
+   hue + scrim; query door stays plain w/ door chip); segmented
+   unit-progress on composite cards. Whole door verified end-to-end in
+   LV tests. **Phase 3 is COMPLETE.**
+
+   *(original design approval note follows)* ✅ **UI DESIGN APPROVED 2026-06-10** —
    [UIDR-014](../decisions/user-interface/2026-06-10-014-media-search-front-door.md)
    is the spec (mockups at `~/.agent/mockups/media-search-front-door/`,
    session artifacts): omnibox hero w/ release-mode flip; one
@@ -255,21 +268,6 @@ the seven risks below.
    title-doored identity w/ scrim discipline + gradient-logotype
    fallback (no TMDB hot-linking in v1).
 
-   ⬜ **REMAINING — build the approved UI**, in slices:
-   1. Omnibox + TMDB type-ahead (reuse `ReleaseTracking.search_tmdb`)
-      + release-mode flip absorbing the existing search zone.
-   2. Plan modal: picker stage (`Targeting.series_selection` async,
-      preset/checkbox logic extracted pure per ADR-030) →
-      `Plans.create_*` → board stage (subscribe `PlanEvents` on
-      `acquisition:updates`, render grid + releases + ticker + footer;
-      verbs → `Plans.exclude_release / replan(force) / approve /
-      discard`; overlap error surfaced naming units). Movie
-      mini-confirm.
-   3. Page restructure: draft-plan banner cards (resume → board),
-      backdrop/logo banners for TMDB-door pursuits, segmented
-      unit-progress row, query-door rows stay plain w/ door chip.
-   Stories per MC0009 for every new/changed component; smoke fixtures
-   for the new render branches.
 4. **Release-tracking handoffs + polish.** "Grab future" opt-in →
    on-completion spin-up of a release-tracking entry; **gap handoff at
    approval** (track the units planning couldn't find); dedup so a
@@ -360,8 +358,8 @@ solves; plan lands `ready`) → reads via `Plans.get/1`, `units_for/1`,
 * `Units.single!/1` tripwire: raises on multi-unit pursuits at call
   sites that still need unit-scoped args (`Arm` is legitimately
   single-unit). Don't swallow raises — grow `unit_id` args.
-* Wiki update deferred under the WIP carve-out until the Phase 3 UI
-  settles the user-visible shape (completion criterion stands).
+* Wiki update — **the WIP carve-out has expired** (Phase 3 UI shipped
+  2026-06-10); sync the wiki with Phase 4 or before any release.
 * TMDB collections; per-search quality-pref UI (plan.criteria accepts
   min/max already — falls back to AutoGrabSettings).
 
