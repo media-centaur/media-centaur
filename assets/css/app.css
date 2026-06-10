@@ -895,20 +895,25 @@ body:has(.modal-backdrop[data-state="open"]) {
 
 /* ── Home page hero (Netflix-style fluid fill) ──
    Hero billboard fills the available width (viewport minus side-rail) with
-   a 16:9 aspect, capped at 65vh. We compute height explicitly instead of
-   using `aspect-ratio: 16/9; max-height: 65vh` because that combo causes
-   browsers to shrink WIDTH to preserve the ratio when max-height clamps,
-   leaving an empty band on the right at common viewport sizes.
-   `--side-rail` matches `#input-system > main { margin-left: 52px }`. */
+   a 16:9 aspect, capped at 65vh. We compute the target height explicitly
+   instead of using `aspect-ratio: 16/9; max-height: 65vh` because that
+   combo causes browsers to shrink WIDTH to preserve the ratio when
+   max-height clamps, leaving an empty band on the right at common viewport
+   sizes. `--side-rail` matches `#input-system > main { margin-left: 52px }`.
+
+   The billboard height is a FLOOR (min-height), not a fixed height: the
+   hero's text content lives in normal flow, so when a scrunched viewport
+   drives 65vh below the content's intrinsic height the section grows
+   instead of letting the logo/description/CTAs bleed under the next row
+   (which overlaps the hero bottom via -mt-8). clamp() resolves as
+   max(400px, min(16:9-of-width, 65vh)). */
 :root {
   --side-rail: 52px;
 }
 
 .hero-fluid {
   width: 100%;
-  height: calc((100vw - var(--side-rail)) * 0.5625);  /* 9/16 */
-  max-height: 65vh;
-  min-height: 400px;
+  min-height: clamp(400px, calc((100vw - var(--side-rail)) * 0.5625), 65vh);
 }
 
 /* ── Page-level backdrop ──
