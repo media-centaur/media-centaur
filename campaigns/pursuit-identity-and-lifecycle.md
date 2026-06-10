@@ -79,15 +79,25 @@ which closes the whole pursuit on the *first* verified file).
   ([usenet-download-client](usenet-download-client.md)) inherits the
   same lifecycle (its retention = remove-after-import / history
   cleanup; no seeding concepts leak into core).
+* `2026-06-11` — **SUPERSEDED, same day: MC does not manage retention
+  (user-corrected).** Download clients already own seeding lifecycle
+  (qBittorrent: per-category/global share-ratio and seed-time rules)
+  and MC must not impact that. A `RetentionPolicy`/`RetentionSettings`
+  implementation was started and reverted uncommitted. What remains of
+  the hygiene slice is **visibility only**: surface completed/seeding
+  items (today dropped from the snapshot) with a manual per-item
+  remove affordance; the client enforces its own rules. The
+  "nothing unsurfaced" principle stands — satisfied by surfacing, not
+  by managing.
 
 ## Next steps
 
-1. **Download-client hygiene slice** (settled 2026-06-11, see
-   Decisions): surface completed/seeding items (collapsed *Seeding*
-   disclosure on Downloads), retention policy in Settings (default
-   pending user pick), cancellation cancels+deletes its in-flight
-   client items by default. Built against the `DownloadClient`
-   behaviour only — protocol-neutral (see abstraction decision).
+1. **Download-client hygiene slice** (re-scoped 2026-06-11, see
+   Decisions): surface completed/seeding items (collapsed disclosure
+   on Downloads with per-item manual remove); **no MC retention
+   engine** — the client owns its own seeding lifecycle. Cancellation
+   contract (cancel removes in-flight client items) pending
+   confirmation. Built against the `DownloadClient` behaviour only.
 2. Verify on prod with a real multi-release plan after the next
    release ships.
 
