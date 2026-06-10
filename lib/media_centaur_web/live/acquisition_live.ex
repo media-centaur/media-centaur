@@ -1,16 +1,21 @@
 defmodule MediaCentaurWeb.AcquisitionLive do
   @moduledoc """
-  Unified Downloads page at `/download`. Three stacked zones:
+  Unified Downloads page at `/download`. A single column of stacked
+  zones, top to bottom:
 
-  1. **Active queue** (top, `data-nav-zone="queue"`) — live torrent
-     activity from the configured download client. Polled every 5s.
-  2. **Activity** (middle, `data-nav-zone="activity"`) — every
-     `acquisition_grabs` row, manual + auto. Filter chips, title
-     search, cancel + re-arm actions. Refreshes live via PubSub.
-  3. **Manual search** (bottom, `data-nav-zone="search"`) — Prowlarr
-     brace-expansion search, grouped results, batch grab. Successful
-     grabs flow through `Acquisition.grab/2` which inserts a
-     `manual`-origin row in the activity zone above.
+  1. **Omnibox** (`data-nav-zone="omnibox"`) — one search surface, two
+     modes: TMDB media search feeding the plan flow, and Prowlarr
+     release search (results render in the search zone below it).
+  2. **Draft plans** (`data-nav-zone="drafts"`) — unapproved plan
+     boards, resumable into the plan modal.
+  3. **Active pursuits** (`data-nav-zone="pursuits"`) — every live
+     pursuit, paired at render time with its torrent(s) from the
+     download-client queue. Refreshes live via PubSub + queue polls.
+  4. **History** (`data-nav-zone="history"`) — terminal pursuits
+     (failed / cancelled / succeeded) behind a collapsed-by-default
+     disclosure. Filter chips + title search.
+  5. **Other downloads** (`data-nav-zone="other_downloads"`) — client
+     torrents that match no tracked pursuit.
 
   Mounted at `/download`. Only available when Prowlarr is configured —
   unauthenticated requests redirect to the library.
@@ -484,17 +489,13 @@ defmodule MediaCentaurWeb.AcquisitionLive do
               (left-aligned, text-3xl, muted count subtitle) so moving
               between the two pages doesn't shift the title around.
 
-              Width model (command center, see
-              docs/superpowers/specs/2026-06-10-downloads-command-center-design.md):
-              the page is full-bleed (like home/library) so the atmosphere
-              band spans the viewport. At 2xl+ the content splits into a
-              main column (the "now": search, drafts, active pursuits) and
-              a ledger rail (the "record": history, other downloads);
-              below 2xl both wrappers stack in today's single-column order.
-              Command surfaces hold a readable max-w-4xl at all widths;
-              collection zones release the cap at 2xl and the pursuit grid
-              goes 2-up at ≥2200px. --%>
-        <div class="relative z-[1] space-y-6">
+              Width model: the page is full-bleed (like home/library) so
+              the atmosphere band spans the viewport, but the content is a
+              single readable column capped at max-w-4xl — search and
+              drafts on top, active pursuits in the middle, the
+              bookkeeping zones (History disclosure, other downloads) at
+              the bottom. --%>
+        <div class="relative z-[1] max-w-4xl space-y-6">
           <header>
             <h1 class="text-3xl font-bold tracking-tight">Downloads</h1>
             <p class="mt-1 text-sm text-base-content/60">
@@ -512,147 +513,114 @@ defmodule MediaCentaurWeb.AcquisitionLive do
             </.link>
           </header>
 
-          <div class="space-y-6 2xl:grid 2xl:grid-cols-[minmax(0,1fr)_minmax(360px,460px)] 2xl:items-start 2xl:gap-x-8 2xl:space-y-0">
-            <div class="min-w-0 space-y-6">
-              <div class="max-w-4xl">
-                <MediaOmnibox.media_omnibox
-                  mode={@omnibox_mode}
-                  query={@omnibox_query}
-                  results={@omnibox_results}
-                  searching?={@omnibox_searching?}
-                  session={@search_session}
-                  any_loading?={@any_loading?}
-                />
-              </div>
+          <MediaOmnibox.media_omnibox
+            mode={@omnibox_mode}
+            query={@omnibox_query}
+            results={@omnibox_results}
+            searching?={@omnibox_searching?}
+            session={@search_session}
+            any_loading?={@any_loading?}
+          />
 
-              <div :if={@omnibox_mode == :release} class="max-w-4xl">
-                <Search.search_zone
-                  session={@search_session}
-                  any_loading?={@any_loading?}
-                  timeout_terms={@timeout_terms}
-                />
-              </div>
+          <Search.search_zone
+            :if={@omnibox_mode == :release}
+            session={@search_session}
+            any_loading?={@any_loading?}
+            timeout_terms={@timeout_terms}
+          />
 
-              <section
-                :if={@plan_drafts != []}
-                data-nav-zone="drafts"
-                class="max-w-4xl space-y-3 2xl:max-w-none"
+          <section :if={@plan_drafts != []} data-nav-zone="drafts" class="space-y-3">
+            <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+              Draft plans
+            </h2>
+            <div class="grid grid-cols-1 gap-2">
+              <div
+                :for={draft <- @plan_drafts}
+                id={"plan-draft-#{draft.id}"}
+                class="identity-banner flex items-center gap-3 px-4 py-3"
+                style={"--banner-hue: #{banner_hue(draft.title)}"}
               >
-                <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-                  Draft plans
-                </h2>
-                <div class="grid grid-cols-1 items-start gap-2 min-[2200px]:grid-cols-2">
-                  <div
-                    :for={draft <- @plan_drafts}
-                    id={"plan-draft-#{draft.id}"}
-                    class="identity-banner flex items-center gap-3 px-4 py-3"
-                    style={"--banner-hue: #{banner_hue(draft.title)}"}
-                  >
-                    <span class="absolute top-2 left-3 text-[10px] uppercase tracking-wider text-base-content/40">
-                      Draft
-                    </span>
-                    <div class="min-w-0 flex-1 pt-3">
-                      <p class="identity-logotype truncate text-base leading-tight">{draft.title}</p>
-                      <p class="text-xs text-info/90 mt-1 [text-shadow:0_1px_3px_oklch(0%_0_0/0.5)]">
-                        {if draft.status == "planning",
-                          do: "Planning…",
-                          else: "Plan ready — review and approve"}
-                      </p>
-                    </div>
-                    <.button
-                      variant="secondary"
-                      size="sm"
-                      phx-click="resume_plan"
-                      phx-value-id={draft.id}
-                      data-nav-item
-                      tabindex="0"
-                    >
-                      Review plan
-                    </.button>
-                  </div>
+                <span class="absolute top-2 left-3 text-[10px] uppercase tracking-wider text-base-content/40">
+                  Draft
+                </span>
+                <div class="min-w-0 flex-1 pt-3">
+                  <p class="identity-logotype truncate text-base leading-tight">{draft.title}</p>
+                  <p class="text-xs text-info/90 mt-1 [text-shadow:0_1px_3px_oklch(0%_0_0/0.5)]">
+                    {if draft.status == "planning",
+                      do: "Planning…",
+                      else: "Plan ready — review and approve"}
+                  </p>
                 </div>
-              </section>
-
-              <p
-                :if={!@download_client_ready}
-                class="max-w-4xl scrim-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/50"
-              >
-                Connect a download client in
-                <.link navigate="/settings?section=acquisition" class="link link-primary">
-                  Settings
-                </.link>
-                to see live torrent activity under each pursuit.
-              </p>
-
-              <section
-                :if={@paired_rows != []}
-                data-nav-zone="pursuits"
-                class="max-w-4xl space-y-3 2xl:max-w-none"
-              >
-                <div class="flex items-center justify-between gap-3">
-                  <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-                    Active pursuits
-                  </h2>
-                  <div :if={@download_client_ready} class="flex items-center gap-2">
-                    <QueueStatusBadge.queue_status_badge status={@queue_status} />
-                    <span
-                      :if={!@queue_loaded?}
-                      class="loading loading-spinner loading-xs text-base-content/30"
-                    >
-                    </span>
-                  </div>
-                </div>
-                <div class="grid grid-cols-1 items-start gap-2 min-[2200px]:grid-cols-2">
-                  <PursuitRow.pursuit_row
-                    :for={
-                      %PursuitWithDownload{
-                        row: row,
-                        download: download,
-                        queue_item_id: qid,
-                        downloads: downloads
-                      } <-
-                        @download_cards
-                    }
-                    vm={row}
-                    download={download}
-                    downloads={downloads}
-                    queue_item_id={qid}
-                    telemetry_age={@telemetry_age}
-                  />
-                  <.grouped_compact_rows entries={@active_compact} />
-                </div>
-              </section>
-
-              <section
-                :if={@paired_rows == [] && @loaded? && @download_client_ready}
-                class="max-w-4xl scrim-surface rounded-xl px-4 py-6 text-center space-y-3"
-              >
-                <p class="text-sm text-base-content/40">No active pursuits.</p>
                 <.button
                   variant="secondary"
                   size="sm"
-                  phx-click={Phoenix.LiveView.JS.focus(to: "#omnibox-media-input")}
+                  phx-click="resume_plan"
+                  phx-value-id={draft.id}
                   data-nav-item
                   tabindex="0"
                 >
-                  Search for something to watch
+                  Review plan
                 </.button>
-              </section>
+              </div>
             </div>
+          </section>
 
-            <div class="min-w-0 space-y-6">
-              <History.history_zone
-                empty?={@history_rows == []}
-                filter={@history_filter}
-                search={@history_search}
-                open?={@history_open?}
-              >
-                <.grouped_compact_rows entries={@history_compact} />
-              </History.history_zone>
+          <p
+            :if={!@download_client_ready}
+            class="scrim-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/50"
+          >
+            Connect a download client in
+            <.link navigate="/settings?section=acquisition" class="link link-primary">
+              Settings
+            </.link>
+            to see live torrent activity under each pursuit.
+          </p>
 
-              <OrphanQueue.orphan_zone items={@orphan_queue} />
+          <section :if={@paired_rows != []} data-nav-zone="pursuits" class="space-y-3">
+            <div class="flex items-center justify-between gap-3">
+              <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+                Active pursuits
+              </h2>
+              <div :if={@download_client_ready} class="flex items-center gap-2">
+                <QueueStatusBadge.queue_status_badge status={@queue_status} />
+                <span
+                  :if={!@queue_loaded?}
+                  class="loading loading-spinner loading-xs text-base-content/30"
+                >
+                </span>
+              </div>
             </div>
-          </div>
+            <div class="grid grid-cols-1 gap-2">
+              <PursuitRow.pursuit_row
+                :for={
+                  %PursuitWithDownload{
+                    row: row,
+                    download: download,
+                    queue_item_id: qid,
+                    downloads: downloads
+                  } <-
+                    @download_cards
+                }
+                vm={row}
+                download={download}
+                downloads={downloads}
+                queue_item_id={qid}
+                telemetry_age={@telemetry_age}
+              />
+              <.grouped_compact_rows entries={@active_compact} />
+            </div>
+          </section>
+
+          <History.history_zone
+            empty?={@history_rows == []}
+            filter={@history_filter}
+            search={@history_search}
+            open?={@history_open?}
+          >
+            <.grouped_compact_rows entries={@history_compact} />
+          </History.history_zone>
+
+          <OrphanQueue.orphan_zone items={@orphan_queue} />
         </div>
       </div>
     </Layouts.app>

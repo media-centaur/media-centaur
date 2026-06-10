@@ -27,7 +27,7 @@ export const inputConfig = {
     continue: "[data-nav-zone='continue'] [data-nav-item]",
     recently: "[data-nav-zone='recently'] [data-nav-item]",
     coming_up: "[data-nav-zone='coming_up'] [data-nav-item]",
-    // Download page (command center: main column + ledger rail)
+    // Download page (single column: omnibox → drafts → pursuits → history)
     omnibox: "[data-nav-zone='omnibox'] [data-nav-item]",
     drafts: "[data-nav-zone='drafts'] [data-nav-item]",
     pursuits: "[data-nav-zone='pursuits'] [data-nav-item]",
@@ -47,9 +47,7 @@ export const inputConfig = {
     continue: Context.SHELF,
     recently: Context.SHELF,
     coming_up: Context.SHELF,
-    // Download zones are vertical item lists. The pursuits grid goes 2-up
-    // at ≥2200px where MENU's up/down walks it in DOM order — acceptable
-    // while the page carries the nav-WIP notice; revisit with E2E coverage.
+    // Download zones are vertical item lists.
     omnibox: Context.MENU,
     drafts: Context.MENU,
     pursuits: Context.MENU,
@@ -91,20 +89,19 @@ export const inputConfig = {
       "review-detail": { left: ["review-list"] },
       sidebar:         { right: ["review-list", "review-detail"] },
     },
-    // Download: command-center layout. Main column stacks omnibox →
-    // release-search results ("grid") → drafts → pursuits; the ledger rail
-    // (history, other_downloads) sits right of main at 2xl+ and below it in
-    // the sub-2xl stack — the right: edges target the rail, and still
-    // resolve sensibly (jump-to-history) when stacked. Conditional zones
-    // (grid, drafts, other_downloads) are skipped via candidate lists,
-    // same convention as home.
+    // Download: single column, top to bottom — omnibox → release-search
+    // results ("grid") → drafts → pursuits → history → other_downloads.
+    // Conditional zones (grid, drafts, other_downloads) are skipped via
+    // candidate lists, same convention as home. History collapsed still
+    // carries its disclosure toggle as a nav item, so the zone is always
+    // reachable.
     download: {
-      omnibox:         { down: ["grid", "drafts", "pursuits", "history"], left: ["sidebar"], right: ["history", "other_downloads"] },
-      grid:            { up: ["omnibox"], down: ["drafts", "pursuits", "history"], left: ["sidebar"], right: ["history", "other_downloads"] },
-      drafts:          { up: ["grid", "omnibox"], down: ["pursuits", "history"], left: ["sidebar"], right: ["history", "other_downloads"] },
-      pursuits:        { up: ["drafts", "grid", "omnibox"], down: ["history", "other_downloads"], left: ["sidebar"], right: ["history", "other_downloads"] },
-      history:         { up: ["pursuits", "drafts", "grid", "omnibox"], down: ["other_downloads"], left: ["pursuits", "sidebar"] },
-      other_downloads: { up: ["history"], left: ["pursuits", "sidebar"] },
+      omnibox:         { down: ["grid", "drafts", "pursuits", "history"], left: ["sidebar"] },
+      grid:            { up: ["omnibox"], down: ["drafts", "pursuits", "history"], left: ["sidebar"] },
+      drafts:          { up: ["grid", "omnibox"], down: ["pursuits", "history"], left: ["sidebar"] },
+      pursuits:        { up: ["drafts", "grid", "omnibox"], down: ["history", "other_downloads"], left: ["sidebar"] },
+      history:         { up: ["pursuits", "drafts", "grid", "omnibox"], down: ["other_downloads"], left: ["sidebar"] },
+      other_downloads: { up: ["history", "pursuits"], left: ["sidebar"] },
       sidebar:         { right: ["pursuits", "omnibox", "history"] },
     },
     watch_history: {
