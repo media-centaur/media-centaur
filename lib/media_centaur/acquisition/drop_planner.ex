@@ -203,6 +203,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
              MapSet.member?(claimed, {want.season_number, want.episode_number})
            end) do
       {min_quality, max_quality} = bounds(item, settings)
+      failed_guids = failed_guids_by_unit(tmdb_id, "tv")
 
       unit_specs =
         wants
@@ -213,7 +214,8 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
             episode_number: want.episode_number,
             label: unit_label(want),
             position: index,
-            min_quality: floor_for(want, patience, min_quality, max_quality, now)
+            min_quality: floor_for(want, patience, min_quality, max_quality, now),
+            excluded_release_guids: Map.get(failed_guids, {want.season_number, want.episode_number}, [])
           }
         end)
 
@@ -288,6 +290,28 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
   end
 
   # ---------------------------------------------------------------------------
+
+  # The Q5 loop-breaker: releases already tried by terminally-failed
+  # pursuit units of this title are seeded as plan-unit exclusions, so
+  # a re-plan only ever assigns genuinely new releases — no
+  # grab-fail-regrab loop. Satisfied units' attempts are irrelevant
+  # (their wants are closed); the union is per unit identity.
+  defp failed_guids_by_unit(tmdb_id, tmdb_type) do
+    import Ecto.Query
+
+    terminal_failure = MediaCentaur.Acquisition.Pursuits.UnitState.terminal_failure()
+
+    MediaCentaur.Acquisition.Pursuits.Unit
+    |> join(:inner, [u], p in MediaCentaur.Acquisition.Pursuits.Pursuit, on: p.id == u.pursuit_id)
+    |> where([u, p], p.recipe_type == "tmdb")
+    |> where([u, p], p.tmdb_id == ^tmdb_id and p.tmdb_type == ^tmdb_type)
+    |> where([u, _p], u.state in ^terminal_failure)
+    |> select([u, _p], {u.season_number, u.episode_number, u.tried_release_guids})
+    |> MediaCentaur.Repo.all()
+    |> Enum.reduce(%{}, fn {season, episode, guids}, acc ->
+      Map.update(acc, {season, episode}, guids || [], &Enum.uniq(&1 ++ (guids || [])))
+    end)
+  end
 
   defp bounds(item, settings) do
     {

@@ -294,6 +294,53 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
     end
   end
 
+  describe "tried-and-failed exclusion (Q5 loop-breaker)" do
+    test "a release that already failed for the unit is never re-assigned" do
+      # A prior pursuit for S01E01 exhausted itself on "dead-1".
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "tmdb",
+          tmdb_id: "246810",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 1,
+          origin: "auto",
+          status: "failed"
+        })
+
+      [unit] = Units.for_pursuit(pursuit.id)
+
+      {:ok, _} =
+        unit
+        |> Ecto.Changeset.change(state: "exhausted", tried_release_guids: ["dead-1"])
+        |> Repo.update()
+
+      {:ok, _} =
+        Repo.get!(Pursuit, pursuit.id)
+        |> Ecto.Changeset.change(state: "exhausted")
+        |> Repo.update()
+
+      # The indexer still only offers the dead release.
+      stub_results(%{
+        "Sample Show S01E01" => [
+          release("Sample.Show.S01E01.1080p.WEB-DL", "dead-1", %{seeders: 20})
+        ]
+      })
+
+      item = create_tracked_show()
+      create_aired_release(item, 1, 1, @last_month)
+      :ok = ReleaseTracking.sync_wants(item)
+
+      tick_and_gate()
+
+      # The dead release is excluded at plan time: nothing assignable,
+      # no pursuit, the want stays open for a genuinely new release.
+      assert Enum.filter(Repo.all(Pursuit), &(&1.state == "active")) == []
+      assert [%{status: :open}] = ReleaseTracking.open_wants_for_item(item.id)
+    end
+  end
+
   describe "cancellation semantics (Q5)" do
     setup do
       stub_results(%{

@@ -54,10 +54,23 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
 
   @type t :: %__MODULE__{}
 
-  @doc "Builds a new pending unit for a plan."
+  @doc """
+  Builds a new pending unit for a plan. `excluded_release_guids` may be
+  seeded at creation — the drop planner pre-loads releases that already
+  failed terminally for this unit (ADR-056 Q5 loop-breaker), so
+  re-plans only ever assign genuinely new releases.
+  """
   def create_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:plan_id, :season_number, :episode_number, :label, :position, :min_quality])
+    |> cast(attrs, [
+      :plan_id,
+      :season_number,
+      :episode_number,
+      :label,
+      :position,
+      :min_quality,
+      :excluded_release_guids
+    ])
     |> validate_required([:plan_id, :label])
   end
 

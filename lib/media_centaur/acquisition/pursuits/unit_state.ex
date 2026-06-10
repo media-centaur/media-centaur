@@ -42,6 +42,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.UnitState do
   @spec terminal() :: [String.t()]
   def terminal, do: @terminal_strings
 
+  @doc "Terminal states where the unit did NOT land (exhausted/cancelled)."
+  @spec terminal_failure() :: [String.t()]
+  def terminal_failure, do: @terminal_failure_strings
+
   @spec in_flight?(String.t() | atom()) :: boolean()
   def in_flight?(state), do: normalize(state) in @in_flight_strings
 
