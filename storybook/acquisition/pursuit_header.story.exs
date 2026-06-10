@@ -20,9 +20,32 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
   def variations do
     [
       %Variation{
-        id: :movie_with_year,
+        id: :tv_with_backdrop_and_logo,
         description:
-          "Movie pursuit — TMDB door, so the title sits on the identity-banner band (UIDR-014)",
+          "TMDB pursuit with cached artwork — the backdrop is the panel background, the logo PNG replaces the text title, and type/state/queries sit on the scrim (UIDR-011/014). Inline SVG stand-ins; real assets come from /media-images.",
+        attributes: %{
+          vm: %PursuitHeader{
+            id: "story-hero",
+            title: "Sample Show",
+            state: :active,
+            backdrop_url:
+              "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1280' height='720'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23355070'/><stop offset='1' stop-color='%23172033'/></linearGradient></defs><rect width='1280' height='720' fill='url(%23g)'/><circle cx='980' cy='180' r='240' fill='%236d8cb0' opacity='0.35'/></svg>",
+            logo_url:
+              "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='90'><text x='0' y='64' font-family='sans-serif' font-size='56' font-weight='800' letter-spacing='6' fill='white'>SAMPLE SHOW</text></svg>",
+            recipe: %Recipe{
+              recipe_type: :tmdb,
+              tmdb_type: "tv",
+              tmdb_id: "10",
+              season_number: 1,
+              search_queries: ["Sample Show Season 1", "Sample Show S01"]
+            },
+            criteria_summary: "min_quality: 1080p"
+          }
+        }
+      },
+      %Variation{
+        id: :movie_with_year,
+        description: "Movie pursuit, no cached artwork — synthetic gradient + logotype fallback",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-movie",
@@ -41,7 +64,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
       },
       %Variation{
         id: :tv_episode,
-        description: "TV episode pursuit — identity-banner band, per-title hue",
+        description: "TV episode pursuit, no cached artwork — fallback hero, queries on the scrim",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-tv",

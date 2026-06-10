@@ -69,6 +69,16 @@ defmodule MediaCentaur.ReleaseTracking.ImageStore do
   def on_disk_path(:logo, tmdb_id), do: absolute_image_path(tmdb_id, "logo.png")
 
   @doc """
+  The data_dir-relative path for a role — what the DB stores and what
+  `/media-images/` serves. Public so read-side resolvers (e.g. the
+  pursuit modal's artwork lookup) never duplicate the layout.
+  """
+  @spec relative_path(:backdrop | :poster | :logo, integer()) :: String.t()
+  def relative_path(:backdrop, tmdb_id), do: relative_image_path(tmdb_id, "backdrop.jpg")
+  def relative_path(:poster, tmdb_id), do: relative_image_path(tmdb_id, "poster.jpg")
+  def relative_path(:logo, tmdb_id), do: relative_image_path(tmdb_id, "logo.png")
+
+  @doc """
   Re-downloads a tracking image only if the on-disk copy is stale per
   `stale_image?/1`. Pass `nil` for `tmdb_path` and the call no-ops with
   `:skipped` (no source URL to refetch from).

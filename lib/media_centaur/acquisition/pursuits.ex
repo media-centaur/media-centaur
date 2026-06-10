@@ -541,15 +541,28 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   defp status_to_atom("cancelled"), do: :cancelled
 
   defp build_header(%Pursuit{} = pursuit) do
+    artwork = header_artwork(pursuit)
+
     %PursuitHeader{
       id: pursuit.id,
       title: pursuit.title,
       state: String.to_existing_atom(pursuit.state),
       awaiting_decision?: awaiting_decision?(pursuit),
       recipe: build_recipe(pursuit),
-      criteria_summary: summarize_criteria(pursuit.criteria)
+      criteria_summary: summarize_criteria(pursuit.criteria),
+      backdrop_url: artwork.backdrop_url,
+      logo_url: artwork.logo_url
     }
   end
+
+  # Local-only (DB + disk) — the modal kicks the network `Artwork.ensure`
+  # async when this comes back empty for a TMDB pursuit.
+  defp header_artwork(%Pursuit{recipe_type: "tmdb", tmdb_id: tmdb_id} = pursuit)
+       when not is_nil(tmdb_id) do
+    MediaCentaur.Acquisition.Artwork.resolve(tmdb_id, pursuit.tmdb_type)
+  end
+
+  defp header_artwork(_pursuit), do: %{backdrop_url: nil, logo_url: nil}
 
   defp summarize_criteria(nil), do: nil
   defp summarize_criteria(map) when map_size(map) == 0, do: nil

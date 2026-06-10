@@ -1701,3 +1701,19 @@ body:has(.modal-backdrop[data-state="open"]) {
       oklch(19% 0.04 calc(var(--banner-hue, 264) + 40)) 100%
     );
 }
+
+/* Scrim stack for a REAL backdrop image behind the modal hero (the
+   synthetic .identity-backdrop carries its own gradients; an <img>
+   needs this overlay). Bottom fade into the panel surface + a
+   left-weighted dim so overlaid text stays readable (UIDR-011 text
+   classes handle the glyph-level shadow). */
+.identity-hero-scrim {
+  background:
+    linear-gradient(180deg, transparent 0%, transparent 30%, var(--color-base-100) 100%),
+    linear-gradient(
+      90deg,
+      oklch(13% 0.02 264 / 0.75) 0%,
+      oklch(13% 0.02 264 / 0.35) 55%,
+      oklch(13% 0.02 264 / 0.1) 100%
+    );
+}
