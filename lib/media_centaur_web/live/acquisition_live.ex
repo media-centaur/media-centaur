@@ -1262,6 +1262,23 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     {:noreply, assign(socket, plan_stage: :error, plan_error: "Couldn't load this title from TMDB.")}
   end
 
+  def handle_async({:pursuit_artwork, pursuit_id}, {:ok, urls}, socket) do
+    case socket.assigns do
+      %{selected_pursuit_id: ^pursuit_id, pursuit_detail: %{header: header} = detail}
+      when not is_nil(header) ->
+        updated = %{header | backdrop_url: urls.backdrop_url, logo_url: urls.logo_url}
+        {:noreply, assign(socket, pursuit_detail: %{detail | header: updated})}
+
+      _other ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_async({:pursuit_artwork, _pursuit_id}, {:exit, reason}, socket) do
+    Log.warning(:acquisition, "artwork fetch crashed — #{inspect(reason)}")
+    {:noreply, socket}
+  end
+
   def handle_async(:plan_approve, {:ok, outcome}, socket) do
     socket = assign(socket, plan_approving?: false)
 
@@ -1383,6 +1400,24 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
   # Full load — includes the (possibly Prowlarr-hitting) decision card
   # build. Used on initial open and on pursuit-lifecycle events.
+  # A TMDB pursuit whose local artwork lookup came back empty fetches
+  # and caches it off-process (one TMDB detail call + the standard
+  # ImageStore downloads); the result re-lands on the open header only.
+  defp maybe_fetch_artwork(socket, header) do
+    recipe = header.recipe
+
+    if recipe.recipe_type == :tmdb and recipe.tmdb_id != nil and is_nil(header.backdrop_url) and
+         Capabilities.tmdb_ready?() do
+      pursuit_id = header.id
+
+      start_async(socket, {:pursuit_artwork, pursuit_id}, fn ->
+        Acquisition.Artwork.ensure(recipe.tmdb_id, recipe.tmdb_type)
+      end)
+    else
+      socket
+    end
+  end
+
   defp load_pursuit_detail(%{assigns: %{selected_pursuit_id: nil}} = socket) do
     assign(socket, pursuit_detail: nil)
   end
@@ -1398,6 +1433,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         # (ADR-044).
         header = Pursuits.header_from(pursuit)
         status = Pursuits.status_from(pursuit)
+        socket = maybe_fetch_artwork(socket, header)
         timeline = Pursuits.timeline_for(pursuit.id)
         unit_board = Pursuits.unit_board_for(pursuit)
 

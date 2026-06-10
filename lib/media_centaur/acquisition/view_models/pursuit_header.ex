@@ -11,6 +11,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitHeader do
     :state,
     :recipe,
     :criteria_summary,
+    :backdrop_url,
+    :logo_url,
     awaiting_decision?: false
   ]
 
@@ -20,6 +22,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitHeader do
           state: PursuitRow.state(),
           recipe: Recipe.t(),
           criteria_summary: String.t() | nil,
+          backdrop_url: String.t() | nil,
+          logo_url: String.t() | nil,
           awaiting_decision?: boolean()
         }
 end

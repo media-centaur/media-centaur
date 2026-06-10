@@ -3,6 +3,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
 
   use Phoenix.Component
 
+  import MediaCentaurWeb.CoreComponents, only: [badge: 1]
   import MediaCentaurWeb.LiveHelpers, only: [banner_hue: 1]
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitHeader
@@ -19,21 +20,73 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
     ~H"""
     <%!-- Flat section, not its own card (a nested glass-surface here
           created card-on-card-on-card with the rows below). TMDB-door
-          pursuits get the identity-banner band behind the title — same
-          treatment as their page card, scrim rule keeping the state
-          badge the brightest accent. Query-door pursuits keep the flat
-          title row: imagery means a title you chose (UIDR-014). --%>
+          pursuits get a real hero: the cached backdrop as the panel's
+          background with logo PNG (or logotype fallback) and the
+          identity facts — type, state, criteria, the literal search
+          queries — overlaid on the scrim (UIDR-011/014). The synthetic
+          gradient remains the no-artwork fallback. Query-door pursuits
+          keep the flat title row: imagery means a title you chose. --%>
     <header>
       <div
         :if={@vm.recipe.recipe_type == :tmdb}
-        class="identity-backdrop flex items-end"
-        style={"--banner-hue: #{banner_hue(@display_title)}; min-height: 9rem;"}
+        class="relative flex items-end"
+        style={"--banner-hue: #{banner_hue(@display_title)}; min-height: 13rem;"}
       >
-        <div class="flex w-full items-end justify-between gap-3 px-6 pb-3 pt-10">
-          <h2 class="identity-logotype min-w-0 truncate text-2xl leading-tight">
-            {@display_title}
-          </h2>
-          <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
+        <img
+          :if={@vm.backdrop_url}
+          src={@vm.backdrop_url}
+          alt=""
+          class="absolute inset-0 h-full w-full object-cover"
+          style="object-position: center 25%"
+          loading="eager"
+          decoding="sync"
+        />
+        <div :if={@vm.backdrop_url} class="identity-hero-scrim absolute inset-0"></div>
+        <div :if={!@vm.backdrop_url} class="identity-backdrop absolute inset-0"></div>
+
+        <div class="relative z-[1] w-full space-y-2 px-6 pb-4 pt-14">
+          <div class="flex items-end justify-between gap-3">
+            <img
+              :if={@vm.logo_url}
+              src={@vm.logo_url}
+              alt={@display_title}
+              title={@display_title}
+              class="text-on-image-lg max-h-16 max-w-[55%] object-contain object-left"
+              loading="eager"
+              decoding="sync"
+            />
+            <h2 :if={!@vm.logo_url} class="identity-logotype min-w-0 truncate text-2xl leading-tight">
+              {@display_title}
+            </h2>
+            <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
+          </div>
+
+          <div class="text-on-image flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            <.badge variant="type" size="xs">
+              {if @vm.recipe.tmdb_type in [:movie, "movie"], do: "Movie", else: "TV"}
+            </.badge>
+            <span :if={recipe_summary(@vm.recipe)} class="text-base-content/80">
+              {recipe_summary(@vm.recipe)}
+            </span>
+            <span :if={@vm.criteria_summary} class="text-base-content/70">
+              {@vm.criteria_summary}
+            </span>
+          </div>
+
+          <div
+            :if={@vm.recipe.search_queries != []}
+            class="text-on-image space-y-0.5 text-xs text-base-content/70"
+          >
+            <ul class="space-y-0.5">
+              <li
+                :for={query <- @vm.recipe.search_queries}
+                class="truncate font-mono text-base-content/80"
+                title={query}
+              >
+                {query}
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
 
@@ -59,22 +112,30 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
           {@release_subtitle}
         </div>
 
-        <div :if={recipe_summary(@vm.recipe)} class="text-xs text-base-content/70">
+        <div
+          :if={@vm.recipe.recipe_type != :tmdb && recipe_summary(@vm.recipe)}
+          class="text-xs text-base-content/70"
+        >
           {recipe_summary(@vm.recipe)}
         </div>
 
-        <div :if={@vm.criteria_summary} class="text-xs text-base-content/60">
+        <div
+          :if={@vm.recipe.recipe_type != :tmdb && @vm.criteria_summary}
+          class="text-xs text-base-content/60"
+        >
           Criteria: {@vm.criteria_summary}
         </div>
 
         <%!-- The literal Prowlarr query/queries this pursuit runs. Always
             visible — "Searching Prowlarr" should never be abstract; the
             user can compare these strings to what they'd paste into
-            Prowlarr by hand. For TMDB recipes this is the worker's
-            attempt sequence; for prowlarr_query recipes it is the
-            brace-expanded list (or the literal query when expansion
-            fails). --%>
-        <div :if={@vm.recipe.search_queries != []} class="text-xs text-base-content/60 space-y-0.5">
+            Prowlarr by hand. TMDB recipes carry them on the hero above;
+            this block covers query-door pursuits (the brace-expanded
+            list, or the literal query when expansion fails). --%>
+        <div
+          :if={@vm.recipe.recipe_type != :tmdb && @vm.recipe.search_queries != []}
+          class="text-xs text-base-content/60 space-y-0.5"
+        >
           <div class="text-base-content/50">{search_label(@vm.recipe.search_queries)}</div>
           <ul class="space-y-0.5">
             <li
