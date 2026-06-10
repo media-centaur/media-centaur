@@ -107,5 +107,20 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ArmTest do
       assert recipe.season_number == 1
       assert recipe.episode_number == 3
     end
+
+    test "stamps season + episode onto the unit — identity lives on units (ADR-055)" do
+      assert {:ok, target} =
+               run(%{
+                 tmdb_id: "1396",
+                 tmdb_type: "tv",
+                 title: "Sample Show",
+                 season_number: 1,
+                 episode_number: 3
+               })
+
+      unit = MediaCentaur.Acquisition.Pursuits.Units.single!(target.pursuit_id)
+      assert unit.season_number == 1
+      assert unit.episode_number == 3
+    end
   end
 end

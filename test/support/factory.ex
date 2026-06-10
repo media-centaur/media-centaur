@@ -932,6 +932,11 @@ defmodule MediaCentaur.TestFactory do
   # Unit-level thread attrs (ADR-055) — routed onto the pursuit's unit
   # rather than the pursuit row.
   @pursuit_unit_keys [
+    # Identity lives on units (ADR-055) — season/episode route onto the
+    # unit as well as the pursuit (the parent copy is the auto-path
+    # idempotency key).
+    :season_number,
+    :episode_number,
     :awaiting_decision_at,
     :tried_release_guids,
     :attempt_count,
