@@ -61,9 +61,14 @@ Use [`template.md`](template.md) as a starter.
   track — never open-ended seeking pursuits. Keystone schema = per-unit
   want ledger (enables gap handoff, grab-future, pursuit×track dedup,
   per-unit targeting subtraction — subsumes media-search Phase 4).
-  Retires the legacy Reactor→Arm auto-grab path. Direction settled
-  2026-06-10 (per-drop plans, over per-event modernization and rolling
-  per-title pursuits); Phase 0 design questions open; no code yet.
+  Retires the legacy Reactor→Arm auto-grab path. **Design complete
+  2026-06-10** — all nine Phase-0 questions settled,
+  [ADR-056](../decisions/architecture/2026-06-10-056-release-tracking-wants.md)
+  accepted (patience = plan-time quality-floor elevation, not a commit
+  gate; claims derived, never stored; cancel dismisses, failure retries
+  politely; quality *upgrades* explicitly deferred with a
+  `satisfied_quality` hook). No code yet; next = Phase 1 want ledger,
+  shipped dark.
 * [`usenet-download-client.md`](usenet-download-client.md) —
   **planning.** Extend downloads from a single client (qBittorrent) to a
   **set routed by protocol**, with SABnzbd as the first usenet driver, so a
