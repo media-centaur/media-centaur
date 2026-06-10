@@ -245,13 +245,31 @@ the seven risks below.
      season/episode identity; `Recipe.for_unit` narrows tmdb re-search
      to the unit's episode.
 
-   ⬜ **REMAINING — the UI** (the next session's design work, WITH the
-   user): TMDB search → targeting picker (quick actions: *Everything
-   aired*, *Continue from where my library ends*, *Latest season*),
-   the coverage board + activity feed over `PlanEvents`, plan feedback
-   surfaces, rich TMDB card on the pursuit, and the downloads-page
-   restructure (media search primary; naked search's standalone
-   placement — explicitly reserved user decisions).
+   ✅ **UI DESIGN APPROVED 2026-06-10** —
+   [UIDR-014](../decisions/user-interface/2026-06-10-014-media-search-front-door.md)
+   is the spec (mockups at `~/.agent/mockups/media-search-front-door/`,
+   session artifacts): omnibox hero w/ release-mode flip; one
+   continuous URL-driven plan modal (picker → unit-grid board →
+   approval footer, no wizard); one cell vocabulary across plan board /
+   segmented pursuit-card progress / UnitBoard; imagery =
+   title-doored identity w/ scrim discipline + gradient-logotype
+   fallback (no TMDB hot-linking in v1).
+
+   ⬜ **REMAINING — build the approved UI**, in slices:
+   1. Omnibox + TMDB type-ahead (reuse `ReleaseTracking.search_tmdb`)
+      + release-mode flip absorbing the existing search zone.
+   2. Plan modal: picker stage (`Targeting.series_selection` async,
+      preset/checkbox logic extracted pure per ADR-030) →
+      `Plans.create_*` → board stage (subscribe `PlanEvents` on
+      `acquisition:updates`, render grid + releases + ticker + footer;
+      verbs → `Plans.exclude_release / replan(force) / approve /
+      discard`; overlap error surfaced naming units). Movie
+      mini-confirm.
+   3. Page restructure: draft-plan banner cards (resume → board),
+      backdrop/logo banners for TMDB-door pursuits, segmented
+      unit-progress row, query-door rows stay plain w/ door chip.
+   Stories per MC0009 for every new/changed component; smoke fixtures
+   for the new render branches.
 4. **Release-tracking handoffs + polish.** "Grab future" opt-in →
    on-completion spin-up of a release-tracking entry; **gap handoff at
    approval** (track the units planning couldn't find); dedup so a
