@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.88.7 — 2026-06-11
+
+### New
+
+- **Remove a release from a plan with one click.** Every release row on the plan board now has a ✕ button that takes that release out of the whole plan and re-plans without it — the way to say "no all-in-one pack, give me season packs instead."
+- **Overlapping downloads are flagged before you grab.** If you swap an episode to its own release while a bigger pack still contains it, the board now warns that those episodes would download twice — with a one-click fix that removes the containing pack and re-plans, keeping your choice.
+
+### Improved
+
+- **The Downloads search is ready to type the moment you arrive.** The search box focuses itself when you open the page, and again when you switch between media and release search.
+- **Offline messages now sound like a desktop app.** When the interface briefly loses Media Centaur (a restart, the machine waking from sleep), the message reads "Media Centaur isn't responding — resuming automatically" instead of talking about the internet or a server.
+
 ## v0.88.6 — 2026-06-11
 
 ### New
