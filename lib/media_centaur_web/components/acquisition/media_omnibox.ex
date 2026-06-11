@@ -22,6 +22,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
+  alias Phoenix.LiveView.JS
   alias MediaCentaurWeb.AcquisitionLive.SearchSession
   alias MediaCentaurWeb.AcquisitionLive.Logic
 
@@ -122,6 +123,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           class="input input-bordered w-full h-12 pl-12 text-base"
           placeholder="What do you want to watch?"
           phx-debounce="500"
+          phx-mounted={JS.focus()}
           data-nav-item
           data-captures-keys
           tabindex="0"
@@ -148,12 +150,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           class="size-5 text-base-content/50 absolute left-4 top-1/2 -translate-y-1/2 z-10 pointer-events-none"
         />
         <input
+          id="omnibox-release-input"
           type="text"
           name="query"
           value={@session.query}
           class="input input-bordered w-full h-12 pl-12 font-mono text-sm"
           placeholder="Title S01E{01-10}"
           phx-debounce="200"
+          phx-mounted={JS.focus()}
           data-nav-item
           data-captures-keys
           tabindex="0"
