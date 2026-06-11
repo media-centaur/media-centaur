@@ -206,9 +206,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert covered.id == unit.id
     end
 
-    # Temporarily skipped — Task 4 reworks this test around Plans.search_alternatives/1.
-    @tag :skip
-    test "the swap picker: alternatives are listed from the corpus, suspicious flagged not hidden, choice reassigns" do
+    test "the swap picker: find-more live-fills the unit's terms consult-first, suspicious flagged not hidden, choice reassigns" do
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
           {"GET", "/api/v1/search"} ->
@@ -257,19 +255,37 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert plan.status == "ready"
 
       units = Plans.units_for(plan.id)
-      # The bait was never auto-picked despite 999 seeders.
       assert Enum.all?(units, &(&1.assigned_guid == "pack-s1"))
 
       [first_unit | _rest] = units
-      {:ok, alternatives} = Plans.alternatives_for(first_unit.id)
 
-      # Clean candidate first; the bait visible but flagged and sorted last.
+      # The descent stopped at the season rung, so the corpus holds
+      # nothing deeper — the picker starts honest and empty.
+      assert {:ok, []} = Plans.alternatives_for(first_unit.id)
+
+      # "Find more" live-fills exactly the unit's never-searched terms.
+      {:ok, alternatives} = Plans.search_alternatives(first_unit.id)
+
+      # Clean candidate first; the bait visible but flagged and sorted
+      # last — and it was never auto-picked despite 999 seeders.
       assert [clean, evil] = alternatives
       assert clean.guid == "e1-uhd"
       refute clean.suspicious?
       assert clean.size_bytes == 2_400_000_000
       assert evil.guid == "e1-evil"
       assert evil.suspicious?
+
+      # Consult-first: a second find-more is served entirely from the
+      # now-fresh corpus — zero indexer traffic.
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.method do
+          "POST" -> Req.Test.json(conn, %{"approved" => true})
+          method -> raise "indexer searched (#{method}) despite a fresh corpus"
+        end
+      end)
+
+      assert {:ok, again} = Plans.search_alternatives(first_unit.id)
+      assert Enum.map(again, & &1.guid) == Enum.map(alternatives, & &1.guid)
 
       # Deliberate choice reassigns exactly the units the choice covers.
       assert {:ok, _plan} = Plans.choose_release(first_unit.id, "e1-uhd")
