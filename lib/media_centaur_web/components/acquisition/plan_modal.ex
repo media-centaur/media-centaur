@@ -51,7 +51,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   attr :movie, :any,
     default: nil,
-    doc: "%{tmdb_id, title, year, poster_path, in_library?} | nil — the movie fast path's facts."
+    doc:
+      "PlanLogic.movie_facts/2 map (%{tmdb_id, title, year, overview, runtime, genres, poster_path, in_library?}) | nil — the movie fast path's facts."
 
   attr :board, :any,
     default: nil,
@@ -368,7 +369,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   attr :movie, :map,
     required: true,
-    doc: "%{tmdb_id, title, year, poster_path, in_library?} — assembled by the host LiveView."
+    doc: "PlanLogic.movie_facts/2 map — assembled by the host LiveView's targeting task."
 
   attr :on_close, :string, required: true
 
@@ -389,15 +390,21 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         </span>
         <div class="min-w-0">
           <h2 class="text-2xl font-semibold truncate">{@movie.title}</h2>
-          <p class="text-xs text-base-content/50 mt-1">
+          <p class="text-xs text-base-content/50 mt-1 flex items-center gap-2 min-w-0">
             <.badge variant="type" size="xs">Movie</.badge>
-            <span :if={@movie.year} class="ml-2">{@movie.year}</span>
+            <span :if={@movie.year}>{@movie.year}</span>
+            <span :if={@movie.runtime}>{@movie.runtime}</span>
+            <span :if={@movie.genres} class="min-w-0 truncate">{@movie.genres}</span>
           </p>
           <p class="text-sm mt-2 text-base-content/60">
             {if @movie.in_library?, do: "Already in your library.", else: "Not in your library."}
           </p>
         </div>
       </div>
+
+      <p :if={@movie.overview} class="text-sm text-base-content/60 line-clamp-4">
+        {@movie.overview}
+      </p>
 
       <div class="flex items-center justify-end gap-2 pt-2 border-t border-base-content/10">
         <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">

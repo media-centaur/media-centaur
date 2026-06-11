@@ -180,4 +180,38 @@ defmodule MediaCentaurWeb.AcquisitionLive.PlanLogic do
         Enum.map(run, &{:cell, &1})
     end)
   end
+
+  @doc """
+  Maps a raw TMDB movie payload into the movie-confirm stage's display
+  facts — everything on hand that helps the user verify the result is
+  the title they meant: overview, human runtime, genre line. Absent or
+  blank TMDB fields become `nil` so the template can drop them.
+  """
+  @spec movie_facts(map(), boolean()) :: map()
+  def movie_facts(tmdb_movie, in_library?) do
+    %{
+      tmdb_id: to_string(tmdb_movie["id"]),
+      title: tmdb_movie["title"],
+      year: extract_year(tmdb_movie["release_date"]),
+      overview: presence(tmdb_movie["overview"]),
+      runtime: format_runtime(tmdb_movie["runtime"]),
+      genres: format_genres(tmdb_movie["genres"]),
+      poster_path: tmdb_movie["poster_path"],
+      in_library?: in_library?
+    }
+  end
+
+  defp extract_year(<<year::binary-size(4), _rest::binary>>), do: String.to_integer(year)
+  defp extract_year(_release_date), do: nil
+
+  defp presence(value) when is_binary(value) and value != "", do: value
+  defp presence(_value), do: nil
+
+  defp format_runtime(minutes) when is_integer(minutes) and minutes > 0,
+    do: MediaCentaurWeb.LibraryFormatters.format_human_duration(minutes * 60)
+
+  defp format_runtime(_minutes), do: nil
+
+  defp format_genres([_ | _] = genres), do: Enum.map_join(genres, " · ", & &1["name"])
+  defp format_genres(_genres), do: nil
 end

@@ -1791,22 +1791,12 @@ defmodule MediaCentaurWeb.AcquisitionLive do
             :not_found -> false
           end
 
-        {:movie,
-         %{
-           tmdb_id: to_string(tmdb_id),
-           title: movie["title"],
-           year: extract_year(movie["release_date"]),
-           poster_path: movie["poster_path"],
-           in_library?: in_library?
-         }}
+        {:movie, PlanLogic.movie_facts(movie, in_library?)}
 
       {:error, reason} ->
         {:error, reason}
     end
   end
-
-  defp extract_year(<<year::binary-size(4), _rest::binary>>), do: String.to_integer(year)
-  defp extract_year(_release_date), do: nil
 
   defp open_plan_board(socket, plan_id) do
     case Plans.get(plan_id) do

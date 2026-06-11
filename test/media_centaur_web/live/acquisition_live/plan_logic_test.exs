@@ -126,4 +126,42 @@ defmodule MediaCentaurWeb.AcquisitionLive.PlanLogicTest do
     assert PlanLogic.toggle_expanded(expanded, 2) == MapSet.new()
     assert PlanLogic.toggle_expanded(expanded, 1) == MapSet.new([1, 2])
   end
+
+  test "movie_facts maps a TMDB movie payload into display facts" do
+    tmdb_movie = %{
+      "id" => 550,
+      "title" => "Sample Movie",
+      "release_date" => "1999-10-15",
+      "overview" => "A sample movie overview.",
+      "runtime" => 139,
+      "genres" => [%{"id" => 18, "name" => "Drama"}, %{"id" => 80, "name" => "Crime"}],
+      "poster_path" => "/sample-poster.jpg"
+    }
+
+    assert PlanLogic.movie_facts(tmdb_movie, true) == %{
+             tmdb_id: "550",
+             title: "Sample Movie",
+             year: 1999,
+             overview: "A sample movie overview.",
+             runtime: "2h 19m",
+             genres: "Drama · Crime",
+             poster_path: "/sample-poster.jpg",
+             in_library?: true
+           }
+  end
+
+  test "movie_facts tolerates a sparse TMDB payload" do
+    tmdb_movie = %{"id" => 550, "title" => "Sample Movie", "overview" => ""}
+
+    assert PlanLogic.movie_facts(tmdb_movie, false) == %{
+             tmdb_id: "550",
+             title: "Sample Movie",
+             year: nil,
+             overview: nil,
+             runtime: nil,
+             genres: nil,
+             poster_path: nil,
+             in_library?: false
+           }
+  end
 end

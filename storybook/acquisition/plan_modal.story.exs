@@ -41,7 +41,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       %Variation{
         id: :movie_confirm,
         description:
-          "The movie fast path — two clicks from omnibox to plan. " <>
+          "The movie fast path — two clicks from omnibox to plan, with the identity-confirming " <>
+            "facts TMDB has on hand (overview, runtime, genres). " <>
             "poster_path nil here pins the icon fallback; the poster render is pinned by the LiveView tests.",
         attributes: %{
           open: true,
@@ -50,8 +51,34 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
             tmdb_id: "777",
             title: "Sample Movie",
             year: 2010,
+            overview:
+              "A drifter arrives in a coastal town the day the lighthouse goes dark and " <>
+                "finds every clock stopped at the same minute — confirming you picked the " <>
+                "right Sample Movie is exactly what this paragraph is for.",
+            runtime: "2h 19m",
+            genres: "Drama · Mystery",
             poster_path: nil,
             in_library?: false
+          }
+        }
+      },
+      %Variation{
+        id: :movie_confirm_sparse,
+        description:
+          "The same stage when TMDB has nothing beyond the title — every optional fact nil, " <>
+            "and the already-in-library state disabling the CTA.",
+        attributes: %{
+          open: true,
+          stage: :movie_confirm,
+          movie: %{
+            tmdb_id: "778",
+            title: "Sample Movie",
+            year: nil,
+            overview: nil,
+            runtime: nil,
+            genres: nil,
+            poster_path: nil,
+            in_library?: true
           }
         }
       },
