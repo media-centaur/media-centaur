@@ -28,11 +28,15 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
 
   @doc "The broadest rung — one term for an all-in-one release."
   @spec series_terms(Plan.t()) :: [term_pair()]
-  def series_terms(%Plan{} = plan), do: [{plan.title, [type: :tv]}]
+  def series_terms(%Plan{tmdb_type: "tv"} = plan), do: [{plan.title, [type: :tv]}]
 
-  @doc "The season rung — both text forms per season, broad-to-narrow within the rung."
+  @doc """
+  The season rung — both text forms per season, broad-to-narrow within the rung.
+
+  Expects unique, ascending seasons (the residual derivation provides this).
+  """
   @spec season_terms(Plan.t(), [pos_integer()]) :: [term_pair()]
-  def season_terms(%Plan{} = plan, seasons) do
+  def season_terms(%Plan{tmdb_type: "tv"} = plan, seasons) do
     Enum.flat_map(seasons, fn season ->
       [
         {"#{plan.title} Season #{season}", [type: :tv]},
@@ -43,7 +47,7 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
 
   @doc "The episode rung — one term per `{season, episode}` unit."
   @spec episode_terms(Plan.t(), [{pos_integer(), pos_integer()}]) :: [term_pair()]
-  def episode_terms(%Plan{} = plan, units) do
+  def episode_terms(%Plan{tmdb_type: "tv"} = plan, units) do
     Enum.map(units, fn {season, episode} ->
       {"#{plan.title} S#{pad(season)}E#{pad(episode)}", [type: :tv]}
     end)
