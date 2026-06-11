@@ -27,12 +27,15 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       %Variation{
         id: :targeting,
         description:
-          "The picker — quick-action presets, tri-state season rows, the in-library row greyed (shown, never hidden), the unaired row inert.",
+          "The picker — quick-action presets, tri-state season rows collapsed by default; " <>
+            "season 1 expanded here showing the episode drill-in: the in-library row greyed " <>
+            "(shown, never hidden), the unaired row inert; season 2 stays collapsed.",
         attributes: %{
           open: true,
           stage: :targeting,
           selection: selection(),
-          chosen: {:eval, ~s|MapSet.new([{1, 2}, {1, 3}, {2, 1}])|}
+          chosen: {:eval, ~s|MapSet.new([{1, 2}, {1, 3}, {2, 1}])|},
+          expanded_seasons: {:eval, ~s|MapSet.new([1])|}
         }
       },
       %Variation{

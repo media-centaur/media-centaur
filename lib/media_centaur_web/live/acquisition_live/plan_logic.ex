@@ -138,6 +138,20 @@ defmodule MediaCentaurWeb.AcquisitionLive.PlanLogic do
   defp max_unit(acc, unit) when unit > acc, do: unit
   defp max_unit(acc, _unit), do: acc
 
+  @doc """
+  Toggles one season in the picker's expanded-seasons set. Seasons
+  start collapsed — the set holds only the season numbers the user has
+  opened.
+  """
+  @spec toggle_expanded(MapSet.t(), pos_integer()) :: MapSet.t()
+  def toggle_expanded(expanded, season_number) do
+    if MapSet.member?(expanded, season_number) do
+      MapSet.delete(expanded, season_number)
+    else
+      MapSet.put(expanded, season_number)
+    end
+  end
+
   @doc "Chosen units in airing order — the shape `Plans.create_series_plan/3` takes."
   @spec chosen_in_order(MapSet.t(), Targeting.Selection.t()) :: [unit()]
   def chosen_in_order(chosen, %Targeting.Selection{} = selection) do

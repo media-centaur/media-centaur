@@ -118,4 +118,12 @@ defmodule MediaCentaurWeb.AcquisitionLive.PlanLogicTest do
     chosen = MapSet.new([{2, 1}, {1, 2}])
     assert PlanLogic.chosen_in_order(chosen, selection()) == [{1, 2}, {2, 1}]
   end
+
+  test "toggle_expanded adds a collapsed season and removes an expanded one" do
+    expanded = PlanLogic.toggle_expanded(MapSet.new(), 2)
+    assert expanded == MapSet.new([2])
+
+    assert PlanLogic.toggle_expanded(expanded, 2) == MapSet.new()
+    assert PlanLogic.toggle_expanded(expanded, 1) == MapSet.new([1, 2])
+  end
 end
