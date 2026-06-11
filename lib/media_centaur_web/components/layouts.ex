@@ -290,7 +290,7 @@ defmodule MediaCentaurWeb.Layouts do
         }
         hidden
       >
-        {gettext("Installing the new version. This page will reconnect automatically.")}
+        {gettext("Installing the new version. This may take a moment.")}
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
     </div>
