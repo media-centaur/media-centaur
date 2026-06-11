@@ -173,7 +173,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   defp media_dropdown(assigns) do
     ~H"""
-    <div class="glass-inset rounded-lg overflow-hidden">
+    <div class="glass-inset rounded-lg max-h-[60vh] overflow-y-auto">
       <div :if={@searching?} class="flex items-center gap-2 px-4 py-3 text-sm text-base-content/40">
         <span class="loading loading-spinner loading-xs"></span> Searching TMDB…
       </div>

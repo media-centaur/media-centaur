@@ -43,17 +43,21 @@ defmodule MediaCentaurWeb.UpcomingLiveTest do
     test "results render TMDB poster thumbnails, icon fallback without one", %{conn: conn} do
       MediaCentaur.TmdbStubs.setup_tmdb_client()
 
-      MediaCentaur.TmdbStubs.stub_search_both(
-        [
-          %{
-            "id" => 777,
-            "title" => "Sample Movie",
-            "release_date" => "2010-03-05",
-            "poster_path" => "/sample-movie-poster.jpg"
-          }
-        ],
-        [%{"id" => 246_810, "name" => "Sample Show", "first_air_date" => "2010-06-16"}]
-      )
+      MediaCentaur.TmdbStubs.stub_search_multi([
+        %{
+          "id" => 777,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05",
+          "poster_path" => "/sample-movie-poster.jpg"
+        },
+        %{
+          "id" => 246_810,
+          "media_type" => "tv",
+          "name" => "Sample Show",
+          "first_air_date" => "2010-06-16"
+        }
+      ])
 
       {:ok, view, _html} = live_async!(conn, "/upcoming")
 

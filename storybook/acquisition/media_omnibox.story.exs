@@ -63,6 +63,25 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
         }
       },
       %Variation{
+        id: :media_results_long,
+        description:
+          "A full TMDB page (20 results) — the dropdown caps its height " <>
+            "and scrolls instead of paginating.",
+        attributes: %{
+          mode: :media,
+          query: "sample",
+          results:
+            for n <- 1..20 do
+              %MediaOmnibox.Result{
+                tmdb_id: 1000 + n,
+                media_type: if(rem(n, 3) == 0, do: :tv_series, else: :movie),
+                name: "Sample Title #{n}",
+                year: "#{2000 + n}"
+              }
+            end
+        }
+      },
+      %Variation{
         id: :media_searching,
         description: "Type-ahead in flight.",
         attributes: %{mode: :media, query: "sample", searching?: true}

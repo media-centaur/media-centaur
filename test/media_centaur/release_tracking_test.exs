@@ -664,61 +664,80 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       :ok
     end
 
-    test "searches both movie and TV endpoints and merges results" do
-      MediaCentaur.TmdbStubs.stub_search_both(
-        [
-          %{
-            "id" => 100,
-            "title" => "Test Movie",
-            "release_date" => "2026-07-01",
-            "poster_path" => "/m.jpg"
-          }
-        ],
-        [
-          %{
-            "id" => 200,
-            "name" => "Test Show",
-            "first_air_date" => "2025-01-01",
-            "poster_path" => "/t.jpg"
-          }
-        ]
-      )
+    test "preserves TMDB's relevance order across movie and TV results" do
+      # The multi endpoint ranks across types — a TV show may outrank
+      # every movie. The merge must not regroup by type (the old
+      # movies-then-tv concatenation starved TV out of the capped
+      # dropdown entirely).
+      MediaCentaur.TmdbStubs.stub_search_multi([
+        %{
+          "id" => 200,
+          "media_type" => "tv",
+          "name" => "Test Show",
+          "first_air_date" => "2025-01-01",
+          "poster_path" => "/t.jpg"
+        },
+        %{
+          "id" => 100,
+          "media_type" => "movie",
+          "title" => "Test Movie",
+          "release_date" => "2026-07-01",
+          "poster_path" => "/m.jpg"
+        },
+        %{
+          "id" => 201,
+          "media_type" => "tv",
+          "name" => "Test Show Two",
+          "first_air_date" => "2021-01-01",
+          "poster_path" => nil
+        }
+      ])
 
       results = ReleaseTracking.search_tmdb("test")
-      assert length(results) == 2
 
-      movie = Enum.find(results, &(&1.media_type == :movie))
-      assert movie.tmdb_id == 100
-      assert movie.name == "Test Movie"
-      assert movie.year == "2026"
+      assert [
+               %{tmdb_id: 200, media_type: :tv_series, name: "Test Show", year: "2025"},
+               %{tmdb_id: 100, media_type: :movie, name: "Test Movie", year: "2026"},
+               %{tmdb_id: 201, media_type: :tv_series, name: "Test Show Two", year: "2021"}
+             ] = results
 
-      show = Enum.find(results, &(&1.media_type == :tv_series))
-      assert show.tmdb_id == 200
-      assert show.name == "Test Show"
-      assert show.year == "2025"
+      assert hd(results).poster_path == "/t.jpg"
+    end
+
+    test "drops person results from the multi search" do
+      MediaCentaur.TmdbStubs.stub_search_multi([
+        %{"id" => 999, "media_type" => "person", "name" => "Test Actor"},
+        %{
+          "id" => 100,
+          "media_type" => "movie",
+          "title" => "Test Movie",
+          "release_date" => "2026-07-01",
+          "poster_path" => "/m.jpg"
+        }
+      ])
+
+      assert [%{tmdb_id: 100, media_type: :movie}] = ReleaseTracking.search_tmdb("test")
     end
 
     test "marks already tracked results" do
       create_tracking_item(%{tmdb_id: 200, media_type: :tv_series, name: "Test Show"})
 
-      MediaCentaur.TmdbStubs.stub_search_both(
-        [],
-        [
-          %{
-            "id" => 200,
-            "name" => "Test Show",
-            "first_air_date" => "2025-01-01",
-            "poster_path" => "/t.jpg"
-          }
-        ]
-      )
+      MediaCentaur.TmdbStubs.stub_search_multi([
+        %{
+          "id" => 200,
+          "media_type" => "tv",
+          "name" => "Test Show",
+          "first_air_date" => "2025-01-01",
+          "poster_path" => "/t.jpg"
+        }
+      ])
 
       results = ReleaseTracking.search_tmdb("test")
       assert hd(results).already_tracked == true
     end
 
     test "returns empty list for no results" do
-      MediaCentaur.TmdbStubs.stub_search_both([], [])
+      MediaCentaur.TmdbStubs.stub_search_multi([])
       assert ReleaseTracking.search_tmdb("xyznonexistent") == []
     end
   end

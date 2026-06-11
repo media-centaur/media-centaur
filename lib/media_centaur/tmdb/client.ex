@@ -10,7 +10,7 @@ defmodule MediaCentaur.TMDB.Client do
 
   - **Base URL:** `https://api.themoviedb.org/3`
   - **Auth:** v3 `api_key` query parameter on every request
-  - **Search endpoints:** `/search/movie`, `/search/tv`
+  - **Search endpoints:** `/search/movie`, `/search/tv`, `/search/multi`
   - **Detail endpoints:** `/movie/{id}`, `/tv/{id}`, `/tv/{id}/season/{n}`, `/collection/{id}`
   - **Image URL:** `https://image.tmdb.org/t/p/original{path}`
 
@@ -81,6 +81,23 @@ defmodule MediaCentaur.TMDB.Client do
     with {:ok, body} <- get(client, url: "/search/tv", params: params) do
       results = body["results"] || []
       Log.info(:tmdb, "found #{length(results)} TV results")
+      {:ok, results}
+    end
+  end
+
+  @doc """
+  Searches movies and TV together, ranked by TMDB's cross-type
+  relevance. Results carry a `"media_type"` discriminator
+  (`"movie"` / `"tv"` / `"person"`); callers filter what they want.
+  No year filter — the multi endpoint doesn't support one.
+  """
+  @spec search_multi(String.t(), Req.Request.t()) :: {:ok, list(map())} | {:error, any()}
+  def search_multi(title, client \\ default_client()) do
+    Log.info(:tmdb, "searched media — #{title}")
+
+    with {:ok, body} <- get(client, url: "/search/multi", params: [query: title]) do
+      results = body["results"] || []
+      Log.info(:tmdb, "found #{length(results)} media results")
       {:ok, results}
     end
   end
