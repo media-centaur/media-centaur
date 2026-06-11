@@ -1,9 +1,10 @@
 defmodule MediaCentaurWeb.Storybook.Status.IssueView do
   @moduledoc """
   Ephemeral incident issue view — opened from a Status incident row. Shows the
-  incident's title, subsystem, severity, occurrence range, a plain-language
-  subsystem description, and the raw sample log lines, then hands off to the
-  report wizard.
+  incident's title, subsystem (name + glyph), severity, occurrence range, and
+  the raw sample log lines, then hands off to the report wizard. The subsystem
+  briefing stays on the drill-in this opens from — the modal is about the
+  incident, not the subsystem.
 
   Each open variation renders a real `position: fixed` overlay, so they are
   iframed to keep them from stacking.
