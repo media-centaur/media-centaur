@@ -156,6 +156,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
          plan_stage: :loading,
          plan_selection: nil,
          plan_chosen: MapSet.new(),
+         plan_expanded_seasons: MapSet.new(),
          plan_movie: nil,
          plan_board: nil,
          plan_grab_future: false,
@@ -456,6 +457,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           stage={@plan_stage}
           selection={@plan_selection}
           chosen={@plan_chosen}
+          expanded_seasons={@plan_expanded_seasons}
           movie={@plan_movie}
           board={@plan_board}
           grab_future={@plan_grab_future}
@@ -756,6 +758,13 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       )
 
     {:noreply, assign(socket, plan_chosen: chosen)}
+  end
+
+  def handle_event("plan_toggle_season_expand", %{"season" => season}, socket) do
+    expanded =
+      PlanLogic.toggle_expanded(socket.assigns.plan_expanded_seasons, String.to_integer(season))
+
+    {:noreply, assign(socket, plan_expanded_seasons: expanded)}
   end
 
   def handle_event("plan_toggle_unit", %{"season" => season, "episode" => episode}, socket) do
@@ -1753,6 +1762,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         plan_movie: nil,
         plan_board: nil,
         plan_chosen: MapSet.new(),
+        plan_expanded_seasons: MapSet.new(),
         plan_grab_future: false,
         plan_error: nil
       )

@@ -54,6 +54,7 @@ defmodule MediaCentaur.Acquisition do
       ViewModels.PlanBoard,
       ViewModels.PlanBoard.Alternative,
       ViewModels.PlanBoard.Cell,
+      ViewModels.PlanBoard.Overlap,
       ViewModels.PlanBoard.SeasonRow,
       ViewModels.PlanBoard.Release,
       ViewModels.PursuitHeader,

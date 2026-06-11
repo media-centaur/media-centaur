@@ -300,6 +300,29 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
              )
     end
 
+    test "the picker's seasons start collapsed and expand on demand", %{conn: conn} do
+      stub_plan_tmdb()
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download?plan=new&tmdb_id=246810&tmdb_type=tv")
+      render_async(view)
+
+      # Collapsed by default — the season header renders, the episode rows don't.
+      assert has_element?(view, "[phx-click='plan_toggle_season_expand'][phx-value-season='1']")
+      refute has_element?(view, "#plan-episode-1-1")
+
+      view
+      |> element("[phx-click='plan_toggle_season_expand'][phx-value-season='1']")
+      |> render_click()
+
+      assert has_element?(view, "#plan-episode-1-1")
+
+      view
+      |> element("[phx-click='plan_toggle_season_expand'][phx-value-season='1']")
+      |> render_click()
+
+      refute has_element?(view, "#plan-episode-1-1")
+    end
+
     test "the movie confirm stage renders the movie poster", %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
       TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail())
@@ -329,6 +352,11 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       assert html =~ "Sample Show"
       assert html =~ "2 selected"
       assert html =~ "Plan 2 episodes"
+
+      # Seasons start collapsed — episode rows appear only after expanding.
+      view
+      |> element("[phx-click='plan_toggle_season_expand'][phx-value-season='1']")
+      |> render_click()
 
       # Unchecking one unit updates the live count.
       view
