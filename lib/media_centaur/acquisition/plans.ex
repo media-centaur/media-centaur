@@ -316,6 +316,28 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   @doc """
+  The swap picker's "find more" action: live-fills the corpus for the
+  unit's ladder terms (consult-first — fresh terms cost nothing; terms
+  the descent never reached go to the indexer), then returns the
+  refreshed alternatives. Individual search failures are skipped, not
+  raised — the picker shows whatever the corpus knows.
+  """
+  @spec search_alternatives(Ecto.UUID.t()) ::
+          {:ok, [PlanBoard.Alternative.t()]} | {:error, :not_found}
+  def search_alternatives(plan_unit_id) do
+    with {:ok, unit} <- get_unit(plan_unit_id),
+         {:ok, plan} <- get(unit.plan_id) do
+      plan
+      |> LadderTerms.for_unit(unit)
+      |> Enum.each(fn {term, opts} ->
+        Corpus.search(term, Keyword.take(opts, [:type, :year]))
+      end)
+
+      alternatives_for(plan_unit_id)
+    end
+  end
+
+  @doc """
   Deliberately assigns a corpus candidate to a unit (the swap picker's
   choice). The candidate claims **every** non-excluded plan unit its
   scope covers — accounting stays per-unit total — and the plan
