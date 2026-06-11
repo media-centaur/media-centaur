@@ -237,6 +237,11 @@ defmodule MediaCentaur.Acquisition.Plans do
     wanted = Enum.count(units, &(&1.status != "excluded"))
     covered = Enum.count(units, &(&1.status == "found"))
 
+    claims =
+      units
+      |> Enum.filter(&(&1.status == "found"))
+      |> Enum.group_by(& &1.assigned_guid, &{&1.season_number, &1.episode_number})
+
     %PlanBoard{
       plan_id: plan.id,
       title: plan.title,
@@ -248,7 +253,8 @@ defmodule MediaCentaur.Acquisition.Plans do
       releases: releases,
       gaps: units |> Enum.filter(&(&1.status == "unfound")) |> Enum.map(& &1.label),
       total_size_bytes: total_size(releases),
-      movie?: plan.tmdb_type == "movie"
+      movie?: plan.tmdb_type == "movie",
+      overlaps: PlanBoard.overlaps(releases, claims)
     }
   end
 

@@ -296,6 +296,34 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert chosen_unit.assigned_size_bytes == 2_400_000_000
       assert Enum.find(units, &(&1.episode_number == 2)).assigned_guid == "pack-s1"
       assert Enum.find(units, &(&1.episode_number == 3)).assigned_guid == "pack-s1"
+
+      # The narrowing choice created containment overlap: the pack still
+      # physically contains E01. The board flags it, CTA aimed at the pack.
+      {:ok, plan} = Plans.get(plan.id)
+      board = Plans.board_for(plan)
+      assert [overlap] = board.overlaps
+      assert overlap.exclude_guid == "pack-s1"
+      assert overlap.description =~ "download twice"
+
+      # Taking the CTA (exclude the container, re-solve) resolves the
+      # overlap and keeps the user's narrower choice. The replan's episode
+      # descent for E02/E03 legitimately goes live — allow it, empty.
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.method do
+          "POST" -> Req.Test.json(conn, %{"approved" => true})
+          _get -> Req.Test.json(conn, [])
+        end
+      end)
+
+      assert {:ok, _plan} = Plans.exclude_release(overlap.exclude_unit_id, overlap.exclude_guid)
+
+      {:ok, plan} = Plans.get(plan.id)
+      assert Plans.board_for(plan).overlaps == []
+
+      units = Plans.units_for(plan.id)
+      assert Enum.find(units, &(&1.episode_number == 1)).assigned_guid == "e1-uhd"
+      assert Enum.find(units, &(&1.episode_number == 2)).status == "unfound"
+      assert Enum.find(units, &(&1.episode_number == 3)).status == "unfound"
     end
 
     test "approve rejects a plan whose units an active pursuit already claims (overlap check)" do

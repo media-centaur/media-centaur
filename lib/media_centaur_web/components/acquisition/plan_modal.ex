@@ -516,6 +516,21 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               >
                 Options
               </.button>
+              <.button
+                :if={@board.status == :ready}
+                variant="destructive_inline"
+                size="xs"
+                shape="square"
+                class="flex-shrink-0"
+                phx-click="plan_swap_release"
+                phx-value-unit-id={release.swap_unit_id}
+                phx-value-guid={release.guid}
+                title="Remove this release — exclude it everywhere and re-solve"
+                data-nav-item
+                tabindex="0"
+              >
+                <.icon name="hero-x-mark-mini" class="size-3.5" />
+              </.button>
             </div>
 
             <.alternatives_panel
@@ -524,6 +539,29 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               release={release}
             />
           </div>
+        </div>
+
+        <div
+          :for={overlap <- @board.overlaps}
+          :if={@board.status == :ready}
+          id={"plan-overlap-#{:erlang.phash2(overlap.exclude_guid)}"}
+          class="glass-inset rounded-lg px-3 py-2 border border-warning/30 flex items-center gap-3"
+        >
+          <.icon name="hero-exclamation-triangle-mini" class="size-4 text-warning flex-shrink-0" />
+          <span class="min-w-0 flex-1 text-sm text-warning/90">{overlap.description}</span>
+          <.button
+            variant="risky"
+            size="xs"
+            class="flex-shrink-0"
+            phx-click="plan_swap_release"
+            phx-value-unit-id={overlap.exclude_unit_id}
+            phx-value-guid={overlap.exclude_guid}
+            title="Exclude this release everywhere and let the planner re-solve without it"
+            data-nav-item
+            tabindex="0"
+          >
+            {overlap.action_label}
+          </.button>
         </div>
 
         <div
@@ -682,7 +720,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           data-nav-item
           tabindex="0"
         >
-          None of these — re-solve
+          Exclude this release — re-solve
         </.button>
         <.button variant="dismiss" size="xs" phx-click="plan_search_again" data-nav-item tabindex="0">
           Search again

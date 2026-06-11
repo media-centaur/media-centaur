@@ -164,6 +164,17 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         }
       },
       %Variation{
+        id: :board_overlap,
+        description:
+          "Duplicate-data warning — a swap-picker choice left a broad pack physically containing episodes now assigned elsewhere; the CTA excludes the container and re-solves. Each release row also carries the ✕ remove affordance.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          board: board(:overlap),
+          last_activity: "9 searches · 6 from corpus"
+        }
+      },
+      %Variation{
         id: :error,
         description: "Targeting failed — honest dead end, one way out.",
         attributes: %{
@@ -264,6 +275,21 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       ],
       gaps: ["S02E02 · Finale"],
       total_size_bytes: 12_400_000_000
+    }
+  end
+
+  defp board(:overlap) do
+    %{
+      board(:ready)
+      | overlaps: [
+          %PlanBoard.Overlap{
+            description:
+              "The Season 1 pack also contains 1 episode assigned to other releases — they'd download twice",
+            action_label: "Remove it & re-solve",
+            exclude_guid: "pack",
+            exclude_unit_id: "story-unit-1-1"
+          }
+        ]
     }
   end
 
