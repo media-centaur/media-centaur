@@ -10,9 +10,9 @@ function mockDom() {
 }
 
 describe("home behavior", () => {
-  test("onEscape returns sidebar", () => {
+  test("defines no onEscape — BACK is a no-op in content; left at the left edge reaches the sidebar", () => {
     const behavior = createHomeBehavior(mockDom())
-    expect(behavior.onEscape()).toBe("sidebar")
+    expect(behavior.onEscape).toBeUndefined()
   })
 
   test("does not auto-activate shelf items on focus", () => {

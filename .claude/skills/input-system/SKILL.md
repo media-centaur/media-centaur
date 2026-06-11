@@ -48,25 +48,23 @@ Keyboard and gamepad are decoupled peers behind a duck-typed contract: `start()`
 
 ### MENU Behavior
 
-The `_menuTransition()` handles all MENU instances. The primaryMenu gets special treatment (exit_sidebar on right/back, wall on left). Non-primary MENU instances use the nav graph for left/right/back transitions. SELECT on any MENU exits the menu into the content area (primary menu skips the click since items are already activated on focus; non-primary menus click after transitioning).
+The `_menuTransition()` handles all MENU instances. The primaryMenu gets special treatment (exit_sidebar on right/back, wall on left). Non-primary MENU instances use the nav graph for left/right transitions; BACK is a no-op there (lateral movement, including reaching the sidebar, belongs to LEFT). SELECT on any MENU exits the menu into the content area (primary menu skips the click since items are already activated on focus; non-primary menus click after transitioning).
 
 ### SHELF Behavior (dual of MENU)
 
-The `_shelfTransition()` handles all SHELF instances — the home page's horizontal media rows (`hero`, `continue`, `recently`, `coming_up`). SHELF is the dual of MENU: a *horizontal* list whose up/down cross between sibling shelves via the nav graph (`contextWall`), while left/right navigate within the row and the left-wall (handled in the orchestrator's `_linearNavigate`) enters the sidebar. SELECT activates the focused card (opens the detail modal); the page behavior's `onEscape()` owns BACK. Empty shelves are skipped by the graph's candidate fallback lists, so a page that renders only some rows still navigates cleanly.
+The `_shelfTransition()` handles all SHELF instances — the home page's horizontal media rows (`hero`, `continue`, `recently`, `coming_up`). SHELF is the dual of MENU: a *horizontal* list whose up/down cross between sibling shelves via the nav graph (`contextWall`), while left/right navigate within the row and the left-wall (handled in the orchestrator's `_linearNavigate`) enters the sidebar. SELECT activates the focused card (opens the detail modal); BACK is a no-op. Empty shelves are skipped by the graph's candidate fallback lists, so a page that renders only some rows still navigates cleanly.
 
-### BACK and CLEAR Context Gating
+### BACK and CLEAR Semantics
 
-BACK delegates to page behavior `onEscape()` only in content contexts (grid, toolbar, zone_tabs, shelf). Overlays (modal, drawer) and all MENU-type instances (sidebar, sections) have their own BACK semantics (dismiss, exit, nav graph left) that bypass `onEscape()` entirely.
-
-`onEscape()` supports three return types: `false` (not consumed → fall through), `true` (consumed → stop), or a **string** (navigate to that context). All current behaviors return `"sidebar"` or `"sections"`. When the target is the primary menu, the full enter-sidebar flow runs (expand, record pre-sidebar context).
+BACK only peels layers: overlays (modal, drawer) dismiss, sub-focus exits, and the primary menu (sidebar) exits back to the pre-sidebar context. In content contexts (grid, toolbar, zone_tabs, shelf) and non-primary menus (sections, the download zones) BACK is deliberately a **no-op** — reaching the main nav is LEFT's job. Every zone layout gives its left-edge context a `left: ["sidebar"]` edge (or a chain that reaches it), so left-at-the-left-edge is the one idiom for getting to the sidebar. There is no `onEscape` behavior hook.
 
 CLEAR delegates to page behavior `onClear()` in any context. Currently only library implements this (clears filter). If no `onClear` exists, the action is silently dropped.
 
 ### Page Behaviors
 
-Page-specific concerns extracted from the orchestrator. Detected via `data-page-behavior` attribute. Duck-typed interface: `activateOnFocus`, `onAttach`, `onDetach`, `onEscape`, `onClear`, `onSyncState`, `onZoneChanged` — all optional. The `activateOnFocus` property is a string array of menu context names that should click items on focus during up/down nav (page-scoped — the primaryMenu always activates globally).
+Page-specific concerns extracted from the orchestrator. Detected via `data-page-behavior` attribute. Duck-typed interface: `activateOnFocus`, `onAttach`, `onDetach`, `onAction`, `onClear`, `onSyncState`, `onZoneChanged` — all optional. The `activateOnFocus` property is a string array of menu context names that should click items on focus during up/down nav (page-scoped — the primaryMenu always activates globally).
 
-Every page behavior should implement `onEscape()` returning `"sidebar"` (or an intermediate context like `"sections"`) so BACK consistently navigates toward the main nav. Pages with clearable state (filters, search) should implement `onClear()`.
+Pages with clearable state (filters, search) should implement `onClear()`. There is no escape hook — BACK semantics live entirely in the state machine.
 
 ### URL Persistence (data-nav-remember)
 

@@ -241,7 +241,7 @@ export class Orchestrator {
 
   /**
    * Shared callback from any input source when a semantic action is produced.
-   * Handles behavior onEscape for BACK action, then delegates to _handleAction.
+   * Handles behavior onClear for CLEAR, then delegates to _handleAction.
    */
   _onSourceAction(action) {
     debug("action:", action, "context:", this.focusMachine.context, "method:", this.inputDetector.current)
@@ -260,33 +260,10 @@ export class Orchestrator {
       return
     }
 
-    // BACK action: let page behavior try onEscape first (e.g. navigate to subnav),
-    // but only in content contexts. Overlays (modal/drawer) and menus
-    // (sidebar/sections) have their own BACK semantics that must not be intercepted.
-    if (action === Action.BACK && this._behavior?.onEscape) {
-      const context = this.focusMachine.context
-      const isOverlay = context === Context.MODAL || context === Context.DRAWER
-      const isMenu = contextType(context, this._config.instanceTypes) === Context.MENU
-      if (!isOverlay && !isMenu) {
-        const result = this._behavior.onEscape()
-        if (typeof result === "string") {
-          this._saveContextMemory()
-          if (result === this._config.primaryMenu) {
-            this._preSidebarContext = context
-            this.focusMachine.forceContext(result)
-            this._executeEnterSidebar()
-          } else {
-            this.focusMachine.forceContext(result)
-            this._restoreContextFocus(result)
-          }
-          return
-        }
-        if (result) {
-          return // consumed by behavior
-        }
-      }
-    }
-
+    // BACK only peels layers: overlays (modal/drawer) dismiss and the
+    // primary menu exits back to content. Everywhere else it is a no-op
+    // (the state machine returns NONE) — reaching the sidebar is the left
+    // edge's job, not Escape's.
     this._handleAction(action)
   }
 
@@ -699,6 +676,11 @@ export class Orchestrator {
       const result = this._gridNavigate(direction)
       if (result === "wall") {
         const wallDirective = this.focusMachine.gridWall(direction)
+        // Record where we came from, same as the linear-list wall paths,
+        // so exiting the sidebar restores into the grid.
+        if (wallDirective.type === "enter_sidebar") {
+          this._preSidebarContext = context
+        }
         this._executeDirective(wallDirective)
       }
       return

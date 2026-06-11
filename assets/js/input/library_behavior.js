@@ -67,13 +67,6 @@ export function createLibraryBehavior(dom) {
     },
 
     /**
-     * BACK navigates to the sidebar.
-     */
-    onEscape() {
-      return "sidebar"
-    },
-
-    /**
      * CLEAR clears the library filter if it has content.
      *
      * Returns "grid" when a clear happens so the orchestrator follows focus

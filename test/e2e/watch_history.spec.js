@@ -2,8 +2,8 @@
  * Watch History page E2E tests.
  *
  * Covers the toolbar ↔ grid transitions, initial focus placement, and
- * BACK to sidebar. The heatmap SVG rects stay mouse-only by design —
- * keyboard users filter via the pill row.
+ * left-at-the-edge into the sidebar. The heatmap SVG rects stay
+ * mouse-only by design — keyboard users filter via the pill row.
  */
 import { test, expect } from "./fixtures/input-method.js"
 import {
@@ -53,9 +53,9 @@ test.describe("watch history navigation", () => {
     await expectContext(page, "sidebar")
   })
 
-  test("escape from toolbar → sidebar", async ({ page, inputAction }) => {
+  test("escape in toolbar is a no-op — left is the way to the sidebar", async ({ page, inputAction }) => {
     await inputAction("BACK")
-    await expectContext(page, "sidebar")
+    await expectContext(page, "toolbar")
   })
 
   test("right from sidebar returns to the toolbar", async ({ page, inputAction }) => {

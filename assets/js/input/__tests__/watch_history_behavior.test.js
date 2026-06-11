@@ -3,9 +3,9 @@ import { describe, expect, test } from "bun:test"
 import { createWatchHistoryBehavior } from "../watch_history_behavior.js"
 
 describe("watch_history behavior", () => {
-  test("onEscape returns 'sidebar' so BACK navigates toward the primary menu", () => {
+  test("defines no onEscape — BACK is a no-op in content; left at the left edge reaches the sidebar", () => {
     const behavior = createWatchHistoryBehavior()
-    expect(behavior.onEscape()).toBe("sidebar")
+    expect(behavior.onEscape).toBeUndefined()
   })
 
   test("activateOnFocus is empty — the event list should not click on focus", () => {

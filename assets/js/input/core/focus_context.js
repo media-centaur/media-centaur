@@ -298,7 +298,11 @@ export class FocusContextMachine {
     }
   }
 
-  /** Menu: up/down between items. Right/Back exits. Generalizes sidebar and section nav. */
+  /** Menu: up/down between items. Right exits toward content (primary menu)
+   *  or follows the nav graph (non-primary). BACK exits the primary menu
+   *  only — in non-primary menus it is a no-op, because lateral movement
+   *  (including reaching the sidebar) belongs to LEFT, not BACK.
+   *  Generalizes sidebar and section nav. */
   _menuTransition(action) {
     const isPrimaryMenu = this._context === this._config.primaryMenu
 
@@ -326,14 +330,7 @@ export class FocusContextMachine {
       case Action.SELECT:         return ACTIVATE
       case Action.BACK: {
         if (isPrimaryMenu) return { type: "exit_sidebar" }
-        const target = this._navGraph?.[this._context]?.left
-        if (!target) return NONE
-        if (target === this._config.primaryMenu) {
-          this._setContext(this._config.primaryMenu)
-          return { type: "enter_sidebar" }
-        }
-        this._setContext(target)
-        return focusFirst(target)
+        return NONE
       }
       default: return NONE
     }
@@ -345,8 +342,8 @@ export class FocusContextMachine {
    * Recently Added / Coming Up rows). Left/right navigate within the shelf
    * (wall handling — including the left-wall sidebar entry — lives in the
    * orchestrator's _linearNavigate). Up/down cross to the adjacent shelf via
-   * the nav graph. Select activates the focused card; the page behavior's
-   * onEscape owns BACK.
+   * the nav graph. Select activates the focused card; BACK is a no-op in
+   * content — left at the left edge is the way to the sidebar.
    */
   _shelfTransition(action) {
     switch (action) {

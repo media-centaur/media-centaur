@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test"
 import { createUpcomingBehavior } from "../upcoming_behavior"
 
 describe("Upcoming behavior", () => {
-  test("onEscape() returns sidebar so a gamepad user is never trapped", () => {
+  test("defines no onEscape — BACK is a no-op in content; left at the left edge reaches the sidebar", () => {
     const behavior = createUpcomingBehavior()
-    expect(behavior.onEscape()).toBe("sidebar")
+    expect(behavior.onEscape).toBeUndefined()
   })
 })

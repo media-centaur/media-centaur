@@ -7,8 +7,8 @@ describe("settings behavior", () => {
     expect(behavior.activateOnFocus).toEqual(["sections"])
   })
 
-  test("onEscape returns sections", () => {
+  test("defines no onEscape — BACK is a no-op in content; left from the grid reaches sections", () => {
     const behavior = createSettingsBehavior()
-    expect(behavior.onEscape()).toBe("sections")
+    expect(behavior.onEscape).toBeUndefined()
   })
 })

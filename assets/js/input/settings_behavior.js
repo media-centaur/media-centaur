@@ -11,8 +11,5 @@ export function createSettingsBehavior() {
     activateOnFocus: ["sections"],
     onAttach() {},
     onDetach() {},
-    onEscape() {
-      return "sections"
-    },
   }
 }

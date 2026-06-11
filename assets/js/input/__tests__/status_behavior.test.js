@@ -8,8 +8,8 @@ describe("createStatusBehavior", () => {
     expect(typeof behavior.onDetach).toBe("function")
   })
 
-  test("onEscape returns sidebar", () => {
+  test("defines no onEscape — BACK is a no-op in content; left at the left edge reaches the sidebar", () => {
     const behavior = createStatusBehavior()
-    expect(behavior.onEscape()).toBe("sidebar")
+    expect(behavior.onEscape).toBeUndefined()
   })
 })

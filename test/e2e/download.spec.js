@@ -62,9 +62,18 @@ test.describe("download navigation", () => {
     await expectContext(page, "sidebar")
   })
 
-  test("escape from sections → sidebar", async ({ page, inputAction }) => {
+  test("escape in a download zone is a no-op — left is the way to the sidebar", async ({ page, inputAction }) => {
+    const before = await page.evaluate(() =>
+      document.documentElement.getAttribute("data-nav-context")
+    )
+
     await inputAction("BACK")
-    await expectContext(page, "sidebar")
+
+    const after = await page.evaluate(() =>
+      document.documentElement.getAttribute("data-nav-context")
+    )
+    expect(after).toBe(before)
+    expect(after).not.toBe("sidebar")
   })
 
   test("right from sidebar returns to the sections", async ({ page, inputAction }) => {
