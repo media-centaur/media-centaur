@@ -1,6 +1,7 @@
 defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Search.Prowlarr
@@ -210,5 +211,35 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       refute_received {:searched, "Sample Show S01E02"}
       refute_received {:searched, "Sample Show S01E03"}
     end
+
+    test "the descent narrates itself — full itinerary snapshots on acquisition:updates" do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_updates())
+
+      stub_recording_searches(%{
+        "Sample Show Season 1" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{seeders: 30})
+        ],
+        "Sample Show Season 2" => [
+          release("Sample.Show.S02.COMPLETE.1080p.WEB-DL", "pack-s2", %{seeders: 30})
+        ]
+      })
+
+      {:ok, _plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}, {1, 3}, {2, 1}])
+
+      assert_received %PlanEvents.DescentStatus{wanted: 4} = series_active
+      assert descent_states(series_active) == [series: :active, seasons: :pending, episodes: :pending]
+
+      assert_received %PlanEvents.DescentStatus{} = seasons_active
+      assert descent_states(seasons_active) == [series: :done, seasons: :active, episodes: :pending]
+
+      assert_received %PlanEvents.DescentStatus{} = final
+      assert descent_states(final) == [series: :done, seasons: :done, episodes: :skipped]
+      assert Enum.find(final.stages, &(&1.id == :seasons)).residual_after == 0
+      refute_received %PlanEvents.DescentStatus{}
+    end
+  end
+
+  defp descent_states(%PlanEvents.DescentStatus{stages: stages}) do
+    Enum.map(stages, &{&1.id, &1.state})
   end
 end

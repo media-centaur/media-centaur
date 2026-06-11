@@ -33,8 +33,35 @@ defmodule MediaCentaur.Acquisition.PlanEvents do
           }
   end
 
+  defmodule DescentStatus do
+    @moduledoc """
+    Itinerary snapshot for the coverage-ladder descent (TV plans): every
+    rung with its state, so the board can narrate what will happen,
+    what's happening, and what changed. Each broadcast carries the FULL
+    snapshot — subscribers replace, never merge, so a modal opened
+    mid-run self-heals on the next event.
+    """
+
+    @enforce_keys [:plan_id, :wanted, :stages]
+    defstruct [:plan_id, :wanted, :stages]
+
+    @type stage :: %{
+            id: :series | :seasons | :episodes,
+            state: :pending | :active | :done | :skipped,
+            term_count: non_neg_integer() | nil,
+            residual_after: non_neg_integer() | nil
+          }
+
+    @type t :: %__MODULE__{
+            plan_id: Ecto.UUID.t() | nil,
+            wanted: pos_integer(),
+            stages: [stage()]
+          }
+  end
+
   @doc "True when the struct is one of this module's event kinds."
   def event?(Changed), do: true
   def event?(SearchActivity), do: true
+  def event?(DescentStatus), do: true
   def event?(_module), do: false
 end

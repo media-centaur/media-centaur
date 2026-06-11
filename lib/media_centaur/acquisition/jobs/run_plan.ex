@@ -26,9 +26,10 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   quality-then-seeders (`TitleMatcher.matches?/2` identity).
 
   Broadcasts `PlanEvents.SearchActivity` per term (the live activity
-  feed) and `PlanEvents.Changed` when the rows move. Failures mark the
-  plan's `error` and still transition to `ready` — a reported gap, not
-  a stuck spinner.
+  feed), `PlanEvents.DescentStatus` per rung (the board's expectation
+  panel), and `PlanEvents.Changed` when the rows move. Failures mark
+  the plan's `error` and still transition to `ready` — a reported gap,
+  not a stuck spinner.
   """
 
   use Oban.Worker, queue: :acquisition, unique: [period: 60, keys: [:plan_id]]
@@ -40,6 +41,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   alias MediaCentaur.Repo
   alias MediaCentaur.Search.{Criteria, Quality, ReleaseRedFlags, TitleMatcher}
   alias MediaCentaur.Topics
+
+  @rung_ids [:series, :seasons, :episodes]
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: %{"plan_id" => plan_id} = args}) do
@@ -94,17 +97,37 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
         {floor, Enum.map(group_units, &{&1.season_number, &1.episode_number})}
       end)
 
-    initial = %{options: [], terms_by_guid: %{}, assignment_by_unit: %{}, residual: wanted}
+    initial = %{
+      options: [],
+      terms_by_guid: %{},
+      assignment_by_unit: %{},
+      residual: wanted,
+      stages: []
+    }
 
     state =
-      Enum.reduce_while(rungs(plan), initial, fn {_rung_id, terms_for}, state ->
+      Enum.reduce_while(rungs(plan), initial, fn {rung_id, terms_for}, state ->
+        terms = terms_for.(state.residual)
+        active = %{id: rung_id, state: :active, term_count: length(terms), residual_after: nil}
+        broadcast_descent(plan, length(wanted), state.stages, active)
+
         state =
           state
-          |> gather_rung(plan, terms_for.(state.residual), identity, excluded, force?)
+          |> gather_rung(plan, terms, identity, excluded, force?)
           |> solve_groups(wanted, floor_groups, plan_prefs)
+
+        done = %{active | state: :done, residual_after: length(state.residual)}
+        state = %{state | stages: state.stages ++ [done]}
 
         if state.residual == [], do: {:halt, state}, else: {:cont, state}
       end)
+
+    skipped =
+      for {rung_id, _terms_for} <- rungs(plan),
+          not Enum.any?(state.stages, &(&1.id == rung_id)),
+          do: %{id: rung_id, state: :skipped, term_count: nil, residual_after: nil}
+
+    broadcast_descent(plan, length(wanted), state.stages ++ skipped, nil)
 
     Enum.each(units, fn unit ->
       key = {unit.season_number, unit.episode_number}
@@ -299,6 +322,25 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
         {:ok, _} = Repo.update(Plan.error_changeset(Repo.reload!(plan), "search failed: #{term}"))
         []
     end
+  end
+
+  # Full itinerary snapshot: stages already walked (done/skipped), the
+  # active rung if any, then the untouched rungs as pending.
+  defp broadcast_descent(plan, wanted_count, walked_stages, active) do
+    taken = Enum.map(walked_stages, & &1.id) ++ if active, do: [active.id], else: []
+
+    pending =
+      for rung_id <- @rung_ids,
+          rung_id not in taken,
+          do: %{id: rung_id, state: :pending, term_count: nil, residual_after: nil}
+
+    status = %PlanEvents.DescentStatus{
+      plan_id: plan.id,
+      wanted: wanted_count,
+      stages: walked_stages ++ List.wrap(active) ++ pending
+    }
+
+    Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.acquisition_updates(), status)
   end
 
   defp prefs(plan) do
