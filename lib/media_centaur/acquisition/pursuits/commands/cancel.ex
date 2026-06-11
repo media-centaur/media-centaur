@@ -15,10 +15,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Cancel do
   Other-downloads zone remains the safety net.
   """
 
-  require MediaCentaur.Log, as: Log
-
   alias MediaCentaur.Acquisition.Plans
-  alias MediaCentaur.Acquisition.Pursuits.Commands.{Refold, Runner}
+  alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Refold, Runner}
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.PursuitCancelled
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, State, Unit, Units}
@@ -53,34 +51,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Cancel do
 
     with {:ok, pursuit} <- result do
       if by == :user, do: dismiss_tracking_wants(pursuit)
-      stop_client_downloads(pursuit, in_flight_hashes)
+      ClientCleanup.stop_downloads(pursuit.title, in_flight_hashes)
       {:ok, pursuit}
     end
-  end
-
-  # Post-transaction, best-effort: remove each cancelled target's
-  # download from the client. Hash-keyed and driver-neutral
-  # (`Acquisition.cancel_download/1` dispatches to the configured
-  # driver); an unconfigured client degrades to a no-op.
-  defp stop_client_downloads(_pursuit, []), do: :ok
-
-  defp stop_client_downloads(pursuit, hashes) do
-    Enum.each(hashes, fn hash ->
-      case MediaCentaur.Acquisition.cancel_download(hash) do
-        :ok ->
-          Log.info(
-            :acquisition,
-            "cancelled pursuit download — #{pursuit.title} (#{String.slice(hash, 0, 10)})"
-          )
-
-        {:error, reason} ->
-          Log.warning(
-            :acquisition,
-            "could not stop a cancelled pursuit's download — " <>
-              "#{pursuit.title} (#{String.slice(hash, 0, 10)}): #{inspect(reason)}"
-          )
-      end
-    end)
   end
 
   # ADR-056 Q5: a *user* cancelling a tracking-born pursuit means "stop
