@@ -31,17 +31,31 @@ Use [`template.md`](template.md) as a starter.
   envelope (`Pursuits.Identity` strategies 1–3), title-matching scoped
   to `prowlarr_query` + hashless fallback, mismatch = per-unit review
   flag, conclusion = aggregate over unit states. Sibling of
-  `plan-solver-consolidation`. No code yet.
+  `plan-solver-consolidation`. Shipped through v0.88.4; prod-verified
+  2026-06-11 (a series pack landed per-unit without nuking the
+  pursuit).
 * [`plan-solver-consolidation.md`](plan-solver-consolidation.md) —
-  **planning.** The media-search plan solver grabs overlapping releases:
-  a real S2+S3 plan produced 7 grabs / ~59.5 GB where 2 season packs
-  sufficed (one 4K single vetoed the S3 pack via the summed-quality
-  ensemble comparison; the pack was then grabbed anyway for leftovers,
-  next to ~11.6 GB of singles duplicating its content). Diagnosed in
-  `Acquisition.Planner` (`beats_ensemble?` fantasy ensemble +
-  `assign_singles` seeders-over-consolidation); direction: pack wins at
-  equal quality, strictly-better singles upgrade individual units.
-  No code yet.
+  **shipped v0.88.2; live re-plan verification remains.** The
+  media-search plan solver grabbed overlapping releases: a real S2+S3
+  plan produced 7 grabs / ~59.5 GB where 2 season packs sufficed (one
+  4K single vetoed the S3 pack via the summed-quality ensemble
+  comparison; the pack was then grabbed anyway for leftovers, next to
+  ~11.6 GB of singles duplicating its content). Fixed in
+  `Acquisition.Planner`: consolidation claims spans greedily, packs win
+  at equal quality, upgrades are offer-as-swap only; regression test
+  pins the shape.
+* [`duplicate-episode-copies.md`](duplicate-episode-copies.md) —
+  **planning.** When the library ends up with two playable copies of
+  the same unit (1080p pack copy + 4K single), today's behavior is
+  accidental: playback picks an arbitrary insertion-order WatchedFile,
+  both files persist on disk, and nothing surfaces the duplication.
+  Plan-level dedup is solved, but physical duplicates still arrive —
+  swap a pack-covered unit (the pack still contains it), a pack lands
+  with unwanted episodes, manual release-mode grabs, pre-v0.88.2
+  residue. Scope: deterministic quality-aware playback pick, duplicate
+  visibility + explicit reclamation, swap-time mitigation decision,
+  wiki documentation. Takes over the file-pick follow-up
+  `plan-solver-consolidation` scoped out. No code yet.
 * [`external-dependency-health-classification.md`](external-dependency-health-classification.md) —
   **shipped v0.83.2; prod-reconcile remains.** Move download-client connectivity faults off the noisy `:log`
   incident track onto the existing `:subsystem` assessor track, so one qBit
