@@ -113,8 +113,13 @@ which closes the whole pursuit on the *first* verified file).
 
 ## Next steps
 
-1. Verify on prod with a real multi-release plan after the next
-   release ships.
+1. ✅ Verified on prod 2026-06-11 (v0.88.4): the tracking pursuit's
+   S01–S03 series pack landed; units S03E08–10 satisfied per-unit,
+   pursuit folded to `satisfied`, the ~30 unwanted pack episodes
+   ingested without any cancel — exactly the shape that nuked the
+   manual pursuit a day earlier. The planner-side regression
+   (multi-release plan) remains pinned by tests; a live multi-release
+   re-plan is a nice-to-have, not a blocker.
 
 (2026-06-10 orphaned Orville torrents: cleaned up same day via
 `Acquisition.cancel_download/1`; the active tracking pursuit's
