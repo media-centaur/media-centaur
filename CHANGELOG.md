@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.88.6 — 2026-06-11
+
+### New
+
+- **Download plans narrate their search.** While a plan is being worked out, the board shows a step-by-step panel: the search starts with all-in-one releases, then season packs, then individual episodes — and the panel tells you which step is running, what each step found, and when deeper steps were skipped because everything was already covered.
+- **Find more alternatives on demand.** The swap picker's Options list shows what the plan's searches have already seen — which can be sparse now that searches stop early. A new **Find more** button runs that span's own searches and fills in the alternatives (recent searches are reused, so it's quick).
+
+### Improved
+
+- **Plan searches are far lighter on your indexers.** The planner only searches individual episodes that broader results didn't cover. A ten-season show whose season packs are available now costs a couple dozen searches instead of hundreds — and re-running a plan only re-searches as deep as it needs to.
+- **The message shown while an update installs is simpler** — it no longer mentions reconnecting.
+
 ## v0.88.5 — 2026-06-11
 
 ### Fixed
