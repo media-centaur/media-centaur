@@ -454,16 +454,31 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
       html = render_async(view)
       assert html =~ "Sample.Show.S01E01.2160p.WEB-DL.x265"
-      assert html =~ "None of these"
+      assert html =~ "Exclude this release"
 
       view
       |> element("button[phx-click='plan_choose_release'][phx-value-guid='ui-uhd']")
       |> render_click()
 
-      _ = render(view)
+      html = render(view)
 
       reloaded = plan.id |> Plans.units_for() |> Enum.find(&(&1.id == unit.id))
       assert reloaded.assigned_guid == "ui-uhd"
+
+      # The narrowing choice left the pack physically containing E01 — the
+      # board warns about the duplicate data and offers the resolution.
+      assert html =~ "download twice"
+
+      view
+      |> element("button[phx-click='plan_swap_release']", "Remove it & re-solve")
+      |> render_click()
+
+      html = render(view)
+      refute html =~ "download twice"
+
+      units = Plans.units_for(plan.id)
+      assert Enum.find(units, &(&1.id == unit.id)).assigned_guid == "ui-uhd"
+      assert Enum.find(units, &(&1.id != unit.id)).status == "unfound"
     end
 
     test "find-more re-fires are no-ops while a search is in flight", %{conn: conn} do

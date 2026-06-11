@@ -2,10 +2,13 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
   @moduledoc """
   Display contract for the planning coverage board (UIDR-014) — the
   live view of a draft plan: unit cells in season rows, the chosen
-  releases beneath, the gaps, and the approval summary. Built by
-  `MediaCentaur.Acquisition.Plans.board_for/1`; re-built on every
-  `PlanEvents.Changed` (the durable plan rows are the state of record).
+  releases beneath, the gaps, overlap warnings, and the approval
+  summary. Built by `MediaCentaur.Acquisition.Plans.board_for/1`;
+  re-built on every `PlanEvents.Changed` (the durable plan rows are
+  the state of record).
   """
+
+  alias MediaCentaur.Search.ReleaseCoverage
 
   defmodule Cell do
     @moduledoc "One unit cell of the grid — an episode and where its coverage stands."
@@ -85,6 +88,26 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
           }
   end
 
+  defmodule Overlap do
+    @moduledoc """
+    A duplicate-data warning: one assigned release physically contains
+    episodes that are assigned to *other* releases — approving would
+    download those episodes twice. Created by deliberate swap-picker
+    choices (the planner itself never assigns overlapping releases);
+    the CTA excludes the containing release plan-wide and re-solves.
+    """
+
+    @enforce_keys [:description, :action_label, :exclude_guid, :exclude_unit_id]
+    defstruct [:description, :action_label, :exclude_guid, :exclude_unit_id]
+
+    @type t :: %__MODULE__{
+            description: String.t(),
+            action_label: String.t(),
+            exclude_guid: String.t(),
+            exclude_unit_id: Ecto.UUID.t()
+          }
+  end
+
   @enforce_keys [:plan_id, :title, :status, :wanted, :covered, :seasons, :releases, :gaps]
   defstruct [
     :plan_id,
@@ -97,7 +120,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
     :releases,
     :gaps,
     :total_size_bytes,
-    movie?: false
+    movie?: false,
+    overlaps: []
   ]
 
   @type status :: :planning | :ready | :committed | :discarded
@@ -113,6 +137,55 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
           releases: [Release.t()],
           gaps: [String.t()],
           total_size_bytes: integer() | nil,
-          movie?: boolean()
+          movie?: boolean(),
+          overlaps: [Overlap.t()]
         }
+
+  @doc """
+  Duplicate-data warnings across the assigned releases. `claims` maps
+  each release guid to the `{season, episode}` units assigned to it;
+  a release whose *physical* scope (re-classified from its title)
+  covers units claimed by other releases gets one `Overlap` pointing
+  at itself — excluding the container is the resolution that keeps
+  the user's narrower choice. Pure; the planner never creates this
+  state, only swap-picker choices do.
+  """
+  @spec overlaps([Release.t()], %{String.t() => [{pos_integer() | nil, pos_integer() | nil}]}) ::
+          [Overlap.t()]
+  def overlaps(releases, claims) when is_list(releases) and is_map(claims) do
+    Enum.flat_map(releases, fn release ->
+      scope = ReleaseCoverage.classify(release.title)
+
+      shadowed =
+        for {guid, units} <- claims,
+            guid != release.guid,
+            {season, episode} <- units,
+            is_integer(season) and is_integer(episode),
+            ReleaseCoverage.covers?(scope, season, episode),
+            do: {season, episode}
+
+      case shadowed do
+        [] ->
+          []
+
+        units ->
+          [
+            %Overlap{
+              description:
+                "#{release_name(release)} also contains #{count(length(units), "episode")} " <>
+                  "assigned to other releases — they'd download twice",
+              action_label: "Remove it & re-solve",
+              exclude_guid: release.guid,
+              exclude_unit_id: release.swap_unit_id
+            }
+          ]
+      end
+    end)
+  end
+
+  defp release_name(%Release{scope_label: label}) when is_binary(label), do: "The #{label}"
+  defp release_name(%Release{title: title}), do: title
+
+  defp count(1, noun), do: "1 #{noun}"
+  defp count(quantity, noun), do: "#{quantity} #{noun}s"
 end
