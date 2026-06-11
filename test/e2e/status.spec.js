@@ -40,11 +40,11 @@ test.describe("status navigation", () => {
     await expectContext(page, "sidebar")
   })
 
-  test("escape from sections → sidebar", async ({ page, inputAction }) => {
+  test("escape in sections is a no-op — left is the way to the sidebar", async ({ page, inputAction }) => {
     await waitForSections(page)
 
     await inputAction("BACK")
-    await expectContext(page, "sidebar")
+    await expectContext(page, "sections")
   })
 
   test("right from sidebar → sections", async ({ page, inputAction }) => {

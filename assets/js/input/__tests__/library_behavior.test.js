@@ -28,20 +28,9 @@ function mockDom({ filterValue = "" } = {}) {
 }
 
 describe("Library behavior", () => {
-  describe("onEscape()", () => {
-    test("always returns sidebar to navigate back", () => {
-      const behavior = createLibraryBehavior(mockDom())
-      expect(behavior.onEscape()).toBe("sidebar")
-    })
-
-    test("returns sidebar regardless of the context just visited", () => {
-      const behavior = createLibraryBehavior(mockDom())
-      behavior.onZoneChanged(Context.TOOLBAR)
-      behavior.onZoneChanged(Context.GRID)
-      behavior.onZoneChanged(Context.MODAL)
-      behavior.onZoneChanged(Context.GRID)
-      expect(behavior.onEscape()).toBe("sidebar")
-    })
+  test("defines no onEscape — BACK is a no-op in content; left at the left edge reaches the sidebar", () => {
+    const behavior = createLibraryBehavior(mockDom())
+    expect(behavior.onEscape).toBeUndefined()
   })
 
   describe("onClear()", () => {

@@ -4,9 +4,9 @@
  * The home page (`/`) is a vertical stack of horizontal media shelves
  * (hero, Continue Watching, Recently Added, Coming Up) — each a SHELF
  * context. All cross-shelf and within-shelf navigation is handled by the
- * framework via the `home` zone layout; the page-specific concerns are:
+ * framework via the `home` zone layout (left at a shelf's left edge
+ * reaches the sidebar); the page-specific concern is:
  *
- * - BACK returns to the sidebar like every other content page.
  * - Reaching the hero shelf (the topmost) pins the page to the very top.
  *   The hero is ≤65vh and anchored at the page top, so scrolling back up to
  *   its Play / More info buttons should reveal the whole hero rather than
@@ -40,8 +40,6 @@ const REAL_DOM = {
  */
 export function createHomeBehavior(dom) {
   return {
-    onEscape: () => "sidebar",
-
     onZoneChanged(context) {
       if (context === "hero") {
         dom.scrollToTop()

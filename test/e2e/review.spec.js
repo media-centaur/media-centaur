@@ -96,9 +96,9 @@ test.describe("review navigation", () => {
     expect(restored).toBe(listItem)
   })
 
-  test("escape from review → sidebar", async ({ page, inputAction }) => {
+  test("escape in the review list is a no-op — left is the way to the sidebar", async ({ page, inputAction }) => {
     await inputAction("BACK")
-    await expectContext(page, "sidebar")
+    await expectContext(page, "review-list")
   })
 
   test("left from list → sidebar", async ({ page, inputAction }) => {

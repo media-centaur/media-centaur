@@ -2,7 +2,8 @@
  * Watch history page behavior.
  *
  * Layout: toolbar (filter pills + search + optional date badge) → grid
- * (event list). BACK from either zone returns to the sidebar.
+ * (event list). Left at either zone's left edge returns to the sidebar
+ * (framework-handled via the `watch_history` zone layout).
  *
  * The heatmap SVG rects remain mouse-only by design — keyboard users
  * filter by clicking the pill row instead. The per-event delete button
@@ -10,9 +11,5 @@
  * still reach it.
  */
 export function createWatchHistoryBehavior() {
-  return {
-    onEscape() {
-      return "sidebar"
-    },
-  }
+  return {}
 }

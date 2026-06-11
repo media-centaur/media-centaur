@@ -57,7 +57,7 @@ describe("App config", () => {
   test("createBehavior returns library behavior", () => {
     const behavior = inputConfig.createBehavior("library")
     expect(behavior).not.toBe(null)
-    expect(typeof behavior.onEscape).toBe("function")
+    expect(typeof behavior.onClear).toBe("function")
   })
 
   test("createBehavior returns settings behavior", () => {

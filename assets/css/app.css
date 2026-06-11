@@ -1224,8 +1224,12 @@ body:has(.modal-backdrop[data-state="open"]) {
   display: flex;
 }
 
-[data-nav-context="sidebar"] .hint-group[data-hint-context="sidebar"],
-[data-nav-context="sections"] .hint-group[data-hint-context="sidebar"] {
+[data-nav-context="sidebar"] .hint-group[data-hint-context="sidebar"] {
+  display: flex;
+}
+
+/* Non-primary menus (B is a no-op there — left walks toward the sidebar) */
+[data-nav-context="sections"] .hint-group[data-hint-context="menu"] {
   display: flex;
 }
 

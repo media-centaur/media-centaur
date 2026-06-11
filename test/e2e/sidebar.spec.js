@@ -172,10 +172,19 @@ test.describe("theme toggle", () => {
 })
 
 test.describe("escape chain", () => {
-  test("escape from content → sidebar", async ({ page, navigateTo, inputAction }) => {
+  test("escape in content is a no-op — left is the way to the sidebar", async ({ page, navigateTo, inputAction }) => {
     await navigateTo("/")
+    const before = await page.evaluate(() =>
+      document.documentElement.getAttribute("data-nav-context")
+    )
+
     await inputAction("BACK")
-    await expectContext(page, "sidebar")
+
+    const after = await page.evaluate(() =>
+      document.documentElement.getAttribute("data-nav-context")
+    )
+    expect(after).toBe(before)
+    expect(after).not.toBe("sidebar")
   })
 
   test("escape from sidebar → stays in sidebar (terminal)", async ({ page, navigateTo, inputAction }) => {

@@ -62,10 +62,10 @@ Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
 | `config.js` | Yes | All app-specific config: selectors, layouts, instance types, behaviors |
 | `index.js` | No | LiveView hook factory — imports core + config, exports `createInputHook()` |
 | `page_behavior.js` | No | Registry mapping `data-page-behavior` → behavior factory |
-| `home_behavior.js` | Yes | Home (`/`): BACK → sidebar. Shelves don't activate-on-focus |
-| `library_behavior.js` | Yes* | Library: BACK → sidebar, CLEAR → filter, sort tracking |
-| `review_behavior.js` | Yes | Review: BACK → sidebar |
-| `settings_behavior.js` | Yes | Settings: BACK → sections, activateOnFocus for sections |
+| `home_behavior.js` | Yes | Home (`/`): hero scroll pinning. Shelves don't activate-on-focus |
+| `library_behavior.js` | Yes* | Library: CLEAR → filter, sort tracking |
+| `review_behavior.js` | Yes | Review: no page-specific hooks |
+| `settings_behavior.js` | Yes | Settings: activateOnFocus for sections |
 | `download_behavior.js` | Yes | Download (`/download`) page navigation |
 | `status_behavior.js` | Yes | Status (`/status`) page navigation |
 | `watch_history_behavior.js` | Yes | Watch History (`/history`) page — filter pills, date badge, event list, pagination |
@@ -227,7 +227,7 @@ Source-agnostic action router. Receives full config object including `reader`, `
 **Responsibilities:**
 - Lifecycle: `start(hookEl)`, `destroy()`, `onViewChanged()`
 - Input source management: create, start, and stop sources from factory functions
-- Action routing: source → `_onSourceAction()` → behavior hooks (`onClear`, `onEscape`) → `_handleAction()` → state machine → directive → execution
+- Action routing: source → `_onSourceAction()` → behavior hook (`onClear`) → `_handleAction()` → state machine → directive → execution
 - Input method detection via source `onInputDetected` callbacks
 - Nav context projection via `onContextChanged` callback → `setNavContext`
 - Context memory (grid entity ID, per-context index)
@@ -240,12 +240,7 @@ Source-agnostic action router. Receives full config object including `reader`, `
 
 **CLEAR routing.** The `CLEAR` action (Y / Backspace) is routed to the page behavior's `onClear()` hook before any other handling. If the behavior has no `onClear`, the action is a no-op. This separates "reset page state" (clear filter) from "go back" (navigate toward sidebar).
 
-**BACK context gating.** The orchestrator's `_onSourceAction()` lets page behavior `onEscape()` intercept BACK, but only in content contexts (grid, toolbar, zone_tabs). BACK in overlays (modal, drawer) and menus (sidebar, sections, or any MENU-type instance) bypasses `onEscape()` entirely — these contexts have their own BACK semantics (dismiss, exit, nav graph left).
-
-**onEscape return values.** `onEscape()` supports three return types:
-- **`false`** — not consumed, falls through to normal BACK handling
-- **`true`** — consumed by behavior (action stops)
-- **`string`** — navigate to the named context. If the target is the primary menu, the full enter-sidebar flow runs (expand sidebar, record pre-sidebar context). Otherwise, `forceContext` + `restoreContextFocus`.
+**BACK only peels layers.** BACK dismisses overlays (modal, drawer), exits sub-focus, and exits the primary menu (sidebar) back to content. Everywhere else — content contexts (grid, toolbar, zone_tabs, shelf) and non-primary menus (sections, the download zones) — BACK is deliberately a no-op. Lateral movement toward the sidebar belongs to LEFT: every zone layout gives its left-edge context a `left: ["sidebar"]` edge (or a chain that reaches it), so left-at-the-left-edge is the one idiom for reaching the main nav.
 
 **Activate on focus.** The `primaryMenu` (sidebar) always clicks items on focus during up/down navigation, triggering page navigation. Page behaviors can declare `activateOnFocus: ["sections"]` to add the same behavior for other menu contexts on that page only. This is page-scoped to avoid unintended navigation — e.g., the dashboard and settings pages both use a `sections` zone, but only settings should auto-navigate between sub-pages.
 
@@ -259,7 +254,6 @@ Extracts library-specific concerns from the orchestrator. Receives a `dom` inter
 
 | Hook | Purpose |
 |------|---------|
-| `onEscape()` | Returns `"sidebar"` |
 | `onClear()` | Clear filter input if non-empty → return `"grid"` so focus follows the unfiltered content |
 | `onZoneChanged(context)` | Pin the page to the top when focus reaches the `toolbar` (the topmost context) |
 | `onSyncState(reader)` | Detect sort order change → signal grid memory clear |
@@ -275,18 +269,18 @@ Actions in each context:
 | Left | navigate | navigate | navigate | wall | nav graph left | navigate (wall → sidebar) | navigate (wrap) | → GRID (row edge) |
 | Right | navigate | navigate | navigate | exit sidebar | nav graph right | navigate | sub-focus / navigate | wall |
 | Select | activate | activate | activate | exit sidebar* | click + nav right | activate | activate | activate |
-| Back | onEscape | onEscape | onEscape | exit sidebar | nav graph left | onEscape | dismiss | dismiss |
+| Back | no-op | no-op | no-op | exit sidebar | no-op | no-op | dismiss | dismiss |
 | Clear | onClear | onClear | onClear | — | — | onClear | — | — |
 | Play | play | — | — | — | — | play | play | play |
 | Zone± | zone_cycle | zone_cycle | zone_cycle | — | — | — | — | zone_cycle |
 
 \* Primary menu items are already activated on focus — SELECT just exits without clicking.
 
-**BACK behavior:** In content contexts (grid/toolbar/zone_tabs), BACK delegates to the page behavior's `onEscape()`. String returns navigate to the named context (all current behaviors return `"sidebar"`). Boolean `true` consumes the action. `false` falls through to the normal handler (no-op for content contexts). In modal/drawer, BACK always dismisses. In any MENU context (sidebar, sections), BACK bypasses `onEscape()` and uses the state machine's own semantics (exit sidebar, or nav graph left for non-primary menus).
+**BACK behavior:** BACK only peels layers. In modal/drawer it dismisses; in the primary menu (sidebar) it exits back to the pre-sidebar context. In content contexts (grid/toolbar/zone_tabs/shelf) and non-primary menus it is a no-op — reaching the sidebar is LEFT's job (every left-edge context has a nav-graph `left` edge toward it).
 
 **CLEAR behavior:** In any context, CLEAR delegates to the page behavior's `onClear()` hook. Currently only the library behavior implements this (clears the filter input). If no `onClear` exists, the action is silently dropped.
 
-**MENU behavior:** The sidebar instance has hardcoded exit_sidebar on right/back and wall on left. Other MENU instances (like `"sections"`, `"upcoming"`) use the navigation graph for left/right/back — if the graph points to `"sidebar"`, it produces `enter_sidebar`. Non-primary menus also support wall-to-graph fallback on up/down: hitting the top or bottom of the list consults the nav graph for that direction (e.g., up from the first `upcoming` item transitions to `zone_tabs`).
+**MENU behavior:** The sidebar instance has hardcoded exit_sidebar on right/back and wall on left. Other MENU instances (like `"sections"`, `"upcoming"`) use the navigation graph for left/right — if the graph points to `"sidebar"`, it produces `enter_sidebar`; BACK is a no-op there. Non-primary menus also support wall-to-graph fallback on up/down: hitting the top or bottom of the list consults the nav graph for that direction (e.g., up from the first `upcoming` item transitions to `zone_tabs`).
 
 **Modal navigation:** UP/DOWN/LEFT navigate linearly with wrapping. RIGHT tries sub-focus first (entering a sub-item within the focused element); if no `[data-nav-sub-item]` exists, falls back to linear navigation. This makes both vertical item lists and horizontal button rows work without per-modal configuration.
 
@@ -357,7 +351,6 @@ Page behaviors extract page-specific concerns from the global orchestrator. The 
  *  @property {function(): void} [onAttach]
  *  @property {function(): void} [onDetach]
  *  @property {function(string, string, Element): boolean|{transitionTo: string}} [onAction]
- *  @property {function(): boolean|string} [onEscape] - true to consume, string to navigate
  *  @property {function(): void} [onClear]  - CLEAR action (Y / Backspace)
  *  @property {function(string): void} [onZoneChanged]
  *  @property {function(Object): {clearGridMemory: boolean}} [onSyncState]
@@ -372,8 +365,7 @@ Page behaviors extract page-specific concerns from the global orchestrator. The 
 5. `onZoneChanged(context)` called when focus context changes
 6. `onAction(action, context, focusedItem)` called at the start of `_handleAction`, before the state machine processes the action. Return `true` to consume, `{ transitionTo: "contextName" }` to transition focus, or `false`/`undefined` to pass through. Used for per-item directional overrides (e.g., calendar left/right → month nav) and custom drill-in transitions (e.g., tracking SELECT → grid).
 7. `onClear()` called on CLEAR action — reset page state (e.g. clear filter)
-8. `onEscape()` called before normal BACK handling in content contexts — return `true` to consume, string to navigate to context
-9. `onDetach()` called on `destroy()` or behavior change
+8. `onDetach()` called on `destroy()` or behavior change
 
 **Dependency injection:** Behavior factories receive their DOM interface at creation time. No global scope access — keeps behaviors testable with mocks.
 

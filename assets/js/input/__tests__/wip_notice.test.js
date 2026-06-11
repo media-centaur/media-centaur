@@ -45,9 +45,9 @@ describe("withWipNotice", () => {
   })
 
   test("preserves the wrapped behavior's other methods", () => {
-    const behavior = withWipNotice({ onEscape: () => "sidebar" }, mockNoticeDom())
+    const behavior = withWipNotice({ onClear: () => "grid" }, mockNoticeDom())
 
-    expect(behavior.onEscape()).toBe("sidebar")
+    expect(behavior.onClear()).toBe("grid")
   })
 
   test("delegates to the wrapped behavior's onAction and returns its result", () => {

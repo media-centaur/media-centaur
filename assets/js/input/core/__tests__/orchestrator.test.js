@@ -184,21 +184,17 @@ function mockCreateBehavior(name) {
     return {
       onAttach() {},
       onDetach() {},
-      onEscape: () => "sidebar",
       onClear: () => {},
       onSyncState: () => ({ clearGridMemory: false }),
     }
   }
-  if (name === "settings") {
-    return { onAttach() {}, onDetach() {}, onEscape: () => "sections" }
-  }
-  if (name === "status" || name === "review") {
-    return { onAttach() {}, onDetach() {}, onEscape: () => "sidebar" }
+  if (name === "settings" || name === "status" || name === "review") {
+    return { onAttach() {}, onDetach() {} }
   }
   // Home (and watch-history) behaviors deliberately omit onAttach/onDetach —
   // the mock must mirror that so start() exercises the optional-hook path.
   if (name === "home") {
-    return { onEscape: () => "sidebar" }
+    return { onZoneChanged() {} }
   }
   return null
 }
@@ -426,11 +422,8 @@ describe("Orchestrator", () => {
       // Clear calls from start
       calls.length = 0
 
-      // Create a behavior that returns "sidebar" on escape
-      system._behavior = { onEscape: () => "sidebar" }
-      system._behaviorName = "test"
-
-      globals._dispatchKeyDown("Escape")
+      // Left at the grid's left wall (index 0, column 0) enters the sidebar.
+      globals._dispatchKeyDown("ArrowLeft")
 
       const navCalls = calls.filter(c => c.method === "setNavContext")
       expect(navCalls.some(c => c.args[0] === "sidebar")).toBe(true)
@@ -536,25 +529,30 @@ describe("Orchestrator", () => {
       expect(system._behavior).toBe(null)
     })
 
-    test("escape delegates to page behavior first", () => {
+    test("escape in a content context is a no-op — behaviors get no escape hook", () => {
       let escapeCalled = false
-      const { system, globals } = setup({
+      const { system, calls, globals } = setup({
         getPageBehavior: () => "library",
       })
       system.start({})
 
-      // Inject a mock behavior that consumes escape
+      // Even a behavior that still defines onEscape is ignored — left at
+      // the left edge is the way to the sidebar, not Escape.
       system._behavior = {
-        onEscape: () => { escapeCalled = true; return true },
+        onEscape: () => { escapeCalled = true; return "sidebar" },
         onSyncState: () => ({ clearGridMemory: false }),
       }
+      calls.length = 0
 
-      const event = globals._dispatchKeyDown("Escape")
-      expect(escapeCalled).toBe(true)
-      expect(event.preventDefault).toHaveBeenCalled()
+      globals._dispatchKeyDown("Escape")
+
+      expect(escapeCalled).toBe(false)
+      expect(system.focusMachine.context).toBe(Context.GRID)
+      const navCalls = calls.filter(c => c.method === "setNavContext")
+      expect(navCalls.some(c => c.args[0] === "sidebar")).toBe(false)
     })
 
-    test("escape falls through when behavior does not consume", () => {
+    test("escape in modal still dismisses", () => {
       const hookEl = { pushEvent: mock(() => {}) }
       const { system, globals } = setup({
         getPageBehavior: () => "library",
@@ -562,14 +560,7 @@ describe("Orchestrator", () => {
       })
       system.start(hookEl)
 
-      // Inject a mock behavior that does NOT consume escape
-      system._behavior = {
-        onEscape: () => false,
-        onSyncState: () => ({ clearGridMemory: false }),
-      }
-
       globals._dispatchKeyDown("Escape")
-      // Should fall through to normal handling (dismiss modal)
       expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
     })
 
@@ -985,12 +976,12 @@ describe("Orchestrator", () => {
     })
   })
 
-  describe("BACK action triggers behavior onEscape", () => {
-    test("BACK in grid triggers behavior onEscape", () => {
+  describe("BACK action semantics", () => {
+    test("BACK in grid is a no-op — even a lingering behavior onEscape is ignored", () => {
       let escapeCalled = false
       let onActionCallback = null
       const mockSource = { start() {}, stop() {} }
-      const { system } = setup({
+      const { system, calls } = setup({
         getPageBehavior: () => "library",
       }, {
         sources: [
@@ -1005,72 +996,20 @@ describe("Orchestrator", () => {
       expect(system.focusMachine.context).toBe(Context.GRID)
 
       system._behavior = {
-        onEscape: () => { escapeCalled = true; return true },
+        onEscape: () => { escapeCalled = true; return "sidebar" },
         onSyncState: () => ({ clearGridMemory: false }),
       }
-
-      onActionCallback(Action.BACK)
-      expect(escapeCalled).toBe(true)
-    })
-
-    test("BACK falls through to dismiss when behavior does not consume", () => {
-      let onActionCallback = null
-      const hookEl = { pushEvent: mock(() => {}) }
-      const mockSource = { start() {}, stop() {} }
-      const { system } = setup({
-        getPageBehavior: () => "library",
-        getPresentation: () => "modal",
-      }, {
-        sources: [
-          (callbacks) => {
-            onActionCallback = callbacks.onAction
-            return mockSource
-          },
-        ],
-      })
-      system.start(hookEl)
-
-      system._behavior = {
-        onEscape: () => false,
-        onSyncState: () => ({ clearGridMemory: false }),
-      }
-
-      onActionCallback(Action.BACK)
-      expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
-    })
-
-    test("BACK navigates to context returned by onEscape string", () => {
-      let onActionCallback = null
-      const mockSource = { start() {}, stop() {} }
-      const { system, calls } = setup({
-        getZone: () => "settings",
-        getPageBehavior: () => "settings",
-        getItemCount: () => 3,
-        getFocusedIndex: () => 0,
-        getActiveItemIndex: (ctx) => ctx === "sections" ? 1 : -1,
-      }, {
-        sources: [
-          (callbacks) => {
-            onActionCallback = callbacks.onAction
-            return mockSource
-          },
-        ],
-      })
-      system.start({})
-      // Start in grid context
-      system.focusMachine.forceContext(Context.GRID)
       calls.length = 0
 
       onActionCallback(Action.BACK)
 
-      // Should navigate to "sections" (returned by settings onEscape)
-      expect(system.focusMachine.context).toBe("sections")
-      // Should restore focus in sections
-      const focusCalls = calls.filter(c => c.method === "focusByIndex")
-      expect(focusCalls.some(c => c.args[0] === "sections")).toBe(true)
+      expect(escapeCalled).toBe(false)
+      expect(system.focusMachine.context).toBe(Context.GRID)
+      const navCalls = calls.filter(c => c.method === "setNavContext")
+      expect(navCalls.some(c => c.args[0] === "sidebar")).toBe(false)
     })
 
-    test("BACK to sidebar via onEscape expands sidebar and records pre-sidebar context", () => {
+    test("LEFT at the grid's left wall enters the sidebar, expands it, and records pre-sidebar context", () => {
       let onActionCallback = null
       const mockSource = { start() {}, stop() {} }
       const { system, calls } = setup({
@@ -1091,7 +1030,7 @@ describe("Orchestrator", () => {
       system.focusMachine.forceContext(Context.GRID)
       calls.length = 0
 
-      onActionCallback(Action.BACK)
+      onActionCallback(Action.NAVIGATE_LEFT)
 
       // Should enter sidebar
       expect(system.focusMachine.context).toBe("sidebar")
@@ -1102,8 +1041,7 @@ describe("Orchestrator", () => {
       expect(system._preSidebarContext).toBe(Context.GRID)
     })
 
-    test("BACK in non-primary menu bypasses onEscape and follows nav graph", () => {
-      let escapeCalled = false
+    test("BACK in non-primary menu is a no-op — left is the way to the sidebar", () => {
       let onActionCallback = null
       const mockSource = { start() {}, stop() {} }
       const { system, calls } = setup({
@@ -1122,25 +1060,21 @@ describe("Orchestrator", () => {
       })
       system.start({})
       system.focusMachine.forceContext("sections")
-
-      system._behavior = {
-        onEscape: () => { escapeCalled = true; return "sections" },
-      }
       calls.length = 0
 
       onActionCallback(Action.BACK)
 
-      // onEscape must NOT be called when in a menu context
-      expect(escapeCalled).toBe(false)
-      // Should follow nav graph left edge → sidebar
+      expect(system.focusMachine.context).toBe("sections")
+
+      // Left is what walks toward the main nav
+      onActionCallback(Action.NAVIGATE_LEFT)
       expect(system.focusMachine.context).toBe("sidebar")
     })
 
-    test("BACK in sidebar bypasses onEscape and exits", () => {
-      let escapeCalled = false
+    test("BACK in sidebar exits", () => {
       let onActionCallback = null
       const mockSource = { start() {}, stop() {} }
-      const { system, calls } = setup({
+      const { system } = setup({
         getPageBehavior: () => "library",
         getItemCount: () => 8,
         getSidebarCollapsed: () => true,
@@ -1155,21 +1089,13 @@ describe("Orchestrator", () => {
       system.start({})
       system.focusMachine.forceContext("sidebar")
 
-      system._behavior = {
-        onEscape: () => { escapeCalled = true; return true },
-        onSyncState: () => ({ clearGridMemory: false }),
-      }
-
       onActionCallback(Action.BACK)
 
-      // onEscape must NOT be called when in sidebar
-      expect(escapeCalled).toBe(false)
       // Should have exited the sidebar
       expect(system.focusMachine.context).not.toBe("sidebar")
     })
 
-    test("BACK in modal bypasses onEscape and dismisses", () => {
-      let escapeCalled = false
+    test("BACK in modal dismisses", () => {
       let onActionCallback = null
       const hookEl = { pushEvent: mock(() => {}) }
       const mockSource = { start() {}, stop() {} }
@@ -1186,15 +1112,8 @@ describe("Orchestrator", () => {
       })
       system.start(hookEl)
 
-      system._behavior = {
-        onEscape: () => { escapeCalled = true; return true },
-        onSyncState: () => ({ clearGridMemory: false }),
-      }
-
       onActionCallback(Action.BACK)
 
-      // onEscape must NOT be called when in modal
-      expect(escapeCalled).toBe(false)
       // Should dismiss the modal
       expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
     })
@@ -1221,8 +1140,7 @@ describe("Orchestrator", () => {
       expect(hookEl.pushEvent).toHaveBeenCalledWith("cancel_stop_tracking", {})
     })
 
-    test("BACK in drawer bypasses onEscape and dismisses", () => {
-      let escapeCalled = false
+    test("BACK in drawer dismisses", () => {
       let onActionCallback = null
       const hookEl = { pushEvent: mock(() => {}) }
       const mockSource = { start() {}, stop() {} }
@@ -1240,14 +1158,8 @@ describe("Orchestrator", () => {
       })
       system.start(hookEl)
 
-      system._behavior = {
-        onEscape: () => { escapeCalled = true; return true },
-        onSyncState: () => ({ clearGridMemory: false }),
-      }
-
       onActionCallback(Action.BACK)
 
-      expect(escapeCalled).toBe(false)
       expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
     })
   })

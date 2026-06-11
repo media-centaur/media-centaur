@@ -109,7 +109,7 @@ test.describe("settings navigation", () => {
     }
   })
 
-  test("escape from grid → sections or sidebar", async ({ page, inputAction }) => {
+  test("escape in grid is a no-op; left returns to sections", async ({ page, inputAction }) => {
     // Ensure we're on grid
     const context = await page.evaluate(() =>
       document.documentElement.getAttribute("data-nav-context")
@@ -121,12 +121,13 @@ test.describe("settings navigation", () => {
     }
     await expectContext(page, "grid")
 
-    // Escape — settings behavior onEscape returns "sections"
+    // BACK does nothing in content
     await inputAction("BACK")
-    const afterContext = await page.evaluate(() =>
-      document.documentElement.getAttribute("data-nav-context")
-    )
-    expect(["sidebar", "sections"]).toContain(afterContext)
+    await expectContext(page, "grid")
+
+    // Left at the grid's left edge returns to sections
+    await inputAction("NAVIGATE_LEFT")
+    await expectContext(page, "sections")
   })
 
   test("left from sections → sidebar", async ({ page, inputAction }) => {
@@ -143,7 +144,7 @@ test.describe("settings navigation", () => {
     await expectContext(page, "sidebar")
   })
 
-  test("escape from sections → sidebar", async ({ page, inputAction }) => {
+  test("escape in sections is a no-op — left is the way to the sidebar", async ({ page, inputAction }) => {
     // Navigate to sections
     const context = await page.evaluate(() =>
       document.documentElement.getAttribute("data-nav-context")
@@ -154,6 +155,6 @@ test.describe("settings navigation", () => {
     await expectContext(page, "sections")
 
     await inputAction("BACK")
-    await expectContext(page, "sidebar")
+    await expectContext(page, "sections")
   })
 })

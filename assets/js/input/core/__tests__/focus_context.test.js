@@ -486,12 +486,12 @@ describe("FocusContextMachine", () => {
       expect(machine.context).toBe("sidebar")
     })
 
-    test("sections back navigates to sidebar via nav graph", () => {
+    test("sections back is a no-op — left is the way to the sidebar", () => {
       machine._context = "sections"
       machine.setNavGraph({ sections: { left: "sidebar" } })
       const directive = machine.transition(Action.BACK)
-      expect(directive).toEqual({ type: "enter_sidebar" })
-      expect(machine.context).toBe("sidebar")
+      expect(directive).toEqual({ type: "none" })
+      expect(machine.context).toBe("sections")
     })
 
     test("sections left with no nav graph edge is no-op", () => {
@@ -582,7 +582,7 @@ describe("FocusContextMachine", () => {
       expect(machine.transition(Action.PLAY)).toEqual({ type: "play" })
     })
 
-    test("back is a no-op (page behavior onEscape handles it)", () => {
+    test("back is a no-op — left at the shelf's left edge reaches the sidebar", () => {
       machine._context = "continue"
       expect(machine.transition(Action.BACK)).toEqual({ type: "none" })
     })
