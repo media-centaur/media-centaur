@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.88.8 — 2026-06-11
+
+### Improved
+
+- **The episode picker starts collapsed.** When you plan a show download, seasons now show as compact rows instead of one long episode list — click a season to expand its episodes. The season checkboxes and the quick presets (Everything aired, Continue from my library, Latest season) still select without expanding, so a many-season show is no longer a wall of checkboxes.
+
 ## v0.88.7 — 2026-06-11
 
 ### New
