@@ -1433,7 +1433,9 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     if query == socket.assigns.omnibox_query do
       rows =
         results
-        |> Enum.take(8)
+        # One TMDB page, relevance-ranked — the dropdown scrolls; depth
+        # past 20 is a query-refinement problem, not a pagination one.
+        |> Enum.take(20)
         |> Enum.map(fn result ->
           %MediaOmnibox.Result{
             tmdb_id: result.tmdb_id,

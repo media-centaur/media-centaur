@@ -219,38 +219,18 @@ defmodule MediaCentaur.ReleaseTracking do
   # --- Search ---
 
   @doc """
-  Searches TMDB for both movies and TV shows in parallel. Returns a unified
-  list of results with media_type, tmdb_id, name, year, poster_path, and
-  an already_tracked flag.
+  Searches TMDB's multi endpoint for movies and TV shows, preserving
+  TMDB's cross-type relevance order (a regrouped movies-then-tv merge
+  once starved every TV result out of the capped omnibox dropdown).
+  Person results are dropped. Returns a unified list of results with
+  media_type, tmdb_id, name, year, poster_path, and an already_tracked
+  flag.
   """
   def search_tmdb(query) do
-    [movie_outcome, tv_outcome] =
-      [:movie, :tv]
-      |> Task.async_stream(
-        fn
-          :movie -> {:movie, Client.search_movie(query)}
-          :tv -> {:tv, Client.search_tv(query)}
-        end,
-        timeout: 10_000,
-        on_timeout: :kill_task,
-        ordered: true,
-        max_concurrency: 2
-      )
-      |> Enum.map(fn
-        {:ok, outcome} -> outcome
-        {:exit, _reason} -> :error
-      end)
-
-    movie_results =
-      case movie_outcome do
-        {:movie, {:ok, results}} -> Enum.map(results, &normalize_movie_result/1)
-        _ -> []
-      end
-
-    tv_results =
-      case tv_outcome do
-        {:tv, {:ok, results}} -> Enum.map(results, &normalize_tv_result/1)
-        _ -> []
+    results =
+      case Client.search_multi(query) do
+        {:ok, results} -> Enum.flat_map(results, &normalize_multi_result/1)
+        {:error, _reason} -> []
       end
 
     tracked_tmdb_ids =
@@ -258,11 +238,15 @@ defmodule MediaCentaur.ReleaseTracking do
       |> Repo.all()
       |> MapSet.new()
 
-    Enum.map(movie_results ++ tv_results, fn result ->
+    Enum.map(results, fn result ->
       tracked = MapSet.member?(tracked_tmdb_ids, {result.tmdb_id, result.media_type})
       Map.put(result, :already_tracked, tracked)
     end)
   end
+
+  defp normalize_multi_result(%{"media_type" => "movie"} = tmdb), do: [normalize_movie_result(tmdb)]
+  defp normalize_multi_result(%{"media_type" => "tv"} = tmdb), do: [normalize_tv_result(tmdb)]
+  defp normalize_multi_result(_person_or_unknown), do: []
 
   defp normalize_movie_result(tmdb) do
     %{

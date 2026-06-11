@@ -555,10 +555,20 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
     } do
       TmdbStubs.setup_tmdb_client()
 
-      TmdbStubs.stub_search_both(
-        [%{"id" => 777, "title" => "Sample Movie", "release_date" => "2010-03-05"}],
-        [%{"id" => 246_810, "name" => "Sample Show", "first_air_date" => "2010-06-16"}]
-      )
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 246_810,
+          "media_type" => "tv",
+          "name" => "Sample Show",
+          "first_air_date" => "2010-06-16"
+        },
+        %{
+          "id" => 777,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05"
+        }
+      ])
 
       {:ok, view, html} = live_async!(conn, ~p"/download")
 
@@ -587,17 +597,21 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
     } do
       TmdbStubs.setup_tmdb_client()
 
-      TmdbStubs.stub_search_both(
-        [
-          %{
-            "id" => 777,
-            "title" => "Sample Movie",
-            "release_date" => "2010-03-05",
-            "poster_path" => "/sample-movie-poster.jpg"
-          }
-        ],
-        [%{"id" => 246_810, "name" => "Sample Show", "first_air_date" => "2010-06-16"}]
-      )
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 777,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05",
+          "poster_path" => "/sample-movie-poster.jpg"
+        },
+        %{
+          "id" => 246_810,
+          "media_type" => "tv",
+          "name" => "Sample Show",
+          "first_air_date" => "2010-06-16"
+        }
+      ])
 
       {:ok, view, _html} = live_async!(conn, ~p"/download")
 
@@ -616,12 +630,18 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       refute has_element?(view, "#omnibox-result-tv_series-246810 img")
     end
 
-    test "a re-fire of the same effective query never searches TMDB again", %{conn: conn} do
+    test "the dropdown shows the full first TMDB page, not just eight", %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
 
-      TmdbStubs.stub_search_both(
-        [%{"id" => 777, "title" => "Sample Movie", "release_date" => "2010-03-05"}],
-        []
+      TmdbStubs.stub_search_multi(
+        for n <- 1..22 do
+          %{
+            "id" => 1000 + n,
+            "media_type" => "movie",
+            "title" => "Sample Movie #{n}",
+            "release_date" => "2010-03-05"
+          }
+        end
       )
 
       {:ok, view, _html} = live_async!(conn, ~p"/download")
@@ -630,9 +650,37 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       |> form("form[phx-change='omnibox_change']", %{query: "sample"})
       |> render_change()
 
-      # Generous deadline: the omnibox async runs two stubbed TMDB
-      # calls plus a Repo read; the 100ms render_async default flakes
-      # under load (observed in isolation, 2026-06-10).
+      render_async(view, 2000)
+
+      # Result #9 was the first casualty of the old Enum.take(8) cap.
+      assert has_element?(view, "#omnibox-result-movie-1009")
+      assert has_element?(view, "#omnibox-result-movie-1020")
+      # One TMDB page is the ceiling — depth past 20 is a query-refinement
+      # problem, not a pagination problem.
+      refute has_element?(view, "#omnibox-result-movie-1021")
+    end
+
+    test "a re-fire of the same effective query never searches TMDB again", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 777,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05"
+        }
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      # Generous deadline: the omnibox async runs a stubbed TMDB call
+      # plus a Repo read; the 100ms render_async default flakes under
+      # load (observed in isolation, 2026-06-10).
       html = render_async(view, 2000)
       assert html =~ "Sample Movie"
 

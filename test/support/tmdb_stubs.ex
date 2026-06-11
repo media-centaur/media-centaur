@@ -37,6 +37,15 @@ defmodule MediaCentaur.TmdbStubs do
     stub_endpoint("/search/tv", %{"results" => results})
   end
 
+  @doc """
+  Stubs `/search/multi`. Result maps carry TMDB's `"media_type"`
+  discriminator (`"movie"` / `"tv"` / `"person"`) alongside the
+  type-specific title/date keys.
+  """
+  def stub_search_multi(results) when is_list(results) do
+    stub_endpoint("/search/multi", %{"results" => results})
+  end
+
   def stub_search_both(movie_results, tv_results) do
     Req.Test.stub(:tmdb, fn conn ->
       data =
