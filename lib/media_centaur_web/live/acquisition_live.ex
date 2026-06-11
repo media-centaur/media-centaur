@@ -817,9 +817,23 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   def handle_event("plan_show_alternatives", %{"unit-id" => unit_id}, socket) do
     case Plans.alternatives_for(unit_id) do
       {:ok, items} ->
-        {:noreply, assign(socket, plan_alternatives: %{unit_id: unit_id, items: items})}
+        {:noreply,
+         assign(socket, plan_alternatives: %{unit_id: unit_id, items: items, searching?: false})}
 
       {:error, :not_found} ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("plan_find_more_alternatives", %{"unit-id" => unit_id}, socket) do
+    case socket.assigns.plan_alternatives do
+      %{unit_id: ^unit_id} = open ->
+        {:noreply,
+         socket
+         |> assign(plan_alternatives: Map.put(open, :searching?, true))
+         |> start_async(:plan_find_more, fn -> {unit_id, Plans.search_alternatives(unit_id)} end)}
+
+      _other ->
         {:noreply, socket}
     end
   end
@@ -1500,6 +1514,29 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
       _ ->
         {:noreply, socket}
+    end
+  end
+
+  def handle_async(:plan_find_more, {:ok, {unit_id, result}}, socket) do
+    case {result, socket.assigns.plan_alternatives} do
+      {{:ok, items}, %{unit_id: ^unit_id}} ->
+        {:noreply,
+         assign(socket, plan_alternatives: %{unit_id: unit_id, items: items, searching?: false})}
+
+      {_result, %{unit_id: ^unit_id} = open} ->
+        {:noreply, assign(socket, plan_alternatives: Map.put(open, :searching?, false))}
+
+      _other ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_async(:plan_find_more, {:exit, reason}, socket) do
+    Log.warning(:acquisition, "find-more alternatives crashed — #{inspect(reason)}")
+
+    case socket.assigns.plan_alternatives do
+      %{} = open -> {:noreply, assign(socket, plan_alternatives: Map.put(open, :searching?, false))}
+      _other -> {:noreply, socket}
     end
   end
 

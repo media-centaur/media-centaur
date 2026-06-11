@@ -384,7 +384,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       assert length(units) == 2
     end
 
-    test "the swap picker: Options lists corpus alternatives; choosing reassigns the unit", %{
+    test "the swap picker: find-more live-fills alternatives; choosing reassigns the unit", %{
       conn: conn
     } do
       stub_plan_tmdb()
@@ -442,7 +442,16 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       |> element("button[phx-click='plan_show_alternatives'][phx-value-unit-id='#{unit.id}']")
       |> render_click()
 
+      # The descent never searched episode terms — the picker starts empty.
       html = render(view)
+      assert html =~ "Nothing else in the corpus yet"
+      refute html =~ "Sample.Show.S01E01.2160p.WEB-DL.x265"
+
+      view
+      |> element("button[phx-click='plan_find_more_alternatives'][phx-value-unit-id='#{unit.id}']")
+      |> render_click()
+
+      html = render_async(view)
       assert html =~ "Sample.Show.S01E01.2160p.WEB-DL.x265"
       assert html =~ "None of these"
 

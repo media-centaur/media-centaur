@@ -61,7 +61,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   attr :alternatives, :any,
     default: nil,
-    doc: "%{unit_id, items: [PlanBoard.Alternative.t()]} | nil — the open swap picker (board stage)."
+    doc:
+      "%{unit_id, items: [PlanBoard.Alternative.t()], searching?: boolean} | nil — the open swap picker (board stage)."
 
   attr :approving, :boolean,
     default: false,
@@ -397,7 +398,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   attr :alternatives, :any,
     required: true,
-    doc: "%{unit_id, items} | nil — typed at the public attr."
+    doc:
+      "%{unit_id, items: [PlanBoard.Alternative.t()], searching?: boolean} | nil — the open swap picker (board stage)."
 
   attr :approving, :boolean, required: true
   attr :last_activity, :string, required: true
@@ -572,14 +574,17 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     """
   end
 
-  attr :alternatives, :map, required: true, doc: "%{unit_id, items} — typed at the public attr."
+  attr :alternatives, :map,
+    required: true,
+    doc: "%{unit_id, items, searching?} — typed at the public attr."
+
   attr :release, PlanBoard.Release, required: true
 
   defp alternatives_panel(assigns) do
     ~H"""
     <div class="glass-inset rounded-lg px-3 py-2 ml-4 space-y-1.5 border border-base-content/10">
       <p :if={@alternatives.items == []} class="text-xs text-base-content/40 py-1">
-        Nothing else in the corpus right now — try a re-search.
+        Nothing else in the corpus yet — Find more runs this episode's searches.
       </p>
 
       <div
@@ -630,6 +635,19 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       </div>
 
       <div class="flex items-center justify-end gap-2 pt-1 border-t border-base-content/5">
+        <.button
+          variant="neutral"
+          size="xs"
+          phx-click="plan_find_more_alternatives"
+          phx-value-unit-id={@alternatives.unit_id}
+          disabled={@alternatives[:searching?] == true}
+          title="Search the indexers for more options for this span"
+          data-nav-item
+          tabindex="0"
+        >
+          <span :if={@alternatives[:searching?]} class="loading loading-spinner loading-xs"></span>
+          {if @alternatives[:searching?], do: "Searching…", else: "Find more"}
+        </.button>
         <.button
           variant="dismiss"
           size="xs"
