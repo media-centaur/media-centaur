@@ -1,12 +1,14 @@
 defmodule MediaCentaurWeb.Components.IssueView do
   @moduledoc """
   Ephemeral modal showing everything known about one `ErrorReports.Bucket`:
-  title, subsystem (name + glyph), severity, occurrence count + time range, a
-  plain-language description of what the subsystem does, and the raw sample log
-  lines. The footer hands off to the persistent report wizard (`on_report`).
+  title, subsystem (name + glyph), severity, occurrence count + time range, and
+  the raw sample log lines. The footer hands off to the persistent report
+  wizard (`on_report`). The subsystem's plain-language briefing is deliberately
+  *not* repeated here — it lives at the top of the drill-in this modal opens
+  from; the incident modal stays about the incident.
 
-  Presentation only. Subsystem label/glyph/description come from `HealthBoard`,
-  which are total functions (unknown components normalize to `:system`).
+  Presentation only. Subsystem label/glyph come from `HealthBoard`, which are
+  total functions (unknown components normalize to `:system`).
   """
   use MediaCentaurWeb, :html
 
@@ -49,10 +51,6 @@ defmodule MediaCentaurWeb.Components.IssueView do
         </div>
 
         <div class="px-6 py-4 flex-1 min-h-0 overflow-y-auto space-y-4">
-          <p class="text-sm text-base-content/70 leading-relaxed max-w-prose">
-            {HealthBoard.description(@bucket.component)}
-          </p>
-
           <div :if={@bucket.sample_entries != []} class="space-y-1.5">
             <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
               Recent log lines

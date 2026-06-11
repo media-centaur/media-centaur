@@ -38,16 +38,18 @@ defmodule MediaCentaurWeb.StatusLive.IssueViewTest do
     view
   end
 
-  test "clicking an incident opens the issue view with description and log lines",
+  test "clicking an incident opens the issue view with its log lines, without rehashing the subsystem briefing",
        %{conn: conn} do
     view = open_issue_view(conn, "fp-pipeline-error")
 
     assert has_element?(view, "#issue-view[data-state=open]")
     html = render(view)
-    # Subsystem plain-language description (from HealthBoard).
-    assert html =~ "Turns raw files into library entries"
     # The sample log line is surfaced in the issue view.
     assert html =~ "TMDB image 503"
+
+    # The subsystem briefing belongs to the drill-in (rendered once at its
+    # top); the incident modal identifies the subsystem by name + glyph only.
+    refute view |> element("#issue-view") |> render() =~ "Turns raw files into library entries"
   end
 
   test "Report this hands off from the issue view to the persistent report wizard",
