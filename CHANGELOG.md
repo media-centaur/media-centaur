@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.88.5 — 2026-06-11
+
+### Fixed
+
+- **TV shows no longer vanish from the download search.** Searching the Downloads page for a show could return only movies — results were grouped movies-first and cut off before any show appeared. Movies and shows are now ranked together by relevance, so the title you typed comes back on top. The Track New Releases search on the Upcoming page gets the same fix.
+
+### Improved
+
+- **The download search shows more results.** The dropdown now lists up to 20 matches in a scrollable list instead of stopping at 8.
+
 ## v0.88.4 — 2026-06-11
 
 ### Improved
