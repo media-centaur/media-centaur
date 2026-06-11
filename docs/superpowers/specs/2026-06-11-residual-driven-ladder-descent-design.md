@@ -97,6 +97,31 @@ plan:
 - `plan_modal` is a function component: its story gains the loading/expanded variations
   in the same change (MC0009).
 
+### 4. Descent narration — what to expect, what's happening, what changed
+
+The descent is a strategy the user should be able to watch. The plan board tells them
+the itinerary up front ("first one all-in-one release, then season packs, then individual
+episodes — only for whatever's still missing"), shows which step is running, and when a
+step completes says what changed and what that means for the remaining steps ("season
+packs covered everything — the episode hunt isn't needed").
+
+- New transient event `PlanEvents.DescentStatus` on `acquisition:updates`, broadcast by
+  `RunPlan` at rung start, after each rung's solve, and once at the end. Each broadcast
+  carries the **full itinerary snapshot** (every rung with state
+  `:pending | :active | :done | :skipped`, its term count, and the residual after it) —
+  subscribers replace rather than merge, so a modal opened mid-run self-heals on the next
+  event. TV plans only; movies keep the existing one-line ticker.
+- Copy lives in a pure view-model, `Acquisition.ViewModels.DescentNarrative`
+  (ADR-030): `build(status)` → a `View` with a headline ("Now searching season packs —
+  4 episodes still need coverage…") and one row per rung (label + state + detail, e.g.
+  "skipped — already covered", "found nothing usable"). `initial(wanted)` produces the
+  pre-event itinerary so the board shows expectations from the first paint, before any
+  broadcast arrives.
+- `plan_modal`'s board stage renders the narrative panel during `:planning` and leaves
+  the final snapshot visible once ready (the outcome line is the "what changed" record);
+  the per-term `SearchActivity` ticker stays, as the fine-grained line under the
+  headline. Story variations cover pending/mid-flight/finished states.
+
 ## Out of scope (deliberately deferred)
 
 - **Liveness-aware corpus freshness** (ended show ⇒ longer window) — revisit only if
@@ -128,5 +153,13 @@ conventions. Generic titles only (`Sample Show`).
 - **`Plans.search_alternatives/1`**: only non-fresh terms hit the (stubbed) live search;
   result shape matches `alternatives_for/1`.
 - **LiveView test**: picker button event → async result → alternatives list re-renders.
-- **Existing suites**: planner tests untouched; existing `RunPlan` tests keep passing
-  (drops/movies paths unchanged).
+- **`DescentNarrative`**: pure unit tests (async) over initial/active/done/skipped
+  snapshots — headline and row copy per state.
+- **Descent broadcasts**: `RunPlan` test subscribes to `acquisition:updates` and asserts
+  the `DescentStatus` sequence (series active → done → … → final snapshot with skipped
+  rungs marked).
+- **Existing suites**: planner tests untouched. Two existing tests change *behavior*
+  deliberately (not weakened — the spec changes the contract): the `plans_test` lifecycle
+  test's exclusion replan now legitimately live-searches episode terms that were never
+  searched in the first pass, and the swap-picker tests start from a thinner corpus and
+  exercise the new find-more action.
