@@ -1,9 +1,11 @@
 defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
   @moduledoc """
   The coverage ladder's search terms — single source of truth shared by
-  the plan runner (all wanted units) and the alternatives picker (one
-  unit), so the two can never drift on what "this plan's searches"
-  means.
+  the plan runner (rung by rung, via `series_terms/1` / `season_terms/2`
+  / `episode_terms/2`), the alternatives picker (one unit), and the
+  corpus keys, so none of them can drift on what "this plan's searches"
+  means. `for_plan/2` is exactly the rung constructors concatenated —
+  an invariant pinned by the test suite.
 
   TV terms run broad-to-narrow: the series title, `Title Season N` +
   `Title SNN` per season, `Title SNNENN` per episode. Movies are one
@@ -21,23 +23,30 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
 
   def for_plan(%Plan{tmdb_type: "tv"} = plan, wanted) do
     seasons = wanted |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.sort()
+    series_terms(plan) ++ season_terms(plan, seasons) ++ episode_terms(plan, wanted)
+  end
 
-    series_terms = [{plan.title, [type: :tv]}]
+  @doc "The broadest rung — one term for an all-in-one release."
+  @spec series_terms(Plan.t()) :: [term_pair()]
+  def series_terms(%Plan{} = plan), do: [{plan.title, [type: :tv]}]
 
-    season_terms =
-      Enum.flat_map(seasons, fn season ->
-        [
-          {"#{plan.title} Season #{season}", [type: :tv]},
-          {"#{plan.title} S#{pad(season)}", [type: :tv]}
-        ]
-      end)
+  @doc "The season rung — both text forms per season, broad-to-narrow within the rung."
+  @spec season_terms(Plan.t(), [pos_integer()]) :: [term_pair()]
+  def season_terms(%Plan{} = plan, seasons) do
+    Enum.flat_map(seasons, fn season ->
+      [
+        {"#{plan.title} Season #{season}", [type: :tv]},
+        {"#{plan.title} S#{pad(season)}", [type: :tv]}
+      ]
+    end)
+  end
 
-    episode_terms =
-      Enum.map(wanted, fn {season, episode} ->
-        {"#{plan.title} S#{pad(season)}E#{pad(episode)}", [type: :tv]}
-      end)
-
-    series_terms ++ season_terms ++ episode_terms
+  @doc "The episode rung — one term per `{season, episode}` unit."
+  @spec episode_terms(Plan.t(), [{pos_integer(), pos_integer()}]) :: [term_pair()]
+  def episode_terms(%Plan{} = plan, units) do
+    Enum.map(units, fn {season, episode} ->
+      {"#{plan.title} S#{pad(season)}E#{pad(episode)}", [type: :tv]}
+    end)
   end
 
   @doc "The ladder terms that can cover ONE unit: series, its season, its episode."
