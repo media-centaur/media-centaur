@@ -466,6 +466,95 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       assert reloaded.assigned_guid == "ui-uhd"
     end
 
+    test "find-more re-fires are no-ops while a search is in flight", %{conn: conn} do
+      stub_plan_tmdb()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+
+            results =
+              if query == "Sample Show Season 1" do
+                [
+                  %{
+                    "title" => "Sample.Show.S01.COMPLETE.1080p.WEB-DL",
+                    "guid" => "ui-pack",
+                    "indexerId" => 1,
+                    "seeders" => 30,
+                    "indexer" => "indexer-a"
+                  }
+                ]
+              else
+                []
+              end
+
+            Req.Test.json(conn, results)
+
+          _other ->
+            Req.Test.json(conn, %{})
+        end
+      end)
+
+      {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download?plan=#{plan.id}")
+
+      [unit | _] = Plans.units_for(plan.id)
+
+      view
+      |> element("button[phx-click='plan_show_alternatives'][phx-value-unit-id='#{unit.id}']")
+      |> render_click()
+
+      # Re-stub: park the searcher's first indexer request until the test
+      # releases it, so the search is provably in flight while we re-fire.
+      # The latch lives in the searcher task's process dictionary — its
+      # ladder-term requests run sequentially in that one process, so only
+      # the first request blocks.
+      test_pid = self()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        if !Process.get(:prowlarr_released?) do
+          send(test_pid, {:prowlarr_search_blocked, self()})
+
+          receive do
+            :proceed -> Process.put(:prowlarr_released?, true)
+          end
+        end
+
+        Req.Test.json(conn, [])
+      end)
+
+      view
+      |> element("button[phx-click='plan_find_more_alternatives'][phx-value-unit-id='#{unit.id}']")
+      |> render_click()
+
+      assert_receive {:prowlarr_search_blocked, searcher_pid}, 1_000
+
+      # The first click flipped searching?: true, which disables the button —
+      # a UI-level re-fire can't even be clicked.
+      assert_raise ArgumentError, ~r/disabled/, fn ->
+        view
+        |> element("button[phx-click='plan_find_more_alternatives'][phx-value-unit-id='#{unit.id}']")
+        |> render_click()
+      end
+
+      # A raw re-fired event (bypassing the disabled markup) must fall
+      # through the `searching?: false` match head and change nothing.
+      # This pins the guard's no-crash/no-reset behavior — the single-start
+      # property itself is enforced by the match head, which a render-level
+      # test cannot distinguish from a benign double-start.
+      html = render_click(view, "plan_find_more_alternatives", %{"unit-id" => unit.id})
+      assert html =~ "Searching…"
+
+      # Release the parked search; the picker settles back to idle.
+      send(searcher_pid, :proceed)
+
+      html = render_async(view)
+      assert html =~ "Find more"
+      refute html =~ "Searching…"
+    end
+
     test "the board narrates the descent as status events land", %{conn: conn} do
       stub_plan_tmdb()
 
@@ -500,6 +589,11 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
       {:ok, view, _html} = live_async!(conn, ~p"/download?plan=#{plan.id}")
 
+      # Ready board, no descent event yet, panel not seeded (only
+      # still-planning boards seed the initial itinerary).
+      html = render(view)
+      refute html =~ "Planning the search"
+
       send(view.pid, %PlanEvents.DescentStatus{
         plan_id: plan.id,
         wanted: 2,
@@ -513,6 +607,13 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       html = render(view)
       assert html =~ "Everything covered — the deeper searches weren&#39;t needed."
       assert html =~ "not needed — already covered"
+
+      # A board reload for the SAME plan (Changed event) must not reset
+      # the live panel back to the initial itinerary.
+      send(view.pid, %PlanEvents.Changed{plan_id: plan.id, status: "ready"})
+
+      html = render(view)
+      assert html =~ "Everything covered — the deeper searches weren&#39;t needed."
 
       # A status for some other plan must not clobber the open board's panel.
       send(view.pid, %PlanEvents.DescentStatus{
