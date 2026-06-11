@@ -67,7 +67,7 @@ window.addEventListener("phx:page-loading-stop", _info => topbar.hide())
 
 // Self-update reboot: while an update is being applied, mark <html> so the
 // disconnect toast that follows the restart reads as a calm "Applying update"
-// rather than the red "Not connected to server" error (see layouts.ex). The
+// rather than the red "Media Centaur isn't responding" error (see layouts.ex). The
 // flag is cleared on reconnect by the toast's phx-connected handler, and here
 // if the apply fails/stalls/cancels so a genuine disconnect still shows red.
 window.addEventListener("phx:mc:update:applying", () =>
