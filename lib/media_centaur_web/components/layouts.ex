@@ -118,16 +118,6 @@ defmodule MediaCentaurWeb.Layouts do
             <.icon name="hero-calendar" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Upcoming</span>
           </.link>
-          <.link
-            navigate="/history"
-            class={sidebar_link_class(@current_path, "/history")}
-            data-tip="History"
-            data-nav-item
-            tabindex="0"
-          >
-            <.icon name="hero-clock" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">History</span>
-          </.link>
         </nav>
 
         <div class="sidebar-group-label sidebar-label">System</div>

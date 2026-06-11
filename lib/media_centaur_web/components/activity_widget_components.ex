@@ -686,6 +686,17 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
             <div class="text-xs uppercase tracking-wider text-base-content/50">Day streak</div>
           </div>
         </div>
+
+        <%!-- Sole entry point to /history since it left the sidebar — the full
+             event list, heatmap, and per-event delete live there. --%>
+        <.link
+          :if={@playback_activity.lifetime.titles > 0}
+          navigate={~p"/history"}
+          class="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
+          data-component="watch-history-link"
+        >
+          View full watch history <.icon name="hero-arrow-right-mini" class="size-3.5 shrink-0" />
+        </.link>
       </div>
     </div>
     """
