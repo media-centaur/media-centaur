@@ -31,7 +31,7 @@ defmodule MediaCentaur.Acquisition.Targets do
 
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.Jobs.PursueTarget
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Unit}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit}
   alias MediaCentaur.Acquisition.{Target, TargetEvents, TargetStatus}
   alias MediaCentaur.Repo
 
@@ -141,6 +141,25 @@ defmodule MediaCentaur.Acquisition.Targets do
       from(t in Target,
         where:
           t.pursuit_id == ^pursuit_id and t.status in ^TargetStatus.cancellable() and
+            not is_nil(t.torrent_hash),
+        select: t.torrent_hash
+      )
+    )
+  end
+
+  @doc """
+  Unit-scoped variant of `in_flight_hashes/1`: hashes of the
+  in-flight targets *covering one unit* — what a pivot or swap
+  abandons. Read before the command flips their status.
+  """
+  @spec in_flight_hashes_for_unit(Ecto.UUID.t()) :: [String.t()]
+  def in_flight_hashes_for_unit(unit_id) when is_binary(unit_id) do
+    covering = from(tu in TargetUnit, where: tu.unit_id == ^unit_id, select: tu.target_id)
+
+    Repo.all(
+      from(t in Target,
+        where:
+          t.id in subquery(covering) and t.status in ^TargetStatus.cancellable() and
             not is_nil(t.torrent_hash),
         select: t.torrent_hash
       )

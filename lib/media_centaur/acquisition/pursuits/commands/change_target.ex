@@ -35,7 +35,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
 
   alias MediaCentaur.Acquisition.Jobs.PursueTarget, as: PursueTargetWorker
   alias MediaCentaur.Acquisition.Pursuits
-  alias MediaCentaur.Acquisition.Pursuits.Commands.Runner
+  alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Runner}
+  alias MediaCentaur.Acquisition.Targets
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.TargetChanged
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, State, TargetUnit, Unit, UnitState, Units}
@@ -64,6 +65,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
     result =
       Runner.run(id, "pursuit target changed", fn pursuit ->
         unit = resolve_unit(pursuit, args)
+        # Hashes of the downloads this swap abandons — read before the
+        # previous target is failed; removed from the client post-commit.
+        abandoned_hashes = Targets.in_flight_hashes_for_unit(unit.id)
 
         # A terminal unit doesn't pivot — a fresh seeking target on a
         # satisfied unit would re-grab something already landed.
@@ -83,13 +87,14 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
                  occurred_at: DateTime.utc_now(:second),
                  target_id: new_target.id
                }) do
-          {:ok, {pursuit, new_target}}
+          {:ok, {pursuit, new_target, abandoned_hashes}}
         end
       end)
 
     case result do
-      {:ok, {updated_pursuit, new_target}} ->
+      {:ok, {updated_pursuit, new_target, abandoned_hashes}} ->
         enqueue_pursue(new_target)
+        ClientCleanup.stop_downloads(updated_pursuit.title, abandoned_hashes)
         {:ok, updated_pursuit}
 
       other ->

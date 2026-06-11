@@ -11,6 +11,23 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTargetTest do
     Oban.Testing.with_testing_mode(:manual, fn -> ChangeTarget.execute(args) end)
   end
 
+  describe "execute/1 — stopping the replaced release's download" do
+    # Swapping a release removes the abandoned attempt's download from
+    # the client, like cancellation (user-settled 2026-06-11).
+
+    test "the replaced release's download is deleted from the client" do
+      MediaCentaur.DownloadClientStubs.setup_qbittorrent_client()
+      MediaCentaur.DownloadClientStubs.forward_deletes_to(self())
+
+      {pursuit, _target} =
+        create_pursuit_with_target(%{status: "acquired", torrent_hash: "0ldrelease0"})
+
+      assert {:ok, %Pursuit{}} = run(%{pursuit_id: pursuit.id})
+
+      assert_receive {:qbit_delete, %{"hashes" => "0ldrelease0", "deleteFiles" => "true"}}
+    end
+  end
+
   describe "execute/1 — unit-scoped pivot (ADR-055 drill-down)" do
     test "pivots only the addressed unit; the sibling's thread is untouched" do
       {pursuit, first_target} =

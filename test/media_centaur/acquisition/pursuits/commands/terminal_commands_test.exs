@@ -171,44 +171,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.TerminalCommandsTest do
     # Client I/O is post-transaction and best-effort: a failure is
     # logged, never blocks the cancel (the orphan zone is the net).
 
-    alias MediaCentaur.Downloads.DownloadClient.QBittorrent
-
-    defp with_qbit_client(test_pid) do
-      config = :persistent_term.get({MediaCentaur.Config, :config})
-
-      :persistent_term.put(
-        {MediaCentaur.Config, :config},
-        Map.merge(config, %{
-          download_client_type: "qbittorrent",
-          download_client_url: "http://qbit.test"
-        })
-      )
-
-      qbit_client = Req.new(plug: {Req.Test, :qbittorrent}, retry: false, base_url: "http://qbit.test")
-      :persistent_term.put({QBittorrent, :client}, qbit_client)
-      Req.Test.stub(:qbittorrent, fn conn -> Req.Test.json(conn, %{}) end)
-
-      ExUnit.Callbacks.on_exit(fn ->
-        :persistent_term.put({MediaCentaur.Config, :config}, config)
-        QBittorrent.invalidate_client()
-      end)
-
-      Req.Test.allow(:qbittorrent, test_pid, self())
-      :ok
-    end
-
     test "cancelling deletes the pursuit's in-flight downloads from the client" do
-      with_qbit_client(self())
-      test_pid = self()
-
-      Req.Test.stub(:qbittorrent, fn conn ->
-        if conn.request_path == "/api/v2/torrents/delete" do
-          {:ok, body, _conn} = Plug.Conn.read_body(conn)
-          send(test_pid, {:qbit_delete, URI.decode_query(body)})
-        end
-
-        Req.Test.json(conn, %{})
-      end)
+      MediaCentaur.DownloadClientStubs.setup_qbittorrent_client()
+      MediaCentaur.DownloadClientStubs.forward_deletes_to(self())
 
       {pursuit, _target} =
         create_pursuit_with_target(%{status: "acquired", torrent_hash: "feedbeef00"})
@@ -221,7 +186,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.TerminalCommandsTest do
     end
 
     test "a never-grabbed target (no hash) sends nothing to the client" do
-      with_qbit_client(self())
+      MediaCentaur.DownloadClientStubs.setup_qbittorrent_client()
       test_pid = self()
 
       Req.Test.stub(:qbittorrent, fn conn ->

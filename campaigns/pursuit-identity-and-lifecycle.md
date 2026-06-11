@@ -97,18 +97,23 @@ which closes the whole pursuit on the *first* verified file).
   post-commit (with data — unwanted content), best-effort and
   driver-neutral via `Acquisition.cancel_download/1`. Pinned by
   `terminal_commands_test.exs` (delete fired, hash-less targets
-  skipped, unconfigured client degrades to no-op). OPEN sibling
-  question: target-level abandonment (`AutoCancel` pivots,
-  `ChangeTarget` swaps) leaves the *old* release\'s download in the
-  client — same orphan-minting shape, needs its own pass.
+  skipped, unconfigured client degrades to no-op). (Target-level
+  abandonment closed below.)
+
+## Decisions made (continued)
+
+* `2026-06-11` — **Implemented: pivots and swaps stop the abandoned
+  download (user-settled: "removal tracks intent, not time").**
+  `AutoCancel` and `ChangeTarget` read the unit\'s covering in-flight
+  hashes before the status flip and remove them from the client
+  post-commit, via the shared `Commands.ClientCleanup` (extracted from
+  `Cancel`). The full removal contract: user cancel, system pivot,
+  user swap, manual orphan removal — and never on success, never for
+  retention, never for items MC didn\'t add.
 
 ## Next steps
 
-1. Target-level abandonment: decide whether `AutoCancel` pivots and
-   `ChangeTarget` swaps should also remove the abandoned release\'s
-   download from the client (same no-orphans rationale as pursuit
-   cancel; needs user confirmation on scope).
-2. Verify on prod with a real multi-release plan after the next
+1. Verify on prod with a real multi-release plan after the next
    release ships.
 
 (2026-06-10 orphaned Orville torrents: cleaned up same day via

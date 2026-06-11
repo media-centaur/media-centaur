@@ -47,11 +47,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition.Jobs.PursueTarget, as: PursueTargetWorker
-  alias MediaCentaur.Acquisition.Pursuits.Commands.Runner
+  alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Runner}
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.{AutoCancelled, TargetChanged}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit, Units}
-  alias MediaCentaur.Acquisition.{Target, TargetStatus}
+  alias MediaCentaur.Acquisition.{Target, Targets, TargetStatus}
   alias MediaCentaur.Repo
 
   @spec execute(map()) ::
@@ -63,6 +63,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
     result =
       Runner.run(id, label, fn pursuit ->
         unit = resolve_unit(pursuit, args)
+        # Hashes of the downloads this pivot abandons — read before the
+        # status flip; removed from the client post-commit.
+        abandoned_hashes = Targets.in_flight_hashes_for_unit(unit.id)
         prior_guid = previous_target_guid(unit)
         cancel_in_flight_targets(unit, reason, now)
 
@@ -75,16 +78,21 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
                  occurred_at: now,
                  reason: Atom.to_string(reason)
                }) do
-          pivot_if_had_target(pursuit, attempted_unit, unit, now)
+          with {:ok, {pivoted, new_target}} <-
+                 pivot_if_had_target(pursuit, attempted_unit, unit, now) do
+            {:ok, {pivoted, new_target, abandoned_hashes}}
+          end
         end
       end)
 
     case result do
-      {:ok, {pivoted, %Target{} = new_target}} ->
+      {:ok, {pivoted, %Target{} = new_target, abandoned_hashes}} ->
         enqueue_pursue(new_target)
+        ClientCleanup.stop_downloads(pivoted.title, abandoned_hashes)
         {:ok, pivoted}
 
-      {:ok, {pivoted, nil}} ->
+      {:ok, {pivoted, nil, abandoned_hashes}} ->
+        ClientCleanup.stop_downloads(pivoted.title, abandoned_hashes)
         {:ok, pivoted}
 
       other ->

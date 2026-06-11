@@ -17,6 +17,37 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancelTest do
     Oban.Testing.with_testing_mode(:manual, fn -> AutoCancel.execute(args) end)
   end
 
+  describe "execute/1 — stopping the dead release's download" do
+    # Pivoting off a dead release removes its download from the client,
+    # like cancellation (user-settled 2026-06-11) — an abandoned
+    # zero-seeders torrent must not linger as an orphan.
+
+    test "the pivoted-away release's download is deleted from the client" do
+      MediaCentaur.DownloadClientStubs.setup_qbittorrent_client()
+      MediaCentaur.DownloadClientStubs.forward_deletes_to(self())
+
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          status: "acquired",
+          release_title: "Sample.Show.S01E01.x264",
+          prowlarr_guid: "dead-release-1",
+          torrent_hash: "deadbeef00"
+        })
+
+      assert {:ok, _pivoted} = run(%{pursuit_id: pursuit.id, reason: :zero_seeders})
+
+      assert_receive {:qbit_delete, %{"hashes" => "deadbeef00", "deleteFiles" => "true"}}
+    end
+
+    test "an unconfigured download client never blocks the pivot" do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{status: "acquired", torrent_hash: "deadbeef00"})
+
+      assert {:ok, pivoted} = run(%{pursuit_id: pursuit.id, reason: :zero_seeders})
+      assert pivoted.state == "active"
+    end
+  end
+
   describe "execute/1 — auto-pivot to fresh search" do
     test "cancels the current target and inserts a fresh seeking target on the same pursuit" do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.acquisition_updates())
