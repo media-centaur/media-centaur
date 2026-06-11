@@ -3,8 +3,8 @@ defmodule MediaCentaurWeb.SettingsLiveUpdateToastTest do
   During a self-update reboot the WebSocket drops, and by then the server is
   already dead — so it can't relabel the disconnect toast. Instead the
   LiveView pushes a lifecycle flag to the client *before* the reboot, so the
-  client can swap the scary red "Not connected to server" toast for a calm
-  "Applying update" one.
+  client can swap the scary red "Media Centaur isn't responding" toast for a
+  calm "Applying update" one.
 
   These tests pin the server side of that contract: the LiveView pushes
   `mc:update:applying` while an update is in flight and `mc:update:aborted`

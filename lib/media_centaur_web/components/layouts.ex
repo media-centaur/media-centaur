@@ -238,18 +238,23 @@ defmodule MediaCentaurWeb.Layouts do
       <.flash kind={:error} flash={@flash} />
 
       <%!--
-        Disconnect toasts. During a self-update reboot the WebSocket drops
-        like any other disconnect, but it is expected — not an error. The
-        LiveView sets `data-update-applying` on <html> while an update is in
-        flight (see SettingsLive + app.js), so we suppress the red "not
-        connected" toasts and show the calm "Applying update" one instead.
-        The `html:not([data-update-applying])` / `html[data-update-applying]`
+        Disconnect toasts, in desktop-app voice: Media Centaur is a local
+        app, not a website — the UI losing its backing service means the
+        service is restarting, the machine just woke, or it was stopped.
+        Never speak of "the internet", "the server", or "a connection".
+
+        During a self-update reboot the WebSocket drops like any other
+        disconnect, but it is expected — not an error. The LiveView sets
+        `data-update-applying` on <html> while an update is in flight (see
+        SettingsLive + app.js), so we suppress the red isn't-responding
+        toasts and show the calm "Applying update" one instead. The
+        `html:not([data-update-applying])` / `html[data-update-applying]`
         selectors gate which toast `show/1` actually un-hides on disconnect.
       --%>
       <.flash
         id="client-error"
         kind={:error}
-        title={gettext("We can't find the internet")}
+        title={gettext("Media Centaur isn't responding")}
         phx-disconnected={
           show("html:not([data-update-applying]) .phx-client-error #client-error")
           |> JS.remove_attribute("hidden")
@@ -257,14 +262,14 @@ defmodule MediaCentaurWeb.Layouts do
         phx-connected={hide("#client-error") |> JS.set_attribute({"hidden", ""})}
         hidden
       >
-        {gettext("Attempting to reconnect")}
+        {gettext("It may be restarting — resuming automatically")}
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
 
       <.flash
         id="server-error"
         kind={:error}
-        title={gettext("Not connected to server.")}
+        title={gettext("Something went wrong")}
         phx-disconnected={
           show("html:not([data-update-applying]) .phx-server-error #server-error")
           |> JS.remove_attribute("hidden")
@@ -272,7 +277,7 @@ defmodule MediaCentaurWeb.Layouts do
         phx-connected={hide("#server-error") |> JS.set_attribute({"hidden", ""})}
         hidden
       >
-        {gettext("Attempting to reconnect.")}
+        {gettext("Recovering automatically")}
         <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
       </.flash>
 
