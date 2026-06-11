@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.89.0 — 2026-06-12
+
+### Improved
+
+- **A simpler sidebar.** Watch History no longer has its own sidebar entry — the Watch group is now just Home, Library, and Upcoming. The history page itself is unchanged (heatmap, stats, search, and entry removal all still there): open it via the new **View full watch history** link on the Status page's Playback panel, or go to `/history` directly.
+
 ## v0.88.9 — 2026-06-12
 
 ### New
