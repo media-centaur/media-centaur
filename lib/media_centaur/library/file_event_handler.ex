@@ -6,9 +6,9 @@ defmodule MediaCentaur.Library.FileEventHandler do
   - **PubSub** (`{:files_removed, paths}`): triggered by inotify deletions
     or TTL expiration in `Library.AbsenceSweeper`. Spawns a task to run the
     cleanup cascade.
-  - **Direct** (`delete_file/1`, `delete_folder/2`): called from LiveView
-    for user-initiated deletions. Deletes from disk, then runs the same
-    cleanup cascade.
+  - **Direct** (`delete_file/1`, `delete_files/1`, `delete_folder/2`):
+    called from LiveView for user-initiated deletions. Deletes from disk,
+    then runs the same cleanup cascade — once per call, not per file.
 
   The cleanup cascade groups removed files by entity, deletes matching
   child records (episodes, movies, extras, images), and cascades to full
@@ -40,19 +40,44 @@ defmodule MediaCentaur.Library.FileEventHandler do
   still runs to remove DB records.
   """
   @spec delete_file(String.t()) :: {:ok, [String.t()]} | {:error, atom()}
-  def delete_file(file_path) do
-    case File.rm(file_path) do
-      :ok ->
-        Log.info(:library, "deleted file — #{file_path}")
-        cleanup_and_broadcast([file_path])
+  def delete_file(file_path), do: delete_files([file_path])
 
-      {:error, :enoent} ->
-        Log.info(:library, "cleaned up records — file already absent: #{file_path}")
-        cleanup_and_broadcast([file_path])
+  @doc """
+  Deletes a batch of files from disk and cleans up their library records
+  in **one** pass — a single cleanup cascade and a single
+  `entities_changed` broadcast for the whole batch, instead of paying the
+  per-file cascade N times (the cost that made multi-file deletes hold
+  the UI's "Deleting…" state for seconds).
 
-      {:error, reason} ->
-        Log.warning(:library, "failed to delete file — #{file_path}: #{reason}")
-        {:error, reason}
+  Per-file `:enoent` is treated as success — the records still need
+  cleaning. Any other rm failure leaves that file out of the cleanup and
+  fails the batch with the first failure's reason, **after** the rest of
+  the batch has been deleted and cleaned.
+  """
+  @spec delete_files([String.t()]) :: {:ok, [String.t()]} | {:error, atom()}
+  def delete_files(file_paths) do
+    {removed_paths, failures} =
+      Enum.reduce(file_paths, {[], []}, fn file_path, {removed, failed} ->
+        case File.rm(file_path) do
+          :ok ->
+            Log.info(:library, "deleted file — #{file_path}")
+            {[file_path | removed], failed}
+
+          {:error, :enoent} ->
+            Log.info(:library, "cleaned up records — file already absent: #{file_path}")
+            {[file_path | removed], failed}
+
+          {:error, reason} ->
+            Log.warning(:library, "failed to delete file — #{file_path}: #{reason}")
+            {removed, [reason | failed]}
+        end
+      end)
+
+    {:ok, entity_ids} = cleanup_and_broadcast(Enum.reverse(removed_paths))
+
+    case Enum.reverse(failures) do
+      [] -> {:ok, entity_ids}
+      [first_reason | _rest] -> {:error, first_reason}
     end
   end
 
