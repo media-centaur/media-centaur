@@ -141,4 +141,48 @@ defmodule MediaCentaur.Acquisition.Pursuits.EventsTest do
       assert Enum.sort(registered_kinds) == Enum.sort(Event.kinds())
     end
   end
+
+  describe "prune/1" do
+    test "deletes events that occurred before the cutoff and keeps the rest" do
+      pursuit = insert_pursuit()
+      now = DateTime.utc_now(:second)
+
+      {:ok, _} =
+        Events.record(%PursuitStarted{
+          pursuit_id: pursuit.id,
+          pursuit_title: "Sample Movie",
+          occurred_at: DateTime.add(now, -100 * 24 * 3600, :second),
+          origin: "auto"
+        })
+
+      {:ok, _} =
+        Events.record(%PursuitStarted{
+          pursuit_id: pursuit.id,
+          pursuit_title: "Sample Movie",
+          occurred_at: now,
+          origin: "auto"
+        })
+
+      cutoff = DateTime.add(now, -90 * 24 * 3600, :second)
+
+      assert Events.prune(cutoff) == 1
+      assert Repo.aggregate(Event, :count) == 1
+    end
+
+    test "is a no-op when every event is newer than the cutoff" do
+      pursuit = insert_pursuit()
+      now = DateTime.utc_now(:second)
+
+      {:ok, _} =
+        Events.record(%PursuitStarted{
+          pursuit_id: pursuit.id,
+          pursuit_title: "Sample Movie",
+          occurred_at: now,
+          origin: "auto"
+        })
+
+      assert Events.prune(DateTime.add(now, -90 * 24 * 3600, :second)) == 0
+      assert Repo.aggregate(Event, :count) == 1
+    end
+  end
 end

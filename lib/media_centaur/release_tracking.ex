@@ -1,6 +1,12 @@
 defmodule MediaCentaur.ReleaseTracking do
   use Boundary,
-    deps: [MediaCentaur.TMDB, MediaCentaur.Library, MediaCentaur.Search, MediaCentaur.Settings],
+    deps: [
+      MediaCentaur.TMDB,
+      MediaCentaur.Library,
+      MediaCentaur.Retention,
+      MediaCentaur.Search,
+      MediaCentaur.Settings
+    ],
     exports: [
       Item,
       Release,
@@ -77,6 +83,40 @@ defmodule MediaCentaur.ReleaseTracking do
 
   def get_item(id), do: Repo.get(Item, id)
 
+  @doc """
+  Nils the `(library_container_type, library_container_id)` link on every
+  item pointing at one of `container_ids`. Returns the number of items
+  detached.
+
+  Called when a library container is cascade-destroyed (the Refresher
+  reacts to `:containers_deleted`): the container reference has no FK, so
+  without this the item would dangle against a deleted UUID forever.
+  Tracking itself is intentionally kept — the user still follows the
+  title, and auto-tracking re-links the item if the entity returns.
+  """
+  @spec detach_library_containers([Ecto.UUID.t()]) :: non_neg_integer()
+  def detach_library_containers([]), do: 0
+
+  def detach_library_containers(container_ids) when is_list(container_ids) do
+    item_ids =
+      Repo.all(from(i in Item, where: i.library_container_id in ^container_ids, select: i.id))
+
+    case item_ids do
+      [] ->
+        0
+
+      item_ids ->
+        {count, _} =
+          Repo.update_all(
+            from(i in Item, where: i.id in ^item_ids),
+            set: [library_container_id: nil, library_container_type: nil]
+          )
+
+        broadcast_releases_updated(item_ids)
+        count
+    end
+  end
+
   def get_item_by_tmdb(tmdb_id, media_type) do
     Repo.get_by(Item, tmdb_id: tmdb_id, media_type: media_type)
   end
@@ -86,6 +126,7 @@ defmodule MediaCentaur.ReleaseTracking do
     tmdb_id = to_string(item.tmdb_id)
     tmdb_type = tmdb_type_for(item.media_type)
     result = Repo.delete(item)
+    ImageStore.delete_images(item.tmdb_id)
     broadcast_releases_updated([item_id])
     broadcast_item_removed(tmdb_id, tmdb_type)
     result
@@ -597,6 +638,50 @@ defmodule MediaCentaur.ReleaseTracking do
         limit: ^limit
       )
     )
+  end
+
+  @doc """
+  Deletes tracking events inserted before `cutoff`. Returns the number of
+  rows removed. Used by the retention sweep — events intentionally outlive
+  their item (`on_delete: :nilify_all`), so the time window is the only
+  thing bounding this log.
+  """
+  @spec prune_events(DateTime.t()) :: non_neg_integer()
+  def prune_events(%DateTime{} = cutoff) do
+    {count, _} = Repo.delete_all(from(e in Event, where: e.inserted_at < ^cutoff))
+    count
+  end
+
+  @doc """
+  Removes `images/tracking/{tmdb_id}/` directories that no longer belong
+  to any tracking item. Returns the number of directories removed. Cleans
+  up artwork orphaned before `delete_item/1` learned to remove it, plus
+  anything left behind by interrupted deletes. No-ops without a
+  configured `data_dir`.
+  """
+  @spec sweep_orphaned_artwork() :: non_neg_integer()
+  def sweep_orphaned_artwork do
+    case ImageStore.tracking_root() do
+      nil ->
+        0
+
+      root ->
+        known_ids = MapSet.new(Repo.all(from(i in Item, select: i.tmdb_id)), &to_string/1)
+
+        root
+        |> list_artwork_dirs()
+        |> Enum.reject(&MapSet.member?(known_ids, &1))
+        |> Enum.count(fn orphan_id ->
+          match?({:ok, _}, File.rm_rf(Path.join(root, orphan_id)))
+        end)
+    end
+  end
+
+  defp list_artwork_dirs(root) do
+    case File.ls(root) do
+      {:ok, entries} -> Enum.filter(entries, &File.dir?(Path.join(root, &1)))
+      {:error, _} -> []
+    end
   end
 
   # --- Bulk operations ---

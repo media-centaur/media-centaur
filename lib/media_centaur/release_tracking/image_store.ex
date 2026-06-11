@@ -112,6 +112,33 @@ defmodule MediaCentaur.ReleaseTracking.ImageStore do
     end
   end
 
+  @doc """
+  Removes every downloaded image for `tmdb_id` (the whole
+  `images/tracking/{tmdb_id}/` directory). Best-effort: a missing
+  directory or failed remove is `:ok` — the caller is deleting the item
+  either way.
+  """
+  @spec delete_images(integer() | String.t()) :: :ok
+  def delete_images(tmdb_id) do
+    [data_dir(), @tracking_subdir, to_string(tmdb_id)]
+    |> Path.join()
+    |> File.rm_rf()
+
+    :ok
+  end
+
+  @doc """
+  The absolute `images/tracking/` root, or `nil` when no `data_dir` is
+  configured (the orphan sweep must not walk a cwd-relative fallback).
+  """
+  @spec tracking_root() :: String.t() | nil
+  def tracking_root do
+    case Config.get(:data_dir) do
+      nil -> nil
+      data_dir -> Path.join(data_dir, @tracking_subdir)
+    end
+  end
+
   defp download_role(_tmdb_id, nil, _role, _url_prefix, _filename), do: {:ok, nil}
 
   defp download_role(tmdb_id, tmdb_path, role, url_prefix, filename) when is_binary(tmdb_path) do

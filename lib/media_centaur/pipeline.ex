@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Pipeline do
   use Boundary,
-    deps: [MediaCentaur.TMDB, MediaCentaur.Library, MediaCentaur.Watcher],
+    deps: [MediaCentaur.TMDB, MediaCentaur.Library, MediaCentaur.Retention, MediaCentaur.Watcher],
     exports: [
       Discovery,
       Image.Stats,

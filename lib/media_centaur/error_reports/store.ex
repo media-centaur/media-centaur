@@ -69,6 +69,22 @@ defmodule MediaCentaur.ErrorReports.Store do
     count
   end
 
+  @doc """
+  Deletes `:resolved` incidents whose `resolved_at` is before `cutoff`.
+  Returns the number of rows removed. Open and acknowledged incidents are
+  never touched — only resolution makes an incident eligible for retention,
+  and the window gives the user time to revisit it.
+  """
+  @spec prune_resolved_incidents(DateTime.t()) :: non_neg_integer()
+  def prune_resolved_incidents(%DateTime{} = cutoff) do
+    {count, _} =
+      Incident
+      |> where([incident], incident.status == :resolved and incident.resolved_at < ^cutoff)
+      |> Repo.delete_all()
+
+    count
+  end
+
   # --- Incidents ---
 
   @doc """

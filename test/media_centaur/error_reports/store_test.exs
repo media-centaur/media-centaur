@@ -467,4 +467,48 @@ defmodule MediaCentaur.ErrorReports.StoreTest do
       assert Repo.get!(Incident, incident.id).resolved_at == resolved_first
     end
   end
+
+  describe "prune_resolved_incidents/1" do
+    test "deletes incidents resolved before the cutoff" do
+      {:ok, incident} =
+        Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_old_resolved"))
+
+      {:ok, _} = Store.set_status(incident, :resolved)
+
+      future_cutoff = DateTime.add(DateTime.utc_now(), 60, :second)
+
+      assert Store.prune_resolved_incidents(future_cutoff) == 1
+      assert Store.get_incident_by_fingerprint("fp_old_resolved") == nil
+    end
+
+    test "keeps recently-resolved, open, and acknowledged incidents" do
+      {:ok, resolved} =
+        Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_fresh_resolved"))
+
+      {:ok, _} = Store.set_status(resolved, :resolved)
+
+      {:ok, _open} = Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_open"))
+
+      {:ok, acknowledged} =
+        Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_acked"))
+
+      {:ok, _} = Store.set_status(acknowledged, :acknowledged)
+
+      past_cutoff = DateTime.add(DateTime.utc_now(), -3600, :second)
+
+      assert Store.prune_resolved_incidents(past_cutoff) == 0
+      assert Store.get_incident_by_fingerprint("fp_fresh_resolved")
+      assert Store.get_incident_by_fingerprint("fp_open")
+      assert Store.get_incident_by_fingerprint("fp_acked")
+    end
+
+    test "never deletes open or acknowledged incidents, even past the cutoff" do
+      {:ok, _open} = Store.upsert_log_incident(build_log_incident_attrs(fingerprint: "fp_open2"))
+
+      future_cutoff = DateTime.add(DateTime.utc_now(), 60, :second)
+
+      assert Store.prune_resolved_incidents(future_cutoff) == 0
+      assert Store.get_incident_by_fingerprint("fp_open2")
+    end
+  end
 end

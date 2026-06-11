@@ -1178,4 +1178,121 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       assert ReleaseTracking.tmdb_type_for(:movie) == "movie"
     end
   end
+
+  describe "prune_events/1" do
+    test "deletes events inserted before the cutoff" do
+      item = create_tracking_item()
+
+      ReleaseTracking.create_event!(%{
+        item_id: item.id,
+        item_name: item.name,
+        event_type: :began_tracking,
+        description: "Old enough to prune"
+      })
+
+      future_cutoff = DateTime.add(DateTime.utc_now(), 60, :second)
+
+      assert ReleaseTracking.prune_events(future_cutoff) == 1
+      assert ReleaseTracking.list_recent_events(10) == []
+    end
+
+    test "keeps events newer than the cutoff" do
+      item = create_tracking_item()
+
+      ReleaseTracking.create_event!(%{
+        item_id: item.id,
+        item_name: item.name,
+        event_type: :began_tracking,
+        description: "Fresh"
+      })
+
+      past_cutoff = DateTime.add(DateTime.utc_now(), -90 * 24 * 3600, :second)
+
+      assert ReleaseTracking.prune_events(past_cutoff) == 0
+      assert [_event] = ReleaseTracking.list_recent_events(10)
+    end
+  end
+
+  describe "detach_library_containers/1" do
+    test "nils the container link on matching items and keeps tracking alive" do
+      container_id = Ecto.UUID.generate()
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: 6161,
+          media_type: :tv_series,
+          library_container_type: :tv_series,
+          library_container_id: container_id
+        })
+
+      assert ReleaseTracking.detach_library_containers([container_id]) == 1
+
+      detached = ReleaseTracking.get_item(item.id)
+      assert detached.library_container_id == nil
+      assert detached.library_container_type == nil
+      assert detached.status == item.status
+    end
+
+    test "leaves items linked to other containers untouched" do
+      other_container_id = Ecto.UUID.generate()
+
+      item =
+        create_tracking_item(%{
+          tmdb_id: 6262,
+          media_type: :tv_series,
+          library_container_type: :tv_series,
+          library_container_id: other_container_id
+        })
+
+      assert ReleaseTracking.detach_library_containers([Ecto.UUID.generate()]) == 0
+      assert ReleaseTracking.get_item(item.id).library_container_id == other_container_id
+    end
+  end
+
+  describe "tracking artwork cleanup" do
+    defp put_tmp_data_dir do
+      data_dir =
+        Path.join(System.tmp_dir!(), "rt_artwork_#{System.unique_integer([:positive])}")
+
+      File.mkdir_p!(data_dir)
+      config = :persistent_term.get({MediaCentaur.Config, :config})
+      :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, :data_dir, data_dir))
+      on_exit(fn -> File.rm_rf!(data_dir) end)
+      data_dir
+    end
+
+    defp seed_artwork_dir(data_dir, tmdb_id) do
+      dir = Path.join([data_dir, "images", "tracking", to_string(tmdb_id)])
+      File.mkdir_p!(dir)
+      File.write!(Path.join(dir, "poster.jpg"), "jpg")
+      dir
+    end
+
+    test "delete_item/1 removes the item's artwork directory from disk" do
+      data_dir = put_tmp_data_dir()
+      item = create_tracking_item(%{tmdb_id: 4242})
+      artwork_dir = seed_artwork_dir(data_dir, item.tmdb_id)
+
+      assert {:ok, _} = ReleaseTracking.delete_item(item)
+      refute File.dir?(artwork_dir)
+    end
+
+    test "sweep_orphaned_artwork/0 removes directories with no tracking item and keeps the rest" do
+      data_dir = put_tmp_data_dir()
+      item = create_tracking_item(%{tmdb_id: 5151})
+      kept_dir = seed_artwork_dir(data_dir, item.tmdb_id)
+      orphan_dir = seed_artwork_dir(data_dir, 999_999)
+
+      assert ReleaseTracking.sweep_orphaned_artwork() == 1
+      assert File.dir?(kept_dir)
+      refute File.dir?(orphan_dir)
+    end
+
+    test "sweep_orphaned_artwork/0 returns 0 when no data_dir is configured" do
+      config = :persistent_term.get({MediaCentaur.Config, :config})
+      :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, :data_dir, nil))
+
+      assert ReleaseTracking.sweep_orphaned_artwork() == 0
+    end
+  end
 end

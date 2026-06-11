@@ -164,4 +164,42 @@ defmodule MediaCentaur.Pipeline.ImageQueueTest do
       assert ImageQueue.mark_failed_batch([]) == {0, nil}
     end
   end
+
+  describe "prune/2" do
+    test "deletes complete entries past the completed cutoff and keeps fresh pending ones" do
+      {:ok, complete} = ImageQueue.create(queue_attrs(%{role: "poster"}))
+      {:ok, _} = ImageQueue.update_status(complete, :complete)
+      {:ok, pending} = ImageQueue.create(queue_attrs(%{role: "backdrop"}))
+
+      future_completed_cutoff = DateTime.add(DateTime.utc_now(), 60, :second)
+      distant_stale_cutoff = DateTime.add(DateTime.utc_now(), -30 * 24 * 3600, :second)
+
+      assert ImageQueue.prune(future_completed_cutoff, distant_stale_cutoff) == 1
+      assert Repo.get(MediaCentaur.Pipeline.ImageQueueEntry, complete.id) == nil
+      assert Repo.get!(MediaCentaur.Pipeline.ImageQueueEntry, pending.id)
+    end
+
+    test "deletes entries of any status not touched since the stale cutoff" do
+      {:ok, abandoned_pending} = ImageQueue.create(queue_attrs(%{role: "poster"}))
+
+      future_stale_cutoff = DateTime.add(DateTime.utc_now(), 60, :second)
+      distant_completed_cutoff = DateTime.add(DateTime.utc_now(), -7 * 24 * 3600, :second)
+
+      assert ImageQueue.prune(distant_completed_cutoff, future_stale_cutoff) == 1
+      assert Repo.get(MediaCentaur.Pipeline.ImageQueueEntry, abandoned_pending.id) == nil
+    end
+
+    test "keeps recently-touched entries of every status" do
+      {:ok, pending} = ImageQueue.create(queue_attrs(%{role: "poster"}))
+      {:ok, failed} = ImageQueue.create(queue_attrs(%{role: "backdrop"}))
+      {:ok, _} = ImageQueue.mark_failed(failed)
+
+      completed_cutoff = DateTime.add(DateTime.utc_now(), -7 * 24 * 3600, :second)
+      stale_cutoff = DateTime.add(DateTime.utc_now(), -30 * 24 * 3600, :second)
+
+      assert ImageQueue.prune(completed_cutoff, stale_cutoff) == 0
+      assert Repo.get!(MediaCentaur.Pipeline.ImageQueueEntry, pending.id)
+      assert Repo.get!(MediaCentaur.Pipeline.ImageQueueEntry, failed.id)
+    end
+  end
 end

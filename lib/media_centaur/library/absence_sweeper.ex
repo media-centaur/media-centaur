@@ -143,6 +143,10 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
       )
     end
 
+    # Recorded even for zero purges — "last checked" on the Status page's
+    # retention panel should reflect every TTL check, not just hits.
+    MediaCentaur.Retention.record_run(:absent_files, length(expired_paths))
+
     {length(expired_paths), expired_paths}
   end
 

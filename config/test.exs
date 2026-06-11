@@ -57,6 +57,14 @@ config :media_centaur, :start_pipeline, false
 # test that subscribes to playback events.
 config :media_centaur, :start_playback_recovery, false
 config :media_centaur, :start_watchers, false
+
+# The retention sweep's staging policy walks this root with File.rm_rf —
+# point it away from the real ~/.cache so tests can never touch live
+# upgrade-staging dirs (ADR-016 filesystem isolation).
+config :media_centaur,
+       :upgrade_staging_root,
+       Path.join(System.tmp_dir!(), "media-centaur-test-upgrade-staging")
+
 config :media_centaur, :watch_dirs, []
 
 # Initialize plugs at runtime for faster test compilation

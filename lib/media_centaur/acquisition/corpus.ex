@@ -176,11 +176,19 @@ defmodule MediaCentaur.Acquisition.Corpus do
   def prune_stale! do
     cutoff = DateTime.add(DateTime.utc_now(:second), -@retention_days * 86_400, :second)
 
-    Repo.delete_all(from(c in Candidate, where: c.last_seen_at < ^cutoff))
-    Repo.delete_all(from(s in SearchRecord, where: s.last_searched_at < ^cutoff))
+    {candidate_count, _} = Repo.delete_all(from(c in Candidate, where: c.last_seen_at < ^cutoff))
+
+    {search_count, _} =
+      Repo.delete_all(from(s in SearchRecord, where: s.last_searched_at < ^cutoff))
+
+    MediaCentaur.Retention.record_run(:search_corpus, candidate_count + search_count)
 
     :ok
   end
+
+  @doc "The corpus retention window in days — surfaced on the Status page."
+  @spec retention_days() :: pos_integer()
+  def retention_days, do: @retention_days
 
   # Quality atoms are a closed two-value set (`Search.Quality.t()`) —
   # explicit clauses both ways so a bad row can never mint an atom.

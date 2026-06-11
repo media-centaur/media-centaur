@@ -331,11 +331,7 @@ defmodule MediaCentaur.SelfUpdate.Updater do
     Path.join(root, "#{version}-#{unique}")
   end
 
-  defp default_staging_root do
-    Path.join([user_home(), ".cache", "media-centaur", "upgrade-staging"])
-  end
-
-  defp user_home, do: System.user_home!()
+  defp default_staging_root, do: MediaCentaur.SelfUpdate.StagingSweep.default_root()
 
   # Best-effort cleanup of a staging dir on cancel. If the path doesn't
   # exist or the remove fails, that's fine — `Stager.extract/3` creates

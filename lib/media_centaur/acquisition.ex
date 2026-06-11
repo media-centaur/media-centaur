@@ -5,6 +5,7 @@ defmodule MediaCentaur.Acquisition do
       MediaCentaur.Downloads,
       MediaCentaur.Library,
       MediaCentaur.ReleaseTracking,
+      MediaCentaur.Retention,
       MediaCentaur.Review,
       MediaCentaur.Search,
       MediaCentaur.Settings,

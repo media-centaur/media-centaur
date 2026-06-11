@@ -17,6 +17,7 @@ defmodule MediaCentaur.Topics do
   | Topic | Owner | Carries |
   |-------|-------|---------|
   | `library:updates` | `Library` | `{:entities_changed, %EntitiesChanged{}}` |
+  | `library:deletions` | `Library` | `{:containers_deleted, %ContainersDeleted{}}` |
   | `library:commands` | `Library` | external write commands |
   | `library:file_events` | `Library` | per-file lifecycle |
   | `library:watch_completed` | `Library` | end-of-watch markers |
@@ -79,6 +80,7 @@ defmodule MediaCentaur.Topics do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   def library_updates, do: "library:updates"
+  def library_deletions, do: "library:deletions"
   def library_commands, do: "library:commands"
   def library_file_events, do: "library:file_events"
   def library_watch_completed, do: "library:watch_completed"
