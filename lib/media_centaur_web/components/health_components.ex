@@ -7,6 +7,8 @@ defmodule MediaCentaurWeb.HealthComponents do
   """
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.RetentionPanel, only: [retention_panel: 1]
+
   alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaurWeb.StatusLive.HealthBoard
   alias MediaCentaurWeb.StatusLive.SubsystemView
@@ -98,9 +100,13 @@ defmodule MediaCentaurWeb.HealthComponents do
     """
   end
 
-  @doc "Inline stacked drill-in for one subsystem: Summary → Activity → Issues → collapsed Logs."
+  @doc """
+  Inline stacked drill-in for one subsystem: Summary → Activity → Issues →
+  Data retention → collapsed Logs.
+  """
   attr :view, SubsystemView, required: true
   attr :buckets, :list, required: true, doc: "[Bucket.t()] for this subsystem"
+  attr :retention, :list, default: [], doc: "[Retention.PolicyStatus.t()] for this subsystem"
   attr :on_select, :string, default: "select_incident"
   attr :on_dismiss, :string, default: "dismiss_incident"
   attr :on_dismiss_all, :string, default: "dismiss_all"
@@ -140,6 +146,8 @@ defmodule MediaCentaurWeb.HealthComponents do
         />
       </div>
       <p :if={@buckets == []} class="text-sm text-base-content/55">No issues for this subsystem.</p>
+
+      <.retention_panel :if={@retention != []} policies={@retention} />
 
       <details class="glass-inset rounded-lg">
         <summary class="cursor-pointer select-none px-3 py-2 text-sm text-base-content/60">

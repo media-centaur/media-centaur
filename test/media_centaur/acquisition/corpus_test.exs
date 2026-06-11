@@ -155,6 +155,19 @@ defmodule MediaCentaur.Acquisition.CorpusTest do
       refute Corpus.fresh?("Old Query", [])
       assert [%{guid: "guid-recent"}] = Corpus.candidates_for("Recent Query", [])
     end
+
+    test "records its run for the Status page's retention panel" do
+      Corpus.record!("Old Query", [], [result("guid-old")])
+      age_search!("Old Query", [], days_ago: 15)
+
+      Corpus.prune_stale!()
+
+      assert %{pruned_last_run: pruned, last_ran_at: %DateTime{}} =
+               MediaCentaur.Retention.get_run(:search_corpus)
+
+      # one stale candidate + one stale search record
+      assert pruned == 2
+    end
   end
 
   # Backdates a corpus search row (and its candidates' last_seen_at) so

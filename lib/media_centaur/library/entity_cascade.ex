@@ -31,6 +31,9 @@ defmodule MediaCentaur.Library.EntityCascade do
       directly when the watcher reports the file gone; `Rematch` converts
       them to PendingFiles before invoking the cascade so the user can
       re-link them.
+    * Cross-context references (release tracking's `library_container_id`)
+      — the cascade broadcasts `%Events.ContainersDeleted{}` on
+      `library:deletions` and interested contexts clean up their own rows.
 
   Cascade of WatchedFile/WatchProgress through the PlayableItem deletion
   is a DB-level effect (FK `on_delete: :delete_all`), not an Ecto-level
@@ -43,7 +46,17 @@ defmodule MediaCentaur.Library.EntityCascade do
 
   alias MediaCentaur.{Config, Format, Repo}
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{ChangeLog, Extra, ExternalId, Image, PlayableItem, TypeResolver}
+
+  alias MediaCentaur.Library.{
+    ChangeLog,
+    Events,
+    Extra,
+    ExternalId,
+    Image,
+    MediaTrackOverride,
+    PlayableItem,
+    TypeResolver
+  }
 
   @doc """
   Destroys a container UUID and its full subtree of children + supporting
@@ -60,6 +73,8 @@ defmodule MediaCentaur.Library.EntityCascade do
 
     destroy_children!(record, entity_type)
     destroy_record!(record, entity_type)
+
+    Events.broadcast(%Events.ContainersDeleted{container_ids: [entity_id]})
 
     Log.info(
       :library,
@@ -155,6 +170,7 @@ defmodule MediaCentaur.Library.EntityCascade do
     delete_images(loaded_assoc(record, :images))
     delete_polymorphic(Extra, owner_type, record.id)
     delete_polymorphic(ExternalId, owner_type, record.id)
+    delete_polymorphic(MediaTrackOverride, owner_type, record.id)
   end
 
   defp loaded_assoc(record, key) do

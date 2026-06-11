@@ -1,7 +1,7 @@
 defmodule MediaCentaur.SelfUpdate do
   use Boundary,
-    deps: [MediaCentaur.Settings],
-    exports: [Changelog, UpdateChecker]
+    deps: [MediaCentaur.Retention, MediaCentaur.Settings],
+    exports: [Changelog, StagingSweep, UpdateChecker]
 
   @moduledoc """
   In-app release check + self-update for Media Centaur.

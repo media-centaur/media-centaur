@@ -121,4 +121,21 @@ defmodule MediaCentaur.Acquisition.Pursuits.Events do
   """
   @spec event?(module()) :: boolean()
   def event?(module) when is_atom(module), do: module in @event_modules
+
+  @doc """
+  Deletes pursuit events that occurred before `cutoff`. Returns the number
+  of rows removed. Used by the retention sweep — the pursuit ledger itself
+  is kept; only its per-transition event log is bounded.
+  """
+  @spec prune(DateTime.t()) :: non_neg_integer()
+  def prune(%DateTime{} = cutoff) do
+    import Ecto.Query, only: [where: 3]
+
+    {count, _} =
+      Event
+      |> where([event], event.occurred_at < ^cutoff)
+      |> Repo.delete_all()
+
+    count
+  end
 end

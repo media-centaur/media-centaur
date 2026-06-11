@@ -1,6 +1,6 @@
 defmodule MediaCentaur.WatchHistory do
   use Boundary,
-    deps: [MediaCentaur.Library],
+    deps: [MediaCentaur.Library, MediaCentaur.Retention],
     exports: [Event, Views, Views.PlaybackActivity, Views.Summary, Views.SummaryData]
 
   @moduledoc """

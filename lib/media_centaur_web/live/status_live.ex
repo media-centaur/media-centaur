@@ -85,6 +85,7 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(playback_activity: PlaybackActivity.snapshot())
         |> assign(system_vitals: Vitals.snapshot())
         |> assign(acquisition_activity: build_acquisition_activity())
+        |> assign(retention_by_subsystem: MediaCentaur.Retention.status_by_subsystem())
         |> assign(diagnostics_unseen: 0)
         |> assign_self_update()
         |> start_async_storage()
@@ -105,6 +106,7 @@ defmodule MediaCentaurWeb.StatusLive do
         |> assign(playback_activity: PlaybackActivity.empty())
         |> assign(system_vitals: empty_system_vitals())
         |> assign(acquisition_activity: empty_acquisition_activity())
+        |> assign(retention_by_subsystem: %{})
       end
 
     {:ok,
@@ -629,6 +631,7 @@ defmodule MediaCentaurWeb.StatusLive do
             :if={@selected_subsystem}
             view={drill_in_view(@board, @selected_subsystem)}
             buckets={drill_in_buckets(@error_buckets, @selected_subsystem)}
+            retention={Map.get(@retention_by_subsystem, @selected_subsystem, [])}
             on_select="select_incident"
           >
             <:activity :if={ActivityWidgets.widget_for(@selected_subsystem)}>

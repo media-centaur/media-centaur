@@ -58,6 +58,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   @impl true
   def init(_opts) do
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_deletions())
     schedule_sweep(RefreshSchedule.next_delay_ms(last_swept_at(), sweep_interval_ms()))
     schedule_refresh(RefreshSchedule.next_delay_ms(last_refresh_completed_at(), refresh_interval_ms()))
     {:ok, %{}}
@@ -82,6 +83,12 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     update_last_episodes_for(entity_ids)
     auto_track_new_entities(entity_ids)
     ReleaseTracking.complete_movie_tracking_for(entity_ids)
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info({:containers_deleted, %{container_ids: container_ids}}, state) do
+    ReleaseTracking.detach_library_containers(container_ids)
     {:noreply, state}
   end
 

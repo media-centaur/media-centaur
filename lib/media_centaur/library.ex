@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Library do
   use Boundary,
-    deps: [MediaCentaur.Subtitles],
+    deps: [MediaCentaur.Retention, MediaCentaur.Subtitles],
     exports: [
       AbsenceSweeper,
       Availability,
@@ -1173,10 +1173,31 @@ defmodule MediaCentaur.Library do
   def create_image!(attrs), do: Repo.bang!(create_image(attrs))
 
   def upsert_image(attrs, conflict_target) do
-    Repo.insert(Image.create_changeset(translate_image_owner(attrs)),
+    attrs = translate_image_owner(attrs)
+    delete_replaced_image_file(attrs, conflict_target)
+
+    Repo.insert(Image.create_changeset(attrs),
       on_conflict: {:replace, [:content_url, :extension, :updated_at]},
       conflict_target: conflict_target
     )
+  end
+
+  # Image paths are deterministic (`{owner_id}/{role}.{extension}`), so a
+  # re-download normally overwrites in place — but when the extension
+  # changes (poster.jpg → poster.png) the upsert re-points `content_url`
+  # and the old file would linger on disk forever. Remove it before the
+  # row is replaced, while we can still see the old path.
+  defp delete_replaced_image_file(attrs, conflict_target) when is_list(conflict_target) do
+    lookup = Enum.map(conflict_target, fn key -> {key, Map.get(attrs, key)} end)
+
+    with false <- Enum.any?(lookup, fn {_key, value} -> is_nil(value) end),
+         %Image{content_url: old_url} when is_binary(old_url) <- Repo.get_by(Image, lookup),
+         new_url when new_url != old_url <- Map.get(attrs, :content_url),
+         old_path when is_binary(old_path) <- MediaCentaur.Config.resolve_image_path(old_url) do
+      File.rm(old_path)
+    else
+      _no_replaced_file -> :ok
+    end
   end
 
   # Legacy per-type FK shape kept for callers and tests written before

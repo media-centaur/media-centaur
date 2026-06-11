@@ -30,6 +30,25 @@ defmodule MediaCentaur.Library.Events do
     @type t :: %__MODULE__{entity_ids: [String.t()]}
   end
 
+  defmodule ContainersDeleted do
+    @moduledoc """
+    One or more library containers were cascade-destroyed — unlike
+    `EntitiesChanged`, this is an explicit deletion signal, so subscribers
+    holding bare references to a container id (release tracking's
+    `library_container_id`, for one) can clean up without re-fetching
+    every id to discover what vanished.
+
+    Broadcast on the dedicated `library:deletions` topic, NOT on
+    `library:updates` — that topic's many subscribers pattern-match a
+    closed message set, and only deletion-interested parties should opt
+    into this one.
+    """
+    @enforce_keys [:container_ids]
+    defstruct [:container_ids]
+
+    @type t :: %__MODULE__{container_ids: [String.t()]}
+  end
+
   @doc """
   Broadcast a typed event on the `library:updates` topic. Each clause
   pairs a struct with the tagged-tuple shape subscribers pattern-match
@@ -37,10 +56,20 @@ defmodule MediaCentaur.Library.Events do
 
   An empty `entity_ids` list is a no-op (nothing to reconcile).
   """
-  @spec broadcast(EntitiesChanged.t()) :: :ok | {:error, term()}
+  @spec broadcast(EntitiesChanged.t() | ContainersDeleted.t()) :: :ok | {:error, term()}
   def broadcast(%EntitiesChanged{entity_ids: []}), do: :ok
 
   def broadcast(%EntitiesChanged{} = event), do: do_broadcast({:entities_changed, event})
+
+  def broadcast(%ContainersDeleted{container_ids: []}), do: :ok
+
+  def broadcast(%ContainersDeleted{} = event) do
+    Phoenix.PubSub.broadcast(
+      MediaCentaur.PubSub,
+      Topics.library_deletions(),
+      {:containers_deleted, event}
+    )
+  end
 
   defp do_broadcast(message) do
     Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.library_updates(), message)

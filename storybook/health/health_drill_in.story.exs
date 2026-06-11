@@ -9,6 +9,7 @@ defmodule MediaCentaurWeb.Storybook.Health.HealthDrillIn do
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.ErrorReports.Bucket
+  alias MediaCentaur.Retention.PolicyStatus
   alias MediaCentaurWeb.StatusLive.SubsystemView
 
   def function, do: &MediaCentaurWeb.HealthComponents.health_drill_in/1
@@ -41,7 +42,30 @@ defmodule MediaCentaurWeb.Storybook.Health.HealthDrillIn do
   def variations do
     [
       %Variation{id: :with_issues, attributes: %{view: view(:error), buckets: [bucket()]}},
-      %Variation{id: :healthy, attributes: %{view: view(:ok), buckets: []}}
+      %Variation{id: :healthy, attributes: %{view: view(:ok), buckets: []}},
+      %Variation{
+        id: :with_retention,
+        description: "Healthy subsystem with its data-retention policies listed",
+        attributes: %{
+          view: view(:ok),
+          buckets: [],
+          retention: [
+            %PolicyStatus{
+              key: :image_queue,
+              subsystem: :pipeline,
+              label: "Image download queue",
+              description:
+                "Bookkeeping for finished artwork downloads is cleared after 7 days; " <>
+                  "queue entries untouched for 30 days are dropped. The artwork files " <>
+                  "themselves are kept.",
+              mode: :sweep,
+              last_ran_at: ~U[2026-06-11 04:33:00Z],
+              pruned_last_run: 12,
+              pruned_total: 480
+            }
+          ]
+        }
+      }
     ]
   end
 end

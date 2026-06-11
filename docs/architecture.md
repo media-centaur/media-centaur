@@ -68,7 +68,7 @@ graph TB
 
 ## Bounded Contexts
 
-The backend is organised into eleven bounded contexts plus a TMDB adapter, all enforced at compile time by the [Boundary](https://hex.pm/packages/boundary) library. Read the `use Boundary` declaration at the top of each context's facade module for the canonical inter-context dependency list.
+The backend is organised into twelve bounded contexts plus a TMDB adapter, all enforced at compile time by the [Boundary](https://hex.pm/packages/boundary) library. Read the `use Boundary` declaration at the top of each context's facade module for the canonical inter-context dependency list.
 
 | Context | Owns | Notes |
 |---------|------|-------|
@@ -81,8 +81,9 @@ The backend is organised into eleven bounded contexts plus a TMDB adapter, all e
 | `MediaCentaur.Playback` | mpv session supervision, progress broadcasts | No DB tables — in-memory sessions. |
 | `MediaCentaur.Console` | `console_*` (filter/buffer-cap settings) + in-memory ring buffer + journal source | Drives the `/console` page and the Guake-style drawer. |
 | `MediaCentaur.Acquisition` | `acquisition_*` tables, Prowlarr + download-client drivers, Oban jobs. **Sub-namespace `Acquisition.Pursuits`** introduces a goal-level aggregate with append-only event log and a hybrid-autonomy decision pipeline (`Snapshot → Policy → Action → Command`); workers (`Pursuits.Watcher`, `Pursuits.IdentityVerifier`) orchestrate, commands execute. See [ADR-039](../decisions/architecture/2026-05-07-039-acquisition-pursuits.md). | Optional — gated by `MediaCentaur.Capabilities`. |
-| `MediaCentaur.WatchHistory` | `watch_history_*` table | Append-only stream of playback events. |
+| `MediaCentaur.WatchHistory` | `watch_history_*` table | Append-only stream of playback events. Declared kept-forever via a `:forever` retention policy. |
 | `MediaCentaur.SelfUpdate` | GitHub release polling, in-app updater | Disabled in dev. |
+| `MediaCentaur.Retention` | `retention_runs` table, policy registry, daily `SweepJob` | Data-hygiene orchestrator. Contexts declare policies in `RetentionPolicies` provider modules registered under `:retention_policy_providers` (runtime-resolved IoC, same shape as `:diagnostics_contributors`), so contexts may depend on `Retention` to record runs without cycles. Policies + observed pruning surface per subsystem on `/status`. |
 | `MediaCentaur.TMDB` | TMDB HTTP adapter + rate limiter | Cross-cutting adapter, not a bounded context owner. |
 | `MediaCentaur.Capabilities` | Pure query layer over Settings | Predicates that gate features on a passing Test Connection. Reads `Settings`, owns no state. |
 | `MediaCentaur.Controls` | Compile-time keybinding catalog + persisted overrides | Used by Settings → Controls UI. |

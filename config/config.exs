@@ -59,9 +59,15 @@ config :media_centaur, Oban,
   # self_update: serialized because it writes to the install dir on disk.
   # images: per-entity artwork refresh (TMDB fetch → enqueue), kept low
   # since the heavy download/resize runs in the Broadway image pipeline.
-  # maintenance: low-priority housekeeping (diagnostic-event retention prune).
+  # maintenance: low-priority housekeeping (retention sweep).
   queues: [acquisition: 3, self_update: 1, images: 2, maintenance: 1],
   plugins: [
+    # Finished jobs (completed/cancelled/discarded) are deleted after 7 days
+    # — the Lite (SQLite) engine has no built-in retention, so without this
+    # plugin oban_jobs grows forever. Window kept at a week so recent job
+    # history stays inspectable while bounding the table. Described on the
+    # Status page via Retention.ObanPolicy, which reads this max_age.
+    {Oban.Plugins.Pruner, max_age: 7 * 24 * 60 * 60},
     # The CheckerJob ticks at the rate-limit floor (every 15 min) but only
     # contacts GitHub when the user's configured interval has elapsed and
     # checking is enabled — see CheckerJob.due_for_check?/5. This keeps the
@@ -73,9 +79,11 @@ config :media_centaur, Oban,
        # Drives `Pursuits.Policy` for every active pursuit every 15 minutes.
        # Idempotent re-reads on every wake; terminal pursuits are skipped.
        {"*/15 * * * *", MediaCentaur.Acquisition.Pursuits.Watcher},
-       # Daily retention prune of the durable diagnostic-event log (~30d).
-       # Offset minute so it doesn't pile onto the hour boundary.
-       {"33 4 * * *", MediaCentaur.ErrorReports.PruneJob},
+       # Daily run of every :sweep-mode retention policy (diagnostic events,
+       # pursuit/tracking event logs, resolved incidents, image queue, stale
+       # staging dirs — see each context's RetentionPolicies module). Offset
+       # minute so it doesn't pile onto the hour boundary.
+       {"33 4 * * *", MediaCentaur.Retention.SweepJob},
        # Daily sweep that auto-resolves open :log incidents from a superseded
        # app version (they have no other recovery signal). Offset off the hour.
        {"37 4 * * *", MediaCentaur.ErrorReports.SupersededSweepJob},
@@ -109,6 +117,21 @@ config :media_centaur, :health_activity_widgets, %{
   self_update: {MediaCentaurWeb.ActivityWidgetComponents, :self_update_widget},
   system: {MediaCentaurWeb.ActivityWidgetComponents, :system_widget}
 }
+
+# Retention-policy providers (data-hygiene initiative). Each context that
+# retains prunable data declares its policies in a PolicyProvider module;
+# Retention resolves these at runtime (boundary-clean IoC, same shape as
+# :diagnostics_contributors below). Order here is display order on Status.
+config :media_centaur, :retention_policy_providers, [
+  MediaCentaur.Retention.ObanPolicy,
+  MediaCentaur.ErrorReports.RetentionPolicies,
+  MediaCentaur.Acquisition.RetentionPolicies,
+  MediaCentaur.ReleaseTracking.RetentionPolicies,
+  MediaCentaur.Pipeline.RetentionPolicies,
+  MediaCentaur.SelfUpdate.RetentionPolicies,
+  MediaCentaur.Library.RetentionPolicies,
+  MediaCentaur.WatchHistory.RetentionPolicies
+]
 
 config :media_centaur,
   ecto_repos: [MediaCentaur.Repo],

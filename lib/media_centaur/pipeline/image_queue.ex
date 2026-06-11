@@ -82,4 +82,26 @@ defmodule MediaCentaur.Pipeline.ImageQueue do
   def reset_to_pending(entry) do
     Repo.update(ImageQueueEntry.reset_changeset(entry))
   end
+
+  @doc """
+  Retention prune. Deletes `complete` entries not touched since
+  `completed_cutoff` (their work is done; the row only existed to track
+  the download) and entries of *any* status not touched since
+  `stale_cutoff` — the retry scheduler bumps `updated_at` on every live
+  retry, so a long-untouched row belongs to a deleted entity or a
+  permanently dead download. Returns the number of rows removed.
+  """
+  @spec prune(DateTime.t(), DateTime.t()) :: non_neg_integer()
+  def prune(%DateTime{} = completed_cutoff, %DateTime{} = stale_cutoff) do
+    {count, _} =
+      Repo.delete_all(
+        from(e in ImageQueueEntry,
+          where:
+            (e.status == "complete" and e.updated_at < ^completed_cutoff) or
+              e.updated_at < ^stale_cutoff
+        )
+      )
+
+    count
+  end
 end

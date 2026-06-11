@@ -38,6 +38,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         {"/status?subsystem=pipeline", "status subsystem drill-in"},
         {"/status?subsystem=self_update", "status self_update drill-in"},
         {"/status?subsystem=library", "status library drill-in"},
+        {"/status?subsystem=system", "status system drill-in"},
         {"/settings", "settings"},
         {"/setup", "setup tour"},
         {"/review", "review"},
@@ -97,6 +98,22 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       assert html =~ "Pending work"
       assert html =~ "Completeness gaps"
       assert html =~ "Storage outlook"
+    end
+  end
+
+  # The retention panel renders per-policy sweep stats only once a run has
+  # been recorded — seed one so the stats-bearing branch ("swept Xh ago ·
+  # N removed") renders, not just the "not swept yet" resting state.
+  describe "/status?subsystem=system with recorded retention runs" do
+    setup do
+      MediaCentaur.Retention.record_run(:diagnostic_events, 7)
+      :ok
+    end
+
+    test "system drill-in renders the retention panel with sweep stats", %{conn: conn} do
+      assert {:ok, _view, html} = live_async!(conn, "/status?subsystem=system")
+      assert html =~ "Data retention"
+      assert html =~ "7 removed"
     end
   end
 
