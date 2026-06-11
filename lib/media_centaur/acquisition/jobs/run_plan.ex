@@ -1,17 +1,26 @@
 defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   @moduledoc """
   Oban worker that runs a draft plan's autonomous search-and-solve
-  phase (media-search campaign Phase 3).
+  phase (media-search campaign Phase 3) as a **residual-driven
+  descent** of the coverage ladder.
 
-  One run walks the coverage ladder for the plan's wanted units —
-  series term, per-wanted-season terms, per-unit episode terms — with
-  every search going through the corpus (`Corpus.search/2`,
-  consult-first citizenship; `force: true` only on a user-initiated
-  re-search). Results are identity-verified (`TitleMatcher.coverage/2`),
-  plan-wide exclusions filtered, and `Planner.solve/3` assigns
-  candidates by the settled objective hierarchy. Assignments land on
-  the plan units (found / unfound) and the plan transitions to `ready`
-  for the user's steering pass.
+  One run walks the rungs broad-to-narrow — series term, per-season
+  terms, per-unit episode terms — but each rung is searched **only for
+  the units the previous rungs' solve left uncovered** (the solver's
+  residual — the wanted units no quality-floor group's solve
+  assigned). An acceptable complete-series pack ends the run after one
+  search; season packs end it before any episode term fires; only
+  proven gaps pay for episode searches. Every search still goes
+  through the corpus (`Corpus.search/2`, consult-first citizenship;
+  `force: true` only on a user-initiated re-search), and a forced
+  re-run also descends lazily — it re-hammers only as deep as the
+  residual requires.
+
+  Results are identity-verified (`TitleMatcher.coverage/2`), plan-wide
+  exclusions filtered, and `Planner.solve/3` assigns candidates by the
+  settled objective hierarchy. Assignments land on the plan units
+  (found / unfound) and the plan transitions to `ready` for the user's
+  steering pass.
 
   Movie plans skip the ladder: one term, best acceptable result by
   quality-then-seeders (`TitleMatcher.matches?/2` identity).
@@ -71,22 +80,98 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   defp run_tv(plan, units, force?) do
     wanted = Enum.map(units, &{&1.season_number, &1.episode_number})
     excluded = units |> Enum.flat_map(& &1.excluded_release_guids) |> MapSet.new()
-
-    {options, terms_by_guid} = gather_options(plan, wanted, excluded, force?)
-
+    identity = series_criteria(plan)
     plan_prefs = prefs(plan)
 
-    # One solve per quality-floor group (ADR-056 Q4: a unit inside its
-    # patience window carries an elevated `min_quality`; the planner
-    # stays time-blind). Media-search plans have uniform nil floors, so
-    # they take exactly one pass — identical behavior to before.
-    # Same-release assignments across groups merge by guid downstream
-    # (plan units store per-unit rows; commit groups grabs by guid).
-    assignment_by_unit =
+    # One solve per quality-floor group (ADR-056 Q4): a unit inside its
+    # patience window carries an elevated `min_quality`, fails its
+    # group's acceptability, and stays in the residual — so the descent
+    # continues for it alone. The planner stays time-blind.
+    floor_groups =
       units
       |> Enum.group_by(&(&1.min_quality || plan_prefs.min_quality))
-      |> Enum.reduce(%{}, fn {group_min, group_units}, acc ->
-        group_wanted = Enum.map(group_units, &{&1.season_number, &1.episode_number})
+      |> Map.new(fn {floor, group_units} ->
+        {floor, Enum.map(group_units, &{&1.season_number, &1.episode_number})}
+      end)
+
+    initial = %{options: [], terms_by_guid: %{}, assignment_by_unit: %{}, residual: wanted}
+
+    state =
+      Enum.reduce_while(rungs(plan), initial, fn {_rung_id, terms_for}, state ->
+        state =
+          state
+          |> gather_rung(plan, terms_for.(state.residual), identity, excluded, force?)
+          |> solve_groups(wanted, floor_groups, plan_prefs)
+
+        if state.residual == [], do: {:halt, state}, else: {:cont, state}
+      end)
+
+    Enum.each(units, fn unit ->
+      key = {unit.season_number, unit.episode_number}
+
+      case Map.get(state.assignment_by_unit, key) do
+        nil ->
+          {:ok, _} = Repo.update(PlanUnit.unfound_changeset(unit))
+
+        assignment ->
+          {:ok, _} =
+            Repo.update(
+              PlanUnit.assign_changeset(unit, assignment_attrs(assignment, state.terms_by_guid))
+            )
+      end
+    end)
+  end
+
+  # The coverage ladder, broad to narrow. Each rung sees the current
+  # residual — the wanted units no acceptable option covers yet — and
+  # emits only the terms that residual justifies. The descent never
+  # searches below a span the solver already covered.
+  defp rungs(plan) do
+    [
+      {:series, fn _residual -> LadderTerms.series_terms(plan) end},
+      {:seasons,
+       fn residual ->
+         seasons = residual |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.sort()
+         LadderTerms.season_terms(plan, seasons)
+       end},
+      {:episodes, fn residual -> LadderTerms.episode_terms(plan, residual) end}
+    ]
+  end
+
+  # One rung's searches folded into the cumulative option pool. Every
+  # term goes through the corpus; identity is verified per result;
+  # plan-wide exclusions are dropped before solving (a release the user
+  # rejected for one episode is almost never what they want for
+  # another); guid dedup keeps the first term that surfaced a release.
+  defp gather_rung(state, plan, terms, identity, excluded, force?) do
+    Enum.reduce(terms, state, fn {term, opts}, state ->
+      plan
+      |> search(term, opts, force?)
+      |> Enum.reduce(state, fn result, state ->
+        with false <- ReleaseRedFlags.suspicious?(result.title, result.size_bytes),
+             false <- MapSet.member?(excluded, result.guid),
+             false <- Map.has_key?(state.terms_by_guid, result.guid),
+             {:ok, scope} <- TitleMatcher.coverage(result, identity) do
+          %{
+            state
+            | options: [%Planner.Option{result: result, scope: scope} | state.options],
+              terms_by_guid: Map.put(state.terms_by_guid, result.guid, term)
+          }
+        else
+          _ -> state
+        end
+      end)
+    end)
+  end
+
+  # Re-solves every floor group over the cumulative pool and recomputes
+  # the residual. Rebuilt from scratch each rung — the planner is pure
+  # and cheap, and a later rung's options only ever improve coverage.
+  defp solve_groups(state, wanted, floor_groups, plan_prefs) do
+    options = Enum.reverse(state.options)
+
+    assignment_by_unit =
+      Enum.reduce(floor_groups, %{}, fn {group_min, group_wanted}, acc ->
         solution = Planner.solve(group_wanted, options, %{plan_prefs | min_quality: group_min})
 
         for assignment <- solution.assignments,
@@ -95,48 +180,11 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
             do: {unit, assignment}
       end)
 
-    Enum.each(units, fn unit ->
-      key = {unit.season_number, unit.episode_number}
-
-      case Map.get(assignment_by_unit, key) do
-        nil ->
-          {:ok, _} = Repo.update(PlanUnit.unfound_changeset(unit))
-
-        assignment ->
-          {:ok, _} =
-            Repo.update(PlanUnit.assign_changeset(unit, assignment_attrs(assignment, terms_by_guid)))
-      end
-    end)
-  end
-
-  # Walks the ladder rungs broad-to-narrow. Every term goes through the
-  # corpus; identity is verified per result; plan-wide exclusions are
-  # dropped before solving (a release the user rejected for one episode
-  # is almost never what they want for another).
-  defp gather_options(plan, wanted, excluded, force?) do
-    identity = series_criteria(plan)
-
-    results_by_term =
-      plan
-      |> LadderTerms.for_plan(wanted)
-      |> Enum.map(fn {term, opts} -> {term, search(plan, term, opts, force?)} end)
-
-    {options, terms_by_guid} =
-      Enum.reduce(results_by_term, {[], %{}}, fn {term, results}, acc ->
-        Enum.reduce(results, acc, fn result, {options, terms_by_guid} ->
-          with false <- ReleaseRedFlags.suspicious?(result.title, result.size_bytes),
-               false <- MapSet.member?(excluded, result.guid),
-               false <- Map.has_key?(terms_by_guid, result.guid),
-               {:ok, scope} <- TitleMatcher.coverage(result, identity) do
-            {[%Planner.Option{result: result, scope: scope} | options],
-             Map.put(terms_by_guid, result.guid, term)}
-          else
-            _ -> {options, terms_by_guid}
-          end
-        end)
-      end)
-
-    {Enum.reverse(options), terms_by_guid}
+    %{
+      state
+      | assignment_by_unit: assignment_by_unit,
+        residual: Enum.reject(wanted, &Map.has_key?(assignment_by_unit, &1))
+    }
   end
 
   defp series_criteria(plan) do
