@@ -3,6 +3,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaurWeb.AcquisitionLive.SearchSession
   alias MediaCentaur.Acquisition.Pursuits.Units
@@ -463,6 +464,69 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
       reloaded = plan.id |> Plans.units_for() |> Enum.find(&(&1.id == unit.id))
       assert reloaded.assigned_guid == "ui-uhd"
+    end
+
+    test "the board narrates the descent as status events land", %{conn: conn} do
+      stub_plan_tmdb()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+
+            results =
+              if query == "Sample Show Season 1" do
+                [
+                  %{
+                    "title" => "Sample.Show.S01.COMPLETE.1080p.WEB-DL",
+                    "guid" => "ui-pack",
+                    "indexerId" => 1,
+                    "seeders" => 30,
+                    "indexer" => "indexer-a"
+                  }
+                ]
+              else
+                []
+              end
+
+            Req.Test.json(conn, results)
+
+          _other ->
+            Req.Test.json(conn, %{})
+        end
+      end)
+
+      {:ok, plan} = Plans.create_series_plan(stub_selection(), [{1, 1}, {1, 2}])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download?plan=#{plan.id}")
+
+      send(view.pid, %PlanEvents.DescentStatus{
+        plan_id: plan.id,
+        wanted: 2,
+        stages: [
+          %{id: :series, state: :done, term_count: 1, residual_after: 2},
+          %{id: :seasons, state: :done, term_count: 2, residual_after: 0},
+          %{id: :episodes, state: :skipped, term_count: nil, residual_after: nil}
+        ]
+      })
+
+      html = render(view)
+      assert html =~ "Everything covered — the deeper searches weren&#39;t needed."
+      assert html =~ "not needed — already covered"
+
+      # A status for some other plan must not clobber the open board's panel.
+      send(view.pid, %PlanEvents.DescentStatus{
+        plan_id: Ecto.UUID.generate(),
+        wanted: 9,
+        stages: [
+          %{id: :series, state: :active, term_count: 1, residual_after: nil},
+          %{id: :seasons, state: :pending, term_count: nil, residual_after: nil},
+          %{id: :episodes, state: :pending, term_count: nil, residual_after: nil}
+        ]
+      })
+
+      html = render(view)
+      assert html =~ "Everything covered — the deeper searches weren&#39;t needed."
     end
 
     test "a draft plan resumes from the page and can be discarded", %{conn: conn} do
