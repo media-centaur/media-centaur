@@ -339,6 +339,19 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
              )
     end
 
+    test "the movie confirm stage shows identity-confirming facts from TMDB", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail())
+
+      {:ok, view, _html} = live_async!(conn, ~p"/download?plan=new&tmdb_id=550&tmdb_type=movie")
+      html = render_async(view)
+
+      # movie_detail fixture: overview, 139min runtime, Drama genre.
+      assert html =~ "A sample movie overview."
+      assert html =~ "2h 19m"
+      assert html =~ "Drama"
+    end
+
     test "the whole door: pick → picker defaults → plan → board → approve → pursuit modal", %{
       conn: conn
     } do
