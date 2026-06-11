@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.88.4 — 2026-06-11
+
+### Improved
+
+- **Swapping or auto-retrying a release cleans up the old download.** When you pick an alternative release, or Media Centaur abandons a dead one (no seeders) and searches again, the replaced download is now removed from your download client instead of lingering under "Other downloads".
+
 ## v0.88.3 — 2026-06-11
 
 ### Improved
