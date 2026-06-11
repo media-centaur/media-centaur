@@ -320,7 +320,9 @@ defmodule MediaCentaur.Acquisition.Plans do
   unit's ladder terms (consult-first — fresh terms cost nothing; terms
   the descent never reached go to the indexer), then returns the
   refreshed alternatives. Individual search failures are skipped, not
-  raised — the picker shows whatever the corpus knows.
+  raised — the picker shows whatever the corpus knows. Blocking and
+  potentially slow (live indexer fan-out per stale term) — UI callers
+  run it via `start_async`.
   """
   @spec search_alternatives(Ecto.UUID.t()) ::
           {:ok, [PlanBoard.Alternative.t()]} | {:error, :not_found}

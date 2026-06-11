@@ -114,6 +114,31 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         }
       },
       %Variation{
+        id: :board_alternatives_searching,
+        description:
+          "Find-more in flight — the button shows progress and ignores clicks; already-known candidates stay put.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          board: board(:ready),
+          alternatives: %{
+            unit_id: "story-unit-1-1",
+            searching?: true,
+            items: [
+              %PlanBoard.Alternative{
+                guid: "alt-single",
+                title: "Sample.Show.S01E01.1080p.WEB-DL.x264",
+                scope_label: "S01E01",
+                quality: "1080p",
+                seeders: 41,
+                size_bytes: 2_100_000_000
+              }
+            ]
+          },
+          last_activity: "Searched: Sample Show S01E01 — 1 found"
+        }
+      },
+      %Variation{
         id: :error,
         description: "Targeting failed — honest dead end, one way out.",
         attributes: %{
