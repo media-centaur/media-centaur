@@ -70,7 +70,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrative do
     do: "First, looking for one release that covers the whole show…"
 
   defp active_headline(:seasons, residual),
-    do: "Now searching season packs — #{count(residual, "episode")} still need coverage…"
+    do: "Now searching season packs — #{count(residual, "episode")} still #{need(residual)} coverage…"
 
   defp active_headline(:episodes, residual),
     do: "Now hunting individual episodes — #{count(residual, "episode")} still uncovered…"
@@ -150,4 +150,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrative do
 
   defp count(1, noun), do: "1 #{noun}"
   defp count(quantity, noun), do: "#{quantity} #{noun}s"
+
+  defp need(1), do: "needs"
+  defp need(_quantity), do: "need"
 end

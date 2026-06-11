@@ -11,6 +11,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.Acquisition.Targeting
+  alias MediaCentaur.Acquisition.ViewModels.DescentNarrative
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.PlanModal.plan_modal/1
@@ -53,11 +54,35 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       },
       %Variation{
         id: :board_planning,
-        description: "Mid-flight — dashed searching cells, the activity ticker, no spinner-only state.",
+        description:
+          "Mid-flight — the expectation panel narrates the descent (done/active/pending rungs), dashed searching cells, the activity ticker, no spinner-only state.",
         attributes: %{
           open: true,
           stage: :board,
           board: board(:planning),
+          descent: %DescentNarrative.View{
+            headline: "Now searching season packs — 2 episodes still need coverage…",
+            rows: [
+              %DescentNarrative.Row{
+                id: :series,
+                state: :done,
+                label: "Complete series",
+                detail: "nothing usable found"
+              },
+              %DescentNarrative.Row{
+                id: :seasons,
+                state: :active,
+                label: "Season packs",
+                detail: "searching — 4 terms…"
+              },
+              %DescentNarrative.Row{
+                id: :episodes,
+                state: :pending,
+                label: "Individual episodes",
+                detail: "single episodes, only for what's still missing"
+              }
+            ]
+          },
           last_activity: "Sample Show S01E03 — 2 known (corpus)"
         }
       },

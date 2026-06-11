@@ -59,6 +59,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     default: nil,
     doc: "Latest PlanEvents.SearchActivity line for the board's ticker, or nil."
 
+  attr :descent, :any,
+    default: nil,
+    doc: "%DescentNarrative.View{} | nil — the board's expectation panel (TV plans)."
+
   attr :alternatives, :any,
     default: nil,
     doc:
@@ -104,6 +108,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           alternatives={@alternatives}
           approving={@approving}
           last_activity={@last_activity}
+          descent={@descent}
           on_close={@on_close}
         />
       </div>
@@ -403,6 +408,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   attr :approving, :boolean, required: true
   attr :last_activity, :string, required: true
+
+  attr :descent, :any,
+    required: true,
+    doc: "%DescentNarrative.View{} | nil — typed at the public attr."
+
   attr :on_close, :string, required: true
 
   defp board_stage(assigns) do
@@ -423,6 +433,20 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               Committed — the pursuit has taken over.
             </span>
           </p>
+        </div>
+
+        <div :if={@descent} class="glass-inset rounded-lg px-3 py-2 space-y-1.5">
+          <p class="text-sm text-base-content/70">{@descent.headline}</p>
+          <div :for={row <- @descent.rows} class="flex items-center gap-2 text-xs">
+            <span class={["size-1.5 rounded-full flex-shrink-0", descent_dot(row.state)]}></span>
+            <span class={[
+              "w-32 flex-shrink-0 text-base-content/60",
+              row.state == :skipped && "line-through text-base-content/30"
+            ]}>
+              {row.label}
+            </span>
+            <span class="min-w-0 truncate text-base-content/40">{row.detail}</span>
+          </div>
         </div>
 
         <div :if={!@board.movie?} class="space-y-2">
@@ -584,7 +608,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     ~H"""
     <div class="glass-inset rounded-lg px-3 py-2 ml-4 space-y-1.5 border border-base-content/10">
       <p :if={@alternatives.items == []} class="text-xs text-base-content/40 py-1">
-        Nothing else in the corpus yet — Find more runs this episode's searches.
+        Nothing else in the corpus yet — Find more runs this span's searches.
       </p>
 
       <div
@@ -712,4 +736,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       "#{aired} aired"
     end
   end
+
+  defp descent_dot(:active), do: "bg-info animate-pulse"
+  defp descent_dot(:done), do: "bg-success/70"
+  defp descent_dot(_pending_or_skipped), do: "bg-base-content/20"
 end

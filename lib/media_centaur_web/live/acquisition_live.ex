@@ -83,7 +83,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
   alias MediaCentaur.Acquisition.TargetEvents
   alias MediaCentaur.Acquisition.ViewModels
-  alias MediaCentaur.Acquisition.ViewModels.{Alternative, PursuitWithDownload}
+  alias MediaCentaur.Acquisition.ViewModels.{Alternative, DescentNarrative, PursuitWithDownload}
   alias MediaCentaur.Capabilities
 
   alias MediaCentaurWeb.AcquisitionLive.{
@@ -161,6 +161,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
          plan_grab_future: false,
          plan_error: nil,
          plan_last_activity: nil,
+         plan_descent: nil,
          plan_alternatives: nil,
          plan_approving?: false,
          plan_discard_confirm?: false,
@@ -460,6 +461,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           grab_future={@plan_grab_future}
           error={@plan_error}
           last_activity={@plan_last_activity}
+          descent={@plan_descent}
           alternatives={@plan_alternatives}
           approving={@plan_approving?}
         />
@@ -827,7 +829,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
   def handle_event("plan_find_more_alternatives", %{"unit-id" => unit_id}, socket) do
     case socket.assigns.plan_alternatives do
-      %{unit_id: ^unit_id} = open ->
+      %{unit_id: ^unit_id, searching?: false} = open ->
         {:noreply,
          socket
          |> assign(plan_alternatives: Map.put(open, :searching?, true))
@@ -1315,6 +1317,9 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       struct == PlanEvents.SearchActivity ->
         {:noreply, maybe_note_plan_activity(socket, event)}
 
+      struct == PlanEvents.DescentStatus ->
+        {:noreply, maybe_note_plan_descent(socket, event)}
+
       TargetEvents.event?(struct) ->
         {:noreply, debounce(socket, :reload_timer, :reload_history, 500)}
 
@@ -1719,6 +1724,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           plan_selection: nil,
           plan_movie: nil,
           plan_board: nil,
+          plan_descent: nil,
           plan_alternatives: nil,
           plan_error: nil,
           plan_discard_confirm?: false
@@ -1795,10 +1801,13 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   defp open_plan_board(socket, plan_id) do
     case Plans.get(plan_id) do
       {:ok, plan} ->
+        board = Plans.board_for(plan)
+
         assign(socket,
           plan_param: plan_id,
           plan_stage: :board,
-          plan_board: Plans.board_for(plan),
+          plan_board: board,
+          plan_descent: plan_descent_for(socket, plan_id, board),
           plan_error: nil
         )
 
@@ -1808,6 +1817,21 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           plan_stage: :error,
           plan_error: "Plan not found — it may have been discarded."
         )
+    end
+  end
+
+  # Keep a live-updated panel across board reloads; seed the itinerary
+  # for a freshly-opened planning board; movies don't narrate.
+  defp plan_descent_for(socket, plan_id, board) do
+    cond do
+      socket.assigns.plan_param == plan_id && socket.assigns.plan_descent ->
+        socket.assigns.plan_descent
+
+      board.status == :planning and not board.movie? ->
+        DescentNarrative.initial(board.wanted)
+
+      true ->
+        nil
     end
   end
 
@@ -1831,6 +1855,14 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         end
 
       assign(socket, plan_last_activity: line)
+    else
+      socket
+    end
+  end
+
+  defp maybe_note_plan_descent(socket, %PlanEvents.DescentStatus{} = status) do
+    if socket.assigns.plan_param == status.plan_id do
+      assign(socket, plan_descent: DescentNarrative.build(status))
     else
       socket
     end
