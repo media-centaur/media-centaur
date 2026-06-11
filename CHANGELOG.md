@@ -4,6 +4,23 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.88.9 — 2026-06-12
+
+### New
+
+- **Old bookkeeping cleans itself up.** Media Centaur now keeps housekeeping data — download history events, resolved incidents, finished image work, internal job records — for a sensible window and sweeps anything older once a day. Each subsystem's drill-in on the Status page gains a **Data retention** panel showing what's kept, for how long, and when the last sweep ran. Your watch history is kept forever.
+- **Movie downloads show what you're confirming.** The confirm step when downloading a movie now shows the film's overview, runtime, and genres — so you know it's the right one before searching for releases.
+
+### Improved
+
+- **The Back button only peels layers now.** On gamepad and keyboard, Back closes modals, drawers, and sub-menus — it no longer jumps to the main navigation. Press Left at the left edge of a page to reach the sidebar; that's the one consistent way there.
+
+### Fixed
+
+- **Deleting a show with many episodes is more reliable.** The file-cleanup step now runs in batches instead of one oversized operation.
+- **Deleting a show or movie now cleans up everything related to it** — audio/subtitle preference overrides, release-tracking links, and tracked artwork no longer linger. Replacing an image with a different file type also removes the old file.
+- **Incident details no longer repeat the subsystem description.** The incident view on the Status page goes straight to the incident instead of re-showing the briefing you just read.
+
 ## v0.88.8 — 2026-06-11
 
 ### Improved
