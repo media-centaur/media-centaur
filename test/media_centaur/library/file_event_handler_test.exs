@@ -450,4 +450,73 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       assert Library.list_all_images() == []
     end
   end
+
+  describe "delete_files/1" do
+    setup do
+      tmp_dir = Path.join(System.tmp_dir!(), "delete_files_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+      on_exit(fn -> File.rm_rf!(tmp_dir) end)
+      %{tmp_dir: tmp_dir}
+    end
+
+    defp seed_movie_file(tmp_dir, name) do
+      file_path = Path.join(tmp_dir, name)
+      File.write!(file_path, "sample content")
+
+      movie = create_entity(%{type: :movie, name: "Movie #{name}", content_url: file_path})
+      create_linked_file(%{movie_id: movie.id, file_path: file_path, watch_dir: tmp_dir})
+
+      {movie, file_path}
+    end
+
+    test "removes the whole batch with one cleanup pass and one broadcast", %{tmp_dir: tmp_dir} do
+      {movie_a, path_a} = seed_movie_file(tmp_dir, "movie_a.mkv")
+      {movie_b, path_b} = seed_movie_file(tmp_dir, "movie_b.mkv")
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
+
+      assert {:ok, entity_ids} = FileEventHandler.delete_files([path_a, path_b])
+      assert Enum.sort(entity_ids) == Enum.sort([movie_a.id, movie_b.id])
+
+      refute File.exists?(path_a)
+      refute File.exists?(path_b)
+      assert Library.list_watched_files() == []
+      assert Library.list_movies() == []
+
+      # The whole batch lands as a single entities_changed broadcast.
+      assert_receive {:entities_changed, %{entity_ids: broadcast_ids}}
+      assert Enum.sort(broadcast_ids) == Enum.sort([movie_a.id, movie_b.id])
+      refute_receive {:entities_changed, _payload}
+    end
+
+    test "treats already-absent files as deleted and still cleans their records", %{
+      tmp_dir: tmp_dir
+    } do
+      absent_path = Path.join(tmp_dir, "already_gone.mkv")
+      movie = create_entity(%{type: :movie, name: "Gone Movie", content_url: absent_path})
+      create_linked_file(%{movie_id: movie.id, file_path: absent_path, watch_dir: tmp_dir})
+
+      assert {:ok, [entity_id]} = FileEventHandler.delete_files([absent_path])
+      assert entity_id == movie.id
+      assert Library.list_watched_files() == []
+    end
+
+    test "reports a real failure but still deletes and cleans the rest of the batch", %{
+      tmp_dir: tmp_dir
+    } do
+      {_movie, good_path} = seed_movie_file(tmp_dir, "deletable.mkv")
+
+      # File.rm on a non-empty directory fails without removing it.
+      stubborn_path = Path.join(tmp_dir, "not_a_file")
+      File.mkdir_p!(Path.join(stubborn_path, "child"))
+
+      assert {:error, _reason} = FileEventHandler.delete_files([stubborn_path, good_path])
+
+      refute File.exists?(good_path)
+      assert File.dir?(stubborn_path)
+      # The deletable file's records were cleaned despite the batch failure.
+      assert Library.list_watched_files() == []
+      assert Library.list_movies() == []
+    end
+  end
 end

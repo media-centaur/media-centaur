@@ -973,7 +973,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
         Enum.each(payload.file_groups, fn group ->
           if group.is_watch_dir do
-            Enum.each(group.files, fn %{path: path} -> FileEventHandler.delete_file(path) end)
+            group.files |> Enum.map(& &1.path) |> FileEventHandler.delete_files()
           else
             file_paths = Enum.map(group.files, & &1.path)
             FileEventHandler.delete_folder(group.dir, file_paths)
