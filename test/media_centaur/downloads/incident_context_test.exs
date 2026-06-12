@@ -2,8 +2,8 @@ defmodule MediaCentaur.Downloads.IncidentContextTest do
   @moduledoc """
   Pure tests for the download-client health assessor (ADR-054). The whole point
   of routing connectivity faults through `assess/0` instead of the `:log` track
-  is the **grace window**: a single failed poll while the client was recently
-  healthy is a transient blip and must NOT fault. Only sustained unreachability
+  is the **grace window**: a transient blip must NOT fault. Only a sustained
+  outage — measured from the `{:offline, since}` onset the producer grades —
   surfaces an incident.
   """
   use ExUnit.Case, async: true
@@ -17,59 +17,52 @@ defmodule MediaCentaur.Downloads.IncidentContextTest do
   defp now, do: ~U[2026-06-08 12:00:00Z]
   defp seconds_ago(n), do: DateTime.add(now(), -n, :second)
 
+  defp state(connectivity), do: %QueueState{connectivity: connectivity}
+
   describe "decide/3 — healthy states never fault" do
-    test "no error → :ok" do
-      state = %QueueState{last_error: nil, last_successful_poll_at: seconds_ago(30)}
-      assert IncidentContext.decide(state, now(), @grace) == :ok
+    test "live → :ok" do
+      assert IncidentContext.decide(state(:live), now(), @grace) == :ok
+    end
+
+    test "initializing → :ok (startup is not an outage)" do
+      assert IncidentContext.decide(state(:initializing), now(), @grace) == :ok
     end
 
     test "not configured → :ok (no client is not a fault)" do
-      state = %QueueState{last_error: :not_configured}
-      assert IncidentContext.decide(state, now(), @grace) == :ok
+      assert IncidentContext.decide(state(:not_configured), now(), @grace) == :ok
     end
   end
 
-  describe "decide/3 — transient connectivity is absorbed by the grace window" do
-    test "unreachable but a poll succeeded within the grace window → :ok (the blip)" do
-      state = %QueueState{last_error: :unreachable, last_successful_poll_at: seconds_ago(60)}
-      assert IncidentContext.decide(state, now(), @grace) == :ok
+  describe "decide/3 — transient connectivity is absorbed" do
+    test "a single failed poll (transient blip) → :ok regardless of age" do
+      assert IncidentContext.decide(state({:transient_failure, seconds_ago(60)}), now(), @grace) ==
+               :ok
+
+      assert IncidentContext.decide(state({:transient_failure, seconds_ago(600)}), now(), @grace) ==
+               :ok
     end
 
-    test "offline since inside the grace window → :ok" do
-      state = %QueueState{last_error: {:offline, seconds_ago(60)}}
-      assert IncidentContext.decide(state, now(), @grace) == :ok
+    test "offline with onset inside the grace window → :ok" do
+      assert IncidentContext.decide(state({:offline, seconds_ago(60)}), now(), @grace) == :ok
     end
   end
 
   describe "decide/3 — sustained connectivity loss faults" do
-    test "unreachable with last success older than grace → unreachable warning" do
-      state = %QueueState{last_error: :unreachable, last_successful_poll_at: seconds_ago(300)}
-
+    test "offline with onset older than grace → unreachable warning" do
       assert {:fault, :download_client_unreachable, :warning, _ids} =
-               IncidentContext.decide(state, now(), @grace)
+               IncidentContext.decide(state({:offline, seconds_ago(300)}), now(), @grace)
     end
 
-    test "unreachable and never succeeded → unreachable warning" do
-      state = %QueueState{last_error: :unreachable, last_successful_poll_at: nil}
-
+    test "offline exactly at the grace boundary faults" do
       assert {:fault, :download_client_unreachable, :warning, _ids} =
-               IncidentContext.decide(state, now(), @grace)
-    end
-
-    test "offline since older than grace → unreachable warning" do
-      state = %QueueState{last_error: {:offline, seconds_ago(300)}}
-
-      assert {:fault, :download_client_unreachable, :warning, _ids} =
-               IncidentContext.decide(state, now(), @grace)
+               IncidentContext.decide(state({:offline, seconds_ago(@grace)}), now(), @grace)
     end
   end
 
   describe "decide/3 — auth failure is an immediate error (not transient)" do
     test "auth_failed faults at :error regardless of grace" do
-      state = %QueueState{last_error: :auth_failed, last_successful_poll_at: seconds_ago(5)}
-
       assert {:fault, :download_client_auth_failed, :error, _ids} =
-               IncidentContext.decide(state, now(), @grace)
+               IncidentContext.decide(state(:auth_failed), now(), @grace)
     end
   end
 end

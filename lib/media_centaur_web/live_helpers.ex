@@ -66,6 +66,24 @@ defmodule MediaCentaurWeb.LiveHelpers do
   end
 
   @doc """
+  Formats the elapsed time since a `DateTime` as a bare duration —
+  "<1s", "42s", "3m", "2h" — for copy that supplies its own preposition
+  ("offline for 3m", "down 2h"). Contrast `time_ago/1`, which appends
+  "ago".
+  """
+  @spec duration_since(DateTime.t()) :: String.t()
+  def duration_since(%DateTime{} = since) do
+    elapsed_ms = DateTime.diff(DateTime.utc_now(), since, :millisecond)
+
+    cond do
+      elapsed_ms < 1_000 -> "<1s"
+      elapsed_ms < 60_000 -> "#{div(elapsed_ms, 1_000)}s"
+      elapsed_ms < 3_600_000 -> "#{div(elapsed_ms, 60_000)}m"
+      true -> "#{div(elapsed_ms, 3_600_000)}h"
+    end
+  end
+
+  @doc """
   Formats a `DateTime` or `NaiveDateTime` as a relative time string.
 
   Returns "just now" for < 1 minute, "Xm ago" for < 1 hour, "Xh ago" for < 1 day,

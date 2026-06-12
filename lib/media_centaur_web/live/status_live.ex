@@ -30,13 +30,9 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Acquisition.Pursuits.Throughput
   alias MediaCentaur.Downloads.QueueMonitor
-  alias MediaCentaur.Downloads.QueueStatus
   alias MediaCentaur.Runtime.Vitals
 
   @storage_refresh_ms 5 * 60 * 1_000
-  # Mirrors AcquisitionLive's watched cadence — the rhythm QueueMonitor polls at
-  # when a LiveView is subscribed; QueueStatus.derive grades freshness in multiples of it.
-  @queue_cadence_ms 1_500
 
   @impl true
   def mount(_params, _session, socket) do
@@ -651,7 +647,7 @@ defmodule MediaCentaurWeb.StatusLive do
 
     %{
       configured?: Capabilities.download_client_ready?() or Capabilities.prowlarr_ready?(),
-      client_grade: QueueStatus.derive(state, @queue_cadence_ms),
+      connectivity: state.connectivity,
       last_poll_at: state.last_successful_poll_at,
       prowlarr_ready?: Capabilities.prowlarr_ready?(),
       throughput: Throughput.stats()
@@ -674,7 +670,7 @@ defmodule MediaCentaurWeb.StatusLive do
   defp empty_acquisition_activity do
     %{
       configured?: false,
-      client_grade: :initializing,
+      connectivity: :initializing,
       last_poll_at: nil,
       prowlarr_ready?: false,
       throughput: Throughput.empty()

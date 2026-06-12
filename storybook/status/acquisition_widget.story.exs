@@ -15,8 +15,21 @@ defmodule MediaCentaurWeb.Storybook.Status.AcquisitionWidget do
         attributes: %{
           acquisition_activity: %{
             configured?: true,
-            client_grade: :live,
+            connectivity: :live,
             last_poll_at: ~U[2026-06-09 12:00:00.000000Z],
+            prowlarr_ready?: true,
+            throughput: throughput
+          }
+        }
+      },
+      %Variation{
+        id: :client_retrying,
+        description: "One failed poll — amber Retrying…, not yet a graded outage",
+        attributes: %{
+          acquisition_activity: %{
+            configured?: true,
+            connectivity: {:transient_failure, ~U[2026-06-09 11:59:50.000000Z]},
+            last_poll_at: ~U[2026-06-09 11:59:40.000000Z],
             prowlarr_ready?: true,
             throughput: throughput
           }
@@ -27,7 +40,7 @@ defmodule MediaCentaurWeb.Storybook.Status.AcquisitionWidget do
         attributes: %{
           acquisition_activity: %{
             configured?: true,
-            client_grade: {:offline, ~U[2026-06-09 11:30:00.000000Z]},
+            connectivity: {:offline, ~U[2026-06-09 11:30:00.000000Z]},
             last_poll_at: ~U[2026-06-09 11:30:00.000000Z],
             prowlarr_ready?: true,
             throughput: throughput
@@ -39,7 +52,7 @@ defmodule MediaCentaurWeb.Storybook.Status.AcquisitionWidget do
         attributes: %{
           acquisition_activity: %{
             configured?: true,
-            client_grade: :live,
+            connectivity: :live,
             last_poll_at: ~U[2026-06-09 12:00:00.000000Z],
             prowlarr_ready?: false,
             throughput: %{acquired: 0, failed: 0, active: 0, success_rate: nil}
@@ -51,7 +64,7 @@ defmodule MediaCentaurWeb.Storybook.Status.AcquisitionWidget do
         attributes: %{
           acquisition_activity: %{
             configured?: false,
-            client_grade: :not_configured,
+            connectivity: :not_configured,
             last_poll_at: nil,
             prowlarr_ready?: false,
             throughput: %{acquired: 0, failed: 0, active: 0, success_rate: nil}

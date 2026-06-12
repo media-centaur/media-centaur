@@ -15,17 +15,15 @@ defmodule MediaCentaurWeb.AcquisitionLive.LogicTest do
       assert Logic.connectivity_notice(:not_configured) == nil
     end
 
-    test "warns (not errors) when telemetry is lagging" do
-      notice = Logic.connectivity_notice({:lagging, 240_000})
-      assert notice.tone == :warning
-      assert notice.label =~ "lagging"
-      refute notice.reconfigure?
+    test "is quiet on a single failed poll — one blip is not an outage" do
+      assert Logic.connectivity_notice({:transient_failure, DateTime.utc_now()}) == nil
     end
 
-    test "errors when the client is offline" do
-      notice = Logic.connectivity_notice({:offline, DateTime.utc_now()})
+    test "errors when the client is offline, dating the outage from its onset" do
+      onset = DateTime.add(DateTime.utc_now(), -180, :second)
+      notice = Logic.connectivity_notice({:offline, onset})
       assert notice.tone == :error
-      assert notice.label =~ "offline"
+      assert notice.label == "Download client offline for 3m"
       refute notice.reconfigure?
     end
 
@@ -36,21 +34,29 @@ defmodule MediaCentaurWeb.AcquisitionLive.LogicTest do
     end
   end
 
-  describe "telemetry_age_label/1" do
+  describe "telemetry_age_label/2" do
+    defp last_success, do: DateTime.add(DateTime.utc_now(), -180, :second)
+
     test "is nil while telemetry is fresh — downloading numbers are current" do
-      assert Logic.telemetry_age_label(:live) == nil
-      assert Logic.telemetry_age_label(:initializing) == nil
-      assert Logic.telemetry_age_label(:not_configured) == nil
-      assert Logic.telemetry_age_label(:auth_failed) == nil
+      assert Logic.telemetry_age_label(:live, last_success()) == nil
+      assert Logic.telemetry_age_label(:initializing, nil) == nil
+      assert Logic.telemetry_age_label(:not_configured, nil) == nil
+      assert Logic.telemetry_age_label(:auth_failed, last_success()) == nil
     end
 
-    test "labels the staleness of lagging telemetry from the age in ms" do
-      assert Logic.telemetry_age_label({:lagging, 240_000}) == "last seen 4m ago"
+    test "is nil on a transient blip — the numbers are at most one missed poll old" do
+      blip = {:transient_failure, DateTime.utc_now()}
+      assert Logic.telemetry_age_label(blip, last_success()) == nil
     end
 
-    test "labels the staleness of offline telemetry from the last-update timestamp" do
-      since = DateTime.add(DateTime.utc_now(), -180, :second)
-      assert Logic.telemetry_age_label({:offline, since}) == "last seen 3m ago"
+    test "labels offline telemetry with the age of the last successful poll" do
+      onset = DateTime.add(DateTime.utc_now(), -60, :second)
+      assert Logic.telemetry_age_label({:offline, onset}, last_success()) == "last seen 3m ago"
+    end
+
+    test "is nil when offline but no poll ever succeeded — no figures to qualify" do
+      onset = DateTime.add(DateTime.utc_now(), -60, :second)
+      assert Logic.telemetry_age_label({:offline, onset}, nil) == nil
     end
   end
 

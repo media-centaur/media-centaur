@@ -7,10 +7,10 @@ defmodule MediaCentaur.Downloads do
       DownloadClient.QBittorrent,
       Health,
       HealthHistory,
+      Connectivity,
       QueueItem,
       QueueMonitor,
-      QueueState,
-      QueueStatus
+      QueueState
     ]
 
   @moduledoc """
