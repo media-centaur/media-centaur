@@ -58,10 +58,40 @@ defmodule MediaCentaur.DataMigrations do
   """
   @spec run!(module()) :: [integer()]
   def run!(repo) do
-    Ecto.Migrator.run(repo, path(), :up,
-      all: true,
-      migration_source: "data_migrations"
+    with_data_migration_source(repo, fn ->
+      Ecto.Migrator.run(repo, path(), :up, all: true)
+    end)
+  end
+
+  @doc """
+  Runs `fun` with the repo's `:migration_source` config set to
+  `"data_migrations"`, restoring the original config afterwards.
+
+  The versions-table name is read from *repo config* by ecto_sql
+  (`SchemaMigration.get_repo_and_source/2`); passing `migration_source:`
+  as an option to `Ecto.Migrator.run/4` is silently ignored (that
+  positional argument names the migrations *directory*, not the table).
+  The original implementation made exactly that mistake, so every data
+  migration shipped before 2026-06-12 was tracked in `schema_migrations`
+  — the `HealDataMigrationsTracking` schema migration moves those rows
+  into `data_migrations` in lockstep with this fix.
+  """
+  @spec with_data_migration_source(module(), (-> result)) :: result when result: var
+  def with_data_migration_source(repo, fun) do
+    otp_app = Keyword.fetch!(repo.config(), :otp_app)
+    original = Application.fetch_env!(otp_app, repo)
+
+    Application.put_env(
+      otp_app,
+      repo,
+      Keyword.put(original, :migration_source, "data_migrations")
     )
+
+    try do
+      fun.()
+    after
+      Application.put_env(otp_app, repo, original)
+    end
   end
 
   @doc "Filesystem path to the data-migrations directory inside the app."
