@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.91.0 — 2026-06-13
+
+### New
+
+- **Drive the Downloads page from the couch.** Keyboard and gamepad navigation now works across the whole Downloads page: move through the search box, draft plans, active downloads, and history with the arrow keys or d-pad, open a download's detail view with Select, and dismiss it with Back. The "navigation coming soon" hint is gone.
+
+### Improved
+
+- **The Downloads search box plays nicely with navigation.** Typing works the moment the page opens; press Escape to step out of the search box and navigate, press Escape again to clear what you typed. The Clear button (Backspace / Y) empties the search box — or the History filter — from anywhere on the page.
+- **Confirmation dialogs respond to the controller.** "Cancel download?" and "Discard plan?" prompts can now be answered with Select and dismissed with Back, even when they appear on top of a detail view.
+
 ## v0.90.8 — 2026-06-12
 
 ### Improved
