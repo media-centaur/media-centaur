@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.90.1 — 2026-06-12
+
+### Improved
+
+- **Issues on the Status page now have readable titles.** Instead of raw error text like `[System] ** (Bandit.HTTPErro…`, each issue leads with what actually broke — the crashing component and a plain description, e.g. `Bandit.HTTPError: Read timeout`. Existing issues pick up the new titles too.
+- **Crash details are readable everywhere.** Some internal crash reports used to appear as raw data structures in the Console and in issue details; they now render as normal, readable error text.
+
+### Fixed
+
+- **Data retention rows no longer squeeze their labels.** In a subsystem's Data retention panel, a long sweep summary could crush the policy name into a one-word-per-line sliver; the summary now moves to its own line instead.
+
 ## v0.90.0 — 2026-06-12
 
 ### Improved
