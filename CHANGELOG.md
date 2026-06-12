@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.90.2 — 2026-06-12
+
+### Improved
+
+- **The Downloads page refreshes immediately when opened.** Download activity used to come from a cached snapshot that could be up to 30 seconds old; opening the page now checks the download client right away.
+- **The Status page shows real download-client health.** The Downloads tile now distinguishes a single failed check ("Retrying…") from a genuine outage ("Offline", with how long it has been down).
+
+### Fixed
+
+- **No more false "Download client offline" warnings.** The Downloads page could flash "Download client offline — last update 7s ago" while the client was running fine, because it judged the connection by the age of the last status snapshot instead of by actual failures. Connectivity is now graded from real poll results: a single hiccup stays quiet, and the warning appears only after consecutive failed checks — and tells you how long the client has actually been unreachable.
+
 ## v0.90.1 — 2026-06-12
 
 ### Improved
