@@ -17,9 +17,7 @@ defmodule MediaCentaur.WatchHistory.RetentionPolicies do
         key: :watch_history,
         subsystem: :playback,
         label: "Watch history",
-        description:
-          "Kept forever by design — history outlives deleted titles. " <>
-            "Individual entries can be removed from the history page.",
+        description: "History outlives deleted titles. Remove single entries from the history page.",
         mode: :forever
       }
     ]

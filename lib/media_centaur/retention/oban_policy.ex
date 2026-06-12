@@ -17,9 +17,7 @@ defmodule MediaCentaur.Retention.ObanPolicy do
         key: :oban_jobs,
         subsystem: :system,
         label: "Background jobs",
-        description:
-          "Finished background jobs (completed, cancelled, or discarded) are deleted " <>
-            "after #{pruner_max_age_days()} days, continuously.",
+        description: "Finished jobs are deleted after #{pruner_max_age_days()} days.",
         mode: :external
       }
     ]

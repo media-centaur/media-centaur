@@ -21,9 +21,8 @@ defmodule MediaCentaur.Pipeline.RetentionPolicies do
         subsystem: :pipeline,
         label: "Image download queue",
         description:
-          "Bookkeeping for finished artwork downloads is cleared after " <>
-            "#{@completed_retention_days} days; queue entries untouched for " <>
-            "#{@stale_retention_days} days are dropped. The artwork files themselves are kept.",
+          "Finished entries are cleared after #{@completed_retention_days} days, " <>
+            "untouched ones after #{@stale_retention_days}. Artwork files are kept.",
         mode: :sweep,
         run: fn ->
           now = DateTime.utc_now()

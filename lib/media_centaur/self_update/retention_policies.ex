@@ -16,8 +16,7 @@ defmodule MediaCentaur.SelfUpdate.RetentionPolicies do
         key: :upgrade_staging,
         subsystem: :self_update,
         label: "Update staging files",
-        description:
-          "Leftover update staging folders from interrupted attempts are removed after 2 days.",
+        description: "Removed 2 days after an interrupted update.",
         mode: :sweep,
         run: fn -> StagingSweep.sweep() end
       }

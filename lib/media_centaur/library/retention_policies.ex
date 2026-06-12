@@ -21,18 +21,14 @@ defmodule MediaCentaur.Library.RetentionPolicies do
         key: :change_log,
         subsystem: :library,
         label: "Library change log",
-        description:
-          "Only the #{@change_log_cap} most recent library changes are kept, " <>
-            "trimmed as new changes arrive.",
+        description: "Only the #{@change_log_cap} most recent changes are kept.",
         mode: :external
       },
       %Policy{
         key: :absent_files,
         subsystem: :watcher,
         label: "Absent files",
-        description:
-          "Files missing for #{ttl_days} days (with their drive confirmed present) are " <>
-            "unlinked from the library, checked daily.",
+        description: "Unlinked after #{ttl_days} days missing, once their drive is confirmed present.",
         mode: :external
       }
     ]

@@ -123,7 +123,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
     view |> element("#health-drill-in button", "Dismiss all") |> render_click()
 
     refute has_element?(view, "#incident-fp-dismiss-all")
-    assert has_element?(view, "#health-drill-in", "No issues for this subsystem")
+    assert has_element?(view, "#health-drill-in", "No issues")
   end
 
   # The issue view is open when its footer Dismiss button (which carries the

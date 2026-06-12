@@ -167,9 +167,7 @@ defmodule MediaCentaurWeb.HealthComponents do
               <span class="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-success/15">
                 <.icon name="hero-check-mini" class="size-3 text-success" />
               </span>
-              <span>
-                <span class="font-medium text-base-content/65">No issues</span> for this subsystem.
-              </span>
+              <span class="font-medium text-base-content/65">No issues</span>
             </div>
 
             <div :if={@buckets != []} class="mt-3.5 border-t border-base-content/10 pt-3.5">
@@ -196,7 +194,7 @@ defmodule MediaCentaurWeb.HealthComponents do
 
           <details class="glass-inset rounded-xl">
             <summary class="cursor-pointer select-none px-4 py-3 text-sm text-base-content/60">
-              View technical logs
+              Technical logs
             </summary>
             <div class="space-y-0.5 border-t border-base-content/10 px-4 py-3 font-mono text-xs text-base-content/50">
               <p :for={line <- HealthBoard.log_lines(@buckets)}>{line}</p>
