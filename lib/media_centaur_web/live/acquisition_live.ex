@@ -135,6 +135,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
          queue_connectivity: :initializing,
          queue_last_success_at: nil,
          queue_loaded?: false,
+         board_expanded_seasons: nil,
          cancel_confirm: nil,
          pending_cancels: %{},
          download_client_ready: false,
@@ -332,6 +333,10 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     else
       socket
       |> assign(:selected_pursuit_id, id)
+      # Nil = "use each season group's exception-driven default" until
+      # the user toggles; reset per pursuit so one show's toggles don't
+      # leak into the next.
+      |> assign(:board_expanded_seasons, nil)
       |> load_pursuit_detail()
     end
   end
@@ -340,7 +345,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     if socket.assigns.selected_pursuit_id == nil do
       socket
     else
-      assign(socket, selected_pursuit_id: nil, pursuit_detail: nil)
+      assign(socket, selected_pursuit_id: nil, pursuit_detail: nil, board_expanded_seasons: nil)
     end
   end
 
@@ -475,6 +480,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           status={@pursuit_detail && @pursuit_detail.status}
           timeline={@pursuit_detail && @pursuit_detail.timeline}
           unit_board={@pursuit_detail && @pursuit_detail.unit_board}
+          board_expanded_seasons={@board_expanded_seasons}
           decision_card={@pursuit_detail && @pursuit_detail.decision_card}
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
         />
@@ -1106,6 +1112,27 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         Log.warning(:acquisition, "pursuit cancel failed — #{inspect(reason)}")
         {:noreply, put_flash(socket, :error, "Could not cancel pursuit.")}
     end
+  end
+
+  def handle_event("toggle_board_season", %{"season" => season_key}, socket) do
+    # First toggle materializes the nil "use defaults" sentinel into the
+    # default set, then flips — so the user's click composes with the
+    # exception-driven defaults instead of discarding them.
+    groups =
+      case socket.assigns.pursuit_detail do
+        %{unit_board: %ViewModels.UnitBoard{groups: groups}} -> groups
+        _detail -> nil
+      end
+
+    expanded =
+      socket.assigns.board_expanded_seasons || ViewModels.UnitBoard.default_expanded(groups)
+
+    expanded =
+      if MapSet.member?(expanded, season_key),
+        do: MapSet.delete(expanded, season_key),
+        else: MapSet.put(expanded, season_key)
+
+    {:noreply, assign(socket, :board_expanded_seasons, expanded)}
   end
 
   def handle_event("change_target", params, socket) do

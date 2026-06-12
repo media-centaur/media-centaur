@@ -66,6 +66,7 @@ defmodule MediaCentaur.Acquisition do
       ViewModels.Timeline,
       ViewModels.TimelineEntry,
       ViewModels.UnitBoard,
+      ViewModels.UnitBoard.Group,
       ViewModels.UnitBoard.Row
     ]
 

@@ -434,6 +434,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
           id: unit.id,
           label: unit.label || unit.query || pursuit.title,
           state: unit_state_to_atom(unit.state),
+          season_number: unit.season_number,
           release_title: target && target.release_title,
           awaiting_decision?: awaiting?,
           # Awaiting units pivot through the decision card, not the
@@ -446,7 +447,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       pursuit_id: pursuit.id,
       wanted: max(length(units), 1),
       satisfied: Enum.count(units, &(&1.state == "satisfied")),
-      units: rows
+      units: rows,
+      groups: UnitBoard.group_rows(rows)
     }
   end
 
