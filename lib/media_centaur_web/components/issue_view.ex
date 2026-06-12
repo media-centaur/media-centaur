@@ -27,6 +27,8 @@ defmodule MediaCentaurWeb.Components.IssueView do
       open={!is_nil(@bucket)}
       dismiss={:ephemeral}
       on_close={@on_close}
+      data-detail-mode={!is_nil(@bucket) && "modal"}
+      data-dismiss-event={@on_close}
       panel_class="flex flex-col max-h-[85vh]"
     >
       <div :if={@bucket} class="flex flex-col min-h-0">
@@ -71,15 +73,21 @@ defmodule MediaCentaurWeb.Components.IssueView do
             variant="dismiss"
             phx-click={@on_dismiss}
             phx-value-fingerprint={@bucket.fingerprint}
+            data-nav-item
+            tabindex="0"
           >
             Dismiss
           </.button>
           <div class="flex-1"></div>
-          <.button variant="dismiss" phx-click={@on_close}>Close</.button>
+          <.button variant="dismiss" phx-click={@on_close} data-nav-item tabindex="0">
+            Close
+          </.button>
           <.button
             variant="primary"
             phx-click={@on_report}
             phx-value-fingerprint={@bucket.fingerprint}
+            data-nav-item
+            tabindex="0"
           >
             Report this
           </.button>

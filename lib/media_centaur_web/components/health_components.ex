@@ -26,6 +26,7 @@ defmodule MediaCentaurWeb.HealthComponents do
       phx-click={@on_select}
       phx-value-subsystem={@view.component}
       data-nav-item
+      data-entity-id={@view.component}
       data-subsystem-tile
       data-selected={@selected}
       aria-pressed={to_string(@selected)}
@@ -71,6 +72,7 @@ defmodule MediaCentaurWeb.HealthComponents do
         phx-click={@on_select}
         phx-value-fingerprint={@bucket.fingerprint}
         data-nav-item
+        tabindex="0"
         class="flex-1 min-w-0 flex items-start gap-3 p-3 text-left rounded-l-lg cursor-pointer hover:bg-base-content/5 transition-colors"
       >
         <span class={[
@@ -93,6 +95,8 @@ defmodule MediaCentaurWeb.HealthComponents do
         class="m-2 self-center"
         phx-click={@on_dismiss}
         phx-value-fingerprint={@bucket.fingerprint}
+        data-nav-item
+        tabindex="0"
       >
         <.icon name="hero-x-mark-mini" class="size-4" />
       </.button>
@@ -119,7 +123,7 @@ defmodule MediaCentaurWeb.HealthComponents do
 
   def health_drill_in(assigns) do
     ~H"""
-    <section id="health-drill-in" class="glass-surface rounded-xl p-6 lg:p-8">
+    <section id="health-drill-in" data-nav-zone="drill-in" class="glass-surface rounded-xl p-6 lg:p-8">
       <header class="mb-8 flex items-start justify-between gap-4 border-b border-base-content/10 pb-7">
         <div class="min-w-0">
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-base-content/40">
@@ -130,7 +134,9 @@ defmodule MediaCentaurWeb.HealthComponents do
             {HealthBoard.description(@view.component)}
           </p>
         </div>
-        <.button variant="dismiss" size="sm" phx-click={@on_close}>Close</.button>
+        <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
+          Close
+        </.button>
       </header>
 
       <div class={[
@@ -175,7 +181,13 @@ defmodule MediaCentaurWeb.HealthComponents do
                 <h4 class="text-xs font-medium uppercase tracking-wider text-base-content/40">
                   Issues
                 </h4>
-                <.button variant="dismiss" size="xs" phx-click={@on_dismiss_all}>
+                <.button
+                  variant="dismiss"
+                  size="xs"
+                  phx-click={@on_dismiss_all}
+                  data-nav-item
+                  tabindex="0"
+                >
                   Dismiss all
                 </.button>
               </div>
@@ -193,7 +205,11 @@ defmodule MediaCentaurWeb.HealthComponents do
           <.retention_panel :if={@retention != []} policies={@retention} />
 
           <details class="glass-inset rounded-xl">
-            <summary class="cursor-pointer select-none px-4 py-3 text-sm text-base-content/60">
+            <summary
+              data-nav-item
+              tabindex="0"
+              class="cursor-pointer select-none px-4 py-3 text-sm text-base-content/60"
+            >
               Technical logs
             </summary>
             <div class="space-y-0.5 border-t border-base-content/10 px-4 py-3 font-mono text-xs text-base-content/50">

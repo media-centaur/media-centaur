@@ -28,8 +28,10 @@ const TEST_LAYOUTS = {
     sidebar:   { right: ["sections", "grid"] },
   },
   status: {
-    sections:  { left: ["sidebar"] },
-    sidebar:   { right: ["sections"] },
+    toolbar:    { down: ["grid"], left: ["sidebar"] },
+    grid:       { up: ["toolbar"], down: ["drill-in"], left: ["sidebar"] },
+    "drill-in": { up: ["grid"], left: ["sidebar"] },
+    sidebar:    { right: ["grid", "toolbar"] },
   },
   download: {
     omnibox:         { down: ["grid", "drafts", "pursuits", "history"], left: ["sidebar"] },
@@ -56,7 +58,7 @@ const TEST_CURSOR_START_PRIORITY = {
   library:   ["grid", "toolbar", "zone_tabs", "sidebar"],
   upcoming:  ["upcoming", "grid", "zone_tabs", "sidebar"],
   settings:  ["sections", "grid", "sidebar"],
-  status:    ["sections", "sidebar"],
+  status:    ["grid", "toolbar", "sidebar"],
   download:  ["pursuits", "omnibox", "sidebar"],
   home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
 }
@@ -352,22 +354,45 @@ describe("buildNavGraph", () => {
     })
   })
 
-  describe("status zone, all populated", () => {
-    const counts = { sections: 4, sidebar: 4 }
+  describe("status zone, drill-in open (a subsystem is selected)", () => {
+    const counts = { toolbar: 1, grid: 9, "drill-in": 4, sidebar: 4 }
     const graph = buildNavGraph("status", counts, CONFIG)
 
-    test("sections left goes to sidebar", () => {
-      expect(graph.sections.left).toBe("sidebar")
+    test("toolbar down goes to the tile grid", () => {
+      expect(graph.toolbar.down).toBe("grid")
     })
 
-    test("sidebar right goes to sections", () => {
-      expect(graph.sidebar.right).toBe("sections")
+    test("grid down goes to the drill-in, up to the toolbar", () => {
+      expect(graph.grid.down).toBe("drill-in")
+      expect(graph.grid.up).toBe("toolbar")
     })
 
-    test("no grid, zone_tabs, or toolbar in status layout", () => {
-      expect(graph.grid).toBeUndefined()
-      expect(graph.zone_tabs).toBeUndefined()
-      expect(graph.toolbar).toBeUndefined()
+    test("drill-in up returns to the grid", () => {
+      expect(graph["drill-in"].up).toBe("grid")
+    })
+
+    test("every zone has a left edge to the sidebar", () => {
+      for (const zone of ["toolbar", "grid", "drill-in"]) {
+        expect(graph[zone].left).toBe("sidebar")
+      }
+    })
+
+    test("sidebar right goes to the grid (first candidate)", () => {
+      expect(graph.sidebar.right).toBe("grid")
+    })
+  })
+
+  describe("status zone, drill-in closed (no subsystem selected)", () => {
+    const counts = { toolbar: 1, grid: 9, "drill-in": 0, sidebar: 4 }
+    const graph = buildNavGraph("status", counts, CONFIG)
+
+    test("grid down blocked (drill-in is only candidate and empty)", () => {
+      expect(graph.grid.down).toBeUndefined()
+    })
+
+    test("grid up and left still resolve", () => {
+      expect(graph.grid.up).toBe("toolbar")
+      expect(graph.grid.left).toBe("sidebar")
     })
   })
 
@@ -580,8 +605,12 @@ describe("resolveCursorStart", () => {
     expect(resolveCursorStart("settings", { sections: 0, grid: 6, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
   })
 
-  test("status zone returns sections (always populated)", () => {
-    expect(resolveCursorStart("status", { sections: 0, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
+  test("status zone starts at the tile grid", () => {
+    expect(resolveCursorStart("status", { grid: 9, toolbar: 1, sidebar: 4 }, CURSOR_CONFIG)).toBe("grid")
+  })
+
+  test("status zone falls back to toolbar when the board is empty", () => {
+    expect(resolveCursorStart("status", { grid: 0, toolbar: 1, sidebar: 4 }, CURSOR_CONFIG)).toBe("toolbar")
   })
 
   test("download zone with active pursuits starts at pursuits", () => {
