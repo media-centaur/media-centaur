@@ -128,6 +128,17 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         }
       },
       %Variation{
+        id: :board_long_season,
+        description:
+          "A 26-episode season fused into one capsule — the capsule wraps inside the modal instead of overflowing it.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          board: board(:long_season),
+          last_activity: "3 searches · all from corpus"
+        }
+      },
+      %Variation{
         id: :board_alternatives_open,
         description:
           "The swap picker — corpus alternatives under the release row: clean candidates first, bait-pattern titles flagged ('looks fake') but choosable; exclude-and-re-solve and re-search as the escape hatches.",
@@ -308,6 +319,31 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
     }
   end
 
+  defp board(:long_season) do
+    long_cells = for episode <- 1..26, do: cell(2, episode, :assigned, "pack")
+
+    %PlanBoard{
+      plan_id: "story-plan",
+      title: "Sample Show",
+      status: :ready,
+      wanted: 35,
+      covered: 35,
+      seasons: [
+        %PlanBoard.SeasonRow{
+          season_number: 1,
+          cells: for(episode <- 1..9, do: cell(1, episode, :assigned, "pack-s1"))
+        },
+        %PlanBoard.SeasonRow{season_number: 2, cells: long_cells}
+      ],
+      releases: [
+        release("pack-s1", "Season 1 pack", 9),
+        release("pack", "Season 2 pack", 26)
+      ],
+      gaps: [],
+      total_size_bytes: 32_400_000_000
+    }
+  end
+
   defp board(:overlap) do
     %{
       board(:ready)
@@ -328,7 +364,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       plan_unit_id: "story-unit-#{season}-#{episode}",
       season_number: season,
       episode_number: episode,
-      label: "S0#{season}E0#{episode}",
+      label: "S0#{season}E#{String.pad_leading(to_string(episode), 2, "0")}",
       state: state,
       release_guid: guid,
       release_title: guid && "Sample.Show.S0#{season}.1080p.WEB-DL"

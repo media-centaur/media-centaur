@@ -485,11 +485,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             <span class="flex-shrink-0 w-10 pt-2 text-sm text-base-content/40 tabular-nums">
               S{season.season_number}
             </span>
-            <div class="flex flex-wrap items-center gap-1">
+            <div class="flex min-w-0 flex-1 flex-wrap items-center gap-1">
               <%= for run <- PlanLogic.cell_runs(season.cells) do %>
                 <div
                   :if={match?({:capsule, _, _}, run)}
-                  class="flex gap-px rounded-lg border border-primary/60 bg-primary/10 p-0.5"
+                  class="flex flex-wrap gap-px rounded-lg border border-primary/60 bg-primary/10 p-0.5"
                   title={run |> elem(2) |> hd() |> Map.get(:release_title)}
                 >
                   <.board_cell :for={cell <- elem(run, 2)} cell={cell} in_capsule />
