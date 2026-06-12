@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.90.6 — 2026-06-12
+
+### Improved
+
+- **Episode files named "Episode 01" now match automatically.** Some releases name their files `Show Name - Episode 01 - Title.mkv` with the season only in the folder name, instead of the usual `S01E01` style. These files previously landed in Review as unmatched; Media Centaur now reads the season from the folder and files each episode under the right show.
+
+### Fixed
+
+- **Long season lists no longer overflow the planning modal.** Season capsules now wrap onto multiple lines.
+
 ## v0.90.5 — 2026-06-12
 
 ### Improved
