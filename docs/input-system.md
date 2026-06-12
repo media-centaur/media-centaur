@@ -339,6 +339,8 @@ Actions in each context:
 
 **Nav zone containers must not nest.** Descendant selectors cross-contaminate. Exception: a zone using a direct-child selector (`> [data-nav-item]`) can contain a nested zone without double-counting items. The `upcoming` zone uses this pattern — its tracking section nav item wraps a nested `grid` zone.
 
+**One element owns the modal overlay.** The adapter resolves the *active modal* as the first `[data-detail-mode='modal']` match in DOM order, and derives everything from that one element: `data-detail-view`, `data-dismiss-event`, and — unlike other contexts, which use flat config selectors — the MODAL context's nav items (`activeModalElement().querySelectorAll("[data-nav-item]")`). This keeps navigation and BACK pointed at the same overlay when modals stack (a confirm dialog over a detail modal, as on the downloads page). Pages that stack modals must render the topmost overlay *first* among their `[data-detail-mode]` elements — on `/download`, the confirm dialogs render at the top of `:overlays`, before the plan and pursuit modals.
+
 ## Page Behavior System
 
 Page behaviors extract page-specific concerns from the global orchestrator. The orchestrator detects `data-page-behavior` on the page and delegates to the matching behavior at the right lifecycle points.

@@ -78,7 +78,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
         :if={!@vm.loading? && (@on_cancel || @vm.alternatives == [])}
         class="flex justify-end gap-2 pt-1"
       >
-        <.button :if={@on_cancel} variant="dismiss" size="sm" phx-click={@on_cancel}>
+        <.button
+          :if={@on_cancel}
+          variant="dismiss"
+          size="sm"
+          phx-click={@on_cancel}
+          data-nav-item
+          tabindex="0"
+        >
           Cancel pursuit
         </.button>
         <.button
@@ -86,6 +93,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
           variant="action"
           size="sm"
           phx-click="refresh_alternatives"
+          data-nav-item
+          tabindex="0"
         >
           <.icon name="hero-arrow-path-mini" class="size-4" /> Search Prowlarr again
         </.button>
@@ -116,6 +125,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
         phx-value-pursuit-id={@pursuit_id}
         phx-value-guid={@alt.guid}
         phx-value-label={@alt.title}
+        data-nav-item
+        tabindex="0"
       >
         Try this one
       </.button>

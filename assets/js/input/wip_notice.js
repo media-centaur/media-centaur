@@ -1,7 +1,7 @@
 /**
  * "UI overhaul in progress" navigation notice.
  *
- * Some pages (upcoming, history, downloads, status) are mid-redesign:
+ * Some pages (upcoming, history, status) are mid-redesign:
  * their in-page keyboard/gamepad navigation is still being built — some
  * have partial nav, some none. Rather than silently doing nothing, or
  * half-something, when a user reaches for the d-pad or arrow keys, we

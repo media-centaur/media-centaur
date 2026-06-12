@@ -485,7 +485,10 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
         />
       </:overlays>
-      <div class="relative" data-page-behavior="download" data-nav-default-zone="pursuits">
+      <%!-- data-nav-default-zone names the LAYOUT KEY in input config.js
+            (like `library`/`home`), not a context within it — the nav graph
+            is built from this value. --%>
+      <div class="relative" data-page-behavior="download" data-nav-default-zone="download">
         <%!-- Same ambient treatment as the home/library pages: a calm
               backdrop band behind the header (masked + dimmed by
               `.page-atmosphere`) plus the fixed side scrim, both behind
@@ -2031,10 +2034,22 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           {@cancel_confirm.title}
         </div>
         <div class="mt-4 flex justify-end gap-2">
-          <.button variant="dismiss" size="sm" phx-click="cancel_download_cancel">
+          <.button
+            variant="dismiss"
+            size="sm"
+            phx-click="cancel_download_cancel"
+            data-nav-item
+            tabindex="0"
+          >
             Keep
           </.button>
-          <.button variant="danger" size="sm" phx-click="cancel_download_confirm">
+          <.button
+            variant="danger"
+            size="sm"
+            phx-click="cancel_download_confirm"
+            data-nav-item
+            tabindex="0"
+          >
             Cancel download
           </.button>
         </div>
@@ -2072,10 +2087,22 @@ defmodule MediaCentaurWeb.AcquisitionLive do
           {@board.title}
         </div>
         <div class="mt-4 flex justify-end gap-2">
-          <.button variant="dismiss" size="sm" phx-click="plan_discard_cancel">
+          <.button
+            variant="dismiss"
+            size="sm"
+            phx-click="plan_discard_cancel"
+            data-nav-item
+            tabindex="0"
+          >
             Keep
           </.button>
-          <.button variant="danger" size="sm" phx-click="plan_discard_confirm">
+          <.button
+            variant="danger"
+            size="sm"
+            phx-click="plan_discard_confirm"
+            data-nav-item
+            tabindex="0"
+          >
             Discard plan
           </.button>
         </div>
