@@ -51,7 +51,7 @@ defmodule MediaCentaur.Search.SearchResult do
   @doc "Builds a SearchResult from a raw Prowlarr API result map."
   @spec from_prowlarr(map()) :: t()
   def from_prowlarr(raw) do
-    title = raw["title"] || ""
+    title = scrub_title(raw["title"])
 
     %__MODULE__{
       title: title,
@@ -67,5 +67,15 @@ defmodule MediaCentaur.Search.SearchResult do
       magnet_url: raw["magnetUrl"],
       download_url: raw["downloadUrl"]
     }
+  end
+
+  # Indexers ship scene titles with mangled encodings, and JSON decoding
+  # passes the raw bytes through. Every downstream consumer — unicode
+  # regexes, Ecto casts, the UI — assumes valid UTF-8, so the invariant
+  # is enforced here, where external data enters the system.
+  defp scrub_title(nil), do: ""
+
+  defp scrub_title(title) when is_binary(title) do
+    if String.valid?(title), do: title, else: String.replace_invalid(title)
   end
 end

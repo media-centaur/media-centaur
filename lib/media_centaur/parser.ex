@@ -121,6 +121,8 @@ defmodule MediaCentaur.Parser do
 
   @spec parse(String.t(), keyword()) :: Result.t()
   def parse(file_path, opts \\ []) do
+    file_path = scrub_utf8(file_path)
+
     extras_dirs =
       Keyword.get(opts, :extras_dirs, @default_extras_dirs ++ @default_extras_dirs_multi_word)
 
@@ -622,9 +624,14 @@ defmodule MediaCentaur.Parser do
   # Title cleaning
   # ---------------------------------------------------------------------------
 
+  # The `u` flag is load-bearing: without it, PCRE compiles the ꞉
+  # (U+A789, three bytes) into the class as raw bytes, so the class
+  # matches those bytes *individually* — corrupting any valid multibyte
+  # title whose encoding happens to contain one of them (observed with
+  # „ U+201E, whose 0x9E byte was replaced, leaving invalid UTF-8).
   defp clean_title(raw, opts \\ []) do
     raw
-    |> String.replace(~r/[._꞉]/, " ")
+    |> String.replace(~r/[._꞉]/u, " ")
     |> String.replace(~r/\s+/, " ")
     |> then(&Regex.replace(@quality_bracket_pattern, &1, ""))
     |> then(&Regex.replace(@quality_pattern, &1, ""))
@@ -638,6 +645,13 @@ defmodule MediaCentaur.Parser do
     |> then(&Regex.replace(~r/[-_\s]+$/, &1, ""))
     |> String.trim()
     |> title_case()
+  end
+
+  # Linux file paths are raw bytes with no encoding guarantee, and the
+  # unicode-mode regexes in this module raise on invalid UTF-8 — scrub
+  # once at the entry so every downstream step sees a valid string.
+  defp scrub_utf8(string) do
+    if String.valid?(string), do: string, else: String.replace_invalid(string)
   end
 
   defp title_case(""), do: ""

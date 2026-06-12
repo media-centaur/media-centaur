@@ -28,5 +28,21 @@ defmodule MediaCentaur.Search.SearchResultTest do
       assert result.info_hash == nil
       assert result.magnet_url == nil
     end
+
+    test "scrubs invalid UTF-8 bytes from the title at the boundary" do
+      # Indexers ship scene titles with mangled encodings; JSON decoding
+      # passes the raw bytes through. Every downstream consumer (unicode
+      # regexes, Ecto casts, the UI) assumes valid UTF-8, so the invariant
+      # is enforced here, where external data enters the system.
+      invalid_title = "Sample Movie 2024 1080p " <> <<0xE2, 0x80, 0x20>>
+      refute String.valid?(invalid_title)
+
+      raw = %{"title" => invalid_title, "guid" => "g3", "indexerId" => 1}
+
+      result = SearchResult.from_prowlarr(raw)
+
+      assert String.valid?(result.title)
+      assert result.title =~ "Sample Movie 2024 1080p"
+    end
   end
 end
