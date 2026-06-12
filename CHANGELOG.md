@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.90.3 — 2026-06-12
+
+### Improved
+
+- **Big shows roll up into seasons in the download details.** A pursuit covering a whole series used to list every episode as its own row — a wall of nearly identical lines. Episodes now group under collapsible season headers that show the part you actually want at a glance: how many are landed, whether any need a decision, and which release covers the season. Seasons with something needing attention start open; the rest stay tidy.
+
+### Fixed
+
+- **Download history no longer repeats itself.** A pursuit's history could fill with pages of identical entries — dozens of "Download started" lines and endless "health warming_up → nil" rows for a single download. One download event is now recorded once, the cryptic wording is gone ("Health starting", "State downloading → processing"), and existing histories are cleaned up automatically: a one-time migration collapses the old duplicates, so big pursuits read as the handful of real events they were.
+
 ## v0.90.2 — 2026-06-12
 
 ### Improved
