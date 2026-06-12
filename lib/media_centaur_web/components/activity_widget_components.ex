@@ -130,7 +130,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
       |> Map.put(:now, DateTime.utc_now())
 
     ~H"""
-    <div class="card glass-surface" data-testid="watcher-widget">
+    <div class="card glass-inset" data-testid="watcher-widget">
       <div class="card-body">
         <h2 class="card-title text-lg">
           <.settings_link section="library">Directories</.settings_link>
@@ -317,7 +317,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
       |> Map.put(:grid_columns, @stage_grid_columns)
 
     ~H"""
-    <div class="card glass-surface self-start" data-testid="pipeline-widget">
+    <div class="card glass-inset self-start" data-testid="pipeline-widget">
       <div class="card-body">
         <%!-- Pipeline header --%>
         <div class="flex items-center justify-between">
@@ -476,7 +476,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
   def tmdb_widget(assigns) do
     ~H"""
-    <div class="card glass-surface" data-testid="tmdb-widget">
+    <div class="card glass-inset" data-testid="tmdb-widget">
       <div class="card-body">
         <h2 class="card-title text-lg">External Integrations</h2>
 
@@ -579,128 +579,156 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
     assigns = Map.put(assigns, :health, health)
 
     ~H"""
-    <div
-      class={["card glass-surface border-l-3", playback_border_class(@playback.state)]}
-      data-testid="playback-widget"
-    >
-      <div class="card-body">
-        <%!-- State eyebrow (left) paired with the single health signal (right).
-             No "Playback" title here — the drill-in header already names the subsystem. --%>
-        <div class="flex items-center justify-between">
-          <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-            {if @sessions == [], do: "Recently watched", else: "Now playing"}
-          </h3>
-          <span
-            class={["flex items-center gap-1.5 text-xs", @health.text_class]}
-            data-component="playback-health"
-          >
-            <span class={["size-2 rounded-full shrink-0", @health.dot_class]}></span>
-            {@health.label}
-          </span>
-        </div>
-
-        <%!-- Now playing: one block per active session --%>
-        <div :if={@sessions != []} data-component="playback-narrative" class="mt-3 space-y-3">
-          <div :for={session <- @sessions}>
-            <div class="flex items-center gap-2">
-              <span class={["text-xs", playback_text_class(session.state)]}>{session.state}</span>
-              <span class="text-base font-medium truncate">
-                {now_playing_title(session.now_playing)}
-              </span>
-            </div>
-            <div
-              :if={now_playing_detail(session.now_playing)}
-              class="text-sm text-base-content/60 truncate"
-            >
-              {now_playing_detail(session.now_playing)}
-            </div>
-            <div
-              :if={
-                session.now_playing[:duration_seconds] != nil &&
-                  session.now_playing[:duration_seconds] > 0
-              }
-              class="flex items-center gap-2 mt-1"
-            >
-              <progress
-                class={["progress h-1.5 flex-1", playback_progress_class(session.state)]}
-                value={session.now_playing[:position_seconds] || 0}
-                max={session.now_playing.duration_seconds}
-              >
-              </progress>
-              <span class="text-xs text-base-content/50 whitespace-nowrap tabular-nums">
-                {format_remaining(
-                  session.now_playing.duration_seconds -
-                    (session.now_playing[:position_seconds] || 0)
-                )}
-              </span>
-            </div>
+    <div data-testid="playback-widget">
+      <%!-- Hero stat band: lifetime numbers framed as instrumentation, not
+           spread across the column. A zero streak dims — at-rest information,
+           not a headline. --%>
+      <div
+        :if={@playback_activity.lifetime.titles > 0}
+        data-component="playback-lifetime"
+        class="glass-inset mb-7 grid grid-cols-3 overflow-hidden rounded-xl"
+      >
+        <div class="px-6 py-5">
+          <div class="text-4xl font-extralight leading-none tracking-tight tabular-nums">
+            {@playback_activity.lifetime.hours}<span class="ml-1.5 text-base font-normal text-base-content/50">hrs</span>
+          </div>
+          <div class="mt-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-base-content/40">
+            Watched, lifetime
           </div>
         </div>
-
-        <%!-- Recently watched list (idle) --%>
-        <ul
-          :if={@sessions == [] and @playback_activity.recent != []}
-          data-component="playback-narrative"
-          class="mt-3 space-y-2"
-        >
-          <li
-            :for={entry <- @playback_activity.recent}
-            id={watch_row_id(entry)}
-            class="flex items-baseline gap-3 text-sm"
-          >
-            <span class="truncate text-base-content/80">{format_recent_title(entry)}</span>
-            <span class="ml-auto shrink-0 text-xs text-base-content/40 tabular-nums">
-              {time_ago(entry.at)}
-            </span>
-          </li>
-        </ul>
-
-        <p
-          :if={@sessions == [] and @playback_activity.recent == []}
-          data-component="playback-narrative"
-          class="mt-3 text-sm text-base-content/50"
-        >
-          Nothing watched yet.
-        </p>
-
-        <%!-- Lifetime stat figures (the dashboard flex), only once there's history --%>
-        <div
-          :if={@playback_activity.lifetime.titles > 0}
-          data-component="playback-lifetime"
-          class="mt-4 pt-4 border-t border-base-content/10 grid grid-cols-3 gap-3"
-        >
-          <div>
-            <div class="text-2xl font-semibold tabular-nums">{@playback_activity.lifetime.hours}</div>
-            <div class="text-xs uppercase tracking-wider text-base-content/50">Hours</div>
+        <div class="border-l border-base-content/10 px-6 py-5">
+          <div class="text-4xl font-extralight leading-none tracking-tight tabular-nums">
+            {@playback_activity.lifetime.titles}
           </div>
-          <div>
-            <div class="text-2xl font-semibold tabular-nums">
-              {@playback_activity.lifetime.titles}
-            </div>
-            <div class="text-xs uppercase tracking-wider text-base-content/50">Watched</div>
-          </div>
-          <div>
-            <div class="text-2xl font-semibold tabular-nums">
-              {@playback_activity.lifetime.streak}
-            </div>
-            <div class="text-xs uppercase tracking-wider text-base-content/50">Day streak</div>
+          <div class="mt-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-base-content/40">
+            Titles finished
           </div>
         </div>
-
-        <%!-- Sole entry point to /history since it left the sidebar — the full
-             event list, heatmap, and per-event delete live there. --%>
-        <.link
-          :if={@playback_activity.lifetime.titles > 0}
-          navigate={~p"/history"}
-          class="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:text-primary/80"
-          data-component="watch-history-link"
-        >
-          View full watch history <.icon name="hero-arrow-right-mini" class="size-3.5 shrink-0" />
-        </.link>
+        <div class="border-l border-base-content/10 px-6 py-5">
+          <div class={[
+            "text-4xl font-extralight leading-none tracking-tight tabular-nums",
+            @playback_activity.lifetime.streak == 0 && "text-base-content/40"
+          ]}>
+            {@playback_activity.lifetime.streak}
+          </div>
+          <div class="mt-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-base-content/40">
+            Day streak
+          </div>
+        </div>
       </div>
+
+      <%!-- List head: section title left, the single health signal right. --%>
+      <div class="flex items-baseline justify-between">
+        <h4 class="text-[17px] font-semibold tracking-tight">
+          {if @sessions == [], do: "Recently watched", else: "Now playing"}
+        </h4>
+        <span
+          class={["flex items-center gap-1.5 text-xs", @health.text_class]}
+          data-component="playback-health"
+        >
+          <span class={["size-2 rounded-full shrink-0", @health.dot_class]}></span>
+          {@health.label}
+        </span>
+      </div>
+
+      <%!-- Now playing: one block per active session --%>
+      <div :if={@sessions != []} data-component="playback-narrative" class="mt-3 space-y-3">
+        <div :for={session <- @sessions}>
+          <div class="flex items-center gap-2">
+            <span class={["text-xs", playback_text_class(session.state)]}>{session.state}</span>
+            <span class="text-base font-medium truncate">
+              {now_playing_title(session.now_playing)}
+            </span>
+          </div>
+          <div
+            :if={now_playing_detail(session.now_playing)}
+            class="text-sm text-base-content/60 truncate"
+          >
+            {now_playing_detail(session.now_playing)}
+          </div>
+          <div
+            :if={
+              session.now_playing[:duration_seconds] != nil &&
+                session.now_playing[:duration_seconds] > 0
+            }
+            class="flex items-center gap-2 mt-1"
+          >
+            <progress
+              class={["progress h-1.5 flex-1", playback_progress_class(session.state)]}
+              value={session.now_playing[:position_seconds] || 0}
+              max={session.now_playing.duration_seconds}
+            >
+            </progress>
+            <span class="text-xs text-base-content/50 whitespace-nowrap tabular-nums">
+              {format_remaining(
+                session.now_playing.duration_seconds -
+                  (session.now_playing[:position_seconds] || 0)
+              )}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <%!-- Recently watched (idle): poster thumb + two-tier title + age. --%>
+      <ul
+        :if={@sessions == [] and @playback_activity.recent != []}
+        data-component="playback-narrative"
+        class="mt-2"
+      >
+        <li
+          :for={entry <- @playback_activity.recent}
+          id={watch_row_id(entry)}
+          class="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-4 border-t border-base-content/5 py-2.5 first:border-t-0"
+        >
+          <img
+            :if={entry.poster_url}
+            src={entry.poster_url}
+            alt=""
+            loading="eager"
+            decoding="sync"
+            class="h-[3.75rem] w-10 rounded-md border border-base-content/10 object-cover"
+          />
+          <div
+            :if={is_nil(entry.poster_url)}
+            class="glass-inset grid h-[3.75rem] w-10 place-items-center rounded-md"
+          >
+            <.icon name={kind_glyph(entry.kind)} class="size-4 text-base-content/30" />
+          </div>
+          <div class="min-w-0">
+            <div class="truncate text-sm font-medium">{entry.primary}</div>
+            <div class="mt-0.5 truncate text-xs text-base-content/50">{entry.secondary}</div>
+          </div>
+          <span class="shrink-0 text-xs text-base-content/40 tabular-nums">
+            {time_ago(entry.at)}
+          </span>
+        </li>
+      </ul>
+
+      <p
+        :if={@sessions == [] and @playback_activity.recent == []}
+        data-component="playback-narrative"
+        class="mt-3 text-sm text-base-content/50"
+      >
+        Nothing watched yet.
+      </p>
+
+      <%!-- Sole entry point to /history since it left the sidebar — the full
+           event list, heatmap, and per-event delete live there. --%>
+      <.link
+        :if={@playback_activity.lifetime.titles > 0}
+        navigate={~p"/history"}
+        class="mt-4 inline-flex items-center gap-1.5 text-[13px] font-medium text-primary hover:text-primary/80"
+        data-component="watch-history-link"
+      >
+        View full watch history <.icon name="hero-arrow-right-mini" class="size-3.5 shrink-0" />
+      </.link>
     </div>
     """
   end
+
+  defp kind_glyph(:movie), do: "hero-film"
+  defp kind_glyph(:episode), do: "hero-tv"
+  defp kind_glyph(_video), do: "hero-video-camera"
 
   @doc "Self-update Activity widget: running version, check cadence, auto-install state, and live apply progress."
   attr :version, :string, required: true, doc: "running app version, e.g. \"0.80.0\""
@@ -735,7 +763,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
   def self_update_widget(assigns) do
     ~H"""
-    <div class="card glass-surface" data-testid="self-update-widget">
+    <div class="card glass-inset" data-testid="self-update-widget">
       <div class="card-body">
         <%!-- Header: title + running version --%>
         <div class="flex items-center justify-between">
@@ -859,7 +887,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
       |> Map.put(:rq_tone, rq_tone)
 
     ~H"""
-    <div class="card glass-surface" data-testid="system-widget">
+    <div class="card glass-inset" data-testid="system-widget">
       <div class="card-body">
         <%!-- Header + uptime (stability headline) --%>
         <div class="flex items-center justify-between">
@@ -951,7 +979,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
     ~H"""
     <div
-      class={["card glass-surface border-l-3", acq_border_class(@tone)]}
+      class={["card glass-inset border-l-3", acq_border_class(@tone)]}
       data-testid="acquisition-widget"
     >
       <div class="card-body">
@@ -1059,9 +1087,6 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
   defp playback_health(_idle, _count) do
     %{label: "Idle", dot_class: "bg-base-content/30", text_class: "text-base-content/50"}
   end
-
-  defp format_recent_title(%{title: title}) when is_binary(title) and title != "", do: title
-  defp format_recent_title(_), do: "Untitled"
 
   # System vitals read calm-when-healthy: neutral by default, amber only when a
   # vital is concerning (color = signal). Distinct from `tone_chrome/1`, whose

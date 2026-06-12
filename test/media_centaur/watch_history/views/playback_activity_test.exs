@@ -50,5 +50,74 @@ defmodule MediaCentaur.WatchHistory.Views.PlaybackActivityTest do
       assert snap.lifetime == %{hours: 2, titles: 2, streak: 2}
       _ = older
     end
+
+    test "enriches entries with poster_url from the linked entity" do
+      movie = create_movie(%{name: "Movie A"})
+
+      create_image(%{
+        owner_type: :movie,
+        owner_id: movie.id,
+        role: "poster",
+        content_url: "posters/movie-a.jpg"
+      })
+
+      {:ok, _event} =
+        WatchHistory.create_event(%{
+          entity_type: :movie,
+          movie_id: movie.id,
+          title: "Movie A",
+          duration_seconds: 3600.0,
+          completed_at: DateTime.utc_now()
+        })
+
+      assert [%{poster_url: "/media-images/posters/movie-a.jpg"}] = PlaybackActivity.snapshot().recent
+    end
+
+    test "entries for deleted or posterless entities carry a nil poster_url" do
+      {:ok, _event} =
+        WatchHistory.create_event(%{
+          entity_type: :movie,
+          title: "Orphaned Movie",
+          duration_seconds: 3600.0,
+          completed_at: DateTime.utc_now()
+        })
+
+      assert [%{poster_url: nil}] = PlaybackActivity.snapshot().recent
+    end
+
+    test "entries carry two-tier title parts" do
+      {:ok, _event} =
+        WatchHistory.create_event(%{
+          entity_type: :episode,
+          title: "Sample Show S01E03 — The One With the Plan",
+          duration_seconds: 1800.0,
+          completed_at: DateTime.utc_now()
+        })
+
+      assert [%{primary: "Sample Show", secondary: "S01E03 — The One With the Plan"}] =
+               PlaybackActivity.snapshot().recent
+    end
+  end
+
+  describe "title_parts/2" do
+    test "splits a full episode title into series and episode line" do
+      assert PlaybackActivity.title_parts(:episode, "Sample Show S01E03 — The One With the Plan") ==
+               {"Sample Show", "S01E03 — The One With the Plan"}
+    end
+
+    test "splits a nameless episode title into series and code" do
+      assert PlaybackActivity.title_parts(:episode, "Sample Show S01E03") ==
+               {"Sample Show", "S01E03"}
+    end
+
+    test "falls back to a type label when an episode title doesn't match the recorded format" do
+      assert PlaybackActivity.title_parts(:episode, "Free-form recording") ==
+               {"Free-form recording", "Episode"}
+    end
+
+    test "movies and videos use their name with a type label" do
+      assert PlaybackActivity.title_parts(:movie, "Movie A") == {"Movie A", "Movie"}
+      assert PlaybackActivity.title_parts(:video_object, "Sample Clip") == {"Sample Clip", "Video"}
+    end
   end
 end

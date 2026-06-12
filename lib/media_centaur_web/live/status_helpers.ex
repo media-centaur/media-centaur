@@ -209,10 +209,6 @@ defmodule MediaCentaurWeb.StatusHelpers do
   def playback_progress_class(:paused), do: "progress-warning"
   def playback_progress_class(_), do: "progress-info"
 
-  def playback_border_class(:playing), do: "border-success"
-  def playback_border_class(:paused), do: "border-warning"
-  def playback_border_class(_), do: "border-base-content/20"
-
   # --- Usage Display ---
 
   def usage_progress_class(percent) when percent >= 90, do: "progress-error"
