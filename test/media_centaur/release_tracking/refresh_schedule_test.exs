@@ -9,13 +9,10 @@ defmodule MediaCentaur.ReleaseTracking.RefreshScheduleTest do
     end
 
     test "returns the full interval when no time has passed since last completion" do
-      now = DateTime.utc_now()
+      now = ~U[2026-06-12 12:00:00.000Z]
       interval = :timer.minutes(15)
 
-      delay = RefreshSchedule.next_delay_ms(now, interval)
-
-      assert delay > interval - 100
-      assert delay <= interval
+      assert RefreshSchedule.next_delay_ms(now, interval, now) == interval
     end
 
     test "returns 0 when more time than interval has elapsed (regression: timer reset on restart)" do
@@ -24,12 +21,11 @@ defmodule MediaCentaur.ReleaseTracking.RefreshScheduleTest do
     end
 
     test "returns the remaining ms when partial interval has elapsed" do
-      five_minutes_ago = DateTime.add(DateTime.utc_now(), -5 * 60, :second)
+      now = ~U[2026-06-12 12:00:00.000Z]
+      five_minutes_ago = DateTime.add(now, -5 * 60, :second)
       interval = :timer.minutes(15)
 
-      delay = RefreshSchedule.next_delay_ms(five_minutes_ago, interval)
-
-      assert_in_delta delay, :timer.minutes(10), 100
+      assert RefreshSchedule.next_delay_ms(five_minutes_ago, interval, now) == :timer.minutes(10)
     end
   end
 end
