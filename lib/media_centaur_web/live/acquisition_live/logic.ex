@@ -16,6 +16,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
 
   alias MediaCentaur.Search.SearchResult
   alias MediaCentaur.Downloads.{Health, QueueItem}
+  alias MediaCentaurWeb.LiveHelpers
 
   # How long after a user-initiated cancel we keep suppressing the
   # affected row from incoming snapshots. qBittorrent's DELETE typically
@@ -559,32 +560,29 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
 
   @doc """
   Connectivity notice for the Active Pursuits header. Quiet (`nil`) while
-  the download client is healthy, still connecting, or simply not
-  configured — a green "Live" pill beside "Active pursuits" wrongly reads
-  as *pursuit* liveness, when most pursuit states (Searching, Decision
-  needed, In review, Verifying, Done) never touch the client at all.
+  the download client is healthy, still connecting, blipping (a single
+  failed poll), or simply not configured — a green "Live" pill beside
+  "Active pursuits" wrongly reads as *pursuit* liveness, when most
+  pursuit states (Searching, Decision needed, In review, Verifying,
+  Done) never touch the client at all.
 
-  It speaks up only when client telemetry is actually degraded, with copy
-  scoped explicitly to the download client so it can't be mistaken for
-  the pursuits' own status.
+  It speaks up only on a producer-graded outage or auth failure (see
+  `MediaCentaur.Downloads.Connectivity`), with copy scoped explicitly to
+  the download client so it can't be mistaken for the pursuits' own
+  status. The outage duration is dated from the graded onset — the first
+  failed poll — not from data age.
   """
-  @spec connectivity_notice(MediaCentaur.Downloads.QueueStatus.status()) ::
+  @spec connectivity_notice(MediaCentaur.Downloads.Connectivity.t()) ::
           %{tone: :warning | :error, label: String.t(), reconfigure?: boolean()} | nil
   def connectivity_notice(:live), do: nil
   def connectivity_notice(:initializing), do: nil
   def connectivity_notice(:not_configured), do: nil
-
-  def connectivity_notice({:lagging, ms}),
-    do: %{
-      tone: :warning,
-      label: "Download client lagging — updated #{age_label(ms)} ago",
-      reconfigure?: false
-    }
+  def connectivity_notice({:transient_failure, _since}), do: nil
 
   def connectivity_notice({:offline, since}),
     do: %{
       tone: :error,
-      label: "Download client offline — last update #{since_label(since)} ago",
+      label: "Download client offline for #{LiveHelpers.duration_since(since)}",
       reconfigure?: false
     }
 
@@ -594,27 +592,20 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
   @doc """
   Staleness qualifier for a download footer's live figures (progress,
   ETA). `nil` while telemetry is fresh — the numbers are current and must
-  not be second-guessed. When the client is lagging or offline the
-  footer's figures are last-known, so this returns e.g. `"last seen 4m
-  ago"` to append after them. Only client-derived rows (Downloading /
-  Queued / Stalled) carry a footer; server-side pursuit states never show
-  this, so an offline client never makes an actively-progressing pursuit
-  look dead.
+  not be second-guessed. During a graded outage the footer's figures are
+  last-known, so this returns e.g. `"last seen 4m ago"` (from the last
+  successful poll) to append after them. A transient blip stays quiet —
+  the figures are at most one missed poll old. Only client-derived rows
+  (Downloading / Queued / Stalled) carry a footer; server-side pursuit
+  states never show this, so an offline client never makes an
+  actively-progressing pursuit look dead.
   """
-  @spec telemetry_age_label(MediaCentaur.Downloads.QueueStatus.status()) :: String.t() | nil
-  def telemetry_age_label({:lagging, ms}), do: "last seen #{age_label(ms)} ago"
-  def telemetry_age_label({:offline, since}), do: "last seen #{since_label(since)} ago"
-  def telemetry_age_label(_status), do: nil
+  @spec telemetry_age_label(MediaCentaur.Downloads.Connectivity.t(), DateTime.t() | nil) ::
+          String.t() | nil
+  def telemetry_age_label({:offline, _since}, %DateTime{} = last_success),
+    do: "last seen #{LiveHelpers.duration_since(last_success)} ago"
 
-  defp age_label(ms) when ms < 1000, do: "<1s"
-  defp age_label(ms) when ms < 60_000, do: "#{div(ms, 1000)}s"
-  defp age_label(ms) when ms < 3_600_000, do: "#{div(ms, 60_000)}m"
-  defp age_label(ms), do: "#{div(ms, 3_600_000)}h"
-
-  defp since_label(%DateTime{} = since),
-    do: age_label(DateTime.diff(DateTime.utc_now(), since, :millisecond))
-
-  defp since_label(_), do: "—"
+  def telemetry_age_label(_connectivity, _last_success), do: nil
 
   @doc "User-facing expansion-preview line for the release-search form."
   def expansion_text(:idle), do: "Type a title and press Enter to search."

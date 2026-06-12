@@ -1,7 +1,10 @@
 defmodule MediaCentaur.Downloads.QueueMonitorTest do
   use ExUnit.Case, async: false
 
+  alias MediaCentaur.Capabilities
   alias MediaCentaur.Downloads.{QueueMonitor, QueueState}
+  alias MediaCentaur.DownloadClientStubs
+  alias MediaCentaur.Topics
 
   describe "register_subscriber/1" do
     setup do
@@ -27,42 +30,159 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
     end
   end
 
+  describe "connectivity grading (observed via PubSub broadcasts)" do
+    # The monitor grades connectivity itself, from poll outcomes — never
+    # from snapshot age. These tests drive polls deterministically with
+    # poll_now/0 against a Req.Test-stubbed qBittorrent and observe the
+    # graded %QueueState{} broadcasts; no sleeps, no cadence waits.
+    @moduletag :capture_log
+
+    setup do
+      DownloadClientStubs.setup_qbittorrent_client()
+
+      # The monitor GenServer isn't in this test's $callers chain, so the
+      # Req.Test stub must be shared. The suite file is async: false, so
+      # sharing can't leak across concurrently running tests.
+      Req.Test.set_req_test_to_shared()
+      on_exit(fn -> Req.Test.set_req_test_to_private() end)
+
+      # Force the readiness flag without the settings DB — same cache key
+      # Capabilities itself maintains (and capabilities_test resets).
+      flags_key = {Capabilities, :ready_flags}
+      previous_flags = :persistent_term.get(flags_key, :__unset)
+
+      :persistent_term.put(flags_key, %{
+        tmdb: false,
+        prowlarr: false,
+        download_client: true,
+        acquisition: false
+      })
+
+      on_exit(fn ->
+        case previous_flags do
+          :__unset -> :persistent_term.erase(flags_key)
+          flags -> :persistent_term.put(flags_key, flags)
+        end
+      end)
+
+      stub_sync_success()
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.acquisition_queue())
+      start_supervised!(QueueMonitor)
+
+      # init schedules an immediate first poll — drain its broadcast so
+      # each test starts from a known :live baseline.
+      assert_receive {:queue_state, %QueueState{connectivity: :live}}, 1000
+      :ok
+    end
+
+    defp stub_sync_success do
+      Req.Test.stub(:qbittorrent, fn conn ->
+        Req.Test.json(conn, %{
+          "rid" => 1,
+          "full_update" => true,
+          "torrents" => %{},
+          "server_state" => %{}
+        })
+      end)
+    end
+
+    defp stub_sync_unreachable do
+      Req.Test.stub(:qbittorrent, fn conn ->
+        Req.Test.transport_error(conn, :econnrefused)
+      end)
+    end
+
+    test "a successful poll broadcasts :live" do
+      QueueMonitor.poll_now()
+      assert_receive {:queue_state, %QueueState{connectivity: :live}}, 1000
+      assert QueueMonitor.state().connectivity == :live
+    end
+
+    test "one failed poll is a transient blip — not yet an outage" do
+      stub_sync_unreachable()
+      QueueMonitor.poll_now()
+
+      assert_receive {:queue_state, %QueueState{connectivity: {:transient_failure, %DateTime{}}}},
+                     1000
+    end
+
+    test "two consecutive failed polls grade offline, dated from the first failure" do
+      stub_sync_unreachable()
+      QueueMonitor.poll_now()
+      assert_receive {:queue_state, %QueueState{connectivity: {:transient_failure, onset}}}, 1000
+
+      QueueMonitor.poll_now()
+      assert_receive {:queue_state, %QueueState{connectivity: {:offline, ^onset}}}, 1000
+    end
+
+    test "a successful poll after an outage recovers to :live" do
+      stub_sync_unreachable()
+      QueueMonitor.poll_now()
+      assert_receive {:queue_state, %QueueState{connectivity: {:transient_failure, _}}}, 1000
+      QueueMonitor.poll_now()
+      assert_receive {:queue_state, %QueueState{connectivity: {:offline, _}}}, 1000
+
+      stub_sync_success()
+      QueueMonitor.poll_now()
+      assert_receive {:queue_state, %QueueState{connectivity: :live}}, 1000
+    end
+
+    test "registering the first subscriber triggers an immediate fresh poll" do
+      # Beyond the direct cached-state send, the 0→1 subscriber transition
+      # must poll right away — the pending timer may be up to an idle
+      # cadence (30 s) out, and a freshly opened page shouldn't wait on it.
+      QueueMonitor.register_subscriber(self())
+
+      # Direct send of the cached snapshot…
+      assert_receive {:queue_state, %QueueState{connectivity: :live}}, 1000
+      # …followed by a broadcast from the immediate poll (well under any cadence).
+      assert_receive {:queue_state, %QueueState{connectivity: :live}}, 1000
+    end
+  end
+
   describe "cadence_ms/3" do
     # The cadence table is the contract: how often QueueMonitor hits
     # the download client. Picking the right cell matters because the
     # watched row polls qBittorrent ~3× more often than the idle row,
     # and we don't want to do that when nothing is watching.
 
-    test "watched + ready + no error → 10 s (fresh enough without hammering the client)" do
+    test "watched + ready + live → 10 s (fresh enough without hammering the client)" do
       # Any LiveView mounted on Acquisition / Library upcoming etc.
       # registers as a subscriber; while one is open the queue polls
       # every 10 s — fresh enough for an open queue view without piling
       # requests on the client or flooding the logs.
-      assert QueueMonitor.cadence_ms(1, true, nil) == 10_000
-      assert QueueMonitor.cadence_ms(5, true, nil) == 10_000
+      assert QueueMonitor.cadence_ms(1, true, :live) == 10_000
+      assert QueueMonitor.cadence_ms(5, true, :live) == 10_000
     end
 
-    test "unwatched + ready + no error → 30 s (just keeps the cache from going stale)" do
+    test "watched + offline still polls at 10 s so recovery is noticed promptly" do
+      assert QueueMonitor.cadence_ms(1, true, {:offline, DateTime.utc_now()}) == 10_000
+      assert QueueMonitor.cadence_ms(1, true, {:transient_failure, DateTime.utc_now()}) == 10_000
+    end
+
+    test "unwatched + ready → 30 s (just keeps the cache from going stale)" do
       # Nobody is rendering downloads but the client is configured —
       # back off to 30 s; the next mount gets the current state pushed
-      # immediately on register, so it doesn't need eager idle polling.
-      assert QueueMonitor.cadence_ms(0, true, nil) == 30_000
+      # immediately on register plus an immediate poll, so it doesn't
+      # need eager idle polling.
+      assert QueueMonitor.cadence_ms(0, true, :live) == 30_000
     end
 
-    test "not ready (regardless of subscribers / error) → 30 s" do
+    test "not ready (regardless of subscribers / connectivity) → 30 s" do
       # Capabilities.download_client_ready?/0 is false. There's nothing
       # useful to fetch; back off to one poll every 30 s so the eventual
       # reconfigure picks up within a reasonable window.
-      assert QueueMonitor.cadence_ms(0, false, nil) == 30_000
-      assert QueueMonitor.cadence_ms(3, false, nil) == 30_000
+      assert QueueMonitor.cadence_ms(0, false, :live) == 30_000
+      assert QueueMonitor.cadence_ms(3, false, :live) == 30_000
       assert QueueMonitor.cadence_ms(3, false, :auth_failed) == 30_000
     end
 
     test "auth_failed → 30 s even when ready and watched (don't hammer with bad creds)" do
       # Capabilities.last_test_ok? lags real auth state — a successful
       # test_connection at config time stays "ok" forever even if creds
-      # later rotate. Without this row, polling continues at 1.5 s
-      # against a broken auth, log-spamming until the user reconfigures.
+      # later rotate. Without this row, polling continues at the watched
+      # cadence against a broken auth, log-spamming until the user
+      # reconfigures.
       assert QueueMonitor.cadence_ms(5, true, :auth_failed) == 30_000
       assert QueueMonitor.cadence_ms(0, true, :auth_failed) == 30_000
     end

@@ -102,12 +102,12 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
 
   alias MediaCentaurWeb.Components.Acquisition.{
+    ConnectivityBadge,
     MediaOmnibox,
     PlanModal,
     PursuitGroup,
     PursuitModal,
-    PursuitRow,
-    QueueStatusBadge
+    PursuitRow
   }
 
   @decision_prompt "Pick an alternative release."
@@ -132,7 +132,8 @@ defmodule MediaCentaurWeb.AcquisitionLive do
          page_backdrop: page_backdrop(),
          search_session: %SearchSession{},
          active_queue: [],
-         queue_status: :initializing,
+         queue_connectivity: :initializing,
+         queue_last_success_at: nil,
          queue_loaded?: false,
          cancel_confirm: nil,
          pending_cancels: %{},
@@ -247,11 +248,9 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # (initial load + every QueueMonitor broadcast) honours the user's
   # in-flight cancellations — see Logic.apply_pending_cancels/3.
   #
-  # The 1500 ms cadence is the watched cadence — the QueueMonitor uses
-  # that whenever this LiveView is subscribed, so the staleness
-  # thresholds match what the user actually experiences here.
-  @watched_cadence_ms 1_500
-
+  # Connectivity arrives pre-graded on the snapshot (the QueueMonitor
+  # owns it — see MediaCentaur.Downloads.Connectivity); this LiveView
+  # never re-derives client health from snapshot age.
   defp assign_queue_from_state(socket, %MediaCentaur.Downloads.QueueState{} = state) do
     active = Enum.reject(state.items, &(&1.state == :completed))
 
@@ -262,11 +261,10 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         System.monotonic_time(:second)
       )
 
-    status = MediaCentaur.Downloads.QueueStatus.derive(state, @watched_cadence_ms)
-
     assign(socket,
       active_queue: visible,
-      queue_status: status,
+      queue_connectivity: state.connectivity,
+      queue_last_success_at: state.last_successful_poll_at,
       pending_cancels: pending_cancels,
       queue_loaded?: true
     )
@@ -438,7 +436,10 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       |> Phoenix.Component.assign(:active_compact, active_compact)
       |> Phoenix.Component.assign(:history_compact, history_compact)
       |> Phoenix.Component.assign(:orphan_queue, orphan_queue)
-      |> Phoenix.Component.assign(:telemetry_age, Logic.telemetry_age_label(assigns.queue_status))
+      |> Phoenix.Component.assign(
+        :telemetry_age,
+        Logic.telemetry_age_label(assigns.queue_connectivity, assigns.queue_last_success_at)
+      )
 
     ~H"""
     <Layouts.console_mount socket={@socket} />
@@ -586,7 +587,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
                 Active pursuits
               </h2>
               <div :if={@download_client_ready} class="flex items-center gap-2">
-                <QueueStatusBadge.queue_status_badge status={@queue_status} />
+                <ConnectivityBadge.connectivity_badge connectivity={@queue_connectivity} />
                 <span
                   :if={!@queue_loaded?}
                   class="loading loading-spinner loading-xs text-base-content/30"

@@ -14,5 +14,5 @@ defmodule MediaCentaurWeb.Storybook.Acquisition do
   def entry("timeline"), do: [icon: {:fa, "timeline", :thin}, name: "Pursuit timeline"]
   def entry("decision_card"), do: [icon: {:fa, "wand-magic-sparkles", :thin}, name: "Decision card"]
 
-  def entry("queue_status_badge"), do: [icon: {:fa, "signal-stream", :thin}, name: "Queue status badge"]
+  def entry("connectivity_badge"), do: [icon: {:fa, "signal-stream", :thin}, name: "Connectivity badge"]
 end

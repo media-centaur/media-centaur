@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
   import MediaCentaurWeb.StatusHelpers
   import MediaCentaurWeb.LibraryOverviewComponents
-  import MediaCentaurWeb.LiveHelpers, only: [time_ago: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [duration_since: 1, time_ago: 1]
 
   alias MediaCentaur.Library.Availability
   alias MediaCentaur.Status.LibraryOverview
@@ -959,12 +959,12 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
   attr :acquisition_activity, :map,
     required: true,
     doc:
-      "bundle from StatusLive: %{configured?, client_grade, last_poll_at, prowlarr_ready?, throughput}"
+      "bundle from StatusLive: %{configured?, connectivity, last_poll_at, prowlarr_ready?, throughput} — connectivity is `MediaCentaur.Downloads.Connectivity.t()` as graded by the QueueMonitor"
 
   def acquisition_widget(assigns) do
     client =
       acq_client_status(
-        assigns.acquisition_activity.client_grade,
+        assigns.acquisition_activity.connectivity,
         assigns.acquisition_activity.last_poll_at
       )
 
@@ -1115,10 +1115,15 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
   defp acq_client_status(:live, last), do: %{label: "Connected", tone: :ok, detail: poll_suffix(last)}
   defp acq_client_status(:initializing, _last), do: %{label: "Connecting…", tone: :muted, detail: nil}
 
-  defp acq_client_status({:lagging, _age}, last),
-    do: %{label: "Lagging", tone: :warn, detail: poll_suffix(last)}
+  # One failed poll — honest plumbing detail for this page (the rest of
+  # the UI stays quiet on a blip), amber because it may be the first
+  # tick of a real outage.
+  defp acq_client_status({:transient_failure, _since}, last),
+    do: %{label: "Retrying…", tone: :warn, detail: poll_suffix(last)}
 
-  defp acq_client_status({:offline, _since}, _last), do: %{label: "Offline", tone: :error, detail: nil}
+  defp acq_client_status({:offline, since}, _last),
+    do: %{label: "Offline", tone: :error, detail: "down #{duration_since(since)}"}
+
   defp acq_client_status(:auth_failed, _last), do: %{label: "Auth failed", tone: :error, detail: nil}
 
   defp acq_client_status(:not_configured, _last),

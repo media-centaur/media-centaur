@@ -15,6 +15,11 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   - On `register_subscriber/1`, the current `%QueueState{}` is sent
     directly to the registering pid — no waiting for the next poll
     tick. Eliminates the mount-race that made first paint feel stale.
+  - Registering the **first** subscriber also triggers an immediate
+    poll and reschedules the cycle at the watched cadence — the cached
+    snapshot may be up to an idle cadence old, and a freshly opened
+    page shouldn't wait out a timer that was scheduled while nobody
+    was watching.
 
   ## Subscriber-aware cadence
 
@@ -25,18 +30,30 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
     hammering the client (and without flooding the logs).
   - **30 s** when ready but nobody is watching — just keeps the cache
     from going stale.
-  - **30 s** when the client is offline — back off so the eventual
-    reconfigure picks up within a reasonable window.
+  - **30 s** on auth failure or when no client is configured — back off
+    so the eventual reconfigure picks up within a reasonable window.
 
   Subscribers register implicitly via `Acquisition.subscribe_queue/0`,
   which calls `register_subscriber/1`. We `Process.monitor/1` each one
   and drop them on `:DOWN`.
 
+  Poll ticks are generation-tagged: every (re)schedule bumps a counter
+  and stale tick messages are ignored, so an out-of-band reschedule
+  (first subscriber) can never leave two timer chains running.
+
   ## Failure handling
 
-  Errors from the download client are logged and the previous
-  `%QueueState{}` is kept in cache, but `:last_error` is updated and
-  rebroadcast so subscribers can render a staleness indicator.
+  The monitor owns connectivity grading (`Downloads.Connectivity`):
+  each poll outcome folds into the `connectivity` carried on the
+  broadcast `%QueueState{}`. Failed polls keep the previous items in
+  cache, log to the console, and rebroadcast with the new grade so
+  subscribers render an honest staleness/outage indicator. Consumers
+  never re-derive health from snapshot age.
+
+  A stalled-but-alive monitor (no broadcasts at all) is deliberately
+  not self-reported: driver requests carry HTTP timeouts and the
+  process is supervised, so stall recovery is the supervisor's job,
+  not a consumer-side age watchdog's.
 
   ## Health classification
 
@@ -50,6 +67,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.Downloads.Connectivity
   alias MediaCentaur.Downloads.DownloadClient.Dispatcher
   alias MediaCentaur.Downloads.DownloadClient.SyncResult
   alias MediaCentaur.Downloads.HealthHistory
@@ -59,7 +77,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   @cache_key {__MODULE__, :state}
   @poll_watched_ms 10_000
   @poll_idle_ms 30_000
-  @poll_offline_ms 30_000
+  @poll_backoff_ms 30_000
 
   # Steady-state sync ticks (no real queue movement) repeat every
   # @poll_watched_ms while a LiveView is open. Logging each one at :info
@@ -90,7 +108,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   @doc """
   Backwards-compatible accessor for the items list. New code should
   prefer `state/0` and read `state.items` so it can reason about
-  freshness via `QueueStatus.derive/2`.
+  connectivity alongside the data.
   """
   @spec snapshot() :: [Acquisition.QueueItem.t()]
   def snapshot, do: state().items
@@ -106,9 +124,11 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
 
   @doc """
   Registers `pid` as an active subscriber and immediately sends it
-  the current `%QueueState{}`. The next poll uses the watched cadence.
+  the current `%QueueState{}`. The first subscriber additionally
+  triggers an immediate poll and reschedules at the watched cadence.
   Idempotent — re-registering re-sends the current state but doesn't
-  re-monitor. Pid is dropped automatically when the process exits.
+  re-monitor or re-poll. Pid is dropped automatically when the process
+  exits.
 
   Called from `Acquisition.subscribe_queue/0`; LiveViews should not
   call this directly.
@@ -118,8 +138,8 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
 
   @doc """
   Returns the poll cadence in milliseconds for the given subscriber
-  count, download-client-ready flag, and last error reason. Pure —
-  extracted for unit testing the contract without spinning up a
+  count, download-client-ready flag, and current connectivity grade.
+  Pure — extracted for unit testing the contract without spinning up a
   GenServer.
 
   `:auth_failed` deliberately overrides the watched/idle cadence:
@@ -127,13 +147,15 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   `test_connection` at config time stays "ok" until the user re-tests),
   so without this row, a credential rotation on the qBittorrent side
   silently log-spams at the watched cadence against an auth-broken
-  client until the user reconfigures.
+  client until the user reconfigures. An `{:offline, _}` client keeps
+  the watched cadence on purpose — recovery should be noticed promptly
+  while someone is looking at the page.
   """
-  @spec cadence_ms(non_neg_integer(), boolean(), QueueState.error_reason()) :: pos_integer()
-  def cadence_ms(_subscribers, _ready?, :auth_failed), do: @poll_offline_ms
-  def cadence_ms(_subscribers, false, _error), do: @poll_offline_ms
-  def cadence_ms(0, true, _error), do: @poll_idle_ms
-  def cadence_ms(_subscribers, true, _error), do: @poll_watched_ms
+  @spec cadence_ms(non_neg_integer(), boolean(), Connectivity.t()) :: pos_integer()
+  def cadence_ms(_subscribers, _ready?, :auth_failed), do: @poll_backoff_ms
+  def cadence_ms(_subscribers, false, _connectivity), do: @poll_backoff_ms
+  def cadence_ms(0, true, _connectivity), do: @poll_idle_ms
+  def cadence_ms(_subscribers, true, _connectivity), do: @poll_watched_ms
 
   @doc """
   Log level for a sync tick. Real movement always logs at `:info`.
@@ -150,32 +172,34 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
 
   @impl GenServer
   def init(_opts) do
-    Process.send_after(self(), :poll, 0)
+    state = %{
+      queue: %QueueState{},
+      subscribers: %{},
+      history: %{},
+      last_sync_log_ms: nil,
+      poll_generation: 0,
+      # The configured driver module + its opaque sync bookmark
+      # (`DownloadClient.driver_state`). The bookmark is reset whenever
+      # the driver module changes between polls.
+      driver: nil,
+      driver_state: nil
+    }
 
-    {:ok,
-     %{
-       queue: %QueueState{},
-       subscribers: %{},
-       history: %{},
-       last_sync_log_ms: nil,
-       # The configured driver module + its opaque sync bookmark
-       # (`DownloadClient.driver_state`). The bookmark is reset whenever
-       # the driver module changes between polls.
-       driver: nil,
-       driver_state: nil
-     }}
+    {:ok, schedule_poll(state, 0)}
   end
 
   @impl GenServer
-  def handle_info(:poll, state) do
+  def handle_info({:poll, generation}, %{poll_generation: generation} = state) do
     ready? = Capabilities.download_client_ready?()
     state = if ready?, do: poll_and_broadcast(state), else: state
 
-    delay = cadence_ms(map_size(state.subscribers), ready?, state.queue.last_error)
-    Process.send_after(self(), :poll, delay)
-
-    {:noreply, state}
+    delay = cadence_ms(map_size(state.subscribers), ready?, state.queue.connectivity)
+    {:noreply, schedule_poll(state, delay)}
   end
+
+  # A tick from a superseded schedule (the cycle was rescheduled when the
+  # first subscriber registered) — ignore; exactly one chain stays live.
+  def handle_info({:poll, _stale_generation}, state), do: {:noreply, state}
 
   def handle_info({:DOWN, _ref, :process, pid, _reason}, state) do
     {:noreply, %{state | subscribers: Map.delete(state.subscribers, pid)}}
@@ -194,8 +218,29 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
       {:noreply, state}
     else
       ref = Process.monitor(pid)
-      {:noreply, %{state | subscribers: Map.put(state.subscribers, pid, ref)}}
+      first_watcher? = map_size(state.subscribers) == 0
+      state = %{state | subscribers: Map.put(state.subscribers, pid, ref)}
+      {:noreply, if(first_watcher?, do: poll_for_first_watcher(state), else: state)}
     end
+  end
+
+  # The pending tick was scheduled at the idle cadence (up to 30 s out).
+  # Someone is watching now: poll immediately and restart the cycle at
+  # the watched cadence; the generation bump retires the pending timer.
+  defp poll_for_first_watcher(state) do
+    if Capabilities.download_client_ready?() do
+      state = poll_and_broadcast(state)
+      delay = cadence_ms(map_size(state.subscribers), true, state.queue.connectivity)
+      schedule_poll(state, delay)
+    else
+      state
+    end
+  end
+
+  defp schedule_poll(state, delay) do
+    generation = state.poll_generation + 1
+    Process.send_after(self(), {:poll, generation}, delay)
+    %{state | poll_generation: generation}
   end
 
   defp poll_and_broadcast(state) do
@@ -223,7 +268,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
           items: enriched,
           last_polled_at: now,
           last_successful_poll_at: now,
-          last_error: nil
+          connectivity: Connectivity.poll_succeeded(state.queue.connectivity)
         }
 
         store_and_broadcast(queue)
@@ -241,14 +286,17 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
         mark_not_configured(state)
 
       {:error, reason, next_driver_state} ->
-        # The connectivity condition is owned by Downloads.IncidentContext.assess/0
-        # (it reads the very last_error set just below) — console-only, no
+        # The outage condition is owned by Downloads.IncidentContext.assess/0
+        # (it reads the connectivity graded just below) — console-only, no
         # duplicate :log incident (ADR-054). The driver hands back the
         # bookmark to carry forward (it resets its own conversation so the
         # next successful poll is a full update).
         Log.warning(:library, "queue monitor poll failed: #{inspect(reason)}", mc_incident: :skip)
 
-        queue = %{state.queue | last_polled_at: now, last_error: classify_error(reason)}
+        connectivity =
+          Connectivity.poll_failed(state.queue.connectivity, classify_error(reason), now)
+
+        queue = %{state.queue | last_polled_at: now, connectivity: connectivity}
 
         store_and_broadcast(queue)
         %{state | queue: queue, driver: driver, driver_state: next_driver_state}
@@ -260,7 +308,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
       items: [],
       last_polled_at: DateTime.utc_now(),
       last_successful_poll_at: state.queue.last_successful_poll_at,
-      last_error: :not_configured
+      connectivity: :not_configured
     }
 
     store_and_broadcast(queue)

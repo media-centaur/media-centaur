@@ -189,8 +189,10 @@ defmodule MediaCentaur.Acquisition do
 
   @doc """
   Subscribes the caller to download-client queue snapshots. Also
-  registers the caller with `QueueMonitor` so the next poll uses the
-  watched cadence (1 s vs. 5 s when nobody is rendering the queue).
+  registers the caller with `QueueMonitor`, which sends back the
+  current snapshot immediately, polls right away if this is the first
+  watcher, and keeps polling at the watched cadence (10 s vs. 30 s
+  when nobody is rendering the queue).
   """
   @spec subscribe_queue() :: :ok
   def subscribe_queue do
@@ -202,7 +204,7 @@ defmodule MediaCentaur.Acquisition do
   Returns the latest cached download-client queue snapshot (items only).
   Synchronous; reads `:persistent_term`. Returns `[]` before the first
   successful poll or when no download client is configured. Prefer
-  `queue_state/0` when freshness/error metadata matters.
+  `queue_state/0` when connectivity metadata matters.
   """
   @spec queue_snapshot() :: [MediaCentaur.Downloads.QueueItem.t()]
   defdelegate queue_snapshot, to: MediaCentaur.Downloads.QueueMonitor, as: :snapshot
