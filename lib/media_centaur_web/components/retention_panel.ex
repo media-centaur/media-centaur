@@ -32,9 +32,13 @@ defmodule MediaCentaurWeb.RetentionPanel do
           id={"retention-#{policy.key}"}
           class="py-2.5 space-y-0.5 last:pb-0"
         >
-          <div class="flex items-baseline justify-between gap-3">
-            <span class="text-sm text-base-content/80">{policy.label}</span>
-            <span class="text-xs text-base-content/45 whitespace-nowrap">
+          <%!-- shrink-0 keeps flexbox from crushing either text into a
+               sliver; when the pair doesn't fit, flex-wrap drops the
+               summary onto its own line (max-w-full lets it wrap there
+               instead of overflowing the rail). --%>
+          <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+            <span class="max-w-full shrink-0 text-sm text-base-content/80">{policy.label}</span>
+            <span class="max-w-full shrink-0 text-xs text-base-content/45">
               {sweep_summary(policy)}
             </span>
           </div>

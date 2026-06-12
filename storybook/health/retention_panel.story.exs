@@ -17,6 +17,25 @@ defmodule MediaCentaurWeb.Storybook.Health.RetentionPanel do
   def variations do
     [
       %Variation{
+        id: :narrow_rail,
+        description: "Rail-width container — the summary drops below the label instead of crushing it",
+        template: ~s|<div class="w-[300px]"><.psb-variation/></div>|,
+        attributes: %{
+          policies: [
+            %PolicyStatus{
+              key: :update_staging,
+              subsystem: :self_update,
+              label: "Update staging files",
+              description: "Removed 2 days after an interrupted update.",
+              mode: :sweep,
+              last_ran_at: ~U[2026-06-12 04:33:00Z],
+              pruned_last_run: 41,
+              pruned_total: 88
+            }
+          ]
+        }
+      },
+      %Variation{
         id: :swept_with_stats,
         description: "Sweep policies with recorded runs",
         attributes: %{
