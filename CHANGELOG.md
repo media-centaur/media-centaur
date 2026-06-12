@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.90.4 — 2026-06-12
+
+### Fixed
+
+- **Media search no longer gets stuck on "Planning" forever.** Some indexers return release titles with garbled text encodings; one bad character could crash the planning run behind the scenes, leaving the plan spinning at "Planning" with 0 releases found even though the search succeeded. Titles are now cleaned up safely, and if planning ever hits an unexpected error it reports the problem on the plan card instead of spinning forever.
+
 ## v0.90.3 — 2026-06-12
 
 ### Improved
