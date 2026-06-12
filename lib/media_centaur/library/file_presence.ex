@@ -97,38 +97,66 @@ defmodule MediaCentaur.Library.FilePresence do
   end
 
   @doc """
-  Bulk-stamps every path in `paths` under `media_dir` with a shared
+  Bulk-stamps every file in `files` under `media_dir` with a shared
   `seen_at`. Single INSERT … ON CONFLICT … so a 696-file scan
   finishes in one roundtrip instead of 696.
+
+  Each entry is either a bare path or a `{path, size}` tuple. A given
+  size is recorded for new rows and **backfills** an existing row whose
+  size is `nil` (pre-feature rows) — it never overwrites a size that is
+  already recorded, preserving the captured-at-detection semantics the
+  relink-on-move matcher relies on (see `Library.MoveMatcher`).
   """
-  @spec stamp_many([String.t()], String.t(), DateTime.t() | nil) :: non_neg_integer()
-  def stamp_many(paths, media_dir, seen_at \\ DateTime.utc_now())
+  @type file_entry :: String.t() | {String.t(), non_neg_integer() | nil}
+
+  @spec stamp_many([file_entry()], String.t(), DateTime.t() | nil) :: non_neg_integer()
+  def stamp_many(files, media_dir, seen_at \\ DateTime.utc_now())
 
   def stamp_many([], _media_dir, _seen_at), do: 0
 
-  def stamp_many(paths, media_dir, seen_at) do
+  def stamp_many(files, media_dir, seen_at) do
     now_truncated = trunc_seconds(seen_at)
 
     entries =
-      Enum.map(paths, fn path ->
+      Enum.map(files, fn file ->
+        {path, size} = normalize_file_entry(file)
+
         %{
           id: Ecto.UUID.generate(),
           file_path: path,
           media_dir: media_dir,
           last_seen_at: seen_at,
+          size: size,
           inserted_at: now_truncated,
           updated_at: now_truncated
         }
       end)
 
+    # COALESCE keeps an already-recorded size and only fills nil ones from
+    # the incoming row (`excluded` = the row that failed to insert).
+    on_conflict =
+      from(p in __MODULE__,
+        update: [
+          set: [
+            last_seen_at: ^seen_at,
+            media_dir: ^media_dir,
+            updated_at: ^now_truncated,
+            size: fragment("COALESCE(?, excluded.size)", p.size)
+          ]
+        ]
+      )
+
     {count, _} =
       Repo.insert_all(__MODULE__, entries,
-        on_conflict: [set: [last_seen_at: seen_at, media_dir: media_dir, updated_at: now_truncated]],
+        on_conflict: on_conflict,
         conflict_target: :file_path
       )
 
     count
   end
+
+  defp normalize_file_entry({path, size}), do: {path, size}
+  defp normalize_file_entry(path) when is_binary(path), do: {path, nil}
 
   @doc """
   Returns the set of file paths currently tracked for `media_dir`.
@@ -238,9 +266,10 @@ defmodule MediaCentaur.Library.FilePresence do
 
   @doc """
   Total bytes-on-disk across every tracked presence row. Rows with a `nil`
-  `size` (pre-relink-feature rows) coalesce to 0. Pure DB read — a single
-  `SUM` aggregate. Used by the Status page's library-overview "size on disk"
-  figure.
+  `size` coalesce to 0 — but every scan backfills missing sizes via
+  `stamp_many/3`, so `nil` rows only exist until the next scan touches
+  them. Pure DB read — a single `SUM` aggregate. Used by the Status
+  page's library-overview "size on disk" figure.
   """
   @spec total_size_bytes() :: non_neg_integer()
   def total_size_bytes do

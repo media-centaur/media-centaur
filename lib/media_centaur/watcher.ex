@@ -440,13 +440,14 @@ defmodule MediaCentaur.Watcher do
     start_time = System.monotonic_time()
     skip_dirs = load_skip_dirs()
 
-    video_files =
+    video_files_with_size =
       dir
       |> Walk.walk(exclude_dirs, skip_dirs)
       |> Enum.filter(&VideoFile.video?/1)
+      |> Enum.map(fn path -> {path, file_size(path)} end)
 
-    new_files = Enum.reject(video_files, fn path -> MapSet.member?(known_paths, path) end)
-    new_files_with_size = Enum.map(new_files, fn path -> {path, file_size(path)} end)
+    new_files_with_size =
+      Enum.reject(video_files_with_size, fn {path, _size} -> MapSet.member?(known_paths, path) end)
 
     # Relink-on-move: before importing a "new" file, check whether it's
     # actually a file the library already knows about that moved here
@@ -468,9 +469,11 @@ defmodule MediaCentaur.Watcher do
     # file currently visible on disk. Idempotent UPSERT — new paths
     # got their initial stamp via `detect_file/3` above; this bulk
     # refresh keeps existing rows' `last_seen_at` from drifting into
-    # AbsenceSweeper purge territory across normal scans. One bulk
-    # write per scan keeps the cost flat regardless of library size.
-    FilePresence.stamp_many(video_files, dir)
+    # AbsenceSweeper purge territory across normal scans, and backfills
+    # `size` for rows that predate the column (recorded sizes are never
+    # overwritten). One bulk write per scan keeps the cost flat
+    # regardless of library size.
+    FilePresence.stamp_many(video_files_with_size, dir)
 
     # No need to rebroadcast entity changes for "restored" files —
     # post-Phase-7 there is no `:present | :absent` state to flip;
@@ -500,8 +503,8 @@ defmodule MediaCentaur.Watcher do
       %{duration: duration},
       %{
         dir: dir,
-        total_video_files: length(video_files),
-        known: length(video_files) - length(new_files),
+        total_video_files: length(video_files_with_size),
+        known: length(video_files_with_size) - length(new_files_with_size),
         dispatched: dispatched,
         relinked: length(relinked)
       }
@@ -509,7 +512,7 @@ defmodule MediaCentaur.Watcher do
 
     Log.info(
       :watcher,
-      "scan completed — #{dispatched} new, #{length(relinked)} relinked, #{length(video_files)} total"
+      "scan completed — #{dispatched} new, #{length(relinked)} relinked, #{length(video_files_with_size)} total"
     )
 
     dispatched
@@ -519,9 +522,10 @@ defmodule MediaCentaur.Watcher do
     Log.info(:watcher, "detected #{Path.basename(path)}")
 
     # Record byte size on first detection so a future move of this file can
-    # be recognised by relink-on-move (relative path + size). Size is statted
-    # once by the scan (new files only), never in the bulk last_seen_at
-    # refresh — see MoveMatcher.
+    # be recognised by relink-on-move (relative path + size). The bulk
+    # last_seen_at refresh also carries sizes, but only to backfill rows
+    # whose size is nil — a recorded size is never overwritten. See
+    # MoveMatcher.
     FilePresence.stamp(path, media_dir, DateTime.utc_now(), size: size)
 
     Phoenix.PubSub.broadcast(
