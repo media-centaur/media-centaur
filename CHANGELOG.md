@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.90.5 — 2026-06-12
+
+### Improved
+
+- **The update card now gives a real next-check time.** With a short check interval (say, every 15 minutes), the card used to say "next check in less than an hour" — technically true, entirely unhelpful. Waits under an hour now read as "in about N minutes".
+
 ## v0.90.4 — 2026-06-12
 
 ### Fixed
