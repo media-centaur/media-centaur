@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.90.0 — 2026-06-12
+
+### Improved
+
+- **Watch directories are now media directories.** The folders Media Centaur scans for your films and shows are called *media directories* everywhere — Settings, the setup tour, and the Status page. Nothing to do on your side: the update renames everything automatically, and if your config file still says `watch_dirs`, that keeps working too.
+- **Subsystem pages on the Status screen got a redesign.** Each subsystem's drill-in now leads with the story of what it's been doing, with status, data retention, and technical detail in a quieter side column — and the copy has been cut down to what the page can't already tell you at a glance.
+
+### Fixed
+
+- **One-time maintenance tasks are now tracked in their own ledger.** Internal bookkeeping that runs once per update was being recorded in the wrong place; it's now tracked separately so every future update applies exactly the maintenance it should — no more, no less.
+
 ## v0.89.0 — 2026-06-12
 
 ### Improved
