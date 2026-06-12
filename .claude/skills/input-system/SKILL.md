@@ -58,7 +58,7 @@ The `_shelfTransition()` handles all SHELF instances — the home page's horizon
 
 BACK only peels layers: overlays (modal, drawer) dismiss, sub-focus exits, and the primary menu (sidebar) exits back to the pre-sidebar context. In content contexts (grid, toolbar, zone_tabs, shelf) and non-primary menus (sections, the download zones) BACK is deliberately a **no-op** — reaching the main nav is LEFT's job. Every zone layout gives its left-edge context a `left: ["sidebar"]` edge (or a chain that reaches it), so left-at-the-left-edge is the one idiom for getting to the sidebar. There is no `onEscape` behavior hook.
 
-CLEAR delegates to page behavior `onClear()` in any context. Currently only library implements this (clears filter). If no `onClear` exists, the action is silently dropped.
+CLEAR delegates to page behavior `onClear()` in any context. Library implements it (clears the filter, follows focus into the grid); download implements it (clears the omnibox query, falling through to the history search). If no `onClear` exists, the action is silently dropped.
 
 ### Page Behaviors
 

@@ -10,6 +10,35 @@
  * @param {string[]} config.activeClassNames - CSS classes indicating active state
  */
 
+import { Context } from "./focus_context"
+
+/**
+ * The element that owns the active modal overlay — the first
+ * `[data-detail-mode='modal']` match in DOM order. detailView, dismissEvent,
+ * and item queries all derive from this one element so a stacked overlay
+ * (a confirm dialog rendered before — and over — a detail modal) owns
+ * navigation and BACK together. Pages that stack modals must render the
+ * topmost overlay first among their `[data-detail-mode]` elements.
+ */
+function activeModalElement() {
+  return document.querySelector("[data-detail-mode='modal']")
+}
+
+/**
+ * Resolve the nav items for a context. MODAL items are scoped to the active
+ * modal element (see `activeModalElement`); every other context uses its
+ * flat config selector. Returns an array (possibly empty).
+ */
+function queryContextItems(selectors, context) {
+  if (context === Context.MODAL) {
+    const modal = activeModalElement()
+    return modal ? Array.from(modal.querySelectorAll("[data-nav-item]")) : []
+  }
+  const selector = selectors[context]
+  if (!selector) return []
+  return Array.from(document.querySelectorAll(selector))
+}
+
 /**
  * Create a DomReader that queries the DOM using the given config.
  * @param {Object} [config={}]
@@ -84,10 +113,7 @@ export function createDomReader(config = {}) {
      * Get the nav item at a given index within a context.
      */
     getItemAt(context, index) {
-      const selector = selectors[context]
-      if (!selector) return null
-      const items = document.querySelectorAll(selector)
-      return items[index] ?? null
+      return queryContextItems(selectors, context)[index] ?? null
     },
 
     /**
@@ -96,21 +122,14 @@ export function createDomReader(config = {}) {
     getFocusedIndex(context) {
       const active = this.getCurrentFocusedItem()
       if (!active) return -1
-
-      const selector = selectors[context]
-      if (!selector) return -1
-
-      const items = document.querySelectorAll(selector)
-      return Array.from(items).indexOf(active)
+      return queryContextItems(selectors, context).indexOf(active)
     },
 
     /**
      * Get the total number of focusable items in a context.
      */
     getItemCount(context) {
-      const selector = selectors[context]
-      if (!selector) return 0
-      return document.querySelectorAll(selector).length
+      return queryContextItems(selectors, context).length
     },
 
     /**
@@ -148,7 +167,7 @@ export function createDomReader(config = {}) {
      * Returns "main" or "info", or null if no modal is open.
      */
     getDetailView() {
-      return document.querySelector("[data-detail-mode='modal']")?.dataset?.detailView ?? null
+      return activeModalElement()?.dataset?.detailView ?? null
     },
 
     /**
@@ -156,7 +175,7 @@ export function createDomReader(config = {}) {
      * The orchestrator falls back to "close_detail" when null.
      */
     getDismissEvent() {
-      return document.querySelector("[data-detail-mode='modal']")?.dataset?.dismissEvent ?? null
+      return activeModalElement()?.dataset?.dismissEvent ?? null
     },
 
     /**
@@ -174,10 +193,7 @@ export function createDomReader(config = {}) {
     getEntityIndex(context, entityId) {
       if (!entityId) return -1
 
-      const selector = selectors[context]
-      if (!selector) return -1
-
-      const items = document.querySelectorAll(selector)
+      const items = queryContextItems(selectors, context)
       for (let i = 0; i < items.length; i++) {
         if (items[i].dataset.entityId === entityId) return i
       }
@@ -212,9 +228,7 @@ export function createDomReader(config = {}) {
      * Returns -1 if none is active.
      */
     getActiveItemIndex(context) {
-      const selector = selectors[context]
-      if (!selector) return -1
-      const items = document.querySelectorAll(selector)
+      const items = queryContextItems(selectors, context)
       for (let i = 0; i < items.length; i++) {
         const cl = items[i].classList
         if (activeClasses.some(cls => cl.contains(cls))) return i
@@ -262,11 +276,7 @@ export function createDomWriter(config = {}) {
      * Returns true if the element was found and focused, false otherwise.
      */
     focusByIndex(context, index) {
-      const selector = selectors[context]
-      if (!selector) return false
-
-      const items = document.querySelectorAll(selector)
-      const target = items[index]
+      const target = queryContextItems(selectors, context)[index]
       if (!target) return false
       target.focus({ preventScroll: true })
       target.scrollIntoView({ block: "nearest", behavior: "instant" })
@@ -278,10 +288,7 @@ export function createDomWriter(config = {}) {
      * Returns true if the element was found and focused, false otherwise.
      */
     focusFirst(context) {
-      const selector = selectors[context]
-      if (!selector) return false
-
-      const first = document.querySelector(selector)
+      const first = queryContextItems(selectors, context)[0]
       if (!first) return false
       first.focus({ preventScroll: true })
       first.scrollIntoView({ block: "nearest", behavior: "instant" })
@@ -295,10 +302,7 @@ export function createDomWriter(config = {}) {
     focusByEntityId(context, entityId) {
       if (!entityId) return false
 
-      const selector = selectors[context]
-      if (!selector) return false
-
-      const items = document.querySelectorAll(selector)
+      const items = queryContextItems(selectors, context)
       for (const item of items) {
         if (item.dataset.entityId === entityId) {
           item.focus({ preventScroll: true })

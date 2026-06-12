@@ -74,6 +74,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
       dismiss={:ephemeral}
       on_close={@on_close}
       data-pursuit-modal
+      data-detail-mode={@open && "modal"}
+      data-dismiss-event={@on_close}
     >
       <%!-- No close-X — backdrop click and Escape both close, and the
             URL preserves history so browser-back also works. --%>

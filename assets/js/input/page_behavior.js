@@ -19,7 +19,7 @@ import { createStatusBehavior } from "./status_behavior"
 import { createLibraryBehavior, libraryDom } from "./library_behavior"
 import { createReviewBehavior } from "./review_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
-import { createDownloadBehavior } from "./download_behavior"
+import { createDownloadBehavior, downloadDom } from "./download_behavior"
 import { createWatchHistoryBehavior } from "./watch_history_behavior"
 import { createUpcomingBehavior } from "./upcoming_behavior"
 import { createHomeBehavior, homeDom } from "./home_behavior"
@@ -35,7 +35,7 @@ const BEHAVIOR_REGISTRY = {
   library: () => createLibraryBehavior(libraryDom),
   review: () => createReviewBehavior(),
   settings: () => createSettingsBehavior(),
-  download: () => withWipNotice(createDownloadBehavior()),
+  download: () => createDownloadBehavior(downloadDom),
   "watch-history": () => withWipNotice(createWatchHistoryBehavior()),
   upcoming: () => withWipNotice(createUpcomingBehavior()),
 }

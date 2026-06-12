@@ -125,7 +125,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           phx-debounce="500"
           phx-mounted={JS.focus()}
           data-nav-item
-          data-captures-keys
           tabindex="0"
         />
       </div>
@@ -159,7 +158,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           phx-debounce="200"
           phx-mounted={JS.focus()}
           data-nav-item
-          data-captures-keys
           tabindex="0"
         />
         <span

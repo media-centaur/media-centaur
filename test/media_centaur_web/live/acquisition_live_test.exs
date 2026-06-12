@@ -119,7 +119,10 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
       assert html =~ "Download"
       assert html =~ "data-page-behavior=\"download\""
-      assert html =~ "data-nav-default-zone=\"pursuits\""
+      # The default-zone value is the LAYOUT KEY in input config.js, not a
+      # context within it — `"pursuits"` here once left the page's nav graph
+      # empty and keyboard/gamepad navigation dead.
+      assert html =~ "data-nav-default-zone=\"download\""
     end
 
     test "first paint (disconnected render) reflects loaded capability, not the unloaded default",

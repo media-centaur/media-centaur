@@ -32,9 +32,13 @@ const TEST_LAYOUTS = {
     sidebar:   { right: ["sections"] },
   },
   download: {
-    sections:  { down: ["grid"],   left: ["sidebar"] },
-    grid:      { up: ["sections"], left: ["sidebar"] },
-    sidebar:   { right: ["sections", "grid"] },
+    omnibox:         { down: ["grid", "drafts", "pursuits", "history"], left: ["sidebar"] },
+    grid:            { up: ["omnibox"], down: ["drafts", "pursuits", "history"], left: ["sidebar"] },
+    drafts:          { up: ["grid", "omnibox"], down: ["pursuits", "history"], left: ["sidebar"] },
+    pursuits:        { up: ["drafts", "grid", "omnibox"], down: ["history", "other_downloads"], left: ["sidebar"] },
+    history:         { up: ["pursuits", "drafts", "grid", "omnibox"], down: ["other_downloads"], left: ["sidebar"] },
+    other_downloads: { up: ["history", "pursuits"], left: ["sidebar"] },
+    sidebar:         { right: ["pursuits", "omnibox", "history"] },
   },
   home: {
     hero:      { down: ["continue", "recently", "coming_up"], left: ["sidebar"] },
@@ -53,7 +57,7 @@ const TEST_CURSOR_START_PRIORITY = {
   upcoming:  ["upcoming", "grid", "zone_tabs", "sidebar"],
   settings:  ["sections", "grid", "sidebar"],
   status:    ["sections", "sidebar"],
-  download:  ["sections", "grid", "sidebar"],
+  download:  ["pursuits", "omnibox", "sidebar"],
   home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
 }
 
@@ -367,28 +371,45 @@ describe("buildNavGraph", () => {
     })
   })
 
-  describe("download zone, all populated (after a search)", () => {
-    const counts = { grid: 5, sections: 2, sidebar: 4 }
+  describe("download zone, all populated (search results + drafts + pursuits + orphans)", () => {
+    const counts = { omnibox: 3, grid: 5, drafts: 2, pursuits: 4, history: 1, other_downloads: 2, sidebar: 4 }
     const graph = buildNavGraph("download", counts, CONFIG)
 
-    test("sections down goes to grid", () => {
-      expect(graph.sections.down).toBe("grid")
+    test("omnibox down goes to grid (search results, first candidate)", () => {
+      expect(graph.omnibox.down).toBe("grid")
     })
 
-    test("sections left goes to sidebar", () => {
-      expect(graph.sections.left).toBe("sidebar")
+    test("grid down goes to drafts, up to omnibox", () => {
+      expect(graph.grid.down).toBe("drafts")
+      expect(graph.grid.up).toBe("omnibox")
     })
 
-    test("grid up goes to sections", () => {
-      expect(graph.grid.up).toBe("sections")
+    test("drafts down goes to pursuits, up to grid", () => {
+      expect(graph.drafts.down).toBe("pursuits")
+      expect(graph.drafts.up).toBe("grid")
     })
 
-    test("grid left goes to sidebar", () => {
-      expect(graph.grid.left).toBe("sidebar")
+    test("pursuits down goes to history, up to drafts", () => {
+      expect(graph.pursuits.down).toBe("history")
+      expect(graph.pursuits.up).toBe("drafts")
     })
 
-    test("sidebar right goes to sections (first candidate)", () => {
-      expect(graph.sidebar.right).toBe("sections")
+    test("history down goes to other_downloads", () => {
+      expect(graph.history.down).toBe("other_downloads")
+    })
+
+    test("other_downloads has no down edge (bottom zone)", () => {
+      expect(graph.other_downloads.down).toBeUndefined()
+    })
+
+    test("every zone has a left edge to the sidebar", () => {
+      for (const zone of ["omnibox", "grid", "drafts", "pursuits", "history", "other_downloads"]) {
+        expect(graph[zone].left).toBe("sidebar")
+      }
+    })
+
+    test("sidebar right goes to pursuits (first candidate)", () => {
+      expect(graph.sidebar.right).toBe("pursuits")
     })
 
     test("no zone_tabs, toolbar, or drawer in download layout", () => {
@@ -398,25 +419,41 @@ describe("buildNavGraph", () => {
     })
   })
 
-  describe("download zone, before any search (grid empty)", () => {
-    const counts = { grid: 0, sections: 2, sidebar: 4 }
+  describe("download zone, conditional zones absent (no search, no drafts, no orphans)", () => {
+    const counts = { omnibox: 3, grid: 0, drafts: 0, pursuits: 4, history: 1, other_downloads: 0, sidebar: 4 }
     const graph = buildNavGraph("download", counts, CONFIG)
 
-    test("sections down blocked (grid is only candidate and empty)", () => {
-      expect(graph.sections.down).toBeUndefined()
+    test("omnibox down skips empty grid and drafts, lands on pursuits", () => {
+      expect(graph.omnibox.down).toBe("pursuits")
     })
 
-    test("sections left still goes to sidebar", () => {
-      expect(graph.sections.left).toBe("sidebar")
+    test("pursuits up skips empty drafts and grid, lands on omnibox", () => {
+      expect(graph.pursuits.up).toBe("omnibox")
     })
 
-    test("sidebar right goes to sections (grid empty)", () => {
-      expect(graph.sidebar.right).toBe("sections")
+    test("history down blocked (other_downloads is only candidate and empty)", () => {
+      expect(graph.history.down).toBeUndefined()
     })
 
-    test("grid edges still resolve (sections is alwaysPopulated)", () => {
-      expect(graph.grid.up).toBe("sections")
-      expect(graph.grid.left).toBe("sidebar")
+    test("sidebar right goes to pursuits", () => {
+      expect(graph.sidebar.right).toBe("pursuits")
+    })
+  })
+
+  describe("download zone, nothing tracked yet (only omnibox and collapsed history)", () => {
+    const counts = { omnibox: 3, grid: 0, drafts: 0, pursuits: 0, history: 1, other_downloads: 0, sidebar: 4 }
+    const graph = buildNavGraph("download", counts, CONFIG)
+
+    test("omnibox down reaches history via its disclosure toggle", () => {
+      expect(graph.omnibox.down).toBe("history")
+    })
+
+    test("history up skips empty zones, lands on omnibox", () => {
+      expect(graph.history.up).toBe("omnibox")
+    })
+
+    test("sidebar right skips empty pursuits, goes to omnibox", () => {
+      expect(graph.sidebar.right).toBe("omnibox")
     })
   })
 
@@ -547,12 +584,16 @@ describe("resolveCursorStart", () => {
     expect(resolveCursorStart("status", { sections: 0, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
   })
 
-  test("download zone with full counts returns sections", () => {
-    expect(resolveCursorStart("download", { sections: 2, grid: 5, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
+  test("download zone with active pursuits starts at pursuits", () => {
+    expect(resolveCursorStart("download", { pursuits: 4, omnibox: 3, sidebar: 4 }, CURSOR_CONFIG)).toBe("pursuits")
   })
 
-  test("download zone always starts at sections (always populated)", () => {
-    expect(resolveCursorStart("download", { sections: 0, grid: 0, sidebar: 4 }, CURSOR_CONFIG)).toBe("sections")
+  test("download zone with no pursuits falls back to omnibox", () => {
+    expect(resolveCursorStart("download", { pursuits: 0, omnibox: 3, sidebar: 4 }, CURSOR_CONFIG)).toBe("omnibox")
+  })
+
+  test("download zone with nothing rendered falls back to sidebar", () => {
+    expect(resolveCursorStart("download", { pursuits: 0, omnibox: 0, sidebar: 4 }, CURSOR_CONFIG)).toBe("sidebar")
   })
 
   test("home zone returns hero when populated", () => {

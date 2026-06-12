@@ -83,6 +83,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
           variant="neutral"
           size="sm"
           phx-click={@on_request_decision}
+          data-nav-item
+          tabindex="0"
         >
           Pick a different release
         </.button>
@@ -91,6 +93,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
           variant="dismiss"
           size="sm"
           phx-click={@on_cancel}
+          data-nav-item
+          tabindex="0"
         >
           Cancel pursuit
         </.button>

@@ -128,6 +128,7 @@ defmodule MediaCentaurWeb.Layouts do
             class={sidebar_link_class(@current_path, "/download") <> " sidebar-link-system"}
             data-tip="Downloads"
             data-nav-item
+            data-nav-remember
             tabindex="0"
           >
             <.icon name="hero-arrow-down-tray" class="size-5 flex-shrink-0" />

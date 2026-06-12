@@ -82,7 +82,15 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   def plan_modal(assigns) do
     ~H"""
-    <.modal id="plan-modal" open={@open} dismiss={:ephemeral} on_close={@on_close} data-plan-modal>
+    <.modal
+      id="plan-modal"
+      open={@open}
+      dismiss={:ephemeral}
+      on_close={@on_close}
+      data-plan-modal
+      data-detail-mode={@open && "modal"}
+      data-dismiss-event={@on_close}
+    >
       <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden thin-scrollbar">
         <div
           :if={@stage == :loading}
