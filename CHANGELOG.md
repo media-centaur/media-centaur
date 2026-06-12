@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.90.8 — 2026-06-12
+
+### Improved
+
+- **Status page issues now point at the right subsystem.** When something crashes, the resulting issue is filed under the subsystem whose code actually failed (Downloads, Library, Playback, …) instead of everything piling up under System. The System tile is now reserved for genuine platform-level problems.
+- **Cleaner numbers on the Status page.** Sizes like memory and database footprint now read as "184 MiB" instead of "184.3 MiB" — small values keep a decimal where it matters.
+
+### Fixed
+
+- **Harmless network timeouts no longer appear as issues.** A client briefly stalling mid-request (a TV browser dropping a connection, for example) was being recorded as an open error on the Status page. It's connection housekeeping, not a fault, and is no longer reported.
+- **Development activity no longer leaks onto the Status page.** If you run a development copy of Media Centaur alongside your installed one, its crashes and restarts no longer show up as issues — including a false "did not shut down cleanly" warning that could appear every time the development copy started.
+
 ## v0.90.7 — 2026-06-12
 
 ### Fixed
