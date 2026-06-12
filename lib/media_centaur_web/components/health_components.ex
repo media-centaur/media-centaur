@@ -101,8 +101,12 @@ defmodule MediaCentaurWeb.HealthComponents do
   end
 
   @doc """
-  Inline stacked drill-in for one subsystem: Summary → Activity → Issues →
-  Data retention → collapsed Logs.
+  Inline drill-in for one subsystem, composed as an editorial instrument panel:
+  a masthead (kicker → title → lede briefing) over an asymmetric body — the
+  wide primary column carries the subsystem's Activity narrative, the quiet
+  right rail carries the plumbing (Status → Data retention → collapsed Logs).
+  Subsystems without a registered Activity widget (the health-only floor)
+  collapse to a single narrow column of rail cards.
   """
   attr :view, SubsystemView, required: true
   attr :buckets, :list, required: true, doc: "[Bucket.t()] for this subsystem"
@@ -115,50 +119,107 @@ defmodule MediaCentaurWeb.HealthComponents do
 
   def health_drill_in(assigns) do
     ~H"""
-    <section id="health-drill-in" class="glass-surface rounded-xl p-5 space-y-5">
-      <header class="flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <.icon name={@view.glyph} class="size-5 text-base-content/65" />
-          <h2 class="text-lg font-medium">{@view.label}</h2>
+    <section id="health-drill-in" class="glass-surface rounded-xl p-6 lg:p-8">
+      <header class="mb-8 flex items-start justify-between gap-4 border-b border-base-content/10 pb-7">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-base-content/40">
+            <.icon name={@view.glyph} class="size-3.5 opacity-70" /> Subsystem
+          </div>
+          <h2 class="mt-2 text-3xl font-semibold tracking-tight">{@view.label}</h2>
+          <p class="mt-3 max-w-prose text-[0.9375rem] leading-relaxed text-base-content/65">
+            {HealthBoard.description(@view.component)}
+          </p>
         </div>
         <.button variant="dismiss" size="sm" phx-click={@on_close}>Close</.button>
       </header>
 
-      <p class="text-sm text-base-content/65 leading-relaxed max-w-prose">
-        {HealthBoard.description(@view.component)}
-      </p>
-
-      <div :if={@activity != []} class="space-y-2">
-        <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">Activity</h3>
-        {render_slot(@activity)}
-      </div>
-
-      <div :if={@buckets != []} class="space-y-2">
-        <div class="flex items-center justify-between">
-          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">Issues</h3>
-          <.button variant="dismiss" size="xs" phx-click={@on_dismiss_all}>Dismiss all</.button>
+      <div class={[
+        @activity != [] && "grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]",
+        @activity == [] && "max-w-xl"
+      ]}>
+        <%!-- No eyebrow here: the masthead already names the subsystem, and a
+             label outside the card would break top-alignment with the rail
+             (every section label lives inside its card). --%>
+        <div :if={@activity != []} class="min-w-0">
+          {render_slot(@activity)}
         </div>
-        <.incident_row
-          :for={bucket <- @buckets}
-          bucket={bucket}
-          on_select={@on_select}
-          on_dismiss={@on_dismiss}
-        />
+
+        <aside class="flex min-w-0 flex-col gap-3.5">
+          <div class="glass-inset rounded-xl p-5">
+            <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+              Status
+            </h3>
+            <div class="mt-3.5 flex items-center gap-2">
+              <span class={["size-2 shrink-0 rounded-full", state_dot_class(@view.state)]}></span>
+              <span class={["text-sm font-medium", state_text_class(@view.state)]}>
+                {state_label(@view.state)}
+              </span>
+              <span :if={@view.state != :ok} class="text-xs text-base-content/40">
+                {HealthBoard.tile_summary(@view)}
+              </span>
+            </div>
+
+            <%!-- Composed all-clear: a deliberate confirmation, not floating copy. --%>
+            <div
+              :if={@buckets == []}
+              class="mt-3.5 flex items-start gap-2.5 border-t border-base-content/10 pt-3.5 text-sm text-base-content/50"
+            >
+              <span class="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-success/15">
+                <.icon name="hero-check-mini" class="size-3 text-success" />
+              </span>
+              <span>
+                <span class="font-medium text-base-content/65">No issues</span> for this subsystem.
+              </span>
+            </div>
+
+            <div :if={@buckets != []} class="mt-3.5 border-t border-base-content/10 pt-3.5">
+              <div class="mb-2 flex items-center justify-between">
+                <h4 class="text-xs font-medium uppercase tracking-wider text-base-content/40">
+                  Issues
+                </h4>
+                <.button variant="dismiss" size="xs" phx-click={@on_dismiss_all}>
+                  Dismiss all
+                </.button>
+              </div>
+              <div class="space-y-2">
+                <.incident_row
+                  :for={bucket <- @buckets}
+                  bucket={bucket}
+                  on_select={@on_select}
+                  on_dismiss={@on_dismiss}
+                />
+              </div>
+            </div>
+          </div>
+
+          <.retention_panel :if={@retention != []} policies={@retention} />
+
+          <details class="glass-inset rounded-xl">
+            <summary class="cursor-pointer select-none px-4 py-3 text-sm text-base-content/60">
+              View technical logs
+            </summary>
+            <div class="space-y-0.5 border-t border-base-content/10 px-4 py-3 font-mono text-xs text-base-content/50">
+              <p :for={line <- HealthBoard.log_lines(@buckets)}>{line}</p>
+              <p :if={HealthBoard.log_lines(@buckets) == []}>No recent log lines.</p>
+            </div>
+          </details>
+        </aside>
       </div>
-      <p :if={@buckets == []} class="text-sm text-base-content/55">No issues for this subsystem.</p>
-
-      <.retention_panel :if={@retention != []} policies={@retention} />
-
-      <details class="glass-inset rounded-lg">
-        <summary class="cursor-pointer select-none px-3 py-2 text-sm text-base-content/60">
-          View technical logs
-        </summary>
-        <div class="px-3 pb-3 text-xs font-mono text-base-content/50 space-y-0.5">
-          <p :for={line <- HealthBoard.log_lines(@buckets)}>{line}</p>
-          <p :if={HealthBoard.log_lines(@buckets) == []}>No recent log lines.</p>
-        </div>
-      </details>
     </section>
     """
   end
+
+  # Rail status line: color rides the dot and (when unhealthy) the label —
+  # calm-when-healthy keeps the "Healthy" word in neutral ink.
+  defp state_dot_class(:ok), do: "bg-success/55"
+  defp state_dot_class(:warning), do: "bg-warning"
+  defp state_dot_class(:error), do: "bg-error"
+
+  defp state_text_class(:ok), do: "text-base-content/65"
+  defp state_text_class(:warning), do: "text-warning"
+  defp state_text_class(:error), do: "text-error"
+
+  defp state_label(:ok), do: "Healthy"
+  defp state_label(:warning), do: "Warning"
+  defp state_label(:error), do: "Error"
 end

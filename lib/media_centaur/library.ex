@@ -23,6 +23,7 @@ defmodule MediaCentaur.Library do
       MovieSeries,
       Person,
       PlayableItem,
+      Posters,
       Progress,
       Progress.Events,
       Progress.Events.ProgressFlushed,

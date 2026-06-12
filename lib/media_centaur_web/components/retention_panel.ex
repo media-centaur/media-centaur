@@ -22,12 +22,16 @@ defmodule MediaCentaurWeb.RetentionPanel do
 
   def retention_panel(assigns) do
     ~H"""
-    <div class="space-y-2">
+    <div class="glass-inset rounded-xl p-5">
       <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
         Data retention
       </h3>
-      <div class="glass-inset rounded-lg divide-y divide-base-content/5">
-        <div :for={policy <- @policies} id={"retention-#{policy.key}"} class="px-3 py-2 space-y-0.5">
+      <div class="mt-2 divide-y divide-base-content/5">
+        <div
+          :for={policy <- @policies}
+          id={"retention-#{policy.key}"}
+          class="py-2.5 space-y-0.5 last:pb-0"
+        >
           <div class="flex items-baseline justify-between gap-3">
             <span class="text-sm text-base-content/80">{policy.label}</span>
             <span class="text-xs text-base-content/45 whitespace-nowrap">

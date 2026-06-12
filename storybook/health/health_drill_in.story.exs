@@ -44,6 +44,20 @@ defmodule MediaCentaurWeb.Storybook.Health.HealthDrillIn do
       %Variation{id: :with_issues, attributes: %{view: view(:error), buckets: [bucket()]}},
       %Variation{id: :healthy, attributes: %{view: view(:ok), buckets: []}},
       %Variation{
+        id: :with_activity,
+        description: "Two-column editorial layout: activity narrative + plumbing rail",
+        attributes: %{view: view(:ok), buckets: []},
+        slots: [
+          """
+          <:activity>
+            <div class="glass-inset rounded-xl p-5 text-sm text-base-content/60">
+              Activity widget renders here
+            </div>
+          </:activity>
+          """
+        ]
+      },
+      %Variation{
         id: :with_retention,
         description: "Healthy subsystem with its data-retention policies listed",
         attributes: %{

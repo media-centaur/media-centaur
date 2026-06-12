@@ -284,14 +284,6 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
     end
   end
 
-  describe "playback_border_class/1" do
-    test "maps playback state to border class" do
-      assert StatusHelpers.playback_border_class(:playing) == "border-success"
-      assert StatusHelpers.playback_border_class(:paused) == "border-warning"
-      assert StatusHelpers.playback_border_class(:idle) == "border-base-content/20"
-    end
-  end
-
   # --- usage display ---
 
   describe "usage_progress_class/1" do

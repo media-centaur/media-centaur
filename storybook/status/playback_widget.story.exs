@@ -7,10 +7,32 @@ defmodule MediaCentaurWeb.Storybook.Status.PlaybackWidget do
   def render_source, do: :function
 
   def variations do
+    poster_data_uri =
+      "data:image/svg+xml," <>
+        URI.encode("""
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="60">\
+        <rect width="40" height="60" fill="#2a2f45"/>\
+        <rect y="30" width="40" height="30" fill="#1d2133"/></svg>\
+        """)
+
     base_activity = %{
       recent: [
-        %{title: "Sample Show — Pilot", kind: :episode, at: ~U[2026-06-09 12:00:00.000000Z]},
-        %{title: "Movie A", kind: :movie, at: ~U[2026-06-08 20:00:00.000000Z]}
+        %{
+          title: "Sample Show S01E03 — The One With the Plan",
+          kind: :episode,
+          at: ~U[2026-06-09 12:00:00.000000Z],
+          primary: "Sample Show",
+          secondary: "S01E03 — The One With the Plan",
+          poster_url: poster_data_uri
+        },
+        %{
+          title: "Movie A",
+          kind: :movie,
+          at: ~U[2026-06-08 20:00:00.000000Z],
+          primary: "Movie A",
+          secondary: "Movie",
+          poster_url: nil
+        }
       ],
       last_write_at: ~U[2026-06-09 12:00:00.000000Z],
       lifetime: %{hours: 142, titles: 87, streak: 5}
