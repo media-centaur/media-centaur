@@ -120,4 +120,33 @@ defmodule MediaCentaur.Console.EntryTest do
       end
     end
   end
+
+  describe "from_log_event/3 — structured OTP reports" do
+    test "renders gen_server terminate reports through the stock translator, not inspect" do
+      # The flat shape OTP actually logs: label is a sibling of the
+      # crash fields, not a wrapper around them.
+      report = %{
+        label: {:gen_server, :terminate},
+        name: MediaCentaur.SampleServer,
+        reason:
+          {%RuntimeError{message: "boom"},
+           [{MediaCentaur.SampleServer, :handle_info, 2, [file: ~c"lib/sample.ex", line: 10]}]},
+        last_message: :tick,
+        state: %{},
+        client_info: nil
+      }
+
+      entry = Entry.from_log_event(:error, {:report, report}, %{})
+
+      assert entry.message =~ "GenServer MediaCentaur.SampleServer terminating"
+      assert entry.message =~ "(RuntimeError) boom"
+      refute entry.message =~ "%{label:"
+    end
+
+    test "falls back to inspect for reports no translator understands" do
+      entry = Entry.from_log_event(:error, {:report, %{custom: "shape"}}, %{})
+
+      assert entry.message =~ "custom"
+    end
+  end
 end

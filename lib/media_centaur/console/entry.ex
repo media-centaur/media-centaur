@@ -74,7 +74,7 @@ defmodule MediaCentaur.Console.Entry do
       level: normalize_level(level),
       component: classify_component(meta),
       module: module_from_meta(meta),
-      message: render_message(msg),
+      message: render_message(msg, normalize_level(level)),
       metadata: prune_metadata(meta)
     }
   end
@@ -137,19 +137,37 @@ defmodule MediaCentaur.Console.Entry do
   # - {:string, iodata}        (most common from Elixir Logger)
   # - {format, args}           (Erlang :io_lib format strings)
   # - {:report, map_or_kv}     (structured logs)
-  defp render_message({:string, iodata}) do
+  defp render_message({:string, iodata}, _level) do
     iodata |> IO.iodata_to_binary() |> strip_ansi() |> truncate(2_000)
   rescue
     _ -> "<unrenderable string>"
   end
 
-  defp render_message({:report, report}) do
-    truncate(inspect(report, limit: 50, printable_limit: 500), 2_000)
+  # Label-tagged reports are OTP crash reports (gen_server terminate,
+  # proc_lib crash, supervisor reports). The stock Logger translator
+  # renders them as the readable text every Elixir log shows; without it
+  # we'd persist `inspect` of the raw report map — useless to fingerprint
+  # and unreadable on the Status page. Same dispatch shape as
+  # Logger.Utils.translator/2.
+  defp render_message({:report, %{label: label, report: report} = complete}, level)
+       when map_size(complete) == 2 do
+    translate_report({label, report}, level, complete)
+  end
+
+  # OTP crash reports (gen_server/gen_statem terminate, supervisor
+  # reports) arrive as a flat map with :label as a sibling of the crash
+  # fields — the translator's `{:logger, report}` dispatch shape.
+  defp render_message({:report, %{label: _} = report}, level) do
+    translate_report({:logger, report}, level, report)
+  end
+
+  defp render_message({:report, report}, _level) do
+    inspect_report(report)
   rescue
     _ -> "<unrenderable report>"
   end
 
-  defp render_message({format, args}) when is_list(format) or is_binary(format) do
+  defp render_message({format, args}, _level) when is_list(format) or is_binary(format) do
     :io_lib.format(format, args)
     |> IO.iodata_to_binary()
     |> strip_ansi()
@@ -158,7 +176,23 @@ defmodule MediaCentaur.Console.Entry do
     _ -> "<unrenderable format>"
   end
 
-  defp render_message(other), do: truncate(inspect(other, limit: 50), 2_000)
+  defp render_message(other, _level), do: truncate(inspect(other, limit: 50), 2_000)
+
+  defp translate_report(data, level, original) do
+    case Logger.Translator.translate(:info, level, :report, data) do
+      {:ok, chardata} -> chardata |> IO.iodata_to_binary() |> strip_ansi() |> truncate(2_000)
+      {:ok, chardata, _meta} -> chardata |> IO.iodata_to_binary() |> strip_ansi() |> truncate(2_000)
+      _ -> inspect_report(original)
+    end
+  rescue
+    _ -> inspect_report(original)
+  end
+
+  defp inspect_report(report) do
+    truncate(inspect(report, limit: 50, printable_limit: 500), 2_000)
+  rescue
+    _ -> "<unrenderable report>"
+  end
 
   # Strip ANSI escape sequences (colors, cursor moves, etc) from a rendered
   # message. Loggers like Ecto.Adapters.SQL emit pre-colorized output that

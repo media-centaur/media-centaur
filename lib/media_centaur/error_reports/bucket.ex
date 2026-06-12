@@ -10,6 +10,7 @@ defmodule MediaCentaur.ErrorReports.Bucket do
   colour by health; `sample_entries` carries up to the last 5 redacted log
   lines for developer context.
   """
+  alias MediaCentaur.ErrorReports.Headline
   alias MediaCentaur.ErrorReports.Incident
 
   @enforce_keys [
@@ -32,7 +33,10 @@ defmodule MediaCentaur.ErrorReports.Bucket do
     :count,
     :first_seen,
     :last_seen,
-    :sample_entries
+    :sample_entries,
+    # Derived display facet (Headline.derive/1 over the normalized
+    # message), not part of the bucket's identity — hence not enforced.
+    headline: ""
   ]
 
   @type sample_entry :: %{timestamp: DateTime.t(), message: binary()}
@@ -46,7 +50,8 @@ defmodule MediaCentaur.ErrorReports.Bucket do
           count: non_neg_integer(),
           first_seen: DateTime.t(),
           last_seen: DateTime.t(),
-          sample_entries: [sample_entry()]
+          sample_entries: [sample_entry()],
+          headline: binary()
         }
 
   @doc """
@@ -60,6 +65,7 @@ defmodule MediaCentaur.ErrorReports.Bucket do
       component: safe_component(incident.component),
       normalized_message: incident.message || "",
       display_title: incident.display_title || "",
+      headline: headline(incident),
       severity: incident.severity,
       count: incident.count,
       first_seen: incident.first_seen,
@@ -67,6 +73,14 @@ defmodule MediaCentaur.ErrorReports.Bucket do
       sample_entries: sample_entries
     }
   end
+
+  # The row title: derived from the normalized message; incidents that
+  # predate message capture fall back to their stored display title.
+  defp headline(%Incident{message: message}) when is_binary(message) and message != "" do
+    Headline.derive(message)
+  end
+
+  defp headline(%Incident{display_title: display_title}), do: display_title || ""
 
   # Incidents store the component as a string; the bucket exposes the atom the
   # rest of the UI (labels, icons) already keys on. The taxonomy is bounded, so
