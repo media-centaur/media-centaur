@@ -165,24 +165,27 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
   # --- format_bytes/1 ---
 
   describe "format_bytes/1" do
+    # Three significant digits: one decimal below 10 units (where the fraction
+    # carries real information), whole numbers above (where ".3" is noise).
+
     test "formats terabytes" do
       tib = Float.pow(1024.0, 4)
       assert StatusHelpers.format_bytes(2.5 * tib) == "2.5 TiB"
     end
 
-    test "formats gigabytes" do
+    test "drops the decimal at or above 10 units" do
       gib = Float.pow(1024.0, 3)
-      assert StatusHelpers.format_bytes(100.0 * gib) == "100.0 GiB"
-    end
-
-    test "scales down to megabytes below a gigabyte" do
       mib = Float.pow(1024.0, 2)
-      assert StatusHelpers.format_bytes(419.4 * mib) == "419.4 MiB"
-      assert StatusHelpers.format_bytes(8.2 * mib) == "8.2 MiB"
+      assert StatusHelpers.format_bytes(100.0 * gib) == "100 GiB"
+      assert StatusHelpers.format_bytes(419.4 * mib) == "419 MiB"
+      assert StatusHelpers.format_bytes(512.0 * 1024.0) == "512 KiB"
     end
 
-    test "scales down to kilobytes below a megabyte" do
-      assert StatusHelpers.format_bytes(512.0 * 1024.0) == "512.0 KiB"
+    test "keeps one decimal below 10 units" do
+      mib = Float.pow(1024.0, 2)
+      gib = Float.pow(1024.0, 3)
+      assert StatusHelpers.format_bytes(8.2 * mib) == "8.2 MiB"
+      assert StatusHelpers.format_bytes(1.5 * gib) == "1.5 GiB"
     end
 
     test "shows whole bytes below a kilobyte" do

@@ -63,9 +63,15 @@ any open `:log` incident last seen on a version no longer running — a deploy i
 the terminal signal, since that exact code can't recur. They're resolved (with
 `resolved_at`), not deleted, so the audit trail survives. A still-recurring
 incident keeps `app_version_at_last` current and is never swept. (Note: a
-transport-layer client disconnect — `Bandit.TransportError` `:timeout`/`:closed`
-— is not an application fault and never mints a `:log` incident, though it still
-shows in the console.) **`:subsystem`** incidents come from a subsystem's `assess/0` health
+transport-layer client disconnect — `Bandit.TransportError` `:timeout`/`:closed`,
+or its HTTP-layer twin, a `Bandit.HTTPError` read timeout — is not an
+application fault and never mints a `:log` incident, though it still shows in
+the console. Durable minting is also **prod-only**: the dev server shares the
+prod database, so its hot-reload crashes and shutdown markers would otherwise
+pollute the production Status page. Crash incidents are attributed to the
+subsystem owning the crashing stack frame — `Console.Entry`'s crash-frame
+classification — not the framework module that logged it; only crashes no
+subsystem owns land under `system`.) **`:subsystem`** incidents come from a subsystem's `assess/0` health
 probe polled by the evaluator: grouped by `{component, kind}`, threshold-gated,
 and **auto-resolving** when health recovers. External-dependency connectivity
 (e.g. the download client — `Downloads.IncidentContext`) lives on the

@@ -72,7 +72,7 @@ defmodule MediaCentaur.Console.Entry do
       id: System.unique_integer([:monotonic, :positive]),
       timestamp: DateTime.utc_now(),
       level: normalize_level(level),
-      component: classify_component(meta),
+      component: classify_component(meta, msg),
       module: module_from_meta(meta),
       message: render_message(msg, normalize_level(level)),
       metadata: prune_metadata(meta)
@@ -95,14 +95,86 @@ defmodule MediaCentaur.Console.Entry do
   defp normalize_level(_), do: :info
 
   # Component classification — every entry gets exactly one component atom.
-  # Explicit :component metadata wins; otherwise classify from module prefix.
-  defp classify_component(meta) do
-    if is_atom(meta[:component]) and meta[:component] != nil do
-      meta[:component]
-    else
-      meta
-      |> module_from_meta()
-      |> classify_module()
+  # Explicit :component metadata wins. Crash logs are emitted by the framework
+  # (Bandit.Pipeline, proc_lib), so meta[:mfa] would classify every crash as
+  # :system regardless of whose code raised — for those, attribute by the first
+  # app-owned module in the crash (registered name or stacktrace frame). Only
+  # then fall back to the logging module's prefix.
+  defp classify_component(meta, msg) do
+    cond do
+      is_atom(meta[:component]) and meta[:component] != nil ->
+        meta[:component]
+
+      component = classify_crash_modules(meta, msg) ->
+        component
+
+      true ->
+        meta
+        |> module_from_meta()
+        |> classify_module()
+    end
+  end
+
+  # Modules implicated in a crash, in attribution order: the stacktrace from
+  # meta[:crash_reason] (request/LiveView crashes), then — for OTP terminate
+  # reports — the registered name and the stacktrace inside the report's reason.
+  defp classify_crash_modules(meta, msg) do
+    crash_reason_modules(meta[:crash_reason])
+    |> Stream.concat(report_modules(msg))
+    |> Enum.find_value(&subsystem_for/1)
+  end
+
+  defp crash_reason_modules({_reason, stacktrace}) when is_list(stacktrace) do
+    stacktrace_modules(stacktrace)
+  end
+
+  defp crash_reason_modules(_), do: []
+
+  defp report_modules({:report, %{label: _, name: name} = report}) do
+    name_modules = if is_atom(name), do: [name], else: []
+    name_modules ++ crash_reason_modules(report[:reason])
+  end
+
+  defp report_modules(_msg), do: []
+
+  defp stacktrace_modules(stacktrace) do
+    Enum.flat_map(stacktrace, fn
+      {module, _fun, _arity_or_args, _location} when is_atom(module) -> [module]
+      _ -> []
+    end)
+  end
+
+  # App-module prefix → board subsystem. Matched with starts_with? on the
+  # module name (so MediaCentaurWeb.AcquisitionLive matches the
+  # "MediaCentaurWeb.Acquisition" entry). Modules outside this table — other
+  # web pages, framework, deps — return nil and fall through to :system.
+  @crash_frame_subsystems [
+    {"MediaCentaur.Watcher", :watcher},
+    {"MediaCentaur.Pipeline", :pipeline},
+    {"MediaCentaur.Review", :pipeline},
+    {"MediaCentaur.TMDB", :tmdb},
+    {"MediaCentaur.Playback", :playback},
+    {"MediaCentaur.Controls", :playback},
+    {"MediaCentaur.Library", :library},
+    {"MediaCentaur.WatchHistory", :library},
+    {"MediaCentaur.Acquisition", :acquisition},
+    {"MediaCentaur.Downloads", :acquisition},
+    {"MediaCentaur.ReleaseTracking", :acquisition},
+    {"MediaCentaur.SelfUpdate", :self_update},
+    {"MediaCentaurWeb.Acquisition", :acquisition},
+    {"MediaCentaurWeb.Library", :library},
+    {"MediaCentaurWeb.Review", :pipeline}
+  ]
+
+  defp subsystem_for(module) when is_atom(module) do
+    case Atom.to_string(module) do
+      "Elixir." <> name ->
+        Enum.find_value(@crash_frame_subsystems, fn {prefix, component} ->
+          if String.starts_with?(name, prefix), do: component
+        end)
+
+      _ ->
+        nil
     end
   end
 

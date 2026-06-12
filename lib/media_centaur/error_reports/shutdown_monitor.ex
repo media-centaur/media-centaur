@@ -8,9 +8,12 @@ defmodule MediaCentaur.ErrorReports.ShutdownMonitor do
   (`{:system, :unclean_shutdown}`) — the one place that condition can be
   detected. Traps exits so `terminate/2` can disarm on an orderly stop.
 
-  Not started under `:test` (it writes to the data dir and raises an incident on
-  boot); the marker logic is unit-tested via `ShutdownMarker`, and the
-  raise-on-unclean wiring via a `:path`-injected instance.
+  Started only under `:prod`. Not `:test` (it writes to the data dir and raises
+  an incident on boot; the marker logic is unit-tested via `ShutdownMarker`, and
+  the raise-on-unclean wiring via a `:path`-injected instance). Not `:dev`
+  either — dev shares prod's data dir, so the two instances would arm/disarm
+  the same marker file and every dev boot alongside a running prod minted a
+  false unclean-shutdown warning.
   """
   use GenServer
 
