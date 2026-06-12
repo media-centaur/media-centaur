@@ -59,8 +59,11 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
   defp summary_for("download_started", _), do: "Download started"
 
   defp summary_for("health_changed", payload) when is_map(payload) do
-    state_part = transition_phrase(payload["from_state"], payload["to_state"])
-    health_part = transition_phrase(payload["from_health"], payload["to_health"])
+    state_part =
+      transition_phrase(state_label(payload["from_state"]), state_label(payload["to_state"]))
+
+    health_part =
+      transition_phrase(health_label(payload["from_health"]), health_label(payload["to_health"]))
 
     case {state_part, health_part} do
       {nil, nil} -> "Health changed"
@@ -96,6 +99,23 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
   defp transition_phrase(nil, to) when is_binary(to), do: to
   defp transition_phrase(from, to) when is_binary(from) and is_binary(to), do: "#{from} → #{to}"
   defp transition_phrase(_, _), do: nil
+
+  # Internal vocabulary → user copy. `:other` is qBittorrent's
+  # checking/moving phases; health atoms are `Downloads.Health` grades.
+  # Unknown values pass through unchanged so a future state never
+  # renders blank. Rows written before the nil-stringification fix
+  # carry the literal string "nil" — normalized to absence here so old
+  # history reads cleanly without a payload rewrite.
+  defp state_label("other"), do: "processing"
+  defp state_label("nil"), do: nil
+  defp state_label(state), do: state
+
+  defp health_label("warming_up"), do: "starting"
+  defp health_label("soft_stall"), do: "stalling"
+  defp health_label("meta_stuck"), do: "metadata stuck"
+  defp health_label("queued_long"), do: "queued long"
+  defp health_label("nil"), do: nil
+  defp health_label(health), do: health
 
   # ─── Severity ───
 

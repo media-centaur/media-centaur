@@ -65,8 +65,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Unit do
     field :awaiting_decision_at, :utc_datetime
     field :stall_first_seen_at, :utc_datetime
     field :zero_seeders_first_seen_at, :utc_datetime
-    field :last_queue_state, :string
-    field :last_queue_health, :string
 
     timestamps()
   end

@@ -6,9 +6,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
 
     1. Reads the current download-client queue snapshot once (consistent
        across the whole pass).
-    2. For each active unit, calls `Observations.refresh!/5` to update
+    2. For each active pursuit, calls `Observations.observe_pursuit!/4`
+       once to record torrent lifecycle transitions on the timeline.
+    3. For each active unit, calls `Observations.refresh!/5` to update
        the unit's persistent stall / zero-seeder timestamps.
-    3. Builds a `Snapshot` over the refreshed unit, runs `Policy`, and
+    4. Builds a `Snapshot` over the refreshed unit, runs `Policy`, and
        dispatches the resulting `Action` to the corresponding command.
 
   The Watcher contains zero domain logic — every action is exercised by
@@ -53,7 +55,22 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
     pursuit_ids = triples |> Enum.map(fn {pursuit, _unit, _target} -> pursuit.id end) |> Enum.uniq()
     release_titles = Pursuits.latest_release_titles_for(pursuit_ids)
 
+    # Lifecycle observation runs once per PURSUIT — the tracked torrent
+    # is shared by all of a composite pursuit's units, so observing it
+    # in the per-unit loop multiplied every timeline event by the unit
+    # count (38 identical "Download started" rows for a 38-episode
+    # season pack).
+    observed_pursuits =
+      triples
+      |> Enum.map(fn {pursuit, _unit, _target} -> pursuit end)
+      |> Enum.uniq_by(& &1.id)
+      |> Map.new(fn pursuit ->
+        release_title = Map.get(release_titles, pursuit.id)
+        {pursuit.id, Observations.observe_pursuit!(pursuit, queue, now, release_title)}
+      end)
+
     Enum.each(triples, fn {pursuit, unit, current_target} ->
+      pursuit = Map.fetch!(observed_pursuits, pursuit.id)
       release_title = Map.get(release_titles, pursuit.id)
       refreshed = Observations.refresh!(pursuit, unit, queue, now, release_title)
 
