@@ -25,7 +25,7 @@
 /priv/showcase/*.db
 /priv/showcase/*.db-*
 
-# Profile-run artifacts — DB, fake watch dir, and per-run markdown / JSON
+# Profile-run artifacts — DB, fake media dir, and per-run markdown / JSON
 # reports. Wiped on every scripts/profile invocation (unless --keep-db).
 # Per-run reports are machine-specific noise; commit a curated snapshot to
 # priv/profiling/baseline-<scale>.{md,json} instead — those baseline files

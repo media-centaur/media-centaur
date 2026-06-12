@@ -92,10 +92,10 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
     """
   end
 
-  @doc "Watcher subsystem Activity widget: watch directories + per-drive storage headroom + at-risk state."
+  @doc "Watcher subsystem Activity widget: media directories + per-drive storage headroom + at-risk state."
   attr :dir_health, :list,
     required: true,
-    doc: "per-watch-dir health maps from Watcher dir-health check (dir/dir_exists/image_dir_exists)"
+    doc: "per-media-dir health maps from Watcher dir-health check (dir/dir_exists/image_dir_exists)"
 
   attr :watcher_statuses, :list,
     required: true,
@@ -138,7 +138,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
         <p :if={@dir_health == []} class="text-base-content/60">
           <.settings_link section="library">
-            No watch directories configured — add one in Settings.
+            No media directories configured — add one in Settings.
           </.settings_link>
         </p>
 

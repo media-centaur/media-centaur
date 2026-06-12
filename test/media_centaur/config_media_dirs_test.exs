@@ -1,18 +1,18 @@
-defmodule MediaCentaur.ConfigWatchDirsTest do
+defmodule MediaCentaur.ConfigMediaDirsTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Config
   alias MediaCentaur.Settings
 
-  describe "watch_dirs_entries/0" do
+  describe "media_dirs_entries/0" do
     test "returns [] when the settings entry is absent" do
-      assert Config.watch_dirs_entries() == []
+      assert Config.media_dirs_entries() == []
     end
 
     test "returns the entries from the settings row" do
       {:ok, _} =
         Settings.find_or_create_entry(%{
-          key: "config:watch_dirs",
+          key: "config:media_dirs",
           value: %{
             "entries" => [
               %{"id" => "aaa", "dir" => "/mnt/a", "images_dir" => nil, "name" => nil}
@@ -20,11 +20,11 @@ defmodule MediaCentaur.ConfigWatchDirsTest do
           }
         })
 
-      assert [%{"id" => "aaa", "dir" => "/mnt/a"}] = Config.watch_dirs_entries()
+      assert [%{"id" => "aaa", "dir" => "/mnt/a"}] = Config.media_dirs_entries()
     end
   end
 
-  describe "put_watch_dirs/1" do
+  describe "put_media_dirs/1" do
     setup do
       original = :persistent_term.get({Config, :config})
       on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
@@ -38,12 +38,12 @@ defmodule MediaCentaur.ConfigWatchDirsTest do
         %{"id" => "aaa", "dir" => "/mnt/a", "images_dir" => nil, "name" => nil}
       ]
 
-      assert :ok = Config.put_watch_dirs(entries)
+      assert :ok = Config.put_media_dirs(entries)
 
-      assert Config.get(:watch_dirs) == ["/mnt/a"]
-      assert Config.get(:watch_dir_images) == %{"/mnt/a" => Path.join("/mnt/a", ".media-centaur/images")}
+      assert Config.get(:media_dirs) == ["/mnt/a"]
+      assert Config.get(:media_dir_images) == %{"/mnt/a" => Path.join("/mnt/a", ".media-centaur/images")}
 
-      assert_receive {:config_updated, :watch_dirs, ^entries}
+      assert_receive {:config_updated, :media_dirs, ^entries}
     end
 
     test "honours explicit images_dir override" do
@@ -51,13 +51,13 @@ defmodule MediaCentaur.ConfigWatchDirsTest do
         %{"id" => "aaa", "dir" => "/mnt/a", "images_dir" => "/mnt/ssd/images", "name" => "Movies"}
       ]
 
-      :ok = Config.put_watch_dirs(entries)
+      :ok = Config.put_media_dirs(entries)
 
-      assert Config.get(:watch_dir_images) == %{"/mnt/a" => "/mnt/ssd/images"}
+      assert Config.get(:media_dir_images) == %{"/mnt/a" => "/mnt/ssd/images"}
     end
   end
 
-  describe "migrate_watch_dirs_from_toml/1" do
+  describe "migrate_media_dirs_from_toml/1" do
     setup do
       original = :persistent_term.get({Config, :config})
       on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
@@ -70,9 +70,9 @@ defmodule MediaCentaur.ConfigWatchDirsTest do
         %{"dir" => "/mnt/b", "images_dir" => "/mnt/ssd/images"}
       ]
 
-      :ok = Config.migrate_watch_dirs_from_toml(toml_entries)
+      :ok = Config.migrate_media_dirs_from_toml(toml_entries)
 
-      entries = Config.watch_dirs_entries()
+      entries = Config.media_dirs_entries()
       assert length(entries) == 2
       assert entries |> Enum.map(& &1["dir"]) |> Enum.sort() == ["/mnt/a", "/mnt/b"]
 
@@ -83,32 +83,32 @@ defmodule MediaCentaur.ConfigWatchDirsTest do
 
     test "is a no-op when the settings entry already exists" do
       :ok =
-        Config.put_watch_dirs([
+        Config.put_media_dirs([
           %{"id" => "seed", "dir" => "/mnt/existing", "images_dir" => nil, "name" => nil}
         ])
 
-      :ok = Config.migrate_watch_dirs_from_toml([%{"dir" => "/mnt/other", "images_dir" => nil}])
+      :ok = Config.migrate_media_dirs_from_toml([%{"dir" => "/mnt/other", "images_dir" => nil}])
 
-      assert [%{"id" => "seed", "dir" => "/mnt/existing"}] = Config.watch_dirs_entries()
+      assert [%{"id" => "seed", "dir" => "/mnt/existing"}] = Config.media_dirs_entries()
     end
 
     test "empty input list is a no-op and creates no entry" do
-      :ok = Config.migrate_watch_dirs_from_toml([])
-      assert Config.watch_dirs_entries() == []
+      :ok = Config.migrate_media_dirs_from_toml([])
+      assert Config.media_dirs_entries() == []
     end
   end
 
-  describe "refresh_watch_dirs_from_settings/0" do
+  describe "refresh_media_dirs_from_settings/0" do
     setup do
       original = :persistent_term.get({Config, :config})
       on_exit(fn -> :persistent_term.put({Config, :config}, original) end)
       :ok
     end
 
-    test "rebuilds :watch_dirs and :watch_dir_images from the Settings entry" do
+    test "rebuilds :media_dirs and :media_dir_images from the Settings entry" do
       {:ok, _} =
         Settings.find_or_create_entry(%{
-          key: "config:watch_dirs",
+          key: "config:media_dirs",
           value: %{
             "entries" => [
               %{"id" => "a", "dir" => "/mnt/a", "images_dir" => nil, "name" => nil},
@@ -117,10 +117,10 @@ defmodule MediaCentaur.ConfigWatchDirsTest do
           }
         })
 
-      assert :ok = Config.refresh_watch_dirs_from_settings()
-      assert Config.get(:watch_dirs) == ["/mnt/a", "/mnt/b"]
+      assert :ok = Config.refresh_media_dirs_from_settings()
+      assert Config.get(:media_dirs) == ["/mnt/a", "/mnt/b"]
 
-      assert Config.get(:watch_dir_images) == %{
+      assert Config.get(:media_dir_images) == %{
                "/mnt/a" => Path.join("/mnt/a", ".media-centaur/images"),
                "/mnt/b" => "/mnt/ssd"
              }

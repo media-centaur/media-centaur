@@ -13,13 +13,13 @@ defmodule MediaCentaur.Library.WatchedFileTest do
       assert {:ok, file} =
                Library.link_file(%{
                  file_path: "/media/test/linked.mkv",
-                 watch_dir: "/media/test",
+                 media_dir: "/media/test",
                  playable_item_id: playable_item.id
                })
 
       assert file.playable_item_id == playable_item.id
       assert file.file_path == "/media/test/linked.mkv"
-      assert file.watch_dir == "/media/test"
+      assert file.media_dir == "/media/test"
     end
 
     test "upserts on duplicate file_path" do
@@ -31,14 +31,14 @@ defmodule MediaCentaur.Library.WatchedFileTest do
       {:ok, first} =
         Library.link_file(%{
           file_path: "/media/test/same.mkv",
-          watch_dir: "/media/test",
+          media_dir: "/media/test",
           playable_item_id: item_one.id
         })
 
       {:ok, second} =
         Library.link_file(%{
           file_path: "/media/test/same.mkv",
-          watch_dir: "/media/test",
+          media_dir: "/media/test",
           playable_item_id: item_two.id
         })
 
@@ -54,7 +54,7 @@ defmodule MediaCentaur.Library.WatchedFileTest do
       changeset =
         WatchedFile.link_file_changeset(%{
           file_path: "/media/test/missing-item.mkv",
-          watch_dir: "/media/test"
+          media_dir: "/media/test"
         })
 
       assert %{playable_item_id: ["can't be blank"]} = errors_on(changeset)
@@ -67,14 +67,14 @@ defmodule MediaCentaur.Library.WatchedFileTest do
       assert {:ok, file} =
                Library.link_file(%{
                  file_path: "/media/test/presence-link.mkv",
-                 watch_dir: "/media/test",
+                 media_dir: "/media/test",
                  playable_item_id: playable_item.id
                })
 
       assert file.file_presence_id
       presence = Repo.get_by!(FilePresence, file_path: "/media/test/presence-link.mkv")
       assert file.file_presence_id == presence.id
-      assert presence.watch_dir == "/media/test"
+      assert presence.media_dir == "/media/test"
     end
   end
 

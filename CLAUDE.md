@@ -71,7 +71,7 @@ mix seed.review        # populate review UI test cases (one-shot, idempotent)
 
 ### Config overrides (isolated dev/demo instances)
 
-`MEDIA_CENTAUR_CONFIG_OVERRIDE` points at a TOML file that fully replaces the default (`~/.config/media-centaur/media-centaur.toml`). It carries its own port, database path, and watch dirs, so a misconfigured command can't clobber the real DB. Single mechanism for running dev + demo side-by-side with the installed release.
+`MEDIA_CENTAUR_CONFIG_OVERRIDE` points at a TOML file that fully replaces the default (`~/.config/media-centaur/media-centaur.toml`). It carries its own port, database path, and media dirs, so a misconfigured command can't clobber the real DB. Single mechanism for running dev + demo side-by-side with the installed release.
 
 | TOML | Purpose | Binds |
 |------|---------|-------|
@@ -170,7 +170,7 @@ Decision records live in `decisions/` ([MADR 4.0](https://adr.github.io/madr/)).
 
 ## Defaults
 
-`defaults/` contains git-tracked starter configs — seed values shipped with the repo, **never overwritten at runtime**. `defaults/media-centaur.toml` carries **only bootstrap state** — `database_path`, `port`, and the initial `watch_dirs` seed (the values the app needs before its database is reachable). Every runtime preference lives in the Settings database and is set in-app; TOML is no longer read for those keys (see the `MediaCentaur.Config` moduledoc). Keep each bootstrap key entered with a logical default and a comment, and the file must always be valid TOML.
+`defaults/` contains git-tracked starter configs — seed values shipped with the repo, **never overwritten at runtime**. `defaults/media-centaur.toml` carries **only bootstrap state** — `database_path`, `port`, and the initial `media_dirs` seed (the values the app needs before its database is reachable). Every runtime preference lives in the Settings database and is set in-app; TOML is no longer read for those keys (see the `MediaCentaur.Config` moduledoc). Keep each bootstrap key entered with a logical default and a comment, and the file must always be valid TOML.
 
 <!-- usage-rules-start -->
 <!-- usage_rules-start -->

@@ -22,8 +22,8 @@ defmodule MediaCentaur.ShowcaseTest do
   setup do
     TmdbStubs.setup_tmdb_client(%{})
 
-    # Showcase writes fake media files under the first configured watch_dir.
-    # Test env sets :watch_dirs to [] (ADR-016), so override it with a temp
+    # Showcase writes fake media files under the first configured media_dir.
+    # Test env sets :media_dirs to [] (ADR-016), so override it with a temp
     # dir for the duration of the test.
     tmp_dir = Path.join(System.tmp_dir!(), "showcase-test-#{System.unique_integer([:positive])}")
     File.mkdir_p!(tmp_dir)
@@ -32,7 +32,7 @@ defmodule MediaCentaur.ShowcaseTest do
     :persistent_term.put(
       {MediaCentaur.Config, :config},
       config
-      |> Map.put(:watch_dirs, [tmp_dir])
+      |> Map.put(:media_dirs, [tmp_dir])
       |> Map.put(:database_path, "priv/showcase/test.db")
     )
 

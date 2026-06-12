@@ -1092,8 +1092,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     external_ids =
       if is_list(assigns.entity.external_ids), do: assigns.entity.external_ids, else: []
 
-    watch_dirs = MapSet.new(MediaCentaur.Config.get(:watch_dirs) || [])
-    file_groups = build_file_groups(assigns.files, watch_dirs)
+    media_dirs = MapSet.new(MediaCentaur.Config.get(:media_dirs) || [])
+    file_groups = build_file_groups(assigns.files, media_dirs)
 
     assigns =
       assigns
@@ -1109,7 +1109,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             option without hunting; underneath, per-folder and per-file
             delete affordances stay always-visible (not hover-gated) so
             granular cleanup is equally discoverable. The folder-level
-            button never appears for the watch_dir itself — deleting a
+            button never appears for the media_dir itself — deleting a
             watch root would be catastrophic.
 
             Confirmation is INLINE — first click on any delete button
@@ -1171,7 +1171,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 {group.name}
               </span>
               <.button
-                :if={!group.is_watch_dir}
+                :if={!group.is_media_dir}
                 variant="destructive_inline"
                 size="xs"
                 disabled={delete_in_flight?(@deleting)}
@@ -1512,23 +1512,23 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   @doc """
   Groups watched files by directory, sorted alphabetically.
-  Returns a list of `%{dir, name, files, is_watch_dir}` maps.
+  Returns a list of `%{dir, name, files, is_media_dir}` maps.
   """
-  def build_file_groups(files, watch_dirs) do
+  def build_file_groups(files, media_dirs) do
     files
     |> Enum.group_by(fn %{file: file} -> Path.dirname(file.file_path) end)
     |> Enum.sort_by(fn {dir, _files} -> dir end)
     |> Enum.map(fn {dir, dir_files} ->
-      %{dir: dir, name: Path.basename(dir), files: dir_files, is_watch_dir: dir in watch_dirs}
+      %{dir: dir, name: Path.basename(dir), files: dir_files, is_media_dir: dir in media_dirs}
     end)
   end
 
   @doc """
   Builds the payload for the "Delete All" confirmation modal.
   Returns `%{file_groups, total_size, file_count}` where each group has
-  `%{dir, name, is_watch_dir, files}` with files as `%{path, name, size}` maps.
+  `%{dir, name, is_media_dir, files}` with files as `%{path, name, size}` maps.
   """
-  def build_delete_all_payload(detail_files, watch_dirs) do
+  def build_delete_all_payload(detail_files, media_dirs) do
     # Single pass: group by directory and accumulate the total size. The
     # earlier two-pass version traversed `detail_files` once for the
     # group/sort/map chain and again via Enum.reduce just to sum sizes.
@@ -1552,7 +1552,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         %{
           dir: dir,
           name: Path.basename(dir),
-          is_watch_dir: dir in watch_dirs,
+          is_media_dir: dir in media_dirs,
           files: Enum.reverse(files)
         }
       end)

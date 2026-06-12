@@ -85,17 +85,17 @@ defmodule MediaCentaur.Pipeline.Import do
   def process_payload(%Payload{} = payload) do
     payload = %{payload | parsed: Parser.parse(payload.file_path)}
 
-    with :ok <- check_disk_space(payload.watch_directory),
+    with :ok <- check_disk_space(payload.media_directory),
          {:ok, payload} <- Stage.run(:fetch_metadata, FetchMetadata, payload),
          {:ok, payload} <- Stage.run(:ingest, Ingest, payload) do
       handle_complete(payload)
     end
   end
 
-  defp check_disk_space(watch_directory) do
-    images_dir = MediaCentaur.Config.images_dir_for(watch_directory)
+  defp check_disk_space(media_directory) do
+    images_dir = MediaCentaur.Config.images_dir_for(media_directory)
     # df works on parent even if images_dir doesn't exist yet
-    path = if File.dir?(images_dir), do: images_dir, else: watch_directory
+    path = if File.dir?(images_dir), do: images_dir, else: media_directory
 
     case Storage.available_bytes(path) do
       {:ok, avail} when avail < @min_disk_bytes ->

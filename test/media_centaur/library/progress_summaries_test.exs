@@ -18,7 +18,7 @@ defmodule MediaCentaur.Library.ProgressSummariesTest do
   alias MediaCentaur.QueryCounter
   alias MediaCentaur.Library.FilePresence
 
-  defp record_present(file), do: FilePresence.stamp(file.file_path, file.watch_dir)
+  defp record_present(file), do: FilePresence.stamp(file.file_path, file.media_dir)
 
   defp seed_present_movie(name) do
     movie = create_standalone_movie(%{name: name})

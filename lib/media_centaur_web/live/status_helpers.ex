@@ -131,7 +131,7 @@ defmodule MediaCentaurWeb.StatusHelpers do
   # --- Watcher activity narrative ---
 
   @doc """
-  Plain-language explanation of *why* a watch directory is unavailable, from the
+  Plain-language explanation of *why* a media directory is unavailable, from the
   `reason` tagged by `MediaCentaur.Watcher` at the transition. Turns a bare
   "unavailable" into something a curious user can act on (or wait out). Unknown
   or `nil` reasons fall back to a neutral line rather than leaking an atom.

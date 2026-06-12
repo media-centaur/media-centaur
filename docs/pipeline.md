@@ -30,10 +30,10 @@ inotify + scan               high confidence → matched       → publish entit
 
 | Topic | Producer | Consumer | Payload |
 |-------|----------|----------|---------|
-| `pipeline:input` | Watcher | Discovery.Producer | `{:file_detected, %{path, watch_dir}}` |
-| `pipeline:matched` | Discovery, Review | Import.Producer | `{:file_matched, %{file_path, watch_dir, tmdb_id, tmdb_type, pending_file_id}}` |
+| `pipeline:input` | Watcher | Discovery.Producer | `{:file_detected, %{path, media_dir}}` |
+| `pipeline:matched` | Discovery, Review | Import.Producer | `{:file_matched, %{file_path, media_dir, tmdb_id, tmdb_type, pending_file_id}}` |
 | `pipeline:publish` | Import (Ingest stage), Pipeline.Image | Library.Inbound | `{:entity_published, event}`, `{:image_ready, attrs}` |
-| `pipeline:images` | Library.Inbound | Pipeline.Image.Producer | `{:images_pending, %{entity_id, watch_dir}}` |
+| `pipeline:images` | Library.Inbound | Pipeline.Image.Producer | `{:images_pending, %{entity_id, media_dir}}` |
 | `review:intake` | Discovery, Import | Review.Intake | `{:needs_review, attrs}`, `{:review_completed, id}`, `{:files_for_review, files}` |
 | `review:updates` | Review.Intake | LiveViews | `{:file_added, id}`, `{:file_reviewed, id}` |
 | `library:updates` | Library.Inbound, Watcher | LiveViews, Channels | `{:entities_changed, entity_ids}` |
@@ -48,7 +48,7 @@ inotify + scan               high confidence → matched       → publish entit
 | Field | Set by | Purpose |
 |-------|--------|---------|
 | `file_path` | Producer | Absolute path to the video file |
-| `watch_directory` | Producer | Watch directory the file was found in |
+| `media_directory` | Producer | Media directory the file was found in |
 | `parsed` | Parse stage | `%Parser.Result{}` with title, year, type, season, episode |
 | `tmdb_id` | Search stage (or Import Producer for review-resolved files) | TMDB ID of the matched entity |
 | `tmdb_type` | Search stage (or Import Producer) | `:movie` or `:tv` |

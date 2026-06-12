@@ -192,7 +192,7 @@ Protocol specifications live in [`specs/`](../specs/):
 | Module | Description | Path |
 |--------|-------------|------|
 | `MediaCentaur.Application` | OTP application, supervision tree | `lib/media_centaur/application.ex` |
-| `MediaCentaur.Config` | Bootstrap TOML loader (`database_path`, `port`, `watch_dirs` seed) + DB-backed runtime config | `lib/media_centaur/config.ex` |
+| `MediaCentaur.Config` | Bootstrap TOML loader (`database_path`, `port`, `media_dirs` seed) + DB-backed runtime config | `lib/media_centaur/config.ex` |
 | `MediaCentaur.Topics` | Single source of truth for PubSub topic strings | `lib/media_centaur/topics.ex` |
 | `MediaCentaur.Capabilities` | Predicates gating features on Test Connection results | `lib/media_centaur/capabilities.ex` |
 | `MediaCentaur.Controls` | Keybinding catalog + persisted overrides | `lib/media_centaur/controls.ex` |

@@ -36,7 +36,7 @@ defmodule MediaCentaurWeb.SetupLiveTest do
       {:ok, _view, html} = live(conn, "/setup?step=mpv")
 
       assert html =~ "mpv"
-      # mpv is step 4 of 8 (welcome=1, watch_dirs=2, tmdb=3, mpv=4, ffprobe=5,
+      # mpv is step 4 of 8 (welcome=1, media_dirs=2, tmdb=3, mpv=4, ffprobe=5,
       # prowlarr=6, download_client=7, summary=8).
       assert html =~ "Step 4 of 8"
     end
@@ -58,19 +58,19 @@ defmodule MediaCentaurWeb.SetupLiveTest do
   end
 
   describe "navigation events" do
-    test "begin (next on welcome) advances to watch_dirs", %{conn: conn} do
+    test "begin (next on welcome) advances to media_dirs", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/setup?step=welcome")
 
       view |> element("button", "Begin") |> render_click()
 
-      assert_patch(view, "/setup?step=watch_dirs")
+      assert_patch(view, "/setup?step=media_dirs")
     end
 
     test "next is blocked on a critical unconfigured step (gate refuses, no Skip)", %{conn: conn} do
-      {:ok, view, _html} = live(conn, "/setup?step=watch_dirs")
+      {:ok, view, _html} = live(conn, "/setup?step=media_dirs")
 
-      # No watch_dirs configured → probe :not_configured → Gate.check/3
-      # returns {:blocked, :probe_not_ok}. watch_dirs is critical (not
+      # No media_dirs configured → probe :not_configured → Gate.check/3
+      # returns {:blocked, :probe_not_ok}. media_dirs is critical (not
       # `optional?`) so the Next button is rendered `disabled` AND there
       # is no Skip button — the user must configure a directory before
       # advancing.

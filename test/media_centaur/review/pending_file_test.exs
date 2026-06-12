@@ -5,7 +5,7 @@ defmodule MediaCentaur.Review.PendingFileTest do
 
   @valid_attrs %{
     file_path: "/media/movies/Sample.Movie.2010.1080p.BluRay.mkv",
-    watch_directory: "/media/movies",
+    media_directory: "/media/movies",
     parsed_title: "Sample Movie",
     parsed_year: 2010,
     parsed_type: "movie",
@@ -31,7 +31,7 @@ defmodule MediaCentaur.Review.PendingFileTest do
       pending_file = Review.create_pending_file!(@valid_attrs)
 
       assert pending_file.file_path == @valid_attrs.file_path
-      assert pending_file.watch_directory == "/media/movies"
+      assert pending_file.media_directory == "/media/movies"
       assert pending_file.parsed_title == "Sample Movie"
       assert pending_file.parsed_year == 2010
       assert pending_file.parsed_type == "movie"

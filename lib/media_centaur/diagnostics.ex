@@ -64,7 +64,7 @@ defmodule MediaCentaur.Diagnostics do
     end
   end
 
-  @doc "Watcher and pipeline state, watch dirs, config."
+  @doc "Watcher and pipeline state, media dirs, config."
   def services do
     watcher_children = length(Supervisor.which_children(MediaCentaur.Watcher.Supervisor))
     pipeline_children = length(Supervisor.which_children(MediaCentaur.Pipeline.Supervisor))
@@ -72,8 +72,8 @@ defmodule MediaCentaur.Diagnostics do
     IO.puts("Watcher children: #{watcher_children}")
     IO.puts("Pipeline children: #{pipeline_children}")
 
-    watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
-    IO.puts("Watch dirs: #{inspect(watch_dirs)}")
+    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
+    IO.puts("Media dirs: #{inspect(media_dirs)}")
 
     registry_entries = SessionRegistry.list()
     IO.puts("Active sessions: #{length(registry_entries)}")

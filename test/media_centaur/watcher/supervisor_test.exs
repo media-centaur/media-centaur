@@ -13,9 +13,9 @@ defmodule MediaCentaur.Watcher.SupervisorTest do
     tmp_dir = Path.join(System.tmp_dir!(), "watcher_test_#{:erlang.unique_integer([:positive])}")
     File.mkdir_p!(tmp_dir)
 
-    # Override config to point watch_dirs to our temp dir
+    # Override config to point media_dirs to our temp dir
     original_config = :persistent_term.get({MediaCentaur.Config, :config})
-    updated_config = Map.put(original_config, :watch_dirs, [tmp_dir])
+    updated_config = Map.put(original_config, :media_dirs, [tmp_dir])
     :persistent_term.put({MediaCentaur.Config, :config}, updated_config)
 
     # Stop any existing watchers, then start fresh with our temp dir

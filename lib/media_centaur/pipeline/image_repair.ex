@@ -16,8 +16,8 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
       pull the `poster_path` / `backdrop_path` / `still_path` for the
       role, and insert a fresh queue row.
 
-  Broadcasts `{:images_pending, %{entity_id, watch_dir}}` on
-  `Topics.pipeline_images/0`, deduped per `(entity_id, watch_dir)` so one
+  Broadcasts `{:images_pending, %{entity_id, media_dir}}` on
+  `Topics.pipeline_images/0`, deduped per `(entity_id, media_dir)` so one
   Producer wake-up handles every missing role for a given entity.
   """
   import Ecto.Query
@@ -65,13 +65,13 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
           {:ok, :reused, queue_row} ->
             %{
               counts: bump(acc.counts, [:enqueued, :queue_reused]),
-              broadcasts: MapSet.put(acc.broadcasts, {queue_row.entity_id, queue_row.watch_dir})
+              broadcasts: MapSet.put(acc.broadcasts, {queue_row.entity_id, queue_row.media_dir})
             }
 
           {:ok, :rebuilt, queue_row} ->
             %{
               counts: bump(acc.counts, [:enqueued, :queue_rebuilt]),
-              broadcasts: MapSet.put(acc.broadcasts, {queue_row.entity_id, queue_row.watch_dir})
+              broadcasts: MapSet.put(acc.broadcasts, {queue_row.entity_id, queue_row.media_dir})
             }
 
           {:skip, _reason} ->
@@ -79,11 +79,11 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
         end
       end)
 
-    Enum.each(broadcasts, fn {entity_id, watch_dir} ->
+    Enum.each(broadcasts, fn {entity_id, media_dir} ->
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
         Topics.pipeline_images(),
-        {:images_pending, %{entity_id: entity_id, watch_dir: watch_dir}}
+        {:images_pending, %{entity_id: entity_id, media_dir: media_dir}}
       )
     end)
 
@@ -130,7 +130,7 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
 
   defp rebuild_queue_row(image, entity_id, entity_type) do
     with {:ok, tmdb_context} <- EntityImageContext.find_tmdb_context(entity_id, entity_type),
-         {:ok, watch_dir} <- EntityImageContext.find_watch_dir(entity_id, entity_type),
+         {:ok, media_dir} <- EntityImageContext.find_media_dir(entity_id, entity_type),
          {:ok, source_url, owner_id, broadcast_entity_id} <-
            derive_source_url(image, entity_id, entity_type, tmdb_context) do
       attrs = %{
@@ -139,7 +139,7 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
         role: image.role,
         source_url: source_url,
         entity_id: broadcast_entity_id,
-        watch_dir: watch_dir,
+        media_dir: media_dir,
         status: "pending",
         retry_count: 0
       }

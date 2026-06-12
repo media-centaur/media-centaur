@@ -61,7 +61,7 @@ graph TD
     Inbound[Library.Inbound] -->|broadcasts on entry| TopRecord[Type-specific record]
     Pipeline -->|publishes via PubSub| Inbound
     FileEventHandler[Library.FileEventHandler] -->|cleanup cascade| TopRecord
-    Availability[Library.Availability] -->|tracks watch-dir state| LiveViews
+    Availability[Library.Availability] -->|tracks media-dir state| LiveViews
     Serializer -->|reads| TopRecord
 ```
 
@@ -169,7 +169,7 @@ External service ID linking a type record to TMDB, IMDB, etc. Stored in `library
 
 Links a video file on disk to its entity. Tracks file presence for removable drives.
 
-**Key attributes:** `file_path`, `state` (`:complete` / `:absent`), `watch_dir`, `absent_since`
+**Key attributes:** `file_path`, `state` (`:complete` / `:absent`), `media_dir`, `absent_since`
 
 ### WatchProgress
 
@@ -210,7 +210,7 @@ The pipeline never calls `Library.Inbound` directly; everything flows through Pu
 
 ## Availability
 
-`Library.Availability` is a top-level GenServer that tracks per-watch-directory mount/reachability state. It exposes `available?/1` so UI code (and the LiveView templates that drive cards and the detail panel) can replace the **Play** button with a muted **Offline** indicator when a file's underlying drive is unmounted or unreachable.
+`Library.Availability` is a top-level GenServer that tracks per-media-directory mount/reachability state. It exposes `available?/1` so UI code (and the LiveView templates that drive cards and the detail panel) can replace the **Play** button with a muted **Offline** indicator when a file's underlying drive is unmounted or unreachable.
 
 This is the v0.20.0 fix for the silent-failure mode where pressing Play on an unmounted file did nothing.
 
@@ -265,7 +265,7 @@ See [pipeline.md](pipeline.md#review-flow) for the full review workflow.
 | `MediaCentaur.Library.EntityShape` | Normalize type records to common map shape | `lib/media_centaur/library/entity_shape.ex` |
 | `MediaCentaur.Library.EntityCascade` | Cascade-deletion order | `lib/media_centaur/library/entity_cascade.ex` |
 | `MediaCentaur.Library.Inbound` | Pipeline → library inbound PubSub listener | `lib/media_centaur/library/inbound.ex` |
-| `MediaCentaur.Library.Availability` | Per-watch-dir mount/reachability tracker | `lib/media_centaur/library/availability.ex` |
+| `MediaCentaur.Library.Availability` | Per-media-dir mount/reachability tracker | `lib/media_centaur/library/availability.ex` |
 | `MediaCentaur.Library.Browser` | Library browse + filter helpers used by LibraryLive | `lib/media_centaur/library/browser.ex` |
 | `MediaCentaur.Library.ProgressTracker` | Resume-target / completion bookkeeping | `lib/media_centaur/library/progress_tracker.ex` |
 | `MediaCentaur.Library.LastActivity` | "Recently watched" / activity ordering helper | `lib/media_centaur/library/last_activity.ex` |

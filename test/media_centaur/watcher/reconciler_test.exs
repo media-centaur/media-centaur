@@ -84,7 +84,7 @@ defmodule MediaCentaur.Watcher.ReconcilerTest do
                Reconciler.diff_image_monitors(old, new)
     end
 
-    test "image_dir changed for the same watch_dir → stop old + start new" do
+    test "image_dir changed for the same media_dir → stop old + start new" do
       old = [{"/mnt/a", "/mnt/ssd/images-a"}]
       new = [{"/mnt/a", "/mnt/nvme/images-a"}]
 

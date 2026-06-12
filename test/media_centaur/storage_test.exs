@@ -10,7 +10,7 @@ defmodule MediaCentaur.StorageTest do
   describe "group_by_drive/1" do
     test "groups roles under the same mount point" do
       entries = [
-        {"/mnt/media/Videos", "Watch dir",
+        {"/mnt/media/Videos", "Media dir",
          %{
            device: "sda1",
            mount_point: "/mnt/media",
@@ -37,14 +37,14 @@ defmodule MediaCentaur.StorageTest do
       assert drive.usage_percent == 75
 
       assert drive.roles == [
-               %{label: "Watch dir", path: "/mnt/media/Videos"},
+               %{label: "Media dir", path: "/mnt/media/Videos"},
                %{label: "Image cache", path: "/mnt/media/.media-centaur/images"}
              ]
     end
 
     test "separates entries on different mount points into different drives" do
       entries = [
-        {"/mnt/media-1/Videos", "Watch dir",
+        {"/mnt/media-1/Videos", "Media dir",
          %{
            device: "sda1",
            mount_point: "/mnt/media-1",
@@ -52,7 +52,7 @@ defmodule MediaCentaur.StorageTest do
            total_bytes: 1_000_000_000,
            usage_percent: 50
          }},
-        {"/mnt/media-2/Videos", "Watch dir",
+        {"/mnt/media-2/Videos", "Media dir",
          %{
            device: "sdb1",
            mount_point: "/mnt/media-2",
@@ -72,7 +72,7 @@ defmodule MediaCentaur.StorageTest do
 
     test "preserves role ordering within a drive" do
       entries = [
-        {"/mnt/media/Videos", "Watch dir",
+        {"/mnt/media/Videos", "Media dir",
          %{
            device: "sda1",
            mount_point: "/mnt/media",
@@ -100,7 +100,7 @@ defmodule MediaCentaur.StorageTest do
 
       [drive] = Storage.group_by_drive(entries)
       labels = Enum.map(drive.roles, & &1.label)
-      assert labels == ["Watch dir", "Image cache", "Database"]
+      assert labels == ["Media dir", "Image cache", "Database"]
     end
 
     test "returns empty list for empty input" do

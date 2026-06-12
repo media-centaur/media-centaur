@@ -6,7 +6,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
 
   - `binary_step/1` — mpv, ffprobe (path field + auto-detected candidates)
   - `integration_step/1` — TMDB, Prowlarr, download client (form fields + test button)
-  - `watch_dirs_step/1` — directory list with add/remove
+  - `media_dirs_step/1` — directory list with add/remove
 
   All three accept a typed `%Probe.Result{}` and emit events with
   `phx-value-id={@result.id}` so the parent LiveView routes the event by
@@ -34,12 +34,12 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
   attr :form_id, :string,
     default: nil,
     doc:
-      "DOM id of the step's inline `<form>`. When present, the footer Next button uses HTML5 `form=`+`type=submit` so clicking Next submits that form. When nil (welcome / summary / watch_dirs), Next falls back to `phx-click=\"setup:next\"`."
+      "DOM id of the step's inline `<form>`. When present, the footer Next button uses HTML5 `form=`+`type=submit` so clicking Next submits that form. When nil (welcome / summary / media_dirs), Next falls back to `phx-click=\"setup:next\"`."
 
   attr :optional?, :boolean,
     default: false,
     doc:
-      "When true, the Skip button is rendered alongside Next so the user may bypass the step without satisfying its connection test. Critical steps (TMDB, watch_dirs) set this to false so the user MUST configure them — Skip is hidden, only Next advances, and the server-side gate (`Setup.Gate`) blocks Next when the test hasn't succeeded."
+      "When true, the Skip button is rendered alongside Next so the user may bypass the step without satisfying its connection test. Critical steps (TMDB, media_dirs) set this to false so the user MUST configure them — Skip is hidden, only Next advances, and the server-side gate (`Setup.Gate`) blocks Next when the test hasn't succeeded."
 
   attr :blocked?, :boolean,
     default: false,
@@ -300,7 +300,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
   end
 
   # ---------------------------------------------------------------------------
-  # Watch dirs step
+  # Media dirs step
   # ---------------------------------------------------------------------------
 
   attr :result, Probe.Result, required: true
@@ -309,7 +309,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
   attr :total_steps, :integer, required: true
   attr :blocked?, :boolean, default: false
 
-  def watch_dirs_step(assigns) do
+  def media_dirs_step(assigns) do
     ~H"""
     <.step_shell
       result={@result}
@@ -327,7 +327,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
           <.button
             variant="dismiss"
             size="xs"
-            phx-click="setup:remove_watch_dir"
+            phx-click="setup:remove_media_dir"
             phx-value-dir={dir}
           >
             Remove
@@ -336,14 +336,14 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
       </ul>
 
       <p :if={dirs_list(@result) == []} class="text-sm opacity-70 italic">
-        No watch directories yet — add one below.
+        No media directories yet — add one below.
       </p>
 
       <form
-        id="setup-add-watch-dir-form"
+        id="setup-add-media-dir-form"
         phx-submit={
-          JS.push("setup:add_watch_dir")
-          |> JS.set_attribute({"value", ""}, to: "#setup-add-watch-dir-form input[name='dir']")
+          JS.push("setup:add_media_dir")
+          |> JS.set_attribute({"value", ""}, to: "#setup-add-media-dir-form input[name='dir']")
         }
         class="flex gap-2 items-center"
       >
@@ -392,7 +392,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
         <div class="p-4 rounded bg-base-content/5">
           <p class="font-semibold mb-2">What this tour covers</p>
           <ol class="list-decimal list-inside opacity-80 space-y-1">
-            <li><span class="font-medium">Watch directories</span> — where your video files live.</li>
+            <li><span class="font-medium">Media directories</span> — where your video files live.</li>
             <li><span class="font-medium">TMDB</span> — metadata, posters, release tracking.</li>
             <li><span class="font-medium">mpv</span> — the media player.</li>
             <li><span class="font-medium">ffprobe</span> — embedded subtitle detection.</li>
@@ -413,7 +413,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
         <p class="opacity-80">
           Optional steps (Prowlarr, download client, mpv, ffprobe) have a
           <span class="font-medium">Skip</span>
-          button so you can come back later via <span class="font-medium">Settings → Overview → Run setup tour</span>. Watch directories and TMDB are required for the rest of the app to do anything useful, so the tour can't move past them until they verify.
+          button so you can come back later via <span class="font-medium">Settings → Overview → Run setup tour</span>. Media directories and TMDB are required for the rest of the app to do anything useful, so the tour can't move past them until they verify.
         </p>
       </div>
 

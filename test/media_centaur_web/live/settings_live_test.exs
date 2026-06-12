@@ -133,13 +133,13 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   describe "post-tour critical-failure banner" do
     # Banner fires only for configured-but-broken critical probes
     # (`status == :error`), not for `:not_configured`. Both tests put
-    # `watch_dirs` in `:error` state by configuring a path that does not
-    # exist on disk — `Probes.watch_dirs/1` returns `:error` when every
+    # `media_dirs` in `:error` state by configuring a path that does not
+    # exist on disk — `Probes.media_dirs/1` returns `:error` when every
     # configured dir is unreachable. Restored on exit.
     setup do
-      previous = MediaCentaur.Config.get(:watch_dirs) || []
-      :ok = MediaCentaur.Config.put_watch_dirs([%{"dir" => "/var/empty/nope/missing"}])
-      on_exit(fn -> MediaCentaur.Config.put_watch_dirs(previous) end)
+      previous = MediaCentaur.Config.get(:media_dirs) || []
+      :ok = MediaCentaur.Config.put_media_dirs([%{"dir" => "/var/empty/nope/missing"}])
+      on_exit(fn -> MediaCentaur.Config.put_media_dirs(previous) end)
       :ok
     end
 
@@ -150,12 +150,12 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       assert html =~ "Setup is incomplete"
       assert html =~ "Run tour"
-      assert html =~ "watch dirs"
+      assert html =~ "media dirs"
     end
 
     test "first paint (disconnected render) shows the banner, not an empty flash",
          %{conn: conn} do
-      # Desktop first-paint correctness: with a broken watch dir (setup
+      # Desktop first-paint correctness: with a broken media dir (setup
       # above) the load — which now runs on the disconnected render — must
       # surface the setup banner. The previously-gated behavior left
       # `show_setup_banner?` at its mount default (false) on the static
@@ -200,7 +200,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
       MediaCentaur.Topics.dir_state(),
-      {:dir_state_changed, "/tmp/test", :watch_dir, :unavailable}
+      {:dir_state_changed, "/tmp/test", :media_dir, :unavailable}
     )
 
     # The LiveView should process the message without crashing
@@ -218,8 +218,8 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
     test "re-emits file_detected for stranded files when key is updated", %{conn: conn} do
       stranded_path = "/tmp/test/save-tmdb-stranded.mkv"
-      watch_dir = "/tmp/test"
-      FilePresence.stamp(stranded_path, watch_dir)
+      media_dir = "/tmp/test"
+      FilePresence.stamp(stranded_path, media_dir)
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.pipeline_input())
 
@@ -232,13 +232,13 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       })
       |> render_submit()
 
-      assert_receive {:file_detected, %{path: ^stranded_path, watch_dir: ^watch_dir}}, 1_500
+      assert_receive {:file_detected, %{path: ^stranded_path, media_dir: ^media_dir}}, 1_500
     end
 
     test "no re-emit when the key field is left blank (no value change)", %{conn: conn} do
       stranded_path = "/tmp/test/save-tmdb-noop.mkv"
-      watch_dir = "/tmp/test"
-      FilePresence.stamp(stranded_path, watch_dir)
+      media_dir = "/tmp/test"
+      FilePresence.stamp(stranded_path, media_dir)
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.pipeline_input())
 

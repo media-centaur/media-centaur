@@ -39,7 +39,7 @@ defmodule MediaCentaur.PipelineTest do
     # Subscribe to receive entity_published events from the Import pipeline
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_publish())
 
-    # Register watch_dir_images for paths used in test payloads.
+    # Register media_dir_images for paths used in test payloads.
     # Images go to a temp dir that gets cleaned up after each test.
     images_dir = Path.join(System.tmp_dir!(), "pipeline_test_#{Ecto.UUID.generate()}")
     File.mkdir_p!(images_dir)
@@ -47,7 +47,7 @@ defmodule MediaCentaur.PipelineTest do
     config = :persistent_term.get({MediaCentaur.Config, :config})
 
     updated_config =
-      Map.put(config, :watch_dir_images, %{
+      Map.put(config, :media_dir_images, %{
         "/media/pipeline" => images_dir,
         "/media/pipeline/TV" => images_dir
       })
@@ -84,7 +84,7 @@ defmodule MediaCentaur.PipelineTest do
 
       payload = %Payload{
         file_path: "/media/pipeline/Sample.Movie.1999.BluRay.mkv",
-        watch_directory: "/media/pipeline"
+        media_directory: "/media/pipeline"
       }
 
       assert {:matched, discovered} = Discovery.process(payload)
@@ -94,7 +94,7 @@ defmodule MediaCentaur.PipelineTest do
       import_payload =
         ImportProducer.build_payload(%{
           file_path: discovered.file_path,
-          watch_dir: discovered.watch_directory,
+          media_dir: discovered.media_directory,
           tmdb_id: discovered.tmdb_id,
           tmdb_type: discovered.tmdb_type,
           pending_file_id: nil
@@ -136,7 +136,7 @@ defmodule MediaCentaur.PipelineTest do
 
       payload = %Payload{
         file_path: "/media/pipeline/TV/Sample.Show/Season.01/Sample.Show.S01E01.1080p.BluRay.mkv",
-        watch_directory: "/media/pipeline/TV"
+        media_directory: "/media/pipeline/TV"
       }
 
       assert {:matched, discovered} = Discovery.process(payload)
@@ -144,7 +144,7 @@ defmodule MediaCentaur.PipelineTest do
       import_payload =
         ImportProducer.build_payload(%{
           file_path: discovered.file_path,
-          watch_dir: discovered.watch_directory,
+          media_dir: discovered.media_directory,
           tmdb_id: discovered.tmdb_id,
           tmdb_type: discovered.tmdb_type,
           pending_file_id: nil
@@ -180,7 +180,7 @@ defmodule MediaCentaur.PipelineTest do
 
       payload = %Payload{
         file_path: "/media/pipeline/Sample.Movie.Two.2008.BluRay.mkv",
-        watch_directory: "/media/pipeline"
+        media_directory: "/media/pipeline"
       }
 
       assert {:matched, discovered} = Discovery.process(payload)
@@ -188,7 +188,7 @@ defmodule MediaCentaur.PipelineTest do
       import_payload =
         ImportProducer.build_payload(%{
           file_path: discovered.file_path,
-          watch_dir: discovered.watch_directory,
+          media_dir: discovered.media_directory,
           tmdb_id: discovered.tmdb_id,
           tmdb_type: discovered.tmdb_type,
           pending_file_id: nil
@@ -231,7 +231,7 @@ defmodule MediaCentaur.PipelineTest do
 
       payload = %Payload{
         file_path: "/media/pipeline/Sample.Movie.1999.BluRay.mkv",
-        watch_directory: "/media/pipeline"
+        media_directory: "/media/pipeline"
       }
 
       assert {:needs_review, result} = Discovery.process(payload)
@@ -262,7 +262,7 @@ defmodule MediaCentaur.PipelineTest do
 
       payload = %Payload{
         file_path: "/media/pipeline/Sample.Movie.1999.BluRay.mkv",
-        watch_directory: "/media/pipeline"
+        media_directory: "/media/pipeline"
       }
 
       assert {:error, _reason} = Discovery.process(payload)
@@ -283,13 +283,13 @@ defmodule MediaCentaur.PipelineTest do
 
       create_linked_file(%{
         file_path: "/media/pipeline/Already.Ingested.mkv",
-        watch_dir: "/media/pipeline",
+        media_dir: "/media/pipeline",
         movie_id: entity.id
       })
 
       payload = %Payload{
         file_path: "/media/pipeline/Already.Ingested.mkv",
-        watch_directory: "/media/pipeline"
+        media_directory: "/media/pipeline"
       }
 
       assert :skipped = Discovery.process(payload)
@@ -313,7 +313,7 @@ defmodule MediaCentaur.PipelineTest do
       {:ok, pending} =
         Review.create_pending_file(%{
           file_path: "/media/pipeline/Review.Resolved.mkv",
-          watch_directory: "/media/pipeline",
+          media_directory: "/media/pipeline",
           parsed_title: "Review Resolved",
           tmdb_id: 550,
           tmdb_type: "movie",
@@ -324,7 +324,7 @@ defmodule MediaCentaur.PipelineTest do
       import_payload =
         ImportProducer.build_payload(%{
           file_path: "/media/pipeline/Review.Resolved.mkv",
-          watch_dir: "/media/pipeline",
+          media_dir: "/media/pipeline",
           tmdb_id: 550,
           tmdb_type: :movie,
           pending_file_id: pending.id

@@ -186,7 +186,7 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
 
   describe "Cross-context pages — bounded per-context reads" do
     test "GET /status mounts within budget", %{conn: conn} do
-      # Status surfaces watch-dirs / availability / pipeline state —
+      # Status surfaces media-dirs / availability / pipeline state —
       # cross-context, not a single projection. Each context reads its
       # own state. Bounded by the number of contexts surfaced, and in
       # test mode every Settings.get/1 falls through to a DB read

@@ -30,7 +30,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.Watcher
   alias MediaCentaur.Pipeline
   alias MediaCentaur.Pipeline.Image, as: ImagePipeline
-  alias MediaCentaurWeb.SettingsLive.WatchDirsLogic
+  alias MediaCentaurWeb.SettingsLive.MediaDirsLogic
   alias MediaCentaur.Controls
   alias MediaCentaur.Playback.{Iso639, LanguagePolicy}
   alias MediaCentaurWeb.SettingsLive.Controls, as: ControlsSection
@@ -89,7 +89,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(pipeline_running: false)
      |> assign(image_pipeline_running: false)
      |> assign(acquisition_running: false)
-     |> assign(watch_dirs: [])
+     |> assign(media_dirs: [])
      |> assign(exclude_dirs: [])
      |> assign(missing_images_summary: %{total: 0, missing: 0, by_role: %{}})
      |> assign(tmdb_test: nil)
@@ -112,8 +112,8 @@ defmodule MediaCentaurWeb.SettingsLive do
        sections: @sections,
        exclude_dir_input: "",
        exclude_dir_error: nil,
-       watch_dir_dialog: nil,
-       watch_dir_delete_confirm: nil,
+       media_dir_dialog: nil,
+       media_dir_delete_confirm: nil,
        scanning: false,
        scan_task: nil,
        clearing_database: false,
@@ -191,7 +191,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   @impl true
-  def handle_params(%{"add_watch_dir" => "1"} = params, _uri, socket) do
+  def handle_params(%{"add_media_dir" => "1"} = params, _uri, socket) do
     section = params["section"] || "library"
 
     socket =
@@ -199,7 +199,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       |> ensure_loaded()
       |> assign(active_section: section)
       |> assign_update_snapshot(section)
-      |> open_watch_dir_dialog(WatchDirsLogic.new_entry())
+      |> open_media_dir_dialog(MediaDirsLogic.new_entry())
 
     {:noreply, socket}
   end
@@ -257,7 +257,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       pipeline_running: Pipeline.Supervisor.pipeline_running?(),
       image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?(),
       acquisition_running: Acquisition.auto_grab_running?(),
-      watch_dirs: MediaCentaur.Config.watch_dirs_entries(),
+      media_dirs: MediaCentaur.Config.media_dirs_entries(),
       exclude_dirs: MediaCentaur.Config.get(:exclude_dirs) || [],
       missing_images_summary: Maintenance.missing_images_summary(),
       tmdb_test: load_test_result(:tmdb),
@@ -442,49 +442,49 @@ defmodule MediaCentaurWeb.SettingsLive do
      )}
   end
 
-  # --- Watch-dir card events ---
+  # --- Media-dir card events ---
 
-  def handle_event("watch_dir:open_add", _, socket) do
-    {:noreply, open_watch_dir_dialog(socket, WatchDirsLogic.new_entry())}
+  def handle_event("media_dir:open_add", _, socket) do
+    {:noreply, open_media_dir_dialog(socket, MediaDirsLogic.new_entry())}
   end
 
-  def handle_event("watch_dir:open_edit", %{"id" => id}, socket) do
-    entry = Enum.find(socket.assigns.watch_dirs, &(&1["id"] == id)) || WatchDirsLogic.new_entry()
-    {:noreply, open_watch_dir_dialog(socket, entry)}
+  def handle_event("media_dir:open_edit", %{"id" => id}, socket) do
+    entry = Enum.find(socket.assigns.media_dirs, &(&1["id"] == id)) || MediaDirsLogic.new_entry()
+    {:noreply, open_media_dir_dialog(socket, entry)}
   end
 
-  def handle_event("watch_dir:close", _, socket) do
-    {:noreply, close_watch_dir_dialog(socket)}
+  def handle_event("media_dir:close", _, socket) do
+    {:noreply, close_media_dir_dialog(socket)}
   end
 
-  def handle_event("watch_dir:validate", %{"entry" => params}, socket) do
-    {:noreply, schedule_watch_dir_validation(socket, params)}
+  def handle_event("media_dir:validate", %{"entry" => params}, socket) do
+    {:noreply, schedule_media_dir_validation(socket, params)}
   end
 
-  def handle_event("watch_dir:save", _, socket) do
-    %{entry: entry, validation: validation} = socket.assigns.watch_dir_dialog
+  def handle_event("media_dir:save", _, socket) do
+    %{entry: entry, validation: validation} = socket.assigns.media_dir_dialog
 
-    if WatchDirsLogic.saveable?(validation) do
-      entries = WatchDirsLogic.upsert(socket.assigns.watch_dirs, entry)
-      :ok = MediaCentaur.Config.put_watch_dirs(entries)
-      {:noreply, close_watch_dir_dialog(socket)}
+    if MediaDirsLogic.saveable?(validation) do
+      entries = MediaDirsLogic.upsert(socket.assigns.media_dirs, entry)
+      :ok = MediaCentaur.Config.put_media_dirs(entries)
+      {:noreply, close_media_dir_dialog(socket)}
     else
       {:noreply, socket}
     end
   end
 
-  def handle_event("watch_dir:delete_confirm", %{"id" => id}, socket) do
-    {:noreply, assign(socket, :watch_dir_delete_confirm, id)}
+  def handle_event("media_dir:delete_confirm", %{"id" => id}, socket) do
+    {:noreply, assign(socket, :media_dir_delete_confirm, id)}
   end
 
-  def handle_event("watch_dir:delete_cancel", _, socket) do
-    {:noreply, assign(socket, :watch_dir_delete_confirm, nil)}
+  def handle_event("media_dir:delete_cancel", _, socket) do
+    {:noreply, assign(socket, :media_dir_delete_confirm, nil)}
   end
 
-  def handle_event("watch_dir:delete", %{"id" => id}, socket) do
-    entries = WatchDirsLogic.remove(socket.assigns.watch_dirs, id)
-    :ok = MediaCentaur.Config.put_watch_dirs(entries)
-    {:noreply, assign(socket, :watch_dir_delete_confirm, nil)}
+  def handle_event("media_dir:delete", %{"id" => id}, socket) do
+    entries = MediaDirsLogic.remove(socket.assigns.media_dirs, id)
+    :ok = MediaCentaur.Config.put_media_dirs(entries)
+    {:noreply, assign(socket, :media_dir_delete_confirm, nil)}
   end
 
   # --- Exclude-dir card events ---
@@ -1203,23 +1203,23 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, put_update_automation_assigns(socket)}
   end
 
-  def handle_info({:config_updated, :watch_dirs, entries}, socket) do
-    {:noreply, assign(socket, :watch_dirs, entries)}
+  def handle_info({:config_updated, :media_dirs, entries}, socket) do
+    {:noreply, assign(socket, :media_dirs, entries)}
   end
 
-  def handle_info({:watch_dir_validate, params}, socket) do
-    case socket.assigns.watch_dir_dialog do
+  def handle_info({:media_dir_validate, params}, socket) do
+    case socket.assigns.media_dir_dialog do
       %{} = dialog ->
         entry = merge_entry(dialog.entry, params)
 
         validation =
           MediaCentaur.Watcher.validate_dir(
             entry,
-            other_entries(socket.assigns.watch_dirs, entry)
+            other_entries(socket.assigns.media_dirs, entry)
           )
 
         new_dialog = %{dialog | entry: entry, validation: validation, debounce_timer: nil}
-        {:noreply, assign(socket, :watch_dir_dialog, new_dialog)}
+        {:noreply, assign(socket, :media_dir_dialog, new_dialog)}
 
       _ ->
         {:noreply, socket}
@@ -1416,10 +1416,10 @@ defmodule MediaCentaurWeb.SettingsLive do
         <.service_action_modal action={@service_action_confirm} />
 
         <%!--
-          Watch-dir dialog — always in DOM so backdrop-filter compositing
+          Media-dir dialog — always in DOM so backdrop-filter compositing
           layer is kept warm.
         --%>
-        <.watch_dir_dialog watch_dir_dialog={@watch_dir_dialog} watch_dirs={@watch_dirs} />
+        <.media_dir_dialog media_dir_dialog={@media_dir_dialog} media_dirs={@media_dirs} />
       </:overlays>
       <div
         data-page-behavior="settings"
@@ -1497,8 +1497,8 @@ defmodule MediaCentaurWeb.SettingsLive do
             service_status_visible={@service_status_visible}
             service_status_output={@service_status_output}
             service_action_pending={@service_action_pending}
-            watch_dirs={@watch_dirs}
-            watch_dir_delete_confirm={@watch_dir_delete_confirm}
+            media_dirs={@media_dirs}
+            media_dir_delete_confirm={@media_dir_delete_confirm}
             exclude_dirs={@exclude_dirs}
             exclude_dir_input={@exclude_dir_input}
             exclude_dir_error={@exclude_dir_error}
@@ -1985,7 +1985,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
       <div class="mt-4 pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
         <p class="text-xs text-base-content/50 min-w-0">
-          Manually scan all watch directories for new media files.
+          Manually scan all media directories for new media files.
         </p>
         <div class="flex items-center gap-2 shrink-0">
           <.button
@@ -2809,7 +2809,7 @@ defmodule MediaCentaurWeb.SettingsLive do
         </div>
 
         <p class="text-xs text-base-content/50">
-          Where Media Centaur stores its caches outside the watch directories —
+          Where Media Centaur stores its caches outside the media directories —
           currently tracking-item poster and backdrop images. Defaults to the
           parent directory of the SQLite database.
         </p>
@@ -2833,12 +2833,12 @@ defmodule MediaCentaurWeb.SettingsLive do
       <div class="glass-surface rounded-xl p-4 space-y-3">
         <div class="flex items-baseline justify-between">
           <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
-            Watch Directories
+            Media Directories
           </h3>
           <.button
             variant="action"
             size="sm"
-            phx-click="watch_dir:open_add"
+            phx-click="media_dir:open_add"
             data-nav-item
             tabindex="0"
           >
@@ -2846,13 +2846,13 @@ defmodule MediaCentaurWeb.SettingsLive do
           </.button>
         </div>
 
-        <div :if={@watch_dirs == []} class="text-base-content/60 py-4">
-          No watch directories configured — your library is empty. Add one to get started.
+        <div :if={@media_dirs == []} class="text-base-content/60 py-4">
+          No media directories configured — your library is empty. Add one to get started.
         </div>
 
-        <ul :if={@watch_dirs != []} class="space-y-2">
+        <ul :if={@media_dirs != []} class="space-y-2">
           <li
-            :for={entry <- @watch_dirs}
+            :for={entry <- @media_dirs}
             class="glass-inset rounded-lg p-3 flex items-start justify-between gap-3"
           >
             <div class="min-w-0 flex-1 space-y-0.5">
@@ -2865,7 +2865,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 <div class="font-medium truncate" title={entry["dir"]}>{entry["dir"]}</div>
               <% end %>
               <div
-                :if={WatchDirsLogic.show_images_dir?(entry)}
+                :if={MediaDirsLogic.show_images_dir?(entry)}
                 class="text-xs text-base-content/50 truncate"
                 title={entry["images_dir"]}
               >
@@ -2877,19 +2877,19 @@ defmodule MediaCentaurWeb.SettingsLive do
               <.button
                 variant="dismiss"
                 size="sm"
-                phx-click="watch_dir:open_edit"
+                phx-click="media_dir:open_edit"
                 phx-value-id={entry["id"]}
-                aria-label="Edit watch directory"
+                aria-label="Edit media directory"
                 data-nav-item
                 tabindex="0"
               >
                 <.icon name="hero-pencil-square" class="size-4" />
               </.button>
-              <%= if @watch_dir_delete_confirm == entry["id"] do %>
+              <%= if @media_dir_delete_confirm == entry["id"] do %>
                 <.button
                   variant="danger"
                   size="sm"
-                  phx-click="watch_dir:delete"
+                  phx-click="media_dir:delete"
                   phx-value-id={entry["id"]}
                   data-nav-item
                   tabindex="0"
@@ -2899,7 +2899,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 <.button
                   variant="dismiss"
                   size="sm"
-                  phx-click="watch_dir:delete_cancel"
+                  phx-click="media_dir:delete_cancel"
                   data-nav-item
                   tabindex="0"
                 >
@@ -2909,9 +2909,9 @@ defmodule MediaCentaurWeb.SettingsLive do
                 <.button
                   variant="destructive_inline"
                   size="sm"
-                  phx-click="watch_dir:delete_confirm"
+                  phx-click="media_dir:delete_confirm"
                   phx-value-id={entry["id"]}
-                  aria-label="Remove watch directory"
+                  aria-label="Remove media directory"
                   data-nav-item
                   tabindex="0"
                 >
@@ -2959,7 +2959,7 @@ defmodule MediaCentaurWeb.SettingsLive do
             Excluded Directories
           </h3>
           <p class="text-xs text-base-content/60 mt-1">
-            Paths inside your watch directories that should be ignored — handy for
+            Paths inside your media directories that should be ignored — handy for
             downloads-cache folders, trash bins, anything with transient files you
             don't want indexed.
           </p>
@@ -3085,7 +3085,7 @@ defmodule MediaCentaurWeb.SettingsLive do
               tabindex="0"
             />
             <p class="text-xs text-base-content/40 mt-1">
-              Grace period for a file that disappears from its watch directory — useful
+              Grace period for a file that disappears from its media directory — useful
               when media lives on an external drive or network share that isn't always
               mounted. Only after this many days of continuous absence will the library
               entry be removed.
@@ -3656,50 +3656,50 @@ defmodule MediaCentaurWeb.SettingsLive do
     """
   end
 
-  attr :watch_dir_dialog, :any,
+  attr :media_dir_dialog, :any,
     default: nil,
     doc:
-      "transient watch-directory dialog state — `nil` or `%{mode: :add | :remove, path: String.t()}`. Heterogeneous nil-or-map shape; `:any` is intentional."
+      "transient media-directory dialog state — `nil` or `%{mode: :add | :remove, path: String.t()}`. Heterogeneous nil-or-map shape; `:any` is intentional."
 
-  attr :watch_dirs, :list,
+  attr :media_dirs, :list,
     default: [],
-    doc: "list of configured watch directory paths (strings)."
+    doc: "list of configured media directory paths (strings)."
 
-  defp watch_dir_dialog(assigns) do
+  defp media_dir_dialog(assigns) do
     ~H"""
     <.modal
-      id="watch-dir-dialog"
-      open={!is_nil(@watch_dir_dialog)}
+      id="media-dir-dialog"
+      open={!is_nil(@media_dir_dialog)}
       dismiss={:ephemeral}
-      on_close="watch_dir:close"
+      on_close="media_dir:close"
       size={:sm}
       panel_class="p-6"
       role="dialog"
       aria-modal="true"
-      aria-labelledby="watch-dir-dialog-title"
+      aria-labelledby="media-dir-dialog-title"
     >
       <.button
         variant="dismiss"
         size="sm"
         shape="circle"
         class="absolute top-3 right-3 z-10"
-        phx-click="watch_dir:close"
+        phx-click="media_dir:close"
         aria-label="Close"
       >
         <.icon name="hero-x-mark-mini" class="size-5" />
       </.button>
 
-      <h3 id="watch-dir-dialog-title" class="text-lg font-semibold mb-4">
-        {if @watch_dir_dialog &&
-              Enum.any?(@watch_dirs, &(&1["id"] == @watch_dir_dialog.entry["id"])),
-            do: "Edit watch directory",
-            else: "Add watch directory"}
+      <h3 id="media-dir-dialog-title" class="text-lg font-semibold mb-4">
+        {if @media_dir_dialog &&
+              Enum.any?(@media_dirs, &(&1["id"] == @media_dir_dialog.entry["id"])),
+            do: "Edit media directory",
+            else: "Add media directory"}
       </h3>
 
       <form
-        :if={@watch_dir_dialog}
-        phx-change="watch_dir:validate"
-        phx-submit="watch_dir:save"
+        :if={@media_dir_dialog}
+        phx-change="media_dir:validate"
+        phx-submit="media_dir:save"
         class="space-y-3"
       >
         <div>
@@ -3707,10 +3707,10 @@ defmodule MediaCentaurWeb.SettingsLive do
           <input
             type="text"
             name="entry[dir]"
-            value={@watch_dir_dialog.entry["dir"]}
+            value={@media_dir_dialog.entry["dir"]}
             class="library-filter w-full"
           />
-          <.watch_dir_errors errors={@watch_dir_dialog.validation.errors} field={:dir} />
+          <.media_dir_errors errors={@media_dir_dialog.validation.errors} field={:dir} />
         </div>
 
         <div>
@@ -3720,10 +3720,10 @@ defmodule MediaCentaurWeb.SettingsLive do
           <input
             type="text"
             name="entry[name]"
-            value={@watch_dir_dialog.entry["name"]}
+            value={@media_dir_dialog.entry["name"]}
             class="library-filter w-full"
           />
-          <.watch_dir_errors errors={@watch_dir_dialog.validation.errors} field={:name} />
+          <.media_dir_errors errors={@media_dir_dialog.validation.errors} field={:name} />
         </div>
 
         <details>
@@ -3734,46 +3734,46 @@ defmodule MediaCentaurWeb.SettingsLive do
             <input
               type="text"
               name="entry[images_dir]"
-              value={@watch_dir_dialog.entry["images_dir"]}
+              value={@media_dir_dialog.entry["images_dir"]}
               class="library-filter w-full"
               placeholder="Leave blank to use the default"
             />
             <p class="text-xs text-base-content/50">
               If blank, artwork is cached at
               <code class="font-mono">
-                {WatchDirsLogic.default_images_dir_hint(@watch_dir_dialog.entry["dir"])}
+                {MediaDirsLogic.default_images_dir_hint(@media_dir_dialog.entry["dir"])}
               </code>
               and automatically skipped by the file watcher.
             </p>
-            <.watch_dir_errors
-              errors={@watch_dir_dialog.validation.errors}
+            <.media_dir_errors
+              errors={@media_dir_dialog.validation.errors}
               field={:images_dir}
             />
           </div>
         </details>
 
         <div
-          :if={@watch_dir_dialog.validation.preview}
+          :if={@media_dir_dialog.validation.preview}
           class="glass-inset rounded-lg p-3 text-sm text-base-content/70"
         >
-          Found {@watch_dir_dialog.validation.preview.video_count} video files, {@watch_dir_dialog.validation.preview.subdir_count} subdirectories.
+          Found {@media_dir_dialog.validation.preview.video_count} video files, {@media_dir_dialog.validation.preview.subdir_count} subdirectories.
         </div>
 
         <div
-          :for={warning <- @watch_dir_dialog.validation.warnings}
+          :for={warning <- @media_dir_dialog.validation.warnings}
           class="text-warning text-sm"
         >
-          {WatchDirsLogic.error_message(warning)}
+          {MediaDirsLogic.error_message(warning)}
         </div>
 
         <div class="flex justify-end gap-2 pt-2">
-          <.button variant="dismiss" phx-click="watch_dir:close">
+          <.button variant="dismiss" phx-click="media_dir:close">
             Cancel
           </.button>
           <.button
             type="submit"
             variant="primary"
-            disabled={not WatchDirsLogic.saveable?(@watch_dir_dialog.validation)}
+            disabled={not MediaDirsLogic.saveable?(@media_dir_dialog.validation)}
           >
             Save
           </.button>
@@ -4190,7 +4190,7 @@ defmodule MediaCentaurWeb.SettingsLive do
         Map.get(loaded_config, :download_client_password_configured?, false),
       mpv_path: Map.get(loaded_config, :mpv_path),
       ffprobe_path: Config.get(:ffprobe_path),
-      watch_dirs_entries: Config.watch_dirs_entries()
+      media_dirs_entries: Config.media_dirs_entries()
     }
   end
 
@@ -4237,7 +4237,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       skip_dirs: cfg.get(:skip_dirs) || [],
       database_path: cfg.get(:database_path),
       data_dir: cfg.get(:data_dir),
-      watch_dirs: cfg.get(:watch_dirs) || []
+      media_dirs: cfg.get(:media_dirs) || []
     }
   end
 
@@ -4259,26 +4259,26 @@ defmodule MediaCentaurWeb.SettingsLive do
     })
   end
 
-  # --- Watch-dir private helpers ---
+  # --- Media-dir private helpers ---
 
-  defp open_watch_dir_dialog(socket, entry) do
-    assign(socket, :watch_dir_dialog, %{
+  defp open_media_dir_dialog(socket, entry) do
+    assign(socket, :media_dir_dialog, %{
       entry: entry,
       validation: %{errors: [], warnings: [], preview: nil},
       debounce_timer: nil
     })
   end
 
-  defp close_watch_dir_dialog(socket) do
-    assign(socket, :watch_dir_dialog, nil)
+  defp close_media_dir_dialog(socket) do
+    assign(socket, :media_dir_dialog, nil)
   end
 
-  defp schedule_watch_dir_validation(socket, params) do
-    case socket.assigns.watch_dir_dialog do
+  defp schedule_media_dir_validation(socket, params) do
+    case socket.assigns.media_dir_dialog do
       %{debounce_timer: timer} = dialog ->
         if timer, do: Process.cancel_timer(timer)
-        new_timer = Process.send_after(self(), {:watch_dir_validate, params}, 500)
-        assign(socket, :watch_dir_dialog, %{dialog | debounce_timer: new_timer})
+        new_timer = Process.send_after(self(), {:media_dir_validate, params}, 500)
+        assign(socket, :media_dir_dialog, %{dialog | debounce_timer: new_timer})
 
       _ ->
         socket
@@ -4301,7 +4301,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     Enum.reject(list, &(&1["id"] == entry["id"]))
   end
 
-  # --- Watch-dir function components ---
+  # --- Media-dir function components ---
 
   attr :errors, :list,
     required: true,
@@ -4309,7 +4309,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   attr :field, :atom, required: true
 
-  defp watch_dir_errors(assigns) do
+  defp media_dir_errors(assigns) do
     ~H"""
     <div
       :for={
@@ -4321,7 +4321,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       }
       class="text-error text-sm"
     >
-      {WatchDirsLogic.error_message(err)}
+      {MediaDirsLogic.error_message(err)}
     </div>
     """
   end

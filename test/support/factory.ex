@@ -416,7 +416,7 @@ defmodule MediaCentaur.TestFactory do
     Library.link_file!(%{
       playable_item_id: playable_item.id,
       file_path: url,
-      watch_dir: "/media/test"
+      media_dir: "/media/test"
     })
 
     %{record | content_url: url}
@@ -529,7 +529,7 @@ defmodule MediaCentaur.TestFactory do
   def create_extra_file(attrs \\ %{}) do
     defaults = %{
       file_path: "/media/test/extras/#{Ecto.UUID.generate()}.mkv",
-      watch_dir: "/media/test"
+      media_dir: "/media/test"
     }
 
     merged = Map.merge(defaults, Map.new(attrs))
@@ -544,7 +544,7 @@ defmodule MediaCentaur.TestFactory do
     defaults = %{
       extra_id: extra_id,
       file_path: content_url || "/media/test/extras/#{Ecto.UUID.generate()}.mkv",
-      watch_dir: "/media/test"
+      media_dir: "/media/test"
     }
 
     create_extra_file(Map.merge(defaults, Map.new(overrides)))
@@ -651,7 +651,7 @@ defmodule MediaCentaur.TestFactory do
   def create_linked_file(attrs \\ %{}) do
     defaults = %{
       file_path: "/media/test/#{Ecto.UUID.generate()}.mkv",
-      watch_dir: "/media/test"
+      media_dir: "/media/test"
     }
 
     merged = Map.merge(defaults, Map.new(attrs))
@@ -660,7 +660,7 @@ defmodule MediaCentaur.TestFactory do
 
     Library.link_file!(%{
       file_path: merged.file_path,
-      watch_dir: merged.watch_dir,
+      media_dir: merged.media_dir,
       playable_item_id: playable_item_id
     })
   end
@@ -757,7 +757,7 @@ defmodule MediaCentaur.TestFactory do
   def create_pending_file(attrs \\ %{}) do
     defaults = %{
       file_path: "/media/test/#{Ecto.UUID.generate()}.mkv",
-      watch_directory: "/media/test",
+      media_directory: "/media/test",
       parsed_title: "Test File",
       confidence: 0.5,
       tmdb_id: 12_345,

@@ -78,8 +78,8 @@ defmodule MediaCentaurWeb.LibraryLive do
        counts: %{all: 0, movies: 0, tv: 0},
        grid_count: 0,
        unavailable_count: 0,
-       watch_dirs: MediaCentaur.Config.get(:watch_dirs) || [],
-       watch_dirs_configured: watch_dirs_configured?(),
+       media_dirs: MediaCentaur.Config.get(:media_dirs) || [],
+       media_dirs_configured: media_dirs_configured?(),
        dir_status: Availability.dir_status(),
        pipeline_queue_depth: 0,
        scanning: false,
@@ -90,11 +90,11 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   @doc """
-  True when at least one `watch_dirs` entry is configured — used by
+  True when at least one `media_dirs` entry is configured — used by
   the empty-state branch to decide between "no media yet" (user hasn't
-  set up a library root) and "watch_dirs configured but no files found".
+  set up a library root) and "media_dirs configured but no files found".
   """
-  def watch_dirs_configured?(dirs \\ MediaCentaur.Config.get(:watch_dirs)) do
+  def media_dirs_configured?(dirs \\ MediaCentaur.Config.get(:media_dirs)) do
     case dirs do
       list when is_list(list) and list != [] -> true
       _ -> false
@@ -263,11 +263,11 @@ defmodule MediaCentaurWeb.LibraryLive do
     {:noreply, socket}
   end
 
-  def handle_info({:config_updated, :watch_dirs, _entries}, socket) do
+  def handle_info({:config_updated, :media_dirs, _entries}, socket) do
     {:noreply,
      assign(socket,
-       watch_dirs: MediaCentaur.Config.get(:watch_dirs) || [],
-       watch_dirs_configured: watch_dirs_configured?()
+       media_dirs: MediaCentaur.Config.get(:media_dirs) || [],
+       media_dirs_configured: media_dirs_configured?()
      )}
   end
 
@@ -374,7 +374,7 @@ defmodule MediaCentaurWeb.LibraryLive do
             </div>
 
             <div :if={@grid_count == 0} class="py-8 text-center empty-state-enter space-y-3">
-              <div :if={@watch_dirs_configured} class="max-w-md mx-auto space-y-3">
+              <div :if={@media_dirs_configured} class="max-w-md mx-auto space-y-3">
                 <p class="text-base-content/80">No media yet.</p>
                 <p :if={@pipeline_queue_depth > 0} class="text-sm opacity-70">
                   Ingesting {@pipeline_queue_depth} file{if @pipeline_queue_depth == 1,
@@ -388,10 +388,10 @@ defmodule MediaCentaurWeb.LibraryLive do
                   disabled={@scanning}
                   data-nav-item
                 >
-                  {if @scanning, do: "Scanning…", else: "Scan watch directories"}
+                  {if @scanning, do: "Scanning…", else: "Scan media directories"}
                 </.button>
               </div>
-              <div :if={not @watch_dirs_configured} class="max-w-md mx-auto space-y-2">
+              <div :if={not @media_dirs_configured} class="max-w-md mx-auto space-y-2">
                 <p class="text-base-content/80">
                   No media yet — tell Media Centaur where your files live.
                 </p>

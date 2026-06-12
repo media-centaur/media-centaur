@@ -24,7 +24,7 @@ All diagnostic logic lives in `MediaCentaur.Diagnostics` (`lib/media_centaur/dia
 | `status/0` | Supervision tree health, child counts |
 | `playback/0` | Active sessions, state, position |
 | `log_recent/1` | Print the N most recent console buffer entries (default: 20) |
-| `services/0` | Watcher/pipeline state, watch dirs |
+| `services/0` | Watcher/pipeline state, media dirs |
 
 Log visibility is controlled in the browser console (press backtick, or
 navigate to `/console`) — there is no runtime enable/disable at the logger

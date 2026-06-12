@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.SettingsLiveWatchDirsTest do
+defmodule MediaCentaurWeb.SettingsLiveMediaDirsTest do
   use MediaCentaurWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
@@ -16,15 +16,15 @@ defmodule MediaCentaurWeb.SettingsLiveWatchDirsTest do
 
   setup do
     on_exit(fn ->
-      :ok = Config.put_watch_dirs([])
+      :ok = Config.put_media_dirs([])
     end)
 
     :ok
   end
 
   test "deep link opens the add dialog", %{conn: conn} do
-    {:ok, _view, html} = live_async!(conn, "/settings?section=library&add_watch_dir=1")
-    assert html =~ "Add watch directory"
+    {:ok, _view, html} = live_async!(conn, "/settings?section=library&add_media_dir=1")
+    assert html =~ "Add media directory"
     assert html =~ "name=\"entry[dir]\""
   end
 
@@ -34,22 +34,22 @@ defmodule MediaCentaurWeb.SettingsLiveWatchDirsTest do
     File.mkdir_p!(tmp)
     on_exit(fn -> File.rm_rf!(tmp) end)
 
-    {:ok, view, _} = live_async!(conn, "/settings?section=library&add_watch_dir=1")
+    {:ok, view, _} = live_async!(conn, "/settings?section=library&add_media_dir=1")
 
     view
-    |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "Movies", images_dir: ""})
+    |> form("form[phx-submit='media_dir:save']", entry: %{dir: tmp, name: "Movies", images_dir: ""})
     |> render_change()
 
-    # `watch_dir:save` reads dialog.entry/validation, which only the
+    # `media_dir:save` reads dialog.entry/validation, which only the
     # 500ms-debounced validate handler populates. Poll until the preview
     # ("Found N video files…") proves the debounce fired before submitting.
     render_until(view, "video files")
 
     view
-    |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "Movies", images_dir: ""})
+    |> form("form[phx-submit='media_dir:save']", entry: %{dir: tmp, name: "Movies", images_dir: ""})
     |> render_submit()
 
-    assert Enum.map(Config.watch_dirs_entries(), & &1["dir"]) == [Path.expand(tmp)]
+    assert Enum.map(Config.media_dirs_entries(), & &1["dir"]) == [Path.expand(tmp)]
   end
 
   test "clears a previously-set name when user empties the field", %{conn: conn} do
@@ -59,17 +59,17 @@ defmodule MediaCentaurWeb.SettingsLiveWatchDirsTest do
     on_exit(fn -> File.rm_rf!(tmp) end)
 
     :ok =
-      Config.put_watch_dirs([
+      Config.put_media_dirs([
         %{"id" => "u1", "dir" => Path.expand(tmp), "images_dir" => nil, "name" => "Movies"}
       ])
 
     {:ok, view, _} = live_async!(conn, "/settings?section=library")
     view = wait_for_async_load(view)
 
-    view |> element("button[phx-click='watch_dir:open_edit'][phx-value-id='u1']") |> render_click()
+    view |> element("button[phx-click='media_dir:open_edit'][phx-value-id='u1']") |> render_click()
 
     view
-    |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "", images_dir: ""})
+    |> form("form[phx-submit='media_dir:save']", entry: %{dir: tmp, name: "", images_dir: ""})
     |> render_change()
 
     # Poll for the debounced validation (see "save persists" above) before
@@ -77,10 +77,10 @@ defmodule MediaCentaurWeb.SettingsLiveWatchDirsTest do
     render_until(view, "video files")
 
     view
-    |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "", images_dir: ""})
+    |> form("form[phx-submit='media_dir:save']", entry: %{dir: tmp, name: "", images_dir: ""})
     |> render_submit()
 
-    assert [%{"name" => nil}] = Config.watch_dirs_entries()
+    assert [%{"name" => nil}] = Config.media_dirs_entries()
   end
 
   test "duplicate save is rejected", %{conn: conn} do
@@ -90,14 +90,14 @@ defmodule MediaCentaurWeb.SettingsLiveWatchDirsTest do
     on_exit(fn -> File.rm_rf!(tmp) end)
 
     :ok =
-      Config.put_watch_dirs([
+      Config.put_media_dirs([
         %{"id" => "existing", "dir" => Path.expand(tmp), "images_dir" => nil, "name" => nil}
       ])
 
-    {:ok, view, _} = live_async!(conn, "/settings?section=library&add_watch_dir=1")
+    {:ok, view, _} = live_async!(conn, "/settings?section=library&add_media_dir=1")
 
     view
-    |> form("form[phx-submit='watch_dir:save']", entry: %{dir: tmp, name: "", images_dir: ""})
+    |> form("form[phx-submit='media_dir:save']", entry: %{dir: tmp, name: "", images_dir: ""})
     |> render_change()
 
     # The duplicate-dir error surfaces only after the debounced validation

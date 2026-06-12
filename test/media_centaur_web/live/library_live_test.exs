@@ -385,7 +385,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
   describe "live updates from availability" do
     test "availability_changed broadcast does not crash and re-renders",
          %{conn: conn} do
-      # When a watch dir goes offline (USB unplug, NFS drop), the LV must
+      # When a media dir goes offline (USB unplug, NFS drop), the LV must
       # consume the broadcast and re-render. The banner itself depends on
       # Availability GenServer state mutations that the LV does not own,
       # so this test pins the LV-side contract: subscribe + handle_info
@@ -398,7 +398,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
         "library:availability",
-        {:availability_changed, file.watch_dir, :unavailable}
+        {:availability_changed, file.media_dir, :unavailable}
       )
 
       assert render(view) =~ "Availability Movie"

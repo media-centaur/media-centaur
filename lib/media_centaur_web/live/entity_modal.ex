@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   - Call `apply_modal_params/2` from `handle_params/3`.
   - Render `<.entity_modal ... />` once in the template.
   - Maintain these adjacent assigns (read by the modal renderer but owned
-    by the host's surrounding context): `:watch_dirs`, `:availability_map`,
+    by the host's surrounding context): `:media_dirs`, `:availability_map`,
     `:tmdb_ready`, `:spoiler_free`. Most are kept in sync via the
     `SpoilerFreeAware` / `CapabilitiesAware` traits (see ADR-038).
 
@@ -272,8 +272,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
           ) ->
             {:noreply, put_flash(socket, :error, "Stop playback before deleting")}
 
-          folder_path in socket.assigns.watch_dirs ->
-            {:noreply, put_flash(socket, :error, "Cannot delete a watch directory")}
+          folder_path in socket.assigns.media_dirs ->
+            {:noreply, put_flash(socket, :error, "Cannot delete a media directory")}
 
           socket.assigns.delete_confirm == {:folder, folder_path} ->
             EntityModal.run_pending_delete(socket)
@@ -951,7 +951,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   @doc false
-  def run_delete(%{delete_confirm: delete_confirm, detail_files: detail_files, watch_dirs: watch_dirs}) do
+  def run_delete(%{delete_confirm: delete_confirm, detail_files: detail_files, media_dirs: media_dirs}) do
     case delete_confirm do
       {:file, file_path} ->
         FileEventHandler.delete_file(file_path)
@@ -968,11 +968,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         payload =
           MediaCentaurWeb.Components.DetailPanel.build_delete_all_payload(
             detail_files,
-            MapSet.new(watch_dirs)
+            MapSet.new(media_dirs)
           )
 
         Enum.each(payload.file_groups, fn group ->
-          if group.is_watch_dir do
+          if group.is_media_dir do
             group.files |> Enum.map(& &1.path) |> FileEventHandler.delete_files()
           else
             file_paths = Enum.map(group.files, & &1.path)
@@ -1011,7 +1011,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   def run_pending_delete(socket) do
     entity_id = socket.assigns.selected_entity_id
     target = socket.assigns.delete_confirm
-    delete_args = Map.take(socket.assigns, [:delete_confirm, :detail_files, :watch_dirs])
+    delete_args = Map.take(socket.assigns, [:delete_confirm, :detail_files, :media_dirs])
 
     socket =
       socket

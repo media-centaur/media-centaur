@@ -26,7 +26,7 @@ defmodule MediaCentaur.Library.ExtraFile do
 
   `Extra.content_url` already names the canonical playable path. The
   separation here is about *presence tracking* — has the file been
-  observed on disk, in which watch directory — distinct from the Extra
+  observed on disk, in which media directory — distinct from the Extra
   metadata. Same separation that exists between `Movie.content_url` and
   `WatchedFile`.
 
@@ -45,7 +45,7 @@ defmodule MediaCentaur.Library.ExtraFile do
   @type t :: %__MODULE__{
           id: Ecto.UUID.t() | nil,
           file_path: String.t() | nil,
-          watch_dir: String.t() | nil,
+          media_dir: String.t() | nil,
           extra_id: Ecto.UUID.t() | nil,
           file_presence_id: Ecto.UUID.t() | nil,
           inserted_at: DateTime.t() | nil,
@@ -54,7 +54,7 @@ defmodule MediaCentaur.Library.ExtraFile do
 
   schema "library_extra_files" do
     field :file_path, :string
-    field :watch_dir, :string
+    field :media_dir, :string
 
     belongs_to :extra, MediaCentaur.Library.Extra
     belongs_to :file_presence, MediaCentaur.Library.FilePresence
@@ -64,7 +64,7 @@ defmodule MediaCentaur.Library.ExtraFile do
 
   @doc """
   Insert / update changeset for an ExtraFile. Requires `:file_path`,
-  `:extra_id`, and `:file_presence_id`; `:watch_dir` is captured for
+  `:extra_id`, and `:file_presence_id`; `:media_dir` is captured for
   cross-context presence lookups (mirrors WatchedFile). Callers
   should go through `Library.create_extra_file/1` rather than
   building this changeset directly — that wrapper ensures a matching
@@ -72,14 +72,14 @@ defmodule MediaCentaur.Library.ExtraFile do
   """
   def link_file_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:file_path, :watch_dir, :extra_id, :file_presence_id])
+    |> cast(attrs, [:file_path, :media_dir, :extra_id, :file_presence_id])
     |> validate_required([:file_path, :extra_id, :file_presence_id])
     |> unique_constraint(:file_path)
   end
 
   def link_file_changeset(extra_file, attrs) do
     extra_file
-    |> cast(attrs, [:file_path, :watch_dir, :extra_id, :file_presence_id])
+    |> cast(attrs, [:file_path, :media_dir, :extra_id, :file_presence_id])
     |> validate_required([:file_path, :extra_id, :file_presence_id])
     |> unique_constraint(:file_path)
   end

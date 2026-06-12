@@ -23,7 +23,7 @@ port = 4004
 # ~/.local/share, so wiping is `rm -rf priv/profile/`.
 database_path = "priv/profile/media-centaur.db"
 
-watch_dirs = [
+media_dirs = [
   { dir = "priv/profile/media", images_dir = "priv/profile/images" }
 ]
 

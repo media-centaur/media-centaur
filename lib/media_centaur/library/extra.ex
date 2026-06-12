@@ -12,7 +12,7 @@ defmodule MediaCentaur.Library.Extra do
 
   File-on-disk presence is tracked separately via `Library.ExtraFile` —
   one ExtraFile per observed path. `content_url` here is the canonical
-  playable path; ExtraFile rows record which watch directory the file
+  playable path; ExtraFile rows record which media directory the file
   was seen in.
 
   Follow-up: Wire `Library.Inbound` to write ExtraFile rows when

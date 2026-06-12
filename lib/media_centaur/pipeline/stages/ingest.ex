@@ -22,7 +22,7 @@ defmodule MediaCentaur.Pipeline.Stages.Ingest do
       child_movie: payload.metadata.child_movie,
       extra: payload.metadata.extra,
       file_path: payload.file_path,
-      watch_dir: payload.watch_directory
+      media_dir: payload.media_directory
     }
 
     Phoenix.PubSub.broadcast(

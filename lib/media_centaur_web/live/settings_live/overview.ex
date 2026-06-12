@@ -266,7 +266,7 @@ defmodule MediaCentaurWeb.Live.SettingsLive.Overview do
       label: "Storage",
       items: [
         database_item(config),
-        watch_dirs_item(config)
+        media_dirs_item(config)
       ]
     }
   end
@@ -305,29 +305,29 @@ defmodule MediaCentaurWeb.Live.SettingsLive.Overview do
     }
   end
 
-  defp watch_dirs_item(%{watch_dirs: nil}), do: watch_dirs_item(%{watch_dirs: []})
+  defp media_dirs_item(%{media_dirs: nil}), do: media_dirs_item(%{media_dirs: []})
 
-  defp watch_dirs_item(%{} = config) when not is_map_key(config, :watch_dirs),
-    do: watch_dirs_item(%{watch_dirs: []})
+  defp media_dirs_item(%{} = config) when not is_map_key(config, :media_dirs),
+    do: media_dirs_item(%{media_dirs: []})
 
-  defp watch_dirs_item(%{watch_dirs: []}) do
+  defp media_dirs_item(%{media_dirs: []}) do
     %{
-      id: :watch_dirs,
-      label: "Watch directories",
+      id: :media_dirs,
+      label: "Media directories",
       detail: "None configured",
       status: :warning,
       link: section_link("library")
     }
   end
 
-  defp watch_dirs_item(%{watch_dirs: dirs}) when is_list(dirs) do
+  defp media_dirs_item(%{media_dirs: dirs}) when is_list(dirs) do
     missing = Enum.count(dirs, &(PathCheck.check(&1, :directory) != :ok))
 
     cond do
       missing == 0 ->
         %{
-          id: :watch_dirs,
-          label: "Watch directories",
+          id: :media_dirs,
+          label: "Media directories",
           detail: describe_dirs(dirs),
           status: :ok,
           link: section_link("library")
@@ -335,8 +335,8 @@ defmodule MediaCentaurWeb.Live.SettingsLive.Overview do
 
       missing == length(dirs) ->
         %{
-          id: :watch_dirs,
-          label: "Watch directories",
+          id: :media_dirs,
+          label: "Media directories",
           detail: "All #{length(dirs)} unreachable — check that storage is mounted",
           status: :warning,
           link: section_link("library")
@@ -344,8 +344,8 @@ defmodule MediaCentaurWeb.Live.SettingsLive.Overview do
 
       true ->
         %{
-          id: :watch_dirs,
-          label: "Watch directories",
+          id: :media_dirs,
+          label: "Media directories",
           detail: "#{missing} of #{length(dirs)} unreachable",
           status: :warning,
           link: section_link("library")

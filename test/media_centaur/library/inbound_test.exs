@@ -51,7 +51,7 @@ defmodule MediaCentaur.Library.InboundTest do
       season: nil,
       extra: nil,
       file_path: "/media/Sample.Movie.1999.mkv",
-      watch_dir: "/media"
+      media_dir: "/media"
     }
 
     Map.merge(defaults, Map.new(overrides))
@@ -87,7 +87,7 @@ defmodule MediaCentaur.Library.InboundTest do
       season: nil,
       extra: nil,
       file_path: "/media/Sample.Movie.2008.mkv",
-      watch_dir: "/media"
+      media_dir: "/media"
     }
 
     Map.merge(defaults, Map.new(overrides))
@@ -128,7 +128,7 @@ defmodule MediaCentaur.Library.InboundTest do
       },
       extra: nil,
       file_path: "/media/TV/Sample.Show.S01E01.mkv",
-      watch_dir: "/media/TV"
+      media_dir: "/media/TV"
     }
 
     Map.merge(defaults, Map.new(overrides))
@@ -593,7 +593,7 @@ defmodule MediaCentaur.Library.InboundTest do
         season: nil,
         extra: nil,
         file_path: "/media/Sample.Video.mkv",
-        watch_dir: "/media"
+        media_dir: "/media"
       }
 
       assert {:ok, video_object, :new, _images} = Inbound.ingest(event)
@@ -682,7 +682,7 @@ defmodule MediaCentaur.Library.InboundTest do
 
       [file] = MediaCentaur.Repo.all(WatchedFile)
       assert file.file_path == "/media/Sample.Movie.1999.mkv"
-      assert file.watch_dir == "/media"
+      assert file.media_dir == "/media"
       assert container_for(file) == {:movie, movie.id}
     end
 
@@ -692,9 +692,9 @@ defmodule MediaCentaur.Library.InboundTest do
       assert {:ok, movie, :new, pending_images} = Inbound.ingest(movie_event())
       assert length(pending_images) == 2
 
-      assert_receive {:enqueue_images, %{entity_id: entity_id, watch_dir: watch_dir, images: images}}
+      assert_receive {:enqueue_images, %{entity_id: entity_id, media_dir: media_dir, images: images}}
       assert entity_id == movie.id
-      assert watch_dir == "/media"
+      assert media_dir == "/media"
       assert length(images) == 2
       assert Enum.sort(Enum.map(images, & &1.role)) == ["backdrop", "poster"]
     end
@@ -807,7 +807,7 @@ defmodule MediaCentaur.Library.InboundTest do
       create_linked_file(%{
         movie_id: movie.id,
         file_path: "/media/movies/Sample Movie (2017).mkv",
-        watch_dir: "/media/movies"
+        media_dir: "/media/movies"
       })
 
       assert :ok = Inbound.handle_rematch(movie.id)
@@ -829,7 +829,7 @@ defmodule MediaCentaur.Library.InboundTest do
                        [
                          %{
                            file_path: "/media/movies/Sample Movie (2017).mkv",
-                           watch_dir: "/media/movies"
+                           media_dir: "/media/movies"
                          }
                        ]}
     end
@@ -865,13 +865,13 @@ defmodule MediaCentaur.Library.InboundTest do
       create_linked_file(%{
         tv_series_id: tv_series.id,
         file_path: "/media/tv/Sample Show (2001)/Season 1/Sample Show S01E01.mkv",
-        watch_dir: "/media/tv"
+        media_dir: "/media/tv"
       })
 
       create_linked_file(%{
         tv_series_id: tv_series.id,
         file_path: "/media/tv/Sample Show (2001)/Season 1/Sample Show S01E02.mkv",
-        watch_dir: "/media/tv"
+        media_dir: "/media/tv"
       })
 
       assert :ok = Inbound.handle_rematch(tv_series.id)

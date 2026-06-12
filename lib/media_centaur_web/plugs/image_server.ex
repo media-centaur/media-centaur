@@ -1,9 +1,9 @@
 defmodule MediaCentaurWeb.Plugs.ImageServer do
   @moduledoc """
-  Serves local entity images from per-watch-directory image caches.
+  Serves local entity images from per-media-directory image caches.
 
   Intercepts requests at `/media-images/*` and searches all configured
-  watch directories' image caches for the requested file. If the file
+  media directories' image caches for the requested file. If the file
   is not present on disk, responds 200 with an inline SVG placeholder
   whose viewBox matches the requested role's aspect ratio, so every
   `<img src="/media-images/…">` in the UI has a graceful fallback
@@ -55,9 +55,9 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
   def call(conn, _opts), do: conn
 
   defp locate_file(relative) do
-    watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
+    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
 
-    Enum.find_value(watch_dirs, fn dir ->
+    Enum.find_value(media_dirs, fn dir ->
       candidate = Path.join(MediaCentaur.Config.images_dir_for(dir), relative)
       if File.regular?(candidate), do: candidate
     end) || find_in_data_dir(relative) || find_in_legacy_data(relative)
@@ -125,7 +125,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
     role = role_from_filename(relative)
 
     # The same URL maps to either the placeholder OR the real artwork
-    # depending on whether the watch dir is mounted. Caching the placeholder
+    # depending on whether the media dir is mounted. Caching the placeholder
     # would shadow the real file once the drive comes back, so the browser
     # would keep serving stale placeholders. `no-store` is the only correct
     # directive for a response whose body can flip on the next request

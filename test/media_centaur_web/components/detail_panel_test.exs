@@ -355,20 +355,20 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
       assert [%{dir: "/a-dir"}, %{dir: "/z-dir"}] = result
     end
 
-    test "flags watch directories" do
+    test "flags media directories" do
       files = [
         %{file: %{file_path: "/watch/movie.mkv"}, size: 100},
         %{file: %{file_path: "/other/movie.mkv"}, size: 200}
       ]
 
-      watch_dirs = MapSet.new(["/watch"])
-      result = DetailPanel.build_file_groups(files, watch_dirs)
+      media_dirs = MapSet.new(["/watch"])
+      result = DetailPanel.build_file_groups(files, media_dirs)
 
       watch_group = Enum.find(result, &(&1.dir == "/watch"))
       other_group = Enum.find(result, &(&1.dir == "/other"))
 
-      assert watch_group.is_watch_dir == true
-      assert other_group.is_watch_dir == false
+      assert watch_group.is_media_dir == true
+      assert other_group.is_media_dir == false
     end
 
     test "returns empty list for empty files" do
@@ -400,14 +400,14 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
       assert Enum.all?(shoresy_group.files, &Map.has_key?(&1, :size))
     end
 
-    test "flags watch directories in payload" do
+    test "flags media directories in payload" do
       files = [
         %{file: %{file_path: "/watch/movie.mkv"}, size: 100}
       ]
 
       result = DetailPanel.build_delete_all_payload(files, MapSet.new(["/watch"]))
 
-      assert [%{is_watch_dir: true}] = result.file_groups
+      assert [%{is_media_dir: true}] = result.file_groups
     end
 
     test "handles nil sizes gracefully" do

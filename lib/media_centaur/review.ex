@@ -117,19 +117,19 @@ defmodule MediaCentaur.Review do
 
   @doc """
   Groups pending files by series root — the first directory component below
-  the watch directory. Two files share a group when they have the same
-  `{watch_directory, series_root}`.
+  the media directory. Two files share a group when they have the same
+  `{media_directory, series_root}`.
 
   Returns a list of group maps:
 
-      %{key: {watch_dir, root}, files: [pending_files], representative: first_file}
+      %{key: {media_dir, root}, files: [pending_files], representative: first_file}
 
   Single-file groups (movies, flat downloads) are groups of 1 — same shape.
   """
   def fetch_pending_groups do
     list_pending_files_for_review()
     |> Enum.group_by(fn file ->
-      {file.watch_directory, series_root(file)}
+      {file.media_directory, series_root(file)}
     end)
     |> Enum.map(fn {key, files} ->
       %{key: key, files: files, representative: hd(files)}
@@ -137,17 +137,17 @@ defmodule MediaCentaur.Review do
   end
 
   @doc """
-  Extracts the series root — the first path component below the watch directory.
+  Extracts the series root — the first path component below the media directory.
 
   Examples:
 
       /media/tv/Sample Show (2001)/Season 1/ep.mkv  ->  "Sample Show (2001)"
       /media/movies/movie.mkv                   ->  "movie.mkv"
   """
-  def series_root(%{file_path: file_path, watch_directory: nil}), do: file_path
+  def series_root(%{file_path: file_path, media_directory: nil}), do: file_path
 
-  def series_root(%{file_path: file_path, watch_directory: watch_dir}) do
-    relative = String.replace_prefix(file_path, watch_dir <> "/", "")
+  def series_root(%{file_path: file_path, media_directory: media_dir}) do
+    relative = String.replace_prefix(file_path, media_dir <> "/", "")
 
     case Path.split(relative) do
       [single] -> single
@@ -232,7 +232,7 @@ defmodule MediaCentaur.Review do
         {:file_matched,
          %{
            file_path: pending_file.file_path,
-           watch_dir: pending_file.watch_directory,
+           media_dir: pending_file.media_directory,
            tmdb_id: pending_file.tmdb_id,
            tmdb_type: pending_file.tmdb_type,
            pending_file_id: pending_file.id

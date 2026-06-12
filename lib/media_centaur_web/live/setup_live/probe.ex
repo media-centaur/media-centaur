@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.Live.SetupLive.Probe do
     ]
 
     @type id ::
-            :watch_dirs | :tmdb | :mpv | :ffprobe | :prowlarr | :download_client
+            :media_dirs | :tmdb | :mpv | :ffprobe | :prowlarr | :download_client
     @type status :: :ok | :warning | :error | :not_configured
 
     @type t :: %__MODULE__{

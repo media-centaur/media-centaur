@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.Storybook.Setup.SummaryStep do
   Variations cover the headline copy variants:
 
   - `:everything_ok` — every probe `:ok`. Headline says "Everything is configured."
-  - `:critical_unmet` — TMDB or watch_dirs in `:error` / `:not_configured`. Headline calls out required-step count.
+  - `:critical_unmet` — TMDB or media_dirs in `:error` / `:not_configured`. Headline calls out required-step count.
   - `:partial` — some probes ok, some optional ones unconfigured.
   """
 
@@ -35,7 +35,7 @@ defmodule MediaCentaurWeb.Storybook.Setup.SummaryStep do
           total_steps: 8,
           probes: [
             %Probe.Result{
-              id: :watch_dirs,
+              id: :media_dirs,
               status: :ok,
               detail: "2 directories configured.",
               critical?: true
@@ -55,15 +55,15 @@ defmodule MediaCentaurWeb.Storybook.Setup.SummaryStep do
       },
       %Variation{
         id: :critical_unmet,
-        description: "Required steps still incomplete — TMDB + watch_dirs missing.",
+        description: "Required steps still incomplete — TMDB + media_dirs missing.",
         attributes: %{
           step_index: 8,
           total_steps: 8,
           probes: [
             %Probe.Result{
-              id: :watch_dirs,
+              id: :media_dirs,
               status: :not_configured,
-              detail: "No watch directories — the library will stay empty.",
+              detail: "No media directories — the library will stay empty.",
               critical?: true
             },
             %Probe.Result{
@@ -92,7 +92,7 @@ defmodule MediaCentaurWeb.Storybook.Setup.SummaryStep do
           total_steps: 8,
           probes: [
             %Probe.Result{
-              id: :watch_dirs,
+              id: :media_dirs,
               status: :ok,
               detail: "1 directory configured.",
               critical?: true

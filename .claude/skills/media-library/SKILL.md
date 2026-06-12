@@ -41,7 +41,7 @@ Any type can have `images`, `identifiers`, and `watched_files`. Each of those jo
 | **Extra** | `id`, `name`, `content_url`, `position`, `movie_id`/`tv_series_id`/`movie_series_id`, `season_id` |
 | **Image** | `id`, `role` ("poster"/"backdrop"/"logo"/"thumb"), `url` (remote), `content_url` (local path), `extension`, `movie_id`/`tv_series_id`/`movie_series_id`/`video_object_id`/`episode_id` |
 | **Identifier** | `id`, `source` ("tmdb"/"imdb"), `external_id`, `movie_id`/`tv_series_id`/`movie_series_id`/`video_object_id` |
-| **WatchedFile** | `id`, `file_path`, `parsed_title`, `parsed_year`, `parsed_type`, `season_number`, `episode_number`, `state`, `watch_dir`, `movie_id`/`tv_series_id`/`movie_series_id`/`video_object_id` |
+| **WatchedFile** | `id`, `file_path`, `parsed_title`, `parsed_year`, `parsed_type`, `season_number`, `episode_number`, `state`, `media_dir`, `movie_id`/`tv_series_id`/`movie_series_id`/`video_object_id` |
 | **WatchProgress** | `id`, `position_seconds`, `duration_seconds`, `completed`, `last_watched_at`, `movie_id`/`episode_id`/`video_object_id` |
 | **PendingFile** | `id`, `file_path`, `parsed_title`, `parsed_year`, `parsed_type`, `tmdb_id`, `confidence`, `match_title`, `status`, `candidates`, `error_message` |
 

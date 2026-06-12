@@ -45,7 +45,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
 
     %Payload{
       file_path: "/media/Fight.Club.1999.mkv",
-      watch_directory: "/media",
+      media_directory: "/media",
       tmdb_id: overrides[:tmdb_id] || 550,
       tmdb_type: overrides[:tmdb_type] || :movie,
       metadata: metadata
@@ -68,7 +68,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
       assert event.entity_attrs.name == "Sample Movie"
       assert event.identifier == %{source: "tmdb", external_id: "550"}
       assert event.file_path == "/media/Fight.Club.1999.mkv"
-      assert event.watch_dir == "/media"
+      assert event.media_dir == "/media"
       assert [%{role: "poster"}] = event.images
       assert event.child_movie == nil
       assert event.season == nil
@@ -78,7 +78,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
     test "broadcasts collection event with child_movie" do
       payload = %Payload{
         file_path: "/media/The.Shadowy.Sentinel.2008.mkv",
-        watch_directory: "/media",
+        media_directory: "/media",
         tmdb_id: 155,
         tmdb_type: :movie,
         metadata: %{
@@ -109,13 +109,13 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
       assert_receive {:entity_published, event}
       assert event.entity_type == :movie_series
       assert event.child_movie.attrs.name == "Sample Movie Two"
-      assert event.watch_dir == "/media"
+      assert event.media_dir == "/media"
     end
 
     test "broadcasts TV event with season and episode" do
       payload = %Payload{
         file_path: "/media/TV/Sample.Show.S01E01.mkv",
-        watch_directory: "/media/TV",
+        media_directory: "/media/TV",
         tmdb_id: 1396,
         tmdb_type: :tv,
         metadata: %{
@@ -151,7 +151,7 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
       assert event.entity_type == :tv_series
       assert event.season.season_number == 1
       assert event.season.episode.attrs.name == "Pilot"
-      assert event.watch_dir == "/media/TV"
+      assert event.media_dir == "/media/TV"
     end
   end
 

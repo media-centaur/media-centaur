@@ -1,6 +1,6 @@
 defmodule MediaCentaur.ConfigTomlBootstrapTest do
   @moduledoc """
-  TOML only carries bootstrap state (`database_path`, `port`, `watch_dirs`).
+  TOML only carries bootstrap state (`database_path`, `port`, `media_dirs`).
   Runtime preferences live exclusively in the Settings database — a value
   for a runtime key in the TOML must be ignored, never read into
   `:persistent_term` and never imported into Settings.
@@ -19,7 +19,7 @@ defmodule MediaCentaur.ConfigTomlBootstrapTest do
     original_config = :persistent_term.get({Config, :config})
     original_skip = Application.get_env(:media_centaur, :skip_user_config)
     original_override = System.get_env("MEDIA_CENTAUR_CONFIG_OVERRIDE")
-    original_raw_watch = Application.get_env(:media_centaur, :__raw_toml_watch_dirs)
+    original_raw_watch = Application.get_env(:media_centaur, :__raw_toml_media_dirs)
 
     toml_dir = Path.join(System.tmp_dir!(), "config_bootstrap_#{Ecto.UUID.generate()}")
     File.mkdir_p!(toml_dir)
@@ -31,7 +31,7 @@ defmodule MediaCentaur.ConfigTomlBootstrapTest do
     on_exit(fn ->
       :persistent_term.put({Config, :config}, original_config)
       Application.put_env(:media_centaur, :skip_user_config, original_skip)
-      restore_env(:__raw_toml_watch_dirs, original_raw_watch)
+      restore_env(:__raw_toml_media_dirs, original_raw_watch)
 
       case original_override do
         nil -> System.delete_env("MEDIA_CENTAUR_CONFIG_OVERRIDE")
@@ -53,7 +53,7 @@ defmodule MediaCentaur.ConfigTomlBootstrapTest do
       database_path = "/tmp/bootstrap-test/library.db"
       file_absence_ttl_days = 99
 
-      watch_dirs = ["/mnt/bootstrap-movies"]
+      media_dirs = ["/mnt/bootstrap-movies"]
 
       [pipeline]
       skip_dirs = ["IgnoreMe"]
@@ -73,7 +73,7 @@ defmodule MediaCentaur.ConfigTomlBootstrapTest do
     test "loads bootstrap keys from the TOML" do
       assert Config.get(:port) == 9999
       assert Config.get(:database_path) == "/tmp/bootstrap-test/library.db"
-      assert Config.get(:watch_dirs) == ["/mnt/bootstrap-movies"]
+      assert Config.get(:media_dirs) == ["/mnt/bootstrap-movies"]
     end
 
     test "ignores runtime keys present in the TOML, keeping defaults" do
@@ -85,6 +85,49 @@ defmodule MediaCentaur.ConfigTomlBootstrapTest do
 
     test "does not snapshot runtime keys for migration into Settings" do
       assert Application.get_env(:media_centaur, :__raw_toml_runtime_keys) == nil
+    end
+  end
+
+  describe "Config.load!/0 with a legacy `watch_dirs` TOML key" do
+    # Pre-rename user configs carry `watch_dirs` — the loader must keep
+    # accepting that spelling forever so an existing install (or a fresh
+    # install pointed at an old config file) still boots with its
+    # library intact.
+    setup %{toml_path: toml_path} do
+      File.write!(toml_path, """
+      watch_dirs = ["/mnt/legacy-movies"]
+      """)
+
+      :ok = Config.load!()
+      :ok
+    end
+
+    test "loads the legacy key into :media_dirs" do
+      assert Config.get(:media_dirs) == ["/mnt/legacy-movies"]
+    end
+
+    test "snapshots the legacy entries for the one-shot Settings import" do
+      assert Application.get_env(:media_centaur, :__raw_toml_media_dirs) ==
+               ["/mnt/legacy-movies"]
+    end
+  end
+
+  describe "Config.load!/0 with both `media_dirs` and legacy `watch_dirs` keys" do
+    setup %{toml_path: toml_path} do
+      File.write!(toml_path, """
+      media_dirs = ["/mnt/current-movies"]
+      watch_dirs = ["/mnt/legacy-movies"]
+      """)
+
+      :ok = Config.load!()
+      :ok
+    end
+
+    test "the current key wins" do
+      assert Config.get(:media_dirs) == ["/mnt/current-movies"]
+
+      assert Application.get_env(:media_centaur, :__raw_toml_media_dirs) ==
+               ["/mnt/current-movies"]
     end
   end
 

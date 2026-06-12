@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Watcher.DirValidator do
   @moduledoc """
-  Pure validator for watch-directory form entries.
+  Pure validator for media-directory form entries.
 
   Returns `%{errors: [...], warnings: [...], preview: %{...}}`. Filesystem
   primitives are passed through an adapter map so the module is `async: true`
@@ -54,7 +54,7 @@ defmodule MediaCentaur.Watcher.DirValidator do
         }
 
   @doc """
-  Validates a watch-dir entry against all 11 rules.
+  Validates a media-dir entry against all 11 rules.
 
   Returns `%{errors: [error()], warnings: [error()], preview: nil | map()}`.
   """

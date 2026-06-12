@@ -96,7 +96,7 @@ defmodule MediaCentaur.Watcher.DirValidatorTest do
   end
 
   describe "images_dir" do
-    test "allows images_dir nested inside a watch dir (watcher auto-excludes it)" do
+    test "allows images_dir nested inside a media dir (watcher auto-excludes it)" do
       existing = [candidate("/mnt/a", id: "existing")]
       fs = stub_fs()
       entry = candidate("/mnt/b", images_dir: "/mnt/a/cache")

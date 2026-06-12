@@ -10,7 +10,7 @@ defmodule Mix.Tasks.Seed.Showcase do
   Refuses to run unless `MEDIA_CENTAUR_CONFIG_OVERRIDE` is set. That env
   var points at a self-contained TOML (see
   `defaults/media-centaur-showcase.toml`) which carries its own
-  `database_path` and `watch_dirs` — so the seeder cannot land on the
+  `database_path` and `media_dirs` — so the seeder cannot land on the
   default dev/prod DB by accident.
 
       MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix ecto.create

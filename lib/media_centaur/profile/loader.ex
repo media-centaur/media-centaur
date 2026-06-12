@@ -102,7 +102,7 @@ defmodule MediaCentaur.Profile.Loader do
       Library.link_file!(%{
         playable_item_id: playable_item.id,
         file_path: file_path,
-        watch_dir: "priv/profile/media"
+        media_dir: "priv/profile/media"
       })
 
       movie.id
@@ -149,7 +149,7 @@ defmodule MediaCentaur.Profile.Loader do
         Library.link_file!(%{
           playable_item_id: playable_item.id,
           file_path: file_path,
-          watch_dir: "priv/profile/media"
+          media_dir: "priv/profile/media"
         })
 
         episode.id

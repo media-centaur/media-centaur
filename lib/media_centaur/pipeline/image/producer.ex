@@ -3,7 +3,7 @@ defmodule MediaCentaur.Pipeline.Image.Producer do
   GenStage producer for the image pipeline.
 
   Subscribes to `MediaCentaur.Topics.pipeline_images()` PubSub topic, receives
-  `{:images_pending, %{entity_id: uuid, watch_dir: string}}` messages,
+  `{:images_pending, %{entity_id: uuid, media_dir: string}}` messages,
   queries the `pipeline_image_queue` for pending entries for that entity,
   and dispatches one work item per entry.
   """
@@ -29,7 +29,7 @@ defmodule MediaCentaur.Pipeline.Image.Producer do
   end
 
   @impl true
-  def handle_info({:images_pending, %{entity_id: entity_id, watch_dir: _watch_dir}}, state) do
+  def handle_info({:images_pending, %{entity_id: entity_id, media_dir: _media_dir}}, state) do
     Log.info(:pipeline, "queued images — entity #{Format.short_id(entity_id)}")
 
     work_items = build_work_items(entity_id)
@@ -45,7 +45,7 @@ defmodule MediaCentaur.Pipeline.Image.Producer do
   end
 
   def handle_info(
-        {:enqueue_images, %{entity_id: entity_id, watch_dir: watch_dir, images: images}},
+        {:enqueue_images, %{entity_id: entity_id, media_dir: media_dir, images: images}},
         state
       ) do
     Enum.each(images, fn image ->
@@ -55,11 +55,11 @@ defmodule MediaCentaur.Pipeline.Image.Producer do
         role: image.role,
         source_url: image.source_url,
         entity_id: entity_id,
-        watch_dir: watch_dir
+        media_dir: media_dir
       })
     end)
 
-    send(self(), {:images_pending, %{entity_id: entity_id, watch_dir: watch_dir}})
+    send(self(), {:images_pending, %{entity_id: entity_id, media_dir: media_dir}})
     {:noreply, [], state}
   end
 
@@ -83,7 +83,7 @@ defmodule MediaCentaur.Pipeline.Image.Producer do
           queue_entry: entry,
           owner_id: entry.owner_id,
           entity_id: entry.entity_id,
-          watch_dir: entry.watch_dir
+          media_dir: entry.media_dir
         }
       end)
 

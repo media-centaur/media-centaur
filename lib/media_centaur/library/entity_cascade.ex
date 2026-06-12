@@ -21,7 +21,7 @@ defmodule MediaCentaur.Library.EntityCascade do
       2. Delete the parent container's own polymorphic supporting rows
          (Image / Extra / ExternalId by `(owner_type, owner_id)`, plus the
          Season's Extras for TV series).
-      3. Remove every image-file directory under each watch dir's images_dir
+      3. Remove every image-file directory under each media dir's images_dir
          that matches a UUID belonging to this container or its leaves.
       4. Delete the container row.
 
@@ -255,7 +255,7 @@ defmodule MediaCentaur.Library.EntityCascade do
   end
 
   defp delete_image_dirs(record) do
-    watch_dirs = Config.get(:watch_dirs) || []
+    media_dirs = Config.get(:media_dirs) || []
 
     uuids =
       [record.id] ++
@@ -264,7 +264,7 @@ defmodule MediaCentaur.Library.EntityCascade do
           Enum.map(season.episodes || [], & &1.id)
         end)
 
-    Enum.each(watch_dirs, fn dir ->
+    Enum.each(media_dirs, fn dir ->
       images_dir = Config.images_dir_for(dir)
 
       Enum.each(uuids, fn uuid ->

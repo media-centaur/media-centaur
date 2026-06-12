@@ -30,7 +30,7 @@ defmodule MediaCentaur.Watcher do
   to `MediaCentaur.Topics.pipeline_input()`. The Pipeline Producer subscribes
   to this topic and converts events into Payloads for Broadway processing.
 
-  - `detect_file/2` broadcasts `{:file_detected, %{path, watch_dir}}`
+  - `detect_file/2` broadcasts `{:file_detected, %{path, media_dir}}`
   - scans read existing WatchedFile file_paths to skip already-processed files
 
   ## Internal helpers
@@ -46,7 +46,7 @@ defmodule MediaCentaur.Watcher do
 
   ## Mount Resilience
 
-  Watch directories may reside on removable drives, NAS shares, or external
+  Media directories may reside on removable drives, NAS shares, or external
   mounts. The watcher handles transient mount failures:
 
   - **Unmount detection:** inotify fires `IN_UNMOUNT` when a watched filesystem
@@ -116,7 +116,7 @@ defmodule MediaCentaur.Watcher do
   def scan(pid), do: GenServer.call(pid, :scan, 60_000)
 
   @doc """
-  Validates a watch-directory form entry against all 11 rules. Returns
+  Validates a media-directory form entry against all 11 rules. Returns
   `%{errors: [...], warnings: [...], preview: nil | %{...}}`.
 
   Thin facade over `MediaCentaur.Watcher.DirValidator` — binds the production
@@ -136,7 +136,7 @@ defmodule MediaCentaur.Watcher do
   Used by the showcase seeder and any future caller that needs the
   presence stamp + library link written atomically.
 
-  `attrs` must include `file_path`, `watch_dir`, and `playable_item_id`
+  `attrs` must include `file_path`, `media_dir`, and `playable_item_id`
   (Library Schema v2 Phase 2 Task B — formerly one of the per-type FK
   columns `movie_id` / `tv_series_id` / `movie_series_id` /
   `video_object_id`).
@@ -147,7 +147,7 @@ defmodule MediaCentaur.Watcher do
   wrapper is no longer load-bearing for cross-table consistency.
   """
   @spec record_seen(map()) :: {:ok, %WatchedFile{}} | {:error, term()}
-  def record_seen(%{file_path: _file_path, watch_dir: _watch_dir} = attrs) do
+  def record_seen(%{file_path: _file_path, media_dir: _media_dir} = attrs) do
     Library.link_file(attrs)
   end
 
@@ -267,7 +267,7 @@ defmodule MediaCentaur.Watcher do
         # Live single-file detection: pass the stabilised size straight
         # through (already statted here). Relink-on-move runs on the scan
         # path, not this live path — a bulk move surfaces via the startup
-        # scan when the watch dir changes.
+        # scan when the media dir changes.
         detect_file(path, state.dir, size)
         {:noreply, untrack_settling(state, path)}
 
@@ -432,7 +432,7 @@ defmodule MediaCentaur.Watcher do
 
     # `Library.FilePresence` is the sole presence record post-Phase-7;
     # `watcher_files` and the dual-write KnownFile module are gone.
-    known_paths = FilePresence.list_paths_for_watch_dir(dir)
+    known_paths = FilePresence.list_paths_for_media_dir(dir)
     scan_directory_with_paths(dir, exclude_dirs, known_paths, recovery: recovery)
   end
 
@@ -478,10 +478,10 @@ defmodule MediaCentaur.Watcher do
     # re-stamped above and naturally re-render through the entity
     # change broadcasts that fired when they were first ingested.
 
-    # On recovery from :unavailable, re-push ALL entities for this watch dir
+    # On recovery from :unavailable, re-push ALL entities for this media dir
     # so the channel re-serializes with now-available image paths.
     if Keyword.get(opts, :recovery, false) do
-      all_entity_ids = unique_entity_ids(Library.list_files_by_watch_dir(dir))
+      all_entity_ids = unique_entity_ids(Library.list_files_by_media_dir(dir))
 
       if all_entity_ids != [] do
         Log.info(
@@ -515,19 +515,19 @@ defmodule MediaCentaur.Watcher do
     dispatched
   end
 
-  defp detect_file(path, watch_dir, size) do
+  defp detect_file(path, media_dir, size) do
     Log.info(:watcher, "detected #{Path.basename(path)}")
 
     # Record byte size on first detection so a future move of this file can
     # be recognised by relink-on-move (relative path + size). Size is statted
     # once by the scan (new files only), never in the bulk last_seen_at
     # refresh — see MoveMatcher.
-    FilePresence.stamp(path, watch_dir, DateTime.utc_now(), size: size)
+    FilePresence.stamp(path, media_dir, DateTime.utc_now(), size: size)
 
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
       MediaCentaur.Topics.pipeline_input(),
-      {:file_detected, %{path: path, watch_dir: watch_dir}}
+      {:file_detected, %{path: path, media_dir: media_dir}}
     )
 
     :ok
@@ -579,13 +579,13 @@ defmodule MediaCentaur.Watcher do
     %{state | exclude_dirs: ExcludeDirs.prepare(load_exclude_dirs(state.dir))}
   end
 
-  defp load_exclude_dirs(watch_dir) do
+  defp load_exclude_dirs(media_dir) do
     configured = MediaCentaur.Config.get(:exclude_dirs) || []
-    images_dir = MediaCentaur.Config.images_dir_for(watch_dir)
-    staging_base = MediaCentaur.Config.staging_base_for(watch_dir)
+    images_dir = MediaCentaur.Config.images_dir_for(media_dir)
+    staging_base = MediaCentaur.Config.staging_base_for(media_dir)
 
     auto_excludes =
-      Enum.filter([images_dir, staging_base], &String.starts_with?(&1, watch_dir <> "/"))
+      Enum.filter([images_dir, staging_base], &String.starts_with?(&1, media_dir <> "/"))
 
     Enum.uniq(configured ++ auto_excludes)
   end
@@ -615,7 +615,7 @@ defmodule MediaCentaur.Watcher do
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
       MediaCentaur.Topics.dir_state(),
-      {:dir_state_changed, dir, :watch_dir, state}
+      {:dir_state_changed, dir, :media_dir, state}
     )
   end
 

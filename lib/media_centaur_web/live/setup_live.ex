@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.SetupLive do
   @moduledoc """
   Setup Tour wizard at `/setup`. Walks the user through every dependency
-  the app cares about — watch directories, TMDB, mpv, ffprobe, Prowlarr,
+  the app cares about — media directories, TMDB, mpv, ffprobe, Prowlarr,
   download client. Auto-launched on first run by `SetupRedirect`, also
   reachable anytime from Settings → Overview.
 
@@ -130,12 +130,12 @@ defmodule MediaCentaurWeb.SetupLive do
   end
 
   # ---------------------------------------------------------------------------
-  # Watch dirs
+  # Media dirs
   # ---------------------------------------------------------------------------
 
-  def handle_event("setup:add_watch_dir", %{"dir" => dir}, socket) do
+  def handle_event("setup:add_media_dir", %{"dir" => dir}, socket) do
     expanded = Path.expand(dir)
-    entries = Config.watch_dirs_entries()
+    entries = Config.media_dirs_entries()
 
     if !Enum.any?(entries, &(&1["dir"] == expanded)) do
       new_entry = %{
@@ -145,15 +145,15 @@ defmodule MediaCentaurWeb.SetupLive do
         "name" => nil
       }
 
-      Config.put_watch_dirs(entries ++ [new_entry])
+      Config.put_media_dirs(entries ++ [new_entry])
     end
 
     {:noreply, refresh_probes(socket)}
   end
 
-  def handle_event("setup:remove_watch_dir", %{"dir" => dir}, socket) do
-    entries = Enum.reject(Config.watch_dirs_entries(), &(&1["dir"] == dir))
-    Config.put_watch_dirs(entries)
+  def handle_event("setup:remove_media_dir", %{"dir" => dir}, socket) do
+    entries = Enum.reject(Config.media_dirs_entries(), &(&1["dir"] == dir))
+    Config.put_media_dirs(entries)
     {:noreply, refresh_probes(socket)}
   end
 
@@ -255,7 +255,7 @@ defmodule MediaCentaurWeb.SetupLive do
       download_client_password_configured?: Secret.present?(Config.get(:download_client_password)),
       mpv_path: Config.get(:mpv_path),
       ffprobe_path: Config.get(:ffprobe_path),
-      watch_dirs_entries: Config.watch_dirs_entries()
+      media_dirs_entries: Config.media_dirs_entries()
     }
   end
 
@@ -493,9 +493,9 @@ defmodule MediaCentaurWeb.SetupLive do
     """
   end
 
-  defp step_for(%{step: :watch_dirs} = assigns) do
+  defp step_for(%{step: :media_dirs} = assigns) do
     ~H"""
-    <SetupSteps.watch_dirs_step
+    <SetupSteps.media_dirs_step
       result={@probe}
       content={@content}
       step_index={@step_index}

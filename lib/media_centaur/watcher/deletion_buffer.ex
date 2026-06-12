@@ -17,10 +17,10 @@ defmodule MediaCentaur.Watcher.DeletionBuffer do
   @spec new() :: t()
   def new, do: %__MODULE__{}
 
-  @doc "Records a deleted path along with the watch dir it came from."
+  @doc "Records a deleted path along with the media dir it came from."
   @spec add(t(), String.t(), String.t()) :: t()
-  def add(%__MODULE__{entries: entries} = buffer, path, watch_dir) do
-    %{buffer | entries: Map.put(entries, path, watch_dir)}
+  def add(%__MODULE__{entries: entries} = buffer, path, media_dir) do
+    %{buffer | entries: Map.put(entries, path, media_dir)}
   end
 
   @doc "Returns the buffered paths in arbitrary order."

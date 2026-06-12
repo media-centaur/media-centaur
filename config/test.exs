@@ -49,6 +49,7 @@ config :media_centaur, :coalesce_broadcasts?, false
 config :media_centaur, :default_config_path, "~/.config/media-centaur/media-centaur-test.toml"
 config :media_centaur, :environment, :test
 config :media_centaur, :image_http_client, MediaCentaur.NoopImageDownloader
+config :media_centaur, :media_dirs, []
 config :media_centaur, :skip_user_config, true
 config :media_centaur, :start_pipeline, false
 # Skip mpv socket recovery — otherwise the recovery task scans
@@ -64,8 +65,6 @@ config :media_centaur, :start_watchers, false
 config :media_centaur,
        :upgrade_staging_root,
        Path.join(System.tmp_dir!(), "media-centaur-test-upgrade-staging")
-
-config :media_centaur, :watch_dirs, []
 
 # Initialize plugs at runtime for faster test compilation
 config :phoenix, :plug_init_mode, :runtime

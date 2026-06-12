@@ -30,7 +30,7 @@ defmodule MediaCentaur.Pipeline.Import.Producer do
   @impl true
   def handle_info(
         {:file_matched,
-         %{file_path: file_path, watch_dir: _watch_dir, tmdb_id: tmdb_id, tmdb_type: tmdb_type} = data},
+         %{file_path: file_path, media_dir: _media_dir, tmdb_id: tmdb_id, tmdb_type: tmdb_type} = data},
         state
       ) do
     payload = build_payload(data)
@@ -61,11 +61,11 @@ defmodule MediaCentaur.Pipeline.Import.Producer do
   """
   @spec build_payload(map()) :: Payload.t()
   def build_payload(
-        %{file_path: file_path, watch_dir: watch_dir, tmdb_id: tmdb_id, tmdb_type: tmdb_type} = data
+        %{file_path: file_path, media_dir: media_dir, tmdb_id: tmdb_id, tmdb_type: tmdb_type} = data
       ) do
     %Payload{
       file_path: file_path,
-      watch_directory: watch_dir,
+      media_directory: media_dir,
       tmdb_id: tmdb_id,
       tmdb_type: validated_tmdb_type(tmdb_type),
       pending_file_id: data[:pending_file_id]

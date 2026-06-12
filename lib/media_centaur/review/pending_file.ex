@@ -16,7 +16,7 @@ defmodule MediaCentaur.Review.PendingFile do
   schema "review_pending_files" do
     # File info
     field :file_path, :string
-    field :watch_directory, :string
+    field :media_directory, :string
 
     # Parsed info (from Parser.Result)
     field :parsed_title, :string
@@ -47,7 +47,7 @@ defmodule MediaCentaur.Review.PendingFile do
 
   @create_fields [
     :file_path,
-    :watch_directory,
+    :media_directory,
     :parsed_title,
     :parsed_year,
     :parsed_type,

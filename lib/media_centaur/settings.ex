@@ -146,7 +146,7 @@ defmodule MediaCentaur.Settings do
   # new value, then broadcast for cross-process subscribers. Why: the
   # async Cache.Worker that listens to `:setting_changed` only refreshes
   # the cache after a PubSub round-trip; LiveView handlers that read
-  # immediately after a write (e.g. `Config.watch_dirs_entries/0` inside
+  # immediately after a write (e.g. `Config.media_dirs_entries/0` inside
   # `refresh_probes/1`) used to hit the stale value, render an
   # unchanged list, and force the user to click again.
   defp on_write({:ok, %Entry{} = entry}) do

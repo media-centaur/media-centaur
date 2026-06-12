@@ -122,14 +122,14 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
     test "is constructable with required keys" do
       file = %DetailItem.WatchedFile{
         path: "/media/movies/sample.mkv",
-        watch_dir: "/media/movies"
+        media_dir: "/media/movies"
       }
 
       assert file.path == "/media/movies/sample.mkv"
-      assert file.watch_dir == "/media/movies"
+      assert file.media_dir == "/media/movies"
     end
 
-    test "enforces path and watch_dir" do
+    test "enforces path and media_dir" do
       assert_raise ArgumentError, fn ->
         struct!(DetailItem.WatchedFile, %{})
       end
@@ -349,8 +349,8 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
 
     test "derives :content_url from the first :watched_files entry — Resume.resolve_single needs it" do
       files = [
-        %DetailItem.WatchedFile{path: "/media/x/a.mkv", watch_dir: "/media/x"},
-        %DetailItem.WatchedFile{path: "/media/x/b.mkv", watch_dir: "/media/x"}
+        %DetailItem.WatchedFile{path: "/media/x/a.mkv", media_dir: "/media/x"},
+        %DetailItem.WatchedFile{path: "/media/x/b.mkv", media_dir: "/media/x"}
       ]
 
       detail_item = movie_detail_item(watched_files: files)

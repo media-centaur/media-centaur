@@ -201,16 +201,16 @@ defmodule MediaCentaurWeb.StatusLiveTest do
 
     test "renders an at-risk row when a configured dir is offline with stale files",
          %{conn: conn} do
-      # The watch-dirs/storage view lives in the Watcher subsystem's
+      # The media-dirs/storage view lives in the Watcher subsystem's
       # health-board drill-in (?subsystem=watcher), which renders the
-      # dir_health rows for watch dirs listed in config. Surface an
+      # dir_health rows for media dirs listed in config. Surface an
       # at-risk warning by configuring the test dir, then seeding a
       # Library.FilePresence row whose last_seen_at is older than the
       # TTL threshold. Restore config on exit so we don't leak.
-      original_watch_dirs = :persistent_term.get({MediaCentaur.Config, :config}).watch_dirs
+      original_media_dirs = :persistent_term.get({MediaCentaur.Config, :config}).media_dirs
 
-      put_config(:watch_dirs, ["/mnt/cold-storage"])
-      on_exit(fn -> put_config(:watch_dirs, original_watch_dirs) end)
+      put_config(:media_dirs, ["/mnt/cold-storage"])
+      on_exit(fn -> put_config(:media_dirs, original_media_dirs) end)
 
       # Stamp a stale presence row (15 days old; TTL default is 30 so
       # this is still within TTL and shows up in the at-risk summary
@@ -238,7 +238,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     # breaks the line silently vanishes — this catches that. The per-piece
     # formatting is unit-tested in StatusHelpersTest.
     test "renders the last-scan line for a watching dir", %{conn: conn} do
-      original_watch_dirs = :persistent_term.get({MediaCentaur.Config, :config}).watch_dirs
+      original_media_dirs = :persistent_term.get({MediaCentaur.Config, :config}).media_dirs
 
       tmp_dir =
         Path.join(
@@ -247,14 +247,14 @@ defmodule MediaCentaurWeb.StatusLiveTest do
         )
 
       File.mkdir_p!(tmp_dir)
-      put_config(:watch_dirs, [tmp_dir])
+      put_config(:media_dirs, [tmp_dir])
 
       MediaCentaur.Watcher.Supervisor.stop_watchers()
       MediaCentaur.Watcher.Supervisor.start_watchers()
 
       on_exit(fn ->
         MediaCentaur.Watcher.Supervisor.stop_watchers()
-        put_config(:watch_dirs, original_watch_dirs)
+        put_config(:media_dirs, original_media_dirs)
         File.rm_rf!(tmp_dir)
       end)
 

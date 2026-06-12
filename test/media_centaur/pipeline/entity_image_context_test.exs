@@ -16,17 +16,17 @@ defmodule MediaCentaur.Pipeline.EntityImageContextTest do
     end
   end
 
-  describe "find_watch_dir/2" do
-    test "returns the watch dir of a movie's linked file" do
+  describe "find_media_dir/2" do
+    test "returns the media dir of a movie's linked file" do
       movie = TestFactory.create_movie(%{name: "Sample Movie", tmdb_id: "550"})
-      TestFactory.create_linked_file(%{movie_id: movie.id, watch_dir: "/media/movies"})
+      TestFactory.create_linked_file(%{movie_id: movie.id, media_dir: "/media/movies"})
 
-      assert {:ok, "/media/movies"} = Context.find_watch_dir(movie.id, :movie)
+      assert {:ok, "/media/movies"} = Context.find_media_dir(movie.id, :movie)
     end
 
     test "skips a movie with no files" do
       movie = TestFactory.create_movie(%{name: "Sample Movie", tmdb_id: "550"})
-      assert {:skip, :no_watch_dir} = Context.find_watch_dir(movie.id, :movie)
+      assert {:skip, :no_media_dir} = Context.find_media_dir(movie.id, :movie)
     end
   end
 end

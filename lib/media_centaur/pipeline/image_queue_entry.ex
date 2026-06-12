@@ -18,14 +18,14 @@ defmodule MediaCentaur.Pipeline.ImageQueueEntry do
     field :role, :string
     field :source_url, :string
     field :entity_id, :string
-    field :watch_dir, :string
+    field :media_dir, :string
     field :status, :string, default: "pending"
     field :retry_count, :integer, default: 0
 
     timestamps()
   end
 
-  @required ~w(owner_id owner_type role source_url entity_id watch_dir)a
+  @required ~w(owner_id owner_type role source_url entity_id media_dir)a
 
   def create_changeset(attrs) do
     %__MODULE__{}

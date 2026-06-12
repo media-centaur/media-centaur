@@ -105,7 +105,7 @@ defmodule MediaCentaur.Pipeline.Image.RetryScheduler do
           Phoenix.PubSub.broadcast(
             MediaCentaur.PubSub,
             MediaCentaur.Topics.pipeline_images(),
-            {:images_pending, %{entity_id: entry.entity_id, watch_dir: entry.watch_dir}}
+            {:images_pending, %{entity_id: entry.entity_id, media_dir: entry.media_dir}}
           )
         end)
       end

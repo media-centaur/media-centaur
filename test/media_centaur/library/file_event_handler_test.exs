@@ -17,7 +17,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         create_linked_file(%{
           movie_id: movie.id,
           file_path: "/media/movies/sample_movie.mkv",
-          watch_dir: "/media/movies"
+          media_dir: "/media/movies"
         })
 
       entity_ids = FileEventHandler.cleanup_removed_files(["/media/movies/sample_movie.mkv"])
@@ -58,14 +58,14 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         create_linked_file(%{
           tv_series_id: tv_series.id,
           file_path: "/media/tv/bb/s01e01.mkv",
-          watch_dir: "/media/tv"
+          media_dir: "/media/tv"
         })
 
       _file2 =
         create_linked_file(%{
           tv_series_id: tv_series.id,
           file_path: "/media/tv/bb/s01e02.mkv",
-          watch_dir: "/media/tv"
+          media_dir: "/media/tv"
         })
 
       entity_ids = FileEventHandler.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
@@ -122,14 +122,14 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         create_linked_file(%{
           tv_series_id: tv_series.id,
           file_path: "/media/tv/pluribus/s01e01.mkv",
-          watch_dir: "/media/tv"
+          media_dir: "/media/tv"
         })
 
       _file2 =
         create_linked_file(%{
           tv_series_id: tv_series.id,
           file_path: "/media/tv/pluribus/s01e02.mkv",
-          watch_dir: "/media/tv"
+          media_dir: "/media/tv"
         })
 
       _progress =
@@ -174,7 +174,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         create_linked_file(%{
           tv_series_id: tv_series.id,
           file_path: "/media/tv/bb/s01e01.mkv",
-          watch_dir: "/media/tv"
+          media_dir: "/media/tv"
         })
 
       # Add a second season to keep the entity alive
@@ -198,7 +198,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         create_linked_file(%{
           tv_series_id: tv_series.id,
           file_path: "/media/tv/bb/s02e01.mkv",
-          watch_dir: "/media/tv"
+          media_dir: "/media/tv"
         })
 
       FileEventHandler.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
@@ -232,7 +232,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         create_linked_file(%{
           tv_series_id: tv_series.id,
           file_path: "/media/tv/bb/s01e01.mkv",
-          watch_dir: "/media/tv"
+          media_dir: "/media/tv"
         })
 
       FileEventHandler.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
@@ -276,21 +276,21 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         create_linked_file(%{
           movie_series_id: movie_series.id,
           file_path: "/media/movies/sample_movie_one.mkv",
-          watch_dir: "/media/movies"
+          media_dir: "/media/movies"
         })
 
       _file2 =
         create_linked_file(%{
           movie_series_id: movie_series.id,
           file_path: "/media/movies/sample_movie_two.mkv",
-          watch_dir: "/media/movies"
+          media_dir: "/media/movies"
         })
 
       _file3 =
         create_linked_file(%{
           movie_series_id: movie_series.id,
           file_path: "/media/movies/sample_movie_three.mkv",
-          watch_dir: "/media/movies"
+          media_dir: "/media/movies"
         })
 
       FileEventHandler.cleanup_removed_files(["/media/movies/sample_movie_one.mkv"])
@@ -320,14 +320,14 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         create_linked_file(%{
           movie_id: movie.id,
           file_path: "/media/movies/sample_movie.mkv",
-          watch_dir: "/media/movies"
+          media_dir: "/media/movies"
         })
 
       _file2 =
         create_linked_file(%{
           movie_id: movie.id,
           file_path: "/media/movies/Extras/bts.mkv",
-          watch_dir: "/media/movies"
+          media_dir: "/media/movies"
         })
 
       FileEventHandler.cleanup_removed_files(["/media/movies/Extras/bts.mkv"])
@@ -369,14 +369,14 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         create_linked_file(%{
           tv_series_id: tv_series.id,
           file_path: "/media/tv/bb/s01e01.mkv",
-          watch_dir: "/media/tv"
+          media_dir: "/media/tv"
         })
 
       _file2 =
         create_linked_file(%{
           tv_series_id: tv_series.id,
           file_path: "/media/tv/bb/s01e02.mkv",
-          watch_dir: "/media/tv"
+          media_dir: "/media/tv"
         })
 
       entity_ids =
@@ -434,14 +434,14 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         create_linked_file(%{
           tv_series_id: tv_series.id,
           file_path: "/media/tv/bb/s01e01.mkv",
-          watch_dir: "/media/tv"
+          media_dir: "/media/tv"
         })
 
       _file2 =
         create_linked_file(%{
           tv_series_id: tv_series.id,
           file_path: "/media/tv/bb/s01e02.mkv",
-          watch_dir: "/media/tv"
+          media_dir: "/media/tv"
         })
 
       FileEventHandler.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
@@ -464,7 +464,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       File.write!(file_path, "sample content")
 
       movie = create_entity(%{type: :movie, name: "Movie #{name}", content_url: file_path})
-      create_linked_file(%{movie_id: movie.id, file_path: file_path, watch_dir: tmp_dir})
+      create_linked_file(%{movie_id: movie.id, file_path: file_path, media_dir: tmp_dir})
 
       {movie, file_path}
     end
@@ -494,7 +494,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
     } do
       absent_path = Path.join(tmp_dir, "already_gone.mkv")
       movie = create_entity(%{type: :movie, name: "Gone Movie", content_url: absent_path})
-      create_linked_file(%{movie_id: movie.id, file_path: absent_path, watch_dir: tmp_dir})
+      create_linked_file(%{movie_id: movie.id, file_path: absent_path, media_dir: tmp_dir})
 
       assert {:ok, [entity_id]} = FileEventHandler.delete_files([absent_path])
       assert entity_id == movie.id

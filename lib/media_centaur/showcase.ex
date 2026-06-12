@@ -949,8 +949,8 @@ defmodule MediaCentaur.Showcase do
   # `Pipeline.ImageRepair.repair_all/0`.
   defp download_image_role!(owner_id, owner_type, entity_id, role, path) do
     url = "https://image.tmdb.org/t/p/original#{path}"
-    watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
-    primary = List.first(watch_dirs)
+    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
+    primary = List.first(media_dirs)
 
     if primary do
       extension = path |> Path.extname() |> String.trim_leading(".") |> String.downcase()
@@ -963,7 +963,7 @@ defmodule MediaCentaur.Showcase do
     end
   end
 
-  defp enqueue_for_repair(owner_id, owner_type, entity_id, role, url, watch_dir) do
+  defp enqueue_for_repair(owner_id, owner_type, entity_id, role, url, media_dir) do
     {:ok, _entry} =
       MediaCentaur.Pipeline.ImageQueue.create(%{
         owner_id: owner_id,
@@ -971,7 +971,7 @@ defmodule MediaCentaur.Showcase do
         role: to_string(role),
         source_url: url,
         entity_id: entity_id,
-        watch_dir: watch_dir,
+        media_dir: media_dir,
         status: "pending",
         retry_count: 0
       })
@@ -979,8 +979,8 @@ defmodule MediaCentaur.Showcase do
     :ok
   end
 
-  defp perform_inline_download(owner_id, owner_type, role, extension, url, watch_dir) do
-    images_root = MediaCentaur.Config.images_dir_for(watch_dir)
+  defp perform_inline_download(owner_id, owner_type, role, extension, url, media_dir) do
+    images_root = MediaCentaur.Config.images_dir_for(media_dir)
     dest = Path.join([images_root, owner_id, "#{role}.#{extension}"])
 
     case MediaCentaur.Images.download(url, dest, []) do
@@ -1035,9 +1035,9 @@ defmodule MediaCentaur.Showcase do
     fixture_index = rem(max(episode.episode_number - 1, 0), @bundled_thumb_count) + 1
     fixture = Path.expand("priv/showcase/fixtures/thumbs/thumb-#{fixture_index}.jpg")
 
-    watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
+    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
 
-    with primary when is_binary(primary) <- List.first(watch_dirs),
+    with primary when is_binary(primary) <- List.first(media_dirs),
          true <- File.exists?(fixture) do
       images_root = MediaCentaur.Config.images_dir_for(primary)
       dest = Path.join([images_root, episode.id, "thumb.jpg"])
@@ -1067,23 +1067,23 @@ defmodule MediaCentaur.Showcase do
     episode_str = episode_number |> Integer.to_string() |> String.pad_leading(2, "0")
 
     Path.join(
-      showcase_watch_dir(),
+      showcase_media_dir(),
       "#{safe_name}/Season #{season_number}/#{safe_name}.S#{season_str}E#{episode_str}.mkv"
     )
   end
 
   defp fake_movie_path(title) do
     safe_name = String.replace(title, ~r/[^a-zA-Z0-9]+/, ".")
-    Path.join(showcase_watch_dir(), "#{safe_name}.mkv")
+    Path.join(showcase_media_dir(), "#{safe_name}.mkv")
   end
 
   defp fake_short_path(title) do
     safe_name = String.replace(title, ~r/[^a-zA-Z0-9]+/, ".")
-    Path.join(showcase_watch_dir(), "shorts/#{safe_name}.mkv")
+    Path.join(showcase_media_dir(), "shorts/#{safe_name}.mkv")
   end
 
-  defp showcase_watch_dir do
-    case MediaCentaur.Config.get(:watch_dirs) do
+  defp showcase_media_dir do
+    case MediaCentaur.Config.get(:media_dirs) do
       [dir | _] -> dir
       _ -> "/showcase"
     end
@@ -1131,12 +1131,12 @@ defmodule MediaCentaur.Showcase do
   defp do_seed_presence!(container_type, container_id, position, file_path) do
     {:ok, playable_item} = ensure_showcase_playable_item(container_type, container_id, position)
 
-    watch_dir = showcase_watch_dir()
+    media_dir = showcase_media_dir()
 
     {:ok, _} =
       MediaCentaur.Watcher.record_seen(%{
         file_path: file_path,
-        watch_dir: watch_dir,
+        media_dir: media_dir,
         playable_item_id: playable_item.id
       })
 
@@ -1197,7 +1197,7 @@ defmodule MediaCentaur.Showcase do
     [
       %{
         file_path: "/showcase/tv/Uncharted.Series.S01E01.mkv",
-        watch_directory: "/showcase/tv",
+        media_directory: "/showcase/tv",
         parsed_title: "Uncharted Series",
         parsed_year: 2025,
         parsed_type: "tv",
@@ -1211,7 +1211,7 @@ defmodule MediaCentaur.Showcase do
       # TMDB has several films that plausibly match.
       %{
         file_path: "/showcase/movies/The.Stranger.mkv",
-        watch_directory: "/showcase/movies",
+        media_directory: "/showcase/movies",
         parsed_title: "The Stranger",
         parsed_year: nil,
         parsed_type: "movie",
@@ -1238,7 +1238,7 @@ defmodule MediaCentaur.Showcase do
       # isn't confident enough to auto-approve.
       %{
         file_path: "/showcase/movies/Detour.1945.mkv",
-        watch_directory: "/showcase/movies",
+        media_directory: "/showcase/movies",
         parsed_title: "Detour",
         parsed_year: 1945,
         parsed_type: "movie",
@@ -1252,7 +1252,7 @@ defmodule MediaCentaur.Showcase do
       # film with very low confidence.
       %{
         file_path: "/showcase/movies/Ambiguous-RELEASE-GROUP.mkv",
-        watch_directory: "/showcase/movies",
+        media_directory: "/showcase/movies",
         parsed_title: "Ambiguous",
         parsed_type: nil,
         tmdb_id: 4330,

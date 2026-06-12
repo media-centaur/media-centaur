@@ -2,7 +2,7 @@ defmodule MediaCentaur.Library.FilePresence do
   @moduledoc """
   Durable record of "we've observed this file on disk and when".
 
-  One row per file path the watcher has seen in any watch directory.
+  One row per file path the watcher has seen in any media directory.
   This is the single source of truth for file presence — Library
   entity rows (`Library.WatchedFile`, `Library.ExtraFile`) reference
   a FilePresence via foreign key with cascade-delete, so a library
@@ -44,7 +44,7 @@ defmodule MediaCentaur.Library.FilePresence do
 
   schema "library_file_presences" do
     field :file_path, :string
-    field :watch_dir, :string
+    field :media_dir, :string
     field :last_seen_at, :utc_datetime_usec
     # Byte size on disk, captured at detection. Used by relink-on-move to
     # recognise a moved file. Nullable — pre-feature rows fall back to a
@@ -57,8 +57,8 @@ defmodule MediaCentaur.Library.FilePresence do
   @doc false
   def changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:file_path, :watch_dir, :last_seen_at, :size])
-    |> validate_required([:file_path, :watch_dir, :last_seen_at])
+    |> cast(attrs, [:file_path, :media_dir, :last_seen_at, :size])
+    |> validate_required([:file_path, :media_dir, :last_seen_at])
     |> unique_constraint(:file_path)
   end
 
@@ -79,11 +79,11 @@ defmodule MediaCentaur.Library.FilePresence do
   the size a new-file detection recorded.
   """
   @spec stamp(String.t(), String.t(), DateTime.t() | nil, keyword()) :: t()
-  def stamp(file_path, watch_dir, seen_at \\ DateTime.utc_now(), opts \\ []) do
+  def stamp(file_path, media_dir, seen_at \\ DateTime.utc_now(), opts \\ []) do
     size = Keyword.get(opts, :size)
-    attrs = %{file_path: file_path, watch_dir: watch_dir, last_seen_at: seen_at, size: size}
+    attrs = %{file_path: file_path, media_dir: media_dir, last_seen_at: seen_at, size: size}
 
-    set = [last_seen_at: seen_at, watch_dir: watch_dir, updated_at: trunc_seconds(seen_at)]
+    set = [last_seen_at: seen_at, media_dir: media_dir, updated_at: trunc_seconds(seen_at)]
     set = if is_nil(size), do: set, else: Keyword.put(set, :size, size)
 
     {:ok, presence} =
@@ -97,16 +97,16 @@ defmodule MediaCentaur.Library.FilePresence do
   end
 
   @doc """
-  Bulk-stamps every path in `paths` under `watch_dir` with a shared
+  Bulk-stamps every path in `paths` under `media_dir` with a shared
   `seen_at`. Single INSERT … ON CONFLICT … so a 696-file scan
   finishes in one roundtrip instead of 696.
   """
   @spec stamp_many([String.t()], String.t(), DateTime.t() | nil) :: non_neg_integer()
-  def stamp_many(paths, watch_dir, seen_at \\ DateTime.utc_now())
+  def stamp_many(paths, media_dir, seen_at \\ DateTime.utc_now())
 
-  def stamp_many([], _watch_dir, _seen_at), do: 0
+  def stamp_many([], _media_dir, _seen_at), do: 0
 
-  def stamp_many(paths, watch_dir, seen_at) do
+  def stamp_many(paths, media_dir, seen_at) do
     now_truncated = trunc_seconds(seen_at)
 
     entries =
@@ -114,7 +114,7 @@ defmodule MediaCentaur.Library.FilePresence do
         %{
           id: Ecto.UUID.generate(),
           file_path: path,
-          watch_dir: watch_dir,
+          media_dir: media_dir,
           last_seen_at: seen_at,
           inserted_at: now_truncated,
           updated_at: now_truncated
@@ -123,7 +123,7 @@ defmodule MediaCentaur.Library.FilePresence do
 
     {count, _} =
       Repo.insert_all(__MODULE__, entries,
-        on_conflict: [set: [last_seen_at: seen_at, watch_dir: watch_dir, updated_at: now_truncated]],
+        on_conflict: [set: [last_seen_at: seen_at, media_dir: media_dir, updated_at: now_truncated]],
         conflict_target: :file_path
       )
 
@@ -131,13 +131,13 @@ defmodule MediaCentaur.Library.FilePresence do
   end
 
   @doc """
-  Returns the set of file paths currently tracked for `watch_dir`.
+  Returns the set of file paths currently tracked for `media_dir`.
   Used by the watcher's scan to dedup against already-seen paths.
   """
-  @spec list_paths_for_watch_dir(String.t()) :: MapSet.t(String.t())
-  def list_paths_for_watch_dir(watch_dir) do
+  @spec list_paths_for_media_dir(String.t()) :: MapSet.t(String.t())
+  def list_paths_for_media_dir(media_dir) do
     from(p in __MODULE__,
-      where: p.watch_dir == ^watch_dir,
+      where: p.media_dir == ^media_dir,
       select: p.file_path
     )
     |> Repo.all()
@@ -184,7 +184,7 @@ defmodule MediaCentaur.Library.FilePresence do
   end
 
   @doc """
-  Resets `last_seen_at` to `now()` for every row under `watch_dir`.
+  Resets `last_seen_at` to `now()` for every row under `media_dir`.
   Returns the number of rows touched.
 
   Called by `Library.AbsenceSweeper` on a dir's `:available`
@@ -194,13 +194,13 @@ defmodule MediaCentaur.Library.FilePresence do
   scan, so this reset only matters for files that remain missing.
   """
   @spec reset_last_seen_for_dir(String.t()) :: non_neg_integer()
-  def reset_last_seen_for_dir(watch_dir) do
+  def reset_last_seen_for_dir(media_dir) do
     now = DateTime.utc_now()
     now_truncated = trunc_seconds(now)
 
     {count, _} =
       Repo.update_all(
-        from(p in __MODULE__, where: p.watch_dir == ^watch_dir),
+        from(p in __MODULE__, where: p.media_dir == ^media_dir),
         set: [last_seen_at: now, updated_at: now_truncated]
       )
 
@@ -208,9 +208,9 @@ defmodule MediaCentaur.Library.FilePresence do
   end
 
   @doc """
-  Per-watch-dir summary of all tracked presence rows. Returned shape:
+  Per-media-dir summary of all tracked presence rows. Returned shape:
 
-      %{watch_dir => %{file_count: non_neg_integer(), earliest_absent_since: DateTime.t()}}
+      %{media_dir => %{file_count: non_neg_integer(), earliest_absent_since: DateTime.t()}}
 
   Pure DB read — no GenServer round-trip. The status-page formatter
   joins this against the live availability map to decide what to
@@ -229,8 +229,8 @@ defmodule MediaCentaur.Library.FilePresence do
     Map.new(
       Repo.all(
         from(p in __MODULE__,
-          group_by: p.watch_dir,
-          select: {p.watch_dir, %{file_count: count(p.id), earliest_absent_since: min(p.last_seen_at)}}
+          group_by: p.media_dir,
+          select: {p.media_dir, %{file_count: count(p.id), earliest_absent_since: min(p.last_seen_at)}}
         )
       )
     )

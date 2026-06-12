@@ -2,7 +2,7 @@ defmodule MediaCentaur.Watcher.Reconciler do
   @moduledoc """
   Pure diff calculator for watcher reconcile actions.
 
-  Given the previous and current watch-dir entry lists, computes which
+  Given the previous and current media-dir entry lists, computes which
   watcher children need to start, stop, or be replaced (stop + start).
   A replace is emitted when `dir` or `images_dir` changes for an id
   present in both lists. A name-only change is a no-op.
@@ -18,11 +18,11 @@ defmodule MediaCentaur.Watcher.Reconciler do
   @doc """
   Computes start/stop actions for image-directory monitors.
 
-  Each pair is `{watch_dir, image_dir}` — `image_dir` is what the
+  Each pair is `{media_dir, image_dir}` — `image_dir` is what the
   DirMonitor uses as its registry key, so `to_stop` carries the
-  image_dir directly. A change to either field for a given watch_dir
+  image_dir directly. A change to either field for a given media_dir
   emits one stop and one start (image_dirs are the natural identity
-  here — there's no stable "id" the way there is for watch_dirs).
+  here — there's no stable "id" the way there is for media_dirs).
   """
   @spec diff_image_monitors([{String.t(), String.t()}], [{String.t(), String.t()}]) :: %{
           to_start: [{String.t(), String.t()}],
@@ -37,7 +37,7 @@ defmodule MediaCentaur.Watcher.Reconciler do
       to_stop:
         old_set
         |> MapSet.difference(new_set)
-        |> Enum.map(fn {_watch_dir, image_dir} -> image_dir end)
+        |> Enum.map(fn {_media_dir, image_dir} -> image_dir end)
     }
   end
 

@@ -6,8 +6,8 @@ defmodule MediaCentaurWeb.Storybook.Setup do
 
   def entry("welcome_step"), do: [icon: {:fa, "hand-wave", :thin}, name: "Welcome step", index: 1]
 
-  def entry("watch_dirs_step"),
-    do: [icon: {:fa, "folder-open", :thin}, name: "Watch directories step", index: 2]
+  def entry("media_dirs_step"),
+    do: [icon: {:fa, "folder-open", :thin}, name: "Media directories step", index: 2]
 
   def entry("binary_step"),
     do: [icon: {:fa, "terminal", :thin}, name: "Binary step (mpv / ffprobe)", index: 3]

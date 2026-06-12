@@ -14,9 +14,9 @@ defmodule MediaCentaur.Library.Availability do
 
   ## Granularity
 
-  Availability is per-entity: we find the entity's watch directory via
+  Availability is per-entity: we find the entity's media directory via
   a longest-prefix match on its file path, then consult the per-dir
-  state the watcher is publishing. An entity whose watch dir is
+  state the watcher is publishing. An entity whose media dir is
   `:unavailable` is considered unreachable; anything else (`:watching`,
   `:initializing`, or no matching dir) is considered available.
 
@@ -39,7 +39,7 @@ defmodule MediaCentaur.Library.Availability do
   """
   @spec available?(map()) :: boolean()
   def available?(entity) do
-    case entity_watch_dir(entity) do
+    case entity_media_dir(entity) do
       nil -> true
       dir -> Map.get(dir_status(), dir) != :unavailable
     end
@@ -64,11 +64,11 @@ defmodule MediaCentaur.Library.Availability do
 
   def available_for_ids(entity_ids) when is_list(entity_ids) do
     status = dir_status()
-    watch_dirs_by_id = watch_dirs_by_entity_id(entity_ids)
+    media_dirs_by_id = media_dirs_by_entity_id(entity_ids)
 
     Map.new(entity_ids, fn id ->
       available? =
-        case Map.get(watch_dirs_by_id, id) do
+        case Map.get(media_dirs_by_id, id) do
           nil -> true
           dir -> Map.get(status, dir) != :unavailable
         end
@@ -77,13 +77,13 @@ defmodule MediaCentaur.Library.Availability do
     end)
   end
 
-  # Returns `%{entity_id => watch_dir}` for every entity id that has at
+  # Returns `%{entity_id => media_dir}` for every entity id that has at
   # least one WatchedFile. Probes every container kind in a single
   # bounded set of queries; missing ids simply don't appear in the map.
-  defp watch_dirs_by_entity_id(entity_ids) do
+  defp media_dirs_by_entity_id(entity_ids) do
     # PlayableItem-keyed kinds (Movie, VideoObject) — one query each.
-    movie_pairs = playable_item_watch_dirs(:movie, entity_ids)
-    video_pairs = playable_item_watch_dirs(:video_object, entity_ids)
+    movie_pairs = playable_item_media_dirs(:movie, entity_ids)
+    video_pairs = playable_item_media_dirs(:video_object, entity_ids)
 
     # TV series: WatchedFile -> PlayableItem(:episode) -> Episode -> Season -> TVSeries.
     tv_pairs =
@@ -96,7 +96,7 @@ defmodule MediaCentaur.Library.Availability do
           join: s in Season,
           on: s.id == e.season_id,
           where: s.tv_series_id in ^entity_ids,
-          select: {s.tv_series_id, wf.watch_dir}
+          select: {s.tv_series_id, wf.media_dir}
         )
       )
 
@@ -109,14 +109,14 @@ defmodule MediaCentaur.Library.Availability do
           join: m in MediaCentaur.Library.Movie,
           on: m.id == pi.container_id,
           where: m.movie_series_id in ^entity_ids,
-          select: {m.movie_series_id, wf.watch_dir}
+          select: {m.movie_series_id, wf.media_dir}
         )
       )
 
     # First-wins for the optimistic default; if any file is on a
     # `:watching` dir but another is offline, `available?/1` would have
     # taken the per-entity worst case. Bulk callers consume the answer
-    # as a boolean — picking the first non-nil watch_dir matches the
+    # as a boolean — picking the first non-nil media_dir matches the
     # behavior of `available?/1`, which itself looks at the first file
     # in `entity.watched_files`.
     Enum.reduce(movie_pairs ++ video_pairs ++ tv_pairs ++ movie_series_pairs, %{}, fn {id, dir}, acc ->
@@ -124,14 +124,14 @@ defmodule MediaCentaur.Library.Availability do
     end)
   end
 
-  defp playable_item_watch_dirs(container_type, entity_ids) do
+  defp playable_item_media_dirs(container_type, entity_ids) do
     Repo.all(
       from(wf in WatchedFile,
         join: pi in PlayableItem,
         on:
           pi.id == wf.playable_item_id and pi.container_type == ^container_type and
             pi.container_id in ^entity_ids,
-        select: {pi.container_id, wf.watch_dir}
+        select: {pi.container_id, wf.media_dir}
       )
     )
   end
@@ -142,7 +142,7 @@ defmodule MediaCentaur.Library.Availability do
 
   @doc """
   Subscribe the calling process to `{:availability_changed, dir, state}`
-  messages broadcast whenever a watch dir's availability changes.
+  messages broadcast whenever a media dir's availability changes.
   """
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe, do: Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_availability())
@@ -194,7 +194,7 @@ defmodule MediaCentaur.Library.Availability do
   defp broadcast_state(other), do: other
 
   @impl true
-  def handle_info({:dir_state_changed, dir, :watch_dir, new_state}, state) do
+  def handle_info({:dir_state_changed, dir, :media_dir, new_state}, state) do
     updated = Map.put(state, dir, new_state)
     :persistent_term.put({__MODULE__, :state}, updated)
 
@@ -217,9 +217,9 @@ defmodule MediaCentaur.Library.Availability do
 
   def handle_call(:__sync_for_test__, _from, state), do: {:reply, :ok, state}
 
-  # --- Entity → watch-dir lookup ---
+  # --- Entity → media-dir lookup ---
 
-  defp entity_watch_dir(entity) do
+  defp entity_media_dir(entity) do
     case entity_file_path(entity) do
       nil -> nil
       path -> longest_prefix(path, Map.keys(dir_status()))

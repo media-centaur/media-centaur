@@ -212,7 +212,7 @@ Fixtures: `movie_search_result/1`, `tv_search_result/1`, `movie_detail/1`, `tv_d
 ### Filesystem Isolation ([ADR-016])
 
 - `config/test.exs` sets `:skip_user_config, true` — no real TOML config loaded
-- `config/test.exs` sets `:watch_dirs, []` — no real watch directories
+- `config/test.exs` sets `:media_dirs, []` — no real media directories
 - Tests needing filesystem paths create temp dirs via `System.tmp_dir!()` and override `:persistent_term`
 
 ### Pipeline Tests (Broadway)

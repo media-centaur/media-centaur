@@ -13,8 +13,8 @@ defmodule MediaCentaur.Library.ImageHealthTest do
     original = :persistent_term.get({Config, :config}, %{})
 
     :persistent_term.put({Config, :config}, %{
-      watch_dirs: [tmp],
-      watch_dir_images: %{tmp => images_dir}
+      media_dirs: [tmp],
+      media_dir_images: %{tmp => images_dir}
     })
 
     on_exit(fn ->

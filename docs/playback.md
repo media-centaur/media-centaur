@@ -42,7 +42,7 @@ graph TD
 
 **Completion threshold:** 90% of duration. Completion is monotonic — once marked complete, it never regresses.
 
-**Offline state:** `Library.Availability` tracks per-watch-directory mount/reachability. When a file's watch directory is unavailable, UI cards and the detail panel swap the **Play** button for a muted **Offline** indicator. The indicator clears automatically when availability restores — no LiveView reload needed.
+**Offline state:** `Library.Availability` tracks per-media-directory mount/reachability. When a file's media directory is unavailable, UI cards and the detail panel swap the **Play** button for a muted **Offline** indicator. The indicator clears automatically when availability restores — no LiveView reload needed.
 
 **Error surfacing:** mpv exit codes are classified by `MpvExitClassifier` into user-actionable categories (bad format, missing file, unreadable input, generic). MpvSession attaches the classification to the flash message the UI shows, and pipes mpv's full stderr through `ProgressBroadcaster` into the Console drawer (`:playback` filter) and the systemd journal for post-mortem inspection.
 

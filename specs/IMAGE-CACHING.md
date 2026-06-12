@@ -6,7 +6,7 @@ This document specifies how artwork images are stored, referenced, and loaded in
 
 ## Hard Rules
 
-1. **Images are served over HTTP at `/media-images/*`.** The LiveView UI uses `<img>` tags pointing to this endpoint. The backend resolves the image path across all configured watch directories.
+1. **Images are served over HTTP at `/media-images/*`.** The LiveView UI uses `<img>` tags pointing to this endpoint. The backend resolves the image path across all configured media directories.
 2. **The database stores relative paths.** `contentUrl` is stored as `{uuid}/{role}.{ext}`. The serializer resolves to absolute filesystem paths when needed.
 
 ---
@@ -62,7 +62,7 @@ Key fields for image caching:
 
 ## Directory Structure
 
-Each watch directory has its own image cache. By default, images are stored at `{watch_dir}/.media-centaur/images/`. Users can override this per watch directory from the UI — **Settings → Library → Watch Directories** exposes an advanced *images directory* field on each entry for putting the artwork cache on a separate volume (e.g. SSD). Watch directories are DB-managed since v0.14.0; the TOML is not consulted for them.
+Each media directory has its own image cache. By default, images are stored at `{media_dir}/.media-centaur/images/`. Users can override this per media directory from the UI — **Settings → Library → Media Directories** exposes an advanced *images directory* field on each entry for putting the artwork cache on a separate volume (e.g. SSD). Media directories are DB-managed since v0.14.0; the TOML is not consulted for them.
 
 ```
 /mnt/videos/.media-centaur/
@@ -121,7 +121,7 @@ No caller writes an HTTP download inline. Resize targets per role are defined in
 
 - Query external APIs to get image URLs
 - Create `ImageObject` entries with `url` populated (remote TMDB URL) and `contentUrl: null`
-- Download images to `{images_dir}/{uuid}/{role}.{ext}`, where `images_dir` is resolved per watch directory via `Config.images_dir_for/1`
+- Download images to `{images_dir}/{uuid}/{role}.{ext}`, where `images_dir` is resolved per media directory via `Config.images_dir_for/1`
 - Update `contentUrl` in the `ImageObject` entry with the local path after successful download
 - Never overwrite a locally modified image without user confirmation
 - Serve images over HTTP at `/media-images/*` (see [HTTP Endpoint](#http-endpoint) below)
@@ -139,7 +139,7 @@ The backend serves images over HTTP at `/media-images/*` via `ImageServerPlug`. 
 
 **Request:** `GET /media-images/{uuid}/{role}.{ext}` (e.g. `/media-images/550e8400-.../poster.jpg`)
 
-The plug searches all configured watch directories' image caches for the requested file and returns the first match. Returns 404 if the file is not found in any cache. Path traversal (`..`) is rejected with 400.
+The plug searches all configured media directories' image caches for the requested file and returns the first match. Returns 404 if the file is not found in any cache. Path traversal (`..`) is rejected with 400.
 
 ---
 

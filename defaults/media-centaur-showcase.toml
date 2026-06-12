@@ -9,7 +9,7 @@
 #   MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix seed.showcase
 #   MEDIA_CENTAUR_CONFIG_OVERRIDE=defaults/media-centaur-showcase.toml mix phx.server
 #
-# Everything the showcase needs (DB, image cache, fake watch dir) lives
+# Everything the showcase needs (DB, image cache, fake media dir) lives
 # under priv/showcase/, which is git-ignored — a `rm -rf priv/showcase/`
 # resets the demo cleanly.
 
@@ -21,7 +21,7 @@ port = 4003
 # the demo setup is fully contained and git-clean-able.
 database_path = "priv/showcase/media-centaur.db"
 
-watch_dirs = [
+media_dirs = [
   { dir = "priv/showcase/media", images_dir = "priv/showcase/images" }
 ]
 

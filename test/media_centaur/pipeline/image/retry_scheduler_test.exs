@@ -4,7 +4,7 @@ defmodule MediaCentaur.Pipeline.Image.RetrySchedulerTest do
   alias MediaCentaur.Pipeline.Image.RetryScheduler
   alias MediaCentaur.Pipeline.ImageQueue
 
-  @watch_directory "/tmp/retry_test"
+  @media_directory "/tmp/retry_test"
 
   describe "tick processing" do
     test "marks entries as permanent when retry_count exceeds max" do
@@ -17,7 +17,7 @@ defmodule MediaCentaur.Pipeline.Image.RetrySchedulerTest do
           role: "poster",
           source_url: "https://image.tmdb.org/poster.jpg",
           entity_id: entity_id,
-          watch_dir: @watch_directory
+          media_dir: @media_directory
         })
 
       # Simulate 5 failures by marking as failed with incremented retry_count
@@ -48,7 +48,7 @@ defmodule MediaCentaur.Pipeline.Image.RetrySchedulerTest do
           role: "poster",
           source_url: "https://image.tmdb.org/poster.jpg",
           entity_id: entity_id,
-          watch_dir: @watch_directory
+          media_dir: @media_directory
         })
 
       # Mark as failed once (retry_count = 1)

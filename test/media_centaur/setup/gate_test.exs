@@ -16,13 +16,13 @@ defmodule MediaCentaur.Setup.GateTest do
   end
 
   describe "check/3 — non-testable steps gate on probe alone" do
-    test "watch_dirs :ok passes" do
-      assert :ok = Gate.check(:watch_dirs, %{status: :ok}, nil)
+    test "media_dirs :ok passes" do
+      assert :ok = Gate.check(:media_dirs, %{status: :ok}, nil)
     end
 
-    test "watch_dirs non-:ok blocks" do
-      assert {:blocked, :probe_not_ok} = Gate.check(:watch_dirs, %{status: :error}, nil)
-      assert {:blocked, :probe_not_ok} = Gate.check(:watch_dirs, %{status: :not_configured}, nil)
+    test "media_dirs non-:ok blocks" do
+      assert {:blocked, :probe_not_ok} = Gate.check(:media_dirs, %{status: :error}, nil)
+      assert {:blocked, :probe_not_ok} = Gate.check(:media_dirs, %{status: :not_configured}, nil)
     end
 
     test "mpv :ok passes without any health record" do

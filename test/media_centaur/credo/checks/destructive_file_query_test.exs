@@ -4,7 +4,7 @@ defmodule MediaCentaur.Credo.Checks.DestructiveFileQueryTest do
   alias MediaCentaur.Credo.Checks.DestructiveFileQuery
 
   describe "flags destructive queries on file-presence tables (positive cases)" do
-    test "Repo.delete_all on FilePresence without :watch_dir filter" do
+    test "Repo.delete_all on FilePresence without :media_dir filter" do
       ~S'''
       defmodule Naive do
         import Ecto.Query
@@ -19,7 +19,7 @@ defmodule MediaCentaur.Credo.Checks.DestructiveFileQueryTest do
       |> assert_issue()
     end
 
-    test "Repo.delete_all on WatchedFile without :watch_dir filter" do
+    test "Repo.delete_all on WatchedFile without :media_dir filter" do
       ~S'''
       defmodule Naive do
         import Ecto.Query
@@ -51,7 +51,7 @@ defmodule MediaCentaur.Credo.Checks.DestructiveFileQueryTest do
       |> assert_issue()
     end
 
-    test "Repo.delete_all on ExtraFile without :watch_dir filter" do
+    test "Repo.delete_all on ExtraFile without :media_dir filter" do
       ~S'''
       defmodule Naive do
         import Ecto.Query
@@ -68,7 +68,7 @@ defmodule MediaCentaur.Credo.Checks.DestructiveFileQueryTest do
   end
 
   describe "allows destructive queries with availability filter (negative cases)" do
-    test "FilePresence delete with :watch_dir in available_dirs is allowed" do
+    test "FilePresence delete with :media_dir in available_dirs is allowed" do
       ~S'''
       defmodule Safe do
         import Ecto.Query
@@ -76,7 +76,7 @@ defmodule MediaCentaur.Credo.Checks.DestructiveFileQueryTest do
         def purge(available) do
           Repo.delete_all(
             from(p in FilePresence,
-              where: p.last_seen_at < ^cutoff and p.watch_dir in ^available
+              where: p.last_seen_at < ^cutoff and p.media_dir in ^available
             )
           )
         end
@@ -87,13 +87,13 @@ defmodule MediaCentaur.Credo.Checks.DestructiveFileQueryTest do
       |> refute_issues()
     end
 
-    test "WatchedFile delete that joins on :watch_dir is allowed" do
+    test "WatchedFile delete that joins on :media_dir is allowed" do
       ~S'''
       defmodule Safe do
         import Ecto.Query
 
         def purge(dir) do
-          Repo.delete_all(from(w in WatchedFile, where: w.watch_dir == ^dir))
+          Repo.delete_all(from(w in WatchedFile, where: w.media_dir == ^dir))
         end
       end
       '''

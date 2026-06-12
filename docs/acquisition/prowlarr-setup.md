@@ -4,7 +4,7 @@ This guide has moved to the wiki: **[Prowlarr Integration](https://github.com/me
 
 That page covers:
 
-- The architecture (Media Centaur → Prowlarr → download client → watch directory → Media Centaur).
+- The architecture (Media Centaur → Prowlarr → download client → media directory → Media Centaur).
 - Installing Prowlarr (Docker Compose + system package).
 - Configuring indexers and a download client inside Prowlarr.
 - Connecting Media Centaur to Prowlarr.

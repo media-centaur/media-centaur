@@ -1,6 +1,6 @@
-defmodule MediaCentaurWeb.SettingsLive.WatchDirsLogic do
+defmodule MediaCentaurWeb.SettingsLive.MediaDirsLogic do
   @moduledoc """
-  Pure helpers for the Settings watch-dirs card and dialog.
+  Pure helpers for the Settings media-dirs card and dialog.
 
   ADR-030: keep LiveView logic small by extracting reusable transformations
   and text formatting into this pure module. Tested with `async: true`.
@@ -57,7 +57,7 @@ defmodule MediaCentaurWeb.SettingsLive.WatchDirsLogic do
     Path.join(dir, ".media-centaur/images")
   end
 
-  def default_images_dir_hint(_), do: "<watch dir>/.media-centaur/images"
+  def default_images_dir_hint(_), do: "<media dir>/.media-centaur/images"
 
   @spec saveable?(map()) :: boolean()
   def saveable?(%{errors: errors}), do: errors == []

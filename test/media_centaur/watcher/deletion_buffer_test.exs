@@ -12,7 +12,7 @@ defmodule MediaCentaur.Watcher.DeletionBufferTest do
   end
 
   describe "add/3" do
-    test "records a path/watch_dir pair" do
+    test "records a path/media_dir pair" do
       buffer = DeletionBuffer.add(DeletionBuffer.new(), "/media/movies/a.mkv", "/media/movies")
 
       refute DeletionBuffer.empty?(buffer)

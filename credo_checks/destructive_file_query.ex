@@ -7,7 +7,7 @@ defmodule MediaCentaur.Credo.Checks.DestructiveFileQuery do
       check: """
       Static guard against the durability bug class that motivated
       `MediaCentaur.Library.AbsenceSweeper`: a `Repo.delete_all` on a
-      file-presence-tracking table that doesn't filter on `:watch_dir`
+      file-presence-tracking table that doesn't filter on `:media_dir`
       can silently destroy data for a drive that's currently
       unmounted (file marked absent because we can't see it, not
       because it's gone — destroying it cascades through
@@ -16,11 +16,11 @@ defmodule MediaCentaur.Credo.Checks.DestructiveFileQuery do
 
       This check flags `Repo.delete_all(from(x in <Schema>, ...))`
       where `<Schema>` is `FilePresence`, `WatchedFile`, or `ExtraFile`
-      and the query AST contains no reference to `:watch_dir`. The
+      and the query AST contains no reference to `:media_dir`. The
       intent is to force the destructive author to either:
 
-        1. Add an availability filter — usually `where: x.watch_dir
-           in ^MediaCentaur.Library.AbsenceSweeper.available_watch_dirs()`,
+        1. Add an availability filter — usually `where: x.media_dir
+           in ^MediaCentaur.Library.AbsenceSweeper.available_media_dirs()`,
            or
         2. Add an explicit override comment that documents *why* the
            destructive op is safe without one (e.g. operator action,
@@ -72,7 +72,7 @@ defmodule MediaCentaur.Credo.Checks.DestructiveFileQuery do
   defp maybe_issue(query_ast, meta, issues, issue_meta) do
     case classify_query(query_ast) do
       {:target, schema} ->
-        if mentions_watch_dir?(query_ast) do
+        if mentions_media_dir?(query_ast) do
           issues
         else
           [issue_for(issue_meta, "Repo.delete_all on #{schema}", meta[:line]) | issues]
@@ -95,14 +95,14 @@ defmodule MediaCentaur.Credo.Checks.DestructiveFileQuery do
 
   defp classify_query(_other), do: :other
 
-  # Walk the AST looking for any `:watch_dir` atom — covers
-  # `where: x.watch_dir in ...` (`{:watch_dir, _, _}` access) as well
+  # Walk the AST looking for any `:media_dir` atom — covers
+  # `where: x.media_dir in ...` (`{:media_dir, _, _}` access) as well
   # as map keys, atom literals, and Keyword entries.
-  defp mentions_watch_dir?(ast) do
+  defp mentions_media_dir?(ast) do
     {_ast, found?} =
       Macro.prewalk(ast, false, fn
-        :watch_dir, _acc -> {:watch_dir, true}
-        {:watch_dir, _, _} = node, _acc -> {node, true}
+        :media_dir, _acc -> {:media_dir, true}
+        {:media_dir, _, _} = node, _acc -> {node, true}
         node, acc -> {node, acc}
       end)
 
@@ -113,9 +113,9 @@ defmodule MediaCentaur.Credo.Checks.DestructiveFileQuery do
     format_issue(
       issue_meta,
       message:
-        "Destructive query on a file-presence table without a `:watch_dir` filter — " <>
+        "Destructive query on a file-presence table without a `:media_dir` filter — " <>
           "this is the bug class `MediaCentaur.Watcher.AbsencePolicy` exists to prevent. " <>
-          "Add a `where: ... in ^AbsencePolicy.available_watch_dirs()` clause, or add an " <>
+          "Add a `where: ... in ^AbsencePolicy.available_media_dirs()` clause, or add an " <>
           "explicit override comment documenting why this destructive op is safe without one.",
       trigger: trigger,
       line_no: line_no || 0

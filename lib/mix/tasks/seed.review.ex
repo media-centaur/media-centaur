@@ -49,7 +49,7 @@ defmodule Mix.Tasks.Seed.Review do
       # Single-file — No TMDB results (movie)
       %{
         file_path: "/media/movies/Obscure.Indie.Film.2024.mkv",
-        watch_directory: "/media/movies",
+        media_directory: "/media/movies",
         parsed_title: "Obscure Indie Film",
         parsed_year: 2024,
         parsed_type: "movie",
@@ -61,7 +61,7 @@ defmodule Mix.Tasks.Seed.Review do
       # Single-file — Low confidence (movie)
       %{
         file_path: "/media/movies/Sample Movie Twelve.2022.1080p.BluRay.mkv",
-        watch_directory: "/media/movies",
+        media_directory: "/media/movies",
         parsed_title: "Sample Movie Twelve",
         parsed_year: 2022,
         parsed_type: "movie",
@@ -75,7 +75,7 @@ defmodule Mix.Tasks.Seed.Review do
       # Single-file — Tied candidates (movie)
       %{
         file_path: "/media/movies/Sample.Movie.Eleven.1986.mkv",
-        watch_directory: "/media/movies",
+        media_directory: "/media/movies",
         parsed_title: "Sample Movie Eleven",
         parsed_year: nil,
         parsed_type: "movie",
@@ -102,7 +102,7 @@ defmodule Mix.Tasks.Seed.Review do
       # Multi-file group — TV series, Episode 1: low confidence
       %{
         file_path: "/media/tv/SampleShow (2001)/Season 1/SampleShow.S01E01.mkv",
-        watch_directory: "/media/tv",
+        media_directory: "/media/tv",
         parsed_title: "SampleShow",
         parsed_year: 2001,
         parsed_type: "tv",
@@ -118,7 +118,7 @@ defmodule Mix.Tasks.Seed.Review do
       # Multi-file group — TV series, Episode 2: no results
       %{
         file_path: "/media/tv/SampleShow (2001)/Season 1/SampleShow.S01E02.mkv",
-        watch_directory: "/media/tv",
+        media_directory: "/media/tv",
         parsed_title: "SampleShow",
         parsed_year: 2001,
         parsed_type: "tv",
@@ -132,7 +132,7 @@ defmodule Mix.Tasks.Seed.Review do
       # Multi-file group — TV series, Episode 3: tied candidates
       %{
         file_path: "/media/tv/SampleShow (2001)/Season 1/SampleShow.S01E03.mkv",
-        watch_directory: "/media/tv",
+        media_directory: "/media/tv",
         parsed_title: "SampleShow",
         parsed_year: 2001,
         parsed_type: "tv",
@@ -161,7 +161,7 @@ defmodule Mix.Tasks.Seed.Review do
       # Multi-file group — TV series, Episode 4: below threshold
       %{
         file_path: "/media/tv/SampleShow (2001)/Season 1/SampleShow.S01E04.mkv",
-        watch_directory: "/media/tv",
+        media_directory: "/media/tv",
         parsed_title: "SampleShow",
         parsed_year: 2001,
         parsed_type: "tv",
@@ -177,7 +177,7 @@ defmodule Mix.Tasks.Seed.Review do
       # Single-file — Low confidence TV episode (standalone)
       %{
         file_path: "/media/tv/Sample.Other.Show (2002)/Season 1/Sample.Other.Show.S01E01.mkv",
-        watch_directory: "/media/tv",
+        media_directory: "/media/tv",
         parsed_title: "Other Sample Show",
         parsed_year: 2002,
         parsed_type: "tv",
@@ -193,7 +193,7 @@ defmodule Mix.Tasks.Seed.Review do
       # Single-file — Very low confidence (garbled release name)
       %{
         file_path: "/media/movies/x264-SPARKS.mkv",
-        watch_directory: "/media/movies",
+        media_directory: "/media/movies",
         parsed_title: "x264",
         parsed_type: nil,
         tmdb_id: 728_837,

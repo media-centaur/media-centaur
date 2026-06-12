@@ -8,7 +8,7 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
     original = :persistent_term.get({Config, :config})
 
     on_exit(fn ->
-      :ok = Config.put_watch_dirs([])
+      :ok = Config.put_media_dirs([])
       :persistent_term.put({Config, :config}, original)
     end)
 
@@ -24,7 +24,7 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
     on_exit(fn -> File.rm_rf!(tmp) end)
 
     :ok =
-      Config.put_watch_dirs([
+      Config.put_media_dirs([
         %{"id" => "u1", "dir" => tmp, "images_dir" => nil, "name" => nil}
       ])
 
@@ -32,7 +32,7 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
     [{pid1, _}] = Registry.lookup(MediaCentaur.Watcher.Registry, tmp)
 
     :ok =
-      Config.put_watch_dirs([
+      Config.put_media_dirs([
         %{"id" => "u1", "dir" => tmp, "images_dir" => nil, "name" => "Movies"}
       ])
 
@@ -42,14 +42,14 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
     assert pid1 == pid2, "name-only change should not restart the watcher"
   end
 
-  test "put_watch_dirs triggers reconcile that starts and stops watchers" do
+  test "put_media_dirs triggers reconcile that starts and stops watchers" do
     tmp = Path.join(System.tmp_dir!(), "watcher-reconcile-test-#{System.unique_integer([:positive])}")
 
     File.mkdir_p!(tmp)
     on_exit(fn -> File.rm_rf!(tmp) end)
 
     :ok =
-      Config.put_watch_dirs([
+      Config.put_media_dirs([
         %{"id" => "t1", "dir" => tmp, "images_dir" => nil, "name" => nil}
       ])
 
@@ -58,7 +58,7 @@ defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
     dirs = Enum.map(WatcherSup.statuses(), & &1.dir)
     assert tmp in dirs
 
-    :ok = Config.put_watch_dirs([])
+    :ok = Config.put_media_dirs([])
     ConfigListener.__sync_for_test__()
 
     refute tmp in Enum.map(WatcherSup.statuses(), & &1.dir)

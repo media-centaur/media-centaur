@@ -9,7 +9,7 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
 
   A `FilePresence` row whose `last_seen_at` is older than the
   configured TTL (`:file_absence_ttl_days`, default 30) AND whose
-  `watch_dir` is currently `:watching` / `:initializing` per
+  `media_dir` is currently `:watching` / `:initializing` per
   `MediaCentaur.WatcherStatus.statuses/0` is a deletion candidate.
   The two conditions together encode ADR-045's durability
   invariant: a file on an offline drive is *unverifiable*, not
@@ -25,7 +25,7 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
 
   ## Remount fairness
 
-  When a watch dir transitions back to `:available`, every
+  When a media dir transitions back to `:available`, every
   `FilePresence` row in that dir gets `last_seen_at` reset to
   `now()`. The watcher's first scan after remount re-stamps
   present files (no-op refresh — same timestamp), so the reset
@@ -37,7 +37,7 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
   `purge_expired/1` takes the available-dirs list as a parameter
   so tests drive the policy directly without GenServer round-trips
   (ADR-026). The `:ttl_check` handler calls
-  `purge_expired(available_watch_dirs())` to use live watcher
+  `purge_expired(available_media_dirs())` to use live watcher
   state.
   """
   use GenServer
@@ -57,7 +57,7 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
   # --- Public read API ---
 
   @doc """
-  Per-watch-dir summary of files at risk of TTL purge, regardless
+  Per-media-dir summary of files at risk of TTL purge, regardless
   of whether the dir is currently available. Used by the status
   page to render an "at-risk" callout for unavailable dirs.
 
@@ -69,13 +69,13 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
   defdelegate at_risk_summary, to: FilePresence
 
   @doc """
-  Returns the list of watch dirs currently in `:watching` or
+  Returns the list of media dirs currently in `:watching` or
   `:initializing` state — the only dirs whose files may be
   considered for TTL purge. Public so tests can compose the
   policy decision.
   """
-  @spec available_watch_dirs() :: [String.t()]
-  def available_watch_dirs do
+  @spec available_media_dirs() :: [String.t()]
+  def available_media_dirs do
     for %{dir: dir, state: state} <- MediaCentaur.WatcherStatus.statuses(),
         state in [:watching, :initializing],
         do: dir
@@ -84,7 +84,7 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
   @doc """
   Runs the TTL purge against the supplied set of available watch
   dirs. The destructive query — by construction — only touches
-  files whose `watch_dir` appears in `available_dirs`, so a file
+  files whose `media_dir` appears in `available_dirs`, so a file
   whose drive is unavailable can never be destroyed.
 
   Returns `{count, paths}` for the rows deleted. Emits the
@@ -161,12 +161,12 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
 
   @impl true
   def handle_continue(:initial_ttl_check, state) do
-    purge_expired(available_watch_dirs())
+    purge_expired(available_media_dirs())
     {:noreply, state}
   end
 
   @impl true
-  def handle_info({:dir_state_changed, dir, :watch_dir, :available}, state) do
+  def handle_info({:dir_state_changed, dir, :media_dir, :available}, state) do
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
       case FilePresence.reset_last_seen_for_dir(dir) do
         0 -> :ok
@@ -186,7 +186,7 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
   end
 
   def handle_info(:ttl_check, state) do
-    purge_expired(available_watch_dirs())
+    purge_expired(available_media_dirs())
     schedule_ttl_check()
     {:noreply, state}
   end
@@ -207,7 +207,7 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
 
     MediaCentaur.Repo.all(
       from(p in FilePresence,
-        where: p.last_seen_at < ^cutoff and p.watch_dir in ^available_dirs,
+        where: p.last_seen_at < ^cutoff and p.media_dir in ^available_dirs,
         select: p.file_path
       )
     )
