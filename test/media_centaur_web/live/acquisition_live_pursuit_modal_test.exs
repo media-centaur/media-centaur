@@ -91,6 +91,63 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
       assert html =~ "Pursuit not found"
     end
 
+    test "unit board rolls multi-season units into collapsible season groups", %{conn: conn} do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          state: "active",
+          title: "Sample Show",
+          status: "seeking",
+          tmdb_type: "tv",
+          tmdb_id: "55555"
+        })
+
+      # Make the factory's single unit S01E01 (satisfied), then grow a
+      # multi-season composite: season 1 homogeneous (collapses by
+      # default), season 2 containing an exhausted unit (expands by
+      # default).
+      season_one_unit =
+        Units.single!(pursuit.id)
+        |> Ecto.Changeset.change(
+          season_number: 1,
+          episode_number: 1,
+          label: "Sample Show S01E01",
+          state: "satisfied"
+        )
+        |> Repo.update!()
+
+      create_pursuit_unit(pursuit, %{
+        season_number: 1,
+        episode_number: 2,
+        label: "Sample Show S01E02",
+        state: "satisfied"
+      })
+
+      season_two_unit =
+        create_pursuit_unit(pursuit, %{
+          season_number: 2,
+          episode_number: 1,
+          label: "Sample Show S02E01",
+          state: "exhausted"
+        })
+
+      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
+
+      # Both season headers render; the homogeneous season 1 is
+      # collapsed (rows out of the DOM), the exceptional season 2 is
+      # expanded by default.
+      assert has_element?(view, "#unit-board-season-1")
+      assert has_element?(view, "#unit-board-season-2")
+      refute has_element?(view, "#unit-board-row-#{season_one_unit.id}")
+      assert has_element?(view, "#unit-board-row-#{season_two_unit.id}")
+
+      # Toggling season 1 reveals its rows; toggling again hides them.
+      view |> element("#unit-board-season-1") |> render_click()
+      assert has_element?(view, "#unit-board-row-#{season_one_unit.id}")
+
+      view |> element("#unit-board-season-1") |> render_click()
+      refute has_element?(view, "#unit-board-row-#{season_one_unit.id}")
+    end
+
     test "clicking a pursuit-group header expands the per-episode rows", %{conn: conn} do
       # Regression: Phase 3 of pursuits-maturation re-keyed group buckets
       # on `{title, state, awaiting?}` (so awaiting-decision pursuits

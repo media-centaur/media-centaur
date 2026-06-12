@@ -46,6 +46,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
     doc:
       "%UnitBoard{} | nil — per-unit drill-down for composite pursuits (ADR-055). Renders nothing for single-unit pursuits."
 
+  attr :board_expanded_seasons, MapSet,
+    default: nil,
+    doc: "Expanded season-group keys for the unit board. Nil = each group's exception-driven default."
+
+  attr :on_toggle_season, :string,
+    default: "toggle_board_season",
+    doc: "Season-header toggle event for the unit board's roll-up."
+
   attr :not_found?, :boolean, default: false
 
   attr :on_close, :string, default: "close_pursuit"
@@ -95,7 +103,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
             <PursuitHeader.pursuit_header vm={@header} />
 
             <div class="px-6 space-y-4">
-              <UnitBoard.unit_board vm={@unit_board} on_change_target={@on_change_target} />
+              <UnitBoard.unit_board
+                vm={@unit_board}
+                expanded_seasons={@board_expanded_seasons}
+                on_toggle_season={@on_toggle_season}
+                on_change_target={@on_change_target}
+              />
 
               <%!-- Activity hides when the pursuit is awaiting a decision
                   (decision_card present). In that case the Decision

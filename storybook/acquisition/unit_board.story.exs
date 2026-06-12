@@ -24,6 +24,91 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.UnitBoard do
   def variations do
     [
       %Variation{
+        id: :season_groups,
+        description:
+          "A multi-season series rolls units up into collapsible season groups — headers carry the aggregate and the shared covering release, so collapsed is the informative state. Season 2 starts expanded (it contains exceptions); the all-satisfied Season 1 starts collapsed.",
+        attributes: %{
+          vm: %UnitBoard{
+            pursuit_id: "story-board-5",
+            wanted: 6,
+            satisfied: 4,
+            units: [],
+            groups: [
+              %UnitBoard.Group{
+                key: "1",
+                season_number: 1,
+                label: "Season 1",
+                wanted: 3,
+                satisfied: 3,
+                awaiting: 0,
+                exhausted: 0,
+                shared_release_title: "Sample.Show.S01.1080p.WEB-DL",
+                expanded_default?: false,
+                rows: [
+                  %UnitBoard.Row{
+                    id: "u-10",
+                    label: "Sample Show S01E01",
+                    season_number: 1,
+                    state: :satisfied,
+                    release_title: "Sample.Show.S01.1080p.WEB-DL"
+                  },
+                  %UnitBoard.Row{
+                    id: "u-11",
+                    label: "Sample Show S01E02",
+                    season_number: 1,
+                    state: :satisfied,
+                    release_title: "Sample.Show.S01.1080p.WEB-DL"
+                  },
+                  %UnitBoard.Row{
+                    id: "u-12",
+                    label: "Sample Show S01E03",
+                    season_number: 1,
+                    state: :satisfied,
+                    release_title: "Sample.Show.S01.1080p.WEB-DL"
+                  }
+                ]
+              },
+              %UnitBoard.Group{
+                key: "2",
+                season_number: 2,
+                label: "Season 2",
+                wanted: 3,
+                satisfied: 1,
+                awaiting: 1,
+                exhausted: 1,
+                shared_release_title: nil,
+                expanded_default?: true,
+                rows: [
+                  %UnitBoard.Row{
+                    id: "u-13",
+                    label: "Sample Show S02E01",
+                    season_number: 2,
+                    state: :satisfied,
+                    release_title: "Sample.Show.S02E01.1080p.WEB-DL"
+                  },
+                  %UnitBoard.Row{
+                    id: "u-14",
+                    label: "Sample Show S02E02",
+                    season_number: 2,
+                    state: :active,
+                    awaiting_decision?: true
+                  },
+                  %UnitBoard.Row{
+                    id: "u-15",
+                    label: "Sample Show S02E03",
+                    season_number: 2,
+                    state: :exhausted
+                  }
+                ]
+              }
+            ]
+          },
+          expanded_seasons: nil,
+          on_toggle_season: "toggle_board_season",
+          on_change_target: "change_target"
+        }
+      },
+      %Variation{
         id: :mid_flight,
         description:
           "A collapsed brace-expansion mid-flight — landed, downloading, awaiting a decision, and failed units side by side.",
