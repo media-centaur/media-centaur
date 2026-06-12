@@ -578,12 +578,18 @@ defmodule MediaCentaurWeb.StatusLive do
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
     >
       <:overlays>
+        <%!-- Persistent, form-heavy wizard — deliberately NOT a
+              data-detail-mode context (BACK must not dismiss it).
+              data-captures-keys keeps every key inside it (textarea,
+              wizard buttons) away from the nav system; see the
+              unmanaged-overlay note in core/dom_adapter.js. --%>
         <.modal
           :if={@show_report_modal}
           id="error-report-modal"
           open
           dismiss={:persistent}
           data-testid="report-modal"
+          data-captures-keys
           panel_class="flex flex-col max-h-[88vh]"
         >
           <.live_component
@@ -598,7 +604,7 @@ defmodule MediaCentaurWeb.StatusLive do
         <IssueView.issue_view bucket={@selected_incident} />
       </:overlays>
       <div data-page-behavior="status" data-nav-default-zone="status" class="space-y-6">
-        <div class="flex items-center gap-3">
+        <div data-nav-zone="toolbar" class="flex items-center gap-3">
           <h1 class="text-2xl font-bold">Status</h1>
           <div class="flex-1"></div>
           <.button
@@ -606,14 +612,19 @@ defmodule MediaCentaurWeb.StatusLive do
             size="sm"
             data-testid="report-a-problem"
             phx-click="open_generic_report"
+            data-nav-item
+            tabindex="0"
           >
             Report a problem
           </.button>
         </div>
 
         <div class="space-y-7">
+          <%!-- The tile board is the page's GRID context (spatial nav reads
+                the container's computed columns), so the zone name is the
+                framework's literal `grid`. --%>
           <div
-            data-nav-zone="health-board"
+            data-nav-zone="grid"
             class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
           >
             <.subsystem_tile

@@ -22,6 +22,8 @@ export const inputConfig = {
     [Context.ZONE_TABS]: "[data-nav-zone='zone-tabs'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
     "review-detail": "[data-nav-zone='review-detail'] [data-nav-item]",
+    // Status page subsystem drill-in (vertical rail: close, incidents, logs)
+    "drill-in": "[data-nav-zone='drill-in'] [data-nav-item]",
     // Home page shelves (horizontal media rows stacked vertically)
     hero: "[data-nav-zone='hero'] [data-nav-item]",
     continue: "[data-nav-zone='continue'] [data-nav-item]",
@@ -42,6 +44,7 @@ export const inputConfig = {
     upcoming: Context.MENU,
     "review-list": Context.MENU,
     "review-detail": Context.MENU,
+    "drill-in": Context.MENU,
     // Home shelves behave as horizontal lists with a vertical nav graph
     hero: Context.SHELF,
     continue: Context.SHELF,
@@ -80,9 +83,14 @@ export const inputConfig = {
       grid:      { left: ["sections"] },
       sidebar:   { right: ["sections", "grid"] },
     },
+    // Status: toolbar (Report a problem) over the subsystem tile grid
+    // (spatial GRID nav), with the conditional drill-in panel below —
+    // skipped via candidate lists while no subsystem is selected.
     status: {
-      sections:  { left: ["sidebar"] },
-      sidebar:   { right: ["sections"] },
+      toolbar:    { down: ["grid"], left: ["sidebar"] },
+      grid:       { up: ["toolbar"], down: ["drill-in"], left: ["sidebar"] },
+      "drill-in": { up: ["grid"], left: ["sidebar"] },
+      sidebar:    { right: ["grid", "toolbar"] },
     },
     review: {
       "review-list":   { right: ["review-detail"], left: ["sidebar"] },
@@ -127,7 +135,7 @@ export const inputConfig = {
     library:   ["grid", "toolbar", "sidebar"],
     upcoming:  ["upcoming", "grid", "zone_tabs", "sidebar"],
     settings:  ["sections", "grid", "sidebar"],
-    status:    ["sections", "sidebar"],
+    status:    ["grid", "toolbar", "sidebar"],
     review:    ["review-list", "review-detail", "sidebar"],
     download:  ["pursuits", "omnibox", "sidebar"],
     watch_history: ["toolbar", "grid", "sidebar"],

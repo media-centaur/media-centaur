@@ -31,7 +31,7 @@ import { withWipNotice } from "./wip_notice"
 // in-page navigation is finished.
 const BEHAVIOR_REGISTRY = {
   home: () => createHomeBehavior(homeDom),
-  status: () => withWipNotice(createStatusBehavior()),
+  status: () => createStatusBehavior(),
   library: () => createLibraryBehavior(libraryDom),
   review: () => createReviewBehavior(),
   settings: () => createSettingsBehavior(),
