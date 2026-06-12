@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.90.7 — 2026-06-12
+
+### Fixed
+
+- **The library's "On disk" size is now accurate.** Files added before recent versions were missing their recorded size, so the Status page could report a fraction of your library's true footprint. Library scans now fill in the missing sizes automatically — the figure corrects itself on the first scan after updating.
+
 ## v0.90.6 — 2026-06-12
 
 ### Improved
