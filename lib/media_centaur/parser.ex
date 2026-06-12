@@ -20,6 +20,7 @@ defmodule MediaCentaur.Parser do
       Show Name - S01E05 - Episode Title.mkv
       Show.Name.S01E05-06.mkv                 # multi-episode (treat as first episode)
       /Show Name/Season 1/S01E05 - Title.mkv  # directory hints used
+      /Show Season 1 PACK/Show - Episode 05 - Title.mkv  # season from ancestor directory
 
   ## Decision Tree
 
@@ -110,6 +111,11 @@ defmodule MediaCentaur.Parser do
   # Spelled-out "Season N Episode N" pattern — e.g. "Show (2022) Season 5 Episode 1- Title"
   @tv_spelled_pattern ~r/^(.+?)\s*Season\s+(\d+)\s*Episode\s+(\d+)[.\s_-]*(.+)?$/i
 
+  # Spelled-out "Episode N" with no season in the filename — e.g.
+  # "Show Name - Episode 01 - Title". Only classifies as TV when an ancestor
+  # directory supplies the season (see parse_episode_word/2).
+  @tv_episode_word_pattern ~r/^(.+?)[.\s_-]+Episode[.\s_]+(\d{1,3})(?:[.\s_-]+(.+?))?$/i
+
   # Season-only pack pattern (no episode number)
   @season_pack_pattern ~r/^(.+?)[.\s_-]*[Ss](\d{1,2})[.\s_-]/i
 
@@ -149,6 +155,9 @@ defmodule MediaCentaur.Parser do
 
           match = Regex.run(@tv_spelled_pattern, candidate, capture: :all_but_first) ->
             parse_tv(file_path, candidate, match)
+
+          result = parse_episode_word(file_path, candidate) ->
+            result
 
           match = Regex.run(@season_pack_pattern, candidate, capture: :all_but_first) ->
             parse_season_pack(file_path, match)
@@ -559,6 +568,42 @@ defmodule MediaCentaur.Parser do
       |> title_case()
 
     if cleaned != "", do: cleaned
+  end
+
+  # ---------------------------------------------------------------------------
+  # "Episode NN" word marker (no SxxExx in the filename)
+  # Only matches when an ancestor directory supplies the season — a bare
+  # "Show - Episode 3" with no season context stays on the fallback path.
+  # ---------------------------------------------------------------------------
+
+  defp parse_episode_word(file_path, candidate) do
+    with [raw_title, raw_episode | rest] <-
+           Regex.run(@tv_episode_word_pattern, candidate, capture: :all_but_first),
+         season when is_integer(season) <- season_from_ancestors(file_path) do
+      raw_episode_title = List.first(rest)
+
+      %Result{
+        file_path: file_path,
+        title: extract_tv_title(raw_title, file_path),
+        year: extract_year_from_tv_title(raw_title) || extract_year_from_ancestors(file_path),
+        type: :tv,
+        season: season,
+        episode: String.to_integer(raw_episode),
+        episode_title: extract_episode_title(raw_episode_title)
+      }
+    else
+      _ -> nil
+    end
+  end
+
+  defp season_from_ancestors(file_path) do
+    parts = Path.split(file_path)
+    parent = parts |> Enum.drop(-1) |> List.last()
+    grandparent = parts |> Enum.drop(-2) |> List.last()
+
+    Enum.find_value([parent, grandparent], fn dir ->
+      dir && (extract_season_number(dir) || extract_embedded_season(dir))
+    end)
   end
 
   # ---------------------------------------------------------------------------
