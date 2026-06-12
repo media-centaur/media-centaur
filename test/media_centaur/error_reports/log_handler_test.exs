@@ -134,6 +134,44 @@ defmodule MediaCentaur.ErrorReports.LogHandlerTest do
     assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, skipped).key) == nil
   end
 
+  test "Bandit HTTP read timeouts are not minted as :log incidents (client stalled)" do
+    # Bandit raises %Bandit.HTTPError{plug_status: :request_timeout} when the
+    # client opens a connection and then stops sending — the HTTP-layer twin of
+    # the TransportError :timeout above. Same family, same exclusion.
+    skipped = "** (Bandit.HTTPError) Read timeout #{uniq()}"
+    sentinel = "ordinary system error #{uniq()}"
+
+    LogHandler.log(
+      crash_event(
+        :error,
+        skipped,
+        {%Bandit.HTTPError{message: "Read timeout", plug_status: :request_timeout}, []}
+      ),
+      config()
+    )
+
+    LogHandler.log(event(:error, sentinel, %{component: :system}), config())
+
+    assert Buckets.get_bucket(:lh_buckets, Fingerprint.fingerprint(:system, sentinel).key)
+    assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, skipped).key) == nil
+  end
+
+  test "a non-timeout Bandit HTTP error still mints" do
+    minted = "** (Bandit.HTTPError) Header read HTTP error #{uniq()}"
+
+    LogHandler.log(
+      crash_event(
+        :error,
+        minted,
+        {%Bandit.HTTPError{message: "Header read HTTP error", plug_status: :bad_request}, []}
+      ),
+      config()
+    )
+
+    assert Buckets.get_bucket(:lh_buckets, Fingerprint.fingerprint(:system, minted).key)
+    assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, minted).key)
+  end
+
   test "an unusual transport reason still mints — we don't blind ourselves" do
     minted = "Unrecoverable error: emfile #{uniq()}"
 

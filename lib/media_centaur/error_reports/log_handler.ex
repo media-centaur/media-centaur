@@ -58,6 +58,14 @@ defmodule MediaCentaur.ErrorReports.LogHandler do
   defp transport_disconnect?(%{crash_reason: {%Bandit.TransportError{error: reason}, _stacktrace}})
        when reason in [:timeout, :closed], do: true
 
+  # The HTTP-layer twin: Bandit raises `%Bandit.HTTPError{plug_status:
+  # :request_timeout}` ("Read timeout") when a client opens a connection and
+  # then stalls mid-request. Same client-gone family as the transport timeout
+  # above. Other HTTPError statuses (e.g. `:bad_request`) still mint.
+  defp transport_disconnect?(%{
+         crash_reason: {%Bandit.HTTPError{plug_status: :request_timeout}, _stacktrace}
+       }), do: true
+
   defp transport_disconnect?(_meta), do: false
 
   # :logger handler lifecycle callbacks

@@ -78,11 +78,16 @@ defmodule MediaCentaurWeb.StatusHelpers do
 
   # Magnitude-aware: pick the largest unit that keeps the number readable, so a
   # sub-gigabyte value (e.g. an 8 MiB database) doesn't collapse to "0.0 GiB".
-  def format_bytes(bytes) when bytes >= @tib, do: "#{Float.round(bytes / @tib, 1)} TiB"
-  def format_bytes(bytes) when bytes >= @gib, do: "#{Float.round(bytes / @gib, 1)} GiB"
-  def format_bytes(bytes) when bytes >= @mib, do: "#{Float.round(bytes / @mib, 1)} MiB"
-  def format_bytes(bytes) when bytes >= @kib, do: "#{Float.round(bytes / @kib, 1)} KiB"
+  # Three significant digits: one decimal below 10 units (where the fraction
+  # carries real information), whole numbers above (where ".3" is noise).
+  def format_bytes(bytes) when bytes >= @tib, do: "#{scaled(bytes / @tib)} TiB"
+  def format_bytes(bytes) when bytes >= @gib, do: "#{scaled(bytes / @gib)} GiB"
+  def format_bytes(bytes) when bytes >= @mib, do: "#{scaled(bytes / @mib)} MiB"
+  def format_bytes(bytes) when bytes >= @kib, do: "#{scaled(bytes / @kib)} KiB"
   def format_bytes(bytes), do: "#{round(bytes)} B"
+
+  defp scaled(value) when value < 10, do: Float.round(value, 1)
+  defp scaled(value), do: round(value)
 
   # --- Pipeline Stage Display ---
 

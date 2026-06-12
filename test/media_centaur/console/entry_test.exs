@@ -149,4 +149,122 @@ defmodule MediaCentaur.Console.EntryTest do
       assert entry.message =~ "custom"
     end
   end
+
+  describe "from_log_event/3 — crash-frame component classification" do
+    # Crash logs are emitted by the framework (Bandit.Pipeline, proc_lib), so
+    # meta[:mfa] alone classifies every crash as :system. The stacktrace in
+    # meta[:crash_reason] names the code that actually raised — these tests pin
+    # that attribution.
+
+    test "request crash with an app web frame classifies by the owning subsystem" do
+      # The shape Bandit logs for a LiveView crash: mfa is Bandit's error
+      # handler, the app frame only appears in the crash_reason stacktrace.
+      meta = %{
+        mfa: {Bandit.Pipeline, :handle_error, 7},
+        crash_reason:
+          {%KeyError{key: :connectivity, term: %{}},
+           [
+             {MediaCentaurWeb.AcquisitionLive, :assign_queue_from_state, 2,
+              [file: ~c"lib/media_centaur_web/live/acquisition_live.ex", line: 100]},
+             {Phoenix.LiveView.Utils, :call_handle_params!, 5,
+              [file: ~c"lib/phoenix_live_view/utils.ex", line: 1]}
+           ]}
+      }
+
+      entry = Entry.from_log_event(:error, {:string, "** (KeyError) ..."}, meta)
+
+      assert entry.component == :acquisition
+    end
+
+    test "crash in a core context module classifies by that context" do
+      meta = %{
+        mfa: {Bandit.Pipeline, :handle_error, 7},
+        crash_reason:
+          {%RuntimeError{message: "boom"},
+           [
+             {MediaCentaur.Downloads.QueueMonitor, :poll, 1,
+              [file: ~c"lib/media_centaur/downloads/queue_monitor.ex", line: 10]}
+           ]}
+      }
+
+      entry = Entry.from_log_event(:error, {:string, "boom"}, meta)
+
+      assert entry.component == :acquisition
+    end
+
+    test "the first app-owned frame wins over later frames" do
+      meta = %{
+        crash_reason:
+          {%RuntimeError{message: "boom"},
+           [
+             {Enum, :map, 2, []},
+             {MediaCentaur.TMDB.Client, :get, 2, []},
+             {MediaCentaur.Library.Movies, :refresh, 1, []}
+           ]}
+      }
+
+      entry = Entry.from_log_event(:error, {:string, "boom"}, meta)
+
+      assert entry.component == :tmdb
+    end
+
+    test "crash with only framework frames stays :system" do
+      meta = %{
+        mfa: {Bandit.Pipeline, :handle_error, 7},
+        crash_reason:
+          {%Plug.Conn.WrapperError{},
+           [
+             {Plug.Conn, :send_resp, 1, []},
+             {Bandit.Pipeline, :run, 4, []}
+           ]}
+      }
+
+      entry = Entry.from_log_event(:error, {:string, "boom"}, meta)
+
+      assert entry.component == :system
+    end
+
+    test "explicit :component metadata beats crash-frame classification" do
+      meta = %{
+        component: :playback,
+        crash_reason: {%RuntimeError{message: "boom"}, [{MediaCentaur.Library.Movies, :refresh, 1, []}]}
+      }
+
+      entry = Entry.from_log_event(:error, {:string, "boom"}, meta)
+
+      assert entry.component == :playback
+    end
+
+    test "gen_server terminate report classifies by the registered name module" do
+      report = %{
+        label: {:gen_server, :terminate},
+        name: MediaCentaur.Acquisition.Reactor,
+        reason: {%RuntimeError{message: "boom"}, []},
+        last_message: :tick,
+        state: %{},
+        client_info: nil
+      }
+
+      entry = Entry.from_log_event(:error, {:report, report}, %{})
+
+      assert entry.component == :acquisition
+    end
+
+    test "gen_server terminate report falls back to crash frames when the name is not app-owned" do
+      report = %{
+        label: {:gen_server, :terminate},
+        name: :some_registered_name,
+        reason:
+          {%RuntimeError{message: "boom"},
+           [{MediaCentaur.Playback.SessionRegistry, :handle_info, 2, []}]},
+        last_message: :tick,
+        state: %{},
+        client_info: nil
+      }
+
+      entry = Entry.from_log_event(:error, {:report, report}, %{})
+
+      assert entry.component == :playback
+    end
+  end
 end

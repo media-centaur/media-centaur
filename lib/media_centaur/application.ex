@@ -43,11 +43,14 @@ defmodule MediaCentaur.Application do
     # incident store. `level: :warning` lets :logger pre-filter to the tier we
     # persist (warning and above) before the handler is even invoked.
     #
-    # Not installed under :test — a globally-attached handler would funnel the
-    # whole suite's ambient warning/error logs into the shared-sandbox DB via
-    # the global Buckets, racing per-test teardown. The handler, Buckets,
-    # Capture, and Store are all exercised directly in their own tests instead.
-    if Application.get_env(:media_centaur, :environment) != :test do
+    # Installed only under :prod. Under :test a globally-attached handler would
+    # funnel the whole suite's ambient warning/error logs into the
+    # shared-sandbox DB via the global Buckets, racing per-test teardown (the
+    # handler, Buckets, Capture, and Store are all exercised directly in their
+    # own tests). Under :dev the server shares the production database, so
+    # hot-reload and mid-migration crashes were minting `:log` incidents that
+    # showed up as open issues on the production Status page.
+    if Application.get_env(:media_centaur, :environment) == :prod do
       :logger.add_handler(
         :media_centaur_diagnostics,
         MediaCentaur.ErrorReports.LogHandler,
@@ -210,11 +213,14 @@ defmodule MediaCentaur.Application do
   # PubSub listener GenServers — thin wrappers that route messages to public
   # API functions. Not started in test mode because tests call the public
   # functions directly and PubSub broadcasts would cause sandbox errors.
-  # Unclean-shutdown detection. Not under :test — at app boot there is no
-  # sandbox owner, so its raise-fault-on-unclean would fail; the marker logic is
-  # tested directly via ShutdownMarker / a :path-injected ShutdownMonitor.
-  defp diagnostics_children(:test), do: []
-  defp diagnostics_children(_env), do: [{MediaCentaur.ErrorReports.ShutdownMonitor, []}]
+  # Unclean-shutdown detection. Only under :prod. Not :test — at app boot there
+  # is no sandbox owner, so its raise-fault-on-unclean would fail; the marker
+  # logic is tested directly via ShutdownMarker / a :path-injected
+  # ShutdownMonitor. Not :dev either — dev shares prod's data dir, so dev and
+  # prod boots fight over the SAME marker file: every dev boot while prod was
+  # running minted a false "did not shut down cleanly" warning.
+  defp diagnostics_children(:prod), do: [{MediaCentaur.ErrorReports.ShutdownMonitor, []}]
+  defp diagnostics_children(_env), do: []
 
   defp pubsub_listeners(:test), do: []
 
