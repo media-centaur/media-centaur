@@ -119,9 +119,12 @@ defmodule MediaCentaurWeb.Live.SettingsLive.SystemSection do
   One-line summary of the update-check cadence for the System card: how
   often checks run and, loosely, when the next one is due.
 
-  The "next check" estimate is deliberately coarse (no seconds, hour-grained
-  buckets past the first hour) so the card can refresh on a slow timer
-  without the text behaving like a ticking countdown.
+  The "next check" estimate is deliberately coarse (no seconds; minute-grained
+  below an hour, hour-grained past it) so the card can refresh on a slow
+  timer without the text behaving like a ticking countdown. Minute grain
+  matches the 60s heartbeat and the "Last checked N minutes ago" line —
+  the estimate must never be vaguer than the interval it describes
+  (a 15-minute cadence answered with "less than an hour" is useless).
   """
   @spec update_schedule_label(boolean(), pos_integer(), {:ok, DateTime.t()} | :none, DateTime.t()) ::
           String.t()
@@ -138,10 +141,11 @@ defmodule MediaCentaurWeb.Live.SettingsLive.SystemSection do
   defp next_check_phrase(interval_minutes, {:ok, %DateTime{} = last}, %DateTime{} = now) do
     next_at = DateTime.add(last, interval_minutes * 60, :second)
     seconds = DateTime.diff(next_at, now, :second)
+    minutes = round(seconds / 60)
 
     cond do
       seconds <= 60 -> "any moment now"
-      seconds < 3600 -> "in less than an hour"
+      minutes < 60 -> "in about #{pluralize(minutes, "minute")}"
       seconds < 7200 -> "in about an hour"
       seconds < 86_400 -> "in about #{pluralize(round(seconds / 3600), "hour")}"
       true -> "in about #{pluralize(round(seconds / 86_400), "day")}"
