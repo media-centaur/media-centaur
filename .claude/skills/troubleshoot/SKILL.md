@@ -248,7 +248,11 @@ systemctl --user restart media-centaur
 ## Rebuilding and Deploying
 
 ```bash
-scripts/preflight        # build a production release locally to verify it compiles
+scripts/preflight              # build a production release locally to verify it compiles
+scripts/ship check             # full upgrade-safety gate (includes preflight + contract checks)
+scripts/ship verify [version]  # confirm a tagged release published (tarballs + SHA256SUMS), fail-fast on a failed workflow run
 ```
 
-Deployment happens by tagging (`/ship <level>`) and letting the running app update itself via Settings > Overview → *Update now*. There is no `scripts/install` any more — never hand-roll an install over the top of a real deployment; the in-app updater does the atomic symlink flip and migrations safely.
+Deployment happens by tagging (`/ship <level>`, mechanics in `scripts/ship`) and letting the running app update itself via Settings > Overview → *Update now*. There is no `scripts/install` any more — never hand-roll an install over the top of a real deployment; the in-app updater does the atomic symlink flip and migrations safely.
+
+If a user reports "Update now does nothing" or a stuck update check, `scripts/ship verify <version>` answers whether the release assets ever made it to GitHub before you go digging in the updater.
