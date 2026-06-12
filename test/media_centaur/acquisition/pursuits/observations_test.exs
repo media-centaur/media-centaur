@@ -20,6 +20,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
     |> Repo.update!()
   end
 
+  defp set_pursuit(pursuit, attrs) do
+    pursuit
+    |> Ecto.Changeset.change(attrs)
+    |> Repo.update!()
+  end
+
   defp events_for(pursuit_id) do
     Event
     |> where([e], e.pursuit_id == ^pursuit_id)
@@ -44,7 +50,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
     }
   end
 
-  describe "refresh!/4" do
+  describe "refresh!/4 (per-unit signal timestamps)" do
     setup do
       now = ~U[2026-05-07 12:00:00Z]
       %{now: now}
@@ -130,79 +136,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
       assert refreshed.stall_first_seen_at == ~U[2026-05-07 11:00:00Z]
     end
 
-    test "first observation of the torrent → DownloadStarted event recorded; last_queue_state set",
-         %{now: now} do
+    test "refresh! never emits timeline events — that's observe_pursuit!'s job", %{now: now} do
       {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
       queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :healthy)]
-
-      refreshed = Observations.refresh!(pursuit, unit, queue, now)
-
-      assert refreshed.last_queue_state == "downloading"
-      assert refreshed.last_queue_health == "healthy"
-
-      events = events_for(pursuit.id)
-      assert [event] = events
-      assert event.kind == "download_started"
-      assert event.payload["client"] == "qbittorrent"
-    end
-
-    test "queue (state, health) unchanged → no event recorded", %{now: now} do
-      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
-      queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :healthy)]
-
-      unit_after_first = Observations.refresh!(pursuit, unit, queue, now)
-      _ = Observations.refresh!(pursuit, unit_after_first, queue, ~U[2026-05-07 13:00:00Z])
-
-      events =
-        Event
-        |> where([e], e.pursuit_id == ^pursuit.id)
-        |> Repo.all()
-
-      assert length(events) == 1
-      assert hd(events).kind == "download_started"
-    end
-
-    test "state transition (:downloading → :stalled) → HealthChanged event recorded", %{now: now} do
-      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
-      unit = set_unit(unit, last_queue_state: "downloading", last_queue_health: "healthy")
-
-      queue = [queue_item("Sample.Movie.2024.1080p", state: :stalled, health: :frozen)]
-
-      refreshed = Observations.refresh!(pursuit, unit, queue, now)
-
-      assert refreshed.last_queue_state == "stalled"
-      assert refreshed.last_queue_health == "frozen"
-
-      [event] = events_for(pursuit.id, "health_changed")
-      assert event.payload["from_state"] == "downloading"
-      assert event.payload["to_state"] == "stalled"
-      assert event.payload["from_health"] == "healthy"
-      assert event.payload["to_health"] == "frozen"
-    end
-
-    test "health-axis-only change → HealthChanged event still records both axes", %{now: now} do
-      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
-      unit = set_unit(unit, last_queue_state: "downloading", last_queue_health: "healthy")
-
-      queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :slow)]
 
       _ = Observations.refresh!(pursuit, unit, queue, now)
-
-      [event] = events_for(pursuit.id, "health_changed")
-      assert event.payload["from_state"] == "downloading"
-      assert event.payload["to_state"] == "downloading"
-      assert event.payload["from_health"] == "healthy"
-      assert event.payload["to_health"] == "slow"
-    end
-
-    test "torrent absent from queue this tick → last_queue_state preserved, no event", %{now: now} do
-      {pursuit, unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
-      unit = set_unit(unit, last_queue_state: "downloading", last_queue_health: "healthy")
-
-      refreshed = Observations.refresh!(pursuit, unit, [], now)
-
-      assert refreshed.last_queue_state == "downloading"
-      assert refreshed.last_queue_health == "healthy"
 
       assert [] = events_for(pursuit.id)
     end
@@ -223,6 +161,137 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
       refreshed = Observations.refresh!(pursuit, unit, queue, now)
 
       assert refreshed.stall_first_seen_at == nil
+    end
+  end
+
+  describe "observe_pursuit!/4 (pursuit-level lifecycle events)" do
+    setup do
+      now = ~U[2026-05-07 12:00:00Z]
+      %{now: now}
+    end
+
+    test "first observation → one DownloadStarted; observation persisted on the pursuit", %{
+      now: now
+    } do
+      {pursuit, _unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+      queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :healthy)]
+
+      observed = Observations.observe_pursuit!(pursuit, queue, now)
+
+      assert observed.last_queue_state == "downloading"
+      assert observed.last_queue_health == "healthy"
+
+      assert [event] = events_for(pursuit.id)
+      assert event.kind == "download_started"
+      assert event.payload["client"] == "qbittorrent"
+    end
+
+    test "a multi-unit pursuit still emits exactly ONE event per transition", %{now: now} do
+      # The Frieren regression: a 38-episode season pack produced 38
+      # identical "Download started" rows because the observation lived
+      # on each unit. The torrent is a pursuit-level fact; observing it
+      # is too — unit count must not multiply timeline rows.
+      {pursuit, _unit} = insert_pursuit_with_unit("Sample.Show.S01.1080p")
+      for _extra <- 1..3, do: create_pursuit_unit(pursuit, %{})
+
+      queue = [queue_item("Sample.Show.S01.1080p", state: :downloading, health: :healthy)]
+      observed = Observations.observe_pursuit!(pursuit, queue, now)
+
+      assert [%Event{kind: "download_started"}] = events_for(pursuit.id)
+
+      queue_stalled = [queue_item("Sample.Show.S01.1080p", state: :stalled, health: :frozen)]
+      _ = Observations.observe_pursuit!(observed, queue_stalled, ~U[2026-05-07 13:00:00Z])
+
+      assert [_started] = events_for(pursuit.id, "download_started")
+      assert [_changed] = events_for(pursuit.id, "health_changed")
+    end
+
+    test "unchanged (state, health) → no event", %{now: now} do
+      {pursuit, _unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+      queue = [queue_item("Sample.Movie.2024.1080p", state: :downloading, health: :healthy)]
+
+      observed = Observations.observe_pursuit!(pursuit, queue, now)
+      _ = Observations.observe_pursuit!(observed, queue, ~U[2026-05-07 13:00:00Z])
+
+      assert [%Event{kind: "download_started"}] = events_for(pursuit.id)
+    end
+
+    test "transition → one HealthChanged carrying both axes", %{now: now} do
+      {pursuit, _unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+
+      pursuit =
+        set_pursuit(pursuit, last_queue_state: "downloading", last_queue_health: "healthy")
+
+      queue = [queue_item("Sample.Movie.2024.1080p", state: :stalled, health: :frozen)]
+      observed = Observations.observe_pursuit!(pursuit, queue, now)
+
+      assert observed.last_queue_state == "stalled"
+      assert observed.last_queue_health == "frozen"
+
+      assert [event] = events_for(pursuit.id, "health_changed")
+      assert event.payload["from_state"] == "downloading"
+      assert event.payload["to_state"] == "stalled"
+      assert event.payload["from_health"] == "healthy"
+      assert event.payload["to_health"] == "frozen"
+    end
+
+    test "nil health is a real nil, and the observation converges (no per-tick re-emission)", %{
+      now: now
+    } do
+      # The "warming_up → nil" spam: nil was stringified to "nil" by
+      # Atom.to_string/1, polluting payloads and UI copy. A present item
+      # with nil health must store SQL NULL and emit at most once.
+      {pursuit, _unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+
+      pursuit =
+        set_pursuit(pursuit, last_queue_state: "downloading", last_queue_health: "warming_up")
+
+      queue = [queue_item("Sample.Movie.2024.1080p", state: :other, health: nil)]
+
+      observed = Observations.observe_pursuit!(pursuit, queue, now)
+      assert observed.last_queue_state == "other"
+      assert observed.last_queue_health == nil
+
+      assert [event] = events_for(pursuit.id, "health_changed")
+      assert event.payload["to_state"] == "other"
+      assert event.payload["to_health"] == nil
+
+      # Same observation next tick — converged, no new event.
+      _ = Observations.observe_pursuit!(observed, queue, ~U[2026-05-07 13:00:00Z])
+      assert [_only] = events_for(pursuit.id, "health_changed")
+    end
+
+    test "torrent absent from queue this tick → observation preserved, no event", %{now: now} do
+      {pursuit, _unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+
+      pursuit =
+        set_pursuit(pursuit, last_queue_state: "downloading", last_queue_health: "healthy")
+
+      observed = Observations.observe_pursuit!(pursuit, [], now)
+
+      assert observed.last_queue_state == "downloading"
+      assert observed.last_queue_health == "healthy"
+      assert [] = events_for(pursuit.id)
+    end
+
+    test "queue :unknown → pursuit untouched, no event", %{now: now} do
+      {pursuit, _unit} = insert_pursuit_with_unit("Sample.Movie.2024.1080p")
+
+      observed = Observations.observe_pursuit!(pursuit, :unknown, now)
+
+      assert observed.last_queue_state == nil
+      assert [] = events_for(pursuit.id)
+    end
+
+    test "no release title → nothing to observe, no event", %{now: now} do
+      pursuit =
+        create_pursuit(%{tmdb_id: "999", tmdb_type: "movie", title: "Lonely Pursuit", origin: "auto"})
+
+      queue = [queue_item("Some.Other.Title", state: :downloading)]
+      observed = Observations.observe_pursuit!(pursuit, queue, now)
+
+      assert observed.last_queue_state == nil
+      assert [] = events_for(pursuit.id)
     end
   end
 end

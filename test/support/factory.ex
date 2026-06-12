@@ -943,8 +943,6 @@ defmodule MediaCentaur.TestFactory do
     :current_target_id,
     :stall_first_seen_at,
     :zero_seeders_first_seen_at,
-    :last_queue_state,
-    :last_queue_health,
     :label,
     :query,
     :position

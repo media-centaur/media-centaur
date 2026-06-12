@@ -76,6 +76,15 @@ defmodule MediaCentaur.Acquisition.Pursuits.Pursuit do
     field :title, :string
     field :criteria, :map, default: %{}
 
+    # Last observed (state, health) of the pursuit's tracked torrent —
+    # written only by `Observations.observe_pursuit!/4` to detect
+    # lifecycle transitions across Watcher ticks. Pursuit-level because
+    # the torrent is a pursuit-level fact: every unit of a composite
+    # pursuit shares it, so observing per-unit multiplied timeline
+    # events by the unit count.
+    field :last_queue_state, :string
+    field :last_queue_health, :string
+
     timestamps()
   end
 
