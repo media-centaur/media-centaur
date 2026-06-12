@@ -116,6 +116,41 @@ defmodule MediaCentaur.Library.FilePresenceTest do
       assert FilePresence.stamp_many([], "/media/movies") == 0
       assert Repo.aggregate(FilePresence, :count) == 0
     end
+
+    test "records the size for new rows when given {path, size} entries" do
+      FilePresence.stamp_many([{"/media/movies/sized.mkv", 4_000}], "/media/movies")
+
+      [presence] = Repo.all(FilePresence)
+      assert presence.size == 4_000
+    end
+
+    test "fills a missing size on restamp (backfill for pre-feature rows)" do
+      FilePresence.stamp("/media/movies/legacy.mkv", "/media/movies")
+
+      FilePresence.stamp_many([{"/media/movies/legacy.mkv", 7_500}], "/media/movies")
+
+      [presence] = Repo.all(FilePresence)
+      assert presence.size == 7_500
+      assert FilePresence.total_size_bytes() == 7_500
+    end
+
+    test "never overwrites a recorded size on restamp" do
+      FilePresence.stamp("/media/movies/sample.mkv", "/media/movies", DateTime.utc_now(), size: 999)
+
+      FilePresence.stamp_many([{"/media/movies/sample.mkv", 123}], "/media/movies")
+
+      [presence] = Repo.all(FilePresence)
+      assert presence.size == 999
+    end
+
+    test "plain path entries leave an existing size intact" do
+      FilePresence.stamp("/media/movies/sample.mkv", "/media/movies", DateTime.utc_now(), size: 999)
+
+      FilePresence.stamp_many(["/media/movies/sample.mkv"], "/media/movies")
+
+      [presence] = Repo.all(FilePresence)
+      assert presence.size == 999
+    end
   end
 
   describe "list_paths_for_media_dir/1" do
