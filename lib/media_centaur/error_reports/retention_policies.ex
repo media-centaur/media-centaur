@@ -20,7 +20,7 @@ defmodule MediaCentaur.ErrorReports.RetentionPolicies do
         key: :diagnostic_events,
         subsystem: :system,
         label: "Diagnostic events",
-        description: "Diagnostic log events older than #{@event_retention_days} days are deleted.",
+        description: "Deleted after #{@event_retention_days} days.",
         mode: :sweep,
         run: fn -> Store.prune_events(days_ago(@event_retention_days)) end
       },
@@ -29,8 +29,8 @@ defmodule MediaCentaur.ErrorReports.RetentionPolicies do
         subsystem: :system,
         label: "Resolved incidents",
         description:
-          "Incidents resolved more than #{@resolved_incident_retention_days} days ago are " <>
-            "deleted. Open and acknowledged incidents are kept indefinitely.",
+          "Deleted #{@resolved_incident_retention_days} days after resolution. " <>
+            "Open incidents are kept.",
         mode: :sweep,
         run: fn -> Store.prune_resolved_incidents(days_ago(@resolved_incident_retention_days)) end
       }

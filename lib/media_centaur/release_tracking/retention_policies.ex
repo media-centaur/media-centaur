@@ -19,7 +19,7 @@ defmodule MediaCentaur.ReleaseTracking.RetentionPolicies do
         key: :release_tracking_events,
         subsystem: :acquisition,
         label: "Tracking activity log",
-        description: "Release-tracking events older than #{@event_retention_days} days are deleted.",
+        description: "Deleted after #{@event_retention_days} days.",
         mode: :sweep,
         run: fn ->
           ReleaseTracking.prune_events(DateTime.add(DateTime.utc_now(), -@event_retention_days, :day))
@@ -29,8 +29,7 @@ defmodule MediaCentaur.ReleaseTracking.RetentionPolicies do
         key: :tracking_artwork,
         subsystem: :acquisition,
         label: "Tracking artwork",
-        description:
-          "Artwork is removed with its tracked item; orphaned artwork folders are swept daily.",
+        description: "Removed with its item; orphaned folders are swept daily.",
         mode: :sweep,
         run: &ReleaseTracking.sweep_orphaned_artwork/0
       }

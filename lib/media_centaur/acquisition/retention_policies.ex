@@ -22,8 +22,8 @@ defmodule MediaCentaur.Acquisition.RetentionPolicies do
         subsystem: :acquisition,
         label: "Pursuit activity log",
         description:
-          "Per-pursuit activity events older than #{@pursuit_event_retention_days} days are " <>
-            "deleted. The pursuits themselves are kept.",
+          "Events are deleted after #{@pursuit_event_retention_days} days; " <>
+            "the pursuits themselves are kept.",
         mode: :sweep,
         run: fn ->
           Events.prune(DateTime.add(DateTime.utc_now(), -@pursuit_event_retention_days, :day))
@@ -33,9 +33,7 @@ defmodule MediaCentaur.Acquisition.RetentionPolicies do
         key: :search_corpus,
         subsystem: :acquisition,
         label: "Search corpus",
-        description:
-          "Cached indexer search results older than #{Corpus.retention_days()} days are " <>
-            "deleted, continuously (every 15 minutes).",
+        description: "Cached search results are deleted after #{Corpus.retention_days()} days.",
         mode: :external
       }
     ]

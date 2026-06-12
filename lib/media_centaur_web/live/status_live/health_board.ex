@@ -41,31 +41,24 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   # Plain-language briefing for each subsystem: what it is responsible for and
   # what the experience degrades to when it isn't working. Shown at the top of
   # the drill-in so the board reads as an explanation, not just a status light.
+  # One tight lede per subsystem: what it does, and — only when genuinely
+  # non-obvious — what depends on it or how to recover. Consequences the
+  # reader can infer from the first sentence are deliberately omitted.
   @descriptions %{
     watcher:
-      "Watches your media folders for files that appear, move, or vanish and hands new arrivals to Import. " <>
-        "If it stalls, newly added media won't show up in your library until the next manual scan.",
-    pipeline:
-      "Turns raw files into library entries — parsing filenames, matching them to the right movie or episode, and fetching artwork. " <>
-        "If it falls behind, files land on disk but never become browsable, fully identified entries with posters.",
-    tmdb:
-      "Fetches titles, descriptions, cast, and images from The Movie Database, staying within its rate limits. " <>
-        "If it's degraded, entries appear with missing or stale details and blank artwork.",
+      "Watches your media folders and hands new files to Import. " <>
+        "If it stalls, a manual scan picks up what it missed.",
+    pipeline: "Turns new files into identified library entries with artwork.",
+    tmdb: "Fetches metadata and artwork from The Movie Database.",
     playback:
-      "Tracks what's playing and records your watch progress. " <>
-        "If it's off, resume points and Continue Watching stop updating and in-app playback control gets unreliable.",
-    library:
-      "The catalog of everything you own — entities, files, watch state, and storage. " <>
-        "If it's unhealthy, library counts and browse results can be wrong or incomplete.",
+      "Tracks playback and records watch progress — " <>
+        "resume points and Continue Watching feed off it.",
+    library: "The catalog itself — titles, files, and watch state.",
     acquisition:
-      "Drives acquisitions through your download client and Prowlarr — sending grabs, tracking progress, and linking finished downloads back into the library. " <>
-        "If it breaks, requested media never downloads or never gets linked once it lands.",
-    self_update:
-      "Checks for new Media Centaur releases and applies in-app updates. " <>
-        "If it fails, you stay on an old version or an update stalls partway through.",
-    system:
-      "Overall application-runtime health and anything not owned by a specific subsystem. " <>
-        "If it's flagging problems, the app itself may be unstable — crashes, restarts, or framework-level errors."
+      "Runs downloads through Prowlarr and your download client, " <>
+        "then links finished files into the library.",
+    self_update: "Checks for new releases and applies in-app updates.",
+    system: "Runtime health, plus anything not owned by another subsystem."
   }
 
   alias MediaCentaur.ErrorReports.Bucket
