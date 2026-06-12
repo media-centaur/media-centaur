@@ -79,7 +79,7 @@ defmodule MediaCentaurWeb.HealthComponents do
           @bucket.severity in [:error, :critical] && "bg-error"
         ]} />
         <span class="min-w-0 flex-1">
-          <span class="block text-sm truncate">{@bucket.display_title}</span>
+          <span class="block text-sm truncate">{@bucket.headline}</span>
           <span class="block text-xs text-base-content/50 mt-0.5">
             {@bucket.count}× · since {Calendar.strftime(@bucket.first_seen, "%b %-d, %H:%M")}
           </span>

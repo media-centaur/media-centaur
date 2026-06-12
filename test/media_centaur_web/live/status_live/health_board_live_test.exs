@@ -63,6 +63,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
       component: :pipeline,
       normalized_message: "image download failed",
       display_title: "Image downloads failing for 11 items",
+      headline: "Image downloads failing for 11 items",
       severity: :error,
       count: 11,
       first_seen: ~U[2026-06-01 14:02:00Z],
