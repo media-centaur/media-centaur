@@ -88,6 +88,18 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
     change(plan, error: reason)
   end
 
+  @doc """
+  Records an unexpected planning crash: transitions `planning → ready`
+  with the error set, so the failure surfaces as a reported gap on the
+  board instead of a plan stuck in `planning` (the `Jobs.RunPlan`
+  moduledoc contract).
+  """
+  def failed_changeset(%__MODULE__{} = plan, reason) when is_binary(reason) do
+    plan
+    |> transition_changeset("ready", ["planning"])
+    |> put_change(:error, reason)
+  end
+
   @doc "Stamps the committed pursuit's id (provenance)."
   def committed_changeset(%__MODULE__{} = plan, pursuit_id) do
     plan

@@ -74,6 +74,28 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     Plans.broadcast_changed(ready)
     Log.info(:acquisition, "plan ready — #{plan.title}")
     :ok
+  rescue
+    exception ->
+      # The moduledoc contract — a reported gap, never a stuck spinner —
+      # must hold for unexpected raises too, not just handled search
+      # errors: an Oban crash loop retries the same deterministic
+      # failure while the plan sits in `planning` forever.
+      Log.error(
+        :acquisition,
+        "plan run crashed — #{plan.title} — #{Exception.message(exception)}"
+      )
+
+      case Repo.update(
+             Plan.failed_changeset(
+               Repo.reload!(plan),
+               "planning crashed: #{Exception.message(exception)}"
+             )
+           ) do
+        {:ok, failed} -> Plans.broadcast_changed(failed)
+        {:error, _already_left_planning} -> :ok
+      end
+
+      {:error, exception}
   end
 
   # ---------------------------------------------------------------------------

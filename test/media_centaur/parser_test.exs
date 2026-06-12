@@ -754,4 +754,46 @@ defmodule MediaCentaur.ParserTest do
       assert result.type == :unknown
     end
   end
+
+  # ─── Byte safety — output must always be valid UTF-8 ─────────────────────
+
+  describe "byte safety" do
+    # Real Prowlarr release title observed 2026-06-12: a mojibake Chinese
+    # prefix (UTF-8 read as Latin-1 and re-encoded) ahead of the English
+    # movie name. Valid UTF-8 on input, but it contains a „ (U+201E,
+    # bytes E2 80 9E) whose 0x9E byte the non-unicode [._꞉] class in
+    # clean_title byte-matched and replaced with a space — producing
+    # invalid UTF-8 that crashed TitleMatcher's /u regex downstream and
+    # left the acquisition plan stuck in "planning" forever.
+    @mojibake_release_title <<195, 169, 203, 156, 194, 191, 195, 166, 226, 128, 185, 226, 128, 176, 195,
+                              164, 194, 188, 194, 175, 195, 167, 197, 161, 226, 128, 158, 195, 165, 197,
+                              160, 194, 179, 195, 164, 194, 188, 194, 166, 195, 166, 226, 128, 147, 194,
+                              175, 40, 195, 168, 226, 128, 156, 194, 157, 195, 165, 226, 128, 166, 226,
+                              128, 176, 195, 165, 226, 128, 186, 194, 189, 195, 168, 226, 128, 185, 194,
+                              177, 195, 165, 194, 143, 197, 146, 195, 169, 197, 184, 194, 179, 195, 168,
+                              194, 189, 194, 168, 195, 164, 194, 184, 194, 173, 195, 168, 226, 128, 185,
+                              194, 177, 195, 165, 194, 143, 197, 146, 195, 165, 194, 173, 226, 128, 148,
+                              195, 165, 194, 185, 226, 128, 162>> <>
+                              ") Lawrence of Arabia 1962 4K Remastered BD-1080p X264 AAC 2AUDIOS CHS ENG-UUMp4"
+
+    test "valid multibyte release title is never corrupted into invalid UTF-8" do
+      assert String.valid?(@mojibake_release_title)
+
+      result = Parser.parse(@mojibake_release_title)
+
+      assert String.valid?(result.title)
+      assert result.title =~ "Lawrence Of Arabia"
+    end
+
+    test "invalid UTF-8 in a file path is scrubbed, not propagated or raised" do
+      invalid_path =
+        "/mnt/videos/Sample Movie " <> <<0xE2, 0x80, 0x20>> <> " (2024)/Sample.Movie.2024.1080p.mkv"
+
+      refute String.valid?(invalid_path)
+
+      result = Parser.parse(invalid_path)
+
+      assert String.valid?(result.title)
+    end
+  end
 end

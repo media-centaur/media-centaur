@@ -239,6 +239,24 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     end
   end
 
+  describe "crash containment" do
+    test "an unexpected raise records the error and resolves planning — never a stuck spinner" do
+      # A non-binary title from the indexer crashes SearchResult
+      # construction deep inside the run — standing in for any
+      # unexpected raise. The moduledoc contract: failures mark the
+      # plan's error and still transition to ready.
+      Req.Test.stub(:prowlarr, fn conn ->
+        Req.Test.json(conn, [%{"title" => 123, "guid" => "garbage", "indexerId" => 1}])
+      end)
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 1962})
+
+      {:ok, reloaded} = Plans.get(plan.id)
+      assert reloaded.status == "ready"
+      assert reloaded.error =~ "planning crashed"
+    end
+  end
+
   defp descent_states(%PlanEvents.DescentStatus{stages: stages}) do
     Enum.map(stages, &{&1.id, &1.state})
   end
