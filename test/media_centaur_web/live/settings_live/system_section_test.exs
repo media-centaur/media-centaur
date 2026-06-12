@@ -99,11 +99,17 @@ defmodule MediaCentaurWeb.Live.SettingsLive.SystemSectionTest do
       assert label =~ "any moment now"
     end
 
-    test "uses a coarse 'less than an hour' bucket for sub-hour waits" do
+    test "sub-hour waits are minute-grained — never vaguer than the interval itself" do
       last = {:ok, ~U[2026-06-07 11:55:00Z]}
       label = SystemSection.update_schedule_label(true, 15, last, ~U[2026-06-07 12:00:00Z])
       assert label =~ "every 15 minutes"
-      assert label =~ "less than an hour"
+      assert label =~ "in about 10 minutes"
+    end
+
+    test "a wait just over a minute reads as singular minutes, not an hour bucket" do
+      last = {:ok, ~U[2026-06-07 11:47:00Z]}
+      label = SystemSection.update_schedule_label(true, 15, last, ~U[2026-06-07 12:00:45Z])
+      assert label =~ "in about 1 minute"
     end
 
     test "carries no seconds-granularity text" do

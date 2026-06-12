@@ -73,8 +73,8 @@ defmodule MediaCentaurWeb.SettingsLive do
       Controls.subscribe()
       # Coarse heartbeat so the "next check" estimate on the Updates card stays
       # roughly current without behaving like a per-second countdown. The
-      # labels are hour-grained, so a 60s recompute is almost always a no-op
-      # for morphdom.
+      # labels carry no seconds (minute grain at their finest), so a 60s
+      # recompute changes the text at most once per tick.
       Process.send_after(self(), :refresh_update_schedule, 60_000)
     end
 
