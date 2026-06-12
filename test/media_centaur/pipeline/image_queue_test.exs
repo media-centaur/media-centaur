@@ -16,7 +16,7 @@ defmodule MediaCentaur.Pipeline.ImageQueueTest do
         role: "poster",
         source_url: "https://image.tmdb.org/poster.jpg",
         entity_id: Ecto.UUID.generate(),
-        watch_dir: "/media"
+        media_dir: "/media"
       },
       overrides
     )

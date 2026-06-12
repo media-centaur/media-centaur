@@ -123,9 +123,9 @@ defmodule MediaCentaur.Maintenance do
         Repo.delete_all(schema)
       end)
 
-      watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
+      media_dirs = MediaCentaur.Config.get(:media_dirs) || []
 
-      Enum.each(watch_dirs, fn dir ->
+      Enum.each(media_dirs, fn dir ->
         clear_directory(MediaCentaur.Config.images_dir_for(dir))
       end)
 
@@ -145,9 +145,9 @@ defmodule MediaCentaur.Maintenance do
   def refresh_image_cache do
     Log.info(:library, "refreshing image cache")
 
-    watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
+    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
 
-    Enum.each(watch_dirs, fn dir ->
+    Enum.each(media_dirs, fn dir ->
       clear_directory(MediaCentaur.Config.images_dir_for(dir))
     end)
 
@@ -157,11 +157,11 @@ defmodule MediaCentaur.Maintenance do
     entities = collect_entities_with_images_and_files()
 
     Enum.each(entities, fn entity ->
-      if watch_dir = first_watch_dir(entity) do
+      if media_dir = first_media_dir(entity) do
         Phoenix.PubSub.broadcast(
           MediaCentaur.PubSub,
           MediaCentaur.Topics.pipeline_images(),
-          {:images_pending, %{entity_id: entity.id, watch_dir: watch_dir}}
+          {:images_pending, %{entity_id: entity.id, media_dir: media_dir}}
         )
       end
     end)
@@ -528,10 +528,10 @@ defmodule MediaCentaur.Maintenance do
     tv ++ ms ++ standalone_movies ++ vo
   end
 
-  defp first_watch_dir(entity) do
+  defp first_media_dir(entity) do
     case entity.watched_files do
       [first | _] ->
-        first.watch_dir
+        first.media_dir
 
       _ ->
         Log.warning(

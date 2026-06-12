@@ -24,7 +24,7 @@ defmodule MediaCentaurWeb.LibraryAvailability do
   end
 
   @doc """
-  Re-resolves the full availability map after a single watch dir's
+  Re-resolves the full availability map after a single media dir's
   state changes. The watcher fires `:availability_changed` for one
   dir; we re-issue the bulk lookup so every BrowseItem under that dir
   flips together. The query is bounded (kind-grouped, not per-id), so

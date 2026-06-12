@@ -4,7 +4,7 @@ defmodule MediaCentaur.Storage do
   @moduledoc """
   Aggregates disk-capacity info for configured directories.
 
-  Owns the *orchestration* — which paths matter (watch dirs, image
+  Owns the *orchestration* — which paths matter (media dirs, image
   caches, database), how to group results by mount point — but
   delegates the OS-specific "ask the kernel how much space is left"
   probe to `MediaCentaur.Platform.DriveProbe`. That keeps GNU/BSD
@@ -28,17 +28,17 @@ defmodule MediaCentaur.Storage do
         }
 
   @doc """
-  Measures disk usage for all configured watch directories, their image caches,
+  Measures disk usage for all configured media directories, their image caches,
   and the database. Returns a list of drive maps grouped by mount point.
   """
   @spec measure_all() :: [drive()]
   def measure_all do
-    watch_dirs = Config.get(:watch_dirs) || []
+    media_dirs = Config.get(:media_dirs) || []
     database_path = Config.get(:database_path)
 
     role_paths =
-      Enum.flat_map(watch_dirs, fn dir ->
-        [{dir, "Watch dir"}, {Config.images_dir_for(dir), "Image cache"}]
+      Enum.flat_map(media_dirs, fn dir ->
+        [{dir, "Media dir"}, {Config.images_dir_for(dir), "Image cache"}]
       end)
 
     role_paths =

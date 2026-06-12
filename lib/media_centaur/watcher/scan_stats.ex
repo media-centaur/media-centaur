@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Watcher.ScanStats do
   @moduledoc """
-  Retains the most recent scan result per watch directory for the Status page.
+  Retains the most recent scan result per media directory for the Status page.
 
   The watcher's job is *detection*; remembering what its last scan found is a
   separate concern, so it lives here rather than in the per-dir

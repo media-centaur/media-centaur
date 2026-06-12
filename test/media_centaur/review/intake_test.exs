@@ -8,7 +8,7 @@ defmodule MediaCentaur.Review.IntakeTest do
   defp build_attrs(overrides \\ %{}) do
     defaults = %{
       file_path: "/media/movies/Sample.Movie.2010.1080p.BluRay.mkv",
-      watch_directory: "/media/movies",
+      media_directory: "/media/movies",
       parsed_title: "Sample Movie",
       parsed_year: 2010,
       parsed_type: "movie",
@@ -42,7 +42,7 @@ defmodule MediaCentaur.Review.IntakeTest do
       assert {:ok, pending_file} = Intake.create_pending_file(attrs)
 
       assert pending_file.file_path == "/media/movies/Sample.Movie.2010.1080p.BluRay.mkv"
-      assert pending_file.watch_directory == "/media/movies"
+      assert pending_file.media_directory == "/media/movies"
       assert pending_file.parsed_title == "Sample Movie"
       assert pending_file.parsed_year == 2010
       assert pending_file.parsed_type == "movie"
@@ -145,7 +145,7 @@ defmodule MediaCentaur.Review.IntakeTest do
       attrs =
         build_attrs(%{
           file_path: "/media/tv/Sample Show/Extras/Gag Reel.mkv",
-          watch_directory: "/media/tv",
+          media_directory: "/media/tv",
           parsed_title: "Sample Show",
           parsed_type: "extra",
           parsed_year: nil,
@@ -184,14 +184,14 @@ defmodule MediaCentaur.Review.IntakeTest do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
 
       files = [
-        %{file_path: "/media/movies/Sample Movie 2049 (2017).mkv", watch_dir: "/media/movies"}
+        %{file_path: "/media/movies/Sample Movie 2049 (2017).mkv", media_dir: "/media/movies"}
       ]
 
       assert {:ok, 1} = Intake.receive_files_for_review(files)
 
       [pending] = MediaCentaur.Review.list_pending_files_for_review()
       assert pending.file_path == "/media/movies/Sample Movie 2049 (2017).mkv"
-      assert pending.watch_directory == "/media/movies"
+      assert pending.media_directory == "/media/movies"
       assert pending.parsed_title == "Sample Movie"
       assert pending.parsed_year == 2049
       assert pending.parsed_type == "movie"
@@ -205,9 +205,9 @@ defmodule MediaCentaur.Review.IntakeTest do
       files = [
         %{
           file_path: "/media/tv/Sitcom (2001)/Season 1/Sitcom S01E01.mkv",
-          watch_dir: "/media/tv"
+          media_dir: "/media/tv"
         },
-        %{file_path: "/media/tv/Sitcom (2001)/Season 1/Sitcom S01E02.mkv", watch_dir: "/media/tv"}
+        %{file_path: "/media/tv/Sitcom (2001)/Season 1/Sitcom S01E02.mkv", media_dir: "/media/tv"}
       ]
 
       assert {:ok, 2} = Intake.receive_files_for_review(files)
@@ -226,7 +226,7 @@ defmodule MediaCentaur.Review.IntakeTest do
 
     test "idempotent — same file path returns same record" do
       files = [
-        %{file_path: "/media/movies/Sample Movie (2010).mkv", watch_dir: "/media/movies"}
+        %{file_path: "/media/movies/Sample Movie (2010).mkv", media_dir: "/media/movies"}
       ]
 
       assert {:ok, 1} = Intake.receive_files_for_review(files)

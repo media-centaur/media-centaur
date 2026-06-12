@@ -132,7 +132,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       file_a =
         create_pending_file(%{
           file_path: "/media/test/Approved Show/S01E01.mkv",
-          watch_directory: "/media/test",
+          media_directory: "/media/test",
           parsed_title: "Approved Show",
           parsed_type: "tv"
         })
@@ -140,7 +140,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       _file_b =
         create_pending_file(%{
           file_path: "/media/test/Approved Show/S01E02.mkv",
-          watch_directory: "/media/test",
+          media_directory: "/media/test",
           parsed_title: "Approved Show",
           parsed_type: "tv"
         })
@@ -148,7 +148,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       {:ok, view, _html} = live_async!(conn, "/review")
       assert render_after_async_load(view) =~ "Approved Show"
 
-      group_key = {file_a.watch_directory, "Approved Show"}
+      group_key = {file_a.media_directory, "Approved Show"}
       send(view.pid, {:group_approved, group_key, 2})
 
       refute render(view) =~ "Approved Show"
@@ -164,7 +164,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
 
       {:ok, view, _html} = live_async!(conn, "/review")
 
-      group_key = {file.watch_directory, "Errored Group File"}
+      group_key = {file.media_directory, "Errored Group File"}
       send(view.pid, {:group_error, group_key, "boom"})
 
       html = render(view)

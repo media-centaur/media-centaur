@@ -3,7 +3,7 @@ defmodule MediaCentaur.Library.ImageHealth do
   Detects `library_images` rows whose files are missing from disk.
 
   An image is "missing" when its `content_url` is populated but no file
-  exists at the resolved path in any configured watch directory. Rows
+  exists at the resolved path in any configured media directory. Rows
   with `content_url = nil` are excluded — those are mid-refresh and the
   pipeline is already responsible for filling them.
   """

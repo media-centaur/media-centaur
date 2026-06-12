@@ -103,7 +103,7 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
 
   @doc """
   Same as `continue_watching_items/2` plus an `image_version` integer that
-  cache-busts `/media-images/*` URLs. Bumped on each watch-dir availability
+  cache-busts `/media-images/*` URLs. Bumped on each media-dir availability
   change (see `section_reloaders/1`) so the browser refetches artwork that
   may have flipped between placeholder and real file.
   """
@@ -332,7 +332,7 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
   # Appends ?v=<n> to a /media-images/* URL so a cache-busting bump on
   # availability change forces the browser to refetch — the same URL can
   # serve either the placeholder SVG or the real artwork depending on
-  # whether the watch dir is mounted, and morphdom only re-fetches when
+  # whether the media dir is mounted, and morphdom only re-fetches when
   # the `src` attribute actually changes.
   defp with_image_version(nil, _image_version), do: nil
   defp with_image_version(url, 0), do: url

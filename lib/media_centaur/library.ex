@@ -666,8 +666,8 @@ defmodule MediaCentaur.Library do
 
   def link_file(attrs) do
     file_path = lookup_attr(attrs, :file_path)
-    watch_dir = lookup_attr(attrs, :watch_dir)
-    attrs = ensure_file_presence_id(attrs, file_path, watch_dir)
+    media_dir = lookup_attr(attrs, :media_dir)
+    attrs = ensure_file_presence_id(attrs, file_path, media_dir)
 
     case Repo.get_by(WatchedFile, file_path: file_path) do
       nil -> Repo.insert(WatchedFile.link_file_changeset(attrs))
@@ -720,13 +720,13 @@ defmodule MediaCentaur.Library do
     end
   end
 
-  def list_files_by_watch_dir(watch_dir) do
-    Repo.all(from(w in WatchedFile, where: w.watch_dir == ^watch_dir))
+  def list_files_by_media_dir(media_dir) do
+    Repo.all(from(w in WatchedFile, where: w.media_dir == ^media_dir))
   end
 
   @doc """
   Relink-on-move. Given newly-seen `{path, size}` pairs under
-  `new_watch_dir`, re-point any that `MoveMatcher` recognises as a file
+  `new_media_dir`, re-point any that `MoveMatcher` recognises as a file
   that *moved* — rewriting the `WatchedFile` / `ExtraFile` rows and the
   `FilePresence` ledger to the new location — instead of letting them
   import as brand-new entities.
@@ -738,11 +738,11 @@ defmodule MediaCentaur.Library do
   """
   @spec relink_moved_files([{String.t(), non_neg_integer() | nil}], String.t(), keyword()) ::
           %{relinked: [String.t()], still_new: [String.t()]}
-  def relink_moved_files(new_files, new_watch_dir, opts \\ [])
+  def relink_moved_files(new_files, new_media_dir, opts \\ [])
 
-  def relink_moved_files([], _new_watch_dir, _opts), do: %{relinked: [], still_new: []}
+  def relink_moved_files([], _new_media_dir, _opts), do: %{relinked: [], still_new: []}
 
-  def relink_moved_files(new_files, new_watch_dir, opts) do
+  def relink_moved_files(new_files, new_media_dir, opts) do
     exists? = Keyword.get(opts, :exists?, &File.regular?/1)
 
     sizes = new_files |> Enum.map(&elem(&1, 1)) |> Enum.reject(&is_nil/1) |> Enum.uniq()
@@ -750,7 +750,7 @@ defmodule MediaCentaur.Library do
 
     {moves, still_new} =
       Enum.reduce(new_files, {[], []}, fn {path, size}, {moves, still_new} ->
-        case MoveMatcher.match(%{path: path, watch_dir: new_watch_dir, size: size}, candidates) do
+        case MoveMatcher.match(%{path: path, media_dir: new_media_dir, size: size}, candidates) do
           {:move, old} ->
             # Old path still on disk → a copy, not a move. Let it import.
             if exists?.(old.file_path),
@@ -763,14 +763,14 @@ defmodule MediaCentaur.Library do
       end)
 
     %{
-      relinked: moves |> Enum.reverse() |> perform_relinks(new_watch_dir),
+      relinked: moves |> Enum.reverse() |> perform_relinks(new_media_dir),
       still_new: Enum.reverse(still_new)
     }
   end
 
-  defp perform_relinks([], _new_watch_dir), do: []
+  defp perform_relinks([], _new_media_dir), do: []
 
-  defp perform_relinks(moves, new_watch_dir) do
+  defp perform_relinks(moves, new_media_dir) do
     now = DateTime.utc_now()
     now_seconds = DateTime.truncate(now, :second)
 
@@ -784,17 +784,17 @@ defmodule MediaCentaur.Library do
             |> Enum.reject(&is_nil/1)
 
           Repo.update_all(from(w in WatchedFile, where: w.file_path == ^old.file_path),
-            set: [file_path: new_path, watch_dir: new_watch_dir]
+            set: [file_path: new_path, media_dir: new_media_dir]
           )
 
           Repo.update_all(from(ef in ExtraFile, where: ef.file_path == ^old.file_path),
-            set: [file_path: new_path, watch_dir: new_watch_dir]
+            set: [file_path: new_path, media_dir: new_media_dir]
           )
 
           Repo.update_all(from(p in FilePresence, where: p.id == ^old.id),
             set: [
               file_path: new_path,
-              watch_dir: new_watch_dir,
+              media_dir: new_media_dir,
               size: new_size,
               last_seen_at: now,
               updated_at: now_seconds
@@ -1671,8 +1671,8 @@ defmodule MediaCentaur.Library do
   @spec create_extra_file(map()) :: {:ok, ExtraFile.t()} | {:error, Ecto.Changeset.t()}
   def create_extra_file(attrs) do
     file_path = lookup_attr(attrs, :file_path)
-    watch_dir = lookup_attr(attrs, :watch_dir)
-    attrs = ensure_file_presence_id(attrs, file_path, watch_dir)
+    media_dir = lookup_attr(attrs, :media_dir)
+    attrs = ensure_file_presence_id(attrs, file_path, media_dir)
 
     case Repo.get_by(ExtraFile, file_path: file_path) do
       nil -> Repo.insert(ExtraFile.link_file_changeset(attrs))
@@ -2108,7 +2108,7 @@ defmodule MediaCentaur.Library do
   `progress_pct` is 0..100 (integer).
 
   Includes entities whose underlying file is not currently present in any
-  watch_dir — Continue Watching is the user's mental list of "things I'm
+  media_dir — Continue Watching is the user's mental list of "things I'm
   watching", and an absent file does not erase that. Playback handles the
   missing-file case at the action layer.
 
@@ -3362,12 +3362,12 @@ defmodule MediaCentaur.Library do
   # constraint). Falls through unchanged when either input is missing
   # or blank so the downstream changeset surfaces the missing-field
   # error rather than crashing inside `FilePresence.stamp/3`.
-  defp ensure_file_presence_id(attrs, file_path, watch_dir)
-       when is_binary(file_path) and byte_size(file_path) > 0 and is_binary(watch_dir) and
-              byte_size(watch_dir) > 0 do
-    presence = FilePresence.stamp(file_path, watch_dir)
+  defp ensure_file_presence_id(attrs, file_path, media_dir)
+       when is_binary(file_path) and byte_size(file_path) > 0 and is_binary(media_dir) and
+              byte_size(media_dir) > 0 do
+    presence = FilePresence.stamp(file_path, media_dir)
     Map.put(attrs, :file_presence_id, presence.id)
   end
 
-  defp ensure_file_presence_id(attrs, _file_path, _watch_dir), do: attrs
+  defp ensure_file_presence_id(attrs, _file_path, _media_dir), do: attrs
 end

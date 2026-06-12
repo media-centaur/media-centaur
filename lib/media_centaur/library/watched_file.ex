@@ -25,7 +25,7 @@ defmodule MediaCentaur.Library.WatchedFile do
 
   schema "library_watched_files" do
     field :file_path, :string
-    field :watch_dir, :string
+    field :media_dir, :string
 
     belongs_to :playable_item, MediaCentaur.Library.PlayableItem
     belongs_to :file_presence, MediaCentaur.Library.FilePresence
@@ -35,7 +35,7 @@ defmodule MediaCentaur.Library.WatchedFile do
 
   @doc """
   Insert changeset for a new WatchedFile. Requires `:file_path`,
-  `:playable_item_id`, and `:file_presence_id`. `:watch_dir` is
+  `:playable_item_id`, and `:file_presence_id`. `:media_dir` is
   captured for cross-context presence lookups. Callers should go
   through `Library.link_file/1` rather than building this changeset
   directly — `link_file/1` ensures a matching FilePresence exists
@@ -43,7 +43,7 @@ defmodule MediaCentaur.Library.WatchedFile do
   """
   def link_file_changeset(attrs) do
     %__MODULE__{}
-    |> cast(attrs, [:file_path, :watch_dir, :playable_item_id, :file_presence_id])
+    |> cast(attrs, [:file_path, :media_dir, :playable_item_id, :file_presence_id])
     |> validate_required([:file_path, :playable_item_id, :file_presence_id])
   end
 
@@ -54,7 +54,7 @@ defmodule MediaCentaur.Library.WatchedFile do
   """
   def link_file_changeset(watched_file, attrs) do
     watched_file
-    |> cast(attrs, [:file_path, :watch_dir, :playable_item_id, :file_presence_id])
+    |> cast(attrs, [:file_path, :media_dir, :playable_item_id, :file_presence_id])
     |> validate_required([:file_path, :playable_item_id, :file_presence_id])
   end
 end

@@ -76,7 +76,7 @@ defmodule MediaCentaur.Review.Intake do
   @doc """
   Creates PendingFiles from a list of file maps (from a rematch).
 
-  Each file map has `:file_path` and `:watch_dir`. The file path is parsed
+  Each file map has `:file_path` and `:media_dir`. The file path is parsed
   to extract metadata, then a PendingFile is created and broadcast.
 
   Returns `{:ok, count}` with the number of PendingFiles created.
@@ -150,7 +150,7 @@ defmodule MediaCentaur.Review.Intake do
 
     %{
       file_path: file.file_path,
-      watch_directory: file.watch_dir,
+      media_directory: file.media_dir,
       parsed_title: search_title,
       parsed_year: search_year,
       parsed_type: type_to_string(parsed.type),

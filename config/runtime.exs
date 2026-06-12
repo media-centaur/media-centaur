@@ -59,9 +59,9 @@ if config_env() != :test do
   end
 
   # Defaults that flow into MediaCentaur.Config as fallbacks — the TOML
-  # overrides any of these via `watch_dirs`, `[tmdb].api_key`, etc.
+  # overrides any of these via `media_dirs`, `[tmdb].api_key`, etc.
   config :media_centaur,
-    watch_dirs: [System.get_env("MEDIA_DIR", "/mnt/videos/Videos")],
+    media_dirs: [System.get_env("MEDIA_DIR", "/mnt/videos/Videos")],
     tmdb_api_key: System.get_env("TMDB_API_KEY", ""),
     auto_approve_threshold: 0.85
 end

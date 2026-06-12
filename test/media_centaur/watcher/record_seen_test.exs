@@ -12,7 +12,7 @@ defmodule MediaCentaur.Watcher.RecordSeenTest do
 
       attrs = %{
         file_path: "/media/movies/sample.mkv",
-        watch_dir: "/media/movies",
+        media_dir: "/media/movies",
         playable_item_id: playable_item.id
       }
 
@@ -21,7 +21,7 @@ defmodule MediaCentaur.Watcher.RecordSeenTest do
       assert file.file_path == "/media/movies/sample.mkv"
 
       presence = Repo.get_by!(FilePresence, file_path: "/media/movies/sample.mkv")
-      assert presence.watch_dir == "/media/movies"
+      assert presence.media_dir == "/media/movies"
       assert file.file_presence_id == presence.id
     end
 
@@ -31,7 +31,7 @@ defmodule MediaCentaur.Watcher.RecordSeenTest do
 
       attrs = %{
         file_path: "/media/movies/sample.mkv",
-        watch_dir: "/media/movies",
+        media_dir: "/media/movies",
         playable_item_id: playable_item.id
       }
 
@@ -48,7 +48,7 @@ defmodule MediaCentaur.Watcher.RecordSeenTest do
       # validate_required check on WatchedFile.link_file_changeset/1.
       attrs = %{
         file_path: "",
-        watch_dir: "/media/movies"
+        media_dir: "/media/movies"
       }
 
       assert {:error, _} = Watcher.record_seen(attrs)

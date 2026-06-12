@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Storybook.LibraryCards.StorageOfflineBanner do
   @moduledoc """
   Persistent top-of-page banner shown on the Library page when one or
-  more configured watch directories are offline.
+  more configured media directories are offline.
 
   ## Contract shape
 
@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.StorageOfflineBanner do
     [
       %Variation{
         id: :single_dir,
-        description: "One watch directory offline — single-item phrasing.",
+        description: "One media directory offline — single-item phrasing.",
         attributes: %{
           summary: "/mnt/media/movies is offline — 1 item temporarily unavailable."
         }

@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServerTest do
     test "placeholder response is uncached so a recovered drive serves real artwork on next fetch",
          %{conn: conn} do
       # Same URL maps to either the placeholder OR the real file depending on
-      # whether the watch dir is mounted right now. Caching the placeholder
+      # whether the media dir is mounted right now. Caching the placeholder
       # response shadows the real file once the drive comes back — the browser
       # keeps serving the cached placeholder for the same URL until expiry.
       # `no-store` is the only correct cache directive for a response whose

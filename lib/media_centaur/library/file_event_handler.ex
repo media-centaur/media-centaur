@@ -90,11 +90,11 @@ defmodule MediaCentaur.Library.FileEventHandler do
   """
   @spec delete_folder(String.t(), [String.t()]) :: {:ok, [String.t()]} | {:error, any()}
   def delete_folder(folder_path, file_paths) do
-    watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
+    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
 
-    if folder_path in watch_dirs do
-      Log.warning(:library, "refused to delete watch directory — #{folder_path}")
-      {:error, :watch_directory}
+    if folder_path in media_dirs do
+      Log.warning(:library, "refused to delete media directory — #{folder_path}")
+      {:error, :media_directory}
     else
       delete_folder_unsafe(folder_path, file_paths)
     end
@@ -178,7 +178,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
       # {:files_removed, paths} broadcast. The two emitters of that
       # broadcast — `Library.AbsenceSweeper.purge_expired/1` and the
       # watcher's inotify deletion flush — are themselves availability-
-      # safe (the policy filters on `:watch_dir in ^available_dirs`,
+      # safe (the policy filters on `:media_dir in ^available_dirs`,
       # and inotify only fires for files whose drive is mounted by
       # definition). So the destructive op here inherits the upstream
       # filter and doesn't need its own.

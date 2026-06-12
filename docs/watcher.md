@@ -15,7 +15,7 @@ The watcher subsystem monitors configured directories for video file additions a
 
 ```mermaid
 graph TD
-    Config[Config.get :watch_dirs] --> Sup
+    Config[Config.get :media_dirs] --> Sup
 
     subgraph Sup["Watcher.Supervisor (one_for_all)"]
         Registry[Watcher.Registry<br/>unique keys by dir]
@@ -59,16 +59,16 @@ stateDiagram-v2
 
 ## Configuration
 
-- `watch_dirs` — directories to monitor (see [configuration.md](configuration.md))
-- `exclude_dirs` — paths inside a watch directory to skip (absolute paths)
+- `media_dirs` — directories to monitor (see [configuration.md](configuration.md))
+- `exclude_dirs` — paths inside a media directory to skip (absolute paths)
 
-Both are DB-managed since v0.14.0 / v0.15.0 — edits happen in **Settings → Library** and flow through `Settings` to the watchers without a restart. The TOML holds only bootstrap state: `database_path`, `port`, and the initial `watch_dirs` seed (imported once on first boot, managed in the UI thereafter).
+Both are DB-managed since v0.14.0 / v0.15.0 — edits happen in **Settings → Library** and flow through `Settings` to the watchers without a restart. The TOML holds only bootstrap state: `database_path`, `port`, and the initial `media_dirs` seed (imported once on first boot, managed in the UI thereafter).
 
 Each watcher also auto-excludes its own images directory and staging directory.
 
 ### Runtime config updates
 
-When watch dirs or excluded dirs change, `Settings` broadcasts `:config_updated` on the `config:updates` topic. `Watcher.ConfigListener` translates that broadcast into targeted messages for each running `Watcher` (e.g. `{:config_updated, :exclude_dirs, new_list}`), which the watcher applies in place — no supervisor restart, no inotify teardown. This is what makes v0.21.0's "changes to your excluded-directory list take effect immediately" work.
+When media dirs or excluded dirs change, `Settings` broadcasts `:config_updated` on the `config:updates` topic. `Watcher.ConfigListener` translates that broadcast into targeted messages for each running `Watcher` (e.g. `{:config_updated, :exclude_dirs, new_list}`), which the watcher applies in place — no supervisor restart, no inotify teardown. This is what makes v0.21.0's "changes to your excluded-directory list take effect immediately" work.
 
 The v0.21.0 crash fix lives in the same path: previously, creating or modifying an excluded directory could trip an unhandled message and kill the watcher; the handler now treats events for excluded paths as no-ops.
 
@@ -78,7 +78,7 @@ The v0.21.0 crash fix lives in the same path: previously, creating or modifying 
 
 1. inotify reports a create/modify event for a file with a video extension
 2. Watcher starts size stability polling (2 checks, 5 seconds apart)
-3. Once stable, broadcasts `{:file_detected, %{path, watch_dir}}` to `"pipeline:input"`
+3. Once stable, broadcasts `{:file_detected, %{path, media_dir}}` to `"pipeline:input"`
 4. Pipeline Producer picks it up for processing
 
 ### File Removal
@@ -112,7 +112,7 @@ The dashboard provides a "Scan directories" button that calls `Watcher.Superviso
 
 | Topic | Event | Payload |
 |-------|-------|---------|
-| `pipeline:input` | `:file_detected` | `%{path: string, watch_dir: string}` |
+| `pipeline:input` | `:file_detected` | `%{path: string, media_dir: string}` |
 | `library:file_events` | `:files_removed` | `[path, ...]` |
 | `watcher:state` | `:watcher_state_changed` | `{dir, new_state}` |
 

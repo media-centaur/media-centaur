@@ -6,15 +6,15 @@ defmodule MediaCentaur.Library.ImageTest do
 
   describe "upsert_image/2 replaced-file cleanup" do
     test "deletes the old file on disk when the content_url changes" do
-      watch_dir =
+      media_dir =
         Path.join(System.tmp_dir!(), "image_upsert_test_#{System.unique_integer([:positive])}")
 
       config = :persistent_term.get({Config, :config})
-      :persistent_term.put({Config, :config}, Map.put(config, :watch_dirs, [watch_dir]))
-      on_exit(fn -> File.rm_rf!(watch_dir) end)
+      :persistent_term.put({Config, :config}, Map.put(config, :media_dirs, [media_dir]))
+      on_exit(fn -> File.rm_rf!(media_dir) end)
 
       movie = create_entity(%{type: :movie, name: "Test Movie"})
-      images_dir = Config.images_dir_for(watch_dir)
+      images_dir = Config.images_dir_for(media_dir)
       old_relative_url = "#{movie.id}/poster.jpg"
       old_path = Path.join(images_dir, old_relative_url)
       File.mkdir_p!(Path.dirname(old_path))
@@ -40,15 +40,15 @@ defmodule MediaCentaur.Library.ImageTest do
     end
 
     test "keeps the file when the content_url is unchanged" do
-      watch_dir =
+      media_dir =
         Path.join(System.tmp_dir!(), "image_upsert_test_#{System.unique_integer([:positive])}")
 
       config = :persistent_term.get({Config, :config})
-      :persistent_term.put({Config, :config}, Map.put(config, :watch_dirs, [watch_dir]))
-      on_exit(fn -> File.rm_rf!(watch_dir) end)
+      :persistent_term.put({Config, :config}, Map.put(config, :media_dirs, [media_dir]))
+      on_exit(fn -> File.rm_rf!(media_dir) end)
 
       movie = create_entity(%{type: :movie, name: "Test Movie"})
-      images_dir = Config.images_dir_for(watch_dir)
+      images_dir = Config.images_dir_for(media_dir)
       relative_url = "#{movie.id}/poster.jpg"
       path = Path.join(images_dir, relative_url)
       File.mkdir_p!(Path.dirname(path))

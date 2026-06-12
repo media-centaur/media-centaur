@@ -20,8 +20,8 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
     original = :persistent_term.get({Config, :config}, %{})
 
     :persistent_term.put({Config, :config}, %{
-      watch_dirs: [tmp],
-      watch_dir_images: %{tmp => images_dir}
+      media_dirs: [tmp],
+      media_dir_images: %{tmp => images_dir}
     })
 
     :ok = Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.pipeline_images())
@@ -67,7 +67,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
           role: "poster",
           source_url: "https://image.tmdb.org/t/p/original/stored.jpg",
           entity_id: movie.id,
-          watch_dir: tmp,
+          media_dir: tmp,
           status: "complete"
         })
 
@@ -80,7 +80,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       assert reloaded.status == "pending"
       assert reloaded.retry_count == 0
 
-      assert_receive {:images_pending, %{entity_id: entity_id, watch_dir: ^tmp}}
+      assert_receive {:images_pending, %{entity_id: entity_id, media_dir: ^tmp}}
       assert entity_id == movie.id
     end
   end
@@ -108,7 +108,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       assert entry.source_url == "https://image.tmdb.org/t/p/original/fresh.jpg"
       assert entry.status == "pending"
       assert entry.owner_type == "movie"
-      assert entry.watch_dir == tmp
+      assert entry.media_dir == tmp
     end
 
     test "creates a new queue row for a tv_series via tmdb_id", %{tmp: tmp} do
@@ -203,7 +203,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       assert result.skipped == 1
     end
 
-    test "skips entity with no watched_files (cannot determine watch_dir)", %{tmp: _tmp} do
+    test "skips entity with no watched_files (cannot determine media_dir)", %{tmp: _tmp} do
       movie = create_standalone_movie(%{name: "Orphan", position: 0, tmdb_id: "550"})
 
       Library.create_image!(%{
@@ -289,21 +289,21 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
     defaults = %{name: "Test Movie", position: 0}
     movie = create_standalone_movie(Map.merge(defaults, attrs))
     file_path = Path.join(tmp, "movie-#{movie.id}.mkv")
-    create_linked_file(%{movie_id: movie.id, file_path: file_path, watch_dir: tmp})
+    create_linked_file(%{movie_id: movie.id, file_path: file_path, media_dir: tmp})
     movie
   end
 
   defp create_tv_series_with_watched_file(tmp, attrs \\ %{}) do
     tv = create_tv_series(attrs)
     file_path = Path.join(tmp, "tv-#{tv.id}.mkv")
-    create_linked_file(%{tv_series_id: tv.id, file_path: file_path, watch_dir: tmp})
+    create_linked_file(%{tv_series_id: tv.id, file_path: file_path, media_dir: tmp})
     tv
   end
 
   defp create_movie_series_with_watched_file(tmp, attrs) do
     ms = create_movie_series(attrs)
     file_path = Path.join(tmp, "ms-#{ms.id}.mkv")
-    create_linked_file(%{movie_series_id: ms.id, file_path: file_path, watch_dir: tmp})
+    create_linked_file(%{movie_series_id: ms.id, file_path: file_path, media_dir: tmp})
     ms
   end
 end

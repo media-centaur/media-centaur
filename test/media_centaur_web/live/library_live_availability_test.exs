@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.LibraryLiveAvailabilityTest do
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
       MediaCentaur.Topics.dir_state(),
-      {:dir_state_changed, dir, :watch_dir, state}
+      {:dir_state_changed, dir, :media_dir, state}
     )
 
     :ok = Availability.__sync_for_test__()

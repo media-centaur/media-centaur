@@ -16,7 +16,7 @@ defmodule MediaCentaur.Pipeline.ImageRefreshTest do
 
   defp identified_movie do
     movie = TestFactory.create_movie(%{name: "Sample Movie", tmdb_id: "550"})
-    TestFactory.create_linked_file(%{movie_id: movie.id, watch_dir: "/media/movies"})
+    TestFactory.create_linked_file(%{movie_id: movie.id, media_dir: "/media/movies"})
     movie
   end
 
@@ -29,7 +29,7 @@ defmodule MediaCentaur.Pipeline.ImageRefreshTest do
       assert count >= 2
 
       assert_receive {:enqueue_images,
-                      %{entity_id: entity_id, watch_dir: "/media/movies", images: images}}
+                      %{entity_id: entity_id, media_dir: "/media/movies", images: images}}
 
       assert entity_id == movie.id
       roles = Enum.map(images, & &1.role)

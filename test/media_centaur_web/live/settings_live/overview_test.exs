@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.Live.SettingsLive.OverviewTest do
         mpv_path: @present_executable,
         mpv_socket_dir: @tmp_dir,
         database_path: Path.join(@tmp_dir, "test.db"),
-        watch_dirs: [@tmp_dir]
+        media_dirs: [@tmp_dir]
       }
     }
 
@@ -163,24 +163,24 @@ defmodule MediaCentaurWeb.Live.SettingsLive.OverviewTest do
       assert item.status == :warning
     end
 
-    test "all watch dirs present → :ok" do
+    test "all media dirs present → :ok" do
       groups = Overview.build(input())
-      item = find_item(groups, :watch_dirs)
+      item = find_item(groups, :media_dirs)
       assert item.status == :ok
     end
 
-    test "a missing watch dir → :warning with count" do
+    test "a missing media dir → :warning with count" do
       groups =
-        Overview.build(input(%{config: %{watch_dirs: [@tmp_dir, "/gone"]}}))
+        Overview.build(input(%{config: %{media_dirs: [@tmp_dir, "/gone"]}}))
 
-      item = find_item(groups, :watch_dirs)
+      item = find_item(groups, :media_dirs)
       assert item.status == :warning
       assert item.detail =~ "1"
     end
 
-    test "no watch dirs configured → :warning" do
-      groups = Overview.build(input(%{config: %{watch_dirs: []}}))
-      item = find_item(groups, :watch_dirs)
+    test "no media dirs configured → :warning" do
+      groups = Overview.build(input(%{config: %{media_dirs: []}}))
+      item = find_item(groups, :media_dirs)
       assert item.status == :warning
       assert item.detail =~ "None"
     end
@@ -212,7 +212,7 @@ defmodule MediaCentaurWeb.Live.SettingsLive.OverviewTest do
       probes = [
         %Probe.Result{id: :tmdb, status: :error, critical?: true},
         %Probe.Result{id: :mpv, status: :error, critical?: false},
-        %Probe.Result{id: :watch_dirs, status: :ok, critical?: true}
+        %Probe.Result{id: :media_dirs, status: :ok, critical?: true}
       ]
 
       [failure] = Overview.critical_failures(probes)
@@ -231,7 +231,7 @@ defmodule MediaCentaurWeb.Live.SettingsLive.OverviewTest do
     test "ignores critical probes that are not :error" do
       probes = [
         %Probe.Result{id: :tmdb, status: :not_configured, critical?: true},
-        %Probe.Result{id: :watch_dirs, status: :warning, critical?: true},
+        %Probe.Result{id: :media_dirs, status: :warning, critical?: true},
         %Probe.Result{id: :mpv, status: :ok, critical?: true}
       ]
 

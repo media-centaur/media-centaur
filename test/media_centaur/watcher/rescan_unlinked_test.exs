@@ -33,27 +33,27 @@ defmodule MediaCentaur.Watcher.RescanUnlinkedTest do
     test "emits :file_detected for presence rows with no library link" do
       stranded_path = "/tmp/test/stranded.mkv"
       linked_path = "/tmp/test/linked.mkv"
-      watch_dir = "/tmp/test"
+      media_dir = "/tmp/test"
 
-      FilePresence.stamp(stranded_path, watch_dir)
+      FilePresence.stamp(stranded_path, media_dir)
       # `linked_path` will get its presence stamped via `create_linked_file`
       # → `Library.link_file/1` → auto-stamp; no need for a separate stamp.
 
       movie = create_movie(%{name: "Sample Movie"})
-      create_linked_file(%{file_path: linked_path, watch_dir: watch_dir, movie_id: movie.id})
+      create_linked_file(%{file_path: linked_path, media_dir: media_dir, movie_id: movie.id})
 
       assert {:ok, 1} = WatcherSupervisor.rescan_unlinked()
 
-      assert_receive {:file_detected, %{path: ^stranded_path, watch_dir: ^watch_dir}}, 500
+      assert_receive {:file_detected, %{path: ^stranded_path, media_dir: ^media_dir}}, 500
       refute_receive {:file_detected, %{path: ^linked_path}}, 100
     end
 
     test "returns {:ok, 0} and emits no events when nothing is stranded" do
       linked_path = "/tmp/test/only_linked.mkv"
-      watch_dir = "/tmp/test"
+      media_dir = "/tmp/test"
 
       movie = create_movie(%{name: "Sample Movie B"})
-      create_linked_file(%{file_path: linked_path, watch_dir: watch_dir, movie_id: movie.id})
+      create_linked_file(%{file_path: linked_path, media_dir: media_dir, movie_id: movie.id})
 
       assert {:ok, 0} = WatcherSupervisor.rescan_unlinked()
       refute_receive {:file_detected, _}, 100
@@ -66,14 +66,14 @@ defmodule MediaCentaur.Watcher.RescanUnlinkedTest do
 
     test "emits one event per stranded row across multiple files" do
       paths = ["/tmp/test/a.mkv", "/tmp/test/b.mkv", "/tmp/test/c.mkv"]
-      watch_dir = "/tmp/test"
+      media_dir = "/tmp/test"
 
-      Enum.each(paths, &FilePresence.stamp(&1, watch_dir))
+      Enum.each(paths, &FilePresence.stamp(&1, media_dir))
 
       assert {:ok, 3} = WatcherSupervisor.rescan_unlinked()
 
       Enum.each(paths, fn path ->
-        assert_receive {:file_detected, %{path: ^path, watch_dir: ^watch_dir}}, 500
+        assert_receive {:file_detected, %{path: ^path, media_dir: ^media_dir}}, 500
       end)
     end
   end

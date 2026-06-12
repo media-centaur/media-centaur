@@ -5,7 +5,7 @@
 #
 # This file carries only bootstrap state — the values the app needs
 # before its database is reachable: the database file location, the HTTP
-# port, and the initial watch-directory seed. Every other setting is
+# port, and the initial media-directory seed. Every other setting is
 # configured in the app (open Settings to adjust them) and lives in the
 # database. Runtime values left in this file are ignored — the database
 # is the single source of truth.
@@ -17,9 +17,9 @@ database_path = "~/.local/share/media-centaur/media-centaur.db"
 # Default: 2160 (prod), 1080 (dev).
 # port = 2160
 
-# Watch directories are seeded from here on first boot only — open
-# Settings → Library → Watch Directories to manage them thereafter. Any
-# TOML `watch_dirs` present here (or in an existing user config) are
+# Media directories are seeded from here on first boot only — open
+# Settings → Library → Media Directories to manage them thereafter. Any
+# TOML `media_dirs` present here (or in an existing user config) are
 # imported into the app's database on first boot, after which this key is
 # ignored and edits live in the UI.
 

@@ -1,6 +1,6 @@
-defmodule MediaCentaurWeb.Storybook.Setup.WatchDirsStep do
+defmodule MediaCentaurWeb.Storybook.Setup.MediaDirsStep do
   @moduledoc """
-  Watch directories step in the Setup Tour. Distinct UX from the binary
+  Media directories step in the Setup Tour. Distinct UX from the binary
   and integration steps — multi-entry list with add/remove instead of a
   single field.
 
@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.Storybook.Setup.WatchDirsStep do
 
   alias MediaCentaurWeb.Live.SetupLive.Probe
 
-  def function, do: &MediaCentaurWeb.Components.SetupSteps.watch_dirs_step/1
+  def function, do: &MediaCentaurWeb.Components.SetupSteps.media_dirs_step/1
   def render_source, do: :function
   def layout, do: :one_column
 
@@ -27,13 +27,13 @@ defmodule MediaCentaurWeb.Storybook.Setup.WatchDirsStep do
         id: :empty,
         description: "Fresh state — no directories configured.",
         attributes: %{
-          content: MediaCentaurWeb.Live.SetupLive.Content.for(:watch_dirs),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:media_dirs),
           step_index: 1,
           total_steps: 6,
           result: %Probe.Result{
-            id: :watch_dirs,
+            id: :media_dirs,
             status: :not_configured,
-            detail: "No watch directories — the library will stay empty.",
+            detail: "No media directories — the library will stay empty.",
             current_value: [],
             critical?: true
           }
@@ -41,13 +41,13 @@ defmodule MediaCentaurWeb.Storybook.Setup.WatchDirsStep do
       },
       %Variation{
         id: :one_dir,
-        description: "Single watch directory configured and reachable.",
+        description: "Single media directory configured and reachable.",
         attributes: %{
-          content: MediaCentaurWeb.Live.SetupLive.Content.for(:watch_dirs),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:media_dirs),
           step_index: 1,
           total_steps: 6,
           result: %Probe.Result{
-            id: :watch_dirs,
+            id: :media_dirs,
             status: :ok,
             detail: "1 directory configured.",
             current_value: [%{"dir" => "/mnt/media/movies"}],
@@ -59,11 +59,11 @@ defmodule MediaCentaurWeb.Storybook.Setup.WatchDirsStep do
         id: :several_dirs,
         description: "Multiple directories, all reachable.",
         attributes: %{
-          content: MediaCentaurWeb.Live.SetupLive.Content.for(:watch_dirs),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:media_dirs),
           step_index: 1,
           total_steps: 6,
           result: %Probe.Result{
-            id: :watch_dirs,
+            id: :media_dirs,
             status: :ok,
             detail: "3 directories configured.",
             current_value: [
@@ -79,13 +79,13 @@ defmodule MediaCentaurWeb.Storybook.Setup.WatchDirsStep do
         id: :one_missing,
         description: "Some directories unreachable — partial warning.",
         attributes: %{
-          content: MediaCentaurWeb.Live.SetupLive.Content.for(:watch_dirs),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:media_dirs),
           step_index: 1,
           total_steps: 6,
           result: %Probe.Result{
-            id: :watch_dirs,
+            id: :media_dirs,
             status: :warning,
-            detail: "1 of 2 watch directories unreachable.",
+            detail: "1 of 2 media directories unreachable.",
             current_value: [
               %{"dir" => "/mnt/media/movies"},
               %{"dir" => "/mnt/disconnected-drive/tv"}
@@ -98,13 +98,13 @@ defmodule MediaCentaurWeb.Storybook.Setup.WatchDirsStep do
         id: :all_missing,
         description: "All directories unreachable — likely an unmounted drive.",
         attributes: %{
-          content: MediaCentaurWeb.Live.SetupLive.Content.for(:watch_dirs),
+          content: MediaCentaurWeb.Live.SetupLive.Content.for(:media_dirs),
           step_index: 1,
           total_steps: 6,
           result: %Probe.Result{
-            id: :watch_dirs,
+            id: :media_dirs,
             status: :error,
-            detail: "All 2 watch directories are unreachable.",
+            detail: "All 2 media directories are unreachable.",
             current_value: [
               %{"dir" => "/mnt/disconnected-drive/movies"},
               %{"dir" => "/mnt/disconnected-drive/tv"}

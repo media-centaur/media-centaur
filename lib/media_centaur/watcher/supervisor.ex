@@ -3,7 +3,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
   Coordinates multiple `MediaCentaur.Watcher` instances, one per watched directory.
 
   Starts a `DynamicSupervisor` and a `Registry`, then launches one Watcher child
-  per directory from `Config.get(:watch_dirs)`.
+  per directory from `Config.get(:media_dirs)`.
   """
   use Supervisor
   import Ecto.Query
@@ -39,7 +39,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
   Starts added entries, terminates removed ones, and replaces entries
   whose `dir` or `images_dir` changed. Name-only changes are no-ops.
 
-  Called whenever `Config` broadcasts `{:config_updated, :watch_dirs, ...}`.
+  Called whenever `Config` broadcasts `{:config_updated, :media_dirs, ...}`.
   """
   @spec reconcile([map()]) :: :ok
   def reconcile(new_entries) when is_list(new_entries) do
@@ -116,7 +116,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
 
   # Common shape for `DynamicSupervisor.start_child` + already-started + log.
   # `kind` is a short label used in the log message; `name` is the human
-  # identifier (the watch dir or image dir).
+  # identifier (the media dir or image dir).
   defp start_under(supervisor, child_spec, kind, name) do
     case DynamicSupervisor.start_child(supervisor, child_spec) do
       {:ok, _pid} ->
@@ -143,7 +143,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
   Called after the supervisor starts to launch a watcher for each configured directory.
   """
   def start_watchers do
-    dirs = MediaCentaur.Config.get(:watch_dirs) || []
+    dirs = MediaCentaur.Config.get(:media_dirs) || []
 
     Enum.each(dirs, fn dir ->
       start_under(
@@ -166,7 +166,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
   @doc """
   Reconciles running image-dir monitors with the desired set computed
   from `Config.image_dirs_needing_monitoring/0`. Called by
-  `Watcher.ConfigListener` whenever watch_dirs change so that editing
+  `Watcher.ConfigListener` whenever media_dirs change so that editing
   `images_dir` on a watch entry takes effect without an app restart.
   """
   @spec reconcile_image_dir_monitors() :: :ok
@@ -190,10 +190,10 @@ defmodule MediaCentaur.Watcher.Supervisor do
     :ok
   end
 
-  defp start_image_monitor({watch_dir, image_dir}) do
+  defp start_image_monitor({media_dir, image_dir}) do
     start_under(
       MediaCentaur.Watcher.DirMonitor.DynamicSupervisor,
-      {MediaCentaur.Watcher.DirMonitor, {image_dir, watch_dir}},
+      {MediaCentaur.Watcher.DirMonitor, {image_dir, media_dir}},
       "image dir monitor",
       image_dir
     )
@@ -217,7 +217,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
     |> registered_pids()
     |> Enum.flat_map(fn {image_dir, pid} ->
       try do
-        [{DirMonitor.watch_dir(pid), image_dir}]
+        [{DirMonitor.media_dir(pid), image_dir}]
       catch
         :exit, _ -> []
       end
@@ -225,7 +225,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
   end
 
   @doc """
-  Returns a list of `%{dir: path, watch_dir: path, state: atom}` for all running DirMonitors.
+  Returns a list of `%{dir: path, media_dir: path, state: atom}` for all running DirMonitors.
   """
   def image_dir_statuses do
     DirMonitor.Registry
@@ -235,7 +235,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
         [
           %{
             dir: dir,
-            watch_dir: DirMonitor.watch_dir(pid),
+            media_dir: DirMonitor.media_dir(pid),
             state: DirMonitor.status(pid)
           }
         ]
@@ -360,14 +360,14 @@ defmodule MediaCentaur.Watcher.Supervisor do
       Repo.all(
         from p in FilePresence,
           where: p.file_path not in subquery(linked_paths),
-          select: %{path: p.file_path, watch_dir: p.watch_dir}
+          select: %{path: p.file_path, media_dir: p.media_dir}
       )
 
     Enum.each(rows, fn row ->
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,
         Topics.pipeline_input(),
-        {:file_detected, %{path: row.path, watch_dir: row.watch_dir}}
+        {:file_detected, %{path: row.path, media_dir: row.media_dir}}
       )
     end)
 

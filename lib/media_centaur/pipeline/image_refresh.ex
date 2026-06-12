@@ -55,21 +55,21 @@ defmodule MediaCentaur.Pipeline.ImageRefresh do
   @spec refresh_entity(String.t(), entity_type()) :: {:ok, non_neg_integer()} | {:error, term()}
   def refresh_entity(entity_id, type) do
     with {:ok, tmdb_id} <- EntityImageContext.find_tmdb_context(entity_id, type),
-         {:ok, watch_dir} <- EntityImageContext.find_watch_dir(entity_id, type),
+         {:ok, media_dir} <- EntityImageContext.find_media_dir(entity_id, type),
          {:ok, data} <- fetch_metadata(type, tmdb_id) do
-      enqueue(entity_id, type, watch_dir, Mapper.image_list(data))
+      enqueue(entity_id, type, media_dir, Mapper.image_list(data))
     else
       {:skip, reason} -> {:error, reason}
       {:error, reason} -> {:error, reason}
     end
   end
 
-  defp enqueue(entity_id, type, _watch_dir, []) do
+  defp enqueue(entity_id, type, _media_dir, []) do
     Log.info(:library, "image_refresh: no TMDB artwork for #{type}:#{entity_id}")
     {:ok, 0}
   end
 
-  defp enqueue(entity_id, type, watch_dir, images) do
+  defp enqueue(entity_id, type, media_dir, images) do
     pending =
       Enum.map(images, fn image ->
         %{
@@ -84,7 +84,7 @@ defmodule MediaCentaur.Pipeline.ImageRefresh do
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
       Topics.pipeline_images(),
-      {:enqueue_images, %{entity_id: entity_id, watch_dir: watch_dir, images: pending}}
+      {:enqueue_images, %{entity_id: entity_id, media_dir: media_dir, images: pending}}
     )
 
     Log.info(:library, "image_refresh: enqueued #{length(pending)} images for #{type}:#{entity_id}")

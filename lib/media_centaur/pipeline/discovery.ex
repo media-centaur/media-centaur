@@ -105,7 +105,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
         {:file_matched,
          %{
            file_path: payload.file_path,
-           watch_dir: payload.watch_directory,
+           media_dir: payload.media_directory,
            tmdb_id: payload.tmdb_id,
            tmdb_type: payload.tmdb_type,
            pending_file_id: nil
@@ -174,7 +174,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
 
     %{
       file_path: payload.file_path,
-      watch_directory: payload.watch_directory,
+      media_directory: payload.media_directory,
       parsed_title: search_title,
       parsed_year: search_year,
       parsed_type: type_to_string(payload.parsed.type),

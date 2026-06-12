@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Watcher.ConfigListener do
   @moduledoc """
   Subscribes to `Topics.config_updates()` and calls
-  `Watcher.Supervisor.reconcile/1` on every watch-dir change broadcast.
+  `Watcher.Supervisor.reconcile/1` on every media-dir change broadcast.
 
   Thin PubSub bridge — the reconcile itself is synchronous and idempotent.
   """
@@ -23,7 +23,7 @@ defmodule MediaCentaur.Watcher.ConfigListener do
   end
 
   @impl true
-  def handle_info({:config_updated, :watch_dirs, entries}, state) do
+  def handle_info({:config_updated, :media_dirs, entries}, state) do
     MediaCentaur.Watcher.Supervisor.reconcile(entries)
     MediaCentaur.Watcher.Supervisor.reconcile_image_dir_monitors()
     {:noreply, state}

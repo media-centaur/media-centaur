@@ -1113,7 +1113,7 @@ defmodule MediaCentaur.Library.Views.Detail do
       fn file ->
         %DetailItem.WatchedFile{
           path: file.file_path,
-          watch_dir: file.watch_dir
+          media_dir: file.media_dir
         }
       end
     )

@@ -138,16 +138,16 @@ defmodule MediaCentaur.Application do
   def post_supervisor_hooks({:error, _reason} = error), do: error
 
   defp init_services do
-    toml_entries = Application.get_env(:media_centaur, :__raw_toml_watch_dirs, [])
+    toml_entries = Application.get_env(:media_centaur, :__raw_toml_media_dirs, [])
 
     try do
-      :ok = MediaCentaur.Config.migrate_watch_dirs_from_toml(toml_entries)
-      :ok = MediaCentaur.Config.refresh_watch_dirs_from_settings()
+      :ok = MediaCentaur.Config.migrate_media_dirs_from_toml(toml_entries)
+      :ok = MediaCentaur.Config.refresh_media_dirs_from_settings()
       :ok = MediaCentaur.Config.load_runtime_overrides()
 
-      count = length(MediaCentaur.Config.watch_dirs_entries())
+      count = length(MediaCentaur.Config.media_dirs_entries())
       require MediaCentaur.Log
-      MediaCentaur.Log.info(:library, "watch_dirs: #{count} entries active")
+      MediaCentaur.Log.info(:library, "media_dirs: #{count} entries active")
     rescue
       error ->
         require MediaCentaur.Log

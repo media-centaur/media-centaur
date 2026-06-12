@@ -2,20 +2,20 @@ defmodule MediaCentaur.Library.MoveMatcherTest do
   @moduledoc """
   The pure move-detection decision: is a newly-seen file the same content
   as a file the library already tracks at a different path? Matching is by
-  path-relative-to-watch-dir plus byte size (see `MoveMatcher` moduledoc).
+  path-relative-to-media-dir plus byte size (see `MoveMatcher` moduledoc).
   No DB, no filesystem — the caller confirms the old path is actually gone.
   """
   use ExUnit.Case, async: true
 
   alias MediaCentaur.Library.MoveMatcher
 
-  defp existing(file_path, watch_dir, size),
-    do: %{file_path: file_path, watch_dir: watch_dir, size: size}
+  defp existing(file_path, media_dir, size),
+    do: %{file_path: file_path, media_dir: media_dir, size: size}
 
-  defp new_file(path, watch_dir, size), do: %{path: path, watch_dir: watch_dir, size: size}
+  defp new_file(path, media_dir, size), do: %{path: path, media_dir: media_dir, size: size}
 
   describe "match/2" do
-    test "same relative path and size under a new watch dir is a move" do
+    test "same relative path and size under a new media dir is a move" do
       rows = [existing("/old/Movies/foo/foo.mkv", "/old", 1000)]
 
       assert {:move, %{file_path: "/old/Movies/foo/foo.mkv"}} =
@@ -28,7 +28,7 @@ defmodule MediaCentaur.Library.MoveMatcherTest do
         existing("/c/Movies/foo.mkv", "/c", 2000)
       ]
 
-      assert {:move, %{watch_dir: "/c"}} =
+      assert {:move, %{media_dir: "/c"}} =
                MoveMatcher.match(new_file("/new/Movies/foo.mkv", "/new", 2000), rows)
     end
 
@@ -66,7 +66,7 @@ defmodule MediaCentaur.Library.MoveMatcherTest do
   end
 
   describe "relative_path/2" do
-    test "strips the watch dir prefix" do
+    test "strips the media dir prefix" do
       assert MoveMatcher.relative_path("/mnt/media/Movies/foo.mkv", "/mnt/media") ==
                "Movies/foo.mkv"
     end

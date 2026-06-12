@@ -31,11 +31,11 @@ defmodule MediaCentaur.Pipeline.Stages.ParseTest do
     test "preserves existing payload fields" do
       payload = %Payload{
         file_path: "/media/Movies/Sample.Movie.1999.mkv",
-        watch_directory: "/media/Movies"
+        media_directory: "/media/Movies"
       }
 
       assert {:ok, result} = Parse.run(payload)
-      assert result.watch_directory == "/media/Movies"
+      assert result.media_directory == "/media/Movies"
       assert result.parsed != nil
     end
   end

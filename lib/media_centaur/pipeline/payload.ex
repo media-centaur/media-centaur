@@ -10,7 +10,7 @@ defmodule MediaCentaur.Pipeline.Payload do
 
   **Input (set by producer):**
   - `file_path` — absolute path to the video file
-  - `watch_directory` — the watch directory it was detected in
+  - `media_directory` — the media directory it was detected in
 
   **Parse stage:**
   - `parsed` — `%Parser.Result{}` with title, year, type, season, episode
@@ -41,7 +41,7 @@ defmodule MediaCentaur.Pipeline.Payload do
   defstruct [
     # Input
     :file_path,
-    :watch_directory,
+    :media_directory,
 
     # Parse stage
     :parsed,

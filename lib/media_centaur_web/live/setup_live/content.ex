@@ -24,16 +24,16 @@ defmodule MediaCentaurWeb.Live.SetupLive.Content do
 
   @doc "Returns the `%Content{}` for the given probe id."
   @spec for(atom()) :: t()
-  def for(:watch_dirs) do
+  def for(:media_dirs) do
     %__MODULE__{
-      title: "Watch directories",
+      title: "Media directories",
       short: "Where your video files live",
       what:
-        "Watch directories are the folders Media Centaur scans for video files. " <>
+        "Media directories are the folders Media Centaur scans for video files. " <>
           "It checks each one continuously and identifies new arrivals via TMDB. " <>
           "You can have one or many — typical setups separate movies and TV onto different drives.",
       why:
-        "Without at least one watch directory, your library stays empty. " <>
+        "Without at least one media directory, your library stays empty. " <>
           "This is the foundation everything else builds on.",
       requirements: [
         "An absolute path to a folder containing video files (e.g. /mnt/media/Movies)",

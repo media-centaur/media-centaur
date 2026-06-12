@@ -4,7 +4,7 @@ defmodule MediaCentaur.WatcherStatus do
   @moduledoc """
   Boundary-neutral pass-through for `Watcher.Supervisor.statuses/0`.
 
-  Library.Availability needs to consult per-watch-dir state on init, but
+  Library.Availability needs to consult per-media-dir state on init, but
   Library cannot directly `dep:` on Watcher because Watcher already
   `dep:`s on Library (for `WatchedFile` reads in the recovery rebroadcast
   path). Adding the dep would create a Boundary cycle.

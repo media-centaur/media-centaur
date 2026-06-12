@@ -512,7 +512,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
   end
 
   describe "Phase 3.2 — expanded fields populated by cold-start refresh" do
-    test "Movie row carries :watched_files with path + watch_dir" do
+    test "Movie row carries :watched_files with path + media_dir" do
       on_exit_clear_table()
       {movie, file} = seed_present_movie("Watched Files Movie")
 
@@ -520,9 +520,9 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       item = Views.detail_by_container(:movie, movie.id)
 
       assert is_list(item.watched_files)
-      assert [%DetailItem.WatchedFile{path: path, watch_dir: dir}] = item.watched_files
+      assert [%DetailItem.WatchedFile{path: path, media_dir: dir}] = item.watched_files
       assert path == file.file_path
-      assert dir == file.watch_dir
+      assert dir == file.media_dir
     end
 
     test "Movie row carries :container_director (Phase 3.2 Task D)" do

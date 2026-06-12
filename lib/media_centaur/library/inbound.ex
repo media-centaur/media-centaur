@@ -74,7 +74,7 @@ defmodule MediaCentaur.Library.Inbound do
 
   The event is a plain map with keys: `entity_type`, `entity_attrs`,
   `identifier`, `images`, `season`, `child_movie`, `extra`, `file_path`,
-  `watch_dir`.
+  `media_dir`.
 
   Returns `{:ok, entity, status, pending_images}` or `{:error, reason}`.
   Status is `:new`, `:new_child`, or `:existing`.
@@ -184,7 +184,7 @@ defmodule MediaCentaur.Library.Inbound do
         "rematch — entity #{Format.short_id(entity_id)} has no watched files or not found"
       )
     else
-      file_list = Enum.map(files, &%{file_path: &1.file_path, watch_dir: &1.watch_dir})
+      file_list = Enum.map(files, &%{file_path: &1.file_path, media_dir: &1.media_dir})
 
       EntityCascade.bulk_destroy(files, WatchedFile)
       EntityCascade.destroy!(entity_id)
@@ -761,7 +761,7 @@ defmodule MediaCentaur.Library.Inbound do
       playable_item_id when is_binary(playable_item_id) ->
         attrs = %{
           file_path: event.file_path,
-          watch_dir: event.watch_dir,
+          media_dir: event.media_dir,
           playable_item_id: playable_item_id
         }
 
@@ -855,7 +855,7 @@ defmodule MediaCentaur.Library.Inbound do
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
       MediaCentaur.Topics.pipeline_images(),
-      {:enqueue_images, %{entity_id: entity.id, watch_dir: event.watch_dir, images: pending_images}}
+      {:enqueue_images, %{entity_id: entity.id, media_dir: event.media_dir, images: pending_images}}
     )
   end
 

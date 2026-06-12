@@ -8,7 +8,7 @@ defmodule MediaCentaur.Watcher.DirMonitor do
   message format.
 
   One DirMonitor is started per image directory that is NOT a subdirectory
-  of its watch directory (i.e., on a separate mount). Started and supervised
+  of its media directory (i.e., on a separate mount). Started and supervised
   by `Watcher.Supervisor`.
   """
   use GenServer
@@ -16,28 +16,28 @@ defmodule MediaCentaur.Watcher.DirMonitor do
 
   @health_check_interval 30_000
 
-  defstruct [:image_dir, :watch_dir, state: :checking]
+  defstruct [:image_dir, :media_dir, state: :checking]
 
-  def start_link({image_dir, watch_dir}) do
-    GenServer.start_link(__MODULE__, {image_dir, watch_dir},
+  def start_link({image_dir, media_dir}) do
+    GenServer.start_link(__MODULE__, {image_dir, media_dir},
       name: {:via, Registry, {MediaCentaur.Watcher.DirMonitor.Registry, image_dir}}
     )
   end
 
   def status(pid), do: GenServer.call(pid, :status)
   def dir(pid), do: GenServer.call(pid, :dir)
-  def watch_dir(pid), do: GenServer.call(pid, :watch_dir)
+  def media_dir(pid), do: GenServer.call(pid, :media_dir)
 
   @impl true
-  def init({image_dir, watch_dir}) do
+  def init({image_dir, media_dir}) do
     send(self(), :health_check)
-    {:ok, %__MODULE__{image_dir: image_dir, watch_dir: watch_dir}}
+    {:ok, %__MODULE__{image_dir: image_dir, media_dir: media_dir}}
   end
 
   @impl true
   def handle_call(:status, _from, state), do: {:reply, state.state, state}
   def handle_call(:dir, _from, state), do: {:reply, state.image_dir, state}
-  def handle_call(:watch_dir, _from, state), do: {:reply, state.watch_dir, state}
+  def handle_call(:media_dir, _from, state), do: {:reply, state.media_dir, state}
 
   @impl true
   def handle_info(:health_check, state) do

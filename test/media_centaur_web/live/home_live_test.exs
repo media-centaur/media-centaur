@@ -72,7 +72,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
   describe "drive-recovery image refresh" do
     test "availability_changed bumps image cache-bust on continue-watching URLs",
          %{conn: conn} do
-      # Bug: when the app starts before a watch dir is mounted, hero and
+      # Bug: when the app starts before a media dir is mounted, hero and
       # continue-watching populate (they don't filter by file presence) but
       # their /media-images/* URLs return placeholder SVGs. Once the drive
       # comes back, the same URLs would still be served from the browser

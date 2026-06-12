@@ -955,7 +955,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         file: %WatchedFile{
           id: "ffffffff-ffff-ffff-ffff-ffffffffff01",
           file_path: "/media/movies/Sample Movie (1922)/Sample.Movie.1922.1080p.mkv",
-          watch_dir: "/media/movies"
+          media_dir: "/media/movies"
         },
         size: 4_294_967_296
       },
@@ -963,7 +963,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         file: %WatchedFile{
           id: "ffffffff-ffff-ffff-ffff-ffffffffff02",
           file_path: "/media/movies/Sample Movie (1922)/Sample.Movie.1922.1080p.subtitles.srt",
-          watch_dir: "/media/movies"
+          media_dir: "/media/movies"
         },
         size: 32_768
       },
@@ -971,7 +971,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         file: %WatchedFile{
           id: "ffffffff-ffff-ffff-ffff-ffffffffff03",
           file_path: "/media/archive/Sample.Movie.1922.480p.legacy.mkv",
-          watch_dir: "/media/archive"
+          media_dir: "/media/archive"
         },
         # `nil` size renders the "absent" badge — the file went missing
         # off disk after being indexed.

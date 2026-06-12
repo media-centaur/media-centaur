@@ -276,12 +276,12 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     delete-file UX renders one row per `WatchedFile`.
     """
 
-    @enforce_keys [:path, :watch_dir]
-    defstruct [:path, :watch_dir]
+    @enforce_keys [:path, :media_dir]
+    defstruct [:path, :media_dir]
 
     @type t :: %__MODULE__{
             path: String.t(),
-            watch_dir: String.t()
+            media_dir: String.t()
           }
   end
 

@@ -1033,7 +1033,7 @@ defmodule MediaCentaurWeb.ReviewLive do
     end
   end
 
-  defp series_root_name(%{key: {_watch_dir, root}}), do: root
+  defp series_root_name(%{key: {_media_dir, root}}), do: root
 
   defp tmdb_url("tv", id), do: "https://www.themoviedb.org/tv/#{id}"
   defp tmdb_url(_, id), do: "https://www.themoviedb.org/movie/#{id}"
@@ -1042,21 +1042,21 @@ defmodule MediaCentaurWeb.ReviewLive do
   defp zero_pad(number), do: "#{number}"
 
   defp relative_file_path(file) do
-    case file.watch_directory do
+    case file.media_directory do
       nil -> file.file_path
       dir -> String.replace_prefix(file.file_path, dir <> "/", "")
     end
   end
 
-  # Group keys are `{watch_dir, series_root}` tuples. We encode them as a
+  # Group keys are `{media_dir, series_root}` tuples. We encode them as a
   # single string for phx-value-key attributes and decode on the way back.
-  defp encode_key({watch_dir, root}) do
-    Base.url_encode64(:erlang.term_to_binary({watch_dir, root}))
+  defp encode_key({media_dir, root}) do
+    Base.url_encode64(:erlang.term_to_binary({media_dir, root}))
   end
 
   # sobelow_skip ["Misc.BinToTerm"]
   # `:safe` prevents atom creation; the encoded payload is always a
-  # `{watch_dir, root}` string tuple created by `encode_key/1` above and
+  # `{media_dir, root}` string tuple created by `encode_key/1` above and
   # round-tripped through the URL by the same LiveView. Phoenix's request
   # size limits bound any DoS-via-large-term attack surface.
   defp decode_key(encoded) do

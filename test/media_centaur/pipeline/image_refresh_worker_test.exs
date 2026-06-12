@@ -16,7 +16,7 @@ defmodule MediaCentaur.Pipeline.ImageRefreshWorkerTest do
 
   test "perform/1 refreshes artwork for the entity" do
     movie = TestFactory.create_movie(%{name: "Sample Movie", tmdb_id: "550"})
-    TestFactory.create_linked_file(%{movie_id: movie.id, watch_dir: "/media/movies"})
+    TestFactory.create_linked_file(%{movie_id: movie.id, media_dir: "/media/movies"})
     stub_get_movie("550", movie_detail(%{"poster_path" => "/p.jpg"}))
 
     job = %Oban.Job{args: %{"entity_id" => movie.id, "entity_type" => "movie"}}

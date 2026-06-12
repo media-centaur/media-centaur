@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.StatusLive.ReportModalTest do
 
   setup do
     Buckets.ingest(error_entry(1, :tmdb, "TMDB returned 429 rate limited"))
-    Buckets.ingest(error_entry(2, :watcher, "permission denied on watch dir"))
+    Buckets.ingest(error_entry(2, :watcher, "permission denied on media dir"))
 
     # `Buckets.list_buckets/0` is a GenServer.call, so it serialises after the
     # two `ingest` casts above (FIFO) — the buckets are populated before any

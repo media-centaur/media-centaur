@@ -47,10 +47,10 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
         create_linked_file(%{
           movie_id: movie.id,
           file_path: "/media/test/visible.mkv",
-          watch_dir: "/media/test"
+          media_dir: "/media/test"
         })
 
-      FilePresence.stamp(file.file_path, file.watch_dir)
+      FilePresence.stamp(file.file_path, file.media_dir)
 
       assert Availability.available_for_ids([movie.id]) == %{movie.id => true}
     end
@@ -62,10 +62,10 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
         create_linked_file(%{
           movie_id: movie.id,
           file_path: "/mnt/offline/m.mkv",
-          watch_dir: "/mnt/offline"
+          media_dir: "/mnt/offline"
         })
 
-      FilePresence.stamp(file.file_path, file.watch_dir)
+      FilePresence.stamp(file.file_path, file.media_dir)
 
       assert Availability.available_for_ids([movie.id]) == %{movie.id => false}
     end
@@ -77,10 +77,10 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
         create_linked_file(%{
           tv_series_id: tv.id,
           file_path: "/media/test/show-s01e01.mkv",
-          watch_dir: "/media/test"
+          media_dir: "/media/test"
         })
 
-      FilePresence.stamp(file.file_path, file.watch_dir)
+      FilePresence.stamp(file.file_path, file.media_dir)
 
       assert Availability.available_for_ids([tv.id]) == %{tv.id => true}
     end
@@ -92,10 +92,10 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
         create_linked_file(%{
           movie_series_id: ms.id,
           file_path: "/media/test/series.mkv",
-          watch_dir: "/media/test"
+          media_dir: "/media/test"
         })
 
-      FilePresence.stamp(msf.file_path, msf.watch_dir)
+      FilePresence.stamp(msf.file_path, msf.media_dir)
 
       vo = create_video_object(%{name: "Visible VO"})
 
@@ -103,10 +103,10 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
         create_linked_file(%{
           video_object_id: vo.id,
           file_path: "/mnt/offline/vo.mkv",
-          watch_dir: "/mnt/offline"
+          media_dir: "/mnt/offline"
         })
 
-      FilePresence.stamp(vof.file_path, vof.watch_dir)
+      FilePresence.stamp(vof.file_path, vof.media_dir)
 
       assert Availability.available_for_ids([ms.id, vo.id]) == %{
                ms.id => true,
@@ -126,10 +126,10 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
         create_linked_file(%{
           movie_id: online.id,
           file_path: "/media/test/online.mkv",
-          watch_dir: "/media/test"
+          media_dir: "/media/test"
         })
 
-      FilePresence.stamp(onf.file_path, onf.watch_dir)
+      FilePresence.stamp(onf.file_path, onf.media_dir)
 
       offline = create_standalone_movie(%{name: "Offline"})
 
@@ -137,10 +137,10 @@ defmodule MediaCentaur.Library.AvailabilityBulkTest do
         create_linked_file(%{
           movie_id: offline.id,
           file_path: "/mnt/offline/offline.mkv",
-          watch_dir: "/mnt/offline"
+          media_dir: "/mnt/offline"
         })
 
-      FilePresence.stamp(offf.file_path, offf.watch_dir)
+      FilePresence.stamp(offf.file_path, offf.media_dir)
 
       result = Availability.available_for_ids([online.id, offline.id])
 

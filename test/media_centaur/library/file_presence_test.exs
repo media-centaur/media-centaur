@@ -32,7 +32,7 @@ defmodule MediaCentaur.Library.FilePresenceTest do
 
       assert presence.id
       assert presence.file_path == "/media/movies/sample.mkv"
-      assert presence.watch_dir == "/media/movies"
+      assert presence.media_dir == "/media/movies"
       assert DateTime.compare(presence.last_seen_at, now) == :eq
 
       assert Repo.aggregate(FilePresence, :count) == 1
@@ -49,11 +49,11 @@ defmodule MediaCentaur.Library.FilePresenceTest do
       assert DateTime.compare(second.last_seen_at, now) == :eq
     end
 
-    test "updates watch_dir if a path moves between watch roots" do
+    test "updates media_dir if a path moves between watch roots" do
       _first = FilePresence.stamp("/media/movies/sample.mkv", "/media/movies")
       moved = FilePresence.stamp("/media/movies/sample.mkv", "/media/extra")
 
-      assert moved.watch_dir == "/media/extra"
+      assert moved.media_dir == "/media/extra"
       assert Repo.aggregate(FilePresence, :count) == 1
     end
 
@@ -118,13 +118,13 @@ defmodule MediaCentaur.Library.FilePresenceTest do
     end
   end
 
-  describe "list_paths_for_watch_dir/1" do
-    test "returns only paths in the given watch directory" do
+  describe "list_paths_for_media_dir/1" do
+    test "returns only paths in the given media directory" do
       FilePresence.stamp("/media/movies/a.mkv", "/media/movies")
       FilePresence.stamp("/media/movies/b.mkv", "/media/movies")
       FilePresence.stamp("/media/tv/series/c.mkv", "/media/tv")
 
-      paths = FilePresence.list_paths_for_watch_dir("/media/movies")
+      paths = FilePresence.list_paths_for_media_dir("/media/movies")
 
       assert MapSet.size(paths) == 2
       assert MapSet.member?(paths, "/media/movies/a.mkv")
@@ -133,7 +133,7 @@ defmodule MediaCentaur.Library.FilePresenceTest do
     end
 
     test "returns empty set when no paths tracked" do
-      assert MapSet.size(FilePresence.list_paths_for_watch_dir("/nope")) == 0
+      assert MapSet.size(FilePresence.list_paths_for_media_dir("/nope")) == 0
     end
   end
 

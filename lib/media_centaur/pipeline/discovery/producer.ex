@@ -32,9 +32,9 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   end
 
   @impl true
-  def handle_info({:file_detected, %{path: path, watch_dir: watch_dir}}, state) do
+  def handle_info({:file_detected, %{path: path, media_dir: media_dir}}, state) do
     if InflightSet.claim(path) do
-      payload = build_payload(%{path: path, watch_dir: watch_dir})
+      payload = build_payload(%{path: path, media_dir: media_dir})
       Log.info(:pipeline, "queued #{Path.basename(path)} — file detected")
       state = %{state | queue: :queue.in(payload, state.queue)}
       {messages, state} = dispatch(state)
@@ -46,7 +46,7 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
     end
   end
 
-  # Startup reconciliation (ADR-023): rescan all watch directories to re-detect
+  # Startup reconciliation (ADR-023): rescan all media directories to re-detect
   # files that were missed while the pipeline was down, and re-emit any files
   # the watcher already knows about but the pipeline never finished ingesting
   # (stranded by a transient TMDB/network failure on a prior run).
@@ -81,10 +81,10 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   Exposed as a public function for testing.
   """
   @spec build_payload(map()) :: Payload.t()
-  def build_payload(%{path: path, watch_dir: watch_dir}) do
+  def build_payload(%{path: path, media_dir: media_dir}) do
     %Payload{
       file_path: path,
-      watch_directory: watch_dir
+      media_directory: media_dir
     }
   end
 

@@ -82,7 +82,7 @@ defmodule MediaCentaur.Library.EntityTest do
         Library.link_file!(%{
           playable_item_id: playable_item.id,
           file_path: "/media/movies/test.mkv",
-          watch_dir: "/media/movies"
+          media_dir: "/media/movies"
         })
 
       assert {:ok, reloaded} = Library.fetch_movie(movie.id)

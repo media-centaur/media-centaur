@@ -35,7 +35,7 @@ defmodule MediaCentaur.Library.AbsenceSweeperTest do
 
   test "60 days unavailable → no FilePresence, WatchedFile, or Movie row destroyed" do
     movie = create_standalone_movie(%{name: "Vanishing Drive Movie"})
-    watched_file = create_linked_file(%{movie_id: movie.id, watch_dir: "/mnt/cold-storage"})
+    watched_file = create_linked_file(%{movie_id: movie.id, media_dir: "/mnt/cold-storage"})
 
     # 60 days pass with the drive still offline.
     backdate_last_seen(watched_file.file_path, days_ago: 60)
@@ -58,7 +58,7 @@ defmodule MediaCentaur.Library.AbsenceSweeperTest do
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_file_events())
 
     movie = create_standalone_movie(%{name: "Eventually Missing Movie"})
-    watched_file = create_linked_file(%{movie_id: movie.id, watch_dir: "/mnt/recoverable"})
+    watched_file = create_linked_file(%{movie_id: movie.id, media_dir: "/mnt/recoverable"})
 
     # Drive offline → 90 days of staleness accumulate.
     backdate_last_seen(watched_file.file_path, days_ago: 90)

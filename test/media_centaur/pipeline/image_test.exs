@@ -10,7 +10,7 @@ defmodule MediaCentaur.Pipeline.ImageTest do
 
   alias MediaCentaur.Pipeline.{Image, ImageQueue}
 
-  @watch_directory "/tmp/image_pipeline_test"
+  @media_directory "/tmp/image_pipeline_test"
 
   setup do
     images_dir = Path.join(System.tmp_dir!(), "image_pipeline_test_#{Ecto.UUID.generate()}")
@@ -20,9 +20,9 @@ defmodule MediaCentaur.Pipeline.ImageTest do
 
     updated_config =
       config
-      |> Map.put(:watch_dir_images, %{@watch_directory => images_dir})
-      |> Map.update(:watch_dirs, [@watch_directory], fn dirs ->
-        if @watch_directory in dirs, do: dirs, else: [@watch_directory | dirs]
+      |> Map.put(:media_dir_images, %{@media_directory => images_dir})
+      |> Map.update(:media_dirs, [@media_directory], fn dirs ->
+        if @media_directory in dirs, do: dirs, else: [@media_directory | dirs]
       end)
 
     :persistent_term.put({MediaCentaur.Config, :config}, updated_config)
@@ -46,7 +46,7 @@ defmodule MediaCentaur.Pipeline.ImageTest do
           role: "poster",
           source_url: "https://image.tmdb.org/poster.jpg",
           entity_id: entity_id,
-          watch_dir: @watch_directory
+          media_dir: @media_directory
         })
 
       work_items = Image.Producer.build_work_items(entity_id)
@@ -56,7 +56,7 @@ defmodule MediaCentaur.Pipeline.ImageTest do
       assert item.queue_entry.role == "poster"
       assert item.owner_id == entity_id
       assert item.entity_id == entity_id
-      assert item.watch_dir == @watch_directory
+      assert item.media_dir == @media_directory
     end
 
     test "skips completed queue entries" do
@@ -69,7 +69,7 @@ defmodule MediaCentaur.Pipeline.ImageTest do
           role: "poster",
           source_url: "https://image.tmdb.org/poster.jpg",
           entity_id: entity_id,
-          watch_dir: @watch_directory
+          media_dir: @media_directory
         })
 
       ImageQueue.update_status(entry, :complete)
@@ -90,7 +90,7 @@ defmodule MediaCentaur.Pipeline.ImageTest do
           role: "poster",
           source_url: "https://image.tmdb.org/poster.jpg",
           entity_id: entity_id,
-          watch_dir: @watch_directory
+          media_dir: @media_directory
         })
 
       {:ok, _} =
@@ -100,7 +100,7 @@ defmodule MediaCentaur.Pipeline.ImageTest do
           role: "thumb",
           source_url: "https://image.tmdb.org/thumb.jpg",
           entity_id: entity_id,
-          watch_dir: @watch_directory
+          media_dir: @media_directory
         })
 
       work_items = Image.Producer.build_work_items(entity_id)

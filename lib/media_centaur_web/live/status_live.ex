@@ -67,7 +67,7 @@ defmodule MediaCentaurWeb.StatusLive do
         # Kick off expensive queries off the mount path via owned async.
         # Mount returns immediately with empty defaults; each task fills
         # its slice in via handle_async. Keeps /status responsive even
-        # with a big library and watch dirs on slow / sleeping storage.
+        # with a big library and media dirs on slow / sleeping storage.
         socket
         |> assign_defaults()
         |> assign(error_buckets: ErrorReports.list_buckets())
@@ -724,14 +724,14 @@ defmodule MediaCentaurWeb.StatusLive do
       auto_approve_threshold: config.get(:auto_approve_threshold),
       mpv_path: config.get(:mpv_path),
       database_path: config.get(:database_path),
-      watch_dirs_count: length(config.get(:watch_dirs) || [])
+      media_dirs_count: length(config.get(:media_dirs) || [])
     }
   end
 
   defp check_dir_health do
-    watch_dirs = MediaCentaur.Config.get(:watch_dirs) || []
+    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
 
-    Enum.map(watch_dirs, fn dir ->
+    Enum.map(media_dirs, fn dir ->
       image_dir = MediaCentaur.Config.images_dir_for(dir)
 
       %{

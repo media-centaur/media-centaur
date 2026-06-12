@@ -4,9 +4,9 @@ defmodule MediaCentaur.Library.MoveMatcher do
   content as a file the library already tracks at a different path.
 
   A move is recognised by matching the file's path **relative to its
-  watch directory** plus its byte size. Relative path survives the
+  media directory** plus its byte size. Relative path survives the
   common "moved the whole tree to a new drive" case — the layout under
-  the watch dir is preserved — and size disambiguates when two watch
+  the media dir is preserved — and size disambiguates when two watch
   dirs hold the same relative path. Renames and re-encodes are
   deliberately out of scope: a genuine move preserves both signals, and
   covering renames would need content hashing (heavy I/O) for a long
@@ -23,13 +23,13 @@ defmodule MediaCentaur.Library.MoveMatcher do
 
   @type existing :: %{
           :file_path => String.t(),
-          :watch_dir => String.t(),
+          :media_dir => String.t(),
           :size => non_neg_integer() | nil,
           optional(any()) => any()
         }
   @type new_file :: %{
           :path => String.t(),
-          :watch_dir => String.t(),
+          :media_dir => String.t(),
           :size => non_neg_integer() | nil
         }
 
@@ -41,12 +41,12 @@ defmodule MediaCentaur.Library.MoveMatcher do
   relink is worse than a redundant import.
   """
   @spec match(new_file(), [existing()]) :: {:move, existing()} | :no_match
-  def match(%{path: path, watch_dir: watch_dir, size: size}, existing_rows) do
-    relpath = relative_path(path, watch_dir)
+  def match(%{path: path, media_dir: media_dir, size: size}, existing_rows) do
+    relpath = relative_path(path, media_dir)
 
     existing_rows
     |> Enum.filter(fn row ->
-      relative_path(row.file_path, row.watch_dir) == relpath and
+      relative_path(row.file_path, row.media_dir) == relpath and
         size_compatible?(size, row.size)
     end)
     |> case do
@@ -55,9 +55,9 @@ defmodule MediaCentaur.Library.MoveMatcher do
     end
   end
 
-  @doc "Path of `file_path` relative to its `watch_dir`."
+  @doc "Path of `file_path` relative to its `media_dir`."
   @spec relative_path(String.t(), String.t()) :: String.t()
-  def relative_path(file_path, watch_dir), do: Path.relative_to(file_path, watch_dir)
+  def relative_path(file_path, media_dir), do: Path.relative_to(file_path, media_dir)
 
   # A pre-feature row (nil size) can only be matched on relative path.
   defp size_compatible?(_new_size, nil), do: true

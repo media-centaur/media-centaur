@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.Live.SetupLive.Probes do
   alias MediaCentaurWeb.Live.SettingsLive.PathCheck
   alias MediaCentaurWeb.Live.SetupLive.{BinaryDetector, Probe}
 
-  @step_order [:watch_dirs, :tmdb, :mpv, :ffprobe, :prowlarr, :download_client]
+  @step_order [:media_dirs, :tmdb, :mpv, :ffprobe, :prowlarr, :download_client]
 
   @doc "Returns the canonical step order for the wizard."
   @spec step_order() :: [Probe.Result.id()]
@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.Live.SetupLive.Probes do
   @spec all(map()) :: [Probe.Result.t()]
   def all(input) do
     [
-      watch_dirs(Map.get(input, :watch_dirs_entries, [])),
+      media_dirs(Map.get(input, :media_dirs_entries, [])),
       tmdb(input),
       mpv(input),
       ffprobe(input),
@@ -121,20 +121,20 @@ defmodule MediaCentaurWeb.Live.SetupLive.Probes do
     }
   end
 
-  # --- Watch dirs ---
+  # --- Media dirs ---
 
-  @spec watch_dirs([map()]) :: Probe.Result.t()
-  def watch_dirs([]) do
+  @spec media_dirs([map()]) :: Probe.Result.t()
+  def media_dirs([]) do
     %Probe.Result{
-      id: :watch_dirs,
+      id: :media_dirs,
       status: :not_configured,
-      detail: "No watch directories — the library will stay empty.",
+      detail: "No media directories — the library will stay empty.",
       current_value: [],
       critical?: true
     }
   end
 
-  def watch_dirs(entries) when is_list(entries) do
+  def media_dirs(entries) when is_list(entries) do
     dirs = Enum.map(entries, & &1["dir"])
     missing = Enum.count(dirs, &(PathCheck.check(&1, :directory) != :ok))
     total = length(dirs)
@@ -145,14 +145,14 @@ defmodule MediaCentaurWeb.Live.SetupLive.Probes do
           {:ok, describe_dirs(total)}
 
         missing == total ->
-          {:error, "All #{total} watch directories are unreachable."}
+          {:error, "All #{total} media directories are unreachable."}
 
         true ->
-          {:warning, "#{missing} of #{total} watch directories unreachable."}
+          {:warning, "#{missing} of #{total} media directories unreachable."}
       end
 
     %Probe.Result{
-      id: :watch_dirs,
+      id: :media_dirs,
       status: status,
       detail: detail,
       current_value: entries,

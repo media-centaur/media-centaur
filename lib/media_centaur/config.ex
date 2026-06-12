@@ -7,7 +7,7 @@ defmodule MediaCentaur.Config do
   Configuration has two tiers with different sources of truth:
 
   * **Bootstrap state** — `database_path`, `port`, and the initial
-    `watch_dirs` seed. These are read from the user's TOML config file
+    `media_dirs` seed. These are read from the user's TOML config file
     (`~/.config/media-centaur/media-centaur.toml`) because the app needs
     them before the database is reachable. They fall back to application
     environment defaults.
@@ -51,7 +51,7 @@ defmodule MediaCentaur.Config do
 
   # Runtime-settable keys: tunable via `update/2` and persisted to the
   # Settings DB. Excludes structural values (database_path, port,
-  # watch_dirs) that need a restart. Defined once as a module attribute
+  # media_dirs) that need a restart. Defined once as a module attribute
   # so the function and the `update/2` guard can't drift apart.
   @runtime_settable_keys [
     :tmdb_api_key,
@@ -147,7 +147,7 @@ defmodule MediaCentaur.Config do
   @doc """
   The config keys that can be updated at runtime via `update/2` and
   persisted to the Settings database. Excludes structural values that
-  require a restart (`database_path`, `watch_dirs`, etc.).
+  require a restart (`database_path`, `media_dirs`, etc.).
   """
   def runtime_settable_keys, do: @runtime_settable_keys
 
@@ -223,36 +223,36 @@ defmodule MediaCentaur.Config do
     :ok
   end
 
-  @watch_dirs_settings_key "config:watch_dirs"
+  @media_dirs_settings_key "config:media_dirs"
 
-  @doc "Returns the raw list of watch-dir entry maps from Settings."
-  @spec watch_dirs_entries() :: [map()]
-  def watch_dirs_entries do
-    case MediaCentaur.Settings.get_by_key(@watch_dirs_settings_key) do
+  @doc "Returns the raw list of media-dir entry maps from Settings."
+  @spec media_dirs_entries() :: [map()]
+  def media_dirs_entries do
+    case MediaCentaur.Settings.get_by_key(@media_dirs_settings_key) do
       {:ok, %{value: %{"entries" => entries}}} when is_list(entries) -> entries
       _ -> []
     end
   end
 
   @doc """
-  Replaces the entire watch-dir list: persists to Settings, rebuilds the
-  derived `:watch_dirs` and `:watch_dir_images` values in `:persistent_term`,
-  and broadcasts `{:config_updated, :watch_dirs, entries}` on the config topic.
+  Replaces the entire media-dir list: persists to Settings, rebuilds the
+  derived `:media_dirs` and `:media_dir_images` values in `:persistent_term`,
+  and broadcasts `{:config_updated, :media_dirs, entries}` on the config topic.
   """
-  @spec put_watch_dirs([map()]) :: :ok
-  def put_watch_dirs(entries) when is_list(entries) do
+  @spec put_media_dirs([map()]) :: :ok
+  def put_media_dirs(entries) when is_list(entries) do
     {:ok, _} =
       MediaCentaur.Settings.find_or_create_entry(%{
-        key: @watch_dirs_settings_key,
+        key: @media_dirs_settings_key,
         value: %{"entries" => entries}
       })
 
-    refresh_watch_dirs_persistent_term(entries)
+    refresh_media_dirs_persistent_term(entries)
 
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
       MediaCentaur.Topics.config_updates(),
-      {:config_updated, :watch_dirs, entries}
+      {:config_updated, :media_dirs, entries}
     )
 
     :ok
@@ -265,12 +265,12 @@ defmodule MediaCentaur.Config do
   end
 
   @doc """
-  One-shot import of TOML `watch_dirs` into the Settings entry. No-op if the
+  One-shot import of TOML `media_dirs` into the Settings entry. No-op if the
   entry already exists. Called once per boot from `MediaCentaur.Application`.
   """
-  @spec migrate_watch_dirs_from_toml([map() | String.t()]) :: :ok
-  def migrate_watch_dirs_from_toml(toml_entries) when is_list(toml_entries) do
-    case MediaCentaur.Settings.get_by_key(@watch_dirs_settings_key) do
+  @spec migrate_media_dirs_from_toml([map() | String.t()]) :: :ok
+  def migrate_media_dirs_from_toml(toml_entries) when is_list(toml_entries) do
+    case MediaCentaur.Settings.get_by_key(@media_dirs_settings_key) do
       {:ok, %MediaCentaur.Settings.Entry{}} ->
         :ok
 
@@ -282,19 +282,19 @@ defmodule MediaCentaur.Config do
 
         case entries do
           [] -> :ok
-          list -> put_watch_dirs(list)
+          list -> put_media_dirs(list)
         end
     end
   end
 
   @doc """
-  Rebuilds `:watch_dirs` and `:watch_dir_images` in `:persistent_term` from
+  Rebuilds `:media_dirs` and `:media_dir_images` in `:persistent_term` from
   the current Settings entry. Used on boot (after migration) and whenever a
   runtime change writes Settings directly.
   """
-  @spec refresh_watch_dirs_from_settings() :: :ok
-  def refresh_watch_dirs_from_settings do
-    refresh_watch_dirs_persistent_term(watch_dirs_entries())
+  @spec refresh_media_dirs_from_settings() :: :ok
+  def refresh_media_dirs_from_settings do
+    refresh_media_dirs_persistent_term(media_dirs_entries())
   end
 
   defp normalize_toml_entry(dir) when is_binary(dir) do
@@ -311,13 +311,13 @@ defmodule MediaCentaur.Config do
   end
 
   defp normalize_toml_entry(other) do
-    Log.warning(:library, "ignoring malformed watch_dirs TOML entry: #{inspect(other)}")
+    Log.warning(:library, "ignoring malformed media_dirs TOML entry: #{inspect(other)}")
     nil
   end
 
   defp new_uuid, do: Ecto.UUID.generate()
 
-  defp refresh_watch_dirs_persistent_term(entries) do
+  defp refresh_media_dirs_persistent_term(entries) do
     dirs = Enum.map(entries, & &1["dir"])
 
     images_map =
@@ -329,43 +329,43 @@ defmodule MediaCentaur.Config do
 
     config =
       :persistent_term.get({__MODULE__, :config})
-      |> Map.put(:watch_dirs, dirs)
-      |> Map.put(:watch_dir_images, images_map)
+      |> Map.put(:media_dirs, dirs)
+      |> Map.put(:media_dir_images, images_map)
 
     :persistent_term.put({__MODULE__, :config}, config)
   end
 
-  @doc "Returns the images directory for the given watch directory."
+  @doc "Returns the images directory for the given media directory."
   @spec images_dir_for(String.t()) :: String.t()
-  def images_dir_for(watch_directory) do
-    get(:watch_dir_images)[watch_directory] ||
-      default_images_dir(watch_directory)
+  def images_dir_for(media_directory) do
+    get(:media_dir_images)[media_directory] ||
+      default_images_dir(media_directory)
   end
 
   @doc """
-  Returns `{watch_dir, image_dir}` pairs where the image directory is NOT
-  a subdirectory of its watch directory and therefore needs independent
+  Returns `{media_dir, image_dir}` pairs where the image directory is NOT
+  a subdirectory of its media directory and therefore needs independent
   health monitoring.
   """
   @spec image_dirs_needing_monitoring() :: [{String.t(), String.t()}]
   def image_dirs_needing_monitoring do
-    watch_dirs = get(:watch_dirs) || []
+    media_dirs = get(:media_dirs) || []
 
-    Enum.flat_map(watch_dirs, fn watch_dir ->
-      image_dir = images_dir_for(watch_dir)
+    Enum.flat_map(media_dirs, fn media_dir ->
+      image_dir = images_dir_for(media_dir)
 
-      if String.starts_with?(image_dir, watch_dir <> "/") do
+      if String.starts_with?(image_dir, media_dir <> "/") do
         []
       else
-        [{watch_dir, image_dir}]
+        [{media_dir, image_dir}]
       end
     end)
   end
 
   @doc "Returns the staging base directory for in-progress image downloads."
   @spec staging_base_for(String.t()) :: String.t()
-  def staging_base_for(watch_directory) do
-    images_dir = images_dir_for(watch_directory)
+  def staging_base_for(media_directory) do
+    images_dir = images_dir_for(media_directory)
     Path.join(images_dir, "partial-downloads")
   end
 
@@ -374,17 +374,17 @@ defmodule MediaCentaur.Config do
   def resolve_image_path(nil), do: nil
 
   def resolve_image_path(relative_content_url) do
-    watch_dirs = get(:watch_dirs) || []
+    media_dirs = get(:media_dirs) || []
 
-    Enum.find_value(watch_dirs, fn dir ->
+    Enum.find_value(media_dirs, fn dir ->
       candidate = Path.join(images_dir_for(dir), relative_content_url)
       if File.regular?(candidate), do: candidate
     end)
   end
 
   defp load_config do
-    app_watch_dirs = expand_list(Application.get_env(:media_centaur, :watch_dirs, []))
-    {_, default_images_map} = parse_watch_dirs(app_watch_dirs)
+    app_media_dirs = expand_list(Application.get_env(:media_centaur, :media_dirs, []))
+    {_, default_images_map} = parse_media_dirs(app_media_dirs)
 
     database_path =
       expand(get_in(Application.get_env(:media_centaur, MediaCentaur.Repo), [:database]))
@@ -401,8 +401,8 @@ defmodule MediaCentaur.Config do
       port: 2160,
       database_path: database_path,
       data_dir: default_data_dir,
-      watch_dirs: app_watch_dirs,
-      watch_dir_images: default_images_map,
+      media_dirs: app_media_dirs,
+      media_dir_images: default_images_map,
       tmdb_api_key: Secret.wrap(Application.get_env(:media_centaur, :tmdb_api_key)),
       auto_approve_threshold: Application.get_env(:media_centaur, :auto_approve_threshold),
       mpv_path: MediaCentaur.Platform.Defaults.mpv_path(),
@@ -437,7 +437,7 @@ defmodule MediaCentaur.Config do
     }
 
     if Application.get_env(:media_centaur, :skip_user_config, false) do
-      Application.put_env(:media_centaur, :__raw_toml_watch_dirs, [])
+      Application.put_env(:media_centaur, :__raw_toml_media_dirs, [])
       defaults
     else
       # `merge_toml/2` overrides only bootstrap keys, so runtime keys are
@@ -471,42 +471,57 @@ defmodule MediaCentaur.Config do
   end
 
   defp merge_toml(defaults, toml) do
-    {watch_dirs, watch_dir_images} = resolve_watch_dirs(toml, defaults)
+    {media_dirs, media_dir_images} = resolve_media_dirs(toml, defaults)
 
-    raw_watch_dirs =
-      case get_in(toml, ["watch_dirs"]) do
-        list when is_list(list) -> list
-        _ -> []
-      end
-
-    Application.put_env(:media_centaur, :__raw_toml_watch_dirs, raw_watch_dirs)
+    Application.put_env(:media_centaur, :__raw_toml_media_dirs, toml_media_dirs(toml) || [])
 
     # Only bootstrap state is read from TOML: values the app needs before
     # the database is reachable (`database_path`, `port`) and the initial
-    # `watch_dirs` seed. Every runtime preference lives in the Settings
+    # `media_dirs` seed. Every runtime preference lives in the Settings
     # database and is overlaid by `load_runtime_overrides/0` — any runtime
     # key present in the TOML is intentionally ignored, so the DB is the
     # single source of truth and the TOML schema can't drift.
     Map.merge(defaults, %{
       port: get_in(toml, ["port"]) || defaults.port,
       database_path: expand(get_in(toml, ["database_path"]) || defaults.database_path),
-      watch_dirs: watch_dirs,
-      watch_dir_images: watch_dir_images
+      media_dirs: media_dirs,
+      media_dir_images: media_dir_images
     })
   end
 
   # Supports plain string lists and inline table arrays.
-  defp resolve_watch_dirs(toml, defaults) do
-    case get_in(toml, ["watch_dirs"]) do
+  defp resolve_media_dirs(toml, defaults) do
+    case toml_media_dirs(toml) do
       dirs when is_list(dirs) and dirs != [] ->
-        parse_watch_dirs(dirs)
+        parse_media_dirs(dirs)
 
       _ ->
-        {defaults.watch_dirs, defaults.watch_dir_images}
+        {defaults.media_dirs, defaults.media_dir_images}
     end
   end
 
-  defp parse_watch_dirs(raw_list) do
+  # `media_dirs`, with a permanent fallback to the pre-rename
+  # `watch_dirs` spelling so configs written before the 2026-06 rename
+  # keep booting unchanged.
+  defp toml_media_dirs(toml) do
+    case {get_in(toml, ["media_dirs"]), get_in(toml, ["watch_dirs"])} do
+      {current, _legacy} when is_list(current) ->
+        current
+
+      {_current, legacy} when is_list(legacy) ->
+        Log.info(
+          :library,
+          "TOML key `watch_dirs` is now `media_dirs` — the legacy spelling still works"
+        )
+
+        legacy
+
+      _ ->
+        nil
+    end
+  end
+
+  defp parse_media_dirs(raw_list) do
     then(
       Enum.reduce(raw_list, {[], %{}}, fn entry, {dirs, images_map} ->
         case entry do
@@ -524,7 +539,7 @@ defmodule MediaCentaur.Config do
     )
   end
 
-  defp default_images_dir(watch_dir), do: Path.join(watch_dir, ".media-centaur/images")
+  defp default_images_dir(media_dir), do: Path.join(media_dir, ".media-centaur/images")
 
   defp expand(path) when is_binary(path), do: Path.expand(path)
   defp expand(path), do: path

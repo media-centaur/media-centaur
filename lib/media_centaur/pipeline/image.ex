@@ -2,7 +2,7 @@ defmodule MediaCentaur.Pipeline.Image do
   @moduledoc """
   Broadway pipeline that downloads and resizes images asynchronously.
 
-  Listens for `{:images_pending, %{entity_id, watch_dir}}` events on the
+  Listens for `{:images_pending, %{entity_id, media_dir}}` events on the
   `"pipeline:images"` PubSub topic, queries pending queue entries,
   downloads from TMDB CDN, resizes to spec, writes to disk, marks queue
   entries complete, and broadcasts `{:image_ready, ...}` on the
@@ -34,12 +34,12 @@ defmodule MediaCentaur.Pipeline.Image do
 
   @impl true
   def handle_message(:default, message, _context) do
-    %{queue_entry: entry, owner_id: owner_id, entity_id: entity_id, watch_dir: watch_dir} =
+    %{queue_entry: entry, owner_id: owner_id, entity_id: entity_id, media_dir: media_dir} =
       message.data
 
     extension = ImageProcessor.output_extension(entry.role)
     relative_path = "#{owner_id}/#{entry.role}.#{extension}"
-    images_dir = MediaCentaur.Config.images_dir_for(watch_dir)
+    images_dir = MediaCentaur.Config.images_dir_for(media_dir)
     dest_path = Path.join(images_dir, relative_path)
 
     telemetry_metadata = %{role: entry.role, entity_id: entity_id}

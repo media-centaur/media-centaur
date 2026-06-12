@@ -107,7 +107,7 @@ defmodule MediaCentaurWeb.Live.SetupLive.ProbesTest do
     end
   end
 
-  describe "watch_dirs/1" do
+  describe "media_dirs/1" do
     setup do
       tmp = Path.join(System.tmp_dir!(), "probes_watch_#{Ecto.UUID.generate()}")
       File.mkdir_p!(tmp)
@@ -117,17 +117,17 @@ defmodule MediaCentaurWeb.Live.SetupLive.ProbesTest do
 
     test "not_configured when no entries" do
       assert %Probe.Result{
-               id: :watch_dirs,
+               id: :media_dirs,
                status: :not_configured,
                critical?: true
-             } = Probes.watch_dirs([])
+             } = Probes.media_dirs([])
     end
 
     test "ok when all configured dirs exist", %{tmp: tmp} do
       entries = [%{"dir" => tmp}]
 
-      assert %Probe.Result{id: :watch_dirs, status: :ok, current_value: ^entries} =
-               Probes.watch_dirs(entries)
+      assert %Probe.Result{id: :media_dirs, status: :ok, current_value: ^entries} =
+               Probes.media_dirs(entries)
     end
 
     test "warning when some dirs are missing", %{tmp: tmp} do
@@ -136,12 +136,12 @@ defmodule MediaCentaurWeb.Live.SetupLive.ProbesTest do
         %{"dir" => "/nonexistent/wherever"}
       ]
 
-      assert %Probe.Result{id: :watch_dirs, status: :warning} = Probes.watch_dirs(entries)
+      assert %Probe.Result{id: :media_dirs, status: :warning} = Probes.media_dirs(entries)
     end
 
     test "error when all configured dirs are missing" do
       entries = [%{"dir" => "/nope/a"}, %{"dir" => "/nope/b"}]
-      assert %Probe.Result{id: :watch_dirs, status: :error} = Probes.watch_dirs(entries)
+      assert %Probe.Result{id: :media_dirs, status: :error} = Probes.media_dirs(entries)
     end
   end
 
@@ -153,13 +153,13 @@ defmodule MediaCentaurWeb.Live.SetupLive.ProbesTest do
         ffprobe_path: nil,
         prowlarr_api_key_configured?: false,
         download_client_password_configured?: false,
-        watch_dirs_entries: []
+        media_dirs_entries: []
       }
 
       results = Probes.all(input)
       ids = Enum.map(results, & &1.id)
 
-      assert ids == [:watch_dirs, :tmdb, :mpv, :ffprobe, :prowlarr, :download_client]
+      assert ids == [:media_dirs, :tmdb, :mpv, :ffprobe, :prowlarr, :download_client]
       assert Enum.all?(results, &match?(%Probe.Result{}, &1))
     end
   end

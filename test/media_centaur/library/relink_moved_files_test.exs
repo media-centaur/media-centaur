@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Library.RelinkMovedFilesTest do
   @moduledoc """
   `Library.relink_moved_files/3` — the stateful half of relink-on-move.
-  Given newly-seen `{path, size}` pairs under a watch dir, it re-points the
+  Given newly-seen `{path, size}` pairs under a media dir, it re-points the
   existing entity's file rows (WatchedFile / ExtraFile) and the FilePresence
   ledger to the new location instead of letting the file re-import as new.
 
@@ -15,12 +15,12 @@ defmodule MediaCentaur.Library.RelinkMovedFilesTest do
 
   import MediaCentaur.TestFactory
 
-  defp linked_movie_file(file_path, watch_dir, size) do
+  defp linked_movie_file(file_path, media_dir, size) do
     movie = create_standalone_movie(%{name: "Movie #{System.unique_integer([:positive])}"})
-    file = create_linked_file(%{movie_id: movie.id, watch_dir: watch_dir, file_path: file_path})
+    file = create_linked_file(%{movie_id: movie.id, media_dir: media_dir, file_path: file_path})
     # create_linked_file stamps presence size-less; record the size the move
     # matcher needs.
-    _ = FilePresence.stamp(file_path, watch_dir, DateTime.utc_now(), size: size)
+    _ = FilePresence.stamp(file_path, media_dir, DateTime.utc_now(), size: size)
     {movie, file}
   end
 
@@ -37,12 +37,12 @@ defmodule MediaCentaur.Library.RelinkMovedFilesTest do
 
       # WatchedFile now resolves at the new path; old path is gone.
       assert [watched] = Library.list_files_by_paths(["/new/Movies/foo/foo.mkv"])
-      assert watched.watch_dir == "/new"
+      assert watched.media_dir == "/new"
       assert Library.list_files_by_paths(["/old/Movies/foo/foo.mkv"]) == []
 
       # Presence ledger re-pointed (this is what stops a re-scan re-importing).
-      assert "/new/Movies/foo/foo.mkv" in FilePresence.list_paths_for_watch_dir("/new")
-      assert Enum.empty?(FilePresence.list_paths_for_watch_dir("/old"))
+      assert "/new/Movies/foo/foo.mkv" in FilePresence.list_paths_for_media_dir("/new")
+      assert Enum.empty?(FilePresence.list_paths_for_media_dir("/old"))
     end
 
     test "treats a copy (old path still present) as still-new and changes nothing" do
@@ -55,7 +55,7 @@ defmodule MediaCentaur.Library.RelinkMovedFilesTest do
 
       assert result == %{relinked: [], still_new: ["/new/Movies/foo/foo.mkv"]}
       assert [watched] = Library.list_files_by_paths(["/old/Movies/foo/foo.mkv"])
-      assert watched.watch_dir == "/old"
+      assert watched.media_dir == "/old"
     end
 
     test "ambiguous match (two candidates share relative path + size) bails to still-new" do
@@ -102,7 +102,7 @@ defmodule MediaCentaur.Library.RelinkMovedFilesTest do
       size = File.stat!(old_path).size
 
       movie = create_standalone_movie(%{name: "Realfs Movie"})
-      _ = create_linked_file(%{movie_id: movie.id, watch_dir: old_dir, file_path: old_path})
+      _ = create_linked_file(%{movie_id: movie.id, media_dir: old_dir, file_path: old_path})
       _ = FilePresence.stamp(old_path, old_dir, DateTime.utc_now(), size: size)
 
       File.mkdir_p!(Path.dirname(new_path))
@@ -119,7 +119,7 @@ defmodule MediaCentaur.Library.RelinkMovedFilesTest do
 
       assert result == %{relinked: [ctx.new_path], still_new: []}
       assert [watched] = Library.list_files_by_paths([ctx.new_path])
-      assert watched.watch_dir == ctx.new_dir
+      assert watched.media_dir == ctx.new_dir
       assert Library.list_files_by_paths([ctx.old_path]) == []
       assert Repo.aggregate(MediaCentaur.Library.Movie, :count) == before_movies
     end
@@ -131,7 +131,7 @@ defmodule MediaCentaur.Library.RelinkMovedFilesTest do
 
       assert result == %{relinked: [], still_new: [ctx.new_path]}
       assert [watched] = Library.list_files_by_paths([ctx.old_path])
-      assert watched.watch_dir == ctx.old_dir
+      assert watched.media_dir == ctx.old_dir
     end
   end
 end
