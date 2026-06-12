@@ -1,0 +1,339 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Deterministic release mechanics for Media Centaur. The /ship skill
+# drives this script; the only step left to a human or model is writing
+# the user-facing release notes. Everything else — version math,
+# upgrade-safety checks, changelog insertion, commits, tag, push,
+# post-tag verification — is mechanical and lives here.
+#
+# Subcommands:
+#
+#   prepare <major|minor|patch>
+#       Read-only. Prints the release facts (last tag, next version,
+#       suggested notes-file path, commits since last tag) in KEY=VALUE
+#       form for the caller to consume.
+#
+#   check [--fast] [--allow-settings-change] [--allow-installer-change]
+#       Upgrade-safety gate. --fast skips the production preflight
+#       build. Exits non-zero with a FAILED list when the release is
+#       not safely consumable by the in-app updater.
+#
+#   release <major|minor|patch> --notes <file> [--dry-run]
+#       The mutation chain: insert the notes into CHANGELOG.md under a
+#       "## v<next> — <date>" header, commit, bump mix.exs, commit,
+#       push main, tag from mix.exs (source of truth), push the tag.
+#       The notes file must contain ONLY the body (no version header).
+#       --dry-run prints what would happen, mutates nothing.
+#
+#   verify [<version>] [--timeout <seconds>]
+#       Polls the GitHub release for the tag (default: version in
+#       mix.exs) until the platform tarballs + SHA256SUMS are present,
+#       failing fast if the release workflow run concluded in failure.
+#
+# Tests are deliberately NOT run here — run `mix precommit` before
+# shipping; this script gates the *upgrade path*, not code quality.
+
+cd "$(dirname "$0")/.."
+
+banner() { echo "==> $1"; }
+fail() { echo "FAILED: $1" >&2; exit 1; }
+
+mix_version() {
+  grep -E '^\s*version:' mix.exs | head -1 | sed -E 's/.*"([^"]+)".*/\1/'
+}
+
+last_tag() {
+  git tag --sort=-v:refname | head -n1
+}
+
+next_version() {
+  local level="$1" current="$2" major minor patch
+  IFS=. read -r major minor patch <<<"$current"
+  case "$level" in
+    major) echo "$((major + 1)).0.0" ;;
+    minor) echo "${major}.$((minor + 1)).0" ;;
+    patch) echo "${major}.${minor}.$((patch + 1))" ;;
+    *) fail "bump level must be major|minor|patch, got: $level" ;;
+  esac
+}
+
+require_main_and_current() {
+  local branch
+  branch=$(git rev-parse --abbrev-ref HEAD)
+  [ "$branch" = "main" ] || fail "on branch '$branch' — releases ship from main"
+
+  git fetch --quiet origin main
+  if [ -n "$(git log --oneline HEAD..origin/main)" ]; then
+    fail "main is behind origin/main — pull/rebase first; refusing to ship from a stale tip"
+  fi
+}
+
+# ---------------------------------------------------------------- prepare
+
+cmd_prepare() {
+  local level="${1:-}"
+  [ -n "$level" ] || fail "usage: scripts/ship prepare <major|minor|patch>"
+
+  require_main_and_current
+
+  local current next tag
+  current=$(mix_version)
+  next=$(next_version "$level" "$current")
+  tag=$(last_tag)
+
+  echo "LAST_TAG=$tag"
+  echo "CURRENT_VERSION=$current"
+  echo "NEXT_VERSION=$next"
+  echo "NEXT_TAG=v$next"
+  echo "DATE=$(date +%F)"
+  echo "NOTES_FILE=/tmp/media-centaur-notes-v$next.md"
+
+  if [ -n "$(git status --porcelain)" ]; then
+    echo "WORKING_TREE=dirty (commit before release)"
+  else
+    echo "WORKING_TREE=clean"
+  fi
+
+  echo "COMMITS_SINCE_${tag}:"
+  git log --pretty=format:"- %s" "${tag}..HEAD"
+  echo
+}
+
+# ------------------------------------------------------------------ check
+
+cmd_check() {
+  local fast=false allow_settings=false allow_installer=false
+  for arg in "$@"; do
+    case "$arg" in
+      --fast) fast=true ;;
+      --allow-settings-change) allow_settings=true ;;
+      --allow-installer-change) allow_installer=true ;;
+      *) fail "unknown flag for check: $arg" ;;
+    esac
+  done
+
+  local tag failures=()
+  tag=$(last_tag)
+  banner "Upgrade-safety check (diffing against $tag)"
+
+  require_main_and_current
+
+  banner "Pending migrations"
+  local pending
+  pending=$(mix ecto.migrations 2>/dev/null | awk '$1 == "down"' || true)
+  if [ -n "$pending" ]; then
+    echo "$pending"
+    failures+=("pending migrations not applied locally — migrate (and verify) before tagging")
+  fi
+
+  banner "Settings.Entry / update.* contract"
+  # The in-app updater hydrates state from Settings keys under the
+  # update.* namespace. A rename/drop there bricks the upgrade path, so
+  # any touch is flagged for explicit human/model review.
+  local settings_diff migrations_hits
+  settings_diff=$(git diff --name-only "${tag}..HEAD" -- lib/media_centaur/settings/entry.ex)
+  migrations_hits=$(git diff "${tag}..HEAD" -- priv/repo/migrations | grep -E '^[-+].*update\.' || true)
+  if [ -n "$settings_diff$migrations_hits" ] && [ "$allow_settings" = false ]; then
+    [ -n "$settings_diff" ] && git --no-pager diff "${tag}..HEAD" -- lib/media_centaur/settings/entry.ex
+    [ -n "$migrations_hits" ] && echo "$migrations_hits"
+    failures+=("Settings.Entry or update.* keys touched since $tag — review the hunks above; re-run with --allow-settings-change if the updater contract is intact")
+  fi
+
+  banner "Installer contract"
+  # rel/platforms/*/bin/media-centaur-install is executed by the
+  # PREVIOUS release's updater. Backward-incompatible argv changes
+  # break every user's next update, so any touch is flagged.
+  local installer_diff
+  installer_diff=$(git diff --name-only "${tag}..HEAD" -- 'rel/platforms/*/bin/media-centaur-install')
+  if [ -n "$installer_diff" ] && [ "$allow_installer" = false ]; then
+    git --no-pager diff "${tag}..HEAD" -- 'rel/platforms/*/bin/media-centaur-install'
+    failures+=("installer script touched since $tag — review the hunks above; re-run with --allow-installer-change if the argv contract is intact")
+  fi
+
+  banner "Changelog sanity"
+  if [ ! -f CHANGELOG.md ] || ! head -1 CHANGELOG.md | grep -q '^# Changelog'; then
+    failures+=("CHANGELOG.md missing or malformed (must start with '# Changelog')")
+  fi
+
+  if [ "$fast" = false ]; then
+    banner "Production preflight build"
+    if scripts/preflight; then
+      local rel="_build/prod/rel/media_centaur"
+      [ -x "$rel/bin/media-centaur-install" ] || failures+=("preflight artifact missing: $rel/bin/media-centaur-install")
+      [ -f "$rel/share/systemd/media-centaur.service" ] || failures+=("preflight artifact missing: $rel/share/systemd/media-centaur.service")
+    else
+      failures+=("scripts/preflight failed — the tag would publish a broken release")
+    fi
+  else
+    banner "Skipping preflight build (--fast)"
+  fi
+
+  if [ "${#failures[@]}" -gt 0 ]; then
+    echo
+    echo "UPGRADE SAFETY CHECK FAILED"
+    for failure in "${failures[@]}"; do
+      echo "  - $failure"
+    done
+    exit 1
+  fi
+
+  echo
+  echo "UPGRADE SAFETY CHECK PASSED"
+}
+
+# ---------------------------------------------------------------- release
+
+cmd_release() {
+  local level="${1:-}" notes="" dry_run=false
+  [ -n "$level" ] || fail "usage: scripts/ship release <major|minor|patch> --notes <file> [--dry-run]"
+  shift
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --notes) notes="${2:-}"; shift 2 ;;
+      --dry-run) dry_run=true; shift ;;
+      *) fail "unknown flag for release: $1" ;;
+    esac
+  done
+
+  [ -n "$notes" ] || fail "release requires --notes <file>"
+  [ -s "$notes" ] || fail "notes file is missing or empty: $notes"
+  grep -q '^## ' "$notes" && grep -q '^## v[0-9]' "$notes" && \
+    fail "notes file contains a version header — provide the body only; the script adds '## v<version> — <date>'"
+
+  require_main_and_current
+
+  if [ "$dry_run" = false ] && [ -n "$(git status --porcelain)" ]; then
+    fail "working tree dirty — commit feature work before releasing"
+  fi
+
+  local current next date_today
+  current=$(mix_version)
+  next=$(next_version "$level" "$current")
+  date_today=$(date +%F)
+
+  git rev-parse "v$next" >/dev/null 2>&1 && fail "tag v$next already exists"
+
+  banner "Releasing v$next (from $current, $level bump)"
+
+  local changelog_new
+  changelog_new=$(awk -v header="## v$next — $date_today" -v notes_file="$notes" '
+    !inserted && /^## v[0-9]/ {
+      print header
+      print ""
+      while ((getline line < notes_file) > 0) print line
+      print ""
+      inserted = 1
+    }
+    { print }
+    END {
+      if (!inserted) {
+        print ""
+        print header
+        print ""
+        while ((getline line < notes_file) > 0) print line
+      }
+    }
+  ' CHANGELOG.md)
+
+  if [ "$dry_run" = true ]; then
+    banner "[dry-run] CHANGELOG.md head would become:"
+    head -30 <<<"$changelog_new"
+    banner "[dry-run] mix.exs version line would become:"
+    grep -E '^\s*version:' mix.exs | head -1 | sed -E "s/\"[^\"]+\"/\"$next\"/"
+    banner "[dry-run] then: commit changelog, commit bump, push main, tag v$next, push tag"
+    return 0
+  fi
+
+  banner "Writing CHANGELOG.md entry"
+  printf '%s\n' "$changelog_new" > CHANGELOG.md
+  git add CHANGELOG.md
+  git commit -m "docs: changelog for v$next"
+
+  banner "Bumping mix.exs to $next"
+  sed -i -E "0,/version: \"[0-9]+\.[0-9]+\.[0-9]+\"/s//version: \"$next\"/" mix.exs
+  [ "$(mix_version)" = "$next" ] || fail "mix.exs bump did not take — inspect mix.exs"
+  git add mix.exs
+  git commit -m "chore: bump version to $next"
+
+  banner "Pushing main"
+  git push origin main
+
+  # The tag follows mix.exs exactly — the release workflow refuses a
+  # mismatch, so mix.exs is the single source of truth here too.
+  local version
+  version=$(mix_version)
+  banner "Tagging v$version and pushing the tag"
+  git tag "v$version"
+  git push origin "v$version"
+
+  echo
+  echo "RELEASED v$version — the tag triggers .github/workflows/release.yml."
+  echo "Run: scripts/ship verify $version"
+}
+
+# ----------------------------------------------------------------- verify
+
+cmd_verify() {
+  local version="" timeout=1200
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --timeout) timeout="${2:-1200}"; shift 2 ;;
+      *) version="$1"; shift ;;
+    esac
+  done
+  [ -n "$version" ] || version=$(mix_version)
+  local tag="v$version"
+
+  banner "Verifying GitHub release $tag (timeout ${timeout}s)"
+  local deadline=$((SECONDS + timeout))
+
+  while [ $SECONDS -lt $deadline ]; do
+    local run_state
+    run_state=$(gh run list --workflow=release.yml --branch "$tag" --limit 1 \
+      --json status,conclusion,url \
+      --jq '(.[0].status // "none") + " " + (.[0].conclusion // "") + " " + (.[0].url // "")' 2>/dev/null) || run_state="unknown"
+
+    local run_status run_conclusion run_url
+    read -r run_status run_conclusion run_url <<<"$run_state"
+
+    if [ "$run_conclusion" = "failure" ] || [ "$run_conclusion" = "cancelled" ]; then
+      fail "release workflow $run_conclusion — $run_url"
+    fi
+
+    local assets
+    assets=$(gh release view "$tag" --json assets --jq '.assets[].name' 2>/dev/null || true)
+    if [ -n "$assets" ]; then
+      local missing=()
+      echo "$assets" | grep -q "media-centaur-${version}-linux-x86_64.tar.gz" || missing+=("linux tarball")
+      echo "$assets" | grep -q "media-centaur-${version}-darwin-arm64.tar.gz" || missing+=("darwin tarball")
+      echo "$assets" | grep -q "^SHA256SUMS$" || missing+=("SHA256SUMS")
+
+      if [ "${#missing[@]}" -eq 0 ]; then
+        echo "RELEASE VERIFIED — assets present:"
+        echo "$assets" | sed 's/^/  /'
+        return 0
+      fi
+    fi
+
+    echo "  waiting… (workflow: ${run_status:-unknown})"
+    sleep 30
+  done
+
+  fail "timed out after ${timeout}s waiting for $tag assets — check: gh run list --workflow=release.yml"
+}
+
+# ------------------------------------------------------------------- main
+
+usage() {
+  sed -n '4,36p' "$0" | sed 's/^# \{0,1\}//'
+  exit 1
+}
+
+case "${1:-}" in
+  prepare) shift; cmd_prepare "$@" ;;
+  check) shift; cmd_check "$@" ;;
+  release) shift; cmd_release "$@" ;;
+  verify) shift; cmd_verify "$@" ;;
+  *) usage ;;
+esac
