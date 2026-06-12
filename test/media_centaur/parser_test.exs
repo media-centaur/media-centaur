@@ -522,6 +522,49 @@ defmodule MediaCentaur.ParserTest do
     end
   end
 
+  # ─── TV: "Episode NN" word marker with season only in pack directory ──────
+
+  describe "tv — Episode NN filename with season in parent pack directory" do
+    test "Frieren: show - Episode NN - title with quality junk, Season NN only in folder" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Frieren - Beyond Journey's End - Season 01 [2023-2024] COMPLETE 1080p BDRip x265 FLAC 2.0 Kira [SEV]/Frieren - Beyond Journey's End - Episode 01 - The Journey's End 1080p BDRip x265 FLAC 2.0 Kira [SEV].mkv"
+        )
+
+      assert result.title == "Frieren - Beyond Journey's End"
+      assert result.season == 1
+      assert result.episode == 1
+      assert result.episode_title == "The Journey's End"
+      assert result.type == :tv
+    end
+
+    test "Frieren: episode title with ellipsis and stop-words" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Frieren - Beyond Journey's End - Season 01 [2023-2024] COMPLETE 1080p BDRip x265 FLAC 2.0 Kira [SEV]/Frieren - Beyond Journey's End - Episode 02 - It Didn't Have to Be Magic… 1080p BDRip x265 FLAC 2.0 Kira [SEV].mkv"
+        )
+
+      assert result.title == "Frieren - Beyond Journey's End"
+      assert result.season == 1
+      assert result.episode == 2
+      assert result.episode_title == "It Didn't Have To Be Magic…"
+      assert result.type == :tv
+    end
+
+    test "Frieren: two-digit episode number" do
+      result =
+        Parser.parse(
+          "/mnt/videos/Videos/Frieren - Beyond Journey's End - Season 01 [2023-2024] COMPLETE 1080p BDRip x265 FLAC 2.0 Kira [SEV]/Frieren - Beyond Journey's End - Episode 28 - It Would Be Embarrassing When We Met Again 1080p BDRip x265 FLAC 2.0 Kira [SEV].mkv"
+        )
+
+      assert result.title == "Frieren - Beyond Journey's End"
+      assert result.season == 1
+      assert result.episode == 28
+      assert result.episode_title == "It Would Be Embarrassing When We Met Again"
+      assert result.type == :tv
+    end
+  end
+
   # ─── TV: season pack directory names ──────────────────────────────────────
 
   describe "tv — season pack directory (no episode)" do
