@@ -98,11 +98,10 @@ iex --name repl@127.0.0.1 --remsh media_centaur_dev@127.0.0.1   # remote REPL (C
 
 ### Release + deployment
 
-Shipping is tagging — nothing installed by hand:
+Shipping is tagging — nothing installed by hand. All release mechanics are deterministic in `scripts/ship` (`prepare` / `check` / `release` / `verify` — run with no args for usage); `scripts/preflight` is the prod build it gates on:
 
-1. `scripts/preflight` — pre-flight build at `_build/prod/rel/media_centaur/`. Verifies the build is clean. Does NOT install.
-2. `/ship <major|minor|patch>` — runs upgrade-safety checks, drafts the user-facing CHANGELOG entry, bumps `mix.exs`, commits, tags `v<version>`, pushes. The tag triggers `.github/workflows/release.yml`.
-3. **Local production catches up via Settings → *Update now***, same path as any end user. There is no `scripts/install`.
+1. `/ship <major|minor|patch>` — commits pending work, runs `scripts/ship prepare` + `check` (upgrade-safety gate incl. preflight), drafts the user-facing CHANGELOG entry (the only non-mechanical step), then `scripts/ship release` bumps `mix.exs`, commits, tags `v<version>` from `mix.exs`, pushes. The tag triggers `.github/workflows/release.yml`; `scripts/ship verify` confirms the published assets.
+2. **Local production catches up via Settings → *Update now***, same path as any end user. There is no `scripts/install`.
 
 First-time install on a new machine uses the public installer (`curl … install.sh | sh`); every subsequent update uses the in-app button.
 
