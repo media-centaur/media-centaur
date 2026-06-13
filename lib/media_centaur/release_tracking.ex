@@ -16,7 +16,10 @@ defmodule MediaCentaur.ReleaseTracking do
       Views,
       Views.ComingUp,
       Views.ComingUpItem,
-      Views.ComingUpItemRef
+      Views.ComingUpItemRef,
+      UpcomingFeed,
+      UpcomingFeed.Event,
+      UpcomingFeed.Straggler
     ]
 
   @moduledoc """
