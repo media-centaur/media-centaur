@@ -1,22 +1,27 @@
 defmodule MediaCentaurWeb.UpcomingLive do
   @moduledoc """
-  Standalone Upcoming page — calendar + tracking + active shows + recent
-  changes + unscheduled.
+  The Upcoming page — a time-first forecast of tracked releases.
 
-  Extracted from LibraryLive zone-3 in the page-redistribution refactor
-  (see docs/plans/2026-04-27-page-redistribution.md). The existing
-  `MediaCentaurWeb.Components.UpcomingCards` component does all rendering;
-  this LiveView wires assigns and PubSub subscriptions.
+  An editorial timeline rail (the spine) with a quiet sticky mini-month
+  companion. The LiveView is thin: it reads `ReleaseTracking` + `Acquisition`,
+  builds the pure `UpcomingFeed` view-model (bucketing / status / hero /
+  season-drop collapse) and the per-title `Detail`, and wires events. All
+  classification lives in the pure modules (ADR-030); rendering lives in the
+  `Components.Upcoming.*` components.
 
-  Phase 3 leaves the LibraryLive Upcoming zone in place for backward
-  compatibility — Phase 4 will remove it.
+  Capability gating: `acquisition_ready` (Prowlarr + download client) gates the
+  honest `:armed` status and the detail automation section; `tmdb_ready` gates
+  the Track action. The view-model bakes acquisition gating into each event's
+  status, so the components render an honest forecast without reading globals.
   """
   use MediaCentaurWeb, :live_view
 
   alias MediaCentaur.{Acquisition, Capabilities, ReleaseTracking}
+  alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.Acquisition.TargetEvents
-  alias MediaCentaurWeb.Components.{TrackModal, UpcomingCards}
-  alias MediaCentaurWeb.Components.UpcomingCards.TrackedItem
+  alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
+  alias MediaCentaurWeb.Components.TrackModal
+  alias MediaCentaurWeb.Components.Upcoming.{Detail, MiniMonth, Present, Rail, Stragglers, TitleDetail}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -24,7 +29,6 @@ defmodule MediaCentaurWeb.UpcomingLive do
       MediaCentaur.Library.subscribe()
       ReleaseTracking.subscribe()
       Acquisition.subscribe()
-      Acquisition.subscribe_queue()
     end
 
     today = Date.utc_today()
@@ -32,12 +36,16 @@ defmodule MediaCentaurWeb.UpcomingLive do
     socket =
       assign(socket,
         loaded?: false,
-        calendar_month: {today.year, today.month},
-        selected_day: nil,
-        confirm_stop_item: nil,
-        tmdb_ready: false,
-        acquisition_ready: false,
-        queue_items: [],
+        today: today,
+        mini_month: {today.year, today.month},
+        focused_day: nil,
+        detail: nil,
+        feed: %UpcomingFeed{},
+        mini_month_marks: %{},
+        stragglers: [],
+        subtitle: "",
+        grab_status_by_key: %{},
+        reload_timer: nil,
         track_modal_open: false,
         track_suggestions: [],
         track_suggestions_loading: false,
@@ -46,16 +54,7 @@ defmodule MediaCentaurWeb.UpcomingLive do
         track_search_loading: false,
         track_scope_item: nil,
         track_collection_item: nil,
-        track_confirmed_ids: MapSet.new(),
-        upcoming_releases: %{upcoming: [], released: []},
-        upcoming_events: [],
-        upcoming_images: %{},
-        release_grab_statuses: %{},
-        release_want_keys: MapSet.new(),
-        tracked_items: [],
-        reload_timer: nil,
-        grab_statuses_timer: nil,
-        tracked_items_timer: nil
+        track_confirmed_ids: MapSet.new()
       )
 
     {:ok, socket}
@@ -66,52 +65,60 @@ defmodule MediaCentaurWeb.UpcomingLive do
     {:noreply, ensure_loaded(socket)}
   end
 
-  # First-render data load — runs on BOTH the disconnected (static) and
-  # connected renders so the first paint already carries the tracked-release
-  # data, never an empty-state flash. Desktop first-paint correctness (see
-  # AGENTS.md → LiveView callbacks): the load is a handful of local
-  # ReleaseTracking/Acquisition reads, so there is no traffic-scaling reason
-  # to defer it. Do not re-add a `connected?` gate.
+  # First-render load on BOTH the disconnected (static) and connected renders so
+  # the first paint already carries the forecast — never an empty-state flash.
+  # The reads are local ReleaseTracking/Acquisition queries (no traffic-scaling
+  # reason to defer). Desktop first-paint correctness (AGENTS.md → LiveView).
   defp ensure_loaded(socket) do
-    if socket.assigns.loaded? do
-      socket
-    else
-      socket
-      |> assign(
-        tmdb_ready: Capabilities.tmdb_ready?(),
-        queue_items: Acquisition.queue_state().items
-      )
-      |> load_upcoming()
-      |> assign(:loaded?, true)
-    end
+    if socket.assigns.loaded?, do: socket, else: socket |> build_view() |> assign(loaded?: true)
   end
 
-  # Synchronous first-render load. The three ReleaseTracking reads plus
-  # the derived images / tracked-items / grab-status assigns are all local
-  # queries; running them inline on both the disconnected and connected
-  # renders keeps the first paint correct (no empty-state flash) at
-  # negligible local cost. Desktop first-paint correctness (see AGENTS.md →
-  # LiveView callbacks).
-  defp load_upcoming(socket) do
-    releases = ReleaseTracking.list_releases()
-    events = ReleaseTracking.list_recent_events(10)
-    watching_items = ReleaseTracking.list_watching_items()
+  defp build_view(socket) do
+    today = socket.assigns.today
+    %{upcoming: upcoming, released: released} = ReleaseTracking.list_releases()
+    releases = upcoming ++ released
+
+    acquisition? = Capabilities.acquisition_ready?()
+    default_mode = AutoGrabSettings.load().default_mode
+    grab = grab_status_by_key(releases, acquisition?)
+    feed = UpcomingFeed.build(releases, view_context(today, acquisition?, default_mode, grab))
+    {year, month} = socket.assigns.mini_month
 
     assign(socket,
-      upcoming_releases: releases,
-      upcoming_events: events,
-      upcoming_images: load_tracking_images(releases),
-      tracked_items: build_tracked_items_from(watching_items),
-      release_grab_statuses: load_release_grab_statuses(releases),
-      release_want_keys: load_want_keys(),
-      acquisition_ready: Capabilities.prowlarr_ready?()
+      feed: feed,
+      grab_status_by_key: grab,
+      mini_month_marks: UpcomingFeed.mini_month_marks(feed, year, month),
+      stragglers: UpcomingFeed.stragglers(ReleaseTracking.list_watching_items()),
+      subtitle: summary_label(feed),
+      acquisition_ready: acquisition?,
+      tmdb_ready: Capabilities.tmdb_ready?()
     )
   end
 
-  # The want ledger as a membership set for the `:watching` decoration
-  # (ADR-056) — one query for the whole page.
-  defp load_want_keys do
-    MapSet.new(ReleaseTracking.list_open_wants(), &{&1.item_id, &1.unit_key})
+  defp view_context(today, acquisition?, default_mode, grab) do
+    %{
+      today: today,
+      acquisition_ready?: acquisition?,
+      auto_grab_default_mode: default_mode,
+      grab_status_by_key: grab
+    }
+  end
+
+  # `%{release_key => %{pursuit_id}}` for releases under an active pursuit, the
+  # input the view-model needs to mark `:under_pursuit` and deep-link Downloads.
+  defp grab_status_by_key(_releases, false), do: %{}
+
+  defp grab_status_by_key(releases, true) do
+    releases
+    |> Enum.map(&UpcomingFeed.release_key/1)
+    |> Enum.uniq()
+    |> Acquisition.statuses_for_releases()
+    |> Map.new(fn {key, {pursuit, _target}} -> {key, %{pursuit_id: pursuit.id}} end)
+  end
+
+  defp summary_label(%UpcomingFeed{buckets: buckets}) do
+    count = buckets |> Map.values() |> Enum.map(&length/1) |> Enum.sum()
+    "#{count} #{if count == 1, do: "release", else: "releases"} ahead"
   end
 
   @impl true
@@ -126,7 +133,6 @@ defmodule MediaCentaurWeb.UpcomingLive do
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
     >
       <:overlays>
-        <%!-- Track New Show modal (always in DOM) --%>
         <TrackModal.track_modal
           open={@track_modal_open}
           suggestions={@track_suggestions}
@@ -138,34 +144,116 @@ defmodule MediaCentaurWeb.UpcomingLive do
           collection_item={@track_collection_item}
           confirmed_ids={@track_confirmed_ids}
         />
+        <TitleDetail.title_detail :if={@detail} detail={@detail} today={@today} />
       </:overlays>
-      <div data-page-behavior="upcoming" data-nav-default-zone="upcoming" class="space-y-6 py-2">
-        <div class="flex items-baseline justify-between">
-          <h1 class="text-2xl font-bold">Upcoming</h1>
-        </div>
 
-        <UpcomingCards.upcoming_zone
-          releases={@upcoming_releases}
-          events={@upcoming_events}
-          images={@upcoming_images}
-          calendar_month={@calendar_month}
-          selected_day={@selected_day}
-          tracked_items={@tracked_items}
-          confirm_stop_item={@confirm_stop_item}
-          tmdb_ready={@tmdb_ready}
-          grab_statuses={@release_grab_statuses}
-          want_keys={@release_want_keys}
-          queue_items={@queue_items}
-          acquisition_ready={@acquisition_ready}
-        />
+      <div data-page-behavior="upcoming" data-nav-default-zone="rail" class="space-y-6 py-2">
+        <header class="flex items-start justify-between gap-3">
+          <div>
+            <h1 class="text-3xl font-bold tracking-tight">Upcoming</h1>
+            <p class="mt-1 text-sm text-base-content/60">{@subtitle}</p>
+          </div>
+          <button
+            :if={@tmdb_ready}
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-base-content/10 px-3 py-1.5 text-sm text-base-content/80 transition-colors hover:bg-base-content/[0.06]"
+            data-nav-item
+            tabindex="0"
+            phx-click="open_track_modal"
+          >
+            <.icon name="hero-plus-mini" class="size-4" />
+            <span>Track something</span>
+          </button>
+        </header>
+
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
+          <div class="space-y-8">
+            <Rail.rail feed={@feed} today={@today} />
+            <Stragglers.stragglers stragglers={@stragglers} />
+          </div>
+
+          <div>
+            <div class="lg:sticky lg:top-6">
+              <MiniMonth.mini_month
+                year={elem(@mini_month, 0)}
+                month={elem(@mini_month, 1)}
+                today={@today}
+                focused_day={@focused_day}
+                marks={@mini_month_marks}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </Layouts.app>
     """
   end
 
-  # --- Events ---
+  # --- Rail / mini-month / detail events ---
 
   @impl true
+  def handle_event("select_event", %{"item-id" => item_id}, socket) do
+    {:noreply, assign(socket, detail: build_detail(socket, item_id))}
+  end
+
+  def handle_event("close_detail", _params, socket) do
+    {:noreply, assign(socket, detail: nil)}
+  end
+
+  def handle_event("mini_month_prev", _params, socket) do
+    {:noreply, shift_month(socket, -1)}
+  end
+
+  def handle_event("mini_month_next", _params, socket) do
+    {:noreply, shift_month(socket, +1)}
+  end
+
+  def handle_event("jump_to_day", %{"date" => iso}, socket) do
+    case Date.from_iso8601(iso) do
+      {:ok, date} -> {:noreply, assign(socket, focused_day: date)}
+      _error -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("toggle_auto_grab", %{"item-id" => item_id}, socket) do
+    with %Item{} = item <- ReleaseTracking.get_item(item_id) do
+      default = AutoGrabSettings.load().default_mode
+      summary = Present.auto_grab_summary(item.auto_grab_mode, default, socket.assigns.acquisition_ready)
+
+      ReleaseTracking.update_auto_grab(item, %{
+        auto_grab_mode: if(summary.on?, do: "off", else: "all_releases")
+      })
+    end
+
+    socket = build_view(socket)
+    {:noreply, assign(socket, detail: build_detail(socket, item_id))}
+  end
+
+  def handle_event("stop_tracking", %{"item-id" => item_id}, socket) do
+    case ReleaseTracking.get_item(item_id) do
+      nil ->
+        {:noreply, socket}
+
+      item ->
+        ReleaseTracking.create_event!(%{
+          item_id: item.id,
+          item_name: item.name,
+          event_type: :stopped_tracking,
+          description: "Stopped tracking #{item.name}"
+        })
+
+        ReleaseTracking.delete_item(item)
+
+        {:noreply,
+         socket
+         |> assign(detail: nil)
+         |> build_view()
+         |> put_flash(:info, "Stopped tracking #{item.name}")}
+    end
+  end
+
+  # --- Track modal events (reused as-is) ---
+
   def handle_event("open_track_modal", _params, socket) do
     socket =
       assign(socket,
@@ -198,11 +286,7 @@ defmodule MediaCentaurWeb.UpcomingLive do
 
   def handle_event("track_search", %{"query" => query}, socket) when byte_size(query) < 2 do
     {:noreply,
-     assign(socket,
-       track_search_query: query,
-       track_search_results: [],
-       track_search_loading: false
-     )}
+     assign(socket, track_search_query: query, track_search_results: [], track_search_loading: false)}
   end
 
   def handle_event("track_search", %{"query" => query}, socket) do
@@ -224,14 +308,10 @@ defmodule MediaCentaurWeb.UpcomingLive do
 
       {:noreply, assign(socket, track_confirmed_ids: MapSet.delete(confirmed, tmdb_id_str))}
     else
-      tv_series_id = params["tv-series-id"]
-      name = params["name"]
-
-      {last_season, last_episode} =
-        ReleaseTracking.find_last_library_episode(tv_series_id)
+      {last_season, last_episode} = ReleaseTracking.find_last_library_episode(params["tv-series-id"])
 
       ReleaseTracking.track_from_search_async(
-        %{tmdb_id: tmdb_id, media_type: :tv_series, name: name, poster_path: nil},
+        %{tmdb_id: tmdb_id, media_type: :tv_series, name: params["name"], poster_path: nil},
         %{start_season: last_season, start_episode: last_episode}
       )
 
@@ -241,39 +321,38 @@ defmodule MediaCentaurWeb.UpcomingLive do
 
   def handle_event("select_search_result", params, socket) do
     tmdb_id = String.to_integer(params["tmdb-id"])
-    media_type = String.to_existing_atom(params["media-type"])
-    name = params["name"]
-    poster_path = params["poster-path"]
 
-    case media_type do
+    case String.to_existing_atom(params["media-type"]) do
       :tv_series ->
         scope_item = %TrackModal.ScopeItem{
           tmdb_id: tmdb_id,
-          name: name,
-          poster_path: poster_path
+          name: params["name"],
+          poster_path: params["poster-path"]
         }
 
         {:noreply, assign(socket, track_scope_item: scope_item, track_collection_item: nil)}
 
       :movie ->
         ReleaseTracking.track_from_search_async(
-          %{tmdb_id: tmdb_id, media_type: :movie, name: name, poster_path: poster_path},
+          %{
+            tmdb_id: tmdb_id,
+            media_type: :movie,
+            name: params["name"],
+            poster_path: params["poster-path"]
+          },
           %{}
         )
 
-        results =
-          Enum.map(socket.assigns.track_search_results, fn r ->
-            if r.tmdb_id == tmdb_id, do: %{r | already_tracked: true}, else: r
-          end)
-
-        {:noreply, assign(socket, track_search_results: results, track_collection_item: nil)}
+        {:noreply,
+         assign(socket,
+           track_search_results: mark_tracked(socket.assigns.track_search_results, tmdb_id),
+           track_collection_item: nil
+         )}
     end
   end
 
   def handle_event("confirm_track", params, socket) do
     tmdb_id = String.to_integer(params["tmdb_id"])
-    name = params["name"]
-    poster_path = params["poster_path"]
 
     {start_season, start_episode} =
       case params["scope"] do
@@ -281,138 +360,44 @@ defmodule MediaCentaurWeb.UpcomingLive do
           {String.to_integer(params["start_season"] || "1"),
            String.to_integer(params["start_episode"] || "1")}
 
-        _ ->
+        _all ->
           {0, 0}
       end
 
     ReleaseTracking.track_from_search_async(
-      %{tmdb_id: tmdb_id, media_type: :tv_series, name: name, poster_path: poster_path},
+      %{
+        tmdb_id: tmdb_id,
+        media_type: :tv_series,
+        name: params["name"],
+        poster_path: params["poster_path"]
+      },
       %{start_season: start_season, start_episode: start_episode}
     )
 
-    results =
-      Enum.map(socket.assigns.track_search_results, fn r ->
-        if r.tmdb_id == tmdb_id, do: %{r | already_tracked: true}, else: r
-      end)
-
-    {:noreply, assign(socket, track_search_results: results, track_scope_item: nil)}
+    {:noreply,
+     assign(socket,
+       track_search_results: mark_tracked(socket.assigns.track_search_results, tmdb_id),
+       track_scope_item: nil
+     )}
   end
 
-  def handle_event("dismiss_release", %{"release-id" => release_id}, socket) do
-    ReleaseTracking.dismiss_release(release_id)
-    {:noreply, socket}
-  end
-
-  def handle_event("queue_all_show", %{"item-id" => item_id}, socket) do
-    case Acquisition.plan_tracked_item_now(item_id) do
-      {:ok, :planned} ->
-        {:noreply,
-         put_flash(socket, :info, "Coverage plan started — review and approve it on Downloads")}
-
-      {:ok, :nothing_pending} ->
-        {:noreply, put_flash(socket, :info, "Nothing pending — everything is in progress or landed")}
-
-      {:error, :not_found} ->
-        {:noreply, put_flash(socket, :error, "Show not found — couldn't plan")}
-
-      {:error, :acquisition_unavailable} ->
-        {:noreply, put_flash(socket, :error, "Prowlarr isn't ready — check Settings → Integrations")}
-
-      {:error, _reason} ->
-        {:noreply, put_flash(socket, :error, "Couldn't start the plan")}
-    end
-  end
-
-  def handle_event("stop_tracking", %{"item-id" => item_id}, socket) do
-    case ReleaseTracking.get_item(item_id) do
-      nil -> {:noreply, socket}
-      item -> {:noreply, assign(socket, confirm_stop_item: item)}
-    end
-  end
-
-  def handle_event("confirm_stop_tracking", _params, socket) do
-    case socket.assigns.confirm_stop_item do
-      nil ->
-        {:noreply, socket}
-
-      item ->
-        ReleaseTracking.create_event!(%{
-          item_id: item.id,
-          item_name: item.name,
-          event_type: :stopped_tracking,
-          description: "Stopped tracking #{item.name}"
-        })
-
-        ReleaseTracking.delete_item(item)
-
-        {:noreply, assign(socket, confirm_stop_item: nil)}
-    end
-  end
-
-  def handle_event("cancel_stop_tracking", _params, socket) do
-    {:noreply, assign(socket, confirm_stop_item: nil)}
-  end
-
-  def handle_event("prev_month", _params, socket) do
-    {year, month} = socket.assigns.calendar_month
-    date = Date.add(Date.new!(year, month, 1), -1)
-    {:noreply, assign(socket, calendar_month: {date.year, date.month}, selected_day: nil)}
-  end
-
-  def handle_event("next_month", _params, socket) do
-    {year, month} = socket.assigns.calendar_month
-    last_day = Date.end_of_month(Date.new!(year, month, 1))
-    date = Date.add(last_day, 1)
-    {:noreply, assign(socket, calendar_month: {date.year, date.month}, selected_day: nil)}
-  end
-
-  def handle_event("jump_today", _params, socket) do
-    today = Date.utc_today()
-    {:noreply, assign(socket, calendar_month: {today.year, today.month}, selected_day: nil)}
-  end
-
-  def handle_event("select_day", %{"date" => ""}, socket) do
-    {:noreply, assign(socket, selected_day: nil)}
-  end
-
-  def handle_event("select_day", %{"date" => date_str}, socket) do
-    case Date.from_iso8601(date_str) do
-      {:ok, date} ->
-        selected = if socket.assigns.selected_day != date, do: date
-        {:noreply, assign(socket, selected_day: selected)}
-
-      _ ->
-        {:noreply, socket}
-    end
-  end
-
-  # --- PubSub Handlers ---
+  # --- PubSub ---
 
   @impl true
   def handle_info({:releases_updated, _item_ids}, socket) do
-    {:noreply, debounce(socket, :reload_timer, :reload_upcoming, 500)}
+    {:noreply, debounce(socket, :reload_timer, :reload_view, 500)}
   end
 
-  # Target lifecycle signals only invalidate the per-release acquisition
-  # status decoration — not the underlying release / image / tracked-item
-  # data. Routing them to a dedicated reloader keeps the page from
-  # rebuilding the full upcoming model on every target tick.
-  def handle_info(%struct{}, socket) do
-    if TargetEvents.event?(struct) do
-      {:noreply, debounce(socket, :grab_statuses_timer, :reload_grab_statuses, 500)}
-    else
-      {:noreply, socket}
-    end
+  def handle_info({:entities_changed, %{entity_ids: _ids}}, socket) do
+    {:noreply, debounce(socket, :reload_timer, :reload_view, 500)}
   end
 
-  def handle_info(:reload_grab_statuses, socket) do
-    grab_statuses = load_release_grab_statuses(socket.assigns.upcoming_releases)
-
-    {:noreply, assign(socket, release_grab_statuses: grab_statuses, release_want_keys: load_want_keys())}
+  def handle_info(:reload_view, socket) do
+    {:noreply, build_view(socket)}
   end
 
-  def handle_info({:queue_state, %MediaCentaur.Downloads.QueueState{items: items}}, socket) do
-    {:noreply, assign(socket, queue_items: items)}
+  def handle_info(:capabilities_changed, socket) do
+    {:noreply, build_view(socket)}
   end
 
   def handle_info(:load_track_suggestions, socket) do
@@ -425,120 +410,95 @@ defmodule MediaCentaurWeb.UpcomingLive do
   def handle_info({:do_track_search, query}, socket) do
     if query == socket.assigns.track_search_query do
       results = Enum.map(ReleaseTracking.search_tmdb(query), &struct!(TrackModal.SearchResult, &1))
-
       {:noreply, assign(socket, track_search_results: results, track_search_loading: false)}
     else
       {:noreply, socket}
     end
   end
 
-  # `entities_changed` fires for every Library mutation (image fetched, file
-  # linked, watching toggled, etc). Of the five upcoming-page assigns, only
-  # `tracked_items` derives from Library state — releases, events, images, and
-  # grab statuses all come from ReleaseTracking / Acquisition and arrive via
-  # their own broadcasts (`:releases_updated`, `Acquisition.TargetEvents.*`).
-  # So we only refresh the one assign that's actually affected.
-  def handle_info({:entities_changed, %{entity_ids: _entity_ids}}, socket) do
-    {:noreply, debounce(socket, :tracked_items_timer, :reload_tracked_items, 500)}
-  end
-
-  def handle_info(:reload_tracked_items, socket) do
-    {:noreply, assign(socket, tracked_items: build_tracked_items_from_watching())}
-  end
-
-  def handle_info(:reload_upcoming, socket) do
-    {:noreply, load_upcoming(socket)}
-  end
-
-  def handle_info(:capabilities_changed, socket) do
-    {:noreply,
-     assign(socket,
-       tmdb_ready: Capabilities.tmdb_ready?(),
-       acquisition_ready: Capabilities.prowlarr_ready?()
-     )}
+  # Acquisition target lifecycle ticks invalidate per-release status — rebuild
+  # the forecast (debounced). Kept last: matches any struct message.
+  def handle_info(%struct{}, socket) do
+    if TargetEvents.event?(struct) do
+      {:noreply, debounce(socket, :reload_timer, :reload_view, 500)}
+    else
+      {:noreply, socket}
+    end
   end
 
   def handle_info(_msg, socket), do: {:noreply, socket}
 
-  # --- Private ---
+  # --- Detail building ---
 
-  defp load_release_grab_statuses(%{upcoming: upcoming, released: released}) do
-    if Capabilities.prowlarr_ready?() do
-      keys =
-        (upcoming ++ released)
-        |> Enum.map(&release_grab_key/1)
-        |> Enum.uniq()
+  defp build_detail(socket, item_id) do
+    case ReleaseTracking.get_item(item_id) do
+      nil ->
+        nil
 
-      Acquisition.statuses_for_releases(keys)
-    else
-      %{}
+      item ->
+        acquisition? = socket.assigns.acquisition_ready
+        default_mode = AutoGrabSettings.load().default_mode
+
+        releases =
+          item_id
+          |> ReleaseTracking.list_releases_for_item()
+          |> Enum.map(&%{&1 | item: item})
+
+        context =
+          view_context(
+            socket.assigns.today,
+            acquisition?,
+            default_mode,
+            socket.assigns.grab_status_by_key
+          )
+
+        feed = UpcomingFeed.build(releases, context)
+
+        %Detail{
+          item_id: item.id,
+          name: item.name,
+          media_type: item.media_type,
+          backdrop_path: item.backdrop_path,
+          acquisition?: acquisition?,
+          auto_grab: Present.auto_grab_summary(item.auto_grab_mode, default_mode, acquisition?),
+          timeline: flatten_feed(feed),
+          activity: build_activity(item_id)
+        }
     end
   end
 
-  defp release_grab_key(release) do
-    {to_string(release.item.tmdb_id), ReleaseTracking.tmdb_type_for(release.item.media_type),
-     release.season_number, release.episode_number}
+  defp flatten_feed(%UpcomingFeed{buckets: buckets, unscheduled: unscheduled}) do
+    Enum.flat_map(UpcomingFeed.bucket_order(), &Map.get(buckets, &1, [])) ++ unscheduled
   end
 
-  defp build_tracked_items_from_watching,
-    do: build_tracked_items_from(ReleaseTracking.list_watching_items())
+  defp build_activity(item_id) do
+    item_id
+    |> ReleaseTracking.list_events_for_item(8)
+    |> Enum.map(&%{text: &1.description, at: MediaCentaur.Format.relative_ago(&1.inserted_at)})
+  end
 
-  defp build_tracked_items_from(watching_items) do
-    Enum.map(watching_items, fn item ->
-      releases = item.releases || []
-      upcoming_count = Enum.count(releases, &(not &1.released and not &1.in_library))
-      released_count = Enum.count(releases, &(&1.released and not &1.in_library))
+  # --- Helpers ---
 
-      status_text =
-        case {upcoming_count, released_count} do
-          {0, 0} -> "tracking"
-          {u, 0} -> "#{u} upcoming"
-          {0, r} -> "#{r} released"
-          {u, r} -> "#{u} upcoming, #{r} released"
-        end
+  defp shift_month(socket, delta) do
+    {year, month} = socket.assigns.mini_month
+    anchor = Date.new!(year, month, 1)
 
-      %TrackedItem{
-        item_id: item.id,
-        name: item.name,
-        media_type: item.media_type,
-        status_text: status_text
-      }
+    pivot =
+      if delta < 0,
+        do: Date.add(anchor, -1),
+        else: Date.add(Date.end_of_month(anchor), 1)
+
+    next = {pivot.year, pivot.month}
+
+    assign(socket,
+      mini_month: next,
+      mini_month_marks: UpcomingFeed.mini_month_marks(socket.assigns.feed, pivot.year, pivot.month)
+    )
+  end
+
+  defp mark_tracked(results, tmdb_id) do
+    Enum.map(results, fn result ->
+      if result.tmdb_id == tmdb_id, do: %{result | already_tracked: true}, else: result
     end)
-  end
-
-  defp load_tracking_images(%{upcoming: upcoming, released: released}) do
-    items =
-      (upcoming ++ released)
-      |> Enum.map(& &1.item)
-      |> Enum.uniq_by(& &1.id)
-
-    logo_urls =
-      items
-      |> Enum.flat_map(fn item ->
-        if item.library_container_id,
-          do: [{item.media_type, item.library_container_id}],
-          else: []
-      end)
-      |> MediaCentaur.Library.logo_urls_for_entities()
-
-    Enum.reduce(items, %{}, fn item, acc ->
-      images =
-        %{}
-        |> maybe_put_image(:backdrop, item.backdrop_path)
-        |> maybe_put_image(:poster, item.poster_path)
-        |> maybe_put_logo(item, logo_urls)
-
-      if images == %{}, do: acc, else: Map.put(acc, item.id, images)
-    end)
-  end
-
-  defp maybe_put_image(map, _role, nil), do: map
-  defp maybe_put_image(map, role, path), do: Map.put(map, role, "/media-images/#{path}")
-
-  defp maybe_put_logo(map, item, logo_urls) do
-    case ReleaseTracking.logo_url_for_item(item, logo_urls) do
-      nil -> map
-      url -> Map.put(map, :logo, url)
-    end
   end
 end

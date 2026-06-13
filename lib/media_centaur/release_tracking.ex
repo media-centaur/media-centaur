@@ -643,6 +643,17 @@ defmodule MediaCentaur.ReleaseTracking do
     )
   end
 
+  @doc "Recent events for a single tracked item — the per-title activity feed on the Upcoming detail panel."
+  def list_events_for_item(item_id, limit \\ 10) do
+    Repo.all(
+      from(e in Event,
+        where: e.item_id == ^item_id,
+        order_by: [{:desc, e.inserted_at}, {:desc, fragment("rowid")}],
+        limit: ^limit
+      )
+    )
+  end
+
   @doc """
   Deletes tracking events inserted before `cutoff`. Returns the number of
   rows removed. Used by the retention sweep — events intentionally outlive

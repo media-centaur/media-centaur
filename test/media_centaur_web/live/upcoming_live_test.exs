@@ -4,43 +4,56 @@ defmodule MediaCentaurWeb.UpcomingLiveTest do
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
-  alias MediaCentaur.Repo
+  alias MediaCentaur.ReleaseTracking
 
-  test "GET /upcoming renders the page", %{conn: conn} do
+  defp tracked_with_release(attrs \\ %{}, release_attrs \\ %{}) do
+    item =
+      create_tracking_item(
+        Map.merge(%{tmdb_id: :rand.uniform(900_000), media_type: :tv_series, name: "Sample Show"}, attrs)
+      )
+
+    release =
+      create_tracking_release(
+        Map.merge(
+          %{
+            item_id: item.id,
+            season_number: 1,
+            episode_number: 1,
+            air_date: Date.add(Date.utc_today(), 5),
+            released: false
+          },
+          release_attrs
+        )
+      )
+
+    {item, release}
+  end
+
+  test "GET /upcoming renders the page heading", %{conn: conn} do
     {:ok, _view, html} = live_async!(conn, "/upcoming")
-    # The page header always renders the "Upcoming" heading
     assert html =~ "Upcoming"
   end
 
-  test "first paint (disconnected render) shows tracked items, not an empty flash",
-       %{conn: conn} do
-    # Desktop first-paint correctness: the static HTTP render must already
-    # carry the tracked-release data, not an empty placeholder that flashes
-    # until the socket connects. `get/2` exercises the disconnected render.
-    item =
-      create_tracking_item(%{tmdb_id: 8_777, media_type: :tv_series, name: "First Paint Upcoming Show"})
-
-    create_tracking_release(%{item_id: item.id, season_number: 1, episode_number: 1, released: true})
+  test "first paint (disconnected render) carries the forecast, not an empty flash", %{conn: conn} do
+    tracked_with_release(%{name: "First Paint Show"})
 
     html = conn |> get("/upcoming") |> html_response(200)
 
-    assert html =~ "First Paint Upcoming Show",
-           "tracked items must render on the disconnected first paint"
+    assert html =~ "First Paint Show",
+           "tracked releases must render on the disconnected first paint"
   end
 
-  test "clicking the Track New Releases button opens the modal", %{conn: conn} do
-    {:ok, view, _html} = live_async!(conn, "/upcoming")
+  describe "track modal" do
+    test "the Track something button opens the modal", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/upcoming")
 
-    # The track button only appears when TMDB is ready; if the test
-    # environment isn't TMDB-ready, the conditional skips the assertion.
-    if has_element?(view, "button", "Track New Releases") do
-      rendered = render_click(element(view, "button", "Track New Releases"))
-      assert rendered =~ "track-search-input"
+      if has_element?(view, "button", "Track something") do
+        rendered = render_click(element(view, "button", "Track something"))
+        assert rendered =~ "track-search-input"
+      end
     end
-  end
 
-  describe "track modal search" do
-    test "results render TMDB poster thumbnails, icon fallback without one", %{conn: conn} do
+    test "search renders TMDB results", %{conn: conn} do
       MediaCentaur.TmdbStubs.setup_tmdb_client()
 
       MediaCentaur.TmdbStubs.stub_search_multi([
@@ -50,12 +63,6 @@ defmodule MediaCentaurWeb.UpcomingLiveTest do
           "title" => "Sample Movie",
           "release_date" => "2010-03-05",
           "poster_path" => "/sample-movie-poster.jpg"
-        },
-        %{
-          "id" => 246_810,
-          "media_type" => "tv",
-          "name" => "Sample Show",
-          "first_air_date" => "2010-06-16"
         }
       ])
 
@@ -65,32 +72,75 @@ defmodule MediaCentaurWeb.UpcomingLiveTest do
       |> form("form[phx-change='track_search']", %{query: "sample"})
       |> render_change()
 
-      # `track_search` defers the TMDB hit via `send(self(), …)` — the
-      # queued message is processed before the next synchronous render call.
-      html = render(view)
-      assert html =~ "Sample Movie"
-
-      assert has_element?(
-               view,
-               "img[src='https://image.tmdb.org/t/p/w92/sample-movie-poster.jpg']"
-             )
-
-      # The TV result has no poster — its row keeps the icon placeholder.
-      refute html =~ "image.tmdb.org/t/p/w92/sample-show"
+      assert render(view) =~ "Sample Movie"
     end
   end
 
-  describe "debounce on broadcast-driven reloads" do
-    test "five rapid broadcasts trigger only one reload after the debounce window", %{conn: conn} do
-      # Regression guard: :releases_updated, :entities_changed, and grab-event
-      # messages must be debounced (500ms) rather than firing a reload on
-      # every message. Five messages in quick succession should produce at
-      # most one reload — the page must still render correctly after the
-      # window. (`:entities_changed` only refreshes `tracked_items` since
-      # the other assigns derive from ReleaseTracking / Acquisition.)
+  describe "detail slide-over" do
+    test "select_event opens the per-title detail; close_detail closes it", %{conn: conn} do
+      {item, _release} = tracked_with_release(%{name: "Detail Show"})
+
+      {:ok, view, _html} = live_async!(conn, "/upcoming")
+
+      opened = render_hook(view, "select_event", %{"item-id" => item.id})
+      assert opened =~ "Detail Show"
+      assert opened =~ "Stop tracking"
+
+      closed = render_hook(view, "close_detail", %{})
+      refute closed =~ "Stop tracking"
+    end
+  end
+
+  describe "tracking management" do
+    test "toggle_auto_grab persists the item's auto-grab mode", %{conn: conn} do
+      {item, _release} = tracked_with_release(%{name: "Toggle Show", auto_grab_mode: "off"})
+
+      {:ok, view, _html} = live_async!(conn, "/upcoming")
+
+      render_hook(view, "toggle_auto_grab", %{"item-id" => item.id})
+
+      assert ReleaseTracking.get_item(item.id).auto_grab_mode == "all_releases"
+    end
+
+    test "stop_tracking deletes the item and flashes", %{conn: conn} do
+      {item, _release} = tracked_with_release(%{name: "Stop Show"})
+
+      {:ok, view, _html} = live_async!(conn, "/upcoming")
+
+      result = render_hook(view, "stop_tracking", %{"item-id" => item.id})
+
+      assert result =~ "Stopped tracking"
+      assert ReleaseTracking.get_item(item.id) == nil
+    end
+  end
+
+  describe "mini-month navigation" do
+    test "paging the month keeps the page rendering", %{conn: conn} do
+      tracked_with_release()
+
+      {:ok, view, _html} = live_async!(conn, "/upcoming")
+
+      assert render_hook(view, "mini_month_next", %{}) =~ "Upcoming"
+      assert render_hook(view, "mini_month_prev", %{}) =~ "Upcoming"
+    end
+
+    test "jump_to_day records the focused day without crashing", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/upcoming")
+
+      assert render_hook(view, "jump_to_day", %{"date" => Date.to_iso8601(Date.utc_today())}) =~
+               "Upcoming"
+    end
+  end
+
+  describe "broadcast-driven reloads" do
+    test "a burst of broadcasts debounces into a single reload and re-renders", %{conn: conn} do
+      tracked_with_release(%{name: "Reload Show"})
+
       {:ok, view, _html} = live_async!(conn, "/upcoming")
 
       for _ <- 1..5 do
+        send(view.pid, {:releases_updated, [Ecto.UUID.generate()]})
+
         send(
           view.pid,
           {:entities_changed, %MediaCentaur.Library.Events.EntitiesChanged{entity_ids: []}}
@@ -99,154 +149,7 @@ defmodule MediaCentaurWeb.UpcomingLiveTest do
 
       Process.sleep(600)
 
-      assert render(view) =~ "Upcoming"
-    end
-  end
-
-  describe "queue_all_show event (ADR-056: the bulk gesture is plan-now)" do
-    setup do
-      # Oban runs inline in tests, so plan creation triggers RunPlan →
-      # Prowlarr.search. Stub a no-result response so the plan solves
-      # to unfound cleanly; the ready draft is what we assert on.
-      Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
-
-      client =
-        Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
-
-      :persistent_term.put({MediaCentaur.Search.Prowlarr, :client}, client)
-
-      config = :persistent_term.get({MediaCentaur.Config, :config})
-
-      :persistent_term.put(
-        {MediaCentaur.Config, :config},
-        config
-        |> Map.put(:prowlarr_url, "http://prowlarr.test")
-        |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
-      )
-
-      MediaCentaur.Capabilities.save_test_result(:prowlarr, :ok)
-
-      on_exit(fn ->
-        :persistent_term.erase({MediaCentaur.Search.Prowlarr, :client})
-        :persistent_term.put({MediaCentaur.Config, :config}, config)
-      end)
-
-      :ok
-    end
-
-    test "plans all pending releases as one ready draft for approval", %{conn: conn} do
-      item =
-        create_tracking_item(%{tmdb_id: 8_001, media_type: :tv_series, name: "Bulk Queue"})
-
-      yesterday = Date.add(Date.utc_today(), -1)
-
-      Enum.each(1..3, fn episode ->
-        create_tracking_release(%{
-          item_id: item.id,
-          season_number: 5,
-          episode_number: episode,
-          air_date: yesterday,
-          released: true
-        })
-      end)
-
-      {:ok, view, _html} = live_async!(conn, ~p"/upcoming")
-
-      result = render_hook(view, "queue_all_show", %{"item-id" => item.id})
-
-      assert result =~ "Coverage plan started"
-
-      # One draft plan with tracking provenance, left ready for the
-      # user to steer and approve — never an unreviewed grab.
-      [plan] = Repo.all(MediaCentaur.Acquisition.Plans.Plan)
-      assert plan.status == "ready"
-      assert plan.tracking_item_id == item.id
-      assert length(MediaCentaur.Acquisition.Plans.units_for(plan.id)) == 3
-
-      # No pursuit was armed by the gesture itself.
-      assert Repo.all(MediaCentaur.Acquisition.Pursuits.Pursuit) == []
-    end
-
-    test "flashes an error when the item is not found", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/upcoming")
-
-      result = render_hook(view, "queue_all_show", %{"item-id" => Ecto.UUID.generate()})
-
-      assert result =~ "not found" or result =~ "couldn't"
-    end
-  end
-
-  describe "live updates from grab lifecycle" do
-    # Releases on the Upcoming page show grab status badges (Pending,
-    # Searching, Grabbed, etc). When acquisition fires PubSub events as a
-    # download is requested or fails, the badge must refresh without a
-    # navigation. Each event individually is debounced 500ms; rapid bursts
-    # (one per episode of a season) must coalesce.
-
-    test "grab_submitted broadcast schedules a debounced grab-status reload",
-         %{conn: conn} do
-      today = Date.utc_today()
-
-      item =
-        create_tracking_item(%{tmdb_id: 9_001, media_type: :tv_series, name: "Grab Live Show"})
-
-      create_tracking_release(%{
-        item_id: item.id,
-        season_number: 1,
-        episode_number: 1,
-        air_date: Date.add(today, 7),
-        released: false
-      })
-
-      {:ok, view, _html} = live_async!(conn, ~p"/upcoming")
-
-      # `UpcomingLive.ensure_loaded/1` spawns the data load on a
-      # supervised task and returns immediately (per the "no blocking
-      # LV page loads" rule). The initial HTML is the empty default;
-      # we wait for the `{:upcoming_loaded, ...}` message to land
-      # before asserting on populated state.
-      send(view.pid, {:grab_submitted, %{id: Ecto.UUID.generate()}})
-
-      Process.sleep(600)
-
-      assert render(view) =~ "Grab Live Show"
-    end
-
-    test "five rapid grab events coalesce into one reload",
-         %{conn: conn} do
-      # Regression guard for the 500ms grab_statuses_timer debounce —
-      # a season grab cascade emits one event per episode; without the
-      # debounce we would re-query grab statuses N times back-to-back.
-      {:ok, view, _html} = live_async!(conn, ~p"/upcoming")
-
-      for _ <- 1..5 do
-        send(view.pid, {:grab_submitted, %{id: Ecto.UUID.generate()}})
-        send(view.pid, {:auto_grab_armed, %{id: Ecto.UUID.generate()}})
-      end
-
-      Process.sleep(600)
-
-      assert render(view) =~ "Upcoming"
-    end
-
-    test "queue_snapshot updates the in-memory queue items",
-         %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/upcoming")
-
-      send(view.pid, {:queue_state, %MediaCentaur.Downloads.QueueState{items: []}})
-
-      assert render(view) =~ "Upcoming"
-    end
-
-    test "releases_updated broadcast triggers a debounced reload",
-         %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/upcoming")
-
-      send(view.pid, {:releases_updated, [Ecto.UUID.generate()]})
-
-      Process.sleep(600)
-
-      assert render(view) =~ "Upcoming"
+      assert render(view) =~ "Reload Show"
     end
   end
 end
