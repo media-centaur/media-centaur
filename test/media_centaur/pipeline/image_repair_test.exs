@@ -85,6 +85,60 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
     end
   end
 
+  describe "refetch_role/1" do
+    test "re-enqueues every image of the role and purges its derivatives",
+         %{tmp: tmp, images_dir: images_dir} do
+      Process.put(:image_derivative_root, Path.join(tmp, "derivatives"))
+
+      movie = create_movie_with_watched_file(tmp)
+
+      entity_dir = Path.join(images_dir, movie.id)
+      File.mkdir_p!(entity_dir)
+      master = Path.join(entity_dir, "backdrop.jpg")
+      {:ok, img} = Image.new(1200, 675, color: :red)
+      {:ok, _} = Image.write(img, master, suffix: ".jpg", quality: 90)
+
+      Library.create_image!(%{
+        movie_id: movie.id,
+        role: "backdrop",
+        content_url: "#{movie.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      {:ok, entry} =
+        ImageQueue.create(%{
+          owner_id: movie.id,
+          owner_type: "movie",
+          role: "backdrop",
+          source_url: "https://image.tmdb.org/t/p/original/stored.jpg",
+          entity_id: movie.id,
+          media_dir: tmp,
+          status: "complete"
+        })
+
+      # A derivative exists for the present master — it must be purged so the
+      # re-downloaded (new-resolution) master regenerates a fresh one.
+      {:ok, derivative} = MediaCentaur.Images.derivative(master, 480)
+      assert File.exists?(derivative)
+
+      assert {:ok, result} = ImageRepair.refetch_role("backdrop")
+      assert result.enqueued == 1
+      assert result.queue_reused == 1
+
+      reloaded = Repo.get(ImageQueueEntry, entry.id)
+      assert reloaded.status == "pending"
+      refute File.exists?(derivative)
+
+      assert_receive {:images_pending, %{entity_id: _id, media_dir: ^tmp}}
+    end
+
+    test "is a no-op when no images of the role exist" do
+      assert {:ok, result} = ImageRepair.refetch_role("backdrop")
+      assert result.enqueued == 0
+      refute_receive {:images_pending, _}, 50
+    end
+  end
+
   describe "repair_all/0 queue-row rebuild via TMDB" do
     test "creates a new queue row for a movie with a direct tmdb_id", %{tmp: tmp} do
       movie = create_movie_with_watched_file(tmp, %{tmdb_id: "550"})

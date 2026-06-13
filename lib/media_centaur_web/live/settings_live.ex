@@ -119,6 +119,7 @@ defmodule MediaCentaurWeb.SettingsLive do
        clearing_database: false,
        refreshing_images: false,
        repairing_images: false,
+       refetching_backdrops: false,
        refreshing_credits: false,
        refreshing_series_credits: false,
        refreshing_movie_subtitles: false,
@@ -584,6 +585,10 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, repairing_images: true)}
   end
 
+  def handle_event("refetch_backdrops", _params, socket) do
+    {:noreply, start_backdrop_refetch(socket, "")}
+  end
+
   def handle_event("toggle_watchers", _params, socket) do
     if socket.assigns.watchers_running do
       Watcher.Supervisor.stop_watchers()
@@ -817,14 +822,25 @@ defmodule MediaCentaurWeb.SettingsLive do
     Config.update(:extras_dirs, extras)
     Config.update(:skip_dirs, skip)
 
+    previous_resolution = Config.image_resolution()
+
     if params["image_resolution"] in Config.image_resolutions() do
       Config.update(:image_resolution, params["image_resolution"])
     end
 
-    {:noreply,
-     socket
-     |> assign(config: load_config())
-     |> put_flash(:info, "Pipeline settings saved")}
+    socket = assign(socket, config: load_config())
+
+    # Changing the resolution is one trigger for re-fetching the affected
+    # artwork (backdrops) at the new size; the Library Maintenance button is
+    # the other. Both go through `refetch_backdrops_async`.
+    socket =
+      if Config.image_resolution() == previous_resolution do
+        put_flash(socket, :info, "Pipeline settings saved")
+      else
+        start_backdrop_refetch(socket, "Pipeline settings saved — ")
+      end
+
+    {:noreply, socket}
   end
 
   def handle_event("save_playback", params, socket) do
@@ -1115,6 +1131,22 @@ defmodule MediaCentaurWeb.SettingsLive do
        repair_last_result: result,
        missing_images_summary: Maintenance.missing_images_summary()
      )
+     |> put_flash(:info, msg)}
+  end
+
+  def handle_info({:backdrop_refetch_complete, %{enqueued: enqueued}}, socket) do
+    msg =
+      case enqueued do
+        0 ->
+          "No backdrops to re-fetch."
+
+        n ->
+          "Re-queued #{n} backdrop#{if n == 1, do: "", else: "s"} for download at the current resolution."
+      end
+
+    {:noreply,
+     socket
+     |> assign(refetching_backdrops: false)
      |> put_flash(:info, msg)}
   end
 
@@ -1468,6 +1500,7 @@ defmodule MediaCentaurWeb.SettingsLive do
             clearing_database={@clearing_database}
             refreshing_images={@refreshing_images}
             repairing_images={@repairing_images}
+            refetching_backdrops={@refetching_backdrops}
             refreshing_credits={@refreshing_credits}
             refreshing_series_credits={@refreshing_series_credits}
             refreshing_movie_subtitles={@refreshing_movie_subtitles}
@@ -3239,6 +3272,29 @@ defmodule MediaCentaurWeb.SettingsLive do
 
           <div class="flex items-start justify-between gap-4 py-3">
             <div class="min-w-0">
+              <p class="text-sm font-medium">Re-fetch backdrops</p>
+              <p class="text-xs text-base-content/50 mt-0.5">
+                Re-downloads every backdrop at the current artwork resolution
+                (Pipeline → Artwork resolution) and clears the old cached copies to
+                reclaim space. Use after changing the resolution to bring existing
+                artwork in line. Posters and thumbnails are unaffected.
+              </p>
+            </div>
+            <.button
+              variant="neutral"
+              size="sm"
+              class="shrink-0"
+              phx-click="refetch_backdrops"
+              disabled={@refetching_backdrops}
+              data-nav-item
+              tabindex="0"
+            >
+              {if @refetching_backdrops, do: "Re-fetching…", else: "Re-fetch"}
+            </.button>
+          </div>
+
+          <div class="flex items-start justify-between gap-4 py-3">
+            <div class="min-w-0">
               <p class="text-sm font-medium">Refresh movie credits</p>
               <p class="text-xs text-base-content/50 mt-0.5">
                 Backfills cast, crew (director, writers, composer), and IMDb ids for movies imported before those fields existed. Skips movies that already have credits — safe to re-run.
@@ -4237,6 +4293,15 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp phx_values(map) do
     # String keys avoid creating atoms at runtime — Phoenix accepts both.
     Map.new(map, fn {key, value} -> {"phx-value-#{key}", value} end)
+  end
+
+  # Shared by the resolution-change auto-trigger and the maintenance button.
+  defp start_backdrop_refetch(socket, prefix) do
+    Maintenance.refetch_backdrops_async(self())
+
+    socket
+    |> assign(refetching_backdrops: true)
+    |> put_flash(:info, "#{prefix}Re-fetching backdrops at #{Config.image_resolution()}…")
   end
 
   defp load_config do

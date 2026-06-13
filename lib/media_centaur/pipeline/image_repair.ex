@@ -24,6 +24,8 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Config
+  alias MediaCentaur.Images
   alias MediaCentaur.Library.ImageHealth
   alias MediaCentaur.Pipeline.EntityImageContext
   alias MediaCentaur.Pipeline.ImageQueue
@@ -51,6 +53,39 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
       Log.info(:library, "image_repair: starting — #{length(missing)} missing files")
       do_repair(missing)
     end
+  end
+
+  @doc """
+  Re-fetches every `library_images` row of `role` that has a cached file,
+  regardless of whether it's present on disk. Each image's stale `?w=`
+  derivatives are purged (so they regenerate from the new master, reclaiming
+  cache space), then the queue row is reset/rebuilt and the pipeline
+  re-downloads it at the *current* resize spec.
+
+  This is the artwork-resolution backfill: changing the resolution preset, or
+  the maintenance button, re-fetches only the affected role (backdrops) so the
+  on-disk masters match the new setting.
+  """
+  @spec refetch_role(String.t()) :: {:ok, result()}
+  def refetch_role(role) do
+    entries = ImageHealth.list_by_role(role)
+
+    if entries == [] do
+      {:ok, %{enqueued: 0, queue_reused: 0, queue_rebuilt: 0, skipped: 0}}
+    else
+      Log.info(:library, "image_refetch: #{role} — #{length(entries)} images")
+      purge_derivatives(entries)
+      do_repair(entries)
+    end
+  end
+
+  defp purge_derivatives(entries) do
+    Enum.each(entries, fn %{image: image} ->
+      case Config.resolve_image_path(image.content_url) do
+        nil -> :ok
+        path -> Images.purge_derivatives_for(path)
+      end
+    end)
   end
 
   defp do_repair(missing) do

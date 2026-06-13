@@ -200,6 +200,57 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       assert MediaCentaur.Config.image_resolution() == "1080p"
     end
+
+    test "changing the resolution starts a backdrop re-fetch", %{conn: conn} do
+      MediaCentaur.Config.update(:image_resolution, "4k")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=pipeline")
+
+      html =
+        view
+        |> form("form[phx-submit=save_pipeline]", %{
+          "extras_dirs" => "",
+          "skip_dirs" => "",
+          "image_resolution" => "1080p"
+        })
+        |> render_submit()
+
+      assert html =~ "Re-fetching backdrops"
+    end
+
+    test "saving without changing the resolution does not start a re-fetch", %{conn: conn} do
+      MediaCentaur.Config.update(:image_resolution, "1080p")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=pipeline")
+
+      html =
+        view
+        |> form("form[phx-submit=save_pipeline]", %{
+          "extras_dirs" => "",
+          "skip_dirs" => "",
+          "image_resolution" => "1080p"
+        })
+        |> render_submit()
+
+      refute html =~ "Re-fetching backdrops"
+      assert html =~ "Pipeline settings saved"
+    end
+
+    test "the completion message reports the re-queued count", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=danger")
+
+      send(
+        view.pid,
+        {:backdrop_refetch_complete, %{enqueued: 2, queue_reused: 2, queue_rebuilt: 0, skipped: 0}}
+      )
+
+      assert render(view) =~ "Re-queued 2 backdrops"
+    end
+
+    test "the manual maintenance button starts a re-fetch", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=danger")
+
+      html = view |> element("button[phx-click=refetch_backdrops]") |> render_click()
+      assert html =~ "Re-fetching backdrops"
+    end
   end
 
   test "receives cross-tab spoiler_free sync via PubSub", %{conn: conn} do

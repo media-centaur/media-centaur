@@ -77,6 +77,21 @@ defmodule MediaCentaur.Library.ImageHealth do
     )
   end
 
+  @doc """
+  Returns every image of `role` (with a non-nil `content_url`), each annotated
+  with the owning entity's id and type — regardless of whether the file is
+  present on disk. Used by the artwork re-fetch path, which re-downloads images
+  that already exist (to upgrade their resolution), so it deliberately skips the
+  disk-presence filter that `list_missing/1` applies.
+  """
+  @spec list_by_role(String.t()) :: [missing_entry()]
+  def list_by_role(role) when is_binary(role) do
+    Image
+    |> where([i], i.role == ^role and not is_nil(i.content_url))
+    |> Repo.all()
+    |> Enum.map(&annotate/1)
+  end
+
   # Single fetch + parallel disk-presence check. The check is per-file
   # `File.exists?` (via the resolver), embarrassingly parallel — running
   # serially turned a ~10k-image health summary into a sequential disk-stat
