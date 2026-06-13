@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.91.2 — 2026-06-13
+
+### Fixed
+
+- **Keyboard and gamepad navigation no longer loses focus on the Downloads page.** Moving the highlight onto Downloads with arrow keys or a controller used to jump the cursor straight into the search box, taking it away from the menu. The search box now only grabs focus automatically when you're using the mouse.
+
 ## v0.91.1 — 2026-06-13
 
 ### New
