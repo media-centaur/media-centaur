@@ -3,6 +3,22 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
 
   import MediaCentaurWeb.LiveHelpers
 
+  describe "sized_image_url/2" do
+    test "appends a ?w= width hint to a bare URL" do
+      assert sized_image_url("/media-images/abc/backdrop.jpg", 480) ==
+               "/media-images/abc/backdrop.jpg?w=480"
+    end
+
+    test "preserves an existing query (e.g. a ?v= cache-buster) with &" do
+      assert sized_image_url("/media-images/abc/backdrop.jpg?v=123", 320) ==
+               "/media-images/abc/backdrop.jpg?v=123&w=320"
+    end
+
+    test "returns nil for nil so callers can :if on the result" do
+      assert sized_image_url(nil, 480) == nil
+    end
+  end
+
   describe "image_url/2" do
     test "returns local path for content_url" do
       entity = %{images: [%{role: "poster", content_url: "abc/poster.jpg"}]}

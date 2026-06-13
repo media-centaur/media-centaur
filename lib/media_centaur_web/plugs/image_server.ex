@@ -47,12 +47,48 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
 
       case locate_file(relative) do
         nil -> send_placeholder(conn, relative)
-        file_path -> send_file_response(conn, file_path)
+        master_path -> serve_image(conn, master_path)
       end
     end
   end
 
   def call(conn, _opts), do: conn
+
+  # A `?w=<px>` request is served a width-constrained derivative (generated
+  # and cached on first hit); without it, the full-resolution master. The
+  # derivative protects paint latency for small display boxes — a calendar
+  # tile that's 120px wide should not block on decoding a 3360px backdrop.
+  # Large/full-bleed surfaces simply omit `?w=` and keep the master, so 4K
+  # quality is untouched. Generation failure falls back to the master.
+  defp serve_image(conn, master_path) do
+    case requested_width(conn) do
+      nil ->
+        send_file_response(conn, master_path)
+
+      width ->
+        case MediaCentaur.Images.derivative(master_path, width) do
+          {:ok, served_path} -> send_file_response(conn, served_path)
+          {:error, _reason} -> send_file_response(conn, master_path)
+        end
+    end
+  end
+
+  defp requested_width(conn) do
+    conn
+    |> fetch_query_params()
+    |> Map.fetch!(:query_params)
+    |> Map.get("w")
+    |> case do
+      raw when is_binary(raw) ->
+        case Integer.parse(raw) do
+          {width, ""} when width > 0 and width <= 4096 -> width
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
+  end
 
   defp locate_file(relative) do
     media_dirs = MediaCentaur.Config.get(:media_dirs) || []
@@ -92,22 +128,27 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
     |> halt()
   end
 
-  # Versioned URLs (`?v=<n>` or any query string) are the cache key:
-  # the LiveView bumps the version to invalidate, which produces a new
-  # URL. The file at the unversioned path is effectively immutable for
-  # *this* URL, so a far-future + `immutable` directive lets the browser
-  # skip even the conditional revalidation roundtrip.
-  defp put_cache_headers(conn, _file_path, query) when query != "" do
-    put_resp_header(conn, "cache-control", "public, max-age=31536000, immutable")
+  # Immutable caching is keyed on an explicit `?v=` cache-buster — the only
+  # param that guarantees a new URL when the bytes change (the LiveView bumps
+  # it to invalidate). A bare `?w=` derivative request must NOT be treated as
+  # immutable: the derivative is regenerated in place when its master is
+  # re-scraped, so it needs the same revalidatable max-age + ETag a plain
+  # master URL gets.
+  defp put_cache_headers(conn, file_path, query) do
+    if versioned?(query) do
+      put_resp_header(conn, "cache-control", "public, max-age=31536000, immutable")
+    else
+      conn
+      |> put_resp_header("cache-control", "public, max-age=3600")
+      |> put_etag(file_path)
+    end
   end
 
-  # Plain URLs don't carry a cache-buster, so the same URL can legally
-  # return new bytes after a TMDB re-scrape. A short max-age + ETag keeps
-  # repeat views instant while bounding staleness to an hour.
-  defp put_cache_headers(conn, file_path, "") do
-    conn
-    |> put_resp_header("cache-control", "public, max-age=3600")
-    |> put_etag(file_path)
+  defp versioned?(query) do
+    query
+    |> Kernel.||("")
+    |> URI.decode_query()
+    |> Map.has_key?("v")
   end
 
   defp put_etag(conn, file_path) do

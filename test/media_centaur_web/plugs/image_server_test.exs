@@ -117,6 +117,61 @@ defmodule MediaCentaurWeb.Plugs.ImageServerTest do
     end
   end
 
+  describe "?w= width derivative" do
+    setup do
+      tmp_dir = Path.join(System.tmp_dir!(), "image_server_w_test_#{System.unique_integer([:positive])}")
+      File.mkdir_p!(tmp_dir)
+
+      master_path = Path.join(tmp_dir, "backdrop.jpg")
+      {:ok, image} = Image.new(1200, 675, color: :red)
+      {:ok, _} = Image.write(image, master_path, suffix: ".jpg", quality: 90)
+
+      # Generated derivatives land under tmp_dir (per-process override).
+      Process.put(:image_derivative_root, tmp_dir)
+
+      original = :persistent_term.get({Config, :config}, %{})
+      :persistent_term.put({Config, :config}, Map.put(original, :data_dir, tmp_dir))
+
+      on_exit(fn ->
+        :persistent_term.put({Config, :config}, original)
+        File.rm_rf!(tmp_dir)
+      end)
+
+      %{filename: "backdrop.jpg", master_path: master_path}
+    end
+
+    test "serves a smaller, revalidatable JPEG derivative (not immutable)",
+         %{conn: conn, filename: filename, master_path: master_path} do
+      conn = call_plug(conn, "/media-images/#{filename}", "w=320")
+
+      assert conn.status == 200
+      assert content_type(conn) =~ "image/jpeg"
+      # The derivative is genuinely smaller than the full-resolution master.
+      assert byte_size(conn.resp_body) < File.stat!(master_path).size
+
+      [cache_control] = Plug.Conn.get_resp_header(conn, "cache-control")
+      assert cache_control =~ "max-age=3600"
+      refute cache_control =~ "immutable"
+      assert [_etag] = Plug.Conn.get_resp_header(conn, "etag")
+    end
+
+    test "a width at/above the master resolution serves the master untouched (no upscale)",
+         %{conn: conn, filename: filename, master_path: master_path} do
+      conn = call_plug(conn, "/media-images/#{filename}", "w=2000")
+
+      assert conn.status == 200
+      # Master is 1200px wide; a 2000px request must not upscale — same bytes.
+      assert byte_size(conn.resp_body) == File.stat!(master_path).size
+    end
+
+    test "a missing master with ?w= still degrades to the placeholder", %{conn: conn} do
+      conn = call_plug(conn, "/media-images/nope/backdrop.jpg", "w=320")
+
+      assert conn.status == 200
+      assert content_type(conn) =~ "image/svg+xml"
+    end
+  end
+
   describe "path traversal guard (preserved)" do
     test "path containing .. halts with 400", %{conn: conn} do
       conn = call_plug(conn, "/media-images/../../etc/passwd")

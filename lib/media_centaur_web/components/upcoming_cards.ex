@@ -7,6 +7,7 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
   alias Phoenix.LiveView.JS
   import MediaCentaurWeb.CoreComponents
   import MediaCentaurWeb.Components.Modal
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   @weekdays ~w(Mon Tue Wed Thu Fri Sat Sun)
 
@@ -338,9 +339,11 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       phx-value-date={@has_releases && @in_month && Date.to_iso8601(@date)}
     >
       <%!-- === 1 release: full-cell backdrop === --%>
+      <%!-- Calendar tile is ~150-200px wide; request a 480px derivative
+            (≈2× for high-DPI) instead of decoding the full 3360px master. --%>
       <img
         :if={@release_count == 1 && @solo_backdrop && @in_month}
-        src={@solo_backdrop}
+        src={sized_image_url(@solo_backdrop, 480)}
         class="absolute inset-0 w-full h-full object-cover object-top"
         loading="eager"
         decoding="sync"
@@ -436,9 +439,11 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
 
     ~H"""
     <div class="relative min-w-0 overflow-hidden" title={@name}>
+      <%!-- Multi-release tiles are ~80-120px wide; a 320px derivative covers
+            them at ≈2× without decoding the full-resolution master. --%>
       <img
         :if={@backdrop}
-        src={@backdrop}
+        src={sized_image_url(@backdrop, 320)}
         class="w-full h-full object-cover object-top"
         loading="eager"
         decoding="sync"
