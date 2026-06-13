@@ -69,6 +69,118 @@ defmodule MediaCentaur.Images do
     end
   end
 
+  # Fixed ladder of derivative widths. A requested width snaps UP to the
+  # nearest tier, bounding the number of cached variants per image (max one
+  # file per tier) while still giving `srcset`/DPR enough granularity. Tiers
+  # cover thumbnail tiles (160) through near-full backdrops (1920); anything
+  # wider is served from the master untouched.
+  @derivative_widths [160, 240, 320, 480, 640, 960, 1280, 1920]
+
+  @doc """
+  Returns a path to a width-constrained JPEG/PNG derivative of a local master
+  image, generating and caching it on first request.
+
+  `requested_width` snaps UP to the fixed width ladder. The derivative is
+  cached to disk and reused until the master is rewritten (a TMDB re-scrape
+  bumps the master's mtime, which invalidates the cache). The output format
+  matches the master's (so transparent logos keep their alpha).
+
+  Two cases return the master path **unchanged** rather than a derivative —
+  both protect quality by never upscaling:
+
+  - the snapped width is at or above the master's own width, or
+  - the requested width exceeds the ladder ceiling (caller wants full res).
+
+  Returns `{:ok, path}` (a derivative or the master) or `{:error, reason}`;
+  callers should fall back to the master on error so the image always renders.
+  """
+  def derivative(master_path, requested_width)
+      when is_binary(master_path) and is_integer(requested_width) and requested_width > 0 do
+    case snap_width(requested_width) do
+      :full ->
+        {:ok, master_path}
+
+      width ->
+        cache_path = derivative_cache_path(master_path, width)
+
+        if derivative_fresh?(cache_path, master_path) do
+          {:ok, cache_path}
+        else
+          build_derivative(master_path, width, cache_path)
+        end
+    end
+  end
+
+  defp snap_width(requested) do
+    Enum.find(@derivative_widths, :full, &(&1 >= requested))
+  end
+
+  defp derivative_cache_path(master_path, width) do
+    ext =
+      master_path
+      |> Path.extname()
+      |> String.downcase()
+      |> case do
+        ".png" -> ".png"
+        _ -> ".jpg"
+      end
+
+    key = Base.url_encode64(:crypto.hash(:sha256, master_path), padding: false)
+    Path.join(derivative_root(), "#{key}-w#{width}#{ext}")
+  end
+
+  # Derivatives live under the app data dir so they survive restarts and never
+  # touch the (possibly read-only / network-mounted) media image caches. The
+  # per-process override mirrors `http_client/0` — it lets async tests redirect
+  # the cache into a tmp dir without mutating global config.
+  defp derivative_root do
+    base =
+      Process.get(:image_derivative_root) ||
+        MediaCentaur.Config.get(:data_dir) ||
+        System.tmp_dir!()
+
+    Path.join(base, "image-derivatives")
+  end
+
+  defp derivative_fresh?(cache_path, master_path) do
+    with {:ok, %{mtime: cache_mtime}} <- File.stat(cache_path),
+         {:ok, %{mtime: master_mtime}} <- File.stat(master_path) do
+      cache_mtime >= master_mtime
+    else
+      _ -> false
+    end
+  end
+
+  defp build_derivative(master_path, width, cache_path) do
+    with {:ok, image} <- open_file(master_path),
+         {master_width, _height, _bands} <- Image.shape(image) do
+      if master_width <= width do
+        {:ok, master_path}
+      else
+        cache_path |> Path.dirname() |> File.mkdir_p!()
+
+        with {:ok, thumb} <- Image.thumbnail(image, width, resize: :down),
+             {:ok, _} <- Image.write(thumb, cache_path, derivative_write_opts(cache_path)) do
+          {:ok, cache_path}
+        end
+      end
+    end
+  end
+
+  defp open_file(path) do
+    case Image.open(path) do
+      {:ok, image} -> {:ok, image}
+      {:error, reason} -> {:error, {:image_open_failed, reason}}
+    end
+  end
+
+  defp derivative_write_opts(cache_path) do
+    case Path.extname(cache_path) do
+      ".png" -> [suffix: ".png"]
+      _ -> [suffix: ".jpg", quality: 82]
+    end
+  end
+
   # --- HTTP ---
 
   defp fetch(url) do

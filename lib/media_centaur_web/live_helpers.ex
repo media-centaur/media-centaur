@@ -127,6 +127,28 @@ defmodule MediaCentaurWeb.LiveHelpers do
     end
   end
 
+  @doc """
+  Appends a `?w=<width>` hint to a local `/media-images/...` URL so
+  `ImageServer` serves a width-constrained derivative instead of the
+  full-resolution master.
+
+  Use for artwork shown in a small box (calendar tiles, grid thumbnails,
+  poster rows) where decoding the full master would needlessly block paint.
+  Size the width to the rendered box × the target device-pixel-ratio (≈2×)
+  so the source stays crisp on high-DPI / 4K displays. **Omit it entirely**
+  for full-bleed / hero / detail-modal backdrops — those must keep the master
+  to render sharply at full-viewport scale.
+
+  Preserves any existing query string (e.g. a `?v=` cache-buster) and returns
+  `nil` for `nil` so callers can `:if` on the result.
+  """
+  def sized_image_url(nil, _width), do: nil
+
+  def sized_image_url(url, width) when is_binary(url) and is_integer(width) and width > 0 do
+    separator = if String.contains?(url, "?"), do: "&", else: "?"
+    "#{url}#{separator}w=#{width}"
+  end
+
   # The artwork file is rewritten in place on a TMDB re-scrape (same
   # `<owner_id>/<role>.<ext>` path), so a bare URL would let the browser
   # serve stale bytes for up to an hour (ImageServer's unversioned

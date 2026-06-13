@@ -182,6 +182,82 @@ defmodule MediaCentaur.ImagesTest do
     end
   end
 
+  describe "derivative/2" do
+    setup %{tmp_dir: tmp_dir} do
+      # Keep generated derivatives inside the test's tmp_dir (auto-cleaned)
+      # via the same per-process override idiom the HTTP client uses.
+      Process.put(:image_derivative_root, tmp_dir)
+
+      master = Path.join(tmp_dir, "backdrop.jpg")
+      {:ok, image} = Image.new(1200, 675, color: :red)
+      {:ok, _} = Image.write(image, master, suffix: ".jpg", quality: 90)
+
+      %{tmp_dir: tmp_dir, master: master}
+    end
+
+    defp master_with(tmp_dir, name, width, height, opts) do
+      path = Path.join(tmp_dir, name)
+      {:ok, image} = Image.new(width, height, Keyword.take(opts, [:color, :bands]))
+      {:ok, _} = Image.write(image, path, Keyword.take(opts, [:suffix, :quality]))
+      path
+    end
+
+    test "builds a downscaled JPEG derivative at the requested width", %{master: master} do
+      assert {:ok, derivative} = Images.derivative(master, 480)
+      assert derivative != master
+
+      {:ok, image} = Image.open(derivative)
+      {width, _height, _bands} = Image.shape(image)
+      assert width == 480
+    end
+
+    test "snaps an off-ladder width UP to the next tier", %{master: master} do
+      # 400 → 480; 500 → 640. Snapping bounds the number of cached variants
+      # per image while still covering DPR-driven srcset requests.
+      assert {:ok, d400} = Images.derivative(master, 400)
+      assert {:ok, d500} = Images.derivative(master, 500)
+
+      assert Image.open!(d400) |> Image.shape() |> elem(0) == 480
+      assert Image.open!(d500) |> Image.shape() |> elem(0) == 640
+    end
+
+    test "never upscales — returns the master when it is already at/below the snapped width",
+         %{tmp_dir: tmp_dir} do
+      small = master_with(tmp_dir, "small.jpg", 300, 169, color: :green, suffix: ".jpg")
+
+      # 300 snaps up to 320, but the master is only 300 wide — upscaling would
+      # blur it, so the master is served unchanged.
+      assert {:ok, ^small} = Images.derivative(small, 300)
+    end
+
+    test "returns the master when the requested width exceeds the ladder ceiling",
+         %{master: master} do
+      assert {:ok, ^master} = Images.derivative(master, 5000)
+    end
+
+    test "regenerates the derivative when the master is newer than the cache",
+         %{master: master} do
+      assert {:ok, derivative} = Images.derivative(master, 480)
+
+      # Force the cache to look stale relative to its master.
+      File.touch!(derivative, {{2000, 1, 1}, {0, 0, 0}})
+      File.touch!(master, {{2030, 1, 1}, {0, 0, 0}})
+
+      assert {:ok, ^derivative} = Images.derivative(master, 480)
+
+      {:ok, %{mtime: mtime}} = File.stat(derivative)
+      # A rebuild stamps the file ~now; the forced-stale 2000 mtime is gone.
+      assert mtime > {{2001, 1, 1}, {0, 0, 0}}
+    end
+
+    test "preserves PNG format so transparent logos keep their alpha", %{tmp_dir: tmp_dir} do
+      logo = master_with(tmp_dir, "logo.png", 1000, 250, color: :blue, suffix: ".png")
+
+      assert {:ok, derivative} = Images.derivative(logo, 480)
+      assert Path.extname(derivative) == ".png"
+    end
+  end
+
   # --- HTTP stub helpers ---
 
   # Per-process overrides — see `Images.http_client/0`. These don't
