@@ -178,6 +178,30 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     end
   end
 
+  describe "pipeline — artwork resolution" do
+    setup do
+      # Config.update mutates the global :persistent_term map (not rolled back
+      # by the sandbox), so snapshot and restore it around each test.
+      config = :persistent_term.get({MediaCentaur.Config, :config})
+      on_exit(fn -> :persistent_term.put({MediaCentaur.Config, :config}, config) end)
+      :ok
+    end
+
+    test "saving the pipeline form persists the artwork resolution", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=pipeline")
+
+      view
+      |> form("form[phx-submit=save_pipeline]", %{
+        "extras_dirs" => "",
+        "skip_dirs" => "",
+        "image_resolution" => "1080p"
+      })
+      |> render_submit()
+
+      assert MediaCentaur.Config.image_resolution() == "1080p"
+    end
+  end
+
   test "receives cross-tab spoiler_free sync via PubSub", %{conn: conn} do
     {:ok, view, _html} = live_async!(conn, ~p"/settings")
 

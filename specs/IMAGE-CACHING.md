@@ -13,7 +13,8 @@ This document specifies how artwork images are stored, referenced, and loaded in
 
 ## Design Principles
 
-- **One copy per role, sized for the target role.** Store a single image per role, resized at download time (via libvips in `ImageProcessor`) to the target dimensions for that role.
+- **One master per role, sized for the target role.** Store a single image per role, resized at download time (via libvips in `ImageProcessor`) to the target dimensions for that role. Smaller display boxes are served on-demand **width derivatives** of this master (see [HTTP Endpoint](#http-endpoint)) — the master is never the thing a small tile decodes.
+- **Backdrop master resolution is a user preference.** Backdrops are the only artwork shown full-bleed, so their master resolution follows the `:image_resolution` setting (Settings → Pipeline): `"4k"` → 3840×2160, `"1080p"` → 1920×1080. Other roles have fixed targets. The setting applies to newly downloaded artwork; existing masters keep their size until refreshed.
 - **Remote URL + local path separation.** Each image record stores both the original remote URL and the local cached path. The backend writes `source_url` during metadata fetch and `content_url` after the file is downloaded.
 - **Multiple roles per entity, one row each.** The `library_images` table has many rows per entity, one per role. Adding a new role does not require a schema migration — just write a row with the new `role` value.
 - **UUID-keyed directories.** Each entity's images live under `data/images/{entity_id}/`. The entity UUID is the sole key — no name-based paths.
@@ -140,6 +141,8 @@ The backend serves images over HTTP at `/media-images/*` via `ImageServerPlug`. 
 **Request:** `GET /media-images/{uuid}/{role}.{ext}` (e.g. `/media-images/550e8400-.../poster.jpg`)
 
 The plug searches all configured media directories' image caches for the requested file and returns the first match. Returns 404 if the file is not found in any cache. Path traversal (`..`) is rejected with 400.
+
+**Width derivatives:** `GET /media-images/{uuid}/{role}.{ext}?w={px}` serves a width-constrained derivative of the master, generated on first request (libvips, via `Images.derivative/2`), cached to disk under the app data dir, and reused until the master is re-scraped. The requested width snaps up to a fixed ladder and **never upscales** — a request at or above the master width serves the master. Derivatives carry the same revalidatable `max-age` + ETag as a plain master URL (only an explicit `?v=` flips a URL to immutable). Call sites size `?w=` to their rendered box × device-pixel-ratio (`MediaCentaurWeb.LiveHelpers.sized_image_url/2`); full-bleed/hero surfaces omit `?w=` and keep the master so 4K stays sharp.
 
 ---
 

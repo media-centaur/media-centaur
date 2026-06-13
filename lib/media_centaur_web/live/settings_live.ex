@@ -817,6 +817,10 @@ defmodule MediaCentaurWeb.SettingsLive do
     Config.update(:extras_dirs, extras)
     Config.update(:skip_dirs, skip)
 
+    if params["image_resolution"] in Config.image_resolutions() do
+      Config.update(:image_resolution, params["image_resolution"])
+    end
+
     {:noreply,
      socket
      |> assign(config: load_config())
@@ -2462,6 +2466,30 @@ defmodule MediaCentaurWeb.SettingsLive do
           />
           <p class="text-xs text-base-content/40 mt-1">
             Comma-separated directory names to ignore silently.
+          </p>
+        </div>
+
+        <div>
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            Artwork resolution
+          </label>
+          <select
+            name="image_resolution"
+            class="select select-bordered w-full text-sm"
+            data-nav-item
+            tabindex="0"
+          >
+            <option value="4k" selected={Config.image_resolution() == "4k"}>
+              4K — sharper on UHD displays, larger downloads
+            </option>
+            <option value="1080p" selected={Config.image_resolution() == "1080p"}>
+              1080p — smaller files, ideal for 1080p displays
+            </option>
+          </select>
+          <p class="text-xs text-base-content/40 mt-1">
+            Resolution for downloaded background artwork (backdrops). Applies to
+            newly fetched art; existing artwork keeps its size until refreshed.
+            Posters and thumbnails are always stored at a display-appropriate size.
           </p>
         </div>
       </div>

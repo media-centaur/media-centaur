@@ -7,26 +7,34 @@ defmodule MediaCentaur.Pipeline.ImageProcessor do
 
   ## Target dimensions
 
-  Derived from 4K render sizes + 25% headroom (see IMAGE-SIZING spec):
+  | Role     | Strategy     | Target                          |
+  |----------|-------------|----------------------------------|
+  | poster   | fit         | 1120 × 1680                     |
+  | backdrop | fit         | 3840 × 2160 (4K) / 1920 × 1080 (1080p) |
+  | logo     | longest_edge| 1440                            |
+  | thumb    | fit         | 480 × 270                       |
 
-  | Role     | Strategy     | Target       |
-  |----------|-------------|--------------|
-  | poster   | fit         | 1120 × 1680 |
-  | backdrop | fit         | 3360 × 1890 |
-  | logo     | longest_edge| 1440         |
-  | thumb    | fit         | 480 × 270   |
+  Backdrops are the only artwork shown full-bleed, so their master resolution
+  follows the user's `:image_resolution` preference (Settings → Pipeline): 4K
+  renders sharply on UHD displays, 1080p halves the dimensions (≈4× smaller
+  files) for standard displays / smaller disks. Every other role is sized for
+  how it's displayed and right-sized further on demand by `ImageServer` (`?w=`).
 
   Logos are saved as PNG (preserving transparency). All others as JPEG.
   Images at or below target size are written as-is — never upscaled.
   """
 
-  alias MediaCentaur.Images
+  alias MediaCentaur.{Config, Images}
 
   @role_config %{
     "poster" => [resize: {:fit, 1120, 1680}, format: :jpg],
-    "backdrop" => [resize: {:fit, 3360, 1890}, format: :jpg],
     "logo" => [resize: {:longest_edge, 1440}, format: :png],
     "thumb" => [resize: {:fit, 480, 270}, format: :jpg]
+  }
+
+  @backdrop_config %{
+    "4k" => [resize: {:fit, 3840, 2160}, format: :jpg],
+    "1080p" => [resize: {:fit, 1920, 1080}, format: :jpg]
   }
 
   @doc """
@@ -40,13 +48,16 @@ defmodule MediaCentaur.Pipeline.ImageProcessor do
   @spec download_and_resize(String.t(), String.t(), String.t()) ::
           :ok | {:error, :permanent | :transient, term()}
   def download_and_resize(url, role, dest_path) do
-    opts = Map.fetch!(@role_config, role)
-
-    case Images.download(url, dest_path, opts) do
+    case Images.download(url, dest_path, role_opts(role)) do
       {:ok, _path} -> :ok
       {:error, category, reason} -> {:error, category, reason}
     end
   end
+
+  # Backdrop spec follows the runtime resolution preset; every other role is
+  # fixed.
+  defp role_opts("backdrop"), do: Map.fetch!(@backdrop_config, Config.image_resolution())
+  defp role_opts(role), do: Map.fetch!(@role_config, role)
 
   @doc """
   Returns the output file extension for the given role.

@@ -45,6 +45,35 @@ defmodule MediaCentaur.ConfigTest do
   end
 
   # ---------------------------------------------------------------------------
+  # image_resolution/0
+  # ---------------------------------------------------------------------------
+
+  describe "image_resolution/0" do
+    test "defaults to 4k when unset" do
+      :persistent_term.put({Config, :config}, %{})
+      assert Config.image_resolution() == "4k"
+    end
+
+    test "returns the stored value when valid" do
+      :persistent_term.put({Config, :config}, %{image_resolution: "1080p"})
+      assert Config.image_resolution() == "1080p"
+    end
+
+    test "falls back to the default for an unrecognised stored value" do
+      :persistent_term.put({Config, :config}, %{image_resolution: "8k"})
+      assert Config.image_resolution() == "4k"
+    end
+
+    test "the process override wins (async-test seam)" do
+      :persistent_term.put({Config, :config}, %{image_resolution: "4k"})
+      Process.put(:image_resolution_override, "1080p")
+      assert Config.image_resolution() == "1080p"
+    after
+      Process.delete(:image_resolution_override)
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # staging_base_for/1
   # ---------------------------------------------------------------------------
 

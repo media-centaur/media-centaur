@@ -167,6 +167,39 @@ defmodule MediaCentaur.Pipeline.ImageProcessorTest do
                )
     end
 
+    test "defaults to the 4K preset — backdrops kept up to 3840 wide",
+         %{tmp_dir: tmp_dir} do
+      {:ok, huge} = Image.new(4000, 2250, color: :red)
+      {:ok, huge_jpeg} = Image.write(huge, :memory, suffix: ".jpg")
+      stub_http_success(huge_jpeg)
+
+      dest = Path.join(tmp_dir, "entity-id/backdrop.jpg")
+
+      assert :ok =
+               ImageProcessor.download_and_resize("https://example.com/b.jpg", "backdrop", dest)
+
+      {:ok, result} = Image.open(dest)
+      assert result |> Image.shape() |> elem(0) == 3840
+    end
+
+    test "the 1080p preset caps backdrops at 1920 wide", %{tmp_dir: tmp_dir} do
+      # Per-process override (auto-isolated: each test runs in its own process,
+      # same idiom as the HTTP stub below).
+      Process.put(:image_resolution_override, "1080p")
+
+      {:ok, huge} = Image.new(4000, 2250, color: :red)
+      {:ok, huge_jpeg} = Image.write(huge, :memory, suffix: ".jpg")
+      stub_http_success(huge_jpeg)
+
+      dest = Path.join(tmp_dir, "entity-id/backdrop.jpg")
+
+      assert :ok =
+               ImageProcessor.download_and_resize("https://example.com/b.jpg", "backdrop", dest)
+
+      {:ok, result} = Image.open(dest)
+      assert result |> Image.shape() |> elem(0) == 1920
+    end
+
     test "creates destination directory if needed", %{tmp_dir: tmp_dir, small_jpeg: jpeg} do
       stub_http_success(jpeg)
 
