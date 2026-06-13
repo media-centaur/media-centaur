@@ -78,8 +78,16 @@ defmodule MediaCentaur.Config do
     :setup_wizard_dismissed,
     :update_check_enabled,
     :update_check_interval_minutes,
-    :auto_update_enabled
+    :auto_update_enabled,
+    :image_resolution
   ]
+
+  # Artwork resolution preset (Settings → Pipeline). Governs the master
+  # resolution backdrops are downloaded at — the only artwork shown full-bleed,
+  # so the only one where 4K vs 1080p is visible. Posters/thumbnails are always
+  # stored at a display-appropriate size and right-sized further by ImageServer.
+  @image_resolutions ["4k", "1080p"]
+  @image_resolution_default "4k"
 
   # Floor on the GitHub release-poll interval. The check hits the
   # unauthenticated GitHub API (~60 requests/hour per network IP), so a
@@ -143,6 +151,24 @@ defmodule MediaCentaur.Config do
   @doc "The rate-limit floor (minutes) for the release-check interval."
   @spec update_check_interval_floor_minutes() :: pos_integer()
   def update_check_interval_floor_minutes, do: @update_check_interval_floor_minutes
+
+  @doc """
+  The artwork resolution preset, one of #{inspect(@image_resolutions)}.
+  Defaults to `"#{@image_resolution_default}"` and falls back to it for any
+  unrecognised stored value, so a bad value can never break image downloads.
+
+  The `:image_resolution_override` process-dict key takes precedence — the
+  async-test injection seam, mirroring `Images.http_client/0`.
+  """
+  @spec image_resolution() :: String.t()
+  def image_resolution do
+    resolution = Process.get(:image_resolution_override) || get(:image_resolution)
+    if resolution in @image_resolutions, do: resolution, else: @image_resolution_default
+  end
+
+  @doc "The valid artwork resolution presets, for UI rendering and validation."
+  @spec image_resolutions() :: [String.t()]
+  def image_resolutions, do: @image_resolutions
 
   @doc """
   The config keys that can be updated at runtime via `update/2` and
