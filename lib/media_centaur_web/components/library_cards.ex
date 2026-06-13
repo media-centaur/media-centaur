@@ -8,6 +8,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
 
   import MediaCentaurWeb.LibraryFormatters, only: [format_type: 1]
   import MediaCentaurWeb.LibraryProgress, only: [compute_progress_fraction: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   # --- Poster Card ---
 
@@ -51,7 +52,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
       <div class="aspect-[2/3] glass-inset relative">
         <img
           :if={@entry.poster_url && @available}
-          src={@entry.poster_url}
+          src={sized_image_url(@entry.poster_url, 640)}
           class="w-full h-full object-cover"
           loading="eager"
           decoding="sync"

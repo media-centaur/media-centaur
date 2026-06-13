@@ -607,7 +607,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <div class="w-20 flex-shrink-0">
           <img
             :if={@thumbnail && @available}
-            src={@thumbnail}
+            src={sized_image_url(@thumbnail, 240)}
             class="w-20 aspect-video rounded object-cover object-top"
           />
           <div
@@ -916,7 +916,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <div class="w-12 flex-shrink-0">
           <img
             :if={@thumbnail && @available}
-            src={@thumbnail}
+            src={sized_image_url(@thumbnail, 160)}
             class="w-12 aspect-[2/3] rounded object-cover"
           />
           <div
