@@ -37,7 +37,7 @@ const BEHAVIOR_REGISTRY = {
   settings: () => createSettingsBehavior(),
   download: () => createDownloadBehavior(downloadDom),
   "watch-history": () => withWipNotice(createWatchHistoryBehavior()),
-  upcoming: () => withWipNotice(createUpcomingBehavior()),
+  upcoming: () => createUpcomingBehavior(),
 }
 
 /**

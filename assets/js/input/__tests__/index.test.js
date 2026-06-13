@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { inputConfig } from "../config"
-import { Context } from "../core/index"
+import { Context, buildNavGraph, resolveCursorStart } from "../core/index"
 
 describe("App config", () => {
   test("has all required context selectors", () => {
@@ -79,6 +79,38 @@ describe("App config", () => {
       for (const context of inputConfig.cursorStartPriority[zone]) {
         expect(inputConfig.contextSelectors[context]).toBeDefined()
       }
+    }
+  })
+})
+
+describe("Upcoming page nav (real config)", () => {
+  const populated = { rail: 5, stragglers: 2, "mini-month": 2, actions: 1, sidebar: 4 }
+
+  test("rail navigates down to stragglers, right to mini-month, left to sidebar, up to actions", () => {
+    const graph = buildNavGraph("upcoming", populated, inputConfig)
+    expect(graph.rail.down).toBe("stragglers")
+    expect(graph.rail.right).toBe("mini-month")
+    expect(graph.rail.left).toBe("sidebar")
+    expect(graph.rail.up).toBe("actions")
+  })
+
+  test("sidebar enters the rail first when populated", () => {
+    const graph = buildNavGraph("upcoming", populated, inputConfig)
+    expect(graph.sidebar.right).toBe("rail")
+    expect(resolveCursorStart("upcoming", populated, inputConfig)).toBe("rail")
+  })
+
+  test("an empty rail falls back to stragglers for both sidebar entry and cursor start", () => {
+    const counts = { rail: 0, stragglers: 2, "mini-month": 2, actions: 0, sidebar: 4 }
+    const graph = buildNavGraph("upcoming", counts, inputConfig)
+    expect(graph.sidebar.right).toBe("stragglers")
+    expect(resolveCursorStart("upcoming", counts, inputConfig)).toBe("stragglers")
+  })
+
+  test("every upcoming context reaches the sidebar via left", () => {
+    const graph = buildNavGraph("upcoming", populated, inputConfig)
+    for (const context of ["rail", "stragglers", "mini-month", "actions"]) {
+      expect(graph[context].left).toBeDefined()
     }
   })
 })

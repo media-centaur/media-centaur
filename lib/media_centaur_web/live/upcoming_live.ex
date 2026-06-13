@@ -153,17 +153,18 @@ defmodule MediaCentaurWeb.UpcomingLive do
             <h1 class="text-3xl font-bold tracking-tight">Upcoming</h1>
             <p class="mt-1 text-sm text-base-content/60">{@subtitle}</p>
           </div>
-          <button
-            :if={@tmdb_ready}
-            type="button"
-            class="inline-flex items-center gap-1.5 rounded-lg border border-base-content/10 px-3 py-1.5 text-sm text-base-content/80 transition-colors hover:bg-base-content/[0.06]"
-            data-nav-item
-            tabindex="0"
-            phx-click="open_track_modal"
-          >
-            <.icon name="hero-plus-mini" class="size-4" />
-            <span>Track something</span>
-          </button>
+          <div :if={@tmdb_ready} data-nav-zone="actions">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1.5 rounded-lg border border-base-content/10 px-3 py-1.5 text-sm text-base-content/80 transition-colors hover:bg-base-content/[0.06]"
+              data-nav-item
+              tabindex="0"
+              phx-click="open_track_modal"
+            >
+              <.icon name="hero-plus-mini" class="size-4" />
+              <span>Track something</span>
+            </button>
+          </div>
         </header>
 
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
