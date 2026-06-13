@@ -554,9 +554,10 @@ defmodule MediaCentaurWeb.Components.UpcomingCards do
       ]}
     >
       <div class="aspect-[21/9] relative">
+        <%!-- Day-detail card is ~240-360px wide; 960px covers it at ≈2.6×. --%>
         <img
           :if={@backdrop}
-          src={@backdrop}
+          src={sized_image_url(@backdrop, 960)}
           class="w-full h-full object-cover object-top"
           loading="eager"
           decoding="sync"

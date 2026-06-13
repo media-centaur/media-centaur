@@ -11,6 +11,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
 
   use Phoenix.Component
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   defmodule Item do
     @moduledoc "View-model for a single PosterRow card."
@@ -54,7 +55,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
       >
         <img
           :if={item.poster_url}
-          src={item.poster_url}
+          src={sized_image_url(item.poster_url, 480)}
           alt={item.name}
           class="absolute inset-0 w-full h-full object-cover"
           loading="eager"

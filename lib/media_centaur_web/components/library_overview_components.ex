@@ -19,6 +19,8 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
   """
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
+
   import MediaCentaurWeb.StatusHelpers,
     only: [
       format_bytes: 1,
@@ -56,7 +58,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
           >
             <img
               :if={item.poster_url}
-              src={item.poster_url}
+              src={sized_image_url(item.poster_url, 160)}
               alt={item.name}
               class="absolute inset-0 w-full h-full object-cover"
               loading="eager"

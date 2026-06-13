@@ -13,6 +13,8 @@ defmodule MediaCentaurWeb.Components.TrackModal do
 
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
+
   defmodule Suggestion do
     @moduledoc "View-model for a single suggested-trackable show card."
     @enforce_keys [:tv_series_id, :tmdb_id, :name, :media_type, :poster_url]
@@ -229,7 +231,7 @@ defmodule MediaCentaurWeb.Components.TrackModal do
       <div class="aspect-[2/3] rounded-lg bg-base-300 overflow-hidden mb-2 ring-1 ring-base-content/10 group-hover:ring-primary/40 transition-all">
         <img
           :if={@suggestion.poster_url}
-          src={"/media-images/#{@suggestion.poster_url}"}
+          src={sized_image_url("/media-images/#{@suggestion.poster_url}", 240)}
           class="w-full h-full object-cover"
           loading="lazy"
         />

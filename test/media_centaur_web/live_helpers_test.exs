@@ -17,6 +17,11 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
     test "returns nil for nil so callers can :if on the result" do
       assert sized_image_url(nil, 480) == nil
     end
+
+    test "leaves a remote URL untouched (ImageServer can't resize it)" do
+      remote = "https://image.tmdb.org/t/p/w92/abc.jpg"
+      assert sized_image_url(remote, 240) == remote
+    end
   end
 
   describe "image_url/2" do

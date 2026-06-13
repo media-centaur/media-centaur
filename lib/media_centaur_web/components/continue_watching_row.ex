@@ -17,6 +17,7 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
 
   use Phoenix.Component
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   defmodule Item do
     @moduledoc "View-model for a single Continue Watching card."
@@ -67,7 +68,7 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
       >
         <img
           :if={item.backdrop_url}
-          src={item.backdrop_url}
+          src={sized_image_url(item.backdrop_url, 960)}
           class="absolute inset-0 w-full h-full object-cover object-top"
           loading="eager"
           decoding="sync"
