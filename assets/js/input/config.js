@@ -18,7 +18,13 @@ export const inputConfig = {
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
-    upcoming: "[data-nav-zone='upcoming'] > [data-nav-item]",
+    // Upcoming page: track action, the editorial rail, the stragglers list,
+    // and the mini-month companion (month paging only — day cells are a
+    // mouse-only jump affordance).
+    actions: "[data-nav-zone='actions'] [data-nav-item]",
+    rail: "[data-nav-zone='rail'] [data-nav-item]",
+    stragglers: "[data-nav-zone='stragglers'] [data-nav-item]",
+    "mini-month": "[data-nav-zone='mini-month'] [data-nav-item]",
     [Context.ZONE_TABS]: "[data-nav-zone='zone-tabs'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
     "review-detail": "[data-nav-zone='review-detail'] [data-nav-item]",
@@ -41,7 +47,10 @@ export const inputConfig = {
   instanceTypes: {
     sidebar: Context.MENU,
     sections: Context.MENU,
-    upcoming: Context.MENU,
+    actions: Context.MENU,
+    rail: Context.MENU,
+    stragglers: Context.MENU,
+    "mini-month": Context.TOOLBAR,
     "review-list": Context.MENU,
     "review-detail": Context.MENU,
     "drill-in": Context.MENU,
@@ -72,11 +81,16 @@ export const inputConfig = {
       sidebar:   { right: ["grid", "toolbar"] },
       drawer:    { left: ["grid", "toolbar"] },
     },
+    // Upcoming: a track action over the editorial rail, the stragglers list
+    // below it, and the mini-month companion to the right. Conditional zones
+    // (actions when TMDB-ready, stragglers when non-empty) are skipped via
+    // candidate lists. left always reaches the sidebar.
     upcoming: {
-      zone_tabs: { down: ["upcoming"],           left: ["sidebar"] },
-      upcoming:  { up: ["zone_tabs"],            left: ["sidebar"] },
-      grid:      { up: ["upcoming", "zone_tabs"], left: ["upcoming", "sidebar"] },
-      sidebar:   { right: ["upcoming", "grid", "zone_tabs"] },
+      actions:      { down: ["rail", "stragglers"], left: ["sidebar"] },
+      rail:         { up: ["actions"], down: ["stragglers"], right: ["mini-month"], left: ["sidebar"] },
+      stragglers:   { up: ["rail", "actions"], right: ["mini-month"], left: ["sidebar"] },
+      "mini-month": { up: ["actions"], down: ["stragglers"], left: ["rail", "stragglers", "sidebar"] },
+      sidebar:      { right: ["rail", "stragglers", "mini-month", "actions"] },
     },
     settings: {
       sections:  { right: ["grid"],            left: ["sidebar"] },
@@ -133,7 +147,7 @@ export const inputConfig = {
   cursorStartPriority: {
     watching:  ["grid", "zone_tabs", "sidebar"],
     library:   ["grid", "toolbar", "sidebar"],
-    upcoming:  ["upcoming", "grid", "zone_tabs", "sidebar"],
+    upcoming:  ["rail", "stragglers", "mini-month", "actions", "sidebar"],
     settings:  ["sections", "grid", "sidebar"],
     status:    ["grid", "toolbar", "sidebar"],
     review:    ["review-list", "review-detail", "sidebar"],

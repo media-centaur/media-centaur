@@ -113,8 +113,6 @@ defmodule MediaCentaurWeb.Components.Upcoming.MiniMonth do
           true -> "text-base-content/40 hover:bg-base-content/[0.04]"
         end
       ]}
-      data-nav-item
-      tabindex="0"
       phx-click="jump_to_day"
       phx-value-date={Date.to_iso8601(@date)}
     >
