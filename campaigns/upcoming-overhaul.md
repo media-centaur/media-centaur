@@ -1,5 +1,5 @@
 ---
-status: built — shipped to main (unpushed), pending release tag
+status: shipped — v0.94.0 (+ v0.94.1 backdrop/alignment polish)
 started: 2026-06-14
 last_updated: 2026-06-14
 ---
@@ -20,15 +20,17 @@ companion** (mockup #6).
 
 ## Status
 
-**All six phases built and committed to `main` (unpushed); full `mix precommit`
-green (4936 tests) + `bun test` (524).** The `/upcoming` page is the editorial
-rail + sticky mini-month + per-title detail. Remaining: the release tag (version
-bump + CHANGELOG + `scripts/ship`), pushing the wiki commit (held — GitHub wiki
-publishes on push, feature not yet released), regenerating the `upcoming-calendar`
-marketing screenshot, and live keyboard/gamepad nav spot-check on the running app.
+**Shipped.** `/upcoming` is the editorial rail + sticky mini-month + per-title
+detail. Released as **v0.94.0** (overhaul) and **v0.94.1** (ambient page backdrop,
+slot 3, + mini-month top-alignment polish the user requested live) — both
+GitHub-release-verified; wiki `Release-Tracking.md` pushed.
 
-Commits (newest first): input treatment → LiveView rewrite → TitleDetail →
-Rail/MiniMonth/Stragglers → EventCard/Present → view-model + campaign.
+**Residual (deferred):** regenerate the `upcoming-calendar` marketing screenshot
+(user said skip for now — it still shows the old calendar), and a live
+keyboard/gamepad nav spot-check on the running app.
+
+Commits: view-model → EventCard/Present → Rail/MiniMonth/Stragglers → TitleDetail
+→ LiveView rewrite → input treatment → backdrop/alignment polish.
 
 ## Decisions made
 
