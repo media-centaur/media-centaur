@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.91.1 — 2026-06-13
+
+### New
+
+- **Drive the Status page from the couch.** Keyboard and gamepad navigation now works across the whole Status page: move through the subsystem tiles with the arrow keys or d-pad, open a subsystem's details with Select, and step through its incidents, retention, and logs from there. Back returns you to the tiles, and Left from the edge reaches the sidebar. The "navigation coming soon" hint is gone.
+
 ## v0.91.0 — 2026-06-13
 
 ### New
