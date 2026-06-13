@@ -42,6 +42,10 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
+  alias MediaCentaur.ReleaseTracking.UpcomingFeed.Straggler
+
+  # Status emphasis order — the "loudest" status wins a shared mini-month day.
+  @status_priority [:under_pursuit, :armed, :in_library, :theatrical_info, :upcoming]
 
   @bucket_order [:today, :this_week, :next_week, :later, :beyond]
 
@@ -73,6 +77,13 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     ]
 
     @type t :: %Event{}
+  end
+
+  defmodule Straggler do
+    @moduledoc "A tracked title with no dated release yet (the quiet catch-all)."
+    defstruct [:item_id, :name, :media_type]
+
+    @type t :: %Straggler{}
   end
 
   @doc "The fixed relative-time bucket order (soonest first)."
@@ -111,6 +122,38 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       |> bucketize(context.today)
 
     %UpcomingFeed{buckets: bucketed, unscheduled: unscheduled}
+  end
+
+  @doc """
+  Per-day marks for the mini-month companion over the given calendar month —
+  `%{Date => %{count, status}}`. Count is the number of *events* (post
+  season-drop collapse) on that day; status is the highest-priority status
+  present (so a pursued day reads as `:under_pursuit` even alongside armed ones).
+  """
+  @spec mini_month_marks(t(), integer(), integer()) ::
+          %{Date.t() => %{count: pos_integer(), status: atom()}}
+  def mini_month_marks(%UpcomingFeed{} = feed, year, month) do
+    feed
+    |> scheduled_events()
+    |> Enum.filter(&(&1.air_date.year == year and &1.air_date.month == month))
+    |> Enum.group_by(& &1.air_date)
+    |> Map.new(fn {date, events} ->
+      {date, %{count: length(events), status: dominant_status(events)}}
+    end)
+  end
+
+  @doc """
+  The "Tracking — nothing scheduled yet" stragglers: watching items with no
+  dated release (hiatus shows, movies with no announced date). Items must have
+  `:releases` preloaded.
+  """
+  @spec stragglers([map()]) :: [Straggler.t()]
+  def stragglers(watching_items) do
+    watching_items
+    |> Enum.filter(&no_dated_release?/1)
+    |> Enum.map(fn item ->
+      %Straggler{item_id: item.id, name: item.name, media_type: item.media_type}
+    end)
   end
 
   # Same-(item, season, air_date) episodes are one drop, not N rail entries.
@@ -219,4 +262,19 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       _ -> :beyond
     end
   end
+
+  defp scheduled_events(%UpcomingFeed{buckets: buckets}) do
+    Enum.flat_map(@bucket_order, &Map.get(buckets, &1, []))
+  end
+
+  defp dominant_status(events) do
+    present = MapSet.new(events, & &1.status)
+    Enum.find(@status_priority, :upcoming, &MapSet.member?(present, &1))
+  end
+
+  defp no_dated_release?(%{releases: releases}) when is_list(releases) do
+    Enum.all?(releases, &is_nil(&1.air_date))
+  end
+
+  defp no_dated_release?(_item), do: true
 end
