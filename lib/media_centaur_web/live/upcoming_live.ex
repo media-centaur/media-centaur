@@ -22,6 +22,7 @@ defmodule MediaCentaurWeb.UpcomingLive do
   alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
   alias MediaCentaurWeb.Components.TrackModal
   alias MediaCentaurWeb.Components.Upcoming.{Detail, MiniMonth, Present, Rail, Stragglers, TitleDetail}
+  alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
 
   @impl true
   def mount(_params, _session, socket) do
@@ -90,9 +91,20 @@ defmodule MediaCentaurWeb.UpcomingLive do
       mini_month_marks: UpcomingFeed.mini_month_marks(feed, year, month),
       stragglers: UpcomingFeed.stragglers(ReleaseTracking.list_watching_items()),
       subtitle: summary_label(feed),
+      page_backdrop: page_backdrop(),
       acquisition_ready: acquisition?,
       tmdb_ready: Capabilities.tmdb_ready?()
     )
+  end
+
+  # Ambient page backdrop — the same ETS-backed hero-candidate pool the
+  # home/library/downloads pages draw from, in the Upcoming page's own slot
+  # (3) so the backdrop differs from the other pages when the pool allows.
+  defp page_backdrop do
+    case HomeLogic.select_page_hero(MediaCentaur.Library.Views.hero_candidates(), 3) do
+      %{backdrop_url: url} when is_binary(url) -> url
+      _no_candidate -> nil
+    end
   end
 
   defp view_context(today, acquisition?, default_mode, grab) do
@@ -147,7 +159,19 @@ defmodule MediaCentaurWeb.UpcomingLive do
         <TitleDetail.title_detail :if={@detail} detail={@detail} today={@today} />
       </:overlays>
 
-      <div data-page-behavior="upcoming" data-nav-default-zone="rail" class="space-y-6 py-2">
+      <%!-- Ambient backdrop band (masked + dimmed via `.page-atmosphere`) plus
+            the fixed side scrim, both behind the content (z-0) so they enrich
+            the surface, never the cards — same recipe as library/downloads. --%>
+      <div :if={@page_backdrop} class="page-atmosphere" aria-hidden="true">
+        <img src={@page_backdrop} alt="" loading="eager" decoding="sync" />
+      </div>
+      <div :if={@page_backdrop} class="page-side-dim" aria-hidden="true"></div>
+
+      <div
+        data-page-behavior="upcoming"
+        data-nav-default-zone="rail"
+        class="relative z-[1] space-y-6 py-2"
+      >
         <header class="flex items-start justify-between gap-3">
           <div>
             <h1 class="text-3xl font-bold tracking-tight">Upcoming</h1>
@@ -173,7 +197,10 @@ defmodule MediaCentaurWeb.UpcomingLive do
             <Stragglers.stragglers stragglers={@stragglers} />
           </div>
 
-          <div>
+          <%!-- Nudge the companion down so the calendar's top edge lines up
+                with the first hero card (which sits below its bucket marker)
+                rather than with the marker — visual balance at lg+. --%>
+          <div class="lg:mt-7">
             <div class="lg:sticky lg:top-6">
               <MiniMonth.mini_month
                 year={elem(@mini_month, 0)}
