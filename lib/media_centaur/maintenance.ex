@@ -105,6 +105,14 @@ defmodule MediaCentaur.Maintenance do
     end)
   end
 
+  @doc "Async `refetch_backdrops/0`; sends `{:backdrop_refetch_complete, result}`."
+  def refetch_backdrops_async(reply_to) do
+    run_async(fn ->
+      {:ok, result} = refetch_backdrops()
+      send(reply_to, {:backdrop_refetch_complete, result})
+    end)
+  end
+
   defp run_async(fun) do
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fun)
     :ok
@@ -463,6 +471,24 @@ defmodule MediaCentaur.Maintenance do
            }}
   def repair_missing_images do
     MediaCentaur.Pipeline.ImageRepair.repair_all()
+  end
+
+  @doc """
+  Re-fetches all backdrop artwork at the current resolution preset, purging
+  stale `?w=` derivatives. The artwork-resolution backfill: triggered when the
+  resolution setting changes, or manually from Library Maintenance, so existing
+  backdrops on disk are re-downloaded to match the new setting.
+  """
+  @spec refetch_backdrops() ::
+          {:ok,
+           %{
+             enqueued: non_neg_integer(),
+             queue_reused: non_neg_integer(),
+             queue_rebuilt: non_neg_integer(),
+             skipped: non_neg_integer()
+           }}
+  def refetch_backdrops do
+    MediaCentaur.Pipeline.ImageRepair.refetch_role("backdrop")
   end
 
   @doc """

@@ -111,6 +111,26 @@ defmodule MediaCentaur.Images do
     end
   end
 
+  @doc """
+  Deletes every cached width derivative of `master_path` and returns the count
+  removed. Used when a master is re-fetched at a new resolution — the stale
+  derivatives are reclaimed immediately rather than waiting for the lazy
+  mtime-based regeneration to overwrite them. Safe to call when none exist.
+  """
+  @spec purge_derivatives_for(String.t()) :: non_neg_integer()
+  def purge_derivatives_for(master_path) when is_binary(master_path) do
+    key = derivative_key(master_path)
+    root = derivative_root()
+
+    for width <- @derivative_widths, ext <- [".jpg", ".png"], reduce: 0 do
+      acc ->
+        case File.rm(Path.join(root, "#{key}-w#{width}#{ext}")) do
+          :ok -> acc + 1
+          _ -> acc
+        end
+    end
+  end
+
   defp snap_width(requested) do
     Enum.find(@derivative_widths, :full, &(&1 >= requested))
   end
@@ -125,8 +145,11 @@ defmodule MediaCentaur.Images do
         _ -> ".jpg"
       end
 
-    key = Base.url_encode64(:crypto.hash(:sha256, master_path), padding: false)
-    Path.join(derivative_root(), "#{key}-w#{width}#{ext}")
+    Path.join(derivative_root(), "#{derivative_key(master_path)}-w#{width}#{ext}")
+  end
+
+  defp derivative_key(master_path) do
+    Base.url_encode64(:crypto.hash(:sha256, master_path), padding: false)
   end
 
   # Derivatives live under the app data dir so they survive restarts and never

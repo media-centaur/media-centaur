@@ -81,6 +81,47 @@ defmodule MediaCentaur.Library.ImageHealthTest do
     end
   end
 
+  describe "list_by_role/1" do
+    test "returns annotated entries for every image of the role, present or not",
+         %{images_dir: images_dir} do
+      movie = create_entity(%{type: :movie, name: "B"})
+      # Present on disk — still included (no presence filter, unlike list_missing).
+      put_image_with_file(movie.id, :movie, "backdrop", "jpg", images_dir)
+      # A poster on the same entity must NOT appear — wrong role.
+      put_image_with_file(movie.id, :movie, "poster", "jpg", images_dir)
+
+      other = create_entity(%{type: :movie, name: "C"})
+      # Backdrop row whose file is absent on disk — included all the same.
+      Library.create_image!(%{
+        owner_type: :movie,
+        owner_id: other.id,
+        role: "backdrop",
+        content_url: "#{other.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      entries = ImageHealth.list_by_role("backdrop")
+
+      assert length(entries) == 2
+      assert Enum.all?(entries, &(&1.image.role == "backdrop"))
+      assert Enum.sort(Enum.map(entries, & &1.entity_id)) == Enum.sort([movie.id, other.id])
+    end
+
+    test "excludes rows with a nil content_url (mid-refresh)" do
+      movie = create_entity(%{type: :movie, name: "Refreshing"})
+
+      Library.create_image!(%{
+        owner_type: :movie,
+        owner_id: movie.id,
+        role: "backdrop",
+        content_url: nil,
+        extension: "jpg"
+      })
+
+      assert ImageHealth.list_by_role("backdrop") == []
+    end
+  end
+
   describe "list_missing/0" do
     test "returns image rows annotated with entity_id and entity_type" do
       movie = create_entity(%{type: :movie, name: "M"})

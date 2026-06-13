@@ -258,6 +258,31 @@ defmodule MediaCentaur.ImagesTest do
     end
   end
 
+  describe "purge_derivatives_for/1" do
+    setup %{tmp_dir: tmp_dir} do
+      Process.put(:image_derivative_root, tmp_dir)
+      master = Path.join(tmp_dir, "backdrop.jpg")
+      {:ok, image} = Image.new(1200, 675, color: :red)
+      {:ok, _} = Image.write(image, master, suffix: ".jpg", quality: 90)
+      %{tmp_dir: tmp_dir, master: master}
+    end
+
+    test "deletes every cached derivative of a master and returns the count",
+         %{master: master} do
+      {:ok, d320} = Images.derivative(master, 320)
+      {:ok, d480} = Images.derivative(master, 480)
+      assert File.exists?(d320) and File.exists?(d480)
+
+      assert Images.purge_derivatives_for(master) >= 2
+      refute File.exists?(d320)
+      refute File.exists?(d480)
+    end
+
+    test "is a no-op (count 0) when the master has no derivatives", %{master: master} do
+      assert Images.purge_derivatives_for(master) == 0
+    end
+  end
+
   # --- HTTP stub helpers ---
 
   # Per-process overrides — see `Images.http_client/0`. These don't
