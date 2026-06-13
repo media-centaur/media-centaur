@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.94.1 — 2026-06-14
+
+### Improved
+
+- **Upcoming page polish.** The Upcoming page now carries the same ambient backdrop as the rest of the app, and the mini-month calendar lines up cleanly with the top of the timeline for a more balanced layout.
+
 ## v0.94.0 — 2026-06-14
 
 ### Improved
