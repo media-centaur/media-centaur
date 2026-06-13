@@ -83,6 +83,28 @@ defmodule MediaCentaurWeb.Components.Upcoming.Present do
     end
   end
 
+  @doc """
+  The auto-grab posture for a title's detail panel — `%{on?, label}`. Honest
+  about gating: with acquisition unconfigured nothing grabs regardless of mode.
+  """
+  @spec auto_grab_summary(String.t() | nil, String.t(), boolean()) ::
+          %{on?: boolean(), label: String.t()}
+  def auto_grab_summary(_item_mode, _default_mode, false = _acquisition?),
+    do: %{on?: false, label: "Acquisition not configured"}
+
+  def auto_grab_summary(item_mode, default_mode, true = _acquisition?) do
+    case effective_auto_grab_mode(item_mode, default_mode) do
+      "all_releases" -> %{on?: true, label: "Auto-grabbing every release"}
+      "ask" -> %{on?: false, label: "Ask before grabbing"}
+      _off -> %{on?: false, label: "Not auto-grabbing"}
+    end
+  end
+
+  @doc "Resolve an item's effective auto-grab mode against the global default."
+  @spec effective_auto_grab_mode(String.t() | nil, String.t()) :: String.t()
+  def effective_auto_grab_mode(mode, default) when mode in [nil, "global"], do: default
+  def effective_auto_grab_mode(mode, _default) when is_binary(mode), do: mode
+
   @spec bucket_label(atom()) :: String.t()
   def bucket_label(:today), do: "Today"
   def bucket_label(:this_week), do: "This week"
