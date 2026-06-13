@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.92.0 — 2026-06-13
+
+### Improved
+
+- **Faster page loads with no loss of quality.** Pages that show artwork in small tiles — most noticeably the Upcoming calendar — now load a right-sized version of each image instead of decoding the full-resolution master. This removes the brief pause you could see when moving onto the Upcoming page, and applies across the library grid, poster rows, the status overview, continue-watching, and detail thumbnails. Full-screen background artwork is untouched, so nothing looks softer.
+- **Sharper 4K background artwork.** Backdrops are now downloaded at full 4K resolution (3840×2160) so full-screen background art is crisp on 4K displays.
+
+### New
+
+- **Artwork resolution setting.** Settings → Pipeline now has an "Artwork resolution" choice: **4K** for the sharpest background art on high-resolution displays, or **1080p** for smaller downloads on 1080p displays or systems with limited disk. The setting applies to newly downloaded artwork; existing artwork keeps its current size until it's refreshed.
+
 ## v0.91.2 — 2026-06-13
 
 ### Fixed
