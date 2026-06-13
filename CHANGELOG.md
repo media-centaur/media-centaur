@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.94.0 — 2026-06-14
+
+### Improved
+
+- **A redesigned Upcoming page.** Upcoming is now a time-first forecast — a clean timeline of what's coming and when. The nearest releases show large with cover art and a countdown; everything further out is a tidy row, grouped by Today, This week, Next week, and beyond. A quiet mini-month calendar sits alongside for a month-at-a-glance overview, and titles you track that have nothing scheduled yet collect in their own list so they're never lost.
+
+- **Clearer status at a glance.** Every release says plainly what the app will do: **Auto-grabbing** when it will fetch automatically, **Downloading** (with a tap-through to the Download page) while it's being acquired, **In your library** once it lands, and **In theaters** for a movie's theatrical date — shown for anticipation, since the app waits for the digital release to grab. A movie with both a theatrical and a digital date now appears twice, each clearly labelled. When Prowlarr isn't set up, Upcoming stays a clean informational forecast with no download promises.
+
+- **A per-title detail panel.** Click any release to open its detail — switch auto-grab on or off for that one title, see its full release timeline and recent activity, or stop tracking it.
+
+- **Full keyboard and gamepad navigation.** The Upcoming page is now fully navigable without a mouse.
+
 ## v0.93.0 — 2026-06-13
 
 ### New
