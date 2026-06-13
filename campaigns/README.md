@@ -22,15 +22,14 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`upcoming-overhaul.md`](upcoming-overhaul.md) —
-  **planning.** Overhaul `/upcoming` per the section-overhaul house style
-  (Home/Library/Downloads done): a time-first forecast of tracked releases
-  for the enthusiast persona. Chosen UI is an **editorial timeline rail with a
-  quiet sticky mini-month companion** (mockup #6) — proximity-scaled hero cards,
-  honest auto-grab status, "under pursuit → Downloads" deep-link, per-title
-  detail slide-over, demoted management. Dependencies verified clean (pursuit
-  deep-link ~15 lines, no domain changes). Six phases: `UpcomingFeed` view-model
-  → `Capabilities` value → components+stories → `UpcomingLive` rewrite → full
-  input treatment → verify/ship. No code yet.
+  **built; shipped to `main` (unpushed), pending release tag.** Overhauled
+  `/upcoming` per the section-overhaul house style into a time-first forecast: an
+  **editorial timeline rail with a quiet sticky mini-month companion** (mockup #6)
+  — proximity-scaled hero cards, honest auto-grab status, "under pursuit →
+  Downloads" deep-link, per-title detail slide-over, demoted management. All six
+  phases done (`UpcomingFeed` view-model → components+stories → `UpcomingLive`
+  rewrite → full input treatment), full `mix precommit` green, wiki updated.
+  Remaining: live nav spot-check, release tag, wiki push, screenshot regen.
 * [`pursuit-identity-and-lifecycle.md`](pursuit-identity-and-lifecycle.md) —
   **planning.** Composite pursuits die on their first landing:
   `IdentityVerifier` fuzzy-matches the filename against the *lead* unit

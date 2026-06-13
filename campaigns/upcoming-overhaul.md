@@ -1,5 +1,5 @@
 ---
-status: planning
+status: built — shipped to main (unpushed), pending release tag
 started: 2026-06-14
 last_updated: 2026-06-14
 ---
@@ -20,15 +20,15 @@ companion** (mockup #6).
 
 ## Status
 
-**Phase A in progress.** Planning + design complete (UI direction #6, deps verified,
-clarifications answered). Core `UpcomingFeed` view-model shipped green and pure —
-`lib/media_centaur/release_tracking/upcoming_feed.ex` + `..._test.exs` (18 async
-tests): relative-time bucketing (today/this_week/next_week/later/beyond),
-status derivation (`:in_library | :theatrical_info | :unscheduled | :under_pursuit |
-:armed | :upcoming`) with honest auto-grab gating, hero flagging (nearest 2), and
-same-(item,season,date) season-drop collapse. Uncommitted (precommit gates the
-phase boundary). **Next: A2 — mini-month per-day marks + "nothing scheduled yet"
-stragglers; then B (Capabilities).**
+**All six phases built and committed to `main` (unpushed); full `mix precommit`
+green (4936 tests) + `bun test` (524).** The `/upcoming` page is the editorial
+rail + sticky mini-month + per-title detail. Remaining: the release tag (version
+bump + CHANGELOG + `scripts/ship`), pushing the wiki commit (held — GitHub wiki
+publishes on push, feature not yet released), regenerating the `upcoming-calendar`
+marketing screenshot, and live keyboard/gamepad nav spot-check on the running app.
+
+Commits (newest first): input treatment → LiveView rewrite → TitleDetail →
+Rail/MiniMonth/Stragglers → EventCard/Present → view-model + campaign.
 
 ## Decisions made
 
@@ -64,35 +64,44 @@ stragglers; then B (Capabilities).**
   (`apply_pursuit_modal_params` + `statuses_for_releases/1`); view-model is pure
   functions over existing reads — **no domain/schema changes expected.**
 
-## Next steps
+## Built (all on `main`, test-first)
 
-Build is **test-first** (repo policy) and lands in reviewable phases on `main`.
+- **A — `UpcomingFeed` view-model** (`lib/media_centaur/release_tracking/upcoming_feed.ex`,
+  23 async tests): relative-time bucketing, status derivation with honest auto-grab
+  gating, hero flagging, season-drop collapse, mini-month marks, stragglers.
+- **B — capability gating folded into D** — the LiveView reads `Capabilities`
+  (`acquisition_ready?`/`tmdb_ready?`) and bakes acquisition gating into each event's
+  status; `Detail.acquisition?` gates the panel automation section. No separate struct
+  was needed once status carried the gate.
+- **C — components** (`lib/media_centaur_web/components/upcoming/`, each with a story):
+  `EventCard` (+ pure `Present` + `MonthGrid` helpers, unit-tested), `Rail`, `MiniMonth`,
+  `Stragglers`, `TitleDetail` (+ `Detail` VM). Named `title_detail` to dodge a
+  storybook-coverage basename collision with the existing `Components.DetailPanel`.
+- **D — `UpcomingLive` rewrite** + `ReleaseTracking.list_events_for_item/2`; reuses
+  `TrackModal`; dead `UpcomingCards` (component/story/test) deleted.
+- **E — input treatment**: `config.js` `actions`/`rail`/`stragglers` MENU + `mini-month`
+  TOOLBAR; WIP wrapper dropped; real-config nav-graph tests in `index.test.js`.
+- **F — verify**: full `mix precommit` green; wiki `Release-Tracking.md` updated.
 
-1. **A — `UpcomingFeed` view-model + tests.** A `ReleaseEvent` struct (title, art,
-   date, season/episode, what-drops, `status`, `hero?`, pursuit link target) and a
-   pure builder that buckets events by relative time (Today / This week / Next week /
-   Later / Beyond), flags heroes (nearest 1–2), derives status
-   (`:armed | :under_pursuit | :in_library | :theatrical_info | :upcoming | :unscheduled`),
-   collapses same-(item,season,air_date) episodes into one season-drop event, and
-   produces mini-month per-day marks for the visible month. Inputs: `list_releases/0`,
-   `Acquisition.statuses_for_releases/1`, open-wants, item `auto_grab_mode` + global
-   auto-grab setting, images. Unit-tested in isolation (no DB/network).
-2. **B — `Capabilities` value.** One explicit struct (`acquisition?`, `tmdb?`,
-   `auto_grab_global?`) passed into components, replacing scattered
-   `acquisition_ready`/`tmdb_ready` reads.
-3. **C — Components (+ Storybook story + typed attrs each; MC0008/MC0009).**
-   `UpcomingRail`, `UpcomingEventCard` (`:hero`/`:compact` variants), `MiniMonth`,
-   `TrackingStragglers`, `UpcomingDetailPanel`. Reuse glass/title/status idioms.
-4. **D — `UpcomingLive` rewrite.** Assigns from the view-model; keep the debounced
-   PubSub reload pattern; reuse `TrackModal`; wire detail open/close, stop-tracking,
-   mini-month month-nav + day-jump, scroll-driven focused-day; pursuit deep-link.
-   Retire calendar-grid / active-shows / recent-changes / unscheduled sections.
-5. **E — Full input treatment.** Replace the WIP no-op `createUpcomingBehavior()`;
-   real rail/grid nav, drill-in, modal dismissal, mini-month nav + jump; update
-   `assets/js/input/config.js` zones/graph; drop `withWipNotice`.
-6. **F — Verify + ship.** `mix precommit` green; `upcoming_live_test.exs` (gated +
-   ungated wiring); stories render; input nav verified via chromium-probe recipe;
-   showcase review at 4K / 1080 / half-screen; wiki sync; CHANGELOG.
+## Next steps (ship)
+
+1. **Live nav spot-check** on the running app (Playwright doesn't provision here):
+   rail up/down, SELECT → detail, BACK closes it, left → sidebar, mini-month paging.
+2. **Release tag** — `scripts/ship` (version bump + CHANGELOG) when the user is ready;
+   push then triggers the release workflow.
+3. **Push the wiki commit** (held; publishes on push).
+4. **Regenerate the `upcoming-calendar` marketing screenshot** (`scripts/screenshot-tour`)
+   — it now shows the rail, not a calendar.
+
+## Build-time decisions
+
+* `2026-06-14` — Stop-tracking is **immediate** (delete + flash) from the detail panel;
+  the old confirm-modal was dropped (the detail drill-in is already a deliberate step).
+* `2026-06-14` — Mini-month **day cells are mouse-only** jump affordances; the rail is
+  the keyboard spine, so only the month-paging buttons are nav items (`mini-month`
+  TOOLBAR). Reconsider if couch users want calendar-driven jumping.
+* `2026-06-14` — Added `ReleaseTracking.list_events_for_item/2` for the per-title
+  activity feed (the one flagged data gap).
 
 ## Completion criteria
 
