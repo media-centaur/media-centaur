@@ -42,6 +42,13 @@ defmodule MediaCentaurWeb.Components.Upcoming.Present do
   def tone_text_class(:muted), do: "text-warning/70"
   def tone_text_class(:neutral), do: "text-base-content/50"
 
+  @doc "Tailwind background class for a status tone (the mini-month release dot)."
+  @spec tone_dot_class(tone()) :: String.t()
+  def tone_dot_class(:success), do: "bg-success"
+  def tone_dot_class(:info), do: "bg-info"
+  def tone_dot_class(:muted), do: "bg-warning/70"
+  def tone_dot_class(:neutral), do: "bg-base-content/40"
+
   @doc "What this event delivers — an episode code, a season drop, or a movie release type."
   @spec what_drops(Event.t()) :: String.t()
   def what_drops(%Event{kind: :season_drop, season_number: season, episode_count: count}) do
