@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.93.0 — 2026-06-13
+
+### New
+
+- **Upgrade existing artwork when you change the resolution.** Changing Settings → Pipeline → Artwork resolution now re-downloads your existing background artwork (backdrops) at the new resolution automatically, instead of only applying to artwork fetched from then on. There's also a **Re-fetch backdrops** button under Settings → Danger Zone → Library Maintenance to do it on demand. Only backdrops are re-fetched — posters and thumbnails are left alone — and the old cached copies are cleared to reclaim disk space.
+
 ## v0.92.0 — 2026-06-13
 
 ### Improved
