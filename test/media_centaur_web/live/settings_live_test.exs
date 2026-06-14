@@ -18,6 +18,12 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     assert html =~ "Services"
   end
 
+  test "renders the page header with a title and subtitle", %{conn: conn} do
+    {:ok, view, _html} = live_async!(conn, ~p"/settings")
+    assert has_element?(view, "h1.text-3xl", "Settings")
+    assert has_element?(view, "header p", "Services, preferences, and configuration")
+  end
+
   # Smoke test — each settings section renders without crashing. This exists
   # because section_content/1 is invoked as a function component with an
   # explicit attribute list; adding a new socket assign without also threading
