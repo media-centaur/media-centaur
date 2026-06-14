@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.96.0 — 2026-06-14
+
+### Fixed
+
+- **The Upcoming page no longer stretches its featured release across very wide screens.** On ultrawide and full-width displays the top "next release" artwork could blow up to an oversized, blurry banner. The page now keeps its content at a comfortable, sharp width while the ambient background still fills the screen.
+
 ## v0.95.6 — 2026-06-14
 
 ### Improved
