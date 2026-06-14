@@ -175,7 +175,10 @@ defmodule MediaCentaurWeb.UpcomingLive do
         </div>
         <div :if={@page_backdrop} class="page-side-dim" aria-hidden="true"></div>
 
-        <div class="relative z-[1] space-y-6">
+        <%!-- Cap the content column: the hero backdrop is fetched at 960px, so an
+              unbounded `1fr` rail upscales and blurs on ultrawide. The ambient
+              backdrop above stays full-bleed (it's outside this wrapper). --%>
+        <div class="relative z-[1] max-w-6xl space-y-6">
           <header class="flex items-start justify-between gap-3">
             <div>
               <h1 class="text-3xl font-bold tracking-tight">Upcoming</h1>
