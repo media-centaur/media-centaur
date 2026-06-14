@@ -680,6 +680,12 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     {:noreply, assign(socket, search_session: retry_terms(socket, terms))}
   end
 
+  # Dismiss the release-search session entirely — the subtle "Clear search"
+  # affordance, so a stale or interrupted search doesn't linger as a dead-end.
+  def handle_event("clear_search", _params, socket) do
+    {:noreply, assign(socket, search_session: SearchSession.clear())}
+  end
+
   def handle_event("toggle_group", %{"term" => term}, socket) do
     session = SearchSession.toggle_group(term)
     {:noreply, assign(socket, search_session: session)}

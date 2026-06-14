@@ -1521,6 +1521,28 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       assert session_after.selections == %{"Sample Show" => "guid-2"}
     end
 
+    test "the subtle Clear search affordance dismisses the session", %{conn: conn} do
+      stub_prowlarr_with([
+        sample_release(guid: "guid-1", title: "Sample.Show.S01E01.1080p.WEB-DL.mkv")
+      ])
+
+      {:ok, view, _html} = live_async!(conn, "/download")
+      enter_release_mode(view)
+      Req.Test.allow(:prowlarr, self(), view.pid)
+
+      view
+      |> form("form[phx-change='query_change']", %{"query" => "Sample Show"})
+      |> render_submit()
+
+      html = render_until(view, "Sample.Show.S01E01")
+      assert html =~ "Clear search"
+      refute SearchSession.current().groups == []
+
+      render_click(element(view, "button", "Clear search"))
+
+      assert SearchSession.current().groups == []
+    end
+
     test "groups in :loading become :abandoned with retry affordance after LV crash", %{conn: conn} do
       Req.Test.stub(:prowlarr, fn _conn ->
         :timer.sleep(:infinity)
