@@ -55,6 +55,19 @@ defmodule MediaCentaurWeb.SetupLiveTest do
       assert html =~ "Step 1 of 8"
       assert html =~ "Welcome to Media Centaur"
     end
+
+    test "renders a visual step-progress indicator", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/setup?step=tmdb")
+
+      assert has_element?(view, "[data-setup-progress]")
+    end
+
+    test "step copy is concise — no 'what this is' / 'why it matters' essays", %{conn: conn} do
+      {:ok, _view, html} = live(conn, "/setup?step=media_dirs")
+
+      refute html =~ "What this is"
+      refute html =~ "Why it matters"
+    end
   end
 
   describe "navigation events" do
