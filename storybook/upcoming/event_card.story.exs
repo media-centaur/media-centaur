@@ -139,6 +139,15 @@ defmodule MediaCentaurWeb.Storybook.Upcoming.EventCard do
                   pursuit_id: Ecto.UUID.generate()
                 })
             }
+          },
+          %Variation{
+            id: :feature,
+            description: "The second-nearest release — a smaller feature banner",
+            attributes: %{
+              variant: :feature,
+              today: @today,
+              event: episode(:armed, "Sample Show", 2, 4, ~D[2026-06-17])
+            }
           }
         ]
       }

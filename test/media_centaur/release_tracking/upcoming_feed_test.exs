@@ -240,8 +240,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
   end
 
-  describe "hero flagging (nearest releases are heroes)" do
-    test "the nearest two events are flagged hero?, the rest are not" do
+  describe "prominence (proximity = prominence)" do
+    test "nearest is the hero, second-nearest a feature, the rest compact" do
       item = tv_item()
 
       releases =
@@ -257,16 +257,16 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       feed = UpcomingFeed.build(releases, armed_context())
       ordered = all_events(feed)
 
-      assert Enum.map(ordered, & &1.hero?) == [true, true, false, false]
+      assert Enum.map(ordered, & &1.prominence) == [:hero, :feature, :compact, :compact]
     end
 
-    test "fewer than two events: all present events are heroes" do
+    test "a lone event is the hero" do
       item = tv_item()
       one = release(item, %{title: "only", air_date: days(2), season_number: 1, episode_number: 1})
 
       feed = UpcomingFeed.build([one], armed_context())
 
-      assert [%{hero?: true}] = all_events(feed)
+      assert [%{prominence: :hero}] = all_events(feed)
     end
   end
 

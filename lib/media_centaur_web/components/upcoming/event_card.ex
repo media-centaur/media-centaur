@@ -19,18 +19,25 @@ defmodule MediaCentaurWeb.Components.Upcoming.EventCard do
   alias MediaCentaurWeb.Components.Upcoming.Present
 
   attr :event, Event, required: true, doc: "The release event view-model to render."
-  attr :variant, :atom, values: [:hero, :compact], default: :compact
+  attr :variant, :atom, values: [:hero, :feature, :compact], default: :compact
 
   attr :today, Date,
     required: true,
     doc: ~s{Today's date, for the relative-day copy ("Today" / "in 3 days").}
 
-  def event_card(%{variant: :hero} = assigns) do
-    assigns = assign(assigns, :backdrop, backdrop_src(assigns.event, 960))
+  def event_card(%{variant: variant} = assigns) when variant in [:hero, :feature] do
+    assigns =
+      assigns
+      |> assign(:backdrop, backdrop_src(assigns.event, 960))
+      |> assign(:frame_class, if(variant == :hero, do: "aspect-[21/9]", else: "h-44"))
+      |> assign(:title_class, if(variant == :hero, do: "text-xl", else: "text-lg"))
 
     ~H"""
     <div
-      class="group relative aspect-[21/9] cursor-pointer overflow-hidden rounded-xl glass-surface hover:ring-1 hover:ring-base-content/20"
+      class={[
+        "group relative cursor-pointer overflow-hidden rounded-xl glass-surface hover:ring-1 hover:ring-base-content/20",
+        @frame_class
+      ]}
       data-nav-item
       tabindex="0"
       role="button"
@@ -59,7 +66,7 @@ defmodule MediaCentaurWeb.Components.Upcoming.EventCard do
           <span class="text-base-content/40">·</span>
           <span class="text-base-content/70 text-on-image">{Present.what_drops(@event)}</span>
         </div>
-        <h3 class="text-xl font-bold leading-tight text-on-image-lg">{@event.item_name}</h3>
+        <h3 class={["font-bold leading-tight text-on-image-lg", @title_class]}>{@event.item_name}</h3>
         <.status_affordance event={@event} />
       </div>
     </div>
