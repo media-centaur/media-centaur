@@ -648,9 +648,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   def refresh_selected_entry(%{assigns: %{selected_entity_id: nil}} = socket), do: socket
 
   def refresh_selected_entry(socket) do
-    case Library.load_modal_entry(socket.assigns.selected_entity_id) do
+    case load_entry(socket.assigns.selected_entity_id) do
       {:ok, entry} ->
-        Phoenix.Component.assign(socket, :selected_entry, put_resume_target(entry))
+        Phoenix.Component.assign(socket, :selected_entry, entry)
 
       :not_found ->
         Phoenix.Component.assign(socket,
@@ -1065,37 +1065,41 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   defp parse_view("credits"), do: :credits
   defp parse_view(_), do: :main
 
-  # TV series go through `SeriesDetail.compose/1` and become
-  # `%SeriesDetail{}` structs carrying a typed `seasons` list +
-  # cached `releases`. Other types stay as the existing
-  # `%{entity, progress, progress_records, resume_target}` map shape.
-  # Both shapes carry the same fields the modal renderer reads,
-  # so the template doesn't branch on entry type.
   defp load_entry_and_expand(id) do
-    case SeriesDetail.compose(id) do
-      {:ok, %SeriesDetail{} = sd} ->
-        expanded = DetailPanel.auto_expand_season(sd.entity, sd.progress)
-        {sd, expanded}
-
-      # `SeriesDetail.compose/1` returns `:not_found` for any id that
-      # isn't a TV series, including ids that ARE existing movies /
-      # video_objects / movie_series. Falling through to the non-TV
-      # path lets `Library.load_modal_entry/1` open those modals; if
-      # the id is truly orphan it returns `:not_found` itself and we
-      # land on `{nil, MapSet.new()}` via `load_non_tv_entry/1`.
-      :not_found ->
-        load_non_tv_entry(id)
-    end
-  end
-
-  defp load_non_tv_entry(id) do
-    case Library.load_modal_entry(id) do
+    case load_entry(id) do
       {:ok, entry} ->
-        expanded = DetailPanel.auto_expand_season(entry.entity, entry.progress)
-        {put_resume_target(entry), expanded}
+        {entry, DetailPanel.auto_expand_season(entry.entity, entry.progress)}
 
       :not_found ->
         {nil, MapSet.new()}
+    end
+  end
+
+  # The single loader both the fresh open (`load_entry_and_expand/1`) and
+  # the post-mutation refresh (`refresh_selected_entry/1`) go through, so
+  # the two paths can never disagree on an entry's shape. A TV series goes
+  # through `SeriesDetail.compose/1` and becomes a `%SeriesDetail{}` struct
+  # carrying a typed `seasons` list + cached `releases`; every other type
+  # stays the `%{entity, progress, progress_records, resume_target}` map.
+  # Both shapes carry the same fields the modal renderer reads, so the
+  # template doesn't branch on entry type — but the renderer reads the
+  # episode list *only* off `%SeriesDetail{}.seasons`. When refresh loaded
+  # a series via the plain-map loader instead, that list silently dropped
+  # and the modal's episode list vanished after a player close.
+  defp load_entry(id) do
+    case SeriesDetail.compose(id) do
+      {:ok, %SeriesDetail{} = sd} ->
+        {:ok, sd}
+
+      # `SeriesDetail.compose/1` returns `:not_found` for any id that isn't
+      # a TV series, including ids that ARE existing movies / video_objects
+      # / movie_series. Falling through to `Library.load_modal_entry/1`
+      # opens those modals; a truly orphan id returns `:not_found` there too.
+      :not_found ->
+        case Library.load_modal_entry(id) do
+          {:ok, entry} -> {:ok, put_resume_target(entry)}
+          :not_found -> :not_found
+        end
     end
   end
 
