@@ -220,11 +220,16 @@ defmodule MediaCentaur.Parser do
     intermediate_dirs = Enum.slice(parts, (extras_index + 1)..(length(parts) - 2)//1)
     base = base_without_media_extension(file_path)
 
-    extra_title =
+    raw_title =
       case intermediate_dirs do
-        [] -> clean_title(base, strip_release_group: false)
-        dirs -> clean_title(Enum.join(dirs ++ [base], " - "), strip_release_group: false)
+        [] -> base
+        dirs -> Enum.join(dirs ++ [base], " - ")
       end
+
+    cleaned = clean_title(raw_title, strip_release_group: false, strip_quality: false)
+
+    # Never persist a nameless extra: if cleaning leaves nothing, keep the raw label.
+    extra_title = if cleaned == "", do: base, else: cleaned
 
     {parent_title, parent_year, season} = parse_extra_parent(parts, extras_index)
 
@@ -678,8 +683,20 @@ defmodule MediaCentaur.Parser do
     raw
     |> String.replace(~r/[._꞉]/u, " ")
     |> String.replace(~r/\s+/, " ")
-    |> then(&Regex.replace(@quality_bracket_pattern, &1, ""))
-    |> then(&Regex.replace(@quality_pattern, &1, ""))
+    |> then(fn cleaned ->
+      # Quality stripping assumes a scene-release filename, where a source/quality
+      # token (1080p, BluRay, WEB) marks the end of the title and everything after
+      # it is junk. Curated extra labels are not scene releases — a folder literally
+      # named "Web Previews" would have its whole title eaten by the WEB(-DL) token —
+      # so callers parsing extras pass `strip_quality: false`.
+      if Keyword.get(opts, :strip_quality, true) do
+        cleaned
+        |> then(&Regex.replace(@quality_bracket_pattern, &1, ""))
+        |> then(&Regex.replace(@quality_pattern, &1, ""))
+      else
+        cleaned
+      end
+    end)
     |> then(fn cleaned ->
       if Keyword.get(opts, :strip_release_group, true),
         do: Regex.replace(@release_group_pattern, cleaned, ""),
