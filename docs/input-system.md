@@ -264,8 +264,8 @@ Actions in each context:
 
 | Action | GRID | TOOLBAR | ZONE_TABS | MENU (sidebar) | MENU (other) | SHELF | MODAL | DRAWER |
 |--------|------|---------|-----------|----------------|--------------|-------|-------|--------|
-| Up | navigate | → ZONE_TABS | wall | navigate | navigate (wall → graph) | nav graph up | navigate (wrap) | navigate |
-| Down | navigate | → GRID | → TOOLBAR or GRID | navigate | navigate (wall → graph) | nav graph down | navigate (wrap) | navigate |
+| Up | navigate | nav graph up | wall | navigate | navigate (wall → graph) | nav graph up | navigate (wrap) | navigate |
+| Down | navigate | nav graph down | → TOOLBAR or GRID | navigate | navigate (wall → graph) | nav graph down | navigate (wrap) | navigate |
 | Left | navigate | navigate | navigate | wall | nav graph left | navigate (wall → sidebar) | navigate (wrap) | → GRID (row edge) |
 | Right | navigate | navigate | navigate | exit sidebar | nav graph right | navigate | sub-focus / navigate | wall |
 | Select | activate | activate | activate | exit sidebar* | click + nav right | activate | activate | activate |
@@ -280,7 +280,7 @@ Actions in each context:
 
 **CLEAR behavior:** In any context, CLEAR delegates to the page behavior's `onClear()` hook. Currently only the library behavior implements this (clears the filter input). If no `onClear` exists, the action is silently dropped.
 
-**MENU behavior:** The sidebar instance has hardcoded exit_sidebar on right/back and wall on left. Other MENU instances (like `"sections"`, `"upcoming"`) use the navigation graph for left/right — if the graph points to `"sidebar"`, it produces `enter_sidebar`; BACK is a no-op there. Non-primary menus also support wall-to-graph fallback on up/down: hitting the top or bottom of the list consults the nav graph for that direction (e.g., up from the first `upcoming` item transitions to `zone_tabs`).
+**MENU behavior:** The sidebar instance has hardcoded exit_sidebar on right/back and wall on left. Other MENU instances (like `"sections"`, `"rail"`) use the navigation graph for left/right — if the graph points to `"sidebar"`, it produces `enter_sidebar`; BACK is a no-op there. Non-primary menus also support wall-to-graph fallback on up/down: hitting the top or bottom of the list consults the nav graph for that direction (e.g., up from the first `rail` item transitions to `actions`).
 
 **Modal navigation:** UP/DOWN/LEFT navigate linearly with wrapping. RIGHT tries sub-focus first (entering a sub-item within the focused element); if no `[data-nav-sub-item]` exists, falls back to linear navigation. This makes both vertical item lists and horizontal button rows work without per-modal configuration.
 
@@ -289,8 +289,9 @@ Actions in each context:
 - Grid left → nav graph target (sidebar in library/watching zones, sections in settings zone)
 - Grid right → DRAWER (if open)
 - MENU up/down → nav graph target for that direction (if defined)
+- TOOLBAR up/down → nav graph target for that instance (the standard toolbar reaches zone_tabs/grid; the upcoming mini-month reaches actions/stragglers)
 - SHELF up/down → adjacent shelf via nav graph (skips empty rows)
-- Zone tabs / toolbar / shelf left at index 0 → SIDEBAR
+- Zone tabs / toolbar / shelf left at index 0 → nav graph left edge (SIDEBAR for the standard top-left contexts; the rail for the upcoming mini-month)
 - Drawer left → GRID (rightmost column, same row)
 
 ## Directive Reference
@@ -313,7 +314,7 @@ Actions in each context:
 
 | Attribute | Purpose | Values |
 |-----------|---------|--------|
-| `data-nav-zone` | Navigation zone container | `grid`, `toolbar`, `sidebar`, `sections`, `upcoming`, `zone-tabs`, `hero`, `continue`, `recently`, `coming_up` |
+| `data-nav-zone` | Navigation zone container | `grid`, `toolbar`, `sidebar`, `sections`, `zone-tabs`, `hero`, `continue`, `recently`, `coming_up`, upcoming: `rail`, `stragglers`, `actions`, `mini-month` |
 | `data-nav-item` | Focusable element (needs `tabindex="0"`) | — |
 | `data-nav-grid` | CSS grid container (column count detection) | — |
 | `data-entity-id` | Stable entity identifier on cards | UUID |
@@ -337,7 +338,7 @@ Actions in each context:
 | `data-nav-context` | Current focus context for hint bar (set on `<html>`) | `grid`, `sidebar`, `modal`, etc. |
 | `data-gamepad-type` | Controller type for hint bar labels (set on `<html>`) | `xbox`, `playstation`, `generic` |
 
-**Nav zone containers must not nest.** Descendant selectors cross-contaminate. Exception: a zone using a direct-child selector (`> [data-nav-item]`) can contain a nested zone without double-counting items. The `upcoming` zone uses this pattern — its tracking section nav item wraps a nested `grid` zone.
+**Nav zone containers must not nest.** Descendant selectors cross-contaminate. Exception: a zone whose selector uses a direct-child combinator (`> [data-nav-item]`) can contain a nested zone without double-counting items, should a future layout need it.
 
 **One element owns the modal overlay.** The adapter resolves the *active modal* as the first `[data-detail-mode='modal']` match in DOM order, and derives everything from that one element: `data-detail-view`, `data-dismiss-event`, and — unlike other contexts, which use flat config selectors — the MODAL context's nav items (`activeModalElement().querySelectorAll("[data-nav-item]")`). This keeps navigation and BACK pointed at the same overlay when modals stack (a confirm dialog over a detail modal, as on the downloads page). Pages that stack modals must render the topmost overlay *first* among their `[data-detail-mode]` elements — on `/download`, the confirm dialogs render at the top of `:overlays`, before the plan and pursuit modals.
 

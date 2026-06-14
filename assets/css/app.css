@@ -1256,6 +1256,27 @@ body:has(.modal-backdrop[data-state="open"]) {
   display: flex;
 }
 
+/* Other non-primary menu / toolbar-companion instances across pages —
+   the upcoming rail/stragglers/actions list + its mini-month, plus the
+   downloads, status, and review zones. All share the minimal Navigate +
+   Select legend: B is a no-op (left walks toward the sidebar) and none
+   expose Clear / Play / Zone. Keyed by instance name because data-nav-context
+   carries the instance, not the resolved type. */
+[data-nav-context="rail"] .hint-group[data-hint-context="menu"],
+[data-nav-context="stragglers"] .hint-group[data-hint-context="menu"],
+[data-nav-context="actions"] .hint-group[data-hint-context="menu"],
+[data-nav-context="mini-month"] .hint-group[data-hint-context="menu"],
+[data-nav-context="omnibox"] .hint-group[data-hint-context="menu"],
+[data-nav-context="drafts"] .hint-group[data-hint-context="menu"],
+[data-nav-context="pursuits"] .hint-group[data-hint-context="menu"],
+[data-nav-context="history"] .hint-group[data-hint-context="menu"],
+[data-nav-context="other_downloads"] .hint-group[data-hint-context="menu"],
+[data-nav-context="drill-in"] .hint-group[data-hint-context="menu"],
+[data-nav-context="review-list"] .hint-group[data-hint-context="menu"],
+[data-nav-context="review-detail"] .hint-group[data-hint-context="menu"] {
+  display: flex;
+}
+
 /* Home shelves (hero + content rows) share one hint group */
 [data-nav-context="hero"] .hint-group[data-hint-context="shelf"],
 [data-nav-context="continue"] .hint-group[data-hint-context="shelf"],

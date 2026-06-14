@@ -7,6 +7,10 @@ import { buildNavGraph } from "../nav_graph"
 const TEST_INSTANCE_TYPES = {
   sidebar: Context.MENU,
   sections: Context.MENU,
+  // A TOOLBAR instance NOT named "toolbar" — the upcoming page's mini-month.
+  // Proves toolbar up/down read the instance's own graph edge, not a hardcoded
+  // "toolbar" key.
+  "mini-month": Context.TOOLBAR,
   hero: Context.SHELF,
   continue: Context.SHELF,
   recently: Context.SHELF,
@@ -254,6 +258,42 @@ describe("FocusContextMachine", () => {
 
     test("select activates", () => {
       expect(machine.transition(Action.SELECT)).toEqual({ type: "activate" })
+    })
+  })
+
+  describe("Toolbar context — non-'toolbar' instance (upcoming mini-month)", () => {
+    // The mini-month is a TOOLBAR instance named "mini-month", sitting to the
+    // RIGHT of the rail. Up/down must consult its OWN graph edges (up → actions,
+    // down → stragglers), not a hardcoded "toolbar" key, and left/right page
+    // within the strip.
+    beforeEach(() => {
+      machine._context = "mini-month"
+      machine.setNavGraph({
+        "mini-month": { up: "actions", down: "stragglers", left: "rail" },
+      })
+    })
+
+    test("up consults the instance's own graph edge → actions", () => {
+      const directive = machine.transition(Action.NAVIGATE_UP)
+      expect(directive).toEqual({ type: "focus_first", context: "actions" })
+      expect(machine.context).toBe("actions")
+    })
+
+    test("down consults the instance's own graph edge → stragglers", () => {
+      const directive = machine.transition(Action.NAVIGATE_DOWN)
+      expect(directive).toEqual({ type: "focus_first", context: "stragglers" })
+      expect(machine.context).toBe("stragglers")
+    })
+
+    test("left/right page within the strip (linear nav)", () => {
+      expect(machine.transition(Action.NAVIGATE_LEFT)).toEqual({ type: "navigate", direction: "left" })
+      expect(machine.transition(Action.NAVIGATE_RIGHT)).toEqual({ type: "navigate", direction: "right" })
+    })
+
+    test("up is a no-op when the instance has no up edge (e.g. actions absent)", () => {
+      machine.setNavGraph({ "mini-month": { down: "stragglers" } })
+      expect(machine.transition(Action.NAVIGATE_UP)).toEqual({ type: "none" })
+      expect(machine.context).toBe("mini-month")
     })
   })
 

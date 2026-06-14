@@ -273,19 +273,22 @@ export class FocusContextMachine {
     }
   }
 
-  /** Toolbar: left/right between controls. Down/Up consult nav graph. */
+  /** Toolbar: left/right between controls. Down/Up consult the nav graph for
+   *  THIS instance (keyed by `_context`, not the literal "toolbar"), so a
+   *  toolbar-typed companion like the upcoming mini-month follows its own
+   *  up/down edges. */
   _toolbarTransition(action) {
     switch (action) {
       case Action.NAVIGATE_LEFT:  return navigate("left")
       case Action.NAVIGATE_RIGHT: return navigate("right")
       case Action.NAVIGATE_DOWN: {
-        const target = this._navGraph?.toolbar?.down
+        const target = this._navGraph?.[this._context]?.down
         if (!target) return NONE
         this._setContext(target)
         return focusFirst(target)
       }
       case Action.NAVIGATE_UP: {
-        const target = this._navGraph?.toolbar?.up
+        const target = this._navGraph?.[this._context]?.up
         if (!target) return NONE
         this._setContext(target)
         return focusFirst(target)
