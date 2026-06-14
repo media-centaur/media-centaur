@@ -663,6 +663,35 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
     end
   end
 
+  # --- empty_grid_reason/2 ---
+
+  describe "empty_grid_reason/2" do
+    test "returns :none when the grid has cards to show" do
+      assert LibraryHelpers.empty_grid_reason(5, 5) == :none
+      assert LibraryHelpers.empty_grid_reason(1, 12) == :none
+    end
+
+    test "returns :library_empty when nothing is indexed at all" do
+      assert LibraryHelpers.empty_grid_reason(0, 0) == :library_empty
+    end
+
+    test "returns :no_matches when the library has entries but filters excluded them all" do
+      assert LibraryHelpers.empty_grid_reason(0, 12) == :no_matches
+    end
+  end
+
+  # --- no_matches_label/1 ---
+
+  describe "no_matches_label/1" do
+    test "names the search term when text filtering is active" do
+      assert LibraryHelpers.no_matches_label("batman") == "No titles match “batman”."
+    end
+
+    test "falls back to a generic message when only non-text filters are active" do
+      assert LibraryHelpers.no_matches_label("") == "No titles match your current filters."
+    end
+  end
+
   # --- in_progress_count/1 ---
 
   describe "in_progress_count/1" do

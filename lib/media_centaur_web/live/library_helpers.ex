@@ -52,6 +52,37 @@ defmodule MediaCentaurWeb.LibraryHelpers do
   defp name_matches?(nil, _needle), do: false
   defp name_matches?(name, needle), do: String.contains?(String.downcase(name), needle)
 
+  # --- Empty-state classification ---
+
+  @doc """
+  Classifies which empty state the library grid should present when no
+  cards are visible.
+
+    * `:none` — the grid has cards; show no empty state.
+    * `:library_empty` — nothing is indexed at all; prompt the user to
+      scan (or configure) their media directories.
+    * `:no_matches` — the library has entries but the active tab / text /
+      in-progress filters excluded every one; prompt the user to clear
+      the filter rather than to scan.
+
+  `grid_count` is the number of cards currently shown (post-filter);
+  `total_count` is the whole-library size (`tab_counts/1`'s `:all`).
+  """
+  @spec empty_grid_reason(non_neg_integer(), non_neg_integer()) ::
+          :none | :library_empty | :no_matches
+  def empty_grid_reason(grid_count, _total_count) when grid_count > 0, do: :none
+  def empty_grid_reason(_grid_count, 0), do: :library_empty
+  def empty_grid_reason(_grid_count, _total_count), do: :no_matches
+
+  @doc """
+  The copy shown in the `:no_matches` empty state. Names the search term
+  when text filtering is active; otherwise falls back to a generic line
+  (the exclusion came from the tab or in-progress filter alone).
+  """
+  @spec no_matches_label(String.t()) :: String.t()
+  def no_matches_label(""), do: "No titles match your current filters."
+  def no_matches_label(text), do: "No titles match “#{text}”."
+
   # --- Sorting ---
 
   @spec sorted_by([BrowseItem.t()], :alpha | :year | :recent) :: [BrowseItem.t()]
