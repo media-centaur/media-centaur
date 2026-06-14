@@ -4,6 +4,21 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.95.1 — 2026-06-14
+
+### New
+
+- **Jump to a day from the Upcoming calendar.** Click a day that has a release in the mini calendar and the timeline scrolls straight to it. Days with nothing scheduled are no longer clickable, so a click always lands on something.
+
+### Improved
+
+- **The Upcoming page is now fully navigable by keyboard and game controller.** Move through the release timeline, the mini calendar, and the tracked-titles list, and open any title's details — all without the mouse. The page previously didn't respond to key or controller input.
+- **The Upcoming heading now lines up with the Library and Downloads pages** for a consistent layout as you move between them.
+
+### Fixed
+
+- **The Library now shows a clear "no matches" message** when a search filter excludes every title — with a one-click way to clear the filter — instead of a blank grid.
+
 ## v0.95.0 — 2026-06-14
 
 ### Improved
