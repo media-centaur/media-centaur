@@ -169,6 +169,11 @@ defmodule MediaCentaur.Application do
     # action. Network-free, idempotent, skipped under :test (see Maintenance).
     MediaCentaur.Maintenance.heal_extra_names_on_boot(env)
 
+    # Backfill ExtraFile rows for extras imported before the ingest path wrote
+    # them, so they become "linked" and stop re-running through the pipeline on
+    # every rescan. Network-free, idempotent, skipped under :test.
+    MediaCentaur.Maintenance.backfill_extra_files_on_boot(env)
+
     if should_start?(env, :start_watchers) do
       MediaCentaur.Watcher.Supervisor.start_watchers()
       MediaCentaur.Watcher.Supervisor.start_image_dir_monitors()

@@ -13,12 +13,9 @@ defmodule MediaCentaur.Library.Extra do
   File-on-disk presence is tracked separately via `Library.ExtraFile` —
   one ExtraFile per observed path. `content_url` here is the canonical
   playable path; ExtraFile rows record which media directory the file
-  was seen in.
-
-  Follow-up: Wire `Library.Inbound` to write ExtraFile rows when
-  ingesting bonus-feature paths. Today the only writer is the Phase 2
-  Task B migration that backfills orphan WatchedFiles into ExtraFiles
-  for collection-level Extras.
+  was seen in. `Library.Inbound` writes the ExtraFile alongside the Extra
+  on ingest; pre-existing extras are backfilled by
+  `Library.backfill_extra_files/0` on boot.
   """
   use Ecto.Schema
   import Ecto.Changeset

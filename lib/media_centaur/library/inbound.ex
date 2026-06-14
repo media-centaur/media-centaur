@@ -499,8 +499,8 @@ defmodule MediaCentaur.Library.Inbound do
 
   defp maybe_create_extra(_entity_type, _entity_id, %{extra: nil}), do: :ok
 
-  defp maybe_create_extra(entity_type, entity_id, %{extra: extra}) do
-    create_extra(entity_type, entity_id, extra)
+  defp maybe_create_extra(entity_type, entity_id, %{extra: extra} = event) do
+    create_extra(entity_type, entity_id, extra, event.media_dir)
   end
 
   # ---------------------------------------------------------------------------
@@ -525,7 +525,7 @@ defmodule MediaCentaur.Library.Inbound do
         []
       end
 
-    with :ok <- create_extra(entity_type, entity.id, extra) do
+    with :ok <- create_extra(entity_type, entity.id, extra, event.media_dir) do
       {:ok, entity, :existing, season_images}
     end
   end
@@ -673,7 +673,7 @@ defmodule MediaCentaur.Library.Inbound do
   # Extra
   # ---------------------------------------------------------------------------
 
-  defp create_extra(entity_type, entity_id, extra_data) do
+  defp create_extra(entity_type, entity_id, extra_data, media_dir) do
     season =
       if extra_data.season_number do
         season_attrs =
@@ -711,8 +711,24 @@ defmodule MediaCentaur.Library.Inbound do
       owner_id: owner_id
     }
 
-    case Library.find_or_create_extra_by_owner(extra_attrs) do
-      {:ok, _extra} -> :ok
+    with {:ok, extra} <- Library.find_or_create_extra_by_owner(extra_attrs) do
+      link_extra_file(extra, media_dir)
+    end
+  end
+
+  # Mirrors `link_file/2`'s WatchedFile write, for the bonus-features path: an
+  # `ExtraFile` row makes the extra's file visible to `Discovery.already_linked?/1`
+  # so it is not re-emitted and re-searched on every rescan, and gives
+  # relink-on-move a row to re-point when the file moves.
+  defp link_extra_file(%Library.Extra{content_url: nil}, _media_dir), do: :ok
+
+  defp link_extra_file(%Library.Extra{} = extra, media_dir) do
+    case Library.create_extra_file(%{
+           file_path: extra.content_url,
+           media_dir: media_dir,
+           extra_id: extra.id
+         }) do
+      {:ok, _extra_file} -> :ok
       {:error, reason} -> {:error, reason}
     end
   end

@@ -458,6 +458,39 @@ defmodule MediaCentaur.Library.InboundTest do
       assert extra.content_url == "/media/extras/bts.mkv"
     end
 
+    test "extra ingest links the file to an ExtraFile row (so already_linked? sees it)" do
+      event =
+        movie_event(
+          extra: %{
+            name: "Behind the Scenes",
+            content_url: "/media/extras/bts.mkv",
+            season_number: nil
+          }
+        )
+
+      assert {:ok, movie, :new, _pending_images} = Inbound.ingest(event)
+
+      movie = MediaCentaur.Repo.preload(movie, extras: :files)
+      extra = hd(movie.extras)
+
+      assert [extra_file] = extra.files
+      assert extra_file.file_path == "/media/extras/bts.mkv"
+      assert extra_file.media_dir == "/media"
+      assert extra_file.extra_id == extra.id
+    end
+
+    test "re-ingesting the same extra does not duplicate the ExtraFile row" do
+      event =
+        movie_event(extra: %{name: "BTS", content_url: "/media/extras/bts2.mkv", season_number: nil})
+
+      assert {:ok, _movie, :new, _} = Inbound.ingest(event)
+      assert {:ok, movie, _status, _} = Inbound.ingest(event)
+
+      movie = MediaCentaur.Repo.preload(movie, extras: :files)
+      assert [extra] = movie.extras
+      assert length(extra.files) == 1
+    end
+
     test "extra with season — creates TV series + season + extra" do
       event =
         tv_event(

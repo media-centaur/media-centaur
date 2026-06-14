@@ -1725,6 +1725,46 @@ defmodule MediaCentaur.Library do
   @spec destroy_extra_file(ExtraFile.t()) :: {:ok, ExtraFile.t()} | {:error, Ecto.Changeset.t()}
   def destroy_extra_file(extra_file), do: Repo.delete(extra_file)
 
+  @doc """
+  Backfills `ExtraFile` rows for extras imported before the ingest path wrote
+  them — those carrying a `content_url`, lacking any `ExtraFile`, and with a
+  resolvable `FilePresence` for the path (the source of `media_dir`). Network-free
+  and idempotent; runs on boot so existing extras become "linked" and stop being
+  re-emitted by `rescan_unlinked`. Returns `%{created: n}`.
+  """
+  @spec backfill_extra_files() :: %{created: non_neg_integer()}
+  def backfill_extra_files do
+    query =
+      from(e in Extra,
+        left_join: f in ExtraFile,
+        on: f.extra_id == e.id,
+        where: not is_nil(e.content_url) and is_nil(f.id),
+        select: e
+      )
+
+    created =
+      query
+      |> Repo.all()
+      |> Enum.reduce(0, fn extra, count ->
+        with %FilePresence{media_dir: media_dir} <-
+               Repo.get_by(FilePresence, file_path: extra.content_url),
+             {:ok, _} <-
+               create_extra_file(%{
+                 file_path: extra.content_url,
+                 media_dir: media_dir,
+                 extra_id: extra.id
+               }) do
+          count + 1
+        else
+          # No FilePresence (can't resolve media_dir), or the row was created
+          # concurrently by a rescan re-ingest — either way, leave it.
+          _ -> count
+        end
+      end)
+
+    %{created: created}
+  end
+
   # ---------------------------------------------------------------------------
   # Season
   # ---------------------------------------------------------------------------
