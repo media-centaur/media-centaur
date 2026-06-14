@@ -293,6 +293,32 @@ defmodule MediaCentaurWeb.Layouts do
     """
   end
 
+  attr :class, :string, default: nil
+
+  slot :inner_block, required: true
+
+  @doc """
+  Mounts the input-system LiveView hook (keyboard/gamepad navigation) for a
+  page that does NOT use `app/1` — currently just the standalone Setup tour,
+  which has no sidebar. `app/1` renders its own `#input-system` root inline
+  with the same hook + bindings; this is that mount factored out for the
+  sidebar-less case. Only one `#input-system` element may exist per page
+  (shared id), so never nest this inside `app/1`.
+  """
+  def input_system_root(assigns) do
+    ~H"""
+    <div
+      id="input-system"
+      class={@class}
+      phx-hook="InputSystem"
+      data-input-bindings={Jason.encode!(input_bindings())}
+      data-global-bindings={Jason.encode!(global_bindings())}
+    >
+      {render_slot(@inner_block)}
+    </div>
+    """
+  end
+
   defp input_bindings do
     resolved = MediaCentaur.Controls.get()
     catalog = MediaCentaur.Controls.Catalog.all()
