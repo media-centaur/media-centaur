@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-06-14
 last_updated: 2026-06-14
 ---
@@ -22,10 +22,16 @@ migrations — while leaving the expensive identity work frozen exactly as it is
 
 ## Status
 
-Planning. Parser bug itself is fixed and shipped (v0.95.2). The 28 Frieren
-extras are still blank on disk — **deliberately left as the first acceptance
-test of Phase 1's sweep** (alternatively backfilled manually if we want them
-fixed before Phase 1 lands; see Next steps).
+Phase 0 complete (ADR-057). Phase 1 (re-derive sweep) in progress. Parser bug
+itself is fixed and shipped (v0.95.2). The 28 Frieren extras are still blank on
+disk — **deliberately left as the first acceptance test of Phase 1's sweep**
+(alternatively backfilled manually if we want them fixed before Phase 1 lands).
+
+## Decisions made
+
+* `2026-06-14` — Derived data is recomputable, never frozen; correctness is
+  version-free (re-parse + compare), the version stamp is only a scan-path
+  optimization. ([ADR-057](../decisions/architecture/2026-06-14-057-derived-data-is-recomputable.md))
 
 ## Design summary
 
