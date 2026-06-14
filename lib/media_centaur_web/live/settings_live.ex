@@ -1450,6 +1450,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     <Layouts.app
       flash={@flash}
       current_path="/settings"
+      full_width
       acquisition_ready={@acquisition_ready}
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
     >
@@ -1475,94 +1476,112 @@ defmodule MediaCentaurWeb.SettingsLive do
         --%>
         <.media_dir_dialog media_dir_dialog={@media_dir_dialog} media_dirs={@media_dirs} />
       </:overlays>
-      <div
-        data-page-behavior="settings"
-        data-nav-default-zone="settings"
-        class="flex gap-8 max-w-[960px]"
-      >
-        <nav
-          data-nav-zone="sections"
-          class="w-40 shrink-0 sticky top-6 self-start flex flex-col gap-0.5"
-        >
-          <h1 class="text-xl font-bold mb-4">Settings</h1>
-          <div :for={{group, index} <- Enum.with_index(Enum.chunk_by(@sections, & &1.group))}>
-            <div :if={index > 0} class="my-2 mx-3 h-px bg-base-content/10"></div>
-            <.link
-              :for={section <- group}
-              patch={~p"/settings?section=#{section.id}"}
-              data-nav-item
-              tabindex="0"
-              class={[
-                "block py-2 px-3 rounded-lg text-sm text-base-content/70 transition-[opacity,background-color] duration-150 hover:opacity-100 hover:bg-base-content/6",
-                @active_section == section.id &&
-                  "!opacity-100 text-primary bg-primary/10 font-medium"
-              ]}
-            >
-              {section.label}
-            </.link>
-          </div>
-        </nav>
+      <%!-- Outer relative wrapper carries the page-behavior + default zone and
+            scopes the ambient scrim, matching the library/downloads/upcoming
+            page shell so the heading sits at the same height across pages. --%>
+      <div class="relative" data-page-behavior="settings" data-nav-default-zone="settings">
+        <%!-- Scrim only — no `.page-atmosphere` image. Settings has no content
+              entity to source a hero from, so it gets the dimmed sense-of-place
+              of the other pages without a random backdrop competing with a
+              utility surface. Fixed + behind content (z-0). --%>
+        <div class="page-side-dim" aria-hidden="true"></div>
 
-        <div data-nav-zone="grid" class="flex-1 min-w-0">
-          <.section_content
-            active_section={@active_section}
-            language_policy={@language_policy}
-            language_draft={@language_draft}
-            language_options={@language_options}
-            watchers_running={@watchers_running}
-            pipeline_running={@pipeline_running}
-            image_pipeline_running={@image_pipeline_running}
-            acquisition_running={@acquisition_running}
-            scanning={@scanning}
-            config={@config}
-            clearing_database={@clearing_database}
-            refreshing_images={@refreshing_images}
-            repairing_images={@repairing_images}
-            rederiving_extra_names={@rederiving_extra_names}
-            blank_extra_names_count={@blank_extra_names_count}
-            refetching_backdrops={@refetching_backdrops}
-            refreshing_credits={@refreshing_credits}
-            refreshing_series_credits={@refreshing_series_credits}
-            refreshing_movie_subtitles={@refreshing_movie_subtitles}
-            missing_images_summary={@missing_images_summary}
-            spoiler_free={@spoiler_free}
-            show_card_info={@show_card_info}
-            tmdb_test={@tmdb_test}
-            tmdb_testing={@tmdb_testing}
-            prowlarr_test={@prowlarr_test}
-            prowlarr_testing={@prowlarr_testing}
-            download_client_test={@download_client_test}
-            download_client_testing={@download_client_testing}
-            download_client_detect_status={@download_client_detect_status}
-            download_client_detecting={@download_client_detecting}
-            detected_download_client={@detected_download_client}
-            app_version={@app_version}
-            build_info={@build_info}
-            update_status={@update_status}
-            latest_release={@latest_release}
-            apply_phase={@apply_phase}
-            update_check_enabled={@update_check_enabled}
-            auto_update_enabled={@auto_update_enabled}
-            update_check_interval_minutes={@update_check_interval_minutes}
-            update_check_interval_floor={@update_check_interval_floor}
-            last_checked_label={@last_checked_label}
-            update_schedule_label={@update_schedule_label}
-            tmdb_missing={@tmdb_missing}
-            show_setup_banner?={@show_setup_banner?}
-            critical_failures={@critical_failures}
-            service_state={@service_state}
-            service_status_visible={@service_status_visible}
-            service_status_output={@service_status_output}
-            service_action_pending={@service_action_pending}
-            media_dirs={@media_dirs}
-            media_dir_delete_confirm={@media_dir_delete_confirm}
-            exclude_dirs={@exclude_dirs}
-            exclude_dir_input={@exclude_dir_input}
-            exclude_dir_error={@exclude_dir_error}
-            bindings={@bindings}
-            glyph_style={@glyph_style}
-            listening={@listening}
-          />
+        <div class="relative z-[1] space-y-6">
+          <header>
+            <h1 class="text-3xl font-bold tracking-tight">Settings</h1>
+            <p class="mt-1 text-sm text-base-content/60">
+              Services, preferences, and configuration
+            </p>
+          </header>
+
+          <%!-- Header spans full width so its title aligns with the other
+                pages; the nav + content row is capped at a comfortable measure
+                so forms and toggle rows stay readable. --%>
+          <div class="flex gap-8 max-w-[1100px]">
+            <nav
+              data-nav-zone="sections"
+              class="w-40 shrink-0 sticky top-6 self-start flex flex-col gap-0.5"
+            >
+              <div :for={{group, index} <- Enum.with_index(Enum.chunk_by(@sections, & &1.group))}>
+                <div :if={index > 0} class="my-2 mx-3 h-px bg-base-content/10"></div>
+                <.link
+                  :for={section <- group}
+                  patch={~p"/settings?section=#{section.id}"}
+                  data-nav-item
+                  tabindex="0"
+                  class={[
+                    "block py-2 px-3 rounded-lg text-sm text-base-content/70 transition-[opacity,background-color] duration-150 hover:opacity-100 hover:bg-base-content/6",
+                    @active_section == section.id &&
+                      "!opacity-100 text-primary bg-primary/10 font-medium"
+                  ]}
+                >
+                  {section.label}
+                </.link>
+              </div>
+            </nav>
+
+            <div data-nav-zone="grid" class="flex-1 min-w-0">
+              <.section_content
+                active_section={@active_section}
+                language_policy={@language_policy}
+                language_draft={@language_draft}
+                language_options={@language_options}
+                watchers_running={@watchers_running}
+                pipeline_running={@pipeline_running}
+                image_pipeline_running={@image_pipeline_running}
+                acquisition_running={@acquisition_running}
+                scanning={@scanning}
+                config={@config}
+                clearing_database={@clearing_database}
+                refreshing_images={@refreshing_images}
+                repairing_images={@repairing_images}
+                rederiving_extra_names={@rederiving_extra_names}
+                blank_extra_names_count={@blank_extra_names_count}
+                refetching_backdrops={@refetching_backdrops}
+                refreshing_credits={@refreshing_credits}
+                refreshing_series_credits={@refreshing_series_credits}
+                refreshing_movie_subtitles={@refreshing_movie_subtitles}
+                missing_images_summary={@missing_images_summary}
+                spoiler_free={@spoiler_free}
+                show_card_info={@show_card_info}
+                tmdb_test={@tmdb_test}
+                tmdb_testing={@tmdb_testing}
+                prowlarr_test={@prowlarr_test}
+                prowlarr_testing={@prowlarr_testing}
+                download_client_test={@download_client_test}
+                download_client_testing={@download_client_testing}
+                download_client_detect_status={@download_client_detect_status}
+                download_client_detecting={@download_client_detecting}
+                detected_download_client={@detected_download_client}
+                app_version={@app_version}
+                build_info={@build_info}
+                update_status={@update_status}
+                latest_release={@latest_release}
+                apply_phase={@apply_phase}
+                update_check_enabled={@update_check_enabled}
+                auto_update_enabled={@auto_update_enabled}
+                update_check_interval_minutes={@update_check_interval_minutes}
+                update_check_interval_floor={@update_check_interval_floor}
+                last_checked_label={@last_checked_label}
+                update_schedule_label={@update_schedule_label}
+                tmdb_missing={@tmdb_missing}
+                show_setup_banner?={@show_setup_banner?}
+                critical_failures={@critical_failures}
+                service_state={@service_state}
+                service_status_visible={@service_status_visible}
+                service_status_output={@service_status_output}
+                service_action_pending={@service_action_pending}
+                media_dirs={@media_dirs}
+                media_dir_delete_confirm={@media_dir_delete_confirm}
+                exclude_dirs={@exclude_dirs}
+                exclude_dir_input={@exclude_dir_input}
+                exclude_dir_error={@exclude_dir_error}
+                bindings={@bindings}
+                glyph_style={@glyph_style}
+                listening={@listening}
+              />
+            </div>
+          </div>
         </div>
       </div>
     </Layouts.app>
@@ -2876,23 +2895,17 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp section_content(%{active_section: "library"} = assigns) do
     ~H"""
     <div class="space-y-4">
-      <form
-        phx-submit="save_data_dir"
-        class="glass-surface rounded-xl p-4 space-y-3"
-      >
-        <div class="flex items-baseline justify-between">
-          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
-            Data directory
-          </h3>
-          <.button type="submit" variant="secondary" size="sm" data-nav-item tabindex="0">
-            Save
-          </.button>
-        </div>
+      <form phx-submit="save_data_dir" class="glass-surface rounded-xl p-5 space-y-3">
+        <.settings_card_header title="Data directory">
+          <:action>
+            <.button type="submit" variant="secondary" size="sm" data-nav-item tabindex="0">
+              Save
+            </.button>
+          </:action>
+        </.settings_card_header>
 
-        <p class="text-xs text-base-content/50">
-          Where Media Centaur stores its caches outside the media directories —
-          currently tracking-item poster and backdrop images. Defaults to the
-          parent directory of the SQLite database.
+        <p class="text-xs text-base-content/50 max-w-[60ch]">
+          Where cached posters and backdrops are stored. Defaults next to the database.
         </p>
 
         <input
@@ -2904,28 +2917,22 @@ defmodule MediaCentaurWeb.SettingsLive do
           data-nav-item
           tabindex="0"
         />
-
-        <p class="text-xs text-base-content/40">
-          Images already on disk under the previous location are still served
-          (legacy `./data/` fallback) so changes don't strand existing files.
-        </p>
       </form>
 
-      <div class="glass-surface rounded-xl p-4 space-y-3">
-        <div class="flex items-baseline justify-between">
-          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
-            Media Directories
-          </h3>
-          <.button
-            variant="action"
-            size="sm"
-            phx-click="media_dir:open_add"
-            data-nav-item
-            tabindex="0"
-          >
-            <.icon name="hero-plus" class="size-4" /> Add
-          </.button>
-        </div>
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <.settings_card_header title="Media directories">
+          <:action>
+            <.button
+              variant="action"
+              size="sm"
+              phx-click="media_dir:open_add"
+              data-nav-item
+              tabindex="0"
+            >
+              <.icon name="hero-plus" class="size-4" /> Add
+            </.button>
+          </:action>
+        </.settings_card_header>
 
         <div :if={@media_dirs == []} class="text-base-content/60 py-4">
           No media directories configured — your library is empty. Add one to get started.
@@ -3004,9 +3011,8 @@ defmodule MediaCentaurWeb.SettingsLive do
         </ul>
 
         <div class="mt-1 pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
-          <p class="text-xs text-base-content/50 min-w-0">
-            Moved or added files? Scan to pick them up now. Files that moved to a
-            new directory are re-linked to their existing library entry automatically.
+          <p class="text-xs text-base-content/50 min-w-0 max-w-[60ch]">
+            Scan to pick up moved or added files — moves are re-linked automatically.
           </p>
           <div class="flex items-center gap-2 shrink-0">
             <.button
@@ -3034,17 +3040,11 @@ defmodule MediaCentaurWeb.SettingsLive do
         </div>
       </div>
 
-      <div class="glass-surface rounded-xl p-4 space-y-3">
-        <div>
-          <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
-            Excluded Directories
-          </h3>
-          <p class="text-xs text-base-content/60 mt-1">
-            Paths inside your media directories that should be ignored — handy for
-            downloads-cache folders, trash bins, anything with transient files you
-            don't want indexed.
-          </p>
-        </div>
+      <div class="glass-surface rounded-xl p-5 space-y-3">
+        <.settings_card_header title="Excluded directories" />
+        <p class="text-xs text-base-content/50 max-w-[60ch]">
+          Paths to ignore inside your media directories.
+        </p>
 
         <ul :if={@exclude_dirs != []} class="space-y-2">
           <li
@@ -3106,90 +3106,66 @@ defmodule MediaCentaurWeb.SettingsLive do
         </form>
       </div>
 
-      <div data-nav-grid class="p-5 rounded-lg glass-surface">
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold">Library display</h2>
-            <p class="text-sm text-base-content/50 mt-0.5">
-              How library entries appear in the poster grid.
-            </p>
-          </div>
-        </div>
-
-        <div class="mt-4 space-y-0.5">
-          <.settings_row
-            label="Show titles below posters"
-            description="Hide for a clean wall-of-posters view."
+      <div data-nav-grid class="glass-surface rounded-xl p-5 space-y-3">
+        <.settings_card_header title="Display" />
+        <.settings_field
+          label="Show titles below posters"
+          description="Hide for a clean wall-of-posters view."
+        >
+          <input
+            type="checkbox"
+            class="toggle toggle-sm toggle-info"
             checked={@show_card_info}
-            event="toggle_show_card_info"
-            color="info"
+            phx-click="toggle_show_card_info"
+            data-nav-item
+            tabindex="0"
           />
-        </div>
+        </.settings_field>
       </div>
 
       <form
         id="settings-library"
         phx-submit="save_library"
-        class="p-5 rounded-lg glass-surface space-y-5"
+        class="glass-surface rounded-xl p-5 space-y-3"
       >
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold">Library</h2>
-            <p class="text-sm text-base-content/50 mt-0.5">
-              Cleanup and status display tuning.
-            </p>
-          </div>
-          <.button
-            type="submit"
-            variant="secondary"
-            size="sm"
-            class="shrink-0"
-            data-nav-item
-            tabindex="0"
-          >
-            Save
-          </.button>
-        </div>
+        <.settings_card_header title="Cleanup">
+          <:action>
+            <.button type="submit" variant="secondary" size="sm" data-nav-item tabindex="0">
+              Save
+            </.button>
+          </:action>
+        </.settings_card_header>
 
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-              File absence TTL (days)
-            </label>
+        <div>
+          <.settings_field
+            label="File absence TTL (days)"
+            description="Days a missing file is kept before its entry is removed — covers unmounted drives."
+          >
             <input
               type="number"
               name="file_absence_ttl_days"
               value={@config[:file_absence_ttl_days]}
               min="1"
-              class="input input-bordered w-full font-mono text-sm"
+              class="input input-bordered w-24 font-mono text-sm text-right"
               data-nav-item
               tabindex="0"
             />
-            <p class="text-xs text-base-content/40 mt-1">
-              Grace period for a file that disappears from its media directory — useful
-              when media lives on an external drive or network share that isn't always
-              mounted. Only after this many days of continuous absence will the library
-              entry be removed.
-            </p>
-          </div>
+          </.settings_field>
 
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-              Recent changes window (days)
-            </label>
+          <.settings_field
+            label="Recent changes window (days)"
+            description="How far back the Status page lists recent changes."
+          >
             <input
               type="number"
               name="recent_changes_days"
               value={@config[:recent_changes_days]}
               min="1"
-              class="input input-bordered w-full font-mono text-sm"
+              class="input input-bordered w-24 font-mono text-sm text-right"
               data-nav-item
               tabindex="0"
             />
-            <p class="text-xs text-base-content/40 mt-1">
-              How many days back to show on the Status page's recent changes list.
-            </p>
-          </div>
+          </.settings_field>
         </div>
       </form>
     </div>
@@ -4179,6 +4155,54 @@ defmodule MediaCentaurWeb.SettingsLive do
         checked={@checked}
         tabindex="-1"
       />
+    </div>
+    """
+  end
+
+  # Card title row — one consistent treatment for every settings card:
+  # muted, uppercase, with an optional right-aligned action. Field labels
+  # inside cards are sentence-case medium, so a card title and a field label
+  # never read as the same level (the parsing problem the old page had, where
+  # both card titles and field labels were uppercase-muted).
+  attr :title, :string, required: true
+  slot :action
+
+  defp settings_card_header(assigns) do
+    ~H"""
+    <div class="flex items-baseline justify-between gap-4">
+      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+        {@title}
+      </h3>
+      <div :if={@action != []} class="shrink-0">{render_slot(@action)}</div>
+    </div>
+    """
+  end
+
+  # One field inside a card: sentence-case label, optional terse description,
+  # and a control. `:inline` keeps the control on the right (toggles, numbers,
+  # selects) so labels form a scan column; `:stacked` drops a wide control
+  # (paths) full-width below. Prose is measure-capped so it never runs the
+  # full page width.
+  attr :label, :string, required: true
+  attr :description, :string, default: nil
+  attr :layout, :atom, default: :inline, values: [:inline, :stacked]
+  slot :inner_block, required: true
+
+  defp settings_field(assigns) do
+    ~H"""
+    <div class={[
+      "py-3.5 border-t border-base-content/5 first:border-t-0 first:pt-0 last:pb-0",
+      @layout == :inline && "flex items-start justify-between gap-6"
+    ]}>
+      <div class={["min-w-0", @layout == :inline && "max-w-[46ch]"]}>
+        <div class="text-sm font-medium">{@label}</div>
+        <p :if={@description} class="mt-0.5 text-xs text-base-content/50 max-w-[60ch]">
+          {@description}
+        </p>
+      </div>
+      <div class={[@layout == :stacked && "mt-2", @layout == :inline && "shrink-0 pt-0.5"]}>
+        {render_slot(@inner_block)}
+      </div>
     </div>
     """
   end
