@@ -4,9 +4,9 @@ defmodule MediaCentaurWeb.Components.Upcoming.Rail do
 
   Renders the feed's relative-time buckets in order (Today → Beyond), each
   under a quiet marker label, with events as `EventCard`s. Proximity drives
-  prominence: events the view-model flagged `hero?` render as large hero cards,
-  the rest as compact rows. Empty buckets are skipped; an all-empty feed shows a
-  single calm empty state.
+  prominence (set by the view-model): the nearest release is a full hero, the
+  second-nearest a smaller feature card, the rest compact rows. Empty buckets are
+  skipped; an all-empty feed shows a single calm empty state.
   """
 
   use Phoenix.Component
@@ -34,7 +34,7 @@ defmodule MediaCentaurWeb.Components.Upcoming.Rail do
             :for={event <- events}
             event={event}
             today={@today}
-            variant={if event.hero?, do: :hero, else: :compact}
+            variant={event.prominence}
           />
         </div>
       </section>

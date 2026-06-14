@@ -73,7 +73,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       :episode_count,
       :backdrop_path,
       :logo_path,
-      hero?: false
+      prominence: :compact
     ]
 
     @type t :: %Event{}
@@ -118,7 +118,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     bucketed =
       scheduled
       |> Enum.sort_by(& &1.air_date, Date)
-      |> flag_heroes()
+      |> flag_prominence()
       |> bucketize(context.today)
 
     %UpcomingFeed{buckets: bucketed, unscheduled: unscheduled}
@@ -242,11 +242,17 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   defp effective_mode(mode, default) when mode in [nil, "global"], do: default
   defp effective_mode(mode, _default) when is_binary(mode), do: mode
 
-  defp flag_heroes(events) do
+  # Proximity = prominence: the nearest release is the hero, the second-nearest a
+  # smaller feature card, the rest compact rows.
+  defp flag_prominence(events) do
     events
     |> Enum.with_index()
-    |> Enum.map(fn {event, index} -> %{event | hero?: index < 2} end)
+    |> Enum.map(fn {event, index} -> %{event | prominence: prominence_for(index)} end)
   end
+
+  defp prominence_for(0), do: :hero
+  defp prominence_for(1), do: :feature
+  defp prominence_for(_index), do: :compact
 
   defp bucketize(events, today) do
     grouped = Enum.group_by(events, &bucket_for(&1.air_date, today))

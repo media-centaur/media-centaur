@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.Storybook.Upcoming.Rail do
     """
   end
 
-  defp episode(status, name, season, episode, air_date, hero?, extra \\ %{}) do
+  defp episode(status, name, season, episode, air_date, prominence, extra \\ %{}) do
     Map.merge(
       %Event{
         id: Ecto.UUID.generate(),
@@ -31,7 +31,7 @@ defmodule MediaCentaurWeb.Storybook.Upcoming.Rail do
         episode_number: episode,
         air_date: air_date,
         status: status,
-        hero?: hero?
+        prominence: prominence
       },
       extra
     )
@@ -41,13 +41,13 @@ defmodule MediaCentaurWeb.Storybook.Upcoming.Rail do
     %UpcomingFeed{
       buckets: %{
         today: [
-          episode(:under_pursuit, "Nightfall Manor", 1, 8, ~D[2026-06-14], true, %{
+          episode(:under_pursuit, "Nightfall Manor", 1, 8, ~D[2026-06-14], :hero, %{
             pursuit_id: Ecto.UUID.generate()
           })
         ],
         this_week: [
-          episode(:armed, "Sample Show", 2, 4, ~D[2026-06-17], true),
-          episode(:armed, "Detective Stories", 4, 2, ~D[2026-06-20], false)
+          episode(:armed, "Sample Show", 2, 4, ~D[2026-06-17], :feature),
+          episode(:armed, "Detective Stories", 4, 2, ~D[2026-06-20], :compact)
         ],
         next_week: [
           %Event{
@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.Storybook.Upcoming.Rail do
             episode_count: 8,
             air_date: ~D[2026-06-22],
             status: :armed,
-            hero?: false
+            prominence: :compact
           }
         ],
         later: [
@@ -73,7 +73,7 @@ defmodule MediaCentaurWeb.Storybook.Upcoming.Rail do
             release_type: "theatrical",
             air_date: ~D[2026-06-30],
             status: :theatrical_info,
-            hero?: false
+            prominence: :compact
           }
         ],
         beyond: []
