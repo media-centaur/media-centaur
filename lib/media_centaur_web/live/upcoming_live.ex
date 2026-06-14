@@ -125,6 +125,9 @@ defmodule MediaCentaurWeb.UpcomingLive do
     |> Enum.map(&UpcomingFeed.release_key/1)
     |> Enum.uniq()
     |> Acquisition.statuses_for_releases()
+    # `statuses_for_releases/1` also returns cancelled/complete pursuits; only an
+    # ACTIVE pursuit means a release is genuinely being grabbed right now.
+    |> Enum.filter(fn {_key, {pursuit, _target}} -> pursuit.state == "active" end)
     |> Map.new(fn {key, {pursuit, _target}} -> {key, %{pursuit_id: pursuit.id}} end)
   end
 

@@ -125,7 +125,7 @@ defmodule MediaCentaurWeb.Components.Upcoming.EventCard do
       class="inline-flex items-center gap-1 text-sm text-info hover:underline"
     >
       <.icon name="hero-arrow-down-tray-mini" class="size-4" />
-      <span>Downloading</span>
+      <span>{Present.status_label(@event.status)}</span>
       <.icon name="hero-arrow-top-right-on-square-mini" class="size-3.5 opacity-70" />
     </.link>
     """
