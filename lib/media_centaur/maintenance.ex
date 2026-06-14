@@ -539,6 +539,31 @@ defmodule MediaCentaur.Maintenance do
     MediaCentaur.Library.count_blank_extra_names()
   end
 
+  @doc """
+  Boot-time auto-heal: runs the re-derive sweep in the background so a parser-rule
+  improvement shipped in an update reaches existing records on the next restart,
+  with no operator action. Network-free and idempotent, so running it on every
+  boot is effectively a no-op unless a rule changed.
+
+  Skipped under `:test` — the sweep writes to the DB, and a boot-spawned task runs
+  outside the test's sandbox-owned process (an ownership error waiting to happen).
+  Test coverage for the sweep itself lives in `ExtraRederiveTest`.
+  """
+  @spec heal_extra_names_on_boot(atom()) :: :skipped | :started
+  def heal_extra_names_on_boot(:test), do: :skipped
+
+  def heal_extra_names_on_boot(_env) do
+    run_async(fn ->
+      {:ok, summary} = rederive_extra_names()
+
+      if summary.updated > 0 do
+        Log.info(:library, "boot re-derive healed #{summary.updated} extra name(s)")
+      end
+    end)
+
+    :started
+  end
+
   defp resources_in_delete_order do
     [
       PendingFile,

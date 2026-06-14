@@ -8,6 +8,7 @@ defmodule MediaCentaur.Application do
       MediaCentaur.Capabilities,
       MediaCentaur.Controls,
       MediaCentaur.Library,
+      MediaCentaur.Maintenance,
       MediaCentaur.Pipeline,
       MediaCentaur.Review,
       MediaCentaur.Watcher,
@@ -162,6 +163,11 @@ defmodule MediaCentaur.Application do
     end
 
     env = Application.get_env(:media_centaur, :environment, :dev)
+
+    # Heal extra display names against the current parser rules — a parser fix
+    # shipped in an update reaches existing records on the next boot, no operator
+    # action. Network-free, idempotent, skipped under :test (see Maintenance).
+    MediaCentaur.Maintenance.heal_extra_names_on_boot(env)
 
     if should_start?(env, :start_watchers) do
       MediaCentaur.Watcher.Supervisor.start_watchers()
