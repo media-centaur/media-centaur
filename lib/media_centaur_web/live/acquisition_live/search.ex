@@ -38,6 +38,17 @@ defmodule MediaCentaurWeb.AcquisitionLive.Search do
     </div>
 
     <section :if={@session.groups != []} data-nav-zone="grid" class="space-y-3">
+      <div class="flex justify-end">
+        <button
+          type="button"
+          class="text-xs text-base-content/30 transition-colors hover:text-base-content/60"
+          phx-click="clear_search"
+          data-nav-item
+          tabindex="0"
+        >
+          Clear search
+        </button>
+      </div>
       <div :for={group <- @session.groups} class="space-y-1">
         <.group_header group={group} />
         <.group_actions :if={action_visible?(group)} group={group} />
