@@ -22,16 +22,23 @@ migrations — while leaving the expensive identity work frozen exactly as it is
 
 ## Status
 
-Phase 0 complete (ADR-057). Phase 1 (re-derive sweep) in progress. Parser bug
-itself is fixed and shipped (v0.95.2). The 28 Frieren extras are still blank on
-disk — **deliberately left as the first acceptance test of Phase 1's sweep**
-(alternatively backfilled manually if we want them fixed before Phase 1 lands).
+Phases 0–1 complete (unpushed). ADR-057 recorded; the re-derive sweep
+(`Maintenance.rederive_extra_names/0` → `Pipeline.ExtraRederive`) + writer
+invariant (`Library.update_extra_name/2`) + a Settings → Library maintenance
+button all ship, fully tested. Phase 2 (version stamp + reconciliation) next.
+The 28 Frieren extras are still blank on prod — they heal once prod runs the new
+release and the sweep button is clicked (or the on-scan path from Phase 2 lands).
 
 ## Decisions made
 
 * `2026-06-14` — Derived data is recomputable, never frozen; correctness is
   version-free (re-parse + compare), the version stamp is only a scan-path
   optimization. ([ADR-057](../decisions/architecture/2026-06-14-057-derived-data-is-recomputable.md))
+* `2026-06-14` — Phase 1 sweep is enabled even at zero blank names (idempotent +
+  network-free), so an app update's naming improvements can be applied on demand.
+* `2026-06-14` — `Extra.name` re-derive only runs when the path still parses as an
+  extra (`type: :extra`); a `content_url` that now parses as a movie is left
+  untouched, protecting collection-backfilled extras from a wrong name.
 
 ## Design summary
 

@@ -92,6 +92,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(media_dirs: [])
      |> assign(exclude_dirs: [])
      |> assign(missing_images_summary: %{total: 0, missing: 0, by_role: %{}})
+     |> assign(blank_extra_names_count: 0)
      |> assign(tmdb_test: nil)
      |> assign(prowlarr_test: nil)
      |> assign(download_client_test: nil)
@@ -119,6 +120,7 @@ defmodule MediaCentaurWeb.SettingsLive do
        clearing_database: false,
        refreshing_images: false,
        repairing_images: false,
+       rederiving_extra_names: false,
        refetching_backdrops: false,
        refreshing_credits: false,
        refreshing_series_credits: false,
@@ -261,6 +263,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       media_dirs: MediaCentaur.Config.media_dirs_entries(),
       exclude_dirs: MediaCentaur.Config.get(:exclude_dirs) || [],
       missing_images_summary: Maintenance.missing_images_summary(),
+      blank_extra_names_count: Maintenance.blank_extra_names_count(),
       tmdb_test: load_test_result(:tmdb),
       prowlarr_test: load_test_result(:prowlarr),
       download_client_test: load_test_result(:download_client),
@@ -583,6 +586,11 @@ defmodule MediaCentaurWeb.SettingsLive do
   def handle_event("repair_missing_images", _params, socket) do
     Maintenance.repair_missing_images_async(self())
     {:noreply, assign(socket, repairing_images: true)}
+  end
+
+  def handle_event("rederive_extra_names", _params, socket) do
+    Maintenance.rederive_extra_names_async(self())
+    {:noreply, assign(socket, rederiving_extra_names: true)}
   end
 
   def handle_event("refetch_backdrops", _params, socket) do
@@ -1134,6 +1142,16 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> put_flash(:info, msg)}
   end
 
+  def handle_info({:extra_names_rederived, result}, socket) do
+    {:noreply,
+     socket
+     |> assign(
+       rederiving_extra_names: false,
+       blank_extra_names_count: Maintenance.blank_extra_names_count()
+     )
+     |> put_flash(:info, rederive_extra_names_message(result))}
+  end
+
   def handle_info({:backdrop_refetch_complete, %{enqueued: enqueued}}, socket) do
     msg =
       case enqueued do
@@ -1500,6 +1518,8 @@ defmodule MediaCentaurWeb.SettingsLive do
             clearing_database={@clearing_database}
             refreshing_images={@refreshing_images}
             repairing_images={@repairing_images}
+            rederiving_extra_names={@rederiving_extra_names}
+            blank_extra_names_count={@blank_extra_names_count}
             refetching_backdrops={@refetching_backdrops}
             refreshing_credits={@refreshing_credits}
             refreshing_series_credits={@refreshing_series_credits}
@@ -3272,6 +3292,33 @@ defmodule MediaCentaurWeb.SettingsLive do
 
           <div class="flex items-start justify-between gap-4 py-3">
             <div class="min-w-0">
+              <p class="text-sm font-medium">
+                Re-derive bonus-feature names
+                <.badge :if={@blank_extra_names_count > 0} variant="warning" class="ml-2">
+                  {@blank_extra_names_count} blank
+                </.badge>
+              </p>
+              <p class="text-xs text-base-content/50 mt-0.5">
+                Re-reads each bonus feature's name from its file path, healing blank or
+                out-of-date names left by an earlier parsing bug. Network-free and safe to
+                re-run — also picks up naming improvements after an update.
+              </p>
+            </div>
+            <.button
+              variant="neutral"
+              size="sm"
+              class="shrink-0"
+              phx-click="rederive_extra_names"
+              disabled={@rederiving_extra_names}
+              data-nav-item
+              tabindex="0"
+            >
+              {if @rederiving_extra_names, do: "Re-deriving…", else: "Re-derive"}
+            </.button>
+          </div>
+
+          <div class="flex items-start justify-between gap-4 py-3">
+            <div class="min-w-0">
               <p class="text-sm font-medium">Re-fetch backdrops</p>
               <p class="text-xs text-base-content/50 mt-0.5">
                 Re-downloads every backdrop at the current artwork resolution
@@ -4294,6 +4341,17 @@ defmodule MediaCentaurWeb.SettingsLive do
     # String keys avoid creating atoms at runtime — Phoenix accepts both.
     Map.new(map, fn {key, value} -> {"phx-value-#{key}", value} end)
   end
+
+  defp rederive_extra_names_message(%{scanned: scanned, updated: updated}) do
+    cond do
+      scanned == 0 -> "No bonus features to check."
+      updated == 0 -> "Checked #{scanned} bonus feature#{plural(scanned)} — all names current."
+      true -> "Re-derived #{updated} bonus-feature name#{plural(updated)} from #{scanned} checked."
+    end
+  end
+
+  defp plural(1), do: ""
+  defp plural(_), do: "s"
 
   # Shared by the resolution-change auto-trigger and the maintenance button.
   defp start_backdrop_refetch(socket, prefix) do

@@ -3,6 +3,7 @@ defmodule MediaCentaur.Pipeline do
     deps: [MediaCentaur.TMDB, MediaCentaur.Library, MediaCentaur.Retention, MediaCentaur.Watcher],
     exports: [
       Discovery,
+      ExtraRederive,
       Image.Stats,
       Image.Supervisor,
       ImageQueue,

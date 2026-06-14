@@ -25,7 +25,13 @@ defmodule MediaCentaur.Pipeline.Stages.Parse do
     {:ok, %{payload | parsed: result}}
   end
 
-  defp extras_dirs_from_config do
+  @doc """
+  The configured extras directories, downcased, as the parser expects them.
+  Public so the re-derive sweep (`MediaCentaur.Pipeline.ExtraRederive`) parses
+  with exactly the same hint import used.
+  """
+  @spec extras_dirs_from_config() :: [String.t()] | nil
+  def extras_dirs_from_config do
     case MediaCentaur.Config.get(:extras_dirs) do
       dirs when is_list(dirs) -> Enum.map(dirs, &String.downcase/1)
       _ -> nil
