@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.95.5 — 2026-06-14
+
+### Improved
+
+- **A cleaner, easier-to-read Settings page.** Settings now opens with a large title over the same subtle backdrop as the rest of the app, and the Library section has been reworked for readability — consistent headings, tidier rows, and far less wordy descriptions so the controls stand out.
+
+### Fixed
+
+- **Keyboard and gamepad navigation no longer gets stuck on unavailable buttons.** A button that's temporarily greyed out (like an "Add" button waiting for you to type a path) could trap the cursor and block you from reaching the controls below it. Navigation now skips over unavailable buttons.
+
 ## v0.95.4 — 2026-06-14
 
 ### Improved
