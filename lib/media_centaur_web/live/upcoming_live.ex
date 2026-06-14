@@ -166,7 +166,7 @@ defmodule MediaCentaurWeb.UpcomingLive do
             scopes the ambient backdrop, matching the library/downloads page
             shell exactly so the heading sits at the same height across all
             three pages. --%>
-      <div class="relative" data-page-behavior="upcoming" data-nav-default-zone="rail">
+      <div class="relative" data-page-behavior="upcoming" data-nav-default-zone="upcoming">
         <%!-- Ambient backdrop band (masked + dimmed via `.page-atmosphere`) plus
               the fixed side scrim, both behind the content (z-0) so they enrich
               the surface, never the cards — same recipe as library/downloads. --%>
