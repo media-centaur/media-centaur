@@ -50,36 +50,21 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
 
   defp step_shell(assigns) do
     ~H"""
-    <section class="card glass-surface p-6 max-w-2xl mx-auto">
-      <header class="mb-4">
-        <div class="flex items-baseline justify-between gap-3 mb-2">
-          <p class="text-xs uppercase tracking-wide opacity-60">
-            Step {@step_index} of {@total_steps}
-          </p>
-          <.status_pill status={@result.status} />
+    <section class="glass-surface rounded-xl p-6 max-w-2xl mx-auto">
+      <header class="mb-5">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h2 class="text-2xl font-bold tracking-tight">{@content.title}</h2>
+            <p class="mt-1 text-sm text-base-content/60">{@content.short}</p>
+          </div>
+          <.status_line status={@result.status} />
         </div>
-        <h2 class="text-2xl font-semibold">{@content.title}</h2>
-        <p class="text-sm opacity-70 mt-1">{@content.short}</p>
+        <p :if={@result.detail} class={["mt-3 text-sm", status_text_class(@result.status)]}>
+          {@result.detail}
+        </p>
       </header>
 
-      <div class="space-y-3 text-sm mb-5 p-4 rounded bg-base-content/5">
-        <div>
-          <p class="font-semibold mb-1">What this is</p>
-          <p class="opacity-80">{@content.what}</p>
-        </div>
-        <div>
-          <p class="font-semibold mb-1">Why it matters</p>
-          <p class="opacity-80">{@content.why}</p>
-        </div>
-        <div>
-          <p class="font-semibold mb-1">What you'll need</p>
-          <ul class="list-disc list-inside opacity-80 space-y-1">
-            <li :for={req <- @content.requirements}>{req}</li>
-          </ul>
-        </div>
-      </div>
-
-      <.status_callout result={@result} />
+      <.requirements :if={@content.requirements != []} items={@content.requirements} />
 
       <div class="space-y-3">
         {render_slot(@inner_block)}
@@ -122,57 +107,57 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
     """
   end
 
-  attr :status, :atom, required: true
+  attr :items, :list,
+    required: true,
+    doc: "list of plain requirement strings from `Content.requirements` — a flat copy list, not a struct"
 
-  defp status_pill(assigns) do
-    {label, variant} =
-      case assigns.status do
-        :ok -> {"OK", "success"}
-        :warning -> {"Warning", "warning"}
-        :error -> {"Error", "error"}
-        :not_configured -> {"Not configured", "ghost"}
-      end
-
-    assigns = assign(assigns, label: label, variant: variant)
-
+  # "What you'll need" — the one concise, actionable block per step. Replaces
+  # the old what/why/need essay box (see `Content` moduledoc).
+  defp requirements(assigns) do
     ~H"""
-    <.badge variant={@variant}>{@label}</.badge>
-    """
-  end
-
-  attr :result, Probe.Result, required: true
-
-  # Big, color-coded callout block immediately above the step's
-  # form/inputs. Makes met/unmet state obvious at a glance — the small
-  # header pill is for at-a-glance scanning, this one is for clarity.
-  defp status_callout(assigns) do
-    {glyph, headline, classes} =
-      case assigns.result.status do
-        :ok ->
-          {"✓", "This step is configured.", "border-success/40 bg-success/10 text-success"}
-
-        :warning ->
-          {"!", "Partially configured.", "border-warning/40 bg-warning/10 text-warning"}
-
-        :error ->
-          {"✗", "This step needs attention.", "border-error/40 bg-error/10 text-error"}
-
-        :not_configured ->
-          {"…", "Not yet configured.", "border-base-content/20 bg-base-content/5 opacity-90"}
-      end
-
-    assigns = assign(assigns, glyph: glyph, headline: headline, classes: classes)
-
-    ~H"""
-    <div class={["mb-4 p-3 rounded-lg border flex items-start gap-3", @classes]}>
-      <span class="text-xl font-bold leading-none mt-0.5">{@glyph}</span>
-      <div class="flex-1 min-w-0">
-        <p class="font-semibold">{@headline}</p>
-        <p :if={@result.detail} class="text-sm opacity-90 mt-0.5">{@result.detail}</p>
-      </div>
+    <div class="glass-inset rounded-lg p-4 mb-5">
+      <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-2">
+        What you'll need
+      </p>
+      <ul class="space-y-1.5">
+        <li :for={item <- @items} class="flex gap-2 text-sm text-base-content/70">
+          <.icon name="hero-chevron-right-mini" class="size-4 mt-0.5 shrink-0 text-base-content/30" />
+          <span class="max-w-[58ch]">{item}</span>
+        </li>
+      </ul>
     </div>
     """
   end
+
+  attr :status, :atom, required: true
+
+  # Single status indicator per step — an icon + word in the step header.
+  # Replaces the old header pill *and* the big colored callout block, which
+  # said the same thing twice. The step's `detail` text renders below the
+  # header, tinted to match.
+  defp status_line(assigns) do
+    {icon, label, color} =
+      case assigns.status do
+        :ok -> {"hero-check-circle-mini", "Configured", "text-success"}
+        :warning -> {"hero-exclamation-triangle-mini", "Partial", "text-warning"}
+        :error -> {"hero-x-circle-mini", "Needs attention", "text-error"}
+        :not_configured -> {"hero-minus-circle-mini", "Not configured", "text-base-content/50"}
+      end
+
+    assigns = assign(assigns, icon: icon, label: label, color: color)
+
+    ~H"""
+    <span class={["inline-flex items-center gap-1.5 text-sm font-medium shrink-0", @color]}>
+      <.icon name={@icon} class="size-4" />
+      {@label}
+    </span>
+    """
+  end
+
+  defp status_text_class(:ok), do: "text-success"
+  defp status_text_class(:warning), do: "text-warning"
+  defp status_text_class(:error), do: "text-error"
+  defp status_text_class(:not_configured), do: "text-base-content/60"
 
   # ---------------------------------------------------------------------------
   # Binary step — mpv, ffprobe
@@ -375,46 +360,44 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
 
   def welcome_step(assigns) do
     ~H"""
-    <section class="card glass-surface p-6 max-w-2xl mx-auto">
-      <header class="mb-4">
-        <p class="text-xs uppercase tracking-wide opacity-60">
-          Step {@step_index} of {@total_steps}
-        </p>
-        <h2 class="text-2xl font-semibold mt-1">Welcome to Media Centaur</h2>
-        <p class="text-sm opacity-70 mt-1">Let's get the basics configured.</p>
+    <section class="glass-surface rounded-xl p-6 max-w-2xl mx-auto">
+      <header class="mb-5">
+        <h2 class="text-2xl font-bold tracking-tight">Welcome to Media Centaur</h2>
+        <p class="mt-1 text-sm text-base-content/60">Let's get the basics configured.</p>
       </header>
 
-      <div class="space-y-4 text-sm mb-5">
-        <p class="opacity-80">
-          Media Centaur identifies the videos in your library, fetches metadata and artwork from TMDB, plays files in mpv, and (optionally) coordinates downloads through Prowlarr. This short tour walks you through each piece.
-        </p>
+      <p class="text-sm text-base-content/70 mb-5 max-w-[60ch]">
+        This short tour points Media Centaur at your media, metadata, and player.
+        Media directories and TMDB are required — the rest is optional and can be
+        set up later from <span class="font-medium text-base-content/90">Settings</span>.
+      </p>
 
-        <div class="p-4 rounded bg-base-content/5">
-          <p class="font-semibold mb-2">What this tour covers</p>
-          <ol class="list-decimal list-inside opacity-80 space-y-1">
-            <li><span class="font-medium">Media directories</span> — where your video files live.</li>
-            <li><span class="font-medium">TMDB</span> — metadata, posters, release tracking.</li>
-            <li><span class="font-medium">mpv</span> — the media player.</li>
-            <li><span class="font-medium">ffprobe</span> — embedded subtitle detection.</li>
-            <li>
-              <span class="font-medium">Prowlarr</span> <span class="opacity-60">(optional)</span>
-              — in-app indexer search.
-            </li>
-            <li>
-              <span class="font-medium">Download client</span>
-              <span class="opacity-60">(optional)</span> — track grab progress.
-            </li>
-            <li>
-              <span class="font-medium">Summary</span> — review what's done and what's still missing.
-            </li>
-          </ol>
-        </div>
-
-        <p class="opacity-80">
-          Optional steps (Prowlarr, download client, mpv, ffprobe) have a
-          <span class="font-medium">Skip</span>
-          button so you can come back later via <span class="font-medium">Settings → Overview → Run setup tour</span>. Media directories and TMDB are required for the rest of the app to do anything useful, so the tour can't move past them until they verify.
+      <div class="glass-inset rounded-lg p-4 mb-5">
+        <p class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-2">
+          What the tour covers
         </p>
+        <ol class="space-y-1.5 text-sm text-base-content/70">
+          <li>
+            <span class="font-medium text-base-content/90">Media directories</span>
+            — where your files live
+          </li>
+          <li>
+            <span class="font-medium text-base-content/90">TMDB</span> — metadata, posters, tracking
+          </li>
+          <li><span class="font-medium text-base-content/90">mpv</span> — the media player</li>
+          <li>
+            <span class="font-medium text-base-content/90">ffprobe</span>
+            <span class="text-base-content/40">(optional)</span> — embedded subtitles
+          </li>
+          <li>
+            <span class="font-medium text-base-content/90">Prowlarr</span>
+            <span class="text-base-content/40">(optional)</span> — in-app search
+          </li>
+          <li>
+            <span class="font-medium text-base-content/90">Download client</span>
+            <span class="text-base-content/40">(optional)</span> — grab progress
+          </li>
+        </ol>
       </div>
 
       <footer class="flex justify-end mt-6 pt-4 border-t border-base-content/10">
@@ -440,13 +423,10 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
 
   def summary_step(assigns) do
     ~H"""
-    <section class="card glass-surface p-6 max-w-2xl mx-auto">
-      <header class="mb-4">
-        <p class="text-xs uppercase tracking-wide opacity-60">
-          Step {@step_index} of {@total_steps}
-        </p>
-        <h2 class="text-2xl font-semibold mt-1">Setup summary</h2>
-        <p class="text-sm opacity-70 mt-1">
+    <section class="glass-surface rounded-xl p-6 max-w-2xl mx-auto">
+      <header class="mb-5">
+        <h2 class="text-2xl font-bold tracking-tight">Setup summary</h2>
+        <p class="mt-1 text-sm text-base-content/60">
           {summary_headline(@probes)}
         </p>
       </header>
@@ -459,7 +439,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
               <p class="font-medium">{Content.for(probe.id).title}</p>
               <.badge :if={probe.critical?} variant="error" size="xs">Required</.badge>
             </div>
-            <p :if={probe.detail} class="text-xs opacity-70 mt-1 ml-6">{probe.detail}</p>
+            <p :if={probe.detail} class="text-xs text-base-content/60 mt-1 ml-7">{probe.detail}</p>
           </div>
           <.button
             variant="dismiss"
@@ -498,18 +478,18 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
   attr :status, :atom, required: true
 
   defp summary_glyph(assigns) do
-    {char, class} =
+    {icon, class} =
       case assigns.status do
-        :ok -> {"✓", "text-success"}
-        :warning -> {"!", "text-warning"}
-        :error -> {"✗", "text-error"}
-        :not_configured -> {"—", "opacity-50"}
+        :ok -> {"hero-check-circle-mini", "text-success"}
+        :warning -> {"hero-exclamation-triangle-mini", "text-warning"}
+        :error -> {"hero-x-circle-mini", "text-error"}
+        :not_configured -> {"hero-minus-circle-mini", "text-base-content/40"}
       end
 
-    assigns = assign(assigns, char: char, class: class)
+    assigns = assign(assigns, icon: icon, class: class)
 
     ~H"""
-    <span class={["font-bold", @class]}>{@char}</span>
+    <.icon name={@icon} class={"size-5 shrink-0 #{@class}"} />
     """
   end
 end

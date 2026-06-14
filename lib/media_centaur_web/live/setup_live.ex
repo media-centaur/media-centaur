@@ -430,18 +430,55 @@ defmodule MediaCentaurWeb.SetupLive do
       |> assign(:blocked?, blocked?)
 
     ~H"""
-    <div class="py-8 px-4 max-w-3xl mx-auto">
-      <h1 class="text-3xl font-semibold mb-6">Setup tour</h1>
+    <div class="relative min-h-screen">
+      <%!-- Same scrim as the rest of the app (Settings et al.) — depth without a
+            photographic backdrop competing with a first-run wizard. --%>
+      <div class="page-side-dim" aria-hidden="true"></div>
 
-      <.step_for
-        step={@current_step}
-        probe={@probe}
-        probes={@probes}
-        content={@content}
-        step_index={@step_index}
-        total={@total}
-        blocked?={@blocked?}
-      />
+      <div class="relative z-[1] py-10 px-4">
+        <header class="max-w-2xl mx-auto mb-6">
+          <div class="flex flex-col items-center text-center">
+            <img
+              src={~p"/images/centaur-logo.png"}
+              alt="Media Centaur"
+              width="96"
+              height="96"
+              class="centaur-logo h-24 w-24 object-contain"
+              loading="eager"
+              decoding="sync"
+            />
+            <p class="mt-3 text-xs font-medium uppercase tracking-widest text-base-content/40">
+              Media Centaur · Setup
+            </p>
+          </div>
+
+          <div class="mt-5 flex items-center gap-3">
+            <div data-setup-progress class="flex flex-1 gap-1.5">
+              <div
+                :for={i <- 1..@total}
+                class={[
+                  "h-1 flex-1 rounded-full transition-colors",
+                  if(i <= @step_index, do: "bg-primary", else: "bg-base-content/15")
+                ]}
+              >
+              </div>
+            </div>
+            <span class="shrink-0 text-xs text-base-content/50">
+              Step {@step_index} of {@total}
+            </span>
+          </div>
+        </header>
+
+        <.step_for
+          step={@current_step}
+          probe={@probe}
+          probes={@probes}
+          content={@content}
+          step_index={@step_index}
+          total={@total}
+          blocked?={@blocked?}
+        />
+      </div>
     </div>
     """
   end
@@ -551,7 +588,7 @@ defmodule MediaCentaurWeb.SetupLive do
           class="space-y-2"
         >
           <input type="hidden" name="_integration" value="tmdb" />
-          <p class="text-sm opacity-80">
+          <p class="text-sm text-base-content/70">
             TMDB API access is <strong>free</strong>. Create an account at
             <.link
               href="https://www.themoviedb.org/signup"
@@ -568,7 +605,7 @@ defmodule MediaCentaurWeb.SetupLive do
               class="link link-primary"
             >Settings → API</.link>.
           </p>
-          <label class="text-xs uppercase tracking-wide opacity-60 block">
+          <label class="text-sm font-medium text-base-content/80 block">
             API key (v4 read-access token)
           </label>
           <input
@@ -603,7 +640,7 @@ defmodule MediaCentaurWeb.SetupLive do
           class="space-y-2"
         >
           <input type="hidden" name="_integration" value="prowlarr" />
-          <label class="text-xs uppercase tracking-wide opacity-60 block">URL</label>
+          <label class="text-sm font-medium text-base-content/80 block">URL</label>
           <input
             type="text"
             name="prowlarr_url"
@@ -611,7 +648,7 @@ defmodule MediaCentaurWeb.SetupLive do
             placeholder="http://localhost:9696"
             class="input input-bordered input-sm w-full font-mono text-sm"
           />
-          <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">API key</label>
+          <label class="text-sm font-medium text-base-content/80 mt-3 block">API key</label>
           <input
             type="password"
             name="prowlarr_api_key"
@@ -646,7 +683,7 @@ defmodule MediaCentaurWeb.SetupLive do
           class="space-y-2"
         >
           <input type="hidden" name="_integration" value="download_client" />
-          <label class="text-xs uppercase tracking-wide opacity-60 block">Type</label>
+          <label class="text-sm font-medium text-base-content/80 block">Type</label>
           <select
             name="download_client_type"
             class="select select-bordered select-sm w-full font-mono text-sm"
@@ -656,7 +693,7 @@ defmodule MediaCentaurWeb.SetupLive do
           <p class="text-xs opacity-70 mt-1">
             qBittorrent is currently the only supported download client.
           </p>
-          <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">URL</label>
+          <label class="text-sm font-medium text-base-content/80 mt-3 block">URL</label>
           <input
             type="text"
             name="download_client_url"
@@ -664,14 +701,14 @@ defmodule MediaCentaurWeb.SetupLive do
             placeholder="http://localhost:8080"
             class="input input-bordered input-sm w-full font-mono text-sm"
           />
-          <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">Username</label>
+          <label class="text-sm font-medium text-base-content/80 mt-3 block">Username</label>
           <input
             type="text"
             name="download_client_username"
             value={@dc_username}
             class="input input-bordered input-sm w-full font-mono text-sm"
           />
-          <label class="text-xs uppercase tracking-wide opacity-60 mt-2 block">Password</label>
+          <label class="text-sm font-medium text-base-content/80 mt-3 block">Password</label>
           <input
             type="password"
             name="download_client_password"
