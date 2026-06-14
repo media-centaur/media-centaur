@@ -192,3 +192,76 @@ describe("modal item scoping (writer)", () => {
     expect(scopedWriter.focusByIndex("modal", 2)).toBe(false)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Non-focusable item filtering — a disabled control (e.g. a form's submit
+// button that's disabled until the field is valid) is never a nav target. A
+// browser refuses to focus it, so if the adapter included it in the item set
+// the orchestrator would call focusByIndex, fail, and the cursor would jam on
+// the item before it — unable to step past to later items. queryContextItems
+// is the single chokepoint feeding count/index/focus, so it filters there.
+// ---------------------------------------------------------------------------
+
+const GRID_SELECTOR = "[data-nav-zone='grid'] [data-nav-item]"
+const GRID_CONFIG = { contextSelectors: { grid: GRID_SELECTOR } }
+
+function fakeGridItem(label, { disabled = false } = {}) {
+  return {
+    label,
+    disabled,
+    dataset: {},
+    hasAttribute(name) {
+      if (name === "data-nav-item") return true
+      if (name === "disabled") return disabled
+      return false
+    },
+    focus() { globalThis.document.activeElement = this },
+    scrollIntoView() {},
+  }
+}
+
+function stubGridDocument(items) {
+  const real = globalThis.document
+  globalThis.document = {
+    activeElement: null,
+    body: {},
+    documentElement: {},
+    querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null },
+    querySelectorAll(selector) { return selector === GRID_SELECTOR ? items : [] },
+  }
+  restore = () => { globalThis.document = real }
+}
+
+describe("non-focusable item filtering", () => {
+  const gridReader = createDomReader(GRID_CONFIG)
+  const gridWriter = createDomWriter(GRID_CONFIG)
+
+  test("disabled items are excluded from the count", () => {
+    stubGridDocument([
+      fakeGridItem("a"),
+      fakeGridItem("b", { disabled: true }),
+      fakeGridItem("c"),
+    ])
+    expect(gridReader.getItemCount("grid")).toBe(2)
+  })
+
+  test("indexing skips the disabled item (c is index 1, not 2)", () => {
+    const items = [fakeGridItem("a"), fakeGridItem("b", { disabled: true }), fakeGridItem("c")]
+    stubGridDocument(items)
+    expect(gridReader.getItemAt("grid", 1)).toBe(items[2])
+  })
+
+  test("focusByIndex lands on the next focusable item, not the disabled one", () => {
+    const items = [fakeGridItem("a"), fakeGridItem("b", { disabled: true }), fakeGridItem("c")]
+    stubGridDocument(items)
+    expect(gridWriter.focusByIndex("grid", 1)).toBe(true)
+    expect(globalThis.document.activeElement).toBe(items[2])
+  })
+
+  test("a disabled item between focusables doesn't jam the focused index", () => {
+    const items = [fakeGridItem("a"), fakeGridItem("b", { disabled: true }), fakeGridItem("c")]
+    stubGridDocument(items)
+    globalThis.document.activeElement = items[2]
+    expect(gridReader.getFocusedIndex("grid")).toBe(1)
+  })
+})
