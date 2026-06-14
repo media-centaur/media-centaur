@@ -68,6 +68,15 @@ defmodule MediaCentaurWeb.SetupLiveTest do
       refute html =~ "What this is"
       refute html =~ "Why it matters"
     end
+
+    test "wires the input-nav DOM contract (page behavior + grid zone + nav items)", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/setup?step=media_dirs")
+
+      assert has_element?(view, "[data-page-behavior='setup'][data-nav-default-zone='setup']")
+      assert has_element?(view, "section[data-nav-zone='grid']")
+      # The footer Next/Back and the form controls are reachable nav items.
+      assert has_element?(view, "[data-nav-zone='grid'] [data-nav-item][tabindex='0']")
+    end
   end
 
   describe "navigation events" do
