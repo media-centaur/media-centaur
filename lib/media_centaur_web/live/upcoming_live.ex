@@ -241,10 +241,19 @@ defmodule MediaCentaurWeb.UpcomingLive do
     {:noreply, shift_month(socket, +1)}
   end
 
+  # Only marked days are clickable (see MiniMonth), so a jump always has a
+  # matching dated card in the rail. Set the focused-day ring and tell the
+  # client to scroll the rail to that day's first card.
   def handle_event("jump_to_day", %{"date" => iso}, socket) do
     case Date.from_iso8601(iso) do
-      {:ok, date} -> {:noreply, assign(socket, focused_day: date)}
-      _error -> {:noreply, socket}
+      {:ok, date} ->
+        {:noreply,
+         socket
+         |> assign(focused_day: date)
+         |> push_event("upcoming:scroll_to_day", %{date: iso})}
+
+      _error ->
+        {:noreply, socket}
     end
   end
 

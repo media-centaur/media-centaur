@@ -42,6 +42,7 @@ defmodule MediaCentaurWeb.Components.Upcoming.EventCard do
       tabindex="0"
       role="button"
       data-event-status={@event.status}
+      data-date={@event.air_date && Date.to_iso8601(@event.air_date)}
       phx-click="select_event"
       phx-value-item-id={@event.item_id}
     >
@@ -83,6 +84,7 @@ defmodule MediaCentaurWeb.Components.Upcoming.EventCard do
       tabindex="0"
       role="button"
       data-event-status={@event.status}
+      data-date={@event.air_date && Date.to_iso8601(@event.air_date)}
       phx-click="select_event"
       phx-value-item-id={@event.item_id}
     >

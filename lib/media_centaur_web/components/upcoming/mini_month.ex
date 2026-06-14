@@ -104,17 +104,22 @@ defmodule MediaCentaurWeb.Components.Upcoming.MiniMonth do
     ~H"""
     <button
       type="button"
-      class={[
-        "relative flex h-full w-full flex-col items-center justify-center rounded text-[11px] tabular-nums transition-colors",
-        cond do
-          @is_today -> "bg-primary font-semibold text-primary-content"
-          @is_focused -> "ring-1 ring-primary/60 text-base-content"
-          @mark -> "text-base-content hover:bg-base-content/[0.06]"
-          true -> "text-base-content/40 hover:bg-base-content/[0.04]"
-        end
-      ]}
-      phx-click="jump_to_day"
-      phx-value-date={Date.to_iso8601(@date)}
+      class={
+        [
+          "relative flex h-full w-full flex-col items-center justify-center rounded text-[11px] tabular-nums transition-colors",
+          # Only days with a release are interactive (they have a card to jump
+          # to); empty days are inert numbers, no pointer, no hover.
+          if(@mark, do: "cursor-pointer", else: "cursor-default"),
+          cond do
+            @is_today -> "bg-primary font-semibold text-primary-content"
+            @is_focused -> "ring-1 ring-primary/60 text-base-content"
+            @mark -> "text-base-content hover:bg-base-content/[0.06]"
+            true -> "text-base-content/40"
+          end
+        ]
+      }
+      phx-click={@mark && "jump_to_day"}
+      phx-value-date={@mark && Date.to_iso8601(@date)}
     >
       <span>{@date.day}</span>
       <span
