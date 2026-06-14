@@ -119,6 +119,85 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
+  describe "search excludes all results" do
+    setup do
+      movie = create_standalone_movie(%{name: "Findable Movie"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      {:ok, movie: movie}
+    end
+
+    test "a filter that matches nothing shows the no-matches state, not the scan prompt",
+         %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      html =
+        view
+        |> element("form[phx-change='filter']")
+        |> render_change(%{filter_text: "zzzznomatch"})
+
+      assert html =~ "No titles match",
+             "an empty filter result must explain the filter excluded everything"
+
+      assert html =~ "Clear filters"
+
+      refute html =~ "Scan media directories",
+             "must not offer to scan when the library has entries that a filter is hiding"
+
+      refute html =~ "No media yet",
+             "the empty-library copy is wrong when the library is non-empty"
+    end
+
+    test "clearing the filter from the no-matches state restores the grid", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      view
+      |> element("form[phx-change='filter']")
+      |> render_change(%{filter_text: "zzzznomatch"})
+
+      view
+      |> element("button[phx-click='reset_filters']")
+      |> render_click()
+
+      _ = assert_patch(view)
+
+      assert render(view) =~ "Findable Movie"
+    end
+
+    test "the search box exposes a clear control once it holds text", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      html =
+        view
+        |> element("form[phx-change='filter']")
+        |> render_change(%{filter_text: "Findable"})
+
+      assert html =~ "phx-click=\"clear_filter\"",
+             "a non-empty filter must offer an inline clear (×) affordance"
+    end
+
+    test "clear_filter empties the text filter but keeps the rest of the URL state",
+         %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/library?tab=movies")
+
+      view
+      |> element("form[phx-change='filter']")
+      |> render_change(%{filter_text: "Findable"})
+
+      # Consume the patch the filter change itself pushed so assert_patch
+      # below sees the clear, not the typed query.
+      _ = assert_patch(view)
+
+      view
+      |> element("button[phx-click='clear_filter']")
+      |> render_click()
+
+      patched_to = assert_patch(view)
+
+      refute patched_to =~ "filter=", "clearing the search must drop the filter param"
+      assert patched_to =~ "tab=movies", "clearing the search must preserve the active tab"
+    end
+  end
+
   describe "detail modal dismissal" do
     # Regression: clicking inside a sibling overlay (e.g. Console drawer)
     # must not dismiss the detail modal. The dismiss mechanism must

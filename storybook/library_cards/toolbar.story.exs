@@ -109,7 +109,9 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
           },
           %Variation{
             id: :active_filter,
-            description: "Filter populated with a generic term — expanded to full width.",
+            description:
+              "Filter populated with a generic term — expanded to full width, " <>
+                "with the inline clear (×) button that appears once the field holds text.",
             attributes: base_attrs(filter_text: "drama")
           }
         ]

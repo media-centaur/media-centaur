@@ -206,6 +206,16 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
             data-nav-item
             tabindex="0"
           />
+          <button
+            :if={@filter_text != ""}
+            type="button"
+            phx-click="clear_filter"
+            class="library-filter-clear"
+            aria-label="Clear search"
+            tabindex="0"
+          >
+            <.icon name="hero-x-mark-mini" class="size-4" />
+          </button>
         </div>
       </form>
     </div>

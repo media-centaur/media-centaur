@@ -186,6 +186,19 @@ defmodule MediaCentaurWeb.LibraryLive do
      )}
   end
 
+  # Inline × on the search box — drop only the text filter, preserving the
+  # active tab and sort.
+  def handle_event("clear_filter", _params, socket) do
+    {:noreply, push_patch(socket, to: build_path(socket, %{filter: ""}))}
+  end
+
+  # "Clear filters" in the no-matches empty state — reset every filter that
+  # can hide a card (tab, text, in-progress) so the grid is guaranteed to
+  # repopulate; sort is a presentation choice, not a filter, so it stays.
+  def handle_event("reset_filters", _params, socket) do
+    {:noreply, push_patch(socket, to: build_path(socket, %{tab: :all, filter: "", in_progress: false}))}
+  end
+
   # Run on a supervised Task so the socket stays responsive — a
   # synchronous call would block render and the "Scanning…" label would
   # never appear. Same pattern as `SettingsLive.handle_event("scan", ...)`.
@@ -373,7 +386,11 @@ defmodule MediaCentaurWeb.LibraryLive do
               </.badge>
             </div>
 
-            <div :if={@grid_count == 0} class="py-8 text-center empty-state-enter space-y-3">
+            <%!-- Genuinely-empty library: prompt to scan or configure. --%>
+            <div
+              :if={empty_grid_reason(@grid_count, @counts.all) == :library_empty}
+              class="py-8 text-center empty-state-enter space-y-3"
+            >
               <div :if={@media_dirs_configured} class="max-w-md mx-auto space-y-3">
                 <p class="text-base-content/80">No media yet.</p>
                 <p :if={@pipeline_queue_depth > 0} class="text-sm opacity-70">
@@ -402,6 +419,20 @@ defmodule MediaCentaurWeb.LibraryLive do
                   data-nav-item
                 >
                   Configure library
+                </.button>
+              </div>
+            </div>
+
+            <%!-- Library has entries but the active filter hid them all:
+                  offer to clear the filter, never to scan. --%>
+            <div
+              :if={empty_grid_reason(@grid_count, @counts.all) == :no_matches}
+              class="py-8 text-center empty-state-enter space-y-3"
+            >
+              <div class="max-w-md mx-auto space-y-3">
+                <p class="text-base-content/80">{no_matches_label(@filter_text)}</p>
+                <.button variant="dismiss" size="sm" phx-click="reset_filters" data-nav-item>
+                  Clear filters
                 </.button>
               </div>
             </div>
