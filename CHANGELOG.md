@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.95.0 — 2026-06-14
+
+### Improved
+
+- **Graduated prominence on the Upcoming page.** The Upcoming timeline now scales each release by how soon it arrives — the nearest release shows as a full-width hero, the next as a smaller feature banner, and everything else as compact rows. Two big releases no longer stack as equal giants and bury the rest of the list.
+- **Dismiss a finished search on the Downloads page.** A release search that finished or was interrupted used to linger with only a Retry option. There's now a quiet **Clear search** link in the search area to end it, so an interrupted search is no longer a dead end.
+
+### Fixed
+
+- **The episode list no longer disappears from a TV series after you close the player.** Closing the player while a series detail panel was open could leave the panel showing the cover art and Play button but with its seasons and episodes gone. The series view now keeps its full episode list when it refreshes.
+- **Upcoming no longer shows phantom or stale entries.** A title whose download was cancelled long ago no longer reads as if it's still downloading, and a movie's past theatrical date no longer sticks at the top of the timeline as if it were releasing today — the upcoming digital date now carries the title instead. The in-progress label on an active grab now reads **Grabbing** rather than Downloading, which is honest for the whole search-and-download process.
+
 ## v0.94.1 — 2026-06-14
 
 ### Improved
