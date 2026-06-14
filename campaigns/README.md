@@ -21,6 +21,16 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`deriver-model.md`](deriver-model.md) —
+  **planning.** Separate recomputable *derived* data (filename-parsed display
+  names) from frozen *identity* (TMDB linkage) so a parser fix heals existing
+  records on the next sweep instead of needing a hand-written backfill (origin:
+  the Frieren "Web Previews" bug, fixed v0.95.2). Three shippable slices: a
+  network-free, version-free re-derive sweep (`Extra.name` is the only derived
+  display field today) → a `deriver_version` stamp turning `Discovery`'s boolean
+  skip into a four-way reconciliation decision with on-scan auto-heal → folding
+  the existing `relink_moved_files` in and resolving the deferred-`ExtraFile`
+  inconsistency.
 * [`upcoming-overhaul.md`](upcoming-overhaul.md) —
   **built; shipped to `main` (unpushed), pending release tag.** Overhauled
   `/upcoming` per the section-overhaul house style into a time-first forecast: an
