@@ -162,56 +162,58 @@ defmodule MediaCentaurWeb.UpcomingLive do
         <TitleDetail.title_detail :if={@detail} detail={@detail} today={@today} />
       </:overlays>
 
-      <%!-- Ambient backdrop band (masked + dimmed via `.page-atmosphere`) plus
-            the fixed side scrim, both behind the content (z-0) so they enrich
-            the surface, never the cards — same recipe as library/downloads. --%>
-      <div :if={@page_backdrop} class="page-atmosphere" aria-hidden="true">
-        <img src={@page_backdrop} alt="" loading="eager" decoding="sync" />
-      </div>
-      <div :if={@page_backdrop} class="page-side-dim" aria-hidden="true"></div>
+      <%!-- Outer relative wrapper carries the page-behavior + default zone and
+            scopes the ambient backdrop, matching the library/downloads page
+            shell exactly so the heading sits at the same height across all
+            three pages. --%>
+      <div class="relative" data-page-behavior="upcoming" data-nav-default-zone="rail">
+        <%!-- Ambient backdrop band (masked + dimmed via `.page-atmosphere`) plus
+              the fixed side scrim, both behind the content (z-0) so they enrich
+              the surface, never the cards — same recipe as library/downloads. --%>
+        <div :if={@page_backdrop} class="page-atmosphere" aria-hidden="true">
+          <img src={@page_backdrop} alt="" loading="eager" decoding="sync" />
+        </div>
+        <div :if={@page_backdrop} class="page-side-dim" aria-hidden="true"></div>
 
-      <div
-        data-page-behavior="upcoming"
-        data-nav-default-zone="rail"
-        class="relative z-[1] space-y-6 py-2"
-      >
-        <header class="flex items-start justify-between gap-3">
-          <div>
-            <h1 class="text-3xl font-bold tracking-tight">Upcoming</h1>
-            <p class="mt-1 text-sm text-base-content/60">{@subtitle}</p>
-          </div>
-          <div :if={@tmdb_ready} data-nav-zone="actions">
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 rounded-lg border border-base-content/10 px-3 py-1.5 text-sm text-base-content/80 transition-colors hover:bg-base-content/[0.06]"
-              data-nav-item
-              tabindex="0"
-              phx-click="open_track_modal"
-            >
-              <.icon name="hero-plus-mini" class="size-4" />
-              <span>Track something</span>
-            </button>
-          </div>
-        </header>
+        <div class="relative z-[1] space-y-6">
+          <header class="flex items-start justify-between gap-3">
+            <div>
+              <h1 class="text-3xl font-bold tracking-tight">Upcoming</h1>
+              <p class="mt-1 text-sm text-base-content/60">{@subtitle}</p>
+            </div>
+            <div :if={@tmdb_ready} data-nav-zone="actions">
+              <button
+                type="button"
+                class="inline-flex items-center gap-1.5 rounded-lg border border-base-content/10 px-3 py-1.5 text-sm text-base-content/80 transition-colors hover:bg-base-content/[0.06]"
+                data-nav-item
+                tabindex="0"
+                phx-click="open_track_modal"
+              >
+                <.icon name="hero-plus-mini" class="size-4" />
+                <span>Track something</span>
+              </button>
+            </div>
+          </header>
 
-        <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
-          <div class="space-y-8">
-            <Rail.rail feed={@feed} today={@today} />
-            <Stragglers.stragglers stragglers={@stragglers} />
-          </div>
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_300px]">
+            <div class="space-y-8">
+              <Rail.rail feed={@feed} today={@today} />
+              <Stragglers.stragglers stragglers={@stragglers} />
+            </div>
 
-          <%!-- Nudge the companion down so the calendar's top edge lines up
-                with the first hero card (which sits below its bucket marker)
-                rather than with the marker — visual balance at lg+. --%>
-          <div class="lg:mt-7">
-            <div class="lg:sticky lg:top-6">
-              <MiniMonth.mini_month
-                year={elem(@mini_month, 0)}
-                month={elem(@mini_month, 1)}
-                today={@today}
-                focused_day={@focused_day}
-                marks={@mini_month_marks}
-              />
+            <%!-- Nudge the companion down so the calendar's top edge lines up
+                  with the first hero card (which sits below its bucket marker)
+                  rather than with the marker — visual balance at lg+. --%>
+            <div class="lg:mt-7">
+              <div class="lg:sticky lg:top-6">
+                <MiniMonth.mini_month
+                  year={elem(@mini_month, 0)}
+                  month={elem(@mini_month, 1)}
+                  today={@today}
+                  focused_day={@focused_day}
+                  marks={@mini_month_marks}
+                />
+              </div>
             </div>
           </div>
         </div>
