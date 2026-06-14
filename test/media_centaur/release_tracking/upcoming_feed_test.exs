@@ -401,4 +401,73 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       assert straggler.media_type == :movie
     end
   end
+
+  describe "stale past releases (the forecast is about the future)" do
+    test "a past theatrical release is dropped from the forecast" do
+      item = movie_item()
+
+      past =
+        release(item, %{
+          title: "old-theatrical",
+          air_date: days(-20),
+          release_type: "theatrical",
+          released: true
+        })
+
+      feed = UpcomingFeed.build([past], armed_context())
+
+      refute Enum.any?(all_events(feed), &(&1.title == "old-theatrical"))
+    end
+
+    test "a future theatrical release is kept (anticipation)" do
+      item = movie_item()
+
+      future =
+        release(item, %{title: "future-theatrical", air_date: days(10), release_type: "theatrical"})
+
+      feed = UpcomingFeed.build([future], armed_context())
+
+      assert find_event(feed, "future-theatrical").status == :theatrical_info
+    end
+
+    test "a past release that just landed in the library is kept (closure beat)" do
+      item = tv_item()
+
+      landed =
+        release(item, %{
+          title: "landed",
+          air_date: days(-1),
+          released: true,
+          in_library: true,
+          season_number: 1,
+          episode_number: 1
+        })
+
+      feed = UpcomingFeed.build([landed], armed_context())
+
+      assert find_event(feed, "landed").status == :in_library
+    end
+
+    test "a past release under an active pursuit is kept" do
+      item = tv_item()
+
+      ep =
+        release(item, %{
+          title: "grabbing",
+          air_date: days(-2),
+          released: true,
+          season_number: 1,
+          episode_number: 1
+        })
+
+      context =
+        armed_context(%{
+          grab_status_by_key: %{UpcomingFeed.release_key(ep) => %{pursuit_id: Ecto.UUID.generate()}}
+        })
+
+      feed = UpcomingFeed.build([ep], context)
+
+      assert find_event(feed, "grabbing").status == :under_pursuit
+    end
+  end
 end

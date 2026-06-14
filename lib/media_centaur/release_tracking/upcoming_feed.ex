@@ -117,6 +117,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
 
     bucketed =
       scheduled
+      |> Enum.filter(&forecast_worthy?(&1, context.today))
       |> Enum.sort_by(& &1.air_date, Date)
       |> flag_prominence()
       |> bucketize(context.today)
@@ -241,6 +242,16 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
 
   defp effective_mode(mode, default) when mode in [nil, "global"], do: default
   defp effective_mode(mode, _default) when is_binary(mode), do: mode
+
+  # A forecast is about the future. A *past* release earns a spot only as a
+  # meaningful beat: it just landed (closure), it's actively being grabbed, or
+  # it's armed to grab. Past theatrical dates (released, never enter the library,
+  # never grabbed) would otherwise linger forever as "Today" — drop them; the
+  # future digital date carries the title.
+  defp forecast_worthy?(%Event{air_date: date, status: status}, today) do
+    is_nil(date) or Date.compare(date, today) != :lt or
+      status in [:in_library, :under_pursuit, :armed]
+  end
 
   # Proximity = prominence: the nearest release is the hero, the second-nearest a
   # smaller feature card, the rest compact rows.

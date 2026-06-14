@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.Components.Upcoming.PresentTest do
     test "armed reads as auto-grabbing (success); under_pursuit as downloading (info); theatrical as muted info-only" do
       assert Present.status_label(:armed) =~ "grab"
       assert Present.status_tone(:armed) == :success
-      assert Present.status_label(:under_pursuit) =~ "Download"
+      assert Present.status_label(:under_pursuit) =~ "Grabb"
       assert Present.status_tone(:under_pursuit) == :info
       assert Present.status_tone(:theatrical_info) == :muted
     end

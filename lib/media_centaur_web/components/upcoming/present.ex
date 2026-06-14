@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.Components.Upcoming.Present do
 
   @spec status_label(atom()) :: String.t()
   def status_label(:armed), do: "Auto-grabbing"
-  def status_label(:under_pursuit), do: "Downloading"
+  def status_label(:under_pursuit), do: "Grabbing"
   def status_label(:in_library), do: "In your library"
   def status_label(:theatrical_info), do: "In theaters"
   def status_label(:upcoming), do: "Upcoming"
