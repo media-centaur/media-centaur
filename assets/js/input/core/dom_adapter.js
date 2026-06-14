@@ -25,18 +25,29 @@ function activeModalElement() {
 }
 
 /**
+ * A disabled control is never a nav target: the browser refuses to focus it,
+ * so including it would make focusByIndex fail and jam the cursor on the item
+ * before it (unable to step past a disabled item to reach later ones). Filter
+ * it out at the single chokepoint so count, index, and focus all agree.
+ */
+function isNavigable(el) {
+  return !el.disabled && !el.hasAttribute("disabled")
+}
+
+/**
  * Resolve the nav items for a context. MODAL items are scoped to the active
  * modal element (see `activeModalElement`); every other context uses its
- * flat config selector. Returns an array (possibly empty).
+ * flat config selector. Disabled items are excluded (see `isNavigable`).
+ * Returns an array (possibly empty).
  */
 function queryContextItems(selectors, context) {
   if (context === Context.MODAL) {
     const modal = activeModalElement()
-    return modal ? Array.from(modal.querySelectorAll("[data-nav-item]")) : []
+    return modal ? Array.from(modal.querySelectorAll("[data-nav-item]")).filter(isNavigable) : []
   }
   const selector = selectors[context]
   if (!selector) return []
-  return Array.from(document.querySelectorAll(selector))
+  return Array.from(document.querySelectorAll(selector)).filter(isNavigable)
 }
 
 /**
