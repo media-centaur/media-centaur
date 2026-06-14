@@ -499,4 +499,10 @@ defmodule MediaCentaur.MaintenanceTest do
       assert Maintenance.heal_extra_names_on_boot(:test) == :skipped
     end
   end
+
+  describe "backfill_extra_files_on_boot/1" do
+    test "skips entirely in the test environment (no boot-task DB writes under the sandbox)" do
+      assert Maintenance.backfill_extra_files_on_boot(:test) == :skipped
+    end
+  end
 end

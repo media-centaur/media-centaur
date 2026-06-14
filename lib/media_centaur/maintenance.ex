@@ -564,6 +564,28 @@ defmodule MediaCentaur.Maintenance do
     :started
   end
 
+  @doc """
+  Boot-time backfill: creates `ExtraFile` rows for extras imported before the
+  ingest path wrote them (ExtraFile-unification / Schema v2 "Task G"), so they
+  become "linked" and stop being re-emitted by `rescan_unlinked`. Network-free,
+  idempotent. Skipped under `:test` (a boot-spawned task runs outside the
+  sandbox-owned process); `Library.backfill_extra_files/0` is tested directly.
+  """
+  @spec backfill_extra_files_on_boot(atom()) :: :skipped | :started
+  def backfill_extra_files_on_boot(:test), do: :skipped
+
+  def backfill_extra_files_on_boot(_env) do
+    run_async(fn ->
+      %{created: created} = MediaCentaur.Library.backfill_extra_files()
+
+      if created > 0 do
+        Log.info(:library, "boot ExtraFile backfill linked #{created} extra file(s)")
+      end
+    end)
+
+    :started
+  end
+
   defp resources_in_delete_order do
     [
       PendingFile,

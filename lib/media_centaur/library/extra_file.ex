@@ -30,10 +30,13 @@ defmodule MediaCentaur.Library.ExtraFile do
   metadata. Same separation that exists between `Movie.content_url` and
   `WatchedFile`.
 
-  Follow-up: Wire `Library.Inbound` to write ExtraFiles when ingesting
-  bonus-feature paths (Task G or a successor). Today the only writer is
-  the Phase 2 Task B migration that backfills orphans from legacy
-  `library_watched_files.movie_series_id` rows that pointed at Extras.
+  ## Writers
+
+  `Library.Inbound` writes an ExtraFile alongside every bonus-feature Extra it
+  ingests (`link_extra_file/2`), so extras are "linked" the same way playable
+  items are via `WatchedFile`. Extras imported before that path existed are
+  backfilled by `Library.backfill_extra_files/0`, run on boot
+  (`Maintenance.backfill_extra_files_on_boot/1`).
   """
   use Ecto.Schema
   import Ecto.Changeset
