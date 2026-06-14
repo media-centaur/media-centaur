@@ -27,6 +27,18 @@ describe("App config", () => {
     expect(inputConfig.cursorStartPriority.status).toBeDefined()
   })
 
+  test("setup tour is a sidebar-less single-grid wizard", () => {
+    expect(inputConfig.layouts.setup).toBeDefined()
+    expect(inputConfig.layouts.setup.grid).toBeDefined()
+    expect(inputConfig.cursorStartPriority.setup).toEqual(["grid"])
+  })
+
+  test("setup behavior resolves and does not activate on focus", () => {
+    const behavior = inputConfig.createBehavior("setup")
+    expect(behavior).not.toBeNull()
+    expect(behavior.activateOnFocus ?? []).toEqual([])
+  })
+
   test("has primaryMenu set", () => {
     expect(inputConfig.primaryMenu).toBe("sidebar")
   })

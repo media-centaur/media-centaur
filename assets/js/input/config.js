@@ -141,6 +141,13 @@ export const inputConfig = {
       coming_up: { up: ["recently", "continue", "hero"], left: ["sidebar"] },
       sidebar:   { right: ["hero", "continue", "recently", "coming_up"] },
     },
+    // Setup tour: a sidebar-less first-run wizard. A single `grid` context
+    // holds the whole step card (form fields + footer buttons); there is
+    // nowhere else to navigate, so the context has no edges. Up/down walks the
+    // card linearly; SELECT activates a button or edits a field.
+    setup: {
+      grid: {},
+    },
   },
 
   // Cursor start priority per zone
@@ -154,6 +161,7 @@ export const inputConfig = {
     download:  ["pursuits", "omnibox", "sidebar"],
     watch_history: ["toolbar", "grid", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
+    setup:     ["grid"],
   },
 
   // Always-populated contexts (skip item count check)

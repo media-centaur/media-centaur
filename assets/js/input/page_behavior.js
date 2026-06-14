@@ -23,6 +23,7 @@ import { createDownloadBehavior, downloadDom } from "./download_behavior"
 import { createWatchHistoryBehavior } from "./watch_history_behavior"
 import { createUpcomingBehavior } from "./upcoming_behavior"
 import { createHomeBehavior, homeDom } from "./home_behavior"
+import { createSetupBehavior } from "./setup_behavior"
 import { withWipNotice } from "./wip_notice"
 
 // Pages still mid-redesign carry the "UI overhaul in progress" notice via
@@ -38,6 +39,7 @@ const BEHAVIOR_REGISTRY = {
   download: () => createDownloadBehavior(downloadDom),
   "watch-history": () => withWipNotice(createWatchHistoryBehavior()),
   upcoming: () => createUpcomingBehavior(),
+  setup: () => createSetupBehavior(),
 }
 
 /**
