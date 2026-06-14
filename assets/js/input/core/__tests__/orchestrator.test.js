@@ -758,6 +758,79 @@ describe("Orchestrator", () => {
     })
   })
 
+  describe("upcoming mini-month (TOOLBAR companion to the rail)", () => {
+    // The mini-month is a TOOLBAR instance to the RIGHT of the rail, so up/down
+    // and left-wall must follow its OWN graph edges rather than the standard
+    // top-left-toolbar assumptions (up→zone_tabs, down→grid, left→sidebar).
+    const upcomingConfig = {
+      instanceTypes: {
+        ...TEST_CONFIG.instanceTypes,
+        rail: "menu", stragglers: "menu", actions: "menu", "mini-month": "toolbar",
+      },
+      contextSelectors: {
+        ...TEST_CONFIG.contextSelectors,
+        rail: "[data-nav-zone='rail'] [data-nav-item]",
+        stragglers: "[data-nav-zone='stragglers'] [data-nav-item]",
+        actions: "[data-nav-zone='actions'] [data-nav-item]",
+        "mini-month": "[data-nav-zone='mini-month'] [data-nav-item]",
+      },
+      layouts: {
+        ...TEST_LAYOUTS,
+        upcoming: {
+          actions:      { down: ["rail", "stragglers"], left: ["sidebar"] },
+          rail:         { up: ["actions"], down: ["stragglers"], right: ["mini-month"], left: ["sidebar"] },
+          stragglers:   { up: ["rail", "actions"], right: ["mini-month"], left: ["sidebar"] },
+          "mini-month": { up: ["actions"], down: ["stragglers"], left: ["rail", "stragglers", "sidebar"] },
+          sidebar:      { right: ["rail", "stragglers", "mini-month", "actions"] },
+        },
+      },
+      cursorStartPriority: {
+        ...TEST_CONFIG.cursorStartPriority,
+        upcoming: ["rail", "stragglers", "mini-month", "actions", "sidebar"],
+      },
+    }
+
+    function inMiniMonth(readerOverrides = {}) {
+      const { system, calls, globals } = setup({
+        getZone: () => "upcoming",
+        getFocusedIndex: () => 0,
+        getItemCount: (ctx) => ctx === "sidebar" ? 4 : 2,
+        getActiveItemIndex: () => -1,
+        ...readerOverrides,
+      }, upcomingConfig)
+      system.start({})
+      system.focusMachine.forceContext("mini-month")
+      calls.length = 0
+      return { system, calls, globals }
+    }
+
+    test("left at the first chevron returns to the rail, not the sidebar", () => {
+      const { system } = inMiniMonth()
+      system._handleAction(Action.NAVIGATE_LEFT)
+      expect(system.focusMachine.context).toBe("rail")
+    })
+
+    test("up reaches the actions zone via the instance's own graph edge", () => {
+      const { system } = inMiniMonth()
+      system._handleAction(Action.NAVIGATE_UP)
+      expect(system.focusMachine.context).toBe("actions")
+    })
+
+    test("down reaches the stragglers via the instance's own graph edge", () => {
+      const { system } = inMiniMonth()
+      system._handleAction(Action.NAVIGATE_DOWN)
+      expect(system.focusMachine.context).toBe("stragglers")
+    })
+
+    test("left falls through to the sidebar when the rail and stragglers are empty", () => {
+      const { system } = inMiniMonth({
+        getItemCount: (ctx) => (ctx === "sidebar" ? 4 : ctx === "mini-month" ? 2 : 0),
+      })
+      system._handleAction(Action.NAVIGATE_LEFT)
+      expect(system.focusMachine.context).toBe("sidebar")
+    })
+  })
+
   describe("home shelf navigation", () => {
     function homeShelves(focusedContext) {
       const { system, reader, calls, globals } = setup({

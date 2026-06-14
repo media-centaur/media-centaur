@@ -740,16 +740,21 @@ export class Orchestrator {
       else if (nextIndex >= totalCount) nextIndex = 0
     } else if (nextIndex < 0 || nextIndex >= totalCount) {
       const type = contextType(context, this._config.instanceTypes)
-      // Left wall on a horizontal row (zone tabs, toolbar, or a home shelf)
-      // → enter primary menu. The sidebar is always the left neighbour of
-      // these contexts, so this short-circuits the nav graph.
+      // Left wall on a horizontal row (zone tabs, toolbar, or a home shelf) →
+      // follow the nav graph's left edge. For the standard top-left contexts
+      // that edge is the sidebar; for a right-side toolbar companion (the
+      // upcoming mini-month) it is the rail. Keyed by TYPE so non-"toolbar"
+      // toolbar instances are included, and routed through contextWall so the
+      // graph — not a hardcoded sidebar — decides the target.
       if (nextIndex < 0 && direction === "left" &&
-          (context === Context.ZONE_TABS || context === Context.TOOLBAR ||
+          (type === Context.ZONE_TABS || type === Context.TOOLBAR ||
             type === Context.SHELF)) {
         this._saveContextMemory()
-        this._preSidebarContext = context
-        this.focusMachine.enterSidebarFromWall()
-        this._executeEnterSidebar()
+        const wallDirective = this.focusMachine.contextWall(context, "left")
+        if (wallDirective.type === "enter_sidebar") {
+          this._preSidebarContext = context
+        }
+        this._executeDirective(wallDirective)
       }
       // Up/down wall on MENU → try nav graph neighbor
       else if ((direction === "up" || direction === "down") &&
