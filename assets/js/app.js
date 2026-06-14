@@ -62,6 +62,14 @@ const liveSocket = new LiveSocket("/live", Socket, {
   },
 })
 
+// Upcoming page: clicking a marked day in the mini-month scrolls the rail to
+// that day's first release card (LiveView pushes the date; only marked days
+// are clickable, so a matching card always exists).
+window.addEventListener("phx:upcoming:scroll_to_day", ({detail}) => {
+  const card = document.querySelector(`[data-nav-zone="rail"] [data-date="${detail.date}"]`)
+  card?.scrollIntoView({behavior: "smooth", block: "center"})
+})
+
 // Show progress bar on live navigation and form submits
 topbar.config({barColors: {0: "#29d"}, shadowColor: "rgba(0, 0, 0, .3)"})
 window.addEventListener("phx:page-loading-start", _info => topbar.show(800))

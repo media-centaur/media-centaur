@@ -130,6 +130,15 @@ defmodule MediaCentaurWeb.UpcomingLiveTest do
       assert render_hook(view, "jump_to_day", %{"date" => Date.to_iso8601(Date.utc_today())}) =~
                "Upcoming"
     end
+
+    test "jump_to_day pushes a scroll command so the rail jumps to that day", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/upcoming")
+      iso = Date.to_iso8601(Date.utc_today())
+
+      render_hook(view, "jump_to_day", %{"date" => iso})
+
+      assert_push_event(view, "upcoming:scroll_to_day", %{date: ^iso})
+    end
   end
 
   describe "broadcast-driven reloads" do
