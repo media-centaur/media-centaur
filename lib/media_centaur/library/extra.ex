@@ -48,4 +48,25 @@ defmodule MediaCentaur.Library.Extra do
     |> cast(attrs, [:name, :content_url, :position, :owner_type, :owner_id])
     |> validate_required([:owner_type, :owner_id])
   end
+
+  @doc """
+  Changeset for re-deriving an extra's display name from its file path. Trims
+  surrounding whitespace and enforces the writer-level invariant that a derived
+  name is never blank — so no re-derive pass can replace a name with nothing.
+  """
+  def update_name_changeset(%__MODULE__{} = extra, attrs) do
+    extra
+    |> cast(attrs, [:name])
+    |> update_change(:name, &trim_to_nil/1)
+    |> validate_required([:name])
+  end
+
+  defp trim_to_nil(nil), do: nil
+
+  defp trim_to_nil(name) when is_binary(name) do
+    case String.trim(name) do
+      "" -> nil
+      trimmed -> trimmed
+    end
+  end
 end

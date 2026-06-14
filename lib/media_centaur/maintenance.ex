@@ -113,6 +113,14 @@ defmodule MediaCentaur.Maintenance do
     end)
   end
 
+  @doc "Async `rederive_extra_names/0`; sends `{:extra_names_rederived, result}`."
+  def rederive_extra_names_async(reply_to) do
+    run_async(fn ->
+      {:ok, result} = rederive_extra_names()
+      send(reply_to, {:extra_names_rederived, result})
+    end)
+  end
+
   defp run_async(fun) do
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fun)
     :ok
@@ -503,6 +511,32 @@ defmodule MediaCentaur.Maintenance do
         }
   def missing_images_summary do
     MediaCentaur.Library.ImageHealth.summary()
+  end
+
+  @doc """
+  Re-derives every extra's display name from its file path. Network-free and
+  idempotent — heals records left wrong by an earlier parser-rule bug without a
+  hand-written backfill ([ADR-057](../decisions/architecture/2026-06-14-057-derived-data-is-recomputable.md)).
+  Delegates to `MediaCentaur.Pipeline.ExtraRederive.rederive_all/0`.
+  """
+  @spec rederive_extra_names() ::
+          {:ok,
+           %{
+             scanned: non_neg_integer(),
+             updated: non_neg_integer(),
+             skipped: non_neg_integer()
+           }}
+  def rederive_extra_names do
+    MediaCentaur.Pipeline.ExtraRederive.rederive_all()
+  end
+
+  @doc """
+  Count of extras with a blank/missing name — the visible symptom the re-derive
+  sweep repairs. For the UI to display the button's prominence.
+  """
+  @spec blank_extra_names_count() :: non_neg_integer()
+  def blank_extra_names_count do
+    MediaCentaur.Library.count_blank_extra_names()
   end
 
   defp resources_in_delete_order do

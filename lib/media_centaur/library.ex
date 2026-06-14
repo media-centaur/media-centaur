@@ -1655,6 +1655,37 @@ defmodule MediaCentaur.Library do
 
   def create_extra!(attrs), do: Repo.bang!(create_extra(attrs))
 
+  @doc """
+  Re-derives an extra's display name. The only update path for `Extra.name`;
+  rejects a blank value via `Extra.update_name_changeset/2`. Used by the
+  re-derive sweep (`MediaCentaur.Pipeline.ExtraRederive`).
+  """
+  @spec update_extra_name(Extra.t(), String.t() | nil) ::
+          {:ok, Extra.t()} | {:error, Ecto.Changeset.t()}
+  def update_extra_name(%Extra{} = extra, name) do
+    extra
+    |> Extra.update_name_changeset(%{name: name})
+    |> Repo.update()
+  end
+
+  @doc """
+  Extras whose `name` can be re-derived from a file path — i.e. those carrying a
+  `content_url`. Drives the re-derive sweep (`Pipeline.ExtraRederive`).
+  """
+  @spec list_rederivable_extras() :: [Extra.t()]
+  def list_rederivable_extras do
+    Repo.all(from(e in Extra, where: not is_nil(e.content_url)))
+  end
+
+  @doc """
+  Count of extras with a blank or missing `name` — the visible symptom the
+  re-derive sweep repairs; drives the Maintenance button's prominence.
+  """
+  @spec count_blank_extra_names() :: non_neg_integer()
+  def count_blank_extra_names do
+    Repo.aggregate(from(e in Extra, where: is_nil(e.name) or e.name == ""), :count)
+  end
+
   def destroy_extra(extra), do: Repo.delete(extra)
   def destroy_extra!(extra), do: destroy_bang!(extra)
 

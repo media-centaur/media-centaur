@@ -473,4 +473,24 @@ defmodule MediaCentaur.MaintenanceTest do
                Maintenance.refresh_movie_series_credits()
     end
   end
+
+  describe "rederive_extra_names/0" do
+    test "heals a blank extra name and clears the blank count" do
+      movie = create_movie(%{name: "Sample Movie"})
+
+      blank =
+        create_extra(%{
+          movie_id: movie.id,
+          name: nil,
+          content_url: "/media/test/Sample Show - Season 01/Extras/Making Of.mkv"
+        })
+
+      assert Maintenance.blank_extra_names_count() == 1
+
+      assert {:ok, %{scanned: 1, updated: 1, skipped: 0}} = Maintenance.rederive_extra_names()
+
+      assert Repo.get!(Library.Extra, blank.id).name == "Making Of"
+      assert Maintenance.blank_extra_names_count() == 0
+    end
+  end
 end

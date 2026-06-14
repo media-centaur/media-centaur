@@ -221,11 +221,16 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # `Settings.get/1` call falls through to a DB read; the budget
       # tolerates that cold-path cost. In production a warm cache
       # collapses these to in-memory lookups.
+      #
+      # The Library-maintenance card's two health probes
+      # (`missing_images_summary`, `blank_extra_names_count`) each run on
+      # the disconnected + connected mount = +4 bounded aggregates total;
+      # the budget absorbs them plus settings_entries cache-miss jitter.
       mount_and_assert(
         conn,
         "/settings",
-        40,
-        "Config + Secret reads (per-key cache-miss DB fallback in test mode)"
+        43,
+        "Config + Secret reads + maintenance health counts (per-key cache-miss DB fallback in test mode)"
       )
     end
 
