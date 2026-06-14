@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.95.3 — 2026-06-14
+
+### New
+
+- **Bonus-feature names now repair themselves.** Bonus features whose names were left blank or wrong by an earlier naming bug (for example, a folder called "Web Previews") are corrected automatically the next time the app starts — no action needed. The same repair is also available on demand under Settings → Library maintenance → "Re-derive bonus-feature names", which shows how many names are currently blank. The repair re-reads names from the file on disk only, so it never contacts the internet and is safe to run anytime.
+
 ## v0.95.2 — 2026-06-14
 
 ### Fixed
