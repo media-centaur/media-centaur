@@ -430,12 +430,19 @@ defmodule MediaCentaurWeb.SetupLive do
       |> assign(:blocked?, blocked?)
 
     ~H"""
-    <div class="relative min-h-screen">
+    <Layouts.input_system_root class="relative min-h-screen">
       <%!-- Same scrim as the rest of the app (Settings et al.) — depth without a
             photographic backdrop competing with a first-run wizard. --%>
       <div class="page-side-dim" aria-hidden="true"></div>
 
-      <div class="relative z-[1] py-10 px-4">
+      <%!-- Top-pinned with a comfortable offset (not hugging the edge). Normal
+            flow keeps the logo + progress static across steps; only the card
+            below grows with each step's content, so the top never jumps. --%>
+      <div
+        class="relative z-[1] pt-20 pb-16 px-4"
+        data-page-behavior="setup"
+        data-nav-default-zone="setup"
+      >
         <header class="max-w-2xl mx-auto mb-6">
           <div class="flex flex-col items-center text-center">
             <img
@@ -479,7 +486,7 @@ defmodule MediaCentaurWeb.SetupLive do
           blocked?={@blocked?}
         />
       </div>
-    </div>
+    </Layouts.input_system_root>
     """
   end
 
@@ -613,6 +620,8 @@ defmodule MediaCentaurWeb.SetupLive do
             name="tmdb_api_key"
             placeholder="paste your TMDB v4 read-access token"
             class="input input-bordered input-sm w-full font-mono text-sm"
+            data-nav-item
+            tabindex="0"
           />
         </form>
       </:form>
@@ -647,12 +656,16 @@ defmodule MediaCentaurWeb.SetupLive do
             value={@prowlarr_url_value}
             placeholder="http://localhost:9696"
             class="input input-bordered input-sm w-full font-mono text-sm"
+            data-nav-item
+            tabindex="0"
           />
           <label class="text-sm font-medium text-base-content/80 mt-3 block">API key</label>
           <input
             type="password"
             name="prowlarr_api_key"
             class="input input-bordered input-sm w-full font-mono text-sm"
+            data-nav-item
+            tabindex="0"
           />
         </form>
       </:form>
@@ -687,6 +700,8 @@ defmodule MediaCentaurWeb.SetupLive do
           <select
             name="download_client_type"
             class="select select-bordered select-sm w-full font-mono text-sm"
+            data-nav-item
+            tabindex="0"
           >
             <option value="qbittorrent" selected>qBittorrent</option>
           </select>
@@ -700,6 +715,8 @@ defmodule MediaCentaurWeb.SetupLive do
             value={@dc_url}
             placeholder="http://localhost:8080"
             class="input input-bordered input-sm w-full font-mono text-sm"
+            data-nav-item
+            tabindex="0"
           />
           <label class="text-sm font-medium text-base-content/80 mt-3 block">Username</label>
           <input
@@ -707,12 +724,16 @@ defmodule MediaCentaurWeb.SetupLive do
             name="download_client_username"
             value={@dc_username}
             class="input input-bordered input-sm w-full font-mono text-sm"
+            data-nav-item
+            tabindex="0"
           />
           <label class="text-sm font-medium text-base-content/80 mt-3 block">Password</label>
           <input
             type="password"
             name="download_client_password"
             class="input input-bordered input-sm w-full font-mono text-sm"
+            data-nav-item
+            tabindex="0"
           />
         </form>
       </:form>

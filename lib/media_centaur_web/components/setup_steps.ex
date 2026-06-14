@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
 
   defp step_shell(assigns) do
     ~H"""
-    <section class="glass-surface rounded-xl p-6 max-w-2xl mx-auto">
+    <section class="glass-surface rounded-xl p-6 max-w-2xl mx-auto" data-nav-zone="grid">
       <header class="mb-5">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
@@ -76,11 +76,20 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
           size="sm"
           phx-click="setup:back"
           disabled={@step_index == 1}
+          data-nav-item
+          tabindex="0"
         >
           Back
         </.button>
         <div class="flex gap-2">
-          <.button :if={@optional?} variant="dismiss" size="sm" phx-click="setup:skip">
+          <.button
+            :if={@optional?}
+            variant="dismiss"
+            size="sm"
+            phx-click="setup:skip"
+            data-nav-item
+            tabindex="0"
+          >
             Skip
           </.button>
           <.button
@@ -89,6 +98,8 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
             size="sm"
             type="submit"
             form={@form_id}
+            data-nav-item
+            tabindex="0"
           >
             {if @step_index == @total_steps, do: "Finish", else: "Next"}
           </.button>
@@ -98,6 +109,8 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
             size="sm"
             phx-click="setup:next"
             disabled={@blocked?}
+            data-nav-item
+            tabindex="0"
           >
             {if @step_index == @total_steps, do: "Finish", else: "Next"}
           </.button>
@@ -197,6 +210,8 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
           value={@result.current_value || ""}
           placeholder={"/usr/bin/" <> @binary_name}
           class="input input-bordered input-sm flex-1 font-mono text-sm"
+          data-nav-item
+          tabindex="0"
         />
         <.button
           type="button"
@@ -204,6 +219,8 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
           size="sm"
           phx-click="setup:recheck"
           phx-value-id={@result.id}
+          data-nav-item
+          tabindex="0"
         >
           Re-check
         </.button>
@@ -225,6 +242,8 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
               phx-click="setup:save_path"
               phx-value-id={@result.id}
               phx-value-path={candidate}
+              data-nav-item
+              tabindex="0"
             >
               Use this
             </.button>
@@ -314,14 +333,20 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
             size="xs"
             phx-click="setup:remove_media_dir"
             phx-value-dir={dir}
+            data-nav-item
+            tabindex="0"
           >
             Remove
           </.button>
         </li>
       </ul>
 
-      <p :if={dirs_list(@result) == []} class="text-sm opacity-70 italic">
-        No media directories yet — add one below.
+      <p :if={dirs_list(@result) == []} class="text-sm text-base-content/50 italic">
+        No media directories yet — add one or more below.
+      </p>
+
+      <p :if={dirs_list(@result) != []} class="text-xs text-base-content/50">
+        Add as many as you like — movies and TV can live in separate folders.
       </p>
 
       <form
@@ -335,11 +360,15 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
         <input
           type="text"
           name="dir"
-          placeholder="/mnt/media/movies"
+          placeholder="/absolute/path/to/your/media"
           class="input input-bordered input-sm flex-1 font-mono text-sm"
           required
+          data-nav-item
+          tabindex="0"
         />
-        <.button type="submit" variant="primary" size="sm">Add</.button>
+        <.button type="submit" variant="primary" size="sm" data-nav-item tabindex="0">
+          Add
+        </.button>
       </form>
     </.step_shell>
     """
@@ -360,7 +389,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
 
   def welcome_step(assigns) do
     ~H"""
-    <section class="glass-surface rounded-xl p-6 max-w-2xl mx-auto">
+    <section class="glass-surface rounded-xl p-6 max-w-2xl mx-auto" data-nav-zone="grid">
       <header class="mb-5">
         <h2 class="text-2xl font-bold tracking-tight">Welcome to Media Centaur</h2>
         <p class="mt-1 text-sm text-base-content/60">Let's get the basics configured.</p>
@@ -401,7 +430,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
       </div>
 
       <footer class="flex justify-end mt-6 pt-4 border-t border-base-content/10">
-        <.button variant="primary" size="sm" phx-click="setup:next">
+        <.button variant="primary" size="sm" phx-click="setup:next" data-nav-item tabindex="0">
           Begin
         </.button>
       </footer>
@@ -423,7 +452,7 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
 
   def summary_step(assigns) do
     ~H"""
-    <section class="glass-surface rounded-xl p-6 max-w-2xl mx-auto">
+    <section class="glass-surface rounded-xl p-6 max-w-2xl mx-auto" data-nav-zone="grid">
       <header class="mb-5">
         <h2 class="text-2xl font-bold tracking-tight">Setup summary</h2>
         <p class="mt-1 text-sm text-base-content/60">
@@ -445,6 +474,8 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
             variant="dismiss"
             size="xs"
             patch={"/setup?step=" <> Atom.to_string(probe.id)}
+            data-nav-item
+            tabindex="0"
           >
             Edit
           </.button>
@@ -452,10 +483,10 @@ defmodule MediaCentaurWeb.Components.SetupSteps do
       </ul>
 
       <footer class="flex justify-between mt-6 pt-4 border-t border-base-content/10">
-        <.button variant="dismiss" size="sm" phx-click="setup:back">
+        <.button variant="dismiss" size="sm" phx-click="setup:back" data-nav-item tabindex="0">
           Back
         </.button>
-        <.button variant="primary" size="sm" phx-click="setup:next">
+        <.button variant="primary" size="sm" phx-click="setup:next" data-nav-item tabindex="0">
           Finish
         </.button>
       </footer>
