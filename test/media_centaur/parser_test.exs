@@ -747,6 +747,24 @@ defmodule MediaCentaur.ParserTest do
       assert result.parent_title == "Sample Movie One"
       assert result.parent_year == 1967
     end
+
+    # The "Web Previews" subfolder and "[Web Preview]" filename prefix both begin
+    # with the word "Web", which the scene-release quality stripper treats as the
+    # WEB(-DL) source tag and greedily consumes to end-of-string — leaving extras
+    # with empty titles. Curated extra labels are not scene releases, so quality
+    # stripping must not flatten them. (Frieren "Web Previews", observed in the wild.)
+    test "Web Previews extra keeps its title (WEB source token does not eat the label)" do
+      result =
+        Parser.parse(
+          "/home/shawn/videos/media-library/Frieren - Beyond Journey's End - Season 01 [2023-2024] COMPLETE 1080p BDRip x265 FLAC 2.0 Kira [SEV]/Extras/Web Previews/[Web Preview] Frieren - Beyond Journey's End - Episode 16.mkv"
+        )
+
+      assert result.type == :extra
+      assert result.season == 1
+
+      assert result.title ==
+               "Web Previews - [Web Preview] Frieren - Beyond Journey's End - Episode 16"
+    end
   end
 
   # ─── Extra: sample files ────────────────────────────────────────────────
