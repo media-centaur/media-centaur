@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.95.2 — 2026-06-14
+
+### Fixed
+
+- **Bonus content named "Web Previews" no longer shows up blank.** Extras stored in a folder called "Web Previews" (or files starting with "[Web Preview]") were being imported with no title, leaving rows of empty dashes on a show's detail page. The importer was mistaking the word "Web" for a video-quality tag and discarding the rest of the name. Extra titles are now left intact, and an extra can never be imported without a name. Existing blank extras are corrected by re-scanning the affected show.
+
 ## v0.95.1 — 2026-06-14
 
 ### New
