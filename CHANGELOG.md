@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.95.6 — 2026-06-14
+
+### Improved
+
+- **A refreshed first-run setup tour.** The setup tour now matches the rest of the app — the Media Centaur logo up top, a clear step progress bar, and a clean card over the same subtle backdrop. Each step is far more concise: a one-line description plus a short "what you'll need" checklist instead of long paragraphs, with a single at-a-glance status for each piece. The media-directories step now makes it obvious you can add several folders.
+- **Full keyboard and gamepad navigation in the setup tour.** You can now run the entire first-run setup with a controller or the keyboard — arrow through each step's fields and buttons, and press the select button to act. Previously the tour was mouse-only.
+
 ## v0.95.5 — 2026-06-14
 
 ### Improved
