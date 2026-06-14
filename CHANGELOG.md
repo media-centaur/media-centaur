@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.95.4 — 2026-06-14
+
+### Improved
+
+- **Bonus features are now tracked on disk like everything else.** Each bonus feature is linked to its file, which means moving your media to a new drive now relinks bonus features too (instead of leaving them behind), and the app no longer re-checks every bonus feature against the metadata service on each startup — startups are quieter and do less redundant work. Existing libraries are upgraded automatically in the background on the next launch.
+
 ## v0.95.3 — 2026-06-14
 
 ### New
