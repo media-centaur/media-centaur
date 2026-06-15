@@ -12,6 +12,7 @@ defmodule MediaCentaur.Pipeline.Image.Producer do
 
   alias MediaCentaur.Format
   alias MediaCentaur.Pipeline.ImageQueue
+  alias MediaCentaur.Pipeline.ProducerQueue
 
   def start_link(opts), do: GenStage.start_link(__MODULE__, opts)
 
@@ -104,13 +105,10 @@ defmodule MediaCentaur.Pipeline.Image.Producer do
   defp dispatch(%{demand: 0} = state), do: {[], state}
 
   defp dispatch(state) do
-    {items, queue, remaining_demand} = dequeue(state.queue, state.demand, [])
+    {items, queue, remaining_demand} = ProducerQueue.dequeue(state.queue, state.demand)
+    messages = ProducerQueue.to_messages(items, __MODULE__)
 
-    messages =
-      Enum.map(items, fn item ->
-        %Broadway.Message{data: item, acknowledger: {__MODULE__, :ack_id, :ack_data}}
-      end)
-
+    # The image pipeline emits its own queue-depth metric (distinct name).
     :telemetry.execute(
       [:media_centaur, :image_pipeline, :queue_depth],
       %{depth: :queue.len(queue)},
@@ -118,14 +116,5 @@ defmodule MediaCentaur.Pipeline.Image.Producer do
     )
 
     {messages, %{state | queue: queue, demand: remaining_demand}}
-  end
-
-  defp dequeue(queue, 0, acc), do: {Enum.reverse(acc), queue, 0}
-
-  defp dequeue(queue, remaining, acc) do
-    case :queue.out(queue) do
-      {{:value, item}, queue} -> dequeue(queue, remaining - 1, [item | acc])
-      {:empty, queue} -> {Enum.reverse(acc), queue, remaining}
-    end
   end
 end
