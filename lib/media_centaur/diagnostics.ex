@@ -234,18 +234,8 @@ defmodule MediaCentaur.Diagnostics do
 
   defp time_of_iso8601(_), do: "?"
 
-  defp format_seconds(seconds) when is_number(seconds) do
-    total = round(seconds)
-    h = div(total, 3600)
-    m = div(rem(total, 3600), 60)
-    s = rem(total, 60)
+  defp format_seconds(seconds) when is_number(seconds), do: MediaCentaur.Format.format_seconds(seconds)
 
-    if h > 0 do
-      "#{h}:#{String.pad_leading("#{m}", 2, "0")}:#{String.pad_leading("#{s}", 2, "0")}"
-    else
-      "#{m}:#{String.pad_leading("#{s}", 2, "0")}"
-    end
-  end
-
+  # Diagnostics shows "?" for an unknown/non-numeric duration rather than 0:00.
   defp format_seconds(_), do: "?"
 end
