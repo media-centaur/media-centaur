@@ -10,6 +10,7 @@ defmodule MediaCentaur.Pipeline.Import.Producer do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Pipeline.Payload
+  alias MediaCentaur.Pipeline.ProducerQueue
 
   def start_link(opts), do: GenStage.start_link(__MODULE__, opts)
 
@@ -75,23 +76,9 @@ defmodule MediaCentaur.Pipeline.Import.Producer do
   defp dispatch(%{demand: 0} = state), do: {[], state}
 
   defp dispatch(state) do
-    {payloads, queue, remaining_demand} = dequeue(state.queue, state.demand, [])
-
-    messages =
-      Enum.map(payloads, fn payload ->
-        %Broadway.Message{data: payload, acknowledger: {__MODULE__, :ack_id, :ack_data}}
-      end)
-
+    {payloads, queue, remaining_demand} = ProducerQueue.dequeue(state.queue, state.demand)
+    messages = ProducerQueue.to_messages(payloads, __MODULE__)
     {messages, %{state | queue: queue, demand: remaining_demand}}
-  end
-
-  defp dequeue(queue, 0, acc), do: {Enum.reverse(acc), queue, 0}
-
-  defp dequeue(queue, remaining, acc) do
-    case :queue.out(queue) do
-      {{:value, payload}, queue} -> dequeue(queue, remaining - 1, [payload | acc])
-      {:empty, queue} -> {Enum.reverse(acc), queue, remaining}
-    end
   end
 
   defp validated_tmdb_type(:movie), do: :movie
