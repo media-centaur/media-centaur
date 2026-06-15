@@ -104,6 +104,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
     unit
   end
 
+  # Auto-cancel without an explicit unit only makes sense for a single-unit
+  # pursuit; single!/1 raises on a composite (ADR-055) to flag a call site
+  # that still needs a unit-scoped argument. (ChangeTarget differs — it
+  # pivots a composite's lead unit via lead/1.)
   defp resolve_unit(pursuit, _args), do: Units.single!(pursuit.id)
 
   defp previous_target_guid(%Unit{current_target_id: nil}), do: nil
