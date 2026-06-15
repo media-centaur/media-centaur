@@ -31,7 +31,7 @@ defmodule MediaCentaur.TMDB.MetadataStats do
 
   def start_link(opts \\ []) do
     name = Keyword.get(opts, :name, __MODULE__)
-    GenServer.start_link(__MODULE__, name, name: name)
+    GenServer.start_link(__MODULE__, opts, name: name)
   end
 
   @doc """
@@ -52,7 +52,8 @@ defmodule MediaCentaur.TMDB.MetadataStats do
   # --- GenServer callbacks ---
 
   @impl true
-  def init(name) do
+  def init(opts) do
+    name = Keyword.get(opts, :name, __MODULE__)
     handler_id = handler_id(name)
     attach_telemetry(handler_id)
     {:ok, %{snapshot: empty_snapshot(), handler_id: handler_id}}

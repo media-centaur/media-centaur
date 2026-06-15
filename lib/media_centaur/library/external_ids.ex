@@ -107,7 +107,7 @@ defmodule MediaCentaur.Library.ExternalIds do
   attach to multiple container types (a movie and a TV series can share
   TMDB id 12345 — different namespaces in the TMDB API). The first match
   wins; callers needing type-specific lookup should call
-  `MediaCentaur.Library.find_by_external_id/3` with the owner type.
+  `MediaCentaur.Library.find_by_external_id/2` with the owner type.
   """
   @spec find_owner(source(), String.t()) :: {:ok, owner_type(), owner()} | :not_found
   def find_owner(source, external_id) when source in @sources and is_binary(external_id) do

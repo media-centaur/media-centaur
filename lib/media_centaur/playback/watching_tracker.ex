@@ -14,7 +14,7 @@ defmodule MediaCentaur.Playback.WatchingTracker do
      position.
 
   2. **Continuous playback:** If not a seek, start or continue the continuous
-     timer. Once uninterrupted playback reaches 20 seconds, set
+     timer. Once uninterrupted playback reaches 10 seconds, set
      `actively_watching` to true and begin updating `saveable_position`.
 
   3. **First update** (`previous_position` is nil): Initialize — not a seek.
