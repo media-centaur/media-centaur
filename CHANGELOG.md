@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.97.0 — 2026-06-15
+
+This release is mostly internal: a large, behavior-preserving cleanup of the codebase that makes future changes faster and safer, plus a few reliability fixes carried along the way.
+
+### Fixed
+
+- **More reliable auto-start status across platforms.** The app no longer assumes a specific operating system when reporting whether it's set to launch on login, so the setting reads correctly everywhere.
+- **Fewer rare crashes from unexpected values.** Hardened a handful of internal lookups so a malformed link, a blank field, or an unusual stored id can no longer trigger an error page.
+
+### Improved
+
+- **Better recognition of episode ranges.** Releases and filenames that use an en-dash to denote a span of episodes (for example `S01E01–E03`) are now matched correctly when tracking what a download covers.
+
 ## v0.96.0 — 2026-06-14
 
 ### Fixed
