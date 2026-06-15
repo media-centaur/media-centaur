@@ -36,6 +36,8 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.Controls
   alias MediaCentaur.Playback.{Iso639, LanguagePolicy}
   alias MediaCentaurWeb.SettingsLive.Controls, as: ControlsSection
+  alias MediaCentaurWeb.SettingsLive.Preferences
+  alias MediaCentaurWeb.SettingsLive.Services
   alias MediaCentaurWeb.SettingsLive.LanguageLogic
 
   # Sections are grouped for sidebar display — a thin divider renders between
@@ -2039,101 +2041,19 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "services"} = assigns) do
     ~H"""
-    <div data-nav-grid class="p-5 rounded-lg glass-surface">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold">Services</h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
-            Start or stop background services. State persists across restarts.
-          </p>
-        </div>
-      </div>
-
-      <div class="mt-4 space-y-0.5">
-        <.settings_row
-          label="Watchers"
-          description="File system monitoring for media directories"
-          checked={@watchers_running}
-          event="toggle_watchers"
-          color="info"
-        />
-        <.settings_row
-          label="Pipeline"
-          description="Metadata search and entity ingestion"
-          checked={@pipeline_running}
-          event="toggle_pipeline"
-          color="info"
-        />
-        <.settings_row
-          label="Image Pipeline"
-          description="Artwork downloading and processing"
-          checked={@image_pipeline_running}
-          event="toggle_image_pipeline"
-          color="info"
-        />
-        <.settings_row
-          label="Auto-grab"
-          description="Search and grab releases as tracked episodes air"
-          checked={@acquisition_running}
-          event="toggle_acquisition"
-          color="info"
-        />
-      </div>
-
-      <div class="mt-4 pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
-        <p class="text-xs text-base-content/50 min-w-0">
-          Manually scan all media directories for new media files.
-        </p>
-        <div class="flex items-center gap-2 shrink-0">
-          <.button
-            :if={@scanning}
-            variant="dismiss"
-            size="sm"
-            phx-click="cancel_scan"
-            data-nav-item
-            tabindex="0"
-          >
-            Cancel
-          </.button>
-          <.button
-            variant="action"
-            size="sm"
-            phx-click="scan"
-            disabled={@scanning}
-            data-nav-item
-            tabindex="0"
-          >
-            <span :if={@scanning} class="loading loading-spinner loading-xs"></span>
-            {if @scanning, do: "Scanning…", else: "Scan now"}
-          </.button>
-        </div>
-      </div>
-    </div>
+    <Services.render
+      watchers_running={@watchers_running}
+      pipeline_running={@pipeline_running}
+      image_pipeline_running={@image_pipeline_running}
+      acquisition_running={@acquisition_running}
+      scanning={@scanning}
+    />
     """
   end
 
   defp section_content(%{active_section: "preferences"} = assigns) do
     ~H"""
-    <div data-nav-grid class="p-5 rounded-lg glass-surface">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold">Preferences</h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
-            Personal browsing settings — applied only to your session.
-          </p>
-        </div>
-      </div>
-
-      <div class="mt-4 space-y-0.5">
-        <.settings_row
-          label="Spoiler-free mode"
-          description="Blur episode descriptions until hovered"
-          checked={@spoiler_free}
-          event="toggle_spoiler_free"
-          color="info"
-        />
-      </div>
-    </div>
+    <Preferences.render spoiler_free={@spoiler_free} />
     """
   end
 
