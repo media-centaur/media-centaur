@@ -2686,88 +2686,66 @@ defmodule MediaCentaur.Library do
 
   # --- Private helpers for HomeLive facade ---
 
-  # Fetches standalone movies with at least one incomplete WatchProgress record.
-  # Returns `%{entity: entity_map, progress: progress_map, progress_records: [record]}`.
-  #
-  # Uses the by-record-count variant of `standalone_movies` so a transiently
-  # absent file does not erase the user's intent to keep watching.
   defp fetch_in_progress_movies(limit) do
-    movies =
-      from([m] in PresentableQueries.standalone_movies_by_record_count(),
-        where:
-          exists(
-            from(wp in WatchProgress,
-              join: pi in PlayableItem,
-              on: pi.id == wp.playable_item_id,
-              where:
-                pi.container_type == ^:movie and pi.container_id == parent_as(:item).id and
-                  wp.completed == false,
-              select: 1
-            )
-          ),
-        order_by: [
-          desc:
-            fragment(
-              """
-              (SELECT wp.last_watched_at
-                 FROM library_watch_progress wp
-                 JOIN library_playable_items pi ON pi.id = wp.playable_item_id
-                WHERE pi.container_type = 'movie' AND pi.container_id = ?
-                LIMIT 1)
-              """,
-              m.id
-            )
-        ],
-        limit: ^limit
-      )
-      |> Repo.all()
-      |> Repo.preload([:images, :watch_progress])
-
-    Enum.reject(Enum.map(movies, &build_in_progress_movie_entry/1), &is_nil/1)
+    fetch_in_progress_movie_records(
+      PresentableQueries.standalone_movies_by_record_count(),
+      [:images, :watch_progress],
+      limit
+    )
   end
 
-  # Fetches singleton-collection movies (the sole child Movie record of their
-  # MovieSeries) with an incomplete WatchProgress record. Surfaces the child
-  # movie at the top level instead of the collection container.
-  #
-  # Uses the by-record-count variant so categorization is stable against
-  # transient file-presence changes — the user's engagement signal, not file
-  # presence, drives row inclusion on this surface.
+  # Singleton-collection movies (the sole child Movie of their MovieSeries)
+  # with an incomplete WatchProgress — surfaced as the child movie, not the
+  # collection. Preloads :movie_series for the hoist shaping.
   defp fetch_in_progress_hoisted_movies(limit) do
-    movies =
-      from([m] in PresentableQueries.singleton_collection_movies_by_record_count(),
-        where:
-          exists(
-            from(wp in WatchProgress,
-              join: pi in PlayableItem,
-              on: pi.id == wp.playable_item_id,
-              where:
-                pi.container_type == ^:movie and pi.container_id == parent_as(:item).id and
-                  wp.completed == false,
-              select: 1
-            )
-          ),
-        order_by: [
-          desc:
-            fragment(
-              """
-              (SELECT wp.last_watched_at
-                 FROM library_watch_progress wp
-                 JOIN library_playable_items pi ON pi.id = wp.playable_item_id
-                WHERE pi.container_type = 'movie' AND pi.container_id = ?
-                LIMIT 1)
-              """,
-              m.id
-            )
-        ],
-        limit: ^limit
-      )
-      |> Repo.all()
-      |> Repo.preload([:images, :movie_series, :watch_progress])
-
-    Enum.reject(Enum.map(movies, &build_in_progress_movie_entry/1), &is_nil/1)
+    fetch_in_progress_movie_records(
+      PresentableQueries.singleton_collection_movies_by_record_count(),
+      [:images, :movie_series, :watch_progress],
+      limit
+    )
   end
 
+  # Movies (standalone or hoisted) with at least one incomplete WatchProgress,
+  # ordered newest-watched first. `base_query` selects the movie set (the
+  # by-record-count variant, so a transiently absent file doesn't erase the
+  # user's intent to keep watching); `preloads` differ only by whether the
+  # parent MovieSeries is needed for hoist shaping.
+  defp fetch_in_progress_movie_records(base_query, preloads, limit) do
+    from([m] in base_query,
+      where:
+        exists(
+          from(wp in WatchProgress,
+            join: pi in PlayableItem,
+            on: pi.id == wp.playable_item_id,
+            where:
+              pi.container_type == ^:movie and pi.container_id == parent_as(:item).id and
+                wp.completed == false,
+            select: 1
+          )
+        ),
+      order_by: [
+        desc:
+          fragment(
+            """
+            (SELECT wp.last_watched_at
+               FROM library_watch_progress wp
+               JOIN library_playable_items pi ON pi.id = wp.playable_item_id
+              WHERE pi.container_type = 'movie' AND pi.container_id = ?
+              LIMIT 1)
+            """,
+            m.id
+          )
+      ],
+      limit: ^limit
+    )
+    |> Repo.all()
+    |> Repo.preload(preloads)
+    |> Enum.map(&build_in_progress_movie_entry/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  # Builds `%{entity, progress, progress_records}` for one in-progress movie,
+  # or nil when no incomplete progress record remains.
   defp build_in_progress_movie_entry(movie) do
     progress_records = if movie.watch_progress, do: [movie.watch_progress], else: []
 
