@@ -9,15 +9,11 @@ defmodule MediaCentaur.Library.Browser do
 
   alias MediaCentaur.Library.{
     EntityShape,
-    Episode,
     Movie,
     MovieSeries,
-    PlayableItem,
     PresentableQueries,
-    Season,
     TVSeries,
-    VideoObject,
-    WatchedFile
+    VideoObject
   }
 
   alias MediaCentaur.Library
@@ -208,7 +204,7 @@ defmodule MediaCentaur.Library.Browser do
   defp fetch_all_tv_series do
     from(t in TVSeries,
       as: :item,
-      where: exists(tv_series_present_file_subquery())
+      where: exists(PresentableQueries.tv_series_present_file_subquery())
     )
     |> Repo.all()
     |> Repo.preload(@tv_series_preloads)
@@ -225,7 +221,7 @@ defmodule MediaCentaur.Library.Browser do
   defp fetch_all_video_objects do
     from(v in VideoObject,
       as: :item,
-      where: exists(video_object_present_file_subquery())
+      where: exists(PresentableQueries.video_object_present_file_subquery())
     )
     |> Repo.all()
     |> Repo.preload(@video_object_preloads)
@@ -233,34 +229,6 @@ defmodule MediaCentaur.Library.Browser do
   end
 
   # --- Type-Specific Fetchers (by IDs) ---
-
-  # WatchedFile → PlayableItem(:episode) → Episode → Season → TVSeries
-  # presence subquery, scoped to the outer `:item` (a TVSeries) binding.
-  # Phase-3 cascade-delete from Library.FilePresence makes WatchedFile
-  # existence equivalent to "current presence on disk."
-  defp tv_series_present_file_subquery do
-    from(wf in WatchedFile,
-      join: pi in PlayableItem,
-      on: pi.id == wf.playable_item_id and pi.container_type == :episode,
-      join: e in Episode,
-      on: e.id == pi.container_id,
-      join: s in Season,
-      on: s.id == e.season_id,
-      where: s.tv_series_id == parent_as(:item).id,
-      select: 1
-    )
-  end
-
-  # WatchedFile → PlayableItem(:video_object) presence subquery scoped to
-  # the outer `:item` (a VideoObject) binding.
-  defp video_object_present_file_subquery do
-    from(wf in WatchedFile,
-      join: pi in PlayableItem,
-      on: pi.id == wf.playable_item_id and pi.container_type == :video_object,
-      where: pi.container_id == parent_as(:item).id,
-      select: 1
-    )
-  end
 
   defp fetch_standalone_movies_by_ids(ids) do
     from([m] in PresentableQueries.standalone_movies(), where: m.id in ^ids)
@@ -280,7 +248,7 @@ defmodule MediaCentaur.Library.Browser do
     from(t in TVSeries,
       as: :item,
       where: t.id in ^ids,
-      where: exists(tv_series_present_file_subquery())
+      where: exists(PresentableQueries.tv_series_present_file_subquery())
     )
     |> Repo.all()
     |> Repo.preload(@tv_series_preloads)
@@ -298,7 +266,7 @@ defmodule MediaCentaur.Library.Browser do
     from(v in VideoObject,
       as: :item,
       where: v.id in ^ids,
-      where: exists(video_object_present_file_subquery())
+      where: exists(PresentableQueries.video_object_present_file_subquery())
     )
     |> Repo.all()
     |> Repo.preload(@video_object_preloads)
