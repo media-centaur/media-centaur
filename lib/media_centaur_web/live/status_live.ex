@@ -36,80 +36,83 @@ defmodule MediaCentaurWeb.StatusLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    socket =
-      if connected?(socket) do
-        Watcher.Supervisor.subscribe()
-        Playback.subscribe()
-        ErrorReports.subscribe()
-        SelfUpdate.subscribe()
-        SelfUpdate.subscribe_progress()
-        MediaCentaur.Library.subscribe()
-        MediaCentaur.WatchHistory.subscribe()
-        Acquisition.subscribe_queue()
-        Capabilities.subscribe_changes()
-
-        # Visiting /status marks auto-detected incidents as seen, clearing
-        # the discovery badge on the Status nav item. The web layer owns
-        # the diagnostics_seen_at timestamp (DiagnosticsBadge), so the
-        # ErrorReports context stays free of any Settings dependency.
-        MediaCentaurWeb.DiagnosticsBadge.mark_seen()
-
-        Process.send_after(self(), :tick_pipeline, 1_000)
-        Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
-
-        pipeline_stats = Stats.get_snapshot()
-        image_stats = ImagePipeline.Stats.get_snapshot()
-
-        # Kick off expensive queries off the mount path via owned async.
-        # Mount returns immediately with empty defaults; each task fills
-        # its slice in via handle_async. Keeps /status responsive even
-        # with a big library and media dirs on slow / sleeping storage.
-        socket
-        |> assign_defaults()
-        |> assign(error_buckets: ErrorReports.list_buckets())
-        |> assign_board()
-        |> assign(pipeline_stats: pipeline_stats)
-        |> assign(image_pipeline_stats: image_stats)
-        |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
-        |> assign(image_dir_statuses: MediaCentaur.Watcher.Supervisor.image_dir_statuses())
-        |> assign(scan_stats: MediaCentaur.Watcher.Supervisor.scan_stats())
-        |> assign(config: load_config())
-        |> assign(rate_limiter: fetch_rate_limiter())
-        |> assign(metadata_stats: MediaCentaur.TMDB.MetadataStats.snapshot())
-        |> assign(retry_status: fetch_retry_status())
-        |> assign(playback: build_playback_state())
-        |> assign(playback_activity: PlaybackActivity.snapshot())
-        |> assign(system_vitals: Vitals.snapshot())
-        |> assign(acquisition_activity: build_acquisition_activity())
-        |> assign(retention_by_subsystem: MediaCentaur.Retention.status_by_subsystem())
-        |> assign(diagnostics_unseen: 0)
-        |> assign_self_update()
-        |> start_async_storage()
-        |> start_async_dir_health()
-        |> start_async_overview()
-      else
-        socket
-        |> assign_defaults()
-        |> assign(pipeline_stats: Stats.empty_snapshot())
-        |> assign(image_pipeline_stats: ImagePipeline.Stats.empty_snapshot())
-        |> assign(watcher_statuses: [])
-        |> assign(image_dir_statuses: [])
-        |> assign(dir_health: [])
-        |> assign(config: %{})
-        |> assign(rate_limiter: nil)
-        |> assign(retry_status: nil)
-        |> assign(playback: %{state: :idle, now_playing: nil, sessions: %{}})
-        |> assign(playback_activity: PlaybackActivity.empty())
-        |> assign(system_vitals: empty_system_vitals())
-        |> assign(acquisition_activity: empty_acquisition_activity())
-        |> assign(retention_by_subsystem: %{})
-      end
+    socket = if connected?(socket), do: mount_connected(socket), else: mount_disconnected(socket)
 
     {:ok,
      assign(socket,
        pipeline_concurrency: MediaCentaur.Pipeline.Discovery.processor_concurrency(),
        image_pipeline_concurrency: 8
      )}
+  end
+
+  defp mount_connected(socket) do
+    Watcher.Supervisor.subscribe()
+    Playback.subscribe()
+    ErrorReports.subscribe()
+    SelfUpdate.subscribe()
+    SelfUpdate.subscribe_progress()
+    MediaCentaur.Library.subscribe()
+    MediaCentaur.WatchHistory.subscribe()
+    Acquisition.subscribe_queue()
+    Capabilities.subscribe_changes()
+
+    # Visiting /status marks auto-detected incidents as seen, clearing
+    # the discovery badge on the Status nav item. The web layer owns
+    # the diagnostics_seen_at timestamp (DiagnosticsBadge), so the
+    # ErrorReports context stays free of any Settings dependency.
+    MediaCentaurWeb.DiagnosticsBadge.mark_seen()
+
+    Process.send_after(self(), :tick_pipeline, 1_000)
+    Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
+
+    pipeline_stats = Stats.get_snapshot()
+    image_stats = ImagePipeline.Stats.get_snapshot()
+
+    # Kick off expensive queries off the mount path via owned async.
+    # Mount returns immediately with empty defaults; each task fills
+    # its slice in via handle_async. Keeps /status responsive even
+    # with a big library and media dirs on slow / sleeping storage.
+    socket
+    |> assign_defaults()
+    |> assign(error_buckets: ErrorReports.list_buckets())
+    |> assign_board()
+    |> assign(pipeline_stats: pipeline_stats)
+    |> assign(image_pipeline_stats: image_stats)
+    |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
+    |> assign(image_dir_statuses: MediaCentaur.Watcher.Supervisor.image_dir_statuses())
+    |> assign(scan_stats: MediaCentaur.Watcher.Supervisor.scan_stats())
+    |> assign(config: load_config())
+    |> assign(rate_limiter: fetch_rate_limiter())
+    |> assign(metadata_stats: MediaCentaur.TMDB.MetadataStats.snapshot())
+    |> assign(retry_status: fetch_retry_status())
+    |> assign(playback: build_playback_state())
+    |> assign(playback_activity: PlaybackActivity.snapshot())
+    |> assign(system_vitals: Vitals.snapshot())
+    |> assign(acquisition_activity: build_acquisition_activity())
+    |> assign(retention_by_subsystem: MediaCentaur.Retention.status_by_subsystem())
+    |> assign(diagnostics_unseen: 0)
+    |> assign_self_update()
+    |> start_async_storage()
+    |> start_async_dir_health()
+    |> start_async_overview()
+  end
+
+  defp mount_disconnected(socket) do
+    socket
+    |> assign_defaults()
+    |> assign(pipeline_stats: Stats.empty_snapshot())
+    |> assign(image_pipeline_stats: ImagePipeline.Stats.empty_snapshot())
+    |> assign(watcher_statuses: [])
+    |> assign(image_dir_statuses: [])
+    |> assign(dir_health: [])
+    |> assign(config: %{})
+    |> assign(rate_limiter: nil)
+    |> assign(retry_status: nil)
+    |> assign(playback: %{state: :idle, now_playing: nil, sessions: %{}})
+    |> assign(playback_activity: PlaybackActivity.empty())
+    |> assign(system_vitals: empty_system_vitals())
+    |> assign(acquisition_activity: empty_acquisition_activity())
+    |> assign(retention_by_subsystem: %{})
   end
 
   defp assign_defaults(socket) do
