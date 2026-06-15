@@ -32,8 +32,17 @@ defmodule MediaCentaur.LibraryCardInfo do
   @spec enabled?() :: boolean()
   def enabled? do
     case Settings.get_by_key(@setting_key) do
-      {:ok, %{value: %{"enabled" => false}}} -> false
+      {:ok, %{value: value}} -> enabled?(value)
       _ -> true
     end
   end
+
+  @doc """
+  Parses a stored setting value into the flag. Default-on: only an explicit
+  `%{"enabled" => false}` suppresses the footer. Lets the generic
+  `SettingAware` on_mount trait apply the same polarity on live updates.
+  """
+  @spec enabled?(map()) :: boolean()
+  def enabled?(%{"enabled" => false}), do: false
+  def enabled?(_), do: true
 end
