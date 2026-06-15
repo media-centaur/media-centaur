@@ -73,6 +73,22 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
       assert regular_track.sdh == false
     end
 
+    test "parses the default disposition flag from the mpv track map" do
+      raw = [
+        %{"id" => 1, "type" => "sub", "lang" => "eng", "forced" => true, "default" => true},
+        %{"id" => 2, "type" => "sub", "lang" => "eng", "default" => false},
+        %{"id" => 3, "type" => "sub", "lang" => "spa"}
+      ]
+
+      {[], [forced_default, explicit_non_default, absent]} =
+        LanguageContext.parse_track_list(raw)
+
+      assert forced_default.default == true
+      assert explicit_non_default.default == false
+      # Absent flag defaults to false, matching mpv's "no disposition" semantics.
+      assert absent.default == false
+    end
+
     test "returns empty lists for non-list input" do
       assert {[], []} = LanguageContext.parse_track_list(nil)
       assert {[], []} = LanguageContext.parse_track_list("garbage")

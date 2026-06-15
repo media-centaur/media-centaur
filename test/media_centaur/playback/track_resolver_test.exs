@@ -26,6 +26,7 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
       lang: lang,
       title: Keyword.get(opts, :title),
       forced: Keyword.get(opts, :forced, false),
+      default: Keyword.get(opts, :default, false),
       sdh: Keyword.get(opts, :sdh, false)
     }
   end
@@ -796,6 +797,85 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
 
       assert args.sub_visibility == false
       assert args.slang == []
+    end
+  end
+
+  # A release that stamps `forced` onto a full dialogue track *and* leaves
+  # it `default` is mislabeled — `forced` ("show only when needed") and
+  # `default` ("the main track") are contradictory in intent. The resolver
+  # must not surface such a track as a forced fallback, or understood-audio
+  # playback comes up with unwanted full subtitles on. See
+  # campaigns/track-selection-source-of-truth.md.
+  describe "mislabeled forced+default tracks (fill_gaps)" do
+    setup do
+      %{
+        policy: %LanguagePolicy{
+          understood_languages: ["eng"],
+          audio_priority: ["original", "understood", "any"],
+          subtitles_when: "when_audio_not_understood",
+          subtitles_language: "understood",
+          subtitles_variant: "standard",
+          forced_subs: "fill_gaps"
+        }
+      }
+    end
+
+    test "understood audio + forced AND default sub — distrusted, no subs", %{policy: policy} do
+      result =
+        TrackResolver.resolve(
+          policy,
+          nil,
+          [audio(1, "eng")],
+          [sub(1, "eng", forced: true, default: true)],
+          "eng"
+        )
+
+      assert result.sub_index == nil
+      assert result.sub_lang == nil
+    end
+
+    test "understood audio + genuine forced (not default) sub — still resolves", %{policy: policy} do
+      result =
+        TrackResolver.resolve(
+          policy,
+          nil,
+          [audio(1, "eng")],
+          [sub(1, "eng", forced: true, default: false)],
+          "eng"
+        )
+
+      assert result.sub_index == 1
+      assert result.sub_forced == true
+    end
+
+    test "understood audio — genuine forced wins over a mislabeled sibling", %{policy: policy} do
+      result =
+        TrackResolver.resolve(
+          policy,
+          nil,
+          [audio(1, "eng")],
+          [sub(1, "eng", forced: true, default: true), sub(2, "eng", forced: true, default: false)],
+          "eng"
+        )
+
+      assert result.sub_index == 2
+    end
+  end
+
+  describe "sid_enforcement/2 — what mpv's sid should be set to" do
+    test "skips when no subtitle tracks have demuxed yet" do
+      assert TrackResolver.sid_enforcement(%{sub_index: nil}, []) == :skip
+      assert TrackResolver.sid_enforcement(%{sub_index: 2}, []) == :skip
+    end
+
+    test "disables subs when subs exist but the resolver picked none" do
+      subs = [sub(1, "eng", forced: true, default: true)]
+      assert TrackResolver.sid_enforcement(%{sub_index: nil}, subs) == {:set, "no"}
+    end
+
+    test "sets the resolved sub index when the resolver picked a track" do
+      subs = [sub(1, "eng")]
+      assert TrackResolver.sid_enforcement(%{sub_index: 1}, subs) == {:set, 1}
     end
   end
 end

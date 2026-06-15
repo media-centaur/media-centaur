@@ -1,7 +1,7 @@
 ---
-status: planning
+status: in-progress
 started: 2026-05-24
-last_updated: 2026-06-10
+last_updated: 2026-06-15
 ---
 # Track selection: resolver as source of truth (kill mislabeled-forced subs)
 
@@ -22,14 +22,67 @@ rips.
 
 ## Status
 
-Planning only — diagnosis confirmed end-to-end against a real file, no
-code written yet. This campaign is the resumable record; the
-reconciliation rule applies before any coding starts.
+In progress — implementation started 2026-06-15. Test-first per
+`automated-testing`.
 
-*Reconciled 2026-06-10:* still untouched as of v0.87.1 — `Track` has no
-`default` field and `handle_track_list_update/2` still only logs. The
-per-title override workaround remains the only mitigation. Line-number
-pointers below date from 2026-05-24; re-verify them on resume.
+*Reconciled 2026-06-15 (v0.97.2):* code still matches the diagnosis —
+`TrackResolver.Track` (`track_resolver.ex:28-42`) has no `default`
+field; `LanguageContext.build_track/1` (`language_context.ex:95-107`)
+parses `forced` but not `default`; `MpvSession.handle_track_list_update/2`
+(`mpv_session.ex:508-523`) computes `compute_resolver_choice/1`
+(`:525-544`) and only logs, never sends a `set_property`. `find_forced/2`
+is at `:347-351`, `forced_fallback/3` at `:333-345`, `resolve/5` at
+`:165`. `send_mpv_command/2` (the IPC primitive) at `mpv_session.ex:847`;
+`observe_properties/1` at `:835`. All pointers below re-verified at
+v0.97.2.
+
+*Scope decisions settled 2026-06-15 (the three open questions):*
+
+* **sid-only enforcement** for v1, with a clear seam for `aid` (the
+  reported bug is subtitle-only; audio enforcement adds risk for no
+  current payoff). `aid` enforcement would be the symmetric call.
+* **`forced+default` disposition heuristic** is the v1 mislabel signal.
+  Cue-count capture (ffprobe-at-import) is the *stronger* signal but is
+  deferred — it's the natural home for the "surface ffprobe subtitle
+  detail" thread that spawned this resume. Disposition is free at
+  launch; cue counts require a pipeline change.
+* **Startup-flash:** gate enforcement on subtitle tracks being present
+  (don't fire `sid=no` during the audio-only incremental window), and
+  accept the brief possible flash of the mislabeled sub before
+  enforcement turns it off. Inverting to launch-`--sid=no` (mitigation
+  in the campaign) is deferred — accept the flash for v1.
+
+*Implementation landed 2026-06-15 (committed to main, unpushed):*
+
+* **A** — `TrackResolver.Track` now carries `default: false`;
+  `LanguageContext.build_track/1` parses `"default"` from the mpv map.
+  Unit test in `language_context_test.exs` (red→green).
+* **B** — `find_forced/2` now matches via `genuinely_forced?/1`
+  (`forced and not default`), so `forced+default` tracks are distrusted
+  in both fill_gaps and always paths. Three appended resolver tests
+  (mislabel distrusted, genuine forced still resolves, genuine forced
+  beats a mislabeled sibling).
+* **C** — `TrackResolver.sid_enforcement/2` (pure, unit-tested) decides
+  `:skip | {:set, "no"} | {:set, index}`; `MpvSession.enforce_subtitle_selection/2`
+  sends `set_property sid` idempotently (only on change) from
+  `handle_track_list_update/2`, tracked via the new `enforced_sid` state
+  field. mpv's disable form is the string `"no"`.
+
+**Remaining (does not block the code, needs the real file + a display):**
+
+* **Manual verification** of the completion criterion — fresh-install
+  default policy, play the repro file, confirm no subtitles and a
+  `track-resolver: enforcing sid="no"` Console line. Owner has the file;
+  I can't drive a real mpv + display here.
+* **Deferred (own follow-ups):** cue-count capture at import (the
+  ffprobe-detail thread — stronger mislabel signal than disposition);
+  `aid` enforcement (seam left in `sid_enforcement/2`'s doc); flash
+  mitigation via launch-`--sid=no`; the inverse foreign-audio case where
+  the *only* sub is a mislabeled forced+default full track (currently
+  yields no subs — pre-existing, out of scope).
+* **Wiki:** a Troubleshooting/FAQ note ("subtitles appeared on
+  understood-audio content; now auto-corrected") if the behavior change
+  is worth surfacing to users.
 
 ## Background — the confirmed bug
 
