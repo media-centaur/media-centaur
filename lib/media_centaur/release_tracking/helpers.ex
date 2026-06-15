@@ -7,6 +7,22 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
   alias MediaCentaur.Repo
 
   @doc """
+  Parses a TMDB id that may arrive as an integer or as a string (the
+  `external_id` rows are stored as strings). Returns `{:ok, integer}` or
+  `:error` for malformed input, so callers skip the row instead of
+  crashing (the Refresher runs this inside `handle_info`).
+  """
+  @spec parse_tmdb_id(integer() | String.t()) :: {:ok, integer()} | :error
+  def parse_tmdb_id(id) when is_integer(id), do: {:ok, id}
+
+  def parse_tmdb_id(id) when is_binary(id) do
+    case Integer.parse(id) do
+      {int, ""} -> {:ok, int}
+      _ -> :error
+    end
+  end
+
+  @doc """
   Finds the highest season/episode pair for a TV series in the library.
   Returns `{season_number, episode_number}` or `{0, 0}` if none found.
   """

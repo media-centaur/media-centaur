@@ -29,24 +29,28 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
   end
 
   defp process_external_id(%{source: "tmdb", owner_type: :tv_series, owner_id: tv_series_id} = ext_id) do
-    tmdb_id = parse_tmdb_id(ext_id.external_id)
+    case Helpers.parse_tmdb_id(ext_id.external_id) do
+      {:ok, tmdb_id} ->
+        if already_tracked?(tmdb_id, :tv_series),
+          do: :skipped,
+          else: process_tv_series(tmdb_id, tv_series_id)
 
-    if already_tracked?(tmdb_id, :tv_series) do
-      :skipped
-    else
-      process_tv_series(tmdb_id, tv_series_id)
+      :error ->
+        :skipped
     end
   end
 
   defp process_external_id(
          %{source: "tmdb_collection", owner_type: :movie_series, owner_id: movie_series_id} = ext_id
        ) do
-    collection_id = parse_tmdb_id(ext_id.external_id)
+    case Helpers.parse_tmdb_id(ext_id.external_id) do
+      {:ok, collection_id} ->
+        if already_tracked?(collection_id, :movie),
+          do: :skipped,
+          else: process_collection(collection_id, movie_series_id)
 
-    if already_tracked?(collection_id, :movie) do
-      :skipped
-    else
-      process_collection(collection_id, movie_series_id)
+      :error ->
+        :skipped
     end
   end
 
@@ -185,7 +189,4 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
   defp already_tracked?(tmdb_id, media_type) do
     ReleaseTracking.get_item_by_tmdb(tmdb_id, media_type) != nil
   end
-
-  defp parse_tmdb_id(id) when is_integer(id), do: id
-  defp parse_tmdb_id(id) when is_binary(id), do: String.to_integer(id)
 end

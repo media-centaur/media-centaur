@@ -3,6 +3,22 @@ defmodule MediaCentaur.ReleaseTracking.HelpersTest do
 
   alias MediaCentaur.ReleaseTracking.Helpers
 
+  describe "parse_tmdb_id/1" do
+    test "passes integers through" do
+      assert Helpers.parse_tmdb_id(550) == {:ok, 550}
+    end
+
+    test "parses well-formed string ids" do
+      assert Helpers.parse_tmdb_id("550") == {:ok, 550}
+    end
+
+    test "rejects malformed ids instead of crashing" do
+      assert Helpers.parse_tmdb_id("550-collection") == :error
+      assert Helpers.parse_tmdb_id("not-a-number") == :error
+      assert Helpers.parse_tmdb_id("") == :error
+    end
+  end
+
   describe "fetch_movie_releases/1" do
     # The initial-track path (Extractor.extract_movie_release_dates) keeps
     # release_type; the refresh path (this function) must keep it too, or the

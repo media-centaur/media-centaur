@@ -342,32 +342,32 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     tmdb_mappings = Library.tmdb_ids_for_tv_series(entity_ids)
 
     Enum.each(tmdb_mappings, fn {tv_series_id, tmdb_id_str} ->
-      tmdb_id = String.to_integer(tmdb_id_str)
+      with {:ok, tmdb_id} <- Helpers.parse_tmdb_id(tmdb_id_str) do
+        from(i in ReleaseTracking.Item,
+          where:
+            i.tmdb_id == ^tmdb_id and i.media_type == :tv_series and
+              is_nil(i.library_container_id)
+        )
+        |> MediaCentaur.Repo.all()
+        |> Enum.each(fn item ->
+          case ReleaseTracking.update_item(item, %{
+                 library_container_type: :tv_series,
+                 library_container_id: tv_series_id
+               }) do
+            {:ok, _} ->
+              Log.info(
+                :library,
+                "linked tracking item #{item.name} to library entity #{tv_series_id}"
+              )
 
-      from(i in ReleaseTracking.Item,
-        where:
-          i.tmdb_id == ^tmdb_id and i.media_type == :tv_series and
-            is_nil(i.library_container_id)
-      )
-      |> MediaCentaur.Repo.all()
-      |> Enum.each(fn item ->
-        case ReleaseTracking.update_item(item, %{
-               library_container_type: :tv_series,
-               library_container_id: tv_series_id
-             }) do
-          {:ok, _} ->
-            Log.info(
-              :library,
-              "linked tracking item #{item.name} to library entity #{tv_series_id}"
-            )
-
-          {:error, changeset} ->
-            Log.info(
-              :library,
-              "failed to link tracking item #{item.name}: #{inspect(changeset.errors)}"
-            )
-        end
-      end)
+            {:error, changeset} ->
+              Log.info(
+                :library,
+                "failed to link tracking item #{item.name}: #{inspect(changeset.errors)}"
+              )
+          end
+        end)
+      end
     end)
   end
 
@@ -473,14 +473,27 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     )
     |> MediaCentaur.Repo.all()
     |> Enum.reject(fn %{tmdb_id: tmdb_id} ->
-      tmdb_id_int = String.to_integer(tmdb_id)
-      ReleaseTracking.get_item_by_tmdb(tmdb_id_int, :tv_series) != nil
+      case Helpers.parse_tmdb_id(tmdb_id) do
+        {:ok, tmdb_id_int} -> ReleaseTracking.get_item_by_tmdb(tmdb_id_int, :tv_series) != nil
+        :error -> false
+      end
     end)
   end
 
   defp auto_track_tv_series(%{tv_series_id: tv_series_id, tmdb_id: tmdb_id_str, name: name}) do
-    tmdb_id = String.to_integer(tmdb_id_str)
+    case Helpers.parse_tmdb_id(tmdb_id_str) do
+      {:ok, tmdb_id} ->
+        do_auto_track_tv_series(tv_series_id, tmdb_id, name)
 
+      :error ->
+        Log.info(
+          :library,
+          "auto-track skipped for #{name}: unparseable TMDB id #{inspect(tmdb_id_str)}"
+        )
+    end
+  end
+
+  defp do_auto_track_tv_series(tv_series_id, tmdb_id, name) do
     case Client.get_tv(tmdb_id) do
       {:ok, response} ->
         {last_season, last_episode} = Helpers.find_last_library_episode(tv_series_id)
