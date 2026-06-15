@@ -61,6 +61,12 @@ defmodule MediaCentaurWeb.SettingsLiveSystemTest do
     assert html =~ MediaCentaur.Version.current_version()
   end
 
+  test "overview links to the guide", %{conn: conn} do
+    {:ok, _view, html} = live_async!(conn, ~p"/settings?section=overview")
+    assert html =~ ~p"/guide"
+    assert html =~ "Open the guide"
+  end
+
   test "landing on overview does not trigger an update check (the scheduled job owns polling)",
        %{conn: conn} do
     # Arriving on the page must never kick a network poll — the background
