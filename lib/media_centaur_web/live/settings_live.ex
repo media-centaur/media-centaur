@@ -961,10 +961,15 @@ defmodule MediaCentaurWeb.SettingsLive do
   # --- Controls events ---
 
   def handle_event("controls:listen", %{"id" => id, "kind" => kind}, socket) do
-    {:noreply,
-     socket
-     |> assign(listening: {String.to_existing_atom(kind), String.to_existing_atom(id)})
-     |> push_event("controls:listen", %{kind: kind})}
+    with kind_atom when not is_nil(kind_atom) <- safe_existing_atom(kind),
+         id_atom when not is_nil(id_atom) <- safe_existing_atom(id) do
+      {:noreply,
+       socket
+       |> assign(listening: {kind_atom, id_atom})
+       |> push_event("controls:listen", %{kind: kind})}
+    else
+      _ -> {:noreply, socket}
+    end
   end
 
   def handle_event("controls:cancel", _params, socket) do
@@ -972,19 +977,27 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   def handle_event("controls:bind", %{"id" => id, "kind" => kind, "value" => value}, socket) do
-    id_atom = String.to_existing_atom(id)
-    kind_atom = String.to_existing_atom(kind)
-    normalized = normalize_bind_value(kind_atom, value)
+    with id_atom when not is_nil(id_atom) <- safe_existing_atom(id),
+         kind_atom when not is_nil(kind_atom) <- safe_existing_atom(kind) do
+      normalized = normalize_bind_value(kind_atom, value)
 
-    case Controls.put(id_atom, kind_atom, normalized) do
-      {:ok, _} -> {:noreply, socket}
-      {:error, _} -> {:noreply, put_flash(socket, :error, "Failed to bind key")}
+      case Controls.put(id_atom, kind_atom, normalized) do
+        {:ok, _} -> {:noreply, socket}
+        {:error, _} -> {:noreply, put_flash(socket, :error, "Failed to bind key")}
+      end
+    else
+      _ -> {:noreply, socket}
     end
   end
 
   def handle_event("controls:clear", %{"id" => id, "kind" => kind}, socket) do
-    :ok = Controls.clear(String.to_existing_atom(id), String.to_existing_atom(kind))
-    {:noreply, socket}
+    with id_atom when not is_nil(id_atom) <- safe_existing_atom(id),
+         kind_atom when not is_nil(kind_atom) <- safe_existing_atom(kind) do
+      :ok = Controls.clear(id_atom, kind_atom)
+      {:noreply, socket}
+    else
+      _ -> {:noreply, socket}
+    end
   end
 
   def handle_event("controls:reset_all", _params, socket) do
@@ -993,8 +1006,14 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   def handle_event("controls:reset_category", %{"category" => category}, socket) do
-    :ok = Controls.reset_category(String.to_existing_atom(category))
-    {:noreply, socket}
+    case safe_existing_atom(category) do
+      nil ->
+        {:noreply, socket}
+
+      category_atom ->
+        :ok = Controls.reset_category(category_atom)
+        {:noreply, socket}
+    end
   end
 
   def handle_event("controls:set_glyph", %{"style" => style}, socket) do

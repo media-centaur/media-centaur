@@ -365,10 +365,8 @@ defmodule MediaCentaurWeb.UpcomingLive do
   end
 
   def handle_event("select_search_result", params, socket) do
-    tmdb_id = String.to_integer(params["tmdb-id"])
-
-    case String.to_existing_atom(params["media-type"]) do
-      :tv_series ->
+    case {Integer.parse(params["tmdb-id"] || ""), params["media-type"]} do
+      {{tmdb_id, ""}, "tv_series"} ->
         scope_item = %TrackModal.ScopeItem{
           tmdb_id: tmdb_id,
           name: params["name"],
@@ -377,7 +375,7 @@ defmodule MediaCentaurWeb.UpcomingLive do
 
         {:noreply, assign(socket, track_scope_item: scope_item, track_collection_item: nil)}
 
-      :movie ->
+      {{tmdb_id, ""}, "movie"} ->
         ReleaseTracking.track_from_search_async(
           %{
             tmdb_id: tmdb_id,
@@ -393,6 +391,9 @@ defmodule MediaCentaurWeb.UpcomingLive do
            track_search_results: mark_tracked(socket.assigns.track_search_results, tmdb_id),
            track_collection_item: nil
          )}
+
+      _ ->
+        {:noreply, socket}
     end
   end
 

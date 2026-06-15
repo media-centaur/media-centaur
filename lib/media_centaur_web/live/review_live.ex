@@ -165,11 +165,11 @@ defmodule MediaCentaurWeb.ReviewLive do
   end
 
   def handle_event("update_search", %{"query" => query, "type" => type}, socket) do
-    {:noreply, assign(socket, search_query: query, search_type: String.to_existing_atom(type))}
+    {:noreply, assign(socket, search_query: query, search_type: safe_existing_atom(type, :movie))}
   end
 
   def handle_event("search", %{"query" => query, "type" => type}, socket) do
-    type = String.to_existing_atom(type)
+    type = safe_existing_atom(type, :movie)
 
     socket =
       start_async(socket, :tmdb_search, fn ->

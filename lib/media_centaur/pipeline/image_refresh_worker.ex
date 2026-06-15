@@ -12,12 +12,22 @@ defmodule MediaCentaur.Pipeline.ImageRefreshWorker do
 
   alias MediaCentaur.Pipeline.ImageRefresh
 
+  # Whitelist guards the atom conversion: a job persisted with a legacy or
+  # typo'd entity_type cancels cleanly instead of raising ArgumentError and
+  # retrying forever.
+  @entity_types ~w(movie tv_series movie_series video_object episode)
+
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"entity_id" => entity_id, "entity_type" => type}}) do
+  def perform(%Oban.Job{args: %{"entity_id" => entity_id, "entity_type" => type}})
+      when type in @entity_types do
     case ImageRefresh.refresh_entity(entity_id, String.to_existing_atom(type)) do
       {:ok, _count} -> :ok
       {:error, :no_tmdb_id} -> {:cancel, :no_tmdb_id}
       {:error, reason} -> {:error, reason}
     end
+  end
+
+  def perform(%Oban.Job{args: %{"entity_type" => type}}) do
+    {:cancel, {:bad_entity_type, type}}
   end
 end

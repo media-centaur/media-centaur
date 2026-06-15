@@ -227,12 +227,6 @@ defmodule MediaCentaurWeb.StatusLive do
 
   defp parse_incident(_params, _error_buckets), do: nil
 
-  defp safe_existing_atom(raw) do
-    String.to_existing_atom(raw)
-  rescue
-    ArgumentError -> nil
-  end
-
   # Builds the `/status` URL preserving whichever of subsystem / incident are
   # set; both are query params, nils are dropped.
   defp status_path(subsystem, fingerprint) do
