@@ -79,22 +79,32 @@ Ordered by workstream; within each, by value/risk.
    top-N-per-fingerprint SQLite query is disproportionate risk).
 
 ### B — Duplication / missing abstractions
-6. **B1** Unify `spoiler_free_aware.ex` + `library_card_info_aware.ex`
-   into one parameterized `SettingAware` on_mount trait (fixes the
-   opposite-default-polarity bug + double-subscribe).
-7. **B2** Extract acquisition `Commands.Helpers` (`insert_seeking_target/1`,
-   `enqueue_pursue/1`, `maybe_fail_current_target/1`).
-8. **B3** Single `persist_releases/2` in the ReleaseTracking context
-   (drift fix: `release_type`, `part_tmdb_id` missing in 2 of 4 copies).
-9. **B4** Scanner image download → richer `pending_image_downloads` path
-   (Scanner-tracked items currently miss logos / re-download).
-10. **B5** `Pipeline.QueueDispatch` shared producer mechanics (3 producers).
-11. **B6** `Playback.PlayableFks` shared FK-resolution module.
+6. ✅ **B1** Unified into `SettingAware` on_mount (polarity moved to each
+   context's `enabled?/1`; subscribe-once; literal hook name).
+7. ✅ **B2** Extracted `Commands.Helpers` (`insert_seeking_target/1`,
+   `enqueue_pursue/1`, `fail_current_target/2` — reason parameterized).
+8. ✅ **B3** Single `ReleaseTracking.persist_release!/2`; all 4 TV-side
+   writers routed through it (drift fixed).
+9. ✅ **B4** Shared `Helpers.download_images_async/sync` (3-role idempotent);
+   Scanner now gets logos / skips re-downloads.
+10. **B5** `Pipeline.QueueDispatch` shared producer mechanics (3 producers
+    triplicate `dispatch/1`/`dequeue/3`/`emit_queue_depth/1`). MEDIUM —
+    extract a `use`-able module or shared helper; producers supply only the
+    message→payload map + telemetry tag. Verify via existing producer tests.
+11. ✅ **B6** Extracted `Playback.PlayableFks` (`resolve/2` + `context_by_url/2`).
 12. ◐ **B8** DONE: `count/2` → `ViewModels.Formatting`; `Diagnostics
     .format_seconds` delegates to `Format`. DEFERRED: `max_dt`/`min_dt`
-    (trivial one-liners, premature to extract) and the settings
-    `toggle_*`/`save_*` handler families (fold into D1 settings work).
-13. **B7** Library per-type fetcher helper (~700 lines, last).
+    (trivial one-liners) and settings `toggle_*`/`save_*` families (→ D1).
+13. **B7** Library per-type fetcher dedup (~700 lines). LARGE/HIGH-RISK —
+    ~15 near-identical `from |> Repo.all |> preload |> map(&shape_*)`
+    fetchers across recently-added / hero / in-progress; the
+    "container-present?" subquery is reimplemented ≥5× with differing
+    aliases. Approach: standardize the parent alias to `:item` so the named
+    present-file subquery composes into hero; extract
+    `fetch_typed(query, shaper, preload, limit)` + a per-type query/shaper
+    table. CAUTION: this is the home-page hot path AND the area of the
+    order-fragile N+1 test — change in small steps, run page_smoke + the
+    in-progress/hero/recently-added tests after each. Best paired with C1.
 
 ### C — Structure
 14. ◐ **C3** DONE: removed `compute_child_targets/2` + `child_targets_delta`,
@@ -102,47 +112,96 @@ Ordered by workstream; within each, by value/risk.
     `deletion_buffer.reset/1` (tested pure helper, harmless) and
     `maintenance.refresh_movie_series_credits/0` (tested + documented —
     "make private" breaks its tests; removal is a judgment call → confirm).
-15. **C4** Schema context fns: `Subtitles.create_track/1`; drop redundant
-    `settings/entry.ex upsert_changeset/1`.
-16. **C5** Playback `Repo.get` reach-ins → narrow `Library` accessors
-    (`mpv_session.ex:713,726`, `language_context.ex:173,183`).
-17. **C2** Split `ReleaseTracking.Acquisition` out of `release_tracking.ex`.
-18. **C1** Move `library.ex` HomeLive facade → `Library.Views.*` (large, last).
+15. ✅ **C4** Dropped redundant `Entry.upsert_changeset/1` (use create_changeset).
+    `Subtitles.create_track/1` was a false positive — already exists.
+16. ✅ **C5** Playback reads Library schemas via `fetch_movie/fetch_episode/
+    fetch_tv_series`; both modules dropped `Repo` entirely.
+17. **C2** Split `ReleaseTracking.Acquisition` out of `release_tracking.ex`
+    (the `# Search` + `# Track from search` block, ~263-435). MEDIUM/HIGH —
+    NOT mechanical: `track_from_search` reuses 5 private context helpers
+    (`persist_releases`, `persist_movie_releases`, `create_began_tracking_event`,
+    `schedule_image_downloads`, `broadcast_releases_updated`) shared with the
+    scan/refresh paths. Approach: decide the boundary — promote the shared
+    persistence/event helpers to public context fns (or a `Persistence`
+    sub-module both call), then move search + track-from-search + their
+    `normalize_*`/`do_track_from_search` privates into `Acquisition`.
+    `search_tmdb/1`, `track_from_search/2`, `track_from_search_async/2` have
+    LiveView callers (home, upcoming, review) — keep them callable
+    (defdelegate from the context or update call sites). Wide test coverage
+    exists (refresher/scanner/release_tracking tests).
+18. **C1** Move the `library.ex` "HomeLive Facade" (~`:2167-3270`, ~1100
+    lines of `poster_url`/`progress_pct`-shaped maps) → `Library.Views.{
+    ContinueWatching, RecentlyAdded, HeroCandidates}` (the `Views.*` structs
+    already exist). VERY LARGE — do alongside B7 (same fetchers). Move
+    function + its tests together; `home_live_test` + `page_smoke` are the
+    safety net. The context should return data, not LiveView-shaped maps.
 
 ### D — Readability
 19. ✅ **D3** Fixed stale `watching_tracker` "20 seconds" → 10s + docs/playback.md.
-20. **D4** Raw SQL `fragment` ordering subqueries → Ecto DSL (`library.ex:2826-2961`).
-21. **D5** Dense one-liners (`config.ex:550`, `maintenance.ex:287`, `helpers.ex:40`).
-22. **D2** Decompose `pursuit_status.ex` (378 LOC), `review_live detail_panel/1`,
-    `status_live mount/3`.
-23. **D1** `settings_live.ex section_content/1` per-section components (large, last).
+20. **D4** Raw SQL `fragment` ordering subqueries → Ecto DSL (`library.ex`
+    in-progress fetchers, `last_watched_at` ordering). MEDIUM/RISKY —
+    same hot-path query code as B7 and the order-fragile N+1 test; the
+    `exists(...)` filters above prove it's expressible in DSL. Do it with
+    B7 so the query area is touched once, not twice.
+21. ✅ **D5** Unpacked the three dense one-liners (`config`, `maintenance`,
+    `release_tracking/helpers`).
+22. **D2** Decompose `pursuit_status.ex` (378-LOC string-keyed state machine,
+    20+ `derive_*` heads → `@dispatch` map or acquired-in-queue sub-module),
+    `review_live detail_panel/1` (200+ lines → file/tmdb/search sub-panels),
+    `status_live mount/3` (split connected/disconnected). LARGE — pure
+    readability, real regression risk in a complex state machine; lean on
+    the 482 acquisition tests + page_smoke. Lower priority than structure.
+23. **D1** `settings_live.ex section_content/1` (~`:1593-4668`, ~14 HEEx
+    sections in one fn) → per-section components. VERY LARGE — the
+    extraction pattern already exists (`settings_live/overview.ex`,
+    `system_section.ex`); each new component needs an MC0009 story. Also
+    absorbs the deferred B8 settings `toggle_*`/`save_*` handler families.
 
 ### E — Consistency / naming
 24. ◐ **E5** DONE: `metadata_stats` init takes `opts`. `rate_limiter` left
-    as-is — it's a singleton (`wait/0` hardcodes `__MODULE__`), so a
-    `name:` opt would be a half-measure.
+    as-is — singleton (`wait/0` hardcodes `__MODULE__`).
 25. ✅ **E6** Stale docs fixed: Ingest stage 4, `checker_job` replace form,
-    `find_by_external_id/2` cross-ref (the `/3` was in `external_ids.ex`).
-26. **E1** Library bang contract (`destroy_x!` returns) + `Movie.update_changeset`
-    / `Library.update_movie` parity.
-27. **E2** `link_file_changeset/1,2` → `create_changeset`/`update_changeset`.
-28. **E3** Route Start/StartFromPick commands through `Runner.run/3`.
-29. **E4** Unify `resolve_unit/2` fallback (`lead` vs `single!`).
+    `find_by_external_id/2` cross-ref.
+26. ◐ **E1** DONE: documented the deliberate `destroy_bang!` → `:ok`
+    contract. DEFERRED: `Movie.update_changeset`/`Library.update_movie`
+    parity (net-new API for symmetry; Movie is create-only by design —
+    children update via credits/Inbound — confirm before adding surface).
+27. ✅ **E2** `link_file_changeset/1,2` → `create_changeset`/`update_changeset`.
+28. ✅ **E3** Documented why Start/StartFromPick run their own transaction
+    (creation, not mutation — Runner operates on an existing pursuit).
+29. ✅ **E4** Documented the deliberate `lead` vs `single!` divergence at
+    both `resolve_unit` fallbacks (ADR-055).
 
 ### F — Test policy
-30. **F1** Add `profile/json_formatter` + `markdown_formatter` tests.
+30. ✅ **F1** Added `json_formatter` (round-trip + error) + `markdown_formatter` tests.
 31. **F2** Replace render-HTML assertions in `detail_panel_render_test`,
-    `more_info_panel_test`, `subtitles_row_test` with pure-helper tests.
-32. ✅ **F3** Deleted the redundant `assert true` home_live test (duplicated
-    the mount-and-render test above it).
-33. **F4** `maintenance_test.exs` seed helpers → `TestFactory`.
+    `detail/more_info_panel_test`, `detail/subtitles_row_test`. MEDIUM —
+    per AGENTS.md (no `render_component`/`=~` on markup): extract each
+    rendering decision (does a movie get a More-info button? is a subtitle
+    row shown? is `·` the separator?) into a pure helper, unit-test that,
+    and leave markup verification to Storybook. Per-component design work.
+32. ✅ **F3** Deleted the redundant `assert true` home_live test.
+33. **F4** `maintenance_test.exs` seed helpers → `TestFactory`. LOW —
+    deferred: the helpers attach `:tmdb_collection` external-ids for the
+    movie-series case; confirm `create_movie_series(tmdb_id:)` maps the
+    same source before switching, or the test silently changes shape.
+
+## Remaining work (next session)
+
+**Large structural (focused sessions):** B5 (producer dispatch, medium),
+C2 (ReleaseTracking.Acquisition split), B7 + C1 + D4 (library fetcher
+dedup / HomeLive-facade extraction / raw-SQL — all the same hot-path
+query area, do together), D1 (settings sections), D2 (decompositions).
+**Medium:** F2 (render-HTML → pure helpers). **Low / confirm-first:**
+A5 residue, C3 residue, E1 Movie parity, F4. **Suite hygiene:** harden
+the order-fragile `list_in_progress` N+1 query-count test.
 
 ## Completion criteria
 
-* All 33 backlog items above resolved or explicitly deferred-with-reason
+* Every backlog item resolved or explicitly deferred-with-reason
   (campaign-closure-by-destination: ship / verify / defer-to-X).
-* `mix precommit` green (full suite; known concurrency flakes excepted and
-  confirmed on `main`).
+* `mix precommit` green (full suite; the known `list_in_progress`
+  query-count flake excepted, confirmed order-dependent not regression).
 * No new compiler warnings; `--warnings-as-errors` clean.
 * Each correctness fix (A) has a red→green regression test.
 * This file removed on completion (git history is the archive, per
