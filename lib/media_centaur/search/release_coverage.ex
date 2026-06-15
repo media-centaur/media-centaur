@@ -43,9 +43,13 @@ defmodule MediaCentaur.Search.ReleaseCoverage do
 
   # Order matters: most-specific shapes first, so `S01E01-E05` never
   # half-matches as `S01`, and `S01-S05` is tested before bare `S01`.
-  @episode_span ~r/\bS(\d{1,2})[\s._-]?E(\d{1,3})[-–]E?(\d{1,3})\b/i
+  # The en-dash alternative `(?:-|–)` matches the literal multi-byte
+  # en-dash sequence; a char class `[-–]` would compile in byte mode
+  # (no `/u`) and match only the first byte, so `S01E01–E05` never
+  # classified and silently fell to a narrower scope.
+  @episode_span ~r/\bS(\d{1,2})[\s._-]?E(\d{1,3})(?:-|–)E?(\d{1,3})\b/i
   @single_episode ~r/\bS(\d{1,2})[\s._-]?E(\d{1,3})\b/i
-  @season_range ~r/\bS(\d{1,2})[\s._-]?[-–][\s._-]?S?(\d{1,2})\b/i
+  @season_range ~r/\bS(\d{1,2})[\s._-]?(?:-|–)[\s._-]?S?(\d{1,2})\b/i
   @season_marker ~r/\bS(\d{1,2})\b/i
   @season_wording ~r/\bSeason[\s._-]+(\d{1,2})\b/i
   @complete_marker ~r/\b(?:COMPLETE|Complete[\s._-]+(?:Series|Collection))\b/i
