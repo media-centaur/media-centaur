@@ -11,6 +11,7 @@ defmodule MediaCentaur.Playback.SessionRecovery do
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.{EntityShape, TypeResolver}
+  alias MediaCentaur.Playback.PlayableFks
 
   @socket_prefix "media-centaur-"
   @socket_suffix ".sock"
@@ -134,9 +135,9 @@ defmodule MediaCentaur.Playback.SessionRecovery do
     case resolve_typed_entity(entity_id) do
       {:ok, entity} ->
         {season_number, episode_number, episode_name} =
-          resolve_episode_context(entity, content_url)
+          PlayableFks.context_by_url(entity, content_url)
 
-        direct_fks = resolve_direct_fks(entity, content_url)
+        direct_fks = PlayableFks.resolve(entity, content_url)
 
         {:ok,
          Map.merge(
@@ -169,63 +170,6 @@ defmodule MediaCentaur.Playback.SessionRecovery do
          ) do
       {:ok, type, record} -> {:ok, EntityShape.to_view_model(record, type)}
       :not_found -> :not_found
-    end
-  end
-
-  defp resolve_direct_fks(%{type: :movie} = entity, _content_url), do: %{movie_id: entity.id}
-
-  defp resolve_direct_fks(%{type: :video_object} = entity, _content_url),
-    do: %{video_object_id: entity.id}
-
-  defp resolve_direct_fks(%{type: :tv_series} = entity, content_url) do
-    alias MediaCentaur.Library.EpisodeList
-
-    episode_id =
-      Enum.find_value(entity.seasons || [], fn season ->
-        Enum.find_value(season.episodes || [], fn episode ->
-          if episode.content_url == content_url, do: episode.id
-        end)
-      end)
-
-    %{episode_id: episode_id}
-  end
-
-  defp resolve_direct_fks(%{type: :movie_series} = entity, content_url) do
-    alias MediaCentaur.Library.MovieList
-
-    movie_id =
-      case MovieList.find_by_content_url(entity, content_url) do
-        {_ordinal, id, _name} -> id
-        nil -> nil
-      end
-
-    %{movie_id: movie_id}
-  end
-
-  defp resolve_direct_fks(_entity, _content_url), do: %{}
-
-  defp resolve_episode_context(entity, content_url) do
-    alias MediaCentaur.Library.{EpisodeList, MovieList}
-
-    case entity.type do
-      :movie_series ->
-        case MovieList.find_by_content_url(entity, content_url) do
-          {ordinal, _movie_id, movie_name} -> {0, ordinal, movie_name}
-          nil -> {nil, nil, nil}
-        end
-
-      :tv_series ->
-        case EpisodeList.find_by_content_url(entity, content_url) do
-          {season, episode} ->
-            episode_name = EpisodeList.find_episode_name(entity, season, episode)
-            {season, episode, episode_name}
-
-          nil ->
-            {nil, nil, nil}
-        end
-
-      _ ->
-        {nil, nil, nil}
     end
   end
 end
