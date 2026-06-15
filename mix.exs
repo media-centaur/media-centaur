@@ -90,6 +90,7 @@ defmodule MediaCentaur.MixProject do
       # load. The bytecode footprint is small and no routes are exposed.
       {:phoenix_storybook, "~> 1.0"},
       {:ex_code_view, path: "../../ex_code_view", only: :dev},
+      {:earmark_parser, "~> 1.4"},
       {:phoenix_live_view, "~> 1.1.0"},
       {:lazy_html, ">= 0.1.0", only: :test},
       {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
