@@ -12,6 +12,8 @@ defmodule MediaCentaurWeb.Components.DetailPanelRenderTest do
 
   alias MediaCentaur.Library.Person
   alias MediaCentaurWeb.Components.DetailPanel
+  alias MediaCentaurWeb.ViewModel.EpisodeListItem
+  alias MediaCentaurWeb.ViewModel.SeasonView
 
   defp render_panel(entity, overrides \\ %{}) do
     base = %{entity: entity}
@@ -149,6 +151,80 @@ defmodule MediaCentaurWeb.Components.DetailPanelRenderTest do
       html = render_panel(movie_series)
 
       assert html =~ "Sample Movie"
+    end
+  end
+
+  describe "spoiler-free episode rows" do
+    defp render_episode(state, spoiler_free) do
+      tv = build_entity(%{type: :tv_series, seasons: []})
+
+      episode = %{
+        id: Ecto.UUID.generate(),
+        episode_number: 1,
+        name: "The Secret Twist",
+        description: "A shocking reveal upends everything.",
+        duration_seconds: 1500,
+        images: [%{role: "thumb", content_url: "ep1-thumb.jpg"}]
+      }
+
+      progress =
+        case state do
+          :watched -> %{completed: true, position_seconds: 1500.0, duration_seconds: 1500.0}
+          :current -> %{completed: false, position_seconds: 600.0, duration_seconds: 1500.0}
+          :unwatched -> nil
+        end
+
+      item = %EpisodeListItem.Library{
+        episode: episode,
+        season_number: 1,
+        progress: progress,
+        state: state,
+        is_resume_target: false
+      }
+
+      season_view = %SeasonView{
+        season_number: 1,
+        name: "Season 1",
+        kind: :library,
+        items: [item],
+        extras: [],
+        watched_count: 0,
+        total_count: 1
+      }
+
+      render_panel(tv, %{
+        seasons_view: [season_view],
+        expanded_seasons: MapSet.new([1]),
+        spoiler_free: spoiler_free
+      })
+    end
+
+    defp blur_count(html), do: html |> String.split("spoiler-blur") |> length() |> Kernel.-(1)
+
+    test "blurs thumbnail, title, and description for an unwatched episode" do
+      html = render_episode(:unwatched, true)
+
+      assert html =~ "The Secret Twist"
+      # thumbnail <img>, the title span, and the description paragraph.
+      assert blur_count(html) == 3
+    end
+
+    test "does not blur a watched episode even in spoiler-free mode" do
+      html = render_episode(:watched, true)
+
+      assert blur_count(html) == 0
+    end
+
+    test "does not blur an in-progress (current) episode — only fully-unwatched" do
+      html = render_episode(:current, true)
+
+      assert blur_count(html) == 0
+    end
+
+    test "does not blur when spoiler-free mode is off" do
+      html = render_episode(:unwatched, false)
+
+      assert blur_count(html) == 0
     end
   end
 end

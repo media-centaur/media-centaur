@@ -608,7 +608,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           <img
             :if={@thumbnail && @available}
             src={sized_image_url(@thumbnail, 240)}
-            class="w-20 aspect-video rounded object-cover object-top"
+            class={[
+              "w-20 aspect-video rounded object-cover object-top",
+              @spoiler_free && @state == :unwatched && "spoiler-blur"
+            ]}
           />
           <div
             :if={(@thumbnail && !@available) || !@thumbnail}
@@ -618,13 +621,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <div class="flex-1 min-w-0">
           <span class="truncate block text-base-content/90">
             <span class="text-base-content/50 font-mono text-xs">{@episode.episode_number}.</span>
-            {@episode.name || "—"}
+            <span class={[@spoiler_free && @state == :unwatched && "spoiler-blur"]}>
+              {@episode.name || "—"}
+            </span>
           </span>
           <p
             :if={@episode.description}
             class={[
               "line-clamp-2 text-xs text-base-content/50",
-              @spoiler_free && @state != :watched && "spoiler-blur"
+              @spoiler_free && @state == :unwatched && "spoiler-blur"
             ]}
           >
             {@episode.description}
@@ -935,7 +940,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             :if={@description}
             class={[
               "line-clamp-2 text-xs text-base-content/50",
-              @spoiler_free && @state != :watched && "spoiler-blur"
+              @spoiler_free && @state == :unwatched && "spoiler-blur"
             ]}
           >
             {@description}
