@@ -101,7 +101,7 @@ defmodule MediaCentaur.Settings do
 
     result =
       case Repo.get_by(Entry, key: key) do
-        nil -> Repo.insert(Entry.upsert_changeset(attrs))
+        nil -> Repo.insert(Entry.create_changeset(attrs))
         existing -> Repo.update(Entry.update_changeset(existing, attrs))
       end
 

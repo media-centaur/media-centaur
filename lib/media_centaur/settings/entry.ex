@@ -36,10 +36,4 @@ defmodule MediaCentaur.Settings.Entry do
   def update_changeset(setting, attrs) do
     cast(setting, attrs, [:value])
   end
-
-  def upsert_changeset(attrs) do
-    %__MODULE__{}
-    |> cast(attrs, [:key, :value])
-    |> validate_required([:key])
-  end
 end
