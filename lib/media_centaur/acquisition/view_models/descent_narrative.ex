@@ -10,6 +10,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrative do
 
   alias MediaCentaur.Acquisition.PlanEvents.DescentStatus
 
+  import MediaCentaur.Acquisition.ViewModels.Formatting, only: [count: 2]
+
   defmodule Row do
     @moduledoc "One ladder rung in the expectation panel."
 
@@ -147,9 +149,6 @@ defmodule MediaCentaur.Acquisition.ViewModels.DescentNarrative do
   end
 
   defp detail(%{state: :skipped}, _residual), do: "not needed — already covered"
-
-  defp count(1, noun), do: "1 #{noun}"
-  defp count(quantity, noun), do: "#{quantity} #{noun}s"
 
   defp need(1), do: "needs"
   defp need(_quantity), do: "need"

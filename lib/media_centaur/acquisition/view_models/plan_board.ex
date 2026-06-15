@@ -10,6 +10,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
 
   alias MediaCentaur.Search.ReleaseCoverage
 
+  import MediaCentaur.Acquisition.ViewModels.Formatting, only: [count: 2]
+
   defmodule Cell do
     @moduledoc "One unit cell of the grid — an episode and where its coverage stands."
 
@@ -185,7 +187,4 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
 
   defp release_name(%Release{scope_label: label}) when is_binary(label), do: "The #{label}"
   defp release_name(%Release{title: title}), do: title
-
-  defp count(1, noun), do: "1 #{noun}"
-  defp count(quantity, noun), do: "#{quantity} #{noun}s"
 end
