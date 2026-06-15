@@ -15,13 +15,6 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     assert html =~ "Continue Watching" or html =~ "Your home page will populate"
   end
 
-  test "section headings are visible when sections have data", %{conn: conn} do
-    # We're not asserting specific data here — Library facade may or may
-    # not have any entities in the test DB. Mount + render is enough.
-    {:ok, _view, _html} = live_async!(conn, "/")
-    assert true
-  end
-
   test "renders the Continue Watching row when there is in-progress media", %{conn: conn} do
     movie = create_standalone_movie(%{name: "Sample Movie"})
     _ = create_linked_file(%{movie_id: movie.id})
