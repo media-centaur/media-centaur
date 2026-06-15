@@ -1,10 +1,15 @@
 defmodule MediaCentaurWeb.Storybook.CoreComponents.Flash do
   @moduledoc """
   Rubric-bar story for `flash/1` — every `kind`, hidden vs. visible,
-  no-title, and long-body wrapping.
+  no-title, long-body wrapping, and the auto-dismiss attr.
 
   The `@kinds` list is kept in sync with `attr :kind, values: [...]` on
   the live component. Adding a kind there means adding it here too.
+
+  The `auto_dismiss` variation pins `dismiss_after` (the timed-close attr).
+  The countdown itself is the `FlashAutoDismiss` hook, which only runs under
+  a live socket — in isolation the toast stays put, but the `phx-hook` /
+  `data-dismiss-after` wiring renders, which is the contract the story locks.
   """
 
   use PhoenixStorybook.Story, :component
@@ -84,6 +89,19 @@ defmodule MediaCentaurWeb.Storybook.CoreComponents.Flash do
               "the Console drawer and look for entries tagged with the relevant " <>
               "component to understand what went wrong."
           ]
+        },
+        %Variation{
+          id: :auto_dismiss,
+          description:
+            "`dismiss_after: 4000` — renders the FlashAutoDismiss hook + " <>
+              "`data-dismiss-after`. Under a live socket the toast self-closes " <>
+              "after the dwell; in isolation it stays put (no socket).",
+          attributes: %{
+            kind: :info,
+            title: "Saved",
+            dismiss_after: 4000
+          },
+          slots: ["Your changes were saved."]
         }
       ]
   end
