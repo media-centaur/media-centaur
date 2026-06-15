@@ -315,6 +315,22 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
         </div>
       </div>
 
+      <div class="p-5 rounded-lg glass-surface">
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <h2 class="text-lg font-semibold">Guide</h2>
+            <p class="text-sm text-base-content/50 mt-0.5">
+              How Media Centaur works, chapter by chapter — including features you may not be using yet.
+            </p>
+          </div>
+          <div class="shrink-0">
+            <.button variant="dismiss" size="xs" navigate={~p"/guide"} data-nav-item>
+              Open the guide
+            </.button>
+          </div>
+        </div>
+      </div>
+
       <div :if={@config == %{}} class="p-5 rounded-lg glass-surface text-base-content/60">
         Loading configuration…
       </div>
