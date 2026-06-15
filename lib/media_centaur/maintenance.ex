@@ -284,11 +284,12 @@ defmodule MediaCentaur.Maintenance do
     records = records_with_tmdb_id(schema)
     initial = %{updated: 0, skipped: 0, failed: 0, updated_ids: []}
 
-    %{updated_ids: updated_ids} =
-      result =
+    result =
       Enum.reduce(records, initial, fn {record, tmdb_id}, acc ->
         process_credits_refresh(record, tmdb_id, acc, config)
       end)
+
+    %{updated_ids: updated_ids} = result
 
     # The ETS-backed Detail projection (read by the modal via
     # `load_modal_entry/1`) rebuilds only on `{:entities_changed, _}`.

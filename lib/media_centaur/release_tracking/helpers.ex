@@ -105,9 +105,9 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
     next_ep = response["next_episode_to_air"]
     next_season = if next_ep, do: next_ep["season_number"], else: total_seasons
 
-    seasons = [max(last_season, 1)]
-    seasons = if next_season > hd(seasons), do: seasons ++ [next_season], else: seasons
-    Enum.uniq(seasons)
+    base_season = max(last_season, 1)
+    next_seasons = if next_season > base_season, do: [next_season], else: []
+    Enum.uniq([base_season | next_seasons])
   end
 
   @doc """
