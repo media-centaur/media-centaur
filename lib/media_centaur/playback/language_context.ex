@@ -102,6 +102,10 @@ defmodule MediaCentaur.Playback.LanguageContext do
       lang: Iso639.normalize(lang_of(track)),
       title: Map.get(track, "title"),
       forced: Map.get(track, "forced", false) == true,
+      # The `default` disposition pairs with `forced` to expose the
+      # mislabel signature the resolver distrusts (`forced+default` on a
+      # full dialogue track). mpv exposes a boolean `default` per track.
+      default: Map.get(track, "default", false) == true,
       sdh: sdh_of(track)
     }
   end

@@ -36,9 +36,10 @@ defmodule MediaCentaur.Playback.TrackResolver do
             lang: String.t() | nil,
             title: String.t() | nil,
             forced: boolean(),
+            default: boolean(),
             sdh: boolean()
           }
-    defstruct [:index, :lang, :title, forced: false, sdh: false]
+    defstruct [:index, :lang, :title, forced: false, default: false, sdh: false]
   end
 
   @type resolution :: %{
@@ -178,6 +179,36 @@ defmodule MediaCentaur.Playback.TrackResolver do
       decision_log: audio_log ++ sub_log
     }
   end
+
+  # ---------------------------------------------------------------------------
+  # sid_enforcement/2 — what mpv's `sid` should be set to
+  # ---------------------------------------------------------------------------
+
+  @typedoc """
+  The action `MpvSession` should take to make mpv's subtitle selection
+  match the resolver:
+
+    * `:skip`        — don't touch `sid` yet (no subtitle tracks have
+      demuxed; enforcing now would flash subs off during the audio-only
+      incremental-load window).
+    * `{:set, "no"}` — subtitles exist but the resolver picked none;
+      disable them.
+    * `{:set, index}` — select the resolved subtitle track.
+  """
+  @type sid_action :: :skip | {:set, String.t() | non_neg_integer()}
+
+  @doc """
+  Decide what mpv's `sid` should be, given a `resolve/5` result and the
+  current subtitle track list. Pure so the "what to send" decision is
+  unit-testable; `MpvSession` keeps only the thin `set_property` IPC call.
+
+  Audio enforcement (`aid`) would be the symmetric helper — deliberately
+  out of scope for v1 (the reported bug is subtitle-only).
+  """
+  @spec sid_enforcement(%{sub_index: non_neg_integer() | nil}, [Track.t()]) :: sid_action()
+  def sid_enforcement(_resolution, []), do: :skip
+  def sid_enforcement(%{sub_index: nil}, _subtitle_tracks), do: {:set, "no"}
+  def sid_enforcement(%{sub_index: index}, _subtitle_tracks), do: {:set, index}
 
   # ---------------------------------------------------------------------------
   # Audio
@@ -347,8 +378,19 @@ defmodule MediaCentaur.Playback.TrackResolver do
   defp find_forced(_tracks, nil), do: nil
 
   defp find_forced(tracks, lang) do
-    Enum.find(tracks, &(matches_lang?(&1, lang) and &1.forced))
+    Enum.find(tracks, &(matches_lang?(&1, lang) and genuinely_forced?(&1)))
   end
+
+  # A track flagged BOTH `forced` and `default` is contradictory in intent
+  # — `forced` means "show only when needed", `default` means "the main
+  # track". That pairing is the signature of a release that stamped
+  # `forced` onto a full dialogue track (common for scene x265 rips), so
+  # we treat it as *not* genuinely forced: the forced-fallback paths skip
+  # it and understood-audio playback stays subtitle-free. A real forced
+  # track (forced, not default, sparse) is untouched. Cue-count probing
+  # would be a stronger signal but isn't available at launch — see
+  # campaigns/track-selection-source-of-truth.md.
+  defp genuinely_forced?(track), do: track.forced and not track.default
 
   defp find_sub_in_lang(tracks, lang, forced) do
     candidates = Enum.filter(tracks, &matches_lang?(&1, lang))

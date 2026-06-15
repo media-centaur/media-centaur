@@ -100,6 +100,10 @@ defmodule MediaCentaur.Playback.MpvSession do
     current_sub_lang: nil,
     current_sub_forced: false,
     resolver_choice: nil,
+    # Last `sid` value we pushed to mpv via enforcement, so we only send
+    # `set_property sid` when the resolved target actually changes (no IPC
+    # spam, no enforcement loop). `nil` = nothing enforced yet.
+    enforced_sid: nil,
     capture_timer: nil,
     # Carries the unterminated tail of the mpv IPC byte stream between
     # `{:tcp, ...}` deliveries. The socket is `packet: :raw`, so a long
@@ -512,35 +516,62 @@ defmodule MediaCentaur.Playback.MpvSession do
     if audio_tracks == [] and subtitle_tracks == [] do
       state
     else
-      {new_choice, decision_log} = compute_resolver_choice(state)
+      result = resolve_tracks(state)
+      new_choice = capture_choice(result)
 
       if new_choice != state.resolver_choice do
-        Log.info(:playback, "track-resolver: " <> Enum.join(decision_log, " | "))
+        Log.info(:playback, "track-resolver: " <> Enum.join(result.decision_log, " | "))
       end
 
-      %{state | resolver_choice: new_choice}
+      enforce_subtitle_selection(%{state | resolver_choice: new_choice}, result)
     end
   end
 
-  defp compute_resolver_choice(state) do
+  defp resolve_tracks(state) do
     ctx = state.language_context
 
-    result =
-      TrackResolver.resolve(
-        ctx.policy,
-        ctx.override,
-        state.audio_tracks,
-        state.subtitle_tracks,
-        ctx.original_language
-      )
+    TrackResolver.resolve(
+      ctx.policy,
+      ctx.override,
+      state.audio_tracks,
+      state.subtitle_tracks,
+      ctx.original_language
+    )
+  end
 
-    choice = %{
+  # The lang-based slice of the resolution, used as the override-capture
+  # baseline (lang/forced, not indices — survives re-rips).
+  defp capture_choice(result) do
+    %{
       audio_lang: result.audio_lang,
       sub_lang: result.sub_lang,
       sub_forced: result.sub_forced
     }
+  end
 
-    {choice, result.decision_log}
+  # Resolver is the source of truth: once subtitle tracks exist, make mpv's
+  # `sid` match `resolve/5`'s pick (disabling subs when it chose none).
+  # Gated on subtitle tracks being present (`sid_enforcement/2` returns
+  # `:skip` for an empty list) so we don't flash subs off during the
+  # audio-only incremental-load window. Idempotent — only sends when the
+  # resolved target changes. Driven from `track-list` updates only; a
+  # *user* track switch fires `sid`, never `track-list`, so enforcement
+  # never clobbers a deliberate selection, and our own `set_property sid`
+  # echo lands on the `sid` handler (capture), not here — no loop.
+  defp enforce_subtitle_selection(state, result) do
+    case TrackResolver.sid_enforcement(result, state.subtitle_tracks) do
+      :skip ->
+        state
+
+      {:set, sid} ->
+        if sid == state.enforced_sid do
+          state
+        else
+          send_mpv_command(state.socket, ["set_property", "sid", sid])
+          Log.info(:playback, "track-resolver: enforcing sid=#{inspect(sid)}")
+          %{state | enforced_sid: sid}
+        end
+    end
   end
 
   # No capture for unsupported entity types (extras, video objects) — skip
