@@ -11,6 +11,13 @@ enough of the machinery that an operator can diagnose their own problems. Chapte
 authored as portable markdown so a future campaign can generate the wiki from them, but
 **that exporter is out of scope here** (see Follow-ups).
 
+**Primary objective — discovery, not just reference.** The guide must actively surface
+capabilities the user likely *isn't* using or doesn't know exist (e.g. what ffprobe
+unlocks, track-selection behavior, relink-on-move, pursuits, the Console). It should help
+the user get the most out of what's already offered — not merely document what they
+already click. Every chapter is written with "what here is the reader probably missing?"
+in mind.
+
 ## Decisions (settled in brainstorming)
 
 1. **Authoring format — markdown-as-source.** Each chapter is a markdown file in the
@@ -99,7 +106,9 @@ Open implementation question for the plan phase: markdown→HEEx rendering appro
 Each chapter is an independent work unit, landed one (or few) per commit:
 
 1. **Study the source first** — read the relevant modules/settings/keybindings; do not
-   write from memory. Mastery-level claims must be true.
+   write from memory. Mastery-level claims must be true. While reading, note the
+   **non-obvious or under-advertised capabilities** the chapter should surface (the
+   discovery objective) — these are easy to miss if you only document the visible UI.
 2. **Draft the chapter** in `priv/guide/`, applying the `writing-copy` skill.
 3. **Render check** in-app at `/guide/<slug>`.
 
