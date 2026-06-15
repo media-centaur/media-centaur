@@ -33,6 +33,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.MediaDirsLogic
   alias MediaCentaur.Controls
   alias MediaCentaur.Playback.LanguagePolicy
+  alias MediaCentaurWeb.SettingsLive.Danger
   alias MediaCentaurWeb.SettingsLive.Controls, as: ControlsSection
   alias MediaCentaurWeb.SettingsLive.Language
   alias MediaCentaurWeb.SettingsLive.Library
@@ -2306,228 +2307,18 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "danger"} = assigns) do
     ~H"""
-    <div class="space-y-4">
-      <div data-nav-grid class="p-5 rounded-lg glass-surface space-y-4">
-        <div class="flex items-start gap-3">
-          <.icon name="hero-wrench-screwdriver" class="size-6 text-base-content/70 shrink-0 mt-0.5" />
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold">Library maintenance</h2>
-            <p class="text-sm text-base-content/60 mt-0.5">
-              Non-destructive housekeeping — detect and heal gaps in the library's cached artwork.
-            </p>
-          </div>
-        </div>
-
-        <div class="divide-y divide-base-content/10">
-          <div class="flex items-start justify-between gap-4 py-3">
-            <div class="min-w-0">
-              <p class="text-sm font-medium">
-                Repair missing images
-                <.badge
-                  :if={@missing_images_summary.missing > 0}
-                  variant="warning"
-                  class="ml-2"
-                >
-                  {@missing_images_summary.missing} missing
-                </.badge>
-              </p>
-              <p class="text-xs text-base-content/50 mt-0.5">
-                <%= if @missing_images_summary.missing > 0 do %>
-                  Finds {@missing_images_summary.missing} image file{if @missing_images_summary.missing ==
-                                                                          1,
-                                                                        do: "",
-                                                                        else: "s"} referenced in the database but absent on disk, and re-queues each one for download from TMDB. Reuses stored source URLs where available; re-queries TMDB when the queue entry is missing.
-                <% else %>
-                  All image files are present on disk. Nothing to repair.
-                <% end %>
-              </p>
-            </div>
-            <.button
-              variant="neutral"
-              size="sm"
-              class="shrink-0"
-              phx-click="repair_missing_images"
-              disabled={@repairing_images or @missing_images_summary.missing == 0}
-              data-nav-item
-              tabindex="0"
-            >
-              {if @repairing_images, do: "Repairing…", else: "Repair"}
-            </.button>
-          </div>
-
-          <div class="flex items-start justify-between gap-4 py-3">
-            <div class="min-w-0">
-              <p class="text-sm font-medium">
-                Re-derive bonus-feature names
-                <.badge :if={@blank_extra_names_count > 0} variant="warning" class="ml-2">
-                  {@blank_extra_names_count} blank
-                </.badge>
-              </p>
-              <p class="text-xs text-base-content/50 mt-0.5">
-                Re-reads each bonus feature's name from its file path, healing blank or
-                out-of-date names left by an earlier parsing bug. Network-free and safe to
-                re-run — also picks up naming improvements after an update.
-              </p>
-            </div>
-            <.button
-              variant="neutral"
-              size="sm"
-              class="shrink-0"
-              phx-click="rederive_extra_names"
-              disabled={@rederiving_extra_names}
-              data-nav-item
-              tabindex="0"
-            >
-              {if @rederiving_extra_names, do: "Re-deriving…", else: "Re-derive"}
-            </.button>
-          </div>
-
-          <div class="flex items-start justify-between gap-4 py-3">
-            <div class="min-w-0">
-              <p class="text-sm font-medium">Re-fetch backdrops</p>
-              <p class="text-xs text-base-content/50 mt-0.5">
-                Re-downloads every backdrop at the current artwork resolution
-                (Pipeline → Artwork resolution) and clears the old cached copies to
-                reclaim space. Use after changing the resolution to bring existing
-                artwork in line. Posters and thumbnails are unaffected.
-              </p>
-            </div>
-            <.button
-              variant="neutral"
-              size="sm"
-              class="shrink-0"
-              phx-click="refetch_backdrops"
-              disabled={@refetching_backdrops}
-              data-nav-item
-              tabindex="0"
-            >
-              {if @refetching_backdrops, do: "Re-fetching…", else: "Re-fetch"}
-            </.button>
-          </div>
-
-          <div class="flex items-start justify-between gap-4 py-3">
-            <div class="min-w-0">
-              <p class="text-sm font-medium">Refresh movie credits</p>
-              <p class="text-xs text-base-content/50 mt-0.5">
-                Backfills cast, crew (director, writers, composer), and IMDb ids for movies imported before those fields existed. Skips movies that already have credits — safe to re-run.
-              </p>
-            </div>
-            <.button
-              variant="neutral"
-              size="sm"
-              class="shrink-0"
-              phx-click="refresh_movie_credits"
-              disabled={@refreshing_credits}
-              data-nav-item
-              tabindex="0"
-            >
-              {if @refreshing_credits, do: "Refreshing…", else: "Refresh"}
-            </.button>
-          </div>
-
-          <div class="flex items-start justify-between gap-4 py-3">
-            <div class="min-w-0">
-              <p class="text-sm font-medium">Refresh series credits</p>
-              <p class="text-xs text-base-content/50 mt-0.5">
-                Backfills creators, aggregate cast, and IMDb ids for TV series imported before those fields existed. Skips series that already have credits — safe to re-run.
-              </p>
-            </div>
-            <.button
-              variant="neutral"
-              size="sm"
-              class="shrink-0"
-              phx-click="refresh_series_credits"
-              disabled={@refreshing_series_credits}
-              data-nav-item
-              tabindex="0"
-            >
-              {if @refreshing_series_credits, do: "Refreshing…", else: "Refresh"}
-            </.button>
-          </div>
-
-          <div class="flex items-start justify-between gap-4 py-3">
-            <div class="min-w-0">
-              <p class="text-sm font-medium">Refresh movie subtitles</p>
-              <p class="text-xs text-base-content/50 mt-0.5">
-                Detects subtitle tracks (embedded streams via ffprobe + sidecar files) for movies imported before subtitle detection shipped. Skips files that already have tracks — safe to re-run.
-              </p>
-            </div>
-            <.button
-              variant="neutral"
-              size="sm"
-              class="shrink-0"
-              phx-click="refresh_movie_subtitles"
-              disabled={@refreshing_movie_subtitles}
-              data-nav-item
-              tabindex="0"
-            >
-              {if @refreshing_movie_subtitles, do: "Refreshing…", else: "Refresh"}
-            </.button>
-          </div>
-        </div>
-      </div>
-
-      <div data-nav-grid class="p-5 rounded-lg glass-surface border border-error/20 space-y-4">
-        <div class="flex items-start gap-3">
-          <.icon name="hero-exclamation-triangle" class="size-6 text-error shrink-0 mt-0.5" />
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold text-error">Danger Zone</h2>
-            <p class="text-sm text-base-content/60 mt-0.5">
-              Destructive actions that cannot be undone. Read the prompt carefully before confirming.
-            </p>
-          </div>
-        </div>
-
-        <div class="divide-y divide-base-content/10">
-          <div class="flex items-start justify-between gap-4 py-3">
-            <div class="min-w-0">
-              <p class="text-sm font-medium">Clear database</p>
-              <p class="text-xs text-base-content/50 mt-0.5">
-                Permanently deletes all entities, files, images, and progress.
-              </p>
-            </div>
-            <.button
-              variant="danger"
-              size="sm"
-              class="shrink-0"
-              phx-click="clear_database"
-              disabled={@clearing_database}
-              data-confirm="This will permanently delete ALL entities, files, images, and progress. This cannot be undone. Continue?"
-              data-nav-item
-              tabindex="0"
-            >
-              {if @clearing_database, do: "Clearing…", else: "Clear"}
-            </.button>
-          </div>
-
-          <div class="flex items-start justify-between gap-4 py-3">
-            <div class="min-w-0">
-              <p class="text-sm font-medium">Refresh image cache</p>
-              <p class="text-xs text-base-content/50 mt-0.5">
-                Deletes all cached artwork and re-downloads from TMDB. May take a while.
-              </p>
-            </div>
-            <.button
-              variant="risky"
-              size="sm"
-              class="shrink-0"
-              phx-click="refresh_image_cache"
-              disabled={@refreshing_images}
-              data-confirm={
-                if @refreshing_images,
-                  do: nil,
-                  else:
-                    "This will delete all cached artwork and re-download from TMDB. This may take a while. Continue?"
-              }
-              data-nav-item
-              tabindex="0"
-            >
-              {if @refreshing_images, do: "Refreshing…", else: "Refresh"}
-            </.button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <Danger.render
+      blank_extra_names_count={@blank_extra_names_count}
+      missing_images_summary={@missing_images_summary}
+      clearing_database={@clearing_database}
+      rederiving_extra_names={@rederiving_extra_names}
+      refetching_backdrops={@refetching_backdrops}
+      refreshing_credits={@refreshing_credits}
+      refreshing_images={@refreshing_images}
+      refreshing_movie_subtitles={@refreshing_movie_subtitles}
+      refreshing_series_credits={@refreshing_series_credits}
+      repairing_images={@repairing_images}
+    />
     """
   end
 
