@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.97.2 — 2026-06-15
+
+### Improved
+
+- **Faster library startup on large collections.** The detail-view cache now warms itself in a fixed handful of database queries instead of querying once per title. On big libraries this removes a burst of redundant work at launch, so the app is ready sooner and stays lighter on resources.
+
 ## v0.97.1 — 2026-06-15
 
 ### Fixed
