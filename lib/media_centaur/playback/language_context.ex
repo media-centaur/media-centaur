@@ -11,12 +11,10 @@ defmodule MediaCentaur.Playback.LanguageContext do
   """
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{Movie, TVSeries}
   alias MediaCentaur.Playback.Iso639
   alias MediaCentaur.Playback.LanguagePolicy
   alias MediaCentaur.Playback.TrackResolver
   alias MediaCentaur.Playback.TrackResolver.Track
-  alias MediaCentaur.Repo
 
   @type t :: %{
           policy: LanguagePolicy.t(),
@@ -170,9 +168,9 @@ defmodule MediaCentaur.Playback.LanguageContext do
   defp resolve_owner(%{extra_id: extra_id}) when is_binary(extra_id), do: {nil, nil, nil}
 
   defp resolve_owner(%{movie_id: movie_id}) when is_binary(movie_id) do
-    case Repo.get(Movie, movie_id) do
-      nil -> {nil, nil, nil}
-      movie -> {:movie, movie.id, Iso639.normalize(movie.original_language)}
+    case Library.fetch_movie(movie_id) do
+      {:ok, movie} -> {:movie, movie.id, Iso639.normalize(movie.original_language)}
+      _ -> {nil, nil, nil}
     end
   end
 
@@ -180,9 +178,9 @@ defmodule MediaCentaur.Playback.LanguageContext do
        when is_binary(episode_id) and is_binary(entity_id) do
     # Episode's owner is the TV series root (entity_id). We don't need to
     # walk Episode → Season → TVSeries — entity_id is already the series.
-    case Repo.get(TVSeries, entity_id) do
-      nil -> {nil, nil, nil}
-      series -> {:tv_series, series.id, Iso639.normalize(series.original_language)}
+    case Library.fetch_tv_series(entity_id) do
+      {:ok, series} -> {:tv_series, series.id, Iso639.normalize(series.original_language)}
+      _ -> {nil, nil, nil}
     end
   end
 
