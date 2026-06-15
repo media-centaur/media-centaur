@@ -25,7 +25,8 @@ defmodule MediaCentaurWeb do
       MediaCentaur.IntegrationHealth,
       MediaCentaur.Retention,
       MediaCentaur.Runtime,
-      MediaCentaur.Setup
+      MediaCentaur.Setup,
+      MediaCentaur.Guide
     ],
     exports: [Endpoint]
 

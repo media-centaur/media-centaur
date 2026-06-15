@@ -29,6 +29,8 @@ defmodule MediaCentaurWeb.Router do
       live "/", HomeLive, :index
       live "/console", ConsolePageLive, :index
       live "/download", AcquisitionLive, :index
+      live "/guide", GuideLive, :index
+      live "/guide/:slug", GuideLive, :show
       live "/history", WatchHistoryLive, :index
       live "/library", LibraryLive, :index
       live "/review", ReviewLive, :index
