@@ -49,8 +49,7 @@ defmodule MediaCentaur.Playback.Events do
       :summary,
       :resume_target,
       :changed_record,
-      :last_activity_at,
-      child_targets_delta: nil
+      :last_activity_at
     ]
 
     @type t :: %__MODULE__{
@@ -58,8 +57,7 @@ defmodule MediaCentaur.Playback.Events do
             summary: map(),
             resume_target: map() | nil,
             changed_record: map() | nil,
-            last_activity_at: DateTime.t(),
-            child_targets_delta: any()
+            last_activity_at: DateTime.t()
           }
   end
 

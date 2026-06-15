@@ -135,23 +135,6 @@ defmodule MediaCentaur.SelfUpdate.Storage do
     end
   end
 
-  @doc """
-  Returns `true` when the last successful check is either missing or older
-  than the given TTL (in milliseconds). Used to decide whether a boot-time
-  check should be enqueued.
-  """
-  @spec stale?(pos_integer()) :: boolean()
-  def stale?(ttl_ms \\ :timer.hours(6)) do
-    case get_last_check_at() do
-      :none ->
-        true
-
-      {:ok, at} ->
-        age_ms = DateTime.diff(DateTime.utc_now(), at, :millisecond)
-        age_ms >= ttl_ms
-    end
-  end
-
   defp decode_latest_known(value) do
     release = %{
       version: value["version"],
