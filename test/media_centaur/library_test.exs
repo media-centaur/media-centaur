@@ -303,6 +303,18 @@ defmodule MediaCentaur.LibraryTest do
       assert "Series B" in names
     end
 
+    test "includes a present video object" do
+      video =
+        create_video_object(%{name: "Sample Home Video", content_url: "/media/sample-home-video.mkv"})
+
+      results = Library.list_recently_added()
+      row = Enum.find(results, &(&1.id == video.id))
+
+      assert row, "expected the present video object to appear in recently added"
+      assert row.name == "Sample Home Video"
+      assert Map.has_key?(row, :poster_url)
+    end
+
     test "respects the limit option" do
       Enum.each(1..10, fn index ->
         movie = create_standalone_movie(%{name: "Movie #{index}"})

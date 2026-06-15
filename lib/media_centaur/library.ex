@@ -2269,45 +2269,27 @@ defmodule MediaCentaur.Library do
   def list_recently_added(opts \\ []) do
     limit = Keyword.get(opts, :limit, 16)
 
-    movies = fetch_recently_added_movies(limit)
-    hoisted = fetch_recently_added_hoisted_movies(limit)
-    tv_series = fetch_recently_added_tv_series(limit)
-    movie_series = fetch_recently_added_movie_series(limit)
-    video_objects = fetch_recently_added_video_objects(limit)
-
-    (movies ++ hoisted ++ tv_series ++ movie_series ++ video_objects)
+    # One base query per presentable type; each carries its own presence
+    # filter, and `fetch_recently_added/2` applies the uniform newest-first /
+    # limit / image-preload / row-shape tail. Concatenation order is the
+    # stable tie-break for equal `inserted_at`.
+    [
+      PresentableQueries.standalone_movies(),
+      PresentableQueries.singleton_collection_movies(),
+      from(t in TVSeries, as: :item, where: exists(tv_series_present_file_subquery())),
+      PresentableQueries.multi_child_movie_series(),
+      from(v in VideoObject, as: :item, where: exists(video_object_present_file_subquery()))
+    ]
+    |> Enum.flat_map(&fetch_recently_added(&1, limit))
     |> Enum.sort_by(& &1.__inserted_at__, {:desc, DateTime})
     |> Enum.take(limit)
     |> Enum.map(&Map.delete(&1, :__inserted_at__))
   end
 
-  defp fetch_recently_added_movies(limit) do
-    from([m] in PresentableQueries.standalone_movies(),
-      order_by: [{:desc, m.inserted_at}],
-      limit: ^limit
-    )
-    |> Repo.all()
-    |> Repo.preload(:images)
-    |> Enum.map(&shape_recently_added_record/1)
-  end
-
-  defp fetch_recently_added_hoisted_movies(limit) do
-    from([m] in PresentableQueries.singleton_collection_movies(),
-      order_by: [{:desc, m.inserted_at}],
-      limit: ^limit
-    )
-    |> Repo.all()
-    |> Repo.preload(:images)
-    |> Enum.map(&shape_recently_added_record/1)
-  end
-
-  defp fetch_recently_added_tv_series(limit) do
-    from(t in TVSeries,
-      as: :item,
-      where: exists(tv_series_present_file_subquery()),
-      order_by: [{:desc, t.inserted_at}],
-      limit: ^limit
-    )
+  defp fetch_recently_added(base_query, limit) do
+    base_query
+    |> order_by([x], desc: x.inserted_at)
+    |> limit(^limit)
     |> Repo.all()
     |> Repo.preload(:images)
     |> Enum.map(&shape_recently_added_record/1)
@@ -2339,28 +2321,6 @@ defmodule MediaCentaur.Library do
       where: pi.container_id == parent_as(:item).id,
       select: 1
     )
-  end
-
-  defp fetch_recently_added_movie_series(limit) do
-    from([ms] in PresentableQueries.multi_child_movie_series(),
-      order_by: [{:desc, ms.inserted_at}],
-      limit: ^limit
-    )
-    |> Repo.all()
-    |> Repo.preload(:images)
-    |> Enum.map(&shape_recently_added_record/1)
-  end
-
-  defp fetch_recently_added_video_objects(limit) do
-    from(v in VideoObject,
-      as: :item,
-      where: exists(video_object_present_file_subquery()),
-      order_by: [{:desc, v.inserted_at}],
-      limit: ^limit
-    )
-    |> Repo.all()
-    |> Repo.preload(:images)
-    |> Enum.map(&shape_recently_added_record/1)
   end
 
   @doc """
