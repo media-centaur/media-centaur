@@ -18,9 +18,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.{Capabilities, Config, SelfUpdate, Settings, Version}
 
   alias MediaCentaurWeb.Live.SettingsLive.{
-    ConnectionTest,
     Overview,
-    PathCheck,
     ReleaseNotes,
     SystemSection
   }
@@ -38,7 +36,9 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.Controls, as: ControlsSection
   alias MediaCentaurWeb.SettingsLive.Language
   alias MediaCentaurWeb.SettingsLive.Library
+  alias MediaCentaurWeb.SettingsLive.Playback
   alias MediaCentaurWeb.SettingsLive.Preferences
+  alias MediaCentaurWeb.SettingsLive.ReleaseTrackingSection
   alias MediaCentaurWeb.SettingsLive.Services
   alias MediaCentaurWeb.SettingsLive.LanguageLogic
 
@@ -2510,83 +2510,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "playback"} = assigns) do
     ~H"""
-    <div class="space-y-4">
-      <form phx-submit="save_playback" class="p-5 rounded-lg glass-surface space-y-5">
-        <div class="flex items-start justify-between gap-4">
-          <div class="min-w-0">
-            <h2 class="text-lg font-semibold">Playback</h2>
-            <p class="text-sm text-base-content/50 mt-0.5">
-              MPV player configuration.
-            </p>
-          </div>
-          <.button
-            type="submit"
-            variant="secondary"
-            size="sm"
-            class="shrink-0"
-            data-nav-item
-            tabindex="0"
-          >
-            Save
-          </.button>
-        </div>
-
-        <div class="space-y-3">
-          <div>
-            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 flex items-center gap-1.5 mb-1.5">
-              <span>MPV path</span>
-              <.path_status :if={@config[:mpv_path]} path={@config[:mpv_path]} kind={:executable} />
-            </label>
-            <input
-              type="text"
-              name="mpv_path"
-              value={@config[:mpv_path]}
-              class="input input-bordered w-full font-mono text-sm"
-              placeholder="/usr/bin/mpv"
-              data-nav-item
-              tabindex="0"
-            />
-          </div>
-
-          <div class="grid grid-cols-[1fr_auto] gap-3">
-            <div class="min-w-0">
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 flex items-center gap-1.5 mb-1.5">
-                <span>IPC socket directory</span>
-                <.path_status
-                  :if={@config[:mpv_socket_dir]}
-                  path={@config[:mpv_socket_dir]}
-                  kind={:directory}
-                />
-              </label>
-              <input
-                type="text"
-                name="mpv_socket_dir"
-                value={@config[:mpv_socket_dir]}
-                class="input input-bordered w-full font-mono text-sm"
-                placeholder="/tmp"
-                data-nav-item
-                tabindex="0"
-              />
-            </div>
-
-            <div class="w-36">
-              <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-                Timeout (ms)
-              </label>
-              <input
-                type="number"
-                name="mpv_socket_timeout_ms"
-                value={@config[:mpv_socket_timeout_ms]}
-                min="100"
-                class="input input-bordered w-full font-mono text-sm"
-                data-nav-item
-                tabindex="0"
-              />
-            </div>
-          </div>
-        </div>
-      </form>
-    </div>
+    <Playback.render config={@config} />
     """
   end
 
@@ -2617,44 +2541,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "release_tracking"} = assigns) do
     ~H"""
-    <form phx-submit="save_release_tracking" class="p-5 rounded-lg glass-surface space-y-5">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold">Release Tracking</h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
-            How often to poll TMDB for upcoming release dates.
-          </p>
-        </div>
-        <.button
-          type="submit"
-          variant="secondary"
-          size="sm"
-          class="shrink-0"
-          data-nav-item
-          tabindex="0"
-        >
-          Save
-        </.button>
-      </div>
-
-      <div>
-        <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-          Refresh interval (hours)
-        </label>
-        <input
-          type="number"
-          name="refresh_interval_hours"
-          value={@config[:release_tracking_refresh_interval_hours]}
-          min="1"
-          class="input input-bordered w-full font-mono text-sm"
-          data-nav-item
-          tabindex="0"
-        />
-        <p class="text-xs text-base-content/40 mt-1">
-          Changes take effect after the current refresh cycle completes.
-        </p>
-      </div>
-    </form>
+    <ReleaseTrackingSection.render config={@config} />
     """
   end
 
@@ -3564,84 +3451,6 @@ defmodule MediaCentaurWeb.SettingsLive do
       />
       <span :if={@status == :neutral} class="size-1.5 rounded-full bg-current"></span>
     </span>
-    """
-  end
-
-  attr :path, :any,
-    required: true,
-    doc:
-      "path string OR a `{label, path}` tuple — `PathCheck.check/2` accepts both forms. `:any` covers the union."
-
-  attr :kind, :atom, required: true, values: [:file, :directory, :executable]
-
-  defp path_status(assigns) do
-    assigns = assign(assigns, :result, PathCheck.check(assigns.path, assigns.kind))
-
-    # `-mini` variants at `size-3.5` match inline-badge convention used
-    # elsewhere in the app (see the "All good" pill on the Health Check
-    # card). Pairing a larger `-solid` glyph with `text-xs` mono made
-    # the icon look stacked above the baseline.
-    ~H"""
-    <span
-      class={[
-        "inline-flex items-center justify-center size-3.5 shrink-0 relative top-px",
-        PathCheck.ok?(@result) && "text-success",
-        !PathCheck.ok?(@result) && "text-warning"
-      ]}
-      title={if PathCheck.ok?(@result), do: "Found at #{@path}", else: PathCheck.label(@result)}
-      aria-label={PathCheck.label(@result)}
-    >
-      <.icon
-        :if={PathCheck.ok?(@result)}
-        name="hero-check-circle-mini"
-        class="size-3.5"
-      />
-      <.icon
-        :if={!PathCheck.ok?(@result)}
-        name="hero-exclamation-triangle-mini"
-        class="size-3.5"
-      />
-    </span>
-    """
-  end
-
-  attr :test, :any,
-    required: true,
-    doc:
-      "connection test result — `nil`, `%{status: :ok | :error, tested_at: DateTime.t(), ...}`, or atom shorthand. Heterogeneous shape; `:any` is intentional."
-
-  attr :ok_label, :string, required: true
-  attr :error_label, :string, required: true
-
-  defp connection_status(assigns) do
-    status = if is_map(assigns.test), do: assigns.test.status
-
-    age =
-      if is_map(assigns.test),
-        do: ConnectionTest.relative_age(assigns.test.tested_at)
-
-    assigns = assign(assigns, status: status, age: age)
-
-    ~H"""
-    <div class="flex items-center gap-2 min-w-0 text-sm">
-      <span class={[
-        "size-2 rounded-full shrink-0",
-        @status == :ok && "bg-success",
-        @status == :error && "bg-error",
-        is_nil(@status) && "bg-base-content/30"
-      ]}>
-      </span>
-      <span class="min-w-0 truncate">
-        <span class="text-base-content/70">
-          {cond do
-            @status == :ok -> @ok_label
-            @status == :error -> @error_label
-            true -> "Not tested"
-          end}
-        </span>
-        <span :if={@age} class="text-base-content/40 text-xs">· {@age}</span>
-      </span>
-    </div>
     """
   end
 

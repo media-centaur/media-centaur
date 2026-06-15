@@ -8,6 +8,8 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
 
   use MediaCentaurWeb, :html
 
+  alias MediaCentaurWeb.Live.SettingsLive.{ConnectionTest, PathCheck}
+
   attr :label, :any,
     required: true,
     doc: "label content — accepts a string or a HEEx slot/AST. `:any` covers both."
@@ -97,6 +99,72 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
       title={if @configured, do: "Configured", else: "Not configured"}
     >
     </span>
+    """
+  end
+
+  attr :path, :any,
+    required: true,
+    doc:
+      "path string OR a `{label, path}` tuple — `PathCheck.check/2` accepts both forms. `:any` covers the union."
+
+  attr :kind, :atom, required: true, values: [:file, :directory, :executable]
+
+  def path_status(assigns) do
+    assigns = assign(assigns, :result, PathCheck.check(assigns.path, assigns.kind))
+
+    ~H"""
+    <span
+      class={[
+        "inline-flex items-center justify-center size-3.5 shrink-0 relative top-px",
+        PathCheck.ok?(@result) && "text-success",
+        !PathCheck.ok?(@result) && "text-warning"
+      ]}
+      title={if PathCheck.ok?(@result), do: "Found at #{@path}", else: PathCheck.label(@result)}
+      aria-label={PathCheck.label(@result)}
+    >
+      <.icon :if={PathCheck.ok?(@result)} name="hero-check-circle-mini" class="size-3.5" />
+      <.icon
+        :if={!PathCheck.ok?(@result)}
+        name="hero-exclamation-triangle-mini"
+        class="size-3.5"
+      />
+    </span>
+    """
+  end
+
+  attr :test, :any,
+    required: true,
+    doc:
+      "connection test result — `nil`, `%{status: :ok | :error, tested_at: DateTime.t(), ...}`, or atom shorthand. Heterogeneous shape; `:any` is intentional."
+
+  attr :ok_label, :string, required: true
+  attr :error_label, :string, required: true
+
+  def connection_status(assigns) do
+    status = if is_map(assigns.test), do: assigns.test.status
+    age = if is_map(assigns.test), do: ConnectionTest.relative_age(assigns.test.tested_at)
+    assigns = assign(assigns, status: status, age: age)
+
+    ~H"""
+    <div class="flex items-center gap-2 min-w-0 text-sm">
+      <span class={[
+        "size-2 rounded-full shrink-0",
+        @status == :ok && "bg-success",
+        @status == :error && "bg-error",
+        is_nil(@status) && "bg-base-content/30"
+      ]}>
+      </span>
+      <span class="min-w-0 truncate">
+        <span class="text-base-content/70">
+          {cond do
+            @status == :ok -> @ok_label
+            @status == :error -> @error_label
+            true -> "Not tested"
+          end}
+        </span>
+        <span :if={@age} class="text-base-content/40 text-xs">· {@age}</span>
+      </span>
+    </div>
     """
   end
 
