@@ -3368,6 +3368,9 @@ defmodule MediaCentaur.Library do
   # Helpers
   # ---------------------------------------------------------------------------
 
+  # Deletion bangs return `:ok`, not the deleted struct — the caller asked
+  # for the row to be gone, not handed back. (This is deliberately asymmetric
+  # with the create/update bangs, which return the record.)
   defp destroy_bang!(record) do
     Repo.bang!(Repo.delete(record))
     :ok
