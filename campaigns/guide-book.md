@@ -19,13 +19,13 @@ understanding and there is currently no in-app place that explains it.
 
 ## Status
 
-**Phase 0 shipped to `main`** (2026-06-16, merged from a worktree, unpushed). The vertical
-slice works: `/guide` + `/guide/:slug` (deep-linkable), an Earmark-based markdown→HEEx
-renderer (`MediaCentaurWeb.GuideMarkdown` — anchors, callouts, internal/external links,
-on-this-page outline), a compile-time chapter index (`MediaCentaur.Guide` + `Library`,
-data-only context), the Settings → System link, and the pilot chapter *How identification
-works*. Full `mix precommit` green (Elixir 5027/0, JS 540/0). Next: write the remaining
-chapters, Part by Part. The reading-pane title **filter** was deferred out of Phase 0.
+**All 19 chapters written and on `main` (unpushed); pending owner review before push.**
+The infrastructure (Phase 0) plus every chapter across Parts I–V are committed: Orientation
+(1–3), Your library (4–8), Watching (9–11), Acquisition (12–14), Operating it (15–19). Each
+chapter was researched against current source, written to the `writing-copy` voice, carries
+source/issue links, and surfaces under-used capabilities (the discovery objective). Full
+`mix precommit` green (Elixir 5027/0, JS 540/0). The reading-pane title **filter**,
+screenshots, and full-text search remain deferred (see Completion criteria / spec).
 
 ## Decisions made
 
@@ -41,17 +41,13 @@ chapters, Part by Part. The reading-pane title **filter** was deferred out of Ph
 
 ## Next steps
 
-Concrete, ordered. Phase 0 proves the whole vertical slice before any chapter farming.
+1. ✅ Phase 0 — infrastructure + pilot chapter (merge `d9ccce9b`).
+2. ✅ Part I — Orientation (1–3), Part II — Your library (4–8), Part III — Watching (9–11), Part IV — Acquisition (12–14), Part V — Operating it (15–19). One commit per part.
+3. **Owner review** of the 19 chapters, then **push `main`** (held per instruction).
+4. After push: the chapters' GitHub source links resolve (they point at paths on `main`).
 
-1. ✅ **Phase-0 TDD plan written** — [`docs/superpowers/plans/2026-06-15-guide-book-phase-0.md`](../docs/superpowers/plans/2026-06-15-guide-book-phase-0.md). Rendering resolved: Earmark, compile-time parse.
-2. ✅ **Phase 0 — infrastructure + pilot chapter shipped to `main`** (8 commits + merge `d9ccce9b`). Full precommit green.
-3. **Phase 1 — Part I (Orientation):** chapters 1–3.
-4. **Phase 2 — Part II (Your library):** chapters 5–8 (4 shipped as pilot).
-5. **Phase 3 — Part III (Watching):** chapters 9–11.
-6. **Phase 4 — Part IV (Acquisition):** chapters 12–14.
-7. **Phase 5 — Part V (Operating it / under the hood):** chapters 15–19.
-
-Chapters land one (or a few) per commit; each is independent. A part may span sessions.
+Deferred (own follow-ups, not blocking): reading-pane title filter, screenshots, full-text
+search, and the wiki exporter (separate campaign).
 
 ## Completion criteria
 

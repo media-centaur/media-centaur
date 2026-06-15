@@ -22,15 +22,14 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`guide-book.md`](guide-book.md) —
-  **Phase 0 shipped to `main` (unpushed).** In-app book-style guide at a deep-linkable
-  `/guide` route (linked only from Settings → System, not the main nav) that teaches the
-  enthusiast operator how Media Centaur works — 19 chapters across 5 parts, mastery-depth,
-  each studied against source before drafting, with a discovery slant (surface under-used
-  capabilities). Chapters are portable markdown rendered to HEEx via Earmark; text-first.
-  Voice governed by the `writing-copy` skill. Wiki generation is a separate future
-  campaign. Phase 0 (the renderer/route/layout/Settings-link + pilot chapter *How
-  identification works*) is merged and precommit-green; remaining work is the other 18
-  chapters, Part by Part.
+  **All 19 chapters on `main` (unpushed); pending owner review before push.** In-app
+  book-style guide at a deep-linkable `/guide` route (linked only from Settings → System,
+  not the main nav) teaching the enthusiast operator how Media Centaur works — 19 chapters
+  across 5 parts (Orientation, Your library, Watching, Acquisition, Operating it),
+  mastery-depth, each researched against source, with a discovery slant (surface under-used
+  capabilities). Portable markdown rendered to HEEx via Earmark; text-first; voice from the
+  `writing-copy` skill. Full precommit green. Deferred: title filter, screenshots,
+  full-text search, and the wiki exporter (separate campaign).
 * [`upcoming-overhaul.md`](upcoming-overhaul.md) —
   **built; shipped to `main` (unpushed), pending release tag.** Overhauled
   `/upcoming` per the section-overhaul house style into a time-first forecast: an
