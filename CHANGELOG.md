@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.97.1 — 2026-06-15
+
+### Fixed
+
+- **Aligned the collapsed sidebar icons.** When the sidebar is collapsed, the lower navigation icons (Downloads, Status, Review, Settings) now sit centered like the rest instead of drifting to the left edge.
+
 ## v0.97.0 — 2026-06-15
 
 This release is mostly internal: a large, behavior-preserving cleanup of the codebase that makes future changes faster and safer, plus a few reliability fixes carried along the way.
