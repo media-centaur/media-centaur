@@ -29,6 +29,7 @@ import {LogTail} from "./hooks/log_tail"
 import {CopyButton} from "./hooks/copy_button"
 import {CastGridFilter} from "./hooks/cast_grid_filter"
 import {MouseAutofocus} from "./hooks/mouse_autofocus"
+import {FlashAutoDismiss} from "./hooks/flash_auto_dismiss"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
@@ -42,6 +43,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     CopyButton,
     CastGridFilter,
     MouseAutofocus,
+    FlashAutoDismiss,
     ScrollToResume: {
       mounted() { this._scrollToTarget() },
       updated() {

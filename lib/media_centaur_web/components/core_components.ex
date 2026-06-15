@@ -43,6 +43,15 @@ defmodule MediaCentaurWeb.CoreComponents do
   attr :flash, :map, default: %{}, doc: "the map of flash messages to display"
   attr :title, :string, default: nil
   attr :kind, :atom, values: [:info, :error], doc: "used for styling and flash lookup"
+
+  attr :dismiss_after, :integer,
+    default: nil,
+    doc:
+      "Milliseconds before the toast auto-dismisses with the same exit " <>
+        "transition as a manual close (via the `FlashAutoDismiss` hook). " <>
+        "`nil` (default) keeps it persistent — used for the connection-state " <>
+        "toasts that must linger until the condition resolves."
+
   attr :rest, :global, doc: "the arbitrary HTML attributes to add to the flash container"
 
   slot :inner_block, doc: "the optional inner block that renders the flash message"
@@ -55,6 +64,8 @@ defmodule MediaCentaurWeb.CoreComponents do
       :if={msg = render_slot(@inner_block) || Phoenix.Flash.get(@flash, @kind)}
       id={@id}
       phx-click={JS.push("lv:clear-flash", value: %{key: @kind}) |> hide("##{@id}")}
+      phx-hook={@dismiss_after && "FlashAutoDismiss"}
+      data-dismiss-after={@dismiss_after}
       role="alert"
       class="toast toast-top toast-end z-50"
       {@rest}

@@ -225,8 +225,13 @@ defmodule MediaCentaurWeb.Layouts do
   def flash_group(assigns) do
     ~H"""
     <div id={@id} aria-live="polite">
-      <.flash kind={:info} flash={@flash} />
-      <.flash kind={:error} flash={@flash} />
+      <%!--
+        User-action toasts auto-dismiss so a save → confirm flow never
+        requires a manual click. Errors dwell a little longer; hovering or
+        focusing either one pauses its countdown (see FlashAutoDismiss).
+      --%>
+      <.flash kind={:info} flash={@flash} dismiss_after={4000} />
+      <.flash kind={:error} flash={@flash} dismiss_after={7000} />
 
       <%!--
         Disconnect toasts, in desktop-app voice: Media Centaur is a local
