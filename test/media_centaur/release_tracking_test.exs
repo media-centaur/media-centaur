@@ -4,6 +4,29 @@ defmodule MediaCentaur.ReleaseTrackingTest do
   import Ecto.Query
   alias MediaCentaur.ReleaseTracking
 
+  describe "persist_release!/2" do
+    test "keeps release_type and part_tmdb_id so Differ keys stay stable" do
+      {:ok, item} =
+        ReleaseTracking.track_item(%{tmdb_id: 1396, media_type: :tv_series, name: "Sample Show"})
+
+      release =
+        ReleaseTracking.persist_release!(item, %{
+          air_date: ~D[2026-07-01],
+          title: "S01E01",
+          season_number: 1,
+          episode_number: 1,
+          release_type: "premiere",
+          part_tmdb_id: 4242,
+          released: false
+        })
+
+      assert release.release_type == "premiere"
+      assert release.part_tmdb_id == 4242
+      assert release.season_number == 1
+      assert release.episode_number == 1
+    end
+  end
+
   describe "track_item/1" do
     test "creates a tracking item" do
       assert {:ok, item} =

@@ -443,16 +443,7 @@ defmodule MediaCentaur.ReleaseTracking do
   end
 
   defp persist_releases(item, releases) do
-    Enum.each(releases, fn release ->
-      create_release!(%{
-        item_id: item.id,
-        air_date: release[:air_date],
-        title: release[:title],
-        season_number: release[:season_number],
-        episode_number: release[:episode_number],
-        released: release[:released] || false
-      })
-    end)
+    Enum.each(releases, &persist_release!(item, &1))
 
     mark_in_library_releases(item)
     Wants.sync_item(item)
@@ -503,6 +494,27 @@ defmodule MediaCentaur.ReleaseTracking do
 
   def create_release!(attrs) do
     Repo.insert!(Release.create_changeset(attrs))
+  end
+
+  @doc """
+  Persists one episode/series release row for `item` from a release map,
+  writing the full shape — including `release_type` and `part_tmdb_id`.
+  Every TV-side persistence path (initial scan, refresh, auto-track) routes
+  through this so the Differ's keys stay stable across refreshes; dropping
+  either field churns the calendar. Movie collections use
+  `persist_movie_releases/2`, which derives `released` from the air date.
+  """
+  def persist_release!(%Item{} = item, release) do
+    create_release!(%{
+      item_id: item.id,
+      air_date: release[:air_date],
+      title: release[:title],
+      season_number: release[:season_number],
+      episode_number: release[:episode_number],
+      release_type: release[:release_type],
+      part_tmdb_id: release[:part_tmdb_id],
+      released: release[:released] || false
+    })
   end
 
   # Releases are always deleted and recreated (never updated individually).
