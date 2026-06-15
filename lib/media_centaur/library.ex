@@ -670,8 +670,8 @@ defmodule MediaCentaur.Library do
     attrs = ensure_file_presence_id(attrs, file_path, media_dir)
 
     case Repo.get_by(WatchedFile, file_path: file_path) do
-      nil -> Repo.insert(WatchedFile.link_file_changeset(attrs))
-      existing -> Repo.update(WatchedFile.link_file_changeset(existing, attrs))
+      nil -> Repo.insert(WatchedFile.create_changeset(attrs))
+      existing -> Repo.update(WatchedFile.update_changeset(existing, attrs))
     end
   end
 
@@ -1706,8 +1706,8 @@ defmodule MediaCentaur.Library do
     attrs = ensure_file_presence_id(attrs, file_path, media_dir)
 
     case Repo.get_by(ExtraFile, file_path: file_path) do
-      nil -> Repo.insert(ExtraFile.link_file_changeset(attrs))
-      existing -> Repo.update(ExtraFile.link_file_changeset(existing, attrs))
+      nil -> Repo.insert(ExtraFile.create_changeset(attrs))
+      existing -> Repo.update(ExtraFile.update_changeset(existing, attrs))
     end
   end
 

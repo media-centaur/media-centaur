@@ -45,7 +45,7 @@ defmodule MediaCentaur.Watcher.RecordSeenTest do
 
     test "returns {:error, _} when link_file fails (empty file_path)" do
       # Force a validation failure: empty file_path triggers the
-      # validate_required check on WatchedFile.link_file_changeset/1.
+      # validate_required check on WatchedFile.create_changeset/1.
       attrs = %{
         file_path: "",
         media_dir: "/media/movies"

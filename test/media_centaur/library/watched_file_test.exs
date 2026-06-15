@@ -52,7 +52,7 @@ defmodule MediaCentaur.Library.WatchedFileTest do
 
     test "requires playable_item_id" do
       changeset =
-        WatchedFile.link_file_changeset(%{
+        WatchedFile.create_changeset(%{
           file_path: "/media/test/missing-item.mkv",
           media_dir: "/media/test"
         })

@@ -73,14 +73,14 @@ defmodule MediaCentaur.Library.ExtraFile do
   building this changeset directly — that wrapper ensures a matching
   FilePresence exists and injects its id.
   """
-  def link_file_changeset(attrs) do
+  def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [:file_path, :media_dir, :extra_id, :file_presence_id])
     |> validate_required([:file_path, :extra_id, :file_presence_id])
     |> unique_constraint(:file_path)
   end
 
-  def link_file_changeset(extra_file, attrs) do
+  def update_changeset(extra_file, attrs) do
     extra_file
     |> cast(attrs, [:file_path, :media_dir, :extra_id, :file_presence_id])
     |> validate_required([:file_path, :extra_id, :file_presence_id])
