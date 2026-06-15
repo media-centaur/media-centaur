@@ -344,6 +344,15 @@ html.psb .psb-variation-block .media-centaur {
   height: 1rem;
 }
 
+/* Collapsed: there are no labels, so the system-group demotion (smaller icon)
+   conveys nothing and only breaks the icon centering — collapsed centering
+   relies on the icon filling the padding box, which a 16px icon doesn't.
+   Render system icons at the full icon size so they center like the rest. */
+[data-sidebar=collapsed] .sidebar-link-system .size-5 {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
 /* Label text fades out when collapsed */
 .sidebar-label {
   white-space: nowrap;
