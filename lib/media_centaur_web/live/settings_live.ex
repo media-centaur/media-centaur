@@ -36,10 +36,12 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.Controls, as: ControlsSection
   alias MediaCentaurWeb.SettingsLive.Language
   alias MediaCentaurWeb.SettingsLive.Library
+  alias MediaCentaurWeb.SettingsLive.Pipeline, as: PipelineSection
   alias MediaCentaurWeb.SettingsLive.Playback
   alias MediaCentaurWeb.SettingsLive.Preferences
   alias MediaCentaurWeb.SettingsLive.ReleaseTrackingSection
   alias MediaCentaurWeb.SettingsLive.Services
+  alias MediaCentaurWeb.SettingsLive.Tmdb
   alias MediaCentaurWeb.SettingsLive.LanguageLogic
 
   # Sections are grouped for sidebar display — a thin divider renders between
@@ -2063,100 +2065,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "tmdb"} = assigns) do
     ~H"""
-    <form id="settings-tmdb" phx-submit="save_tmdb" class="p-5 rounded-lg glass-surface space-y-5">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold flex items-center gap-2">
-            TMDB <.status_dot configured={@config[:tmdb_api_key_configured?]} />
-          </h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
-            The Movie Database API — required for metadata scraping and artwork.
-          </p>
-        </div>
-        <.button
-          type="submit"
-          variant="secondary"
-          size="sm"
-          class="shrink-0"
-          data-nav-item
-          tabindex="0"
-        >
-          Save
-        </.button>
-      </div>
-
-      <div class="space-y-3">
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-            API Key
-          </label>
-          <input
-            type="password"
-            name="tmdb_api_key"
-            class="input input-bordered w-full font-mono text-sm"
-            placeholder={
-              if @config[:tmdb_api_key_configured?],
-                do: "Leave blank to keep current key",
-                else: "Enter your TMDB API key"
-            }
-            autocomplete="off"
-            data-nav-item
-            tabindex="0"
-          />
-          <p class="text-xs text-base-content/40 mt-1">
-            Don't have one yet? Request a free key at <a
-              href="https://www.themoviedb.org/settings/api"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="link link-primary"
-            >themoviedb.org/settings/api</a>.
-          </p>
-        </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-            Auto-approve threshold
-          </label>
-          <input
-            type="number"
-            name="auto_approve_threshold"
-            step="0.01"
-            min="0"
-            max="1"
-            value={@config[:auto_approve_threshold]}
-            class="input input-bordered w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
-          <p class="text-xs text-base-content/40 mt-1">
-            Confidence score (0.0–1.0) above which matches are approved automatically.
-          </p>
-        </div>
-      </div>
-
-      <div class="pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
-        <.connection_status
-          test={@tmdb_test}
-          ok_label="Connected"
-          error_label="Unreachable"
-        />
-        <.button
-          type="submit"
-          variant="neutral"
-          size="sm"
-          class="shrink-0"
-          name="_action"
-          value="test"
-          disabled={@tmdb_testing}
-          data-nav-item
-          tabindex="0"
-        >
-          <span :if={@tmdb_testing} class="loading loading-spinner loading-xs"></span>
-          <.icon :if={!@tmdb_testing} name="hero-signal-mini" class="size-4" />
-          {if @tmdb_testing, do: "Testing…", else: "Test connection"}
-        </.button>
-      </div>
-    </form>
+    <Tmdb.render config={@config} tmdb_test={@tmdb_test} tmdb_testing={@tmdb_testing} />
     """
   end
 
@@ -2423,88 +2332,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "pipeline"} = assigns) do
     ~H"""
-    <form phx-submit="save_pipeline" class="p-5 rounded-lg glass-surface space-y-5">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0">
-          <h2 class="text-lg font-semibold">Pipeline</h2>
-          <p class="text-sm text-base-content/50 mt-0.5">
-            Controls how files are classified during ingestion.
-          </p>
-        </div>
-        <.button
-          type="submit"
-          variant="secondary"
-          size="sm"
-          class="shrink-0"
-          data-nav-item
-          tabindex="0"
-        >
-          Save
-        </.button>
-      </div>
-
-      <div class="space-y-3">
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-            Extras directories
-          </label>
-          <input
-            type="text"
-            name="extras_dirs"
-            value={Enum.join(@config[:extras_dirs] || [], ", ")}
-            class="input input-bordered w-full text-sm"
-            placeholder="Extras, Featurettes, Special Features"
-            data-nav-item
-            tabindex="0"
-          />
-          <p class="text-xs text-base-content/40 mt-1">
-            Comma-separated directory names treated as bonus content.
-          </p>
-        </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-            Skip directories
-          </label>
-          <input
-            type="text"
-            name="skip_dirs"
-            value={Enum.join(@config[:skip_dirs] || [], ", ")}
-            class="input input-bordered w-full text-sm"
-            placeholder="Sample"
-            data-nav-item
-            tabindex="0"
-          />
-          <p class="text-xs text-base-content/40 mt-1">
-            Comma-separated directory names to ignore silently.
-          </p>
-        </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-            Artwork resolution
-          </label>
-          <select
-            name="image_resolution"
-            class="select select-bordered w-full text-sm"
-            data-nav-item
-            tabindex="0"
-          >
-            <option value="4k" selected={Config.image_resolution() == "4k"}>
-              4K — sharper on UHD displays, larger downloads
-            </option>
-            <option value="1080p" selected={Config.image_resolution() == "1080p"}>
-              1080p — smaller files, ideal for 1080p displays
-            </option>
-          </select>
-          <p class="text-xs text-base-content/40 mt-1">
-            Resolution for downloaded background artwork (backdrops). Applies to
-            newly fetched art; existing artwork keeps its size until refreshed.
-            Posters and thumbnails are always stored at a display-appropriate size.
-          </p>
-        </div>
-      </div>
-    </form>
+    <PipelineSection.render config={@config} />
     """
   end
 
