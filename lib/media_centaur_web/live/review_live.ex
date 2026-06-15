@@ -613,86 +613,9 @@ defmodule MediaCentaurWeb.ReviewLive do
           </span>
         </div>
 
-        <%!-- Parsed info (compact row) --%>
-        <div class="glass-inset rounded-lg px-4 py-3 flex items-center gap-3 flex-wrap">
-          <span class="text-[0.625rem] font-semibold uppercase tracking-wide text-base-content/40 shrink-0">
-            Parsed
-          </span>
-          <span class="text-sm font-medium">{@file.parsed_title || "Unknown"}</span>
-          <span :if={@file.parsed_year} class="text-sm text-base-content/50">
-            ({@file.parsed_year})
-          </span>
-          <.badge variant="type">{format_type(@file.parsed_type)}</.badge>
-          <span
-            :if={@file.season_number && @file.episode_number}
-            class="text-sm text-base-content/60"
-          >
-            S{zero_pad(@file.season_number)}E{zero_pad(@file.episode_number)}
-          </span>
-        </div>
+        <.parsed_info file={@file} />
 
-        <%!-- TMDB match --%>
-        <div class="glass-inset rounded-lg p-4">
-          <p class="text-[0.625rem] font-semibold uppercase tracking-[0.05em] text-base-content/40 mb-3">
-            TMDB Match
-          </p>
-          <%= if @file.tmdb_id && !@tied do %>
-            <div class="flex gap-4">
-              <img
-                :if={@file.match_poster_path}
-                src={"https://image.tmdb.org/t/p/w342#{@file.match_poster_path}"}
-                alt="poster"
-                class="w-[120px] rounded-lg shrink-0 self-start"
-              />
-              <div
-                :if={!@file.match_poster_path}
-                class="w-[120px] aspect-[2/3] glass-inset rounded-lg flex items-center justify-center shrink-0"
-              >
-                <.icon name="hero-film" class="size-8 opacity-20" />
-              </div>
-              <div class="flex-1 min-w-0 space-y-2">
-                <p class="text-sm font-medium">
-                  {@file.match_title || "TMDB ##{@file.tmdb_id}"}
-                </p>
-                <p :if={@file.match_year} class="text-sm text-base-content/50">
-                  ({@file.match_year})
-                </p>
-                <div :if={@file.confidence} class="mt-1">
-                  <p class="text-xs text-base-content/50 mb-1">Confidence</p>
-                  <div class="h-1.5 rounded-full bg-base-content/8 overflow-hidden max-w-48">
-                    <div
-                      class={["h-full rounded-full", confidence_bar_class(@file.confidence)]}
-                      style={"width: #{round(@file.confidence * 100)}%"}
-                    >
-                    </div>
-                  </div>
-                  <p class={[
-                    "text-xs font-semibold mt-1",
-                    confidence_text_class(@file.confidence)
-                  ]}>
-                    {round(@file.confidence * 100)}%
-                  </p>
-                </div>
-                <a
-                  href={tmdb_url(@file.tmdb_type, @file.tmdb_id)}
-                  target="_blank"
-                  rel="noopener"
-                  class="text-xs text-info hover:underline inline-flex items-center gap-1"
-                >
-                  TMDB #{@file.tmdb_id}
-                  <.icon name="hero-arrow-top-right-on-square" class="size-3" />
-                </a>
-              </div>
-            </div>
-          <% else %>
-            <div class="flex flex-col items-center justify-center py-8 gap-2 text-base-content/30">
-              <.icon name="hero-question-mark-circle" class="size-10" />
-              <p class="text-sm">
-                {if @tied, do: "Multiple tied matches", else: "No results found"}
-              </p>
-            </div>
-          <% end %>
-        </div>
+        <.tmdb_match file={@file} tied={@tied} />
 
         <%!-- Tied candidates chooser --%>
         <.tied_candidates
@@ -702,42 +625,13 @@ defmodule MediaCentaurWeb.ReviewLive do
           encoded_key={@encoded_key}
         />
 
-        <%!-- Episode list for multi-file groups --%>
-        <div :if={@file_count > 1} class="space-y-2">
-          <.button
-            variant="dismiss"
-            size="sm"
-            class="gap-1"
-            phx-click="toggle_files"
-            phx-value-key={@encoded_key}
-          >
-            <.badge>{@file_count} episodes</.badge>
-            <.icon
-              name={if @expanded, do: "hero-chevron-up", else: "hero-chevron-down"}
-              class="size-4"
-            />
-          </.button>
-          <div :if={@expanded} class="glass-inset rounded-lg p-3">
-            <ul class="space-y-1">
-              <li :for={file <- @group.files} class="flex items-center gap-2">
-                <.badge
-                  :if={file.season_number && file.episode_number}
-                  variant="ghost"
-                  size="xs"
-                  class="font-mono"
-                >
-                  S{zero_pad(file.season_number)}E{zero_pad(file.episode_number)}
-                </.badge>
-                <span
-                  class="font-mono text-xs text-base-content/70 truncate-left"
-                  title={relative_file_path(file)}
-                >
-                  <bdo dir="ltr">{relative_file_path(file)}</bdo>
-                </span>
-              </li>
-            </ul>
-          </div>
-        </div>
+        <.episode_list
+          :if={@file_count > 1}
+          group={@group}
+          file_count={@file_count}
+          expanded={@expanded}
+          encoded_key={@encoded_key}
+        />
 
         <%!-- Action buttons --%>
         <div class="flex flex-wrap gap-2 pt-3 border-t border-base-content/6">
@@ -789,6 +683,128 @@ defmodule MediaCentaurWeb.ReviewLive do
           searching={@searching}
           searched={@searched}
         />
+      </div>
+    </div>
+    """
+  end
+
+  # Compact parsed-metadata row (title / year / type / SxxEyy).
+  defp parsed_info(assigns) do
+    ~H"""
+    <div class="glass-inset rounded-lg px-4 py-3 flex items-center gap-3 flex-wrap">
+      <span class="text-[0.625rem] font-semibold uppercase tracking-wide text-base-content/40 shrink-0">
+        Parsed
+      </span>
+      <span class="text-sm font-medium">{@file.parsed_title || "Unknown"}</span>
+      <span :if={@file.parsed_year} class="text-sm text-base-content/50">
+        ({@file.parsed_year})
+      </span>
+      <.badge variant="type">{format_type(@file.parsed_type)}</.badge>
+      <span :if={@file.season_number && @file.episode_number} class="text-sm text-base-content/60">
+        S{zero_pad(@file.season_number)}E{zero_pad(@file.episode_number)}
+      </span>
+    </div>
+    """
+  end
+
+  # TMDB match block: poster + title/year/confidence + link when matched and
+  # not tied; an empty-state otherwise (tied → "Multiple tied matches").
+  defp tmdb_match(assigns) do
+    ~H"""
+    <div class="glass-inset rounded-lg p-4">
+      <p class="text-[0.625rem] font-semibold uppercase tracking-[0.05em] text-base-content/40 mb-3">
+        TMDB Match
+      </p>
+      <%= if @file.tmdb_id && !@tied do %>
+        <div class="flex gap-4">
+          <img
+            :if={@file.match_poster_path}
+            src={"https://image.tmdb.org/t/p/w342#{@file.match_poster_path}"}
+            alt="poster"
+            class="w-[120px] rounded-lg shrink-0 self-start"
+          />
+          <div
+            :if={!@file.match_poster_path}
+            class="w-[120px] aspect-[2/3] glass-inset rounded-lg flex items-center justify-center shrink-0"
+          >
+            <.icon name="hero-film" class="size-8 opacity-20" />
+          </div>
+          <div class="flex-1 min-w-0 space-y-2">
+            <p class="text-sm font-medium">
+              {@file.match_title || "TMDB ##{@file.tmdb_id}"}
+            </p>
+            <p :if={@file.match_year} class="text-sm text-base-content/50">
+              ({@file.match_year})
+            </p>
+            <div :if={@file.confidence} class="mt-1">
+              <p class="text-xs text-base-content/50 mb-1">Confidence</p>
+              <div class="h-1.5 rounded-full bg-base-content/8 overflow-hidden max-w-48">
+                <div
+                  class={["h-full rounded-full", confidence_bar_class(@file.confidence)]}
+                  style={"width: #{round(@file.confidence * 100)}%"}
+                >
+                </div>
+              </div>
+              <p class={["text-xs font-semibold mt-1", confidence_text_class(@file.confidence)]}>
+                {round(@file.confidence * 100)}%
+              </p>
+            </div>
+            <a
+              href={tmdb_url(@file.tmdb_type, @file.tmdb_id)}
+              target="_blank"
+              rel="noopener"
+              class="text-xs text-info hover:underline inline-flex items-center gap-1"
+            >
+              TMDB #{@file.tmdb_id}
+              <.icon name="hero-arrow-top-right-on-square" class="size-3" />
+            </a>
+          </div>
+        </div>
+      <% else %>
+        <div class="flex flex-col items-center justify-center py-8 gap-2 text-base-content/30">
+          <.icon name="hero-question-mark-circle" class="size-10" />
+          <p class="text-sm">
+            {if @tied, do: "Multiple tied matches", else: "No results found"}
+          </p>
+        </div>
+      <% end %>
+    </div>
+    """
+  end
+
+  # Collapsible episode list for multi-file groups.
+  defp episode_list(assigns) do
+    ~H"""
+    <div class="space-y-2">
+      <.button
+        variant="dismiss"
+        size="sm"
+        class="gap-1"
+        phx-click="toggle_files"
+        phx-value-key={@encoded_key}
+      >
+        <.badge>{@file_count} episodes</.badge>
+        <.icon name={if @expanded, do: "hero-chevron-up", else: "hero-chevron-down"} class="size-4" />
+      </.button>
+      <div :if={@expanded} class="glass-inset rounded-lg p-3">
+        <ul class="space-y-1">
+          <li :for={file <- @group.files} class="flex items-center gap-2">
+            <.badge
+              :if={file.season_number && file.episode_number}
+              variant="ghost"
+              size="xs"
+              class="font-mono"
+            >
+              S{zero_pad(file.season_number)}E{zero_pad(file.episode_number)}
+            </.badge>
+            <span
+              class="font-mono text-xs text-base-content/70 truncate-left"
+              title={relative_file_path(file)}
+            >
+              <bdo dir="ltr">{relative_file_path(file)}</bdo>
+            </span>
+          </li>
+        </ul>
       </div>
     </div>
     """
