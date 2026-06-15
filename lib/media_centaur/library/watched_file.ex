@@ -41,7 +41,7 @@ defmodule MediaCentaur.Library.WatchedFile do
   directly — `link_file/1` ensures a matching FilePresence exists
   and injects its id.
   """
-  def link_file_changeset(attrs) do
+  def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [:file_path, :media_dir, :playable_item_id, :file_presence_id])
     |> validate_required([:file_path, :playable_item_id, :file_presence_id])
@@ -52,7 +52,7 @@ defmodule MediaCentaur.Library.WatchedFile do
   `Library.link_file/1` when a file_path is re-ingested under a
   different leaf).
   """
-  def link_file_changeset(watched_file, attrs) do
+  def update_changeset(watched_file, attrs) do
     watched_file
     |> cast(attrs, [:file_path, :media_dir, :playable_item_id, :file_presence_id])
     |> validate_required([:file_path, :playable_item_id, :file_presence_id])

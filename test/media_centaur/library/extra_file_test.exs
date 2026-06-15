@@ -59,7 +59,7 @@ defmodule MediaCentaur.Library.ExtraFileTest do
 
     test "requires extra_id" do
       changeset =
-        ExtraFile.link_file_changeset(%{
+        ExtraFile.create_changeset(%{
           file_path: "/media/test/orphan.mkv",
           media_dir: "/media/test"
         })
@@ -79,7 +79,7 @@ defmodule MediaCentaur.Library.ExtraFileTest do
         })
 
       changeset =
-        ExtraFile.link_file_changeset(%{
+        ExtraFile.create_changeset(%{
           extra_id: extra.id,
           media_dir: "/media/test"
         })
