@@ -6,6 +6,23 @@ defmodule MediaCentaurWeb.LiveHelpers do
   defdelegate format_seconds(seconds), to: MediaCentaur.Format
 
   @doc """
+  Converts a param string to an already-interned atom, returning `default`
+  (nil unless given) for anything unrecognized rather than raising.
+
+  Use this for every param→atom conversion in `handle_event` — raw
+  `String.to_existing_atom/1` on user-controlled params raises
+  `ArgumentError` on a stray `phx-value`. Pass a domain default for the
+  forgiving case, or use the nil default and guard the result for the
+  reject-unknown case.
+  """
+  @spec safe_existing_atom(String.t(), atom()) :: atom()
+  def safe_existing_atom(value, default \\ nil) when is_binary(value) do
+    String.to_existing_atom(value)
+  rescue
+    ArgumentError -> default
+  end
+
+  @doc """
   Cancels any pending timer stored in `timer_assign` and schedules `message`
   to be sent to `self()` after `delay_ms` milliseconds. Returns the socket
   with the new timer ref stored in `timer_assign`.

@@ -3,6 +3,20 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
 
   import MediaCentaurWeb.LiveHelpers
 
+  describe "safe_existing_atom/2" do
+    test "returns the existing atom for a known string" do
+      assert safe_existing_atom("error") == :error
+    end
+
+    test "returns the default (nil) for an unknown string instead of raising" do
+      assert safe_existing_atom("definitely_not_an_atom_zzz") == nil
+    end
+
+    test "returns the given default for an unknown string" do
+      assert safe_existing_atom("definitely_not_an_atom_zzz", :movie) == :movie
+    end
+  end
+
   describe "sized_image_url/2" do
     test "appends a ?w= width hint to a bare URL" do
       assert sized_image_url("/media-images/abc/backdrop.jpg", 480) ==
