@@ -11,11 +11,18 @@ defmodule MediaCentaur.LibraryTest do
     parent = self()
     handler_id = {:library_query_count, ref}
 
+    # Ecto emits `[:repo, :query]` telemetry synchronously in the process that
+    # ran the query, so `self()` inside the handler is that process. Counting
+    # only queries emitted by `parent` (the test process running `fun`) scopes
+    # the measurement to the function under test — without this filter, queries
+    # from background workers (projection Cache.Workers refreshing on the
+    # entity-creation PubSub, etc.) firing during the window get counted too,
+    # which made these counts flake under full-suite parallelism.
     :ok =
       :telemetry.attach(
         handler_id,
         [:media_centaur, :repo, :query],
-        fn _, _, _, _ -> send(parent, {:query, ref}) end,
+        fn _, _, _, _ -> if self() == parent, do: send(parent, {:query, ref}) end,
         nil
       )
 
