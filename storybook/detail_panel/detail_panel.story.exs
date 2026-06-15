@@ -25,41 +25,45 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
        `%EpisodeListItem.Library{}` and `%EpisodeListItem.Missing{}`
        items — the TV-series content list reads exclusively from this
        structure (per ADR ViewModel migration).
-    4. `:tv_series_with_upcoming_inline` — same shape as 3 but with
+    4. `:tv_series_spoiler_free` — same library shape as 3 but
+       `spoiler_free: true`. Unwatched episodes blur their thumbnail,
+       title, and description (`.spoiler-blur`); the leading episode
+       number stays legible. Watched / current rows render unblurred.
+    5. `:tv_series_with_upcoming_inline` — same shape as 3 but with
        `%EpisodeListItem.Upcoming{}` items mixed in: one replacing a
        Missing slot, one appended after the last library episode in
        S1. Pill copy reads "in Xd" because `air_date` is in the
        future.
-    5. `:tv_series_aired_not_in_library` — TV variation with an
+    6. `:tv_series_aired_not_in_library` — TV variation with an
        Upcoming item whose `sub_status: :aired_not_in_library`
        (released but file not yet imported). Pill copy reads
        "aired Xd ago".
-    6. `:tv_series_only_future` — entity has zero library seasons;
+    7. `:tv_series_only_future` — entity has zero library seasons;
        releases project a synthetic `kind: :future` SeasonView. Hits
        the no-watched-count branch on the season header.
-    7. `:tv_series_untracked` — same library shape as 3 but
+    8. `:tv_series_untracked` — same library shape as 3 but
        `tracking_status: nil`. Confirms the bell-icon affordance is
        absent and no upcoming/future-season content renders.
-    8. `:movie_series` — `:movie_series` with three child movies, one
+    9. `:movie_series` — `:movie_series` with three child movies, one
        partially watched. Hits the chronological movie row.
-    9. `:info_view_with_files` — `detail_view: :info` with grouped
+    10. `:info_view_with_files` — `detail_view: :info` with grouped
        files. Renders the prominent "Delete this/all files" danger
        button at the top, always-visible per-folder + per-file delete
        affordances, quality badges parsed from filenames (4K / HDR /
        WEB / H265 …), an "added Xd ago" stamp per file, the External
        IDs section, the Rematch action, and the muted UUID footer.
-    10. `:rematch_confirm` — `rematch_confirm: true` flips the Rematch
+    11. `:rematch_confirm` — `rematch_confirm: true` flips the Rematch
        action to its confirm state ("Confirm?" copy, `btn-error`
        styling). Captures the confirmation toggle.
-    11. `:delete_pending_all_inline` — `delete_confirm: :all` flips the
+    12. `:delete_pending_all_inline` — `delete_confirm: :all` flips the
        prominent danger button to "Click again to confirm — Delete
        all files (size)" with an inline Cancel link. No separate
        modal; the gesture lives where the button does.
-    12. `:delete_pending_file_inline` — `delete_confirm: {:file, path}`
+    13. `:delete_pending_file_inline` — `delete_confirm: {:file, path}`
        targeting one of the rows in `detail_files`. That file row
        gets a danger-tinted background + the trash button widens to
        show "Click to confirm".
-    13. `:offline` — `available: false`, `tmdb_ready: false`. Play
+    14. `:offline` — `available: false`, `tmdb_ready: false`. Play
        button collapses to the "Offline" pill, episode thumbnails
        become empty placeholder rectangles, the Rematch action is
        replaced with the "needs TMDB" hint.
@@ -212,6 +216,16 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             "Episode 2** — driven by `resume_label_from_progress/2`. " <>
             "`seasons_view` is the typed `[%SeasonView{}]` contract.",
         attributes: tv_series_attrs()
+      },
+      %Variation{
+        id: :tv_series_spoiler_free,
+        description:
+          "Same library shape as 3 but `spoiler_free: true`. Unwatched episodes " <>
+            "have their thumbnail, title, and description `.spoiler-blur`'d; the " <>
+            "leading episode number stays legible for navigation. Watched / current " <>
+            "rows (episodes 1–2) render unblurred. Hover or keyboard focus on a row " <>
+            "reveals it (`[data-role=\"episode-row\"]:hover`).",
+        attributes: Map.put(tv_series_attrs(), :spoiler_free, true)
       },
       %Variation{
         id: :tv_series_with_upcoming_inline,
