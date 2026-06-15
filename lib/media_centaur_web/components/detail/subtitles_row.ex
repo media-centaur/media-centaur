@@ -34,13 +34,19 @@ defmodule MediaCentaurWeb.Components.Detail.SubtitlesRow do
         <%= for {language, index} <- Enum.with_index(@languages) do %>
           <span :if={index > 0} class="text-base-content/30 mx-1.5">·</span><span class={
             language == nil && "text-base-content/50 italic"
-          }>{display(language)}</span>
+          }>{language_label(language)}</span>
         <% end %>
       </p>
     </div>
     """
   end
 
-  defp display(nil), do: "external"
-  defp display(code) when is_binary(code), do: code
+  @doc """
+  The display label for one aggregated subtitle entry: an unknown-language
+  sidecar (`nil`) reads as `external`; a recognised ISO 639-1 code renders
+  verbatim.
+  """
+  @spec language_label(String.t() | nil) :: String.t()
+  def language_label(nil), do: "external"
+  def language_label(code) when is_binary(code), do: code
 end
