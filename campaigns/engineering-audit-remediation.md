@@ -87,10 +87,9 @@ Ordered by workstream; within each, by value/risk.
    writers routed through it (drift fixed).
 9. ✅ **B4** Shared `Helpers.download_images_async/sync` (3-role idempotent);
    Scanner now gets logos / skips re-downloads.
-10. **B5** `Pipeline.QueueDispatch` shared producer mechanics (3 producers
-    triplicate `dispatch/1`/`dequeue/3`/`emit_queue_depth/1`). MEDIUM —
-    extract a `use`-able module or shared helper; producers supply only the
-    message→payload map + telemetry tag. Verify via existing producer tests.
+10. ✅ **B5** Extracted `Pipeline.ProducerQueue.dequeue/3` + `to_messages/2`
+    (the byte-identical mechanics); each producer keeps its own dispatch +
+    telemetry (image's metric differs).
 11. ✅ **B6** Extracted `Playback.PlayableFks` (`resolve/2` + `context_by_url/2`).
 12. ◐ **B8** DONE: `count/2` → `ViewModels.Formatting`; `Diagnostics
     .format_seconds` delegates to `Format`. DEFERRED: `max_dt`/`min_dt`
@@ -188,7 +187,7 @@ Ordered by workstream; within each, by value/risk.
 
 ## Remaining work (next session)
 
-**Large structural (focused sessions):** B5 (producer dispatch, medium),
+**Large structural (focused sessions):**
 C2 (ReleaseTracking.Acquisition split), B7 + C1 + D4 (library fetcher
 dedup / HomeLive-facade extraction / raw-SQL — all the same hot-path
 query area, do together), D1 (settings sections), D2 (decompositions).
