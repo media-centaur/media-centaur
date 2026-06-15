@@ -548,7 +548,7 @@ defmodule MediaCentaur.Config do
   end
 
   defp parse_media_dirs(raw_list) do
-    then(
+    {dirs, images_map} =
       Enum.reduce(raw_list, {[], %{}}, fn entry, {dirs, images_map} ->
         case entry do
           dir when is_binary(dir) ->
@@ -560,9 +560,10 @@ defmodule MediaCentaur.Config do
             images_dir = expand(table["images_dir"] || default_images_dir(dir))
             {[dir | dirs], Map.put(images_map, dir, images_dir)}
         end
-      end),
-      fn {dirs, images_map} -> {Enum.reverse(dirs), images_map} end
-    )
+      end)
+
+    # `dirs` was prepended in the reduce; restore the source order.
+    {Enum.reverse(dirs), images_map}
   end
 
   defp default_images_dir(media_dir), do: Path.join(media_dir, ".media-centaur/images")
