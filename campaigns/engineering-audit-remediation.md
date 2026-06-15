@@ -29,14 +29,14 @@ Acquisition split), C3/C4/C5 (dead code, schema API, boundary), D3/D5
 F1/F3 + subtitles_row F2, status_live mount split (D2). All test-first
 where behavior changed; full `mix precommit` green at each checkpoint.
 
-**Session 2 (2026-06-15, pushed): B7 library fetcher dedup complete** —
-Recently Added & Hero collapsed fully, Continue Watching's movie pair
-deduped, all behaviour-preserving and verified (characterization tests +
-full precommit green). **Remaining**: C1 (HomeLive-facade relocation —
-feasibility confirmed, ATTENDED because the acceptance test is visual) +
-D4 (raw SQL, rides with C1); D1 (settings sections); D2 remainder
-(pursuit_status, detail_panel); F2 remainder (more_info, detail); plus
-small deferred sub-items (see "Remaining work").
+**Session 2 (2026-06-15, pushed): library cluster done.** B7 (per-type
+fetcher dedup, all 3 rows) + the present-file-subquery dedup into
+PresentableQueries + **C1** (HomeLive facade → `Library.HomeFeed`,
+library.ex 3458→2661). All behaviour-preserving, verified. D4 deferred
+(cosmetic/risky). **Remaining**: D1 (settings sections); D2 remainder
+(pursuit_status, detail_panel); F2 remainder (more_info, detail); small
+deferred sub-items (C2 image residual, E1 Movie parity, F4, A5/C3
+residues). Nothing left is on the home-page hot path.
 
 **Discovered, deferred:** `library_test.exs:234` (list_in_progress N+1
 query-count) is order-fragile under full-suite parallelism — passes in
@@ -127,7 +127,19 @@ Ordered by workstream; within each, by value/risk.
     (Residual noted: track-from-search's image downloader is the same
     2-image no-logo form B4 replaced for Scanner — route through
     `Helpers.download_images_async/3` in a follow-up.)
-18. **C1** Relocate the `library.ex` "HomeLive Facade" (`list_recently_added`,
+18. ✅ **C1** Extracted the HomeLive facade into `Library.HomeFeed`
+    (list_in_progress / list_recently_added / list_hero_candidates + all
+    facade-only helpers; ~800 lines). Context keeps thin delegators —
+    callers (Views.* projections, Status) unchanged. library.ex 3458→2661.
+    Behaviour-preserving (moved as exact source; 296 home-feed-surface tests
+    green). **D4 deferred** (the raw-SQL last_watched `order_by` fragments
+    rode along into HomeFeed): converting a correlated-subquery order_by to
+    Ecto DSL is tricky and purely cosmetic — the SQL is correct/tested, not
+    worth risking Continue Watching's row order. **Bonus done:** the
+    `browser.ex` present-file subquery dup (below) was folded into
+    PresentableQueries while scoping this.
+    --- ORIGINAL NOTE (done) ---
+    Relocate the `library.ex` "HomeLive Facade" (`list_recently_added`,
     `list_hero_candidates`, `list_in_progress` + their fetchers/shapers/
     present-file subqueries/`maybe_take`/`maybe_limit`/`overlay_in_memory_progress`/
     `build_in_progress_*`, ~1100 lines) into a `Library.HomeFeed` (or the
@@ -147,11 +159,11 @@ Ordered by workstream; within each, by value/risk.
 
 ### D — Readability
 19. ✅ **D3** Fixed stale `watching_tracker` "20 seconds" → 10s + docs/playback.md.
-20. **D4** Raw SQL `fragment` ordering subqueries → Ecto DSL (`library.ex`
-    in-progress fetchers, `last_watched_at` ordering). MEDIUM/RISKY —
-    same hot-path query code as B7 and the order-fragile N+1 test; the
-    `exists(...)` filters above prove it's expressible in DSL. Do it with
-    B7 so the query area is touched once, not twice.
+20. ◐ **D4** DEFERRED (now in `Library.HomeFeed`). The `last_watched_at`
+    `order_by` fragments are correlated subqueries; a DSL conversion is
+    tricky and purely cosmetic (SQL is correct + tested). Low value /
+    real risk to Continue Watching row order — leave unless it blocks
+    something.
 21. ✅ **D5** Unpacked the three dense one-liners (`config`, `maintenance`,
     `release_tracking/helpers`).
 22. ◐ **D2** DONE: `status_live mount/3` split into connected/disconnected.
