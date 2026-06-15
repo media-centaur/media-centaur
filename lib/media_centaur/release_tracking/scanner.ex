@@ -144,36 +144,9 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
       description: "Now tracking #{name}"
     })
 
-    download_images_async(item, tmdb_id, response)
+    Helpers.download_images_async(item, tmdb_id, response)
 
     :ok
-  end
-
-  defp download_images_async(item, tmdb_id, response) do
-    alias ReleaseTracking.ImageStore
-
-    poster_path = Extractor.extract_poster_path(response)
-    backdrop_path = response["backdrop_path"]
-
-    if poster_path || backdrop_path do
-      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-        attrs = %{}
-
-        attrs =
-          case ImageStore.download_poster(tmdb_id, poster_path) do
-            {:ok, path} when is_binary(path) -> Map.put(attrs, :poster_path, path)
-            _ -> attrs
-          end
-
-        attrs =
-          case ImageStore.download_backdrop(tmdb_id, backdrop_path) do
-            {:ok, path} when is_binary(path) -> Map.put(attrs, :backdrop_path, path)
-            _ -> attrs
-          end
-
-        if attrs != %{}, do: ReleaseTracking.update_item(item, attrs)
-      end)
-    end
   end
 
   defp already_tracked?(tmdb_id, media_type) do

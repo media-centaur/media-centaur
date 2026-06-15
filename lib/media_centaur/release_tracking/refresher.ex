@@ -160,7 +160,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     MediaCentaur.TaskSupervisor
     |> Task.Supervisor.async_stream_nolink(
       items_with_responses,
-      fn {item, response} -> download_images_sync(item, item.tmdb_id, response) end,
+      fn {item, response} -> Helpers.download_images_sync(item, item.tmdb_id, response) end,
       max_concurrency: 4,
       timeout: 60_000,
       on_timeout: :kill_task
@@ -513,7 +513,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
           description: "Now tracking #{item.name}"
         })
 
-        download_images_async(item, tmdb_id, response)
+        Helpers.download_images_async(item, tmdb_id, response)
 
         broadcast_tracking_update([item.id])
 
@@ -527,55 +527,9 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     end
   end
 
-  # Backfill of images that are missing from the item but available in the
-  # TMDB response. The `pending_image_downloads/2` filter makes this
-  # idempotent — already-fetched images skip the network entirely.
-  #
-  # Two entry points:
-  #  * `download_images_async/3` — fire-and-forget single-item case (used
-  #    by auto-track, where exactly one item is being onboarded).
-  #  * `download_images_sync/3` — synchronous body, called by Phase 3 of
-  #    `do_refresh_all` under a bounded `async_stream` so a refresh cycle
-  #    over N items doesn't fan out to N concurrent download tasks.
-  defp download_images_async(item, tmdb_id, response) do
-    if pending_image_downloads(item, response) != [] do
-      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-        download_images_sync(item, tmdb_id, response)
-      end)
-    end
-
-    :ok
-  end
-
-  defp download_images_sync(item, tmdb_id, response) do
-    pending = pending_image_downloads(item, response)
-
-    attrs =
-      Enum.reduce(pending, %{}, fn {tmdb_path, attr_key, downloader}, acc ->
-        case downloader.(tmdb_id, tmdb_path) do
-          {:ok, path} when is_binary(path) -> Map.put(acc, attr_key, path)
-          _ -> acc
-        end
-      end)
-
-    if attrs != %{}, do: ReleaseTracking.update_item(item, attrs)
-    :ok
-  end
-
-  # Returns `[{tmdb_source_path, attr_key, downloader}]` for every image role
-  # the item still lacks AND that TMDB has a path for.
-  defp pending_image_downloads(item, response) do
-    [
-      {item.poster_path, ReleaseTracking.Extractor.extract_poster_path(response), :poster_path,
-       &ReleaseTracking.ImageStore.download_poster/2},
-      {item.backdrop_path, response["backdrop_path"], :backdrop_path,
-       &ReleaseTracking.ImageStore.download_backdrop/2},
-      {item.logo_path, ReleaseTracking.Extractor.extract_logo_path(response), :logo_path,
-       &ReleaseTracking.ImageStore.download_logo/2}
-    ]
-    |> Enum.filter(fn {current, tmdb_path, _, _} -> is_nil(current) and is_binary(tmdb_path) end)
-    |> Enum.map(fn {_, tmdb_path, attr_key, downloader} -> {tmdb_path, attr_key, downloader} end)
-  end
+  # Image backfill (poster/backdrop/logo) lives in
+  # `ReleaseTracking.Helpers` — shared with Scanner so both onboard the
+  # full role set idempotently.
 
   defp broadcast_tracking_update(item_ids) do
     Phoenix.PubSub.broadcast(
