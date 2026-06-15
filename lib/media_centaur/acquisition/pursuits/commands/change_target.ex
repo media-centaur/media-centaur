@@ -104,5 +104,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
     unit
   end
 
+  # No explicit unit_id (whole-pursuit pivot): target the lead unit so a
+  # composite pursuit pivots its active thread. (AutoCancel deliberately
+  # differs — it uses single!/1, which only accepts single-unit pursuits.)
   defp resolve_unit(pursuit, _args), do: Units.lead(pursuit.id)
 end
