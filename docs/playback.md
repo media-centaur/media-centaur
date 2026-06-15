@@ -38,7 +38,7 @@ graph TD
 
 **Observation, not control:** The backend is a tracking system. The user controls mpv directly (keyboard, remote, gamepad). Each MpvSession observes position/duration/pause/eof via IPC, persists watch progress, and broadcasts state via PubSub.
 
-**Seek-aware progress tracking:** The `WatchingTracker` distinguishes continuous watching from seeking. Progress is only saved during continuous playback (20+ uninterrupted seconds). Jumps > 3 seconds reset the continuous timer.
+**Seek-aware progress tracking:** The `WatchingTracker` distinguishes continuous watching from seeking. Progress is only saved during continuous playback (10+ uninterrupted seconds). Jumps > 3 seconds reset the continuous timer.
 
 **Completion threshold:** 90% of duration. Completion is monotonic — once marked complete, it never regresses.
 
@@ -147,7 +147,7 @@ Pure function module that gates progress persistence:
 | <= 3 seconds | Continuous playback, accumulate time |
 | > 3 seconds | Seek detected, reset continuous timer |
 
-After 20 continuous seconds, `actively_watching` becomes `true` and `saveable_position` starts advancing.
+After 10 continuous seconds, `actively_watching` becomes `true` and `saveable_position` starts advancing.
 
 #### Display Helpers
 

@@ -85,7 +85,8 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
 
   @doc """
   Enqueues an immediate, **forced** check, bypassing the unique window via
-  `replace: [:scheduled]` so a manual "Check now" always wins. `force`
+  `replace: [scheduled: [:scheduled_at, :args]]` so a manual "Check now"
+  always wins. `force`
   also bypasses the `due_for_check?/5` interval gate — a manual check must
   contact GitHub even if a scheduled check ran moments ago — and routes
   through the broadcasting job path so AutoApply and any open LiveView

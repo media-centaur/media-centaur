@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Pipeline.Stages.Ingest do
   @moduledoc """
-  Pipeline stage 5: publishes enriched metadata for library ingestion.
+  Pipeline stage 4: publishes enriched metadata for library ingestion.
 
   Broadcasts `{:entity_published, event}` to `"pipeline:publish"`.
   `Library.Inbound` subscribes and creates all library records.
