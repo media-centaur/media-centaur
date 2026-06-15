@@ -36,7 +36,6 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   alias MediaCentaur.Format
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{Episode, Movie}
   alias MediaCentaur.Library.Progress, as: LibraryProgress
 
   alias MediaCentaur.Platform.DisplayEnv
@@ -53,8 +52,6 @@ defmodule MediaCentaur.Playback.MpvSession do
     TrackResolver,
     WatchingTracker
   }
-
-  alias MediaCentaur.Repo
 
   @db_write_interval_ms 10_000
   @socket_retry_interval_ms 200
@@ -710,8 +707,8 @@ defmodule MediaCentaur.Playback.MpvSession do
   # but stops at the PlayableItem.
   defp resolve_or_create_playable_item_id(%{movie_id: movie_id}) when not is_nil(movie_id) do
     position =
-      case Repo.get(Movie, movie_id) do
-        %{position: pos} when is_integer(pos) -> pos
+      case Library.fetch_movie(movie_id) do
+        {:ok, %{position: pos}} when is_integer(pos) -> pos
         _ -> 1
       end
 
@@ -723,8 +720,8 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   defp resolve_or_create_playable_item_id(%{episode_id: episode_id}) when not is_nil(episode_id) do
     position =
-      case Repo.get(Episode, episode_id) do
-        %{episode_number: n} when is_integer(n) -> n
+      case Library.fetch_episode(episode_id) do
+        {:ok, %{episode_number: n}} when is_integer(n) -> n
         _ -> 1
       end
 
