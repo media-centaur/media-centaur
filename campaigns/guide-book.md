@@ -1,7 +1,7 @@
 ---
-status: planning
+status: in_progress
 started: 2026-06-15
-last_updated: 2026-06-15
+last_updated: 2026-06-16
 ---
 # Guide book
 
@@ -19,9 +19,13 @@ understanding and there is currently no in-app place that explains it.
 
 ## Status
 
-Planning. Design spec approved
-([`docs/superpowers/specs/2026-06-15-guide-book-design.md`](../docs/superpowers/specs/2026-06-15-guide-book-design.md)).
-The `writing-copy` voice skill it depends on is built and tested. No feature code yet.
+**Phase 0 shipped to `main`** (2026-06-16, merged from a worktree, unpushed). The vertical
+slice works: `/guide` + `/guide/:slug` (deep-linkable), an Earmark-based markdown→HEEx
+renderer (`MediaCentaurWeb.GuideMarkdown` — anchors, callouts, internal/external links,
+on-this-page outline), a compile-time chapter index (`MediaCentaur.Guide` + `Library`,
+data-only context), the Settings → System link, and the pilot chapter *How identification
+works*. Full `mix precommit` green (Elixir 5027/0, JS 540/0). Next: write the remaining
+chapters, Part by Part. The reading-pane title **filter** was deferred out of Phase 0.
 
 ## Decisions made
 
@@ -40,13 +44,7 @@ The `writing-copy` voice skill it depends on is built and tested. No feature cod
 Concrete, ordered. Phase 0 proves the whole vertical slice before any chapter farming.
 
 1. ✅ **Phase-0 TDD plan written** — [`docs/superpowers/plans/2026-06-15-guide-book-phase-0.md`](../docs/superpowers/plans/2026-06-15-guide-book-phase-0.md). Rendering resolved: Earmark, compile-time parse.
-2. **Phase 0 — infrastructure + pilot chapter.** Execute the Phase-0 plan, task by task.
-   - Guide content loader/index over `priv/guide/*.md` (frontmatter: `title`, `part`, `slug`, `order`).
-   - Markdown→HEEx renderer with the rich elements (callouts, kbd chips, code, tables) + cross-link resolution + on-this-page outline.
-   - `GuideLive` at `/guide` and `/guide/:slug`; sidebar (Parts → Chapters) + reading pane, following the Settings nav pattern; client-side title filter.
-   - Settings → System link to `/guide`.
-   - **Pilot chapter: "How identification works" (ch. 4)** authored end-to-end — exercises source links, a callout, and a cross-link to the Review queue chapter.
-   - `mix precommit` green; live render check at `/guide/how-identification-works`.
+2. ✅ **Phase 0 — infrastructure + pilot chapter shipped to `main`** (8 commits + merge `d9ccce9b`). Full precommit green.
 3. **Phase 1 — Part I (Orientation):** chapters 1–3.
 4. **Phase 2 — Part II (Your library):** chapters 5–8 (4 shipped as pilot).
 5. **Phase 3 — Part III (Watching):** chapters 9–11.
