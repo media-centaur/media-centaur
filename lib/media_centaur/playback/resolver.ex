@@ -19,7 +19,7 @@ defmodule MediaCentaur.Playback.Resolver do
   alias MediaCentaur.{Format, Library}
   alias MediaCentaur.Library.{EntityShape, TypeResolver}
   alias MediaCentaur.Library.{EpisodeList, MovieList}
-  alias MediaCentaur.Playback.Resume
+  alias MediaCentaur.Playback.{PlayableFks, Resume}
 
   @type play_params :: %{
           action: atom(),
@@ -91,7 +91,7 @@ defmodule MediaCentaur.Playback.Resolver do
         {season, episode, episode_name} =
           episode_context(action, entity, content_url, progress_records)
 
-        direct_fks = resolve_direct_fks(entity, content_url)
+        direct_fks = PlayableFks.resolve(entity, content_url)
 
         Log.info(:playback, fn ->
           "resolved entity #{entity.name} — #{action}, #{Path.basename(content_url)}" <>
@@ -325,41 +325,6 @@ defmodule MediaCentaur.Playback.Resolver do
 
   # --- Direct FK resolution ---
 
-  # For standalone movies, the Movie record has the same UUID as the entity.
-  defp resolve_direct_fks(%{type: :movie} = entity, _content_url) do
-    %{movie_id: entity.id}
-  end
-
-  # For video objects, the VideoObject record has the same UUID as the entity.
-  defp resolve_direct_fks(%{type: :video_object} = entity, _content_url) do
-    %{video_object_id: entity.id}
-  end
-
-  # For TV series, find the episode struct by content_url to get its id.
-  defp resolve_direct_fks(%{type: :tv_series} = entity, content_url) do
-    episode_id =
-      Enum.find_value(entity.seasons || [], fn season ->
-        Enum.find_value(season.episodes || [], fn episode ->
-          if episode.content_url == content_url, do: episode.id
-        end)
-      end)
-
-    %{episode_id: episode_id}
-  end
-
-  # For movie series, find the child movie by content_url to get its id.
-  defp resolve_direct_fks(%{type: :movie_series} = entity, content_url) do
-    movie_id =
-      case MovieList.find_by_content_url(entity, content_url) do
-        {_ordinal, id, _name} -> id
-        nil -> nil
-      end
-
-    %{movie_id: movie_id}
-  end
-
-  defp resolve_direct_fks(_entity, _content_url), do: %{}
-
   # --- Shared helpers ---
 
   defp resume_position(progress_by_key, key) do
@@ -372,10 +337,7 @@ defmodule MediaCentaur.Playback.Resolver do
   end
 
   defp episode_context(_action, %{type: :movie_series} = entity, content_url, _progress_records) do
-    case MovieList.find_by_content_url(entity, content_url) do
-      {ordinal, _movie_id, movie_name} -> {0, ordinal, movie_name}
-      nil -> {nil, nil, nil}
-    end
+    PlayableFks.context_by_url(entity, content_url)
   end
 
   defp episode_context(:resume, entity, _url, progress_records) do
@@ -392,14 +354,7 @@ defmodule MediaCentaur.Playback.Resolver do
   end
 
   defp episode_context(_action, entity, content_url, _progress_records) do
-    case EpisodeList.find_by_content_url(entity, content_url) do
-      {season, episode} ->
-        episode_name = EpisodeList.find_episode_name(entity, season, episode)
-        {season, episode, episode_name}
-
-      nil ->
-        {nil, nil, nil}
-    end
+    PlayableFks.context_by_url(entity, content_url)
   end
 
   defp find_episode_location(entity, progress_record) do
