@@ -29,12 +29,14 @@ Acquisition split), C3/C4/C5 (dead code, schema API, boundary), D3/D5
 F1/F3 + subtitles_row F2, status_live mount split (D2). All test-first
 where behavior changed; full `mix precommit` green at each checkpoint.
 
-**Remaining = the home-page query cluster + judgment-heavy items**,
-deliberately left for an attended session (see "Remaining work"): B7
-(library fetcher dedup) + C1 (HomeLive-facade → Views) + D4 (raw SQL) —
-all the same hot-path query area, unsafe to verify unattended; D1
-(settings sections); D2 remainder (pursuit_status, detail_panel); F2
-remainder (more_info, detail); plus small deferred sub-items.
+**Session 2 (2026-06-15, pushed): B7 library fetcher dedup complete** —
+Recently Added & Hero collapsed fully, Continue Watching's movie pair
+deduped, all behaviour-preserving and verified (characterization tests +
+full precommit green). **Remaining**: C1 (HomeLive-facade relocation —
+feasibility confirmed, ATTENDED because the acceptance test is visual) +
+D4 (raw SQL, rides with C1); D1 (settings sections); D2 remainder
+(pursuit_status, detail_panel); F2 remainder (more_info, detail); plus
+small deferred sub-items (see "Remaining work").
 
 **Discovered, deferred:** `library_test.exs:234` (list_in_progress N+1
 query-count) is order-fragile under full-suite parallelism — passes in
@@ -99,16 +101,15 @@ Ordered by workstream; within each, by value/risk.
 12. ◐ **B8** DONE: `count/2` → `ViewModels.Formatting`; `Diagnostics
     .format_seconds` delegates to `Format`. DEFERRED: `max_dt`/`min_dt`
     (trivial one-liners) and settings `toggle_*`/`save_*` families (→ D1).
-13. **B7** Library per-type fetcher dedup (~700 lines). LARGE/HIGH-RISK —
-    ~15 near-identical `from |> Repo.all |> preload |> map(&shape_*)`
-    fetchers across recently-added / hero / in-progress; the
-    "container-present?" subquery is reimplemented ≥5× with differing
-    aliases. Approach: standardize the parent alias to `:item` so the named
-    present-file subquery composes into hero; extract
-    `fetch_typed(query, shaper, preload, limit)` + a per-type query/shaper
-    table. CAUTION: this is the home-page hot path AND the area of the
-    order-fragile N+1 test — change in small steps, run page_smoke + the
-    in-progress/hero/recently-added tests after each. Best paired with C1.
+13. ✅ **B7** Per-type fetcher dedup, done in 3 verified steps (Recently
+    Added → Hero → Continue Watching). Recently Added & Hero collapsed
+    fully (one `fetch_*/2-3` over a per-type base-query list; Hero's parent
+    alias standardized to `:item` so the named present-file subqueries
+    compose). Continue Watching deduped only the movies/hoisted pair (#2.5);
+    its TV/video/movie_series fetchers are genuinely different (per-type
+    progress aggregation) and left as-is. Behaviour-preserving — added
+    video_object (recently-added) + tv/movie_series/video_object (hero)
+    characterization tests first; N+1 query-count tests stayed green.
 
 ### C — Structure
 14. ◐ **C3** DONE: removed `compute_child_targets/2` + `child_targets_delta`,
@@ -126,12 +127,23 @@ Ordered by workstream; within each, by value/risk.
     (Residual noted: track-from-search's image downloader is the same
     2-image no-logo form B4 replaced for Scanner — route through
     `Helpers.download_images_async/3` in a follow-up.)
-18. **C1** Move the `library.ex` "HomeLive Facade" (~`:2167-3270`, ~1100
-    lines of `poster_url`/`progress_pct`-shaped maps) → `Library.Views.{
-    ContinueWatching, RecentlyAdded, HeroCandidates}` (the `Views.*` structs
-    already exist). VERY LARGE — do alongside B7 (same fetchers). Move
-    function + its tests together; `home_live_test` + `page_smoke` are the
-    safety net. The context should return data, not LiveView-shaped maps.
+18. **C1** Relocate the `library.ex` "HomeLive Facade" (`list_recently_added`,
+    `list_hero_candidates`, `list_in_progress` + their fetchers/shapers/
+    present-file subqueries/`maybe_take`/`maybe_limit`/`overlay_in_memory_progress`/
+    `build_in_progress_*`, ~1100 lines) into a `Library.HomeFeed` (or the
+    `Views.*` modules) with thin delegators kept in the context (C2 pattern).
+    **Feasibility confirmed:** every facade helper is facade-only — the
+    cross-file name matches (`browser.ex`, `progress_broadcaster.ex`) are
+    *independent* private copies, so the move is clean and behaviour-
+    preserving. **ATTENDED:** it's the home page and the real acceptance test
+    is "renders identically" — verify with the page open (home_live_test +
+    page_smoke + Views tests + Status test are the automated net; the visual
+    is the human net). Public API (`list_*`) has callers in the Views
+    projections + Status — keep them callable via delegators.
+    **Bonus dup found:** `browser.ex:241,256` re-defines
+    `tv_series_present_file_subquery`/`video_object_present_file_subquery`
+    (copies of library.ex's) — fold into a shared `PresentableQueries` (or
+    Library) helper while here.
 
 ### D — Readability
 19. ✅ **D3** Fixed stale `watching_tracker` "20 seconds" → 10s + docs/playback.md.
