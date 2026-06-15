@@ -28,12 +28,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
   6. Record `user_decision_recorded` + `fallback_initiated` events.
   """
 
-  alias MediaCentaur.Acquisition.Pursuits.Commands.Runner
+  alias MediaCentaur.Acquisition.Pursuits.Commands.{Helpers, Runner}
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.{FallbackInitiated, UserDecisionRecorded}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit, Units}
   alias MediaCentaur.Search.SearchResult
-  alias MediaCentaur.Acquisition.{InfoHash, Target, TargetStatus}
+  alias MediaCentaur.Acquisition.{InfoHash, Target}
   alias MediaCentaur.Repo
 
   @doc """
@@ -61,7 +61,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
       previous_guid = List.last(unit.tried_release_guids || [])
       now = DateTime.utc_now(:second)
 
-      with {:ok, _previous_target} <- maybe_fail_current_target(unit),
+      with {:ok, _previous_target} <- Helpers.fail_current_target(unit, "replaced_by_pick"),
            {:ok, new_target} <- insert_acquired_target(pursuit, result, origin, torrent_hash),
            {:ok, _coverage} <-
              Repo.insert(TargetUnit.create_changeset(%{target_id: new_target.id, unit_id: unit.id})),
@@ -89,24 +89,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.PickTarget do
         {:ok, pursuit}
       end
     end)
-  end
-
-  defp maybe_fail_current_target(%Unit{current_target_id: nil}), do: {:ok, nil}
-
-  defp maybe_fail_current_target(%Unit{current_target_id: target_id}) do
-    case Repo.get(Target, target_id) do
-      nil ->
-        {:ok, nil}
-
-      %Target{status: status} = target ->
-        if TargetStatus.terminal?(status) do
-          {:ok, target}
-        else
-          target
-          |> Target.failed_changeset("replaced_by_pick")
-          |> Repo.update()
-        end
-    end
   end
 
   defp insert_acquired_target(%Pursuit{} = pursuit, %SearchResult{} = result, origin, torrent_hash) do
