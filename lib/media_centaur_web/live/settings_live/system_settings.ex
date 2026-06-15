@@ -18,7 +18,11 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
   attr :groups, :list, required: true, doc: "Overview health-item groups."
   attr :issue_count, :integer, required: true
   attr :latest_release, :any, required: true, doc: "latest GitHub release map or nil."
-  attr :service_state, :map, required: true
+
+  attr :service_state, :map,
+    required: true,
+    doc: "OS-neutral autostart state from `Platform.Autostart.state/0` (under_supervisor, etc.)."
+
   attr :service_status_output, :any, required: true, doc: "systemctl status text or nil."
   attr :service_status_visible, :boolean, required: true
   attr :service_action_pending, :atom, required: true, doc: "pending service action atom or nil."
