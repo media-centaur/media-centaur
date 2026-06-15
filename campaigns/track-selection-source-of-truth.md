@@ -22,8 +22,16 @@ rips.
 
 ## Status
 
-In progress — implementation started 2026-06-15. Test-first per
-`automated-testing`.
+**Core fix shipped 2026-06-15 — at a stable resting point.** The A/B/C
+fix (resolver distrusts the `forced+default` mislabel and actively
+enforces `sid`) is implemented, tested, and pushed to `main` (commit
+`3d07f74b`). Everything below in "Remaining" is **additive and
+optional** — none of it touches the shipped code, none of it leaves the
+app half-built. The campaign can be resumed cold at any time with zero
+burden on the running app; if it's never resumed, the app is still
+correct and complete for the reported bug.
+
+*Implemented test-first per `automated-testing` (red→green on each unit).*
 
 *Reconciled 2026-06-15 (v0.97.2):* code still matches the diagnosis —
 `TrackResolver.Track` (`track_resolver.ex:28-42`) has no `default`
@@ -52,7 +60,7 @@ v0.97.2.
   enforcement turns it off. Inverting to launch-`--sid=no` (mitigation
   in the campaign) is deferred — accept the flash for v1.
 
-*Implementation landed 2026-06-15 (committed to main, unpushed):*
+*Implementation landed 2026-06-15 (pushed to main, commit `3d07f74b`):*
 
 * **A** — `TrackResolver.Track` now carries `default: false`;
   `LanguageContext.build_track/1` parses `"default"` from the mpv map.
@@ -68,21 +76,34 @@ v0.97.2.
   `handle_track_list_update/2`, tracked via the new `enforced_sid` state
   field. mpv's disable form is the string `"no"`.
 
-**Remaining (does not block the code, needs the real file + a display):**
+**Remaining — all additive, none blocks the shipped fix.** Resume any of
+these independently; the app stays correct if none are ever done.
 
-* **Manual verification** of the completion criterion — fresh-install
-  default policy, play the repro file, confirm no subtitles and a
-  `track-resolver: enforcing sid="no"` Console line. Owner has the file;
-  I can't drive a real mpv + display here.
-* **Deferred (own follow-ups):** cue-count capture at import (the
-  ffprobe-detail thread — stronger mislabel signal than disposition);
-  `aid` enforcement (seam left in `sid_enforcement/2`'s doc); flash
-  mitigation via launch-`--sid=no`; the inverse foreign-audio case where
-  the *only* sub is a mislabeled forced+default full track (currently
-  yields no subs — pre-existing, out of scope).
-* **Wiki:** a Troubleshooting/FAQ note ("subtitles appeared on
-  understood-audio content; now auto-corrected") if the behavior change
-  is worth surfacing to users.
+* **Manual verification — WAIVED 2026-06-15.** The completion criterion
+  was "play the repro file (The Wire S01E01) on a fresh-install default
+  policy and confirm no subtitles + a `track-resolver: enforcing
+  sid="no"` Console line." Owner declined to test; the fix ships on its
+  automated-test coverage alone. *This is the one thing the shipped code
+  has not had eyes-on in a real player* — if subs ever still misbehave
+  on that file, start here (the Console line tells you whether the
+  resolver decided wrong (B) or the IPC didn't land (C)).
+* **Cue-count capture at import (highest-value follow-up).** ffprobe the
+  subtitle stream's cue count during the pipeline and persist it as
+  track metadata, so the resolver can distrust a "forced" track by
+  *length* (full ≈ hundreds, genuine forced ≈ tens) instead of / on top
+  of the `forced+default` disposition heuristic. This is the home for
+  the "surface ffprobe subtitle detail" thread that spawned this work.
+* **`aid` (audio) enforcement.** Symmetric to the shipped `sid`
+  enforcement; the seam is documented on `TrackResolver.sid_enforcement/2`.
+* **Startup-flash mitigation.** Launch with `--sid=no` and let
+  enforcement turn subs *on*, trading a flash of missing subs (foreign
+  audio) for the current flash of unwanted subs (understood audio).
+* **Inverse case (pre-existing, low priority).** A foreign-audio title
+  whose *only* subtitle is a mislabeled `forced+default` full track now
+  yields no subtitles. This was already true before the fix; out of
+  scope, noted so it isn't rediscovered as a new regression.
+* **Wiki note.** A Troubleshooting/FAQ line ("subtitles appeared on
+  understood-audio content; now auto-corrected") if worth surfacing.
 
 ## Background — the confirmed bug
 
