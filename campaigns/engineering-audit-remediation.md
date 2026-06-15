@@ -21,8 +21,11 @@ cohesion from the three modules that have outgrown a single file.
 
 ## Status
 
-Workstream A (correctness) in progress — starting from the audit report.
-No remediation code committed yet.
+**Workstream A (correctness) COMPLETE** (2026-06-15, unpushed). A1–A5
+shipped test-first (red→green): Autostart OS-neutral state, en-dash
+classification, param→atom guards, release-tracking parse safety, and
+the backfill N+1. Two A5 sub-items deferred-with-reason (see below).
+Workstreams B–F remain.
 
 ## Decisions made
 
@@ -44,24 +47,25 @@ No remediation code committed yet.
 
 Ordered by workstream; within each, by value/risk.
 
-### A — Correctness (do first, test-first)
-1. **A1** `platform/autostart.ex` — make `state()` OS-neutral
-   (`under_supervisor`/`supervisor_available`); update launchd impl +
-   `settings_live` consumers. Real `KeyError` on macOS. *(coordinate w/
-   macos-platform-support)*
-2. **A2** `search/release_coverage.ex:46,48` — add `/u` to the `[-–]`
-   en-dash classes; red-first en-dash test. (known deferred follow-up)
-3. **A3** Unguarded `String.to_existing_atom` on params:
-   `upcoming_live.ex:370` (+ `:368` `String.to_integer`),
-   `review_live.ex:168,172`, `settings_live.ex:966,975-976,986,996`, and
-   `pipeline/image_refresh_worker.ex:17` (Oban arg). Route through one
-   `safe_existing_atom/1` helper / explicit whitelist.
-4. **A4** `release_tracking` — `String.to_integer` → `Integer.parse` at
-   `scanner.ex:190`, `refresher.ex:345,476,482`, `wants.ex:423` (refresher
-   mailbox crash on malformed row).
-5. **A5** N+1s: `library.ex:1748 backfill_extra_files/0`,
-   `library.ex:777 perform_relinks/2`, `error_reports/buckets.ex
-   rebuild_from_store/0` — batch the lookups.
+### A — Correctness ✅ COMPLETE
+1. ✅ **A1** Autostart `state()` neutralized to
+   `under_supervisor`/`supervisor_available` across behaviour, both impls,
+   `settings_live`; per-impl key-set contract tests added. *(coordinates
+   w/ macos-platform-support)*
+2. ✅ **A2** `release_coverage` en-dash via `(?:-|–)` alternation (chosen
+   over `/u` to preserve `\d`/`\b` semantics); red-first tests.
+3. ✅ **A3** Shared `LiveHelpers.safe_existing_atom/2` (consolidated the
+   status_live copy); upcoming dispatches on the string + `Integer.parse`;
+   review forgiving default; settings controls reject unknown; image Oban
+   worker whitelists `entity_type` → `{:cancel, {:bad_entity_type, _}}`.
+4. ✅ **A4** Shared `Helpers.parse_tmdb_id/1` ({:ok,int}|:error); scanner,
+   refresher, wants skip malformed rows instead of crashing.
+5. ◐ **A5** `backfill_extra_files/0` batched (shipped). DEFERRED:
+   `perform_relinks/2` (operates on small move-batches; relink-campaign
+   hot path — batch only if a profile shows it) and `buckets
+   rebuild_from_store/0` (bounded by `max_active_buckets`, boot-only,
+   sub-ms SQLite, nil-fingerprint crash already fixed — a windowed
+   top-N-per-fingerprint SQLite query is disproportionate risk).
 
 ### B — Duplication / missing abstractions
 6. **B1** Unify `spoiler_free_aware.ex` + `library_card_info_aware.ex`
