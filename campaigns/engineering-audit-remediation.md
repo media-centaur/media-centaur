@@ -178,21 +178,22 @@ Ordered by workstream; within each, by value/risk.
     dispatch, and the audit's `@dispatch`-map suggestion is a lateral move
     (arguably *less* readable) that risks wrong user-facing statuses for no
     real gain. Left as-is intentionally.
-23. ◐ **D1** IN PROGRESS (session 3, attended). Foundation + 4 sections
-    done: extracted the shared UI kit (`SettingsLive.Components`:
-    settings_row / card_header / field / status_dot / phx_values), then
-    moved **Preferences, Services, Language, Library** into
-    `SettingsLive.*` render modules (delegated via explicit attrs, matching
-    the `Controls` precedent). **settings_live.ex 4607 → 4003.** All
-    behaviour-preserving (settings + page_smoke green per step). MC0008
-    (loose-attr doc) is the per-section tax — handled inline.
-    **REMAINING 8 sections**: updates, system, tmdb, acquisition, pipeline,
-    playback, release_tracking, danger. Helper-coupled ones need their
-    section-specific render helper relocated first — `connection_status` +
-    `path_status` (shared by tmdb/acquisition/pipeline → move to the
-    Components kit), `service_card` (system → its module),
-    `auto_grab_defaults_form` (acquisition → its module). The rest are
-    kit/core-only moves. Each is now a known-pattern mechanical extraction.
+23. ✅ **D1 COMPLETE** (session 3, attended). Extracted the shared UI kit
+    (`SettingsLive.Components`: settings_row / card_header / field /
+    status_dot / path_status / connection_status / phx_values), then moved
+    **all 12 sections** out of `section_content/1` into per-section
+    `SettingsLive.*` render modules (Preferences, Services, Language,
+    Library, Playback, ReleaseTrackingSection, PipelineSection, Tmdb,
+    Updates, Danger, AcquisitionSection, SystemSettings; Controls
+    pre-existed). Section-specific helpers moved with their owners
+    (service_card subtree + overview_* → SystemSettings;
+    auto_grab_defaults_form → AcquisitionSection). `section_content/1` is now
+    a thin router. **settings_live.ex 4607 → 2489 (−46%).** All
+    behaviour-preserving — settings + page_smoke green at every step; the
+    final full `mix precommit` is clean. Gotchas hit + fixed: a `Pipeline`/
+    `MediaCentaur.Pipeline` alias clash (→ `PipelineSection`), and a
+    `@show_setup_banner?` assign my grep had silently truncated. MC0008
+    loose-attr docs added per module.
     --- ORIGINAL ANALYSIS ---
     `settings_live.ex section_content/1` — DEFERRED as a focused
     sprint. Reality (confirmed): it's **14 pattern-matched clauses** (one
@@ -245,10 +246,7 @@ Ordered by workstream; within each, by value/risk.
 
 ## Remaining work (next session)
 
-**The one substantial item left:** **D1** — relocate settings_live's 14
-section HEEx renders into their `live/settings_live/*` modules as render
-components; section_content becomes a thin 14-clause router. Attended
-sprint (interactive surface). See item 23 for the confirmed shape.
+**D1 is now done** (item 23) — the last substantial structural item.
 
 **Deliberately not doing** (documented why at items 22, 31, 20): D2
 pursuit_status, F2 more_info/detail, D4 raw-SQL ordering.
@@ -261,6 +259,22 @@ broadcast), A5 (perform_relinks, buckets rebuild — bounded loops), C3
 E1 Movie create-only parity (net-new API), F4 (maintenance factory —
 :tmdb_collection nuance). **Suite hygiene:** harden the order-fragile
 `list_in_progress` N+1 query-count test.
+
+## Session 3 close-out (2026-06-15)
+
+All substantial structural work is done. Every audit finding is either
+**resolved** or **deliberately not-done with a documented reason** (D2
+pursuit_status, F2 more_info/detail, D4 raw-SQL) or a **low-value deferred
+residue** (C2 image, A5 bounded loops, C3 tested helpers, E1 Movie parity,
+F4). The remaining open item is **suite hygiene**: the order-fragile
+`list_in_progress` query-count tests (flake under full-suite parallelism,
+pass in isolation) should be hardened to a deterministic measurement —
+that's the only thing left worth doing, and it's pre-existing, not from
+this campaign.
+
+This campaign file can be removed on the next pass per the ADR-042
+remove-on-complete convention (git history is the archive); kept for now
+as the record of what was deliberately deferred.
 
 ## Completion criteria
 
