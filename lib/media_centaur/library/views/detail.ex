@@ -344,28 +344,35 @@ defmodule MediaCentaur.Library.Views.Detail do
 
   defp build_all_items do
     playable_items = Repo.all(PlayableItem)
+    context = build_context(playable_items)
 
     playable_items
-    |> Enum.group_by(&entity_grouping_key/1)
+    |> Enum.group_by(&grouping_key(&1, context))
     |> Enum.flat_map(fn {entity_key, items} ->
       shared = build_shared_entity_data(entity_key)
 
       items
-      |> Enum.map(&build_item_for_playable_item(&1, shared, entity_key))
+      |> Enum.map(&build_item(&1, shared, entity_key, context))
       |> Enum.reject(&is_nil/1)
     end)
   end
 
   defp build_item_for_playable_item_id(playable_item_id) do
     case Repo.get(PlayableItem, playable_item_id) do
-      nil ->
-        nil
-
-      %PlayableItem{} = item ->
-        grouping = entity_grouping_key(item)
-        shared = build_shared_entity_data(grouping)
-        build_item_for_playable_item(item, shared, grouping)
+      nil -> nil
+      %PlayableItem{} = item -> build_one(item)
     end
+  end
+
+  # Single-item build for the partial-refresh and live-fallback paths.
+  # Builds a context scoped to the one item, then runs the same pure
+  # `build_item/4` the full rebuild uses — so "build one" and "build all"
+  # share one builder and differ only in how the context is loaded.
+  defp build_one(%PlayableItem{} = item) do
+    context = build_context([item])
+    grouping = grouping_key(item, context)
+    shared = build_shared_entity_data(grouping)
+    build_item(item, shared, grouping, context)
   end
 
   defp build_item_for_container(:movie, container_id) do
@@ -380,9 +387,7 @@ defmodule MediaCentaur.Library.Views.Detail do
         nil
 
       %PlayableItem{} = item ->
-        grouping = entity_grouping_key(item)
-        shared = build_shared_entity_data(grouping)
-        build_item_for_playable_item(item, shared, grouping)
+        build_one(item)
     end
   end
 
@@ -398,9 +403,7 @@ defmodule MediaCentaur.Library.Views.Detail do
         nil
 
       %PlayableItem{} = item ->
-        grouping = entity_grouping_key(item)
-        shared = build_shared_entity_data(grouping)
-        build_item_for_playable_item(item, shared, grouping)
+        build_one(item)
     end
   end
 
@@ -424,9 +427,7 @@ defmodule MediaCentaur.Library.Views.Detail do
         nil
 
       %PlayableItem{} = item ->
-        grouping = entity_grouping_key(item)
-        shared = build_shared_entity_data(grouping)
-        build_item_for_playable_item(item, shared, grouping)
+        build_one(item)
     end
   end
 
@@ -447,53 +448,134 @@ defmodule MediaCentaur.Library.Views.Detail do
         nil
 
       %PlayableItem{} = item ->
-        grouping = entity_grouping_key(item)
-        shared = build_shared_entity_data(grouping)
-        build_item_for_playable_item(item, shared, grouping)
+        build_one(item)
     end
   end
 
   defp build_item_for_container(_, _), do: nil
 
-  # `entity_grouping_key` returns the top-level entity identifier — the
-  # thing the modal opens by. For episodes that's `(:tv_series,
-  # series_id)`; for movies-under-MovieSeries that's `(:movie_series,
-  # ms_id)`; for everything else that's the leaf container itself.
-  defp entity_grouping_key(%PlayableItem{container_type: :episode, container_id: episode_id}) do
-    case Repo.one(
-           from(e in Episode,
-             join: s in Season,
-             on: s.id == e.season_id,
-             where: e.id == ^episode_id,
-             select: s.tv_series_id
-           )
-         ) do
+  # --- Context: the pre-loaded data the pure builders read from ---
+
+  # A `context` holds every per-item datum the item builder needs, keyed
+  # for O(1) lookup. Constructing it is the ONLY place the build path
+  # queries — `grouping_key/2` and `build_item/4` are pure functions over
+  # it. Built once for the whole table on full refresh, or for a single
+  # item on partial refresh; that is what keeps the full rebuild free of
+  # per-item N+1 queries.
+  defp build_context(playable_items) do
+    watched_files = build_watched_files_map(playable_items)
+
+    %{
+      grouping: build_grouping_map(playable_items),
+      containers: build_container_map(playable_items),
+      watched_files: watched_files,
+      subtitle_tracks: build_subtitle_tracks_map(watched_files)
+    }
+  end
+
+  defp grouping_key(%PlayableItem{id: id}, context), do: Map.fetch!(context.grouping, id)
+
+  # --- Grouping: top-level entity key per PlayableItem, batched ---
+
+  # `grouping_key` returns the top-level entity identifier — the thing the
+  # modal opens by. For episodes that's `(:tv_series, series_id)`; for
+  # movies under a present collection that's `(:movie_series, ms_id)`; for
+  # everything else the leaf container itself. The three lookups it needs
+  # (episode→series, movie→series, and which collections have 2+ present
+  # movies) load in bulk here, then resolve per item via the pure
+  # `compute_grouping_key/4`.
+  defp build_grouping_map(playable_items) do
+    series_by_episode = series_by_episode_map(playable_items)
+    series_by_movie = series_by_movie_map(playable_items)
+    multi_present = multi_present_series_set(series_by_movie)
+
+    Map.new(playable_items, fn item ->
+      {item.id, compute_grouping_key(item, series_by_episode, series_by_movie, multi_present)}
+    end)
+  end
+
+  defp series_by_episode_map(playable_items) do
+    episode_ids =
+      for %PlayableItem{container_type: :episode, container_id: id} <- playable_items, do: id
+
+    if episode_ids == [] do
+      %{}
+    else
+      Map.new(
+        Repo.all(
+          from(e in Episode,
+            join: s in Season,
+            on: s.id == e.season_id,
+            where: e.id in ^episode_ids,
+            select: {e.id, s.tv_series_id}
+          )
+        )
+      )
+    end
+  end
+
+  defp series_by_movie_map(playable_items) do
+    movie_ids =
+      for %PlayableItem{container_type: :movie, container_id: id} <- playable_items, do: id
+
+    if movie_ids == [] do
+      %{}
+    else
+      from(m in Movie, where: m.id in ^movie_ids, select: {m.id, m.movie_series_id})
+      |> Repo.all()
+      |> Map.new()
+    end
+  end
+
+  # The hoist set: movie_series ids with 2+ present constituent movies.
+  # Membership flips a constituent movie's grouping from `{:movie, _}` to
+  # `{:movie_series, _}` — the same rule `collection_multi_present?`
+  # encoded per movie, now resolved for every collection in one query.
+  defp multi_present_series_set(series_by_movie) do
+    movie_series_ids = series_by_movie |> Map.values() |> Enum.reject(&is_nil/1) |> Enum.uniq()
+
+    if movie_series_ids == [] do
+      MapSet.new()
+    else
+      movie_series_ids
+      |> PresentableQueries.present_movie_counts()
+      |> Repo.all()
+      |> Enum.filter(fn {_ms_id, count} -> count >= 2 end)
+      |> MapSet.new(fn {ms_id, _count} -> ms_id end)
+    end
+  end
+
+  defp compute_grouping_key(
+         %PlayableItem{container_type: :episode, container_id: episode_id},
+         series_by_episode,
+         _series_by_movie,
+         _multi_present
+       ) do
+    case Map.get(series_by_episode, episode_id) do
       nil -> {:orphan_episode, episode_id}
       tv_series_id -> {:tv_series, tv_series_id}
     end
   end
 
-  defp entity_grouping_key(%PlayableItem{container_type: :movie, container_id: movie_id}) do
-    case Repo.one(from(m in Movie, where: m.id == ^movie_id, select: m.movie_series_id)) do
+  defp compute_grouping_key(
+         %PlayableItem{container_type: :movie, container_id: movie_id},
+         _series_by_episode,
+         series_by_movie,
+         multi_present
+       ) do
+    case Map.get(series_by_movie, movie_id) do
       nil ->
         {:movie, movie_id}
 
-      ms_id ->
-        # Hoist rule (the same one `Library.resolve_presentable/1` applies):
-        # a collection with a single present movie is presented AS that
-        # movie, not as a container. Only group under the collection when
-        # two or more of its movies are possessed.
-        if collection_multi_present?(ms_id),
-          do: {:movie_series, ms_id},
+      movie_series_id ->
+        if MapSet.member?(multi_present, movie_series_id),
+          do: {:movie_series, movie_series_id},
           else: {:movie, movie_id}
     end
   end
 
-  defp entity_grouping_key(%PlayableItem{container_type: type, container_id: id}), do: {type, id}
-
-  defp collection_multi_present?(movie_series_id) do
-    match?([_, _ | _], Repo.all(PresentableQueries.present_movie_ids(movie_series_id)))
-  end
+  defp compute_grouping_key(%PlayableItem{container_type: type, container_id: id}, _, _, _),
+    do: {type, id}
 
   # `shared_entity_data` holds the per-entity slices flowed identically
   # into every sibling row (cost paid once; references shared).
@@ -531,17 +613,20 @@ defmodule MediaCentaur.Library.Views.Detail do
 
   defp build_shared_entity_data(_), do: %{images: [], seasons: nil, movies: nil}
 
-  defp build_item_for_playable_item(
+  defp build_item(
          %PlayableItem{container_type: type, container_id: cid} = item,
          shared,
-         grouping
+         grouping,
+         context
        ) do
-    case fetch_container(type, cid) do
+    case Map.get(context.containers, {type, cid}) do
       nil ->
         nil
 
       container ->
         presented_as = presented_as_from_grouping(grouping)
+        watched_files = Map.get(context.watched_files, item.id, [])
+        subtitle_tracks = Map.get(context.subtitle_tracks, item.id, [])
         # `parent_*` always reads the full leaf container (so a hoisted movie
         # keeps its collection reference for the badge). The `container_*`
         # metadata reads `display`, which for a movie presented as itself is
@@ -587,12 +672,12 @@ defmodule MediaCentaur.Library.Views.Detail do
           external_ids: container_external_ids(type, display),
           imdb_id: external_id_value(container_external_ids(type, display), "imdb"),
           tmdb_id: external_id_value(container_external_ids(type, display), "tmdb"),
-          present?: any_present_file?(item.id),
+          present?: watched_files != [],
           images: shared.images,
           seasons: shared.seasons,
           movies: shared.movies,
-          watched_files: list_watched_files_for_playable_item(item.id),
-          subtitle_tracks: list_subtitle_tracks_for_playable_item(item.id)
+          watched_files: build_watched_files(watched_files),
+          subtitle_tracks: build_subtitle_tracks(subtitle_tracks)
         }
     end
   end
@@ -749,36 +834,55 @@ defmodule MediaCentaur.Library.Views.Detail do
     end
   end
 
-  # --- Container fetchers with preloads ---
+  # --- Container fetchers with preloads (batched) ---
 
-  defp fetch_container(:movie, id) do
-    Repo.one(
-      from(m in Movie,
-        where: m.id == ^id,
-        preload: [:extras, :external_ids, movie_series: [:extras, :external_ids]]
-      )
+  # Bulk-loads every leaf container referenced by the given PlayableItems,
+  # one query per container type, keyed by `{type, container_id}` for the
+  # builder's O(1) lookup. Replaces the prior per-item `fetch_container/2`,
+  # which fired one query per PlayableItem during the full rebuild.
+  defp build_container_map(playable_items) do
+    container_ids_by_type = Enum.group_by(playable_items, & &1.container_type, & &1.container_id)
+
+    %{}
+    |> Map.merge(load_containers(:movie, Map.get(container_ids_by_type, :movie, [])))
+    |> Map.merge(load_containers(:episode, Map.get(container_ids_by_type, :episode, [])))
+    |> Map.merge(load_containers(:video_object, Map.get(container_ids_by_type, :video_object, [])))
+  end
+
+  defp load_containers(_type, []), do: %{}
+
+  defp load_containers(:movie, ids) do
+    Map.new(
+      Repo.all(
+        from(m in Movie,
+          where: m.id in ^ids,
+          preload: [:extras, :external_ids, movie_series: [:extras, :external_ids]]
+        )
+      ),
+      fn movie -> {{:movie, movie.id}, movie} end
     )
   end
 
-  defp fetch_container(:episode, id) do
-    Repo.one(
-      from(e in Episode,
-        where: e.id == ^id,
-        preload: [season: [tv_series: [:extras, :external_ids]]]
-      )
+  defp load_containers(:episode, ids) do
+    Map.new(
+      Repo.all(
+        from(e in Episode,
+          where: e.id in ^ids,
+          preload: [season: [tv_series: [:extras, :external_ids]]]
+        )
+      ),
+      fn episode -> {{:episode, episode.id}, episode} end
     )
   end
 
-  defp fetch_container(:video_object, id) do
-    Repo.one(
-      from(v in VideoObject,
-        where: v.id == ^id,
-        preload: [:external_ids]
-      )
+  defp load_containers(:video_object, ids) do
+    Map.new(
+      Repo.all(from(v in VideoObject, where: v.id in ^ids, preload: [:external_ids])),
+      fn video_object -> {{:video_object, video_object.id}, video_object} end
     )
   end
 
-  defp fetch_container(_, _), do: nil
+  defp load_containers(_type, _ids), do: %{}
 
   # --- Leaf-level fields ---
 
@@ -895,19 +999,6 @@ defmodule MediaCentaur.Library.Views.Detail do
   end
 
   defp external_id_value(_, _), do: nil
-
-  # --- Presence ---
-
-  defp any_present_file?(playable_item_id) do
-    query =
-      from(w in WatchedFile,
-        where: w.playable_item_id == ^playable_item_id,
-        select: 1,
-        limit: 1
-      )
-
-    Repo.one(query) == 1
-  end
 
   # --- Phase 3.2: images / seasons / movies / watched_files / subtitles ---
 
@@ -1102,40 +1193,53 @@ defmodule MediaCentaur.Library.Views.Detail do
     end
   end
 
-  defp list_watched_files_for_playable_item(playable_item_id) do
-    Enum.map(
-      Repo.all(
-        from(w in WatchedFile,
-          where: w.playable_item_id == ^playable_item_id,
-          order_by: [asc: w.inserted_at, asc: w.id]
-        )
-      ),
-      fn file ->
-        %DetailItem.WatchedFile{
-          path: file.file_path,
-          media_dir: file.media_dir
-        }
-      end
-    )
+  # Watched files for every PlayableItem in the set, one query, grouped
+  # by `playable_item_id` and ordered so the first file is the canonical
+  # one. The builder reads presence (`!= []`), the `:watched_files` list,
+  # and — via `build_subtitle_tracks_map/1` — the file ids for subtitles
+  # all from this single load.
+  defp build_watched_files_map(playable_items) do
+    playable_item_ids = Enum.map(playable_items, & &1.id)
+
+    if playable_item_ids == [] do
+      %{}
+    else
+      Enum.group_by(
+        Repo.all(
+          from(w in WatchedFile,
+            where: w.playable_item_id in ^playable_item_ids,
+            order_by: [asc: w.inserted_at, asc: w.id]
+          )
+        ),
+        & &1.playable_item_id
+      )
+    end
   end
 
-  defp list_subtitle_tracks_for_playable_item(playable_item_id) do
+  # Subtitle tracks per PlayableItem, derived from the already-loaded
+  # watched-files map: collect every file id, fetch all tracks in one
+  # batch query, then regroup by PlayableItem.
+  defp build_subtitle_tracks_map(watched_files_by_pi_id) do
     watched_file_ids =
-      Repo.all(
-        from(w in WatchedFile,
-          where: w.playable_item_id == ^playable_item_id,
-          select: w.id
-        )
-      )
+      watched_files_by_pi_id |> Map.values() |> List.flatten() |> Enum.map(& &1.id)
 
-    watched_file_ids
-    |> Enum.flat_map(&Subtitles.list_tracks_for_file/1)
-    |> Enum.map(fn track ->
-      %DetailItem.SubtitleTrack{
-        kind: track.kind,
-        language: track.language,
-        source: track.source
-      }
+    tracks_by_file_id = Subtitles.list_tracks_for_files(watched_file_ids)
+
+    Map.new(watched_files_by_pi_id, fn {playable_item_id, files} ->
+      tracks = Enum.flat_map(files, fn file -> Map.get(tracks_by_file_id, file.id, []) end)
+      {playable_item_id, tracks}
+    end)
+  end
+
+  defp build_watched_files(watched_files) do
+    Enum.map(watched_files, fn file ->
+      %DetailItem.WatchedFile{path: file.file_path, media_dir: file.media_dir}
+    end)
+  end
+
+  defp build_subtitle_tracks(tracks) do
+    Enum.map(tracks, fn track ->
+      %DetailItem.SubtitleTrack{kind: track.kind, language: track.language, source: track.source}
     end)
   end
 end

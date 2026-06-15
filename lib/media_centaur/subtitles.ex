@@ -83,6 +83,30 @@ defmodule MediaCentaur.Subtitles do
   end
 
   @doc """
+  Batch variant of `list_tracks_for_file/1`. Given a list of
+  `WatchedFile` ids, returns a map of `watched_file_id => [Track.t()]`
+  in one query — the read-side projection builders use this to avoid a
+  per-file query when assembling tracks for many files at once.
+
+  Files with no tracks are omitted from the map; callers use
+  `Map.get(map, id, [])`. An empty id list returns `%{}` without
+  touching the database.
+  """
+  @spec list_tracks_for_files([Ecto.UUID.t()]) :: %{Ecto.UUID.t() => [Track.t()]}
+  def list_tracks_for_files([]), do: %{}
+
+  def list_tracks_for_files(watched_file_ids) when is_list(watched_file_ids) do
+    Enum.group_by(
+      Repo.all(
+        from t in Track,
+          where: t.watched_file_id in ^watched_file_ids,
+          order_by: [asc: t.inserted_at, asc: t.id]
+      ),
+      & &1.watched_file_id
+    )
+  end
+
+  @doc """
   Atomically replaces the persisted tracks for a `WatchedFile`.
 
   Deletes the existing rows and inserts the supplied attrs (or

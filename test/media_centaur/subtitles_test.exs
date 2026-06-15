@@ -281,4 +281,50 @@ defmodule MediaCentaur.SubtitlesTest do
       assert Subtitles.aggregate_languages_for_files([file]) == ["en"]
     end
   end
+
+  describe "list_tracks_for_files/1" do
+    test "groups every track by its watched_file_id" do
+      file_a = create_linked_file(%{movie_id: create_standalone_movie().id})
+      file_b = create_linked_file(%{movie_id: create_standalone_movie().id})
+
+      {:ok, _} =
+        Subtitles.create_track(%{
+          watched_file_id: file_a.id,
+          kind: :embedded,
+          language: "en",
+          source: "stream:2"
+        })
+
+      {:ok, _} =
+        Subtitles.create_track(%{
+          watched_file_id: file_a.id,
+          kind: :sidecar,
+          language: "fr",
+          source: "/x/a.fr.srt"
+        })
+
+      {:ok, _} =
+        Subtitles.create_track(%{
+          watched_file_id: file_b.id,
+          kind: :embedded,
+          language: "de",
+          source: "stream:3"
+        })
+
+      result = Subtitles.list_tracks_for_files([file_a.id, file_b.id])
+
+      assert length(Map.fetch!(result, file_a.id)) == 2
+      assert [%Track{language: "de"}] = Map.fetch!(result, file_b.id)
+    end
+
+    test "returns an empty map for an empty id list" do
+      assert Subtitles.list_tracks_for_files([]) == %{}
+    end
+
+    test "omits files that have no tracks" do
+      file = create_linked_file(%{movie_id: create_standalone_movie().id})
+
+      assert Subtitles.list_tracks_for_files([file.id]) == %{}
+    end
+  end
 end
