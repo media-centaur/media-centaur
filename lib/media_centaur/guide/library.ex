@@ -3,9 +3,10 @@ defmodule MediaCentaur.Guide.Library do
   Loads and indexes guide chapters from `priv/guide/*.md` at COMPILE TIME.
 
   Each markdown file is registered as an `@external_resource`, so editing a
-  chapter triggers a recompile (the dev workflow is `recompile` in IEx).
-  Parsing at compile time means zero runtime file IO and an immutable index,
-  matching the desktop-app rendering defaults.
+  chapter triggers a recompile. `__mix_recompile__?/0` additionally forces a
+  recompile when a chapter file is *added or removed* (which `@external_resource`
+  alone doesn't catch). Parsing at compile time means zero runtime file IO and an
+  immutable index, matching the desktop-app rendering defaults.
   """
   alias MediaCentaur.Guide.Chapter
 
@@ -15,6 +16,15 @@ defmodule MediaCentaur.Guide.Library do
 
   paths = Path.wildcard(Path.join(@guide_dir, "*.md"))
   for path <- paths, do: @external_resource(path)
+
+  # `@external_resource` recompiles when a tracked file *changes*, but not when a
+  # new chapter *appears* (the wildcard was already evaluated). This makes Mix
+  # recompile whenever the set of chapter files changes.
+  @source_paths paths
+  @doc false
+  def __mix_recompile__? do
+    Path.wildcard(Path.join(@guide_dir, "*.md")) != @source_paths
+  end
 
   @chapters paths
             |> Enum.map(fn path ->
