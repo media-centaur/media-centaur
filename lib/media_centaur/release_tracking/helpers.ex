@@ -4,7 +4,59 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
   """
 
   import Ecto.Query
+  alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.ReleaseTracking.{Extractor, ImageStore}
   alias MediaCentaur.Repo
+
+  @doc """
+  Backfills artwork (poster / backdrop / logo) missing from `item` but
+  available in the TMDB `response`, off the caller via `TaskSupervisor`.
+  Idempotent — `pending_image_downloads/2` skips roles the item already has,
+  so this is safe to call on every scan, refresh, and auto-track. Used by
+  both Scanner and Refresher (the single-item fire-and-forget case).
+  """
+  def download_images_async(item, tmdb_id, response) do
+    if pending_image_downloads(item, response) != [] do
+      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+        download_images_sync(item, tmdb_id, response)
+      end)
+    end
+
+    :ok
+  end
+
+  @doc """
+  Synchronous body of `download_images_async/3`. Called directly by the
+  Refresher's Phase-3 `async_stream` so a refresh over N items runs under a
+  bounded concurrency rather than fanning out to N independent tasks.
+  """
+  def download_images_sync(item, tmdb_id, response) do
+    attrs =
+      item
+      |> pending_image_downloads(response)
+      |> Enum.reduce(%{}, fn {tmdb_path, attr_key, downloader}, acc ->
+        case downloader.(tmdb_id, tmdb_path) do
+          {:ok, path} when is_binary(path) -> Map.put(acc, attr_key, path)
+          _ -> acc
+        end
+      end)
+
+    if attrs != %{}, do: ReleaseTracking.update_item(item, attrs)
+    :ok
+  end
+
+  # Returns `[{tmdb_source_path, attr_key, downloader}]` for every image role
+  # the item still lacks AND that TMDB has a path for.
+  defp pending_image_downloads(item, response) do
+    [
+      {item.poster_path, Extractor.extract_poster_path(response), :poster_path,
+       &ImageStore.download_poster/2},
+      {item.backdrop_path, response["backdrop_path"], :backdrop_path, &ImageStore.download_backdrop/2},
+      {item.logo_path, Extractor.extract_logo_path(response), :logo_path, &ImageStore.download_logo/2}
+    ]
+    |> Enum.filter(fn {current, tmdb_path, _, _} -> is_nil(current) and is_binary(tmdb_path) end)
+    |> Enum.map(fn {_, tmdb_path, attr_key, downloader} -> {tmdb_path, attr_key, downloader} end)
+  end
 
   @doc """
   Parses a TMDB id that may arrive as an integer or as a string (the
