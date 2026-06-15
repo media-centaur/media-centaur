@@ -210,4 +210,38 @@ defmodule MediaCentaur.Library.PresentableQueriesTest do
       assert Enum.map(results, & &1.id) == [ms.id]
     end
   end
+
+  describe "present_movie_counts/1" do
+    test "counts present children per movie_series" do
+      multi = create_movie_series(%{name: "Multi"})
+      m1 = create_movie(%{name: "M1", movie_series_id: multi.id})
+      m2 = create_movie(%{name: "M2", movie_series_id: multi.id})
+      _f1 = create_present_file(%{movie_id: m1.id})
+      _f2 = create_present_file(%{movie_id: m2.id})
+
+      single = create_movie_series(%{name: "Single"})
+      s1 = create_movie(%{name: "S1", movie_series_id: single.id})
+      _f3 = create_present_file(%{movie_id: s1.id})
+
+      counts =
+        [multi.id, single.id]
+        |> PresentableQueries.present_movie_counts()
+        |> Repo.all()
+        |> Map.new()
+
+      assert counts[multi.id] == 2
+      assert counts[single.id] == 1
+    end
+
+    test "omits movie_series with no present children" do
+      ms = create_movie_series(%{name: "All Absent"})
+      _m = create_movie(%{name: "A1", movie_series_id: ms.id})
+
+      assert Repo.all(PresentableQueries.present_movie_counts([ms.id])) == []
+    end
+
+    test "returns no rows for an empty id list" do
+      assert Repo.all(PresentableQueries.present_movie_counts([])) == []
+    end
+  end
 end

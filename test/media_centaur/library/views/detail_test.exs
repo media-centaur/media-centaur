@@ -867,4 +867,68 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       assert episode.content_url == "/media/test/cu-s01e01.mkv"
     end
   end
+
+  describe "refresh_cache/0 query efficiency (N+1 guard)" do
+    test "query count is invariant to the number of episodes under a series" do
+      on_exit_clear_table()
+      series = create_tv_series(%{name: "Sample N+1 Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      add_present_episode = fn number ->
+        episode = create_episode(%{season_id: season.id, episode_number: number})
+        playable_item = create_playable_item_for_episode(episode)
+
+        create_linked_file(%{
+          playable_item_id: playable_item.id,
+          file_path: "/media/test/nplus1-s01e#{number}.mkv"
+        })
+      end
+
+      Enum.each(1..2, add_present_episode)
+      baseline = count_queries(fn -> Detail.refresh_cache() end)
+
+      Enum.each(3..8, add_present_episode)
+      grown = count_queries(fn -> Detail.refresh_cache() end)
+
+      assert grown == baseline,
+             "refresh_cache issued #{grown} queries for 8 episodes vs #{baseline} for 2 — " <>
+               "per-episode queries indicate an N+1 in the projection build"
+    end
+  end
+
+  defp count_queries(fun) do
+    ref = make_ref()
+    parent = self()
+    handler_id = {:detail_refresh_query_count, ref}
+
+    # Ecto emits `[:repo, :query]` telemetry synchronously in the process
+    # that ran the query. Gating on `self() == parent` scopes the count to
+    # the test process's own queries, so background Cache.Worker refreshes
+    # firing on entity-creation PubSub don't inflate it under full-suite
+    # parallelism (see automated-testing skill: telemetry query-counting).
+    :ok =
+      :telemetry.attach(
+        handler_id,
+        [:media_centaur, :repo, :query],
+        fn _event, _measurements, _metadata, _config ->
+          if self() == parent, do: send(parent, {:query, ref})
+        end,
+        nil
+      )
+
+    try do
+      fun.()
+      drain_queries(ref, 0)
+    after
+      :telemetry.detach(handler_id)
+    end
+  end
+
+  defp drain_queries(ref, count) do
+    receive do
+      {:query, ^ref} -> drain_queries(ref, count + 1)
+    after
+      0 -> count
+    end
+  end
 end

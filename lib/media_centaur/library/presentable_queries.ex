@@ -147,6 +147,28 @@ defmodule MediaCentaur.Library.PresentableQueries do
   end
 
   @doc """
+  Batch variant of `present_movie_ids/1` for the hoist decision across
+  many collections at once. Given a list of `MovieSeries` ids, selects
+  `{movie_series_id, present_child_count}` for each collection that has
+  at least one present child — letting a caller resolve the hoist rule
+  (1 present child → present the movie; 2+ → present the collection) for
+  a whole set in a single query instead of one `present_movie_ids/1`
+  call per collection.
+
+  Collections with zero present children are absent from the result.
+  """
+  @spec present_movie_counts([Ecto.UUID.t()]) :: Ecto.Query.t()
+  def present_movie_counts(movie_series_ids) when is_list(movie_series_ids) do
+    from(m in Movie,
+      as: :item,
+      where: m.movie_series_id in ^movie_series_ids,
+      where: exists(movie_present_files_subquery()),
+      group_by: m.movie_series_id,
+      select: {m.movie_series_id, count(m.id)}
+    )
+  end
+
+  @doc """
   Standalone movies, presence-agnostic: `movie_series_id IS NULL`. Used by progress
   surfaces (e.g. Continue Watching) where the user's engagement signal is the
   inclusion criterion, not file presence.
