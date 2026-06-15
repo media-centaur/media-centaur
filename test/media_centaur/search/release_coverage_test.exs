@@ -24,6 +24,11 @@ defmodule MediaCentaur.Search.ReleaseCoverageTest do
     test "SxxEyy-zz (no second E)" do
       assert ReleaseCoverage.classify("Sample.Show.S01E01-05.1080p") == {:episodes, 1, 1, 5}
     end
+
+    test "en-dash separator (SxxEyy–Ezz)" do
+      assert ReleaseCoverage.classify("Sample.Show.S01E01–E05.1080p.WEB-DL") ==
+               {:episodes, 1, 1, 5}
+    end
   end
 
   describe "classify/1 — season pack" do
@@ -49,6 +54,11 @@ defmodule MediaCentaur.Search.ReleaseCoverageTest do
 
     test "S01-03 (no second S)" do
       assert ReleaseCoverage.classify("Sample.Show.S01-03.COMPLETE.1080p") == {:seasons, 1, 3}
+    end
+
+    test "en-dash separator (Sxx–Syy)" do
+      assert ReleaseCoverage.classify("Sample.Show.S01–S05.1080p.WEB-DL.x264") ==
+               {:seasons, 1, 5}
     end
 
     test "inverted ranges are nonsense, not packs" do
