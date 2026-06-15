@@ -29,14 +29,19 @@ Acquisition split), C3/C4/C5 (dead code, schema API, boundary), D3/D5
 F1/F3 + subtitles_row F2, status_live mount split (D2). All test-first
 where behavior changed; full `mix precommit` green at each checkpoint.
 
-**Session 2 (2026-06-15, pushed): library cluster done.** B7 (per-type
-fetcher dedup, all 3 rows) + the present-file-subquery dedup into
+**Session 2 (2026-06-15, pushed): library cluster + readability done.**
+B7 (per-type fetcher dedup, all 3 rows) + present-file-subquery dedup into
 PresentableQueries + **C1** (HomeLive facade → `Library.HomeFeed`,
-library.ex 3458→2661). All behaviour-preserving, verified. D4 deferred
-(cosmetic/risky). **Remaining**: D1 (settings sections); D2 remainder
-(pursuit_status, detail_panel); F2 remainder (more_info, detail); small
-deferred sub-items (C2 image residual, E1 Movie parity, F4, A5/C3
-residues). Nothing left is on the home-page hot path.
+library.ex 3458→2661) + **D2** (status_live mount split, detail_panel
+split) + **F2** subtitles_row. All behaviour-preserving, verified.
+
+**What's intentionally NOT done** (judgment calls, documented inline):
+pursuit_status (idiomatic dispatch — @dispatch map is a lateral move),
+F2 more_info/detail (would reduce integration coverage), D4 (cosmetic/
+risky correlated-subquery rewrite). **Genuinely remaining = D1 only**
+(settings_live's 14 section renders → per-section modules — a focused
+*attended* sprint on an interactive surface; ~14 cross-module extractions)
+plus low-value deferred residues (C2 image, E1 Movie parity, F4, A5/C3).
 
 **Discovered, deferred:** `library_test.exs:234` (list_in_progress N+1
 query-count) is order-fragile under full-suite parallelism — passes in
@@ -166,16 +171,28 @@ Ordered by workstream; within each, by value/risk.
     something.
 21. ✅ **D5** Unpacked the three dense one-liners (`config`, `maintenance`,
     `release_tracking/helpers`).
-22. ◐ **D2** DONE: `status_live mount/3` split into connected/disconnected.
-    REMAINING: `pursuit_status.ex` (378-LOC state machine → `@dispatch` map
-    or sub-module — real regression risk, attended) and `review_live
-    detail_panel/1` (200+ lines → file/tmdb/search sub-panels). Lower
-    priority than structure.
-23. **D1** `settings_live.ex section_content/1` (~`:1593-4668`, ~14 HEEx
-    sections in one fn) → per-section components. VERY LARGE — the
-    extraction pattern already exists (`settings_live/overview.ex`,
-    `system_section.ex`); each new component needs an MC0009 story. Also
-    absorbs the deferred B8 settings `toggle_*`/`save_*` handler families.
+22. ✅ **D2** DONE: `status_live mount/3` → connected/disconnected;
+    `review_live detail_panel/1` (221 lines) → parsed_info / tmdb_match /
+    episode_list render helpers (~110-line composition). NOT DONE (by
+    judgment): `pursuit_status.ex` — it's idiomatic multi-clause pattern
+    dispatch, and the audit's `@dispatch`-map suggestion is a lateral move
+    (arguably *less* readable) that risks wrong user-facing statuses for no
+    real gain. Left as-is intentionally.
+23. **D1** `settings_live.ex section_content/1` — DEFERRED as a focused
+    sprint. Reality (confirmed): it's **14 pattern-matched clauses** (one
+    per section: system ~340 lines, library ~280, acquisition ~260,
+    language ~240, danger ~225, …), all in the 4,600-line `settings_live.ex`.
+    The section *logic* is already extracted (`Overview`, `SystemSection`,
+    `*_logic` are pure modules). Remaining = move each section's **HEEx
+    render** out to its module as a render component (cross-module, ~14×,
+    each with assign-mapping). NOTE: the existing section modules live in
+    `live/settings_live/` (pure-logic, no stories) — a render component
+    there is also exempt from MC0009 (which targets `components/**`), so the
+    story tax is lighter than first thought; the cost is the volume + per-
+    section assign passing. **Attended** because it's an interactive surface
+    (update buttons, intervals, toggles) — verify each section renders +
+    works in the running app, not just page_smoke. Also absorbs the
+    deferred B8 settings `toggle_*`/`save_*` handler families.
 
 ### E — Consistency / naming
 24. ◐ **E5** DONE: `metadata_stats` init takes `opts`. `rate_limiter` left
@@ -194,12 +211,16 @@ Ordered by workstream; within each, by value/risk.
 
 ### F — Test policy
 30. ✅ **F1** Added `json_formatter` (round-trip + error) + `markdown_formatter` tests.
-31. ◐ **F2** DONE: `subtitles_row` → pure `language_label/1` test (story
-    covers the row structure). REMAINING: `more_info_panel_test` and
-    `detail_panel_render_test` — larger (multiple decisions; a `filter_crew/2`
-    duplicated byte-for-byte across movie_credits/series_credits that a
-    public extraction would both dedup and make testable). Per-component
-    design work, attended.
+31. ◐ **F2** DONE: `subtitles_row` → pure `language_label/1`. NOT DONE (by
+    judgment): `more_info_panel_test` / `detail_panel_render_test`. On
+    inspection these are 20+ tests that are genuine *integration* coverage
+    (cast-filter cap, meta blocks, TMDB/IMDb link logic across movie/TV);
+    the one extractable decision (`filter_crew`) is a trivial one-liner
+    where a shared module would be premature, and a story already covers the
+    render. Ripping out the render assertions would *reduce* useful coverage
+    for a judgment-call policy item (these are component, not `*_live`,
+    tests). Left as-is — consistent with the "three lines beat a premature
+    abstraction" discipline.
 32. ✅ **F3** Deleted the redundant `assert true` home_live test.
 33. **F4** `maintenance_test.exs` seed helpers → `TestFactory`. LOW —
     deferred: the helpers attach `:tmdb_collection` external-ids for the
@@ -208,18 +229,22 @@ Ordered by workstream; within each, by value/risk.
 
 ## Remaining work (next session)
 
-**Large structural (attended — home-page hot path, can't verify render
-unattended):** B7 + C1 + D4 (library fetcher dedup / HomeLive-facade →
-`Library.Views.*` / raw-SQL ordering — all the same query area, do
-together in small verified steps), D1 (settings-section components).
-**Medium (attended judgment calls):** D2 remainder (pursuit_status state
-machine, detail_panel split), F2 remainder (more_info/detail → pure
-helpers; bundle the `filter_crew/2` dedup), C2 image-downloader residual
-(route track-from-search through `Helpers.download_images_async/3`).
-**Low / confirm-first:** A5 residue (perform_relinks, buckets rebuild),
-C3 residue (deletion_buffer.reset, refresh_movie_series_credits), E1
-Movie create-only parity, F4 (maintenance factory). **Suite hygiene:**
-harden the order-fragile `list_in_progress` N+1 query-count test.
+**The one substantial item left:** **D1** — relocate settings_live's 14
+section HEEx renders into their `live/settings_live/*` modules as render
+components; section_content becomes a thin 14-clause router. Attended
+sprint (interactive surface). See item 23 for the confirmed shape.
+
+**Deliberately not doing** (documented why at items 22, 31, 20): D2
+pursuit_status, F2 more_info/detail, D4 raw-SQL ordering.
+
+**Low-value deferred residues (confirm-first):** C2 image-downloader
+residual (route track-from-search through `Helpers.download_images_async/3`
+— it's a behaviour change: adds logos but shifts the post-download
+broadcast), A5 (perform_relinks, buckets rebuild — bounded loops), C3
+(deletion_buffer.reset, refresh_movie_series_credits — both still tested),
+E1 Movie create-only parity (net-new API), F4 (maintenance factory —
+:tmdb_collection nuance). **Suite hygiene:** harden the order-fragile
+`list_in_progress` N+1 query-count test.
 
 ## Completion criteria
 
