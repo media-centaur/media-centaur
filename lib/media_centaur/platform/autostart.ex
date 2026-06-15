@@ -40,10 +40,14 @@ defmodule MediaCentaur.Platform.Autostart do
   to `Systemd`. Tests override via `Application.put_env/3`.
   """
 
+  # OS-neutral so every impl returns the same keys and consumers (the
+  # Settings service card) never KeyError on a different platform's map.
+  # `under_supervisor` — this BEAM is supervised by the OS init system;
+  # `supervisor_available` — that init system is reachable for control.
   @type state :: %{
-          under_systemd: boolean(),
+          under_supervisor: boolean(),
           unit_name: String.t() | nil,
-          systemd_available: boolean(),
+          supervisor_available: boolean(),
           unit_installed: boolean(),
           active: boolean(),
           enabled: boolean()

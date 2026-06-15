@@ -42,6 +42,21 @@ defmodule MediaCentaur.Platform.Autostart.SystemdTest do
   """
 
   describe "state/1" do
+    test "returns the OS-neutral key set shared with the launchd impl" do
+      cmd = fake_cmd(%{{"systemctl", ["--user", "show-environment"]} => {"Failed", 1}})
+      keys = Service.state(cmd_fn: cmd) |> Map.keys() |> Enum.sort()
+
+      assert keys ==
+               Enum.sort([
+                 :active,
+                 :enabled,
+                 :supervisor_available,
+                 :under_supervisor,
+                 :unit_installed,
+                 :unit_name
+               ])
+    end
+
     test "reports full state when systemd is available, unit installed, active, enabled" do
       cmd =
         fake_cmd(%{
@@ -53,20 +68,20 @@ defmodule MediaCentaur.Platform.Autostart.SystemdTest do
         })
 
       assert %{
-               systemd_available: true,
+               supervisor_available: true,
                unit_installed: true,
                active: true,
                enabled: true
              } = Service.state(Keyword.put(no_systemd_context(), :cmd_fn, cmd))
     end
 
-    test "reports systemd_available: false when show-environment fails" do
+    test "reports supervisor_available: false when show-environment fails" do
       cmd =
         fake_cmd(%{
           {"systemctl", ["--user", "show-environment"]} => {"Failed to connect", 1}
         })
 
-      assert %{systemd_available: false, unit_installed: false, active: false, enabled: false} =
+      assert %{supervisor_available: false, unit_installed: false, active: false, enabled: false} =
                Service.state(cmd_fn: cmd)
     end
 
@@ -99,7 +114,7 @@ defmodule MediaCentaur.Platform.Autostart.SystemdTest do
   end
 
   describe "state/1 — detection via INVOCATION_ID + cgroup" do
-    test "under_systemd: true and unit_name from cgroup when INVOCATION_ID is set (dev unit)" do
+    test "under_supervisor: true and unit_name from cgroup when INVOCATION_ID is set (dev unit)" do
       cmd =
         fake_cmd(%{
           {"systemctl", ["--user", "show-environment"]} => {"", 0},
@@ -117,9 +132,9 @@ defmodule MediaCentaur.Platform.Autostart.SystemdTest do
         )
 
       assert %{
-               under_systemd: true,
+               under_supervisor: true,
                unit_name: "media-centaur-dev.service",
-               systemd_available: true,
+               supervisor_available: true,
                unit_installed: true,
                active: true,
                enabled: true
@@ -144,11 +159,11 @@ defmodule MediaCentaur.Platform.Autostart.SystemdTest do
         )
 
       assert state.unit_name == "media-centaur-showcase.service"
-      assert state.under_systemd == true
+      assert state.under_supervisor == true
       assert state.active == true
     end
 
-    test "under_systemd: false and unit_name: nil when INVOCATION_ID is absent" do
+    test "under_supervisor: false and unit_name: nil when INVOCATION_ID is absent" do
       cmd =
         fake_cmd(%{
           {"systemctl", ["--user", "show-environment"]} => {"", 0},
@@ -165,11 +180,11 @@ defmodule MediaCentaur.Platform.Autostart.SystemdTest do
           cgroup_reader: fake_cgroup({:ok, @prod_cgroup})
         )
 
-      assert state.under_systemd == false
+      assert state.under_supervisor == false
       assert state.unit_name == nil
     end
 
-    test "under_systemd: true, unit_name: nil when cgroup read fails" do
+    test "under_supervisor: true, unit_name: nil when cgroup read fails" do
       cmd =
         fake_cmd(%{
           {"systemctl", ["--user", "show-environment"]} => {"", 0},
@@ -186,7 +201,7 @@ defmodule MediaCentaur.Platform.Autostart.SystemdTest do
           cgroup_reader: fake_cgroup({:error, :enoent})
         )
 
-      assert state.under_systemd == true
+      assert state.under_supervisor == true
       assert state.unit_name == nil
       # Falls back to the compile-time default unit for systemctl probes.
       assert state.unit_installed == true
