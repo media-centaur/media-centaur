@@ -2276,9 +2276,15 @@ defmodule MediaCentaur.Library do
     [
       PresentableQueries.standalone_movies(),
       PresentableQueries.singleton_collection_movies(),
-      from(t in TVSeries, as: :item, where: exists(tv_series_present_file_subquery())),
+      from(t in TVSeries,
+        as: :item,
+        where: exists(PresentableQueries.tv_series_present_file_subquery())
+      ),
       PresentableQueries.multi_child_movie_series(),
-      from(v in VideoObject, as: :item, where: exists(video_object_present_file_subquery()))
+      from(v in VideoObject,
+        as: :item,
+        where: exists(PresentableQueries.video_object_present_file_subquery())
+      )
     ]
     |> Enum.flat_map(&fetch_recently_added(&1, limit))
     |> Enum.sort_by(& &1.__inserted_at__, {:desc, DateTime})
@@ -2293,34 +2299,6 @@ defmodule MediaCentaur.Library do
     |> Repo.all()
     |> Repo.preload(:images)
     |> Enum.map(&shape_recently_added_record/1)
-  end
-
-  # WatchedFile present for any episode in any season of `parent_as(:item)`
-  # (a TVSeries). Walks `WatchedFile → PlayableItem(:episode) → Episode →
-  # Season → TVSeries`. Used by recently-added and hero-candidates surfaces.
-  # Phase-3 cascade-delete makes WatchedFile existence equivalent to
-  # "current presence on disk."
-  defp tv_series_present_file_subquery do
-    from(wf in WatchedFile,
-      join: pi in PlayableItem,
-      on: pi.id == wf.playable_item_id and pi.container_type == :episode,
-      join: e in Episode,
-      on: e.id == pi.container_id,
-      join: s in Season,
-      on: s.id == e.season_id,
-      where: s.tv_series_id == parent_as(:item).id,
-      select: 1
-    )
-  end
-
-  # WatchedFile present for the VideoObject in `parent_as(:item)`.
-  defp video_object_present_file_subquery do
-    from(wf in WatchedFile,
-      join: pi in PlayableItem,
-      on: pi.id == wf.playable_item_id and pi.container_type == :video_object,
-      where: pi.container_id == parent_as(:item).id,
-      select: 1
-    )
   end
 
   @doc """
@@ -2348,10 +2326,15 @@ defmodule MediaCentaur.Library do
     [
       {PresentableQueries.standalone_movies(), :movie},
       {PresentableQueries.singleton_collection_movies(), :movie},
-      {from(t in TVSeries, as: :item, where: exists(tv_series_present_file_subquery())), :tv_series},
+      {from(t in TVSeries,
+         as: :item,
+         where: exists(PresentableQueries.tv_series_present_file_subquery())
+       ), :tv_series},
       {PresentableQueries.multi_child_movie_series(), :movie_series},
-      {from(v in VideoObject, as: :item, where: exists(video_object_present_file_subquery())),
-       :video_object}
+      {from(v in VideoObject,
+         as: :item,
+         where: exists(PresentableQueries.video_object_present_file_subquery())
+       ), :video_object}
     ]
     |> Enum.flat_map(fn {query, owner_type} -> fetch_hero_candidates(query, owner_type, limit) end)
     |> maybe_take(limit)

@@ -54,7 +54,7 @@ defmodule MediaCentaur.Library.PresentableQueries do
   """
   import Ecto.Query
 
-  alias MediaCentaur.Library.{Movie, MovieSeries, PlayableItem, WatchedFile}
+  alias MediaCentaur.Library.{Episode, Movie, MovieSeries, PlayableItem, Season, WatchedFile}
 
   @doc """
   Standalone movies: `movie_series_id IS NULL`, with at least one present file.
@@ -215,6 +215,39 @@ defmodule MediaCentaur.Library.PresentableQueries do
     from(wf in WatchedFile,
       join: pi in PlayableItem,
       on: pi.id == wf.playable_item_id and pi.container_type == :movie,
+      where: pi.container_id == parent_as(:item).id,
+      select: 1
+    )
+  end
+
+  @doc """
+  Correlated subquery: a present `WatchedFile` exists for any episode of the
+  TV series bound as `:item` in the outer query. Walks `WatchedFile →
+  PlayableItem(:episode) → Episode → Season → TVSeries`; Phase-3 cascade-
+  delete makes WatchedFile existence equivalent to current on-disk presence.
+  Use inside `exists(...)` with an outer query aliased `:item`.
+  """
+  def tv_series_present_file_subquery do
+    from(wf in WatchedFile,
+      join: pi in PlayableItem,
+      on: pi.id == wf.playable_item_id and pi.container_type == :episode,
+      join: e in Episode,
+      on: e.id == pi.container_id,
+      join: s in Season,
+      on: s.id == e.season_id,
+      where: s.tv_series_id == parent_as(:item).id,
+      select: 1
+    )
+  end
+
+  @doc """
+  Correlated subquery: a present `WatchedFile` exists for the VideoObject
+  bound as `:item` in the outer query. Use inside `exists(...)`.
+  """
+  def video_object_present_file_subquery do
+    from(wf in WatchedFile,
+      join: pi in PlayableItem,
+      on: pi.id == wf.playable_item_id and pi.container_type == :video_object,
       where: pi.container_id == parent_as(:item).id,
       select: 1
     )
