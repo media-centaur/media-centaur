@@ -178,7 +178,23 @@ Ordered by workstream; within each, by value/risk.
     dispatch, and the audit's `@dispatch`-map suggestion is a lateral move
     (arguably *less* readable) that risks wrong user-facing statuses for no
     real gain. Left as-is intentionally.
-23. **D1** `settings_live.ex section_content/1` — DEFERRED as a focused
+23. ◐ **D1** IN PROGRESS (session 3, attended). Foundation + 4 sections
+    done: extracted the shared UI kit (`SettingsLive.Components`:
+    settings_row / card_header / field / status_dot / phx_values), then
+    moved **Preferences, Services, Language, Library** into
+    `SettingsLive.*` render modules (delegated via explicit attrs, matching
+    the `Controls` precedent). **settings_live.ex 4607 → 4003.** All
+    behaviour-preserving (settings + page_smoke green per step). MC0008
+    (loose-attr doc) is the per-section tax — handled inline.
+    **REMAINING 8 sections**: updates, system, tmdb, acquisition, pipeline,
+    playback, release_tracking, danger. Helper-coupled ones need their
+    section-specific render helper relocated first — `connection_status` +
+    `path_status` (shared by tmdb/acquisition/pipeline → move to the
+    Components kit), `service_card` (system → its module),
+    `auto_grab_defaults_form` (acquisition → its module). The rest are
+    kit/core-only moves. Each is now a known-pattern mechanical extraction.
+    --- ORIGINAL ANALYSIS ---
+    `settings_live.ex section_content/1` — DEFERRED as a focused
     sprint. Reality (confirmed): it's **14 pattern-matched clauses** (one
     per section: system ~340 lines, library ~280, acquisition ~260,
     language ~240, danger ~225, …), all in the 4,600-line `settings_live.ex`.
