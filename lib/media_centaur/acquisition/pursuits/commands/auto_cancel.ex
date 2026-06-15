@@ -46,8 +46,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Acquisition.Jobs.PursueTarget, as: PursueTargetWorker
-  alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Runner}
+  alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Helpers, Runner}
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.{AutoCancelled, TargetChanged}
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit, Units}
@@ -87,7 +86,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
 
     case result do
       {:ok, {pivoted, %Target{} = new_target, abandoned_hashes}} ->
-        enqueue_pursue(new_target)
+        Helpers.enqueue_pursue(new_target)
         ClientCleanup.stop_downloads(pivoted.title, abandoned_hashes)
         {:ok, pivoted}
 
@@ -140,7 +139,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
     do: {:ok, {pursuit, nil}}
 
   defp pivot_if_had_target(pursuit, attempted_unit, _original_unit, now) do
-    with {:ok, new_target} <- insert_seeking_target(pursuit),
+    with {:ok, new_target} <- Helpers.insert_seeking_target(pursuit),
          {:ok, _coverage} <-
            Repo.insert(
              TargetUnit.create_changeset(%{target_id: new_target.id, unit_id: attempted_unit.id})
@@ -155,23 +154,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
              target_id: new_target.id
            }) do
       {:ok, {pursuit, new_target}}
-    end
-  end
-
-  defp insert_seeking_target(%Pursuit{} = pursuit) do
-    %{pursuit_id: pursuit.id, title: pursuit.title, origin: pursuit.origin}
-    |> Target.create_changeset()
-    |> Repo.insert()
-  end
-
-  defp enqueue_pursue(%Target{} = target) do
-    case Oban.insert(PursueTargetWorker.new(%{"target_id" => target.id})) do
-      {:ok, _job} ->
-        :ok
-
-      {:error, reason} ->
-        Log.warning(:acquisition, "PursueTarget enqueue failed — #{inspect(reason)}")
-        :ok
     end
   end
 end

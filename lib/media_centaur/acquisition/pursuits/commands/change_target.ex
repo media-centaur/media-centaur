@@ -33,15 +33,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Acquisition.Jobs.PursueTarget, as: PursueTargetWorker
   alias MediaCentaur.Acquisition.Pursuits
-  alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Runner}
+  alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Helpers, Runner}
   alias MediaCentaur.Acquisition.Targets
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.TargetChanged
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, State, TargetUnit, Unit, UnitState, Units}
-  alias MediaCentaur.Acquisition.Target
-  alias MediaCentaur.Acquisition.TargetStatus
   alias MediaCentaur.Repo
 
   @doc """
@@ -72,8 +69,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
         # A terminal unit doesn't pivot — a fresh seeking target on a
         # satisfied unit would re-grab something already landed.
         with true <- unit.state in UnitState.in_flight() || {:error, :not_eligible},
-             {:ok, _previous} <- maybe_fail_current_target(unit),
-             {:ok, new_target} <- insert_seeking_target(pursuit),
+             {:ok, _previous} <- Helpers.fail_current_target(unit, "replaced_by_user_pivot"),
+             {:ok, new_target} <- Helpers.insert_seeking_target(pursuit),
              {:ok, _coverage} <-
                Repo.insert(TargetUnit.create_changeset(%{target_id: new_target.id, unit_id: unit.id})),
              {:ok, updated_unit} <-
@@ -93,7 +90,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
 
     case result do
       {:ok, {updated_pursuit, new_target, abandoned_hashes}} ->
-        enqueue_pursue(new_target)
+        Helpers.enqueue_pursue(new_target)
         ClientCleanup.stop_downloads(updated_pursuit.title, abandoned_hashes)
         {:ok, updated_pursuit}
 
@@ -108,39 +105,4 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
   end
 
   defp resolve_unit(pursuit, _args), do: Units.lead(pursuit.id)
-
-  defp maybe_fail_current_target(%Unit{current_target_id: nil}), do: {:ok, nil}
-
-  defp maybe_fail_current_target(%Unit{current_target_id: target_id}) do
-    case Repo.get(Target, target_id) do
-      nil ->
-        {:ok, nil}
-
-      %Target{status: status} = target ->
-        if TargetStatus.terminal?(status) do
-          {:ok, target}
-        else
-          target
-          |> Target.failed_changeset("replaced_by_user_pivot")
-          |> Repo.update()
-        end
-    end
-  end
-
-  defp insert_seeking_target(%Pursuit{} = pursuit) do
-    %{pursuit_id: pursuit.id, title: pursuit.title, origin: pursuit.origin}
-    |> Target.create_changeset()
-    |> Repo.insert()
-  end
-
-  defp enqueue_pursue(%Target{} = target) do
-    case Oban.insert(PursueTargetWorker.new(%{"target_id" => target.id})) do
-      {:ok, _job} ->
-        :ok
-
-      {:error, reason} ->
-        Log.warning(:acquisition, "PursueTarget enqueue failed — #{inspect(reason)}")
-        :ok
-    end
-  end
 end
