@@ -164,6 +164,19 @@ gap between lines is the teardown. Chase the gap, not the number.
   in orphaned tasks (HTTP retry backoff is the classic), real network
   calls that aren't stubbed for the calling process, or `refute_receive`
   with long timeouts.
+- **Telemetry query-counting must filter by the emitting process, or it
+  flakes under parallelism.** A `count_queries`-style helper that attaches
+  a `[:repo, :query]` telemetry handler counts queries from **every**
+  process in the VM, not just the function under test. Ecto emits that
+  event synchronously in the process that ran the query, so background
+  workers (projection `Cache.Worker`s refreshing on the entity-creation
+  PubSub, etc.) firing during the measured window inflate the count —
+  passes in isolation, flakes in the full suite (`got 26 vs 15`). The fix
+  is one line: gate the handler on `self() == parent` so only the test
+  process's own queries count (`count_queries/1` in `library_test.exs`).
+  This is a no-op in isolation and deterministic under load. Any
+  telemetry-based measurement scoped to "what this code did" needs the
+  same process filter.
 
 ---
 
