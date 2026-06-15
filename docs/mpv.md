@@ -110,7 +110,7 @@ This outputs detailed logs for script loading, track discovery, rendering, overl
 
 ## skip-intro Plugin
 
-`scripts/skip-intro.lua` detects intro/opening chapters and shows a "Skip Intro" pill button in the bottom-right corner. Press **Enter** to skip to the next chapter.
+`scripts/skip-intro.lua` detects intro/opening chapters and shows a "Skip Intro" pill button in the bottom-right corner. Press **Enter** or **click the pill** to skip to the next chapter.
 
 ### How It Works
 
@@ -127,6 +127,7 @@ If the title matches and there is a next chapter to skip to, a glassmorphism pil
 
 - **No key binding needed** — the script activates automatically via chapter observation
 - ENTER is force-bound to "skip to next chapter" while the button is visible, overriding the global fullscreen toggle. The global binding is restored when the button disappears.
+- **The pill is clickable.** A `mouse-pos` observer hit-tests the cursor against the pill bounds; `MBTN_LEFT` is force-bound only while the cursor is over the pill, so clicks elsewhere still reach the OSC / seek bar. Hovering brightens the border to the orange accent as a clickable affordance.
 - Files without chapters or with untitled chapters are unaffected
 - If the intro is the last chapter (no next chapter), the button is suppressed
 
