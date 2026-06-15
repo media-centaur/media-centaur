@@ -23,6 +23,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Start do
   def execute(args) when is_map(args) do
     unit_specs = Map.get(args, :units, [%{query: Map.get(args, :manual_query)}])
 
+    # Creation commands run their own transaction rather than going through
+    # Commands.Runner: Runner operates on an already-existing pursuit/unit
+    # (load → mutate → emit), whereas Start brings the pursuit and its units
+    # into being in the same transaction.
     result =
       Repo.transaction(fn ->
         with {:ok, pursuit} <- Repo.insert(Pursuit.create_changeset(Map.delete(args, :units))),

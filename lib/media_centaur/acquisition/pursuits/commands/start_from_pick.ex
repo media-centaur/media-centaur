@@ -75,6 +75,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
     origin = Map.get(args, :origin, "manual")
     now = DateTime.utc_now(:second)
 
+    # Creation command — runs its own transaction rather than Commands.Runner,
+    # which operates on an already-existing pursuit (see Start.execute/1).
     result_in_transaction =
       Repo.transaction(fn ->
         with {:ok, pursuit} <- insert_pursuit(picks, manual_query, origin),
