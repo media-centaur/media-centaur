@@ -37,7 +37,10 @@ defmodule MediaCentaurWeb.GuideMarkdown do
 
   # --- node dispatch -------------------------------------------------------
 
-  attr :node, :any, required: true
+  attr :node, :any,
+    required: true,
+    doc:
+      "An Earmark AST node: a `{tag, attrs, children, meta}` tuple or a bare text binary. Heterogeneous tagged-union shape — `:any` is intentional."
 
   defp render_node(%{node: {tag, _a, children, _m}} = assigns) when tag in ~w(h1 h2 h3 h4) do
     assigns = assign(assigns, tag: tag, anchor: slugify(node_text(children)), children: children)
