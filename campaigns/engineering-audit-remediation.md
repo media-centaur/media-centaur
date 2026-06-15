@@ -21,14 +21,22 @@ cohesion from the three modules that have outgrown a single file.
 
 ## Status
 
-**Session 1 (2026-06-15, unpushed): correctness band + quick wins done.**
-Workstream A complete (A1–A5). Plus the fast/safe items across B–F:
-dead-code removal (C3), GenServer+stale-doc fixes (E5/E6/D3), small
-dedup (B8), and a redundant-test deletion (F3) — all test-first where
-behavior changed, full `mix precommit` green. **Remaining = the larger
-refactors** (B1–B7 abstractions, C1/C2/C5 structure, D1/D2/D4
-decomposition, E1–E4 consistency, F1/F2/F4 test policy), each scoped
-below for a focused follow-on session.
+**Session 1 (2026-06-15, unpushed): correctness band + most abstractions
+done.** Complete: A1–A5 (correctness), B1/B2/B3/B4/B6 + B8 (abstractions
+& dedup), C3/C4/C5 (dead code, schema API, boundary), D3 (stale doc),
+E5/E6 (consistency), F1/F3 (test policy). All test-first where behavior
+changed; targeted suites green throughout. **Remaining = the heaviest
+structural refactors** (B7 library fetchers, C1 HomeLive-facade
+extraction, C2 ReleaseTracking split, D1 settings-section components,
+D2 decompositions) plus smaller E1/E2/E3/E4 consistency, D4/D5
+readability, and F2/F4 test items — each scoped below.
+
+**Discovered, deferred:** `library_test.exs:234` (list_in_progress N+1
+query-count) is order-fragile under full-suite parallelism — passes in
+isolation and per-file, intermittently fails full-suite (warm
+global/ETS state shifts the baseline). Pre-existing (path untouched this
+campaign). Worth hardening into a deterministic measurement (own it under
+F-band / a test-suite-stability follow-up), not blame on these changes.
 
 ## Decisions made
 
