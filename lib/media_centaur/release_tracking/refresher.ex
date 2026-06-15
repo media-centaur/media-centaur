@@ -235,18 +235,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   defp replace_releases(item, new_releases) do
     ReleaseTracking.delete_releases_for_item(item.id)
 
-    Enum.each(new_releases, fn release ->
-      ReleaseTracking.create_release!(%{
-        item_id: item.id,
-        air_date: release[:air_date],
-        title: release[:title],
-        season_number: release[:season_number],
-        episode_number: release[:episode_number],
-        release_type: release[:release_type],
-        part_tmdb_id: release[:part_tmdb_id],
-        released: release[:released] || false
-      })
-    end)
+    Enum.each(new_releases, &ReleaseTracking.persist_release!(item, &1))
 
     ReleaseTracking.mark_in_library_releases(item)
     ReleaseTracking.sync_wants(item)
@@ -512,16 +501,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
             last_library_episode: last_episode
           })
 
-        Enum.each(releases, fn release ->
-          ReleaseTracking.create_release!(%{
-            item_id: item.id,
-            air_date: release[:air_date],
-            title: release[:title],
-            season_number: release[:season_number],
-            episode_number: release[:episode_number],
-            released: release[:released] || false
-          })
-        end)
+        Enum.each(releases, &ReleaseTracking.persist_release!(item, &1))
 
         ReleaseTracking.mark_in_library_releases(item)
         ReleaseTracking.sync_wants(item)
