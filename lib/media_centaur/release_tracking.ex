@@ -25,17 +25,27 @@ defmodule MediaCentaur.ReleaseTracking do
   @moduledoc """
   Bounded context for tracking upcoming movie and TV releases via TMDB.
 
-  Fully isolated from the Library context — owns its own tables, images,
-  and TMDB extraction logic.
+  Fully isolated from the Library context — owns its own tables and images.
+  TMDB-facing search and track-from-search onboarding live in the
+  `ReleaseTracking.Acquisition` sub-module (this context delegates to it).
   """
 
   import Ecto.Query
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Repo
-  alias MediaCentaur.ReleaseTracking.{Item, Release, Event, Extractor, Helpers, ImageStore, Wants}
+
+  alias MediaCentaur.ReleaseTracking.{
+    Acquisition,
+    Event,
+    Helpers,
+    ImageStore,
+    Item,
+    Release,
+    Wants
+  }
+
   alias MediaCentaur.Topics
-  alias MediaCentaur.TMDB.Client
 
   @doc "Subscribe the caller to release tracking update events."
   @spec subscribe() :: :ok | {:error, term()}
@@ -260,181 +270,8 @@ defmodule MediaCentaur.ReleaseTracking do
     )
   end
 
-  # --- Search ---
-
-  @doc """
-  Searches TMDB's multi endpoint for movies and TV shows, preserving
-  TMDB's cross-type relevance order (a regrouped movies-then-tv merge
-  once starved every TV result out of the capped omnibox dropdown).
-  Person results are dropped. Returns a unified list of results with
-  media_type, tmdb_id, name, year, poster_path, and an already_tracked
-  flag.
-  """
-  def search_tmdb(query) do
-    results =
-      case Client.search_multi(query) do
-        {:ok, results} -> Enum.flat_map(results, &normalize_multi_result/1)
-        {:error, _reason} -> []
-      end
-
-    tracked_tmdb_ids =
-      from(i in Item, select: {i.tmdb_id, i.media_type})
-      |> Repo.all()
-      |> MapSet.new()
-
-    Enum.map(results, fn result ->
-      tracked = MapSet.member?(tracked_tmdb_ids, {result.tmdb_id, result.media_type})
-      Map.put(result, :already_tracked, tracked)
-    end)
-  end
-
-  defp normalize_multi_result(%{"media_type" => "movie"} = tmdb), do: [normalize_movie_result(tmdb)]
-  defp normalize_multi_result(%{"media_type" => "tv"} = tmdb), do: [normalize_tv_result(tmdb)]
-  defp normalize_multi_result(_person_or_unknown), do: []
-
-  defp normalize_movie_result(tmdb) do
-    %{
-      tmdb_id: tmdb["id"],
-      media_type: :movie,
-      name: tmdb["title"],
-      year: extract_year(tmdb["release_date"]),
-      poster_path: tmdb["poster_path"]
-    }
-  end
-
-  defp normalize_tv_result(tmdb) do
-    %{
-      tmdb_id: tmdb["id"],
-      media_type: :tv_series,
-      name: tmdb["name"],
-      year: extract_year(tmdb["first_air_date"]),
-      poster_path: tmdb["poster_path"]
-    }
-  end
-
-  defp extract_year(nil), do: nil
-  defp extract_year(""), do: nil
-  defp extract_year(<<year::binary-size(4), _::binary>>), do: year
-
-  # --- Track from search ---
-
-  @doc """
-  Creates a tracking item from a search result. Used by the Track New Show modal.
-
-  Accepts a result map (%{tmdb_id, media_type, name, poster_path}) and options:
-  - For TV: %{start_season: n, start_episode: n} to set tracking offset
-  - For movies: %{} (no options needed)
-  """
-  def track_from_search(result, opts \\ %{}) do
-    start_season = Map.get(opts, :start_season, 0)
-    start_episode = Map.get(opts, :start_episode, 0)
-
-    case do_track_from_search(result, start_season, start_episode) do
-      {:ok, item} ->
-        broadcast_releases_updated([item.id])
-        {:ok, item}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  @doc """
-  Fire-and-forget `track_from_search/2`. Runs the (TMDB-fetching) tracking
-  on a supervised context-layer task — tracking must complete regardless of
-  the triggering LiveView's lifecycle (ADR-049: must-outlive background work
-  lives in the context, not a web-layer `start_child`). The resulting
-  `broadcast_releases_updated/1` keeps subscribers in sync.
-  """
-  def track_from_search_async(result, opts \\ %{}) do
-    Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      track_from_search(result, opts)
-    end)
-
-    :ok
-  end
-
-  defp do_track_from_search(%{media_type: :tv_series} = result, start_season, start_episode) do
-    case Client.get_tv(result.tmdb_id) do
-      {:ok, response} ->
-        all_releases =
-          Helpers.fetch_tv_releases(result.tmdb_id, start_season, start_episode, response)
-
-        # "All upcoming" (0,0) = only future episodes. Custom scope = include released too.
-        releases =
-          if start_season == 0 && start_episode == 0 do
-            Enum.reject(all_releases, & &1[:released])
-          else
-            all_releases
-          end
-
-        {:ok, item} =
-          track_item(%{
-            tmdb_id: result.tmdb_id,
-            media_type: :tv_series,
-            name: response["name"] || result.name,
-            source: :manual,
-            last_refreshed_at: DateTime.utc_now(),
-            last_library_season: start_season,
-            last_library_episode: start_episode
-          })
-
-        persist_releases(item, releases)
-        create_began_tracking_event(item)
-        schedule_image_downloads(item, result.tmdb_id, response)
-
-        {:ok, item}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp do_track_from_search(%{media_type: :movie} = result, _start_season, _start_episode) do
-    case Client.get_movie(result.tmdb_id) do
-      {:ok, response} ->
-        {:ok, item} =
-          track_item(%{
-            tmdb_id: result.tmdb_id,
-            media_type: :movie,
-            name: response["title"] || result.name,
-            source: :manual,
-            last_refreshed_at: DateTime.utc_now()
-          })
-
-        releases = Extractor.extract_movie_release_dates(response)
-        persist_movie_releases(item, releases)
-
-        create_began_tracking_event(item)
-        schedule_image_downloads(item, result.tmdb_id, response)
-
-        {:ok, item}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp persist_movie_releases(item, releases) do
-    today = Date.utc_today()
-
-    Enum.each(releases, fn release ->
-      released = release.air_date != nil && Date.compare(release.air_date, today) != :gt
-
-      create_release!(%{
-        item_id: item.id,
-        air_date: release.air_date,
-        title: release.title,
-        release_type: release.release_type,
-        part_tmdb_id: item.tmdb_id,
-        released: released
-      })
-    end)
-
-    Wants.sync_item(item)
-  end
-
-  defp broadcast_releases_updated(item_ids) do
+  @doc "Broadcasts a `{:releases_updated, item_ids}` event to subscribers."
+  def broadcast_releases_updated(item_ids) do
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
       MediaCentaur.Topics.release_tracking_updates(),
@@ -442,49 +279,19 @@ defmodule MediaCentaur.ReleaseTracking do
     )
   end
 
-  defp persist_releases(item, releases) do
-    Enum.each(releases, &persist_release!(item, &1))
+  # --- Search & track-from-search (TMDB acquisition) ---
+  #
+  # Implementation lives in `ReleaseTracking.Acquisition`; these thin
+  # delegators keep the context's public API stable for callers.
 
-    mark_in_library_releases(item)
-    Wants.sync_item(item)
-  end
+  @doc "See `MediaCentaur.ReleaseTracking.Acquisition.search_tmdb/1`."
+  def search_tmdb(query), do: Acquisition.search_tmdb(query)
 
-  defp create_began_tracking_event(item) do
-    create_event!(%{
-      item_id: item.id,
-      item_name: item.name,
-      event_type: :began_tracking,
-      description: "Now tracking #{item.name}"
-    })
-  end
+  @doc "See `MediaCentaur.ReleaseTracking.Acquisition.track_from_search/2`."
+  def track_from_search(result, opts \\ %{}), do: Acquisition.track_from_search(result, opts)
 
-  defp schedule_image_downloads(item, tmdb_id, response) do
-    poster_path = Extractor.extract_poster_path(response)
-    backdrop_path = response["backdrop_path"]
-
-    if poster_path || backdrop_path do
-      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-        attrs = %{}
-
-        attrs =
-          case ImageStore.download_poster(tmdb_id, poster_path) do
-            {:ok, path} when is_binary(path) -> Map.put(attrs, :poster_path, path)
-            _ -> attrs
-          end
-
-        attrs =
-          case ImageStore.download_backdrop(tmdb_id, backdrop_path) do
-            {:ok, path} when is_binary(path) -> Map.put(attrs, :backdrop_path, path)
-            _ -> attrs
-          end
-
-        if attrs != %{} do
-          update_item(item, attrs)
-          broadcast_releases_updated([item.id])
-        end
-      end)
-    end
-  end
+  @doc "See `MediaCentaur.ReleaseTracking.Acquisition.track_from_search_async/2`."
+  def track_from_search_async(result, opts \\ %{}), do: Acquisition.track_from_search_async(result, opts)
 
   # --- Releases ---
 
