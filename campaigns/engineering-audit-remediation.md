@@ -21,22 +21,27 @@ cohesion from the three modules that have outgrown a single file.
 
 ## Status
 
-**Session 1 (2026-06-15, unpushed): correctness band + most abstractions
-done.** Complete: A1–A5 (correctness), B1/B2/B3/B4/B6 + B8 (abstractions
-& dedup), C3/C4/C5 (dead code, schema API, boundary), D3 (stale doc),
-E5/E6 (consistency), F1/F3 (test policy). All test-first where behavior
-changed; targeted suites green throughout. **Remaining = the heaviest
-structural refactors** (B7 library fetchers, C1 HomeLive-facade
-extraction, C2 ReleaseTracking split, D1 settings-section components,
-D2 decompositions) plus smaller E1/E2/E3/E4 consistency, D4/D5
-readability, and F2/F4 test items — each scoped below.
+**Session 1 (2026-06-15, unpushed): correctness band + abstractions +
+ReleaseTracking split done.** Complete: A1–A5 (correctness),
+B1/B2/B3/B4/B5/B6 + B8 (abstractions & dedup), C2 (ReleaseTracking.
+Acquisition split), C3/C4/C5 (dead code, schema API, boundary), D3/D5
+(readability), E1–E6 (consistency, some documented-as-intentional),
+F1/F3 + subtitles_row F2, status_live mount split (D2). All test-first
+where behavior changed; full `mix precommit` green at each checkpoint.
+
+**Remaining = the home-page query cluster + judgment-heavy items**,
+deliberately left for an attended session (see "Remaining work"): B7
+(library fetcher dedup) + C1 (HomeLive-facade → Views) + D4 (raw SQL) —
+all the same hot-path query area, unsafe to verify unattended; D1
+(settings sections); D2 remainder (pursuit_status, detail_panel); F2
+remainder (more_info, detail); plus small deferred sub-items.
 
 **Discovered, deferred:** `library_test.exs:234` (list_in_progress N+1
 query-count) is order-fragile under full-suite parallelism — passes in
 isolation and per-file, intermittently fails full-suite (warm
 global/ETS state shifts the baseline). Pre-existing (path untouched this
-campaign). Worth hardening into a deterministic measurement (own it under
-F-band / a test-suite-stability follow-up), not blame on these changes.
+campaign). Harden into a deterministic measurement (test-suite-stability
+follow-up); not blamed on these changes.
 
 ## Decisions made
 
@@ -115,19 +120,12 @@ Ordered by workstream; within each, by value/risk.
     `Subtitles.create_track/1` was a false positive — already exists.
 16. ✅ **C5** Playback reads Library schemas via `fetch_movie/fetch_episode/
     fetch_tv_series`; both modules dropped `Repo` entirely.
-17. **C2** Split `ReleaseTracking.Acquisition` out of `release_tracking.ex`
-    (the `# Search` + `# Track from search` block, ~263-435). MEDIUM/HIGH —
-    NOT mechanical: `track_from_search` reuses 5 private context helpers
-    (`persist_releases`, `persist_movie_releases`, `create_began_tracking_event`,
-    `schedule_image_downloads`, `broadcast_releases_updated`) shared with the
-    scan/refresh paths. Approach: decide the boundary — promote the shared
-    persistence/event helpers to public context fns (or a `Persistence`
-    sub-module both call), then move search + track-from-search + their
-    `normalize_*`/`do_track_from_search` privates into `Acquisition`.
-    `search_tmdb/1`, `track_from_search/2`, `track_from_search_async/2` have
-    LiveView callers (home, upcoming, review) — keep them callable
-    (defdelegate from the context or update call sites). Wide test coverage
-    exists (refresher/scanner/release_tracking tests).
+17. ✅ **C2** Split `ReleaseTracking.Acquisition` out. The 4 search/track-only
+    private helpers moved with it; `broadcast_releases_updated/1` promoted
+    public; context keeps thin delegators so all callers are unchanged.
+    (Residual noted: track-from-search's image downloader is the same
+    2-image no-logo form B4 replaced for Scanner — route through
+    `Helpers.download_images_async/3` in a follow-up.)
 18. **C1** Move the `library.ex` "HomeLive Facade" (~`:2167-3270`, ~1100
     lines of `poster_url`/`progress_pct`-shaped maps) → `Library.Views.{
     ContinueWatching, RecentlyAdded, HeroCandidates}` (the `Views.*` structs
@@ -144,12 +142,11 @@ Ordered by workstream; within each, by value/risk.
     B7 so the query area is touched once, not twice.
 21. ✅ **D5** Unpacked the three dense one-liners (`config`, `maintenance`,
     `release_tracking/helpers`).
-22. **D2** Decompose `pursuit_status.ex` (378-LOC string-keyed state machine,
-    20+ `derive_*` heads → `@dispatch` map or acquired-in-queue sub-module),
-    `review_live detail_panel/1` (200+ lines → file/tmdb/search sub-panels),
-    `status_live mount/3` (split connected/disconnected). LARGE — pure
-    readability, real regression risk in a complex state machine; lean on
-    the 482 acquisition tests + page_smoke. Lower priority than structure.
+22. ◐ **D2** DONE: `status_live mount/3` split into connected/disconnected.
+    REMAINING: `pursuit_status.ex` (378-LOC state machine → `@dispatch` map
+    or sub-module — real regression risk, attended) and `review_live
+    detail_panel/1` (200+ lines → file/tmdb/search sub-panels). Lower
+    priority than structure.
 23. **D1** `settings_live.ex section_content/1` (~`:1593-4668`, ~14 HEEx
     sections in one fn) → per-section components. VERY LARGE — the
     extraction pattern already exists (`settings_live/overview.ex`,
@@ -173,12 +170,12 @@ Ordered by workstream; within each, by value/risk.
 
 ### F — Test policy
 30. ✅ **F1** Added `json_formatter` (round-trip + error) + `markdown_formatter` tests.
-31. **F2** Replace render-HTML assertions in `detail_panel_render_test`,
-    `detail/more_info_panel_test`, `detail/subtitles_row_test`. MEDIUM —
-    per AGENTS.md (no `render_component`/`=~` on markup): extract each
-    rendering decision (does a movie get a More-info button? is a subtitle
-    row shown? is `·` the separator?) into a pure helper, unit-test that,
-    and leave markup verification to Storybook. Per-component design work.
+31. ◐ **F2** DONE: `subtitles_row` → pure `language_label/1` test (story
+    covers the row structure). REMAINING: `more_info_panel_test` and
+    `detail_panel_render_test` — larger (multiple decisions; a `filter_crew/2`
+    duplicated byte-for-byte across movie_credits/series_credits that a
+    public extraction would both dedup and make testable). Per-component
+    design work, attended.
 32. ✅ **F3** Deleted the redundant `assert true` home_live test.
 33. **F4** `maintenance_test.exs` seed helpers → `TestFactory`. LOW —
     deferred: the helpers attach `:tmdb_collection` external-ids for the
@@ -187,13 +184,18 @@ Ordered by workstream; within each, by value/risk.
 
 ## Remaining work (next session)
 
-**Large structural (focused sessions):**
-C2 (ReleaseTracking.Acquisition split), B7 + C1 + D4 (library fetcher
-dedup / HomeLive-facade extraction / raw-SQL — all the same hot-path
-query area, do together), D1 (settings sections), D2 (decompositions).
-**Medium:** F2 (render-HTML → pure helpers). **Low / confirm-first:**
-A5 residue, C3 residue, E1 Movie parity, F4. **Suite hygiene:** harden
-the order-fragile `list_in_progress` N+1 query-count test.
+**Large structural (attended — home-page hot path, can't verify render
+unattended):** B7 + C1 + D4 (library fetcher dedup / HomeLive-facade →
+`Library.Views.*` / raw-SQL ordering — all the same query area, do
+together in small verified steps), D1 (settings-section components).
+**Medium (attended judgment calls):** D2 remainder (pursuit_status state
+machine, detail_panel split), F2 remainder (more_info/detail → pure
+helpers; bundle the `filter_crew/2` dedup), C2 image-downloader residual
+(route track-from-search through `Helpers.download_images_async/3`).
+**Low / confirm-first:** A5 residue (perform_relinks, buckets rebuild),
+C3 residue (deletion_buffer.reset, refresh_movie_series_credits), E1
+Movie create-only parity, F4 (maintenance factory). **Suite hygiene:**
+harden the order-fragile `list_in_progress` N+1 query-count test.
 
 ## Completion criteria
 
