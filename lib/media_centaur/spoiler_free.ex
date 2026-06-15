@@ -21,8 +21,17 @@ defmodule MediaCentaur.SpoilerFree do
   @spec enabled?() :: boolean()
   def enabled? do
     case Settings.get_by_key(@setting_key) do
-      {:ok, %{value: %{"enabled" => enabled}}} -> enabled == true
+      {:ok, %{value: value}} -> enabled?(value)
       _ -> false
     end
   end
+
+  @doc """
+  Parses a stored setting value into the flag. Default-off: only an explicit
+  `%{"enabled" => true}` enables spoiler-free mode. Lets the generic
+  `SettingAware` on_mount trait apply the same polarity on live updates.
+  """
+  @spec enabled?(map()) :: boolean()
+  def enabled?(%{"enabled" => true}), do: true
+  def enabled?(_), do: false
 end

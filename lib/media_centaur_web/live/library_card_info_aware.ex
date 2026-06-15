@@ -27,48 +27,9 @@ defmodule MediaCentaurWeb.Live.LibraryCardInfoAware do
   Decoupling rationale: mirror of `SpoilerFreeAware` (ADR-038).
   """
 
-  alias MediaCentaur.LibraryCardInfo
-  alias MediaCentaur.Settings
-
   defmacro __using__(_opts) do
     quote do
-      on_mount {MediaCentaurWeb.Live.LibraryCardInfoAware, :default}
+      on_mount {MediaCentaurWeb.Live.SettingAware, {MediaCentaur.LibraryCardInfo, :show_card_info}}
     end
   end
-
-  @doc """
-  Auto-wires every host that `use`s this module. Subscribes once,
-  seeds the assign, and attaches the PubSub hook.
-  """
-  def on_mount(:default, _params, _session, socket) do
-    socket = Phoenix.Component.assign(socket, :show_card_info, LibraryCardInfo.enabled?())
-
-    if Phoenix.LiveView.connected?(socket) do
-      Settings.subscribe()
-    end
-
-    socket =
-      Phoenix.LiveView.attach_hook(
-        socket,
-        :library_card_info_aware,
-        :handle_info,
-        &__MODULE__.handle_setting_changed/2
-      )
-
-    {:cont, socket}
-  end
-
-  @doc false
-  def handle_setting_changed({:setting_changed, key, value}, socket) do
-    if key == LibraryCardInfo.setting_key() do
-      {:cont, Phoenix.Component.assign(socket, :show_card_info, enabled?(value))}
-    else
-      {:cont, socket}
-    end
-  end
-
-  def handle_setting_changed(_msg, socket), do: {:cont, socket}
-
-  defp enabled?(%{"enabled" => false}), do: false
-  defp enabled?(_), do: true
 end

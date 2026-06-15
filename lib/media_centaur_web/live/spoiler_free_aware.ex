@@ -25,53 +25,9 @@ defmodule MediaCentaurWeb.Live.SpoilerFreeAware do
   the EntityModal class-of-bug exposed as fragile.
   """
 
-  alias MediaCentaur.Settings
-  alias MediaCentaur.SpoilerFree
-
   defmacro __using__(_opts) do
     quote do
-      on_mount {MediaCentaurWeb.Live.SpoilerFreeAware, :default}
+      on_mount {MediaCentaurWeb.Live.SettingAware, {MediaCentaur.SpoilerFree, :spoiler_free}}
     end
   end
-
-  @doc """
-  Auto-wires every host that `use`s this module. Subscribes once,
-  seeds the assign, and attaches the PubSub hook.
-
-  The seed read goes through `MediaCentaur.SpoilerFree.enabled?/0`,
-  which reads from a `:persistent_term` cache rather than hitting the
-  Settings DB on every mount. Live updates still flow through the
-  `Settings` topic; the hook updates the local assign in-place.
-  """
-  def on_mount(:default, _params, _session, socket) do
-    socket = Phoenix.Component.assign(socket, :spoiler_free, SpoilerFree.enabled?())
-
-    if Phoenix.LiveView.connected?(socket) do
-      Settings.subscribe()
-    end
-
-    socket =
-      Phoenix.LiveView.attach_hook(
-        socket,
-        :spoiler_free_aware,
-        :handle_info,
-        &__MODULE__.handle_setting_changed/2
-      )
-
-    {:cont, socket}
-  end
-
-  @doc false
-  def handle_setting_changed({:setting_changed, key, value}, socket) do
-    if key == SpoilerFree.setting_key() do
-      {:cont, Phoenix.Component.assign(socket, :spoiler_free, enabled?(value))}
-    else
-      {:cont, socket}
-    end
-  end
-
-  def handle_setting_changed(_msg, socket), do: {:cont, socket}
-
-  defp enabled?(%{"enabled" => true}), do: true
-  defp enabled?(_), do: false
 end
