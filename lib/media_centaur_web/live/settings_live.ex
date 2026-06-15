@@ -99,9 +99,9 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(tmdb_missing: false)
      |> assign(
        service_state: %{
-         under_systemd: false,
+         under_supervisor: false,
          unit_name: nil,
-         systemd_available: false,
+         supervisor_available: false,
          unit_installed: false,
          active: false,
          enabled: false
@@ -3935,7 +3935,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   attr :service_state, :map,
     required: true,
     doc:
-      "service status map from `MediaCentaur.SystemControl.service_state/0` — keys: `:installed?`, `:active?`, `:enabled?`, `:loaded?`, etc. Treated as opaque shape."
+      "OS-neutral autostart state from `MediaCentaur.SelfUpdate.service_state/0` (`Platform.Autostart.state/0`) — keys `:under_supervisor`, `:supervisor_available`, `:unit_name`, `:unit_installed`, `:active`, `:enabled`."
 
   attr :service_status_visible, :boolean, default: false
 
@@ -3974,7 +3974,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
       <div
         :if={
-          @service_state.under_systemd and @service_state.systemd_available and
+          @service_state.under_supervisor and @service_state.supervisor_available and
             @service_state.unit_installed
         }
         class="space-y-3"
@@ -4028,7 +4028,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
       <p
         :if={
-          @service_state.under_systemd and @service_state.systemd_available and
+          @service_state.under_supervisor and @service_state.supervisor_available and
             not @service_state.unit_installed
         }
         class="text-sm text-base-content/60"
@@ -4041,14 +4041,14 @@ defmodule MediaCentaurWeb.SettingsLive do
       </p>
 
       <p
-        :if={not @service_state.under_systemd and @service_state.systemd_available}
+        :if={not @service_state.under_supervisor and @service_state.supervisor_available}
         class="text-sm text-base-content/60"
       >
         This BEAM wasn't started by systemd — start/stop/restart buttons aren't available here. Your user systemd session is reachable, so you can still manage a unit from a terminal: <code class="font-mono text-xs">systemctl --user status media-centaur.service</code>.
       </p>
 
       <p
-        :if={not @service_state.under_systemd and not @service_state.systemd_available}
+        :if={not @service_state.under_supervisor and not @service_state.supervisor_available}
         class="text-sm text-base-content/60"
       >
         This install isn't running under a systemd user session — start/stop/restart buttons aren't available here. Use the terminal you started the app from, or a process manager of your choice.
@@ -4057,25 +4057,25 @@ defmodule MediaCentaurWeb.SettingsLive do
     """
   end
 
-  defp service_card_subtitle(%{under_systemd: true, unit_name: unit, active: true, enabled: true})
+  defp service_card_subtitle(%{under_supervisor: true, unit_name: unit, active: true, enabled: true})
        when is_binary(unit), do: "Managed by systemd (#{unit}). Running and set to start on login."
 
-  defp service_card_subtitle(%{under_systemd: true, unit_name: unit, active: true, enabled: false})
+  defp service_card_subtitle(%{under_supervisor: true, unit_name: unit, active: true, enabled: false})
        when is_binary(unit), do: "Managed by systemd (#{unit}). Running, but not set to start on login."
 
-  defp service_card_subtitle(%{under_systemd: true, unit_name: unit, active: false})
+  defp service_card_subtitle(%{under_supervisor: true, unit_name: unit, active: false})
        when is_binary(unit), do: "Managed by systemd (#{unit}). Not running."
 
-  defp service_card_subtitle(%{under_systemd: true, active: true, enabled: true}),
+  defp service_card_subtitle(%{under_supervisor: true, active: true, enabled: true}),
     do: "Managed by systemd. Running and set to start on login."
 
-  defp service_card_subtitle(%{under_systemd: true, active: true, enabled: false}),
+  defp service_card_subtitle(%{under_supervisor: true, active: true, enabled: false}),
     do: "Managed by systemd. Running, but not set to start on login."
 
-  defp service_card_subtitle(%{under_systemd: true, active: false}),
+  defp service_card_subtitle(%{under_supervisor: true, active: false}),
     do: "Managed by systemd. Not running."
 
-  defp service_card_subtitle(%{systemd_available: false}), do: "Not running under systemd."
+  defp service_card_subtitle(%{supervisor_available: false}), do: "Not running under systemd."
 
   defp service_card_subtitle(%{unit_installed: false}),
     do: "Started by hand — systemd user session is reachable but no matching unit is installed."
@@ -4092,11 +4092,11 @@ defmodule MediaCentaurWeb.SettingsLive do
   defp service_action_pending_label(:stopping),
     do: "Stopping — the page will disconnect once the service is down."
 
-  defp service_state_badge_class(%{under_systemd: true, active: true}),
+  defp service_state_badge_class(%{under_supervisor: true, active: true}),
     do:
       "shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-success/10 text-success"
 
-  defp service_state_badge_class(%{under_systemd: true, active: false}),
+  defp service_state_badge_class(%{under_supervisor: true, active: false}),
     do:
       "shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-warning/10 text-warning"
 
@@ -4104,12 +4104,12 @@ defmodule MediaCentaurWeb.SettingsLive do
     do:
       "shrink-0 flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-base-content/10 text-base-content/60"
 
-  defp service_state_badge_icon(%{under_systemd: true, active: true}), do: "hero-check-circle-mini"
-  defp service_state_badge_icon(%{under_systemd: true, active: false}), do: "hero-pause-circle-mini"
+  defp service_state_badge_icon(%{under_supervisor: true, active: true}), do: "hero-check-circle-mini"
+  defp service_state_badge_icon(%{under_supervisor: true, active: false}), do: "hero-pause-circle-mini"
   defp service_state_badge_icon(_), do: "hero-minus-circle-mini"
 
-  defp service_state_badge_text(%{under_systemd: true, active: true}), do: "Running"
-  defp service_state_badge_text(%{under_systemd: true, active: false}), do: "Stopped"
+  defp service_state_badge_text(%{under_supervisor: true, active: true}), do: "Running"
+  defp service_state_badge_text(%{under_supervisor: true, active: false}), do: "Stopped"
   defp service_state_badge_text(_), do: "Unmanaged"
 
   defp overview_summary(0), do: "Configuration looks healthy."

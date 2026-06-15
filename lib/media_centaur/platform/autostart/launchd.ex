@@ -57,9 +57,9 @@ defmodule MediaCentaur.Platform.Autostart.Launchd do
     installed_active = available and label_loaded?(cmd_fn, label)
 
     %{
-      under_launchd: under,
+      under_supervisor: under,
       unit_name: label,
-      launchd_available: available,
+      supervisor_available: available,
       unit_installed: installed_active,
       active: installed_active,
       enabled: installed_active

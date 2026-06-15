@@ -10,18 +10,20 @@ defmodule MediaCentaur.Platform.Autostart.Systemd do
   `tarball_required_paths/0`) that previously lived as scattered
   knowledge in `SelfUpdate.Handoff` and `SelfUpdate.Stager`.
 
-  Two detection signals drive the Settings > System card:
+  Two detection signals drive the Settings > System card. They map onto
+  the behaviour's OS-neutral `state/0` keys `under_supervisor` /
+  `supervisor_available`:
 
-  * **`under_systemd`** — whether this BEAM is actually supervised by systemd.
-    Read from the `INVOCATION_ID` env var, which systemd sets for every unit
-    execution. Absent ⇒ not under systemd.
+  * **`under_supervisor`** — whether this BEAM is actually supervised by
+    systemd. Read from the `INVOCATION_ID` env var, which systemd sets for
+    every unit execution. Absent ⇒ not under systemd.
   * **`unit_name`** — the specific unit this BEAM belongs to (dev, showcase,
     or prod). Parsed from `/proc/self/cgroup`, whose last `*.service` segment
     is the unit name under both cgroup v2 and v1.
 
-  The older `systemd_available` probe (`systemctl --user show-environment`) is
-  kept as a separate axis — it tells us whether we can run `systemctl` at all
-  to offer Restart/Stop buttons, independent of whether we're managed.
+  The `supervisor_available` probe (`systemctl --user show-environment`) is
+  a separate axis — it tells us whether we can run `systemctl` at all to
+  offer Restart/Stop buttons, independent of whether we're managed.
 
   ## Process model
 
@@ -87,9 +89,9 @@ defmodule MediaCentaur.Platform.Autostart.Systemd do
     available = systemd_available?(cmd_fn)
 
     %{
-      under_systemd: under,
+      under_supervisor: under,
       unit_name: detected_unit,
-      systemd_available: available,
+      supervisor_available: available,
       unit_installed: available and unit_installed?(cmd_fn, unit),
       active: available and active?(cmd_fn, unit),
       enabled: available and enabled?(cmd_fn, unit)

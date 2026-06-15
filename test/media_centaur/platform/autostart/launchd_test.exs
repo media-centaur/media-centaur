@@ -24,7 +24,24 @@ defmodule MediaCentaur.Platform.Autostart.LaunchdTest do
   # unavailable.
   defp no_launchd_context, do: [env_fn: fake_env(%{})]
 
+  # The behaviour's `state()` map is OS-neutral: every impl returns the
+  # same keys so the Settings service card (which reads `under_supervisor`
+  # / `supervisor_available`) renders without a KeyError on any platform.
+  @state_keys [
+    :active,
+    :enabled,
+    :supervisor_available,
+    :under_supervisor,
+    :unit_installed,
+    :unit_name
+  ]
+
   describe "state/1" do
+    test "returns the OS-neutral key set shared with the systemd impl" do
+      keys = no_launchd_context() |> Launchd.state() |> Map.keys() |> Enum.sort()
+      assert keys == Enum.sort(@state_keys)
+    end
+
     test "reports full state when launchd is available + label loaded + active" do
       uid = "501"
 
@@ -38,15 +55,15 @@ defmodule MediaCentaur.Platform.Autostart.LaunchdTest do
       env = fake_env(%{"LAUNCHD_SOCKET" => "/var/run/launchd_xxx.socket"})
 
       assert %{
-               under_launchd: true,
-               launchd_available: true,
+               under_supervisor: true,
+               supervisor_available: true,
                unit_installed: true,
                active: true
              } = Launchd.state(cmd_fn: cmd, env_fn: env)
     end
 
-    test "reports launchd_available: false when LAUNCHD_SOCKET is absent" do
-      assert %{launchd_available: false, unit_installed: false, active: false} =
+    test "reports supervisor_available: false when LAUNCHD_SOCKET is absent" do
+      assert %{supervisor_available: false, unit_installed: false, active: false} =
                Launchd.state(no_launchd_context())
     end
 
@@ -62,7 +79,7 @@ defmodule MediaCentaur.Platform.Autostart.LaunchdTest do
 
       env = fake_env(%{"LAUNCHD_SOCKET" => "/var/run/launchd_xxx.socket"})
 
-      assert %{launchd_available: true, unit_installed: false, active: false} =
+      assert %{supervisor_available: true, unit_installed: false, active: false} =
                Launchd.state(cmd_fn: cmd, env_fn: env)
     end
   end
