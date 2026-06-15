@@ -354,7 +354,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   @spec choose_release(Ecto.UUID.t(), String.t()) :: {:ok, Plan.t()} | {:error, term()}
   def choose_release(plan_unit_id, guid) when is_binary(guid) do
     with {:ok, unit} <- get_unit(plan_unit_id),
-         {:ok, %Plan{status: "ready"} = plan} <- ready_plan(unit.plan_id),
+         {:ok, %Plan{status: "ready"} = plan} <- get(unit.plan_id),
          {:ok, {result, scope, term}} <- find_candidate(plan, unit, guid) do
       covered_units =
         plan.id
@@ -386,10 +386,6 @@ defmodule MediaCentaur.Acquisition.Plans do
       {:ok, %Plan{}} -> {:error, :not_ready}
       error -> error
     end
-  end
-
-  defp ready_plan(plan_id) do
-    get(plan_id)
   end
 
   # All identity-verified corpus candidates that can cover this unit,

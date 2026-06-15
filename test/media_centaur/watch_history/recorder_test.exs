@@ -103,7 +103,6 @@ defmodule MediaCentaur.WatchHistory.RecorderTest do
            changed_record: progress,
            summary: nil,
            resume_target: nil,
-           child_targets_delta: nil,
            last_activity_at: DateTime.utc_now()
          }}
       )

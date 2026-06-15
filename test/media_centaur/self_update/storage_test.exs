@@ -139,22 +139,4 @@ defmodule MediaCentaur.SelfUpdate.StorageTest do
       assert UpdateChecker.cached_latest_release() == :stale
     end
   end
-
-  describe "stale?/2" do
-    test "returns true when nothing is persisted" do
-      assert Storage.stale?()
-    end
-
-    test "returns true when the last check was older than the ttl" do
-      old = DateTime.add(DateTime.utc_now(), -7 * 3600, :second)
-      :ok = Storage.put_last_check_at(old)
-      assert Storage.stale?(:timer.hours(6))
-    end
-
-    test "returns false when the last check was recent enough" do
-      recent = DateTime.add(DateTime.utc_now(), -10, :second)
-      :ok = Storage.put_last_check_at(recent)
-      refute Storage.stale?(:timer.hours(6))
-    end
-  end
 end

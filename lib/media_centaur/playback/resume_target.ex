@@ -4,7 +4,6 @@ defmodule MediaCentaur.Playback.ResumeTarget do
   on an entity. No DB access, no side effects.
 
   - `compute/2` returns the entity-level hint (`resumeTarget`)
-  - `compute_child_targets/2` returns per-child hints for series entities (`childTargets`)
   """
 
   alias MediaCentaur.Library.{EpisodeList, MovieList}
@@ -36,41 +35,6 @@ defmodule MediaCentaur.Playback.ResumeTarget do
       end
     end
   end
-
-  @doc """
-  Computes per-child display hints for series entities.
-
-  Returns a map keyed by child UUID with begin/resume/nil values,
-  or `nil` for single items (Movie, VideoObject).
-  """
-  @spec compute_child_targets(map(), [map()]) :: map() | nil
-  def compute_child_targets(%{type: :tv_series} = entity, progress_records) do
-    progress_by_key = EpisodeList.index_progress_by_key(progress_records)
-
-    (entity.seasons || [])
-    |> EpisodeList.sort_seasons()
-    |> Enum.flat_map(fn season ->
-      (season.episodes || [])
-      |> EpisodeList.sort_episodes()
-      |> Enum.filter(& &1.content_url)
-      |> Enum.map(fn episode ->
-        {episode.id, child_hint(Map.get(progress_by_key, episode.id))}
-      end)
-    end)
-    |> Map.new()
-  end
-
-  def compute_child_targets(%{type: :movie_series} = entity, progress_records) do
-    progress_by_key = EpisodeList.index_progress_by_key(progress_records)
-
-    entity
-    |> MovieList.list_available()
-    |> Map.new(fn {_ordinal, movie_id, _url} ->
-      {movie_id, child_hint(Map.get(progress_by_key, movie_id))}
-    end)
-  end
-
-  def compute_child_targets(_entity, _progress_records), do: nil
 
   # --- Private helpers ---
 
@@ -184,22 +148,6 @@ defmodule MediaCentaur.Playback.ResumeTarget do
 
     if season do
       Enum.find(season.episodes || [], &(&1.episode_number == episode_number))
-    end
-  end
-
-  defp child_hint(nil), do: %{"action" => "begin"}
-
-  defp child_hint(progress) do
-    if !progress.completed do
-      if (progress.position_seconds || 0.0) > 0.0 do
-        %{
-          "action" => "resume",
-          "positionSeconds" => progress.position_seconds,
-          "durationSeconds" => progress.duration_seconds || 0.0
-        }
-      else
-        %{"action" => "begin"}
-      end
     end
   end
 end
