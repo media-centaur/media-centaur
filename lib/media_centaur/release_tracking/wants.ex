@@ -35,7 +35,7 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   alias MediaCentaur.Library
   alias MediaCentaur.Repo
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Item, Want}
+  alias MediaCentaur.ReleaseTracking.{Helpers, Item, Want}
   alias MediaCentaur.Search.Quality
 
   @doc """
@@ -411,17 +411,21 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
     if part_ids == [] do
       %{}
     else
-      Map.new(
-        Repo.all(
-          from(ext in Library.ExternalId,
-            where:
-              ext.owner_type == :movie and ext.source == "tmdb" and
-                ext.external_id in ^part_ids,
-            select: {ext.external_id, ext.owner_id}
-          )
-        ),
-        fn {external_id, movie_id} -> {String.to_integer(external_id), movie_id} end
+      Repo.all(
+        from(ext in Library.ExternalId,
+          where:
+            ext.owner_type == :movie and ext.source == "tmdb" and
+              ext.external_id in ^part_ids,
+          select: {ext.external_id, ext.owner_id}
+        )
       )
+      |> Enum.flat_map(fn {external_id, movie_id} ->
+        case Helpers.parse_tmdb_id(external_id) do
+          {:ok, tmdb_id} -> [{tmdb_id, movie_id}]
+          :error -> []
+        end
+      end)
+      |> Map.new()
     end
   end
 
