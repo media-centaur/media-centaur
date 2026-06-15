@@ -1742,12 +1742,23 @@ defmodule MediaCentaur.Library do
         select: e
       )
 
-    created =
-      query
+    extras = Repo.all(query)
+
+    # Resolve every media_dir in one query instead of one Repo.get_by per
+    # extra (this runs on boot over the whole unlinked-extra set).
+    content_urls = Enum.map(extras, & &1.content_url)
+
+    media_dirs_by_path =
+      from(f in FilePresence,
+        where: f.file_path in ^content_urls,
+        select: {f.file_path, f.media_dir}
+      )
       |> Repo.all()
-      |> Enum.reduce(0, fn extra, count ->
-        with %FilePresence{media_dir: media_dir} <-
-               Repo.get_by(FilePresence, file_path: extra.content_url),
+      |> Map.new()
+
+    created =
+      Enum.reduce(extras, 0, fn extra, count ->
+        with media_dir when is_binary(media_dir) <- Map.get(media_dirs_by_path, extra.content_url),
              {:ok, _} <-
                create_extra_file(%{
                  file_path: extra.content_url,
