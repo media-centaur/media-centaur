@@ -21,11 +21,14 @@ cohesion from the three modules that have outgrown a single file.
 
 ## Status
 
-**Workstream A (correctness) COMPLETE** (2026-06-15, unpushed). A1–A5
-shipped test-first (red→green): Autostart OS-neutral state, en-dash
-classification, param→atom guards, release-tracking parse safety, and
-the backfill N+1. Two A5 sub-items deferred-with-reason (see below).
-Workstreams B–F remain.
+**Session 1 (2026-06-15, unpushed): correctness band + quick wins done.**
+Workstream A complete (A1–A5). Plus the fast/safe items across B–F:
+dead-code removal (C3), GenServer+stale-doc fixes (E5/E6/D3), small
+dedup (B8), and a redundant-test deletion (F3) — all test-first where
+behavior changed, full `mix precommit` green. **Remaining = the larger
+refactors** (B1–B7 abstractions, C1/C2/C5 structure, D1/D2/D4
+decomposition, E1–E4 consistency, F1/F2/F4 test policy), each scoped
+below for a focused follow-on session.
 
 ## Decisions made
 
@@ -79,15 +82,18 @@ Ordered by workstream; within each, by value/risk.
    (Scanner-tracked items currently miss logos / re-download).
 10. **B5** `Pipeline.QueueDispatch` shared producer mechanics (3 producers).
 11. **B6** `Playback.PlayableFks` shared FK-resolution module.
-12. **B8** Small verbatim dups: `max_dt`/`min_dt`, `Diagnostics.format_seconds`,
-    `count/2`, settings `toggle_*` (8×) + `save_*`-and-test (3×) handlers.
+12. ◐ **B8** DONE: `count/2` → `ViewModels.Formatting`; `Diagnostics
+    .format_seconds` delegates to `Format`. DEFERRED: `max_dt`/`min_dt`
+    (trivial one-liners, premature to extract) and the settings
+    `toggle_*`/`save_*` handler families (fold into D1 settings work).
 13. **B7** Library per-type fetcher helper (~700 lines, last).
 
 ### C — Structure
-14. **C3** Delete dead code: `ResumeTarget.compute_child_targets/2` (+
-    `child_targets_delta` field), `Storage.stale?/1`, `plans.ready_plan/1`,
-    `deletion_buffer.reset/1`; make `maintenance.refresh_movie_series_credits/0`
-    private/removed.
+14. ◐ **C3** DONE: removed `compute_child_targets/2` + `child_targets_delta`,
+    `Storage.stale?/1`; inlined `plans.ready_plan/1`. DEFERRED:
+    `deletion_buffer.reset/1` (tested pure helper, harmless) and
+    `maintenance.refresh_movie_series_credits/0` (tested + documented —
+    "make private" breaks its tests; removal is a judgment call → confirm).
 15. **C4** Schema context fns: `Subtitles.create_track/1`; drop redundant
     `settings/entry.ex upsert_changeset/1`.
 16. **C5** Playback `Repo.get` reach-ins → narrow `Library` accessors
@@ -96,7 +102,7 @@ Ordered by workstream; within each, by value/risk.
 18. **C1** Move `library.ex` HomeLive facade → `Library.Views.*` (large, last).
 
 ### D — Readability
-19. **D3** Fix stale `watching_tracker.ex:17` "20 seconds" comment + docs (10s).
+19. ✅ **D3** Fixed stale `watching_tracker` "20 seconds" → 10s + docs/playback.md.
 20. **D4** Raw SQL `fragment` ordering subqueries → Ecto DSL (`library.ex:2826-2961`).
 21. **D5** Dense one-liners (`config.ex:550`, `maintenance.ex:287`, `helpers.ex:40`).
 22. **D2** Decompose `pursuit_status.ex` (378 LOC), `review_live detail_panel/1`,
@@ -104,10 +110,11 @@ Ordered by workstream; within each, by value/risk.
 23. **D1** `settings_live.ex section_content/1` per-section components (large, last).
 
 ### E — Consistency / naming
-24. **E5** `metadata_stats.ex` init opts + `rate_limiter.ex:16` register under
-    resolved `name`.
-25. **E6** Stale docs: `ingest.ex:3` stage number, `checker_job.ex:90`,
-    `library.ex:1330` `find_by_external_id/3`→`/2`.
+24. ◐ **E5** DONE: `metadata_stats` init takes `opts`. `rate_limiter` left
+    as-is — it's a singleton (`wait/0` hardcodes `__MODULE__`), so a
+    `name:` opt would be a half-measure.
+25. ✅ **E6** Stale docs fixed: Ingest stage 4, `checker_job` replace form,
+    `find_by_external_id/2` cross-ref (the `/3` was in `external_ids.ex`).
 26. **E1** Library bang contract (`destroy_x!` returns) + `Movie.update_changeset`
     / `Library.update_movie` parity.
 27. **E2** `link_file_changeset/1,2` → `create_changeset`/`update_changeset`.
@@ -118,7 +125,8 @@ Ordered by workstream; within each, by value/risk.
 30. **F1** Add `profile/json_formatter` + `markdown_formatter` tests.
 31. **F2** Replace render-HTML assertions in `detail_panel_render_test`,
     `more_info_panel_test`, `subtitles_row_test` with pure-helper tests.
-32. **F3** `home_live_test.exs:22` `assert true` → real assertion or delete.
+32. ✅ **F3** Deleted the redundant `assert true` home_live test (duplicated
+    the mount-and-render test above it).
 33. **F4** `maintenance_test.exs` seed helpers → `TestFactory`.
 
 ## Completion criteria
