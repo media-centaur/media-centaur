@@ -9,9 +9,17 @@ defmodule MediaCentaurWeb.SettingsLive.Language do
 
   alias MediaCentaur.Playback.{Iso639, LanguagePolicy}
 
-  attr :language_options, :list, required: true
-  attr :language_draft, :list, required: true
-  attr :language_policy, :map, required: true
+  attr :language_options, :list,
+    required: true,
+    doc: "`[{code, display_name}]` tuples for the add-language datalist."
+
+  attr :language_draft, :list,
+    required: true,
+    doc: "ordered list of ISO 639-1 codes — the understood-languages draft, most-preferred first."
+
+  attr :language_policy, :map,
+    required: true,
+    doc: "the `LanguagePolicy` settings map (audio priority + subtitle preferences)."
 
   def render(assigns) do
     ~H"""

@@ -12,11 +12,18 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
 
   alias MediaCentaurWeb.SettingsLive.MediaDirsLogic
 
-  attr :config, :map, required: true
-  attr :media_dirs, :list, required: true
+  attr :config, :map,
+    required: true,
+    doc: "flat settings config map (`:data_dir`, `:database_path`, TTL keys)."
+
+  attr :media_dirs, :list,
+    required: true,
+    doc: "list of media-dir entry maps with id / dir / name / images_dir keys."
+
   attr :media_dir_delete_confirm, :any, required: true, doc: "id of the dir pending delete, or nil"
   attr :scanning, :boolean, required: true
-  attr :exclude_dirs, :list, required: true
+
+  attr :exclude_dirs, :list, required: true, doc: "list of excluded path strings."
   attr :exclude_dir_input, :string, required: true
   attr :exclude_dir_error, :any, required: true, doc: "validation error string or nil"
   attr :show_card_info, :boolean, required: true
