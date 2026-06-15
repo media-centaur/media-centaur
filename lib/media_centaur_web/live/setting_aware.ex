@@ -4,7 +4,11 @@ defmodule MediaCentaurWeb.Live.SettingAware do
   `Settings` entry. The named traits (`SpoilerFreeAware`,
   `LibraryCardInfoAware`) register it with their context module and assign:
 
-      on_mount {MediaCentaurWeb.Live.SettingAware, {MediaCentaur.SpoilerFree, :spoiler_free}}
+      on_mount {MediaCentaurWeb.Live.SettingAware,
+                {MediaCentaur.SpoilerFree, :spoiler_free, :setting_aware_spoiler_free}}
+
+  where the third element is a unique `:handle_info` hook name (a literal
+  atom, so no atom is created at runtime).
 
   The context module owns the key and the default polarity via `setting_key/0`,
   `enabled?/0` (seed), and `enabled?/1` (parse a live update value) — so a new
@@ -26,13 +30,13 @@ defmodule MediaCentaurWeb.Live.SettingAware do
 
   alias MediaCentaur.Settings
 
-  def on_mount({context, assign}, _params, _session, socket) do
+  def on_mount({context, assign, hook}, _params, _session, socket) do
     socket =
       socket
       |> Phoenix.Component.assign(assign, context.enabled?())
       |> subscribe_once()
       |> Phoenix.LiveView.attach_hook(
-        :"setting_aware_#{assign}",
+        hook,
         :handle_info,
         &handle_setting_changed(context, assign, &1, &2)
       )
