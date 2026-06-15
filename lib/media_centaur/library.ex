@@ -2339,13 +2339,22 @@ defmodule MediaCentaur.Library do
   def list_hero_candidates(opts \\ []) do
     limit = Keyword.get(opts, :limit)
 
-    movies = fetch_hero_candidates_movies(limit)
-    hoisted = fetch_hero_candidates_hoisted_movies(limit)
-    tv_series = fetch_hero_candidates_tv_series(limit)
-    movie_series = fetch_hero_candidates_movie_series(limit)
-    video_objects = fetch_hero_candidates_video_objects(limit)
-
-    maybe_take(movies ++ hoisted ++ tv_series ++ movie_series ++ video_objects, limit)
+    # One base query per presentable type, paired with the owner_type its
+    # backdrop image is keyed by. Each base query carries its own presence
+    # filter; `fetch_hero_candidates/3` adds the uniform eligibility
+    # (non-blank description + a backdrop image), newest-first ordering, and
+    # row shaping. Results stay type-grouped (movies, hoisted, tv, …) then
+    # capped — no global re-sort.
+    [
+      {PresentableQueries.standalone_movies(), :movie},
+      {PresentableQueries.singleton_collection_movies(), :movie},
+      {from(t in TVSeries, as: :item, where: exists(tv_series_present_file_subquery())), :tv_series},
+      {PresentableQueries.multi_child_movie_series(), :movie_series},
+      {from(v in VideoObject, as: :item, where: exists(video_object_present_file_subquery())),
+       :video_object}
+    ]
+    |> Enum.flat_map(fn {query, owner_type} -> fetch_hero_candidates(query, owner_type, limit) end)
+    |> maybe_take(limit)
   end
 
   # --- Private fetchers for list_hero_candidates ---
@@ -2356,138 +2365,28 @@ defmodule MediaCentaur.Library do
   defp maybe_limit(query, nil), do: query
   defp maybe_limit(query, limit), do: from(q in query, limit: ^limit)
 
-  defp fetch_hero_candidates_movies(limit) do
-    from([m] in PresentableQueries.standalone_movies(),
-      where:
-        not is_nil(m.description) and
-          fragment("TRIM(?)", m.description) != "" and
-          exists(
-            from(img in Image,
-              where:
-                img.owner_id == parent_as(:item).id and img.owner_type == :movie and
-                  img.role == "backdrop" and
-                  not is_nil(img.content_url),
-              select: 1
-            )
-          ),
-      order_by: [{:desc, m.inserted_at}]
-    )
+  # Adds the uniform hero eligibility to a per-type base query (aliased
+  # `:item`): a non-blank description and a backdrop image of the matching
+  # `owner_type`, newest first, then shapes each row. The base query owns
+  # the per-type presence filter.
+  defp fetch_hero_candidates(base_query, owner_type, limit) do
+    base_query
+    |> where([item], not is_nil(item.description) and fragment("TRIM(?)", item.description) != "")
+    |> where([item], exists(hero_backdrop_subquery(owner_type)))
+    |> order_by([item], desc: item.inserted_at)
     |> maybe_limit(limit)
     |> Repo.all()
     |> Repo.preload(:images)
     |> Enum.map(&shape_hero_record/1)
   end
 
-  # Hoists singleton-collection movies (the sole present child of their MovieSeries)
-  # so a 1-child collection container is replaced by the child movie itself.
-  defp fetch_hero_candidates_hoisted_movies(limit) do
-    from([m] in PresentableQueries.singleton_collection_movies(),
+  defp hero_backdrop_subquery(owner_type) do
+    from(img in Image,
       where:
-        not is_nil(m.description) and
-          fragment("TRIM(?)", m.description) != "" and
-          exists(
-            from(img in Image,
-              where:
-                img.owner_id == parent_as(:item).id and img.owner_type == :movie and
-                  img.role == "backdrop" and
-                  not is_nil(img.content_url),
-              select: 1
-            )
-          ),
-      order_by: [{:desc, m.inserted_at}]
+        img.owner_id == parent_as(:item).id and img.owner_type == ^owner_type and
+          img.role == "backdrop" and not is_nil(img.content_url),
+      select: 1
     )
-    |> maybe_limit(limit)
-    |> Repo.all()
-    |> Repo.preload(:images)
-    |> Enum.map(&shape_hero_record/1)
-  end
-
-  defp fetch_hero_candidates_tv_series(limit) do
-    from(t in TVSeries,
-      as: :entity,
-      where:
-        not is_nil(t.description) and
-          fragment("TRIM(?)", t.description) != "" and
-          exists(
-            from(img in Image,
-              where:
-                img.owner_id == parent_as(:entity).id and img.owner_type == :tv_series and
-                  img.role == "backdrop" and
-                  not is_nil(img.content_url),
-              select: 1
-            )
-          ) and
-          exists(
-            from(wf in WatchedFile,
-              join: pi in PlayableItem,
-              on: pi.id == wf.playable_item_id and pi.container_type == :episode,
-              join: e in Episode,
-              on: e.id == pi.container_id,
-              join: s in Season,
-              on: s.id == e.season_id,
-              where: s.tv_series_id == parent_as(:entity).id,
-              select: 1
-            )
-          ),
-      order_by: [{:desc, t.inserted_at}]
-    )
-    |> maybe_limit(limit)
-    |> Repo.all()
-    |> Repo.preload(:images)
-    |> Enum.map(&shape_hero_record/1)
-  end
-
-  defp fetch_hero_candidates_movie_series(limit) do
-    from([ms] in PresentableQueries.multi_child_movie_series(),
-      where:
-        not is_nil(ms.description) and
-          fragment("TRIM(?)", ms.description) != "" and
-          exists(
-            from(img in Image,
-              where:
-                img.owner_id == parent_as(:item).id and img.owner_type == :movie_series and
-                  img.role == "backdrop" and
-                  not is_nil(img.content_url),
-              select: 1
-            )
-          ),
-      order_by: [{:desc, ms.inserted_at}]
-    )
-    |> maybe_limit(limit)
-    |> Repo.all()
-    |> Repo.preload(:images)
-    |> Enum.map(&shape_hero_record/1)
-  end
-
-  defp fetch_hero_candidates_video_objects(limit) do
-    from(v in VideoObject,
-      as: :entity,
-      where:
-        not is_nil(v.description) and
-          fragment("TRIM(?)", v.description) != "" and
-          exists(
-            from(img in Image,
-              where:
-                img.owner_id == parent_as(:entity).id and img.owner_type == :video_object and
-                  img.role == "backdrop" and
-                  not is_nil(img.content_url),
-              select: 1
-            )
-          ) and
-          exists(
-            from(wf in WatchedFile,
-              join: pi in PlayableItem,
-              on: pi.id == wf.playable_item_id and pi.container_type == :video_object,
-              where: pi.container_id == parent_as(:entity).id,
-              select: 1
-            )
-          ),
-      order_by: [{:desc, v.inserted_at}]
-    )
-    |> maybe_limit(limit)
-    |> Repo.all()
-    |> Repo.preload(:images)
-    |> Enum.map(&shape_hero_record/1)
   end
 
   @doc """

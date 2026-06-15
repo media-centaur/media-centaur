@@ -377,6 +377,59 @@ defmodule MediaCentaur.LibraryTest do
       assert row.overview == "A sample synopsis"
     end
 
+    test "includes an eligible tv series (backdrop + description + present file)" do
+      series = create_tv_series(%{name: "Hero Series", description: "A series synopsis"})
+      create_linked_file(%{tv_series_id: series.id})
+
+      create_image(%{
+        tv_series_id: series.id,
+        role: "backdrop",
+        content_url: "#{series.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      row = Enum.find(Library.list_hero_candidates(), &(&1.id == series.id))
+      assert row, "expected the eligible tv series to appear as a hero candidate"
+      assert row.overview == "A series synopsis"
+    end
+
+    test "includes an eligible multi-child movie series" do
+      ms = create_movie_series(%{name: "Hero Trilogy", description: "A trilogy synopsis"})
+      part1 = create_movie(%{movie_series_id: ms.id, name: "Hero Part 1", position: 0})
+      part2 = create_movie(%{movie_series_id: ms.id, name: "Hero Part 2", position: 1})
+      create_linked_file(%{movie_id: part1.id})
+      create_linked_file(%{movie_id: part2.id})
+
+      create_image(%{
+        movie_series_id: ms.id,
+        role: "backdrop",
+        content_url: "#{ms.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      assert Enum.any?(Library.list_hero_candidates(), &(&1.id == ms.id)),
+             "expected the eligible movie series to appear as a hero candidate"
+    end
+
+    test "includes an eligible video object" do
+      video =
+        create_video_object(%{
+          name: "Hero Video",
+          description: "A video synopsis",
+          content_url: "/media/hero-video.mkv"
+        })
+
+      create_image(%{
+        video_object_id: video.id,
+        role: "backdrop",
+        content_url: "#{video.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      assert Enum.any?(Library.list_hero_candidates(), &(&1.id == video.id)),
+             "expected the eligible video object to appear as a hero candidate"
+    end
+
     test "does not return entities without a backdrop image" do
       movie =
         create_standalone_movie(%{name: "No Backdrop", description: "Has overview but no backdrop"})
