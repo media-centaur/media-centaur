@@ -21,6 +21,15 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`guide-book.md`](guide-book.md) —
+  **planning.** In-app book-style guide at a deep-linkable `/guide` route (linked only
+  from Settings → System, not the main nav) that teaches the enthusiast operator how
+  Media Centaur works — 19 chapters across 5 parts, mastery-depth, each studied against
+  source before drafting. Chapters are portable markdown rendered to HEEx in-app; text-
+  first (no screenshots v1). Voice governed by the new `writing-copy` skill. Wiki
+  generation is a separate future campaign. Spec approved
+  ([`docs/superpowers/specs/2026-06-15-guide-book-design.md`](../docs/superpowers/specs/2026-06-15-guide-book-design.md));
+  Phase 0 (infra + pilot chapter) is the next deliverable. No feature code yet.
 * [`upcoming-overhaul.md`](upcoming-overhaul.md) —
   **built; shipped to `main` (unpushed), pending release tag.** Overhauled
   `/upcoming` per the section-overhaul house style into a time-first forecast: an
