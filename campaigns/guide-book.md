@@ -61,9 +61,13 @@ var, rate limit, attribution) folded into First run. Orders renumbered; slugs st
 absorbs the wiki's setup/reference coverage, so the guide is now close to the complete single
 source (install / macOS stay wiki-only — can't read an in-app guide before installing).
 
-Deferred (own follow-ups, not blocking): a **file-naming-conventions** topic and
-**large-library** notes (gaps the wiki comparison surfaced); reading-pane title filter,
-screenshots, full-text search; and the wiki exporter (separate campaign).
+✅ **Content gaps closed 2026-06-16** (pushed): file-naming conventions added as a section in
+*How identification works*, and a new *Running a large library* chapter (inotify watch limit,
+big-import expectations, bounded housekeeping) — **22 chapters total**. The guide's content is
+now complete vs. the wiki (install/macOS intentionally wiki-only).
+
+Remaining deferred — **features, not content**: reading-pane title filter, screenshots,
+full-text search; and the wiki exporter (separate campaign).
 
 ## Doc strategy
 
