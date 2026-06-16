@@ -1,5 +1,6 @@
 ---
 title: Languages, subtitles & track selection
+nav_label: Tracks & subtitles
 part: Your library
 slug: languages-subtitles-and-track-selection
 order: 8

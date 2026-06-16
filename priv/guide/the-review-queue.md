@@ -1,5 +1,6 @@
 ---
 title: The review queue
+nav_label: Review queue
 part: Your library
 slug: the-review-queue
 order: 6

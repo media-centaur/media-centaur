@@ -1,5 +1,6 @@
 ---
 title: Updates, retention & running as a service
+nav_label: Updates & service
 part: Operating it
 slug: updates-retention-and-service
 order: 21

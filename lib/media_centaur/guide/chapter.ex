@@ -2,26 +2,30 @@ defmodule MediaCentaur.Guide.Chapter do
   @moduledoc """
   A single guide chapter: parsed frontmatter plus the raw markdown body.
 
-  Frontmatter is a small fixed key set (`title`, `part`, `slug`, `order`)
-  delimited by `---` lines at the top of the file:
+  Frontmatter is a small fixed key set delimited by `---` lines at the top of
+  the file. Required: `title`, `part`, `slug`, `order`. Optional: `nav_label`
+  (a short sidebar label; defaults to `title` when omitted).
 
       ---
       title: How identification works
       part: Your library
       slug: how-identification-works
       order: 4
+      nav_label: Identification
       ---
       <markdown body>
 
-  Parsed by hand to avoid a YAML dependency for four well-controlled keys,
-  matching the lean-parser instinct of `MediaCentaurWeb.Live.SettingsLive.ReleaseNotes`.
+  Parsed by hand to avoid a YAML dependency for a handful of well-controlled
+  keys, matching the lean-parser instinct of
+  `MediaCentaurWeb.Live.SettingsLive.ReleaseNotes`.
   """
 
-  @enforce_keys [:title, :part, :slug, :order, :body]
-  defstruct [:title, :part, :slug, :order, :body]
+  @enforce_keys [:title, :nav_label, :part, :slug, :order, :body]
+  defstruct [:title, :nav_label, :part, :slug, :order, :body]
 
   @type t :: %__MODULE__{
           title: String.t(),
+          nav_label: String.t(),
           part: String.t(),
           slug: String.t(),
           order: non_neg_integer(),
@@ -37,6 +41,7 @@ defmodule MediaCentaur.Guide.Chapter do
       {:ok,
        %__MODULE__{
          title: fields["title"],
+         nav_label: fields["nav_label"] || fields["title"],
          part: fields["part"],
          slug: fields["slug"],
          order: String.to_integer(fields["order"]),

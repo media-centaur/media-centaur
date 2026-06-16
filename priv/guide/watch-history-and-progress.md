@@ -1,5 +1,6 @@
 ---
 title: Watch history & progress
+nav_label: Watch history
 part: Watching
 slug: watch-history-and-progress
 order: 10

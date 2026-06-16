@@ -1,5 +1,6 @@
 ---
 title: A tour of the app
+nav_label: App tour
 part: Orientation
 slug: a-tour-of-the-app
 order: 3

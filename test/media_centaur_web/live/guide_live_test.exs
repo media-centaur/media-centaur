@@ -5,8 +5,11 @@ defmodule MediaCentaurWeb.GuideLiveTest do
 
   test "GET /guide renders the first chapter and the sidebar", %{conn: conn} do
     {:ok, _view, html} = live(conn, ~p"/guide")
-    assert html =~ "How identification works"
+    # Defaults to the first chapter (its full title is the page heading).
+    assert html =~ "What Media Centaur is"
+    # Sidebar shows part headers and short nav labels.
     assert html =~ "Your library"
+    assert html =~ "Identification"
   end
 
   test "deep link /guide/:slug renders that chapter", %{conn: conn} do

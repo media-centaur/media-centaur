@@ -1,5 +1,6 @@
 ---
 title: Running a large library
+nav_label: Large libraries
 part: Operating it
 slug: running-a-large-library
 order: 22

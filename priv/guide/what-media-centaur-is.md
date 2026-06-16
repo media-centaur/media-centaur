@@ -1,5 +1,6 @@
 ---
 title: What Media Centaur is (and isn't)
+nav_label: What it is
 part: Orientation
 slug: what-media-centaur-is
 order: 1

@@ -1,5 +1,6 @@
 ---
 title: Settings, configuration & backups
+nav_label: Settings & backups
 part: Operating it
 slug: settings-configuration-and-backups
 order: 19
