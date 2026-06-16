@@ -3,7 +3,7 @@ title: Release tracking & Upcoming
 nav_label: Release tracking
 part: Acquisition
 slug: release-tracking-and-upcoming
-order: 15
+order: 16
 ---
 Release tracking watches TMDB for releases you don't have yet — new seasons of shows in your
 library, new films in a series you own — and the Upcoming page shows them as a forecast. If

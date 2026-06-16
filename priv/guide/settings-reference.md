@@ -2,7 +2,7 @@
 title: Settings reference
 part: Operating it
 slug: settings-reference
-order: 20
+order: 21
 ---
 Every setting, by section. Most apply immediately on toggle or save and persist to the
 database — no restart. For the config model and backups, see

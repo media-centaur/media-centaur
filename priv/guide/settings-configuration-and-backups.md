@@ -3,7 +3,7 @@ title: Settings, configuration & backups
 nav_label: Settings & backups
 part: Operating it
 slug: settings-configuration-and-backups
-order: 19
+order: 20
 ---
 Almost everything is configured in the app, on the Settings page. A small text file handles
 only what's needed before the database is open. This chapter is where each setting lives and

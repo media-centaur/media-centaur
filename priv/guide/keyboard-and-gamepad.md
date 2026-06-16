@@ -2,7 +2,7 @@
 title: Keyboard & gamepad
 part: Watching
 slug: keyboard-and-gamepad
-order: 11
+order: 12
 ---
 The whole app runs without a mouse — by keyboard at the desk or by gamepad from the couch.
 Both drive the same focus-based navigation: the screen is divided into contexts (a grid, a

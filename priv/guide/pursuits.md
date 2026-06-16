@@ -2,7 +2,7 @@
 title: Pursuits
 part: Acquisition
 slug: pursuits
-order: 14
+order: 15
 ---
 A pursuit is a download tracked from grab to landed-in-library. It's not a single torrent —
 it's a durable goal ("get these episodes at this quality") that persists across attempts,
