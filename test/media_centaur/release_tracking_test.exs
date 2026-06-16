@@ -213,8 +213,14 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     test "marks released movie releases as in_library" do
       item = create_tracking_item(%{media_type: :movie, name: "Test Collection"})
 
-      create_tracking_release(%{item_id: item.id, title: "Old Movie", released: true})
-      create_tracking_release(%{item_id: item.id, title: "Upcoming Movie", released: false})
+      create_tracking_release(%{item_id: item.id, title: "Old Movie", released: true, part_tmdb_id: 101})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        title: "Upcoming Movie",
+        released: false,
+        part_tmdb_id: 102
+      })
 
       ReleaseTracking.mark_in_library_releases(item)
 

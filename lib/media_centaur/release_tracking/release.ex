@@ -41,5 +41,9 @@ defmodule MediaCentaur.ReleaseTracking.Release do
       :item_id
     ])
     |> validate_required([:item_id])
+    |> unique_constraint(:item_id,
+      name: :release_tracking_releases_identity_index,
+      message: "duplicate release for this item/season/episode/type"
+    )
   end
 end
