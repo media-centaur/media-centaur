@@ -3,7 +3,7 @@ title: Updates, retention & running as a service
 nav_label: Updates & service
 part: Operating it
 slug: updates-retention-and-service
-order: 21
+order: 22
 ---
 The operational essentials: how the app updates itself, how it keeps its database from
 growing forever, and how it runs as a background service.

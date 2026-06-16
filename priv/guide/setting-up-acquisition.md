@@ -3,7 +3,7 @@ title: Setting up acquisition
 nav_label: Setup
 part: Acquisition
 slug: setting-up-acquisition
-order: 12
+order: 13
 ---
 Acquisition is optional, and it needs two things before any of the chapters that follow
 work: **Prowlarr** (an indexer aggregator that searches your trackers) and a **download

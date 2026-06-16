@@ -3,7 +3,7 @@ title: Watch history & progress
 nav_label: Watch history
 part: Watching
 slug: watch-history-and-progress
-order: 10
+order: 11
 ---
 Two separate things track what you've watched, and the difference matters. **Progress** is
 where you are in a title and whether you've finished it; it drives resume and Continue
