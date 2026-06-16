@@ -175,27 +175,14 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
   end
 
   defp persist_releases(item, releases) do
-    Enum.each(releases, &ReleaseTracking.persist_release!(item, &1))
+    ReleaseTracking.replace_releases!(item, releases, &ReleaseTracking.persist_release!/2)
 
     ReleaseTracking.mark_in_library_releases(item)
     Wants.sync_item(item)
   end
 
   defp persist_movie_releases(item, releases) do
-    today = Date.utc_today()
-
-    Enum.each(releases, fn release ->
-      released = release.air_date != nil && Date.compare(release.air_date, today) != :gt
-
-      ReleaseTracking.create_release!(%{
-        item_id: item.id,
-        air_date: release.air_date,
-        title: release.title,
-        release_type: release.release_type,
-        part_tmdb_id: item.tmdb_id,
-        released: released
-      })
-    end)
+    ReleaseTracking.replace_releases!(item, releases, &ReleaseTracking.persist_movie_release!/2)
 
     Wants.sync_item(item)
   end

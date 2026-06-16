@@ -324,8 +324,43 @@ defmodule MediaCentaur.ReleaseTracking do
     })
   end
 
-  # Releases are always deleted and recreated (never updated individually).
-  # Use delete_releases_for_item + create_release! instead.
+  @doc """
+  Persists one movie release row, deriving `released` from the air date.
+  Movie counterpart to `persist_release!/2` (used for collection parts).
+  """
+  def persist_movie_release!(%Item{} = item, release) do
+    released = release.air_date != nil and Date.compare(release.air_date, Date.utc_today()) != :gt
+
+    create_release!(%{
+      item_id: item.id,
+      air_date: release.air_date,
+      title: release.title,
+      release_type: release.release_type,
+      part_tmdb_id: item.tmdb_id,
+      released: released
+    })
+  end
+
+  @doc """
+  Atomically replace ALL of an item's releases (wholesale delete + re-insert
+  inside a transaction). This is the single owner of the "an item's releases
+  are rebuilt as a set" invariant — every (re)build path (refresh, auto-track,
+  scan, track-from-search) routes through it, so a delete that races a concurrent
+  rebuild can't interleave its insert and leave duplicates. The unique index
+  `release_tracking_releases_identity_index` is the structural backstop.
+
+  `persister` is the per-release inserter: `&persist_release!/2` (TV) or
+  `&persist_movie_release!/2` (movies).
+  """
+  def replace_releases!(%Item{} = item, releases, persister) when is_function(persister, 2) do
+    {:ok, _} =
+      Repo.transaction(fn ->
+        delete_releases_for_item(item.id)
+        Enum.each(releases, &persister.(item, &1))
+      end)
+
+    :ok
+  end
 
   # 24-hour window for keeping recently-completed releases visible on the
   # "Now Available" section so the user sees the success transition instead

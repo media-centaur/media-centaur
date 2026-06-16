@@ -133,7 +133,7 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
         last_library_episode: Keyword.get(opts, :last_library_episode, 0)
       })
 
-    Enum.each(releases, &ReleaseTracking.persist_release!(item, &1))
+    ReleaseTracking.replace_releases!(item, releases, &ReleaseTracking.persist_release!/2)
 
     ReleaseTracking.mark_in_library_releases(item)
 
