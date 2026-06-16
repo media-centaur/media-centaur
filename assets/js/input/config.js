@@ -41,6 +41,9 @@ export const inputConfig = {
     pursuits: "[data-nav-zone='pursuits'] [data-nav-item]",
     history: "[data-nav-zone='history'] [data-nav-item]",
     other_downloads: "[data-nav-zone='other_downloads'] [data-nav-item]",
+    // Guide: chapter sidebar + on-this-page outline (both vertical link lists).
+    guide_chapters: "[data-nav-zone='guide_chapters'] [data-nav-item]",
+    guide_outline: "[data-nav-zone='guide_outline'] [data-nav-item]",
   },
 
   // Instance → context type mapping
@@ -65,6 +68,8 @@ export const inputConfig = {
     pursuits: Context.MENU,
     history: Context.MENU,
     other_downloads: Context.MENU,
+    guide_chapters: Context.MENU,
+    guide_outline: Context.MENU,
   },
 
   // Zone layouts for nav graph
@@ -96,6 +101,15 @@ export const inputConfig = {
       sections:  { right: ["grid"],            left: ["sidebar"] },
       grid:      { left: ["sections"] },
       sidebar:   { right: ["sections", "grid"] },
+    },
+    // Guide: chapter list (left) → reading pane (not navigable — prose) →
+    // on-this-page outline (right). RIGHT from chapters skips the prose
+    // straight to the outline; the outline is conditional (long chapters,
+    // xl+ only), so the candidate fallback handles its absence.
+    guide: {
+      guide_chapters: { right: ["guide_outline"], left: ["sidebar"] },
+      guide_outline:  { left: ["guide_chapters"] },
+      sidebar:        { right: ["guide_chapters"] },
     },
     // Status: toolbar (Report a problem) over the subsystem tile grid
     // (spatial GRID nav), with the conditional drill-in panel below —
@@ -156,6 +170,7 @@ export const inputConfig = {
     library:   ["grid", "toolbar", "sidebar"],
     upcoming:  ["rail", "stragglers", "mini-month", "actions", "sidebar"],
     settings:  ["sections", "grid", "sidebar"],
+    guide:     ["guide_chapters", "guide_outline", "sidebar"],
     status:    ["grid", "toolbar", "sidebar"],
     review:    ["review-list", "review-detail", "sidebar"],
     download:  ["pursuits", "omnibox", "sidebar"],
@@ -165,7 +180,7 @@ export const inputConfig = {
   },
 
   // Always-populated contexts (skip item count check)
-  alwaysPopulated: ["sidebar", "sections"],
+  alwaysPopulated: ["sidebar", "sections", "guide_chapters"],
 
   // Active item class names for focus restoration
   activeClassNames: [
