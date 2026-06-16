@@ -4,6 +4,21 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.98.0 — 2026-06-16
+
+### New
+
+- **An in-app guide.** Open it from Settings → System for a book-style walkthrough of how Media Centaur works, chapter by chapter — from how files are identified to how downloads are tracked, plus how to read the Console and Status page when something's off. It's written to help you get more out of features you may not be using yet, like what configuring ffprobe unlocks.
+
+### Improved
+
+- **Spoiler-free mode now hides more.** Unwatched episodes blur their thumbnail and title, not just the description, so nothing gives away what happens next.
+- **Status messages dismiss themselves.** Toasts now fade out on their own with a smooth exit instead of lingering until you close them.
+
+### Fixed
+
+- **Subtitles no longer turn on over audio you understand.** Many releases mislabel a full dialogue subtitle track as "forced," which used to switch it on automatically. Media Centaur now distrusts that mislabel and selects the right track itself, so you stop getting full subtitles burned over audio you can already follow.
+
 ## v0.97.2 — 2026-06-15
 
 ### Improved
