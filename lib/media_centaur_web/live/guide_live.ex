@@ -66,7 +66,7 @@ defmodule MediaCentaurWeb.GuideLive do
                 ch.slug == @chapter.slug && "text-primary bg-primary/10 font-medium"
               ]}
             >
-              {ch.title}
+              {ch.nav_label}
             </.link>
           </div>
         </nav>

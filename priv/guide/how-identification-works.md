@@ -1,5 +1,6 @@
 ---
 title: How identification works
+nav_label: Identification
 part: Your library
 slug: how-identification-works
 order: 4

@@ -1,5 +1,6 @@
 ---
 title: Moving & relinking media
+nav_label: Moving & relinking
 part: Your library
 slug: moving-and-relinking-media
 order: 7

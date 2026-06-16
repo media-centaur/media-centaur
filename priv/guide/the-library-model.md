@@ -1,5 +1,6 @@
 ---
 title: The library model
+nav_label: Library model
 part: Your library
 slug: the-library-model
 order: 5
@@ -7,6 +8,12 @@ order: 5
 Once a file is identified, Media Centaur records it as a small set of related things rather
 than a single row. Knowing the shape helps when you're deleting, moving, or wondering why
 something appears the way it does.
+
+> [!NOTE]
+> Three words worth keeping straight: an **entry** is anything in your library — a movie,
+> show, season, episode, or extra. (The code and the Console call the same thing an
+> *entity*.) A **release** is something different: a specific downloadable version of a
+> title, which lives in [Search & download](/guide/search-and-download), not here.
 
 ## What the library holds
 

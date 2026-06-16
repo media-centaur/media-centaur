@@ -1,5 +1,6 @@
 ---
 title: Release tracking & Upcoming
+nav_label: Release tracking
 part: Acquisition
 slug: release-tracking-and-upcoming
 order: 15

@@ -1,5 +1,6 @@
 ---
 title: Setting up acquisition
+nav_label: Setup
 part: Acquisition
 slug: setting-up-acquisition
 order: 12

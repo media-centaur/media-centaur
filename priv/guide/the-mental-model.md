@@ -1,5 +1,6 @@
 ---
 title: The mental model
+nav_label: Mental model
 part: Operating it
 slug: the-mental-model
 order: 16

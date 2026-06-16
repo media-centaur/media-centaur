@@ -128,5 +128,5 @@ Safe to re-run; all act on recomputable data (see [The mental model](/guide/the-
 
 | Action | Does |
 |---|---|
-| Clear database | Permanently deletes all entities, files, images, and watch progress — re-scan rebuilds everything except progress |
+| Clear database | Permanently deletes all entries, files, images, and watch progress — re-scan rebuilds everything except progress |
 | Refresh image cache | Deletes all cached artwork and re-downloads from TMDB |
