@@ -35,9 +35,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit, TargetUnit, Unit}
+  alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit, TargetUnit, Unit, UnitOrder}
   alias MediaCentaur.Acquisition.Pursuits.Events.{PursuitStarted, ReleasePicked}
   alias MediaCentaur.Acquisition.{InfoHash, Target}
+  alias MediaCentaur.Parser
   alias MediaCentaur.Search.{Quality, SearchResult}
   alias MediaCentaur.Repo
 
@@ -52,8 +53,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
   - **Batch** `%{picks, manual_query[, origin]}` — `:picks` is a
     non-empty list of `%{term, result}` (the expanded query term and
     the `%SearchResult{}` the user picked for it). Returns
-    `{:ok, %{pursuit: pursuit, targets: targets}}` with targets in
-    pick order.
+    `{:ok, %{pursuit: pursuit, targets: targets}}`; units are
+    positioned in season/episode order (callers key targets by guid, so
+    the returned target order is not load-bearing).
 
   `:origin` defaults to `"manual"` in both shapes.
   """
@@ -125,11 +127,15 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
   defp pursuit_title([%{result: %SearchResult{title: title}} | _], nil), do: title
   defp pursuit_title(_picks, manual_query), do: manual_query
 
+  # Units are positioned by season/episode parsed from the pick's term
+  # (falling back to the release title), so a brace-expanded grab walks
+  # in airing order regardless of pick order. Picks with no parseable
+  # season/episode keep their input order (UnitOrder is a stable sort).
   defp insert_picked_units(pursuit, picks, origin, now) do
     picks
-    |> Enum.with_index()
-    |> Enum.reduce_while({:ok, []}, fn {pick, index}, {:ok, targets} ->
-      case insert_picked_unit(pursuit, pick, index, origin, now) do
+    |> UnitOrder.with_positions(&season_episode/1)
+    |> Enum.reduce_while({:ok, []}, fn {pick, position}, {:ok, targets} ->
+      case insert_picked_unit(pursuit, pick, position, origin, now) do
         {:ok, target} -> {:cont, {:ok, [target | targets]}}
         {:error, reason} -> {:halt, {:error, reason}}
       end
@@ -140,7 +146,14 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
     end
   end
 
-  defp insert_picked_unit(pursuit, %{term: term, result: result}, index, origin, now) do
+  # {season, episode} for ordering — parsed from the expanded term, or
+  # the release title when the term is absent (single-pick legacy shape).
+  defp season_episode(%{term: term, result: %SearchResult{title: title}}) do
+    parsed = Parser.parse(term || title)
+    {parsed.season, parsed.episode}
+  end
+
+  defp insert_picked_unit(pursuit, %{term: term, result: result}, position, origin, now) do
     torrent_hash = InfoHash.resolve(result)
 
     with {:ok, unit} <-
@@ -149,7 +162,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick do
                pursuit_id: pursuit.id,
                query: term,
                label: term,
-               position: index
+               position: position
              })
            ),
          {:ok, target} <-
