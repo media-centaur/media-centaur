@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.98.3 — 2026-06-16
+
+### Improved
+
+- **Multi-episode pursuits now work through episodes in season and episode order.** When a single pursuit covers several episodes, Media Centaur orders its searches and grabs in airing order — season 1 before season 2, episode 1 before episode 10 — instead of the order the releases happened to be picked.
+
 ## v0.98.2 — 2026-06-16
 
 ### New
