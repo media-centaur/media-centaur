@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.98.1 — 2026-06-16
+
+### Improved
+
+- **The in-app guide is restyled and much bigger.** It now matches the rest of the app — it lives in the main layout alongside the sidebar, reads in a clean glass panel with comfortable line length, and is fully navigable by keyboard and gamepad. New chapters cover setting up acquisition (Prowlarr and a download client), a complete settings reference, naming your files for clean matches, and running a large library.
+
+### Fixed
+
+- **The Upcoming page no longer shows duplicate entries.** A timing issue in release tracking could record the same upcoming release twice, so a show could appear repeated down the page. The duplicates are cleaned up and prevented from coming back. This release includes a database migration that removes any existing duplicates when you update.
+
 ## v0.98.0 — 2026-06-16
 
 ### New
