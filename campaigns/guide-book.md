@@ -54,11 +54,16 @@ full-text search remain deferred.
 3. **Owner review** of the 19 chapters, then **push `main`** (held per instruction).
 4. After push: the chapters' GitHub source links resolve (they point at paths on `main`).
 
-Deferred (own follow-ups, not blocking): reading-pane title filter, screenshots, full-text
-search, and the wiki exporter (separate campaign). Also deferred — **absorbing the wiki's
-setup-guide coverage** the guide skips (TMDB-key signup steps, Prowlarr + prowlarr-stack
-setup, per-download-client config, a fuller settings reference) so the guide becomes the
-complete single source; the user chose to re-register the existing 19 first.
+✅ **Setup-guide expansion shipped 2026-06-16** (pushed): the guide grew from 19 → **21
+chapters** — new *Setting up acquisition* (Prowlarr + download clients, Part IV) and *Settings
+reference* (complete per-setting enumeration, Part V), plus the TMDB-key detail (signup, env
+var, rate limit, attribution) folded into First run. Orders renumbered; slugs stable. This
+absorbs the wiki's setup/reference coverage, so the guide is now close to the complete single
+source (install / macOS stay wiki-only — can't read an in-app guide before installing).
+
+Deferred (own follow-ups, not blocking): a **file-naming-conventions** topic and
+**large-library** notes (gaps the wiki comparison surfaced); reading-pane title filter,
+screenshots, full-text search; and the wiki exporter (separate campaign).
 
 ## Doc strategy
 
