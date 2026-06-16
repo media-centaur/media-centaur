@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.98.2 — 2026-06-16
+
+### New
+
+- **A "Customizing mpv" chapter in the guide.** Media Centaur ships an optional mpv setup — a track menu, a Skip Intro button, and tuned playback and audio settings — and this chapter covers what it offers, how to install it and keep it current, how to tame loud-then-quiet audio, and which external mpv plugins pair well with it.
+
+### Fixed
+
+- **Code blocks in the guide render cleanly** — no stray blank line or indentation at the top of a command block.
+
 ## v0.98.1 — 2026-06-16
 
 ### Improved
