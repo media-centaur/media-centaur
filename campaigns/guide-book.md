@@ -46,6 +46,8 @@ full-text search remain deferred.
 * `2026-06-15` — Each chapter is **studied against the source before drafting** — no mastery claims from memory. (spec §Per-chapter workflow)
 * `2026-06-15` — **Discovery is a primary objective**: chapters must surface under-used / unknown capabilities, not just document the visible UI. (spec §Summary)
 * `2026-06-15` — Markdown rendered with **Earmark** (pure Elixir, AST), **not** MDEx (Rust NIF) — keeps the "no extra installs / no native code" promise. Parse at compile time. (Phase-0 plan §Tech Stack)
+* `2026-06-16` — **Aesthetics pass**: restyled to match the app (glass reading card, reading measure, calm callouts via `.guide-prose` CSS), wrapped in the app shell (main nav + left-aligned, like Settings), short sidebar `nav_label`s, vocabulary converged (entry/entity/release). Storybook story added for the prose.
+* `2026-06-16` — **Input nav = structure only (Option A).** The chapter list + outline are `MENU` zones; the prose reading pane is intentionally NOT navigable — the framework has no scroll primitive and the guide didn't justify adding one. Gamepad/keyboard users navigate by chapter + section; fine-scroll is mouse/PageDown. A `SCROLLER` context remains the future option if any long-form surface ever needs gamepad scrolling.
 
 ## Next steps
 
