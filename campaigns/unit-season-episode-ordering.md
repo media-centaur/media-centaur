@@ -1,9 +1,16 @@
 ---
-status: in-progress
+status: complete
 started: 2026-06-16
 last_updated: 2026-06-16
 ---
 # Pursuit unit season/episode ordering
+
+> ✅ Shipped v0.98.3 (2026-06-16). All three phases landed in one
+> session. Dormant until multi-unit pursuits land (`Units.single!/1`
+> still raises on >1 unit) — when the multi-unit drill-down activates,
+> ordering takes effect with no further work here. Removable per
+> ADR-042 (git history is the archive); kept briefly to record the
+> dormancy hand-off.
 
 ## Goal
 
