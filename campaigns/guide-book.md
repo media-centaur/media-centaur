@@ -24,8 +24,15 @@ The infrastructure (Phase 0) plus every chapter across Parts I–V are committed
 (1–3), Your library (4–8), Watching (9–11), Acquisition (12–14), Operating it (15–19). Each
 chapter was researched against current source, written to the `writing-copy` voice, carries
 source/issue links, and surfaces under-used capabilities (the discovery objective). Full
-`mix precommit` green (Elixir 5027/0, JS 540/0). The reading-pane title **filter**,
-screenshots, and full-text search remain deferred (see Completion criteria / spec).
+`mix precommit` green (Elixir 5027/0, JS 540/0). Shipped in **v0.98.0**.
+
+**Re-aimed 2026-06-16** (committed on `main`, ahead of v0.98.0, unpushed): after comparing
+against the wiki, the chapters were re-shaped toward the **wiki's practical goal + reference
+register** (tables, numbered steps, completeness) in the `writing-copy` voice — the practical
+chapters (first-run, app tour, playback, keyboard/gamepad, release-tracking, troubleshooting,
+settings, updates) now lead with tables/steps; the explanatory chapters (what-it-is,
+identification, library model, pursuits, mental model, observability) keep their narrative.
+The reading-pane title **filter**, screenshots, and full-text search remain deferred.
 
 ## Decisions made
 
@@ -47,7 +54,17 @@ screenshots, and full-text search remain deferred (see Completion criteria / spe
 4. After push: the chapters' GitHub source links resolve (they point at paths on `main`).
 
 Deferred (own follow-ups, not blocking): reading-pane title filter, screenshots, full-text
-search, and the wiki exporter (separate campaign).
+search, and the wiki exporter (separate campaign). Also deferred — **absorbing the wiki's
+setup-guide coverage** the guide skips (TMDB-key signup steps, Prowlarr + prowlarr-stack
+setup, per-download-client config, a fuller settings reference) so the guide becomes the
+complete single source; the user chose to re-register the existing 19 first.
+
+## Doc strategy
+
+Direction set 2026-06-16: the target is **the wiki's practical goal and coverage, written in
+the `writing-copy` voice** ("wiki goals + guide voice"). The voice flexes by register — dry,
+complete reference/steps for task content; narrative only where understanding is the point.
+This governs both future guide work and the eventual guide→wiki generation.
 
 ## Completion criteria
 
