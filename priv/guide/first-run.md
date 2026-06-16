@@ -23,9 +23,26 @@ Two steps are required; the rest are optional and each unlocks one capability.
 | Prowlarr | No | Base URL + API key | In-app release search |
 | Download client | No | qBittorrent URL + credentials | Download progress and auto-grab |
 
-Get a TMDB key at [themoviedb.org](https://www.themoviedb.org/settings/api). The tour won't
-advance past the TMDB step until its connection test passes; the media-directories step needs
-at least one folder. Optional steps can be skipped and configured later in Settings.
+The tour won't advance past the TMDB step until its connection test passes; the
+media-directories step needs at least one folder. Optional steps can be skipped and
+configured later in Settings.
+
+## Getting a TMDB key
+
+TMDB is free and the one required credential. To get a key:
+
+1. Sign up at [themoviedb.org/signup](https://www.themoviedb.org/signup) (no payment).
+2. Go to [Settings → API](https://www.themoviedb.org/settings/api) → **Request an API Key** →
+   **Developer**.
+3. Fill the short form — personal use, any application URL (even `http://localhost`). Approval
+   is usually instant.
+4. Copy either the **API Read Access Token** (v4) or the shorter **v3 key** — Media Centaur
+   accepts both.
+
+Paste it into the TMDB step (or later under Settings → Media → TMDB) and test. You can also
+set `TMDB_API_KEY` in `~/.config/media-centaur/secrets.env` instead, which the service sources
+on start. TMDB's rate limit (about 50 requests/second) is far above anything the app does;
+its only requirement is attribution if you redistribute its artwork.
 
 > [!TIP]
 > ffprobe is the step most people skip, and the one that quietly costs the most. mpv plays

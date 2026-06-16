@@ -2,7 +2,7 @@
 title: Troubleshooting
 part: Operating it
 slug: troubleshooting
-order: 17
+order: 18
 ---
 The goal is to find which part is unhappy, then fix the cause or recompute what went stale.
 The method, then the common cases.
