@@ -26,13 +26,14 @@ chapter was researched against current source, written to the `writing-copy` voi
 source/issue links, and surfaces under-used capabilities (the discovery objective). Full
 `mix precommit` green (Elixir 5027/0, JS 540/0). Shipped in **v0.98.0**.
 
-**Re-aimed 2026-06-16** (committed on `main`, ahead of v0.98.0, unpushed): after comparing
-against the wiki, the chapters were re-shaped toward the **wiki's practical goal + reference
+**Re-aimed 2026-06-16** (pushed to `origin/main`, ahead of the v0.98.0 tag): after comparing
+against the wiki, all 19 chapters were re-shaped toward the **wiki's practical goal + reference
 register** (tables, numbered steps, completeness) in the `writing-copy` voice — the practical
 chapters (first-run, app tour, playback, keyboard/gamepad, release-tracking, troubleshooting,
-settings, updates) now lead with tables/steps; the explanatory chapters (what-it-is,
-identification, library model, pursuits, mental model, observability) keep their narrative.
-The reading-pane title **filter**, screenshots, and full-text search remain deferred.
+settings, updates, review-queue, search-and-download) now lead with tables/steps; the
+explanatory chapters (what-it-is, identification, library model, pursuits, mental model,
+observability) keep their narrative. The reading-pane title **filter**, screenshots, and
+full-text search remain deferred.
 
 ## Decisions made
 
