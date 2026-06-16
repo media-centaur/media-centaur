@@ -48,6 +48,30 @@ is auto-approved only if the parsed year picks a clear winner.
 
 The [scoring and threshold live here](https://github.com/media-centaur/media-centaur/blob/main/lib/media_centaur/tmdb/confidence.ex).
 
+## Naming for clean matches
+
+You don't have to rename anything that already works — but if files keep landing in Review,
+their names are usually why. The patterns that match most reliably:
+
+| Kind | Name it like |
+|---|---|
+| Movie | `Title (2024).mkv` — or `Title.2024.1080p.BluRay.x264-GROUP.mkv` |
+| Episode | `Show Name S01E05.mkv` (also accepted: `Show 7x02`, `Show Season 5 Episode 1`) |
+| Bonus feature | put it in an `Extras` or `Featurettes` folder under its title |
+
+A few habits that keep matching clean:
+
+- **Give each title a folder, with the year on it** (`Some Film (2024)/…`). The folder name
+  is read when the file's own name is thin.
+- **Always include the year**, especially for remakes and common titles — it's the strongest
+  tie-breaker.
+- **Avoid generic names** (`movie.mkv`, `episode1.mkv`) — there's nothing for the parser to
+  read, so they go to Review.
+
+Quality tags, release-group suffixes, and bracketed junk are stripped automatically, so you
+don't need to clean those off. When a name that looks standard still isn't parsed,
+[open an issue](https://github.com/media-centaur/media-centaur/issues/new) with it.
+
 ## When a match isn't confident
 
 Anything that doesn't clear the threshold — a low score, no TMDB results, or an unresolved
