@@ -42,17 +42,22 @@ defmodule MediaCentaurWeb.GuideLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="flex gap-8 max-w-6xl mx-auto p-6">
-      <nav class="w-56 shrink-0 sticky top-6 self-start space-y-4">
+    <div class="flex justify-center gap-6 max-w-6xl mx-auto px-6 py-8">
+      <nav
+        class="w-56 shrink-0 sticky top-6 self-start glass-surface rounded-xl p-3 space-y-4 thin-scrollbar overflow-y-auto"
+        style="max-height: calc(100vh - 3rem)"
+      >
         <div :for={{part, chapters} <- @parts}>
-          <div class="text-xs uppercase tracking-wider text-base-content/50 mb-1">{part}</div>
+          <div class="px-2 mb-1 text-xs font-medium uppercase tracking-wider text-base-content/45">
+            {part}
+          </div>
           <.link
             :for={ch <- chapters}
             patch={~p"/guide/#{ch.slug}"}
             class={[
-              "block px-2 py-1 rounded text-sm",
-              (ch.slug == @chapter.slug && "bg-base-content/10 text-base-content") ||
-                "text-base-content/70 hover:bg-base-content/5"
+              "block px-2 py-1.5 rounded-lg text-sm leading-snug transition-colors",
+              (ch.slug == @chapter.slug && "bg-primary/10 text-primary font-medium") ||
+                "text-base-content/65 hover:text-base-content hover:bg-base-content/5"
             ]}
           >
             {ch.title}
@@ -60,21 +65,28 @@ defmodule MediaCentaurWeb.GuideLive do
         </div>
       </nav>
 
-      <article class="min-w-0 flex-1">
-        <h1 class="text-2xl font-bold text-base-content mb-4">{@chapter.title}</h1>
-        {@body}
+      <article class="min-w-0 flex-1 max-w-[44rem]">
+        <div class="glass-surface rounded-xl px-8 py-7">
+          <div class="mb-2 text-xs font-medium uppercase tracking-wider text-primary/70">
+            {@chapter.part}
+          </div>
+          <h1 class="text-2xl font-bold text-base-content mb-5">{@chapter.title}</h1>
+          {@body}
+        </div>
       </article>
 
       <aside
         :if={@outline != []}
         class="w-48 shrink-0 sticky top-6 self-start hidden xl:block"
       >
-        <div class="text-xs uppercase tracking-wider text-base-content/50 mb-1">On this page</div>
+        <div class="mb-2 text-xs font-medium uppercase tracking-wider text-base-content/45">
+          On this page
+        </div>
         <a
           :for={{level, text, anchor} <- @outline}
           href={"#" <> anchor}
           class={[
-            "block text-sm text-base-content/60 hover:text-base-content py-0.5",
+            "block text-sm py-1 text-base-content/55 hover:text-base-content transition-colors",
             level == 3 && "pl-3"
           ]}
         >
