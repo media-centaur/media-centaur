@@ -24,6 +24,7 @@ import { createWatchHistoryBehavior } from "./watch_history_behavior"
 import { createUpcomingBehavior } from "./upcoming_behavior"
 import { createHomeBehavior, homeDom } from "./home_behavior"
 import { createSetupBehavior } from "./setup_behavior"
+import { createGuideBehavior } from "./guide_behavior"
 import { withWipNotice } from "./wip_notice"
 
 // Pages still mid-redesign carry the "UI overhaul in progress" notice via
@@ -40,6 +41,7 @@ const BEHAVIOR_REGISTRY = {
   "watch-history": () => withWipNotice(createWatchHistoryBehavior()),
   upcoming: () => createUpcomingBehavior(),
   setup: () => createSetupBehavior(),
+  guide: () => createGuideBehavior(),
 }
 
 /**

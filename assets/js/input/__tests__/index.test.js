@@ -18,6 +18,7 @@ describe("App config", () => {
     expect(inputConfig.layouts.library).toBeDefined()
     expect(inputConfig.layouts.settings).toBeDefined()
     expect(inputConfig.layouts.status).toBeDefined()
+    expect(inputConfig.layouts.guide).toBeDefined()
   })
 
   test("has cursor start priority for all zones", () => {
@@ -51,6 +52,16 @@ describe("App config", () => {
   test("has instanceTypes for sidebar and sections", () => {
     expect(inputConfig.instanceTypes.sidebar).toBe(Context.MENU)
     expect(inputConfig.instanceTypes.sections).toBe(Context.MENU)
+  })
+
+  test("guide behavior + chapter/outline menus resolve", () => {
+    const behavior = inputConfig.createBehavior("guide")
+    expect(behavior).not.toBeNull()
+    expect(behavior.activateOnFocus).toContain("guide_chapters")
+    expect(inputConfig.instanceTypes.guide_chapters).toBe(Context.MENU)
+    expect(inputConfig.instanceTypes.guide_outline).toBe(Context.MENU)
+    expect(inputConfig.cursorStartPriority.guide).toBeDefined()
+    expect(inputConfig.alwaysPopulated).toContain("guide_chapters")
   })
 
   test("has alwaysPopulated list", () => {
@@ -124,5 +135,29 @@ describe("Upcoming page nav (real config)", () => {
     for (const context of ["rail", "stragglers", "mini-month", "actions"]) {
       expect(graph[context].left).toBeDefined()
     }
+  })
+})
+
+describe("Guide page nav (real config)", () => {
+  const populated = { guide_chapters: 22, guide_outline: 4, sidebar: 7 }
+
+  test("chapters: right to outline, left to sidebar; outline left to chapters", () => {
+    const graph = buildNavGraph("guide", populated, inputConfig)
+    expect(graph.guide_chapters.right).toBe("guide_outline")
+    expect(graph.guide_chapters.left).toBe("sidebar")
+    expect(graph.guide_outline.left).toBe("guide_chapters")
+  })
+
+  test("sidebar enters the chapter list; cursor starts there", () => {
+    const graph = buildNavGraph("guide", populated, inputConfig)
+    expect(graph.sidebar.right).toBe("guide_chapters")
+    expect(resolveCursorStart("guide", populated, inputConfig)).toBe("guide_chapters")
+  })
+
+  test("no outline (short chapter / below xl): right from chapters has no target", () => {
+    const counts = { guide_chapters: 22, guide_outline: 0, sidebar: 7 }
+    const graph = buildNavGraph("guide", counts, inputConfig)
+    expect(graph.guide_chapters.right).toBeUndefined()
+    expect(resolveCursorStart("guide", counts, inputConfig)).toBe("guide_chapters")
   })
 })

@@ -49,8 +49,9 @@ defmodule MediaCentaurWeb.GuideLive do
       acquisition_ready={assigns[:acquisition_ready] || false}
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
     >
-      <div class="flex gap-8 max-w-[74rem]">
+      <div class="flex gap-8 max-w-[74rem]" data-page-behavior="guide" data-nav-default-zone="guide">
         <nav
+          data-nav-zone="guide_chapters"
           class="w-48 shrink-0 sticky top-6 self-start space-y-4 thin-scrollbar overflow-y-auto"
           style="max-height: calc(100vh - 3rem)"
         >
@@ -61,6 +62,8 @@ defmodule MediaCentaurWeb.GuideLive do
             <.link
               :for={ch <- chapters}
               patch={~p"/guide/#{ch.slug}"}
+              data-nav-item
+              tabindex="0"
               class={[
                 "block py-1.5 px-3 rounded-lg text-sm leading-snug text-base-content/70 transition-[opacity,background-color] duration-150 hover:bg-base-content/6",
                 ch.slug == @chapter.slug && "text-primary bg-primary/10 font-medium"
@@ -83,6 +86,7 @@ defmodule MediaCentaurWeb.GuideLive do
 
         <aside
           :if={@outline != []}
+          data-nav-zone="guide_outline"
           class="w-48 shrink-0 sticky top-6 self-start hidden xl:block"
         >
           <div class="mb-2 text-xs font-medium uppercase tracking-wider text-base-content/45">
@@ -91,6 +95,8 @@ defmodule MediaCentaurWeb.GuideLive do
           <a
             :for={{level, text, anchor} <- @outline}
             href={"#" <> anchor}
+            data-nav-item
+            tabindex="0"
             class={[
               "block text-sm py-1 text-base-content/55 hover:text-base-content transition-colors",
               level == 3 && "pl-3"
