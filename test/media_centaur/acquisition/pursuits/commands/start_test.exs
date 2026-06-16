@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit}
+  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, Units}
   alias MediaCentaur.Acquisition.Pursuits.Commands.Start
   alias MediaCentaur.Acquisition.Pursuits.Events.PursuitStarted
   alias MediaCentaur.Topics
@@ -63,6 +63,27 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartTest do
 
       [event_row] = Repo.all(Event)
       assert event_row.payload == %{"origin" => "manual"}
+    end
+
+    test "orders units by season/episode regardless of the order specs arrive in" do
+      args = %{
+        tmdb_id: "777",
+        tmdb_type: "tv",
+        title: "Sample Show",
+        origin: "auto",
+        units: [
+          %{label: "S02E01", season_number: 2, episode_number: 1},
+          %{label: "S01E10", season_number: 1, episode_number: 10},
+          %{label: "S01E02", season_number: 1, episode_number: 2}
+        ]
+      }
+
+      assert {:ok, %Pursuit{} = pursuit} = Start.execute(args)
+
+      units = Units.for_pursuit(pursuit.id)
+
+      assert Enum.map(units, & &1.label) == ["S01E02", "S01E10", "S02E01"]
+      assert Enum.map(units, & &1.position) == [0, 1, 2]
     end
 
     test "rolls back the pursuit + event when the pursuit changeset is invalid" do

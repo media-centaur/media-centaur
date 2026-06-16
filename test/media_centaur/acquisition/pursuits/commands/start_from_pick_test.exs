@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPickTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit}
+  alias MediaCentaur.Acquisition.Pursuits.{Event, Pursuit, Units}
   alias MediaCentaur.Acquisition.Pursuits.Commands.StartFromPick
   alias MediaCentaur.Acquisition.Pursuits.Events.{PursuitStarted, ReleasePicked}
   alias MediaCentaur.Acquisition.Target
@@ -73,6 +73,40 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.StartFromPickTest do
       assert kinds == ["pursuit_started", "release_picked"]
       refute "user_decision_recorded" in kinds
       refute "fallback_initiated" in kinds
+    end
+
+    test "orders a multi-pick batch's units by season/episode parsed from the term" do
+      picks = [
+        %{
+          term: "Sample Show S02E01",
+          result: result(%{title: "Sample.Show.S02E01.1080p", guid: "g-s2e1"})
+        },
+        %{
+          term: "Sample Show S01E10",
+          result: result(%{title: "Sample.Show.S01E10.1080p", guid: "g-s1e10"})
+        },
+        %{
+          term: "Sample Show S01E02",
+          result: result(%{title: "Sample.Show.S01E02.1080p", guid: "g-s1e2"})
+        }
+      ]
+
+      assert {:ok, %{pursuit: pursuit}} =
+               StartFromPick.execute(%{
+                 picks: picks,
+                 manual_query: "Sample Show S0{1-2}E{01-10}",
+                 origin: "manual"
+               })
+
+      units = Units.for_pursuit(pursuit.id)
+
+      assert Enum.map(units, & &1.label) == [
+               "Sample Show S01E02",
+               "Sample Show S01E10",
+               "Sample Show S02E01"
+             ]
+
+      assert Enum.map(units, & &1.position) == [0, 1, 2]
     end
 
     test "rolls back everything when the pursuit changeset is invalid" do

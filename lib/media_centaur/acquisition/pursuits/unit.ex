@@ -44,8 +44,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Unit do
   schema "acquisition_pursuit_units" do
     field :pursuit_id, Ecto.UUID
     field :state, :string, default: "active"
-    # Stable ordering inside the composite (brace-expansion order,
-    # episode order). Display-only; no uniqueness guarantee.
+    # Stable ordering inside the composite, derived from season/episode
+    # at creation time (`Pursuits.UnitOrder`). Governs both display and
+    # the order the residual-driven descent searches/grabs units; no
+    # uniqueness guarantee.
     field :position, :integer, default: 0
     # Display name for the unit ("S01E03", an expanded query). Nullable —
     # a single-unit pursuit renders the pursuit title instead.

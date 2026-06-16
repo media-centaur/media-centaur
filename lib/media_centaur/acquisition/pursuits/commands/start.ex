@@ -3,7 +3,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Start do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit, Unit}
+  alias MediaCentaur.Acquisition.Pursuits.{Events, Pursuit, Unit, UnitOrder}
   alias MediaCentaur.Acquisition.Pursuits.Events.PursuitStarted
   alias MediaCentaur.Repo
 
@@ -52,17 +52,23 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.Start do
     result
   end
 
+  # Positions derive from airing order (season → episode) so the
+  # residual-driven descent and unit queries walk units in sequence
+  # regardless of the order specs arrive in; specs lacking season/episode
+  # keep their input order (UnitOrder is a stable sort).
   defp insert_units(%Pursuit{} = pursuit, unit_specs) do
     unit_specs
-    |> Enum.with_index()
-    |> Enum.reduce_while({:ok, []}, fn {spec, index}, {:ok, inserted} ->
+    |> UnitOrder.with_positions(fn spec ->
+      {Map.get(spec, :season_number), Map.get(spec, :episode_number)}
+    end)
+    |> Enum.reduce_while({:ok, []}, fn {spec, position}, {:ok, inserted} ->
       attrs = %{
         pursuit_id: pursuit.id,
         label: Map.get(spec, :label),
         query: Map.get(spec, :query),
         season_number: Map.get(spec, :season_number),
         episode_number: Map.get(spec, :episode_number),
-        position: Map.get(spec, :position, index)
+        position: position
       }
 
       case Repo.insert(Unit.create_changeset(attrs)) do
