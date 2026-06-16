@@ -2,7 +2,7 @@
 title: Search & download
 part: Acquisition
 slug: search-and-download
-order: 12
+order: 13
 ---
 Acquisition is optional. With an indexer manager (Prowlarr) and a download client configured,
 Media Centaur can search for releases and grab them; until then the Downloads page stays

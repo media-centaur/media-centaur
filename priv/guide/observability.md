@@ -2,7 +2,7 @@
 title: Observability
 part: Operating it
 slug: observability
-order: 16
+order: 17
 ---
 Media Centaur is built to be watched. Two surfaces let you see what it's doing: the Console,
 for the live log stream, and the Status page, for subsystem health over time. Between them

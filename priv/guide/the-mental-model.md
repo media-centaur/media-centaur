@@ -2,7 +2,7 @@
 title: The mental model
 part: Operating it
 slug: the-mental-model
-order: 15
+order: 16
 ---
 Everything so far has described what the app does. This chapter is about how it's put
 together — enough of the shape that you can reason about it and predict how it behaves when
