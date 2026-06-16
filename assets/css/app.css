@@ -1813,3 +1813,107 @@ body:has(.modal-backdrop[data-state="open"]) {
     var(--color-base-100) 62%
   );
 }
+
+/* ── Guide book prose ──
+   Reading typography for the in-app guide (/guide). A coordinated multi-element
+   system (headings, lists, tables, code, callouts), so it lives in CSS rather than
+   per-element Tailwind. Rendered by MediaCentaurWeb.GuideMarkdown. */
+
+.guide-prose {
+  color: oklch(from var(--color-base-content) l c h / 0.82);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+.guide-prose > * + * { margin-top: 1rem; }
+
+.guide-prose h2 {
+  color: var(--color-base-content);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 2.25rem;
+  scroll-margin-top: 6rem;
+}
+.guide-prose h3 {
+  color: var(--color-base-content);
+  font-size: 1rem;
+  font-weight: 600;
+  margin-top: 1.75rem;
+  scroll-margin-top: 6rem;
+}
+.guide-prose h2 + *, .guide-prose h3 + * { margin-top: 0.5rem; }
+
+.guide-prose strong { color: var(--color-base-content); font-weight: 600; }
+
+.guide-prose a {
+  color: var(--color-primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  text-decoration-color: oklch(from var(--color-primary) l c h / 0.4);
+  transition: text-decoration-color 150ms ease;
+}
+.guide-prose a:hover { text-decoration-color: var(--color-primary); }
+
+.guide-prose ul, .guide-prose ol { padding-left: 1.5rem; }
+.guide-prose ul { list-style: disc; }
+.guide-prose ol { list-style: decimal; }
+.guide-prose li + li { margin-top: 0.35rem; }
+.guide-prose li::marker { color: oklch(from var(--color-base-content) l c h / 0.35); }
+
+.guide-prose :not(pre) > code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+  padding: 0.1em 0.4em;
+  border-radius: 0.3rem;
+  background: oklch(from var(--color-base-content) l c h / 0.08);
+}
+.guide-prose pre {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  padding: 0.85rem 1rem;
+  border-radius: 0.6rem;
+  overflow-x: auto;
+  background: var(--glass-inset-bg);
+  border: 1px solid var(--glass-border);
+}
+.guide-prose pre code { background: none; padding: 0; font-size: inherit; }
+
+.guide-prose table { width: 100%; font-size: 0.875rem; border-collapse: collapse; }
+.guide-prose th {
+  text-align: left;
+  font-weight: 600;
+  color: oklch(from var(--color-base-content) l c h / 0.6);
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid oklch(from var(--color-base-content) l c h / 0.15);
+}
+.guide-prose td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid oklch(from var(--color-base-content) l c h / 0.06);
+  vertical-align: top;
+}
+.guide-prose tbody tr:nth-child(odd) { background: oklch(from var(--color-base-content) l c h / 0.02); }
+
+.guide-prose blockquote {
+  border-left: 2px solid oklch(from var(--color-base-content) l c h / 0.2);
+  padding-left: 1rem;
+  font-style: italic;
+  color: oklch(from var(--color-base-content) l c h / 0.7);
+}
+
+/* Callouts — calm by default; color is reserved for warning/important (color is signal). */
+.guide-callout {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-radius: 0.6rem;
+  background: var(--glass-inset-bg);
+  border: 1px solid var(--glass-border);
+}
+.guide-callout-icon { flex: none; margin-top: 0.05rem; color: oklch(from var(--color-base-content) l c h / 0.5); }
+.guide-callout-body > * + * { margin-top: 0.5rem; }
+.guide-callout[data-callout="warning"] { border-color: oklch(from var(--color-warning) l c h / 0.4); }
+.guide-callout[data-callout="warning"] .guide-callout-icon { color: var(--color-warning); }
+.guide-callout[data-callout="important"] { border-color: oklch(from var(--color-primary) l c h / 0.4); }
+.guide-callout[data-callout="important"] .guide-callout-icon { color: var(--color-primary); }

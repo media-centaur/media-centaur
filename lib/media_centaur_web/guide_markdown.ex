@@ -3,15 +3,19 @@ defmodule MediaCentaurWeb.GuideMarkdown do
   Renders guide chapter markdown to HEEx via Earmark's AST.
 
   We walk the AST ourselves (rather than emitting Earmark's HTML string) so we
-  control styling, add heading anchors for deep-linking and the on-this-page
-  outline, turn GitHub-style alert blockquotes (`> [!NOTE]`) into styled
-  callouts, and keep internal cross-links as in-app live navigation while
-  opening external links in a new tab.
+  control the markup: heading anchors for deep-linking and the on-this-page
+  outline, GitHub-style alert blockquotes (`> [!NOTE]`) as calm callouts, and
+  internal cross-links as in-app live navigation while external links open in a
+  new tab. Reading typography lives in the `.guide-prose` CSS block (a
+  coordinated multi-element system), so the elements here carry semantic tags
+  rather than per-element utility classes.
 
   This is a web-layer presentation concern; the `MediaCentaur.Guide` context
   stays data-only and hands us the raw markdown body.
   """
   use Phoenix.Component
+
+  import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
   @doc "Render a markdown string to a HEEx rendered struct."
   def to_heex(markdown) when is_binary(markdown) do
@@ -19,10 +23,17 @@ defmodule MediaCentaurWeb.GuideMarkdown do
     assigns = %{nodes: ast}
 
     ~H"""
-    <div class="guide-prose space-y-4 leading-relaxed text-base-content/85">
+    <div class="guide-prose">
       <.render_node :for={n <- @nodes} node={n} />
     </div>
     """
+  end
+
+  attr :markdown, :string, required: true
+
+  @doc "Preview/story wrapper: render a markdown string as styled guide prose."
+  def prose(assigns) do
+    ~H"{to_heex(@markdown)}"
   end
 
   @doc "Extract the on-this-page outline as `[{level, text, anchor}]` for h2/h3."
@@ -46,7 +57,7 @@ defmodule MediaCentaurWeb.GuideMarkdown do
     assigns = assign(assigns, tag: tag, anchor: slugify(node_text(children)), children: children)
 
     ~H"""
-    <.dynamic_tag tag_name={@tag} id={@anchor} class={heading_class(@tag)}>
+    <.dynamic_tag tag_name={@tag} id={@anchor}>
       <.render_node :for={c <- @children} node={c} />
     </.dynamic_tag>
     """
@@ -55,11 +66,14 @@ defmodule MediaCentaurWeb.GuideMarkdown do
   defp render_node(%{node: {"blockquote", _a, children, _m}} = assigns) do
     case callout_kind(children) do
       {kind, rest} ->
-        assigns = assign(assigns, kind: kind, rest: rest)
+        assigns = assign(assigns, kind: kind, icon: callout_icon(kind), rest: rest)
 
         ~H"""
-        <aside data-callout={@kind} class={callout_class(@kind)}>
-          <.render_node :for={c <- @rest} node={c} />
+        <aside class="guide-callout" data-callout={@kind}>
+          <.icon name={@icon} class="guide-callout-icon size-4" />
+          <div class="guide-callout-body">
+            <.render_node :for={c <- @rest} node={c} />
+          </div>
         </aside>
         """
 
@@ -67,7 +81,7 @@ defmodule MediaCentaurWeb.GuideMarkdown do
         assigns = assign(assigns, children: children)
 
         ~H"""
-        <blockquote class="border-l-2 border-base-content/20 pl-4 italic">
+        <blockquote>
           <.render_node :for={c <- @children} node={c} />
         </blockquote>
         """
@@ -79,50 +93,22 @@ defmodule MediaCentaurWeb.GuideMarkdown do
     assigns = assign(assigns, href: href, children: children, internal: internal?(href))
 
     ~H"""
-    <.link
-      :if={@internal}
-      navigate={@href}
-      class="text-primary underline underline-offset-2 hover:opacity-80"
-    >
+    <.link :if={@internal} navigate={@href}>
       <.render_node :for={c <- @children} node={c} />
     </.link>
-    <a
-      :if={!@internal}
-      href={@href}
-      target="_blank"
-      rel="noreferrer"
-      class="text-primary underline underline-offset-2 hover:opacity-80"
-    >
+    <a :if={!@internal} href={@href} target="_blank" rel="noreferrer">
       <.render_node :for={c <- @children} node={c} />
     </a>
     """
   end
 
-  defp render_node(%{node: {"code", _a, children, _m}} = assigns) do
-    assigns = assign(assigns, children: children)
-
-    ~H"""
-    <code class="font-mono text-sm px-1 py-0.5 rounded bg-base-content/10">
-      <.render_node :for={c <- @children} node={c} />
-    </code>
-    """
-  end
-
-  defp render_node(%{node: {"pre", _a, children, _m}} = assigns) do
-    assigns = assign(assigns, children: children)
-
-    ~H"""
-    <pre class="font-mono text-sm p-3 rounded bg-base-300 overflow-x-auto"><.render_node :for={c <- @children} node={c} /></pre>
-    """
-  end
-
-  # Generic passthrough for p, ul, ol, li, strong, em, table, thead, tbody,
-  # tr, th, td, hr, etc.
+  # Generic passthrough for p, ul, ol, li, strong, em, code, pre, table, thead,
+  # tbody, tr, th, td, hr, etc. — all styled by `.guide-prose` in CSS.
   defp render_node(%{node: {tag, _a, children, _m}} = assigns) do
     assigns = assign(assigns, tag: tag, children: children)
 
     ~H"""
-    <.dynamic_tag tag_name={@tag} class={generic_class(@tag)}>
+    <.dynamic_tag tag_name={@tag}>
       <.render_node :for={c <- @children} node={c} />
     </.dynamic_tag>
     """
@@ -157,6 +143,11 @@ defmodule MediaCentaurWeb.GuideMarkdown do
     end
   end
 
+  defp callout_icon("warning"), do: "hero-exclamation-triangle-mini"
+  defp callout_icon("important"), do: "hero-exclamation-circle-mini"
+  defp callout_icon("tip"), do: "hero-light-bulb-mini"
+  defp callout_icon(_), do: "hero-information-circle-mini"
+
   # Drop the `[!KIND]` marker from the first text run of the first paragraph.
   defp strip_marker(children) do
     Enum.map(children, fn
@@ -176,21 +167,4 @@ defmodule MediaCentaurWeb.GuideMarkdown do
     |> String.replace(~r/[^a-z0-9]+/u, "-")
     |> String.trim("-")
   end
-
-  defp heading_class("h2"), do: "text-xl font-semibold text-base-content pt-4 scroll-mt-20"
-  defp heading_class("h3"), do: "text-lg font-semibold text-base-content pt-2 scroll-mt-20"
-  defp heading_class(_), do: "font-semibold text-base-content scroll-mt-20"
-
-  defp callout_class("warning"), do: "rounded-md border border-warning/40 bg-warning/10 p-3 space-y-2"
-
-  defp callout_class("tip"), do: "rounded-md border border-success/40 bg-success/10 p-3 space-y-2"
-  defp callout_class(_), do: "rounded-md border border-info/40 bg-info/10 p-3 space-y-2"
-
-  defp generic_class("ul"), do: "list-disc pl-5 space-y-1"
-  defp generic_class("ol"), do: "list-decimal pl-5 space-y-1"
-  defp generic_class("table"), do: "w-full text-sm border-collapse"
-  defp generic_class("th"), do: "text-left font-semibold border-b border-base-content/20 p-2"
-  defp generic_class("td"), do: "border-b border-base-content/10 p-2"
-  defp generic_class("strong"), do: "font-semibold text-base-content"
-  defp generic_class(_), do: nil
 end
