@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.GuideLive do
       <div class="flex gap-8 max-w-[74rem]" data-page-behavior="guide" data-nav-default-zone="guide">
         <nav
           data-nav-zone="guide_chapters"
-          class="w-48 shrink-0 sticky top-6 self-start space-y-4 thin-scrollbar overflow-y-auto"
+          class="w-48 shrink-0 sticky top-6 self-start space-y-4 px-1.5 thin-scrollbar overflow-y-auto"
           style="max-height: calc(100vh - 3rem)"
         >
           <div :for={{part, chapters} <- @parts}>
