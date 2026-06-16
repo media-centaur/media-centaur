@@ -102,7 +102,17 @@ defmodule MediaCentaurWeb.GuideMarkdown do
     """
   end
 
-  # Generic passthrough for p, ul, ol, li, strong, em, code, pre, table, thead,
+  # Code blocks: render tight (no surrounding whitespace). `<pre>` preserves
+  # whitespace, so the generic clause's template newline + indentation would
+  # show as a blank first line and an indented first row. Emit the code text
+  # directly on one line and trim the trailing newline Earmark includes.
+  defp render_node(%{node: {"pre", _a, children, _m}} = assigns) do
+    assigns = assign(assigns, code: children |> node_text() |> String.trim_trailing())
+
+    ~H"<pre><code>{@code}</code></pre>"
+  end
+
+  # Generic passthrough for p, ul, ol, li, strong, em, code, table, thead,
   # tbody, tr, th, td, hr, etc. — all styled by `.guide-prose` in CSS.
   defp render_node(%{node: {tag, _a, children, _m}} = assigns) do
     assigns = assign(assigns, tag: tag, children: children)
