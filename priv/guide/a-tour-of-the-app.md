@@ -4,48 +4,37 @@ part: Orientation
 slug: a-tour-of-the-app
 order: 3
 ---
-Media Centaur is a handful of pages, reached from a sidebar on the left. They fall into two
-groups: a **Watch** group for using your library, and a **System** group for managing it.
+Media Centaur is a handful of pages reached from a sidebar on the left, in two groups: a
+**Watch** group for using your library and a **System** group for managing it.
 
 ## The pages
 
-- **Home** (`/`) — the landing page: a hero title, Continue Watching, what's coming up, and
-  recently added.
-- **Library** (`/library`) — your full catalog as a poster grid, with type tabs, sorting,
-  and a text filter. Selecting a title opens its detail overlay.
-- **Upcoming** (`/upcoming`) — a time-ordered forecast of releases you're tracking, with
-  their status and auto-grab controls.
-- **Watch history** (`/history`) — your viewing stats, an activity heatmap, and a filterable
-  list of everything you've watched.
-- **Downloads** (`/download`) — search, download plans, active pursuits, and history in one
-  place. It only appears in the nav once Prowlarr and a download client are configured.
-- **Review** (`/review`) — files that couldn't be identified confidently, waiting for you to
-  match them. See [How identification works](/guide/how-identification-works).
-- **Status** (`/status`) — the operator dashboard: subsystem health, pipeline activity,
-  storage, integrations, and playback, with drill-ins for the details.
-- **Settings** (`/settings`) — credentials, service toggles and actions, and the setup tour.
+| Page | Route | What it's for |
+|---|---|---|
+| Home | `/` | Landing page: a hero title, Continue Watching, what's coming up, recently added |
+| Library | `/library` | Your full catalog as a poster grid — type tabs, sort, text filter; select a title for its detail overlay |
+| Upcoming | `/upcoming` | Time-ordered forecast of releases you're tracking, with status and auto-grab controls |
+| Watch history | `/history` | Viewing stats, an activity heatmap, and a filterable list of everything watched |
+| Downloads | `/download` | Search, download plans, active pursuits, and history. Appears once Prowlarr + a download client are configured |
+| Review | `/review` | Files that couldn't be identified confidently, waiting for you to match them |
+| Status | `/status` | Operator dashboard: subsystem health, pipeline, storage, integrations, playback — with drill-ins |
+| Settings | `/settings` | Credentials, service toggles and actions, the setup tour, and the link to this guide |
 
-Some pages are places you *act* — Library, Downloads, Review, Settings. Others you mostly
-*read* — Watch history and Status — though Status rewards clicking into its tiles.
+Library, Downloads, Review, and Settings are places you *act*; Watch history and Status are
+mostly *read* — though Status rewards clicking into its tiles.
 
 ## The Console, from anywhere
 
-Press the backtick key — `` ` `` — on any page and the Console drawer slides down. Every
-subsystem's logs flow into it, tagged by component and filterable live; Escape closes it.
-The same logs have a full-page home at `/console`, with a tab for the systemd journal
-alongside the app's own output. When you're trying to understand what the app just did,
-this is the first place to look.
+Press the backtick — `` ` `` — on any page to drop the Console drawer; Escape closes it.
+Every subsystem's logs flow into it, tagged by component and filterable live, with a tab for
+the systemd journal alongside the app's own output. The same logs have a full-page home at
+`/console`. When you want to know what the app just did, look here first.
+
+The whole app is navigable by keyboard and gamepad (see
+[Keyboard & gamepad](/guide/keyboard-and-gamepad)). This guide lives at `/guide`, linked from
+Settings → System rather than the nav.
 
 > [!TIP]
-> Two things people miss for months. First, the **Console is global** — the backtick works
-> on every page, not just Settings or Status. Second, the **Status tiles are clickable**: a
-> subsystem tile opens a detail pane, and an incident inside it opens its full report. Most
-> of the depth on Status is behind a click.
-
-The whole app is navigable by keyboard and gamepad — arrow keys move focus, Enter selects,
-Escape goes back — and the bindings are remappable under Settings → Controls. This guide
-lives at `/guide`; it's linked from Settings → System rather than the nav, so it stays out
-of the way until you want it.
-
-In short: a Watch group for your library and a System group to manage it, the Console a
-backtick away from anywhere, and more depth behind the Status tiles than they first show.
+> Two things people miss for months: the **Console is global** — the backtick works on every
+> page, not just Settings or Status — and the **Status tiles are clickable**, opening a detail
+> pane and, from there, an incident's full report. Most of Status's depth is behind a click.

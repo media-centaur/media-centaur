@@ -4,46 +4,32 @@ part: Orientation
 slug: first-run
 order: 2
 ---
-On first launch the app sends you to the setup tour at `/setup`. It walks through the
-handful of things Media Centaur needs to know about your system, tests each one, and shows
-you what's working. You can re-run it any time from Settings → System → *Run setup tour* —
-and each step is a deep link, so you can jump straight back to the one you need.
+On first launch the app opens the setup tour at `/setup`. It tests each thing Media Centaur
+needs and shows you what's working. Re-run it any time from Settings → System → *Run setup
+tour*; each step is a deep link, so you can jump straight to one.
 
-The tour has eight steps. Two are required before the app is useful; the rest unlock
-optional capabilities.
+A release build listens on port **2160**, a development build on **1080**.
 
-## The required steps
+## The steps
 
-- **Media directories** — the folders your video files live in. Without at least one, the
-  library stays empty. This is what the watcher scans and what feeds identification.
-- **TMDB** — a free API key from [themoviedb.org](https://www.themoviedb.org/settings/api).
-  It identifies your titles and downloads artwork, and it's what powers release tracking,
-  the Review queue, and in-app search. The tour won't advance past this step until the
-  connection test passes.
+Two steps are required; the rest are optional and each unlocks one capability.
 
-## The optional steps
+| Step | Required? | Configure | Unlocks |
+|---|---|---|---|
+| Media directories | **Yes** | The folders your video files live in | File discovery — the watcher scans these |
+| TMDB | **Yes** (test must pass) | A free API key | Identification, artwork, release tracking, Review queue, in-app search |
+| mpv | No | Path to the mpv binary (auto-detected) | Playback — the Play button |
+| ffprobe | No | Path to ffprobe (ships with ffmpeg) | Reading embedded audio/subtitle tracks → language-aware track selection |
+| Prowlarr | No | Base URL + API key | In-app release search |
+| Download client | No | qBittorrent URL + credentials | Download progress and auto-grab |
 
-Each is skippable, and each unlocks something specific:
-
-- **mpv** — the player binary. Without it, the Play button does nothing. The tour
-  auto-detects it in the usual locations.
-- **ffprobe** — ships with ffmpeg. It reads the audio and subtitle tracks embedded in your
-  files, which is what makes language-aware track selection work. See
-  [How identification works](/guide/how-identification-works).
-- **Prowlarr** — an indexer manager. Configuring it turns on in-app release search.
-- **Download client** — qBittorrent today. With it, the app tracks download progress and
-  drives acquisition end to end.
+Get a TMDB key at [themoviedb.org](https://www.themoviedb.org/settings/api). The tour won't
+advance past the TMDB step until its connection test passes; the media-directories step needs
+at least one folder. Optional steps can be skipped and configured later in Settings.
 
 > [!TIP]
 > ffprobe is the step most people skip, and the one that quietly costs the most. mpv plays
 > fine without it, so skipping it feels safe — but then the app only sees sidecar `.srt`
 > files, never the subtitle and audio tracks inside your videos. If track selection isn't
-> offering languages you know are in a file, this is usually why.
-
-## Where it's listening
-
-A release build listens on port **2160**; a development build uses **1080**. The port is
-configurable, but those are the defaults you'll find it on.
-
-In short: media directories and a TMDB key get you a working library; mpv adds playback;
-and the optional steps — ffprobe especially — are where most of the unused capability hides.
+> offering languages you know are in a file, this is usually why. See
+> [How identification works](/guide/how-identification-works).
