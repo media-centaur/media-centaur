@@ -13,6 +13,14 @@ defmodule MediaCentaurWeb.GuideMarkdownTest do
     assert out =~ "How it works"
   end
 
+  test "fenced code blocks render tight — no leading blank line or indent" do
+    out = html("Install:\n\n```sh\ngit clone x\ncp a b\n```")
+    [_, code] = Regex.run(~r/<code[^>]*>(.*?)<\/code>/s, out)
+    assert String.starts_with?(code, "git clone"), "code began with whitespace: #{inspect(code)}"
+    refute String.starts_with?(code, "\n")
+    refute String.ends_with?(code, "\n")
+  end
+
   test "renders inline code and an internal cross-link" do
     out = html("See `ffprobe` and [the queue](/guide/the-review-queue).")
     assert out =~ "<code"
