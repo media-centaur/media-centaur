@@ -36,14 +36,31 @@ Red→green; 219 pursuit tests pass (existing pack/movie behaviour intact).
 This stops the **false-satisfy** (the pursuit no longer reports
 "satisfied" without delivering E29).
 
-**Remaining Phase 1:** (a) record-tried-on-no-new-coverage in the
-planner/commit path so `DropPlanner` stops re-grabbing the same wrong-cour
-pack (the active pursuit now claims E29, which already blocks *new* plans,
-but the pursuit itself must not re-grab the same useless release); (b) the
-one-time reconcile sweep; (c) dev re-verify. NB: a pursuit that can only
-ever find the wrong-cour pack stays unsatisfiable until **Phase 2**
-(numbering) makes the real cour-2 releases findable — that's expected and
-correct (honest "still looking" beats a false "got it").
+**Phase 1 is effectively complete with that one fix.** Investigation of
+the lifecycle (`IdentityVerifier`, `Policy.evaluate/1`) shows the re-grab
+loop is now closed by three independent gates: (1) no false-satisfy
+(reconciler fix); (2) the active pursuit *claims* E29–E38 so `DropPlanner`
+creates no new plans; (3) `Policy.evaluate` returns `:no_action` for a
+succeeded-but-unsatisfied unit, so the pursuit never re-grabs. The
+`IdentityVerifier` primary path was already identity-strict
+(`landed_unit` matches the published episode's exact `(season, episode)`),
+so only the safety net needed the guard.
+
+**Reclassified to Phase 2 (not a standalone Phase-1 item):**
+*record-tried-on-no-new-coverage* and the *solver assigning a "Season 01
+COMPLETE" pack to cover E29* (coverage-by-name in the **planner**). With
+the loop already stopped, these only matter once re-search/solving is
+numbering-aware — so they belong with the Phase-2 adapters, not as a
+symptom-patch now.
+
+**Interim behaviour (acceptable, honest):** a mis-grabbed episode unit
+sits active+claimed at `:no_action` — "still pending," never falsely
+"got it" — until Phase 2 makes the real cour-2 releases findable. After a
+dev recompile the solver may grab the wrong S1 pack *once* more (planner
+coverage-by-name), then settle into that quiet pending state; no loop.
+
+**Still open:** dev re-verify — the `mc_dev` node runs pre-fix code
+(manual iex; recompile/restart needed to load the guard).
 
 ADR-058 accepted; design approved. Reconciliation-first so the loop stops
 on the real library before any schema/identity refactor.
@@ -68,32 +85,29 @@ on the real library before any schema/identity refactor.
 Test-first throughout (red → fix → green). Sequenced so each phase is
 shippable and the data churn stops first.
 
-### Phase 1 — Coverage-by-contents (stop the loop; no schema churn)
+### Phase 1 — Coverage-by-contents (stop the loop; no schema churn) ✅
 
 The narrowest fix that ends the re-grab loop on real data, independent
-of the identity refactor.
+of the identity refactor. **Shipped** (commit `37ab987e`).
 
-1. **Red:** a unit/want for `S01E29` must NOT become satisfied when a
-   landed pack imported only E1–E28. Test against `LibraryReconciler`
-   (`lib/media_centaur/acquisition/pursuits/library_reconciler.ex`,
-   `landed_file/5` / `tmdb_match/2`).
-2. **Satisfaction is identity-present, not target-succeeded.** A unit
-   satisfies iff *its own* canonical identity is present in the library
-   (`Library.find_present_episode/3`); a `succeeded` target never folds a
-   unit whose identity is still absent. Fix the satisfy path so target
-   landing ≠ unit satisfied.
-3. **Red:** the planner records a delivered-nothing release in the unit's
-   `tried_release_guids` so the next tick excludes it.
-4. **Record-tried-on-no-new-coverage** in the commit/reconcile path
-   (`plans/commit_plan.ex`, `jobs/run_plan.ex` `excluded_release_guids`),
-   so `DropPlanner` stops re-selecting the wrong pack.
-5. **One-time reconcile** (idempotent maintenance action / sweep) that
-   re-evaluates open wants against current library presence + tried
-   releases, clearing the stuck Frieren churn. Mirror the
-   `Wants.satisfy_present_wants/1` seam.
-6. **Verify on dev** via the `mc_dev` node: Frieren no longer re-grabs the
-   `Season 01 [2023-2024]` pack; the 10 wants are no longer "due" against
-   a release that can't satisfy them.
+1. ✅ **Red→green:** a unit for `S01E29` is not satisfied when a landed
+   pack imported only E1–E28 (`library_reconciler_test.exs`,
+   "coverage-by-contents").
+2. ✅ **Satisfaction is identity-present, not folder-present.** Guard in
+   `LibraryReconciler.landed_file/5`: a TMDB-tv unit with `(season,
+   episode)` is satisfied **only** by `tmdb_match` (its own episode in the
+   library); the coarse content-path/release-folder fallbacks stay for
+   identity-less units (movies, `prowlarr_query`). The `IdentityVerifier`
+   primary path was already identity-strict, so only the safety net needed
+   the guard. 219 pursuit tests green; existing pack/movie behaviour intact.
+3. **Dev re-verify** (still open): recompile the `mc_dev` node and confirm
+   the false-satisfy is gone and pursuits settle to pending, not looping.
+
+*Reclassified to Phase 2* (no standalone loop remains after the gates
+above): record-tried-on-no-new-coverage, and the solver's coverage-by-name
+(assigning a `Season 01 COMPLETE` pack to cover E29). The one-time
+reconcile sweep is dropped — the wants are correctly open; the real fix is
+findability in Phase 2.
 
 *Done when:* red→green reconciler + planner tests; dev no longer
 re-selects the wrong pack; no schema migration required.
@@ -116,11 +130,20 @@ re-selects the wrong pack; no schema migration required.
 4. **query-out adapter** — identity-set → indexer search terms emitting
    absolute + season/episode variants so cour-2 releases are *findable*
    (`Corpus`/`RunPlan` search-term construction).
+5. **match-in coverage-by-contents in the *planner*** — the solver must
+   credit a pack with the identities it *actually* covers (by absolute
+   range / air-window), not by its season label, so a `Season 01
+   [2023-2024] COMPLETE` pack is never assigned to cover E29
+   (`planner.ex` consolidation/assignment). *(folded in from Phase 1)*
+6. **record-tried-on-no-new-coverage** — once re-search is numbering-aware,
+   a release that delivered nothing for a unit is added to
+   `tried_release_guids` so it's excluded on the next attempt. *(folded in
+   from Phase 1; harmless no-op until re-search exists)*
 
 *Done when:* identity module + adapters with tests; a cour-2 file binds
 to the correct TMDB episode; a search for E29 surfaces absolute-named
-releases; the broadcast-season best-effort limit is logged, not
-mis-bound.
+releases; the solver never assigns a pack outside its real coverage; the
+broadcast-season best-effort limit is logged, not mis-bound.
 
 ### Phase 3 — Composite pursuit + want↔pursuit linkage
 
