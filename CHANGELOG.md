@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.99.0 — 2026-06-17
+
+### New
+
+- **Interface scale.** Resize the whole interface to taste — handy from across the room or on a high-DPI display. Pick a scale from 80% to 150% under **Settings → Preferences**; the change applies instantly, no restart.
+
 ## v0.98.3 — 2026-06-16
 
 ### Improved
