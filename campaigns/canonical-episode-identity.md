@@ -130,16 +130,33 @@ re-selects the wrong pack; no schema migration required.
    `Frieren S2 - 01`) bind to E29–E38 where resolvable.
 4. **query-out adapter** — identity-set → indexer search terms emitting
    absolute + season/episode variants so cour-2 releases are *findable*
-   (`Corpus`/`RunPlan` search-term construction).
-5. **match-in coverage-by-contents in the *planner*** — the solver must
-   credit a pack with the identities it *actually* covers (by absolute
-   range / air-window), not by its season label, so a `Season 01
-   [2023-2024] COMPLETE` pack is never assigned to cover E29
-   (`planner.ex` consolidation/assignment). *(folded in from Phase 1)*
+   (`LadderTerms.episode_terms/2` is the seam; for season 1 the absolute
+   ordinal == episode number, counts-free, so `Frieren 29` needs no TMDB
+   lookup). **Only net-positive *after* step 5** — alone it adds search
+   noise without changing the grab (the planner still prefers the broad
+   pack), so land it with/after 5.
+5. **match-in coverage-by-air-window in the *planner* — the outcome-changer.**
+   `ReleaseCoverage` (in `Search`) classifies scope from the release
+   *name only* and has no episode air-dates, so a `Season 01 [2023-2024]
+   COMPLETE` pack classifies as "all of season 1" and the planner credits
+   it with E29. Fix needs TWO new inputs threaded in: (a) parse the
+   release's **year/date window** (`[2023-2024]`) from the name; (b) each
+   wanted unit's **air-date** (from TMDB, threaded plan→units→planner).
+   The planner then intersects: a pack only covers units whose air-date
+   falls in its window → E29 (2026) drops out of the 2023-2024 pack.
+   This is the net-positive step (stops wrong grabs even before 4 makes
+   the right release findable). Touches `Search.ReleaseCoverage`,
+   `Plan`/`PlanUnit` (carry air-date), `planner.ex` mapping. **Intricate,
+   real-pipeline — do as a focused pass, test-first.**
 6. **record-tried-on-no-new-coverage** — once re-search is numbering-aware,
    a release that delivered nothing for a unit is added to
    `tried_release_guids` so it's excluded on the next attempt. *(folded in
    from Phase 1; harmless no-op until re-search exists)*
+
+**Phase 2 sub-sequencing:** 2 (routing, safe) → 5 (air-window coverage,
+the outcome-changer) → 4 (query-out, now net-positive) → 3 (parse-in for
+binding landed cour-2 files) → 6. Step 5 is the load-bearing, intricate
+one and gates 4.
 
 *Done when:* identity module + adapters with tests; a cour-2 file binds
 to the correct TMDB episode; a search for E29 surfaces absolute-named
