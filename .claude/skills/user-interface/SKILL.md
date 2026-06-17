@@ -377,3 +377,9 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 - Nested `data-nav-zone` containers
 - Badge borders/fills on status labels (use plain colored text)
 - Custom CSS for one-off styling (use Tailwind utilities)
+- `phx-value-value` on a `<button>`/`<input>` — the key `value` collides with the element's native `value` DOM property, which LiveView merges into the click payload and clobbers to `""`. The render looks right and a `render_click` test passes; it only breaks on a real click. Use a descriptive key (`phx-value-choice`, `phx-value-id`). Enforced by Credo **MC0021**. (`phx-value-name` does **not** collide — only `value`.)
+- Relying on `<button>` for a pointer cursor — Tailwind v4 Preflight does **not** set `cursor: pointer` on buttons; add `cursor-pointer` explicitly, or a styled button feels inert on hover.
+
+### Enum settings: `settings_choice`
+
+For a pick-one-of-N setting, use `MediaCentaurWeb.SettingsLive.Components.settings_choice/1` (the segmented sibling of `settings_row`) — focusable nav items with `aria-pressed`, the right control for a d-pad/10-foot UI where a native `<select>` is hostile. Don't hand-roll a third variant.
