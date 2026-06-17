@@ -188,6 +188,7 @@
           {MediaCentaur.Credo.Checks.ModalPanelNoClickAway, []},
           {MediaCentaur.Credo.Checks.ModalBackdropViaComponent, []},
           {MediaCentaur.Credo.Checks.RawButtonClass, []},
+          {MediaCentaur.Credo.Checks.NoPhxValueValue, []},
           {MediaCentaur.Credo.Checks.RawBadgeClass, []},
           {MediaCentaur.Credo.Checks.StorybookCoverage, []},
           {MediaCentaur.Credo.Checks.TypedComponentAttrs, []},

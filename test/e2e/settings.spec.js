@@ -158,3 +158,48 @@ test.describe("settings navigation", () => {
     await expectContext(page, "sections")
   })
 })
+
+test.describe("interface scale picker", () => {
+  // Regression guard. `phx-value-value` collided with the <button> native
+  // `value` property, so clicking the scale picker sent %{"value" => ""} and
+  // silently did nothing. A `render_click/3` LiveViewTest can't catch this —
+  // it reads the attribute off the DOM and never simulates the browser's
+  // native-value merge. Only a real click can. (The author-time side is
+  // guarded by Credo MC0021 NoPhxValueValue; this guards the behaviour.)
+  test.beforeEach(async ({ navigateTo }) => {
+    await navigateTo("/settings?section=preferences")
+  })
+
+  test.afterEach(async ({ page }) => {
+    // Leave the shared instance at 100% so a stuck scale doesn't zoom the
+    // rest of the suite.
+    await page.getByRole("button", { name: "100%", exact: true }).click()
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          document.documentElement.style.getPropertyValue("--ui-scale"),
+        ),
+      )
+      .toBe("1.0")
+  })
+
+  test("clicking a scale actually rescales the shell", async ({ page }) => {
+    await page.getByRole("button", { name: "100%", exact: true }).waitFor()
+
+    await page.getByRole("button", { name: "125%", exact: true }).click()
+
+    // User-visible effect: the whole shell scales via --ui-scale on <html>.
+    await expect
+      .poll(() =>
+        page.evaluate(() =>
+          document.documentElement.style.getPropertyValue("--ui-scale"),
+        ),
+      )
+      .toBe("1.25")
+
+    // And the picker reflects the now-active option.
+    await expect(
+      page.locator('button[phx-click="set_ui_scale"][aria-pressed="true"]'),
+    ).toHaveText("125%")
+  })
+})
