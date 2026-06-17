@@ -434,7 +434,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
       assert recipe.search_queries == ["Sample Movie 2010"]
     end
 
-    test "TV episode recipe carries the SxxExx query plus the season-1 absolute fallback" do
+    test "TV episode recipe carries the episode-specific query only" do
       pursuit =
         insert_pursuit(%{
           tmdb_type: "tv",
@@ -443,10 +443,8 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
           episode_number: 3
         })
 
-      # Season 1: the absolute ordinal == episode, so the worker also tries
-      # the `Title N` form (ongoing-anime release naming) when SxxExx misses.
       assert {:ok, %PursuitHeader{recipe: recipe}} = Pursuits.header_for(pursuit.id)
-      assert recipe.search_queries == ["Sample Show S01E03", "Sample Show 3"]
+      assert recipe.search_queries == ["Sample Show S01E03"]
     end
   end
 
