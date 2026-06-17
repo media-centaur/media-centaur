@@ -75,15 +75,19 @@ re-plan→grab-wrong-pack→re-search→reject→exhaust loop):
    episode), tried only when SxxExx misses. *(Seam was QueryBuilder, not
    LadderTerms as first planned — LadderTerms is the bulk plan ladder;
    PursueTarget's re-search uses Recipe→QueryBuilder.)*
-3. ⏳ **match-in** (`Search.TitleMatcher.coverage/2`) — REQUIRED next. It
-   matches `parsed.season/episode == criteria.season/episode`, so an
-   absolute-named result (`Frieren - 29`, parses to season nil) is
-   *rejected* for the S01E29 unit. Must recognize absolute numbering →
-   map to the TMDB episode. Without it, query-out finds `Frieren 29` then
-   throws it away.
-4. ⏳ **parse-in** (library file binding) — when the absolute-named file
-   lands, bind it to TMDB S01E29 (same absolute→canonical mapping on the
-   library edge).
+3. ⏳ **match-in** (`Search.TitleMatcher.matches?/2` → `Parser.parse`) and
+4. ⏳ **parse-in** (library ingest → `Parser.parse`) — **share one
+   foundation: the `Parser` recognizing absolute numbering.** `matches?/2`
+   requires `parsed.season == criteria.season_number`, and `Frieren - 29`
+   parses to season nil → rejected; the library binder has the same gap.
+   So the next pass is: (a) a Parser rule for absolute anime numbering
+   (`Parser.Result` gains an absolute notion), then (b) TitleMatcher +
+   library-binder map "absolute N, no season" → season-1 episode N
+   (counts-free; mirrors query-out). **Must follow the `parser-rule`
+   discipline: grounded in REAL observed filenames (append-only tests,
+   whole suite stays green) — not guessed patterns.** Start by sampling
+   how the dev Frieren cour-2 releases/files are actually named (Prowlarr
+   search on `mc_dev`, and the library file paths).
 
 Deferred (optional): air-window planner coverage (avoid grabbing the
 wrong pack in the first place); multi-season absolute (needs counts
