@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.99.1 — 2026-06-17
+
+### Fixed
+
+- **The home page hero no longer fills the whole screen at larger interface scales.** With Interface scale set above 100%, the featured title's artwork could grow past the viewport and push Continue Watching below the fold. It now stays correctly sized at every scale.
+- **A tracked show is no longer marked as acquired when the download didn't actually contain the episode you were waiting for.** A grab that delivered different episodes than requested — for example a season pack covering an earlier run of episodes — could be treated as complete even though the wanted episode never arrived, leaving it stuck. An episode now only counts as acquired when that exact episode is present in your library.
+
 ## v0.99.0 — 2026-06-17
 
 ### New
