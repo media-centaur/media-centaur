@@ -1189,9 +1189,15 @@ defmodule MediaCentaur.Showcase do
     # catalog, so the "pending review" state is internally consistent
     # (these aren't already in the library) and the review UI renders
     # real artwork instead of broken-image boxes.
+    # All four are confirmed public-domain by a non-aggregator source
+    # (non-renewal or defective notice). His Girl Friday (1940) and Detour
+    # (1945) were previously used here but their PD status rests only on
+    # consensus listings — swapped for A Farewell to Arms (1932, non-renewal
+    # per Pierce, *Film History* 2007) and Teenagers from Outer Space (1959,
+    # non-renewal) to hold the showcase's strict every-visible-string bar.
     stranger_46 = tmdb_poster_path(client, "The Stranger", 1946)
-    his_girl_friday = tmdb_poster_path(client, "His Girl Friday", 1940)
-    detour = tmdb_poster_path(client, "Detour", 1945)
+    farewell_32 = tmdb_poster_path(client, "A Farewell to Arms", 1932)
+    teenagers_59 = tmdb_poster_path(client, "Teenagers from Outer Space", 1959)
     doa = tmdb_poster_path(client, "D.O.A.", 1949)
 
     [
@@ -1226,27 +1232,27 @@ defmodule MediaCentaur.Showcase do
             "poster_path" => stranger_46
           },
           %{
-            "tmdb_id" => 41_631,
-            "title" => "His Girl Friday",
-            "year" => "1940",
+            "tmdb_id" => 22_649,
+            "title" => "A Farewell to Arms",
+            "year" => "1932",
             "confidence" => 0.75,
-            "poster_path" => his_girl_friday
+            "poster_path" => farewell_32
           }
         ]
       },
       # Low-confidence match: clean filename but the parser's heuristic
       # isn't confident enough to auto-approve.
       %{
-        file_path: "/showcase/movies/Detour.1945.mkv",
+        file_path: "/showcase/movies/Teenagers.From.Outer.Space.1959.mkv",
         media_directory: "/showcase/movies",
-        parsed_title: "Detour",
-        parsed_year: 1945,
+        parsed_title: "Teenagers from Outer Space",
+        parsed_year: 1959,
         parsed_type: "movie",
-        tmdb_id: 25_660,
+        tmdb_id: 35_139,
         confidence: 0.58,
-        match_title: "Detour",
-        match_year: "1945",
-        match_poster_path: detour
+        match_title: "Teenagers from Outer Space",
+        match_year: "1959",
+        match_poster_path: teenagers_59
       },
       # Mismatch / scene-group noise: parser latched onto an unrelated
       # film with very low confidence.

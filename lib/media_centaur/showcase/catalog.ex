@@ -54,9 +54,23 @@ defmodule MediaCentaur.Showcase.Catalog do
         content_url: "/showcase/movies/Cosmos Laundromat (2015).mkv"
       },
       %{title: "Spring", year: 2019, content_url: "/showcase/movies/Spring (2019).mkv"},
+      # Newer Blender Studio shorts (CC-BY 4.0, first-party license) — modern
+      # polish to contrast the silents. Sprite Fright has the strongest
+      # artwork; Coffee Run brings vibrant colour.
+      %{
+        title: "Sprite Fright",
+        year: 2021,
+        content_url: "/showcase/movies/Sprite Fright (2021).mkv"
+      },
+      %{title: "Coffee Run", year: 2020, content_url: "/showcase/movies/Coffee Run (2020).mkv"},
 
       # Classic silent-era public domain.
       %{title: "Metropolis", year: 1927, content_url: "/showcase/movies/Metropolis (1927).mkv"},
+      # The General (1926) — PD by two mechanisms: pre-1930 term expiry and
+      # documented non-renewal (Fishman, *The Public Domain*). Iconic
+      # silent comedy. Use an original print, not the 1953 Rohauer re-edit
+      # (separately copyrighted).
+      %{title: "The General", year: 1926, content_url: "/showcase/movies/The General (1926).mkv"},
       %{title: "Nosferatu", year: 1922, content_url: "/showcase/movies/Nosferatu (1922).mkv"},
       %{
         title: "The Cabinet of Dr. Caligari",
@@ -91,11 +105,25 @@ defmodule MediaCentaur.Showcase.Catalog do
         content_url: "/showcase/movies/The Last Man on Earth (1964).mkv"
       },
 
-      # CC-licensed feature.
+      # Defective-notice public domain. Charade (1963) entered the PD on
+      # release because its copyright notice omitted the required word
+      # ("©/Copr./Copyright" per the 1909 Act). Glossy colour live-action
+      # with star power — fills a gap the silents and animation can't.
+      %{title: "Charade", year: 1963, content_url: "/showcase/movies/Charade (1963).mkv"},
+
+      # CC-licensed features.
       %{
         title: "Sita Sings the Blues",
         year: 2008,
         content_url: "/showcase/movies/Sita Sings the Blues (2008).mkv"
+      },
+      # El Cosmonauta / The Cosmonaut (2013) — CC-BY-SA 3.0 per the
+      # creators' own statement (the official Creative Commons case study).
+      # CC live-action variety, distinct from the Blender animation set.
+      %{
+        title: "El Cosmonauta",
+        year: 2013,
+        content_url: "/showcase/movies/El Cosmonauta (2013).mkv"
       }
     ]
   end
@@ -118,11 +146,20 @@ defmodule MediaCentaur.Showcase.Catalog do
       # TMDB carries series metadata and episodic still_path coverage.
       %{title: "Petticoat Junction", year: 1963, seasons: [1]},
 
-      # One Step Beyond Season 1 (1959) — ABC's "Alcoa Presents: One Step
-      # Beyond" supernatural anthology, long and widely distributed as
-      # public domain. A non-sitcom genre so the Coming Up row isn't all
-      # rural comedy. TMDB has series + episode coverage.
-      %{title: "One Step Beyond", year: 1959, seasons: [1]},
+      # One Step Beyond (1959–61) — ABC's "Alcoa Presents: One Step Beyond"
+      # supernatural anthology (TMDB 10377). Worldvision let the copyrights
+      # lapse via non-renewal, so the series is public domain; TMDB carries
+      # all three seasons with per-episode titles, air dates, and stills.
+      # Seeded across all 3 real seasons (22 / 39 / 36 eps) so the TV detail
+      # modal demonstrates genuine season/episode depth — the one
+      # multi-season series in the showcase. A non-sitcom genre so Coming Up
+      # isn't all rural comedy.
+      #
+      # CAVEAT (owner-verified): 12 episodes WERE renewed and remain
+      # copyrighted — Avengers, Confession, Eye Witness, Face, Justice,
+      # Nightmare, Prisoner, Room Upstairs, Signal Received, Sorceror,
+      # Stranger, Tiger. Never place a still from those 12 in a screenshot.
+      %{title: "One Step Beyond", year: 1959, seasons: [1, 2, 3]},
 
       # CC-BY-NC-SA modern web series. No TMDB stills — exercises the
       # bundled-fixture fallback (priv/showcase/fixtures/thumbs/).
