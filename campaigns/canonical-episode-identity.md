@@ -63,9 +63,31 @@ findable.
 
 **Phase 2 step 1 SHIPPED in v0.99.1:** the `EpisodeIdentity` value module.
 
-**Now: Phase 2 findability.** Linchpin = the re-search trigger (a unit
-stranded at `:no_action` after a non-delivering grab must re-search),
-which gates query-out. See the corrected sub-sequencing in Next steps.
+**Phase 2 findability — FOUR interdependent edges (the anime-numbering
+problem). All must land before shipping** (any subset risks a slow
+re-plan→grab-wrong-pack→re-search→reject→exhaust loop):
+
+1. ✅ **re-search trigger** (`LibraryReconciler`, commit `ff5a883b`) — a
+   unit whose grabbed release landed without its episode re-searches via
+   `AutoCancel(:no_coverage)`, observe-then-confirm race guard.
+2. ✅ **query-out** (`Search.QueryBuilder`, commit `2ebaeba7`) — appends
+   `Title N` after `Title SxxExx` for season-1 episodes (absolute ==
+   episode), tried only when SxxExx misses. *(Seam was QueryBuilder, not
+   LadderTerms as first planned — LadderTerms is the bulk plan ladder;
+   PursueTarget's re-search uses Recipe→QueryBuilder.)*
+3. ⏳ **match-in** (`Search.TitleMatcher.coverage/2`) — REQUIRED next. It
+   matches `parsed.season/episode == criteria.season/episode`, so an
+   absolute-named result (`Frieren - 29`, parses to season nil) is
+   *rejected* for the S01E29 unit. Must recognize absolute numbering →
+   map to the TMDB episode. Without it, query-out finds `Frieren 29` then
+   throws it away.
+4. ⏳ **parse-in** (library file binding) — when the absolute-named file
+   lands, bind it to TMDB S01E29 (same absolute→canonical mapping on the
+   library edge).
+
+Deferred (optional): air-window planner coverage (avoid grabbing the
+wrong pack in the first place); multi-season absolute (needs counts
+threaded — season-1 covers the Frieren case).
 
 ADR-058 accepted; design approved.
 
