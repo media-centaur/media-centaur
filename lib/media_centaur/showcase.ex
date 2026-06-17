@@ -109,6 +109,7 @@ defmodule MediaCentaur.Showcase do
 
     seed_fake_capabilities!()
     seed_console_entries!()
+    seed_status_incidents!()
 
     build_summary(movies, tv_series, video_objects, counts)
   end
@@ -136,7 +137,7 @@ defmodule MediaCentaur.Showcase do
   # Movies
   # ---------------------------------------------------------------------------
 
-  defp seed_movie!(%{title: title, year: year} = _entry, client) do
+  defp seed_movie!(%{title: title, year: year} = entry, client) do
     with {:ok, tmdb_id} <- search_movie(title, year, client),
          {:ok, movie_data} <- TMDB.Client.get_movie(tmdb_id, client) do
       movie =
@@ -157,6 +158,8 @@ defmodule MediaCentaur.Showcase do
 
       seed_presence!(movie.id, :movie_id, fake_movie_path(movie.name))
 
+      maybe_seed_track_override!(movie.id, entry)
+
       movie
     else
       {:error, reason} ->
@@ -169,6 +172,15 @@ defmodule MediaCentaur.Showcase do
         """
     end
   end
+
+  # Apply a catalog-declared per-entity audio/subtitle override so the
+  # detail modal's "remembered tracks" badge has real state to render.
+  # No-op for entries without one.
+  defp maybe_seed_track_override!(movie_id, %{track_override: attrs}) when is_map(attrs) do
+    {:ok, _} = Library.upsert_media_track_override(:movie, movie_id, attrs)
+  end
+
+  defp maybe_seed_track_override!(_movie_id, _entry), do: :ok
 
   # ---------------------------------------------------------------------------
   # TV Series
@@ -909,6 +921,60 @@ defmodule MediaCentaur.Showcase do
     Log.error(:library, "image download failed for backdrop (404) — falling back to poster crop")
 
     :ok
+  end
+
+  # Open a couple of incidents so the Status board proves the app surfaces
+  # problems — a calm board with one or two minor, clearly non-fatal
+  # incidents, not a wall of red. Mirrors two of the seeded console lines
+  # so the demo narrative stays consistent. Each is opened in the past
+  # then bumped to "recent", giving a realistic first_seen→last_seen span
+  # and count > 1 for the drill-in timeline.
+  #
+  # Inserted straight through the store: the seeder is a one-shot fixture
+  # generator with no concurrent log capture to race the single-writer
+  # invariant, and the Buckets cache rebuilds from the store on the next
+  # boot (which is exactly the reseed→restart→tour screenshot flow).
+  defp seed_status_incidents! do
+    now = DateTime.utc_now()
+
+    Enum.each(
+      [
+        %{
+          fingerprint: "showcase-tmdb-rate-limit",
+          component: "tmdb",
+          severity: :warning,
+          display_title: "TMDB rate limit reached",
+          message: "TMDB rate-limit window hit — backed off 250ms and retried. No metadata lost.",
+          opened_ago_seconds: 5 * 3600,
+          bumps: 2
+        },
+        %{
+          fingerprint: "showcase-backdrop-404",
+          component: "library",
+          severity: :error,
+          display_title: "Backdrop image unavailable",
+          message: "A backdrop download returned 404 — fell back to a poster crop.",
+          opened_ago_seconds: 26 * 3600,
+          bumps: 1
+        }
+      ],
+      fn incident ->
+        base = Map.take(incident, [:fingerprint, :component, :severity, :display_title, :message])
+        opened_at = DateTime.add(now, -incident.opened_ago_seconds, :second)
+
+        {:ok, _} = open_or_bump_incident(base, opened_at)
+
+        Enum.each(1..incident.bumps, fn bump ->
+          {:ok, _} = open_or_bump_incident(base, DateTime.add(opened_at, bump * 1800, :second))
+        end)
+      end
+    )
+
+    :ok
+  end
+
+  defp open_or_bump_incident(base, occurred_at) do
+    MediaCentaur.ErrorReports.Store.upsert_log_incident(Map.put(base, :occurred_at, occurred_at))
   end
 
   defp search_movie(title, year, client) do

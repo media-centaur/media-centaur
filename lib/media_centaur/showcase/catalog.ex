@@ -22,9 +22,12 @@ defmodule MediaCentaur.Showcase.Catalog do
   """
 
   @type movie_entry :: %{
-          title: String.t(),
-          year: integer() | nil,
-          content_url: String.t() | nil
+          required(:title) => String.t(),
+          required(:year) => integer() | nil,
+          required(:content_url) => String.t() | nil,
+          # Optional per-entity audio/subtitle override, seeded so the
+          # detail modal's "remembered tracks" badge has something to show.
+          optional(:track_override) => %{optional(atom()) => term()}
         }
 
   @type tv_entry :: %{
@@ -123,7 +126,11 @@ defmodule MediaCentaur.Showcase.Catalog do
       %{
         title: "El Cosmonauta",
         year: 2013,
-        content_url: "/showcase/movies/El Cosmonauta (2013).mkv"
+        content_url: "/showcase/movies/El Cosmonauta (2013).mkv",
+        # A Spanish-language film watched with English subtitles — a real
+        # per-entity override that lights up the detail "remembered tracks"
+        # badge (Spanish audio · English subtitles).
+        track_override: %{audio_lang: "spa", subtitle_lang: "eng"}
       }
     ]
   end
