@@ -7,6 +7,7 @@ defmodule MediaCentaur.Library do
       Browser,
       EntityShape,
       Episode,
+      EpisodeIdentity,
       EpisodeList,
       Events,
       Events.EntitiesChanged,
