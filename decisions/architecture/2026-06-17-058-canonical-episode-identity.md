@@ -1,8 +1,29 @@
 ---
-status: accepted
+status: superseded
 date: 2026-06-17
 ---
 # Canonical episode identity — one TMDB-anchored vocabulary, ambiguity only at the edges
+
+> **Amendment (2026-06-17) — scope reduced to coverage-by-contents; the
+> rest dropped.** Only the **coverage-by-contents invariant** shipped
+> (v0.99.1): `LibraryReconciler` satisfies an episode-identity unit solely
+> on its *own* episode's library presence, never via a coarse
+> release-folder match. That alone stopped the false-satisfies, the
+> re-grab loop, and the false history that motivated this ADR — and it
+> stands.
+>
+> The rest — the `EpisodeIdentity` value vocabulary and the
+> absolute-numbering edge adapters (parse-in / query-out / match-in) to
+> *auto-acquire* TMDB-merged split-cour anime — was **dropped** as
+> over-scoped. Only one tracked show (Frieren) exhibits the split-cour
+> numbering divergence, and auto-solving it cleanly is the anime-numbering
+> problem, which Sonarr only solves with an external XEM mapping this
+> project deliberately doesn't carry. The in-progress edges (re-search
+> trigger, query-out) were reverted and `EpisodeIdentity` removed. Such a
+> show now sits honestly "pending" (no false success, no churn) and can be
+> grabbed manually; collapsing the `/upcoming` episode wall was considered
+> and declined. The only durable change from this ADR is the
+> coverage-by-contents guard in the reconciler.
 
 ## Context and Problem Statement
 
