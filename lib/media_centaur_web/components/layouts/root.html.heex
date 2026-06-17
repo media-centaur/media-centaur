@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-input="mouse">
+<html lang="en" data-input="mouse" style={"--ui-scale: #{MediaCentaur.UIScale.cached_scale()}"}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -34,6 +34,14 @@
             if (stored) navLink.setAttribute("href", stored);
           }
         }, true);
+
+        // UI scale — server-rendered onto <html> for first paint; updated live
+        // (no reload) when the Settings picker pushes a new value. Lives on
+        // documentElement, which LiveView never replaces, so it persists across
+        // live navigation between pages.
+        window.addEventListener("phx:ui-scale", (e) => {
+          document.documentElement.style.setProperty("--ui-scale", e.detail.scale);
+        });
 
         window.addEventListener("phx:toggle-sidebar", () => {
           const el = document.documentElement;

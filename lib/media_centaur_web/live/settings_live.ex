@@ -21,6 +21,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   }
 
   alias MediaCentaur.Maintenance
+  alias MediaCentaur.UIScale
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Search.Prowlarr
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent
@@ -280,6 +281,10 @@ defmodule MediaCentaurWeb.SettingsLive do
       service_state: SelfUpdate.service_state(),
       bindings: Controls.get(),
       glyph_style: Controls.glyph_style(),
+      # cached_scale/0 (not scale/0) so the picker reflects exactly what the
+      # root layout rendered, and so /settings stays DB-free for this read
+      # (NoDbOnRenderTest). Warm in production; defaults in the cold test cache.
+      ui_scale: UIScale.cached_scale(),
       critical_failures: critical_failures,
       show_setup_banner?: show_setup_banner?
     )
@@ -660,6 +665,19 @@ defmodule MediaCentaurWeb.SettingsLive do
     })
 
     {:noreply, assign(socket, spoiler_free: enabled)}
+  end
+
+  def handle_event("set_ui_scale", %{"choice" => scale}, socket) do
+    # Persist (single source of truth) and push the new factor to the open
+    # document so the whole shell rescales without a reload. The CSS custom
+    # property lives on <html>, so it also survives live navigation away from
+    # Settings — no per-page :ui_scale assign needed elsewhere.
+    applied = UIScale.set(scale)
+
+    {:noreply,
+     socket
+     |> assign(ui_scale: applied)
+     |> push_event("ui-scale", %{scale: applied})}
   end
 
   def handle_event("toggle_show_card_info", _params, socket) do
@@ -1567,6 +1585,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 refreshing_movie_subtitles={@refreshing_movie_subtitles}
                 missing_images_summary={@missing_images_summary}
                 spoiler_free={@spoiler_free}
+                ui_scale={@ui_scale}
                 show_card_info={@show_card_info}
                 tmdb_test={@tmdb_test}
                 tmdb_testing={@tmdb_testing}
@@ -1683,7 +1702,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "preferences"} = assigns) do
     ~H"""
-    <Preferences.render spoiler_free={@spoiler_free} />
+    <Preferences.render spoiler_free={@spoiler_free} ui_scale={@ui_scale} />
     """
   end
 

@@ -43,6 +43,60 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
     """
   end
 
+  attr :label, :any,
+    required: true,
+    doc: "label content — accepts a string or a HEEx slot/AST. `:any` covers both."
+
+  attr :description, :string, required: true
+
+  attr :options, :list,
+    required: true,
+    doc: "list of `{value, label}` tuples — the segmented choices, in display order."
+
+  attr :selected, :any,
+    required: true,
+    doc: "the currently-selected option value; compared with `==` against each option value."
+
+  attr :event, :string, required: true
+
+  @doc """
+  A segmented pick-one-of-N control — the enum counterpart to `settings_row`'s
+  toggle. Each option is a focusable nav item (keyboard/gamepad navigable, where
+  a native `<select>` is hostile), and the active one carries `aria-pressed`.
+  Clicking pushes `@event` with `phx-value-choice` set to the chosen option
+  value. (The param is `choice`, not `value`: a `<button>` has a native `value`
+  DOM property that LiveView merges into the payload and would clobber a
+  `phx-value-value` with the element's empty string.)
+  """
+  def settings_choice(assigns) do
+    ~H"""
+    <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
+      <div class="min-w-0">
+        <span class="font-medium">{@label}</span>
+        <p class="text-xs text-base-content/50 mt-0.5">{@description}</p>
+      </div>
+      <div class="flex gap-1 shrink-0" role="group">
+        <button
+          :for={{value, label} <- @options}
+          type="button"
+          data-nav-item
+          tabindex="0"
+          phx-click={@event}
+          phx-value-choice={value}
+          aria-pressed={to_string(value == @selected)}
+          class={[
+            "px-2.5 py-1 rounded-md text-sm cursor-pointer transition-colors duration-150",
+            value == @selected && "bg-primary text-primary-content font-medium",
+            value != @selected && "text-base-content/60 hover:bg-base-content/[0.06]"
+          ]}
+        >
+          {label}
+        </button>
+      </div>
+    </div>
+    """
+  end
+
   # Card title row — one consistent treatment for every settings card:
   # muted, uppercase, with an optional right-aligned action.
   attr :title, :string, required: true
