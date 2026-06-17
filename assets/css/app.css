@@ -122,6 +122,19 @@ body.media-centaur {
   background-attachment: fixed;
 }
 
+/* Global UI scale. `--ui-scale` is server-rendered onto <html> from the
+   `ui_scale` Setting (flash-free first paint) and updated live by the Settings
+   picker via the `phx:ui-scale` event. Applied at the document root so it
+   behaves like browser zoom — viewport units on fixed chrome (the 100vh
+   sidebar, modal clamps) resolve against the scaled root rather than an
+   ambiguous mid-tree ancestor. `zoom` (not transform) reflows layout and scales
+   every unit — rem-based Tailwind sizing and px-defined chrome alike — so the
+   whole shell grows uniformly. Defaults to 1, so storybook (which never sets
+   the property) renders unscaled. */
+html {
+  zoom: var(--ui-scale, 1);
+}
+
 /* Storybook chrome readability override.
    Phoenix Storybook loads our app.css via `:css_path`. Our daisyUI dark
    theme on `:root` sets `color-scheme: dark` and a near-white
@@ -255,9 +268,14 @@ html.psb .psb-variation-block .media-centaur {
 .sidebar {
   width: 200px;
   position: fixed;
+  /* top:0 + bottom:0 (not height:100vh) so the bar stays pinned to the
+     viewport under the root `zoom` UI scale — a 100vh height would scale past
+     the screen and push the bottom theme toggle off the fold. Verified at
+     0.8–1.5×. With both insets fixed, the height follows the viewport and the
+     inner column (overflow-y:auto) scrolls if its scaled content overflows. */
   top: 0;
+  bottom: 0;
   left: 0;
-  height: 100vh;
   z-index: 40;
   display: flex;
   flex-direction: column;

@@ -4,6 +4,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Playback.LanguagePolicy
+  alias MediaCentaur.UIScale
 
   # `SettingsLive.ensure_loaded/1` loads its config / capability / probe
   # reads synchronously on first render (desktop first-paint correctness),
@@ -45,6 +46,35 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     test "section #{section} mounts without crashing", %{conn: conn} do
       {:ok, _view, html} = live_async!(conn, ~p"/settings?section=#{unquote(section)}")
       assert is_binary(html)
+    end
+  end
+
+  describe "interface scale" do
+    test "renders the scale picker with the current value pressed", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
+
+      assert has_element?(view, "span", "Interface scale")
+      # Default is 100% and it is the pressed option.
+      assert has_element?(
+               view,
+               "button[phx-click=set_ui_scale][phx-value-choice='1.0'][aria-pressed='true']"
+             )
+    end
+
+    test "choosing a scale persists it and pushes the live update", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
+
+      view
+      |> element("button[phx-click=set_ui_scale][phx-value-choice='1.25']")
+      |> render_click()
+
+      assert_push_event(view, "ui-scale", %{scale: 1.25})
+      assert UIScale.scale() == 1.25
+
+      assert has_element?(
+               view,
+               "button[phx-click=set_ui_scale][phx-value-choice='1.25'][aria-pressed='true']"
+             )
     end
   end
 

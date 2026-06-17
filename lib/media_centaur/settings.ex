@@ -77,6 +77,22 @@ defmodule MediaCentaur.Settings do
   end
 
   @doc """
+  Cache-only read: returns the cached `Entry` or `nil`, and **never falls back
+  to the database**. For render-path reads that must stay DB-free (the root
+  layout reads `ui_scale` on every page — see `MediaCentaurWeb.NoDbOnRenderTest`
+  and ADR-041). In production the cache is warm before any request is served
+  (the `Cache.Worker` boots ahead of the endpoint), so this returns the real
+  value; a cold cache (boot window, tests) yields `nil` and the caller defaults.
+  """
+  @spec get_cached(String.t()) :: Entry.t() | nil
+  def get_cached(key) do
+    case :persistent_term.get(@cache_key, :__unset) do
+      :__unset -> nil
+      entries -> Map.get(entries, key)
+    end
+  end
+
+  @doc """
   Returns a map of `key => Entry` for all keys that exist. Single
   cache lookup when the cache is warm; falls back to a single SELECT
   with `WHERE key IN (?)` otherwise. Use this instead of calling
