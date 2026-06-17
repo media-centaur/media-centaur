@@ -71,6 +71,21 @@ cause is unowned async — fix the seam, don't extend the wait.
 - **Rendered HTML** — never assert on HTML output (`render_component`, `=~` on markup). LiveView integration tests (mount, patch, event handling) are fine — they test data flow, not DOM.
 - **External API calls** in normal runs — tag `@tag :external`, excluded from default `mix test`.
 
+### `render_click` does not simulate the browser — verify real interactions in a real browser
+
+`render_click/3` reads `phx-value-*` attributes straight off the rendered DOM
+and builds the payload from them. It does **not** run LiveView's client JS, so
+it never reproduces browser-runtime click behaviour — e.g. the native `value`
+merge on `<button>`/`<input>` that silently clobbers `phx-value-value` to `""`
+(the interface-scale picker regression: green `render_click` test, dead control
+in the browser). A passing LiveView test means *the handler does the right
+thing with the params it was handed* — not that a real click hands it those
+params. For any control whose correctness depends on what the browser actually
+sends or renders, the real regression layer is a **Playwright E2E** (or a quick
+manual `chromium-probe` click against the dev server) — and "verified" means you
+ran one, not that the unit test is green. Author-time footguns of this class get
+a Credo check (e.g. MC0021 `NoPhxValueValue`).
+
 ## Page Smoke Tests (Mandatory for Every Route + Zone)
 
 `test/media_centaur_web/page_smoke_test.exs` mounts every top-level
