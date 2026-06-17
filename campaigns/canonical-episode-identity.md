@@ -114,10 +114,11 @@ re-selects the wrong pack; no schema migration required.
 
 ### Phase 2 — First-class `EpisodeIdentity` + edge adapters
 
-1. **`EpisodeIdentity` value module** (pure, `async: true` tests):
-   `{tmdb_series_id, season, episode}`, `absolute_ordinal/2` (derive from
-   TMDB season `episode_count`s, Specials excluded; memoized), `parse/1`,
-   `to_key/1` (replaces `"s1e29"`), `label/1`.
+1. ✅ **`EpisodeIdentity` value module** (`lib/media_centaur/library/episode_identity.ex`,
+   pure, `async: true`, 6 tests): `{series_tmdb_id, season, episode}`,
+   `absolute_ordinal/2` (derive from TMDB season counts, Specials excluded),
+   `to_key/1` (the `"s1e29"` form), `label/1` (`"S01E29"`). Boundary-exported
+   from Library; Acquisition + ReleaseTracking already dep on Library.
 2. **Route the ~13 sites through it** (behaviour-preserving, tested):
    `Want.unit_key`, `Library.find_episode_by_season_episode`,
    `LibraryReconciler.tmdb_match`, `Pursuits.Unit` label/position,
