@@ -443,7 +443,13 @@ body:has(.modal-backdrop[data-state="open"]) {
   display: flex;
   flex-direction: column;
   width: clamp(320px, calc(100vw - 200px), 1000px);
-  max-height: calc(100vh - 200px);
+  /* Divided by `--ui-scale`: the root `zoom` multiplies `vh`, so a bare
+     `100vh - 200px` renders at (100vh-200px) × scale — taller than the
+     viewport at >1×, so the panel overflows the page and its inner
+     scroll area never engages (the report: can't scroll a long episode
+     list at higher UI scale). (X/S)×S = X physical. Same idiom as the
+     home hero / page-backdrop. */
+  max-height: calc((100vh - 200px) / var(--ui-scale, 1));
   border-radius: 0.75rem;
   overflow: hidden;
   background-color: var(--color-base-100);
