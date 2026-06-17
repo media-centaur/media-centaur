@@ -21,6 +21,16 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`canonical-episode-identity.md`](canonical-episode-identity.md) —
+  **planning.** Promote episode identity from a scattered `(tmdb,s,e)`
+  convention into a first-class `EpisodeIdentity` (TMDB tuple + derived
+  absolute ordinal) represented coherently across library, release
+  tracking, acquisition, and display, with numbering ambiguity confined
+  to three edge adapters (parse-in / query-out / match-in). Kills the
+  split-cour bug (Frieren S01E29–E38 never found / "satisfied" by a
+  wrong-cour pack). [ADR-058](../decisions/architecture/2026-06-17-058-canonical-episode-identity.md).
+  Reconciliation-first: Phase 1 (coverage-by-contents) stops the re-grab
+  loop with no schema churn.
 * [`showcase-comprehensive-coverage.md`](showcase-comprehensive-coverage.md) —
   **planning.** Expand the marketing showcase from well-covered static
   surfaces to the high-impact feature set that photographs well:
