@@ -306,6 +306,36 @@ defmodule MediaCentaur.ShowcaseTest do
     end
   end
 
+  describe "Status board + preferences seed shape" do
+    # The status dashboard's value is proving the app SURFACES issues, and
+    # the detail modal's language story needs a per-entity override to
+    # render the "remembered tracks" badge. Both are fabricated state the
+    # plain catalog can't produce.
+
+    test "seeds open incidents so the status board shows a non-healthy subsystem" do
+      Showcase.seed!()
+
+      incidents = Repo.all(MediaCentaur.ErrorReports.Incident)
+      assert incidents != []
+      assert Enum.any?(incidents, &(&1.status == :open))
+
+      assert Enum.all?(incidents, fn incident ->
+               is_binary(incident.component) and incident.component != ""
+             end)
+    end
+
+    test "seeds a per-entity media track override for the remembered-tracks badge" do
+      Showcase.seed!()
+
+      overrides = Repo.all(MediaCentaur.Library.MediaTrackOverride)
+      assert overrides != []
+
+      override = hd(overrides)
+      assert override.owner_type in [:movie, :tv_series]
+      assert is_binary(override.owner_id)
+    end
+  end
+
   describe "fail-loud on silent data loss" do
     # If TMDB can't answer (bad key, network, rate limit), the old seeder
     # caught the error inside `seed_movie!` / `seed_tv_series!`, logged a

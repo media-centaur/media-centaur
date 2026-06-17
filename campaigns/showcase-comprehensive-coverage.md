@@ -109,14 +109,22 @@ Deliverable: an owner-approved title list with TMDB ids, added to the
    Space (1959).
 3. Seed **credits** (cast/crew) for a couple of flagship titles so the
    detail **Credits** tab is populated (TMDB provides this; seeder
-   fetches during seed).
-4. Seed richer **WatchedFile** metadata (video codec, resolution,
-   audio/subtitle tracks) so the detail **Files** tab looks real.
-5. Seed **per-entity language/subtitle overrides** on one or two titles
-   so the "remembered tracks" badge + reset control render in detail.
-6. Seed **status incidents / error-report rows** (PD/CC-safe messages)
-   so the status board shows one healthy-with-one-incident state +
-   drill-in + incident view — all as data, no stub.
+   fetches during seed). — *next*
+4. **Files tab — scoped down.** WatchedFile/FilePresence store only file
+   size; there is NO codec/resolution/width/height storage (that would
+   need a new ffprobe-backed media-info subsystem — out of scope, low
+   marketing value). Seed **subtitle tracks** (`Subtitles.create_track/1`,
+   multiple langs incl. forced/SDH) so the Files tab + language story
+   render; codec/resolution is a deliberate non-goal. — *with credits*
+5. ✅ Seed **per-entity language/subtitle override** — catalog-driven
+   (`track_override` on El Cosmonauta: Spanish audio · English subtitles),
+   applied in `seed_movie!` via `Library.upsert_media_track_override/3`.
+   Renders the detail "remembered tracks" badge.
+6. ✅ Seed **status incidents** — two `:log` incidents via
+   `ErrorReports.Store.upsert_log_incident/1` (tmdb rate-limit warning +
+   backdrop-404 error), opened-then-bumped for a real first_seen→last_seen
+   span; Buckets cache rebuilds from store on the reseed→restart→tour
+   boot. Calm board, one-issue-each, no stub.
 
 ### Phase 2 — `showcase_mode` stub seams
 
