@@ -107,15 +107,19 @@ Deliverable: an owner-approved title list with TMDB ids, added to the
    Coffee Run, El Cosmonauta) and swapped the Detour/His Girl Friday
    review fixtures for A Farewell to Arms (1932) + Teenagers from Outer
    Space (1959).
-3. Seed **credits** (cast/crew) for a couple of flagship titles so the
-   detail **Credits** tab is populated (TMDB provides this; seeder
-   fetches during seed). — *next*
-4. **Files tab — scoped down.** WatchedFile/FilePresence store only file
-   size; there is NO codec/resolution/width/height storage (that would
-   need a new ffprobe-backed media-info subsystem — out of scope, low
-   marketing value). Seed **subtitle tracks** (`Subtitles.create_track/1`,
-   multiple langs incl. forced/SDH) so the Files tab + language story
-   render; codec/resolution is a deliberate non-goal. — *with credits*
+3. ✅ Seed **credits** (cast/crew) — `seed_movie!`/`seed_tv_series!` now
+   map the already-fetched TMDB `credits`/`aggregate_credits` payload via
+   `TMDB.Mapper.extract_cast/extract_crew/extract_creators` (same path as
+   `Maintenance.refresh_*_credits`). Self-healing real factual credits;
+   populates the detail **Credits** tab.
+4. **Files tab — scoped down, subtitle tracks DEFERRED to Phase 3.**
+   WatchedFile/FilePresence store only file size; there is NO
+   codec/resolution storage (would need a new ffprobe-backed media-info
+   subsystem — out of scope, low marketing value). Subtitle tracks
+   (`Subtitles.create_track/1`) are the only enrichment available; decide
+   whether they're worth seeding when the real Files-tab render is in
+   front of us at Phase 3. The language story is already told by the
+   override badge, so this is optional polish, not a gap.
 5. ✅ Seed **per-entity language/subtitle override** — catalog-driven
    (`track_override` on El Cosmonauta: Spanish audio · English subtitles),
    applied in `seed_movie!` via `Library.upsert_media_track_override/3`.

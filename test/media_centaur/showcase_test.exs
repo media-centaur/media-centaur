@@ -82,6 +82,11 @@ defmodule MediaCentaur.ShowcaseTest do
       all_movies = Repo.all(Library.Movie)
       assert length(all_movies) == expected_movies
 
+      # Credits flow through to the detail "Credits" tab — the seeder maps
+      # the (already-fetched) TMDB credits payload onto the entity.
+      assert Enum.any?(all_movies, fn movie -> movie.cast != [] end),
+             "expected at least one movie with seeded cast"
+
       all_tv = Repo.all(Library.TVSeries)
       assert length(all_tv) == expected_tv
 
@@ -499,7 +504,27 @@ defmodule MediaCentaur.ShowcaseTest do
           "genres" => [%{"id" => 1, "name" => "Drama"}],
           "vote_average" => 7.5,
           "poster_path" => "/p#{id}.jpg",
-          "backdrop_path" => "/b#{id}.jpg"
+          "backdrop_path" => "/b#{id}.jpg",
+          "credits" => %{
+            "cast" => [
+              %{
+                "id" => 101,
+                "name" => "Lead Performer",
+                "character" => "The Protagonist",
+                "order" => 0,
+                "profile_path" => "/cast101.jpg"
+              }
+            ],
+            "crew" => [
+              %{
+                "id" => 201,
+                "name" => "A Director",
+                "job" => "Director",
+                "department" => "Directing",
+                "profile_path" => nil
+              }
+            ]
+          }
         }
 
       String.contains?(path, "/tv/") ->

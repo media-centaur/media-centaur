@@ -149,6 +149,12 @@ defmodule MediaCentaur.Showcase do
           genres: extract_genre_names(movie_data["genres"]),
           url: "https://www.themoviedb.org/movie/#{tmdb_id}",
           aggregate_rating_value: movie_data["vote_average"],
+          # Real factual credits for PD/CC titles, mapped the same way
+          # Maintenance.refresh_movie_credits does — populates the detail
+          # "Credits" tab. get_movie already append_to_response=credits, so
+          # this reuses data the seeder was otherwise discarding.
+          cast: TMDB.Mapper.extract_cast(movie_data["credits"]),
+          crew: TMDB.Mapper.extract_crew(movie_data["credits"]),
           position: 0
         })
 
@@ -197,7 +203,12 @@ defmodule MediaCentaur.Showcase do
           genres: extract_genre_names(tv_data["genres"]),
           url: "https://www.themoviedb.org/tv/#{tmdb_id}",
           aggregate_rating_value: tv_data["vote_average"],
-          number_of_seasons: tv_data["number_of_seasons"]
+          number_of_seasons: tv_data["number_of_seasons"],
+          # Same credit mapping as Maintenance.refresh_series_credits: cast
+          # from aggregate_credits, crew from created_by. get_tv already
+          # append_to_response=aggregate_credits,external_ids.
+          cast: TMDB.Mapper.extract_cast(tv_data["aggregate_credits"]),
+          crew: TMDB.Mapper.extract_creators(tv_data["created_by"])
         })
 
       {:ok, _} = Library.ExternalIds.put(:tmdb, series, to_string(tmdb_id))
