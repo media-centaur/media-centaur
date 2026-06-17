@@ -67,11 +67,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Unit do
     field :awaiting_decision_at, :utc_datetime
     field :stall_first_seen_at, :utc_datetime
     field :zero_seeders_first_seen_at, :utc_datetime
-    # First tick the LibraryReconciler saw this unit's grabbed release
-    # landed without delivering its own episode. Confirmed across a window
-    # before re-searching (guards the import-window race); cleared when the
-    # episode arrives or the release is no longer present.
-    field :no_coverage_first_seen_at, :utc_datetime
 
     timestamps()
   end
@@ -139,22 +134,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Unit do
   @doc "Sets `current_target_id` (nullable — `nil` clears it)."
   def set_current_target_changeset(%__MODULE__{} = unit, target_id) do
     change(unit, current_target_id: target_id)
-  end
-
-  @doc """
-  Stamps `no_coverage_first_seen_at` on first observation that the unit's
-  grabbed release landed without its episode. Idempotent — an already-set
-  timestamp is left as the original first-observation time.
-  """
-  def observe_no_coverage_changeset(%__MODULE__{no_coverage_first_seen_at: nil} = unit, now) do
-    change(unit, no_coverage_first_seen_at: DateTime.truncate(now, :second))
-  end
-
-  def observe_no_coverage_changeset(%__MODULE__{} = unit, _now), do: change(unit)
-
-  @doc "Clears `no_coverage_first_seen_at` (episode arrived, or release no longer present)."
-  def clear_no_coverage_changeset(%__MODULE__{} = unit) do
-    change(unit, no_coverage_first_seen_at: nil)
   end
 
   defp maybe_append_guid(changeset, existing_guids, guid) do
