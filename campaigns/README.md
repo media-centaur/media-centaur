@@ -21,6 +21,16 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`showcase-comprehensive-coverage.md`](showcase-comprehensive-coverage.md) —
+  **planning.** Expand the marketing showcase from well-covered static
+  surfaces to the high-impact feature set that photographs well:
+  movie collections, multi-season detail, acquisition decision/plan
+  modals, status drill-ins/incidents, an available update, and
+  per-entity language memory. Splits into PD/CC catalog expansion
+  (owner-gated), seed-data (collections, credits, file tracks,
+  incidents), `showcase_mode` stub seams (update-available + acquisition
+  alternatives), and a tour expansion. Skips Guide/Setup/Danger-Zone/
+  first-run by decision. PD-or-CC for every visible string.
 * [`guide-book.md`](guide-book.md) —
   **All 19 chapters on `main` (unpushed); pending owner review before push.** In-app
   book-style guide at a deep-linkable `/guide` route (linked only from Settings → System,

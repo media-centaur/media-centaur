@@ -64,11 +64,14 @@ defmodule MediaCentaur.ShowcaseTest do
       assert summary.tv_series == expected_tv
       assert summary.video_objects == expected_videos
 
-      # Each TV series gets its declared seasons (always 1 in the catalog).
-      assert summary.seasons == expected_tv
+      # Each TV series gets its catalog-declared seasons. Most are
+      # single-season; One Step Beyond spans all three of its real
+      # seasons, so the count is derived from the catalog, not assumed 1.
+      expected_seasons = Catalog.tv_series() |> Enum.map(&length(&1.seasons)) |> Enum.sum()
+      assert summary.seasons == expected_seasons
 
       # Each stubbed season returns 2 episodes.
-      assert summary.episodes == expected_tv * 2
+      assert summary.episodes == expected_seasons * 2
 
       assert summary.watch_progress > 0
       assert summary.tracked_items > 0
@@ -93,6 +96,27 @@ defmodule MediaCentaur.ShowcaseTest do
 
       events = WatchHistory.list_events()
       assert events != []
+    end
+
+    test "honours catalog multi-season declarations for deep detail-modal coverage" do
+      # The TV detail modal's value is showing real season/episode depth.
+      # The catalog must declare at least one multi-season series (One Step
+      # Beyond across all three of its real seasons), and the seeder must
+      # create a Season row per declared season — not collapse to one.
+      assert Enum.any?(Catalog.tv_series(), &(length(&1.seasons) > 1)),
+             "catalog should declare at least one multi-season series"
+
+      Showcase.seed!()
+
+      season_counts =
+        Library.Season
+        |> Repo.all()
+        |> Enum.group_by(& &1.tv_series_id)
+        |> Map.values()
+        |> Enum.map(&length/1)
+
+      assert 3 in season_counts,
+             "expected a series seeded with 3 seasons, got #{inspect(season_counts)}"
     end
 
     test "dismisses the setup wizard so the demo browses straight to content" do
