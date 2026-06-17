@@ -19,11 +19,34 @@ delivers none of them. Decision: [ADR-058](../decisions/architecture/2026-06-17-
 
 ## Status
 
-Planning. ADR-058 accepted; design approved (canonical = TMDB tuple +
-derived absolute ordinal; absolute-first resolution + air-date tiebreak;
-coverage-by-contents; no external mapping DB). No code yet. Phase 1 is
-reconciliation-first so the loop stops on the real library before any
-schema/identity refactor.
+Phase 1 root cause pinpointed (2026-06-17): `LibraryReconciler.landed_file/5`
+satisfies an episode unit via the **coarse fallbacks** — `release_match`
+(release/folder name vs any present path segment) and the content-path
+under-directory match — *after* the authoritative `tmdb_match` correctly
+returns `:not_found`. The Frieren `Season 01 [2023-2024] COMPLETE` pack
+imported E1–E28 under a release-named folder, so the S01E29 unit gets
+satisfied by an E1–E28 file.
+
+**Shipped (commit on `main`, unpushed):** the coverage-by-contents guard
+in `LibraryReconciler.landed_file/5` — a unit with a canonical episode
+identity (TMDB-tv + season + episode) is satisfied **only** by
+`tmdb_match`; the coarse matchers (content-path under-dir, release-folder
+name) stay valid for identity-less units (movies, `prowlarr_query`).
+Red→green; 219 pursuit tests pass (existing pack/movie behaviour intact).
+This stops the **false-satisfy** (the pursuit no longer reports
+"satisfied" without delivering E29).
+
+**Remaining Phase 1:** (a) record-tried-on-no-new-coverage in the
+planner/commit path so `DropPlanner` stops re-grabbing the same wrong-cour
+pack (the active pursuit now claims E29, which already blocks *new* plans,
+but the pursuit itself must not re-grab the same useless release); (b) the
+one-time reconcile sweep; (c) dev re-verify. NB: a pursuit that can only
+ever find the wrong-cour pack stays unsatisfiable until **Phase 2**
+(numbering) makes the real cour-2 releases findable — that's expected and
+correct (honest "still looking" beats a false "got it").
+
+ADR-058 accepted; design approved. Reconciliation-first so the loop stops
+on the real library before any schema/identity refactor.
 
 ## Decisions made
 

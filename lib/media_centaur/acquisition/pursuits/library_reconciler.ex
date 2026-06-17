@@ -87,11 +87,31 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
   end
 
   defp landed_file(pursuit, unit, target, present_set, segment_index) do
-    with :not_found <- content_path_match(target, present_set),
-         :not_found <- tmdb_match(pursuit, unit) do
-      release_match(target, segment_index)
+    if episode_identity?(pursuit, unit) do
+      # Coverage-by-contents (ADR-058): a unit with a canonical episode
+      # identity is satisfied ONLY by the authoritative per-episode match.
+      # The coarse fallbacks (content-path under-directory, release-folder
+      # name) witness "the release landed somewhere", not "this episode
+      # landed" — a wrong-cour pack (Frieren `Season 01 COMPLETE` delivering
+      # E1–E28 while the unit wants E29) would otherwise satisfy the unit
+      # with a file it never contained. Those fallbacks stay valid for
+      # identity-less units (movies, prowlarr_query) below.
+      tmdb_match(pursuit, unit)
+    else
+      with :not_found <- content_path_match(target, present_set),
+           :not_found <- tmdb_match(pursuit, unit) do
+        release_match(target, segment_index)
+      end
     end
   end
+
+  # A TMDB-tv unit carries a per-episode canonical identity; anything else
+  # (movies, prowlarr_query packs) has no episode-level identity to verify
+  # against, so it still relies on the coarse landing witnesses.
+  defp episode_identity?(%Pursuit{tmdb_type: "tv"}, %Unit{season_number: season, episode_number: episode})
+       when is_integer(season) and is_integer(episode), do: true
+
+  defp episode_identity?(_pursuit, _unit), do: false
 
   defp content_path_match(%Target{content_path: content_path}, present_set)
        when is_binary(content_path) do

@@ -369,6 +369,77 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconcilerTest do
     end
   end
 
+  describe "reconcile_active/0 — coverage-by-contents (episode-identity units)" do
+    test "does NOT satisfy a TV episode unit from a wrong-cour pack that delivered other episodes" do
+      # TMDB models the show as one long season (anime split-cour): the
+      # library holds S01E01–E02 (stand-in for the first cour), imported
+      # under a folder named after a "Season 01 COMPLETE" pack. A pursuit
+      # wants S01E29 (the later cour, not in this pack). The pack folder is
+      # an ancestor segment of the present files, so the coarse release-name
+      # match would wrongly satisfy E29 with an E01 file. Coverage-by-
+      # contents: an episode-identity unit may be satisfied only when its
+      # OWN episode is present. (ADR-058; the Frieren bug.)
+      pack = "Sample.Show.Season.01.2023-2024.COMPLETE.1080p.BluRay.x265-GRP"
+      tv_series = create_tv_series(%{name: "Sample Show", tmdb_id: "888"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 1,
+        content_url: "/srv/media/#{pack}/#{pack}/Sample.Show.S01E01.1080p.BluRay.x265-GRP.mkv"
+      })
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 2,
+        content_url: "/srv/media/#{pack}/#{pack}/Sample.Show.S01E02.1080p.BluRay.x265-GRP.mkv"
+      })
+
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          recipe_type: "tmdb",
+          tmdb_id: "888",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 29,
+          status: "acquired",
+          release_title: "Sample Show Season 01 2023-2024 COMPLETE 1080p BluRay x265-GRP",
+          content_path: "/downloads/completed/#{pack}"
+        })
+
+      assert :ok = LibraryReconciler.reconcile_active()
+
+      assert Repo.get!(Pursuit, pursuit.id).state == "active",
+             "E29 must not be satisfied by a pack that delivered only E01–E02"
+    end
+
+    test "still satisfies a TV episode unit when its own episode is present" do
+      # Guard must not over-reach: the authoritative per-episode match still
+      # satisfies when the wanted episode really landed.
+      tv_series = create_tv_series(%{name: "Sample Show", tmdb_id: "889"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 29,
+        content_url: "/srv/media/Sample.Show/Sample.Show.S01E29.1080p.WEB-DL.mkv"
+      })
+
+      pursuit =
+        insert_active_pursuit(%{
+          tmdb_id: "889",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 29
+        })
+
+      assert :ok = LibraryReconciler.reconcile_active()
+      assert Repo.get!(Pursuit, pursuit.id).state == "satisfied"
+    end
+  end
+
   describe "reconcile_active/0 — scope" do
     test "leaves a prowlarr_query pursuit active when it has no matched release to look up" do
       pursuit =
