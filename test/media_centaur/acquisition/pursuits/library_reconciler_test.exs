@@ -3,7 +3,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconcilerTest do
 
   import MediaCentaur.TestFactory
 
-  alias MediaCentaur.Acquisition.Pursuits.{Event, LibraryReconciler, Pursuit}
+  alias MediaCentaur.Acquisition.Pursuits.{Event, LibraryReconciler, Pursuit, Units}
 
   defp insert_active_pursuit(overrides) do
     {pursuit, _target} =
@@ -437,6 +437,71 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconcilerTest do
 
       assert :ok = LibraryReconciler.reconcile_active()
       assert Repo.get!(Pursuit, pursuit.id).state == "satisfied"
+    end
+  end
+
+  describe "reconcile_active/0 — re-search a unit whose release landed without its episode" do
+    setup do
+      pack = "Sample.Show.Season.01.2023-2024.COMPLETE.1080p.BluRay.x265-GRP"
+      tv_series = create_tv_series(%{name: "Sample Show", tmdb_id: "888"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 1,
+        content_url: "/srv/media/#{pack}/#{pack}/Sample.Show.S01E01.1080p.BluRay.x265-GRP.mkv"
+      })
+
+      create_episode(%{
+        season_id: season.id,
+        episode_number: 2,
+        content_url: "/srv/media/#{pack}/#{pack}/Sample.Show.S01E02.1080p.BluRay.x265-GRP.mkv"
+      })
+
+      {pursuit, target} =
+        create_pursuit_with_target(%{
+          recipe_type: "tmdb",
+          tmdb_id: "888",
+          tmdb_type: "tv",
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 29,
+          status: "acquired",
+          release_title: "Sample Show Season 01 2023-2024 COMPLETE 1080p BluRay x265-GRP",
+          content_path: "/downloads/completed/#{pack}",
+          prowlarr_guid: "guid-s1pack"
+        })
+
+      %{pursuit: pursuit, target: target}
+    end
+
+    test "observes first, then re-searches after the confirmation window", %{
+      pursuit: pursuit,
+      target: target
+    } do
+      now = ~U[2026-06-17 12:00:00Z]
+
+      # First tick: the release has landed but E29 isn't in it — observe only,
+      # no pivot yet (guards the import-window race).
+      assert :ok = LibraryReconciler.reconcile_active(now)
+      unit = Units.single!(pursuit.id)
+      assert unit.current_target_id == target.id, "must not pivot before the confirm window"
+      assert unit.tried_release_guids == []
+
+      # After the confirmation window: re-search — record the dud release tried
+      # and pivot to a fresh seeking target. Pursuit stays active. Manual Oban
+      # mode so the pivot's PursueTarget is enqueued, not run inline (it would
+      # hit a live indexer) — same isolation AutoCancelTest uses.
+      later = DateTime.add(now, 601, :second)
+
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        assert :ok = LibraryReconciler.reconcile_active(later)
+      end)
+
+      unit = Units.single!(pursuit.id)
+      assert "guid-s1pack" in unit.tried_release_guids
+      assert unit.current_target_id != target.id, "expected a fresh seeking target after re-search"
+      assert Repo.get!(Pursuit, pursuit.id).state == "active"
     end
   end
 

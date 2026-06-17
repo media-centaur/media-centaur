@@ -49,15 +49,21 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition.Pursuits
-  alias MediaCentaur.Acquisition.Pursuits.Commands.Satisfy
+  alias MediaCentaur.Acquisition.Pursuits.Commands.{AutoCancel, Satisfy}
   alias MediaCentaur.Acquisition.Pursuits.Pursuit
   alias MediaCentaur.Acquisition.Pursuits.Identity
   alias MediaCentaur.Acquisition.Pursuits.Unit
   alias MediaCentaur.Acquisition.Target
-  alias MediaCentaur.Library
+  alias MediaCentaur.{Format, Library, Repo}
 
-  @spec reconcile_active() :: :ok
-  def reconcile_active do
+  # How long an episode-identity unit's grabbed release must be observed
+  # landed-without-its-episode before we re-search. Longer than any
+  # realistic library import so a legit pack satisfies via tmdb_match
+  # first; for a genuine wrong-cour grab it just delays the pivot.
+  @no_coverage_confirm_seconds 600
+
+  @spec reconcile_active(DateTime.t()) :: :ok
+  def reconcile_active(now \\ DateTime.utc_now()) do
     triples = Pursuits.list_active_units_with_context()
     present_paths = Library.list_present_file_paths()
     present_set = MapSet.new(present_paths)
@@ -66,7 +72,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
     Enum.each(triples, fn {pursuit, unit, target} ->
       case landed_file(pursuit, unit, target, present_set, segment_index) do
         {:ok, path} -> satisfy(pursuit, unit, path)
-        :not_found -> :ok
+        :not_found -> reconcile_no_coverage(pursuit, unit, target, present_set, segment_index, now)
       end
     end)
 
@@ -84,6 +90,69 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
       final_target_id: unit.current_target_id,
       final_release_title: Path.basename(path)
     })
+  end
+
+  # An episode-identity unit whose own episode isn't present. If the release
+  # it grabbed has nonetheless landed (its files are in the library), that
+  # release didn't deliver this episode → re-search. Observe-then-confirm
+  # guards the import-window race (a legit pack's episodes are briefly
+  # on-disk-but-unlinked); a legit pack satisfies via `tmdb_match` well
+  # within the window, which clears the observation. Identity-less units
+  # (movies, prowlarr_query) have no per-episode identity to re-search
+  # against, so they're left as-is.
+  defp reconcile_no_coverage(pursuit, unit, target, present_set, segment_index, now) do
+    cond do
+      not episode_identity?(pursuit, unit) ->
+        :ok
+
+      release_landed?(target, present_set, segment_index) ->
+        observe_or_re_search(pursuit, unit, now)
+
+      is_nil(unit.no_coverage_first_seen_at) ->
+        :ok
+
+      true ->
+        # Nothing landed (still downloading / release gone) — reset the observation.
+        {:ok, _} = Repo.update(Unit.clear_no_coverage_changeset(unit))
+        :ok
+    end
+  end
+
+  defp observe_or_re_search(pursuit, unit, now) do
+    case unit.no_coverage_first_seen_at do
+      nil ->
+        {:ok, _} = Repo.update(Unit.observe_no_coverage_changeset(unit, now))
+        :ok
+
+      seen_at ->
+        if DateTime.diff(now, seen_at) >= @no_coverage_confirm_seconds do
+          Log.info(
+            :acquisition,
+            "library reconciler — #{pursuit.title} " <>
+              "#{Format.episode_label(unit.season_number, unit.episode_number)}: grabbed release " <>
+              "landed without this episode, re-searching"
+          )
+
+          case AutoCancel.execute(%{pursuit_id: pursuit.id, reason: :no_coverage, unit_id: unit.id}) do
+            {:ok, _pursuit} ->
+              :ok
+
+            {:error, reason} ->
+              Log.warning(:acquisition, "no-coverage re-search failed: #{inspect(reason)}")
+          end
+        else
+          :ok
+        end
+    end
+  end
+
+  # Did the unit's grabbed release land in the library at all? Reuses the
+  # coarse matchers (content-path under-dir, release-folder name) that
+  # Phase 1 forbade from *satisfying* an episode-identity unit — here they
+  # mean "the release is present but this episode wasn't in it."
+  defp release_landed?(%Target{} = target, present_set, segment_index) do
+    content_path_match(target, present_set) != :not_found or
+      release_match(target, segment_index) != :not_found
   end
 
   defp landed_file(pursuit, unit, target, present_set, segment_index) do
