@@ -53,17 +53,21 @@ the loop already stopped, these only matter once re-search/solving is
 numbering-aware — so they belong with the Phase-2 adapters, not as a
 symptom-patch now.
 
-**Interim behaviour (acceptable, honest):** a mis-grabbed episode unit
-sits active+claimed at `:no_action` — "still pending," never falsely
-"got it" — until Phase 2 makes the real cour-2 releases findable. After a
-dev recompile the solver may grab the wrong S1 pack *once* more (planner
-coverage-by-name), then settle into that quiet pending state; no loop.
+**Phase 1 SHIPPED in v0.99.1** (released + verified). Dev re-verified on
+the real library after restart; the 7 pre-fix false-satisfied pursuits
+(Frieren E29–E38, Hacks, Your Friends & Neighbors ×3, Obsession) were
+deleted in one transaction (satisfied 29→22). Interim behaviour as
+designed: a mis-grabbed episode unit sits active+claimed at `:no_action`
+("still pending," never falsely "got it") until Phase 2 makes cour-2
+findable.
 
-**Still open:** dev re-verify — the `mc_dev` node runs pre-fix code
-(manual iex; recompile/restart needed to load the guard).
+**Phase 2 step 1 SHIPPED in v0.99.1:** the `EpisodeIdentity` value module.
 
-ADR-058 accepted; design approved. Reconciliation-first so the loop stops
-on the real library before any schema/identity refactor.
+**Now: Phase 2 findability.** Linchpin = the re-search trigger (a unit
+stranded at `:no_action` after a non-delivering grab must re-search),
+which gates query-out. See the corrected sub-sequencing in Next steps.
+
+ADR-058 accepted; design approved.
 
 ## Decisions made
 
@@ -148,10 +152,21 @@ re-selects the wrong pack; no schema migration required.
    the right release findable). Touches `Search.ReleaseCoverage`,
    `Plan`/`PlanUnit` (carry air-date), `planner.ex` mapping. **Intricate,
    real-pipeline — do as a focused pass, test-first.**
-6. **record-tried-on-no-new-coverage** — once re-search is numbering-aware,
-   a release that delivered nothing for a unit is added to
-   `tried_release_guids` so it's excluded on the next attempt. *(folded in
-   from Phase 1; harmless no-op until re-search exists)*
+6. **re-search trigger + record-tried (THE LINCHPIN — next).** When the
+   `LibraryReconciler` sees an episode-identity unit whose grabbed release
+   has **landed** (coarse content-path/release-folder match present) but
+   whose **own episode is absent** (`tmdb_match :not_found`), the release
+   didn't deliver this unit → re-search. Reuse `Commands.AutoCancel`
+   (`reason: :no_coverage`, `unit_id`): it records the prior release in
+   `tried_release_guids`, inserts a fresh seeking target, and enqueues
+   `PursueTarget`. **Race guard:** during a legit pack's import window an
+   episode is briefly on-disk-but-unlinked, so observe-then-confirm like
+   `Policy` does for stalls — stamp a new nullable
+   `Unit.no_coverage_first_seen_at` on first observation, only re-search
+   after a confirmation window, and clear it the moment `tmdb_match`
+   satisfies (legit packs satisfy well within the window → no spurious
+   re-search). Seam: `library_reconciler.ex`; mirrors
+   `stall_first_seen_at`/`zero_seeders_first_seen_at`.
 
 **Lifecycle gap (load-bearing, found while planning):** after the Phase-1
 reconciler fix, a unit that grabbed a non-delivering pack sits at

@@ -31,7 +31,7 @@ Use [`template.md`](template.md) as a starter.
   release. Open: the core gesture (broadcast feed vs directed/encrypted DM vs
   both — Q4), payload shape, key/relay UX. Resume at the open-questions section.
 * [`canonical-episode-identity.md`](canonical-episode-identity.md) —
-  **planning.** Promote episode identity from a scattered `(tmdb,s,e)`
+  **Phase 1 shipped (v0.99.1); Phase 2 (findability) underway.** Promote episode identity from a scattered `(tmdb,s,e)`
   convention into a first-class `EpisodeIdentity` (TMDB tuple + derived
   absolute ordinal) represented coherently across library, release
   tracking, acquisition, and display, with numbering ambiguity confined
