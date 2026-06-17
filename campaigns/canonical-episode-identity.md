@@ -153,10 +153,24 @@ re-selects the wrong pack; no schema migration required.
    `tried_release_guids` so it's excluded on the next attempt. *(folded in
    from Phase 1; harmless no-op until re-search exists)*
 
-**Phase 2 sub-sequencing:** 2 (routing, safe) → 5 (air-window coverage,
-the outcome-changer) → 4 (query-out, now net-positive) → 3 (parse-in for
-binding landed cour-2 files) → 6. Step 5 is the load-bearing, intricate
-one and gates 4.
+**Lifecycle gap (load-bearing, found while planning):** after the Phase-1
+reconciler fix, a unit that grabbed a non-delivering pack sits at
+`:no_action` (`Policy.evaluate/1`) and **never re-searches** — its target
+"succeeded," so nothing re-arms it. So end-to-end acquisition of E29 needs
+a **re-search trigger** for "target landed but unit unsatisfied": mark the
+release tried (step 6) and re-activate the unit to search again. Without
+this, query-out's findable `Frieren 29` is never tried. This re-search
+trigger + query-out (4) + record-tried (6) are the real end-to-end fix;
+air-window coverage (5) is an *optimization* that avoids the bad grab for
+packs that name their window (`[2023-2024]`), not the load-bearing piece.
+
+**Phase 2 sub-sequencing (corrected):** 2 (routing, safe) → **re-search
+trigger + record-tried (6)** so a stranded unit retries → **query-out (4)**
+so the retry finds the absolute-named release → **parse-in (3)** so the
+landed cour-2 file binds → **air-window coverage (5)** as the
+grab-avoidance optimization. The re-search trigger is the new linchpin and
+gates the rest; all of it touches the live acquisition pipeline, so it's a
+focused, test-first pass — not a tail-of-session increment.
 
 *Done when:* identity module + adapters with tests; a cour-2 file binds
 to the correct TMDB episode; a search for E29 surfaces absolute-named
