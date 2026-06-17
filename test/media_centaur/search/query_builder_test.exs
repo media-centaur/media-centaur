@@ -47,7 +47,7 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
       assert Keyword.get(opts, :type) == :tv
     end
 
-    test "pads single-digit season and episode, then appends an absolute-ordinal fallback" do
+    test "pads single-digit season and episode" do
       criteria = %Criteria{
         type: :tmdb,
         tmdb_type: :tv,
@@ -56,23 +56,7 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
         episode_number: 1
       }
 
-      # SxxExx first (tried first; the worker halts on a match), then the
-      # absolute form ongoing-anime release groups use — only reached when
-      # SxxExx misses. Season 1 only: there absolute == episode, no counts.
-      assert [{"Show S01E01", [type: :tv]}, {"Show 1", [type: :tv]}] =
-               QueryBuilder.build(criteria)
-    end
-
-    test "season 1 with a high episode number emits the absolute fallback (the Frieren case)" do
-      criteria = %Criteria{
-        type: :tmdb,
-        tmdb_type: :tv,
-        title: "Frieren",
-        season_number: 1,
-        episode_number: 29
-      }
-
-      assert [{"Frieren S01E29", _}, {"Frieren 29", [type: :tv]}] = QueryBuilder.build(criteria)
+      assert [{"Show S01E01", _}] = QueryBuilder.build(criteria)
     end
 
     test "preserves double-digit season and episode without padding" do

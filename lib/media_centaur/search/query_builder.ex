@@ -52,10 +52,7 @@ defmodule MediaCentaur.Search.QueryBuilder do
 
   defp build_tv(%Criteria{title: title, season_number: season, episode_number: episode})
        when is_integer(season) and is_integer(episode) do
-    [
-      {"#{title} #{season_tag(season)}#{episode_tag(episode)}", [type: :tv]}
-      | absolute_fallback(title, season, episode)
-    ]
+    [{"#{title} #{season_tag(season)}#{episode_tag(episode)}", [type: :tv]}]
   end
 
   # Whole-series fallback (no season/episode known) — rare in the
@@ -74,17 +71,6 @@ defmodule MediaCentaur.Search.QueryBuilder do
       {:error, _} -> [{query, []}]
     end
   end
-
-  # Absolute-ordinal fallback (`Title 29`) — the form ongoing-anime release
-  # groups use when TMDB folds cours into one continuous season (Frieren:
-  # one 38-episode Season 1, so `S01E29` is released as `29`). Only season
-  # 1, where the absolute ordinal equals the episode number with no
-  # season-count lookup — later seasons would need counts this layer
-  # doesn't carry. Ordered AFTER the SxxExx query, which the worker tries
-  # first and halts on if it matches, so this never adds traffic for shows
-  # that are named SxxExx.
-  defp absolute_fallback(title, 1, episode), do: [{"#{title} #{episode}", [type: :tv]}]
-  defp absolute_fallback(_title, _season, _episode), do: []
 
   defp season_tag(season), do: "S" <> Format.pad2(season)
   defp episode_tag(episode), do: "E" <> Format.pad2(episode)
