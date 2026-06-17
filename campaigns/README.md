@@ -21,6 +21,15 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`friends-recommendations.md`](friends-recommendations.md) —
+  **parked — v2 backbone (do not start until v1 is complete).** Friends, with
+  send/receive show recommendations that one-click into the existing
+  acquisition path — no central server we operate, strong privacy/control.
+  Direction settled: **Nostr** (signed events = recs, followed pubkeys =
+  friends, relays = the pipe; free public relays *or* self-hosted private
+  relays — control on a slider), keypair identity, NIF Schnorr bundled in the
+  release. Open: the core gesture (broadcast feed vs directed/encrypted DM vs
+  both — Q4), payload shape, key/relay UX. Resume at the open-questions section.
 * [`canonical-episode-identity.md`](canonical-episode-identity.md) —
   **planning.** Promote episode identity from a scattered `(tmdb,s,e)`
   convention into a first-class `EpisodeIdentity` (TMDB tuple + derived
