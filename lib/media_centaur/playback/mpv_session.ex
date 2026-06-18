@@ -96,9 +96,13 @@ defmodule MediaCentaur.Playback.MpvSession do
     language_context: nil,
     audio_tracks: [],
     subtitle_tracks: [],
-    current_audio_lang: nil,
-    current_sub_lang: nil,
-    current_sub_forced: false,
+    # Raw mpv-reported selected track indices (not derived languages). The
+    # comparison languages are resolved from these against the *complete*
+    # track list at capture time — see `LanguageContext.current_selection/4`
+    # and the `perform_capture/1` note — so an early `sid` event that lands
+    # before subtitle tracks demux can't freeze a stale "no subs" baseline.
+    current_aid: nil,
+    current_sid: nil,
     resolver_choice: nil,
     # Last `sid` value we pushed to mpv via enforcement, so we only send
     # `set_property sid` when the resolved target actually changes (no IPC
@@ -488,14 +492,11 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   defp handle_mpv_message(%{"event" => "property-change", "name" => "aid", "data" => aid}, state) do
-    lang = LanguageContext.lang_at(aid, state.audio_tracks)
-    schedule_capture(%{state | current_audio_lang: lang})
+    schedule_capture(%{state | current_aid: aid})
   end
 
   defp handle_mpv_message(%{"event" => "property-change", "name" => "sid", "data" => sid}, state) do
-    lang = LanguageContext.lang_at(sid, state.subtitle_tracks)
-    forced = LanguageContext.forced_at(sid, state.subtitle_tracks)
-    schedule_capture(%{state | current_sub_lang: lang, current_sub_forced: forced})
+    schedule_capture(%{state | current_sid: sid})
   end
 
   defp handle_mpv_message(_message, state), do: state
@@ -590,11 +591,20 @@ defmodule MediaCentaur.Playback.MpvSession do
   defp perform_capture(%{resolver_choice: nil}), do: :ok
 
   defp perform_capture(state) do
-    current_state = %{
-      audio_lang: state.current_audio_lang,
-      sub_lang: state.current_sub_lang,
-      sub_forced: state.current_sub_forced
-    }
+    # Resolve the user's *current* selection now, from the complete track
+    # lists — not from a language snapshot taken when the `aid`/`sid` event
+    # fired. mpv populates tracks incrementally and auto-selects a sub from
+    # our `--slang` before subtitle tracks demux, so an event-time snapshot
+    # can read "no subs" while the eng sub is in fact selected. Deriving here
+    # is what stops the per-series `subtitles_off` poison (the Frieren
+    # flip-flop) — see `LanguageContext.current_selection/4`.
+    current_state =
+      LanguageContext.current_selection(
+        state.current_aid,
+        state.current_sid,
+        state.audio_tracks,
+        state.subtitle_tracks
+      )
 
     case OverrideCapture.compute(state.resolver_choice, current_state) do
       :no_change ->

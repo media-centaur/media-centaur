@@ -19,7 +19,7 @@ defmodule MediaCentaur.Playback.TrackOverrideRoundTripTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Playback.{LanguagePolicy, OverrideCapture, TrackResolver}
+  alias MediaCentaur.Playback.{LanguageContext, LanguagePolicy, OverrideCapture, TrackResolver}
 
   # English speaker, fallback-only: subtitles only when the audio is in a
   # language they don't understand; forced ("Greedo scene") subs fill the
@@ -94,6 +94,27 @@ defmodule MediaCentaur.Playback.TrackOverrideRoundTripTest do
     assert args.slang == []
     assert args.sub_visibility == false
     assert args.disable_subs == true
+  end
+
+  test "auto-selected subs are not poisoned into subtitles_off (Frieren flip-flop regression)" do
+    # jpn audio, foreign to an eng speaker → resolver shows the eng sub, and
+    # mpv auto-selects it (sid=1) from our --slang=eng launch flag. The bug:
+    # the early `sid` event fired before subtitle tracks demuxed, so capture
+    # derived sub_lang=nil and persisted subtitles_off=true on EVERY session —
+    # even ones that played subs correctly. Capture must derive the current
+    # selection from the COMPLETE track list, where sid=1 is the eng sub, so
+    # the user's actual selection matches the resolver and nothing is written.
+    resolver_choice = state("jpn", "eng")
+
+    {audio_tracks, subtitle_tracks} =
+      LanguageContext.parse_track_list([
+        %{"id" => 1, "type" => "audio", "lang" => "jpn"},
+        %{"id" => 1, "type" => "sub", "lang" => "eng", "forced" => false}
+      ])
+
+    current = LanguageContext.current_selection(1, 1, audio_tracks, subtitle_tracks)
+
+    assert OverrideCapture.compute(resolver_choice, current) == :no_change
   end
 
   test "no divergence captures nothing — the entity keeps following policy" do
