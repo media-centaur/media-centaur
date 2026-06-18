@@ -90,6 +90,27 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
           }
   end
 
+  defmodule Offer do
+    @moduledoc """
+    A fit-gated over-grab the user can opt into: an unfound unit whose
+    only coverage is an over-broad pack (the planner set it aside rather
+    than auto-grabbing the whole season/series for one episode). The CTA
+    grabs the pack via the same path as a swap-picker choice.
+    """
+
+    @enforce_keys [:unit_id, :unit_label, :guid, :scope_label]
+    defstruct [:unit_id, :unit_label, :guid, :scope_label, :title, :size_bytes]
+
+    @type t :: %__MODULE__{
+            unit_id: Ecto.UUID.t(),
+            unit_label: String.t(),
+            guid: String.t(),
+            scope_label: String.t(),
+            title: String.t() | nil,
+            size_bytes: integer() | nil
+          }
+  end
+
   defmodule Overlap do
     @moduledoc """
     A duplicate-data warning: one assigned release physically contains
@@ -123,7 +144,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
     :gaps,
     :total_size_bytes,
     movie?: false,
-    overlaps: []
+    overlaps: [],
+    offers: []
   ]
 
   @type status :: :planning | :ready | :committed | :discarded
@@ -140,7 +162,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
           gaps: [String.t()],
           total_size_bytes: integer() | nil,
           movie?: boolean(),
-          overlaps: [Overlap.t()]
+          overlaps: [Overlap.t()],
+          offers: [Offer.t()]
         }
 
   @doc """

@@ -127,6 +127,16 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
       assert Targeting.default_units(selection) == [{1, 2}, {2, 1}]
     end
 
+    test "aired_counts/1 — per-season aired episode totals (the pack-fit denominator)" do
+      stub_sample_show()
+
+      {:ok, selection} = Targeting.series_selection("246810")
+
+      # Season 1: both aired. Season 2: one aired, one far-future — the
+      # unaired episode isn't in any pack, so it isn't counted.
+      assert Targeting.aired_counts(selection) == %{"1" => 2, "2" => 1}
+    end
+
     test "propagates TMDB errors" do
       TmdbStubs.stub_tmdb_error("/tv/999999", 404)
 

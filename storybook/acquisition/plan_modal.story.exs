@@ -216,6 +216,17 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         }
       },
       %Variation{
+        id: :board_offer,
+        description:
+          "Fit-gated offer — no right-sized release for the wanted episode; the only thing covering it is an over-broad season pack, surfaced as an explicit one-click over-grab rather than auto-grabbed.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          board: board(:offer),
+          last_activity: "11 searches · 8 from corpus"
+        }
+      },
+      %Variation{
         id: :error,
         description: "Targeting failed — honest dead end, one way out.",
         attributes: %{
@@ -316,6 +327,32 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       ],
       gaps: ["S02E02 · Finale"],
       total_size_bytes: 12_400_000_000
+    }
+  end
+
+  defp board(:offer) do
+    %PlanBoard{
+      plan_id: "story-plan",
+      title: "Sample Show",
+      status: :ready,
+      wanted: 1,
+      covered: 0,
+      seasons: [
+        %PlanBoard.SeasonRow{season_number: 1, cells: [cell(1, 3, :unfound, nil)]}
+      ],
+      releases: [],
+      gaps: ["S01E03 · The Signal"],
+      total_size_bytes: nil,
+      offers: [
+        %PlanBoard.Offer{
+          unit_id: "story-unit-s01e03",
+          unit_label: "S01E03 · The Signal",
+          guid: "s1-pack",
+          scope_label: "Season 1 pack",
+          title: "Sample.Show.S01.COMPLETE.1080p.WEB-DL",
+          size_bytes: 9_400_000_000
+        }
+      ]
     }
   end
 

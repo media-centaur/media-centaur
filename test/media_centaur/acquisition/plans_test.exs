@@ -206,6 +206,56 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert covered.id == unit.id
     end
 
+    test "board_for surfaces a fit-gated pack as one offer covering every unfound unit it would bring" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+
+            results =
+              if query == "Sample Show Season 1" do
+                [
+                  release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{
+                    seeders: 30,
+                    size: 9_400_000_000
+                  })
+                ]
+              else
+                []
+              end
+
+            Req.Test.json(conn, results)
+
+          _other ->
+            Req.Test.json(conn, %{})
+        end
+      end)
+
+      # 2 of season 1's 3 aired episodes — fit 0.67 < 0.75, so the only
+      # cover (the season pack) is set aside as an offer, not grabbed.
+      {:ok, created} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
+      {:ok, plan} = Plans.get(created.id)
+      assert plan.status == "ready"
+
+      units = Plans.units_for(plan.id)
+      assert Enum.all?(units, &(&1.status == "unfound"))
+
+      board = Plans.board_for(plan)
+
+      # One offer for the pack, not one per unfound unit.
+      assert [offer] = board.offers
+      assert offer.guid == "pack-s1"
+      assert offer.scope_label == "Season 1 pack"
+      assert offer.unit_label == "2 episodes"
+      assert offer.size_bytes == 9_400_000_000
+
+      # Grabbing the offer claims every unit the pack covers.
+      assert {:ok, _plan} = Plans.choose_release(offer.unit_id, offer.guid)
+      regrabbed = Plans.units_for(plan.id)
+      assert Enum.all?(regrabbed, &(&1.assigned_guid == "pack-s1"))
+      assert Plans.board_for(plan).offers == []
+    end
+
     test "the swap picker: find-more live-fills the unit's terms consult-first, suspicious flagged not hidden, choice reassigns" do
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do

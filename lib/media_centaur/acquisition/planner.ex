@@ -9,17 +9,39 @@ defmodule MediaCentaur.Acquisition.Planner do
   → season pack → episode span → single episode). The user picks
   *what* they want; this module picks *how*.
 
+  ## Fit gating — never grab a pack you mostly don't want
+
+  Broad-first consolidation is right when you want *most* of a span and
+  wrong when you want a sparse slice of it: a single wanted episode
+  "covered" by a complete-series pack would otherwise drag the whole
+  series down. The gate is **fit** — `wanted-in-span / span-total` (the
+  span's total aired-episode count) — measured against `pack_min_fit`.
+  A pack scope only stays a candidate when its fit clears the
+  threshold; below it, the pack is set aside as an *offer* (surfaced to
+  the user with the over-grab spelled out, never auto-assigned).
+
+  Gating is opt-in and monotonic: it activates only when `prefs` carry
+  a numeric `pack_min_fit`, and a pack is gated out only when its
+  span-total is *known* (from `prefs.span_sizes`) and the fit falls
+  short. Unknown span-total → no gate (legacy broad-first). So a caller
+  with span sizes (media search) gets fit-aware planning; a caller
+  without (movies, legacy) is unchanged. Episode spans need no span
+  sizes — their breadth is intrinsic (`last - first + 1`). Fit is
+  judged against `prefs.all_wanted` (the full plan want) so a season's
+  density reads the same across quality-floor groups.
+
   ## Algorithm
 
   Acceptability-filter the options (quality bounds — best-available-now
-  has **no** patience window), then consolidate broad-first: every
-  multi-unit option still covering two or more remaining wanted units
-  claims them, in `{breadth, quality, seeders}` order — so the widest
-  acceptable consolidation wins its span, a 4K pack outranks a 1080p
-  pack, and seeders break ties between equals. Remaining units get
-  their per-unit best (quality, then seeders); units nothing acceptable
-  covers come back as `unfound` — search results, never pursuit leaves
-  (campaign hard boundary).
+  has **no** patience window), fit-gate the packs, then consolidate
+  broad-first over what survives: every multi-unit option still
+  covering two or more remaining wanted units claims them, in
+  `{breadth, quality, seeders}` order — so the widest acceptable
+  consolidation wins its span, a 4K pack outranks a 1080p pack, and
+  seeders break ties between equals. Remaining units get their per-unit
+  best (quality, then seeders); units nothing acceptable covers come
+  back as `unfound` — search results, never pursuit leaves (campaign
+  hard boundary) — each carrying its best fit-gated `offer`, if any.
 
   **Within a span, consolidation outranks per-unit quality** (campaign
   plan-solver-consolidation, 2026-06-10 — supersedes the original
@@ -61,15 +83,29 @@ defmodule MediaCentaur.Acquisition.Planner do
   end
 
   defmodule Solution do
-    @moduledoc "The solved plan: assignments plus the units nothing acceptable covers."
+    @moduledoc """
+    The solved plan: assignments, the units nothing acceptable covers,
+    and the `offers` — a `unit => Option` map of the best fit-gated pack
+    that *would* cover an unfound unit (over-grab the user can opt into).
+    """
 
     @enforce_keys [:assignments, :unfound]
-    defstruct [:assignments, :unfound]
+    defstruct [:assignments, :unfound, offers: %{}]
 
-    @type t :: %__MODULE__{assignments: [Assignment.t()], unfound: [ReleaseCoverage.unit()]}
+    @type t :: %__MODULE__{
+            assignments: [Assignment.t()],
+            unfound: [ReleaseCoverage.unit()],
+            offers: %{ReleaseCoverage.unit() => Option.t()}
+          }
   end
 
-  @type prefs :: %{min_quality: String.t(), max_quality: String.t()}
+  @type prefs :: %{
+          :min_quality => String.t(),
+          :max_quality => String.t(),
+          optional(:pack_min_fit) => number() | nil,
+          optional(:span_sizes) => %{String.t() => pos_integer()},
+          optional(:all_wanted) => [ReleaseCoverage.unit()]
+        }
 
   @spec solve([ReleaseCoverage.unit()], [Option.t()], prefs()) :: Solution.t()
   def solve(wanted, options, prefs) when is_list(wanted) and is_list(options) do
@@ -78,12 +114,16 @@ defmodule MediaCentaur.Acquisition.Planner do
         Quality.acceptable?(result.quality, prefs.min_quality, prefs.max_quality)
       end)
 
-    {assignments, remaining} = consolidate(wanted, acceptable)
-    {single_assignments, unfound} = assign_singles(remaining, acceptable)
+    all_wanted = Map.get(prefs, :all_wanted) || wanted
+    {eligible, gated} = partition_by_fit(acceptable, all_wanted, prefs)
+
+    {assignments, remaining} = consolidate(wanted, eligible)
+    {single_assignments, unfound} = assign_singles(remaining, eligible)
 
     %Solution{
       assignments: assignments ++ single_assignments,
-      unfound: unfound
+      unfound: unfound,
+      offers: offers_for(unfound, gated)
     }
   end
 
@@ -142,6 +182,71 @@ defmodule MediaCentaur.Acquisition.Planner do
       end)
 
     {assignments, Enum.reverse(unfound)}
+  end
+
+  # ---------------------------------------------------------------------------
+  # Fit gating — packs whose span is mostly unwanted are set aside as
+  # offers, not assigned. Gating is off unless `pack_min_fit` is numeric;
+  # a pack is gated only when its span-total is known and the fit falls
+  # short, so unknown spans (and every single episode) always survive.
+  # ---------------------------------------------------------------------------
+
+  defp partition_by_fit(options, all_wanted, %{pack_min_fit: threshold} = prefs)
+       when is_number(threshold) do
+    span_sizes = Map.get(prefs, :span_sizes, %{})
+
+    Enum.split_with(options, fn %Option{scope: scope} ->
+      fit_ok?(scope, all_wanted, span_sizes, threshold)
+    end)
+  end
+
+  defp partition_by_fit(options, _all_wanted, _prefs), do: {options, []}
+
+  defp fit_ok?(scope, wanted, span_sizes, threshold) do
+    case span_total(scope, span_sizes) do
+      nil ->
+        true
+
+      total when total > 0 ->
+        length(ReleaseCoverage.covered_units(scope, wanted)) / total >= threshold
+
+      _zero_or_negative ->
+        true
+    end
+  end
+
+  # The realistic episode count a grab of this scope lands on disk — the
+  # fit denominator. `nil` means "can't tell" (no span sizes for a
+  # season/series), which the gate reads as "don't judge".
+  defp span_total({:episode, _season, _episode}, _span_sizes), do: 1
+  defp span_total({:episodes, _season, first, last}, _span_sizes), do: last - first + 1
+  defp span_total({:season, season}, span_sizes), do: season_size(span_sizes, season)
+
+  defp span_total({:seasons, first, last}, span_sizes) do
+    sizes = Enum.map(first..last, &season_size(span_sizes, &1))
+    if Enum.all?(sizes, &is_integer/1), do: Enum.sum(sizes)
+  end
+
+  defp span_total(:series, span_sizes) do
+    sizes = Map.values(span_sizes)
+    if sizes != [], do: Enum.sum(sizes)
+  end
+
+  defp span_total(:unknown, _span_sizes), do: nil
+
+  defp season_size(span_sizes, season), do: Map.get(span_sizes, Integer.to_string(season))
+
+  # Best fit-gated pack per unfound unit: narrowest scope first (least
+  # over-grab), then quality, then seeders.
+  defp offers_for(unfound, gated) do
+    for {season, episode} = unit <- unfound,
+        covering =
+          gated
+          |> Enum.filter(&ReleaseCoverage.covers?(&1.scope, season, episode))
+          |> Enum.sort_by(&{breadth(&1.scope), -quality_rank(&1), -seeders(&1)}),
+        [best | _] <- [covering],
+        into: %{},
+        do: {unit, best}
   end
 
   # ---------------------------------------------------------------------------
