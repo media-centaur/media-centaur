@@ -165,6 +165,38 @@ defmodule MediaCentaur.Playback.LanguageContext do
     end
   end
 
+  @doc """
+  Derive the override-capture comparison state (audio/subtitle language and
+  forced flag) from mpv's currently-selected track indices and the current
+  track lists.
+
+  Must be called with the **complete** track lists, not a snapshot from when
+  the `aid`/`sid` event fired: mpv emits an early `sid` event (its own
+  `--slang` auto-selection) before subtitle tracks finish demuxing, so
+  resolving the same index against an empty list yields `nil` and against the
+  complete list yields the real language. Capturing the stale `nil` is what
+  poisoned per-series overrides into `subtitles_off: true`. Storing the raw
+  indices and resolving here at capture time — once `track-list` has fully
+  populated — closes that race.
+
+  `sub` may be `nil` or `false` (mpv's "no subtitle"); both derive `nil`.
+  """
+  @spec current_selection(
+          non_neg_integer() | nil,
+          non_neg_integer() | false | nil,
+          [Track.t()],
+          [Track.t()]
+        ) :: %{audio_lang: String.t() | nil, sub_lang: String.t() | nil, sub_forced: boolean()}
+  def current_selection(aid, sid, audio_tracks, subtitle_tracks) do
+    sid = if sid != false, do: sid
+
+    %{
+      audio_lang: lang_at(aid, audio_tracks),
+      sub_lang: lang_at(sid, subtitle_tracks),
+      sub_forced: forced_at(sid, subtitle_tracks)
+    }
+  end
+
   # ---------------------------------------------------------------------------
   # Owner / metadata resolution
   # ---------------------------------------------------------------------------

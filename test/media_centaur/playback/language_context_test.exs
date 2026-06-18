@@ -185,6 +185,50 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
     end
   end
 
+  describe "current_selection/4 — capture-time derivation from the complete track list" do
+    setup do
+      raw = [
+        %{"id" => 1, "type" => "audio", "lang" => "jpn"},
+        %{"id" => 2, "type" => "audio", "lang" => "eng"},
+        %{"id" => 1, "type" => "sub", "lang" => "eng", "forced" => false},
+        %{"id" => 2, "type" => "sub", "lang" => "eng", "forced" => true}
+      ]
+
+      {audio, subs} = LanguageContext.parse_track_list(raw)
+      %{audio: audio, subs: subs}
+    end
+
+    test "resolves audio/subtitle language and forced flag from the supplied indices",
+         %{audio: audio, subs: subs} do
+      assert LanguageContext.current_selection(1, 1, audio, subs) ==
+               %{audio_lang: "jpn", sub_lang: "eng", sub_forced: false}
+
+      assert LanguageContext.current_selection(2, 2, audio, subs) ==
+               %{audio_lang: "eng", sub_lang: "eng", sub_forced: true}
+    end
+
+    test "a `false`/nil subtitle index (subs off) derives sub_lang nil", %{audio: audio, subs: subs} do
+      assert LanguageContext.current_selection(1, false, audio, subs) ==
+               %{audio_lang: "jpn", sub_lang: nil, sub_forced: false}
+
+      assert LanguageContext.current_selection(1, nil, audio, subs) ==
+               %{audio_lang: "jpn", sub_lang: nil, sub_forced: false}
+    end
+
+    # The regression. In production mpv auto-selected the eng sub (sid=1) from
+    # our `--slang=eng` launch flag and emitted the `sid` event *before* the
+    # subtitle tracks finished demuxing. Deriving the selection language at
+    # that instant (from an empty list) yielded nil; deriving it from the
+    # complete list (as capture must) yields eng. Same raw sid, different
+    # answer depending on which list it's resolved against — so the capture
+    # must always resolve against the complete list.
+    test "same sid resolves to nil against a stale list but eng against the complete list",
+         %{audio: audio, subs: subs} do
+      assert LanguageContext.current_selection(1, 1, [], []).sub_lang == nil
+      assert LanguageContext.current_selection(1, 1, audio, subs).sub_lang == "eng"
+    end
+  end
+
   describe "init/1" do
     test "movie session — owner_type = :movie, original_language from movie" do
       movie = create_movie(%{name: "Sample Movie", original_language: "jpn"})
