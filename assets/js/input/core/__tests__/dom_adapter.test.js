@@ -88,6 +88,7 @@ function fakeNavItem(label) {
     label,
     dataset: {},
     hasAttribute(name) { return name === "data-nav-item" },
+    checkVisibility() { return true },
     focus() { globalThis.document.activeElement = this },
     scrollIntoView() {},
   }
@@ -205,7 +206,7 @@ describe("modal item scoping (writer)", () => {
 const GRID_SELECTOR = "[data-nav-zone='grid'] [data-nav-item]"
 const GRID_CONFIG = { contextSelectors: { grid: GRID_SELECTOR } }
 
-function fakeGridItem(label, { disabled = false } = {}) {
+function fakeGridItem(label, { disabled = false, hidden = false } = {}) {
   return {
     label,
     disabled,
@@ -215,7 +216,13 @@ function fakeGridItem(label, { disabled = false } = {}) {
       if (name === "disabled") return disabled
       return false
     },
-    focus() { globalThis.document.activeElement = this },
+    // Mirrors Element.checkVisibility(): false for an item that is rendered in
+    // the DOM but not actually visible — notably a control inside a collapsed
+    // <details> (the browser hides the content via content-visibility, so it
+    // still matches querySelectorAll and has client rects, yet cannot be
+    // focused). focus() is a no-op on such an element in a real browser.
+    checkVisibility() { return !hidden },
+    focus() { if (!hidden) globalThis.document.activeElement = this },
     scrollIntoView() {},
   }
 }
@@ -260,6 +267,47 @@ describe("non-focusable item filtering", () => {
 
   test("a disabled item between focusables doesn't jam the focused index", () => {
     const items = [fakeGridItem("a"), fakeGridItem("b", { disabled: true }), fakeGridItem("c")]
+    stubGridDocument(items)
+    globalThis.document.activeElement = items[2]
+    expect(gridReader.getFocusedIndex("grid")).toBe(1)
+  })
+
+  // Regression: the Settings → System "Prefer the terminal?" disclosure wraps
+  // its Copy buttons (data-nav-item) in a collapsed <details>. They match the
+  // grid selector and have client rects, but the browser refuses to focus
+  // content inside a closed <details> — so before they were filtered, the
+  // cursor jammed on the wall of hidden items and could not reach the "Update
+  // now" button on the other side of them. Visibility must be filtered at the
+  // same chokepoint as disabled, so count/index/focus all agree.
+  test("hidden items (inside a collapsed <details>) are excluded from the count", () => {
+    stubGridDocument([
+      fakeGridItem("update-now"),
+      fakeGridItem("copy", { hidden: true }),
+      fakeGridItem("restart"),
+    ])
+    expect(gridReader.getItemCount("grid")).toBe(2)
+  })
+
+  test("indexing skips the hidden item (restart is index 1, not 2)", () => {
+    const items = [fakeGridItem("update-now"), fakeGridItem("copy", { hidden: true }), fakeGridItem("restart")]
+    stubGridDocument(items)
+    expect(gridReader.getItemAt("grid", 1)).toBe(items[2])
+  })
+
+  test("focusByIndex steps over a wall of hidden items to the next visible one", () => {
+    const items = [
+      fakeGridItem("update-now"),
+      fakeGridItem("copy-1", { hidden: true }),
+      fakeGridItem("copy-2", { hidden: true }),
+      fakeGridItem("restart"),
+    ]
+    stubGridDocument(items)
+    expect(gridWriter.focusByIndex("grid", 1)).toBe(true)
+    expect(globalThis.document.activeElement).toBe(items[3])
+  })
+
+  test("a hidden item between focusables doesn't jam the focused index", () => {
+    const items = [fakeGridItem("update-now"), fakeGridItem("copy", { hidden: true }), fakeGridItem("restart")]
     stubGridDocument(items)
     globalThis.document.activeElement = items[2]
     expect(gridReader.getFocusedIndex("grid")).toBe(1)
