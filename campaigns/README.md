@@ -21,6 +21,17 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`fit-aware-acquisition.md`](fit-aware-acquisition.md) —
+  **built; uncommitted/unpushed, awaiting owner review.** Picking one
+  episode no longer grabs the whole series. The planner gates pack grabs
+  by **fit** (`wanted-in-span / total-aired-in-span`) against a
+  user-set `pack_min_fit` (default 75% — "most of the span"); below it,
+  episodes are grabbed individually and an over-broad pack is surfaced as
+  a one-click **offer** rather than auto-grabbed. Gating is monotonic and
+  opt-in (only plans with persisted `span_sizes`; movies/tracking drops
+  unchanged). All 5083 tests green. Next: owner review, resolve the
+  pre-existing `earmark` deps.audit blocker, commit/push/tag, then
+  validate the 75% default in real use.
 * [`friends-recommendations.md`](friends-recommendations.md) —
   **parked — v2 backbone (do not start until v1 is complete).** Friends, with
   send/receive show recommendations that one-click into the existing
