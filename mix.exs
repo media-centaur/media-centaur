@@ -154,7 +154,14 @@ defmodule MediaCentaur.MixProject do
         "format",
         "credo --strict",
         "boundaries",
-        "deps.audit",
+        # GHSA-52mm-h59v-f3c7 is stored XSS in earmark's HTML *render* path
+        # (Earmark.Transform). We never render: GuideMarkdown calls
+        # Earmark.Parser.as_ast and emits HEEx (Phoenix auto-escapes), and the
+        # only markdown is trusted, repo-authored guide content — no untrusted
+        # input reaches it. earmark is retired with no patched version, and the
+        # maintained alternative (MDEx) is a Rust NIF we deliberately avoid.
+        # Unreachable advisory; ignored until we replace earmark_parser.
+        "deps.audit --ignore-advisory-ids GHSA-52mm-h59v-f3c7",
         "sobelow",
         "test.all"
       ],
