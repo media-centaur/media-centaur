@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.99.3 — 2026-06-18
+
+### Fixed
+
+- **Subtitles no longer switch themselves off between episodes.** When you watched a show with a foreign-language audio track (anime, foreign films), the player could quietly remember "subtitles off" for the whole series — so the next episode started with subtitles disabled, and turning them back on inside the player didn't seem to work. The player was misreading its own startup as a deliberate "subtitles off" choice. It now waits until the file is fully loaded before learning your track preferences. If a show already got stuck this way, reset its language preference from the show's detail page (or it will correct itself the next time you turn subtitles on and keep watching for a few seconds).
+
 ## v0.99.2 — 2026-06-18
 
 ### New
