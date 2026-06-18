@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.99.4 — 2026-06-18
+
+### Fixed
+
+- **The "Update now" button is now reachable with a keyboard or gamepad.** On the Settings → System page, the collapsed "Prefer the terminal?" section was trapping keyboard and controller navigation — its hidden contents formed an invisible wall you couldn't move past, so you couldn't reach the update controls without a mouse. Navigation now skips hidden controls inside any collapsed section, on every page.
+
 ## v0.99.3 — 2026-06-18
 
 ### Fixed
