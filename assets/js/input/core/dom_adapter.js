@@ -25,13 +25,20 @@ function activeModalElement() {
 }
 
 /**
- * A disabled control is never a nav target: the browser refuses to focus it,
- * so including it would make focusByIndex fail and jam the cursor on the item
- * before it (unable to step past a disabled item to reach later ones). Filter
- * it out at the single chokepoint so count, index, and focus all agree.
+ * A disabled or hidden control is never a nav target: the browser refuses to
+ * focus it, so including it would make focusByIndex fail and jam the cursor on
+ * the item before it (unable to step past to reach later ones). Filter it out
+ * at the single chokepoint so count, index, and focus all agree.
+ *
+ * Hidden covers more than `display: none`: a control inside a collapsed
+ * `<details>` is hidden via `content-visibility`, so it still matches the
+ * selector and reports client rects, yet cannot be focused. `checkVisibility()`
+ * is the one predicate that catches every such case (the Settings → System
+ * "Prefer the terminal?" disclosure wraps Copy buttons this way, which used to
+ * wall off the "Update now" button from keyboard navigation).
  */
 function isNavigable(el) {
-  return !el.disabled && !el.hasAttribute("disabled")
+  return !el.disabled && !el.hasAttribute("disabled") && el.checkVisibility()
 }
 
 /**
