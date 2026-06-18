@@ -57,6 +57,7 @@ defmodule MediaCentaur.Acquisition.Plans do
         tmdb_type: "tv",
         title: selection.title,
         criteria: Keyword.get(opts, :criteria, %{}),
+        span_sizes: Targeting.aired_counts(selection),
         grab_future: Keyword.get(opts, :grab_future, false)
       },
       unit_specs
@@ -254,9 +255,37 @@ defmodule MediaCentaur.Acquisition.Plans do
       gaps: units |> Enum.filter(&(&1.status == "unfound")) |> Enum.map(& &1.label),
       total_size_bytes: total_size(releases),
       movie?: plan.tmdb_type == "movie",
-      overlaps: PlanBoard.overlaps(releases, claims)
+      overlaps: PlanBoard.overlaps(releases, claims),
+      offers: offers(units)
     }
   end
+
+  # Unfound units whose only coverage is an over-broad pack the planner
+  # set aside (fit gating) — surfaced as an explicit opt-in, never an
+  # auto-grab. One row per pack (a pack covering several unfound units is
+  # one grab); the CTA reuses the swap-picker's `choose_release` path,
+  # which claims every unit the pack covers.
+  defp offers(units) do
+    units
+    |> Enum.filter(&(&1.status == "unfound" and not is_nil(&1.offered_guid)))
+    |> Enum.group_by(& &1.offered_guid)
+    |> Enum.map(fn {guid, group} ->
+      [first | _] = Enum.sort_by(group, & &1.position)
+
+      %PlanBoard.Offer{
+        unit_id: first.id,
+        unit_label: offer_label(group),
+        guid: guid,
+        scope_label: first.offered_scope,
+        title: first.offered_title,
+        size_bytes: first.offered_size_bytes
+      }
+    end)
+    |> Enum.sort_by(& &1.unit_label)
+  end
+
+  defp offer_label([unit]), do: unit.label
+  defp offer_label(group), do: "#{length(group)} episodes"
 
   defp total_size(releases) do
     sizes = releases |> Enum.map(& &1.size_bytes) |> Enum.filter(&is_integer/1)

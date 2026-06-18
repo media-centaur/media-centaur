@@ -114,6 +114,21 @@ defmodule MediaCentaur.Acquisition.Targeting do
         do: {episode.season_number, episode.episode_number}
   end
 
+  @doc """
+  Per-season aired-episode counts, keyed by season-number string
+  (`%{"1" => 24, "2" => 18}`) — the planner's fit denominator. Only
+  aired episodes count: a season pack lands what has actually been
+  released, so unaired episodes don't inflate the span. Persisted on the
+  plan at creation so `RunPlan` needs no second TMDB fetch.
+  """
+  @spec aired_counts(Selection.t()) :: %{String.t() => non_neg_integer()}
+  def aired_counts(%Selection{seasons: seasons}) do
+    for season <- seasons, into: %{} do
+      aired = Enum.count(season.episodes, & &1.aired?)
+      {Integer.to_string(season.season_number), aired}
+    end
+  end
+
   defp load_seasons(tmdb_id, tv, client) do
     today = Date.utc_today()
     tracked_units = tracked_want_units(tmdb_id)

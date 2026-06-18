@@ -604,6 +604,33 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         </div>
 
         <div
+          :for={offer <- @board.offers}
+          :if={@board.status == :ready}
+          id={"plan-offer-#{offer.unit_id}"}
+          class="glass-inset rounded-lg px-3 py-2 border border-warning/30 flex items-center gap-3"
+        >
+          <.icon name="hero-archive-box-mini" class="size-4 text-warning flex-shrink-0" />
+          <span class="min-w-0 flex-1 text-sm text-warning/90">
+            No right-sized release for {offer.unit_label} — only a {offer.scope_label}<span :if={
+              offer.size_bytes
+            }>, {format_size(offer.size_bytes)}</span>, which brings episodes you didn't ask for.
+          </span>
+          <.button
+            variant="risky"
+            size="xs"
+            class="flex-shrink-0"
+            phx-click="plan_choose_release"
+            phx-value-unit-id={offer.unit_id}
+            phx-value-guid={offer.guid}
+            title={offer.title}
+            data-nav-item
+            tabindex="0"
+          >
+            Grab the pack
+          </.button>
+        </div>
+
+        <div
           :if={@board.status == :ready && @board.gaps != []}
           class="glass-inset rounded-lg px-3 py-2 border border-warning/30 flex items-center gap-3"
         >

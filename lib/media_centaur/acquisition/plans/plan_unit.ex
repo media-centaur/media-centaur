@@ -42,6 +42,15 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
     field :assigned_seeders, :integer
     field :assigned_size_bytes, :integer
     field :assigned_scope, :string
+    # The fit-gated offer: an over-broad pack that *would* cover this
+    # unit but brings far more than was wanted, so the planner set it
+    # aside instead of grabbing it. Present only on `unfound` units that
+    # have no right-sized release; the board spells out the over-grab and
+    # the user can opt in (which assigns it like any swap). See `Planner`.
+    field :offered_guid, :string
+    field :offered_title, :string
+    field :offered_scope, :string
+    field :offered_size_bytes, :integer
     field :excluded_release_guids, {:array, :string}, default: []
     # Per-unit quality floor override (nil = inherit the plan's
     # criteria). The patience elevation (ADR-056 Q4: `min := max`
@@ -88,11 +97,19 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
     ])
     |> validate_required([:assigned_guid, :assigned_title])
     |> put_change(:status, "found")
+    |> clear_offer()
   end
 
-  @doc "Marks the unit unfound and clears any stale assignment."
-  def unfound_changeset(%__MODULE__{} = unit) do
-    clear_assignment(unit, "unfound")
+  @doc """
+  Marks the unit unfound, clearing any stale assignment. With an `offer`
+  map (`offered_guid`/`offered_title`/`offered_scope`/`offered_size_bytes`)
+  the unit is unfound *but* carries the over-broad pack the user can opt
+  into; `nil` clears any prior offer.
+  """
+  def unfound_changeset(%__MODULE__{} = unit, offer \\ nil) do
+    unit
+    |> clear_assignment("unfound")
+    |> put_offer(offer)
   end
 
   @doc """
@@ -113,7 +130,8 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
   end
 
   defp clear_assignment(unit, status) when status in @statuses do
-    change(unit,
+    unit
+    |> change(
       status: status,
       assigned_guid: nil,
       assigned_title: nil,
@@ -121,6 +139,27 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
       assigned_quality: nil,
       assigned_seeders: nil,
       assigned_scope: nil
+    )
+    |> clear_offer()
+  end
+
+  defp clear_offer(changeset) do
+    change(changeset,
+      offered_guid: nil,
+      offered_title: nil,
+      offered_scope: nil,
+      offered_size_bytes: nil
+    )
+  end
+
+  defp put_offer(changeset, nil), do: changeset
+
+  defp put_offer(changeset, offer) when is_map(offer) do
+    change(changeset,
+      offered_guid: offer.offered_guid,
+      offered_title: offer.offered_title,
+      offered_scope: offer.offered_scope,
+      offered_size_bytes: offer.offered_size_bytes
     )
   end
 end

@@ -27,7 +27,8 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
     "auto_grab.default_min_quality",
     "auto_grab.default_max_quality",
     "auto_grab.4k_patience_hours",
-    "auto_grab.max_attempts"
+    "auto_grab.max_attempts",
+    "auto_grab.pack_min_fit"
   ]
 
   @builtin_defaults %{
@@ -35,7 +36,12 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
     default_min_quality: "hd_1080p",
     default_max_quality: "uhd_4k",
     patience_hours: 48,
-    max_attempts: 12
+    max_attempts: 12,
+    # Grab a season/series pack only when you want at least this % of the
+    # episodes it lands (`wanted-in-span / span-total`). Below it, the
+    # pack is a one-click offer, not an auto-grab — so picking one episode
+    # never pulls the whole series. "Most of the span" default.
+    pack_min_fit: 75
   }
 
   defstruct Map.to_list(@builtin_defaults)
@@ -47,7 +53,8 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
           default_min_quality: quality(),
           default_max_quality: quality(),
           patience_hours: non_neg_integer(),
-          max_attempts: pos_integer()
+          max_attempts: pos_integer(),
+          pack_min_fit: non_neg_integer()
         }
 
   @doc "Loads global defaults from Settings, applying built-in fallbacks for missing keys."
@@ -62,7 +69,8 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
       default_max_quality:
         read(entries, "auto_grab.default_max_quality", @builtin_defaults.default_max_quality),
       patience_hours: read(entries, "auto_grab.4k_patience_hours", @builtin_defaults.patience_hours),
-      max_attempts: read(entries, "auto_grab.max_attempts", @builtin_defaults.max_attempts)
+      max_attempts: read(entries, "auto_grab.max_attempts", @builtin_defaults.max_attempts),
+      pack_min_fit: read(entries, "auto_grab.pack_min_fit", @builtin_defaults.pack_min_fit)
     }
   end
 

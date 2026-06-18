@@ -215,4 +215,128 @@ defmodule MediaCentaur.Acquisition.PlannerTest do
       assert length(assignment.units) == 4
     end
   end
+
+  describe "solve/3 — fit-aware pack gating" do
+    # Gating activates only when prefs carry both `pack_min_fit` and a
+    # non-empty `span_sizes` (the per-season aired-episode counts). The
+    # legacy tests above pass neither, so their broad-first consolidation
+    # is preserved; these tests opt in. `fit = wanted-in-span /
+    # span-total`; a pack only consolidates/assigns when fit ≥ threshold.
+
+    defp fit_prefs(span_sizes, threshold \\ 0.75) do
+      Map.merge(@prefs, %{pack_min_fit: threshold, span_sizes: span_sizes})
+    end
+
+    test "one wanted episode of a large season prefers the single, never the series pack" do
+      wanted = [{1, 1}]
+
+      options = [
+        option("series", :series, quality: :uhd_4k, seeders: 900),
+        option("s1-pack", {:season, 1}, quality: :uhd_4k, seeders: 900),
+        option("e1", {:episode, 1, 1}, quality: :hd_1080p, seeders: 3)
+      ]
+
+      solution = Planner.solve(wanted, options, fit_prefs(%{"1" => 24}))
+
+      assert assigned_guid_for(solution, {1, 1}) == "e1"
+      assert solution.unfound == []
+      refute Enum.any?(solution.assignments, &(&1.result.guid in ["series", "s1-pack"]))
+    end
+
+    test "no single available: the unit is unfound and the covering pack is offered" do
+      wanted = [{1, 1}]
+
+      options = [option("s1-pack", {:season, 1}, quality: :hd_1080p)]
+
+      solution = Planner.solve(wanted, options, fit_prefs(%{"1" => 24}))
+
+      assert solution.unfound == [{1, 1}]
+      assert solution.assignments == []
+      assert solution.offers[{1, 1}].result.guid == "s1-pack"
+    end
+
+    test "the offer is the narrowest covering pack, not the broadest" do
+      wanted = [{1, 1}]
+
+      options = [
+        option("series", :series, quality: :hd_1080p),
+        option("s1-pack", {:season, 1}, quality: :hd_1080p)
+      ]
+
+      solution = Planner.solve(wanted, options, fit_prefs(%{"1" => 24}))
+
+      assert solution.offers[{1, 1}].result.guid == "s1-pack"
+    end
+
+    test "wanting most of the span lets the season pack consolidate" do
+      wanted = [{1, 1}, {1, 2}, {1, 3}]
+
+      options = [
+        option("s1-pack", {:season, 1}, quality: :hd_1080p),
+        option("e1", {:episode, 1, 1}, quality: :uhd_4k),
+        option("e2", {:episode, 1, 2}, quality: :uhd_4k)
+      ]
+
+      # 3 of 3 aired → fit 1.0 ≥ 0.75: the pack wins its span.
+      solution = Planner.solve(wanted, options, fit_prefs(%{"1" => 3}))
+
+      assert [assignment] = solution.assignments
+      assert assignment.result.guid == "s1-pack"
+      assert Enum.sort(assignment.units) == [{1, 1}, {1, 2}, {1, 3}]
+    end
+
+    test "wanting a sparse subset of a large season grabs singles, not the pack" do
+      wanted = [{1, 1}, {1, 2}, {1, 3}]
+
+      options = [
+        option("s1-pack", {:season, 1}, quality: :hd_1080p),
+        option("e1", {:episode, 1, 1}),
+        option("e2", {:episode, 1, 2}),
+        option("e3", {:episode, 1, 3})
+      ]
+
+      # 3 of 24 aired → fit 0.125 < 0.75: singles carry it.
+      solution = Planner.solve(wanted, options, fit_prefs(%{"1" => 24}))
+
+      assert solution.assignments |> Enum.map(& &1.result.guid) |> Enum.sort() == ["e1", "e2", "e3"]
+      assert solution.unfound == []
+    end
+
+    test "fit threshold is inclusive at the boundary" do
+      wanted = [{1, 1}, {1, 2}, {1, 3}]
+      options = [option("s1-pack", {:season, 1}, quality: :hd_1080p)]
+
+      # 3 of 4 aired → fit 0.75 == threshold: the pack consolidates.
+      solution = Planner.solve(wanted, options, fit_prefs(%{"1" => 4}, 0.75))
+
+      assert [assignment] = solution.assignments
+      assert assignment.result.guid == "s1-pack"
+    end
+
+    test "an episode span is gated by its own breadth, no span_sizes needed" do
+      wanted = [{1, 1}, {1, 2}]
+
+      tight = option("tight", {:episodes, 1, 1, 2}, quality: :hd_1080p)
+      loose = option("loose", {:episodes, 1, 1, 10}, quality: :uhd_4k, seeders: 900)
+      singles = [option("e1", {:episode, 1, 1}), option("e2", {:episode, 1, 2})]
+
+      # tight span: 2 of 2 → fit 1.0 consolidates. loose span: 2 of 10 →
+      # fit 0.2 is gated out even though it is broader and higher quality.
+      solution = Planner.solve(wanted, [loose, tight | singles], fit_prefs(%{"1" => 24}))
+
+      assert [assignment] = solution.assignments
+      assert assignment.result.guid == "tight"
+    end
+
+    test "gating off (no span_sizes) keeps legacy broad-first consolidation" do
+      wanted = [{1, 1}, {1, 2}, {1, 3}]
+      options = [option("s1-pack", {:season, 1}, quality: :hd_1080p)]
+
+      # pack_min_fit set but span_sizes empty → cannot judge fit → legacy.
+      solution = Planner.solve(wanted, options, Map.put(@prefs, :pack_min_fit, 0.75))
+
+      assert [assignment] = solution.assignments
+      assert assignment.result.guid == "s1-pack"
+    end
+  end
 end

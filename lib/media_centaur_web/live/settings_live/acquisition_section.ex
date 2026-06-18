@@ -390,6 +390,27 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
             How many failed search cycles before giving up on a release.
           </p>
         </div>
+
+        <div>
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            Pack threshold (%)
+          </label>
+          <input
+            type="number"
+            name="auto_grab[pack_min_fit]"
+            value={@auto_grab.pack_min_fit}
+            min="1"
+            max="100"
+            class="input input-bordered w-full font-mono text-sm"
+            data-nav-item
+            tabindex="0"
+          />
+          <p class="text-xs text-base-content/40 mt-1">
+            Grab a season or series pack only when you want at least this share of the
+            episodes it contains. Below it, picking a few episodes grabs them individually
+            and the pack is offered as a one-click choice.
+          </p>
+        </div>
       </div>
     </form>
     """

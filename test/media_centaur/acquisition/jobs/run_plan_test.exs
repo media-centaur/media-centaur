@@ -167,6 +167,48 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       refute_received {:searched, "Sample Show S01E03"}
     end
 
+    test "one wanted episode never grabs the series pack — it descends to the single (the bug)" do
+      stub_recording_searches(%{
+        "Sample Show" => [
+          release("Sample.Show.S01-02.COMPLETE.1080p.WEB-DL", "series-pack", %{seeders: 900})
+        ],
+        "Sample Show S01E01" => [
+          release("Sample.Show.S01E01.1080p.WEB-DL", "single-s1e1", %{seeders: 5})
+        ]
+      })
+
+      # Want just one of season 1's three aired episodes: fit 1/3 < 0.75,
+      # so the series pack is set aside and the descent reaches the
+      # episode rung that the old broad-first halt never ran.
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "found"
+      assert unit.assigned_guid == "single-s1e1"
+
+      assert_received {:searched, "Sample Show S01E01"}
+    end
+
+    test "one wanted episode with only an over-broad pack → unfound, pack offered (not grabbed)" do
+      stub_recording_searches(%{
+        "Sample Show Season 1" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "pack-s1", %{
+            seeders: 30,
+            size: 9_000_000_000
+          })
+        ]
+      })
+
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "unfound"
+      assert unit.assigned_guid == nil
+      assert unit.offered_guid == "pack-s1"
+      assert unit.offered_scope == "Season 1 pack"
+      assert unit.offered_size_bytes == 9_000_000_000
+    end
+
     test "a dry show walks the full ladder and reports every unit unfound" do
       stub_recording_searches(%{})
 

@@ -8,13 +8,20 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   terms, per-unit episode terms — but each rung is searched **only for
   the units the previous rungs' solve left uncovered** (the solver's
   residual — the wanted units no quality-floor group's solve
-  assigned). An acceptable complete-series pack ends the run after one
-  search; season packs end it before any episode term fires; only
-  proven gaps pay for episode searches. Every search still goes
-  through the corpus (`Corpus.search/2`, consult-first citizenship;
-  `force: true` only on a user-initiated re-search), and a forced
-  re-run also descends lazily — it re-hammers only as deep as the
-  residual requires.
+  assigned). A pack only ends the descent for the units it *fits*
+  (`Planner` fit gating): wanting most of a season takes the season
+  pack and stops there, but wanting a sparse slice leaves those units
+  in the residual so the descent keeps going to the right-sized
+  episode terms — picking one episode never grabs the whole series.
+  Every search still goes through the corpus (`Corpus.search/2`,
+  consult-first citizenship; `force: true` only on a user-initiated
+  re-search), and a forced re-run also descends lazily — it re-hammers
+  only as deep as the residual requires.
+
+  A unit the descent can't right-size — nothing but an over-broad pack
+  covers it — lands `unfound` carrying that pack as an *offer* (the
+  pack the user can opt into, over-grab spelled out on the board),
+  never an auto-grab.
 
   Results are identity-verified (`TitleMatcher.coverage/2`), plan-wide
   exclusions filtered, and `Planner.solve/3` assigns candidates by the
@@ -106,7 +113,9 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     wanted = Enum.map(units, &{&1.season_number, &1.episode_number})
     excluded = units |> Enum.flat_map(& &1.excluded_release_guids) |> MapSet.new()
     identity = series_criteria(plan)
-    plan_prefs = prefs(plan)
+    # `all_wanted` is the whole plan's want, used as the fit numerator so
+    # a season's density reads the same across quality-floor groups.
+    plan_prefs = Map.put(prefs(plan), :all_wanted, wanted)
 
     # One solve per quality-floor group (ADR-056 Q4): a unit inside its
     # patience window carries an elevated `min_quality`, fails its
@@ -123,6 +132,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       options: [],
       terms_by_guid: %{},
       assignment_by_unit: %{},
+      offers_by_unit: %{},
       residual: wanted,
       stages: []
     }
@@ -156,7 +166,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
 
       case Map.get(state.assignment_by_unit, key) do
         nil ->
-          {:ok, _} = Repo.update(PlanUnit.unfound_changeset(unit))
+          offer = offer_attrs(Map.get(state.offers_by_unit, key))
+          {:ok, _} = Repo.update(PlanUnit.unfound_changeset(unit, offer))
 
         assignment ->
           {:ok, _} =
@@ -215,19 +226,23 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   defp solve_groups(state, wanted, floor_groups, plan_prefs) do
     options = Enum.reverse(state.options)
 
-    assignment_by_unit =
-      Enum.reduce(floor_groups, %{}, fn {group_min, group_wanted}, acc ->
+    {assignment_by_unit, offers_by_unit} =
+      Enum.reduce(floor_groups, {%{}, %{}}, fn {group_min, group_wanted}, {assigns, offers} ->
         solution = Planner.solve(group_wanted, options, %{plan_prefs | min_quality: group_min})
 
-        for assignment <- solution.assignments,
-            unit <- assignment.units,
-            into: acc,
-            do: {unit, assignment}
+        assigns =
+          for assignment <- solution.assignments,
+              unit <- assignment.units,
+              into: assigns,
+              do: {unit, assignment}
+
+        {assigns, Map.merge(offers, solution.offers)}
       end)
 
     %{
       state
       | assignment_by_unit: assignment_by_unit,
+        offers_by_unit: offers_by_unit,
         residual: Enum.reject(wanted, &Map.has_key?(assignment_by_unit, &1))
     }
   end
@@ -251,6 +266,17 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       assigned_seeders: assignment.result.seeders,
       assigned_size_bytes: assignment.result.size_bytes,
       assigned_scope: scope_label(assignment.scope)
+    }
+  end
+
+  defp offer_attrs(nil), do: nil
+
+  defp offer_attrs(%Planner.Option{result: result, scope: scope}) do
+    %{
+      offered_guid: result.guid,
+      offered_title: result.title,
+      offered_scope: scope_label(scope),
+      offered_size_bytes: result.size_bytes
     }
   end
 
@@ -368,10 +394,16 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   defp prefs(plan) do
     settings = AutoGrabSettings.load()
     criteria = plan.criteria || %{}
+    span_sizes = plan.span_sizes || %{}
 
     %{
       min_quality: Map.get(criteria, "min_quality") || settings.default_min_quality,
-      max_quality: Map.get(criteria, "max_quality") || settings.default_max_quality
+      max_quality: Map.get(criteria, "max_quality") || settings.default_max_quality,
+      span_sizes: span_sizes,
+      # Fit-gating is media-search's lever: only plans that captured the
+      # span sizes (TV selections) opt in. Movies and tracking drops have
+      # none → `nil` → the planner stays broad-first. Percent → fraction.
+      pack_min_fit: if(span_sizes != %{}, do: settings.pack_min_fit / 100)
     }
   end
 

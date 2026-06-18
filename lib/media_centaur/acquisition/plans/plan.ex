@@ -36,6 +36,13 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
     field :title, :string
     field :year, :integer
     field :criteria, :map, default: %{}
+    # Per-season aired-episode counts captured from the targeting
+    # selection (`%{"1" => 24, "2" => 18}`), keyed by season number
+    # string. The planner's fit denominator: how many episodes a
+    # season/series pack actually lands, so it can tell "I want this
+    # whole season" from "I want one of its 24 episodes". Empty for
+    # movies and legacy plans (gating stays off — see `Planner`).
+    field :span_sizes, :map, default: %{}
     field :grab_future, :boolean, default: false
     field :pursuit_id, Ecto.UUID
     field :error, :string
@@ -61,6 +68,7 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
       :title,
       :year,
       :criteria,
+      :span_sizes,
       :grab_future,
       :origin,
       :tracking_item_id

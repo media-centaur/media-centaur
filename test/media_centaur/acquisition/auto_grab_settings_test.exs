@@ -13,6 +13,7 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettingsTest do
       assert settings.default_max_quality == "uhd_4k"
       assert settings.patience_hours == 48
       assert settings.max_attempts == 12
+      assert settings.pack_min_fit == 75
     end
   end
 
@@ -40,6 +41,15 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettingsTest do
       settings = AutoGrabSettings.load()
       assert settings.patience_hours == 12
       assert settings.max_attempts == 6
+    end
+
+    test "respects pack-fit override" do
+      Settings.find_or_create_entry!(%{
+        key: "auto_grab.pack_min_fit",
+        value: %{"value" => 50}
+      })
+
+      assert %{pack_min_fit: 50} = AutoGrabSettings.load()
     end
   end
 

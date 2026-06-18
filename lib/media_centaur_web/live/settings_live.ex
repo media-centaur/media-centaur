@@ -2485,7 +2485,8 @@ defmodule MediaCentaurWeb.SettingsLive do
         {"auto_grab.default_min_quality", params["default_min_quality"], :string},
         {"auto_grab.default_max_quality", params["default_max_quality"], :string},
         {"auto_grab.4k_patience_hours", params["4k_patience_hours"], :integer},
-        {"auto_grab.max_attempts", params["max_attempts"], :integer}
+        {"auto_grab.max_attempts", params["max_attempts"], :integer},
+        {"auto_grab.pack_min_fit", params["pack_min_fit"], :integer}
       ],
       fn {key, raw, type} ->
         with value when value != nil <- coerce(raw, type) do
