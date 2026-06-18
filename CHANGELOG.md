@@ -4,6 +4,19 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.99.2 — 2026-06-18
+
+### New
+
+- **Pack threshold setting (Settings → Acquisition).** Choose how much of a season or series you have to want before Media Centaur grabs the whole pack instead of individual episodes. Defaults to 75% — "most of it."
+
+### Fixed
+
+- **Picking one episode no longer downloads the whole series.** When you asked for a single episode (or just a few), the planner could grab a complete-series or season pack to cover it, pulling far more than you wanted. It now sizes the grab to what you actually picked: individual episodes for a sparse choice, a pack only when you want most of what it contains. When the only release covering an episode is an over-broad pack, the plan offers it as a one-click choice rather than grabbing it for you.
+- **Modal windows no longer run off the screen at larger interface scales.**
+
+Includes an automatic database migration.
+
 ## v0.99.1 — 2026-06-17
 
 ### Fixed
