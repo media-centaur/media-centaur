@@ -226,11 +226,6 @@ defmodule MediaCentaur.Acquisition.Target do
     )
   end
 
-  @doc "Terminal-success transition — the file landed and was matched."
-  def succeeded_changeset(target) do
-    change(target, status: "succeeded", next_attempt_at: nil)
-  end
-
   @doc "User-driven cancellation of a specific target."
   def cancelled_changeset(target, reason) when is_binary(reason) do
     change(target,

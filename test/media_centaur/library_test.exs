@@ -1034,6 +1034,45 @@ defmodule MediaCentaur.LibraryTest do
     end
   end
 
+  describe "stats/0" do
+    test "counts entities by type, episodes, files, and images" do
+      movie = create_standalone_movie(%{name: "Standalone Movie"})
+      series = create_tv_series(%{name: "A Show"})
+      create_movie_series(%{name: "A Collection"})
+      create_video_object(%{name: "A Clip"})
+
+      season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
+      create_episode(%{season_id: season.id, episode_number: 1, name: "E1"})
+      create_episode(%{season_id: season.id, episode_number: 2, name: "E2"})
+
+      create_linked_file(%{movie_id: movie.id})
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "poster",
+        content_url: "#{movie.id}/poster.jpg",
+        extension: "jpg"
+      })
+
+      stats = Library.stats()
+
+      assert stats.by_type == %{movie: 1, tv_series: 1, movie_series: 1, video_object: 1}
+      assert stats.episodes == 2
+      assert stats.files == 1
+      assert stats.images == 1
+    end
+
+    test "a movie belonging to a movie series is not counted as a standalone movie" do
+      collection = create_movie_series(%{name: "Trilogy"})
+      create_movie(%{name: "Part One", movie_series_id: collection.id})
+
+      stats = Library.stats()
+
+      assert stats.by_type.movie == 0
+      assert stats.by_type.movie_series == 1
+    end
+  end
+
   defp all_error_messages(changeset) do
     changeset |> errors_on() |> Map.values() |> List.flatten()
   end

@@ -27,10 +27,4 @@ defmodule MediaCentaur.Library.ChangeEntry do
     |> cast(attrs, [:entity_id, :entity_name, :entity_type, :kind])
     |> validate_required([:entity_id, :entity_name, :entity_type, :kind])
   end
-
-  def backfill_changeset(attrs) do
-    %__MODULE__{}
-    |> cast(attrs, [:entity_id, :entity_name, :entity_type, :kind, :inserted_at])
-    |> validate_required([:entity_id, :entity_name, :entity_type, :kind, :inserted_at])
-  end
 end

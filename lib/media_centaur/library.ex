@@ -252,16 +252,6 @@ defmodule MediaCentaur.Library do
 
   def get_video_object!(id), do: Repo.get!(VideoObject, id)
 
-  def fetch_video_object_with_associations(id) do
-    case Repo.get(VideoObject, id) do
-      nil ->
-        {:error, :not_found}
-
-      video_object ->
-        {:ok, video_object |> Repo.preload(@video_object_full_preloads) |> populate_content_urls()}
-    end
-  end
-
   def get_video_object_with_associations!(id) do
     VideoObject
     |> Repo.get!(id)
@@ -1607,14 +1597,6 @@ defmodule MediaCentaur.Library do
     ExternalIds.put(:tmdb, movie, tmdb_id)
   end
 
-  def list_movies_for_series(movie_series_id, opts \\ []) do
-    preloads = Keyword.get(opts, :load, [])
-
-    from(m in Movie, where: m.movie_series_id == ^movie_series_id)
-    |> Repo.all()
-    |> maybe_preload(preloads)
-  end
-
   # ---------------------------------------------------------------------------
   # Extra
   # ---------------------------------------------------------------------------
@@ -2190,6 +2172,41 @@ defmodule MediaCentaur.Library do
   def list_hero_candidates(opts \\ []), do: HomeFeed.list_hero_candidates(opts)
 
   @doc """
+  Library-wide entity, episode, file and image counts for the Status page's
+  operational dashboard.
+
+  A `Movie` belonging to a `MovieSeries` is part of a collection, not a
+  standalone title, so it is excluded from the `:movie` count. That
+  distinction is the library's own rule and lives here, not in the caller.
+  """
+  @spec stats() :: %{
+          episodes: non_neg_integer(),
+          files: non_neg_integer(),
+          images: non_neg_integer(),
+          by_type: %{
+            movie: non_neg_integer(),
+            tv_series: non_neg_integer(),
+            movie_series: non_neg_integer(),
+            video_object: non_neg_integer()
+          }
+        }
+  def stats do
+    %{
+      episodes: count_rows(Episode),
+      files: count_rows(WatchedFile),
+      images: count_rows(Image),
+      by_type: %{
+        movie: Repo.one(from(m in Movie, where: is_nil(m.movie_series_id), select: count(m.id))),
+        tv_series: count_rows(TVSeries),
+        movie_series: count_rows(MovieSeries),
+        video_object: count_rows(VideoObject)
+      }
+    }
+  end
+
+  defp count_rows(schema), do: Repo.one(from(record in schema, select: count(record.id)))
+
+  @doc """
   Returns every `WatchProgress` record under the given Library
   container, with each record carrying a synthesised `:playable_item`
   map (`container_type` + `container_id`) so downstream consumers
@@ -2578,9 +2595,6 @@ defmodule MediaCentaur.Library do
     Repo.bang!(Repo.delete(record))
     :ok
   end
-
-  defp maybe_preload(records, []), do: records
-  defp maybe_preload(records, preloads), do: Repo.preload(records, preloads)
 
   # Find an existing record by `lookup` (a keyword list of field/value pairs)
   # or insert a new one from `attrs` via `schema.create_changeset/1`. Returns
