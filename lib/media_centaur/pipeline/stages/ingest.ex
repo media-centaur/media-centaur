@@ -9,7 +9,10 @@ defmodule MediaCentaur.Pipeline.Stages.Ingest do
 
   alias MediaCentaur.Pipeline.Payload
 
+  @behaviour MediaCentaur.Pipeline.Stage
+
   @spec run(Payload.t()) :: {:ok, Payload.t()}
+  @impl true
   def run(%Payload{} = payload) do
     Log.info(:pipeline, "publishing entity for tmdb:#{payload.tmdb_id}")
 

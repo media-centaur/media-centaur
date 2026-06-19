@@ -31,7 +31,10 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.TMDB.{Client, Mapper}
 
+  @behaviour MediaCentaur.Pipeline.Stage
+
   @spec run(Payload.t()) :: {:ok, Payload.t()} | {:error, term()}
+  @impl true
   def run(%Payload{tmdb_type: tmdb_type, parsed: parsed} = payload) do
     # Extras resolve media type from the parsed season; everything else uses
     # the search-determined tmdb_type (which handles :unknown → :movie/:tv).

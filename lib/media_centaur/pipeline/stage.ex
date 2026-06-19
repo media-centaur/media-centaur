@@ -6,6 +6,14 @@ defmodule MediaCentaur.Pipeline.Stage do
   under `[:media_centaur, :pipeline, :stage, ...]`.
   """
 
+  alias MediaCentaur.Pipeline.Payload
+
+  @doc """
+  The contract every pipeline stage implements: transform a `Payload` and
+  return `{:ok, payload}`, `{:needs_review, payload}`, or `{:error, reason}`.
+  """
+  @callback run(Payload.t()) :: {:ok, Payload.t()} | {:needs_review, Payload.t()} | {:error, term()}
+
   @spec run(atom(), module(), struct()) ::
           {:ok, struct()} | {:needs_review, struct()} | {:error, term()}
   def run(stage_name, stage_module, payload) do

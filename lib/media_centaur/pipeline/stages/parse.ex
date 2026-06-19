@@ -10,7 +10,10 @@ defmodule MediaCentaur.Pipeline.Stages.Parse do
   alias MediaCentaur.Parser
   alias MediaCentaur.Pipeline.Payload
 
+  @behaviour MediaCentaur.Pipeline.Stage
+
   @spec run(Payload.t()) :: {:ok, Payload.t()}
+  @impl true
   def run(%Payload{file_path: file_path} = payload) do
     extras_dirs = extras_dirs_from_config()
     result = Parser.parse(file_path, extras_dirs: extras_dirs)
