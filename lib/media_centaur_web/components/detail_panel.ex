@@ -610,7 +610,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             src={sized_image_url(@thumbnail, 240)}
             class={[
               "w-20 aspect-video rounded object-cover object-top",
-              @spoiler_free && @state == :unwatched && "spoiler-blur"
+              blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
             ]}
           />
           <div
@@ -621,7 +621,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <div class="flex-1 min-w-0">
           <span class="truncate block text-base-content/90">
             <span class="text-base-content/50 font-mono text-xs">{@episode.episode_number}.</span>
-            <span class={[@spoiler_free && @state == :unwatched && "spoiler-blur"]}>
+            <span class={[blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"]}>
               {@episode.name || "—"}
             </span>
           </span>
@@ -629,7 +629,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             :if={@episode.description}
             class={[
               "line-clamp-2 text-xs text-base-content/50",
-              @spoiler_free && @state == :unwatched && "spoiler-blur"
+              blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
             ]}
           >
             {@episode.description}
@@ -940,7 +940,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             :if={@description}
             class={[
               "line-clamp-2 text-xs text-base-content/50",
-              @spoiler_free && @state == :unwatched && "spoiler-blur"
+              blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
             ]}
           >
             {@description}
@@ -1612,6 +1612,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   """
   @spec delete_in_flight?(term()) :: boolean()
   def delete_in_flight?(deleting), do: deleting != nil
+
+  @doc """
+  Whether an episode's thumbnail, title and synopsis should be spoiler-blurred:
+  only when spoiler-free mode is on *and* the episode is fully unwatched. A
+  watched or in-progress episode is never blurred (the user has already started
+  it), and nothing blurs when spoiler-free mode is off.
+  """
+  @spec blur_spoilers?(boolean(), atom()) :: boolean()
+  def blur_spoilers?(spoiler_free, state), do: spoiler_free and state == :unwatched
 
   def format_file_size(bytes) when bytes >= 1_073_741_824 do
     "#{Float.round(bytes / 1_073_741_824, 1)} GB"
