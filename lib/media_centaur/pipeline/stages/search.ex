@@ -14,7 +14,10 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.TMDB.{Client, Confidence}
 
+  @behaviour MediaCentaur.Pipeline.Stage
+
   @spec run(Payload.t()) :: {:ok, Payload.t()} | {:needs_review, Payload.t()} | {:error, term()}
+  @impl true
   def run(%Payload{parsed: parsed} = payload) do
     {search_title, search_year} = search_params(parsed)
 
