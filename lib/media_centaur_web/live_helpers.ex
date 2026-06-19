@@ -113,14 +113,12 @@ defmodule MediaCentaurWeb.LiveHelpers do
   end
 
   def time_ago(%DateTime{} = datetime) do
-    diff = DateTime.diff(DateTime.utc_now(), datetime, :second)
-
-    cond do
-      diff < 60 -> "just now"
-      diff < 3_600 -> "#{div(diff, 60)}m ago"
-      diff < 86_400 -> "#{div(diff, 3_600)}h ago"
-      diff < 30 * 86_400 -> "#{div(diff, 86_400)}d ago"
-      true -> Calendar.strftime(datetime, "%b %d")
+    # Within 30 days, reuse the shared relative-ago ladder ("just now"
+    # granularity); older entries collapse to a short calendar date.
+    if DateTime.diff(DateTime.utc_now(), datetime, :second) < 30 * 86_400 do
+      MediaCentaur.Format.relative_ago(datetime, sub_minute: :just_now)
+    else
+      Calendar.strftime(datetime, "%b %d")
     end
   end
 
@@ -183,21 +181,11 @@ defmodule MediaCentaurWeb.LiveHelpers do
   end
 
   @doc """
-  Release/file size for display — decimal units (GB/MB), one decimal
-  for GB, the indexer convention. Returns nil for nil so callers can
-  `:if` on the result.
+  Release/file size for display — decimal units (GB/MB), the indexer
+  convention. Thin delegate to `MediaCentaur.Format.format_size_decimal/1`;
+  kept here so the many web call sites can `import` it locally.
   """
-  def format_size(nil), do: nil
-
-  def format_size(bytes) when is_integer(bytes) and bytes >= 1_000_000_000 do
-    "#{Float.round(bytes / 1_000_000_000, 1)} GB"
-  end
-
-  def format_size(bytes) when is_integer(bytes) and bytes >= 1_000_000 do
-    "#{div(bytes, 1_000_000)} MB"
-  end
-
-  def format_size(bytes) when is_integer(bytes), do: "#{bytes} B"
+  defdelegate format_size(bytes), to: MediaCentaur.Format, as: :format_size_decimal
 
   @doc """
   Stable per-title hue for synthetic identity banners (UIDR-014) — the

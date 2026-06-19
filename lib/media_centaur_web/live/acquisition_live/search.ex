@@ -13,6 +13,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.Search do
 
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
 
+  alias MediaCentaur.Format
   alias MediaCentaur.Search.Quality
   alias MediaCentaurWeb.AcquisitionLive.SearchSession
   alias MediaCentaurWeb.AcquisitionLive.Logic
@@ -138,7 +139,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.Search do
       :if={@group.featured.size_bytes}
       class="text-xs tabular-nums shrink-0 text-base-content/60"
     >
-      {format_bytes(@group.featured.size_bytes)}
+      {Format.format_size_decimal(@group.featured.size_bytes)}
     </span>
     <span
       :if={@group.featured.seeders}
@@ -216,7 +217,9 @@ defmodule MediaCentaurWeb.AcquisitionLive.Search do
         </span>
         <span class="flex-1 min-w-0 truncate" title={result.title}>{result.title}</span>
         <span class="flex items-center gap-3 shrink-0 text-xs text-base-content/50">
-          <span :if={result.size_bytes} class="tabular-nums">{format_bytes(result.size_bytes)}</span>
+          <span :if={result.size_bytes} class="tabular-nums">
+            {Format.format_size_decimal(result.size_bytes)}
+          </span>
           <span :if={result.seeders} class={["tabular-nums", seeder_color(result.seeders)]}>
             {result.seeders}S
           </span>
@@ -295,14 +298,4 @@ defmodule MediaCentaurWeb.AcquisitionLive.Search do
   defp seeder_color(n) when n >= 10, do: "text-success"
   defp seeder_color(n) when n >= 3, do: "text-warning"
   defp seeder_color(_), do: "text-error"
-
-  defp format_bytes(bytes) when bytes >= 1_073_741_824 do
-    "#{Float.round(bytes / 1_073_741_824, 1)} GB"
-  end
-
-  defp format_bytes(bytes) when bytes >= 1_048_576 do
-    "#{round(bytes / 1_048_576)} MB"
-  end
-
-  defp format_bytes(bytes), do: "#{bytes} B"
 end
