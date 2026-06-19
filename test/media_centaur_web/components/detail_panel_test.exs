@@ -5,6 +5,21 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
   alias MediaCentaurWeb.Components.DetailPanel
 
+  describe "blur_spoilers?/2" do
+    test "blurs a fully-unwatched episode in spoiler-free mode" do
+      assert DetailPanel.blur_spoilers?(true, :unwatched)
+    end
+
+    test "never blurs a watched or in-progress episode, even in spoiler-free mode" do
+      refute DetailPanel.blur_spoilers?(true, :watched)
+      refute DetailPanel.blur_spoilers?(true, :current)
+    end
+
+    test "never blurs when spoiler-free mode is off" do
+      refute DetailPanel.blur_spoilers?(false, :unwatched)
+    end
+  end
+
   describe "delete_gesture_state/3" do
     # The lifecycle of one delete button's gesture: idle → confirm
     # (armed, awaiting the second click) → deleting (async delete in
