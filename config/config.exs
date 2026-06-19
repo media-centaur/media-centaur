@@ -34,7 +34,17 @@ config :media_centaur, MediaCentaur.Repo,
   # the value config/test.exs already adopted after hitting the same error
   # under async-test contention. (Bounding the fan-out itself is the deeper
   # fix — see the FAN-OUT note in lib/media_centaur/library/inbound.ex.)
-  busy_timeout: 10_000
+  busy_timeout: 10_000,
+  # busy_timeout alone does NOT cover a DEFERRED transaction: it opens with a
+  # read lock, then upgrades to a write lock on the first write — and SQLite
+  # returns SQLITE_BUSY *immediately* on a lock upgrade (waiting would
+  # deadlock), ignoring busy_timeout entirely. That is the
+  # `Database busy` on an UPDATE inside Repo.transaction we saw crash
+  # Progress.Worker during downloads. IMMEDIATE takes the write lock at BEGIN,
+  # so a contended write transaction *waits* (up to busy_timeout) instead of
+  # failing fast. Adapter-recommended for read/write workloads; with WAL
+  # (the adapter default) readers still don't block.
+  default_transaction_mode: :immediate
 
 # Configures the endpoint
 config :media_centaur, MediaCentaurWeb.Endpoint,
