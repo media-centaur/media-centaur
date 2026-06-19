@@ -91,6 +91,15 @@ defmodule MediaCentaur.Search.ProwlarrTest do
       assert :ok = Prowlarr.grab(result)
     end
 
+    test "refuses to grab a result with a nil indexer_id instead of posting null" do
+      Req.Test.stub(:prowlarr, fn _conn ->
+        raise "grab must not reach Prowlarr with a nil indexer_id"
+      end)
+
+      result = %SearchResult{title: "Some.Movie.2160p", guid: "abc123", indexer_id: nil}
+      assert {:error, :missing_indexer_id} = Prowlarr.grab(result)
+    end
+
     test "returns error on HTTP failure" do
       Req.Test.stub(:prowlarr, fn conn ->
         conn

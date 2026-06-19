@@ -376,6 +376,49 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert Enum.find(units, &(&1.episode_number == 3)).status == "unfound"
     end
 
+    test "approve grabs with the assigned indexer id even after the corpus candidate aged out" do
+      test_pid = self()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+
+            results =
+              if query == "Sample Show S01E01" do
+                [release("Sample.Show.S01E01.2160p.WEB-DL.x265", "e1-uhd", %{seeders: 8, indexerId: 7})]
+              else
+                []
+              end
+
+            Req.Test.json(conn, results)
+
+          {"POST", "/api/v1/search"} ->
+            {:ok, body, _conn} = Plug.Conn.read_body(conn)
+            send(test_pid, {:grabbed, Jason.decode!(body)})
+            Req.Test.json(conn, %{"approved" => true})
+
+          _other ->
+            Req.Test.json(conn, %{})
+        end
+      end)
+
+      {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
+      {:ok, plan} = Plans.get(plan.id)
+
+      unit = Enum.find(Plans.units_for(plan.id), &(&1.assigned_guid == "e1-uhd"))
+      assert unit.assigned_indexer_id == 7
+
+      # Retention prunes the candidate between ready and approve: rehydrate
+      # must fall back to the unit's denormalized assignment, not nil.
+      Repo.delete_all(MediaCentaur.Acquisition.Corpus.Candidate)
+
+      assert {:ok, _committed} = Plans.approve(plan)
+
+      assert_received {:grabbed, payload}
+      assert payload["indexerId"] == 7
+    end
+
     test "approve rejects a plan whose units an active pursuit already claims (overlap check)" do
       stub_ladder_results()
 

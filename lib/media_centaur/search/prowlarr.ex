@@ -143,7 +143,19 @@ defmodule MediaCentaur.Search.Prowlarr do
   end
 
   @impl true
-  def grab(result, client \\ default_client()) do
+  def grab(result, client \\ default_client())
+
+  def grab(%{indexer_id: nil} = result, _client) do
+    # Prowlarr's /api/v1/search requires a non-null integer indexerId;
+    # posting null returns an opaque .NET "could not be converted to
+    # System.Int32" validation error. Refuse with a clear reason so the
+    # caller degrades to seeking instead of logging that noise. Reaches here
+    # for plan units assigned before assigned_indexer_id was persisted.
+    Log.warning(:acquisition, "prowlarr grab skipped — missing indexer id — #{result.title}")
+    {:error, :missing_indexer_id}
+  end
+
+  def grab(result, client) do
     Log.info(:acquisition, "prowlarr grab — #{result.title}")
 
     payload = %{"guid" => result.guid, "indexerId" => result.indexer_id}

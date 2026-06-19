@@ -264,6 +264,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       assigned_term: Map.get(terms_by_guid, assignment.result.guid),
       assigned_quality: Quality.label(assignment.result.quality),
       assigned_seeders: assignment.result.seeders,
+      assigned_indexer_id: assignment.result.indexer_id,
       assigned_size_bytes: assignment.result.size_bytes,
       assigned_scope: scope_label(assignment.scope)
     }
@@ -331,6 +332,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
                 assigned_term: term,
                 assigned_quality: Quality.label(result.quality),
                 assigned_seeders: result.seeders,
+                assigned_indexer_id: result.indexer_id,
                 assigned_size_bytes: result.size_bytes,
                 assigned_scope: nil
               })

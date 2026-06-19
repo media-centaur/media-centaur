@@ -398,6 +398,7 @@ defmodule MediaCentaur.Acquisition.Plans do
         assigned_term: term,
         assigned_quality: Quality.label(result.quality),
         assigned_seeders: result.seeders,
+        assigned_indexer_id: result.indexer_id,
         assigned_size_bytes: result.size_bytes,
         assigned_scope: scope_display(scope)
       }
