@@ -4,6 +4,15 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.99.5 — 2026-06-19
+
+### Fixed
+
+- **Fixed a crash that could interrupt playback while downloads were running.** Under heavy download activity the database could reject a write and crash the watch-progress tracker; transactions now wait their turn instead of failing, so playback keeps tracking through busy periods.
+- **Fixed grabs that silently failed for older planned releases.** When a planned release had been waiting long enough for its search result to expire, sending it to the downloader could fail with an unhelpful error. The information needed to grab it is now stored on the plan, and a clear message is shown if it's ever genuinely missing.
+
+This release includes a database migration, applied automatically on update.
+
 ## v0.99.4 — 2026-06-18
 
 ### Fixed
