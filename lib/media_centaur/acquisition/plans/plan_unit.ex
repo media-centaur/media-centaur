@@ -40,6 +40,7 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
     field :assigned_term, :string
     field :assigned_quality, :string
     field :assigned_seeders, :integer
+    field :assigned_indexer_id, :integer
     field :assigned_size_bytes, :integer
     field :assigned_scope, :string
     # The fit-gated offer: an over-broad pack that *would* cover this
@@ -92,6 +93,7 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
       :assigned_term,
       :assigned_quality,
       :assigned_seeders,
+      :assigned_indexer_id,
       :assigned_size_bytes,
       :assigned_scope
     ])
@@ -138,6 +140,7 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
       assigned_term: nil,
       assigned_quality: nil,
       assigned_seeders: nil,
+      assigned_indexer_id: nil,
       assigned_scope: nil
     )
     |> clear_offer()

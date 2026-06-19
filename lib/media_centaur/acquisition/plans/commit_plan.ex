@@ -176,7 +176,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
       %SearchResult{
         title: unit.assigned_title,
         guid: unit.assigned_guid,
-        indexer_id: nil,
+        indexer_id: unit.assigned_indexer_id,
         seeders: unit.assigned_seeders
       }
   end
