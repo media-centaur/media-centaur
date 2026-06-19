@@ -138,8 +138,6 @@ defmodule MediaCentaur.Settings do
     entry |> Entry.update_changeset(attrs) |> Repo.update() |> tap(&on_write/1)
   end
 
-  def update_entry!(entry, attrs), do: Repo.bang!(update_entry(entry, attrs))
-
   def destroy_entry(entry) do
     case Repo.delete(entry) do
       {:ok, deleted} ->
