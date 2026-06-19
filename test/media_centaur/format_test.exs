@@ -88,4 +88,46 @@ defmodule MediaCentaur.FormatTest do
       assert Format.relative_in(future) == "in 4d"
     end
   end
+
+  describe "format_size_decimal/1" do
+    test "nil returns nil" do
+      assert Format.format_size_decimal(nil) == nil
+    end
+
+    test "sub-megabyte returns bytes" do
+      assert Format.format_size_decimal(512) == "512 B"
+    end
+
+    test "megabyte range returns whole MB (decimal)" do
+      assert Format.format_size_decimal(5_000_000) == "5 MB"
+    end
+
+    test "gigabyte range returns one-decimal GB (decimal, indexer convention)" do
+      assert Format.format_size_decimal(1_500_000_000) == "1.5 GB"
+    end
+  end
+
+  describe "relative_ago/2" do
+    test "nil returns \"never\"" do
+      assert Format.relative_ago(nil) == "never"
+    end
+
+    test "defaults to seconds granularity under a minute" do
+      assert Format.relative_ago(DateTime.add(DateTime.utc_now(), -10, :second)) == "10s ago"
+    end
+
+    test "sub_minute: :just_now collapses the first minute to \"just now\"" do
+      ten_seconds_ago = DateTime.add(DateTime.utc_now(), -10, :second)
+      assert Format.relative_ago(ten_seconds_ago, sub_minute: :just_now) == "just now"
+    end
+
+    test "minute/hour/day granularity is identical regardless of sub_minute" do
+      now = DateTime.utc_now()
+      assert Format.relative_ago(DateTime.add(now, -90, :second)) == "1m ago"
+      assert Format.relative_ago(DateTime.add(now, -3 * 3600, :second)) == "3h ago"
+
+      assert Format.relative_ago(DateTime.add(now, -2 * 86_400, :second), sub_minute: :just_now) ==
+               "2d ago"
+    end
+  end
 end

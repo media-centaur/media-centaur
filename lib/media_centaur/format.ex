@@ -95,46 +95,60 @@ defmodule MediaCentaur.Format do
     do: "S#{pad2(season)}E#{pad2(episode)}"
 
   @doc """
-  Formats a `DateTime` as a relative ago string with minute-level resolution.
-  Used by activity-zone surfaces where seconds-precision is meaningful.
+  Formats a byte count for display using **decimal** units (1 GB =
+  1,000,000,000 bytes) — the convention torrent indexers and release listings
+  report sizes in. One decimal place for GB, whole numbers for MB. Returns
+  `nil` for `nil` so callers can `:if` on the result.
+
+  For on-disk / system sizes use a binary (1024-based) formatter instead
+  (`StatusHelpers.format_bytes/1`, `DetailPanel.format_file_size/1`).
+
+      iex> MediaCentaur.Format.format_size_decimal(1_500_000_000)
+      "1.5 GB"
+      iex> MediaCentaur.Format.format_size_decimal(nil)
+      nil
+  """
+  @spec format_size_decimal(non_neg_integer() | nil) :: String.t() | nil
+  def format_size_decimal(nil), do: nil
+
+  def format_size_decimal(bytes) when is_integer(bytes) and bytes >= 1_000_000_000,
+    do: "#{Float.round(bytes / 1_000_000_000, 1)} GB"
+
+  def format_size_decimal(bytes) when is_integer(bytes) and bytes >= 1_000_000,
+    do: "#{div(bytes, 1_000_000)} MB"
+
+  def format_size_decimal(bytes) when is_integer(bytes), do: "#{bytes} B"
+
+  @doc """
+  Formats a `DateTime` as a relative ago string.
+
+  `nil` returns `"never"`. The `:sub_minute` option controls how the first
+  minute reads: `:seconds` (default) gives `"<N>s ago"` for activity surfaces
+  where seconds-precision is meaningful; `:just_now` collapses the whole first
+  minute to `"just now"` where sub-minute precision is noise. Minute, hour and
+  day granularity is identical either way.
 
       iex> dt = DateTime.add(DateTime.utc_now(), -90, :second)
       iex> MediaCentaur.Format.relative_ago(dt)
       "1m ago"
   """
-  @spec relative_ago(DateTime.t() | nil) :: String.t()
-  def relative_ago(nil), do: "never"
+  @spec relative_ago(DateTime.t() | nil, keyword()) :: String.t()
+  def relative_ago(at, opts \\ [])
+  def relative_ago(nil, _opts), do: "never"
 
-  def relative_ago(%DateTime{} = at) do
+  def relative_ago(%DateTime{} = at, opts) do
     seconds = DateTime.diff(DateTime.utc_now(), at, :second)
 
     cond do
-      seconds < 60 -> "#{seconds}s ago"
+      seconds < 60 -> sub_minute_label(Keyword.get(opts, :sub_minute, :seconds), seconds)
       seconds < 3600 -> "#{div(seconds, 60)}m ago"
       seconds < 86_400 -> "#{div(seconds, 3600)}h ago"
       true -> "#{div(seconds, 86_400)}d ago"
     end
   end
 
-  @doc """
-  Formats a `DateTime` as a relative ago string with `"just now"` granularity.
-  Used by pursuit timeline rows where sub-minute precision is noise.
-
-      iex> dt = DateTime.add(DateTime.utc_now(), -10, :second)
-      iex> MediaCentaur.Format.relative_just_now(dt)
-      "just now"
-  """
-  @spec relative_just_now(DateTime.t()) :: String.t()
-  def relative_just_now(%DateTime{} = dt) do
-    diff = DateTime.diff(DateTime.utc_now(:second), dt, :second)
-
-    cond do
-      diff < 60 -> "just now"
-      diff < 3600 -> "#{div(diff, 60)}m ago"
-      diff < 86_400 -> "#{div(diff, 3600)}h ago"
-      true -> "#{div(diff, 86_400)}d ago"
-    end
-  end
+  defp sub_minute_label(:just_now, _seconds), do: "just now"
+  defp sub_minute_label(:seconds, seconds), do: "#{seconds}s ago"
 
   @doc """
   Formats a future `DateTime` as a human-readable countdown:
