@@ -101,6 +101,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
           %{
             season_number: want.season_number,
             episode_number: want.episode_number,
+            air_date: want.air_date,
             label: unit_label(want),
             position: index
           }
@@ -212,6 +213,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
           %{
             season_number: want.season_number,
             episode_number: want.episode_number,
+            air_date: want.air_date,
             label: unit_label(want),
             position: index,
             min_quality: floor_for(want, patience, min_quality, max_quality, now),

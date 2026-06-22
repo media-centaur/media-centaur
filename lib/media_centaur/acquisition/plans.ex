@@ -17,6 +17,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Acquisition.Jobs.RunPlan
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Corpus
+  alias MediaCentaur.Acquisition.CoverageGuard
   alias MediaCentaur.Acquisition.Plans.{CommitPlan, LadderTerms, Plan, PlanUnit}
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
@@ -34,19 +35,22 @@ defmodule MediaCentaur.Acquisition.Plans do
   @spec create_series_plan(Targeting.Selection.t(), [unit_choice()], keyword()) ::
           {:ok, Plan.t()} | {:error, term()}
   def create_series_plan(%Targeting.Selection{} = selection, unit_choices, opts \\ []) do
-    labels =
+    episodes =
       for season <- selection.seasons, episode <- season.episodes, into: %{} do
-        {{episode.season_number, episode.episode_number}, episode.label}
+        {{episode.season_number, episode.episode_number}, episode}
       end
 
     unit_specs =
       unit_choices
       |> Enum.with_index()
       |> Enum.map(fn {{season, episode}, index} ->
+        selected = Map.get(episodes, {season, episode})
+
         %{
           season_number: season,
           episode_number: episode,
-          label: unit_label(season, episode, Map.get(labels, {season, episode})),
+          air_date: selected && selected.air_date,
+          label: unit_label(season, episode, selected && selected.label),
           position: index
         }
       end)
@@ -389,7 +393,8 @@ defmodule MediaCentaur.Acquisition.Plans do
         plan.id
         |> units_for()
         |> Enum.filter(fn candidate_unit ->
-          candidate_unit.status != "excluded" and covers_unit?(plan, scope, candidate_unit, unit)
+          candidate_unit.status != "excluded" and
+            covers_unit?(plan, scope, candidate_unit, unit, result.publish_date)
         end)
 
       attrs = %{
@@ -465,18 +470,20 @@ defmodule MediaCentaur.Acquisition.Plans do
     criteria = %Criteria{type: :tmdb, title: plan.title, tmdb_type: :tv}
 
     with {:ok, scope} <- TitleMatcher.coverage(result, criteria),
-         true <- ReleaseCoverage.covers?(scope, unit.season_number, unit.episode_number) do
+         true <- ReleaseCoverage.covers?(scope, unit.season_number, unit.episode_number),
+         true <- CoverageGuard.can_contain?(result.publish_date, unit.air_date) do
       {:ok, scope}
     else
       _ -> :no_match
     end
   end
 
-  defp covers_unit?(%Plan{tmdb_type: "movie"}, :movie, candidate_unit, chosen_unit),
+  defp covers_unit?(%Plan{tmdb_type: "movie"}, :movie, candidate_unit, chosen_unit, _publish_date),
     do: candidate_unit.id == chosen_unit.id
 
-  defp covers_unit?(_plan, scope, candidate_unit, _chosen_unit) do
-    ReleaseCoverage.covers?(scope, candidate_unit.season_number, candidate_unit.episode_number)
+  defp covers_unit?(_plan, scope, candidate_unit, _chosen_unit, publish_date) do
+    ReleaseCoverage.covers?(scope, candidate_unit.season_number, candidate_unit.episode_number) and
+      CoverageGuard.can_contain?(publish_date, candidate_unit.air_date)
   end
 
   defp scope_display(:movie), do: nil

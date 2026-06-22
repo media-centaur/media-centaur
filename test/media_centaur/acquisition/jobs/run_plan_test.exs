@@ -299,6 +299,137 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     end
   end
 
+  describe "cour-aware coverage guard" do
+    # Air dates are synthetic; the shape mirrors a single TMDB season
+    # split across broadcast runs (cours) the release world packages
+    # separately — a "Season 01 COMPLETE" pack encoded before the later
+    # cour aired. The guard caps each candidate to what it could
+    # physically contain (aired on or before its publish date).
+
+    test "a season pack is not credited with episodes that aired after it was published" do
+      stub_recording_searches(%{
+        "Sample Show Season 1" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "early-pack", %{
+            seeders: 900,
+            publishDate: "2024-06-01T00:00:00Z"
+          })
+        ]
+      })
+
+      # Want only the later-cour episodes, all aired after the pack was
+      # published — exactly the silent never-completes case.
+      {:ok, plan} =
+        Plans.create_tracking_plan(
+          %{tmdb_id: "246810", tmdb_type: "tv", title: "Sample Show"},
+          [
+            %{
+              season_number: 1,
+              episode_number: 4,
+              air_date: ~D[2026-01-16],
+              label: "S01E04",
+              position: 0
+            },
+            %{
+              season_number: 1,
+              episode_number: 5,
+              air_date: ~D[2026-01-23],
+              label: "S01E05",
+              position: 1
+            }
+          ]
+        )
+
+      units = Plans.units_for(plan.id)
+      assert Enum.all?(units, &(&1.status == "unfound"))
+      assert Enum.all?(units, &(&1.assigned_guid == nil))
+      assert Enum.all?(units, &(&1.offered_guid == nil))
+
+      # Coverage denied → the residual stayed non-empty → the descent
+      # kept going to the episode rung instead of falsely halting.
+      assert_received {:searched, "Sample Show S01E04"}
+      assert_received {:searched, "Sample Show S01E05"}
+    end
+
+    test "the guard trims only the post-publish episodes — the pack still delivers the early ones" do
+      stub_recording_searches(%{
+        "Sample Show Season 1" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "early-pack", %{
+            seeders: 900,
+            publishDate: "2024-06-01T00:00:00Z"
+          })
+        ]
+      })
+
+      {:ok, plan} =
+        Plans.create_tracking_plan(
+          %{tmdb_id: "246810", tmdb_type: "tv", title: "Sample Show"},
+          [
+            %{
+              season_number: 1,
+              episode_number: 1,
+              air_date: ~D[2023-10-01],
+              label: "S01E01",
+              position: 0
+            },
+            %{
+              season_number: 1,
+              episode_number: 2,
+              air_date: ~D[2023-10-08],
+              label: "S01E02",
+              position: 1
+            },
+            %{
+              season_number: 1,
+              episode_number: 4,
+              air_date: ~D[2026-01-16],
+              label: "S01E04",
+              position: 2
+            }
+          ]
+        )
+
+      units = Plans.units_for(plan.id)
+      early = Enum.filter(units, &(&1.episode_number in [1, 2]))
+      late = Enum.find(units, &(&1.episode_number == 4))
+
+      assert Enum.all?(early, &(&1.assigned_guid == "early-pack"))
+      assert late.status == "unfound"
+      assert late.assigned_guid == nil
+    end
+
+    test "a nil publish date does not trim (monotonic opt-in)" do
+      stub_recording_searches(%{
+        "Sample Show Season 1" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "undated-pack", %{seeders: 900})
+        ]
+      })
+
+      {:ok, plan} =
+        Plans.create_tracking_plan(
+          %{tmdb_id: "246810", tmdb_type: "tv", title: "Sample Show"},
+          [
+            %{
+              season_number: 1,
+              episode_number: 4,
+              air_date: ~D[2026-01-16],
+              label: "S01E04",
+              position: 0
+            },
+            %{
+              season_number: 1,
+              episode_number: 5,
+              air_date: ~D[2026-01-23],
+              label: "S01E05",
+              position: 1
+            }
+          ]
+        )
+
+      units = Plans.units_for(plan.id)
+      assert Enum.all?(units, &(&1.assigned_guid == "undated-pack"))
+    end
+  end
+
   defp descent_states(%PlanEvents.DescentStatus{stages: stages}) do
     Enum.map(stages, &{&1.id, &1.state})
   end

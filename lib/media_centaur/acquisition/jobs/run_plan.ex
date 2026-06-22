@@ -43,7 +43,15 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Acquisition.{AutoGrabSettings, Corpus, PlanEvents, Planner, Plans}
+  alias MediaCentaur.Acquisition.{
+    AutoGrabSettings,
+    Corpus,
+    CoverageGuard,
+    PlanEvents,
+    Planner,
+    Plans
+  }
+
   alias MediaCentaur.Acquisition.Plans.{LadderTerms, Plan, PlanUnit}
   alias MediaCentaur.Repo
   alias MediaCentaur.Search.{Criteria, Quality, ReleaseRedFlags, TitleMatcher}
@@ -111,6 +119,10 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
 
   defp run_tv(plan, units, force?) do
     wanted = Enum.map(units, &{&1.season_number, &1.episode_number})
+    # `{unit, air_date}` pairs drive the cour-aware coverage guard: a
+    # candidate is capped to the units it could physically contain (aired
+    # on or before its publish date).
+    unit_air_dates = Enum.map(units, &{{&1.season_number, &1.episode_number}, &1.air_date})
     excluded = units |> Enum.flat_map(& &1.excluded_release_guids) |> MapSet.new()
     identity = series_criteria(plan)
     # `all_wanted` is the whole plan's want, used as the fit numerator so
@@ -145,7 +157,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
 
         state =
           state
-          |> gather_rung(plan, terms, identity, excluded, force?)
+          |> gather_rung(plan, terms, identity, excluded, unit_air_dates, force?)
           |> solve_groups(wanted, floor_groups, plan_prefs)
 
         done = %{active | state: :done, residual_after: length(state.residual)}
@@ -199,7 +211,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   # plan-wide exclusions are dropped before solving (a release the user
   # rejected for one episode is almost never what they want for
   # another); guid dedup keeps the first term that surfaced a release.
-  defp gather_rung(state, plan, terms, identity, excluded, force?) do
+  defp gather_rung(state, plan, terms, identity, excluded, unit_air_dates, force?) do
     Enum.reduce(terms, state, fn {term, opts}, state ->
       plan
       |> search(term, opts, force?)
@@ -208,9 +220,15 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
              false <- MapSet.member?(excluded, result.guid),
              false <- Map.has_key?(state.terms_by_guid, result.guid),
              {:ok, scope} <- TitleMatcher.coverage(result, identity) do
+          option = %Planner.Option{
+            result: result,
+            scope: scope,
+            coverable: CoverageGuard.coverable_units(unit_air_dates, result.publish_date)
+          }
+
           %{
             state
-            | options: [%Planner.Option{result: result, scope: scope} | state.options],
+            | options: [option | state.options],
               terms_by_guid: Map.put(state.terms_by_guid, result.guid, term)
           }
         else
