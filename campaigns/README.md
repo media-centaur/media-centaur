@@ -21,6 +21,19 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`cour-aware-acquisition.md`](cour-aware-acquisition.md) —
+  **planning.** TV pursuits silently never complete when a show's TMDB
+  "season" spans multiple broadcast runs (cours) the release world
+  packages separately — Frieren's E29–38 (2026 cour) got matched to a
+  2023-2024 "Season 01 COMPLETE" pack that can't contain them, wedging
+  the pursuit. Two fixes from the per-episode `air_date` we already
+  store: a **coverage guard** (a release can't be credited with
+  episodes that aired after it was published → they fall through as
+  `unfound`) and **cour-aware search** (query absolute/ordinal shapes
+  for a later run instead of re-surfacing the first-run season pack,
+  candidates surfaced as offers). Air-date-gap inference, no new
+  persistence; episode-group enrichment cut as YAGNI. Two phases; no
+  code yet. Design settled 2026-06-22.
 * [`fit-aware-acquisition.md`](fit-aware-acquisition.md) —
   **built; uncommitted/unpushed, awaiting owner review.** Picking one
   episode no longer grabs the whole series. The planner gates pack grabs

@@ -105,20 +105,19 @@ hold, consistent with the project's deriver model.
   decision card. Later-cour scene naming is fuzzy enough that a human
   stays in the loop.
 
-### 5. TMDB episode-group enrichment (optional, last)
+### TMDB episode-group enrichment — cut (YAGNI, 2026-06-23)
 
-- Add `TMDB.Client.episode_groups/1` + `episode_group/1`. When a
-  "Cours"/"Parts" group exists (Frieren has one: type 7, 3 groups),
-  use it to *label* runs ("Cour 3") and improve query naming. Strictly
-  opportunistic — air-date inference is always the base, since episode
-  groups are opt-in per show and not guaranteed present.
+TMDB exposes a "Cours" episode group for some shows (Frieren has one),
+which could *label* runs and refine query naming. Cut for now:
+air-date inference is sufficient for the matching problem, and episode
+groups are opt-in per show so the inference fallback is required
+regardless. Revisit only if run labelling proves valuable in use.
 
 ## Phasing
 
 - **Phase 1** — `CourSegmentation` + coverage guard. Stops the bug
   class on its own.
 - **Phase 2** — cour-aware queries + surfacing for later-run residuals.
-- **Phase 3 (optional)** — episode-group enrichment.
 
 ## Testing
 
