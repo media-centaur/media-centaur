@@ -32,6 +32,12 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
     field :plan_id, Ecto.UUID
     field :season_number, :integer
     field :episode_number, :integer
+    # The episode's air date, denormalized from the want / selection at
+    # plan creation so the cour-aware coverage guard can compare it
+    # against a candidate's publish date at solve time (the runner
+    # reloads units from the DB). Nil for movie units and legacy rows —
+    # the guard no-ops on missing data.
+    field :air_date, :date
     field :label, :string
     field :position, :integer, default: 0
     field :status, :string, default: "pending"
@@ -76,6 +82,7 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
       :plan_id,
       :season_number,
       :episode_number,
+      :air_date,
       :label,
       :position,
       :min_quality,

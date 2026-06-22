@@ -19,7 +19,8 @@ defmodule MediaCentaur.Acquisition.PlannerTest do
           },
           %{}
         ),
-      scope: scope
+      scope: scope,
+      coverable: Keyword.get(attrs, :coverable, :all)
     }
   end
 
@@ -337,6 +338,81 @@ defmodule MediaCentaur.Acquisition.PlannerTest do
 
       assert [assignment] = solution.assignments
       assert assignment.result.guid == "s1-pack"
+    end
+  end
+
+  describe "solve/3 — coverable allow-list (coverage guard)" do
+    # An option's `coverable` set caps which wanted units it may claim,
+    # below what its scope would otherwise cover. The plan runner computes
+    # it (units a release can physically contain — aired on or before the
+    # release was published); the planner just intersects. Default `:all`
+    # is the unguarded behaviour every other test relies on.
+
+    test "a season pack does not claim a unit excluded from its coverable set" do
+      wanted = [{1, 1}, {1, 2}, {1, 3}]
+
+      # The pack's scope is the whole season, but it physically contains
+      # only E1–E2 (E3 aired after it was published).
+      options = [option("s1-pack", {:season, 1}, coverable: MapSet.new([{1, 1}, {1, 2}]))]
+
+      solution = Planner.solve(wanted, options, @prefs)
+
+      assert [assignment] = solution.assignments
+      assert assignment.result.guid == "s1-pack"
+      assert Enum.sort(assignment.units) == [{1, 1}, {1, 2}]
+      assert solution.unfound == [{1, 3}]
+    end
+
+    test "a trimmed unit is unfound, not falsely satisfied, even with no other option" do
+      wanted = [{1, 1}]
+
+      # The only candidate cannot physically contain the wanted unit.
+      options = [option("early-pack", {:season, 1}, coverable: MapSet.new([]))]
+
+      solution = Planner.solve(wanted, options, @prefs)
+
+      assert solution.assignments == []
+      assert solution.unfound == [{1, 1}]
+    end
+
+    test "a trimmed-out pack is not offered to the unit it cannot contain" do
+      wanted = [{1, 1}]
+
+      # Fit gating would set this season pack aside as an offer, but it
+      # physically cannot contain E1 — so it must not even be offered.
+      options = [option("s1-pack", {:season, 1}, coverable: MapSet.new([]))]
+
+      solution = Planner.solve(wanted, options, fit_prefs(%{"1" => 24}))
+
+      assert solution.unfound == [{1, 1}]
+      assert solution.offers == %{}
+    end
+
+    test "coverable narrows the fit numerator so a mostly-uncontainable pack is gated out" do
+      wanted = [{1, 1}, {1, 2}, {1, 3}, {1, 4}]
+
+      # Scope covers all 4 wanted of a 4-episode season (fit would be 1.0),
+      # but the pack physically contains only E1 → effective fit 0.25 <
+      # 0.75, so it is gated out and the single carries E1.
+      options = [
+        option("s1-pack", {:season, 1}, quality: :uhd_4k, seeders: 900, coverable: MapSet.new([{1, 1}])),
+        option("e1", {:episode, 1, 1}, quality: :hd_1080p)
+      ]
+
+      solution = Planner.solve(wanted, options, fit_prefs(%{"1" => 4}))
+
+      assert assigned_guid_for(solution, {1, 1}) == "e1"
+      assert Enum.sort(solution.unfound) == [{1, 2}, {1, 3}, {1, 4}]
+    end
+
+    test "default :all coverable leaves an option's scope coverage unchanged" do
+      wanted = [{1, 1}, {1, 2}]
+      options = [option("s1-pack", {:season, 1})]
+
+      solution = Planner.solve(wanted, options, @prefs)
+
+      assert [assignment] = solution.assignments
+      assert Enum.sort(assignment.units) == [{1, 1}, {1, 2}]
     end
   end
 end

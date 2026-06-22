@@ -61,12 +61,29 @@ defmodule MediaCentaur.Acquisition.Planner do
   alias MediaCentaur.Search.{Quality, ReleaseCoverage, SearchResult}
 
   defmodule Option do
-    @moduledoc "One identity-verified candidate: the release and its classified coverage scope."
+    @moduledoc """
+    One identity-verified candidate: the release, its classified coverage
+    scope, and an optional `coverable` cap.
+
+    `coverable` is a `MapSet` of the `{season, episode}` units the release
+    can *physically* contain — the cour-aware coverage guard. The plan
+    runner computes it (units that aired on or before the release was
+    published) and the planner intersects it with the scope wherever it
+    credits the option, so a first-run pack is never assigned episodes it
+    was encoded before. `:all` (the default) means "no cap" — the scope
+    alone decides, the legacy behaviour for every date-blind caller.
+    """
 
     @enforce_keys [:result, :scope]
-    defstruct [:result, :scope]
+    defstruct [:result, :scope, coverable: :all]
 
-    @type t :: %__MODULE__{result: SearchResult.t(), scope: ReleaseCoverage.t()}
+    @type coverable :: :all | MapSet.t(ReleaseCoverage.unit())
+
+    @type t :: %__MODULE__{
+            result: SearchResult.t(),
+            scope: ReleaseCoverage.t(),
+            coverable: coverable()
+          }
   end
 
   defmodule Assignment do
@@ -142,7 +159,7 @@ defmodule MediaCentaur.Acquisition.Planner do
     |> Enum.filter(&multi_unit?(&1, wanted))
     |> Enum.sort_by(&{-breadth(&1.scope), -quality_rank(&1), -seeders(&1)})
     |> Enum.reduce({[], wanted}, fn option, {assignments, remaining} ->
-      covered = ReleaseCoverage.covered_units(option.scope, remaining)
+      covered = option_covered_units(option, remaining)
 
       if length(covered) > 1 do
         assignment = %Assignment{result: option.result, scope: option.scope, units: covered}
@@ -154,8 +171,24 @@ defmodule MediaCentaur.Acquisition.Planner do
     |> then(fn {assignments, remaining} -> {Enum.reverse(assignments), remaining} end)
   end
 
-  defp multi_unit?(%Option{scope: scope}, wanted) do
-    scope |> ReleaseCoverage.covered_units(wanted) |> length() > 1
+  defp multi_unit?(%Option{} = option, wanted) do
+    option |> option_covered_units(wanted) |> length() > 1
+  end
+
+  # The wanted units this option actually credits — its scope's coverage,
+  # capped by the `coverable` allow-list (the coverage guard). `:all`
+  # means the scope alone decides.
+  defp option_covered_units(%Option{} = option, wanted) do
+    Enum.filter(wanted, fn {season, episode} -> option_covers?(option, season, episode) end)
+  end
+
+  defp option_covers?(%Option{scope: scope, coverable: :all}, season, episode) do
+    ReleaseCoverage.covers?(scope, season, episode)
+  end
+
+  defp option_covers?(%Option{scope: scope, coverable: coverable}, season, episode) do
+    ReleaseCoverage.covers?(scope, season, episode) and
+      MapSet.member?(coverable, {season, episode})
   end
 
   # ---------------------------------------------------------------------------
@@ -167,7 +200,7 @@ defmodule MediaCentaur.Acquisition.Planner do
       Enum.reduce(remaining, {%{}, []}, fn {season, episode} = unit, {by_option, unfound} ->
         provider =
           options
-          |> Enum.filter(fn %Option{scope: scope} -> ReleaseCoverage.covers?(scope, season, episode) end)
+          |> Enum.filter(&option_covers?(&1, season, episode))
           |> Enum.max_by(&{quality_rank(&1), seeders(&1)}, fn -> nil end)
 
         case provider do
@@ -195,20 +228,20 @@ defmodule MediaCentaur.Acquisition.Planner do
        when is_number(threshold) do
     span_sizes = Map.get(prefs, :span_sizes, %{})
 
-    Enum.split_with(options, fn %Option{scope: scope} ->
-      fit_ok?(scope, all_wanted, span_sizes, threshold)
+    Enum.split_with(options, fn %Option{} = option ->
+      fit_ok?(option, all_wanted, span_sizes, threshold)
     end)
   end
 
   defp partition_by_fit(options, _all_wanted, _prefs), do: {options, []}
 
-  defp fit_ok?(scope, wanted, span_sizes, threshold) do
+  defp fit_ok?(%Option{scope: scope} = option, wanted, span_sizes, threshold) do
     case span_total(scope, span_sizes) do
       nil ->
         true
 
       total when total > 0 ->
-        length(ReleaseCoverage.covered_units(scope, wanted)) / total >= threshold
+        length(option_covered_units(option, wanted)) / total >= threshold
 
       _zero_or_negative ->
         true
@@ -242,7 +275,7 @@ defmodule MediaCentaur.Acquisition.Planner do
     for {season, episode} = unit <- unfound,
         covering =
           gated
-          |> Enum.filter(&ReleaseCoverage.covers?(&1.scope, season, episode))
+          |> Enum.filter(&option_covers?(&1, season, episode))
           |> Enum.sort_by(&{breadth(&1.scope), -quality_rank(&1), -seeders(&1)}),
         [best | _] <- [covering],
         into: %{},

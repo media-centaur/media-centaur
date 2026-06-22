@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-06-23
 last_updated: 2026-06-23
 ---
@@ -18,10 +18,45 @@ derived on demand.
 
 ## Status
 
-Planning. Design approved and committed
+In progress (started 2026-06-23). Design approved and committed
 ([`docs/superpowers/specs/2026-06-22-cour-aware-acquisition-design.md`](../docs/superpowers/specs/2026-06-22-cour-aware-acquisition-design.md),
-commit `c2300841`). No implementation code yet. Phase 3 (TMDB
-episode-group enrichment) cut as YAGNI.
+commit `c2300841`). Phase 3 (TMDB episode-group enrichment) cut as
+YAGNI.
+
+### Reconciliation (2026-06-23, before any code)
+
+Checked the design's stated sites against current code. Two findings
+refine the plan (recorded here so the next session inherits them):
+
+* **`PlanUnit` has no `air_date` column.** The coverage guard runs in
+  `Jobs.RunPlan` (an Oban worker that *reloads* units from the DB at
+  solve time), so the per-episode `air_date` the guard compares against
+  must be **persisted on the plan unit** — it is not reachable from the
+  reloaded row otherwise. This is raw episode data, not the derived
+  cour model, so it does **not** contradict the
+  "no-persist-the-cour-model / derive-on-demand" decision. Phase 1 adds
+  an `air_date` column, populated at plan creation from the want /
+  selection episode air dates (`drop_planner.ex`, `Plans.create_*`).
+  Movie units carry `nil` (guard no-ops).
+* **Phase 2's `QueryBuilder.build_tv` pointer is the wrong path for
+  *surfacing*.** The autonomous descent that searches the corpus and
+  surfaces offers on the plan board / decision card builds its terms via
+  `Plans.LadderTerms` (driven by `Jobs.RunPlan`), **not**
+  `QueryBuilder`. `QueryBuilder.build/1` is the *post-commit pursuit*
+  path (`Jobs.PursueTarget` re-search). Cour-aware queries for the
+  offer-surfacing path therefore belong in the draft descent
+  (`LadderTerms` / `RunPlan` rungs). `QueryBuilder` may also want them
+  for the pursuit re-search path; resolved at Phase 2 start.
+
+### Implementation note — the guard stays in the pure `Planner`
+
+The guard is realized as an optional per-`Planner.Option` **coverable
+allow-list** (default `:all`). The impure caller (`RunPlan`, which holds
+the units' air dates) computes the coverable unit set from each
+candidate's `publish_date`; the pure `Planner` intersects scope-coverage
+with that set everywhere it credits an option (consolidate, singles,
+fit numerator, offers). Trimmed units fall through to `unfound`. Keeps
+`Planner` pure and date-blind; no lossy scope rewriting.
 
 ## Motivating case (do not re-investigate — captured here)
 
