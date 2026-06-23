@@ -75,6 +75,38 @@ defmodule MediaCentaur.Pipeline.Stages.IngestTest do
       assert event.extra == nil
     end
 
+    test "parks a flagged TV file in the reconciliation queue" do
+      payload = %Payload{
+        file_path: "/media/TV/Sample.Show.S02E01.mkv",
+        media_directory: "/media/TV",
+        tmdb_id: 4242,
+        tmdb_type: :tv,
+        metadata: %{
+          entity_type: :tv_series,
+          entity_attrs: %{type: :tv_series, name: "Sample Show"},
+          identifier: %{source: "tmdb", external_id: "4242"},
+          images: [],
+          season: nil,
+          child_movie: nil,
+          extra: nil,
+          divert: %{
+            tmdb_id: 4242,
+            series_title: "Sample Show",
+            claimed_season: 2,
+            claimed_episode: 1,
+            claimed_title: nil
+          }
+        }
+      }
+
+      assert {:ok, _result} = Ingest.run(payload)
+
+      assert [awaiting] = MediaCentaur.Reconciliation.list_awaiting()
+      assert awaiting.file_path == "/media/TV/Sample.Show.S02E01.mkv"
+      assert awaiting.tmdb_id == 4242
+      assert awaiting.claimed_season == 2
+    end
+
     test "broadcasts collection event with child_movie" do
       payload = %Payload{
         file_path: "/media/The.Shadowy.Sentinel.2008.mkv",
