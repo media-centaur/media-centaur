@@ -33,6 +33,7 @@ defmodule MediaCentaurWeb.Router do
       live "/guide/:slug", GuideLive, :show
       live "/history", WatchHistoryLive, :index
       live "/library", LibraryLive, :index
+      live "/reconcile", ReconcileLive, :index
       live "/review", ReviewLive, :index
       live "/settings", SettingsLive, :index
       live "/setup", SetupLive, :index

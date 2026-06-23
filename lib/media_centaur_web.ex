@@ -27,7 +27,8 @@ defmodule MediaCentaurWeb do
       MediaCentaur.Retention,
       MediaCentaur.Runtime,
       MediaCentaur.Setup,
-      MediaCentaur.Guide
+      MediaCentaur.Guide,
+      MediaCentaur.Reconciliation
     ],
     exports: [Endpoint]
 
