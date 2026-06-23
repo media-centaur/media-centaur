@@ -156,4 +156,114 @@ defmodule MediaCentaur.Reconciliation do
   defp series_title(nil, [%AwaitingFile{series_title: title} | _]), do: title
   defp series_title(nil, _awaiting), do: nil
   defp series_title(series, _awaiting), do: series.name
+
+  @doc """
+  Confirms the engine's recommended mapping for a show — the one-click
+  "looks right" path. Equivalent to `confirm/2` with the recommended
+  placements as targets.
+  """
+  @spec confirm_recommended(ShowReview.t()) ::
+          {:ok, %{linked: non_neg_integer(), failed: non_neg_integer()}}
+          | {:error, :series_not_in_library}
+  def confirm_recommended(%ShowReview{tv_series_id: nil}), do: {:error, :series_not_in_library}
+
+  def confirm_recommended(%ShowReview{resolution: %{recommended: nil}}),
+    do: {:ok, %{linked: 0, failed: 0}}
+
+  def confirm_recommended(%ShowReview{resolution: %{recommended: recommended}} = review) do
+    targets = Map.new(recommended.placements, &{&1.artifact_id, {&1.season, &1.episode}})
+    confirm(review, targets)
+  end
+
+  @doc """
+  Links the chosen files to their canonical episodes and resolves their
+  awaiting records. `targets` maps an awaiting-file id to a
+  `{season, episode}` canonical node — supporting per-file override and
+  partial-accept (omit a file to leave it pending).
+
+  A confirmed mapping **materializes the real TMDB episode** (creating the
+  season/episode row from the spine title when the library hadn't imported
+  it yet) and links the file — it never fabricates a phantom season. Each
+  file is linked independently, so a single failure doesn't roll back the
+  others (matching partial-accept semantics).
+  """
+  @spec confirm(ShowReview.t(), %{Ecto.UUID.t() => {integer(), integer()}}) ::
+          {:ok, %{linked: non_neg_integer(), failed: non_neg_integer()}}
+          | {:error, :series_not_in_library}
+  def confirm(%ShowReview{tv_series_id: nil}, _targets), do: {:error, :series_not_in_library}
+
+  def confirm(%ShowReview{} = review, targets) do
+    awaiting_by_id = Map.new(review.awaiting_files, &{&1.id, &1})
+    title_by_node = Map.new(review.spine, &{{&1.season, &1.episode}, &1.title})
+
+    results =
+      Enum.map(targets, fn {awaiting_id, {season, episode}} ->
+        link_one(
+          review.tv_series_id,
+          awaiting_by_id[awaiting_id],
+          season,
+          episode,
+          title_by_node[{season, episode}]
+        )
+      end)
+
+    linked = Enum.count(results, &(&1 == :ok))
+    {:ok, %{linked: linked, failed: length(results) - linked}}
+  end
+
+  defp link_one(_tv_series_id, nil, _season, _episode, _title), do: :error
+
+  defp link_one(tv_series_id, %AwaitingFile{} = file, season, episode_number, title) do
+    with {:ok, episode} <- ensure_episode(tv_series_id, season, episode_number, title),
+         {:ok, playable_item_id} <- ensure_episode_playable_item(episode),
+         {:ok, _watched} <-
+           Library.link_file(%{
+             file_path: file.file_path,
+             media_dir: file.media_dir,
+             playable_item_id: playable_item_id
+           }),
+         {:ok, _resolved} <- resolve_awaiting(file) do
+      :ok
+    else
+      _ -> :error
+    end
+  end
+
+  defp ensure_episode(tv_series_id, season_number, episode_number, title) do
+    with {:ok, season} <-
+           Library.find_or_create_season_for_tv_series(%{
+             tv_series_id: tv_series_id,
+             season_number: season_number,
+             name: "Season #{season_number}"
+           }) do
+      case Library.find_episode_by_season_episode(tv_series_id, season_number, episode_number) do
+        nil ->
+          Library.create_episode(%{
+            season_id: season.id,
+            episode_number: episode_number,
+            name: title
+          })
+
+        episode ->
+          {:ok, episode}
+      end
+    end
+  end
+
+  defp ensure_episode_playable_item(episode) do
+    case Library.create_playable_item(%{
+           container_type: :episode,
+           container_id: episode.id,
+           position: episode.episode_number || 1
+         }) do
+      {:ok, item} ->
+        {:ok, item.id}
+
+      {:error, %Ecto.Changeset{}} ->
+        case Library.list_playable_items_for(:episode, episode.id) do
+          [item | _] -> {:ok, item.id}
+          [] -> :error
+        end
+    end
+  end
 end
