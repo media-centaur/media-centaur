@@ -20,7 +20,8 @@ defmodule MediaCentaur.Acquisition.PlannerTest do
           %{}
         ),
       scope: scope,
-      coverable: Keyword.get(attrs, :coverable, :all)
+      coverable: Keyword.get(attrs, :coverable, :all),
+      offer_only: Keyword.get(attrs, :offer_only, false)
     }
   end
 
@@ -413,6 +414,41 @@ defmodule MediaCentaur.Acquisition.PlannerTest do
 
       assert [assignment] = solution.assignments
       assert Enum.sort(assignment.units) == [{1, 1}, {1, 2}]
+    end
+  end
+
+  describe "solve/3 — offer-only options (cour candidates)" do
+    # A cour candidate's scope is classified contextually and its naming
+    # is fuzzy, so it is never auto-grabbed: `offer_only` forces it into
+    # the offers bucket regardless of fit. The user confirms on the board.
+
+    test "an offer-only pack is never assigned — it only ever surfaces as an offer" do
+      wanted = [{1, 29}, {1, 30}]
+
+      # No fit gating active (no span_sizes); without offer_only this pack
+      # would consolidate and auto-grab both units.
+      options = [option("cour2", {:episodes, 1, 29, 30}, offer_only: true)]
+
+      solution = Planner.solve(wanted, options, @prefs)
+
+      assert solution.assignments == []
+      assert Enum.sort(solution.unfound) == [{1, 29}, {1, 30}]
+      assert solution.offers[{1, 29}].result.guid == "cour2"
+      assert solution.offers[{1, 30}].result.guid == "cour2"
+    end
+
+    test "a real single is assigned while the offer-only pack stays an offer" do
+      wanted = [{1, 29}]
+
+      options = [
+        option("cour2", {:episodes, 1, 29, 38}, offer_only: true, seeders: 900),
+        option("e29", {:episode, 1, 29}, seeders: 5)
+      ]
+
+      solution = Planner.solve(wanted, options, @prefs)
+
+      assert assigned_guid_for(solution, {1, 29}) == "e29"
+      assert solution.unfound == []
     end
   end
 end

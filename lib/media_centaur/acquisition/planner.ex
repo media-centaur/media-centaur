@@ -75,14 +75,15 @@ defmodule MediaCentaur.Acquisition.Planner do
     """
 
     @enforce_keys [:result, :scope]
-    defstruct [:result, :scope, coverable: :all]
+    defstruct [:result, :scope, coverable: :all, offer_only: false]
 
     @type coverable :: :all | MapSet.t(ReleaseCoverage.unit())
 
     @type t :: %__MODULE__{
             result: SearchResult.t(),
             scope: ReleaseCoverage.t(),
-            coverable: coverable()
+            coverable: coverable(),
+            offer_only: boolean()
           }
   end
 
@@ -131,8 +132,14 @@ defmodule MediaCentaur.Acquisition.Planner do
         Quality.acceptable?(result.quality, prefs.min_quality, prefs.max_quality)
       end)
 
+    # Offer-only options (cour candidates — fuzzy naming, never
+    # auto-grabbed) bypass assignment entirely: they go straight to the
+    # offers bucket regardless of fit, so the user confirms on the board.
+    {forced_offers, gradable} = Enum.split_with(acceptable, & &1.offer_only)
+
     all_wanted = Map.get(prefs, :all_wanted) || wanted
-    {eligible, gated} = partition_by_fit(acceptable, all_wanted, prefs)
+    {eligible, gated} = partition_by_fit(gradable, all_wanted, prefs)
+    gated = gated ++ forced_offers
 
     {assignments, remaining} = consolidate(wanted, eligible)
     {single_assignments, unfound} = assign_singles(remaining, eligible)

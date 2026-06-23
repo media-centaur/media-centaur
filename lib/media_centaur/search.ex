@@ -2,6 +2,8 @@ defmodule MediaCentaur.Search do
   use Boundary,
     deps: [MediaCentaur.Capabilities, MediaCentaur.Settings],
     exports: [
+      CourCoverage,
+      CourQueries,
       Criteria,
       Prowlarr,
       QueryBuilder,

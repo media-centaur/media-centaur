@@ -20,6 +20,12 @@ defmodule MediaCentaur.AcquisitionTest do
     client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
     :persistent_term.put({Prowlarr, :client}, client)
 
+    # TV pursuit re-searches consult cour segmentation (a TMDB season
+    # fetch). Stub it to an empty season so the worker degrades to the
+    # regular queries instead of reaching the network (no TMDB in tests).
+    MediaCentaur.TmdbStubs.setup_tmdb_client(self())
+    Req.Test.stub(:tmdb, fn conn -> Req.Test.json(conn, %{"episodes" => []}) end)
+
     config = :persistent_term.get({MediaCentaur.Config, :config})
 
     :persistent_term.put(
