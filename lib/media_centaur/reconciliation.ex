@@ -3,6 +3,7 @@ defmodule MediaCentaur.Reconciliation do
     deps: [],
     exports: [
       Artifact,
+      AwaitingFile,
       Engine,
       Interpretation,
       Model,
@@ -38,9 +39,77 @@ defmodule MediaCentaur.Reconciliation do
   - `Interpretation` — one model's full proposal: placements + confidence
     + rationale.
 
-  Currently pure (`deps: []`) — models read an assembled spine + artifacts.
-  The impure caller (a pipeline stage assembling the spine from a TMDB
-  season fetch + the library present-set, mirroring `Acquisition.Cours`)
-  and the persistence of confirmed/pinned placements are the next phases.
+  ## Pure core vs. persistence
+
+  The engine + models are **pure** (`Engine`, `Models.*`) — they read an
+  assembled spine + artifacts and never touch I/O. This module is the
+  context root and owns the one piece of durable state: the
+  **awaiting-file queue** (`AwaitingFile`). A confirmed mapping is just a
+  library `WatchedFile` link (a `present?` spine node), so there is no
+  separate "placement" or "pin" table — proposals are re-derived each run
+  (deriver model, ADR-057). The impure spine assembly (TMDB fetch +
+  library present-set) and the confirm-writes-links path arrive with the
+  review surface.
   """
+
+  import Ecto.Query, only: [from: 2]
+
+  alias MediaCentaur.Reconciliation.AwaitingFile
+  alias MediaCentaur.Repo
+
+  @doc """
+  Parks a file diverted out of ingest (its parsed season isn't in TMDB's
+  season list) into the awaiting-mapping queue. Idempotent on `file_path` —
+  re-discovering the same file updates its claims rather than duplicating.
+  """
+  @spec divert(map()) :: {:ok, AwaitingFile.t()} | {:error, Ecto.Changeset.t()}
+  def divert(attrs) do
+    case file_path(attrs) do
+      nil -> Repo.insert(AwaitingFile.changeset(%AwaitingFile{}, attrs))
+      path -> upsert_awaiting(path, attrs)
+    end
+  end
+
+  defp upsert_awaiting(path, attrs) do
+    case Repo.get_by(AwaitingFile, file_path: path) do
+      nil -> Repo.insert(AwaitingFile.changeset(%AwaitingFile{}, attrs))
+      existing -> Repo.update(AwaitingFile.changeset(existing, attrs))
+    end
+  end
+
+  defp file_path(attrs), do: attrs[:file_path] || attrs["file_path"]
+
+  @doc "All files still awaiting a mapping decision, oldest first."
+  @spec list_awaiting() :: [AwaitingFile.t()]
+  def list_awaiting do
+    Repo.all(from f in AwaitingFile, where: f.status == :pending, order_by: [asc: f.inserted_at])
+  end
+
+  @doc "Pending awaiting files for one show (by series TMDB id)."
+  @spec awaiting_for_tmdb(integer()) :: [AwaitingFile.t()]
+  def awaiting_for_tmdb(tmdb_id) do
+    Repo.all(
+      from f in AwaitingFile,
+        where: f.status == :pending and f.tmdb_id == ^tmdb_id,
+        order_by: [asc: f.claimed_season, asc: f.claimed_episode]
+    )
+  end
+
+  @doc "Marks an awaiting file resolved (its mapping was confirmed and linked)."
+  @spec resolve_awaiting(AwaitingFile.t() | Ecto.UUID.t()) ::
+          {:ok, AwaitingFile.t()} | {:error, Ecto.Changeset.t()}
+  def resolve_awaiting(file_or_id), do: set_status(file_or_id, :resolved)
+
+  @doc "Marks an awaiting file dismissed (the user opted not to map it)."
+  @spec dismiss_awaiting(AwaitingFile.t() | Ecto.UUID.t()) ::
+          {:ok, AwaitingFile.t()} | {:error, Ecto.Changeset.t()}
+  def dismiss_awaiting(file_or_id), do: set_status(file_or_id, :dismissed)
+
+  defp set_status(%AwaitingFile{} = file, status) do
+    file |> AwaitingFile.changeset(%{status: status}) |> Repo.update()
+  end
+
+  defp set_status(id, status) when is_binary(id) do
+    set_status(Repo.get!(AwaitingFile, id), status)
+  end
 end

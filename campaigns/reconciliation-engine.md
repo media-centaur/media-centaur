@@ -277,6 +277,15 @@ numbering-agnostic by construction:
   (deriver model, ADR-057). The awaiting-mapping record is the divert
   target the pipeline trigger needs. (resolves the persistence open
   question) (owner)
+  * `2026-06-24` (build refinement) — **The pin needs no separate table.**
+    A confirmed mapping *is* a `WatchedFile` link → a `present?` spine
+    node, which already blocks gap-fill from reusing that node — i.e. it
+    re-proposes around it and never overturns it, for free. Partial-accept
+    falls out: accepted files link + leave the queue, the rest stay
+    awaiting. So persistence is just `Reconciliation.AwaitingFile`
+    (the queue) + existing links. The `Engine.resolve` `pinned:` param
+    stays for in-session partial-accept and Phase B, but there is no
+    durable pin record.
 * `2026-06-24` — **Specials / season 0: title-match applies, gap-fill
   skips.** Title-match (identity) maps season-0 artifacts safely;
   ordinal gap-fill **refuses** season 0 (TMDB special ordering is
@@ -338,14 +347,17 @@ numbering-agnostic by construction:
   it's actually a re-release of a middle cour already present, ordinal fill
   misplaces. *Mitigation:* mandatory confirmation with shown rationale; a
   count overflow/mismatch lowers confidence so it never goes `auto`.
-- **Confidence bands are provisional guesses** (gap-fill 0.85 / 0.7 / 0.4)
-  and the `auto`-vs-`proposed` threshold is unresolved (open question).
+- **Confidence bands are provisional guesses** (gap-fill 0.85 / 0.7 / 0.4;
+  title-match 0.9). The `auto`-vs-`proposed` threshold is now **resolved**
+  (conservative: ≥2 models corroborate + exact fit — see Decisions), so the
+  bands feed display + ranking, not the auto gate. Revisit the magnitudes
+  once we see field behaviour.
 - **Trigger trusts show identity** (settled upstream by `search`'s
   confidence gate). A wrong identity reaching `fetch_metadata` would map onto
   the wrong spine — but preventing that is identity-review's job;
   reconciliation assumes the show is right.
-- **Specials / season 0 handling is unspecified** (open question) — may
-  surface oddly until designed.
+- **Specials / season 0** — **resolved**: title-match maps them by identity,
+  gap-fill refuses season 0 → unmatched specials land unplaced/manual.
 
 ## Acquisition convergence map (Phase B — shipped piece → engine concept)
 
@@ -358,13 +370,19 @@ numbering-agnostic by construction:
 | `Planner.Option.offer_only` | a placement that can only reach `proposed`, never `auto` |
 | Pursuit "covered?" by release numbering | **wanted spine nodes have placements** |
 
-## Built so far (current code shape — commit `2e59419d` + title-match)
+## Built so far (current code shape)
 
-`mix test test/media_centaur/reconciliation/` green (15 tests); compiles
-warnings-clean; boundary-clean.
+`mix test test/media_centaur/reconciliation/` green (33 tests); compiles
+warnings-clean; boundary-clean. Commits: `2e59419d` (core + gap-fill),
+`13fd3265` (title-match), `17bed00a` (engine + season-0), persistence
+(awaiting-file queue).
 
-- `lib/media_centaur/reconciliation.ex` — `Boundary, deps: []`, exports the
-  vocabulary + `Model` + `Models.GapFill`.
+- `lib/media_centaur/reconciliation.ex` — `Boundary, deps: []` (still
+  pure: `Repo` is boundary-exempt). Exports the vocabulary + `Model` +
+  `Engine` + `Resolution` + `Models.*` + `AwaitingFile`. **Context root**:
+  owns the awaiting-file queue API — `divert/1` (idempotent on
+  `file_path`), `list_awaiting/0`, `awaiting_for_tmdb/1`,
+  `resolve_awaiting/1`, `dismiss_awaiting/1`.
 - `SpineNode{season, episode, title, present?}` ·
   `Artifact{id, claimed_season, claimed_episode, claimed_title}` ·
   `Placement{artifact_id, season, episode}` ·
@@ -384,6 +402,21 @@ warnings-clean; boundary-clean.
   spine (decision-independent), abstains when no artifact/spine title is
   present, skips unmatched and ambiguous titles. One interpretation per
   call covering the artifacts it could place.
+- `Engine.resolve(spine, artifacts, opts)` → `Resolution{recommended,
+  alternatives, pinned, unplaced, auto?}`. Ranks interpretations by
+  confidence; builds `recommended` (a synthesized `model: :recommended`
+  interpretation) by letting the highest-confidence model that placed each
+  artifact win; keeps raw per-model interpretations as ranked
+  `alternatives`. `auto?` true only under the conservative rule (≥2 models
+  corroborate every placement + exact 1:1 gap fill + nothing unplaced).
+  `opts[:pinned]` (list of `Placement`) marks nodes taken + withholds those
+  artifacts so models re-propose around them.
+- `AwaitingFile` schema + migration (`reconciliation_awaiting_files`):
+  the durable divert queue. Fields: `file_path` (unique), `media_dir`,
+  `tmdb_id`, `series_title`, `claimed_season/episode/title`, `status`
+  (`:pending|:resolved|:dismissed`). **No pin/placement table** — a
+  confirmed mapping is a `WatchedFile` link (a `present?` node), which is
+  the pin (see Decisions).
 
 ## Next steps
 
@@ -393,27 +426,27 @@ above is prod runtime, exempt, reference only.
 
 ### Phase A — ingest reconciliation (build now)
 
-1. **Vocabulary + spine read.** Define artifact / claim / spine-node /
-   placement in code (likely under a new `MediaCentaur.Reconciliation`
-   context — confirm boundary deps; it needs Library + TMDB-spine, and is
-   read by the pipeline + a new Review surface). The spine for a show =
-   TMDB's ordered episodes; "present" = library placements.
-2. **Interpretation-model behaviour** + the initial models (gap-fill,
-   title-match, absolute-number; offset/cour optional first cut). Pure,
-   unit-tested with synthetic data. Engine that runs models, merges
-   agreement, ranks/surfaces conflict, assigns confidence → placement
-   states.
-3. **Pipeline trigger.** In `Pipeline.Stages.FetchMetadata.build_tv`,
+1. ✅ **Vocabulary** — `SpineNode/Artifact/Placement/Interpretation` (commit
+   `2e59419d`). `deps: []` kept (Repo exempt); the impure **spine read** is
+   not yet built (lands with the review surface, step 4).
+2. ✅ **Interpretation models + engine** — `Models.GapFill`,
+   `Models.TitleMatch`, `Engine.resolve` with conservative auto + pin
+   support; specials rule (gap-fill skips season 0). `Resolution` is the
+   merged/ranked output. (commits `13fd3265`, `17bed00a`)
+   ✅ **Persistence** — `AwaitingFile` queue + context CRUD.
+3. ⏳ **Pipeline trigger** (after the review surface exists, so a diverted
+   file has somewhere to go). In `Pipeline.Stages.FetchMetadata.build_tv`,
    detect case (a) — `parsed.season` not in the show's TMDB season list —
-   and divert the file to the mapping review instead of
-   `build_minimal_season`. Verify no phantom season is created. Decide the
-   payload/route (new `{:needs_episode_mapping, …}` vs. extending the
-   existing review-intake path).
-4. **Show-scoped mapping review surface.** New review dimension: a show +
-   its unplaced artifacts + candidate interpretations (pre-selected best,
-   alternatives one click away — *pending decision, see open questions*),
-   per-file override, partial-accept. Confirming writes placements
-   (links files to the right TMDB episodes); does NOT fabricate seasons.
+   and call `Reconciliation.divert/1` instead of `build_minimal_season`.
+   Verify no phantom season is created.
+4. ⏳ **Spine assembly + show-scoped mapping review surface.** Impure
+   spine assembler (TMDB `get_season` per real season + library
+   present-set, degrade-on-error like `Acquisition.Cours`) — widens
+   `Reconciliation` deps to `[Library, TMDB]`. Review LiveView: a show + its
+   awaiting artifacts; renders `Resolution` (expanded recommended mapping
+   table + collapsed alternative chips per decision); per-file override;
+   partial-accept. Confirming resolves links (`Library.link_file`) +
+   `resolve_awaiting`; never fabricates seasons.
 5. `mix precommit` green; commit per phase.
 
 ### Phase B — converge acquisition (follow-up, fresh session OK)
