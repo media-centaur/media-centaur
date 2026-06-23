@@ -417,6 +417,20 @@ warnings-clean; boundary-clean. Commits: `2e59419d` (core + gap-fill),
   (`:pending|:resolved|:dismissed`). **No pin/placement table** — a
   confirmed mapping is a `WatchedFile` link (a `present?` node), which is
   the pin (see Decisions).
+- `Spine.assemble(tmdb_id, present_keys)` — the impure spine read: TMDB
+  `get_tv` → season numbers → `get_season` per season → `[SpineNode]` with
+  `present?` from the caller's present-set. Degrades to `[]` on show-fetch
+  error; skips a failing season (mirrors `Acquisition.Cours`).
+- `Library.present_episode_keys/1` — bulk present-set: `MapSet` of
+  `{season, episode}` pairs with a linked `WatchedFile` for a series.
+- `Reconciliation.resolve_show(tmdb_id, opts)` → `ShowReview{tmdb_id,
+  series_title, tv_series_id, awaiting_files, spine, resolution}`. The
+  read model the review surface renders: loads awaiting files → builds
+  artifacts → resolves library series for the present-set → assembles
+  spine → `Engine.resolve`. `opts[:pinned]` threads into the engine.
+- **Boundary widened**: `Reconciliation` now `deps: [Library, TMDB]` (the
+  pure engine/models still do no I/O — purity is by construction + async
+  unit tests, not boundary-enforced on those modules).
 
 ## Next steps
 
@@ -439,14 +453,14 @@ above is prod runtime, exempt, reference only.
    detect case (a) — `parsed.season` not in the show's TMDB season list —
    and call `Reconciliation.divert/1` instead of `build_minimal_season`.
    Verify no phantom season is created.
-4. ⏳ **Spine assembly + show-scoped mapping review surface.** Impure
-   spine assembler (TMDB `get_season` per real season + library
-   present-set, degrade-on-error like `Acquisition.Cours`) — widens
-   `Reconciliation` deps to `[Library, TMDB]`. Review LiveView: a show + its
-   awaiting artifacts; renders `Resolution` (expanded recommended mapping
+4. ✅ **Spine assembly** — `Spine.assemble`, `Library.present_episode_keys`,
+   `Reconciliation.resolve_show` → `ShowReview`. Boundary widened to
+   `[Library, TMDB]`.
+   ⏳ **Show-scoped mapping review surface.** Review LiveView: a show + its
+   awaiting artifacts; renders `ShowReview` (expanded recommended mapping
    table + collapsed alternative chips per decision); per-file override;
    partial-accept. Confirming resolves links (`Library.link_file`) +
-   `resolve_awaiting`; never fabricates seasons.
+   `resolve_awaiting`; never fabricates seasons. **(next)**
 5. `mix precommit` green; commit per phase.
 
 ### Phase B — converge acquisition (follow-up, fresh session OK)
