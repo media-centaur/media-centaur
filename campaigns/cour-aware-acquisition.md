@@ -18,7 +18,26 @@ derived on demand.
 
 ## Status
 
-In progress (started 2026-06-23). Design approved and committed
+**Both phases implemented and committed to local `main` (unpushed),
+2026-06-23.** Full Elixir suite green (5139 tests), credo / boundaries /
+sobelow / deps.audit clean, JS green. The full-suite run intermittently
+trips the pre-existing SQLite "Database busy" setup flake in
+`acquisition_live_test` (unrelated to this work — clean in isolation and
+on a re-run); see [[project-suite-residual-concurrency-flakes]].
+
+Phase 1 (commit `133730aa`): coverage guard + `CourSegmentation`.
+Phase 2: cour-aware queries (`Search.CourQueries`), run-aware pack
+classification (`Search.CourCoverage`), `Planner.Option.offer_only`,
+`Criteria.run` + `QueryBuilder` cour branch, `Acquisition.Cours`
+(season fetch + run detection), the `RunPlan` post-descent cour-offer
+pass, and `PursueTarget` cour-aware re-search.
+
+Outstanding (owner-gated): wiki note (Troubleshooting / FAQ — "why didn't
+my season pack complete the show?") and `/ship`. Operational: the wedged
+live Frieren pursuit still needs a manual cancel (this work prevents new
+bad matches, it does not unstick the old one).
+
+Design approved and committed
 ([`docs/superpowers/specs/2026-06-22-cour-aware-acquisition-design.md`](../docs/superpowers/specs/2026-06-22-cour-aware-acquisition-design.md),
 commit `c2300841`). Phase 3 (TMDB episode-group enrichment) cut as
 YAGNI.
@@ -135,6 +154,42 @@ reference only.
      trimmed → `Planner` returns it `unfound`, not satisfied; nil
      publish_date → untouched.
 3. `mix precommit` green. Commit Phase 1.
+
+### Phase 2 design (decided 2026-06-23 — "build fully")
+
+Two frictions surfaced during Phase 1 that the design hadn't seen; owner
+chose to build through them rather than defer:
+
+* **Run detection needs the full season's air dates.** `CourSegmentation`
+  finds the gap that marks a later run only if it sees the whole season,
+  but plan units carry just the *wanted* (late) units' dates. So the
+  descent fetches the season via `TMDB.Client.get_season/3` (the source
+  `Targeting` already uses; stub with `TmdbStubs.stub_get_season/3`),
+  segments it, and detects whether the residual is in a later run.
+  Recomputed on demand — still nothing persisted beyond the Phase-1
+  `air_date`.
+* **Cour-pack coverage is a contextual join, not title-only.**
+  `ReleaseCoverage.classify` is title-only and returns `:unknown` for
+  `"Title 2nd Season"` / `"Title 29-38"`, so it cannot map a cour pack to
+  a TMDB episode range without run context. A new pure `CourCoverage`
+  classifies *with* the run context (identity match + ordinal/range
+  token → `{:episodes, season, first, last}`). Because later-cour naming
+  is fuzzy, cour candidates are **offer-only**: a new `offer_only` flag on
+  `Planner.Option` forces them into the offers bucket (never auto-grabbed,
+  human confirms on the board), regardless of fit.
+
+Pieces (each pure piece test-first):
+
+* `Acquisition.CourQueries` — `build(title, run)` → run-shaped queries
+  (absolute range, ordinal season, TMDB-numbered), ordered best-to-worst.
+* `Acquisition.CourCoverage` — run-aware classification of a result title
+  → `{:episodes, …}` or `:no_match`.
+* `Planner.Option.offer_only` — cour candidates surface only as offers.
+* `Search.Criteria.run` + `QueryBuilder.build_tv` — emit cour queries when
+  criteria carry a later-run context (the pursuit re-search path).
+* `Jobs.RunPlan` cour rung — fetch season, segment, search cour terms for
+  later-run residual, classify offer-only via `CourCoverage`, feed solver
+  → surfaces as board offers.
 
 ### Phase 2 — cour-aware queries + surfacing
 

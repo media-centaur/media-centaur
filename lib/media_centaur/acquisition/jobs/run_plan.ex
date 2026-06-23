@@ -46,6 +46,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   alias MediaCentaur.Acquisition.{
     AutoGrabSettings,
     Corpus,
+    Cours,
     CoverageGuard,
     PlanEvents,
     Planner,
@@ -54,7 +55,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
 
   alias MediaCentaur.Acquisition.Plans.{LadderTerms, Plan, PlanUnit}
   alias MediaCentaur.Repo
-  alias MediaCentaur.Search.{Criteria, Quality, ReleaseRedFlags, TitleMatcher}
+  alias MediaCentaur.Search.{CourCoverage, CourQueries, Criteria, Quality, ReleaseCoverage}
+  alias MediaCentaur.Search.{ReleaseRedFlags, TitleMatcher}
   alias MediaCentaur.Topics
 
   @rung_ids [:series, :seasons, :episodes]
@@ -173,6 +175,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
 
     broadcast_descent(plan, length(wanted), state.stages ++ skipped, nil)
 
+    state = add_cour_offers(state, plan, wanted, excluded, force?, plan_prefs)
+
     Enum.each(units, fn unit ->
       key = {unit.season_number, unit.episode_number}
 
@@ -263,6 +267,84 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
         offers_by_unit: offers_by_unit,
         residual: Enum.reject(wanted, &Map.has_key?(assignment_by_unit, &1))
     }
+  end
+
+  # Cour-aware surfacing (Phase 2). For units the descent left unfound
+  # *because* the coverage guard trimmed an otherwise-covering pack (the
+  # later-cour signal), fetch the season, confirm the unit is in a later
+  # broadcast run, search run-shaped queries, and attach any matching
+  # pack as an **offer** — never an auto-grab (later-cour naming is fuzzy;
+  # the user confirms on the board). The trim signal gates the TMDB fetch
+  # so a plain dry show never pays for it.
+  defp add_cour_offers(state, plan, wanted, excluded, force?, plan_prefs) do
+    unfound = Enum.reject(wanted, &Map.has_key?(state.assignment_by_unit, &1))
+
+    case later_run_units(plan, trimmed_units(state.options, unfound)) do
+      [] ->
+        state
+
+      later ->
+        options = cour_options(plan, later, excluded, force?)
+        solution = Planner.solve(Enum.map(later, &elem(&1, 0)), options, plan_prefs)
+        %{state | offers_by_unit: Map.merge(state.offers_by_unit, solution.offers)}
+    end
+  end
+
+  # Unfound units that some gathered option's *scope* covers but its
+  # `coverable` cap trimmed — i.e. a pack that should hold them but
+  # physically cannot (it predates their air date). That is the later-cour
+  # tell, and the only case worth a season fetch.
+  defp trimmed_units(options, unfound) do
+    Enum.filter(unfound, fn {season, episode} ->
+      Enum.any?(options, fn option ->
+        ReleaseCoverage.covers?(option.scope, season, episode) and
+          option.coverable != :all and
+          not MapSet.member?(option.coverable, {season, episode})
+      end)
+    end)
+  end
+
+  # Pairs each candidate unit with the later run it belongs to (one season
+  # fetch per distinct season; units not in a later run are dropped).
+  defp later_run_units(_plan, []), do: []
+
+  defp later_run_units(plan, candidates) do
+    candidates
+    |> Enum.group_by(fn {season, _episode} -> season end)
+    |> Enum.flat_map(fn {season, units} ->
+      runs = Cours.runs_for_season(plan.tmdb_id, season)
+      Enum.map(units, fn unit -> {unit, Cours.later_run(runs, unit)} end)
+    end)
+    |> Enum.reject(fn {_unit, run} -> is_nil(run) end)
+  end
+
+  # Searches the run-shaped queries for each distinct later run and
+  # classifies results against that run (`CourCoverage`). Matches become
+  # offer-only options so the planner only ever surfaces them as offers.
+  defp cour_options(plan, later, excluded, force?) do
+    later
+    |> Enum.map(fn {_unit, run} -> run end)
+    |> Enum.uniq_by(& &1.index)
+    |> Enum.flat_map(fn run ->
+      plan.title
+      |> CourQueries.build(run)
+      |> Enum.flat_map(fn {term, opts} ->
+        plan
+        |> search(term, opts, force?)
+        |> Enum.flat_map(&cour_option(&1, plan, run, excluded))
+      end)
+    end)
+    |> Enum.uniq_by(& &1.result.guid)
+  end
+
+  defp cour_option(result, plan, run, excluded) do
+    with false <- ReleaseRedFlags.suspicious?(result.title, result.size_bytes),
+         false <- MapSet.member?(excluded, result.guid),
+         scope when scope != :no_match <- CourCoverage.classify(result.title, plan.title, run) do
+      [%Planner.Option{result: result, scope: scope, offer_only: true}]
+    else
+      _ -> []
+    end
   end
 
   defp series_criteria(plan) do

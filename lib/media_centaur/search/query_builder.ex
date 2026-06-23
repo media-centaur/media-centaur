@@ -25,7 +25,7 @@ defmodule MediaCentaur.Search.QueryBuilder do
   `Criteria` via the caller's own `to_criteria/1`.
   """
 
-  alias MediaCentaur.Search.{Criteria, QueryExpander}
+  alias MediaCentaur.Search.{CourQueries, Criteria, QueryExpander}
   alias MediaCentaur.Format
 
   @type opt :: {:type, :movie | :tv} | {:year, integer()}
@@ -40,6 +40,24 @@ defmodule MediaCentaur.Search.QueryBuilder do
 
   defp build_movie(%Criteria{title: title, year: year}) when is_integer(year) do
     [{"#{title} #{year}", [type: :movie, year: year]}]
+  end
+
+  # Later-cour residual: the first-run `Season N` query is wrong (it
+  # surfaces the first-run pack the coverage guard refused), so emit the
+  # run-shaped queries instead. A residual episode keeps its precise
+  # `SxxExx` query as a fallback alongside the cour queries.
+  defp build_tv(%Criteria{run: %{index: index} = run, title: title} = criteria)
+       when is_integer(index) and index > 0 do
+    cour = CourQueries.build(title, run)
+
+    case criteria.episode_number do
+      episode when is_integer(episode) ->
+        season = criteria.season_number
+        Enum.uniq(cour ++ [{"#{title} #{season_tag(season)}#{episode_tag(episode)}", [type: :tv]}])
+
+      nil ->
+        cour
+    end
   end
 
   defp build_tv(%Criteria{title: title, season_number: season, episode_number: nil})

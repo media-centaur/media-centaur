@@ -105,4 +105,60 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
       assert Keyword.get(fallback_opts, :type) == :tv
     end
   end
+
+  describe "build/1 — cour-aware (later-run residual)" do
+    # The first-run `Season N` query is wrong for a later cour — it
+    # surfaces the first-run pack the coverage guard already refused.
+    # When the criteria carry a later run, emit run-shaped queries.
+    @later_run %{index: 1, first_ep: {1, 29}, last_ep: {1, 38}, date_span: nil}
+
+    test "a later-run season residual emits cour queries, not the first-run Season N" do
+      criteria = %Criteria{
+        type: :tmdb,
+        tmdb_type: :tv,
+        title: "Sample Show",
+        season_number: 1,
+        episode_number: nil,
+        run: @later_run
+      }
+
+      queries = Enum.map(QueryBuilder.build(criteria), &elem(&1, 0))
+
+      assert "Sample Show 29-38" in queries
+      assert "Sample Show 2nd Season" in queries
+      refute "Sample Show Season 1" in queries
+      refute "Sample Show S01" in queries
+    end
+
+    test "a later-run episode residual keeps its precise SxxExx query alongside cour queries" do
+      criteria = %Criteria{
+        type: :tmdb,
+        tmdb_type: :tv,
+        title: "Sample Show",
+        season_number: 1,
+        episode_number: 29,
+        run: @later_run
+      }
+
+      queries = Enum.map(QueryBuilder.build(criteria), &elem(&1, 0))
+
+      assert "Sample Show 29-38" in queries
+      assert "Sample Show S01E29" in queries
+    end
+
+    test "a first-run (index 0) residual is unchanged — regression guard" do
+      first_run = %{index: 0, first_ep: {1, 1}, last_ep: {1, 16}, date_span: nil}
+
+      criteria = %Criteria{
+        type: :tmdb,
+        tmdb_type: :tv,
+        title: "Sample Show",
+        season_number: 1,
+        episode_number: nil,
+        run: first_run
+      }
+
+      assert [{"Sample Show Season 1", _}, {"Sample Show S01", _}] = QueryBuilder.build(criteria)
+    end
+  end
 end

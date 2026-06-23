@@ -54,12 +54,14 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
   alias MediaCentaur.Acquisition.{
     AutoGrabSettings,
     Corpus,
+    Cours,
     InfoHash,
     Target,
     TargetEvents
   }
 
   alias MediaCentaur.Search.{
+    Criteria,
     Prowlarr,
     Quality,
     QueryBuilder,
@@ -147,7 +149,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     )
 
     bounds = effective_bounds(pursuit)
-    criteria = pursuit |> Recipe.for_unit(unit) |> Recipe.to_criteria()
+    criteria = pursuit |> Recipe.for_unit(unit) |> Recipe.to_criteria() |> with_cour_run(pursuit, unit)
 
     case search_until_match(target, unit, criteria, QueryBuilder.build(criteria), bounds) do
       {:ok, best} -> handle_found(target, pursuit, best)
@@ -156,6 +158,24 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
       {:error, reason} -> handle_prowlarr_error(target, reason)
     end
   end
+
+  # Cour-aware re-search: when this TV unit belongs to a later broadcast
+  # run, set the criteria's `run` so `QueryBuilder` emits run-shaped
+  # queries (e.g. "Title 2nd Season") instead of the first-run "Season N"
+  # — without it a committed later-cour release can't be re-found on
+  # retry. One season fetch per attempt (a low-frequency seeking/retry
+  # job); degrades to the regular queries on a TMDB error.
+  defp with_cour_run(
+         %Criteria{tmdb_type: :tv, season_number: season, episode_number: episode} = criteria,
+         %Pursuit{tmdb_id: tmdb_id},
+         _unit
+       )
+       when is_integer(season) and is_integer(episode) and is_binary(tmdb_id) do
+    runs = Cours.runs_for_season(tmdb_id, season)
+    %{criteria | run: Cours.later_run(runs, {season, episode})}
+  end
+
+  defp with_cour_run(%Criteria{} = criteria, _pursuit, _unit), do: criteria
 
   # Quality bounds live on the pursuit's `criteria` map, read as-is.
   # 4K patience is a want-ledger concern applied at plan time as a

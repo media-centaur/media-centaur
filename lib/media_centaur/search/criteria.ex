@@ -19,7 +19,8 @@ defmodule MediaCentaur.Search.Criteria do
     :season_number,
     :episode_number,
     :year,
-    :manual_query
+    :manual_query,
+    :run
   ]
 
   @type type :: :tmdb | :prowlarr_query
@@ -32,6 +33,11 @@ defmodule MediaCentaur.Search.Criteria do
           season_number: integer() | nil,
           episode_number: integer() | nil,
           year: integer() | nil,
-          manual_query: String.t() | nil
+          manual_query: String.t() | nil,
+          # The broadcast run (cour) this residual belongs to, when it is
+          # a *later* run — a `CourSegmentation` run map. Drives
+          # cour-aware query generation (`QueryBuilder`). Nil / first run
+          # → the regular `Season N` queries.
+          run: map() | nil
         }
 end

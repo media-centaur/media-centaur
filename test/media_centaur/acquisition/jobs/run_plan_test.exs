@@ -5,6 +5,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Search.Prowlarr
+  alias MediaCentaur.TmdbStubs
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
@@ -306,6 +307,24 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     # cour aired. The guard caps each candidate to what it could
     # physically contain (aired on or before its publish date).
 
+    # Season 1 spans two cours — E1–E3 (2023) and E4–E5 (2026). Stubbed
+    # so the post-descent cour pass can segment and detect the later run.
+    setup do
+      TmdbStubs.setup_tmdb_client(self())
+
+      TmdbStubs.stub_get_season("246810", 1, %{
+        "episodes" => [
+          %{"episode_number" => 1, "air_date" => "2023-10-01", "name" => "A"},
+          %{"episode_number" => 2, "air_date" => "2023-10-08", "name" => "B"},
+          %{"episode_number" => 3, "air_date" => "2023-10-15", "name" => "C"},
+          %{"episode_number" => 4, "air_date" => "2026-01-16", "name" => "D"},
+          %{"episode_number" => 5, "air_date" => "2026-01-23", "name" => "E"}
+        ]
+      })
+
+      :ok
+    end
+
     test "a season pack is not credited with episodes that aired after it was published" do
       stub_recording_searches(%{
         "Sample Show Season 1" => [
@@ -427,6 +446,51 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
       units = Plans.units_for(plan.id)
       assert Enum.all?(units, &(&1.assigned_guid == "undated-pack"))
+    end
+
+    test "a later-cour pack surfaces as an offer on the trimmed units (never auto-grabbed)" do
+      # The first-run pack (2024) is found and trimmed by the guard, which
+      # is the signal to search cour-shaped queries. The second-cour pack
+      # is named "2nd Season", so plain ReleaseCoverage can't classify it —
+      # the run-aware CourCoverage maps it to E4–E5 and offers it.
+      stub_recording_searches(%{
+        "Sample Show Season 1" => [
+          release("Sample.Show.S01.COMPLETE.1080p.WEB-DL", "early-pack", %{
+            seeders: 900,
+            publishDate: "2024-06-01T00:00:00Z"
+          })
+        ],
+        "Sample Show 2nd Season" => [
+          release("Sample.Show.2nd.Season.1080p.BluRay", "cour2-pack", %{seeders: 50})
+        ]
+      })
+
+      {:ok, plan} =
+        Plans.create_tracking_plan(
+          %{tmdb_id: "246810", tmdb_type: "tv", title: "Sample Show"},
+          [
+            %{
+              season_number: 1,
+              episode_number: 4,
+              air_date: ~D[2026-01-16],
+              label: "S01E04",
+              position: 0
+            },
+            %{
+              season_number: 1,
+              episode_number: 5,
+              air_date: ~D[2026-01-23],
+              label: "S01E05",
+              position: 1
+            }
+          ]
+        )
+
+      units = Plans.units_for(plan.id)
+      assert Enum.all?(units, &(&1.status == "unfound"))
+      assert Enum.all?(units, &(&1.assigned_guid == nil))
+      assert Enum.all?(units, &(&1.offered_guid == "cour2-pack"))
+      assert Enum.all?(units, &(&1.offered_scope == "S01E04-05"))
     end
   end
 
