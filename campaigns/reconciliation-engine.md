@@ -465,11 +465,16 @@ above is prod runtime, exempt, reference only.
 4. ✅ **Spine assembly** — `Spine.assemble`, `Library.present_episode_keys`,
    `Reconciliation.resolve_show` → `ShowReview`. Boundary widened to
    `[Library, TMDB]`.
-   ⏳ **Show-scoped mapping review surface.** Review LiveView: a show + its
-   awaiting artifacts; renders `ShowReview` (expanded recommended mapping
-   table + collapsed alternative chips per decision); per-file override;
-   partial-accept. Confirming resolves links (`Library.link_file`) +
-   `resolve_awaiting`; never fabricates seasons. **(next)**
+   ✅ **Show-scoped mapping review surface** — `ReconcileLive` at
+   `/reconcile` (sidebar "Mapping"). Master list of shows with awaiting
+   files + detail: per-file episode-picker table (recommended pre-filled),
+   "Other interpretations" chips with "Use these", Confirm / Dismiss all.
+   Pure view logic in `ReconcileView` (unit-tested); 5 live tests cover
+   mount/select/confirm/override(form change)/dismiss; smoke entry added.
+   `data-page-behavior="reconcile"` + minimal JS behavior registered.
+   **Browser visual check deferred to owner** (running instances + prod-DB
+   constraints; interaction wiring is test-covered, no phx-value-value
+   footgun). **(done)**
 5. `mix precommit` green; commit per phase.
 
 ### Phase B — converge acquisition (follow-up, fresh session OK)

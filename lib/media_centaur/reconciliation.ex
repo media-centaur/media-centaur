@@ -59,6 +59,25 @@ defmodule MediaCentaur.Reconciliation do
   alias MediaCentaur.Library
   alias MediaCentaur.Reconciliation.{Artifact, AwaitingFile, Engine, ShowReview, Spine}
   alias MediaCentaur.Repo
+  alias MediaCentaur.Topics
+
+  @doc "Subscribes the caller to awaiting-queue changes (the review surface)."
+  @spec subscribe() :: :ok | {:error, term()}
+  def subscribe do
+    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.reconciliation_updates())
+  end
+
+  defp broadcast(result) do
+    with {:ok, _} <- result do
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        Topics.reconciliation_updates(),
+        {:reconciliation_updated}
+      )
+    end
+
+    result
+  end
 
   @doc """
   Parks a file diverted out of ingest (its parsed season isn't in TMDB's
@@ -67,10 +86,12 @@ defmodule MediaCentaur.Reconciliation do
   """
   @spec divert(map()) :: {:ok, AwaitingFile.t()} | {:error, Ecto.Changeset.t()}
   def divert(attrs) do
-    case file_path(attrs) do
-      nil -> Repo.insert(AwaitingFile.changeset(%AwaitingFile{}, attrs))
-      path -> upsert_awaiting(path, attrs)
-    end
+    broadcast(
+      case file_path(attrs) do
+        nil -> Repo.insert(AwaitingFile.changeset(%AwaitingFile{}, attrs))
+        path -> upsert_awaiting(path, attrs)
+      end
+    )
   end
 
   defp upsert_awaiting(path, attrs) do
@@ -109,7 +130,7 @@ defmodule MediaCentaur.Reconciliation do
   def dismiss_awaiting(file_or_id), do: set_status(file_or_id, :dismissed)
 
   defp set_status(%AwaitingFile{} = file, status) do
-    file |> AwaitingFile.changeset(%{status: status}) |> Repo.update()
+    file |> AwaitingFile.changeset(%{status: status}) |> Repo.update() |> broadcast()
   end
 
   defp set_status(id, status) when is_binary(id) do

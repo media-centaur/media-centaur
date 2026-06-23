@@ -158,6 +158,16 @@ defmodule MediaCentaurWeb.Layouts do
             <span class="sidebar-label">Review</span>
           </.link>
           <.link
+            navigate="/reconcile"
+            class={sidebar_link_class(@current_path, "/reconcile") <> " sidebar-link-system"}
+            data-tip="Episode mapping"
+            data-nav-item
+            tabindex="0"
+          >
+            <.icon name="hero-arrows-right-left" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Mapping</span>
+          </.link>
+          <.link
             navigate="/settings"
             class={sidebar_link_class(@current_path, "/settings") <> " sidebar-link-system"}
             data-tip="Settings"

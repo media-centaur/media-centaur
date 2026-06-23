@@ -18,6 +18,7 @@
 import { createStatusBehavior } from "./status_behavior"
 import { createLibraryBehavior, libraryDom } from "./library_behavior"
 import { createReviewBehavior } from "./review_behavior"
+import { createReconcileBehavior } from "./reconcile_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
 import { createDownloadBehavior, downloadDom } from "./download_behavior"
 import { createWatchHistoryBehavior } from "./watch_history_behavior"
@@ -36,6 +37,7 @@ const BEHAVIOR_REGISTRY = {
   status: () => createStatusBehavior(),
   library: () => createLibraryBehavior(libraryDom),
   review: () => createReviewBehavior(),
+  reconcile: () => createReconcileBehavior(),
   settings: () => createSettingsBehavior(),
   download: () => createDownloadBehavior(downloadDom),
   "watch-history": () => withWipNotice(createWatchHistoryBehavior()),

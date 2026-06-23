@@ -42,6 +42,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         {"/settings", "settings"},
         {"/setup", "setup tour"},
         {"/review", "review"},
+        {"/reconcile", "reconcile"},
         {"/console", "console"},
         {"/history", "watch history"},
         {"/upcoming", "upcoming"}

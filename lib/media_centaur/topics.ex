@@ -112,4 +112,5 @@ defmodule MediaCentaur.Topics do
   def release_tracking_views, do: "release_tracking:views"
   def watch_history_views, do: "watch_history:views"
   def integration_health, do: "integration_health:updates"
+  def reconciliation_updates, do: "reconciliation:updates"
 end
