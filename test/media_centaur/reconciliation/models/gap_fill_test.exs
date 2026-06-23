@@ -59,5 +59,23 @@ defmodule MediaCentaur.Reconciliation.Models.GapFillTest do
     test "no artifacts yields no interpretation" do
       assert GapFill.propose(spine(38, 28), []) == []
     end
+
+    test "refuses to fill season 0 — special ordering is unreliable for ordinal fill" do
+      # A missing special (season 0) alongside a missing regular-season tail.
+      # Gap-fill must ignore season 0 entirely and place onto season 1 only.
+      spine =
+        [%SpineNode{season: 0, episode: 1, title: nil, present?: false}] ++ spine(38, 28)
+
+      assert [interpretation] = GapFill.propose(spine, cour_artifacts(2))
+
+      assert Enum.all?(interpretation.placements, &(&1.season == 1))
+      assert {1, 29} in Enum.map(interpretation.placements, &{&1.season, &1.episode})
+    end
+
+    test "a season-0-only gap yields no interpretation" do
+      spine = [%SpineNode{season: 0, episode: 1, title: nil, present?: false}]
+
+      assert GapFill.propose(spine, cour_artifacts(2)) == []
+    end
   end
 end

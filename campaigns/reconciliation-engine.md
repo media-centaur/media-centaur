@@ -256,6 +256,32 @@ numbering-agnostic by construction:
 * `2026-06-23` — **No self-heal of the existing Frieren phantom** — owner
   re-downloads; the forward fix routes the new ingest through the mapping
   review. (owner)
+* `2026-06-24` — **Auto threshold = conservative.** A placement links
+  silently (`auto`) only when ≥2 models corroborate the *same*
+  `artifact→node` for **every** artifact in the batch AND counts fit
+  exactly (no overflow/partial); everything else is `proposed`. Honors
+  surfaced-confirmation — human arbitration is the designed state.
+  (resolves the auto/proposed open question) (owner)
+* `2026-06-24` — **Conflict presentation = expanded recommended + collapsed
+  alternative chips.** The recommended interpretation renders as a
+  per-episode mapping table (the decision content is always visible);
+  other interpretations are collapsed summary chips (model · confidence ·
+  one-line rationale) that expand on click; per-file override is the escape
+  hatch. (resolves the conflict-density open question) (owner)
+* `2026-06-24` — **Persistence = reuse links + pin + awaiting-mapping
+  record.** Durable state is only (1) the existing library file↔episode
+  links, (2) a user **pin** (chosen placement; models re-propose around it,
+  never overturn), and (3) a lightweight **awaiting-mapping** record that
+  parks diverted-but-unplaced files (the second review dimension — NOT
+  `PendingFile`). All proposals/confidence are **re-derived** each run
+  (deriver model, ADR-057). The awaiting-mapping record is the divert
+  target the pipeline trigger needs. (resolves the persistence open
+  question) (owner)
+* `2026-06-24` — **Specials / season 0: title-match applies, gap-fill
+  skips.** Title-match (identity) maps season-0 artifacts safely;
+  ordinal gap-fill **refuses** season 0 (TMDB special ordering is
+  unreliable) → unmatched specials land `unplaced`/manual. Small safe rule
+  built now, not deferred. (resolves the specials open question) (owner)
 
 ## Design rationale & alternatives rejected (so we don't relitigate)
 
@@ -405,25 +431,21 @@ above is prod runtime, exempt, reference only.
 8. A moved file = an artifact re-asserting a claim → re-placement through
    the same engine. Fold [`relink-on-move`] thinking in if still open.
 
-## Open questions (resume here in a fresh session)
+## Open questions
 
-* **Conflict presentation** — pre-select the best candidate with
-  alternatives one click away (lean), vs. always show the ranked set? (UI
-  philosophy says make alternatives visible; the question is default
-  density.)
-* **Confidence thresholds** — when does a placement go `auto` vs.
-  `proposed`? Proposal: `auto` only when models agree *and* counts fit;
-  everything else `proposed`. Needs concrete rule.
-* **Context/boundary** — where does the engine live (`Reconciliation`
-  context?) and what are its `Boundary` deps? It must stay pure where
-  possible (models take an assembled context; the season fetch / library
-  read is the impure caller, mirroring `Acquisition.Cours`).
-* **Persistence** — placements that are `pinned` (user overrides) must
-  persist; `auto`/derived placements may be recomputable. What's the
-  durable record vs. the derived view? (Deriver model: persist the human
-  decisions + the file links; re-derive proposals.)
-* **Specials / season 0** — how do OVAs/specials (a distinct cluster under
-  the same show) flow through? They're the canonical "permutation 2".
+All four design-pass forks were **resolved 2026-06-24** — see Decisions
+above (auto threshold = conservative; conflict density = expanded best +
+collapsed alt chips; persistence = links + pin + awaiting-mapping record;
+specials = title-match yes / gap-fill skips season 0).
+
+Still to settle as we build:
+
+* **Context/boundary** — the pure engine + models stay in
+  `Reconciliation` (`deps: []`). The impure caller (assemble spine from a
+  TMDB season fetch + library present-set, mirroring `Acquisition.Cours`)
+  and the awaiting-mapping persistence need `Library` + `TMDB` — decide
+  whether those live in a `Reconciliation` sub-namespace with widened
+  boundary deps or in a pipeline-side caller that feeds the pure engine.
 
 ## Completion criteria
 
