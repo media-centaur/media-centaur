@@ -1407,6 +1407,28 @@ defmodule MediaCentaur.Library do
   end
 
   @doc """
+  Returns the set of `{season_number, episode_number}` pairs for a TV
+  series whose episode has a linked file on disk — the "present-set" used
+  by reconciliation to mark which canonical spine nodes are already filled.
+  """
+  @spec present_episode_keys(Ecto.UUID.t()) :: MapSet.t({integer(), integer()})
+  def present_episode_keys(tv_series_id) when is_binary(tv_series_id) do
+    from(e in Episode,
+      join: s in Season,
+      on: s.id == e.season_id,
+      join: pi in PlayableItem,
+      on: pi.container_id == e.id and pi.container_type == :episode,
+      join: w in WatchedFile,
+      on: w.playable_item_id == pi.id,
+      where: s.tv_series_id == ^tv_series_id,
+      distinct: true,
+      select: {s.season_number, e.episode_number}
+    )
+    |> Repo.all()
+    |> MapSet.new()
+  end
+
+  @doc """
   Returns every on-disk file path currently linked to a `PlayableItem`
   (i.e. present in the library).
 

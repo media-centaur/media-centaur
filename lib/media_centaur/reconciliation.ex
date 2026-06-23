@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Reconciliation do
   use Boundary,
-    deps: [],
+    deps: [MediaCentaur.Library, MediaCentaur.TMDB],
     exports: [
       Artifact,
       AwaitingFile,
@@ -9,6 +9,8 @@ defmodule MediaCentaur.Reconciliation do
       Model,
       Placement,
       Resolution,
+      ShowReview,
+      Spine,
       SpineNode,
       Models.GapFill,
       Models.TitleMatch
@@ -54,7 +56,8 @@ defmodule MediaCentaur.Reconciliation do
 
   import Ecto.Query, only: [from: 2]
 
-  alias MediaCentaur.Reconciliation.AwaitingFile
+  alias MediaCentaur.Library
+  alias MediaCentaur.Reconciliation.{Artifact, AwaitingFile, Engine, ShowReview, Spine}
   alias MediaCentaur.Repo
 
   @doc """
@@ -112,4 +115,45 @@ defmodule MediaCentaur.Reconciliation do
   defp set_status(id, status) when is_binary(id) do
     set_status(Repo.get!(AwaitingFile, id), status)
   end
+
+  @doc """
+  Assembles the full read model for one show's mapping review: loads the
+  awaiting files, resolves the library series (for the present-set),
+  assembles the TMDB spine, and runs the engine. Returns a `ShowReview`.
+
+  `opts[:pinned]` (a list of `Placement`) is threaded into the engine for
+  in-session partial-accept — models re-propose around those nodes.
+  """
+  @spec resolve_show(integer(), keyword()) :: ShowReview.t()
+  def resolve_show(tmdb_id, opts \\ []) do
+    awaiting = awaiting_for_tmdb(tmdb_id)
+    series = Library.find_by_external_id(:tv_series, to_string(tmdb_id))
+    present_keys = if series, do: Library.present_episode_keys(series.id), else: MapSet.new()
+
+    spine = Spine.assemble(tmdb_id, present_keys)
+    artifacts = Enum.map(awaiting, &to_artifact/1)
+    resolution = Engine.resolve(spine, artifacts, Keyword.take(opts, [:pinned]))
+
+    %ShowReview{
+      tmdb_id: tmdb_id,
+      series_title: series_title(series, awaiting),
+      tv_series_id: series && series.id,
+      awaiting_files: awaiting,
+      spine: spine,
+      resolution: resolution
+    }
+  end
+
+  defp to_artifact(%AwaitingFile{} = file) do
+    %Artifact{
+      id: file.id,
+      claimed_season: file.claimed_season,
+      claimed_episode: file.claimed_episode,
+      claimed_title: file.claimed_title
+    }
+  end
+
+  defp series_title(nil, [%AwaitingFile{series_title: title} | _]), do: title
+  defp series_title(nil, _awaiting), do: nil
+  defp series_title(series, _awaiting), do: series.name
 end
