@@ -63,6 +63,60 @@ AniDB). We are TMDB-only, so we **cannot look up** the canonical mapping —
 we can only infer it and have the user confirm. That constraint is *why*
 human arbitration is a designed state here, not a failure path.
 
+## Investigated facts (code grounding — verified 2026-06-23; don't re-derive)
+
+- **Pipeline order:** discovery → `parse` → `search` → `fetch_metadata` →
+  `ingest`. `ingest` writes via `Library.Inbound` (+ `link_file/2`).
+  **Identity** is decided at the `search` stage behind a confidence gate;
+  low-confidence / no-match returns `{:needs_review, …}` → a
+  `Review.PendingFile`. So at `fetch_metadata` the show is already trusted.
+- **The phantom's exact origin:** `FetchMetadata.build_tv/3` calls
+  `Client.get_season(tmdb_id, parsed.season)`. Two unresolved cases:
+  - **(a)** season absent on TMDB → `{:error}` → `build_minimal_season/1`
+    mints `season_number: parsed.season`, name `"Season N"`,
+    `number_of_episodes: 0`, episode `name: nil`. **This is the phantom.**
+  - **(b)** season present but `Enum.find(episodes, episode_number ==
+    parsed.episode)` misses → episode `name: nil` (blank episode inside a
+    *real* season — often legitimately ahead of TMDB).
+- **Review today is identity-only.** `Review.PendingFile` is **per-file**
+  and answers "which TMDB *entity* is this?" (fields: tmdb_id, candidates,
+  match_title, status pending/approved/dismissed). It does **no episode
+  mapping**. `Review.Intake` is a GenServer on the `review:intake` topic
+  (`create_pending_file` / `complete_review` / `files_for_review`). Our new
+  flow is a **second review dimension**, not a `PendingFile` extension.
+- **Parser already gives us titles.** `Parser.Result`:
+  `file_path, title (show), year, type (:movie|:tv|:extra|:unknown),
+  season, episode, episode_title, parent_title, parent_year`. The TV
+  regexes capture an optional `episode_title`. **No absolute-episode-number
+  field** (absolute, when present, isn't separately extracted).
+- **Library `Episode` has no air_date.** Fields: `episode_number, name (NOT
+  title), description, duration_seconds, content_url, season_id`. Air dates
+  come from TMDB and `ReleaseTracking.Want.air_date` (and `PlanUnit.air_date`,
+  added in cour Phase 1) — never from the library episode row.
+- **Boundaries** (`use Boundary`): `Search` deps = `[Capabilities,
+  Settings]` → Search **cannot** depend on Acquisition (this is why
+  `CourQueries`/`CourCoverage` live in Search and take a plain-map run, and
+  why a query/title-classification model belongs Search-side).
+  `Acquisition` deps include `Search, Library, TMDB, ReleaseTracking,
+  Downloads, Review, Retention, Settings, Capabilities`. `Reconciliation`
+  is currently `deps: []` (pure); reading the spine will need `Library` +
+  `TMDB` — or be fed by an impure caller in the pipeline boundary.
+- **Spine fetch pattern:** `TMDB.Client.get_season(tmdb_id, season,
+  client \\ default_client())`; `default_client` reads
+  `:persistent_term {TMDB.Client, :client}`; tests stub via
+  `TmdbStubs.setup_tmdb_client/1` + `stub_get_season/3`.
+  `Acquisition.Cours.runs_for_season/2` is the fetch+segment shape to mirror
+  for the impure caller (degrade to empty on TMDB error, don't crash).
+- **Frieren live (prod, 2026-06-23):** `TVSeries` → Season 1 (28 eps, real
+  names) + phantom Season 2 (9 eps, blank names). Media dir
+  `/home/shawn/videos/media-library`; third cour = loose files from sensei
+  (no titles), UIndex, and standalone (titles present), beside the
+  `Season 01 … COMPLETE … [SEV]` BDRip pack (E1–28 + Extras).
+- **Test-infra gotchas:** SQLite has **no `ilike`** (use `like` or filter in
+  Elixir); the full suite has a **pre-existing "Database busy" setup flake**
+  in `acquisition_live_test` (clean in isolation) — not a regression, see
+  [[project-suite-residual-concurrency-flakes]].
+
 ## The ideal design
 
 ### The core conflation (the original sin)
@@ -92,10 +146,12 @@ wedged pursuit, cour-as-season).
 ### The reconciliation engine
 
 Pluggable **interpretation models**, each pure:
-`propose(spine, current_placements, unplaced_artifacts) :: [candidate]`,
-where a candidate is a proposed set of `artifact → spine_node` placements
-with a confidence and a human-readable rationale. The engine collapses
-agreeing candidates (corroboration → high confidence) and surfaces
+`propose(spine, artifacts) :: [Interpretation]` (the built signature —
+`present?` on each `SpineNode` carries "already placed", so the gap is
+read from the spine rather than passed separately). An `Interpretation`
+is a proposed set of `artifact → spine_node` placements with a confidence
+and a human-readable rationale. The engine collapses agreeing
+interpretations (corroboration → high confidence) and surfaces
 disagreement (the conflict *is* the signal to the user).
 
 **Initial models** (our discussed signals — none is the foundation; they
@@ -193,6 +249,101 @@ numbering-agnostic by construction:
 * `2026-06-23` — **No self-heal of the existing Frieren phantom** — owner
   re-downloads; the forward fix routes the new ingest through the mapping
   review. (owner)
+
+## Design rationale & alternatives rejected (so we don't relitigate)
+
+- **Title match as the *foundation* — rejected.** First proposed; corrected
+  because titles are absent in many releases (2 of Frieren's 9 files had
+  none). Titles are a **corroborator/anchor**, never the spine.
+- **Air-date segmentation as the mapping signal — demoted to last-resort.**
+  Not deterministic: a releaser's season-grouping needn't match air-date
+  gaps. `CourSegmentation` survives only as *one source of run boundaries*
+  for the offset model, not as the placement signal.
+- **"Decode the release's numbering" — rejected framing.** The release
+  `SxxEyy` label is the *least* trustworthy input. What we know reliably is
+  **our** side: TMDB's episode list + what's present = the **gap**. Map the
+  batch onto the gap; use the release numbering only to *order* the batch.
+- **Cluster as a fixed structural atom — rejected (circular).** Clustering
+  depends on the offset/mapping, which is the very thing under review. So
+  grouping is an **output of each interpretation**; the **show** is the unit;
+  the user picks the interpretation (which carries its grouping). No
+  persisted "cluster" entity.
+- **Review unit = per-file — rejected** (too granular; loses the batch
+  coherence gap-fill needs). **Per-download/pack — rejected** (a cluster ≠ a
+  download: Frieren's third cour arrived as *three* downloads from three
+  groups but is *one* mapping problem). Landed on **show = container,
+  interpretation = decision, partial-accept = escape hatch.**
+- **Permutations that drove the unit decision:** (1) one contiguous run —
+  common, one decision; (2) heterogeneous (cour + specials/OVAs + a misnamed
+  file) — multiple clusters under one show container; (3) arrivals over time
+  — the show review re-proposes as new files land.
+- **Trigger case (a) vs (b) — (b) deliberately excluded.** Routing
+  episode-beyond-TMDB-count into review would flood it with normal
+  just-aired episodes that backfill on their own. Only (a),
+  season-not-in-TMDB, is the numbering-mismatch signal.
+- **Universal engine up front — rejected** (architecture-astronaut). Build
+  ingest; shape the vocabulary for convergence; leave acquisition on its
+  shipped code until Phase B.
+
+## Out of scope / non-goals
+
+- **The TMDB-driven detail view is correct** (shows 38 episodes, tail
+  missing) — do **not** change it. The bug is the *separate* orphaned season.
+- **No self-heal** of the existing phantom — forward fix only.
+- **Do not re-segment or renumber library seasons** into a cour model. The
+  library mirrors TMDB's canonical numbering; reconciliation maps artifacts
+  *onto* the spine, it never restructures canon.
+- **Leave case (b)** (episode beyond TMDB count) on ingest-and-backfill.
+- **No external mapping DB** (TheTVDB / XEM / AniDB). TMDB-only — we infer +
+  confirm; that's *why* human arbitration is a designed state.
+- **Acquisition convergence (Phase B) and relink (Phase C) are follow-ups**,
+  not part of the first ingest build.
+
+## Risks & mitigations
+
+- **Gap-fill assumes the incoming season is the show's *missing tail*.** If
+  it's actually a re-release of a middle cour already present, ordinal fill
+  misplaces. *Mitigation:* mandatory confirmation with shown rationale; a
+  count overflow/mismatch lowers confidence so it never goes `auto`.
+- **Confidence bands are provisional guesses** (gap-fill 0.85 / 0.7 / 0.4)
+  and the `auto`-vs-`proposed` threshold is unresolved (open question).
+- **Trigger trusts show identity** (settled upstream by `search`'s
+  confidence gate). A wrong identity reaching `fetch_metadata` would map onto
+  the wrong spine — but preventing that is identity-review's job;
+  reconciliation assumes the show is right.
+- **Specials / season 0 handling is unspecified** (open question) — may
+  surface oddly until designed.
+
+## Acquisition convergence map (Phase B — shipped piece → engine concept)
+
+| Shipped (cour-aware-acquisition, v0.99.6) | Reconciliation concept |
+|---|---|
+| Release candidate (`SearchResult`) | `Artifact` whose claim is a *range* |
+| `CourCoverage.classify/3` (title → episode range) | a title/ordinal interpretation **model** |
+| `CourSegmentation` runs | run-boundary input to the **offset model** |
+| `CoverageGuard.coverable_units` (publish vs air date) | a confidence/validity rule on a placement |
+| `Planner.Option.offer_only` | a placement that can only reach `proposed`, never `auto` |
+| Pursuit "covered?" by release numbering | **wanted spine nodes have placements** |
+
+## Built so far (current code shape — commit `2e59419d`)
+
+`mix test test/media_centaur/reconciliation/` green (5 tests); compiles
+warnings-clean; boundary-clean.
+
+- `lib/media_centaur/reconciliation.ex` — `Boundary, deps: []`, exports the
+  vocabulary + `Model` + `Models.GapFill`.
+- `SpineNode{season, episode, title, present?}` ·
+  `Artifact{id, claimed_season, claimed_episode, claimed_title}` ·
+  `Placement{artifact_id, season, episode}` ·
+  `Interpretation{model, placements, confidence, rationale}`.
+- `Model` behaviour: `propose([SpineNode], [Artifact]) :: [Interpretation]`.
+  **Divergence from the prose above:** the built signature folds
+  "already-placed" into `SpineNode.present?` rather than a separate
+  `current_placements` arg — simpler; treat the built shape as canonical.
+- `Models.GapFill` — sorts missing nodes + artifacts, zips, confidence by
+  count-fit (exact `0.85` / partial `0.7` / overflow `0.4`), rationale
+  `"Fills the missing E29–E37, in order (9 of 10)."`; abstains on empty gap
+  or empty batch.
 
 ## Next steps
 
@@ -294,8 +445,12 @@ above is prod runtime, exempt, reference only.
 * Season fetch + run derivation pattern to mirror for the impure caller:
   `acquisition/cours.ex` (`runs_for_season/2`, `TMDB.Client.get_season/3`).
 * Related campaigns: [`cour-aware-acquisition.md`](cour-aware-acquisition.md)
-  (shipped acquisition direction), [`duplicate-episode-copies.md`],
-  [`unit-season-episode-ordering.md`] (adjacent episode-structure work —
-  check for overlap before building).
+  (shipped acquisition direction — the convergence target). **Overlap check
+  done 2026-06-23, no conflict:** `duplicate-episode-copies.md` is about two
+  copies of the *same* unit (quality dedup), not numbering;
+  `unit-season-episode-ordering.md` is **complete** (shipped v0.98.3,
+  pursuit-unit ordering). Neither touches artifact↔spine mapping.
+* `relink-on-move` (Phase C convergence): a moved file = an artifact
+  re-asserting a claim. Check for an active campaign before building Phase C.
 * [ADR-042](../decisions/architecture/2026-05-10-042-multi-session-campaigns.md)
   (campaign convention).
