@@ -495,7 +495,28 @@ above is prod runtime, exempt, reference only.
    **Browser visual check deferred to owner** (running instances + prod-DB
    constraints; interaction wiring is test-covered, no phx-value-value
    footgun). **(done)**
-5. `mix precommit` green; commit per phase.
+5. ✅ `mix precommit` green; committed per phase (8 commits, unpushed).
+
+### Phase A — deliberate deferrals (not loose ends)
+
+* **Auto-apply hook unused (by design).** `Engine.resolve` computes
+  `auto?` and `Resolution` carries it, but nothing auto-confirms yet —
+  every batch goes through manual confirm on `/reconcile`. This is the
+  conservative rollout (surfaced-confirmation first); enabling auto is a
+  one-liner later: when `resolve_show` returns `auto?`, call
+  `confirm_recommended`. Capability is tested and ready; the trigger is
+  intentionally withheld until the confidence is trusted in the field.
+* **Confirm creates a thin episode row** (name from spine title only; no
+  description/duration/images). A later metadata refresh / deriver pass can
+  enrich it. Name is the identifying field for v1.
+* **Override select offers present episodes too** — overriding onto an
+  already-present node could double-link; the user is in control. Add a
+  guard if it bites.
+* **resolve_show runs TMDB synchronously** in the LiveView — fine for a
+  small admin queue; move to `assign_async` if it grows.
+* **Absolute-number model not built** — gap-fill + title-match cover the
+  Frieren case; add when a release surfaces an extracted absolute number.
+* **Browser visual pass + wiki page** — owner to-dos (see Status).
 
 ### Phase B — converge acquisition (follow-up, fresh session OK)
 
