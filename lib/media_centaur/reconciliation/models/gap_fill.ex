@@ -6,6 +6,10 @@ defmodule MediaCentaur.Reconciliation.Models.GapFill do
   metadata, so it always proposes when there's both a gap and a batch
   (reconciliation campaign). Confidence is shaped by how the batch size
   fits the gap; the title/absolute models corroborate or correct it.
+
+  **Season 0 (specials/OVAs) is excluded** — TMDB special ordering is
+  unreliable, so ordinal fill would misplace; specials reconcile by title
+  or land unplaced for manual assignment.
   """
 
   @behaviour MediaCentaur.Reconciliation.Model
@@ -23,7 +27,14 @@ defmodule MediaCentaur.Reconciliation.Models.GapFill do
 
   @impl true
   def propose(spine, artifacts) when is_list(spine) and is_list(artifacts) do
-    missing = spine |> Enum.filter(&(not &1.present?)) |> Enum.sort_by(&{&1.season, &1.episode})
+    # Season 0 (specials/OVAs) is excluded: TMDB special ordering is
+    # unreliable, so ordinal fill would misplace. Specials reconcile by
+    # title (`Models.TitleMatch`) or land unplaced for manual assignment.
+    missing =
+      spine
+      |> Enum.filter(&(not &1.present? and &1.season != 0))
+      |> Enum.sort_by(&{&1.season, &1.episode})
+
     ordered = Enum.sort_by(artifacts, &{&1.claimed_season, &1.claimed_episode})
 
     case {missing, ordered} do

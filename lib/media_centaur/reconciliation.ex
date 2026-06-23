@@ -1,7 +1,17 @@
 defmodule MediaCentaur.Reconciliation do
   use Boundary,
     deps: [],
-    exports: [Artifact, Interpretation, Model, Placement, SpineNode, Models.GapFill, Models.TitleMatch]
+    exports: [
+      Artifact,
+      Engine,
+      Interpretation,
+      Model,
+      Placement,
+      Resolution,
+      SpineNode,
+      Models.GapFill,
+      Models.TitleMatch
+    ]
 
   @moduledoc """
   Reconciles **artifacts** (files, and later release candidates) against a
