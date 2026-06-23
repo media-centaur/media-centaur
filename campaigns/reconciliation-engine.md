@@ -21,9 +21,16 @@ this engine for the **ingest** direction now; shape it so **acquisition**
 
 ## Status
 
-Planning. Design settled through a long design conversation (2026-06-23,
-session "downloading / matching cours"). No engine code yet. The
-**acquisition direction already ships** as hand-built pieces in
+Phase A in progress (2026-06-23, session "downloading / matching cours").
+Design settled in a long design conversation. **Pure engine core landed**
+(committed, unpushed): the `MediaCentaur.Reconciliation` boundary +
+vocabulary (`SpineNode`, `Artifact` with claims, `Placement`,
+`Interpretation`), the `Model` behaviour, and the `Models.GapFill` reliable
+floor (numbering-agnostic ordinal fill of the missing tail, confidence by
+count-fit), unit-tested. **Next:** title-match + absolute models, then the
+engine that merges/ranks interpretations, then the impure spine-assembly +
+pipeline trigger + show-scoped review surface. The **acquisition direction
+already ships** as hand-built pieces in
 [`cour-aware-acquisition.md`](cour-aware-acquisition.md) (v0.99.6) — those
 are this engine in disguise and are the convergence target, not throwaway.
 
