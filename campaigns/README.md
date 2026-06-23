@@ -21,19 +21,29 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`reconciliation-engine.md`](reconciliation-engine.md) —
+  **planning.** Stop the system fabricating canonical structure to fit an
+  artifact's self-description (a file labelled `S02E01` for a single-season
+  TMDB show mints a phantom Season 2). Make the **artifact ↔ canonical
+  episode-spine mapping a first-class, model-driven, confidence-rated,
+  human-arbitrable, revisable relation** — plural interpretation models
+  (gap-fill / title / absolute / offset), placement states (auto /
+  proposed / unplaced / pinned), show-scoped mapping review where grouping
+  is a model output the user confirms. One engine, three call sites
+  (ingest now; acquisition + relink converge later — the shipped
+  cour-acquisition pieces are this engine hand-built). Design settled
+  2026-06-23; build for ingest first.
 * [`cour-aware-acquisition.md`](cour-aware-acquisition.md) —
-  **planning.** TV pursuits silently never complete when a show's TMDB
-  "season" spans multiple broadcast runs (cours) the release world
-  packages separately — Frieren's E29–38 (2026 cour) got matched to a
-  2023-2024 "Season 01 COMPLETE" pack that can't contain them, wedging
-  the pursuit. Two fixes from the per-episode `air_date` we already
-  store: a **coverage guard** (a release can't be credited with
-  episodes that aired after it was published → they fall through as
-  `unfound`) and **cour-aware search** (query absolute/ordinal shapes
-  for a later run instead of re-surfacing the first-run season pack,
-  candidates surfaced as offers). Air-date-gap inference, no new
-  persistence; episode-group enrichment cut as YAGNI. Two phases; no
-  code yet. Design settled 2026-06-22.
+  **shipped v0.99.6.** TV pursuits silently never completed when a show's
+  TMDB "season" spans multiple broadcast runs (cours) the release world
+  packages separately — Frieren's E29–38 cour matched a 2023-2024 "Season
+  01 COMPLETE" pack that can't contain them, wedging the pursuit. Shipped:
+  a **coverage guard** (a release can't be credited with episodes that
+  aired after it was published → `unfound`) and **cour-aware search**
+  (absolute/ordinal queries for a later run, candidates surfaced as
+  offers). Now understood as a hand-built instance of the broader
+  [`reconciliation-engine`](reconciliation-engine.md) (the convergence
+  target). Kept until that converges; otherwise removable per ADR-042.
 * [`fit-aware-acquisition.md`](fit-aware-acquisition.md) —
   **built; uncommitted/unpushed, awaiting owner review.** Picking one
   episode no longer grabs the whole series. The planner gates pack grabs
