@@ -431,6 +431,15 @@ warnings-clean; boundary-clean. Commits: `2e59419d` (core + gap-fill),
 - **Boundary widened**: `Reconciliation` now `deps: [Library, TMDB]` (the
   pure engine/models still do no I/O — purity is by construction + async
   unit tests, not boundary-enforced on those modules).
+- `Reconciliation.confirm_recommended/1` + `confirm/2` — the apply path.
+  Links chosen files to canonical episodes and `resolve_awaiting`s them.
+  `confirm/2` takes `%{awaiting_id => {season, episode}}` (per-file
+  override + partial-accept; omit a file to leave it pending). Each file
+  links independently (one failure doesn't roll back the rest). A confirm
+  **materializes the real TMDB episode** — `find_or_create_season` +
+  `find_episode_by_season_episode || create_episode` with the spine title —
+  then links via `Library.link_file`; **never a phantom**. Returns
+  `{:ok, %{linked, failed}}` or `{:error, :series_not_in_library}`.
 
 ## Next steps
 
