@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.99.6 — 2026-06-23
+
+### Fixed
+
+- **A season pack no longer makes a show look finished when a later run is still missing.** Some shows air in multiple runs (cours) months apart but are listed as a single season, so a "Season 01 COMPLETE" pack is often only the first run — encoded before the later episodes aired. Media Centaur now checks each release's publish date against every episode's air date and won't credit a pack with episodes that aired after it was released. The remaining episodes stay wanted instead of being silently treated as done, which previously left the download stuck and the show permanently incomplete.
+
+### Improved
+
+- **Acquisition searches the right way for a later run.** When episodes from a later run are still missing, the plan searches for them directly — by episode range and by ordinal (for example "2nd Season"), rather than re-finding the first-run pack — and puts any matching release on the plan as an offer for you to approve. Later-run release names vary too much to grab automatically, so you stay in control.
+
+This release includes an automatic database migration (a new field on download plans). It runs on first launch; no action is needed.
+
 ## v0.99.5 — 2026-06-19
 
 ### Fixed
