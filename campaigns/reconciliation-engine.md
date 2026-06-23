@@ -25,11 +25,18 @@ Phase A in progress (2026-06-23, session "downloading / matching cours").
 Design settled in a long design conversation. **Pure engine core landed**
 (committed, unpushed): the `MediaCentaur.Reconciliation` boundary +
 vocabulary (`SpineNode`, `Artifact` with claims, `Placement`,
-`Interpretation`), the `Model` behaviour, and the `Models.GapFill` reliable
+`Interpretation`), the `Model` behaviour, the `Models.GapFill` reliable
 floor (numbering-agnostic ordinal fill of the missing tail, confidence by
-count-fit), unit-tested. **Next:** title-match + absolute models, then the
-engine that merges/ranks interpretations, then the impure spine-assembly +
-pipeline trigger + show-scoped review surface. The **acquisition direction
+count-fit), and **`Models.TitleMatch`** (decision-independent title→spine
+identity match; confidence 0.9 > gap-fill's ordinal 0.85; corrects
+gap-fill's off-by-one; abstains when titles absent; case/punctuation-
+insensitive; skips ambiguous titles), all unit-tested. **Next (after a
+design pass — open questions below):** the engine that merges/ranks
+interpretations and assigns placement states, then the impure
+spine-assembly + pipeline trigger + show-scoped review surface.
+(Absolute-number model deferred — gap-fill + title-match cover the Frieren
+case; add it when a release surfaces an absolute number we extract.) The
+**acquisition direction
 already ships** as hand-built pieces in
 [`cour-aware-acquisition.md`](cour-aware-acquisition.md) (v0.99.6) — those
 are this engine in disguise and are the convergence target, not throwaway.
@@ -325,9 +332,9 @@ numbering-agnostic by construction:
 | `Planner.Option.offer_only` | a placement that can only reach `proposed`, never `auto` |
 | Pursuit "covered?" by release numbering | **wanted spine nodes have placements** |
 
-## Built so far (current code shape — commit `2e59419d`)
+## Built so far (current code shape — commit `2e59419d` + title-match)
 
-`mix test test/media_centaur/reconciliation/` green (5 tests); compiles
+`mix test test/media_centaur/reconciliation/` green (15 tests); compiles
 warnings-clean; boundary-clean.
 
 - `lib/media_centaur/reconciliation.ex` — `Boundary, deps: []`, exports the
@@ -344,6 +351,13 @@ warnings-clean; boundary-clean.
   count-fit (exact `0.85` / partial `0.7` / overflow `0.4`), rationale
   `"Fills the missing E29–E37, in order (9 of 10)."`; abstains on empty gap
   or empty batch.
+- `Models.TitleMatch` — indexes the spine by normalized title (case/
+  punctuation-insensitive), maps each artifact's `claimed_title` to its
+  uniquely-titled node, single flat confidence `0.9` (identity > ordinal),
+  rationale `"Matched N title(s) to canonical E4, E5."`; matches the whole
+  spine (decision-independent), abstains when no artifact/spine title is
+  present, skips unmatched and ambiguous titles. One interpretation per
+  call covering the artifacts it could place.
 
 ## Next steps
 
