@@ -345,6 +345,16 @@ defmodule MediaCentaur.Library.InboundTest do
       assert episode_image.owner_id == episode.id
     end
 
+    test "a season-nil event (reconciliation divert) creates the series but no phantom season" do
+      assert {:ok, tv_series, :new, _pending} = Inbound.ingest(tv_event(%{season: nil}))
+
+      assert %Library.TVSeries{} = tv_series
+      # The headline reconciliation guarantee: no fabricated season node and
+      # no file link — the diverted file is parked elsewhere (the queue).
+      assert Library.list_seasons_for_tv_series(tv_series.id) == []
+      assert Library.find_present_episode("1396", 2, 1) == :not_found
+    end
+
     test "existing TV series — adds new episode to existing season" do
       existing = create_entity(%{type: :tv_series, name: "Sample Show", tmdb_id: "1396"})
 

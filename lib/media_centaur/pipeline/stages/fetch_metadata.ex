@@ -190,6 +190,32 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
     entity_attrs = Mapper.tv_attrs(tmdb_id, data)
     images = build_images(data)
 
+    if divert?(data, parsed) do
+      build_divert_metadata(tmdb_id, data, parsed, entity_attrs, images)
+    else
+      build_ingest_metadata(tmdb_id, data, parsed, entity_attrs, images)
+    end
+  end
+
+  # Case (a) from the reconciliation campaign: the parsed season is **not**
+  # in TMDB's canonical season list — the cour / absolute-numbering mismatch.
+  # Diverting (rather than `build_minimal_season`) is what stops the phantom
+  # season. Guarded on a non-empty season list so a trimmed `data` (or a TV
+  # detail without `seasons`) falls back to the normal path rather than
+  # diverting everything.
+  defp divert?(data, parsed) do
+    season_numbers = tmdb_season_numbers(data)
+    parsed.season != nil and season_numbers != [] and parsed.season not in season_numbers
+  end
+
+  defp tmdb_season_numbers(data) do
+    data
+    |> Map.get("seasons", [])
+    |> Enum.map(& &1["season_number"])
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp build_ingest_metadata(tmdb_id, data, parsed, entity_attrs, images) do
     season =
       if parsed.season do
         case Client.get_season(tmdb_id, parsed.season) do
@@ -208,10 +234,40 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
       identifier: %{source: "tmdb", external_id: to_string(tmdb_id)},
       child_movie: nil,
       season: season,
-      extra: build_extra(parsed)
+      extra: build_extra(parsed),
+      divert: nil
     }
 
     Log.info(:pipeline, "fetched TV metadata — tmdb:#{tmdb_id} \"#{data["name"]}\"")
+    {:ok, metadata}
+  end
+
+  # No phantom season; the file is parked in the reconciliation queue by
+  # `Pipeline.Stages.Ingest`, which reads this `divert` payload. The series
+  # entity is still created (no season/episode, no file link).
+  defp build_divert_metadata(tmdb_id, data, parsed, entity_attrs, images) do
+    metadata = %{
+      entity_type: :tv_series,
+      entity_attrs: entity_attrs,
+      images: images,
+      identifier: %{source: "tmdb", external_id: to_string(tmdb_id)},
+      child_movie: nil,
+      season: nil,
+      extra: build_extra(parsed),
+      divert: %{
+        tmdb_id: tmdb_id,
+        series_title: data["name"],
+        claimed_season: parsed.season,
+        claimed_episode: parsed.episode,
+        claimed_title: parsed.episode_title
+      }
+    }
+
+    Log.info(
+      :pipeline,
+      "diverted TV file to reconciliation — tmdb:#{tmdb_id} S#{parsed.season} not in canonical seasons"
+    )
+
     {:ok, metadata}
   end
 

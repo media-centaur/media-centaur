@@ -202,6 +202,54 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
       assert season.episode.attrs.episode_number == 1
       assert season.episode.images == []
     end
+
+    test "diverts to reconciliation when the parsed season isn't in TMDB's season list" do
+      # TMDB lists seasons 0 and 1; a file labelled S02 is the cour /
+      # absolute-numbering case — divert instead of minting a phantom.
+      stub_routes([
+        {"/tv/1396", tv_detail(%{"seasons" => [%{"season_number" => 0}, %{"season_number" => 1}]})}
+      ])
+
+      payload =
+        payload_for(%{
+          tmdb_id: 1396,
+          tmdb_type: :tv,
+          type: :tv,
+          season: 2,
+          episode: 1,
+          file_path: "/media/TV/Sample.Show.S02E01.mkv"
+        })
+
+      assert {:ok, result} = FetchMetadata.run(payload)
+      metadata = result.metadata
+
+      # No phantom season is built.
+      assert metadata.season == nil
+      assert metadata.divert.tmdb_id == 1396
+      assert metadata.divert.claimed_season == 2
+      assert metadata.divert.claimed_episode == 1
+    end
+
+    test "does not divert when the parsed season is canonical" do
+      stub_routes([
+        {"/tv/1396/season/1", season_detail()},
+        {"/tv/1396", tv_detail(%{"seasons" => [%{"season_number" => 1}]})}
+      ])
+
+      payload =
+        payload_for(%{
+          tmdb_id: 1396,
+          tmdb_type: :tv,
+          type: :tv,
+          season: 1,
+          episode: 1,
+          file_path: "/media/TV/Sample.Show.S01E01.mkv"
+        })
+
+      assert {:ok, result} = FetchMetadata.run(payload)
+      assert result.metadata.divert == nil
+      assert result.metadata.season.season_number == 1
+    end
   end
 
   # ---------------------------------------------------------------------------

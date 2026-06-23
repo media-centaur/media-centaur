@@ -1,7 +1,7 @@
 ---
-status: planning
+status: phase-a-complete
 started: 2026-06-23
-last_updated: 2026-06-23
+last_updated: 2026-06-24
 ---
 # Artifact ↔ canon reconciliation engine
 
@@ -21,7 +21,22 @@ this engine for the **ingest** direction now; shape it so **acquisition**
 
 ## Status
 
-Phase A in progress (2026-06-23, session "downloading / matching cours").
+**Phase A (ingest reconciliation) complete end-to-end** (2026-06-24,
+unpushed). A TV file whose parsed season isn't in TMDB's canonical season
+list is diverted at ingest — **no phantom season** — into a durable
+awaiting-queue, surfaced on `/reconcile` (sidebar "Mapping") where the
+engine's recommended file→episode mapping is shown for confirm / override /
+partial-accept; confirming materializes the real TMDB episode and links the
+file. 8 commits, all `mix precommit`-green. **Owner to-dos:** (1) eyeball
+`/reconcile` in a browser (visual pass was deferred — interaction wiring is
+test-covered); (2) the existing Frieren phantom is **not** self-healed by
+design — re-download to route it through the new flow; (3) wiki page for the
+new surface is a follow-up (shape just settled). **Phase B** (acquisition
+convergence) and **Phase C** (relink) remain.
+
+### Earlier history
+
+Phase A started 2026-06-23 (session "downloading / matching cours").
 Design settled in a long design conversation. **Pure engine core landed**
 (committed, unpushed): the `MediaCentaur.Reconciliation` boundary +
 vocabulary (`SpineNode`, `Artifact` with claims, `Placement`,
@@ -457,11 +472,16 @@ above is prod runtime, exempt, reference only.
    support; specials rule (gap-fill skips season 0). `Resolution` is the
    merged/ranked output. (commits `13fd3265`, `17bed00a`)
    ✅ **Persistence** — `AwaitingFile` queue + context CRUD.
-3. ⏳ **Pipeline trigger** (after the review surface exists, so a diverted
-   file has somewhere to go). In `Pipeline.Stages.FetchMetadata.build_tv`,
-   detect case (a) — `parsed.season` not in the show's TMDB season list —
-   and call `Reconciliation.divert/1` instead of `build_minimal_season`.
-   Verify no phantom season is created.
+3. ✅ **Pipeline trigger.** `FetchMetadata.build_tv` now detects case (a)
+   (`divert?/2`: parsed season not in TMDB's `data["seasons"]`, guarded on a
+   non-empty list so trimmed data falls back to normal) → returns
+   `season: nil` + a `divert:` claims payload instead of
+   `build_minimal_season`. `Pipeline.Stages.Ingest.maybe_divert/1` parks the
+   file via `Reconciliation.divert` (Pipeline boundary gained
+   `Reconciliation` dep; divert lives Pipeline-side, NOT in Library.Inbound,
+   to avoid the Library→Reconciliation cycle). `season: nil` makes Inbound
+   create the series with **no phantom season and no file link** — verified
+   by an Inbound test (`list_seasons_for_tv_series == []`).
 4. ✅ **Spine assembly** — `Spine.assemble`, `Library.present_episode_keys`,
    `Reconciliation.resolve_show` → `ShowReview`. Boundary widened to
    `[Library, TMDB]`.
