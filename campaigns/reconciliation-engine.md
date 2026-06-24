@@ -27,7 +27,8 @@ list is diverted at ingest — **no phantom season** — into a durable
 awaiting-queue, surfaced on `/reconcile` (sidebar "Mapping") where the
 engine's recommended file→episode mapping is shown for confirm / override /
 partial-accept; confirming materializes the real TMDB episode and links the
-file. 8 commits, all `mix precommit`-green. **Owner to-dos:** (1) eyeball
+file. Committed per phase (9 commits `2e59419d`→`60be1491`), all
+`mix precommit`-green; full suite green at `--seed 0`. **Owner to-dos:** (1) eyeball
 `/reconcile` in a browser (visual pass was deferred — interaction wiring is
 test-covered); (2) the existing Frieren phantom is **not** self-healed by
 design — re-download to route it through the new flow; (3) wiki page for the
@@ -45,14 +46,13 @@ floor (numbering-agnostic ordinal fill of the missing tail, confidence by
 count-fit), and **`Models.TitleMatch`** (decision-independent title→spine
 identity match; confidence 0.9 > gap-fill's ordinal 0.85; corrects
 gap-fill's off-by-one; abstains when titles absent; case/punctuation-
-insensitive; skips ambiguous titles), all unit-tested. **Next (after a
-design pass — open questions below):** the engine that merges/ranks
-interpretations and assigns placement states, then the impure
-spine-assembly + pipeline trigger + show-scoped review surface.
-(Absolute-number model deferred — gap-fill + title-match cover the Frieren
-case; add it when a release surfaces an absolute number we extract.) The
-**acquisition direction
-already ships** as hand-built pieces in
+insensitive; skips ambiguous titles), all unit-tested. The rest of Phase A
+(engine merge/rank, persistence queue, spine assembly, confirm/link path,
+`/reconcile` surface, pipeline trigger) then landed the same week after the
+four design forks were settled — see "Built so far" and the Phase A
+checklist below. (Absolute-number model deferred — gap-fill + title-match
+cover the Frieren case; add it when a release surfaces an absolute number we
+extract.) The **acquisition direction already ships** as hand-built pieces in
 [`cour-aware-acquisition.md`](cour-aware-acquisition.md) (v0.99.6) — those
 are this engine in disguise and are the convergence target, not throwaway.
 
@@ -121,8 +121,10 @@ human arbitration is a designed state here, not a failure path.
   why a query/title-classification model belongs Search-side).
   `Acquisition` deps include `Search, Library, TMDB, ReleaseTracking,
   Downloads, Review, Retention, Settings, Capabilities`. `Reconciliation`
-  is currently `deps: []` (pure); reading the spine will need `Library` +
-  `TMDB` — or be fed by an impure caller in the pipeline boundary.
+  began `deps: []` (pure); **now `deps: [Library, TMDB]`** for the spine read
+  + confirm/link. The ingest **divert** lives in the `Pipeline` boundary
+  (gained a `Reconciliation` dep), *not* in `Library.Inbound` — Library
+  can't depend on Reconciliation (Reconciliation→Library would cycle).
 - **Spine fetch pattern:** `TMDB.Client.get_season(tmdb_id, season,
   client \\ default_client())`; `default_client` reads
   `:persistent_term {TMDB.Client, :client}`; tests stub via
@@ -387,17 +389,22 @@ numbering-agnostic by construction:
 
 ## Built so far (current code shape)
 
-`mix test test/media_centaur/reconciliation/` green (33 tests); compiles
-warnings-clean; boundary-clean. Commits: `2e59419d` (core + gap-fill),
-`13fd3265` (title-match), `17bed00a` (engine + season-0), persistence
-(awaiting-file queue).
+Phase A whole; `mix test test/media_centaur/reconciliation/` green (42
+tests) plus the web (`reconcile_{view,live}_test`) and pipeline/library
+divert tests; compiles warnings-clean; boundary-clean; full suite green at
+`--seed 0`. Commits `2e59419d`→`60be1491` (see `git log`): core+gap-fill,
+title-match, engine+season-0, awaiting-queue, spine+resolve_show,
+confirm/link, `/reconcile` surface, pipeline trigger, docs.
 
-- `lib/media_centaur/reconciliation.ex` — `Boundary, deps: []` (still
-  pure: `Repo` is boundary-exempt). Exports the vocabulary + `Model` +
-  `Engine` + `Resolution` + `Models.*` + `AwaitingFile`. **Context root**:
-  owns the awaiting-file queue API — `divert/1` (idempotent on
-  `file_path`), `list_awaiting/0`, `awaiting_for_tmdb/1`,
-  `resolve_awaiting/1`, `dismiss_awaiting/1`.
+- `lib/media_centaur/reconciliation.ex` — `Boundary, deps: [Library, TMDB]`
+  (the pure engine/models still do no I/O — purity is by construction +
+  async unit tests, not boundary-enforced on those modules; `Repo` is
+  boundary-exempt). Exports the vocabulary + `Model` + `Engine` +
+  `Resolution` + `Spine` + `ShowReview` + `Models.*` + `AwaitingFile`.
+  **Context root**: queue API (`divert/1` idempotent on `file_path`,
+  `list_awaiting/0`, `awaiting_for_tmdb/1`, `resolve_awaiting/1`,
+  `dismiss_awaiting/1`), `subscribe/0`, `resolve_show/2`, `confirm/2`,
+  `confirm_recommended/1`.
 - `SpineNode{season, episode, title, present?}` ·
   `Artifact{id, claimed_season, claimed_episode, claimed_title}` ·
   `Placement{artifact_id, season, episode}` ·
@@ -462,11 +469,11 @@ Test-first throughout (`automated-testing`). Synthetic air dates / generic
 placeholder titles in tests — no real titles (house rule). The Frieren data
 above is prod runtime, exempt, reference only.
 
-### Phase A — ingest reconciliation (build now)
+### Phase A — ingest reconciliation (✅ complete 2026-06-24)
 
 1. ✅ **Vocabulary** — `SpineNode/Artifact/Placement/Interpretation` (commit
-   `2e59419d`). `deps: []` kept (Repo exempt); the impure **spine read** is
-   not yet built (lands with the review surface, step 4).
+   `2e59419d`). Started `deps: []`; widened to `[Library, TMDB]` once the
+   spine read + confirm landed (step 4).
 2. ✅ **Interpretation models + engine** — `Models.GapFill`,
    `Models.TitleMatch`, `Engine.resolve` with conservative auto + pin
    support; specials rule (gap-fill skips season 0). `Resolution` is the
@@ -495,7 +502,7 @@ above is prod runtime, exempt, reference only.
    **Browser visual check deferred to owner** (running instances + prod-DB
    constraints; interaction wiring is test-covered, no phx-value-value
    footgun). **(done)**
-5. ✅ `mix precommit` green; committed per phase (8 commits, unpushed).
+5. ✅ `mix precommit` green; committed per phase (9 commits, unpushed).
 
 ### Phase A — deliberate deferrals (not loose ends)
 
@@ -535,40 +542,75 @@ above is prod runtime, exempt, reference only.
 
 ## Open questions
 
-All four design-pass forks were **resolved 2026-06-24** — see Decisions
-above (auto threshold = conservative; conflict density = expanded best +
-collapsed alt chips; persistence = links + pin + awaiting-mapping record;
-specials = title-match yes / gap-fill skips season 0).
+**All Phase-A questions resolved.** The four design-pass forks were
+resolved 2026-06-24 (see Decisions: auto threshold = conservative; conflict
+density = expanded best + collapsed alt chips; persistence = links + queue,
+no pin table; specials = title-match yes / gap-fill skips season 0).
 
-Still to settle as we build:
+* **Context/boundary — RESOLVED.** Everything lives in the
+  `MediaCentaur.Reconciliation` context, now `deps: [Library, TMDB]`. The
+  pure engine + models do no I/O (purity by construction + async unit tests,
+  not boundary-enforced on those specific modules). The pipeline-side
+  **divert** (`Ingest.maybe_divert`) lives in the `Pipeline` boundary, which
+  gained a `Reconciliation` dep — divert can't live in `Library.Inbound`
+  because Library can't depend on Reconciliation (Reconciliation→Library
+  cycle).
 
-* **Context/boundary** — the pure engine + models stay in
-  `Reconciliation` (`deps: []`). The impure caller (assemble spine from a
-  TMDB season fetch + library present-set, mirroring `Acquisition.Cours`)
-  and the awaiting-mapping persistence need `Library` + `TMDB` — decide
-  whether those live in a `Reconciliation` sub-namespace with widened
-  boundary deps or in a pipeline-side caller that feeds the pure engine.
+Open for **Phase B** (not Phase A): whether the acquisition models reuse the
+same `Reconciliation.Model` behaviour directly or wrap it, and where pursuit
+completion reads placements from (see Phase B steps).
 
-## Completion criteria
+## Completion criteria (Phase A — all met 2026-06-24)
 
-* A downloaded file whose parsed season isn't in TMDB's season list is
+* ✅ A downloaded file whose parsed season isn't in TMDB's season list is
   **never** ingested as a phantom season; it lands in a show-scoped mapping
-  review with candidate interpretations.
-* The user can confirm/redirect a proposed mapping (with visible rationale)
-  and partially accept; confirming links files to the correct canonical
-  episodes without fabricating structure.
-* Interpretation models are pluggable, pure, and unit-tested; adding one is
-  additive.
-* Vocabulary (artifact / claim / spine node / placement / model /
+  review with candidate interpretations. *(FetchMetadata `divert?/2` →
+  `season: nil`; Inbound test asserts `list_seasons_for_tv_series == []`.)*
+* ✅ The user can confirm/redirect a proposed mapping (with visible
+  rationale) and partially accept; confirming links files to the correct
+  canonical episodes without fabricating structure. *(`/reconcile` +
+  `confirm/2`; per-file override + skip = partial-accept.)*
+* ✅ Interpretation models are pluggable, pure, and unit-tested; adding one
+  is additive. *(`Reconciliation.Model` behaviour; GapFill + TitleMatch.)*
+* ✅ Vocabulary (artifact / claim / spine node / placement / model /
   confidence) is shared-shaped so acquisition can converge without a
   rewrite (Phase B).
-* `mix precommit` green; no regression to normal single-season ingest or to
-  the shipped acquisition path.
+* ✅ `mix precommit` green; no regression to normal single-season ingest or
+  to the shipped acquisition path. *(Full suite green at `--seed 0`;
+  existing FetchMetadata/Inbound tests unchanged + passing.)*
 
 ## Pointers
 
-* Trigger site: `lib/media_centaur/pipeline/stages/fetch_metadata.ex`
-  (`build_tv/3`, `build_minimal_season/1` — the phantom origin).
+### Phase A implementation (what shipped — start here when resuming)
+
+* **Context root + queue + orchestration + confirm:**
+  `lib/media_centaur/reconciliation.ex` (`divert/1`, `list_awaiting/0`,
+  `awaiting_for_tmdb/1`, `resolve_show/2`, `confirm/2`,
+  `confirm_recommended/1`, `subscribe/0`).
+* **Pure engine + models:** `reconciliation/engine.ex`,
+  `reconciliation/models/{gap_fill,title_match}.ex`, `model.ex` (behaviour);
+  vocabulary `spine_node.ex`, `artifact.ex`, `placement.ex`,
+  `interpretation.ex`, `resolution.ex`.
+* **Impure reads:** `reconciliation/spine.ex` (TMDB),
+  `reconciliation/show_review.ex` (read model), `reconciliation/awaiting_file.ex`
+  (schema) + migration `priv/repo/migrations/20260624120000_*`.
+  `Library.present_episode_keys/1` (present-set).
+* **Surface:** `lib/media_centaur_web/live/reconcile_live.ex` +
+  `reconcile_view.ex` (pure view logic). Route `/reconcile` in `router.ex`;
+  sidebar entry in `components/layouts.ex`; JS `assets/js/input/reconcile_behavior.js`
+  (registered in `page_behavior.js`); topic `Topics.reconciliation_updates/0`.
+* **Trigger:** `pipeline/stages/fetch_metadata.ex` (`divert?/2`,
+  `build_divert_metadata/5`) + `pipeline/stages/ingest.ex` (`maybe_divert/1`).
+* **Tests:** `test/media_centaur/reconciliation/*`,
+  `test/media_centaur_web/live/reconcile_{view,live}_test.exs`,
+  `test/media_centaur/library/present_episode_keys_test.exs`, plus divert
+  cases in `fetch_metadata_test.exs` / `ingest_test.exs` / `inbound_test.exs`.
+
+### Reference
+
+* Phantom origin (pre-fix, now bypassed by the trigger):
+  `fetch_metadata.ex` `build_minimal_season/1` — still used for the
+  *case (b)* path (season in TMDB but episode beyond its count).
 * Identity review (the *other* dimension): `lib/media_centaur/review.ex`,
   `review/pending_file.ex` (per-file, identity), `review/intake.ex`.
 * Parser claims: `lib/media_centaur/parser.ex` (`Result` struct already
