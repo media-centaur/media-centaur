@@ -41,8 +41,17 @@ pre-filled from the real TMDB spine, **Confirm matches** / **Dismiss all**,
 and the collapsed **Other interpretations** chip with confidence + **Use
 these**. No visual breakage. **Remaining owner action:** the existing Frieren
 phantom is **not** self-healed by design — re-download to route it through the
-new flow. **Phase B** (acquisition convergence) and **Phase C** (relink)
-remain.
+new flow.
+
+**Phase B (acquisition convergence) reconciled 2026-06-25:** the completion
+half was **already shipped** — pursuit completion reads canonical-episode
+presence via `LibraryReconciler` (ADR-058 "coverage-by-contents", v0.99.1,
+which predates this campaign), so the wedge-bug class is already retired. The
+only gap was a guard on the Phase-A↔acquisition seam, now added
+(`reconciliation_completion_test.exs`). The vocabulary half (re-expressing
+cour-acquisition as engine models) is **deferred** — the engine is 1:1 and
+pack coverage is deterministic, so it would be type-sharing churn without
+payoff (details under Phase B). **Phase C** (relink) remains.
 
 ### Earlier history
 
@@ -534,15 +543,49 @@ above is prod runtime, exempt, reference only.
   Frieren case; add when a release surfaces an extracted absolute number.
 * **Browser visual pass + wiki page** — owner to-dos (see Status).
 
-### Phase B — converge acquisition (follow-up, fresh session OK)
+### Phase B — converge acquisition
 
-6. Re-express the shipped cour-acquisition pieces (`CoverageGuard`,
-   `CourCoverage`, `CourSegmentation`, `offer_only`) as reconciliation
-   models + confidence rules over the same spine/artifact/placement
-   vocabulary. Release candidate = artifact with a range claim.
-7. Make **pursuit completion read placements** (wanted spine nodes placed),
-   not release-numbering coverage — retiring the class of wedge bug at the
-   source.
+**Reconciled 2026-06-25 (before writing code, per the campaign rule) — the
+completion half was already shipped; only an end-to-end guard was missing.**
+
+7. **Pursuit completion reads canonical presence — already shipped, now
+   guarded. ✅** The campaign framed this as unbuilt, but
+   [ADR-058](../decisions/architecture/2026-06-17-058-canonical-episode-identity.md)
+   ("coverage-by-contents", v0.99.1, **2026-06-17 — six days before this
+   campaign was written**) already made `LibraryReconciler` satisfy an
+   episode-identity unit **solely on its own canonical episode's library
+   presence**, never via release numbering or a coarse release-folder match.
+   Its moduledoc + `library_reconciler_test.exs` cite the exact Frieren
+   wrong-cour case ("E29 must not be satisfied by a pack that delivered only
+   E01–E02"). Combined with Phase A (divert → `/reconcile` → confirm → link →
+   present), the wedge-bug class is **already retired**: a split-cour file the
+   release labels `S02E01` that a pursuit wants as canonical `S01E03`
+   completes the pursuit only once its mapping is confirmed and the canonical
+   episode is present — independent of the release's numbering. The two halves
+   were unit-tested separately; the **cross-context seam** was not. Phase B's
+   one real deliverable was that guard:
+   `test/media_centaur/acquisition/pursuits/reconciliation_completion_test.exs`
+   — diverted cour file stays **active** while unmapped, then `satisfied`
+   after `Reconciliation.confirm` makes the canonical episode present. Green.
+   (The `:placements` vocabulary is the *concept*; the shipped mechanism is a
+   `WatchedFile` link = a present spine node = the placement, exactly as Phase
+   A established. No new completion machinery.)
+
+6. **Vocabulary convergence — deferred (scope decision 2026-06-25, owner).**
+   Re-expressing `CoverageGuard`/`CourCoverage`/`CourSegmentation`/`offer_only`
+   as `Reconciliation.Model`s over the shared spine/artifact/placement
+   vocabulary was scoped out. Two grounded reasons: (1) the engine's value is
+   **arbitrating disagreeing interpretations for human confirmation**, but
+   pack coverage is **deterministic** (title + run + air-dates → a computed
+   range, nothing to arbitrate) — routing it through GapFill/TitleMatch/merge
+   is machinery without payoff; (2) `Engine.merge/2` (`engine.ex:81`) keeps
+   only the **first** placement per artifact, so a release-pack (range claim)
+   can't ride through as one artifact anyway — it would have to be exploded
+   to per-episode artifacts. Re-express only if a *second, genuinely
+   disagreeing* acquisition interpretation appears that needs arbitration;
+   until then it is type-sharing churn against prod-verified code. The naming
+   already lines up (see the convergence map above), so this stays a refactor,
+   not a rewrite, if/when it's wanted.
 
 ### Phase C — relink-on-move convergence (later)
 
@@ -565,9 +608,14 @@ no pin table; specials = title-match yes / gap-fill skips season 0).
   because Library can't depend on Reconciliation (Reconciliation→Library
   cycle).
 
-Open for **Phase B** (not Phase A): whether the acquisition models reuse the
-same `Reconciliation.Model` behaviour directly or wrap it, and where pursuit
-completion reads placements from (see Phase B steps).
+**Phase B questions — RESOLVED 2026-06-25 by reconciling against the code.**
+*Where does pursuit completion read placements from?* — it already does:
+`LibraryReconciler` reads canonical-episode presence from `Library`
+(ADR-058), no new read site, no `Acquisition→Reconciliation` boundary edge.
+*Do acquisition models reuse the `Model` behaviour or wrap it?* — moot for
+now: the vocabulary convergence (step 6) is deferred (the engine is 1:1 and
+pack coverage is deterministic — see Phase B above). Revisit only if a
+disagreeing acquisition interpretation ever needs the engine's arbitration.
 
 ## Completion criteria (Phase A — all met 2026-06-24)
 
