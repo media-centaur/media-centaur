@@ -1,7 +1,7 @@
 ---
 status: phase-a-complete
 started: 2026-06-23
-last_updated: 2026-06-24
+last_updated: 2026-06-25
 ---
 # Artifact ↔ canon reconciliation engine
 
@@ -28,12 +28,21 @@ awaiting-queue, surfaced on `/reconcile` (sidebar "Mapping") where the
 engine's recommended file→episode mapping is shown for confirm / override /
 partial-accept; confirming materializes the real TMDB episode and links the
 file. Committed per phase (9 commits `2e59419d`→`60be1491`), all
-`mix precommit`-green; full suite green at `--seed 0`. **Owner to-dos:** (1) eyeball
-`/reconcile` in a browser (visual pass was deferred — interaction wiring is
-test-covered); (2) the existing Frieren phantom is **not** self-healed by
-design — re-download to route it through the new flow; (3) wiki page for the
-new surface is a follow-up (shape just settled). **Phase B** (acquisition
-convergence) and **Phase C** (relink) remain.
+`mix precommit`-green; full suite green at `--seed 0`.
+
+**Phase A closed out 2026-06-25:** wiki page shipped
+(`Episode-Mapping.md`, linked in the wiki sidebar after Review Queue) and the
+deferred **browser visual pass is done** — `/reconcile` was driven in a real
+headless Chromium against an isolated instance (throwaway DB + injected TMDB
+key + 9 seeded awaiting-files for a real one-season show), confirming the
+populated master/detail surface renders correctly: the **Mapping** sidebar
+entry, the recommended gap-fill mapping table with per-file episode pickers
+pre-filled from the real TMDB spine, **Confirm matches** / **Dismiss all**,
+and the collapsed **Other interpretations** chip with confidence + **Use
+these**. No visual breakage. **Remaining owner action:** the existing Frieren
+phantom is **not** self-healed by design — re-download to route it through the
+new flow. **Phase B** (acquisition convergence) and **Phase C** (relink)
+remain.
 
 ### Earlier history
 
