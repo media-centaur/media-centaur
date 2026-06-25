@@ -1,9 +1,27 @@
 ---
-status: phase-a-complete
+status: complete
 started: 2026-06-23
 last_updated: 2026-06-25
 ---
 # Artifact ↔ canon reconciliation engine
+
+## Closure (2026-06-25)
+
+**Complete — all three planned phases reconciled to a destination.** The
+defined end-state (materialize the artifact↔spine engine for **ingest**,
+shaped so acquisition/relink can converge later) is met. Per
+[ADR-042](../decisions/architecture/2026-05-10-042-multi-session-campaigns.md)
+this file is removable (git history is the archive); kept pending owner
+sign-off. Every remaining item has a home:
+
+| Item | Destination |
+|---|---|
+| **Phase A** — ingest divert + `/reconcile` + confirm/link | ✅ **Shipped + closed out + pushed** (`a0143414`); wiki `Episode-Mapping.md`; browser pass done |
+| **Phase B — completion** reads canonical presence | ✅ **Already shipped** by ADR-058 (v0.99.1) + Phase A; **guarded** by `reconciliation_completion_test.exs` |
+| **Phase B — vocabulary** (cour-acquisition as engine models) | ⏸️ **Deferred (conditional)** — only if a *disagreeing* acquisition interpretation ever needs the engine's arbitration; engine is 1:1, pack coverage is deterministic |
+| **Phase C — relink convergence** | ❌ **Declined** — no-op; relink (v0.77.1) re-points by content identity, strictly better than re-interpreting claims |
+| Stale `AwaitingFile` on a moved/deleted *diverted* file | ⏸️ **Deferred minor** — prune-on-scan guard if it ever bites (see Phase C) |
+| Existing Frieren phantom not self-healed | 👤 **Owner action** — re-download to route through the new flow |
 
 ## Goal
 
@@ -587,10 +605,32 @@ completion half was already shipped; only an end-to-end guard was missing.**
    already lines up (see the convergence map above), so this stays a refactor,
    not a rewrite, if/when it's wanted.
 
-### Phase C — relink-on-move convergence (later)
+### Phase C — relink-on-move convergence (DECLINED 2026-06-25)
 
-8. A moved file = an artifact re-asserting a claim → re-placement through
-   the same engine. Fold [`relink-on-move`] thinking in if still open.
+8. ~~A moved file = an artifact re-asserting a claim → re-placement through
+   the same engine.~~ **Declined — a no-op convergence.** The gate ("fold
+   relink-on-move in *if still open*") is false: relink-on-move **shipped in
+   v0.77.1** (2026-05-30, campaign closed). More fundamentally, the premise is
+   vacuous: the engine interprets an artifact's **unknown** canonical
+   placement (the cour problem), but a **moved** file's placement is
+   **already known** — it was previously linked. `Library.MoveMatcher`
+   re-points it by **content identity** (relative-path + byte size), which is
+   strictly *more* reliable than re-guessing claims through the engine.
+   Routing relink through the engine would be a downgrade (claim-guessing
+   where a certain content match exists) — architecture-astronaut convergence.
+   A reconcile-confirmed file is just a normal linked `WatchedFile`, so
+   MoveMatcher already handles it; its link *is* its placement (Phase A's
+   insight), and moving preserves it.
+
+   **One real edge, deferred as minor hygiene:** a *diverted but unconfirmed*
+   file that is **moved or deleted** leaves a stale `AwaitingFile` row (the
+   queue keys on `file_path`; MoveMatcher only re-points *linked* files, not
+   awaiting rows). Effect: a phantom `/reconcile` entry at a gone path (the
+   moved file re-scans → re-diverts at its new path, idempotent). Low impact —
+   the user can dismiss it, and the awaiting queue is a small admin surface.
+   A prune-on-scan guard (drop awaiting rows whose `file_path` is absent from
+   the watcher's present-set) would close it cheaply if it ever bites; not
+   built (would be speculative — no report of it mattering).
 
 ## Open questions
 
