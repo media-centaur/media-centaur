@@ -19,7 +19,9 @@ defmodule MediaCentaur.Reconciliation do
   @moduledoc """
   Reconciles **artifacts** (files, and later release candidates) against a
   show's **canonical episode spine** (TMDB numbering) — the engine behind
-  cour-aware ingest (see `campaigns/reconciliation-engine.md`).
+  cour-aware ingest. (The originating campaign,
+  `campaigns/reconciliation-engine.md`, was removed at completion per
+  ADR-042; full design + decision history is in git.)
 
   The system must never fabricate canonical structure to fit an artifact's
   self-description (a file labelled `S02E01` for a single-season show must
@@ -52,6 +54,41 @@ defmodule MediaCentaur.Reconciliation do
   (deriver model, ADR-057). The impure spine assembly (TMDB fetch +
   library present-set) and the confirm-writes-links path arrive with the
   review surface.
+
+  ## Deferred / known follow-ups
+
+  Recorded here at campaign close (2026-06-25) so they survive the campaign
+  file's removal. None is active work; each is conditional.
+
+  - **Acquisition vocabulary convergence — deferred (conditional).**
+    Re-expressing the shipped cour-acquisition pieces
+    (`Acquisition.CoverageGuard`/`CourCoverage`/`CourSegmentation`/
+    `Planner.Option.offer_only`) as `Reconciliation.Model`s over this
+    vocabulary was scoped out: pack coverage is *deterministic* (nothing to
+    arbitrate), and `Engine.merge/2` keeps only the first placement per
+    artifact (1:1), so a range-claim pack can't ride through as one artifact.
+    Revisit only if a *second, genuinely disagreeing* acquisition
+    interpretation ever needs the engine's arbitration. (Pursuit **completion**
+    already reads canonical presence via `LibraryReconciler` + ADR-058;
+    guarded by `acquisition/pursuits/reconciliation_completion_test.exs`.)
+  - **Relink-on-move convergence — declined (no-op).** A moved file's
+    placement is already known; `Library.MoveMatcher` re-points it by content
+    identity (relpath + size), which beats re-interpreting claims.
+  - **Stale `AwaitingFile` on a moved/deleted *diverted* file — known
+    limitation.** The queue keys on `file_path` and only *linked* files get
+    re-pointed, so moving/deleting an unconfirmed diverted file leaves a
+    phantom `/reconcile` entry at the gone path (the file re-diverts at its
+    new path). Cheap fix if it bites: prune awaiting rows whose `file_path`
+    is absent from the watcher's present-set, on scan. Not built (speculative).
+  - **Auto-apply withheld by design.** `Engine.resolve` computes `auto?`, but
+    every batch goes through manual confirm on `/reconcile` (conservative
+    rollout). Enabling it is a one-liner: when `resolve_show` returns `auto?`,
+    call `confirm_recommended`.
+  - **Absolute-number model not built** — `GapFill` + `TitleMatch` cover the
+    Frieren case; add an absolute-number `Model` when a release surfaces an
+    extracted absolute episode number.
+  - **Confirm materializes a thin episode row** (name from the spine title
+    only); a later metadata/deriver pass can enrich it.
   """
 
   import Ecto.Query, only: [from: 2]
