@@ -786,9 +786,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     """
   end
 
-  # Note: the `group-hover/toggle:` classes below depend on the wrapper
-  # carrying `group/toggle` (set by `watched_toggle_zone_class/0`). Any
-  # caller that bypasses `watched_toggle/1` and renders this circle
+  # Note: the `group-hover/toggle:` classes below depend on the toggle
+  # button carrying `group/toggle` (set by `watched_toggle_button_class/0`).
+  # Any caller that bypasses `watched_toggle/1` and renders this circle
   # directly must include `group/toggle` on the wrapping click target,
   # or the hover-preview check silently breaks with no test failure.
   defp watched_circle_class(:watched), do: "bg-success group-hover/toggle:bg-success/70"
@@ -796,15 +796,17 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp watched_circle_class(_),
     do: "border border-base-content/20 group-hover/toggle:border-base-content/50"
 
-  # Shared layout + hover styling for the watched/unwatched toggle target.
-  # Wraps the duration text and the state circle so the entire right
-  # cluster is one large click/focus target instead of just the 20px
-  # circle — see UIDR-003 (interactive area must comfortably absorb
-  # imprecise clicks).
-  defp watched_toggle_zone_class do
+  # Layout + hover styling for the watched/unwatched toggle button. The
+  # button wraps ONLY the state circle — the duration/remaining text is a
+  # sibling outside it (in `watched_toggle/1`) so a click on that
+  # informational text falls through to the row's play handler rather than
+  # toggling watched state. Padding (`p-1.5`) with a cancelling negative
+  # margin keeps the circle's click/focus target comfortably larger than
+  # the 20px dot (UIDR-003) without affecting layout or reaching the text.
+  defp watched_toggle_button_class do
     [
-      "group/toggle flex items-center gap-2 flex-shrink-0 cursor-pointer",
-      "px-2 py-1 -mx-2 -my-1 rounded-md transition-colors",
+      "group/toggle flex items-center flex-shrink-0 cursor-pointer",
+      "p-1.5 -m-1.5 rounded-md transition-colors",
       "hover:bg-base-content/10"
     ]
   end
@@ -831,35 +833,37 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   defp watched_toggle(assigns) do
     ~H"""
-    <button
-      type="button"
-      phx-click={@event}
-      data-nav-sub-item
-      class={watched_toggle_zone_class()}
-      aria-label={if @state == :watched, do: "Mark unwatched", else: "Mark watched"}
-      {@rest}
-    >
+    <div class="flex items-center gap-2 flex-shrink-0">
       <.episode_duration_text
         state={@state}
         progress={@progress}
         duration_seconds={@duration_seconds}
       />
-      <span class={[
-        "size-5 rounded-full flex items-center justify-center transition-all",
-        watched_circle_class(@state)
-      ]}>
-        <.icon
-          :if={@state == :watched}
-          name="hero-check-mini"
-          class="size-3 text-success-content"
-        />
-        <.icon
-          :if={@state != :watched}
-          name="hero-check-mini"
-          class="size-3 opacity-0 group-hover/toggle:opacity-60 transition-opacity"
-        />
-      </span>
-    </button>
+      <button
+        type="button"
+        phx-click={@event}
+        data-nav-sub-item
+        class={watched_toggle_button_class()}
+        aria-label={if @state == :watched, do: "Mark unwatched", else: "Mark watched"}
+        {@rest}
+      >
+        <span class={[
+          "size-5 rounded-full flex items-center justify-center transition-all",
+          watched_circle_class(@state)
+        ]}>
+          <.icon
+            :if={@state == :watched}
+            name="hero-check-mini"
+            class="size-3 text-success-content"
+          />
+          <.icon
+            :if={@state != :watched}
+            name="hero-check-mini"
+            class="size-3 opacity-0 group-hover/toggle:opacity-60 transition-opacity"
+          />
+        </span>
+      </button>
+    </div>
     """
   end
 
