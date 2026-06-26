@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.99.7 — 2026-06-26
+
+### New
+
+- **Episode Mapping for downloads that number episodes differently.** Some shows — split-cour anime especially — are listed as one long season, while releases package a later run as its own "Season 2." When a download's episode numbering doesn't line up with the show's episode list, the files now wait in a new **Mapping** screen (in the sidebar) instead of creating a phantom season. Media Centaur proposes where each file belongs; you confirm or adjust, and they link to the correct episodes.
+
+### Fixed
+
+- **Clicking an episode's remaining time no longer marks it watched.** In the show detail view, the "X remaining" and duration text beside an episode is now informational — clicking it plays the episode. Only the status circle toggles watched.
+
+This update adds a small database table for the mapping queue and applies the change automatically on launch.
+
 ## v0.99.6 — 2026-06-23
 
 ### Fixed
