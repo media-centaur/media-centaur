@@ -85,12 +85,25 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       "movie" -> run_movie(plan, units, force?)
     end
 
-    {:ok, ready} =
-      Repo.update(Plan.transition_changeset(Repo.reload!(plan), "ready", ["planning"]))
+    case Repo.update(Plan.transition_changeset(Repo.reload!(plan), "ready", ["planning"])) do
+      {:ok, ready} ->
+        Plans.broadcast_changed(ready)
+        Log.info(:acquisition, "plan ready — #{plan.title}")
+        :ok
 
-    Plans.broadcast_changed(ready)
-    Log.info(:acquisition, "plan ready — #{plan.title}")
-    :ok
+      {:error, _changeset} ->
+        # The plan left `planning` while we were running it — almost always a
+        # concurrent discard (user walked away). That is a normal race, not a
+        # fault: the plan is already in its terminal state, so finish quietly
+        # rather than crashing the job (which would mint a spurious `plan run
+        # crashed` error incident for an ordinary cancellation).
+        Log.info(
+          :acquisition,
+          "plan left planning mid-run — skipping ready transition — #{plan.title}"
+        )
+
+        :ok
+    end
   rescue
     exception ->
       # The moduledoc contract — a reported gap, never a stuck spinner —
@@ -468,7 +481,15 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
         results
 
       {:error, reason} ->
-        Log.warning(:acquisition, "plan search failed — #{term} — #{inspect(reason)}")
+        # The plan's own `error` field (set just below, shown on the board) is
+        # the canonical surface for a failed search — usually a transient indexer
+        # timeout that retries next cycle. The parallel `Log.warning` would mint a
+        # duplicate `:log` incident, so skip it; the plan board is where this
+        # belongs.
+        Log.warning(:acquisition, "plan search failed — #{term} — #{inspect(reason)}",
+          mc_incident: :skip
+        )
+
         {:ok, _} = Repo.update(Plan.error_changeset(Repo.reload!(plan), "search failed: #{term}"))
         []
     end
