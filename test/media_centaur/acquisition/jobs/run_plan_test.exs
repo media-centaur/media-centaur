@@ -298,6 +298,27 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       assert reloaded.status == "ready"
       assert reloaded.error =~ "planning crashed"
     end
+
+    test "a plan discarded mid-run finishes quietly — not a recorded crash" do
+      # Simulate a concurrent discard (user walks away) landing while the run
+      # is mid-flight: the prowlarr stub discards the planning plan, so the
+      # final `planning -> ready` transition can't apply. That is a normal
+      # race, not a fault — it must not log `plan run crashed` (which mints a
+      # spurious error incident).
+      Req.Test.stub(:prowlarr, fn conn ->
+        Enum.each(Plans.list_drafts(), &Plans.discard/1)
+        Req.Test.json(conn, [])
+      end)
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 1962})
+          {:ok, reloaded} = Plans.get(plan.id)
+          assert reloaded.status == "discarded"
+        end)
+
+      refute log =~ "plan run crashed"
+    end
   end
 
   describe "cour-aware coverage guard" do
