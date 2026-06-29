@@ -44,14 +44,15 @@ defmodule MediaCentaur.Application do
     # incident store. `level: :warning` lets :logger pre-filter to the tier we
     # persist (warning and above) before the handler is even invoked.
     #
-    # Installed only under :prod. Under :test a globally-attached handler would
-    # funnel the whole suite's ambient warning/error logs into the
-    # shared-sandbox DB via the global Buckets, racing per-test teardown (the
-    # handler, Buckets, Capture, and Store are all exercised directly in their
-    # own tests). Under :dev the server shares the production database, so
-    # hot-reload and mid-migration crashes were minting `:log` incidents that
-    # showed up as open issues on the production Status page.
-    if Application.get_env(:media_centaur, :environment) == :prod do
+    # Gated on the `:durable_diagnostics` flag (set in runtime.exs): on for the
+    # production release, and for a dev instance acting as the always-on daily
+    # driver (via MEDIA_CENTAUR_DURABLE_DIAGNOSTICS=1). Off under :test — a
+    # globally-attached handler would funnel the whole suite's ambient
+    # warning/error logs into the shared-sandbox DB via the global Buckets,
+    # racing per-test teardown. Off for an ad-hoc `mix phx.server` too, so
+    # throwaway dev iteration's hot-reload/mid-migration crashes don't mint
+    # `:log` incidents onto the real Status page.
+    if durable_diagnostics?() do
       :logger.add_handler(
         :media_centaur_diagnostics,
         MediaCentaur.ErrorReports.LogHandler,
@@ -94,7 +95,7 @@ defmodule MediaCentaur.Application do
           MediaCentaurWeb.AcquisitionLive.SearchSession
         ] ++
         pubsub_listeners(Application.get_env(:media_centaur, :environment)) ++
-        diagnostics_children(Application.get_env(:media_centaur, :environment)) ++
+        diagnostics_children(durable_diagnostics?()) ++
         [
           MediaCentaur.Playback.Supervisor,
           MediaCentaurWeb.Endpoint
@@ -224,14 +225,18 @@ defmodule MediaCentaur.Application do
   # PubSub listener GenServers — thin wrappers that route messages to public
   # API functions. Not started in test mode because tests call the public
   # functions directly and PubSub broadcasts would cause sandbox errors.
-  # Unclean-shutdown detection. Only under :prod. Not :test — at app boot there
-  # is no sandbox owner, so its raise-fault-on-unclean would fail; the marker
-  # logic is tested directly via ShutdownMarker / a :path-injected
-  # ShutdownMonitor. Not :dev either — dev shares prod's data dir, so dev and
-  # prod boots fight over the SAME marker file: every dev boot while prod was
-  # running minted a false "did not shut down cleanly" warning.
-  defp diagnostics_children(:prod), do: [{MediaCentaur.ErrorReports.ShutdownMonitor, []}]
-  defp diagnostics_children(_env), do: []
+  # Unclean-shutdown detection. Gated on `:durable_diagnostics` (same flag as the
+  # incident LogHandler). Off under :test — at app boot there is no sandbox owner,
+  # so its raise-fault-on-unclean would fail; the marker logic is tested directly
+  # via ShutdownMarker / a :path-injected ShutdownMonitor. Off for an ad-hoc
+  # `mix phx.server` too — when a separate prod release is also running they would
+  # fight over the SAME marker file, minting false "did not shut down cleanly"
+  # warnings. The opted-in daily driver (prod release, or dev with the env var)
+  # is the sole instance, so it owns the marker.
+  defp diagnostics_children(true), do: [{MediaCentaur.ErrorReports.ShutdownMonitor, []}]
+  defp diagnostics_children(false), do: []
+
+  defp durable_diagnostics?, do: Application.get_env(:media_centaur, :durable_diagnostics, false)
 
   defp pubsub_listeners(:test), do: []
 
