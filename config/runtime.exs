@@ -58,6 +58,16 @@ if config_env() != :test do
     config :media_centaur, MediaCentaur.Repo, database: Path.expand(db)
   end
 
+  # Durable diagnostics — incident minting (LogHandler) + unclean-shutdown
+  # detection (ShutdownMonitor). On for the production release, and for a dev
+  # instance that is acting as the always-on daily driver and opts in via
+  # `MEDIA_CENTAUR_DURABLE_DIAGNOSTICS=1` (the media-centaur-dev service sets it).
+  # An ad-hoc `mix phx.server` leaves it off, so throwaway dev iteration doesn't
+  # mint incidents into the real Status page. Never under :test (excluded above).
+  config :media_centaur,
+    durable_diagnostics:
+      config_env() == :prod or System.get_env("MEDIA_CENTAUR_DURABLE_DIAGNOSTICS") == "1"
+
   # Defaults that flow into MediaCentaur.Config as fallbacks — the TOML
   # overrides any of these via `media_dirs`, `[tmdb].api_key`, etc.
   config :media_centaur,
