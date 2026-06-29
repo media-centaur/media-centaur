@@ -3,17 +3,28 @@ name: troubleshoot
 description: "Use this skill when debugging production issues, checking service health, enabling runtime logs, or investigating errors in the deployed Media Centaur backend."
 ---
 
-## Production Deployment
+> **Current setup (dev-only):** this machine now runs the **dev instance as the
+> sole daily driver** — `media-centaur-dev` (`mix phx.server`), port **2160**,
+> against the real library DB, with `MEDIA_CENTAUR_DURABLE_DIAGNOSTICS=1` so it
+> mints incidents normally. The installed prod release (`media-centaur`) is
+> **stopped + disabled**. Reach the running node through **Tidewave MCP**
+> (`mcp__tidewave__project_eval` at `http://127.0.0.1:2160/tidewave/mcp`),
+> evaluating `MediaCentaur.Diagnostics.*` / `MediaCentaur.ErrorReports.*`
+> directly. The release-targeting tools below (`scripts/troubleshoot`, `mc-rpc`,
+> the `media_centaur` node) only work if you re-enable the prod release.
+
+## Production Deployment (the installed release — disabled on this machine)
 
 - **Service:** `media-centaur` (systemd user unit)
 - **Install dir:** `~/.local/lib/media-centaur/`
 - **Binary:** `~/.local/lib/media-centaur/bin/media_centaur`
-- **Database:** `~/.local/share/media-centaur/media-centaur.db` (SQLite)
+- **Database:** `~/.local/share/media-centaur/media-centaur.db` (SQLite) — shared with the dev daily driver
 - **Config:** `~/.config/media-centaur/media-centaur.toml`
-- **Port:** 2160 (loopback only)
+- **Port:** 2160 (loopback only) — now bound by the dev instance instead
 - **Node:** `media_centaur` (sname, cookie: `media-centaur-local`)
 
-Dev runs on port 1080 (see `MEDIA_CENTAUR_CONFIG_OVERRIDE` in the dev systemd unit). Both coexist on the same machine.
+This is the artifact other end users run; keep it understood even though it's not
+the daily driver here.
 
 ## Diagnostics Module
 
