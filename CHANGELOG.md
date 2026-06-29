@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.99.9 — 2026-06-29
+
+### Fixed
+
+- **Cancelling a search plan while it's still running no longer records a false error.** If you walked away from a plan mid-search, the app could log it as a crash and surface a spurious issue on the Status page. Cancelling now finishes quietly, the way it should.
+- **Transient indexer timeouts and the startup "waiting for mount" message no longer show up as Status-page issues.** A brief indexer hiccup that the app recovers from, and the normal wait for a drive to mount at startup, are momentary and self-correcting — they stay in the log but no longer raise standing issues. The Status page keeps reflecting only what genuinely needs your attention.
+
 ## v0.99.8 — 2026-06-29
 
 ### Fixed
