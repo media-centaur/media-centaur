@@ -174,8 +174,8 @@ defmodule MediaCentaur.Diagnostics do
       |> Enum.map_join("\n\n", &issue_group_section/1)
 
     footer =
-      "\nDump one:  scripts/troubleshoot incident <fingerprint>\n" <>
-        "Clear:     scripts/troubleshoot dismiss <fingerprint|all>"
+      "\nDump one:  Diagnostics.incident(\"<fingerprint>\")\n" <>
+        "Clear:     Diagnostics.dismiss(\"<fingerprint>\" | :all)"
 
     "#{header}\n#{body}\n#{footer}"
   end
