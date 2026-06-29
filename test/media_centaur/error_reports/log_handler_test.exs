@@ -156,6 +156,29 @@ defmodule MediaCentaur.ErrorReports.LogHandlerTest do
     assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, skipped).key) == nil
   end
 
+  test "Req's own retry log lines are not minted as :log incidents (transient + auto-retried)" do
+    # Req logs every retry attempt from `Req.Steps.log_retry/5` — the exception
+    # it caught plus a "will retry in N, attempts left" line. A retry-in-progress
+    # is transient by definition: if it ultimately fails, the *caller* logs a
+    # terminal error (which mints). These intermediate lines still reach the
+    # console, but must not mint durable `:log` incidents that then sit "open"
+    # until the next deploy.
+    exception = "** (Req.HTTPError) http2 error: :pool_not_available #{uniq()}"
+    retry = "retry: got exception, will retry in <N>, 3 attempts left #{uniq()}"
+    sentinel = "ordinary system error #{uniq()}"
+
+    retry_meta = %{component: :system, mfa: {Req.Steps, :log_retry, 5}}
+    LogHandler.log(event(:warning, exception, retry_meta), config())
+    LogHandler.log(event(:warning, retry, retry_meta), config())
+    LogHandler.log(event(:warning, sentinel, %{component: :system}), config())
+
+    # Barrier: the sentinel's GenServer call returns only after every prior
+    # ingest cast is processed — proving the path is live and the skips silent.
+    assert Buckets.get_bucket(:lh_buckets, Fingerprint.fingerprint(:system, sentinel).key)
+    assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, exception).key) == nil
+    assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, retry).key) == nil
+  end
+
   test "a non-timeout Bandit HTTP error still mints" do
     minted = "** (Bandit.HTTPError) Header read HTTP error #{uniq()}"
 

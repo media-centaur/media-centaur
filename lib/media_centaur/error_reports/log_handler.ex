@@ -36,7 +36,8 @@ defmodule MediaCentaur.ErrorReports.LogHandler do
   def log(%{level: level, msg: msg, meta: meta}, config) do
     try do
       if meta[:mc_log_source] != :buffer and meta[:mc_incident] != :skip and
-           level in @captured_levels and not transport_disconnect?(meta) do
+           level in @captured_levels and not transport_disconnect?(meta) and
+           not req_retry?(meta) do
         entry = Entry.from_log_event(level, msg, meta)
         Buckets.ingest(buckets_target(config), entry)
       end
@@ -67,6 +68,18 @@ defmodule MediaCentaur.ErrorReports.LogHandler do
        }), do: true
 
   defp transport_disconnect?(_meta), do: false
+
+  # Req logs every retry attempt from `Req.Steps.log_retry/5` — the caught
+  # exception ("** (Req.HTTPError) http2 error: :pool_not_available") plus a
+  # "will retry in N, attempts left" line. A retry-in-progress is transient by
+  # definition: Req is recovering on its own, and if it ultimately gives up the
+  # *caller* logs a terminal error (e.g. "plan search failed") that mints a real
+  # incident. Minting on the intermediate retry lines produces false-positive
+  # `:log` incidents that self-heal but then sit "open" until the next deploy
+  # (the `:log` track has no recovery signal). The lines still reach the console
+  # via the peer `Console.Handler`; this only keeps them off the durable path.
+  defp req_retry?(%{mfa: {Req.Steps, :log_retry, _arity}}), do: true
+  defp req_retry?(_meta), do: false
 
   # :logger handler lifecycle callbacks
   @doc false
