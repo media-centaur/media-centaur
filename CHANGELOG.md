@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.99.8 — 2026-06-29
+
+### Fixed
+
+- **Transient network retries no longer show up as issues on the Status page.** When a metadata lookup or indexer search briefly times out and is automatically retried, the app recovers on its own — that recovery is no longer logged as a standing issue. The Status page now reflects only conditions that genuinely need your attention, not momentary hiccups that already resolved themselves.
+
 ## v0.99.7 — 2026-06-26
 
 ### New
