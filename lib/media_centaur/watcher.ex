@@ -359,9 +359,17 @@ defmodule MediaCentaur.Watcher do
         Process.unlink(pid)
         Process.exit(pid, :shutdown)
 
+        # A boot-time race: the watch dir's volume isn't mounted yet. The
+        # health-check loop scheduled just below reconciles once the mount
+        # appears, and the `:unavailable` state broadcast is the real surface
+        # (the watcher tile reflects it). So this self-healing transient stays in
+        # the console but mints no `:log` incident (`mc_incident: :skip`) — a
+        # sustained "never mounts" condition shows as the persistent
+        # `:unavailable` watcher state, not a one-shot crash report.
         Log.warning(
           :watcher,
-          "watch path not accessible — #{state.dir} (waiting for mount)"
+          "watch path not accessible — #{state.dir} (waiting for mount)",
+          mc_incident: :skip
         )
 
         schedule_health_check(nil)

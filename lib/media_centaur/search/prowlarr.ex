@@ -137,7 +137,14 @@ defmodule MediaCentaur.Search.Prowlarr do
         {:error, {:http_error, status, body}}
 
       {:error, reason} ->
-        Log.warning(:acquisition, "prowlarr search error — #{inspect(reason)}")
+        # Req returned `{:error, _}` — the indexer was unreachable (timeout,
+        # refused, DNS). That is transient external-dependency connectivity, not
+        # an application fault, so it stays in the console but mints no `:log`
+        # incident (`mc_incident: :skip`) — the same treatment as the download
+        # client's connectivity. A persistent indexer *misconfiguration* surfaces
+        # via the non-200 "prowlarr search failed — status=" path above, which
+        # still mints.
+        Log.warning(:acquisition, "prowlarr search error — #{inspect(reason)}", mc_incident: :skip)
         {:error, reason}
     end
   end
