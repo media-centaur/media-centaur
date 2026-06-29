@@ -66,7 +66,12 @@ incident keeps `app_version_at_last` current and is never swept. (Note: a
 transport-layer client disconnect — `Bandit.TransportError` `:timeout`/`:closed`,
 or its HTTP-layer twin, a `Bandit.HTTPError` read timeout — is not an
 application fault and never mints a `:log` incident, though it still shows in
-the console. Durable minting is also **prod-only**: the dev server shares the
+the console. Likewise, Req's own retry log lines — anything from
+`Req.Steps.log_retry/5`, e.g. `http2 error: :pool_not_available` and the
+`will retry in N, attempts left` that follows — are transient by definition
+(Req is recovering on its own; a terminal give-up is logged by the *caller* and
+mints normally), so they stay in the console but never mint a `:log` incident.
+Durable minting is also **prod-only**: the dev server shares the
 prod database, so its hot-reload crashes and shutdown markers would otherwise
 pollute the production Status page. Crash incidents are attributed to the
 subsystem owning the crashing stack frame — `Console.Entry`'s crash-frame
@@ -82,12 +87,31 @@ recovery. Those connectivity `Log.warning` lines still appear in the console
 (tagged `mc_incident: :skip`); they just no longer create `:log` incidents.
 
 ```bash
+scripts/troubleshoot issues             # exactly what the Status page shows, grouped by subsystem
 scripts/troubleshoot incidents          # list recent incidents (short id, severity, title)
 scripts/troubleshoot incidents 50       # list the 50 most recent
 scripts/troubleshoot incident           # full dump of the most recent incident
 scripts/troubleshoot incident 95e0a7c8  # full dump by short id (from the listing)
 scripts/troubleshoot incident fp_xyz    # ...or by fingerprint
+scripts/troubleshoot dismiss 95e0a7c8   # remove one false-positive incident
+scripts/troubleshoot dismiss all        # clear every issue currently on the board
 ```
+
+`dismiss` *removes* the incident (it doesn't mark it `:resolved`), so it won't
+reappear on the next cache rebuild — use it to clear false-positives a fix has
+already addressed. A still-live fault re-mints from fresh evidence, so dismiss
+never permanently silences a real one. Bulk-clear with `dismiss all` after
+landing a noise-suppression fix (the already-minted incidents predate the fix
+and won't disappear on their own until the next deploy's superseded-sweep).
+
+**`issues` vs `incidents`:** `issues` prints the **bucket cache**
+(`ErrorReports.list_buckets/0`) — exactly the set the Status page renders,
+grouped by subsystem, with each row's *fingerprint* as the handle. This is the
+faithful "what's on the board" query and the entry point for `/resolve-issues`.
+`incidents` prints the broader `Store.list_incidents` listing (ordered by
+last-seen), a superset that can include older resolved incidents already aged
+out of the board window. Use `issues` to see what a user sees; `incidents` to
+audit history.
 
 `incident` resolves its reference in order: `:latest` (omit the arg) → full id
 → short id prefix → fingerprint. The dump renders the header plus the frozen
@@ -159,8 +183,10 @@ filtering. Choose whichever is faster for the task at hand.
 
 ```bash
 scripts/troubleshoot                        # dashboard (service health + recent console entries)
+scripts/troubleshoot issues                 # what the Status page shows (board buckets, by subsystem)
 scripts/troubleshoot incidents              # list recent durable incidents
 scripts/troubleshoot incident 95e0a7c8      # full forensic dump for one incident
+scripts/troubleshoot dismiss 95e0a7c8       # remove a false-positive incident (or 'all')
 scripts/troubleshoot log recent 50          # last 50 buffered log entries
 scripts/troubleshoot logs                   # tail systemd journal
 scripts/troubleshoot errors 24h             # error-level journal entries, last 24h
