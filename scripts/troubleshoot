@@ -113,6 +113,13 @@ cmd_status() {
   fi
 }
 
+cmd_issues() {
+  require_release
+  require_running
+  banner "Status Issues (board)"
+  diag "issues()"
+}
+
 cmd_incidents() {
   require_release
   require_running
@@ -138,6 +145,32 @@ cmd_incident() {
   fi
 
   diag "incident(\"$ref\")"
+}
+
+cmd_dismiss() {
+  require_release
+  require_running
+  local ref="${1:-}"
+
+  if [ -z "$ref" ]; then
+    echo "Usage: troubleshoot dismiss <REF|all>"
+    echo "  all          dismiss every currently-open incident"
+    echo "  <REF>        a short id, full id, or fingerprint (from 'incidents')"
+    exit 1
+  fi
+
+  if [ "$ref" = "all" ] || [ "$ref" = "open" ]; then
+    diag "dismiss(:all)"
+    return
+  fi
+
+  if ! printf '%s' "$ref" | grep -qE '^[A-Za-z0-9_-]+$'; then
+    echo "Invalid incident reference: '$ref'"
+    echo "Use 'all', a short id, a full id, or a fingerprint."
+    exit 1
+  fi
+
+  diag "dismiss(\"$ref\")"
 }
 
 cmd_logs() {
@@ -253,11 +286,17 @@ Commands:
   logs [N]            Tail journal logs (default: last 100, follows)
   errors [PERIOD]     Show error-level logs (default: 1h)
   remote              Open remote IEx shell (Ctrl+\\ to disconnect)
-  incidents [N]       List the N most recent durable incidents (default: 20)
+  issues              List exactly what the Status page shows (board buckets,
+                      grouped by subsystem) — the entry point for /resolve-issues
+  incidents [N]       List the N most recent durable incidents (default: 20),
+                      a superset of 'issues' (includes aged-out resolved ones)
   incident [REF]      Full forensic dump for one incident — header plus its
                       frozen context (lead-up logs, cross-subsystem vitals,
                       contributor data, triggering ids). REF is a short id (from
                       'incidents'), a full id, or a fingerprint; omit for :latest
+  dismiss <REF|all>   Dismiss (remove) a false-positive incident by REF, or 'all'
+                      to clear every currently-open incident. A still-live fault
+                      re-mints from new evidence, so dismiss never hides a real one
   log recent [N]      Print the N most recent console buffer entries (default: 20)
   mpv-env             Check display env on the service process (Wayland/X11)
                       — catches the silent "mpv exited (status 1)" failure
@@ -269,9 +308,12 @@ on any page, or navigate to http://127.0.0.1:$port/console).
 
 Examples:
   scripts/troubleshoot                        # quick health check + recent entries
+  scripts/troubleshoot issues                 # what the Status page shows, by subsystem
   scripts/troubleshoot incidents              # list recent durable incidents
   scripts/troubleshoot incident               # full dump of the latest incident
   scripts/troubleshoot incident 95e0a7c8      # full dump for incident 95e0a7c8…
+  scripts/troubleshoot dismiss 95e0a7c8       # clear one false-positive incident
+  scripts/troubleshoot dismiss all            # clear every currently-open incident
   scripts/troubleshoot log recent 50          # last 50 buffered log entries
   scripts/troubleshoot logs                   # tail the raw systemd journal
   scripts/troubleshoot errors 24h             # error-level logs from last 24h
@@ -290,8 +332,10 @@ case "$cmd" in
   logs|log-tail)  cmd_logs "$@" ;;
   errors)         cmd_errors "$@" ;;
   remote)         cmd_remote ;;
+  issues)         cmd_issues ;;
   incidents)      cmd_incidents "$@" ;;
   incident)       cmd_incident "$@" ;;
+  dismiss)        cmd_dismiss "$@" ;;
   log)            cmd_log "$@" ;;
   mpv-env)        cmd_mpv_env ;;
   help|-h|--help) cmd_help ;;

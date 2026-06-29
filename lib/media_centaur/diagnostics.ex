@@ -9,6 +9,7 @@ defmodule MediaCentaur.Diagnostics do
   """
 
   alias MediaCentaur.ErrorReports
+  alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaur.ErrorReports.Incident
   alias MediaCentaur.Playback.{SessionRegistry, Sessions}
 
@@ -91,6 +92,19 @@ defmodule MediaCentaur.Diagnostics do
   end
 
   @doc """
+  Lists exactly the issues the Status page renders — the bucket cache
+  (`ErrorReports.list_buckets/0`), grouped by subsystem. This is the faithful
+  query for "what's on the board" (unlike `incidents/0`, which is the broader
+  store listing). Each row's fingerprint is the handle `incident/1` and
+  `dismiss/1` accept.
+  """
+  def issues do
+    ErrorReports.list_buckets()
+    |> format_issues()
+    |> IO.puts()
+  end
+
+  @doc """
   Prints the full forensic dump for one incident — header plus its frozen
   context snapshot (lead-up logs, cross-subsystem vitals, the firing
   subsystem's contributor data, and triggering ids).
@@ -106,6 +120,88 @@ defmodule MediaCentaur.Diagnostics do
       %Incident{} = incident -> IO.puts(format_incident(incident))
     end
   end
+
+  @doc """
+  Dismisses durable incidents — *removes* them (not `:resolved`), so they don't
+  reappear on the next cache rebuild (`Buckets.dismiss/1` semantics). Use this to
+  clear false-positives a fix has already addressed; a still-live fault mints a
+  fresh incident from new evidence, so dismiss never permanently silences one.
+
+  `ref` is:
+
+    - `:all` — every issue currently on the board (the bulk "clear the board"),
+      matching exactly what `issues/0` lists.
+    - `:latest`, a full id, a short id prefix, or a fingerprint — a single one.
+  """
+  @spec dismiss(:all | :latest | String.t()) :: :ok
+  def dismiss(:all) do
+    case ErrorReports.list_buckets() do
+      [] ->
+        IO.puts("No issues on the board to dismiss")
+
+      buckets ->
+        ErrorReports.dismiss(Enum.map(buckets, & &1.fingerprint))
+        IO.puts("Dismissed #{length(buckets)} issue(s) from the board")
+    end
+  end
+
+  def dismiss(ref) do
+    ref = if ref in [:latest, "latest"], do: :latest, else: to_string(ref)
+
+    case ErrorReports.find_incident(ref) do
+      nil ->
+        IO.puts("No incident found for #{inspect(ref)}")
+
+      %Incident{} = incident ->
+        ErrorReports.dismiss([incident.fingerprint])
+        IO.puts("Dismissed incident #{String.slice(incident.id, 0, 8)} — #{incident_title(incident)}")
+    end
+  end
+
+  @doc "Renders the board-faithful issue listing, grouped by subsystem (pure)."
+  @spec format_issues([Bucket.t()]) :: String.t()
+  def format_issues([]), do: "No issues on the board"
+
+  def format_issues(buckets) do
+    groups = Enum.group_by(buckets, & &1.component)
+
+    header =
+      "Status issues (#{length(buckets)} across #{map_size(groups)} #{pluralize(map_size(groups), "subsystem")})\n"
+
+    body =
+      groups
+      |> Enum.sort_by(fn {component, _} -> to_string(component) end)
+      |> Enum.map_join("\n\n", &issue_group_section/1)
+
+    footer =
+      "\nDump one:  scripts/troubleshoot incident <fingerprint>\n" <>
+        "Clear:     scripts/troubleshoot dismiss <fingerprint|all>"
+
+    "#{header}\n#{body}\n#{footer}"
+  end
+
+  defp issue_group_section({component, buckets}) do
+    worst = if Enum.any?(buckets, &(&1.severity in [:error, :critical])), do: "error", else: "warning"
+
+    rows =
+      buckets
+      |> Enum.sort_by(&{severity_rank(&1.severity), -&1.count})
+      |> Enum.map_join("\n", &issue_row/1)
+
+    "#{component}  (#{length(buckets)} #{pluralize(length(buckets), "issue")}, worst: #{worst})\n#{rows}"
+  end
+
+  defp issue_row(%Bucket{} = bucket) do
+    "  #{bucket.fingerprint}  #{String.pad_trailing(to_string(bucket.severity), 8)}×#{bucket.count}  #{String.slice(bucket.headline || "", 0, 90)}"
+  end
+
+  defp severity_rank(:critical), do: 0
+  defp severity_rank(:error), do: 1
+  defp severity_rank(:warning), do: 2
+  defp severity_rank(_), do: 3
+
+  defp pluralize(1, word), do: word
+  defp pluralize(_, word), do: word <> "s"
 
   @doc "Renders a one-line-per-incident summary listing (pure)."
   @spec format_incident_list([Incident.t()]) :: String.t()

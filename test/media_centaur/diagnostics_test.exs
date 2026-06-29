@@ -2,7 +2,28 @@ defmodule MediaCentaur.DiagnosticsTest do
   use ExUnit.Case, async: true
 
   alias MediaCentaur.Diagnostics
+  alias MediaCentaur.ErrorReports.Bucket
   alias MediaCentaur.ErrorReports.Incident
+
+  defp bucket(overrides \\ []) do
+    now = ~U[2026-06-08 10:42:00.000000Z]
+
+    struct!(
+      %Bucket{
+        fingerprint: "fp_watcher_mount",
+        component: :watcher,
+        normalized_message: "watch path not accessible — <path> (waiting for mount)",
+        display_title: "[Watcher] watch path not accessible",
+        severity: :warning,
+        count: 3,
+        first_seen: DateTime.add(now, -600, :second),
+        last_seen: now,
+        sample_entries: [],
+        headline: "watch path not accessible — <path> (waiting for mount)"
+      },
+      overrides
+    )
+  end
 
   defp incident(overrides \\ []) do
     now = ~U[2026-06-08 10:42:00.000000Z]
@@ -50,6 +71,33 @@ defmodule MediaCentaur.DiagnosticsTest do
       "triggering_ids" => %{"sample_id" => "sample-123"},
       "crash_reason" => nil
     }
+  end
+
+  describe "format_issues/1" do
+    test "reports an empty state when the board is clean" do
+      assert Diagnostics.format_issues([]) =~ "No issues"
+    end
+
+    test "shows fingerprint, severity, count, and headline per issue" do
+      output = Diagnostics.format_issues([bucket()])
+
+      assert output =~ "fp_watcher_mount"
+      assert output =~ "warning"
+      assert output =~ "3"
+      assert output =~ "watch path not accessible"
+    end
+
+    test "groups issues by subsystem" do
+      output =
+        Diagnostics.format_issues([
+          bucket(),
+          bucket(fingerprint: "fp_prowlarr", component: :acquisition, severity: :error)
+        ])
+
+      assert output =~ "watcher"
+      assert output =~ "acquisition"
+      assert output =~ "fp_prowlarr"
+    end
   end
 
   describe "format_incident_list/1" do
