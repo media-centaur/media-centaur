@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.100.0 — 2026-06-30
+
+### Changed
+
+- **Library progress no longer ticks live during playback.** While a video is playing, watch progress now updates once when you close the player instead of creeping forward continuously in the background. Your position is still saved throughout playback — only the on-screen refresh is deferred. This reduces UI churn while you watch.
+
 ## v0.99.9 — 2026-06-29
 
 ### Fixed
