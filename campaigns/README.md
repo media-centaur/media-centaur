@@ -21,6 +21,16 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`detail-page-gpu-blur.md`](detail-page-gpu-blur.md) —
+  **investigating.** Reported sustained GPU spike on the detail/now-playing
+  modal, blamed on `background-attachment: fixed` + stacked `backdrop-filter`
+  blur. Report's CSS claims partly wrong (no `.glass`@40px; detail page is the
+  entity modal's `.modal-page-backdrop`, not `.page-backdrop`; the real
+  full-viewport blur is the unmentioned `.modal-backdrop` scrim). Automated
+  headless A/B ruled out the proposed fix as a main-thread lever but can't
+  measure the GPU blur pass (SwiftShader). **Blocked on a hardware GPU profile**
+  — checklist in the file; prime suspect is the `.modal-backdrop` blur.
+
 * [`cour-aware-acquisition.md`](cour-aware-acquisition.md) —
   **shipped v0.99.6.** TV pursuits silently never completed when a show's
   TMDB "season" spans multiple broadcast runs (cours) the release world
