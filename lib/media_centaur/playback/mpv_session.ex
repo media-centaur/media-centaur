@@ -723,18 +723,15 @@ defmodule MediaCentaur.Playback.MpvSession do
           )
 
           maybe_mark_completed_via_progress(playable_item_id, saveable, duration)
-          # Preserve the rich `%EntityProgressUpdated{}` event for
-          # consumers that need summary/resume_target/changed_record
-          # (EntityModal, StatusLive, LibraryLive). The simpler
-          # `{:entity_progress_updated, pi_id, pos}` tuple broadcast
-          # from Progress.record/3 is consumed by projections that
-          # only need the trigger.
+          # EXPERIMENT (revertible): suppress the per-tick view broadcast.
+          # Progress is still written to the in-memory table above; the
+          # view no longer ticks live during playback and instead refreshes
+          # once from `finalize/1`'s end-of-playback broadcast when the
+          # player closes. Revert this commit to restore live ticking.
           #
-          # Thread `playable_item_id` so the payload carries the changed
-          # record — without it the detail modal's in-memory merge
-          # no-ops and a per-episode badge never flips live (it only
-          # corrects on a full remount).
-          ProgressBroadcaster.broadcast(entity_id, playable_item_id)
+          # Original line:
+          # ProgressBroadcaster.broadcast(entity_id, playable_item_id)
+          _ = {entity_id, playable_item_id}
 
         {:error, reason} ->
           Log.warning(:playback, "failed to save progress — #{inspect(reason)}")
