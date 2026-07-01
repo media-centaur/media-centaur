@@ -25,8 +25,9 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
     only: [
       format_bytes: 1,
       gap_count_class: 1,
-      usage_progress_class: 1,
-      usage_text_class: 1
+      storage_severity: 1,
+      storage_progress_class: 1,
+      storage_text_class: 1
     ]
 
   alias MediaCentaur.Status.LibraryOverview
@@ -177,14 +178,14 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
         </div>
         <div class="flex items-center gap-2">
           <progress
-            class={["progress h-1.5 flex-1", usage_progress_class(drive.usage_percent)]}
+            class={["progress h-1.5 flex-1", storage_progress_class(storage_severity(drive))]}
             value={drive.usage_percent}
             max="100"
           >
           </progress>
           <span class={[
             "text-xs font-mono w-10 text-right shrink-0",
-            usage_text_class(drive.usage_percent)
+            storage_text_class(storage_severity(drive))
           ]}>
             {drive.usage_percent}%
           </span>
