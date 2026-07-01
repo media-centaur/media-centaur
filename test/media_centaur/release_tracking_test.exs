@@ -211,7 +211,13 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
 
     test "marks released movie releases as in_library" do
-      item = create_tracking_item(%{media_type: :movie, name: "Test Collection"})
+      item =
+        create_tracking_item(%{
+          media_type: :movie,
+          name: "Test Collection",
+          library_container_id: Ecto.UUID.generate(),
+          library_container_type: :movie
+        })
 
       create_tracking_release(%{item_id: item.id, title: "Old Movie", released: true, part_tmdb_id: 101})
 
@@ -229,6 +235,28 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       assert length(in_library) == 1
       assert hd(in_library).title == "Old Movie"
+    end
+
+    test "does nothing for a movie that is not in the library (no container)" do
+      # Carolina Caroline regression: a movie the user is *tracking* but does
+      # not own (library_container_id: nil) must never have its releases
+      # flagged in_library just because the digital date has passed — that
+      # painted "in your library" on the upcoming page for a movie the user
+      # didn't have. Mirrors the TV clause, which guards on last_library_*.
+      item = create_tracking_item(%{media_type: :movie, name: "Not Owned"})
+      assert item.library_container_id == nil
+
+      create_tracking_release(%{
+        item_id: item.id,
+        title: "Released Digital",
+        released: true,
+        release_type: "digital"
+      })
+
+      ReleaseTracking.mark_in_library_releases(item)
+
+      releases = ReleaseTracking.list_releases_for_item(item.id)
+      assert Enum.all?(releases, &(not &1.in_library))
     end
 
     test "does nothing for TV with no library episodes" do
@@ -280,7 +308,14 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
 
     test "stamps in_library_at on first transition (movie)" do
-      item = create_tracking_item(%{media_type: :movie, name: "Test Collection"})
+      item =
+        create_tracking_item(%{
+          media_type: :movie,
+          name: "Test Collection",
+          library_container_id: Ecto.UUID.generate(),
+          library_container_type: :movie
+        })
+
       release = create_tracking_release(%{item_id: item.id, title: "Old Movie", released: true})
 
       ReleaseTracking.mark_in_library_releases(item)
@@ -291,7 +326,13 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
 
     test "skips theatrical-only release rows (informational, not downloadable)" do
-      item = create_tracking_item(%{media_type: :movie, name: "Mixed Release Collection"})
+      item =
+        create_tracking_item(%{
+          media_type: :movie,
+          name: "Mixed Release Collection",
+          library_container_id: Ecto.UUID.generate(),
+          library_container_type: :movie
+        })
 
       theatrical =
         create_tracking_release(%{
