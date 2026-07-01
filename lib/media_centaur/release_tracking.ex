@@ -586,6 +586,14 @@ defmodule MediaCentaur.ReleaseTracking do
     end
   end
 
+  # No linked library container → the movie isn't in the library, so nothing
+  # is "in library" no matter how many digital dates have passed. Mirrors the
+  # TV clause's `last_library_season > 0` guard. Without this, a merely-tracked
+  # movie (status :watching, never imported) had its released digital row
+  # flagged in_library on every refresh, painting "in your library" on the
+  # upcoming page for a movie the user didn't own.
+  def mark_in_library_releases(%Item{media_type: :movie, library_container_id: nil}), do: :ok
+
   def mark_in_library_releases(%Item{media_type: :movie} = item) do
     now = DateTime.utc_now(:second)
     acquirable_types = acquirable_release_types()
