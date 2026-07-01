@@ -101,8 +101,11 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   alias MediaCentaurWeb.AcquisitionLive.PlanLogic
   alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
 
+  alias MediaCentaur.Storage
+
   alias MediaCentaurWeb.Components.Acquisition.{
     ConnectivityBadge,
+    DownloadStorage,
     MediaOmnibox,
     PlanModal,
     PursuitGroup,
@@ -111,6 +114,11 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   }
 
   @decision_prompt "Pick an alternative release."
+
+  # Storage headroom is ambient context, not a live ticker — `df` is cheap
+  # but not free, and free space only moves as downloads land. Refresh on a
+  # slow cadence (same interval as the Status page's storage section).
+  @storage_refresh_ms 5 * 60 * 1_000
 
   @impl true
   def mount(_params, _session, socket) do
@@ -127,49 +135,52 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       end
 
       {:ok,
-       assign(socket,
-         loaded?: false,
-         page_backdrop: page_backdrop(),
-         search_session: %SearchSession{},
-         active_queue: [],
-         queue_connectivity: :initializing,
-         queue_last_success_at: nil,
-         queue_loaded?: false,
-         board_expanded_seasons: nil,
-         cancel_confirm: nil,
-         pending_cancels: %{},
-         download_client_ready: false,
-         history_filter: :failed,
-         history_search: "",
-         history_open?: false,
-         history_rows: [],
-         pursuit_rows: [],
-         expanded_pursuit_groups: MapSet.new(),
-         pursuits_reload_timer: nil,
-         reload_timer: nil,
-         selected_pursuit_id: nil,
-         pursuit_detail: nil,
-         omnibox_mode: :media,
-         omnibox_query: "",
-         omnibox_results: [],
-         omnibox_searching?: false,
-         omnibox_searched: nil,
-         plan_param: nil,
-         plan_stage: :loading,
-         plan_selection: nil,
-         plan_chosen: MapSet.new(),
-         plan_expanded_seasons: MapSet.new(),
-         plan_movie: nil,
-         plan_board: nil,
-         plan_grab_future: false,
-         plan_error: nil,
-         plan_last_activity: nil,
-         plan_descent: nil,
-         plan_alternatives: nil,
-         plan_approving?: false,
-         plan_discard_confirm?: false,
-         plan_drafts: [],
-         watching_summary: {0, 0}
+       maybe_start_storage(
+         assign(socket,
+           loaded?: false,
+           storage_drives: [],
+           page_backdrop: page_backdrop(),
+           search_session: %SearchSession{},
+           active_queue: [],
+           queue_connectivity: :initializing,
+           queue_last_success_at: nil,
+           queue_loaded?: false,
+           board_expanded_seasons: nil,
+           cancel_confirm: nil,
+           pending_cancels: %{},
+           download_client_ready: false,
+           history_filter: :failed,
+           history_search: "",
+           history_open?: false,
+           history_rows: [],
+           pursuit_rows: [],
+           expanded_pursuit_groups: MapSet.new(),
+           pursuits_reload_timer: nil,
+           reload_timer: nil,
+           selected_pursuit_id: nil,
+           pursuit_detail: nil,
+           omnibox_mode: :media,
+           omnibox_query: "",
+           omnibox_results: [],
+           omnibox_searching?: false,
+           omnibox_searched: nil,
+           plan_param: nil,
+           plan_stage: :loading,
+           plan_selection: nil,
+           plan_chosen: MapSet.new(),
+           plan_expanded_seasons: MapSet.new(),
+           plan_movie: nil,
+           plan_board: nil,
+           plan_grab_future: false,
+           plan_error: nil,
+           plan_last_activity: nil,
+           plan_descent: nil,
+           plan_alternatives: nil,
+           plan_approving?: false,
+           plan_discard_confirm?: false,
+           plan_drafts: [],
+           watching_summary: {0, 0}
+         )
        )}
     else
       {:ok, push_navigate(socket, to: "/")}
@@ -214,6 +225,29 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       %{backdrop_url: url} when is_binary(url) -> url
       _ -> nil
     end
+  end
+
+  # Storage headroom loads off the mount path (measure_all shells out to
+  # `df`, which can stall on sleeping media dirs) via owned async (ADR-049,
+  # MC0019) — cancelled with the LiveView, awaitable in tests. The static
+  # HTTP render ships `storage_drives: []` (StorageBar renders nothing) and
+  # the connected render fills it in. The periodic refresh keeps the figure
+  # honest as downloads land.
+  defp maybe_start_storage(socket) do
+    if connected?(socket) do
+      Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
+      start_async_storage(socket)
+    else
+      socket
+    end
+  end
+
+  defp start_async_storage(socket) do
+    start_async(socket, :acquisition_storage, fn ->
+      # Only drives a download can land on — a DB/image-cache-only drive can't
+      # answer "do I have room for this grab?" (see DownloadStorage.media_dir_drives/1).
+      DownloadStorage.media_dir_drives(Storage.measure_all())
+    end)
   end
 
   defp load_acquisition(socket) do
@@ -526,6 +560,8 @@ defmodule MediaCentaurWeb.AcquisitionLive do
               {Logic.watching_summary_label(@watching_summary)}
             </.link>
           </header>
+
+          <DownloadStorage.download_storage drives={@storage_drives} />
 
           <MediaOmnibox.media_omnibox
             mode={@omnibox_mode}
@@ -1345,6 +1381,11 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     {:noreply, load_history(socket)}
   end
 
+  def handle_info(:refresh_storage, socket) do
+    Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
+    {:noreply, start_async_storage(socket)}
+  end
+
   # All `acquisition:updates` broadcasts are typed structs — either
   # `Pursuits.Events.*` (persisted timeline events) or `TargetEvents.*`
   # (transient lifecycle signals). TargetEvents trigger a History
@@ -1589,6 +1630,10 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       %{} = open -> {:noreply, assign(socket, plan_alternatives: Map.put(open, :searching?, false))}
       _other -> {:noreply, socket}
     end
+  end
+
+  def handle_async(:acquisition_storage, {:ok, drives}, socket) do
+    {:noreply, assign(socket, storage_drives: drives)}
   end
 
   def handle_async(name, {:exit, reason}, socket) do

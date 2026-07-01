@@ -192,14 +192,14 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
 
             <div :if={health.dir_exists && drive} class="flex items-center gap-3 mt-1">
               <progress
-                class={["progress h-1.5 flex-1", usage_progress_class(drive.usage_percent)]}
+                class={["progress h-1.5 flex-1", storage_progress_class(storage_severity(drive))]}
                 value={drive.usage_percent}
                 max="100"
               >
               </progress>
               <span class={[
                 "text-xs font-mono w-10 text-right shrink-0",
-                usage_text_class(drive.usage_percent)
+                storage_text_class(storage_severity(drive))
               ]}>
                 {drive.usage_percent}%
               </span>
@@ -260,14 +260,14 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
           </div>
           <div class="flex items-center gap-3">
             <progress
-              class={["progress h-1.5 flex-1", usage_progress_class(@db_drive.usage_percent)]}
+              class={["progress h-1.5 flex-1", storage_progress_class(storage_severity(@db_drive))]}
               value={@db_drive.usage_percent}
               max="100"
             >
             </progress>
             <span class={[
               "text-xs font-mono w-10 text-right",
-              usage_text_class(@db_drive.usage_percent)
+              storage_text_class(storage_severity(@db_drive))
             ]}>
               {@db_drive.usage_percent}%
             </span>

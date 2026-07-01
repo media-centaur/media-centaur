@@ -287,36 +287,6 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
     end
   end
 
-  # --- usage display ---
-
-  describe "usage_progress_class/1" do
-    test "returns error for high usage" do
-      assert StatusHelpers.usage_progress_class(95) == "progress-error"
-    end
-
-    test "returns warning for moderate usage" do
-      assert StatusHelpers.usage_progress_class(80) == "progress-warning"
-    end
-
-    test "returns success for low usage" do
-      assert StatusHelpers.usage_progress_class(50) == "progress-success"
-    end
-  end
-
-  describe "usage_text_class/1" do
-    test "returns error for high usage" do
-      assert StatusHelpers.usage_text_class(92) == "text-error"
-    end
-
-    test "returns warning for moderate usage" do
-      assert StatusHelpers.usage_text_class(78) == "text-warning"
-    end
-
-    test "returns success for low usage" do
-      assert StatusHelpers.usage_text_class(60) == "text-success"
-    end
-  end
-
   # --- progress_matches_session?/2 ---
 
   describe "progress_matches_session?/2" do
@@ -535,6 +505,76 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
 
     test "labels a missing title rather than rendering nil" do
       assert StatusHelpers.format_enriched_title(%{title: nil, year: 2024}) == "Untitled"
+    end
+  end
+
+  # --- Storage headroom (download-screen indicator) ---
+
+  @gib 1_073_741_824
+
+  defp drive(total_gib, used_gib, usage_percent) do
+    %{
+      mount_point: "/mnt/media",
+      device: "/dev/sda1",
+      total_bytes: round(total_gib * @gib),
+      used_bytes: round(used_gib * @gib),
+      usage_percent: usage_percent,
+      roles: [%{label: "Media dir", path: "/mnt/media"}]
+    }
+  end
+
+  describe "drive_free_bytes/1" do
+    test "is total minus used" do
+      assert StatusHelpers.drive_free_bytes(drive(100, 30, 30)) == round(70 * @gib)
+    end
+
+    test "never goes negative when used somehow exceeds total" do
+      assert StatusHelpers.drive_free_bytes(drive(100, 130, 100)) == 0
+    end
+  end
+
+  describe "storage_severity/1" do
+    test "is ok with plenty of free space at moderate usage" do
+      assert StatusHelpers.storage_severity(drive(1000, 500, 50)) == :ok
+    end
+
+    test "a large disk at 80% with hundreds of GiB free is ok, not a false-alarm warning" do
+      # The whole point of the recalibration: percent alone must not warn while
+      # there is ample absolute room (an 800 GiB-free disk is fine to download to).
+      assert StatusHelpers.storage_severity(drive(4000, 3200, 80)) == :ok
+    end
+
+    test "warns under 100 GiB free even at low usage percent" do
+      # 80 GiB free on a 500 GiB disk (84% used) — a big 4K grab may not fit.
+      assert StatusHelpers.storage_severity(drive(500, 420, 84)) == :warning
+    end
+
+    test "warns once usage reaches 90% (backstop for a genuinely full disk)" do
+      assert StatusHelpers.storage_severity(drive(1000, 900, 90)) == :warning
+    end
+
+    test "is critical under 20 GiB free regardless of usage percent" do
+      assert StatusHelpers.storage_severity(drive(30, 15, 50)) == :critical
+    end
+
+    test "is critical once usage reaches 95%" do
+      assert StatusHelpers.storage_severity(drive(1000, 950, 95)) == :critical
+    end
+
+    test "20 GiB free is the floor — at exactly 20 GiB it warns rather than crits" do
+      assert StatusHelpers.storage_severity(drive(150, 130, 86)) == :warning
+    end
+  end
+
+  describe "storage_progress_class/1 and storage_text_class/1" do
+    test "map severity to daisyUI progress/text classes" do
+      assert StatusHelpers.storage_progress_class(:ok) == "progress-success"
+      assert StatusHelpers.storage_progress_class(:warning) == "progress-warning"
+      assert StatusHelpers.storage_progress_class(:critical) == "progress-error"
+
+      assert StatusHelpers.storage_text_class(:ok) == "text-base-content/60"
+      assert StatusHelpers.storage_text_class(:warning) == "text-warning"
+      assert StatusHelpers.storage_text_class(:critical) == "text-error"
     end
   end
 end

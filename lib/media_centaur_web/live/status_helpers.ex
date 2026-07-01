@@ -214,15 +214,57 @@ defmodule MediaCentaurWeb.StatusHelpers do
   def playback_progress_class(:paused), do: "progress-warning"
   def playback_progress_class(_), do: "progress-info"
 
-  # --- Usage Display ---
+  # --- Storage headroom (one deliberate definition, shared by every storage
+  #     indicator: the download-screen strip, the Status "storage outlook"
+  #     card, and the system-tile drive gauges) ---
 
-  def usage_progress_class(percent) when percent >= 90, do: "progress-error"
-  def usage_progress_class(percent) when percent >= 75, do: "progress-warning"
-  def usage_progress_class(_percent), do: "progress-success"
+  # These thresholds are the single source of truth for "is this drive's
+  # remaining space a problem?" Free space — not usage percent — is the
+  # primary signal, because percent is a poor proxy for a media library: a
+  # 4 TB disk at 80% still has ~800 GiB free (plenty of room for downloads)
+  # and must not read as a warning. The earlier percent-only bands (amber at
+  # 75%) fired constantly on healthy large disks. So we warn on absolute free
+  # space, with a high usage percentage kept only as a backstop for a disk
+  # that is genuinely nearly full regardless of its size.
+  #
+  #   * critical — under 20 GiB free (a single HD download may not fit) or ≥95% used
+  #   * warning  — under 100 GiB free (a large 4K grab may not fit) or ≥90% used
+  #   * ok       — otherwise (calm; color is reserved for problems)
+  @critical_free_bytes 20 * 1_073_741_824
+  @warning_free_bytes 100 * 1_073_741_824
+  @critical_usage_percent 95
+  @warning_usage_percent 90
 
-  def usage_text_class(percent) when percent >= 90, do: "text-error"
-  def usage_text_class(percent) when percent >= 75, do: "text-warning"
-  def usage_text_class(_percent), do: "text-success"
+  @doc "Free bytes on a `Storage.measure_all/0` drive map (`total - used`, floored at 0)."
+  def drive_free_bytes(%{total_bytes: total, used_bytes: used}), do: max(total - used, 0)
+
+  @doc """
+  Classifies a drive's remaining headroom as `:ok | :warning | :critical`.
+
+  Free-space-first (see the module comment): critical under
+  #{div(@critical_free_bytes, 1_073_741_824)} GiB free or #{@critical_usage_percent}% used;
+  warning under #{div(@warning_free_bytes, 1_073_741_824)} GiB free or
+  #{@warning_usage_percent}% used; ok otherwise.
+  """
+  def storage_severity(drive) do
+    free = drive_free_bytes(drive)
+
+    cond do
+      free < @critical_free_bytes or drive.usage_percent >= @critical_usage_percent -> :critical
+      free < @warning_free_bytes or drive.usage_percent >= @warning_usage_percent -> :warning
+      true -> :ok
+    end
+  end
+
+  @doc "daisyUI progress class for a `storage_severity/1` atom."
+  def storage_progress_class(:critical), do: "progress-error"
+  def storage_progress_class(:warning), do: "progress-warning"
+  def storage_progress_class(:ok), do: "progress-success"
+
+  @doc "Text-color class for a `storage_severity/1` atom (calm/muted when ok)."
+  def storage_text_class(:critical), do: "text-error"
+  def storage_text_class(:warning), do: "text-warning"
+  def storage_text_class(:ok), do: "text-base-content/60"
 
   # --- Library overview (Status "Your library" section) ---
 
