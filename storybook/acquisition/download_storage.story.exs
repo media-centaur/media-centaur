@@ -30,8 +30,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DownloadStorage do
   def variations do
     [
       %Variation{
-        id: :healthy,
-        description: "Plenty of headroom — calm green bars",
+        id: :single_healthy_renders_nothing,
+        description:
+          "One healthy drive → :calm mode. The component renders nothing here; the download header shows `calm_summary/1` as its subtitle instead.",
         attributes: %{drives: [drive("/mnt/media", 4000, 1200, 30)]}
       },
       %Variation{

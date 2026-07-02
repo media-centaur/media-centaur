@@ -178,8 +178,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
            plan_alternatives: nil,
            plan_approving?: false,
            plan_discard_confirm?: false,
-           plan_drafts: [],
-           watching_summary: {0, 0}
+           plan_drafts: []
          )
        )}
     else
@@ -260,7 +259,6 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       omnibox_mode: if(session.query != "" or session.groups != [], do: :release, else: :media),
       download_client_ready: Capabilities.download_client_ready?(),
       plan_drafts: Plans.list_drafts(),
-      watching_summary: ReleaseTracking.open_wants_summary(),
       pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows(),
       history_rows: compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search)
     )
@@ -475,6 +473,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
       |> Phoenix.Component.assign(:active_compact, active_compact)
       |> Phoenix.Component.assign(:history_compact, history_compact)
       |> Phoenix.Component.assign(:orphan_queue, orphan_queue)
+      |> Phoenix.Component.assign(:storage_mode, DownloadStorage.display_mode(assigns.storage_drives))
       |> Phoenix.Component.assign(
         :telemetry_age,
         Logic.telemetry_age_label(assigns.queue_connectivity, assigns.queue_last_success_at)
@@ -546,19 +545,21 @@ defmodule MediaCentaurWeb.AcquisitionLive do
         <div class="relative z-[1] max-w-4xl space-y-6">
           <header>
             <h1 class="text-3xl font-bold tracking-tight">Downloads</h1>
-            <p class="mt-1 text-sm text-base-content/60">
+            <%!-- One adaptive subtitle line, never a stack. When storage is calm
+                  (a single healthy drive) it *is* the subtitle — free space is the
+                  most useful ambient fact here. When storage opens up (low / multiple
+                  drives) it renders as its own card below, and the subtitle falls back
+                  to the activity summary. --%>
+            <p
+              :if={@storage_mode == :calm}
+              class="mt-1 flex items-center gap-2 text-sm text-base-content/60"
+            >
+              <.icon name="hero-circle-stack-mini" class="size-4 shrink-0 text-base-content/40" />
+              {DownloadStorage.calm_summary(@storage_drives)}
+            </p>
+            <p :if={@storage_mode != :calm} class="mt-1 text-sm text-base-content/60">
               {Logic.pursuit_summary(length(@paired_rows), length(@download_cards))}
             </p>
-            <%!-- Open wants are not acquisition activity (ADR-056 Q7):
-                  a quiet count + pointer to Tracking, never want cards. --%>
-            <.link
-              :if={Logic.watching_summary_label(@watching_summary)}
-              navigate="/upcoming"
-              class="mt-1 inline-flex items-center gap-1.5 text-sm text-base-content/50 transition-colors hover:text-base-content/80"
-            >
-              <.icon name="hero-eye-mini" class="size-4 text-info/60" />
-              {Logic.watching_summary_label(@watching_summary)}
-            </.link>
           </header>
 
           <DownloadStorage.download_storage drives={@storage_drives} />
