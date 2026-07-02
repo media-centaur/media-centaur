@@ -101,6 +101,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   alias MediaCentaurWeb.AcquisitionLive.PlanLogic
   alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
 
+  alias MediaCentaur.Settings
   alias MediaCentaur.Storage
 
   alias MediaCentaurWeb.Components.Acquisition.{
@@ -338,13 +339,36 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # do this: `build_pursuit_modal_path/2` re-emits `filter=` on every
   # modal patch, and without the `was_loaded?` gate clicking any pursuit
   # row would pop History open underneath the modal.
+  # Durable History disclosure preference. Persisted in Settings (not the URL
+  # or socket state) so it survives navigating away and coming back — a plain
+  # assign resets on every remount. Defaults collapsed so the page leads with
+  # active pursuits.
+  @history_open_key "ui:downloads:history_open"
+
+  defp history_open_pref do
+    case Settings.get_by_key(@history_open_key) do
+      {:ok, %{value: %{"open" => open}}} when is_boolean(open) -> open
+      _ -> false
+    end
+  end
+
+  defp put_history_open_pref(open?) do
+    # find_or_create_entry upserts (insert when absent, update when present) —
+    # same helper DiagnosticsBadge uses for its persisted timestamp.
+    Settings.find_or_create_entry(%{key: @history_open_key, value: %{"open" => open?}})
+    :ok
+  end
+
   defp maybe_open_history(socket, _params, true), do: socket
 
   defp maybe_open_history(socket, params, false) do
     if Map.has_key?(params, "filter") or Map.get(params, "search", "") != "" do
+      # Deep-link came FOR history — auto-expand, but don't persist (transient).
       assign(socket, history_open?: true)
     else
-      socket
+      # First normal load: restore the durable disclosure preference so an
+      # expand survives navigating away and back. Defaults collapsed.
+      assign(socket, history_open?: history_open_pref())
     end
   end
 
@@ -1086,7 +1110,9 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   # pursuit modal where Cancel / Change target live.
 
   def handle_event("toggle_history", _params, socket) do
-    {:noreply, assign(socket, history_open?: !socket.assigns.history_open?)}
+    open? = !socket.assigns.history_open?
+    put_history_open_pref(open?)
+    {:noreply, assign(socket, history_open?: open?)}
   end
 
   def handle_event("set_history_filter", %{"filter" => filter}, socket) do

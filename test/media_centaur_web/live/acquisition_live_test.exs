@@ -1876,4 +1876,34 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
         do_await_session_groups(status, deadline)
     end
   end
+
+  describe "history disclosure durability" do
+    # The History filter tabs (`phx-click="set_history_filter"`) render only
+    # when the disclosure is open, so their presence is a clean data-flow
+    # marker for expanded/collapsed — no HTML-structure assertions.
+    test "defaults collapsed and persists an expand across remounts", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+      refute render(view) =~ "set_history_filter"
+
+      view |> element("[phx-click='toggle_history']") |> render_click()
+      assert render(view) =~ "set_history_filter"
+
+      # A fresh mount = navigating away and back. A plain socket assign would
+      # reset to collapsed here; the persisted preference keeps it open.
+      {:ok, remounted, _html} = live_async!(conn, ~p"/download")
+      assert render(remounted) =~ "set_history_filter"
+    end
+
+    test "a collapse also persists across remounts", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/download")
+      view |> element("[phx-click='toggle_history']") |> render_click()
+      assert render(view) =~ "set_history_filter"
+
+      view |> element("[phx-click='toggle_history']") |> render_click()
+      refute render(view) =~ "set_history_filter"
+
+      {:ok, remounted, _html} = live_async!(conn, ~p"/download")
+      refute render(remounted) =~ "set_history_filter"
+    end
+  end
 end
