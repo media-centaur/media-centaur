@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.101.0 — 2026-07-02
+
+### New
+
+- **See your free space right on the download screen.** The Downloads page now shows how much room is left on the drive your downloads land on, so you can tell at a glance whether a grab will fit. It stays quiet when space is healthy — a single line under the title — and only opens into a full per-drive breakdown when a drive is running low or you have more than one.
+
+### Improved
+
+- **A cleaner Downloads header.** Trimmed the redundant status lines so the page leads with what matters: search and your active downloads.
+- **History remembers whether you left it open.** The download History section's collapsed/expanded state now sticks as you move between pages instead of resetting every time. It still starts collapsed the first time.
+
+### Fixed
+
+- **The Upcoming page no longer marks a movie as "in your library" when it isn't.** A movie you were only tracking could be wrongly flagged as owned once its release date passed; now only movies actually in your library are marked.
+- **Watch progress updates live again while a video plays.** Restores the on-screen progress that ticks up as you watch — a change in the previous release had deferred it until you closed the player.
+
 ## v0.100.0 — 2026-06-30
 
 ### Changed
