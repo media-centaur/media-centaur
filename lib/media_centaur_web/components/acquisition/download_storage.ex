@@ -2,23 +2,28 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStorage do
   @moduledoc """
   Remaining-storage indicator for the download screen.
 
-  A download lands wherever the download client saves it, and free space
-  is a property of the *filesystem* — so this shows headroom **per drive**,
-  not per watch directory. `Storage.measure_all/0` already collapses
-  multiple watch dirs that share a disk into one drive (grouped by mount
-  point), so two media dirs on the same physical disk render as a single
-  row with one honest free-space number.
+  A download lands wherever the download client saves it, and free space is a
+  property of the *filesystem* — so this shows headroom **per drive**, not per
+  watch directory. `Storage.measure_all/0` collapses watch dirs that share a
+  disk into one drive (grouped by mount point).
 
-  Leads with **free space** ("812 GiB free") — the number that matters at
-  grab time is "do I have room?", not "how much have I used". The bar and
-  the free-space figure take their colour from
-  `StatusHelpers.storage_severity/1`, which folds an absolute floor
-  (near-full disk) and a usage percentage into one `:ok | :warning |
-  :critical` classification.
+  ## Progressive disclosure
 
-  Renders nothing when there are no measured drives (still measuring, or no
-  media dirs configured) — the download screen stays uncluttered rather
-  than showing a permanent "measuring…" placeholder.
+  Space tracks severity — a healthy library should not spend a whole card to
+  say "you're fine":
+
+    * **`:empty`** — no measured drives (still measuring / none configured).
+      Renders nothing.
+    * **`:calm`** — exactly one drive, healthy. No card at all; the download
+      header renders `calm_summary/1` ("288 GiB free on /mnt/videos") as its
+      subtitle, so a healthy library costs zero extra vertical space.
+    * **`:card`** — more than one drive, *or* any drive low. The full card:
+      per-drive rows with free space, a usage bar coloured by
+      `StatusHelpers.storage_severity/1`, and a warning icon on any drive that
+      has crossed the warning/critical threshold.
+
+  Always leads with **free space** — at grab time the question is "do I have
+  room?", not "how much have I used".
   """
 
   use Phoenix.Component
@@ -43,20 +48,53 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStorage do
     end)
   end
 
+  @doc """
+  Chooses the disclosure level for a set of media-dir drives:
+  `:empty | :calm | :card` (see the moduledoc). The card is reserved for the
+  cases that genuinely warrant the space — more than one drive, or a drive
+  that has crossed the warning/critical threshold.
+  """
+  def display_mode([]), do: :empty
+
+  def display_mode([drive]) do
+    case StatusHelpers.storage_severity(drive) do
+      :ok -> :calm
+      _low -> :card
+    end
+  end
+
+  def display_mode(_drives), do: :card
+
+  @doc """
+  One-line free-space summary for the `:calm` case, e.g.
+  `"288 GiB free on /mnt/videos"`. Rendered as the download header's subtitle
+  (not by this component) so a single healthy drive costs no extra vertical
+  space. Returns `nil` unless there is exactly one drive.
+  """
+  def calm_summary([drive]) do
+    "#{StatusHelpers.format_bytes(StatusHelpers.drive_free_bytes(drive))} free on #{drive.mount_point}"
+  end
+
+  def calm_summary(_drives), do: nil
+
   attr :drives, :list,
     required: true,
     doc:
-      "Media-dir-hosting `Storage.measure_all/0` drive maps (filter via `media_dir_drives/1`). Empty while measuring or when no media dirs are configured."
-
-  def download_storage(%{drives: []} = assigns) do
-    ~H""
-  end
+      "Media-dir-hosting `Storage.measure_all/0` drive maps (filter via `media_dir_drives/1`). Renders the escalated card only (`:card` mode); the `:calm` single-healthy-drive case is shown in the header subtitle via `calm_summary/1`."
 
   def download_storage(assigns) do
-    assigns = assign(assigns, :rows, Enum.map(assigns.drives, &row/1))
+    assigns =
+      assigns
+      |> assign(:mode, display_mode(assigns.drives))
+      |> assign(:rows, Enum.map(assigns.drives, &row/1))
 
     ~H"""
-    <div class="glass-surface rounded-xl px-4 py-3 space-y-2" data-component="download-storage">
+    <div
+      :if={@mode == :card}
+      class="glass-surface rounded-xl px-4 py-3 space-y-2"
+      data-component="download-storage"
+      data-mode="card"
+    >
       <div class="flex items-center gap-2">
         <.icon name="hero-circle-stack-mini" class="size-4 text-base-content/50 shrink-0" />
         <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">Storage</h3>
@@ -65,7 +103,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStorage do
       <div class="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
         <div :for={row <- @rows} id={"download-storage-#{row.id}"} class="space-y-1">
           <div class="flex items-baseline justify-between gap-2">
-            <span class="text-sm truncate" title={row.mount_point}>{row.label}</span>
+            <span class="flex items-center gap-1.5 truncate text-sm" title={row.mount_point}>
+              <.icon :if={row.icon} name={row.icon} class={"size-4 shrink-0 #{row.text_class}"} />
+              {row.label}
+            </span>
             <span class={["text-xs font-mono shrink-0", row.text_class]}>
               {row.free_label} free
             </span>
@@ -91,6 +132,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStorage do
       label: drive.mount_point,
       free_label: StatusHelpers.format_bytes(StatusHelpers.drive_free_bytes(drive)),
       usage_percent: drive.usage_percent,
+      severity: severity,
+      icon: if(severity != :ok, do: "hero-exclamation-triangle-mini"),
       progress_class: StatusHelpers.storage_progress_class(severity),
       text_class: StatusHelpers.storage_text_class(severity)
     }
