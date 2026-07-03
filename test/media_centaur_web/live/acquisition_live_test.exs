@@ -46,6 +46,13 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
     client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
     :persistent_term.put({Prowlarr, :client}, client)
 
+    # Settings mirrors into a process-global :persistent_term cache that
+    # outlives the Ecto sandbox. Once any other test warms it, `put_cache/1`
+    # starts writing here, so a pref set by one test (e.g. the History
+    # disclosure) would leak into the next. Erase it so every test reads its
+    # own sandboxed DB (writes stay DB-only while the cache is unset).
+    :persistent_term.erase({MediaCentaur.Settings, :entries})
+
     config = :persistent_term.get({MediaCentaur.Config, :config})
 
     :persistent_term.put(
@@ -1791,13 +1798,15 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       refute has_element?(view, @history_filter_chips)
     end
 
-    test "deep-linking with history params auto-expands the zone", %{conn: conn} do
-      # The upcoming-zone badges link to /download?filter=all&search=<title>
-      # — a user following that link came FOR the history zone, so it
-      # must not greet them collapsed.
-      {:ok, view, _html} = live_async!(conn, ~p"/download?filter=all&search=Sample")
+    test "a filter param in the URL does not force History open (respects the pref)", %{conn: conn} do
+      # Regression: build_pursuit_modal_path/2 always carries filter=failed, so
+      # landing fresh on such a URL (e.g. browser back to a pursuit-modal URL)
+      # used to auto-expand History and override a collapsed preference. There
+      # are no genuine ?filter=/?search= deep-links to /download, so the URL
+      # filter state must never open the zone — only the persisted pref does.
+      {:ok, view, _html} = live_async!(conn, ~p"/download?filter=failed&search=Sample")
 
-      assert has_element?(view, @history_filter_chips)
+      refute has_element?(view, @history_filter_chips)
     end
 
     test "opening the pursuit modal does not auto-expand history", %{conn: conn} do
