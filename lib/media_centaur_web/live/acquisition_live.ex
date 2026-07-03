@@ -333,12 +333,6 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     {:noreply, socket}
   end
 
-  # History is collapsed by default — a deep-link that carries history
-  # params (`?filter=…` from the upcoming-zone badges, `?search=…`) came
-  # FOR that zone, so it auto-expands. Only the FIRST handle_params may
-  # do this: `build_pursuit_modal_path/2` re-emits `filter=` on every
-  # modal patch, and without the `was_loaded?` gate clicking any pursuit
-  # row would pop History open underneath the modal.
   # Durable History disclosure preference. Persisted in Settings (not the URL
   # or socket state) so it survives navigating away and coming back — a plain
   # assign resets on every remount. Defaults collapsed so the page leads with
@@ -359,17 +353,17 @@ defmodule MediaCentaurWeb.AcquisitionLive do
     :ok
   end
 
+  # On a modal patch (loaded?=true) leave the disclosure as the user left it.
   defp maybe_open_history(socket, _params, true), do: socket
 
-  defp maybe_open_history(socket, params, false) do
-    if Map.has_key?(params, "filter") or Map.get(params, "search", "") != "" do
-      # Deep-link came FOR history — auto-expand, but don't persist (transient).
-      assign(socket, history_open?: true)
-    else
-      # First normal load: restore the durable disclosure preference so an
-      # expand survives navigating away and back. Defaults collapsed.
-      assign(socket, history_open?: history_open_pref())
-    end
+  # On a fresh load, the persisted preference is the sole source of truth —
+  # never the URL's filter/search state. `build_pursuit_modal_path/2` always
+  # carries `filter=failed`, so keying off it (as this used to) popped History
+  # open whenever you returned to a pursuit-modal URL. There are no genuine
+  # `?filter=`/`?search=` deep-links to /download, so nothing in the URL should
+  # override the pref. Defaults collapsed.
+  defp maybe_open_history(socket, _params, false) do
+    assign(socket, history_open?: history_open_pref())
   end
 
   # Skip the sync history reload on first load — the async task spawned
