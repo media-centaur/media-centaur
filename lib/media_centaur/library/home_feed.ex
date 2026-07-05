@@ -76,25 +76,10 @@ defmodule MediaCentaur.Library.HomeFeed do
   # Re-runs the per-record overlay AND patches the `progress`
   # summary's `episode_position_seconds` / `episode_duration_seconds`
   # so `ContinueWatchingProgress.compute_pct/1` (which reads from the
-  # summary, not the records) sees the fresh numbers.
+  # summary, not the records) sees the fresh numbers. `completed` stays
+  # DB-authoritative — see `MediaCentaur.Library.Progress.overlay_in_memory/1`.
   defp overlay_in_memory_progress(%{progress_records: records, progress: summary} = entry) do
-    fresh =
-      Enum.map(records, fn record ->
-        case record.playable_item_id &&
-               MediaCentaur.Library.Progress.lookup_in_memory(record.playable_item_id) do
-          nil ->
-            record
-
-          %{} = hot ->
-            %{
-              record
-              | position_seconds: hot.position_seconds,
-                duration_seconds: hot.duration_seconds,
-                completed: hot.completed,
-                last_watched_at: hot.last_watched_at
-            }
-        end
-      end)
+    fresh = Enum.map(records, &MediaCentaur.Library.Progress.overlay_in_memory/1)
 
     refreshed_summary =
       Map.merge(summary, ContinueWatchingProgress.current_position_summary(fresh))

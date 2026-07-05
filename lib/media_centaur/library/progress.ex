@@ -152,6 +152,47 @@ defmodule MediaCentaur.Library.Progress do
     end
   end
 
+  @doc """
+  Overlays live session state onto a DB-loaded `WatchProgress` record so a
+  caller rendering during active playback sees the live-ticking
+  `position_seconds` / `duration_seconds` / `last_watched_at` without a
+  per-tick DB round trip. Returns the record unchanged when no hot row
+  exists (the common case for rows without an active session).
+
+  `completed` is deliberately **not** overlaid — it is authoritative in the
+  DB. The hot row's `completed` is a within-session idempotency signal
+  (false for cold rows, set true only when `complete/1` runs during the
+  session — see `record/3`), so overlaying it would downgrade a completion
+  recorded on another path back to `false`: a manual "mark watched" toggle
+  writes the DB but never the hot row, so its completion would be silently
+  reverted on the next tick and only reappear after a page reload. Because
+  `complete/1` persists to the DB synchronously *before* touching the hot
+  row, the DB `completed` is never staler than memory — trusting it loses
+  nothing.
+
+  The single overlay seam shared by the Continue Watching list
+  (`Library.list_in_progress/1`) and the modal broadcast
+  (`Playback.ProgressBroadcaster.broadcast/2`).
+  """
+  @spec overlay_in_memory(map()) :: map()
+  def overlay_in_memory(%{playable_item_id: playable_item_id} = record)
+      when is_binary(playable_item_id) do
+    case lookup_in_memory(playable_item_id) do
+      nil ->
+        record
+
+      hot ->
+        %{
+          record
+          | position_seconds: hot.position_seconds,
+            duration_seconds: hot.duration_seconds,
+            last_watched_at: hot.last_watched_at
+        }
+    end
+  end
+
+  def overlay_in_memory(record), do: record
+
   if Mix.env() == :test do
     @doc """
     Clears the in-memory progress table. **Test-only**: this function

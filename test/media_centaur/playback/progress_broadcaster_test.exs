@@ -1,9 +1,54 @@
 defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Library.Progress
   alias MediaCentaur.Playback.ProgressBroadcaster
 
   describe "broadcast/2" do
+    # Reproduces the manual-completion-during-active-playback race: a user
+    # finishes an episode at 89% (mpv never crosses its 90% auto-complete
+    # bar, so its hot in-memory row stays completed:false) and clicks "mark
+    # watched". The toggle writes the DB (completed:true) but never the hot
+    # row. The broadcast overlay must surface the DB completion, not revert
+    # it from the stale hot row — otherwise the modal badge never flips and
+    # only a page reload shows the item as watched.
+    test "a live in-memory tick never downgrades a manual DB completion" do
+      # Worker isn't started in :test by default; 5s flush keeps the hot
+      # row from persisting during the sub-millisecond broadcast.
+      start_supervised!({Progress.Worker, [flush_interval_ms: 5_000, name: Progress.Worker]})
+      Progress.reset_for_test!()
+
+      tv_series = create_entity(%{type: :tv_series, name: "Overlay Race Show"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      episode =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Pilot",
+          content_url: "/tv/show/s01e01.mkv"
+        })
+
+      record =
+        create_watch_progress(%{
+          episode_id: episode.id,
+          position_seconds: 1659.0,
+          duration_seconds: 1851.0
+        })
+
+      # mpv mid-playback hot row at ~89% — completed:false
+      :ok = Progress.record(record.playable_item_id, 1659.0, 1851.0)
+
+      # Manual "mark watched": writes DB completed:true, leaves the hot row.
+      {:ok, _completed} = MediaCentaur.Library.mark_watch_completed(record)
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
+      ProgressBroadcaster.broadcast(tv_series.id, record)
+
+      assert_receive {:entity_progress_updated, %{changed_record: changed_record}}
+      assert changed_record.completed == true
+    end
+
     test "broadcasts entity_progress_updated for entity with progress" do
       tv_series = create_entity(%{type: :tv_series, name: "Broadcast Show"})
       season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
