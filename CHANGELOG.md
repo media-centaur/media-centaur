@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.101.1 — 2026-07-05
+
+### Fixed
+
+- **Continue Watching now updates the moment you finish a show.** Previously a finished title could linger in the Continue Watching row until you reloaded the home page. It now drops out immediately when playback completes.
+- **The History section no longer springs open on its own.** Opening a download from a link no longer forces the History disclosure open when you didn't ask for it.
+
 ## v0.101.0 — 2026-07-02
 
 ### New
