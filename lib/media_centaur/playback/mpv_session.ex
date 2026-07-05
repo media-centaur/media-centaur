@@ -41,6 +41,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   alias MediaCentaur.Platform.DisplayEnv
 
   alias MediaCentaur.Playback.{
+    ChapterCompletion,
     Events,
     IpcFraming,
     LanguageContext,
@@ -94,6 +95,10 @@ defmodule MediaCentaur.Playback.MpvSession do
     exiting?: false,
     state: :starting,
     language_context: nil,
+    # mpv `chapter-list` for the loaded file (`[%{"title", "time"}]`), used
+    # by `ChapterCompletion` to complete at the credits boundary rather than
+    # grinding to the 90%/eof fallback. Empty for files without chapters.
+    chapters: [],
     audio_tracks: [],
     subtitle_tracks: [],
     # Raw mpv-reported selected track indices (not derived languages). The
@@ -491,6 +496,14 @@ defmodule MediaCentaur.Playback.MpvSession do
     handle_track_list_update(state, tracks)
   end
 
+  defp handle_mpv_message(
+         %{"event" => "property-change", "name" => "chapter-list", "data" => chapters},
+         state
+       )
+       when is_list(chapters) do
+    %{state | chapters: chapters}
+  end
+
   defp handle_mpv_message(%{"event" => "property-change", "name" => "aid", "data" => aid}, state) do
     schedule_capture(%{state | current_aid: aid})
   end
@@ -722,7 +735,7 @@ defmodule MediaCentaur.Playback.MpvSession do
             "saved progress — #{Format.format_seconds(saveable)} of #{Format.format_seconds(duration)}"
           )
 
-          maybe_mark_completed_via_progress(playable_item_id, saveable, duration)
+          maybe_mark_completed_via_progress(playable_item_id, saveable, duration, state.chapters)
           # Preserve the rich `%EntityProgressUpdated{}` event for
           # consumers that need summary/resume_target/changed_record
           # (EntityModal, StatusLive, LibraryLive). The simpler
@@ -781,27 +794,49 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   defp resolve_or_create_playable_item_id(_params), do: {:error, :no_fk_specified}
 
-  defp maybe_mark_completed_via_progress(playable_item_id, position, duration)
+  defp maybe_mark_completed_via_progress(playable_item_id, position, duration, chapters)
        when is_number(position) and is_number(duration) and duration > 0 do
     case LibraryProgress.get(playable_item_id) do
       %{completed: true} ->
         :ok
 
       _ ->
-        if position / duration >= 0.90 do
-          Log.info(
-            :playback,
-            "marked completed — #{Format.format_seconds(position)} reached #{Float.round(position / duration * 100, 0)}% of #{Format.format_seconds(duration)}"
-          )
+        case completion_reason(position, duration, chapters) do
+          nil ->
+            :ok
 
-          :ok = LibraryProgress.complete(playable_item_id)
-        else
-          :ok
+          reason ->
+            Log.info(:playback, "marked completed — #{reason}")
+            :ok = LibraryProgress.complete(playable_item_id)
         end
     end
   end
 
-  defp maybe_mark_completed_via_progress(_playable_item_id, _position, _duration), do: :ok
+  defp maybe_mark_completed_via_progress(_playable_item_id, _position, _duration, _chapters), do: :ok
+
+  # Returns a human-readable reason string when the item should be marked
+  # completed, or `nil` otherwise. Two triggers:
+  #
+  #   * a credits/outro chapter — the user reached the end of *content*,
+  #     independent of how long the credits tail runs; and
+  #   * the 90% position fallback, for the majority of files that carry no
+  #     usable chapter markers.
+  #
+  # The chapter trigger is checked first so a title with a long tail
+  # completes at the credits boundary instead of grinding to 90%.
+  defp completion_reason(position, duration, chapters) do
+    cond do
+      (content_end = ChapterCompletion.content_end_seconds(chapters, duration)) &&
+          position >= content_end ->
+        "reached credits chapter at #{Format.format_seconds(content_end)}"
+
+      position / duration >= 0.90 ->
+        "#{Format.format_seconds(position)} reached #{Float.round(position / duration * 100, 0)}% of #{Format.format_seconds(duration)}"
+
+      true ->
+        nil
+    end
+  end
 
   defp maybe_mark_extra_completed(record, position, duration)
        when is_number(position) and is_number(duration) and duration > 0 do
@@ -881,6 +916,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     send_mpv_command(socket, ["observe_property", 5, "track-list"])
     send_mpv_command(socket, ["observe_property", 6, "aid"])
     send_mpv_command(socket, ["observe_property", 7, "sid"])
+    send_mpv_command(socket, ["observe_property", 8, "chapter-list"])
   end
 
   defp send_mpv_command(nil, _command), do: :ok

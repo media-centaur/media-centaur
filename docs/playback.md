@@ -40,7 +40,7 @@ graph TD
 
 **Seek-aware progress tracking:** The `WatchingTracker` distinguishes continuous watching from seeking. Progress is only saved during continuous playback (10+ uninterrupted seconds). Jumps > 3 seconds reset the continuous timer.
 
-**Completion threshold:** 90% of duration. Completion is monotonic — once marked complete, it never regresses.
+**Completion trigger:** whichever comes first — reaching a credits/outro chapter (a chapter titled "Credits"/"Outro" starting in the back 20% of the file, via `Playback.ChapterCompletion`) or 90% of duration for files without such a chapter. The chapter path lets titles with long credits tails complete at the true end of content instead of grinding to 90%. Completion is monotonic — once marked complete, it never regresses.
 
 **Offline state:** `Library.Availability` tracks per-media-directory mount/reachability. When a file's media directory is unavailable, UI cards and the detail panel swap the **Play** button for a muted **Offline** indicator. The indicator clears automatically when availability restores — no LiveView reload needed.
 
