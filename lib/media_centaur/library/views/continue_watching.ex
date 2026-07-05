@@ -14,7 +14,15 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
     * `library:updates` — entity creates/edits/deletes
       (already coalesced upstream by `Library.BroadcastCoalescer`).
     * `watch_history:events` — completion events that promote/remove
-      entries.
+      entries. Two completion signals arrive here: the async,
+      best-effort `{:watch_event_created, _}` (emitted by the Recorder
+      after resolving a title) and the synchronous, deterministic
+      `{:watch_completed, playable_item_id}` (emitted by
+      `Library.Progress.Worker` immediately after it persists
+      `completed: true`). Both trigger a rebuild; the deterministic one
+      guarantees a finished item drops from the row live even if the
+      Recorder's title lookup lags or fails, instead of lingering until
+      a manual page reload.
     * `playback:events` — `:entity_progress_updated` keeps the
       progress bar live during active playback. Rebuild cost is
       sub-millisecond per event (one indexed query + struct mapping
@@ -74,6 +82,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
   def relevant?({:entities_changed, _}), do: true
   def relevant?({:watch_event_created, _}), do: true
   def relevant?({:entity_progress_updated, _}), do: true
+  def relevant?({:watch_completed, _playable_item_id}), do: true
   def relevant?({:availability_changed, _dir, _state}), do: true
   def relevant?(_), do: false
 
