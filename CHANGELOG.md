@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.101.2 — 2026-07-06
+
+### Improved
+
+- **Titles finish the moment the credits roll.** When a file has a chapter marking its closing credits, Media Centaur now counts it as watched as soon as you reach that chapter — so a movie with a long credit roll registers as finished when the story ends, instead of waiting for the credits to play out. Files without a credits chapter are unchanged (still marked watched at 90%).
+
+### Fixed
+
+- **"Mark watched" now updates right away.** Marking an episode or movie watched during or just after playback took effect immediately instead of only after a page reload.
+
 ## v0.101.1 — 2026-07-05
 
 ### Fixed
