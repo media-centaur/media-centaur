@@ -35,10 +35,23 @@ defmodule MediaCentaur.AcquisitionCancelRoutingTest do
     :ok
   end
 
-  test "a SABnzbd id routes to the usenet client" do
+  test "a classic SABnzbd_nzo_ id routes to the usenet client" do
     assert :ok = Acquisition.cancel_download("SABnzbd_nzo_abc123")
 
     assert_received {:sab_delete, %{"value" => "SABnzbd_nzo_abc123", "del_files" => "1"}}
+    refute_received {:qbit_delete, _}
+  end
+
+  test "a SABnzbd 5.x UUID id routes to the usenet client" do
+    # SABnzbd 5 dropped the SABnzbd_nzo_ prefix — nzo_ids are bare UUIDs.
+    # Only a 40-hex infohash identifies a torrent; anything else is the
+    # usenet client's. Routing a UUID to qBittorrent would false-succeed
+    # (it answers 200 to deletes of unknown hashes) and the real job
+    # would never be cancelled.
+    uuid = "6abc3060-d543-4047-864b-6125c5011de2"
+    assert :ok = Acquisition.cancel_download(uuid)
+
+    assert_received {:sab_delete, %{"value" => ^uuid, "del_files" => "1"}}
     refute_received {:qbit_delete, _}
   end
 

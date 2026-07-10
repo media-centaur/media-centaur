@@ -171,6 +171,24 @@ defmodule MediaCentaur.Acquisition.InfoHashTest do
   end
 
   describe "resolve/2" do
+    test "a usenet result resolves nil without fetching — no infohash exists, and its download_url serves an NZB" do
+      # Fetching would download the whole NZB just to fail bencode
+      # parsing. Usenet identity is the nzo_id, pinned at first queue
+      # sighting — never a grab-time hash.
+      result = %SearchResult{
+        title: "Sample.Release.2026.2160p-GRP",
+        guid: "u1",
+        indexer_id: 1,
+        protocol: :usenet,
+        info_hash: nil,
+        magnet_url: nil,
+        download_url: "http://prowlarr.test/download/nzb"
+      }
+
+      fetcher = fn _url -> raise "must not fetch a usenet release's download_url" end
+      assert InfoHash.resolve(result, fetcher) == nil
+    end
+
     test "returns the search-result hash without fetching" do
       result = %SearchResult{
         title: "Sample",

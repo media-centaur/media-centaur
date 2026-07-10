@@ -17,7 +17,37 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentityTest do
 
   defp reload(target), do: Repo.get!(Target, target.id)
 
-  test "captures torrent_hash + content_path onto the matched target" do
+  @tag :tmp_dir
+  test "captures torrent_hash + content_path onto the matched target", %{tmp_dir: tmp_dir} do
+    {_pursuit, target} =
+      create_pursuit_with_target(%{
+        recipe_type: "prowlarr_query",
+        release_title: "Sample.Release.2024.1080p-GRP"
+      })
+
+    content_path = Path.join(tmp_dir, "Sample.Release.2024.1080p-GRP.mkv")
+    File.touch!(content_path)
+
+    item =
+      queue_item(%{
+        id: "abc123hash",
+        title: "Sample.Release.2024.1080p-GRP",
+        content_path: content_path
+      })
+
+    assert :ok = DownloadIdentity.capture!(target, [item], "Sample.Release.2024.1080p-GRP")
+
+    reloaded = reload(target)
+    assert reloaded.torrent_hash == "abc123hash"
+    assert reloaded.content_path == content_path
+  end
+
+  test "a content_path this host can't see is not pinned — the id still is" do
+    # A dockerized client reports its own mount namespace (SABnzbd's
+    # history storage: /downloads/completed/…). Pinning a path that
+    # doesn't exist host-side poisons the write-once slot with a value
+    # that can never match a library path; leaving it nil lets a later
+    # sighting (or the name-match landing) fill it with something real.
     {_pursuit, target} =
       create_pursuit_with_target(%{
         recipe_type: "prowlarr_query",
@@ -28,14 +58,14 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentityTest do
       queue_item(%{
         id: "abc123hash",
         title: "Sample.Release.2024.1080p-GRP",
-        content_path: "/downloads/Sample.Release.2024.1080p-GRP.mkv"
+        content_path: "/downloads/completed/Sample.Release.2024.1080p-GRP"
       })
 
     assert :ok = DownloadIdentity.capture!(target, [item], "Sample.Release.2024.1080p-GRP")
 
     reloaded = reload(target)
     assert reloaded.torrent_hash == "abc123hash"
-    assert reloaded.content_path == "/downloads/Sample.Release.2024.1080p-GRP.mkv"
+    assert reloaded.content_path == nil
   end
 
   test "matches by normalized title (separators differ between release and torrent name)" do
@@ -56,12 +86,15 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentityTest do
     assert reload(target).torrent_hash == "h2"
   end
 
-  test "usenet two-phase capture — title match pins the nzo_id, completion fills the storage path" do
+  @tag :tmp_dir
+  test "usenet two-phase capture — title match pins the nzo_id, completion fills the storage path",
+       %{tmp_dir: tmp_dir} do
     # Provisional usenet identity (usenet-download-client campaign):
     # no infohash exists, so the first sighting matches by title and
     # pins the nzo_id into torrent_hash; content_path only exists once
     # the job completes into SABnzbd's history (`storage`), where the
-    # now-pinned id matches and fills the remaining field.
+    # now-pinned id matches and fills the remaining field (when the
+    # reported path is real on this host).
     {_pursuit, target} =
       create_pursuit_with_target(%{
         recipe_type: "prowlarr_query",
@@ -82,13 +115,16 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentityTest do
     assert pinned.torrent_hash == "SABnzbd_nzo_x1"
     assert pinned.content_path == nil
 
+    storage = Path.join(tmp_dir, "Sample.Release.2024.1080p-GRP")
+    File.mkdir_p!(storage)
+
     completed_item =
       queue_item(%{
         id: "SABnzbd_nzo_x1",
         title: "Sample.Release.2024.1080p-GRP",
         protocol: :usenet,
         state: :completed,
-        content_path: "/downloads/complete/Sample.Release.2024.1080p-GRP"
+        content_path: storage
       })
 
     assert :ok =
@@ -96,7 +132,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentityTest do
 
     landed = reload(target)
     assert landed.torrent_hash == "SABnzbd_nzo_x1"
-    assert landed.content_path == "/downloads/complete/Sample.Release.2024.1080p-GRP"
+    assert landed.content_path == storage
   end
 
   test "is write-once — an already-captured hash is not overwritten" do
@@ -141,7 +177,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentityTest do
     assert reload(target).torrent_hash == nil
   end
 
-  test "captures content_path on a grab-time-hashed target while its torrent is still live" do
+  @tag :tmp_dir
+  test "captures content_path on a grab-time-hashed target while its torrent is still live",
+       %{tmp_dir: tmp_dir} do
     # Grab-time infohash capture (v0.77.2) populates torrent_hash BEFORE the
     # download is ever seen in the queue. DownloadIdentity must still run to
     # capture content_path from the live download — paired by the hash —
@@ -157,18 +195,21 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentityTest do
         content_path: nil
       })
 
+    content_path = Path.join(tmp_dir, "Sample.Release.2024.1080p-GRP.mkv")
+    File.touch!(content_path)
+
     item =
       queue_item(%{
         id: "grabhash",
         title: "Sample.Release.2024.1080p-GRP",
-        content_path: "/downloads/Sample.Release.2024.1080p-GRP.mkv"
+        content_path: content_path
       })
 
     assert :ok = DownloadIdentity.capture!(target, [item], "Sample.Release.2024.1080p-GRP")
 
     reloaded = reload(target)
     assert reloaded.torrent_hash == "grabhash"
-    assert reloaded.content_path == "/downloads/Sample.Release.2024.1080p-GRP.mkv"
+    assert reloaded.content_path == content_path
   end
 
   test "self-heals a no-hash target whose torrent name carries a tracker prefix" do

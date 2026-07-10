@@ -20,11 +20,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTargetTest do
       MediaCentaur.DownloadClientStubs.forward_deletes_to(self())
 
       {pursuit, _target} =
-        create_pursuit_with_target(%{status: "acquired", torrent_hash: "0ldrelease0"})
+        create_pursuit_with_target(%{status: "acquired", torrent_hash: "01dbeef00001dbeef00001dbeef00001dbeef000"})
 
       assert {:ok, %Pursuit{}} = run(%{pursuit_id: pursuit.id})
 
-      assert_receive {:qbit_delete, %{"hashes" => "0ldrelease0", "deleteFiles" => "true"}}
+      assert_receive {:qbit_delete, %{"hashes" => "01dbeef00001dbeef00001dbeef00001dbeef000", "deleteFiles" => "true"}}
     end
   end
 

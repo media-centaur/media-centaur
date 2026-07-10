@@ -59,7 +59,15 @@ defmodule MediaCentaur.Acquisition.InfoHash do
   content_path correlation — no regression).
   """
   @spec resolve(SearchResult.t(), fetcher()) :: String.t() | nil
-  def resolve(%SearchResult{} = result, fetcher \\ &fetch/1) do
+  def resolve(result, fetcher \\ &fetch/1)
+
+  # No infohash exists for a usenet release, and its download_url serves
+  # an NZB — fetching would pull the whole document just to fail bencode
+  # parsing. Usenet identity is the client's nzo_id, pinned at first
+  # queue sighting (`Pursuits.DownloadIdentity`), never a grab-time hash.
+  def resolve(%SearchResult{protocol: :usenet}, _fetcher), do: nil
+
+  def resolve(%SearchResult{} = result, fetcher) do
     from_search_result(result) || resolve_via_download(result, fetcher)
   end
 
