@@ -45,11 +45,15 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfoPanel do
   def more_info_panel(assigns) do
     ~H"""
     <section class="space-y-6 pt-2 pb-4">
-      <.headline_for_type entity={@entity} />
+      <%!-- Credits left, probed file facts right — the headline pair is
+            short, so the row's right half was dead space. --%>
+      <div class="grid gap-6 sm:grid-cols-2 sm:items-start">
+        <.headline_for_type entity={@entity} />
+        <FileDetails.file_details files={@entity[:watched_files] || []} />
+      </div>
       <CastGrid.cast_grid cast={@entity[:cast] || []} />
       <.meta_for_type entity={@entity} />
       <.track_override_badge entity={@entity} />
-      <FileDetails.file_details files={@entity[:watched_files] || []} />
       <ExternalLinks.external_links tmdb_url={@entity[:url]} imdb_id={@entity[:imdb_id]} />
     </section>
     """

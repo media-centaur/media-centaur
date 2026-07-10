@@ -9,7 +9,6 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   """
 
   alias MediaCentaurWeb.Components.Detail.Facet
-  alias MediaCentaurWeb.Components.Detail.MoreInfo.FileDetails
 
   @doc """
   Returns the list of facets for an entity, ready for `Detail.FacetStrip`.
@@ -19,7 +18,7 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
 
   Variants:
 
-    * `facets_for(:movie, movie)` — Director, Rating, Original language, Studio, Genres, File
+    * `facets_for(:movie, movie)` — Director, Rating, Original language, Studio, Genres
     * `facets_for(:tv_series, tv)` — Network, Rating, Original language, Genres
     * `facets_for(:movie_series, ms, movies)` — Movies, Rating, First released, Latest, Genres
 
@@ -39,28 +38,10 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
         Facet.rating("Rating", movie.aggregate_rating_value, Map.get(movie, :vote_count)),
         Facet.text("Original language", movie.original_language),
         Facet.text("Studio", movie.studio),
-        Facet.chips("Genres", Map.get(movie, :genres)),
-        Facet.text("File", file_tech_line(movie))
+        Facet.chips("Genres", Map.get(movie, :genres))
       ],
       &blank_facet?/1
     )
-  end
-
-  # The probed technical facts of the entity's (first) backing file —
-  # duration, codec, resolution, audio — as one facet-sized line
-  # (`Library.FileMediaInfo` via the entity map's watched_files). Nil
-  # (facet omitted) for unprobed files and file-less entities.
-  defp file_tech_line(entity) do
-    case Map.get(entity, :watched_files) do
-      [%{media_info: %{} = media_info} | _rest] ->
-        case FileDetails.tech_line(media_info) do
-          "" -> nil
-          line -> line
-        end
-
-      _no_probed_file ->
-        nil
-    end
   end
 
   @spec facets_for(:tv_series, map()) :: [Facet.t()]
