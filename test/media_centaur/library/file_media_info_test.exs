@@ -77,6 +77,23 @@ defmodule MediaCentaur.Library.FileMediaInfoTest do
   end
 
   describe "probe_missing_media_info/0" do
+    test "a sweep that filled rows broadcasts entities_changed so cached projections rebuild" do
+      # The boot sweep runs AFTER the detail projection's boot build —
+      # without this broadcast the More-info pane shows nothing until an
+      # unrelated library event rebuilds the cache (the "I don't see it"
+      # incident).
+      _file = create_linked_file(%{movie_id: create_movie(%{name: "Sample Movie"}).id})
+      with_stub_runner()
+      :ok = Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
+
+      assert %{probed: 1} = Library.probe_missing_media_info()
+      assert_receive {:entities_changed, _ids}, 500
+
+      # An all-caught-up sweep stays silent — no rebuild churn at boot.
+      assert %{probed: 0} = Library.probe_missing_media_info()
+      refute_receive {:entities_changed, _ids}, 100
+    end
+
     test "fills only files without a row" do
       first = create_linked_file(%{movie_id: create_movie(%{name: "Sample Movie"}).id})
       second = create_linked_file(%{movie_id: create_movie(%{name: "Sample Movie"}).id})
