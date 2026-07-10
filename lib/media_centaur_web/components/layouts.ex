@@ -257,13 +257,20 @@ defmodule MediaCentaurWeb.Layouts do
         `html:not([data-update-applying])` / `html[data-update-applying]`
         selectors gate which toast `show/1` actually un-hides on disconnect.
       --%>
+      <%!-- The `to:` on remove_attribute must repeat the gate selector:
+            a bare JS.remove_attribute targets the bound element
+            UNconditionally, which once un-hid all three toasts on every
+            disconnect (the "Applying update on every dev restart" bug —
+            the gated show() was correct, the ungated unhide wasn't). --%>
       <.flash
         id="client-error"
         kind={:error}
         title={gettext("Media Centaur isn't responding")}
         phx-disconnected={
           show("html:not([data-update-applying]) .phx-client-error #client-error")
-          |> JS.remove_attribute("hidden")
+          |> JS.remove_attribute("hidden",
+            to: "html:not([data-update-applying]) .phx-client-error #client-error"
+          )
         }
         phx-connected={hide("#client-error") |> JS.set_attribute({"hidden", ""})}
         hidden
@@ -278,7 +285,9 @@ defmodule MediaCentaurWeb.Layouts do
         title={gettext("Something went wrong")}
         phx-disconnected={
           show("html:not([data-update-applying]) .phx-server-error #server-error")
-          |> JS.remove_attribute("hidden")
+          |> JS.remove_attribute("hidden",
+            to: "html:not([data-update-applying]) .phx-server-error #server-error"
+          )
         }
         phx-connected={hide("#server-error") |> JS.set_attribute({"hidden", ""})}
         hidden
@@ -292,7 +301,8 @@ defmodule MediaCentaurWeb.Layouts do
         kind={:info}
         title={gettext("Applying update")}
         phx-disconnected={
-          show("html[data-update-applying] #update-applying") |> JS.remove_attribute("hidden")
+          show("html[data-update-applying] #update-applying")
+          |> JS.remove_attribute("hidden", to: "html[data-update-applying] #update-applying")
         }
         phx-connected={
           hide("#update-applying")
