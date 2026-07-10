@@ -1,9 +1,33 @@
 defmodule MediaCentaur.Downloads.QueueMonitor do
   @moduledoc """
-  Polls the configured download client and broadcasts a versioned
+  Polls the configured download-client **set** (torrent + usenet slots,
+  see `Dispatcher.drivers/0`) and broadcasts one merged, versioned
   `%QueueState{}` snapshot. Replaces per-LiveView polling so multiple
   consumers (Downloads page + Library upcoming zone) share a single
-  connection.
+  connection per client.
+
+  ## Multi-client merge
+
+  Each tick polls every slot that is configured **and** connection-
+  tested (`Capabilities.client_ready?/1`), each with its own opaque
+  driver bookmark. The merged snapshot keeps the slots honest and
+  independent:
+
+  - Items concatenate torrent-slot first; every item is protocol-tagged
+    by its driver.
+  - `:completed` items are **kept** in the snapshot (usenet completion
+    is only visible as a SABnzbd history entry, whose `storage` path is
+    the `content_path` pursuit matching pins); they are excluded from
+    health classification.
+  - A failing client keeps its last-known items (staleness is expressed
+    through its grade, not by items vanishing mid-outage) while the
+    healthy client's items stay fresh.
+  - `QueueState.connectivity` is the worst grade across slots;
+    `QueueState.client_connectivity` carries the per-slot grades.
+
+  The poll cadence is shared: an `:auth_failed` grade on either slot
+  backs the whole cycle off to the 30 s backoff — slightly staler data
+  for the healthy client in exchange for not hammering the broken one.
 
   ## Cache + broadcast
 
@@ -178,11 +202,12 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
       history: %{},
       last_sync_log_ms: nil,
       poll_generation: 0,
-      # The configured driver module + its opaque sync bookmark
-      # (`DownloadClient.driver_state`). The bookmark is reset whenever
-      # the driver module changes between polls.
-      driver: nil,
-      driver_state: nil
+      # Per-protocol client conversations:
+      # %{protocol => %{module, driver_state, items, connectivity}}.
+      # `driver_state` is the driver's opaque sync bookmark, reset when
+      # the slot's driver module changes between polls; `items` is the
+      # slot's last successful item list, carried through failed polls.
+      clients: %{}
     }
 
     {:ok, schedule_poll(state, 0)}
@@ -244,46 +269,65 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   end
 
   defp poll_and_broadcast(state) do
-    case Dispatcher.driver() do
-      {:ok, driver} -> run_sync(state, driver)
-      {:error, _not_configured_or_unknown} -> mark_not_configured(state)
+    ready_drivers =
+      for {config, module} <- Dispatcher.drivers(),
+          Capabilities.client_ready?(config.protocol),
+          do: {config.protocol, module}
+
+    case ready_drivers do
+      [] -> mark_not_configured(state)
+      drivers -> run_syncs(state, drivers)
     end
   end
 
-  defp run_sync(state, driver) do
+  defp run_syncs(state, drivers) do
     now = DateTime.utc_now()
-    # A driver swap (user reconfigured the client type) invalidates the
-    # old driver's opaque bookmark — start its conversation fresh.
-    driver_state = if driver == state.driver, do: state.driver_state
 
-    case driver.sync(driver_state) do
+    outcomes =
+      Enum.map(drivers, fn {protocol, module} ->
+        {protocol, sync_client(client_for(state.clients, protocol, module), protocol, now)}
+      end)
+
+    clients = Map.new(outcomes, fn {protocol, {client, _tick}} -> {protocol, client} end)
+    ticks = outcomes |> Enum.map(fn {_protocol, {_client, tick}} -> tick end) |> Enum.reject(&is_nil/1)
+    any_success? = ticks != []
+
+    # Merge in slot order (torrent first — `drivers` preserves
+    # Dispatcher.drivers/0 order). Completed items are kept in the
+    # snapshot but excluded from health classification.
+    items = Enum.flat_map(outcomes, fn {_protocol, {client, _tick}} -> client.items end)
+    {active, completed} = Enum.split_with(items, &(&1.state != :completed))
+
+    {history, enriched} =
+      HealthHistory.update(state.history, active, System.monotonic_time(:microsecond))
+
+    last_sync_log_ms = log_sync_ticks(ticks, state.last_sync_log_ms)
+
+    queue = %QueueState{
+      items: enriched ++ completed,
+      last_polled_at: now,
+      last_successful_poll_at: if(any_success?, do: now, else: state.queue.last_successful_poll_at),
+      connectivity: merge_connectivity(clients),
+      client_connectivity: Map.new(clients, fn {protocol, client} -> {protocol, client.connectivity} end)
+    }
+
+    store_and_broadcast(queue)
+
+    %{state | queue: queue, history: history, last_sync_log_ms: last_sync_log_ms, clients: clients}
+  end
+
+  # One driver's sync tick. Returns {client_state, tick | nil} — tick is
+  # {movement?, summary} on success, nil on failure (the failed slot
+  # keeps its last-known items and its grade carries the failure).
+  defp sync_client(client, protocol, now) do
+    case client.module.sync(client.driver_state) do
       {:ok, %SyncResult{} = result} ->
-        last_sync_log_ms = log_sync_tick(result, state.last_sync_log_ms)
-        active = Enum.reject(result.items, &(&1.state == :completed))
-
-        {history, enriched} =
-          HealthHistory.update(state.history, active, System.monotonic_time(:microsecond))
-
-        queue = %QueueState{
-          items: enriched,
-          last_polled_at: now,
-          last_successful_poll_at: now,
-          connectivity: Connectivity.poll_succeeded(state.queue.connectivity)
-        }
-
-        store_and_broadcast(queue)
-
-        %{
-          state
-          | queue: queue,
-            history: history,
-            last_sync_log_ms: last_sync_log_ms,
-            driver: driver,
-            driver_state: result.driver_state
-        }
-
-      {:error, :not_configured, _driver_state} ->
-        mark_not_configured(state)
+        {%{
+           client
+           | driver_state: result.driver_state,
+             items: result.items,
+             connectivity: Connectivity.poll_succeeded(client.connectivity)
+         }, {result.movement?, result.summary}}
 
       {:error, reason, next_driver_state} ->
         # The outage condition is owned by Downloads.IncidentContext.assess/0
@@ -291,16 +335,45 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
         # duplicate :log incident (ADR-054). The driver hands back the
         # bookmark to carry forward (it resets its own conversation so the
         # next successful poll is a full update).
-        Log.warning(:library, "queue monitor poll failed: #{inspect(reason)}", mc_incident: :skip)
+        Log.warning(
+          :library,
+          "queue monitor poll failed (#{protocol}): #{inspect(reason)}",
+          mc_incident: :skip
+        )
 
-        connectivity =
-          Connectivity.poll_failed(state.queue.connectivity, classify_error(reason), now)
-
-        queue = %{state.queue | last_polled_at: now, connectivity: connectivity}
-
-        store_and_broadcast(queue)
-        %{state | queue: queue, driver: driver, driver_state: next_driver_state}
+        {%{
+           client
+           | driver_state: next_driver_state,
+             connectivity: Connectivity.poll_failed(client.connectivity, classify_error(reason), now)
+         }, nil}
     end
+  end
+
+  # A driver swap (user reconfigured the slot's client type) invalidates
+  # the old driver's opaque bookmark — start its conversation fresh.
+  defp client_for(clients, protocol, module) do
+    case Map.get(clients, protocol) do
+      %{module: ^module} = client ->
+        client
+
+      _new_or_swapped ->
+        %{module: module, driver_state: nil, items: [], connectivity: Connectivity.initial()}
+    end
+  end
+
+  # Worst grade across slots — a true "needs attention" roll-up for
+  # consumers that render one indicator. Per-slot truth lives in
+  # `client_connectivity`.
+  defp merge_connectivity(clients) when map_size(clients) == 0, do: :not_configured
+
+  defp merge_connectivity(clients) do
+    grades = clients |> Map.values() |> Enum.map(& &1.connectivity)
+
+    Enum.find(grades, &(&1 == :auth_failed)) ||
+      Enum.find(grades, &match?({:offline, _}, &1)) ||
+      Enum.find(grades, &match?({:transient_failure, _}, &1)) ||
+      Enum.find(grades, &(&1 == :live)) ||
+      :initializing
   end
 
   defp mark_not_configured(state) do
@@ -308,11 +381,12 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
       items: [],
       last_polled_at: DateTime.utc_now(),
       last_successful_poll_at: state.queue.last_successful_poll_at,
-      connectivity: :not_configured
+      connectivity: :not_configured,
+      client_connectivity: %{}
     }
 
     store_and_broadcast(queue)
-    %{state | queue: queue, history: %{}, driver: nil, driver_state: nil}
+    %{state | queue: queue, history: %{}, clients: %{}}
   end
 
   defp store_and_broadcast(%QueueState{} = queue) do
@@ -330,20 +404,24 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   defp classify_error(_), do: :unreachable
 
   # Emits the grep-able "is the subsystem actually polling?" signal —
-  # but only for ticks worth seeing. Real movement always logs at :info
-  # immediately; steady-state echoes are skipped except for a periodic
-  # heartbeat so the Console ring buffer isn't flooded (see
-  # @sync_log_heartbeat_ms). Movement detection and the line body come
-  # from the driver (it knows its own delta format); the cadence policy
-  # lives here. Returns the monotonic ms of the last logged line so the
-  # caller can thread the heartbeat clock.
-  defp log_sync_tick(%SyncResult{} = result, last_log_ms) do
+  # but only for ticks worth seeing. Movement on ANY client logs all the
+  # clients' summaries at :info immediately; steady-state echoes are
+  # skipped except for a periodic heartbeat so the Console ring buffer
+  # isn't flooded (see @sync_log_heartbeat_ms). Movement detection and
+  # each line body come from the drivers (each knows its own delta
+  # format); the cadence policy lives here. Returns the monotonic ms of
+  # the last logged line so the caller can thread the heartbeat clock.
+  defp log_sync_ticks([], last_log_ms), do: last_log_ms
+
+  defp log_sync_ticks(ticks, last_log_ms) do
+    movement? = Enum.any?(ticks, fn {moved?, _summary} -> moved? end)
     now_ms = System.monotonic_time(:millisecond)
     ms_since = if last_log_ms, do: now_ms - last_log_ms, else: @sync_log_heartbeat_ms
 
-    case sync_log_level(result.movement?, ms_since) do
+    case sync_log_level(movement?, ms_since) do
       :info ->
-        Log.info(:acquisition, result.summary || "queue sync")
+        line = Enum.map_join(ticks, " · ", fn {_moved?, summary} -> summary || "queue sync" end)
+        Log.info(:acquisition, line)
         now_ms
 
       :skip ->

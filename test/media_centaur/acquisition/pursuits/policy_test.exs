@@ -132,6 +132,39 @@ defmodule MediaCentaur.Acquisition.Pursuits.PolicyTest do
     end
   end
 
+  describe "evaluate/1 — terminal download failure" do
+    # A client-reported terminal failure (SABnzbd's par2-unrepairable /
+    # unpack-failed) is deterministic — no observation window: the same
+    # release will fail the same way, so pivot immediately.
+    test "download_failed? returns {:auto_cancel, :download_failed} with no window" do
+      snapshot = build_snapshot(%{state: "active"}, %{download_failed?: true})
+
+      assert Policy.evaluate(snapshot) == {:auto_cancel, :download_failed}
+    end
+
+    test "takes precedence over zero seeders and stall" do
+      snapshot =
+        build_snapshot(
+          %{state: "active"},
+          %{
+            download_failed?: true,
+            zero_seeders_observed?: true,
+            zero_seeders_window_elapsed?: true,
+            stall_observed?: true,
+            stall_window_elapsed?: true
+          }
+        )
+
+      assert Policy.evaluate(snapshot) == {:auto_cancel, :download_failed}
+    end
+
+    test "a terminal pursuit stays untouched even when its download failed" do
+      snapshot = build_snapshot(%{state: "satisfied"}, %{download_failed?: true})
+
+      assert Policy.evaluate(snapshot) == :no_action
+    end
+  end
+
   describe "evaluate/1 — zero seeders" do
     test "observed but window not yet elapsed returns :no_action" do
       snapshot =

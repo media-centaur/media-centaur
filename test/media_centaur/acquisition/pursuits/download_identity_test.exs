@@ -56,6 +56,49 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentityTest do
     assert reload(target).torrent_hash == "h2"
   end
 
+  test "usenet two-phase capture — title match pins the nzo_id, completion fills the storage path" do
+    # Provisional usenet identity (usenet-download-client campaign):
+    # no infohash exists, so the first sighting matches by title and
+    # pins the nzo_id into torrent_hash; content_path only exists once
+    # the job completes into SABnzbd's history (`storage`), where the
+    # now-pinned id matches and fills the remaining field.
+    {_pursuit, target} =
+      create_pursuit_with_target(%{
+        recipe_type: "prowlarr_query",
+        release_title: "Sample.Release.2024.1080p-GRP"
+      })
+
+    live_item =
+      queue_item(%{
+        id: "SABnzbd_nzo_x1",
+        title: "Sample.Release.2024.1080p-GRP",
+        protocol: :usenet,
+        content_path: nil
+      })
+
+    assert :ok = DownloadIdentity.capture!(target, [live_item], "Sample.Release.2024.1080p-GRP")
+
+    pinned = reload(target)
+    assert pinned.torrent_hash == "SABnzbd_nzo_x1"
+    assert pinned.content_path == nil
+
+    completed_item =
+      queue_item(%{
+        id: "SABnzbd_nzo_x1",
+        title: "Sample.Release.2024.1080p-GRP",
+        protocol: :usenet,
+        state: :completed,
+        content_path: "/downloads/complete/Sample.Release.2024.1080p-GRP"
+      })
+
+    assert :ok =
+             DownloadIdentity.capture!(pinned, [completed_item], "Sample.Release.2024.1080p-GRP")
+
+    landed = reload(target)
+    assert landed.torrent_hash == "SABnzbd_nzo_x1"
+    assert landed.content_path == "/downloads/complete/Sample.Release.2024.1080p-GRP"
+  end
+
   test "is write-once — an already-captured hash is not overwritten" do
     {_pursuit, target} =
       create_pursuit_with_target(%{

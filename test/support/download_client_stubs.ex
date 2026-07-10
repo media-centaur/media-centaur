@@ -10,6 +10,7 @@ defmodule MediaCentaur.DownloadClientStubs do
   """
 
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent
+  alias MediaCentaur.Downloads.DownloadClient.SABnzbd
 
   @doc """
   Points the configured download client at a `Req.Test` `:qbittorrent`
@@ -35,6 +36,41 @@ defmodule MediaCentaur.DownloadClientStubs do
     ExUnit.Callbacks.on_exit(fn ->
       :persistent_term.put({MediaCentaur.Config, :config}, config)
       QBittorrent.invalidate_client()
+    end)
+
+    context
+  end
+
+  @doc """
+  Points the configured usenet client (SABnzbd) at a `Req.Test`
+  `:sabnzbd` stub — the usenet-slot mirror of
+  `setup_qbittorrent_client/1`. Default stub answers an empty queue +
+  history; override per test with `Req.Test.stub(:sabnzbd, …)`.
+  """
+  def setup_sabnzbd_client(context \\ %{}) do
+    config = :persistent_term.get({MediaCentaur.Config, :config})
+
+    :persistent_term.put(
+      {MediaCentaur.Config, :config},
+      Map.merge(config, %{
+        usenet_download_client_type: "sabnzbd",
+        usenet_download_client_url: "http://sab.test"
+      })
+    )
+
+    sab_client = Req.new(plug: {Req.Test, :sabnzbd}, retry: false, base_url: "http://sab.test")
+    :persistent_term.put({SABnzbd, :client}, sab_client)
+
+    Req.Test.stub(:sabnzbd, fn conn ->
+      case conn.params["mode"] do
+        "history" -> Req.Test.json(conn, %{"history" => %{"slots" => []}})
+        _other -> Req.Test.json(conn, %{"queue" => %{"slots" => []}})
+      end
+    end)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      :persistent_term.put({MediaCentaur.Config, :config}, config)
+      SABnzbd.invalidate_client()
     end)
 
     context

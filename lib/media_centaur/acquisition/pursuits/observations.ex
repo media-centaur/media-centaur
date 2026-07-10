@@ -193,7 +193,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Observations do
           pursuit_id: pursuit.id,
           pursuit_title: pursuit.title,
           occurred_at: now,
-          client: "qbittorrent",
+          client: client_name(queue_item),
           infohash: nil
         }
 
@@ -212,6 +212,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Observations do
         nil
     end
   end
+
+  # Payload identifier (matches the config type strings), not display copy.
+  defp client_name(%QueueItem{protocol: :usenet}), do: "sabnzbd"
+  defp client_name(%QueueItem{}), do: "qbittorrent"
 
   defp emit(nil), do: :ok
   defp emit(event), do: Events.record(event)

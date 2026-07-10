@@ -14,15 +14,20 @@ defmodule MediaCentaur.Acquisition.Pursuits.Policy do
 
   1. Pursuit or unit already terminal → `:no_action`
   2. Unit awaiting user input (`awaiting_decision_at` set) → `:no_action`
-  3. Sustained zero-seeders confirmed → `{:auto_cancel, :zero_seeders}`
-  4. Sustained stall confirmed → `{:request_decision, prompt}`
-  5. Exhaustion budget reached → `{:exhaust, :max_attempts}`
-  6. Otherwise → `:no_action`
+  3. Client-reported terminal failure → `{:auto_cancel, :download_failed}`
+  4. Sustained zero-seeders confirmed → `{:auto_cancel, :zero_seeders}`
+  5. Sustained stall confirmed → `{:request_decision, prompt}`
+  6. Exhaustion budget reached → `{:exhaust, :max_attempts}`
+  7. Otherwise → `:no_action`
 
-  Stall and zero-seeders rules fire only when the corresponding window has
-  elapsed (`*_window_elapsed?` derived in `Snapshots`). Until observation
-  state is populated by the Watcher, those flags are `nil` (cond branches
-  short-circuit safely on falsy).
+  Terminal failure (rule 3) has **no observation window**: the client
+  itself declared the download unrecoverable (SABnzbd's
+  par2-unrepairable / unpack-failed), so retrying the same release
+  deterministically fails again — pivot immediately. Stall and
+  zero-seeders rules fire only when the corresponding window has
+  elapsed (`*_window_elapsed?` derived in `Snapshots`). Until
+  observation state is populated by the Watcher, those flags are `nil`
+  (cond branches short-circuit safely on falsy).
   """
 
   alias MediaCentaur.Acquisition.Pursuits.{Action, Snapshot, State, UnitState}
@@ -33,6 +38,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Policy do
       State.terminal?(snapshot.pursuit.state) -> :no_action
       UnitState.terminal?(snapshot.unit.state) -> :no_action
       UnitState.awaiting_decision?(snapshot.unit) -> :no_action
+      snapshot.download_failed? -> {:auto_cancel, :download_failed}
       zero_seeders_confirmed?(snapshot) -> {:auto_cancel, :zero_seeders}
       stall_confirmed?(snapshot) -> {:request_decision, stall_prompt(snapshot)}
       exhaustion_reached?(snapshot) -> {:exhaust, :max_attempts}

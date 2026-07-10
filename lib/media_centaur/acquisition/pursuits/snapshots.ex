@@ -2,8 +2,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Snapshots do
   @moduledoc "Builder that assembles a Snapshot from live sources."
 
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Snapshot, Thresholds, Unit, Units}
-  alias MediaCentaur.Acquisition.Target
-  alias MediaCentaur.Downloads.QueueMonitor
+  alias MediaCentaur.Acquisition.{QueueMatcher, Target}
+  alias MediaCentaur.Downloads.{QueueItem, QueueMonitor}
 
   @doc """
   Assembles a Snapshot for the given pursuit + unit (ADR-055 — the
@@ -53,8 +53,25 @@ defmodule MediaCentaur.Acquisition.Pursuits.Snapshots do
           unit.zero_seeders_first_seen_at,
           thresholds.zero_seeders_window_hours,
           now
-        )
+        ),
+      download_failed?: download_failed?(queue_state, current_target)
     }
+  end
+
+  # The client itself declared the download terminally failed — only
+  # drivers that report a failure detail set `failure_message` (SABnzbd's
+  # `fail_message`: par2-unrepairable, unpack-failed). Gating on the
+  # message, not just `state == :error`, keeps qBittorrent's ambiguous
+  # `error`/`missingFiles` states (often user-moved files) out of the
+  # auto-pivot path.
+  defp download_failed?(:unknown, _target), do: false
+  defp download_failed?(_queue, nil), do: false
+
+  defp download_failed?(queue, %Target{} = target) when is_list(queue) do
+    case QueueMatcher.find_item(queue, target.torrent_hash, target.release_title) do
+      %QueueItem{state: :error, failure_message: message} when is_binary(message) -> true
+      _ -> false
+    end
   end
 
   defp read_queue_state do

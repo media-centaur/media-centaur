@@ -229,8 +229,8 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       mount_and_assert(
         conn,
         "/settings",
-        43,
-        "Config + Secret reads + maintenance health counts (per-key cache-miss DB fallback in test mode)"
+        44,
+        "Config + Secret reads + maintenance health counts + per-client connection-test reads (per-key cache-miss DB fallback in test mode)"
       )
     end
 

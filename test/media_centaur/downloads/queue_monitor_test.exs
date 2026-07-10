@@ -54,6 +54,8 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
       :persistent_term.put(flags_key, %{
         tmdb: false,
         prowlarr: false,
+        torrent_client: true,
+        usenet_client: false,
         download_client: true,
         acquisition: false
       })
@@ -137,6 +139,158 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
       assert_receive {:queue_state, %QueueState{connectivity: :live}}, 1000
       # …followed by a broadcast from the immediate poll (well under any cadence).
       assert_receive {:queue_state, %QueueState{connectivity: :live}}, 1000
+    end
+  end
+
+  describe "multi-client polling" do
+    @moduletag :capture_log
+
+    setup do
+      DownloadClientStubs.setup_qbittorrent_client()
+      DownloadClientStubs.setup_sabnzbd_client()
+
+      Req.Test.set_req_test_to_shared()
+      on_exit(fn -> Req.Test.set_req_test_to_private() end)
+
+      flags_key = {Capabilities, :ready_flags}
+      previous_flags = :persistent_term.get(flags_key, :__unset)
+
+      :persistent_term.put(flags_key, %{
+        tmdb: false,
+        prowlarr: false,
+        torrent_client: true,
+        usenet_client: true,
+        download_client: true,
+        acquisition: false
+      })
+
+      on_exit(fn ->
+        case previous_flags do
+          :__unset -> :persistent_term.erase(flags_key)
+          flags -> :persistent_term.put(flags_key, flags)
+        end
+      end)
+
+      stub_qbit_with_torrent()
+      stub_sab_with_download()
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.acquisition_queue())
+      start_supervised!(QueueMonitor)
+
+      assert_receive {:queue_state, %QueueState{connectivity: :live}}, 1000
+      :ok
+    end
+
+    defp stub_qbit_with_torrent do
+      Req.Test.stub(:qbittorrent, fn conn ->
+        Req.Test.json(conn, %{
+          "rid" => 1,
+          "full_update" => true,
+          "torrents" => %{
+            "hash-a" => %{
+              "name" => "Sample.Show.S01E01.1080p.WEB-DL",
+              "state" => "downloading",
+              "size" => 1000,
+              "amount_left" => 500,
+              "progress" => 0.5
+            }
+          },
+          "server_state" => %{}
+        })
+      end)
+    end
+
+    defp stub_sab_with_download do
+      Req.Test.stub(:sabnzbd, fn conn ->
+        case conn.params["mode"] do
+          "history" ->
+            Req.Test.json(conn, %{
+              "history" => %{
+                "slots" => [
+                  %{
+                    "nzo_id" => "SABnzbd_nzo_done",
+                    "name" => "Sample.Show.S01E03.1080p.WEB-DL",
+                    "status" => "Completed",
+                    "storage" => "/downloads/complete/Sample.Show.S01E03.1080p.WEB-DL",
+                    "bytes" => 900,
+                    "category" => "tv",
+                    "fail_message" => ""
+                  }
+                ]
+              }
+            })
+
+          _other ->
+            Req.Test.json(conn, %{
+              "queue" => %{
+                "slots" => [
+                  %{
+                    "nzo_id" => "SABnzbd_nzo_live",
+                    "filename" => "Sample.Show.S01E02.1080p.WEB-DL",
+                    "status" => "Downloading",
+                    "mb" => "100.0",
+                    "mbleft" => "40.0",
+                    "percentage" => "60",
+                    "timeleft" => "0:02:00",
+                    "cat" => "tv"
+                  }
+                ]
+              }
+            })
+        end
+      end)
+    end
+
+    defp stub_sab_unreachable do
+      Req.Test.stub(:sabnzbd, fn conn -> Req.Test.transport_error(conn, :econnrefused) end)
+    end
+
+    test "merges both clients' items into one protocol-tagged snapshot, torrent slot first" do
+      QueueMonitor.poll_now()
+      assert_receive {:queue_state, %QueueState{items: items, connectivity: :live}}, 1000
+
+      assert [
+               %{id: "hash-a", protocol: :torrent},
+               %{id: "SABnzbd_nzo_live", protocol: :usenet},
+               %{id: "SABnzbd_nzo_done", protocol: :usenet}
+             ] = Enum.map(items, &Map.take(&1, [:id, :protocol]))
+    end
+
+    test "completed usenet history items stay in the snapshot so completion (and its storage path) is observable" do
+      QueueMonitor.poll_now()
+      assert_receive {:queue_state, %QueueState{items: items}}, 1000
+
+      completed = Enum.find(items, &(&1.id == "SABnzbd_nzo_done"))
+      assert completed.state == :completed
+      assert completed.content_path == "/downloads/complete/Sample.Show.S01E03.1080p.WEB-DL"
+      assert completed.health == nil, "completed items are not health-classified"
+    end
+
+    test "one client down keeps the other live — merged grade degrades, per-client grades stay honest" do
+      QueueMonitor.poll_now()
+      assert_receive {:queue_state, %QueueState{connectivity: :live}}, 1000
+
+      stub_sab_unreachable()
+      QueueMonitor.poll_now()
+
+      assert_receive {:queue_state, %QueueState{} = state}, 1000
+      assert {:transient_failure, %DateTime{}} = state.connectivity
+      assert state.client_connectivity[:torrent] == :live
+      assert {:transient_failure, _} = state.client_connectivity[:usenet]
+
+      # The healthy client's items are fresh; the failed client keeps
+      # its last-known items rather than vanishing mid-outage.
+      assert Enum.any?(state.items, &(&1.id == "hash-a"))
+      assert Enum.any?(state.items, &(&1.id == "SABnzbd_nzo_live"))
+    end
+
+    test "an auth failure on one client grades the merged snapshot :auth_failed" do
+      Req.Test.stub(:sabnzbd, fn conn ->
+        Req.Test.json(conn, %{"status" => false, "error" => "API Key Incorrect"})
+      end)
+
+      QueueMonitor.poll_now()
+      assert_receive {:queue_state, %QueueState{connectivity: :auth_failed} = state}, 1000
+      assert state.client_connectivity[:torrent] == :live
     end
   end
 
