@@ -734,22 +734,72 @@ defmodule MediaCentaur.Library do
   yet (files imported before this feature, or whose probe failed).
   Idempotent and network-free; run from the boot heal
   (`Maintenance.probe_media_info_on_boot/1`).
+
+  A sweep that filled anything broadcasts `entities_changed` once —
+  the boot sweep finishes *after* the detail projection's boot build,
+  so without the nudge the More-info pane would render from a cache
+  snapshotted while the table was still empty.
   """
   @spec probe_missing_media_info() :: %{probed: non_neg_integer(), skipped: non_neg_integer()}
   def probe_missing_media_info do
-    from(f in FilePresence,
-      left_join: m in FileMediaInfo,
-      on: m.file_presence_id == f.id,
-      where: is_nil(m.id),
-      select: {f.id, f.file_path}
-    )
-    |> Repo.all()
-    |> Enum.reduce(%{probed: 0, skipped: 0}, fn {presence_id, path}, acc ->
-      case refresh_file_media_info(presence_id, path) do
-        :ok -> %{acc | probed: acc.probed + 1}
-        :skipped -> %{acc | skipped: acc.skipped + 1}
+    {summary, probed_presence_ids} =
+      from(f in FilePresence,
+        left_join: m in FileMediaInfo,
+        on: m.file_presence_id == f.id,
+        where: is_nil(m.id),
+        select: {f.id, f.file_path}
+      )
+      |> Repo.all()
+      |> Enum.reduce({%{probed: 0, skipped: 0}, []}, fn {presence_id, path}, {acc, ids} ->
+        case refresh_file_media_info(presence_id, path) do
+          :ok -> {%{acc | probed: acc.probed + 1}, [presence_id | ids]}
+          :skipped -> {%{acc | skipped: acc.skipped + 1}, ids}
+        end
+      end)
+
+    if summary.probed > 0 do
+      probed_presence_ids
+      |> top_level_entity_ids_for_presences()
+      |> broadcast_entities_changed()
+    end
+
+    summary
+  end
+
+  # Top-level entity ids (Movie / TVSeries / VideoObject) for the watched
+  # files behind the given presence rows — batched, two queries.
+  defp top_level_entity_ids_for_presences(presence_ids) do
+    containers =
+      Repo.all(
+        from(w in WatchedFile,
+          join: p in PlayableItem,
+          on: p.id == w.playable_item_id,
+          where: w.file_presence_id in ^presence_ids,
+          select: {p.container_type, p.container_id}
+        )
+      )
+
+    {episode_ids, direct_ids} =
+      Enum.reduce(containers, {[], []}, fn
+        {:episode, id}, {episodes, direct} -> {[id | episodes], direct}
+        {_type, id}, {episodes, direct} -> {episodes, [id | direct]}
+      end)
+
+    series_ids =
+      if episode_ids == [] do
+        []
+      else
+        Repo.all(
+          from(e in Episode,
+            join: s in Season,
+            on: s.id == e.season_id,
+            where: e.id in ^episode_ids,
+            select: s.tv_series_id
+          )
+        )
       end
-    end)
+
+    Enum.uniq(direct_ids ++ series_ids)
   end
 
   @doc """
