@@ -4,6 +4,26 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.102.0 — 2026-07-11
+
+### New
+
+- **Usenet downloads via SABnzbd.** Media Centaur can now grab releases over usenet alongside torrents. Point it at your SABnzbd server in Settings → Download Clients and searches will use whichever client fits each release — the Downloads queue shows torrent and usenet activity side by side, including SABnzbd's post-processing stages (verifying, repairing, extracting), and failed usenet grabs move on to the next release automatically.
+- **See a file's technical details on the title page.** The More info pane now shows what your copy actually is — resolution, video codec, audio format, and subtitle languages — probed from the file itself. Existing libraries are scanned once in the background after updating.
+
+### Improved
+
+- **Adding a movie now shows a proper preview.** When you pick a movie from search, the confirmation step presents it the way the library would — full backdrop, tagline, cast, and key facts — so you can tell at a glance it's the title you meant, before anything downloads.
+- **The Downloads free-space readout stays current.** Available disk space now refreshes every 30 seconds while you're on the page instead of only when it loads.
+
+### Fixed
+
+- **Files waiting in Review no longer import themselves.** A file whose match wasn't confident enough for automatic import could be queued for your review and then imported anyway seconds later — leaving the same title in your library *and* stuck in the Review queue. Uncertain matches now genuinely wait for your decision.
+- **Renamed and moved files are picked up reliably.** Moving or renaming a file inside a watched media folder is now detected as such, instead of occasionally being missed until the next full scan.
+- **No more stray "connection lost" pop-ups.** The disconnect notice now appears only when the connection is actually interrupted.
+
+This release includes a database migration; it runs automatically on first start after updating.
+
 ## v0.101.2 — 2026-07-06
 
 ### Improved
