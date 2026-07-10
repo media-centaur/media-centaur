@@ -577,9 +577,13 @@ defmodule MediaCentaur.Acquisition do
         protocol
 
       _absent_or_untagged ->
-        if is_binary(id) and String.starts_with?(id, "SABnzbd_nzo"),
-          do: :usenet,
-          else: :torrent
+        # Only a v1 infohash (40 hex chars) identifies a torrent. Usenet
+        # ids vary by client version (SABnzbd 4: "SABnzbd_nzo_…",
+        # SABnzbd 5: a bare UUID) — so anything non-infohash-shaped
+        # routes to the usenet slot.
+        if is_binary(id) and Regex.match?(~r/\A[0-9a-fA-F]{40}\z/, id),
+          do: :torrent,
+          else: :usenet
     end
   end
 

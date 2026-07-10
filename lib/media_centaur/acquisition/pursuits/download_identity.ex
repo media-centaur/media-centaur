@@ -50,7 +50,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentity do
         target
         |> Target.record_download_changeset(%{
           torrent_hash: item.id,
-          content_path: item.content_path
+          content_path: usable_content_path(item.content_path)
         })
         |> Repo.update!()
 
@@ -59,5 +59,17 @@ defmodule MediaCentaur.Acquisition.Pursuits.DownloadIdentity do
       nil ->
         :ok
     end
+  end
+
+  # A dockerized client reports paths in its own mount namespace
+  # (SABnzbd's history `storage`: /downloads/completed/…). Pinning a
+  # path this host can't see poisons the write-once slot with a value
+  # that can never match a library path — worse than nil, which leaves
+  # the capture retrying until a real path (or the name-match landing
+  # via InboundListener) arrives.
+  defp usable_content_path(nil), do: nil
+
+  defp usable_content_path(path) when is_binary(path) do
+    if File.exists?(path), do: path
   end
 end
