@@ -116,10 +116,11 @@ defmodule MediaCentaurWeb.AcquisitionLive do
 
   @decision_prompt "Pick an alternative release."
 
-  # Storage headroom is ambient context, not a live ticker — `df` is cheap
-  # but not free, and free space only moves as downloads land. Refresh on a
-  # slow cadence (same interval as the Status page's storage section).
-  @storage_refresh_ms 5 * 60 * 1_000
+  # Fast enough that the free-space number stays honest while grabs are
+  # actively landing on disk. The probe is a handful of statvfs calls on an
+  # owned async task, and the timer only exists while someone has this page
+  # open — the faster cadence costs nothing when nobody is watching.
+  @storage_refresh_ms 30_000
 
   @impl true
   def mount(_params, _session, socket) do
