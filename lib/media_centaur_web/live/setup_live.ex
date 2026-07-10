@@ -706,7 +706,7 @@ defmodule MediaCentaurWeb.SetupLive do
             <option value="qbittorrent" selected>qBittorrent</option>
           </select>
           <p class="text-xs opacity-70 mt-1">
-            qBittorrent is currently the only supported download client.
+            A usenet client (SABnzbd) can be added later under Settings → Acquisition.
           </p>
           <label class="text-sm font-medium text-base-content/80 mt-3 block">URL</label>
           <input

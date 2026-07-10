@@ -19,11 +19,18 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
 
   attr :download_client_display, :map,
     required: true,
-    doc: "type/url/username for the form (pending detect or persisted)."
+    doc: "torrent client type/url/username for the form (pending detect or persisted)."
 
   attr :download_client_detecting, :boolean, required: true
   attr :download_client_test, :any, required: true, doc: "connection-test result map or nil."
   attr :download_client_testing, :boolean, required: true
+
+  attr :usenet_client_display, :map,
+    required: true,
+    doc: "usenet client type/url for the form (pending detect or persisted)."
+
+  attr :usenet_client_test, :any, required: true, doc: "connection-test result map or nil."
+  attr :usenet_client_testing, :boolean, required: true
   attr :auto_grab, :map, required: true, doc: "AutoGrabSettings map (default_mode, patience_hours)."
 
   def render(assigns) do
@@ -122,11 +129,11 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
         <div class="flex items-start justify-between gap-4">
           <div class="min-w-0">
             <h2 class="text-lg font-semibold flex items-center gap-2">
-              Download Client
+              Torrent Client
               <.status_dot configured={@config[:download_client_password_configured?]} />
             </h2>
             <p class="text-sm text-base-content/50 mt-0.5">
-              Where Prowlarr forwards grabs. Powers the Downloads page progress.
+              Where Prowlarr forwards torrent grabs. Powers the Downloads page progress.
             </p>
           </div>
           <div class="flex flex-wrap gap-2 shrink-0">
@@ -254,6 +261,116 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
             <span :if={@download_client_testing} class="loading loading-spinner loading-xs"></span>
             <.icon :if={!@download_client_testing} name="hero-signal-mini" class="size-4" />
             {if @download_client_testing, do: "Testing…", else: "Test connection"}
+          </.button>
+        </div>
+      </form>
+
+      <form
+        id="settings-usenet-client"
+        phx-submit="save_usenet_client"
+        class="p-5 rounded-lg glass-surface space-y-5"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <h2 class="text-lg font-semibold flex items-center gap-2">
+              Usenet Client
+              <.status_dot configured={@config[:usenet_download_client_api_key_configured?]} />
+            </h2>
+            <p class="text-sm text-base-content/50 mt-0.5">
+              Where Prowlarr forwards usenet grabs. SABnzbd repairs and unpacks;
+              the finished file imports like any other download.
+            </p>
+          </div>
+          <.button
+            type="submit"
+            variant="secondary"
+            size="sm"
+            class="shrink-0"
+            data-nav-item
+            tabindex="0"
+          >
+            Save
+          </.button>
+        </div>
+
+        <div class="space-y-3">
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              Type
+            </label>
+            <select
+              name="usenet_download_client_type"
+              class="select select-bordered w-full font-mono text-sm"
+              data-nav-item
+              tabindex="0"
+            >
+              <option value="" selected={@usenet_client_display.type in [nil, ""]}>
+                Not configured
+              </option>
+              <option value="sabnzbd" selected={@usenet_client_display.type == "sabnzbd"}>
+                SABnzbd
+              </option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              URL
+            </label>
+            <input
+              type="text"
+              name="usenet_download_client_url"
+              value={@usenet_client_display.url}
+              class="input input-bordered w-full font-mono text-sm"
+              data-nav-item
+              tabindex="0"
+            />
+            <p class="text-xs text-base-content/40 mt-1">
+              Must be reachable from <em>this</em>
+              machine — Prowlarr-detected URLs are often Docker-internal hostnames.
+            </p>
+          </div>
+
+          <div>
+            <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+              API Key
+            </label>
+            <input
+              type="password"
+              name="usenet_download_client_api_key"
+              class="input input-bordered w-full font-mono text-sm"
+              placeholder={
+                if @config[:usenet_download_client_api_key_configured?],
+                  do: "Leave blank to keep current key",
+                  else: "SABnzbd → Config → General → API Key"
+              }
+              autocomplete="off"
+              data-nav-item
+              tabindex="0"
+            />
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
+          <.connection_status
+            test={@usenet_client_test}
+            ok_label="Connected"
+            error_label="Unreachable / bad API key"
+          />
+          <.button
+            type="submit"
+            variant="neutral"
+            size="sm"
+            class="shrink-0"
+            name="_action"
+            value="test"
+            disabled={@usenet_client_testing}
+            data-nav-item
+            tabindex="0"
+          >
+            <span :if={@usenet_client_testing} class="loading loading-spinner loading-xs"></span>
+            <.icon :if={!@usenet_client_testing} name="hero-signal-mini" class="size-4" />
+            {if @usenet_client_testing, do: "Testing…", else: "Test connection"}
           </.button>
         </div>
       </form>

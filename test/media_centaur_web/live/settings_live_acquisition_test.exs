@@ -29,6 +29,9 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
     Config.update(:download_client_url, nil)
     Config.update(:download_client_username, nil)
     Config.update(:download_client_password, nil)
+    Config.update(:usenet_download_client_type, nil)
+    Config.update(:usenet_download_client_url, nil)
+    Config.update(:usenet_download_client_api_key, nil)
 
     :ok
   end
@@ -174,6 +177,115 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
       html = render(view)
 
       assert html =~ ~s(value="http://typed-by-user.example.com:8080")
+    end
+  end
+
+  describe "usenet client form" do
+    test "test button is wired as a form submit", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      refute has_element?(
+               view,
+               "#settings-usenet-client button[phx-click='test_usenet_client']"
+             ),
+             "Usenet-client test button must not be a standalone phx-click"
+
+      assert has_element?(
+               view,
+               "#settings-usenet-client button[type='submit'][name='_action'][value='test']"
+             )
+    end
+
+    test "save persists form values", %{conn: conn} do
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      view
+      |> form("#settings-usenet-client", %{
+        "usenet_download_client_type" => "sabnzbd",
+        "usenet_download_client_url" => "http://sab.example.com:8085",
+        "usenet_download_client_api_key" => "sab-api-key"
+      })
+      |> render_submit(%{"_action" => "save"})
+
+      assert Config.get(:usenet_download_client_type) == "sabnzbd"
+      assert Config.get(:usenet_download_client_url) == "http://sab.example.com:8085"
+      assert MediaCentaur.Secret.present?(Config.get(:usenet_download_client_api_key))
+    end
+
+    test "a blank API key on save keeps the stored key", %{conn: conn} do
+      Config.update(:usenet_download_client_api_key, "already-stored")
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      view
+      |> form("#settings-usenet-client", %{
+        "usenet_download_client_type" => "sabnzbd",
+        "usenet_download_client_url" => "http://sab.example.com:8085",
+        "usenet_download_client_api_key" => ""
+      })
+      |> render_submit(%{"_action" => "save"})
+
+      assert MediaCentaur.Secret.expose(Config.get(:usenet_download_client_api_key)) ==
+               "already-stored"
+    end
+
+    test "test action persists values BEFORE running the test", %{conn: conn} do
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      view
+      |> form("#settings-usenet-client", %{
+        "usenet_download_client_type" => "sabnzbd",
+        "usenet_download_client_url" => "http://sab.example.com:8085",
+        "usenet_download_client_api_key" => "sab-api-key"
+      })
+      |> render_submit(%{"_action" => "test"})
+
+      assert Config.get(:usenet_download_client_url) == "http://sab.example.com:8085"
+    end
+
+    test "failed test does not revert the typed-in URL", %{conn: conn} do
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      view
+      |> form("#settings-usenet-client", %{
+        "usenet_download_client_type" => "sabnzbd",
+        "usenet_download_client_url" => "http://typed-by-user.example.com:8085",
+        "usenet_download_client_api_key" => "sab-api-key"
+      })
+      |> render_submit(%{"_action" => "test"})
+
+      send(view.pid, {:usenet_client_test_result, :error})
+      html = render(view)
+
+      assert html =~ ~s(value="http://typed-by-user.example.com:8085")
+    end
+  end
+
+  describe "detect from Prowlarr routes clients to their protocol slots" do
+    test "a qbittorrent and a sabnzbd client pre-fill their own forms", %{conn: conn} do
+      {:ok, view, _} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      clients = [
+        %{
+          name: "qBittorrent",
+          type: "qbittorrent",
+          url: "http://qbit.detected:8080",
+          username: "admin",
+          enabled: true
+        },
+        %{
+          name: "SABnzbd",
+          type: "sabnzbd",
+          url: "http://sab.detected:8085",
+          username: nil,
+          enabled: true
+        }
+      ]
+
+      send(view.pid, {:download_client_detect_result, {:ok, clients}})
+      html = render(view)
+
+      assert html =~ ~s(value="http://qbit.detected:8080")
+      assert html =~ ~s(value="http://sab.detected:8085")
     end
   end
 

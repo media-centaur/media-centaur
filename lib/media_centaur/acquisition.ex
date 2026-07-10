@@ -553,10 +553,6 @@ defmodule MediaCentaur.Acquisition do
   defp put_when_present(opts, _key, nil), do: opts
   defp put_when_present(opts, key, value), do: Keyword.put(opts, key, value)
 
-  @doc "Returns true when a download client is configured (type + URL set)."
-  @spec download_client_available?() :: boolean()
-  def download_client_available?, do: Config.download_client_available?()
-
   @doc """
   Lists downloads from the configured download client.
 
@@ -595,10 +591,13 @@ defmodule MediaCentaur.Acquisition do
     end
   end
 
-  @doc "Tests connectivity and credentials against the configured download client."
-  @spec test_download_client() :: :ok | {:error, term()}
-  def test_download_client do
-    with {:ok, driver} <- Dispatcher.driver() do
+  @doc """
+  Tests connectivity and credentials against the download client in the
+  given protocol slot (torrent slot by default).
+  """
+  @spec test_download_client(:torrent | :usenet) :: :ok | {:error, term()}
+  def test_download_client(protocol \\ :torrent) do
+    with {:ok, driver} <- Dispatcher.driver_for(protocol) do
       driver.test_connection()
     end
   end
