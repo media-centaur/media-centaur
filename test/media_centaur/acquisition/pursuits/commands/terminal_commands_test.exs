@@ -176,13 +176,18 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.TerminalCommandsTest do
       MediaCentaur.DownloadClientStubs.forward_deletes_to(self())
 
       {pursuit, _target} =
-        create_pursuit_with_target(%{status: "acquired", torrent_hash: "feedbeef00feedbeef00feedbeef00feedbeef00"})
+        create_pursuit_with_target(%{
+          status: "acquired",
+          torrent_hash: "feedbeef00feedbeef00feedbeef00feedbeef00"
+        })
 
       assert {:ok, cancelled} =
                Cancel.execute(%{pursuit_id: pursuit.id, cancelled_by: :user, reason: "user_cancelled"})
 
       assert cancelled.state == "cancelled"
-      assert_receive {:qbit_delete, %{"hashes" => "feedbeef00feedbeef00feedbeef00feedbeef00", "deleteFiles" => "true"}}
+
+      assert_receive {:qbit_delete,
+                      %{"hashes" => "feedbeef00feedbeef00feedbeef00feedbeef00", "deleteFiles" => "true"}}
     end
 
     test "a never-grabbed target (no hash) sends nothing to the client" do
@@ -207,7 +212,10 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.TerminalCommandsTest do
       # Default test config has no download_client_type — the removal
       # step must degrade to a no-op, not an error.
       {pursuit, _target} =
-        create_pursuit_with_target(%{status: "acquired", torrent_hash: "feedbeef00feedbeef00feedbeef00feedbeef00"})
+        create_pursuit_with_target(%{
+          status: "acquired",
+          torrent_hash: "feedbeef00feedbeef00feedbeef00feedbeef00"
+        })
 
       assert {:ok, cancelled} =
                Cancel.execute(%{pursuit_id: pursuit.id, cancelled_by: :user, reason: "user_cancelled"})

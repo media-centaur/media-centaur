@@ -36,12 +36,16 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancelTest do
 
       assert {:ok, _pivoted} = run(%{pursuit_id: pursuit.id, reason: :zero_seeders})
 
-      assert_receive {:qbit_delete, %{"hashes" => "deadbeef00deadbeef00deadbeef00deadbeef00", "deleteFiles" => "true"}}
+      assert_receive {:qbit_delete,
+                      %{"hashes" => "deadbeef00deadbeef00deadbeef00deadbeef00", "deleteFiles" => "true"}}
     end
 
     test "an unconfigured download client never blocks the pivot" do
       {pursuit, _target} =
-        create_pursuit_with_target(%{status: "acquired", torrent_hash: "deadbeef00deadbeef00deadbeef00deadbeef00"})
+        create_pursuit_with_target(%{
+          status: "acquired",
+          torrent_hash: "deadbeef00deadbeef00deadbeef00deadbeef00"
+        })
 
       assert {:ok, pivoted} = run(%{pursuit_id: pursuit.id, reason: :zero_seeders})
       assert pivoted.state == "active"
