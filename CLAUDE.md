@@ -42,6 +42,7 @@ Map of contributor docs:
 | Architecture, bounded contexts, PubSub topics, key principles | [`docs/architecture.md`](docs/architecture.md) |
 | Pipeline (Broadway: discovery, import, image) | [`docs/pipeline.md`](docs/pipeline.md) |
 | Library data model (type-specific schemas, file tracking, deletion) | [`docs/library.md`](docs/library.md) |
+| Download clients (two-slot model, prowlarr-stack bootstrap contract, add-a-client checklist) | [`docs/download-clients.md`](docs/download-clients.md) |
 | Other domains | [`docs/watcher.md`](docs/watcher.md), [`docs/tmdb.md`](docs/tmdb.md), [`docs/playback.md`](docs/playback.md), [`docs/input-system.md`](docs/input-system.md), [`docs/mpv.md`](docs/mpv.md) |
 | Component catalog (Phoenix Storybook, dev-only) | [`docs/storybook.md`](docs/storybook.md) |
 | Protocol specs (data format, image caching) | [`specs/`](specs/) |

@@ -174,6 +174,22 @@ Append-only log.
   (that campaign keeps the MC-side driver + multi-client refactor).
 * `2026-05-31` — **Rename off "prowlarr-stack"** — Prowlarr is one component,
   not the identity.
+* `2026-07-10` — **P4 (provisioning handshake) reaffirmed as a wanted
+  follow-up, and its bundle contract is two-slot from day one.** The owner
+  went looking for "the exposed local setup API" while landing the usenet
+  MC-side work and found it was designed here but never built (nothing
+  API-shaped has ever existed in MC's router — confirmed against full git
+  history; the confusion is now pinned in `docs/download-clients.md`). When
+  P4 is built: the proposal bundle must carry **both protocol slots** —
+  torrent (qBittorrent URL/user/pass) *and* usenet (SABnzbd URL + API key,
+  which `./setup` already auto-generates into the stack's `.env` as
+  `SABNZBD_API_KEY`) — eliminating the print-and-type handoff entirely.
+  The MC receiving surfaces now exist and are the write targets:
+  `Config.update/2` on the two flat slots, `Downloads.configured_clients/0`
+  as the read-back, per-slot `Capabilities` test results after a
+  driver-verified connection. P4 was already flagged "can be sequenced
+  early"; the usenet landing makes it the next natural slice of this
+  campaign.
 
 ## Next steps
 
