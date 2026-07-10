@@ -32,6 +32,7 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfoPanel do
   alias MediaCentaurWeb.Components.Detail.MoreInfo.{
     CastGrid,
     ExternalLinks,
+    FileDetails,
     MovieCredits,
     SeriesCredits
   }
@@ -48,6 +49,7 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfoPanel do
       <CastGrid.cast_grid cast={@entity[:cast] || []} />
       <.meta_for_type entity={@entity} />
       <.track_override_badge entity={@entity} />
+      <FileDetails.file_details files={@entity[:watched_files] || []} />
       <ExternalLinks.external_links tmdb_url={@entity[:url]} imdb_id={@entity[:imdb_id]} />
     </section>
     """

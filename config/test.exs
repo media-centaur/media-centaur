@@ -50,6 +50,9 @@ config :media_centaur, :default_config_path, "~/.config/media-centaur/media-cent
 config :media_centaur, :environment, :test
 config :media_centaur, :image_http_client, MediaCentaur.NoopImageDownloader
 config :media_centaur, :media_dirs, []
+# No ffprobe subprocesses under test (ADR-016) — probes fail cleanly and
+# store nothing. MediaProbe.parse/1 is pure and carries the coverage.
+config :media_centaur, :media_probe_runner, MediaCentaur.Library.MediaProbe.Disabled
 config :media_centaur, :skip_user_config, true
 config :media_centaur, :start_pipeline, false
 # Skip mpv socket recovery — otherwise the recovery task scans

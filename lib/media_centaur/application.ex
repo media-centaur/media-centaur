@@ -175,6 +175,11 @@ defmodule MediaCentaur.Application do
     # every rescan. Network-free, idempotent, skipped under :test.
     MediaCentaur.Maintenance.backfill_extra_files_on_boot(env)
 
+    # Probe technical metadata (container title, duration, codecs) for files
+    # imported before the media-info feature. Local ffprobe only, idempotent,
+    # skipped under :test.
+    MediaCentaur.Maintenance.probe_media_info_on_boot(env)
+
     if should_start?(env, :start_watchers) do
       MediaCentaur.Watcher.Supervisor.start_watchers()
       MediaCentaur.Watcher.Supervisor.start_image_dir_monitors()

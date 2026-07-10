@@ -66,9 +66,11 @@ defmodule MediaCentaur.Library do
     ExtraProgress,
     ExternalId,
     ExternalIds,
+    FileMediaInfo,
     FilePresence,
     HomeFeed,
     Image,
+    MediaProbe,
     MediaTrackOverride,
     MoveMatcher,
     Movie,
@@ -659,16 +661,95 @@ defmodule MediaCentaur.Library do
     media_dir = lookup_attr(attrs, :media_dir)
     attrs = ensure_file_presence_id(attrs, file_path, media_dir)
 
-    case Repo.get_by(WatchedFile, file_path: file_path) do
-      nil -> Repo.insert(WatchedFile.create_changeset(attrs))
-      existing -> Repo.update(WatchedFile.update_changeset(existing, attrs))
+    result =
+      case Repo.get_by(WatchedFile, file_path: file_path) do
+        nil -> Repo.insert(WatchedFile.create_changeset(attrs))
+        existing -> Repo.update(WatchedFile.update_changeset(existing, attrs))
+      end
+
+    case result do
+      {:ok, %WatchedFile{} = watched_file} ->
+        refresh_file_media_info(watched_file.file_presence_id, watched_file.file_path)
+
+      _error ->
+        :ok
     end
+
+    result
   end
 
   def link_file!(attrs), do: Repo.bang!(link_file(attrs))
 
   def list_files_by_paths(file_paths) do
     Repo.all(from(w in WatchedFile, where: w.file_path in ^file_paths))
+  end
+
+  # ---------------------------------------------------------------------------
+  # FileMediaInfo (ADR-057 derived data — see the schema moduledoc)
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Probes `file_path` and upserts its `FileMediaInfo` row. `:skipped` when
+  probing is unavailable/fails (missing ffprobe, unreadable file) or the
+  file has no presence row — a later sweep can always retry, the data is
+  recomputable.
+  """
+  @spec refresh_file_media_info(Ecto.UUID.t() | nil, String.t()) :: :ok | :skipped
+  def refresh_file_media_info(nil, _file_path), do: :skipped
+
+  def refresh_file_media_info(file_presence_id, file_path) do
+    case MediaProbe.probe(file_path) do
+      {:ok, attrs} ->
+        attrs = Map.put(attrs, :file_presence_id, file_presence_id)
+
+        case Repo.get_by(FileMediaInfo, file_presence_id: file_presence_id) do
+          nil -> Repo.insert!(FileMediaInfo.changeset(%FileMediaInfo{}, attrs))
+          existing -> Repo.update!(FileMediaInfo.changeset(existing, attrs))
+        end
+
+        :ok
+
+      :error ->
+        :skipped
+    end
+  end
+
+  @doc "Media-info rows keyed by file path — batch read for view builders."
+  @spec file_media_info_by_paths([String.t()]) :: %{String.t() => FileMediaInfo.t()}
+  def file_media_info_by_paths([]), do: %{}
+
+  def file_media_info_by_paths(paths) when is_list(paths) do
+    from(f in FilePresence,
+      join: m in FileMediaInfo,
+      on: m.file_presence_id == f.id,
+      where: f.file_path in ^paths,
+      select: {f.file_path, m}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
+  Backfill sweep: probes every file presence that has no media-info row
+  yet (files imported before this feature, or whose probe failed).
+  Idempotent and network-free; run from the boot heal
+  (`Maintenance.probe_media_info_on_boot/1`).
+  """
+  @spec probe_missing_media_info() :: %{probed: non_neg_integer(), skipped: non_neg_integer()}
+  def probe_missing_media_info do
+    from(f in FilePresence,
+      left_join: m in FileMediaInfo,
+      on: m.file_presence_id == f.id,
+      where: is_nil(m.id),
+      select: {f.id, f.file_path}
+    )
+    |> Repo.all()
+    |> Enum.reduce(%{probed: 0, skipped: 0}, fn {presence_id, path}, acc ->
+      case refresh_file_media_info(presence_id, path) do
+        :ok -> %{acc | probed: acc.probed + 1}
+        :skipped -> %{acc | skipped: acc.skipped + 1}
+      end
+    end)
   end
 
   @doc """
