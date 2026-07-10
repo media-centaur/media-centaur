@@ -33,7 +33,7 @@ defmodule MediaCentaurWeb.Components.Detail.FacetStrip do
     <div
       :if={@facets != []}
       class={[
-        "grid grid-cols-2 gap-x-4 gap-y-3 py-2.5 border-y border-base-content/[0.07]",
+        "grid grid-cols-2 gap-x-4 gap-y-3 py-2.5 border-t border-base-content/[0.07]",
         @class
       ]}
     >
@@ -59,7 +59,7 @@ defmodule MediaCentaurWeb.Components.Detail.FacetStrip do
     <div
       :if={@facets != []}
       class={[
-        "grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-y-3 py-2.5 border-y border-base-content/[0.07]",
+        "grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-y-3 py-2.5 border-t border-base-content/[0.07]",
         @class
       ]}
     >
