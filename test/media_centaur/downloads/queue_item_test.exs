@@ -170,6 +170,180 @@ defmodule MediaCentaur.Downloads.QueueItemTest do
     end
   end
 
+  describe "protocol tagging" do
+    test "from_qbittorrent tags items :torrent" do
+      assert QueueItem.from_qbittorrent(base_torrent(%{})).protocol == :torrent
+    end
+  end
+
+  describe "from_sabnzbd_queue/1" do
+    test "parses a downloading queue slot" do
+      raw = %{
+        "nzo_id" => "SABnzbd_nzo_p86tgx",
+        "filename" => "Sample.Show.S01E01.1080p.WEB-DL",
+        "status" => "Downloading",
+        "mb" => "1277.76",
+        "mbleft" => "756.40",
+        "percentage" => "40",
+        "timeleft" => "0:12:44",
+        "cat" => "tv"
+      }
+
+      item = QueueItem.from_sabnzbd_queue(raw)
+
+      assert %QueueItem{} = item
+      assert item.id == "SABnzbd_nzo_p86tgx"
+      assert item.title == "Sample.Show.S01E01.1080p.WEB-DL"
+      assert item.status == "Downloading"
+      assert item.state == :downloading
+      assert item.protocol == :usenet
+      assert item.download_client == "SABnzbd"
+      assert item.indexer == "tv"
+      assert item.size == 1_339_828_470
+      assert item.size_left == 793_142_886
+      assert item.progress == 40.0
+      assert item.timeleft == "0:12:44"
+      assert item.normalized_title == "sampleshows01e011080pwebdl"
+    end
+
+    test "content_path stays nil for live queue slots — the incomplete dir must never be pinned" do
+      assert QueueItem.from_sabnzbd_queue(base_sab_slot(%{})).content_path == nil
+    end
+
+    test "maps active statuses to :downloading" do
+      for status <- ~w(Downloading Grabbing Fetching) do
+        item = QueueItem.from_sabnzbd_queue(base_sab_slot(%{"status" => status}))
+        assert item.state == :downloading, "expected #{status} → :downloading"
+      end
+    end
+
+    test "maps waiting statuses to :queued" do
+      for status <- ~w(Queued Propagating) do
+        item = QueueItem.from_sabnzbd_queue(base_sab_slot(%{"status" => status}))
+        assert item.state == :queued, "expected #{status} → :queued"
+      end
+    end
+
+    test "maps Paused to :paused and unknown statuses to :other" do
+      assert QueueItem.from_sabnzbd_queue(base_sab_slot(%{"status" => "Paused"})).state == :paused
+
+      item = QueueItem.from_sabnzbd_queue(base_sab_slot(%{"status" => "FutureStatus"}))
+      assert item.state == :other
+      assert item.status == "FutureStatus"
+    end
+
+    test "tolerates numeric mb/percentage values — SABnzbd serialises these as strings, but don't depend on it" do
+      item =
+        QueueItem.from_sabnzbd_queue(base_sab_slot(%{"mb" => 100.0, "mbleft" => 50, "percentage" => 50}))
+
+      assert item.size == 104_857_600
+      assert item.size_left == 52_428_800
+      assert item.progress == 50.0
+    end
+
+    test "size fields are nil when unparseable" do
+      item = QueueItem.from_sabnzbd_queue(base_sab_slot(%{"mb" => "??", "mbleft" => nil}))
+      assert item.size == nil
+      assert item.size_left == nil
+    end
+  end
+
+  describe "from_sabnzbd_history/1" do
+    test "a Completed entry is :completed with content_path from storage" do
+      raw = %{
+        "nzo_id" => "SABnzbd_nzo_done1",
+        "name" => "Sample.Show.S01E02.1080p.WEB-DL",
+        "status" => "Completed",
+        "storage" => "/downloads/complete/Sample.Show.S01E02.1080p.WEB-DL",
+        "bytes" => 1_339_664_772,
+        "category" => "tv",
+        "fail_message" => ""
+      }
+
+      item = QueueItem.from_sabnzbd_history(raw)
+
+      assert item.id == "SABnzbd_nzo_done1"
+      assert item.title == "Sample.Show.S01E02.1080p.WEB-DL"
+      assert item.state == :completed
+      assert item.protocol == :usenet
+      assert item.download_client == "SABnzbd"
+      assert item.content_path == "/downloads/complete/Sample.Show.S01E02.1080p.WEB-DL"
+      assert item.size == 1_339_664_772
+      assert item.size_left == 0
+      assert item.progress == 100.0
+      assert item.failure_message == nil
+    end
+
+    test "a Failed entry is :error and carries the fail_message" do
+      raw =
+        base_sab_history(%{
+          "status" => "Failed",
+          "fail_message" => "Repair failed, not enough repair blocks"
+        })
+
+      item = QueueItem.from_sabnzbd_history(raw)
+
+      assert item.state == :error
+      assert item.failure_message == "Repair failed, not enough repair blocks"
+      assert item.content_path == nil, "failed storage points at cruft, never pin it"
+    end
+
+    test "post-processing statuses map to their own states so the UI doesn't read them as stalled" do
+      assert QueueItem.from_sabnzbd_history(base_sab_history(%{"status" => "Verifying"})).state ==
+               :verifying
+
+      assert QueueItem.from_sabnzbd_history(base_sab_history(%{"status" => "Repairing"})).state ==
+               :repairing
+
+      assert QueueItem.from_sabnzbd_history(base_sab_history(%{"status" => "Extracting"})).state ==
+               :extracting
+    end
+
+    test "post-processing entries never carry content_path — the file only exists after Completed" do
+      item = QueueItem.from_sabnzbd_history(base_sab_history(%{"status" => "Extracting"}))
+      assert item.content_path == nil
+    end
+
+    test "history Queued (retry queue) maps to :queued; unknown statuses to :other" do
+      assert QueueItem.from_sabnzbd_history(base_sab_history(%{"status" => "Queued"})).state ==
+               :queued
+
+      assert QueueItem.from_sabnzbd_history(base_sab_history(%{"status" => "Running"})).state ==
+               :other
+    end
+  end
+
+  defp base_sab_slot(overrides) do
+    Map.merge(
+      %{
+        "nzo_id" => "SABnzbd_nzo_base",
+        "filename" => "Sample.Show.S01E01.1080p.WEB-DL",
+        "status" => "Downloading",
+        "mb" => "100.0",
+        "mbleft" => "50.0",
+        "percentage" => "50",
+        "timeleft" => "0:01:00",
+        "cat" => "tv"
+      },
+      overrides
+    )
+  end
+
+  defp base_sab_history(overrides) do
+    Map.merge(
+      %{
+        "nzo_id" => "SABnzbd_nzo_hist",
+        "name" => "Sample.Show.S01E02.1080p.WEB-DL",
+        "status" => "Completed",
+        "storage" => "/downloads/complete/Sample.Show.S01E02.1080p.WEB-DL",
+        "bytes" => 100,
+        "category" => "tv",
+        "fail_message" => ""
+      },
+      overrides
+    )
+  end
+
   defp base_torrent(overrides) do
     Map.merge(
       %{
