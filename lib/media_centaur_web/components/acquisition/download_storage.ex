@@ -100,7 +100,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStorage do
         <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">Storage</h3>
       </div>
 
-      <div class="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+      <div class={grid_class(@rows)}>
         <div :for={row <- @rows} id={"download-storage-#{row.id}"} class="space-y-1">
           <div class="flex items-baseline justify-between gap-2">
             <span class="flex items-center gap-1.5 truncate text-sm" title={row.mount_point}>
@@ -122,6 +122,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStorage do
     </div>
     """
   end
+
+  # Columns track the drive count — a lone (necessarily low, or it would be
+  # :calm) drive spans the full card instead of huddling in the first third
+  # of a three-column grid sized for drives that don't exist.
+  defp grid_class([_single]), do: "grid gap-y-2"
+  defp grid_class([_first, _second]), do: "grid gap-x-6 gap-y-2 sm:grid-cols-2"
+  defp grid_class(_rows), do: "grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3"
 
   defp row(drive) do
     severity = StatusHelpers.storage_severity(drive)

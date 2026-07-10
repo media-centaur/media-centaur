@@ -47,8 +47,15 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.DownloadStorage do
         }
       },
       %Variation{
+        id: :single_low_drive,
+        description:
+          "One drive below the warning threshold — the card escalates for a lone drive, and its row spans the full card width (no phantom columns for drives that don't exist)",
+        attributes: %{drives: [drive("/mnt/videos", 2000, 1855, 93)]}
+      },
+      %Variation{
         id: :critical_percent,
-        description: "Large disk, 96% full — red on the usage backstop despite a big free number",
+        description:
+          "Large disk, 96% full — red on the usage backstop despite a big free number; single row spans the full card",
         attributes: %{drives: [drive("/mnt/media", 8000, 7680, 96)]}
       },
       %Variation{
