@@ -157,6 +157,20 @@ Append-only log.
   * **`QueueState.client_connectivity`** (per-slot grades) added next to the merged worst-grade `connectivity`, so one client's outage doesn't paint the healthy one. UI adoption of the per-slot detail is a follow-up.
   * **No new ADR.** ADR-035 (Prowlarr = integration point) survives intact by design; the two-slot model lives in the `ClientConfig`/`Dispatcher`/`QueueMonitor` moduledocs, per the moduledoc-over-ADR rule.
 
+* `2026-07-10` — **First real payloads validated the identity design** (commit
+  `af3b3dd0`): both live usenet pursuits reached `satisfied` end-to-end via
+  title-match → nzo_id pin → name-match landing, with zero new identity code.
+  Facts learned: **SABnzbd 5 nzo_ids are bare UUIDs** (no `SABnzbd_nzo_`
+  prefix — cancel fallback now routes by 40-hex-infohash shape instead);
+  Prowlarr's grab history carries **no client job id** (`grabTitle` only), so
+  id-at-grab is impossible for usenet — first-sighting pinning stands as the
+  design; history `storage` paths are container-internal, so `content_path`
+  is only pinned when it exists on this host. Also `InfoHash.resolve/2` now
+  skips usenet results (it was fetching whole NZBs just to fail parsing).
+  Topology hardening shipped alongside: stack v1.1.0 stages SAB jobs in
+  `completed/.staging` + atomic move-in; MC translates inotify renames and
+  reserves `.staging` (commits `92a2753b`, stack `v1.1.0`).
+
 ## Next steps
 
 Phased; each phase ships something real without depending on the harder logic
