@@ -469,8 +469,19 @@ defmodule MediaCentaur.Library.Views.Detail do
       grouping: build_grouping_map(playable_items),
       containers: build_container_map(playable_items),
       watched_files: watched_files,
-      subtitle_tracks: build_subtitle_tracks_map(watched_files)
+      subtitle_tracks: build_subtitle_tracks_map(watched_files),
+      media_infos: build_media_infos_map(watched_files)
     }
+  end
+
+  # Probed technical metadata for every file in the set, one query,
+  # keyed by path (see `Library.FileMediaInfo`).
+  defp build_media_infos_map(watched_files_by_pi_id) do
+    watched_files_by_pi_id
+    |> Map.values()
+    |> List.flatten()
+    |> Enum.map(& &1.file_path)
+    |> Library.file_media_info_by_paths()
   end
 
   defp grouping_key(%PlayableItem{id: id}, context), do: Map.fetch!(context.grouping, id)
@@ -676,7 +687,7 @@ defmodule MediaCentaur.Library.Views.Detail do
           images: shared.images,
           seasons: shared.seasons,
           movies: shared.movies,
-          watched_files: build_watched_files(watched_files),
+          watched_files: build_watched_files(watched_files, context.media_infos),
           subtitle_tracks: build_subtitle_tracks(subtitle_tracks)
         }
     end
@@ -1231,10 +1242,27 @@ defmodule MediaCentaur.Library.Views.Detail do
     end)
   end
 
-  defp build_watched_files(watched_files) do
+  defp build_watched_files(watched_files, media_infos_by_path) do
     Enum.map(watched_files, fn file ->
-      %DetailItem.WatchedFile{path: file.file_path, media_dir: file.media_dir}
+      %DetailItem.WatchedFile{
+        path: file.file_path,
+        media_dir: file.media_dir,
+        media_info: build_media_info(Map.get(media_infos_by_path, file.file_path))
+      }
     end)
+  end
+
+  defp build_media_info(nil), do: nil
+
+  defp build_media_info(info) do
+    Map.take(info, [
+      :container_title,
+      :duration_seconds,
+      :video_codec,
+      :width,
+      :height,
+      :audio_summary
+    ])
   end
 
   defp build_subtitle_tracks(tracks) do

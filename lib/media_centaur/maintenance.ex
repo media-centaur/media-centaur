@@ -587,6 +587,28 @@ defmodule MediaCentaur.Maintenance do
     :started
   end
 
+  @doc """
+  Boot-time backfill: probes technical metadata (`Library.MediaProbe`)
+  for files that have no `FileMediaInfo` row yet — pre-feature imports
+  and files whose earlier probe failed. Network-free, idempotent,
+  recomputable (ADR-057). Skipped under `:test`;
+  `Library.probe_missing_media_info/0` is tested directly.
+  """
+  @spec probe_media_info_on_boot(atom()) :: :skipped | :started
+  def probe_media_info_on_boot(:test), do: :skipped
+
+  def probe_media_info_on_boot(_env) do
+    run_async(fn ->
+      %{probed: probed, skipped: skipped} = MediaCentaur.Library.probe_missing_media_info()
+
+      if probed > 0 or skipped > 0 do
+        Log.info(:library, "boot media-info probe filled #{probed} file(s), #{skipped} skipped")
+      end
+    end)
+
+    :started
+  end
+
   defp resources_in_delete_order do
     [
       PendingFile,

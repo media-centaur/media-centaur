@@ -273,15 +273,32 @@ defmodule MediaCentaur.Library.Views.DetailItem do
   defmodule WatchedFile do
     @moduledoc """
     A backing file on disk for a leaf's `PlayableItem`. The modal's
-    delete-file UX renders one row per `WatchedFile`.
+    delete-file UX renders one row per `WatchedFile`; the More-info
+    pane renders `media_info` (when probed) so the file's own claims —
+    container title, measured duration, codecs — sit next to the
+    matched metadata.
     """
 
     @enforce_keys [:path, :media_dir]
-    defstruct [:path, :media_dir]
+    defstruct [:path, :media_dir, :media_info]
+
+    @typedoc """
+    Probed technical metadata (`Library.FileMediaInfo`), or nil when
+    the file hasn't been probed (missing ffprobe, pre-feature import).
+    """
+    @type media_info :: %{
+            container_title: String.t() | nil,
+            duration_seconds: non_neg_integer() | nil,
+            video_codec: String.t() | nil,
+            width: pos_integer() | nil,
+            height: pos_integer() | nil,
+            audio_summary: String.t() | nil
+          }
 
     @type t :: %__MODULE__{
             path: String.t(),
-            media_dir: String.t()
+            media_dir: String.t(),
+            media_info: media_info() | nil
           }
   end
 
