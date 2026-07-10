@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.SubtitlesRow do
       %Variation{
         id: :folded_behind_understood,
         description:
-          "Understood languages (Settings → Language, ISO 639-2) lead; the other ten fold behind the +N-more reveal — click it to expand.",
+          "Understood languages (Settings → Language, ISO 639-2) lead; the other ten fold behind the trailing-+ reveal — click it to expand.",
         attributes: %{
           languages: ["da", "de", "en", "es", "fi", "fr", "hi", "it", "nl", "no", "pl", "pt", "sv"],
           understood: ["eng", "spa"]

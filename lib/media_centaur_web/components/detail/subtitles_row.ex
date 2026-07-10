@@ -6,11 +6,11 @@ defmodule MediaCentaurWeb.Components.Detail.SubtitlesRow do
   Releases routinely ship a dozen-plus subtitle tracks; listing them
   all wraps the row across lines for languages the user will never
   pick. The row leads with the languages the user configured as
-  understood (Settings → Language), comma-delimited, and folds the rest
-  behind a `+N more` reveal — a pure client-side toggle, no server
-  round-trip. With no configured languages (or none matching) the fold
-  degrades sensibly: everything up front, or everything behind the
-  reveal, respectively.
+  understood (Settings → Language), comma-delimited, folding the rest
+  behind a trailing `+` (`en+`) that expands to the full list on click —
+  a pure client-side toggle, no server round-trip. With no configured
+  languages everything shows up front; with none matching, the row is
+  just the `+`.
 
   Pure display: takes the pre-aggregated list from
   `MediaCentaur.Subtitles.aggregate_track_languages/1`, where each
@@ -33,42 +33,44 @@ defmodule MediaCentaurWeb.Components.Detail.SubtitlesRow do
   attr :understood, :list,
     default: [],
     doc:
-      "the user's understood-language codes (`LanguagePolicy.understood_languages`, ISO 639-2). Languages matching these lead the row; the rest fold behind the +N-more reveal. Empty list shows everything."
+      "the user's understood-language codes (`LanguagePolicy.understood_languages`, ISO 639-2). Languages matching these lead the row; the rest fold behind the trailing-+ reveal. Empty list shows everything."
 
   def subtitles_row(assigns) do
     {shown, hidden} = split_languages(assigns.languages, assigns.understood)
 
     assigns =
       assigns
-      |> assign(:shown_text, join_labels(shown))
-      |> assign(:hidden_text, join_labels(hidden))
-      |> assign(:hidden_count, length(hidden))
-      |> assign(:separator?, shown != [] and hidden != [])
+      |> assign(:collapsed_label, "#{join_labels(shown)}+")
+      |> assign(:full_text, join_labels(assigns.languages))
+      |> assign(:folded?, hidden != [])
 
     ~H"""
     <div :if={@languages != []} class="flex items-baseline gap-3 text-sm">
       <h3 class="text-xs font-semibold uppercase tracking-wider text-base-content/50 shrink-0">
         Subtitles
       </h3>
-      <p class="text-base-content/80 leading-relaxed min-w-0">
-        <span :if={@shown_text != ""}>{@shown_text}</span>
+      <p :if={!@folded?} class="text-base-content/80 leading-relaxed min-w-0">
+        {@full_text}
+      </p>
+      <p :if={@folded?} class="text-base-content/80 leading-relaxed min-w-0">
+        <%!-- The trailing "+" is the whole affordance: click to expand
+              to the complete list. Kept terse on purpose — the folded
+              languages are ones the user didn't configure as understood. --%>
         <button
-          :if={@hidden_count > 0}
-          id="subtitles-row-more"
+          id="subtitles-row-folded"
           type="button"
-          class="cursor-pointer text-primary/80 hover:text-primary whitespace-nowrap"
+          class="cursor-pointer hover:text-base-content"
+          title="Show all subtitle languages"
           phx-click={
-            JS.hide(to: "#subtitles-row-more")
-            |> JS.show(to: "#subtitles-row-rest", display: "inline")
+            JS.hide(to: "#subtitles-row-folded")
+            |> JS.show(to: "#subtitles-row-all", display: "inline")
           }
           data-nav-item
           tabindex="0"
         >
-          {if @separator?, do: ", "}+{@hidden_count} more
+          {@collapsed_label}
         </button>
-        <span id="subtitles-row-rest" class="hidden">
-          {if @separator?, do: ", "}{@hidden_text}
-        </span>
+        <span id="subtitles-row-all" class="hidden">{@full_text}</span>
       </p>
     </div>
     """

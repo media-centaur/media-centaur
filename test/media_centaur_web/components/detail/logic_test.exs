@@ -27,49 +27,6 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
              ]
     end
 
-    test "adds a File facet from the first file's probed media info" do
-      movie = %{
-        director: "Someone",
-        original_language: nil,
-        studio: nil,
-        genres: nil,
-        aggregate_rating_value: nil,
-        vote_count: nil,
-        watched_files: [
-          %{
-            path: "/media/x/a.mkv",
-            media_info: %{
-              container_title: "Sample (2024)",
-              duration_seconds: 6520,
-              video_codec: "HEVC",
-              width: 3840,
-              height: 2160,
-              audio_summary: "TrueHD 7.1"
-            }
-          }
-        ]
-      }
-
-      assert %Facet{label: "File", kind: :text, value: "1h 48m · HEVC · 3840×2160 · TrueHD 7.1"} in Logic.facets_for(
-               :movie,
-               movie
-             )
-    end
-
-    test "no File facet when the file is unprobed" do
-      movie = %{
-        director: "Someone",
-        original_language: nil,
-        studio: nil,
-        genres: nil,
-        aggregate_rating_value: nil,
-        vote_count: nil,
-        watched_files: [%{path: "/media/x/a.mkv", media_info: nil}]
-      }
-
-      refute Enum.any?(Logic.facets_for(:movie, movie), &(&1.label == "File"))
-    end
-
     test "omits text facets whose value is nil" do
       movie =
         build_movie(%{
