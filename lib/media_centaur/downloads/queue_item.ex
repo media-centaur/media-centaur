@@ -34,6 +34,9 @@ defmodule MediaCentaur.Downloads.QueueItem do
     :title,
     :status,
     :state,
+    # `:torrent | :usenet` — which protocol slot's client owns this item.
+    # Cancel routing and per-client queue merging key off this.
+    :protocol,
     :download_client,
     :indexer,
     :size,
@@ -41,6 +44,10 @@ defmodule MediaCentaur.Downloads.QueueItem do
     :progress,
     :timeleft,
     :health,
+    # Terminal failure detail from the client (SABnzbd's `fail_message`,
+    # e.g. "Repair failed, not enough repair blocks"). Nil for torrents —
+    # qBittorrent expresses failure only as a state.
+    :failure_message,
     # On-disk path the download lands at (qBittorrent's `content_path`):
     # the file for a single-file torrent, the folder for a multi-file one.
     # Captured onto the pursuit's Target so the lifecycle stage can be
@@ -53,13 +60,24 @@ defmodule MediaCentaur.Downloads.QueueItem do
     :normalized_title
   ]
 
-  @type state :: :downloading | :queued | :stalled | :paused | :completed | :error | :other
+  @type state ::
+          :downloading
+          | :queued
+          | :stalled
+          | :paused
+          | :verifying
+          | :repairing
+          | :extracting
+          | :completed
+          | :error
+          | :other
 
   @type t :: %__MODULE__{
           id: integer() | String.t(),
           title: String.t(),
           status: String.t() | nil,
           state: state() | nil,
+          protocol: :torrent | :usenet | nil,
           download_client: String.t() | nil,
           indexer: String.t() | nil,
           size: integer() | nil,
@@ -67,6 +85,7 @@ defmodule MediaCentaur.Downloads.QueueItem do
           progress: float() | nil,
           timeleft: String.t() | nil,
           health: MediaCentaur.Downloads.Health.status() | nil,
+          failure_message: String.t() | nil,
           content_path: String.t() | nil,
           normalized_title: String.t() | nil
         }
@@ -83,6 +102,7 @@ defmodule MediaCentaur.Downloads.QueueItem do
       title: title,
       status: raw["state"],
       state: state_from_qbittorrent(raw["state"]),
+      protocol: :torrent,
       download_client: "qBittorrent",
       indexer: blank_to_nil(raw["category"]),
       size: raw["size"],
@@ -93,6 +113,105 @@ defmodule MediaCentaur.Downloads.QueueItem do
       normalized_title: normalize_title(title)
     }
   end
+
+  @doc """
+  Builds a QueueItem from a raw SABnzbd `mode=queue` slot.
+
+  Live queue slots never carry `content_path` — the final media file
+  only exists after post-processing, so the path is captured from the
+  history entry's `storage` field once the job completes (see
+  `from_sabnzbd_history/1`). Pinning the incomplete-dir path here would
+  hand the pursuit lifecycle an obfuscated temp path.
+
+  SABnzbd serialises `mb`/`mbleft`/`percentage` as strings; parsing is
+  tolerant of both strings and numbers.
+  """
+  @spec from_sabnzbd_queue(map()) :: t()
+  def from_sabnzbd_queue(raw) when is_map(raw) do
+    title = raw["filename"] || ""
+
+    %__MODULE__{
+      id: raw["nzo_id"],
+      title: title,
+      status: raw["status"],
+      state: state_from_sabnzbd_queue(raw["status"]),
+      protocol: :usenet,
+      download_client: "SABnzbd",
+      indexer: blank_to_nil(raw["cat"]),
+      size: megabytes_to_bytes(raw["mb"]),
+      size_left: megabytes_to_bytes(raw["mbleft"]),
+      progress: parse_progress_percent(raw["percentage"]),
+      timeleft: blank_to_nil(raw["timeleft"]),
+      normalized_title: normalize_title(title)
+    }
+  end
+
+  @doc """
+  Builds a QueueItem from a raw SABnzbd `mode=history` slot.
+
+  Usenet completion is read from history, not the live queue: only a
+  `Completed` entry carries a usable `storage` path (`content_path`).
+  Non-terminal post-processing phases (`Verifying`/`Repairing`/
+  `Extracting`) map to their own states so the UI can say "Repairing…"
+  instead of looking stalled; `Failed` maps to `:error` and keeps the
+  client's `fail_message` as `failure_message`.
+  """
+  @spec from_sabnzbd_history(map()) :: t()
+  def from_sabnzbd_history(raw) when is_map(raw) do
+    title = raw["name"] || ""
+    state = state_from_sabnzbd_history(raw["status"])
+
+    %__MODULE__{
+      id: raw["nzo_id"],
+      title: title,
+      status: raw["status"],
+      state: state,
+      protocol: :usenet,
+      download_client: "SABnzbd",
+      indexer: blank_to_nil(raw["category"]),
+      size: raw["bytes"],
+      size_left: if(state == :completed, do: 0),
+      progress: if(state == :completed, do: 100.0),
+      failure_message: if(state == :error, do: blank_to_nil(raw["fail_message"])),
+      content_path: if(state == :completed, do: blank_to_nil(raw["storage"])),
+      normalized_title: normalize_title(title)
+    }
+  end
+
+  defp state_from_sabnzbd_queue(status) when status in ~w(Downloading Grabbing Fetching),
+    do: :downloading
+
+  defp state_from_sabnzbd_queue(status) when status in ~w(Queued Propagating), do: :queued
+  defp state_from_sabnzbd_queue("Paused"), do: :paused
+  defp state_from_sabnzbd_queue(_), do: :other
+
+  defp state_from_sabnzbd_history("Completed"), do: :completed
+  defp state_from_sabnzbd_history("Failed"), do: :error
+  defp state_from_sabnzbd_history("Verifying"), do: :verifying
+  defp state_from_sabnzbd_history("Repairing"), do: :repairing
+  defp state_from_sabnzbd_history("Extracting"), do: :extracting
+  defp state_from_sabnzbd_history("Queued"), do: :queued
+  defp state_from_sabnzbd_history(_), do: :other
+
+  defp megabytes_to_bytes(mb) when is_binary(mb) do
+    case Float.parse(mb) do
+      {megabytes, _rest} -> round(megabytes * 1_048_576)
+      :error -> nil
+    end
+  end
+
+  defp megabytes_to_bytes(mb) when is_number(mb), do: round(mb * 1_048_576)
+  defp megabytes_to_bytes(_), do: nil
+
+  defp parse_progress_percent(percentage) when is_binary(percentage) do
+    case Float.parse(percentage) do
+      {percent, _rest} -> percent
+      :error -> nil
+    end
+  end
+
+  defp parse_progress_percent(percentage) when is_number(percentage), do: percentage * 1.0
+  defp parse_progress_percent(_), do: nil
 
   # Inlined normalisation — kept verbatim against
   # `MediaCentaur.Acquisition.Pursuits.Identity.normalize_title/1` so the

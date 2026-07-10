@@ -6,6 +6,7 @@ defmodule MediaCentaur.Downloads do
       DownloadClient,
       DownloadClient.Dispatcher,
       DownloadClient.QBittorrent,
+      DownloadClient.SABnzbd,
       Health,
       HealthHistory,
       Connectivity,
