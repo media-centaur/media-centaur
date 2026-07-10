@@ -151,19 +151,21 @@ Use [`template.md`](template.md) as a starter.
   plus-maturity. ADR-052 (amends ADR-035) is the first deliverable. Seven phases;
   no code yet. Design settled 2026-05-31.
 * [`usenet-download-client.md`](usenet-download-client.md) —
-  **planning.** Extend downloads from a single client (qBittorrent) to a
-  **set routed by protocol**, with SABnzbd as the first usenet driver, so a
-  user can pursue releases without caring whether each lands via torrent or
-  usenet. Prowlarr routes by protocol (two download clients); MC's real work
-  is the one-client → set-of-clients refactor (`Dispatcher.drivers()`,
-  multi-client `QueueMonitor` merge) plus a SABnzbd driver. SABnzbd owns
-  par2/repair/unrar; usenet completion reads from history. Identity is
-  explicitly provisional (no infohash → title-match → pin `nzo_id`), to be
-  redesigned once a live setup exists. Verification bounded to stubs (no
-  provider yet). Spans two repos (this + `prowlarr-stack`). Five phases;
-  no code yet. Design settled 2026-05-31. Enables — but does not build — the
-  mixed-protocol grab that the media-search planner (campaign complete
-  2026-06-10; see git history) will drive.
+  **implemented 2026-07-10 — P0 (stack) live; MC-side P1–P3 built & committed
+  the same day; remaining: wiki page + live smoke test (user enters the
+  SABnzbd API key in Settings).** Extended downloads from a single client
+  (qBittorrent) to a **set routed by protocol**, with SABnzbd as the first
+  usenet driver. Prowlarr routes by protocol (two download clients); MC's
+  work was the one-client → set refactor (`Dispatcher.drivers()`, merged
+  multi-client `QueueMonitor`, protocol-routed cancel) plus the SABnzbd
+  driver, two-slot config/Settings, per-slot capability tests, and the
+  `{:auto_cancel, :download_failed}` terminal-failure rule. SABnzbd owns
+  par2/repair/unrar; usenet completion reads from history (`storage` →
+  `content_path`, two-phase capture on the existing identity machinery).
+  Identity stays provisional (title-match → pin `nzo_id`) until real
+  payloads exist. Spans two repos (this + `prowlarr-stack`). Enables — but
+  does not build — the mixed-protocol grab that the media-search planner
+  (campaign complete 2026-06-10; see git history) drives.
 * [`install-repro-matrix.md`](install-repro-matrix.md) —
   **planning.** Reproducible install environments for media-centaur and
   prowlarr-stack. Phase 1 (Linux Mint 22.3 only) spec written

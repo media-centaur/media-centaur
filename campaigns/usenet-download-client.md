@@ -1,7 +1,7 @@
 ---
-status: planning (reconciled 2026-06-10 — no code yet; the media-search planner that makes mixed grabs fall out is now shipped)
+status: implemented (2026-07-10 — MC-side P1–P3 built & committed same day as the reconciliation; remaining = wiki page + live smoke test once the user enters the SABnzbd API key)
 started: 2026-05-31
-last_updated: 2026-06-10
+last_updated: 2026-07-10
 ---
 # Usenet download client (SABnzbd) + multi-client downloads
 
@@ -21,6 +21,57 @@ client. **No mixed-grab UX is built here.**
 
 Spans two repos: `prowlarr-stack` (sibling — add the SABnzbd service) and this
 one (the driver + the multi-client refactor).
+
+## Reconciliation (2026-07-10 — live stack confirmed, before any code)
+
+The user updated the Prowlarr stack: **SABnzbd is now added as a second
+download client and is live.** Re-derived the whole design from scratch this
+session (independent of this file) and it converged on the exact model below —
+so the 2026-05-31 plan stands. Concrete facts learned by querying the *running*
+dev node (`MediaCentaur.Search.Prowlarr.list_download_clients()` + raw
+`GET /api/v1/downloadclient`), all resumable:
+
+* **P0 is DONE.** Prowlarr now returns **two enabled clients**: `qBittorrent`
+  (`type: "qbittorrent"`, `http://192.168.68.67:8080`) and **`SABnzbd`**
+  (`type: "sabnzbd"`, `http://192.168.68.67:8085`, `username: nil`). MC could
+  see and reach both. The stack-side service (download-stack-control-plane P1)
+  is live; **only MC-side P1–P4 remain.**
+* **SABnzbd's Prowlarr config contract** (`configContract: "SabnzbdSettings"`,
+  `protocol: "usenet"`, `implementation: "Sabnzbd"`): fields =
+  `["host","port","useSsl","urlBase","apiKey","username","password","category","priority"]`.
+  **Auth is `apiKey`** (privacy `apiKey`, returned masked as `********`) — so
+  like the qBit password today, MC can pre-fill URL from Detect but the **user
+  must enter the API key** in Settings. The driver calls
+  `GET {url}/api?apikey=KEY&mode=queue|history&output=json`.
+* **`Prowlarr.list_download_clients` already normalizes `type: "sabnzbd"`**
+  (`normalize_type/1` downcases any non-qBit implementation). No parse change
+  needed for Detect — the Settings **type `<select>` just needs a `sabnzbd`
+  option** (`acquisition_section.ex` currently offers only qBittorrent).
+* **`SearchResult.from_prowlarr/1` discards Prowlarr's `protocol` field.**
+  Prowlarr returns `"protocol": "torrent"|"usenet"` per result; MC drops it.
+  `SearchResult` has no `:protocol` field. **This is the field the multi-client
+  model needs** — first fix-now item.
+* **`HealthHistory` is throughput-based** (`%{id => [{monotonic_us, size_left_bytes}]}`),
+  **not** seeds/peers — so health classification is already protocol-agnostic.
+  Lowers risk #4 to "map SAB status strings to the neutral `state` enum without
+  reading `verifying/repairing` as stalled."
+* **Import is already client-agnostic** — completed files land in a watched dir
+  and import regardless of source (file watcher → Ingest → InboundListener).
+  No import-side work.
+* **Grab is already protocol-agnostic** — `Prowlarr.grab/1` posts guid+indexerId;
+  Prowlarr routes usenet releases to SABnzbd on its own. No grab-side work.
+* **Identity already tolerates usenet** — `Pursuits.Identity` "Strategy 4"
+  (normalized release name) + `QueueMatcher`'s title fallback + `LibraryReconciler`
+  content-path already pair hashless grabs. Confirms the "provisional identity"
+  decision below is viable as-is for v1.
+* **Owner decision (reaffirmed 2026-07-10):** **both clients monitored at once**
+  (multi-client), not swap-only. Swap-only was named as the bolt-on and rejected —
+  it makes one of the two live clients invisible in-app, which is exactly this
+  user's setup.
+
+Net: the single real gap is still **multi-client queue monitoring** (P1+P3).
+Everything else (grab, import, identity) is already neutral. Next session can
+start writing code directly against P1.
 
 ## The model
 
@@ -93,37 +144,57 @@ Append-only log.
 * `2026-05-31` — **Identity is provisional/deferred.** Title-match → pin `nzo_id` + storage path is a placeholder; redesign with real payloads later. Flagged as leaning on the known-fragile title fallback.
 * `2026-05-31` — **Verification bounded to stubs.** No provider available; build against the documented API, real e2e is a deferred manual smoke test.
 * `2026-05-31` — **Boundary: this campaign only enables mixed-protocol acquisition.** The "user doesn't care" mixed grab falls out of the media-search planner; no mixed-grab UX is built here.
+* `2026-07-10` — **P0 confirmed live.** Prowlarr now has qBittorrent + SABnzbd both enabled (`sabnzbd`, `:8085`, `apiKey` auth). Stack side is done; MC-side P1–P4 remain. No design change — re-derived model matches.
+* `2026-07-10` — **`ClientConfig` value type + `configured_clients/0` accessor** is the unification point. Storage stays **flat config keys** (existing generic `download_client_*` = torrent slot; add `usenet_download_client_*`), unified behind `Downloads.ClientConfig` / `Downloads.configured_clients/0`. *(Rejected: a nested `download_clients` map settings-blob — a bigger config-model migration + `@sensitive_keys` complications for no gain over two flat slots.)*
+* `2026-07-10` — **Torrent-vocabulary rename is deferred, explicitly.** `Target.torrent_hash`, `DownloadStarted` `:infohash` payload key, and UI copy saying "torrent" all degrade correctly to nil/text for usenet. Renaming touches a schema column + an event contract, so it is a **scheduled follow-up vocabulary pass**, kept out of this monitoring feature (no migration smuggled in).
+* `2026-07-10` — **`cancel_download/1` routes by the item's protocol.** With two clients, cancel must reach the *owning* driver: look the id up in the live merged `QueueState`, dispatch to that item's protocol driver (fallback: try each driver). `QueueItem` gains `:protocol` for this.
+* `2026-07-10` — **Built (P1–P3, four commits).** Deviations & refinements vs. the plan, all recorded in moduledocs:
+  * **Cancel fallback = id shape, not try-each.** Trying each driver was rejected mid-build: qBittorrent answers 200 to deletes of unknown hashes, so a wrong-client try reads as success and the real client never gets the cancel. SABnzbd ids are always `SABnzbd_nzo_…`, so the shape is deterministic.
+  * **`test_connection` uses `mode=queue`, not `mode=version`.** `mode=version` is unkeyed — a wrong API key would pass the Settings test and then fail every poll. The keyed endpoint makes "Test connection" actually validate the key.
+  * **Completed items now stay in `QueueState.items`** (excluded from health classification). Required for history-based completion: the `storage` path lives on the Completed history entry, and `DownloadIdentity` two-phase-captures it (title match pins the nzo_id into `Target.torrent_hash`, completion fills `content_path`) with **zero new identity code** — regression-tested in `download_identity_test.exs`.
+  * **Terminal failure = Policy rule 3, no window:** `{:auto_cancel, :download_failed}`, gated on `failure_message` presence so qBittorrent's ambiguous `error`/`missingFiles` states stay out of the auto-pivot path. Rides the existing AutoCancel pivot (cancel + re-search, guid excluded).
+  * **Per-slot capability tests.** `:usenet_download_client` is its own test subject; `download_client_ready?` = any slot configured+tested; `client_ready?/1` gates each slot's polling. One slot's test never vouches for the other.
+  * **`QueueState.client_connectivity`** (per-slot grades) added next to the merged worst-grade `connectivity`, so one client's outage doesn't paint the healthy one. UI adoption of the per-slot detail is a follow-up.
+  * **No new ADR.** ADR-035 (Prowlarr = integration point) survives intact by design; the two-slot model lives in the `ClientConfig`/`Dispatcher`/`QueueMonitor` moduledocs, per the moduledoc-over-ADR rule.
 
 ## Next steps
 
 Phased; each phase ships something real without depending on the harder logic
 that follows.
 
-1. **P0 · stack: add the SABnzbd service.** *(Relocated — now owned by
-   [`download-stack-control-plane`](download-stack-control-plane.md)'s P1.)* The
-   stack-side SABnzbd service lands in the **new `download-stack` repo**, not
-   `prowlarr-stack`: new `sabnzbd` compose service, **outside** the gluetun VPN
-   tunnel (usenet is SSL-to-provider, no P2P leak — same posture as qBit today),
-   completed folder volume-mapped into the same downloads location MC watches,
-   registered as Prowlarr's second download client. Provider NNTP creds + usenet
-   indexer stay user-supplied at runtime. This campaign keeps the **MC-side**
-   work below (P1–P4).
-2. **P1 · config & dispatcher.** Single `download_client_*` → two protocol
-   slots; backward-compatible migration of the existing config into the torrent
-   slot. `Dispatcher.driver()` → `drivers()` returning the configured set.
-   Settings UI gains a usenet-client section. No behaviour change for torrent
-   users yet.
-3. **P2 · SABnzbd driver.** Implement the `DownloadClient` behaviour against
-   SABnzbd's JSON API (`mode=queue`, `mode=history`, API-key auth), stubbed
-   tests. `QueueItem` gains `protocol` + the richer status enum + history-based
-   completion / `content_path` capture.
-4. **P3 · multi-client monitor + matching.** `QueueMonitor` polls the set and
-   merges; protocol-aware identity in `QueueMatcher` / `DownloadIdentity`
-   (provisional usenet scheme); usenet terminal-failure mapping.
-5. **P4 · verify & document.** Stubs green; wiki **Download Clients** page
-   (SABnzbd setup) + prowlarr-stack README; real end-to-end smoke test deferred
-   to when a provider is available. Consider an ADR if the multi-client /
-   two-slot model warrants one (amends ADR-035's single-client assumption).
+1. **P0 · stack: add the SABnzbd service. ✅ DONE (confirmed live 2026-07-10).**
+   *(Owned by [`download-stack-control-plane`](download-stack-control-plane.md).)*
+   SABnzbd is registered as Prowlarr's second download client and reachable from
+   MC (`type: "sabnzbd"`, `:8085`). This campaign keeps the **MC-side** work
+   below (P1–P4).
+2. **P1 · config & dispatcher. ✅ DONE 2026-07-10** (commits `b3d1ed4b`,
+   `12338803`). `SearchResult.:protocol`; `usenet_download_client_*` slot;
+   `Downloads.ClientConfig` + `configured_clients/0`; `Dispatcher.drivers/0` +
+   `driver_for/1` (legacy `driver/0` deleted in P3 once caller-less); Settings
+   Usenet Client form (SABnzbd type, URL, API key) with its own save/test;
+   Detect routes Prowlarr's clients to both slots; per-slot capability tests.
+3. **P2 · SABnzbd driver. ✅ DONE 2026-07-10** (commit `fde389e4`). Full-fetch
+   `sync/1` (no RID equivalent — snapshot fingerprint for movement), history
+   window limit 30, keyed `test_connection`, 200-with-error-body auth
+   classification. `QueueItem`: `protocol`, `verifying/repairing/extracting`,
+   `failure_message`, history-only `content_path`.
+4. **P3 · multi-client monitor + matching. ✅ DONE 2026-07-10** (commit
+   `aca96185`). Merged per-slot polling with per-client bookmarks/items/
+   connectivity; completed items kept in the snapshot; two-phase usenet
+   identity confirmed against existing `DownloadIdentity` machinery;
+   protocol-routed cancel; `{:auto_cancel, :download_failed}` policy rule.
+5. **P4 · verify & document.** Stubs green; full suite green (2 pre-existing
+   "Database busy" concurrency flakes, clean standalone). Remaining:
+   * Wiki **Download Clients** page (SABnzbd setup) — drafted, push when the
+     feature ships in a release.
+   * **Live smoke test** — needs the user to enter the SABnzbd API key in
+     Settings → Acquisition → Usenet Client (agent access to read the key out
+     of the container was declined, correctly). Then: Test connection → green
+     dot, Downloads page shows SAB queue, and a real usenet grab exercises
+     history-completion + import.
+   * The **richer status enum in the Downloads UI** shows raw SAB statuses via
+     the existing state/status rendering; verify "Repairing…" copy reads well
+     with real payloads (follow-up polish).
 
 ## Risk surface
 
@@ -164,7 +235,18 @@ that follows.
 
 ## Pointers
 
-* **Download-client abstraction** — `lib/media_centaur/downloads/download_client.ex` (behaviour), `downloads/download_client/dispatcher.ex` (the seam to grow to `drivers()`), `downloads/download_client/qbittorrent.ex` (reference driver: auth, sync, list, cancel).
+* **SABnzbd (live coordinates, 2026-07-10)** — `http://192.168.68.67:8085`,
+  registered in Prowlarr as `SABnzbd` / `type: "sabnzbd"`. **JSON API** (all via
+  `GET {url}/api?apikey=KEY&output=json&...`): `&mode=queue` (live slots:
+  `nzo_id`, `filename`, `mb`, `mbleft`, `percentage`, `status`, `timeleft`),
+  `&mode=history` (completed: `nzo_id`, `name`, `storage` ← **the `content_path`
+  source**, `status`, `fail_message`), `&mode=version` (test_connection),
+  delete = `&mode=queue&name=delete&value=NZO_ID&del_files=1`. **No RID delta**
+  (unlike qBit) — `sync/1` fetches full queue+history each tick; `driver_state`
+  holds the last snapshot for movement/summary. Verify the exact field names
+  against SABnzbd's live `mode=queue` output before hardcoding (docs vs. build
+  drift). API key: user-entered (Prowlarr masks it).
+* **Download-client abstraction** — `lib/media_centaur/downloads/download_client.ex` (behaviour — 4 callbacks: `list_downloads/test_connection/sync/cancel_download`; moduledoc already names SABnzbd/usenet), `downloads/download_client/dispatcher.ex` (the seam to grow to `drivers()`), `downloads/download_client/qbittorrent.ex` (reference driver: auth, sync, list, cancel).
 * **Queue monitoring** — `lib/media_centaur/downloads/queue_monitor.ex`, `downloads/queue_state.ex`, `downloads/queue_item.ex` (gains `protocol` + status enum), `downloads/download_client/qbittorrent/sync.ex` (qBit RID delta — SABnzbd has no equivalent; poll full queue+history).
 * **Health** — `lib/media_centaur/downloads/health.ex`, `downloads/health_history.ex`.
 * **Pursuit matching / identity** — `lib/media_centaur/acquisition/queue_matcher.ex` (infohash-first + title fallback), `acquisition/pursuits/download_identity.ex` (`content_path` capture), `acquisition/info_hash.ex`.
