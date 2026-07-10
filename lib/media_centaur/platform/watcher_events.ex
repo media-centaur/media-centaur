@@ -9,12 +9,23 @@ defmodule MediaCentaur.Platform.WatcherEvents do
 
   | Domain meaning      | inotify       | FSEvents     |
   |---------------------|---------------|--------------|
-  | File created        | `:created`    | `:created`   |
+  | File created        | `:created`, `:moved_to` | `:created`   |
   | File modified       | `:modified`   | `:modified`  |
-  | File deleted        | `:deleted`    | `:removed`   |
+  | File deleted        | `:deleted`, `:moved_from` | `:removed`   |
   | Volume unmounted    | `:unmounted`  | `:unmount`   |
   | Watched root gone   | (n/a)         | `:rootchanged` |
-  | Rescan-required signal | (n/a)      | `:mustscansubdirs`, `:userdropped`, `:kerneldropped`, `:eventidswrapped`, `:renamed` |
+  | Rescan-required signal | `:moved_to`/`:moved_from` + `:isdir` | `:mustscansubdirs`, `:userdropped`, `:kerneldropped`, `:eventidswrapped`, `:renamed` |
+
+  ## Renames (inotify)
+
+  A rename reports `:moved_from` at the old path and `:moved_to` at the
+  new one — for a *file* those are exactly a deletion and a creation.
+  For a *directory* (the `:isdir` marker rides along) inotify emits
+  **nothing** for the files inside, so the pair maps to
+  `:scan_required` — the same directory-level "go look" FSEvents'
+  `:renamed` already takes. Download clients end jobs with precisely
+  this shape (assemble outside the watched tree, rename the finished
+  content in), so dropping these events made finished jobs invisible.
 
   Without translation, `Watcher.handle_info` would silently miss
   deletes and unmounts on macOS — events would arrive under names
@@ -60,9 +71,15 @@ defmodule MediaCentaur.Platform.WatcherEvents do
   """
   @spec normalize([atom()]) :: [domain_event()]
   def normalize(events) when is_list(events) do
-    events
-    |> Enum.flat_map(&translate/1)
-    |> Enum.uniq()
+    if :isdir in events and (:moved_to in events or :moved_from in events) do
+      # A renamed directory: its files exist under the new path with no
+      # events of their own — only a scan finds them.
+      [:scan_required]
+    else
+      events
+      |> Enum.flat_map(&translate/1)
+      |> Enum.uniq()
+    end
   end
 
   # --- Domain atoms (identity — Linux atoms + our `:scan_required` invention) ---
@@ -74,6 +91,10 @@ defmodule MediaCentaur.Platform.WatcherEvents do
   defp translate(:deleted), do: [:deleted]
   defp translate(:unmounted), do: [:unmounted]
   defp translate(:scan_required), do: [:scan_required]
+
+  # --- inotify renames → domain (see "Renames" in the moduledoc) ---
+  defp translate(:moved_to), do: [:created]
+  defp translate(:moved_from), do: [:deleted]
 
   # --- FSEvents → domain ---
   defp translate(:removed), do: [:deleted]

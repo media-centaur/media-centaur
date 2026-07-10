@@ -59,6 +59,31 @@ defmodule MediaCentaur.Platform.WatcherEventsTest do
     end
   end
 
+  describe "normalize/1 — Linux (inotify) renames" do
+    # inotify reports renames as MOVED_FROM (old path) / MOVED_TO (new
+    # path). Download clients finish jobs with exactly these: qBittorrent
+    # and SABnzbd assemble outside the library and rename the finished
+    # content in. Dropping these events made finished usenet jobs
+    # invisible (the Obsession incident).
+
+    test "a file moved in is a creation at its new path" do
+      assert WatcherEvents.normalize([:moved_to]) == [:created]
+      assert WatcherEvents.normalize([:moved_to, :isfile]) == [:created]
+    end
+
+    test "a file moved out is a deletion at its old path" do
+      assert WatcherEvents.normalize([:moved_from]) == [:deleted]
+    end
+
+    test "a directory moved in requires a scan — inotify emits nothing for the files inside" do
+      assert WatcherEvents.normalize([:moved_to, :isdir]) == [:scan_required]
+    end
+
+    test "a directory moved out requires a scan for the same reason" do
+      assert WatcherEvents.normalize([:moved_from, :isdir]) == [:scan_required]
+    end
+  end
+
   describe "normalize/1 — FSEvents noise atoms are filtered" do
     # These atoms are emitted by FSEvents but carry no domain meaning to
     # Watcher: type markers, metadata-only changes, mount notices, and the
@@ -143,7 +168,15 @@ defmodule MediaCentaur.Platform.WatcherEventsTest do
     # it (map or drop). These tests enumerate the lists from
     # FSInotify and FSMac so an upstream addition surfaces here.
 
-    @fs_inotify_atoms [:created, :modified, :deleted, :unmounted]
+    @fs_inotify_atoms [
+      :created,
+      :modified,
+      :deleted,
+      :unmounted,
+      :moved_to,
+      :moved_from,
+      :isdir
+    ]
 
     @fs_mac_atoms [
       :mustscansubdirs,
