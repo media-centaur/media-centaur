@@ -133,6 +133,29 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
       assert :request_decision in actions
     end
 
+    test "post-processing states -> their own verbs, never 'unrecognized', never a crash" do
+      # SABnzbd's post-download pipeline (verify → repair → unpack → move)
+      # reports through these states. "Moving" in particular runs for
+      # minutes on a large file crossing mounts — showing it as an
+      # unrecognized state with a "change target" hint invites the user
+      # to abandon a healthy download.
+      for {state, verb} <- [
+            {:verifying, "Verifying"},
+            {:repairing, "Repairing"},
+            {:extracting, "Unpacking"},
+            {:moving, "Moving"}
+          ] do
+        {action, next, actions} =
+          PursuitStatus.derive(pursuit(:active), unit(), target(:acquired), queue_item(state))
+
+        assert action.verb == verb
+        assert action.severity == :info
+        assert action.description =~ "download client"
+        assert next.description =~ "lands in the library"
+        assert actions == [:cancel], "post-processing must not offer change_target"
+      end
+    end
+
     test "paused -> Paused" do
       {action, _next, actions} =
         PursuitStatus.derive(pursuit(:active), unit(), target(:acquired), queue_item(:paused))

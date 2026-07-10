@@ -235,6 +235,11 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
   @state_rank %{
     error: 0,
     downloading: 1,
+    # SABnzbd post-processing — as live as downloading, nearly done.
+    verifying: 1,
+    repairing: 1,
+    extracting: 1,
+    moving: 1,
     stalled: 2,
     paused: 3,
     queued: 4,
@@ -418,6 +423,10 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
   def state_label(:queued), do: "Queued"
   def state_label(:stalled), do: "Stalled"
   def state_label(:paused), do: "Paused"
+  def state_label(:verifying), do: "Verifying"
+  def state_label(:repairing), do: "Repairing"
+  def state_label(:extracting), do: "Unpacking"
+  def state_label(:moving), do: "Moving"
   def state_label(:completed), do: "Completed"
   def state_label(:error), do: "Error"
   def state_label(:other), do: "Other"
@@ -429,6 +438,8 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
   """
   @spec state_badge_variant(QueueItem.state() | nil) :: String.t()
   def state_badge_variant(:downloading), do: "info"
+  def state_badge_variant(state) when state in [:verifying, :repairing, :extracting, :moving], do: "info"
+
   def state_badge_variant(:completed), do: "success"
   def state_badge_variant(:error), do: "error"
   def state_badge_variant(:paused), do: "warning"
@@ -443,6 +454,10 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
   """
   @spec state_text_class(QueueItem.state() | nil) :: String.t()
   def state_text_class(:downloading), do: "text-info/80"
+
+  def state_text_class(state) when state in [:verifying, :repairing, :extracting, :moving],
+    do: "text-info/80"
+
   def state_text_class(:completed), do: "text-success/80"
   def state_text_class(:error), do: "text-error/80"
   def state_text_class(:paused), do: "text-warning/80"

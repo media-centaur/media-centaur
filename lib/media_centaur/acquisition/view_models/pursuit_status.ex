@@ -322,6 +322,22 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
+  # SABnzbd's post-download pipeline: verify → repair → unpack → move.
+  # All healthy, all hands-off — offering change_target here invites
+  # abandoning a download that is seconds-to-minutes from landing.
+  defp derive_acquired_in_queue(%QueueItem{state: state})
+       when state in [:verifying, :repairing, :extracting, :moving] do
+    {
+      %CurrentAction{
+        verb: postprocessing_verb(state),
+        description: "Post-processing at the download client.",
+        severity: :info
+      },
+      %NextStep{description: "The finished file lands in the library when this completes."},
+      [:cancel]
+    }
+  end
+
   defp derive_acquired_in_queue(%QueueItem{state: :completed}) do
     {
       %CurrentAction{
@@ -357,6 +373,11 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
       [:cancel, :change_target]
     }
   end
+
+  defp postprocessing_verb(:verifying), do: "Verifying"
+  defp postprocessing_verb(:repairing), do: "Repairing"
+  defp postprocessing_verb(:extracting), do: "Unpacking"
+  defp postprocessing_verb(:moving), do: "Moving"
 
   defp download_description(%QueueItem{} = qi) do
     bits =
