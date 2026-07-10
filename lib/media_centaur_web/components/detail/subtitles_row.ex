@@ -3,42 +3,92 @@ defmodule MediaCentaurWeb.Components.Detail.SubtitlesRow do
   Compact label-plus-codes row showing the subtitle languages
   available on a movie's linked file(s).
 
+  Releases routinely ship a dozen-plus subtitle tracks; listing them
+  all wraps the row across lines for languages the user will never
+  pick. The row leads with the languages the user configured as
+  understood (Settings → Language), comma-delimited, and folds the rest
+  behind a `+N more` reveal — a pure client-side toggle, no server
+  round-trip. With no configured languages (or none matching) the fold
+  degrades sensibly: everything up front, or everything behind the
+  reveal, respectively.
+
   Pure display: takes the pre-aggregated list from
-  `MediaCentaur.Subtitles.aggregate_languages/1`, where each entry is
-  an ISO 639-1 code or `nil` (sidecar with unrecognised language
-  suffix). `nil` renders as the literal text `external` so the user
-  can distinguish between "I have French subs" and "I have a sidecar
-  but its language is unknown".
-
-  An empty list renders nothing — the entire row is skipped, keeping
-  the detail panel clean for movies without detected subtitles.
-
-  Aggregation, deduping, and ordering all happen upstream in the
-  Subtitles context. This component does not transform the input.
+  `MediaCentaur.Subtitles.aggregate_track_languages/1`, where each
+  entry is an ISO 639-1 code or `nil` (sidecar with unrecognised
+  language suffix). `nil` renders as the literal text `external` so the
+  user can distinguish between "I have French subs" and "I have a
+  sidecar but its language is unknown". An empty list renders nothing.
   """
 
   use MediaCentaurWeb, :html
 
+  alias MediaCentaur.Playback.Iso639
+  alias Phoenix.LiveView.JS
+
   attr :languages, :list,
     required: true,
     doc:
-      "deduped, sorted from `MediaCentaur.Subtitles.aggregate_languages/1`. Each entry is an ISO 639-1 code (`String.t()`) or `nil` for an unknown-language sidecar. Element types are primitive — no struct."
+      "deduped, sorted from `MediaCentaur.Subtitles.aggregate_track_languages/1`. Each entry is an ISO 639-1 code (`String.t()`) or `nil` for an unknown-language sidecar. Element types are primitive — no struct."
+
+  attr :understood, :list,
+    default: [],
+    doc:
+      "the user's understood-language codes (`LanguagePolicy.understood_languages`, ISO 639-2). Languages matching these lead the row; the rest fold behind the +N-more reveal. Empty list shows everything."
 
   def subtitles_row(assigns) do
+    {shown, hidden} = split_languages(assigns.languages, assigns.understood)
+
+    assigns =
+      assigns
+      |> assign(:shown_text, join_labels(shown))
+      |> assign(:hidden_text, join_labels(hidden))
+      |> assign(:hidden_count, length(hidden))
+      |> assign(:separator?, shown != [] and hidden != [])
+
     ~H"""
     <div :if={@languages != []} class="flex items-baseline gap-3 text-sm">
       <h3 class="text-xs font-semibold uppercase tracking-wider text-base-content/50 shrink-0">
         Subtitles
       </h3>
-      <p class="text-base-content/80 leading-relaxed">
-        <%= for {language, index} <- Enum.with_index(@languages) do %>
-          <span :if={index > 0} class="text-base-content/30 mx-1.5">·</span><span class={
-            language == nil && "text-base-content/50 italic"
-          }>{language_label(language)}</span>
-        <% end %>
+      <p class="text-base-content/80 leading-relaxed min-w-0">
+        <span :if={@shown_text != ""}>{@shown_text}</span>
+        <button
+          :if={@hidden_count > 0}
+          id="subtitles-row-more"
+          type="button"
+          class="cursor-pointer text-primary/80 hover:text-primary whitespace-nowrap"
+          phx-click={
+            JS.hide(to: "#subtitles-row-more")
+            |> JS.show(to: "#subtitles-row-rest", display: "inline")
+          }
+          data-nav-item
+          tabindex="0"
+        >
+          {if @separator?, do: ", "}+{@hidden_count} more
+        </button>
+        <span id="subtitles-row-rest" class="hidden">
+          {if @separator?, do: ", "}{@hidden_text}
+        </span>
       </p>
     </div>
     """
+  end
+
+  @doc """
+  Splits the aggregated language list into `{shown, hidden}`: entries
+  matching the user's understood languages (cross-form — the policy
+  stores ISO 639-2, tracks carry 639-1) lead; everything else folds
+  behind the reveal. No configured languages → everything shown.
+  Relative order within each group is preserved.
+  """
+  @spec split_languages([String.t() | nil], [String.t()]) ::
+          {[String.t() | nil], [String.t() | nil]}
+  def split_languages(languages, []), do: {languages, []}
+
+  def split_languages(languages, understood) when is_list(understood) do
+    Enum.split_with(languages, fn language ->
+      is_binary(language) and Enum.any?(understood, &Iso639.equal?(&1, language))
+    end)
   end
 
   @doc """
@@ -49,4 +99,6 @@ defmodule MediaCentaurWeb.Components.Detail.SubtitlesRow do
   @spec language_label(String.t() | nil) :: String.t()
   def language_label(nil), do: "external"
   def language_label(code) when is_binary(code), do: code
+
+  defp join_labels(languages), do: Enum.map_join(languages, ", ", &language_label/1)
 end
