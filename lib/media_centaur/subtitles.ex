@@ -164,6 +164,19 @@ defmodule MediaCentaur.Subtitles do
     end
   end
 
+  @doc """
+  Same display aggregation as `aggregate_languages_for_files/1`, but over
+  already-loaded track structs/maps (anything exposing `:language`) —
+  no query. For callers holding the detail projection's
+  `DetailItem.SubtitleTrack`s, which carry the same tracks the file
+  query would return.
+  """
+  @spec aggregate_track_languages([%{:language => String.t() | nil, optional(atom()) => term()}]) ::
+          [String.t() | nil]
+  def aggregate_track_languages(tracks) when is_list(tracks) do
+    tracks |> Enum.map(& &1.language) |> sort_with_nil_last()
+  end
+
   defp resolve_id(%{id: id}) when is_binary(id), do: id
   defp resolve_id(id) when is_binary(id), do: id
 

@@ -268,9 +268,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # episodes each carry their own WatchedFile with its own tracks;
   # aggregating across episodes needs a different display story
   # (per-season? show-wide?). Skip non-movies entirely so the row
-  # never renders for them.
-  defp subtitle_languages_for(%{type: :movie, watched_files: files}) when is_list(files),
-    do: Subtitles.aggregate_languages_for_files(files)
+  # never renders for them. Reads the projection's already-loaded
+  # tracks — the previous version re-queried by watched-file id, which
+  # only ever ran against an empty list until the entity maps started
+  # passing real (id-less) view structs through.
+  defp subtitle_languages_for(%{type: :movie, subtitle_tracks: tracks}) when is_list(tracks),
+    do: Subtitles.aggregate_track_languages(tracks)
 
   defp subtitle_languages_for(_), do: []
 

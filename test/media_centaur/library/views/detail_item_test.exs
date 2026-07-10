@@ -364,6 +364,23 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
       assert entity.content_url == nil
     end
 
+    test "preserves :watched_files (with media_info) for the More-info File-details render" do
+      # Regression: the entity maps hardcoded `watched_files: []`, so the
+      # probed media info never reached the pane even though the
+      # projection carried it.
+      files = [
+        %DetailItem.WatchedFile{
+          path: "/media/x/a.mkv",
+          media_dir: "/media/x",
+          media_info: %{container_title: "Sample (2024)", duration_seconds: 6520}
+        }
+      ]
+
+      detail_item = movie_detail_item(watched_files: files)
+      entity = DetailItem.to_entity_map(detail_item)
+      assert entity.watched_files == files
+    end
+
     test "preserves :subtitle_tracks for DetailPanel's subtitle-language render" do
       tracks = [
         %DetailItem.SubtitleTrack{kind: :embedded, language: "en", source: "stream:2"},

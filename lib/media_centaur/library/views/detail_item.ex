@@ -395,7 +395,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       images: item.images || [],
       seasons: Enum.map(item.seasons || [], &season_to_map/1),
       movies: [],
-      watched_files: [],
+      watched_files: item.watched_files || [],
       subtitle_tracks: [],
       extra_progress: []
     }
@@ -433,7 +433,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       images: item.images || [],
       seasons: [],
       movies: Enum.map(item.movies || [], &movie_entry_to_map/1),
-      watched_files: [],
+      watched_files: item.watched_files || [],
       subtitle_tracks: [],
       extra_progress: []
     }
@@ -471,7 +471,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       images: item.images || [],
       seasons: [],
       movies: [],
-      watched_files: [],
+      watched_files: item.watched_files || [],
       subtitle_tracks: item.subtitle_tracks || [],
       extra_progress: []
     }
@@ -509,7 +509,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       images: item.images || [],
       seasons: [],
       movies: [],
-      watched_files: [],
+      watched_files: item.watched_files || [],
       subtitle_tracks: item.subtitle_tracks || [],
       extra_progress: []
     }
