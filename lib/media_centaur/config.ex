@@ -47,7 +47,12 @@ defmodule MediaCentaur.Config do
                          "~/.config/media-centaur/media-centaur.toml"
                        )
 
-  @sensitive_keys [:tmdb_api_key, :prowlarr_api_key, :download_client_password]
+  @sensitive_keys [
+    :tmdb_api_key,
+    :prowlarr_api_key,
+    :download_client_password,
+    :usenet_download_client_api_key
+  ]
 
   # Runtime-settable keys: tunable via `update/2` and persisted to the
   # Settings DB. Excludes structural values (database_path, port,
@@ -62,6 +67,9 @@ defmodule MediaCentaur.Config do
     :download_client_url,
     :download_client_username,
     :download_client_password,
+    :usenet_download_client_type,
+    :usenet_download_client_url,
+    :usenet_download_client_api_key,
     :mpv_path,
     :mpv_socket_dir,
     :mpv_socket_timeout_ms,
@@ -456,6 +464,9 @@ defmodule MediaCentaur.Config do
       download_client_url: nil,
       download_client_username: nil,
       download_client_password: nil,
+      usenet_download_client_type: nil,
+      usenet_download_client_url: nil,
+      usenet_download_client_api_key: nil,
       showcase_mode: false,
       update_check_enabled: true,
       update_check_interval_minutes: @update_check_interval_default_minutes,
