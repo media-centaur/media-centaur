@@ -6,4 +6,4 @@ End-user acquisition documentation has moved to the wiki:
 - **[Download Clients](https://github.com/media-centaur/media-centaur/wiki/Download-Clients)** — per-client configuration, which clients have driver support for the in-app queue view.
 - **[Release Tracking](https://github.com/media-centaur/media-centaur/wiki/Release-Tracking)** — automated grabs for upcoming titles.
 
-**Contributors:** driver authorship details (adding support for a new download client — the `@behaviour` contract, `QueueItem` struct, Dispatcher registration) are in the module `@moduledoc`s under `lib/media_centaur/acquisition/download_client/`.
+**Contributors:** the download-client architecture (two protocol slots, prowlarr-stack bootstrap contract) and the full add-a-client checklist are in [`docs/download-clients.md`](../download-clients.md); the `@behaviour` contract lives in the `@moduledoc`s under `lib/media_centaur/downloads/download_client/`.
