@@ -24,7 +24,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.PlayCard
   alias MediaCentaurWeb.ViewModel.EpisodeListItem
 
-
   # --- Public API ---
 
   @doc """
