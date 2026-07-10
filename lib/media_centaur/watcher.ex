@@ -580,12 +580,7 @@ defmodule MediaCentaur.Watcher do
     Enum.map(MediaCentaur.Config.get(:skip_dirs) || [], &String.downcase/1)
   end
 
-  defp in_skip_dir?(path, skip_dirs) do
-    path
-    |> Path.split()
-    |> Enum.drop(-1)
-    |> Enum.any?(fn component -> String.downcase(component) in skip_dirs end)
-  end
+  defp in_skip_dir?(path, skip_dirs), do: Walk.in_skip_dir?(path, skip_dirs)
 
   defp refresh_exclude_dirs(state) do
     %{state | exclude_dirs: ExcludeDirs.prepare(load_exclude_dirs(state.dir))}

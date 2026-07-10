@@ -67,5 +67,35 @@ defmodule MediaCentaur.Watcher.WalkTest do
     test "returns empty when directory cannot be read" do
       assert Walk.walk("/missing", ExcludeDirs.prepare([]), [], fs(%{})) == []
     end
+
+    test "a .staging directory is always invisible — reserved for download-client assembly" do
+      # The contract download clients build against (prowlarr-stack's
+      # SABnzbd unpacks there): anything inside a directory named
+      # `.staging` is in-progress assembly, never library content. Baked
+      # in — not dependent on the user's configured skip list.
+      tree = %{
+        "/media" => ["a.mkv", ".staging"],
+        "/media/.staging" => ["Sample.Show.S01E01.1080p.WEB-DL"],
+        "/media/.staging/Sample.Show.S01E01.1080p.WEB-DL" => ["episode.mkv"]
+      }
+
+      assert Walk.walk("/media", ExcludeDirs.prepare([]), [], fs(tree)) == ["/media/a.mkv"]
+    end
+  end
+
+  describe "in_skip_dir?/2" do
+    test "true when any parent component is a configured skip dir (case-insensitive)" do
+      assert Walk.in_skip_dir?("/media/TRASH/b.mkv", ["trash"])
+      refute Walk.in_skip_dir?("/media/good/a.mkv", ["trash"])
+    end
+
+    test "the file's own name never matches — only parent components" do
+      refute Walk.in_skip_dir?("/media/trash", ["trash"])
+    end
+
+    test ".staging parents match without any configured skip list" do
+      assert Walk.in_skip_dir?("/media/.staging/Sample.Show/episode.mkv", [])
+      refute Walk.in_skip_dir?("/media/show/episode.mkv", [])
+    end
   end
 end
