@@ -22,10 +22,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.MetadataRow
   alias MediaCentaurWeb.Components.Detail.MoreInfoPanel
   alias MediaCentaurWeb.Components.Detail.PlayCard
-  alias MediaCentaurWeb.Components.Detail.SubtitlesRow
   alias MediaCentaurWeb.ViewModel.EpisodeListItem
 
-  alias MediaCentaur.Subtitles
 
   # --- Public API ---
 
@@ -129,15 +127,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     facets = build_facets(assigns.entity)
     metadata_items = build_metadata_items(assigns.entity)
     tagline = tagline_for(assigns.entity)
-    subtitle_languages = subtitle_languages_for(assigns.entity)
-
-    # Understood languages lead the subtitles row; the rest fold behind
-    # the +N-more reveal. Read here (prod: SettingsCache) rather than
-    # threaded through every modal host.
-    understood_languages =
-      if subtitle_languages == [],
-        do: [],
-        else: MediaCentaur.Playback.LanguagePolicy.load().understood_languages
 
     assigns =
       assigns
@@ -150,8 +139,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:facets, facets)
       |> assign(:metadata_items, metadata_items)
       |> assign(:tagline, tagline)
-      |> assign(:subtitle_languages, subtitle_languages)
-      |> assign(:understood_languages, understood_languages)
 
     ~H"""
     <div class="detail-panel">
@@ -214,10 +201,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             <div class="min-w-0 space-y-3">
               <FacetStrip.facet_strip facets={@facets} layout={:row} class="xl:hidden" />
               <FacetStrip.facet_strip facets={@facets} layout={:stacked} class="hidden xl:grid" />
-              <SubtitlesRow.subtitles_row
-                languages={@subtitle_languages}
-                understood={@understood_languages}
-              />
             </div>
           </div>
         </div>
@@ -275,19 +258,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       remaining_text: remaining
     }
   end
-
-  # Movies are the only type with detected subtitles for v1. Series'
-  # episodes each carry their own WatchedFile with its own tracks;
-  # aggregating across episodes needs a different display story
-  # (per-season? show-wide?). Skip non-movies entirely so the row
-  # never renders for them. Reads the projection's already-loaded
-  # tracks — the previous version re-queried by watched-file id, which
-  # only ever ran against an empty list until the entity maps started
-  # passing real (id-less) view structs through.
-  defp subtitle_languages_for(%{type: :movie, subtitle_tracks: tracks}) when is_list(tracks),
-    do: Subtitles.aggregate_track_languages(tracks)
-
-  defp subtitle_languages_for(_), do: []
 
   defp build_facets(%{type: :movie} = movie), do: Logic.facets_for(:movie, movie)
   defp build_facets(%{type: :tv_series} = tv), do: Logic.facets_for(:tv_series, tv)

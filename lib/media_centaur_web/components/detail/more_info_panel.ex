@@ -29,6 +29,8 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfoPanel do
   alias MediaCentaur.Library.MediaTrackOverride
   alias MediaCentaur.Playback.Iso639
 
+  alias MediaCentaur.Subtitles
+
   alias MediaCentaurWeb.Components.Detail.MoreInfo.{
     CastGrid,
     ExternalLinks,
@@ -37,19 +39,43 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfoPanel do
     SeriesCredits
   }
 
+  alias MediaCentaurWeb.Components.Detail.SubtitlesRow
+
   attr :entity, :map,
     required: true,
     doc:
       "entity-map produced by `MediaCentaur.Library.Views.DetailItem.to_entity_map/1` (Phase 3.2 Task D). Loose-typed because it spans multiple container kinds; the shell reads `:type` to dispatch and forwards the map to per-type sub-components. Typed-attr migration is a Phase 3.3 follow-up."
 
   def more_info_panel(assigns) do
+    subtitle_languages = subtitle_languages_for(assigns.entity)
+
+    # Understood languages lead the subtitles row; the rest fold behind
+    # the trailing-+ reveal. Read here (prod: SettingsCache) rather than
+    # threaded through every modal host.
+    understood_languages =
+      if subtitle_languages == [],
+        do: [],
+        else: MediaCentaur.Playback.LanguagePolicy.load().understood_languages
+
+    assigns =
+      assigns
+      |> assign(:subtitle_languages, subtitle_languages)
+      |> assign(:understood_languages, understood_languages)
+
     ~H"""
     <section class="space-y-6 pt-2 pb-4">
-      <%!-- Credits left, probed file facts right — the headline pair is
-            short, so the row's right half was dead space. --%>
+      <%!-- Credits left; the file's own facts (probed tech line +
+            subtitle languages) right — the headline pair is short, so
+            the row's right half was dead space. --%>
       <div class="grid gap-6 sm:grid-cols-2 sm:items-start">
         <.headline_for_type entity={@entity} />
-        <FileDetails.file_details files={@entity[:watched_files] || []} />
+        <div class="min-w-0 space-y-3">
+          <FileDetails.file_details files={@entity[:watched_files] || []} />
+          <SubtitlesRow.subtitles_row
+            languages={@subtitle_languages}
+            understood={@understood_languages}
+          />
+        </div>
       </div>
       <CastGrid.cast_grid cast={@entity[:cast] || []} />
       <.meta_for_type entity={@entity} />
@@ -58,6 +84,17 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfoPanel do
     </section>
     """
   end
+
+  # Movies are the only type with detected subtitles for v1. Series'
+  # episodes each carry their own WatchedFile with its own tracks;
+  # aggregating across episodes needs a different display story
+  # (per-season? show-wide?). Skip non-movies entirely so the row
+  # never renders for them. Reads the projection's already-loaded
+  # tracks — never re-queried.
+  defp subtitle_languages_for(%{type: :movie, subtitle_tracks: tracks}) when is_list(tracks),
+    do: Subtitles.aggregate_track_languages(tracks)
+
+  defp subtitle_languages_for(_entity), do: []
 
   # Per-entity remembered audio/subtitle track selection. Rendered only
   # when an override exists (movies + TV series carry it via
