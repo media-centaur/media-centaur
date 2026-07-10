@@ -166,7 +166,9 @@ defmodule MediaCentaur.Library.MediaProbe do
 
     @spec run(String.t(), [String.t()]) :: {binary(), non_neg_integer()} | {:error, term()}
     def run(executable, args) do
-      System.cmd(executable, args, stderr_to_stdout: true)
+      # env: [] — ffprobe needs no environment; Credo's LeakyEnvironment
+      # flags subprocess calls that inherit the parent's env (secrets).
+      System.cmd(executable, args, stderr_to_stdout: true, env: [])
     rescue
       error in [ErlangError] -> {:error, error}
     end

@@ -41,6 +41,7 @@ defmodule MediaCentaur.Library do
       Views.ContinueWatchingItem,
       Views.Detail,
       Views.DetailItem,
+      Views.DetailItem.WatchedFile,
       Views.HeroCandidates,
       Views.HeroCandidatesItem,
       Views.RecentlyAdded,
