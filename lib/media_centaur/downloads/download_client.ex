@@ -4,8 +4,8 @@ defmodule MediaCentaur.Downloads.DownloadClient do
   download client (qBittorrent, Transmission, SABnzbd, …).
 
   Drivers are pluggable: add a module that implements this behaviour and
-  a `MediaCentaur.Downloads.DownloadClient.Dispatcher` clause mapping
-  the configured `:download_client_type` string to the module.
+  a `MediaCentaur.Downloads.DownloadClient.Dispatcher` type→module
+  entry so its protocol slot resolves to the new driver.
 
   ## Filter values
 

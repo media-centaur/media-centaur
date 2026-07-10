@@ -23,7 +23,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.Snapshot do
     :stall_observed?,
     :stall_window_elapsed?,
     :zero_seeders_observed?,
-    :zero_seeders_window_elapsed?
+    :zero_seeders_window_elapsed?,
+    # Client-reported terminal failure of the unit's tracked download
+    # (SABnzbd's par2-unrepairable / unpack-failed). Deterministic — no
+    # observation window; Policy pivots immediately.
+    :download_failed?
   ]
 
   @type queue_state :: [QueueItem.t()] | :unknown
@@ -38,6 +42,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Snapshot do
           stall_observed?: boolean() | nil,
           stall_window_elapsed?: boolean() | nil,
           zero_seeders_observed?: boolean() | nil,
-          zero_seeders_window_elapsed?: boolean() | nil
+          zero_seeders_window_elapsed?: boolean() | nil,
+          download_failed?: boolean() | nil
         }
 end

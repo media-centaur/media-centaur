@@ -554,30 +554,32 @@ defmodule MediaCentaur.Acquisition do
   defp put_when_present(opts, key, value), do: Keyword.put(opts, key, value)
 
   @doc """
-  Lists downloads from the configured download client.
+  Cancels a download by id. Destructive — the download and any files
+  are removed from the owning client.
 
-  Returns `{:error, :not_configured}` when no driver is configured, or
-  `{:error, {:unknown_driver, type}}` when the configured type has no
-  driver in this build.
-
-  `filter` is one of `:active | :completed | :all`.
-  """
-  @spec list_downloads(:active | :completed | :all) ::
-          {:ok, list()} | {:error, term()}
-  def list_downloads(filter \\ :all) do
-    with {:ok, driver} <- Dispatcher.driver() do
-      driver.list_downloads(filter)
-    end
-  end
-
-  @doc """
-  Cancels a download by id. Destructive — the torrent and any
-  downloaded files are removed from the client.
+  With two configured clients the cancel is routed to the one that owns
+  the id: the live queue item's protocol tag is authoritative; when the
+  item has already left the snapshot (cleanup cancels can arrive after
+  completion or removal), the id shape decides — SABnzbd ids are always
+  `SABnzbd_nzo_…`, torrent ids are bare infohashes.
   """
   @spec cancel_download(String.t()) :: :ok | {:error, term()}
   def cancel_download(id) do
-    with {:ok, driver} <- Dispatcher.driver() do
+    with {:ok, driver} <- Dispatcher.driver_for(protocol_for_download(id)) do
       driver.cancel_download(id)
+    end
+  end
+
+  defp protocol_for_download(id) do
+    case Enum.find(queue_state().items, &(&1.id == id)) do
+      %MediaCentaur.Downloads.QueueItem{protocol: protocol}
+      when protocol in [:torrent, :usenet] ->
+        protocol
+
+      _absent_or_untagged ->
+        if is_binary(id) and String.starts_with?(id, "SABnzbd_nzo"),
+          do: :usenet,
+          else: :torrent
     end
   end
 
