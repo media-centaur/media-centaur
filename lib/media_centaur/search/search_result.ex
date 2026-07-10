@@ -26,6 +26,12 @@ defmodule MediaCentaur.Search.SearchResult do
     # public torrent indexers; nil for usenet and indexers that omit it.
     :info_hash,
     :magnet_url,
+    # `:torrent | :usenet`, from Prowlarr's per-result `protocol` field.
+    # Prowlarr routes each grab to the matching download client, so MC
+    # never picks a client at grab time — the field exists so the queue
+    # can be matched and displayed per protocol. Nil when Prowlarr omits
+    # or MC doesn't recognize the value.
+    :protocol,
     # Prowlarr proxy link to the release. For indexers that expose neither
     # `info_hash` nor a magnet, this is the only path to a durable infohash:
     # fetching it either redirects to a magnet or serves the `.torrent` body,
@@ -45,6 +51,7 @@ defmodule MediaCentaur.Search.SearchResult do
           publish_date: String.t() | nil,
           info_hash: String.t() | nil,
           magnet_url: String.t() | nil,
+          protocol: :torrent | :usenet | nil,
           download_url: String.t() | nil
         }
 
@@ -65,9 +72,14 @@ defmodule MediaCentaur.Search.SearchResult do
       publish_date: raw["publishDate"],
       info_hash: raw["infoHash"],
       magnet_url: raw["magnetUrl"],
+      protocol: parse_protocol(raw["protocol"]),
       download_url: raw["downloadUrl"]
     }
   end
+
+  defp parse_protocol("torrent"), do: :torrent
+  defp parse_protocol("usenet"), do: :usenet
+  defp parse_protocol(_), do: nil
 
   # Indexers ship scene titles with mangled encodings, and JSON decoding
   # passes the raw bytes through. Every downstream consumer — unicode

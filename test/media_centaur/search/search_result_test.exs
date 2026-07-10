@@ -29,6 +29,28 @@ defmodule MediaCentaur.Search.SearchResultTest do
       assert result.magnet_url == nil
     end
 
+    test "captures the release protocol from the raw result" do
+      torrent = %{"title" => "Sample.Release", "guid" => "g4", "indexerId" => 1, "protocol" => "torrent"}
+      usenet = %{"title" => "Sample.Release", "guid" => "g5", "indexerId" => 2, "protocol" => "usenet"}
+
+      assert SearchResult.from_prowlarr(torrent).protocol == :torrent
+      assert SearchResult.from_prowlarr(usenet).protocol == :usenet
+    end
+
+    test "leaves protocol nil when the field is missing or unrecognized" do
+      missing = %{"title" => "Sample.Release", "guid" => "g6", "indexerId" => 1}
+
+      unknown = %{
+        "title" => "Sample.Release",
+        "guid" => "g7",
+        "indexerId" => 1,
+        "protocol" => "carrier-pigeon"
+      }
+
+      assert SearchResult.from_prowlarr(missing).protocol == nil
+      assert SearchResult.from_prowlarr(unknown).protocol == nil
+    end
+
     test "scrubs invalid UTF-8 bytes from the title at the boundary" do
       # Indexers ship scene titles with mangled encodings; JSON decoding
       # passes the raw bytes through. Every downstream consumer (unicode

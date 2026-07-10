@@ -2,6 +2,7 @@ defmodule MediaCentaur.Downloads do
   use Boundary,
     deps: [MediaCentaur.Capabilities],
     exports: [
+      ClientConfig,
       DownloadClient,
       DownloadClient.Dispatcher,
       DownloadClient.QBittorrent,
@@ -43,4 +44,61 @@ defmodule MediaCentaur.Downloads do
   the exported modules above). `Downloads` knows nothing about targets
   or pursuits — its world is "what's the client doing right now."
   """
+
+  alias MediaCentaur.Downloads.ClientConfig
+
+  @doc """
+  The configured download-client slots as `ClientConfig` values —
+  torrent slot first, then usenet. A slot counts as configured when
+  both its type and URL are set. Empty list when nothing is configured.
+
+  This is the single read-side seam over the flat `download_client_*`
+  (torrent) and `usenet_download_client_*` (usenet) config keys; the
+  dispatcher and the queue monitor enumerate clients through it rather
+  than reading `MediaCentaur.Config` directly.
+  """
+  @spec configured_clients() :: [ClientConfig.t()]
+  def configured_clients do
+    Enum.reject([torrent_slot(), usenet_slot()], &is_nil/1)
+  end
+
+  defp torrent_slot do
+    case slot_identity(:download_client_type, :download_client_url) do
+      nil ->
+        nil
+
+      {type, url} ->
+        %ClientConfig{
+          protocol: :torrent,
+          type: type,
+          url: url,
+          username: MediaCentaur.Config.get(:download_client_username),
+          password: MediaCentaur.Config.get(:download_client_password)
+        }
+    end
+  end
+
+  defp usenet_slot do
+    case slot_identity(:usenet_download_client_type, :usenet_download_client_url) do
+      nil ->
+        nil
+
+      {type, url} ->
+        %ClientConfig{
+          protocol: :usenet,
+          type: type,
+          url: url,
+          api_key: MediaCentaur.Config.get(:usenet_download_client_api_key)
+        }
+    end
+  end
+
+  defp slot_identity(type_key, url_key) do
+    type = MediaCentaur.Config.get(type_key)
+    url = MediaCentaur.Config.get(url_key)
+
+    if is_binary(type) and type != "" and is_binary(url) and url != "" do
+      {type, url}
+    end
+  end
 end
