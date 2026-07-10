@@ -2,6 +2,8 @@ defmodule MediaCentaurWeb.AcquisitionLive.PlanLogicTest do
   use ExUnit.Case, async: true
 
   alias MediaCentaur.Acquisition.Targeting
+  alias MediaCentaur.Library.Person
+  alias MediaCentaurWeb.AcquisitionLive.MoviePreview
   alias MediaCentaurWeb.AcquisitionLive.PlanLogic
 
   # S1: E1 in library, E2/E3 pickable. S2: E1 pickable, E2 unaired.
@@ -127,41 +129,100 @@ defmodule MediaCentaurWeb.AcquisitionLive.PlanLogicTest do
     assert PlanLogic.toggle_expanded(expanded, 1) == MapSet.new([1, 2])
   end
 
-  test "movie_facts maps a TMDB movie payload into display facts" do
+  test "movie_preview builds a detail-shaped preview from a full TMDB payload" do
     tmdb_movie = %{
       "id" => 550,
       "title" => "Sample Movie",
+      "tagline" => "Every confirmation counts.",
       "release_date" => "1999-10-15",
       "overview" => "A sample movie overview.",
       "runtime" => 139,
       "genres" => [%{"id" => 18, "name" => "Drama"}, %{"id" => 80, "name" => "Crime"}],
-      "poster_path" => "/sample-poster.jpg"
+      "vote_average" => 8.4,
+      "vote_count" => 26_000,
+      "original_language" => "en",
+      "production_companies" => [%{"name" => "Sample Studio"}],
+      "production_countries" => [%{"iso_3166_1" => "US"}],
+      "status" => "Released",
+      "poster_path" => "/poster.jpg",
+      "backdrop_path" => "/backdrop.jpg",
+      "images" => %{"logos" => [%{"iso_639_1" => "en", "file_path" => "/logo.png"}]},
+      "release_dates" => %{
+        "results" => [
+          %{"iso_3166_1" => "US", "release_dates" => [%{"certification" => "R"}]}
+        ]
+      },
+      "credits" => %{
+        "cast" => [
+          %{
+            "name" => "Actor One",
+            "character" => "The Narrator",
+            "id" => 1,
+            "profile_path" => "/a1.jpg",
+            "order" => 0
+          },
+          %{
+            "name" => "Actor Two",
+            "character" => "Tyler",
+            "id" => 2,
+            "profile_path" => nil,
+            "order" => 1
+          }
+        ],
+        "crew" => [%{"name" => "Jane Director", "job" => "Director", "department" => "Directing"}]
+      }
     }
 
-    assert PlanLogic.movie_facts(tmdb_movie, true) == %{
-             tmdb_id: "550",
-             title: "Sample Movie",
-             year: 1999,
-             overview: "A sample movie overview.",
-             runtime: "2h 19m",
-             genres: "Drama · Crime",
-             poster_path: "/sample-poster.jpg",
-             in_library?: true
-           }
+    preview = PlanLogic.movie_preview(tmdb_movie, false)
+
+    assert %MoviePreview{} = preview
+    assert preview.tmdb_id == "550"
+    assert preview.title == "Sample Movie"
+    assert preview.tagline == "Every confirmation counts."
+    assert preview.overview == "A sample movie overview."
+    assert preview.in_library? == false
+
+    assert preview.backdrop_url == "https://image.tmdb.org/t/p/original/backdrop.jpg"
+    assert preview.logo_url == "https://image.tmdb.org/t/p/original/logo.png"
+    assert preview.poster_url == "https://image.tmdb.org/t/p/original/poster.jpg"
+
+    # Metadata row items (facet-strip fields intentionally excluded here).
+    assert "1999" in preview.metadata_items
+    assert "2h 19m" in preview.metadata_items
+    assert "R" in preview.metadata_items
+    assert "US" in preview.metadata_items
+
+    director = Enum.find(preview.facets, &(&1.label == "Director"))
+    assert director.value == "Jane Director"
+
+    rating = Enum.find(preview.facets, &(&1.label == "Rating"))
+    assert rating.value.rating == 8.4
+
+    genres = Enum.find(preview.facets, &(&1.label == "Genres"))
+    assert genres.value == ["Drama", "Crime"]
+
+    assert [%Person{name: "Actor One", character: "The Narrator"}, %Person{name: "Actor Two"}] =
+             preview.cast
   end
 
-  test "movie_facts tolerates a sparse TMDB payload" do
+  test "movie_preview tolerates a sparse TMDB payload" do
     tmdb_movie = %{"id" => 550, "title" => "Sample Movie", "overview" => ""}
 
-    assert PlanLogic.movie_facts(tmdb_movie, false) == %{
-             tmdb_id: "550",
-             title: "Sample Movie",
-             year: nil,
-             overview: nil,
-             runtime: nil,
-             genres: nil,
-             poster_path: nil,
-             in_library?: false
-           }
+    preview = PlanLogic.movie_preview(tmdb_movie, true)
+
+    assert %MoviePreview{} = preview
+    assert preview.tmdb_id == "550"
+    assert preview.title == "Sample Movie"
+    assert preview.overview == nil
+    assert preview.tagline == nil
+    assert preview.in_library? == true
+
+    assert preview.backdrop_url == nil
+    assert preview.logo_url == nil
+    assert preview.poster_url == nil
+
+    assert preview.metadata_items == []
+    assert preview.facets == []
+    assert preview.cast == []
   end
 end

@@ -1895,7 +1895,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
             :not_found -> false
           end
 
-        {:movie, PlanLogic.movie_facts(movie, in_library?)}
+        {:movie, PlanLogic.movie_preview(movie, in_library?)}
 
       {:error, reason} ->
         {:error, reason}

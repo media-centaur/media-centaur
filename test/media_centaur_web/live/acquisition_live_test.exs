@@ -333,7 +333,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       refute has_element?(view, "#plan-episode-1-1")
     end
 
-    test "the movie confirm stage renders the movie poster", %{conn: conn} do
+    test "the movie confirm stage renders the movie hero artwork", %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
       TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail())
 
@@ -342,10 +342,12 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
       assert html =~ "Sample Movie"
 
-      # movie_detail fixture default poster.
+      # Detail-shaped preview: the backdrop is the full-master hero image
+      # (movie_detail fixture backdrop_path). No logo in the fixture, so the
+      # title renders as the fallback above it.
       assert has_element?(
                view,
-               "[data-plan-modal] img[src='https://image.tmdb.org/t/p/w154/pB8BM7pdSp6B6Ih7QI4S2t0POD5.jpg']"
+               "[data-plan-modal] img[src='https://image.tmdb.org/t/p/original/hZkgoQYus5dXo3H8T7Uef6DNknx.jpg']"
              )
     end
 
@@ -1307,7 +1309,10 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       assert html =~ ~s|id="orphan-bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222"|
       assert html =~ ~s|id="orphan-hash-c"|
 
-      view |> element("button[phx-value-id='bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222']") |> render_click()
+      view
+      |> element("button[phx-value-id='bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222']")
+      |> render_click()
+
       html = view |> element("button[phx-click='cancel_download_confirm']") |> render_click()
 
       # The middle row's id is gone, and the surviving rows keep their ids
