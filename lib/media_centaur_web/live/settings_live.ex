@@ -24,7 +24,9 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.UIScale
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Search.Prowlarr
+  alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent
+  alias MediaCentaur.Downloads.DownloadClient.SABnzbd
   alias MediaCentaur.Watcher
   alias MediaCentaur.Pipeline
   alias MediaCentaur.Pipeline.Image, as: ImagePipeline
@@ -142,6 +144,8 @@ defmodule MediaCentaurWeb.SettingsLive do
        download_client_detect_status: nil,
        download_client_detecting: false,
        detected_download_client: nil,
+       usenet_client_testing: false,
+       detected_usenet_client: nil,
        app_version: Version.current_version(),
        build_info: Version.build_info(),
        update_status: :idle,
@@ -277,6 +281,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       tmdb_test: load_test_result(:tmdb),
       prowlarr_test: load_test_result(:prowlarr),
       download_client_test: load_test_result(:download_client),
+      usenet_client_test: load_test_result(:usenet_download_client),
       tmdb_missing: SystemSection.tmdb_key_missing?(Config.get(:tmdb_api_key)),
       service_state: SelfUpdate.service_state(),
       bindings: Controls.get(),
@@ -836,6 +841,46 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
+  def handle_event("save_usenet_client", params, socket) do
+    if params["usenet_download_client_type"] not in [nil, ""] do
+      Config.update(:usenet_download_client_type, params["usenet_download_client_type"])
+    end
+
+    if params["usenet_download_client_url"] not in [nil, ""] do
+      Config.update(:usenet_download_client_url, params["usenet_download_client_url"])
+    end
+
+    if params["usenet_download_client_api_key"] not in [nil, ""] do
+      Config.update(:usenet_download_client_api_key, params["usenet_download_client_api_key"])
+    end
+
+    SABnzbd.invalidate_client()
+    clear_test_result(:usenet_download_client)
+
+    socket =
+      assign(socket,
+        config: load_config(),
+        usenet_client_test: nil,
+        detected_usenet_client: nil
+      )
+
+    case params["_action"] do
+      "test" ->
+        socket =
+          start_async_test(socket, :usenet_client_test_result, fn ->
+            case Acquisition.test_download_client(:usenet) do
+              :ok -> :ok
+              {:error, _} -> :error
+            end
+          end)
+
+        {:noreply, assign(socket, usenet_client_testing: true)}
+
+      _ ->
+        {:noreply, put_flash(socket, :info, "Usenet client settings saved")}
+    end
+  end
+
   def handle_event("detect_download_client", _params, socket) do
     Acquisition.discover_download_clients_async(self())
     {:noreply, assign(socket, download_client_detecting: true, download_client_detect_status: nil)}
@@ -1341,29 +1386,38 @@ defmodule MediaCentaurWeb.SettingsLive do
   # Async result from `start_async_settings_load/1`. The task did all
   # the config / capability / probe work off the LV process; the only
   # cost on this process is the single `assign/2` call.
-  def handle_info({:download_client_detect_result, {:ok, [first | _rest] = clients}}, socket) do
-    # Stash detected values as a suggestion — do NOT persist. The URL
+  def handle_info({:download_client_detect_result, {:ok, [_ | _] = clients}}, socket) do
+    # Stash detected values as suggestions — do NOT persist. The URL
     # Prowlarr returns is correct from Prowlarr's perspective but is
     # often a Docker service name unreachable from this host. The user
-    # reviews the form and clicks Save to commit. See ADR-037.
-    detected = %{type: first.type, url: first.url, username: first.username}
+    # reviews each form and clicks Save to commit. See ADR-037.
+    # Each detected client routes to its protocol slot's form; the first
+    # match per slot wins (one client per protocol, mirroring how
+    # Prowlarr routes grabs).
+    torrent = Enum.find(clients, &(ClientConfig.protocol_for_type(&1.type) == :torrent))
+    usenet = Enum.find(clients, &(ClientConfig.protocol_for_type(&1.type) == :usenet))
 
-    extra =
-      if length(clients) > 1,
-        do: " (#{length(clients)} found, used the first)",
-        else: ""
+    detected_torrent =
+      case torrent do
+        nil -> nil
+        client -> %{type: client.type, url: client.url, username: client.username}
+      end
+
+    detected_usenet =
+      case usenet do
+        nil -> nil
+        client -> %{type: client.type, url: client.url}
+      end
 
     {:noreply,
      socket
      |> assign(
-       detected_download_client: detected,
+       detected_download_client: detected_torrent,
+       detected_usenet_client: detected_usenet,
        download_client_detecting: false,
-       download_client_detect_status: :ok
+       download_client_detect_status: if(detected_torrent || detected_usenet, do: :ok, else: :empty)
      )
-     |> put_flash(
-       :info,
-       "Pre-filled from Prowlarr#{extra} — review URL, enter password, then Save"
-     )}
+     |> put_flash(:info, detect_flash(detected_torrent, detected_usenet))}
   end
 
   def handle_info({:download_client_detect_result, {:ok, []}}, socket) do
@@ -1383,6 +1437,18 @@ defmodule MediaCentaurWeb.SettingsLive do
   def handle_info(_msg, socket) do
     {:noreply, socket}
   end
+
+  defp detect_flash(nil, nil),
+    do: "Prowlarr's download clients have no driver in Media Centaur — nothing pre-filled"
+
+  defp detect_flash(_torrent, nil),
+    do: "Pre-filled the torrent client from Prowlarr — review URL, enter password, then Save"
+
+  defp detect_flash(nil, _usenet),
+    do: "Pre-filled the usenet client from Prowlarr — review URL, enter the API key, then Save"
+
+  defp detect_flash(_torrent, _usenet),
+    do: "Pre-filled both clients from Prowlarr — review URLs, enter credentials, then Save each form"
 
   # --- Async results (owned via start_async/3, ADR-049) ---
 
@@ -1426,6 +1492,11 @@ defmodule MediaCentaurWeb.SettingsLive do
   def handle_async(:download_client_test_result, {:ok, status}, socket) do
     info = save_test_result(:download_client, status)
     {:noreply, assign(socket, download_client_testing: false, download_client_test: info)}
+  end
+
+  def handle_async(:usenet_client_test_result, {:ok, status}, socket) do
+    info = save_test_result(:usenet_download_client, status)
+    {:noreply, assign(socket, usenet_client_testing: false, usenet_client_test: info)}
   end
 
   def handle_async(name, {:exit, reason}, socket) do
@@ -1596,6 +1667,9 @@ defmodule MediaCentaurWeb.SettingsLive do
                 download_client_detect_status={@download_client_detect_status}
                 download_client_detecting={@download_client_detecting}
                 detected_download_client={@detected_download_client}
+                usenet_client_test={@usenet_client_test}
+                usenet_client_testing={@usenet_client_testing}
+                detected_usenet_client={@detected_usenet_client}
                 app_version={@app_version}
                 build_info={@build_info}
                 update_status={@update_status}
@@ -1725,6 +1799,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     # by "Detect from Prowlarr", not yet saved) over the persisted config.
     # See ADR-037 — the user must review and click Save to commit.
     detected = assigns[:detected_download_client] || %{}
+    detected_usenet = assigns[:detected_usenet_client] || %{}
     config = assigns.config
 
     download_client_display = %{
@@ -1733,10 +1808,16 @@ defmodule MediaCentaurWeb.SettingsLive do
       username: detected[:username] || config[:download_client_username]
     }
 
+    usenet_client_display = %{
+      type: detected_usenet[:type] || config[:usenet_download_client_type],
+      url: detected_usenet[:url] || config[:usenet_download_client_url]
+    }
+
     assigns =
       assign(assigns,
         prowlarr_configured: prowlarr_configured,
         download_client_display: download_client_display,
+        usenet_client_display: usenet_client_display,
         prowlarr_ready: MediaCentaur.Capabilities.prowlarr_ready?(),
         auto_grab: MediaCentaur.Acquisition.AutoGrabSettings.load()
       )
@@ -1752,6 +1833,9 @@ defmodule MediaCentaurWeb.SettingsLive do
       download_client_detecting={@download_client_detecting}
       download_client_test={@download_client_test}
       download_client_testing={@download_client_testing}
+      usenet_client_display={@usenet_client_display}
+      usenet_client_test={@usenet_client_test}
+      usenet_client_testing={@usenet_client_testing}
       auto_grab={@auto_grab}
     />
     """
@@ -2377,6 +2461,10 @@ defmodule MediaCentaurWeb.SettingsLive do
       download_client_username: cfg.get(:download_client_username),
       download_client_password_configured?:
         MediaCentaur.Secret.present?(cfg.get(:download_client_password)),
+      usenet_download_client_type: cfg.get(:usenet_download_client_type),
+      usenet_download_client_url: cfg.get(:usenet_download_client_url),
+      usenet_download_client_api_key_configured?:
+        MediaCentaur.Secret.present?(cfg.get(:usenet_download_client_api_key)),
       mpv_path: cfg.get(:mpv_path),
       mpv_socket_dir: cfg.get(:mpv_socket_dir),
       mpv_socket_timeout_ms: cfg.get(:mpv_socket_timeout_ms),

@@ -21,8 +21,17 @@ defmodule MediaCentaur.CapabilitiesTest do
     Config.update(:download_client_type, "")
     Config.update(:download_client_url, "")
     Config.update(:download_client_password, "")
+    Config.update(:usenet_download_client_type, "")
+    Config.update(:usenet_download_client_url, "")
+    Config.update(:usenet_download_client_api_key, "")
 
     :ok
+  end
+
+  defp configure_and_pass_usenet_client do
+    Config.update(:usenet_download_client_type, "sabnzbd")
+    Config.update(:usenet_download_client_url, "http://sab.local")
+    Capabilities.save_test_result(:usenet_download_client, :ok)
   end
 
   describe "tmdb_ready?/0" do
@@ -89,6 +98,39 @@ defmodule MediaCentaur.CapabilitiesTest do
       Capabilities.save_test_result(:download_client, :ok)
       assert Capabilities.download_client_ready?()
     end
+
+    test "true when only the usenet slot is configured and tested — any client counts" do
+      configure_and_pass_usenet_client()
+      assert Capabilities.download_client_ready?()
+    end
+
+    test "a usenet slot without a passing test does not count" do
+      Config.update(:usenet_download_client_type, "sabnzbd")
+      Config.update(:usenet_download_client_url, "http://sab.local")
+      refute Capabilities.download_client_ready?()
+    end
+
+    test "the torrent slot's test result does not vouch for the usenet slot" do
+      Config.update(:usenet_download_client_type, "sabnzbd")
+      Config.update(:usenet_download_client_url, "http://sab.local")
+      Capabilities.save_test_result(:download_client, :ok)
+      refute Capabilities.download_client_ready?()
+    end
+  end
+
+  describe "client_ready?/1" do
+    test "reports each protocol slot independently" do
+      Config.update(:download_client_type, "qbittorrent")
+      Config.update(:download_client_url, "http://dl.local")
+      Capabilities.save_test_result(:download_client, :ok)
+
+      assert Capabilities.client_ready?(:torrent)
+      refute Capabilities.client_ready?(:usenet)
+
+      configure_and_pass_usenet_client()
+
+      assert Capabilities.client_ready?(:usenet)
+    end
   end
 
   describe "acquisition_ready?/0" do
@@ -117,6 +159,14 @@ defmodule MediaCentaur.CapabilitiesTest do
       Config.update(:download_client_type, "qbittorrent")
       Config.update(:download_client_url, "http://dl.local")
       Capabilities.save_test_result(:download_client, :ok)
+      assert Capabilities.acquisition_ready?()
+    end
+
+    test "true when prowlarr is ready and only the usenet client is ready" do
+      Config.update(:prowlarr_url, "http://p.local")
+      Config.update(:prowlarr_api_key, "k-prowlarr")
+      Capabilities.save_test_result(:prowlarr, :ok)
+      configure_and_pass_usenet_client()
       assert Capabilities.acquisition_ready?()
     end
   end
@@ -158,6 +208,8 @@ defmodule MediaCentaur.CapabilitiesTest do
       assert Capabilities.relevant?({:config_updated, :prowlarr_api_key, "x"})
       assert Capabilities.relevant?({:config_updated, :download_client_type, "x"})
       assert Capabilities.relevant?({:config_updated, :download_client_url, "x"})
+      assert Capabilities.relevant?({:config_updated, :usenet_download_client_type, "x"})
+      assert Capabilities.relevant?({:config_updated, :usenet_download_client_url, "x"})
     end
 
     test "rejects {:config_updated, key, _} for keys outside capability inputs" do

@@ -29,4 +29,14 @@ defmodule MediaCentaur.Downloads.ClientConfig do
           password: Secret.t() | nil,
           api_key: Secret.t() | nil
         }
+
+  @doc """
+  Which protocol slot a client type string belongs to. Used to route
+  Prowlarr-detected clients to the right Settings form. Nil for types
+  MC has no driver for.
+  """
+  @spec protocol_for_type(String.t() | nil) :: protocol() | nil
+  def protocol_for_type("qbittorrent"), do: :torrent
+  def protocol_for_type("sabnzbd"), do: :usenet
+  def protocol_for_type(_), do: nil
 end

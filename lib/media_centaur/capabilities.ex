@@ -26,7 +26,7 @@ defmodule MediaCentaur.Capabilities do
   alias MediaCentaur.Settings
   alias MediaCentaur.Topics
 
-  @type subject :: :tmdb | :prowlarr | :download_client
+  @type subject :: :tmdb | :prowlarr | :download_client | :usenet_download_client
   @type status :: :ok | :error
   @type info :: %{status: status(), tested_at: DateTime.t()}
 
@@ -40,7 +40,9 @@ defmodule MediaCentaur.Capabilities do
     :prowlarr_url,
     :prowlarr_api_key,
     :download_client_type,
-    :download_client_url
+    :download_client_url,
+    :usenet_download_client_type,
+    :usenet_download_client_url
   ]
 
   @doc """
@@ -97,8 +99,19 @@ defmodule MediaCentaur.Capabilities do
   @spec prowlarr_ready?() :: boolean()
   def prowlarr_ready?, do: read_flags().prowlarr
 
+  @doc """
+  True when **any** protocol slot has a configured, connection-tested
+  download client. The two slots are independent — each needs its own
+  passing test (`:download_client` for torrent, `:usenet_download_client`
+  for usenet); one slot's test never vouches for the other.
+  """
   @spec download_client_ready?() :: boolean()
   def download_client_ready?, do: read_flags().download_client
+
+  @doc "Per-protocol-slot readiness: configured + its own connection test passed."
+  @spec client_ready?(:torrent | :usenet) :: boolean()
+  def client_ready?(:torrent), do: read_flags().torrent_client
+  def client_ready?(:usenet), do: read_flags().usenet_client
 
   @doc """
   Returns true when the Acquisition feature surface is fully usable —
@@ -136,11 +149,22 @@ defmodule MediaCentaur.Capabilities do
 
   defp compute_flags do
     prowlarr = prowlarr_configured?() and last_test_ok?(:prowlarr)
-    download_client = download_client_configured?() and last_test_ok?(:download_client)
+
+    torrent_client =
+      client_configured?(:download_client_type, :download_client_url) and
+        last_test_ok?(:download_client)
+
+    usenet_client =
+      client_configured?(:usenet_download_client_type, :usenet_download_client_url) and
+        last_test_ok?(:usenet_download_client)
+
+    download_client = torrent_client or usenet_client
 
     %{
       tmdb: tmdb_configured?() and last_test_ok?(:tmdb),
       prowlarr: prowlarr,
+      torrent_client: torrent_client,
+      usenet_client: usenet_client,
       download_client: download_client,
       acquisition: prowlarr and download_client
     }
@@ -186,6 +210,8 @@ defmodule MediaCentaur.Capabilities do
   defp storage_key(:prowlarr), do: "acquisition:prowlarr:last_test"
   defp storage_key(:download_client), do: "acquisition:download_client:last_test"
 
+  defp storage_key(:usenet_download_client), do: "acquisition:usenet_download_client:last_test"
+
   defp last_test_ok?(subject) do
     case load_test_result(subject) do
       %{status: :ok} -> true
@@ -202,9 +228,9 @@ defmodule MediaCentaur.Capabilities do
       MediaCentaur.Secret.present?(MediaCentaur.Config.get(:prowlarr_api_key))
   end
 
-  defp download_client_configured? do
-    type = MediaCentaur.Config.get(:download_client_type)
-    url = MediaCentaur.Config.get(:download_client_url)
+  defp client_configured?(type_key, url_key) do
+    type = MediaCentaur.Config.get(type_key)
+    url = MediaCentaur.Config.get(url_key)
     is_binary(type) and type != "" and is_binary(url) and url != ""
   end
 
