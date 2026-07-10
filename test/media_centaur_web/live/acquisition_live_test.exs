@@ -1117,7 +1117,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
         case {conn.method, conn.request_path} do
           {"POST", "/api/v2/torrents/delete"} ->
             {:ok, body, conn} = Plug.Conn.read_body(conn)
-            assert body == "hashes=hash-a&deleteFiles=true"
+            assert body == "hashes=aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111&deleteFiles=true"
             :counters.add(delete_counter, 1, 1)
             Plug.Conn.send_resp(conn, 200, "")
         end
@@ -1133,7 +1133,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
          %MediaCentaur.Downloads.QueueState{
            items: [
              %QueueItem{
-               id: "hash-a",
+               id: "aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111",
                title: "Movie.Test.2024",
                state: :downloading,
                status: "downloading",
@@ -1166,7 +1166,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
         |> render_click()
 
       assert :counters.get(delete_counter, 1) == 1
-      refute html =~ "phx-value-id=\"hash-a\""
+      refute html =~ "phx-value-id=\"aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111\""
       refute html =~ "Cancel download?"
     end
 
@@ -1185,7 +1185,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
       stale_item = %QueueItem{
-        id: "ghost-1",
+        id: "abcd1234abcd1234abcd1234abcd1234abcd1234",
         title: "Ghost.Movie.2024",
         state: :downloading,
         status: "downloading",
@@ -1197,7 +1197,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
       }
 
       send(view.pid, {:queue_state, %MediaCentaur.Downloads.QueueState{items: [stale_item]}})
-      assert render(view) =~ "phx-value-id=\"ghost-1\""
+      assert render(view) =~ "phx-value-id=\"abcd1234abcd1234abcd1234abcd1234abcd1234\""
 
       view |> element("button[phx-click='cancel_download_prompt']") |> render_click()
       view |> element("button[phx-click='cancel_download_confirm']") |> render_click()
@@ -1209,7 +1209,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
       # Use the row's phx-value-id rather than the title — the title also
       # appears in the post-cancel flash, which would mask a real failure.
-      refute render(view) =~ "phx-value-id=\"ghost-1\""
+      refute render(view) =~ "phx-value-id=\"abcd1234abcd1234abcd1234abcd1234abcd1234\""
     end
 
     test "dismissing the modal does not call qBittorrent delete", %{conn: conn} do
@@ -1232,7 +1232,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
          %MediaCentaur.Downloads.QueueState{
            items: [
              %QueueItem{
-               id: "hash-b",
+               id: "bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222",
                title: "Show.S01E01",
                state: :downloading,
                status: "downloading",
@@ -1282,8 +1282,8 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
       items =
         for {hash, title} <- [
-              {"hash-a", "Movie.A.2024"},
-              {"hash-b", "Movie.B.2024"},
+              {"aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111", "Movie.A.2024"},
+              {"bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222", "Movie.B.2024"},
               {"hash-c", "Movie.C.2024"}
             ] do
           %QueueItem{
@@ -1303,17 +1303,17 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
 
       html = render(view)
       assert html =~ "Other downloads"
-      assert html =~ ~s|id="orphan-hash-a"|
-      assert html =~ ~s|id="orphan-hash-b"|
+      assert html =~ ~s|id="orphan-aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111"|
+      assert html =~ ~s|id="orphan-bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222"|
       assert html =~ ~s|id="orphan-hash-c"|
 
-      view |> element("button[phx-value-id='hash-b']") |> render_click()
+      view |> element("button[phx-value-id='bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222']") |> render_click()
       html = view |> element("button[phx-click='cancel_download_confirm']") |> render_click()
 
       # The middle row's id is gone, and the surviving rows keep their ids
       # so morphdom can match them by id rather than morphing positionally.
-      assert html =~ ~s|id="orphan-hash-a"|
-      refute html =~ ~s|id="orphan-hash-b"|
+      assert html =~ ~s|id="orphan-aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111"|
+      refute html =~ ~s|id="orphan-bbbb2222bbbb2222bbbb2222bbbb2222bbbb2222"|
       assert html =~ ~s|id="orphan-hash-c"|
     end
   end

@@ -311,6 +311,12 @@ defmodule MediaCentaur.Downloads.QueueItemTest do
       assert QueueItem.from_sabnzbd_history(base_sab_history(%{"status" => "Running"})).state ==
                :other
     end
+
+    test "Moving maps to :moving — minutes-long for a large job crossing mounts, not a blip" do
+      item = QueueItem.from_sabnzbd_history(base_sab_history(%{"status" => "Moving"}))
+      assert item.state == :moving
+      assert item.content_path == nil, "the file is mid-relocation — no final path yet"
+    end
   end
 
   defp base_sab_slot(overrides) do

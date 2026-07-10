@@ -68,6 +68,7 @@ defmodule MediaCentaur.Downloads.QueueItem do
           | :verifying
           | :repairing
           | :extracting
+          | :moving
           | :completed
           | :error
           | :other
@@ -190,6 +191,10 @@ defmodule MediaCentaur.Downloads.QueueItem do
   defp state_from_sabnzbd_history("Verifying"), do: :verifying
   defp state_from_sabnzbd_history("Repairing"), do: :repairing
   defp state_from_sabnzbd_history("Extracting"), do: :extracting
+  # Moving = relocating the finished job to its destination. Minutes-long
+  # for a large file crossing mounts (a 58 GB remux is a full copy across
+  # docker bind mounts), so it earns its own state instead of :other.
+  defp state_from_sabnzbd_history("Moving"), do: :moving
   defp state_from_sabnzbd_history("Queued"), do: :queued
   defp state_from_sabnzbd_history(_), do: :other
 
