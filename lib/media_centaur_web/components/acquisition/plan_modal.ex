@@ -28,7 +28,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   alias MediaCentaurWeb.Components.Acquisition.CellVocabulary
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
+  alias MediaCentaurWeb.AcquisitionLive.MoviePreview
   alias MediaCentaurWeb.AcquisitionLive.PlanLogic
+  alias MediaCentaurWeb.Components.Detail.CinematicBackdrop
+  alias MediaCentaurWeb.Components.Detail.FacetStrip
+  alias MediaCentaurWeb.Components.Detail.MetadataRow
 
   attr :open, :boolean, required: true
 
@@ -52,7 +56,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :movie, :any,
     default: nil,
     doc:
-      "PlanLogic.movie_facts/2 map (%{tmdb_id, title, year, overview, runtime, genres, poster_path, in_library?}) | nil — the movie fast path's facts."
+      "%MediaCentaurWeb.AcquisitionLive.MoviePreview{} | nil — the movie fast path's detail-shaped preview (built by PlanLogic.movie_preview/2)."
 
   attr :board, :any,
     default: nil,
@@ -91,7 +95,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       data-detail-mode={@open && "modal"}
       data-dismiss-event={@on_close}
     >
-      <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden thin-scrollbar">
+      <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative thin-scrollbar">
         <div
           :if={@stage == :loading}
           class="p-10 flex items-center justify-center gap-3 text-sm text-base-content/50"
@@ -375,46 +379,70 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   # Movie stage
   # ---------------------------------------------------------------------------
 
-  attr :movie, :map,
+  attr :movie, MoviePreview,
     required: true,
-    doc: "PlanLogic.movie_facts/2 map — assembled by the host LiveView's targeting task."
+    doc: "detail-shaped preview built by PlanLogic.movie_preview/2 in the host's targeting task."
 
   attr :on_close, :string, required: true
 
   defp movie_stage(assigns) do
+    # Mirror the owned detail Hero: backdrop is the hero image, poster the
+    # fallback. The image itself is painted by the shared CinematicBackdrop
+    # (`.modal-page-backdrop` + atmosphere scrim); this frame is just the
+    # transparent title layer that sits over it.
+    assigns = assign(assigns, :hero_image, assigns.movie.backdrop_url || assigns.movie.poster_url)
+
     ~H"""
-    <div class="p-6 space-y-4">
-      <div class="flex items-center gap-4">
-        <span class="flex-shrink-0 w-14 h-[84px] rounded-lg bg-base-content/10 overflow-hidden flex items-center justify-center">
+    <CinematicBackdrop.cinematic_backdrop backdrop_url={@hero_image}>
+      <%!-- 21:9 title layer, same as Detail.Hero — logo (or title) + tagline
+            seated at the bottom of the backdrop region; film-icon frame when
+            TMDB has no artwork at all. --%>
+      <div class={["relative aspect-[21/9]", !@hero_image && "glass-inset overflow-hidden"]}>
+        <div :if={!@hero_image} class="w-full h-full flex items-center justify-center">
+          <.icon name="hero-film" class="size-12 text-base-content/20" />
+        </div>
+        <div class="absolute bottom-4 left-6 right-6 space-y-1.5">
           <img
-            :if={@movie.poster_path}
-            src={"https://image.tmdb.org/t/p/w154#{@movie.poster_path}"}
-            alt=""
-            class="w-full h-full object-cover"
+            :if={@movie.logo_url}
+            src={@movie.logo_url}
+            alt={@movie.title}
+            class="max-h-20 max-w-[70%] object-contain text-on-image-lg"
             loading="eager"
             decoding="sync"
           />
-          <.icon :if={!@movie.poster_path} name="hero-film" class="size-6 text-base-content/25" />
-        </span>
-        <div class="min-w-0">
-          <h2 class="text-2xl font-semibold truncate">{@movie.title}</h2>
-          <p class="text-xs text-base-content/50 mt-1 flex items-center gap-2 min-w-0">
-            <.badge variant="type" size="xs">Movie</.badge>
-            <span :if={@movie.year}>{@movie.year}</span>
-            <span :if={@movie.runtime}>{@movie.runtime}</span>
-            <span :if={@movie.genres} class="min-w-0 truncate">{@movie.genres}</span>
-          </p>
-          <p class="text-sm mt-2 text-base-content/60">
-            {if @movie.in_library?, do: "Already in your library.", else: "Not in your library."}
+          <h2
+            :if={!@movie.logo_url}
+            class="text-2xl font-bold leading-snug text-white text-on-image-lg"
+          >
+            {@movie.title}
+          </h2>
+          <p :if={@movie.tagline} class="italic text-sm text-white/85 text-on-image">
+            {@movie.tagline}
           </p>
         </div>
       </div>
 
-      <p :if={@movie.overview} class="text-sm text-base-content/60 line-clamp-4">
-        {@movie.overview}
-      </p>
+      <div class="px-6 pb-6 space-y-4">
+        <div class="flex items-center justify-between gap-3">
+          <MetadataRow.metadata_row badge_text="Movie" items={@movie.metadata_items} />
+          <span class={[
+            "flex-shrink-0 text-xs",
+            if(@movie.in_library?, do: "text-warning/80", else: "text-base-content/40")
+          ]}>
+            {if @movie.in_library?, do: "Already in your library", else: "Not in your library"}
+          </span>
+        </div>
 
-      <div class="flex items-center justify-end gap-2 pt-2 border-t border-base-content/10">
+        <p :if={@movie.overview} class="text-sm text-base-content/70 line-clamp-6">
+          {@movie.overview}
+        </p>
+
+        <FacetStrip.facet_strip :if={@movie.facets != []} facets={@movie.facets} />
+
+        <.cast_strip :if={@movie.cast != []} cast={@movie.cast} />
+      </div>
+
+      <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-end gap-2">
         <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
           Cancel
         </.button>
@@ -429,6 +457,48 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         >
           Plan it
         </.button>
+      </div>
+    </CinematicBackdrop.cinematic_backdrop>
+    """
+  end
+
+  attr :cast, :list,
+    required: true,
+    doc:
+      "top-billed `MediaCentaur.Library.Person` structs (capped by PlanLogic.movie_preview/2) — a compact confirmation strip, not the owned detail panel's full cast grid."
+
+  defp cast_strip(assigns) do
+    ~H"""
+    <div>
+      <h3 class="text-[0.65rem] uppercase tracking-wider text-base-content/40 font-semibold mb-2">
+        Top cast
+      </h3>
+      <div class="flex gap-3 overflow-x-auto thin-scrollbar pb-1">
+        <div :for={person <- @cast} class="flex-shrink-0 w-16 text-center">
+          <img
+            :if={person.profile_path}
+            src={"https://image.tmdb.org/t/p/w185#{person.profile_path}"}
+            alt={person.name}
+            loading="eager"
+            decoding="sync"
+            class="w-16 h-16 rounded-full object-cover bg-base-300"
+          />
+          <div
+            :if={!person.profile_path}
+            class="w-16 h-16 rounded-full bg-base-300/60 flex items-center justify-center"
+          >
+            <.icon name="hero-user" class="size-6 text-base-content/30" />
+          </div>
+          <p class="mt-1 text-[11px] leading-tight text-base-content/80 line-clamp-2">
+            {person.name}
+          </p>
+          <p
+            :if={person.character}
+            class="text-[10px] leading-tight text-base-content/40 line-clamp-1"
+          >
+            {person.character}
+          </p>
+        </div>
       </div>
     </div>
     """

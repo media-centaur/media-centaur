@@ -13,6 +13,10 @@ defmodule MediaCentaurWeb.AcquisitionLive.PlanLogic do
   """
 
   alias MediaCentaur.Acquisition.Targeting
+  alias MediaCentaur.Library.Person
+  alias MediaCentaur.TMDB.Mapper
+  alias MediaCentaurWeb.AcquisitionLive.MoviePreview
+  alias MediaCentaurWeb.Components.Detail.Logic, as: DetailLogic
 
   @type unit :: {pos_integer(), pos_integer()}
 
@@ -182,36 +186,76 @@ defmodule MediaCentaurWeb.AcquisitionLive.PlanLogic do
   end
 
   @doc """
-  Maps a raw TMDB movie payload into the movie-confirm stage's display
-  facts — everything on hand that helps the user verify the result is
-  the title they meant: overview, human runtime, genre line. Absent or
-  blank TMDB fields become `nil` so the template can drop them.
+  Builds the `:movie_confirm` stage's detail-shaped preview from a raw
+  TMDB movie payload.
+
+  Derivation reuses `TMDB.Mapper.movie_attrs/3` (the exact mapping the
+  import pipeline runs) and `Mapper.image_list/1` for absolute artwork
+  URLs, so the preview can never drift from what ingestion would record.
+  Facets are assembled by the same `Detail.Logic.facets_for/2` the owned
+  movie detail panel uses; cast becomes `Library.Person` structs capped
+  to the top billing. Absent/blank fields collapse to `nil`/empty.
   """
-  @spec movie_facts(map(), boolean()) :: map()
-  def movie_facts(tmdb_movie, in_library?) do
-    %{
-      tmdb_id: to_string(tmdb_movie["id"]),
-      title: tmdb_movie["title"],
-      year: extract_year(tmdb_movie["release_date"]),
-      overview: presence(tmdb_movie["overview"]),
-      runtime: format_runtime(tmdb_movie["runtime"]),
-      genres: format_genres(tmdb_movie["genres"]),
-      poster_path: tmdb_movie["poster_path"],
+  @spec movie_preview(map(), boolean()) :: MoviePreview.t()
+  def movie_preview(tmdb_movie, in_library?) do
+    tmdb_id = tmdb_movie["id"]
+    attrs = Mapper.movie_attrs(tmdb_id, tmdb_movie, nil)
+    images = Map.new(Mapper.image_list(tmdb_movie), &{&1.role, &1.url})
+
+    %MoviePreview{
+      tmdb_id: to_string(tmdb_id),
+      title: attrs.name,
+      tagline: attrs.tagline,
+      overview: presence(attrs.description),
+      backdrop_url: images["backdrop"],
+      logo_url: images["logo"],
+      poster_url: images["poster"],
+      metadata_items: movie_metadata_items(attrs),
+      facets: DetailLogic.facets_for(:movie, attrs),
+      cast: movie_cast(attrs.cast),
       in_library?: in_library?
     }
   end
 
-  defp extract_year(<<year::binary-size(4), _rest::binary>>), do: String.to_integer(year)
-  defp extract_year(_release_date), do: nil
+  # Non-facet row items: year and runtime plus certification and country,
+  # mirroring the owned detail panel's metadata row. Rating, director,
+  # language, studio, and genres live in the facet strip, never here.
+  defp movie_metadata_items(attrs) do
+    Enum.reject(
+      [
+        DetailLogic.year_from_date(attrs.date_published),
+        runtime_label(attrs.duration_seconds),
+        attrs.content_rating,
+        attrs.country_code
+      ],
+      &(is_nil(&1) or &1 == "")
+    )
+  end
+
+  defp runtime_label(seconds) when is_integer(seconds) and seconds > 0,
+    do: MediaCentaurWeb.LibraryFormatters.format_human_duration(seconds)
+
+  defp runtime_label(_seconds), do: nil
+
+  # The top-billed few — a compact confirmation strip, not the full
+  # detail-panel cast grid. Mapper already sorts by billing order.
+  @cast_preview_limit 10
+  defp movie_cast(cast) when is_list(cast) do
+    cast
+    |> Enum.take(@cast_preview_limit)
+    |> Enum.map(fn person ->
+      %Person{
+        name: person["name"],
+        character: person["character"],
+        profile_path: person["profile_path"],
+        tmdb_person_id: person["tmdb_person_id"],
+        order: person["order"]
+      }
+    end)
+  end
+
+  defp movie_cast(_cast), do: []
 
   defp presence(value) when is_binary(value) and value != "", do: value
   defp presence(_value), do: nil
-
-  defp format_runtime(minutes) when is_integer(minutes) and minutes > 0,
-    do: MediaCentaurWeb.LibraryFormatters.format_human_duration(minutes * 60)
-
-  defp format_runtime(_minutes), do: nil
-
-  defp format_genres([_ | _] = genres), do: Enum.map_join(genres, " · ", & &1["name"])
-  defp format_genres(_genres), do: nil
 end

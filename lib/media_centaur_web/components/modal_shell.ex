@@ -11,6 +11,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
 
   import MediaCentaurWeb.LiveHelpers, only: [image_url: 2]
 
+  alias MediaCentaurWeb.Components.Detail.CinematicBackdrop
   alias MediaCentaurWeb.Components.DetailPanel
 
   # ModalShell is a thin wrapper around DetailPanel — these attrs forward
@@ -91,49 +92,35 @@ defmodule MediaCentaurWeb.Components.ModalShell do
               they scroll with the content, mirroring HomeLive's
               page-level `.page-backdrop` treatment. The hero, metadata,
               and content list all flow as one continuous document. --%>
+      <%!-- The backdrop image and atmospheric scrim live inside this scroll
+              container (its positioning context) so they scroll with the
+              content, mirroring HomeLive's page-level `.page-backdrop`. The
+              hero, metadata, and content list flow as one document. --%>
       <div
         :if={@entity}
         class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative thin-scrollbar"
       >
-        <div :if={@backdrop_url} class="modal-page-backdrop" aria-hidden="true">
-          <img
-            src={@backdrop_url}
-            alt=""
-            loading="eager"
-            decoding="sync"
-            fetchpriority="high"
+        <CinematicBackdrop.cinematic_backdrop backdrop_url={@backdrop_url}>
+          <DetailPanel.detail_panel
+            entity={@entity}
+            progress={@progress}
+            resume={@resume}
+            progress_records={@progress_records}
+            seasons_view={@seasons_view}
+            expanded_seasons={@expanded_seasons}
+            on_play={@on_play}
+            on_close={@on_close}
+            rematch_confirm={@rematch_confirm}
+            detail_view={@detail_view}
+            detail_files={@detail_files}
+            delete_confirm={@delete_confirm}
+            deleting={@deleting}
+            spoiler_free={@spoiler_free}
+            tracking_status={@tracking_status}
+            available={@available}
+            tmdb_ready={@tmdb_ready}
           />
-        </div>
-
-        <%!-- Atmosphere + content share a positioning anchor that grows
-                with the content, so the absolute atmosphere covers the full
-                scroll height (not just the viewport-sized scroll padding box,
-                which would scroll off and cut the dim partway down). --%>
-        <div class="modal-page-content">
-          <div class="modal-page-atmosphere" aria-hidden="true"></div>
-
-          <div class="relative z-[2]">
-            <DetailPanel.detail_panel
-              entity={@entity}
-              progress={@progress}
-              resume={@resume}
-              progress_records={@progress_records}
-              seasons_view={@seasons_view}
-              expanded_seasons={@expanded_seasons}
-              on_play={@on_play}
-              on_close={@on_close}
-              rematch_confirm={@rematch_confirm}
-              detail_view={@detail_view}
-              detail_files={@detail_files}
-              delete_confirm={@delete_confirm}
-              deleting={@deleting}
-              spoiler_free={@spoiler_free}
-              tracking_status={@tracking_status}
-              available={@available}
-              tmdb_ready={@tmdb_ready}
-            />
-          </div>
-        </div>
+        </CinematicBackdrop.cinematic_backdrop>
       </div>
     </.modal>
     """

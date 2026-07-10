@@ -13,6 +13,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.DescentNarrative
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
+  alias MediaCentaur.Library.Person
+  alias MediaCentaurWeb.AcquisitionLive.MoviePreview
+  alias MediaCentaurWeb.Components.Detail.Facet
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.PlanModal.plan_modal/1
   def render_source, do: :function
@@ -41,23 +44,39 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       %Variation{
         id: :movie_confirm,
         description:
-          "The movie fast path — two clicks from omnibox to plan, with the identity-confirming " <>
-            "facts TMDB has on hand (overview, runtime, genres). " <>
-            "poster_path nil here pins the icon fallback; the poster render is pinned by the LiveView tests.",
+          "The movie fast path, now a detail-page-shaped preview so the pick reads as \"of\" " <>
+            "that movie: hero (backdrop + logo, both rendered live from TMDB in the app — nil " <>
+            "here pins the title fallback + film-icon frame), metadata row, overview, the same " <>
+            "facet strip the owned detail panel shows (director, rating, language, studio, " <>
+            "genres), and a top-cast strip. Then the unchanged Cancel / Plan it footer.",
         attributes: %{
           open: true,
           stage: :movie_confirm,
-          movie: %{
+          movie: %MoviePreview{
             tmdb_id: "777",
             title: "Sample Movie",
-            year: 2010,
+            tagline: "Every confirmation counts.",
             overview:
               "A drifter arrives in a coastal town the day the lighthouse goes dark and " <>
                 "finds every clock stopped at the same minute — confirming you picked the " <>
-                "right Sample Movie is exactly what this paragraph is for.",
-            runtime: "2h 19m",
-            genres: "Drama · Mystery",
-            poster_path: nil,
+                "right Sample Movie is exactly what this preview is for.",
+            backdrop_url: nil,
+            logo_url: nil,
+            poster_url: nil,
+            metadata_items: ["2010", "2h 19m", "R", "US"],
+            facets: [
+              Facet.text("Director", "Jane Director"),
+              Facet.rating("Rating", 8.2, 26_000),
+              Facet.text("Original language", "en"),
+              Facet.text("Studio", "Sample Studio"),
+              Facet.chips("Genres", ["Drama", "Mystery"])
+            ],
+            cast: [
+              %Person{name: "Actor One", character: "The Drifter", order: 0},
+              %Person{name: "Actor Two", character: "Lighthouse Keeper", order: 1},
+              %Person{name: "Actor Three", character: "Sheriff", order: 2},
+              %Person{name: "Actor Four", character: "Diner Owner", order: 3}
+            ],
             in_library?: false
           }
         }
@@ -65,19 +84,15 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       %Variation{
         id: :movie_confirm_sparse,
         description:
-          "The same stage when TMDB has nothing beyond the title — every optional fact nil, " <>
-            "and the already-in-library state disabling the CTA.",
+          "The same stage when TMDB has nothing beyond the title — no artwork, no facts, no " <>
+            "cast; just the title over the film-icon frame, and the already-in-library state " <>
+            "disabling the CTA.",
         attributes: %{
           open: true,
           stage: :movie_confirm,
-          movie: %{
+          movie: %MoviePreview{
             tmdb_id: "778",
             title: "Sample Movie",
-            year: nil,
-            overview: nil,
-            runtime: nil,
-            genres: nil,
-            poster_path: nil,
             in_library?: true
           }
         }
