@@ -156,6 +156,27 @@ defmodule MediaCentaur.SubtitlesTest do
     end
   end
 
+  describe "aggregate_track_languages/1" do
+    # The query-free sibling of aggregate_languages_for_files/1 — same
+    # display semantics over already-loaded tracks (the detail
+    # projection's SubtitleTrack view structs).
+    test "dedupes, sorts alphabetically, single trailing nil for unknowns" do
+      tracks = [
+        %{language: "fr", kind: :embedded},
+        %{language: "en", kind: :embedded},
+        %{language: "en", kind: :sidecar},
+        %{language: nil, kind: :sidecar},
+        %{language: nil, kind: :sidecar}
+      ]
+
+      assert Subtitles.aggregate_track_languages(tracks) == ["en", "fr", nil]
+    end
+
+    test "returns [] for no tracks" do
+      assert Subtitles.aggregate_track_languages([]) == []
+    end
+  end
+
   describe "aggregate_languages_for_files/1" do
     test "returns [] for an empty file list" do
       assert Subtitles.aggregate_languages_for_files([]) == []
