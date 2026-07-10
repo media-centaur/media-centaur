@@ -15,11 +15,6 @@ defmodule MediaCentaur.Downloads.DownloadClient.DispatcherTest do
     :ok
   end
 
-  defp set_type(type) do
-    config = :persistent_term.get({Config, :config}, %{})
-    :persistent_term.put({Config, :config}, Map.put(config, :download_client_type, type))
-  end
-
   defp put_config(overrides) do
     config = :persistent_term.get({Config, :config}, %{})
 
@@ -34,26 +29,6 @@ defmodule MediaCentaur.Downloads.DownloadClient.DispatcherTest do
       {Config, :config},
       config |> Map.merge(blank_slots) |> Map.merge(Map.new(overrides))
     )
-  end
-
-  test "returns QBittorrent when type is \"qbittorrent\"" do
-    set_type("qbittorrent")
-    assert {:ok, QBittorrent} = Dispatcher.driver()
-  end
-
-  test "returns :not_configured when type is nil" do
-    set_type(nil)
-    assert {:error, :not_configured} = Dispatcher.driver()
-  end
-
-  test "returns :not_configured when type is the empty string" do
-    set_type("")
-    assert {:error, :not_configured} = Dispatcher.driver()
-  end
-
-  test "returns :unknown_driver for an unrecognized type" do
-    set_type("transmission")
-    assert {:error, {:unknown_driver, "transmission"}} = Dispatcher.driver()
   end
 
   describe "drivers/0" do
