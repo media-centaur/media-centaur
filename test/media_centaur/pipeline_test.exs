@@ -352,6 +352,82 @@ defmodule MediaCentaur.PipelineTest do
   # Batch handling
   # ---------------------------------------------------------------------------
 
+  describe "discovery batch broadcast" do
+    # A needs_review payload with a candidate still carries `tmdb_id` and
+    # `confidence` (the review UI needs them for its preselected match), so
+    # the batcher must discriminate on the discovery outcome — not on field
+    # presence. Regression: a below-threshold match was both queued for
+    # review AND broadcast for import, importing the file behind the
+    # reviewer's back and stranding the PendingFile.
+    test "does not broadcast a needs_review payload as file_matched" do
+      stub_routes([
+        {"/search/movie",
+         %{
+           "results" => [
+             movie_search_result(%{
+               "id" => 999,
+               "title" => "Completely Different Movie"
+             })
+           ]
+         }},
+        {"/search/tv", %{"results" => []}}
+      ])
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_matched())
+
+      payload = %Payload{
+        file_path: "/media/pipeline/Sample.Movie.1999.BluRay.mkv",
+        media_directory: "/media/pipeline"
+      }
+
+      assert {:needs_review, result} = Discovery.process(payload)
+      assert result.tmdb_id == 999
+      assert result.confidence != nil
+
+      Discovery.handle_batch(:default, [batch_message(result)], batch_info(), nil)
+
+      refute_receive {:file_matched, _}, 200
+    end
+
+    test "broadcasts a matched payload as file_matched" do
+      stub_routes([
+        {"/search/movie",
+         %{
+           "results" => [
+             movie_search_result(%{
+               "id" => 550,
+               "title" => "Sample Movie",
+               "release_date" => "1999-10-15"
+             })
+           ]
+         }}
+      ])
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_matched())
+
+      payload = %Payload{
+        file_path: "/media/pipeline/Sample.Movie.1999.BluRay.mkv",
+        media_directory: "/media/pipeline"
+      }
+
+      assert {:matched, result} = Discovery.process(payload)
+
+      Discovery.handle_batch(:default, [batch_message(result)], batch_info(), nil)
+
+      assert_receive {:file_matched, matched}
+      assert matched.tmdb_id == 550
+      assert matched.file_path == "/media/pipeline/Sample.Movie.1999.BluRay.mkv"
+    end
+  end
+
+  defp batch_message(payload) do
+    %Broadway.Message{data: payload, acknowledger: Broadway.NoopAcknowledger.init()}
+  end
+
+  defp batch_info do
+    %Broadway.BatchInfo{batcher: :default, size: 1}
+  end
+
   describe "batch entity_id extraction" do
     test "extracts and deduplicates entity_ids from payloads" do
       entity1 = create_entity(%{type: :movie, name: "Movie 1"})

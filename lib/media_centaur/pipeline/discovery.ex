@@ -91,10 +91,12 @@ defmodule MediaCentaur.Pipeline.Discovery do
 
   @impl true
   def handle_batch(:default, messages, _batch_info, _context) do
-    matched =
-      Enum.filter(messages, fn message ->
-        message.data.tmdb_id != nil and message.data.confidence != nil
-      end)
+    # Discriminate on the discovery outcome, never on field presence: a
+    # needs_review payload with a candidate also carries tmdb_id and
+    # confidence (for the review UI), and broadcasting it here would
+    # import the file behind the reviewer's back, stranding its
+    # PendingFile in the queue forever.
+    matched = Enum.filter(messages, fn message -> message.data.discovery_status == :matched end)
 
     Enum.each(matched, fn message ->
       payload = message.data
@@ -139,9 +141,14 @@ defmodule MediaCentaur.Pipeline.Discovery do
       :skipped
     else
       case run_discovery(payload) do
-        {:ok, payload} -> {:matched, payload}
-        {:needs_review, payload} -> handle_needs_review(payload)
-        {:error, reason} -> {:error, reason}
+        {:ok, payload} ->
+          {:matched, %{payload | discovery_status: :matched}}
+
+        {:needs_review, payload} ->
+          handle_needs_review(%{payload | discovery_status: :needs_review})
+
+        {:error, reason} ->
+          {:error, reason}
       end
     end
   end

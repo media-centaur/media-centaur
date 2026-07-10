@@ -24,6 +24,13 @@ defmodule MediaCentaur.Pipeline.Payload do
   - `match_poster_path` — poster path from TMDB
   - `candidates` — list of all scored candidates (for review)
 
+  **Discovery outcome (set by `Discovery.process/1`):**
+  - `discovery_status` — `:matched` or `:needs_review`. The Discovery
+    batcher broadcasts only `:matched` payloads for import; a
+    `:needs_review` payload still carries `tmdb_id`/`confidence` (the
+    review UI shows the best candidate), so field presence cannot
+    distinguish the two outcomes.
+
   **FetchMetadata stage:**
   - `metadata` — structured map with entity attrs, images, identifiers
 
@@ -54,6 +61,9 @@ defmodule MediaCentaur.Pipeline.Payload do
     :match_year,
     :match_poster_path,
     :candidates,
+
+    # Discovery outcome
+    :discovery_status,
 
     # FetchMetadata stage
     :metadata,
