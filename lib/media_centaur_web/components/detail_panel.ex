@@ -131,6 +131,14 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     tagline = tagline_for(assigns.entity)
     subtitle_languages = subtitle_languages_for(assigns.entity)
 
+    # Understood languages lead the subtitles row; the rest fold behind
+    # the +N-more reveal. Read here (prod: SettingsCache) rather than
+    # threaded through every modal host.
+    understood_languages =
+      if subtitle_languages == [],
+        do: [],
+        else: MediaCentaur.Playback.LanguagePolicy.load().understood_languages
+
     assigns =
       assigns
       |> assign(:expanded_seasons, expanded_seasons)
@@ -143,6 +151,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:metadata_items, metadata_items)
       |> assign(:tagline, tagline)
       |> assign(:subtitle_languages, subtitle_languages)
+      |> assign(:understood_languages, understood_languages)
 
     ~H"""
     <div class="detail-panel">
@@ -205,7 +214,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             <div class="min-w-0 space-y-3">
               <FacetStrip.facet_strip facets={@facets} layout={:row} class="xl:hidden" />
               <FacetStrip.facet_strip facets={@facets} layout={:stacked} class="hidden xl:grid" />
-              <SubtitlesRow.subtitles_row languages={@subtitle_languages} />
+              <SubtitlesRow.subtitles_row
+                languages={@subtitle_languages}
+                understood={@understood_languages}
+              />
             </div>
           </div>
         </div>

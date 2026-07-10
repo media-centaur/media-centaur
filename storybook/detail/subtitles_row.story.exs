@@ -55,8 +55,23 @@ defmodule MediaCentaurWeb.Storybook.Detail.SubtitlesRow do
       },
       %Variation{
         id: :many,
-        description: "A wide multi-language rip — confirms the layout doesn't wrap awkwardly.",
+        description:
+          "A wide multi-language rip with no configured understood languages — everything shows, comma-delimited.",
         attributes: %{languages: ["de", "en", "es", "fr", "it", "ja", "pt"]}
+      },
+      %Variation{
+        id: :folded_behind_understood,
+        description:
+          "Understood languages (Settings → Language, ISO 639-2) lead; the other ten fold behind the +N-more reveal — click it to expand.",
+        attributes: %{
+          languages: ["da", "de", "en", "es", "fi", "fr", "hi", "it", "nl", "no", "pl", "pt", "sv"],
+          understood: ["eng", "spa"]
+        }
+      },
+      %Variation{
+        id: :no_understood_match,
+        description: "None of the user's languages present — the whole list sits behind the reveal.",
+        attributes: %{languages: ["da", "fi", "no", "sv"], understood: ["eng"]}
       }
     ]
   end
