@@ -21,6 +21,12 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`documentation-catch-up.md`](documentation-catch-up.md) —
+  **planning.** A massive wiki / guide / documentation pass to catch
+  everything up to date, probably including an updated showcase and webpage
+  updates. Owner-directed follow-up to the usenet/multi-client work; starts
+  with a full surface inventory (wiki pages, guides, repo docs, showcase
+  screenshots, media-centaur.net) before any editing.
 * [`detail-page-gpu-blur.md`](detail-page-gpu-blur.md) —
   **investigating.** Reported sustained GPU spike on the detail/now-playing
   modal, blamed on `background-attachment: fixed` + stacked `backdrop-filter`
