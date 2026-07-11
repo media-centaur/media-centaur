@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.103.0 — 2026-07-11
+
+### New
+
+- **Upcoming and Downloads are now one page: Incoming.** Everything arriving in your collection lives in one place — a search box to add or plan titles, a "Coming up" shelf of what you're tracking, your live downloads, and what recently landed. Old `/upcoming` and `/download` links and bookmarks redirect automatically.
+- **The page works without an indexer.** Previously the Downloads page was hidden until Prowlarr was set up. Incoming is always there: without an indexer it's a release forecast — search for a title and track it — and the download features appear once Prowlarr and a download client pass their connection tests.
+
+### Improved
+
+- **One card per title on the shelf.** A show with several episodes coming, or a movie with more than one release date, shows one card carrying its next release — click it for the full timeline. Past six titles, "Show all" grows the shelf in place.
+- **Downloading something? The shelf shows it.** A card being grabbed right now carries an "In pursuit" pill with live progress — click the pill to jump straight to the download below.
+- **Recently landed replaces the History drawer.** The newest finished downloads sit openly at the bottom of the page; "View all" expands the same section into the full archive with failed/cancelled/succeeded filters and a title search.
+- **Storage moved out of the way.** Free-space now sits quietly at the bottom of the page — a per-drive card when space runs low, a single line otherwise.
+- **The Review sidebar entry only appears when there's work.** One entry covers both identity review and episode mapping, badged with the total.
+- **The built-in guide reflects all of this** — the tour, acquisition setup, and release-tracking chapters describe the new page.
+
 ## v0.102.0 — 2026-07-11
 
 ### New
