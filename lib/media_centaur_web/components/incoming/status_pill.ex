@@ -36,11 +36,15 @@ defmodule MediaCentaurWeb.Components.Incoming.StatusPill do
     assigns = assign(assigns, :label, label(assigns.status, assigns.percent))
 
     ~H"""
+    <%!-- stopPropagation: the pill sits inside a phx-click card — jumping to
+          the torrent row must not also open the card's detail slide-over
+          (same guard as the event card's downloads deep-link). --%>
     <a
       :if={@anchor}
       href={@anchor}
       class={[base_class(), tone_class(@status), anchor_hover_class(@status)]}
       title="Jump to the live download"
+      onclick="event.stopPropagation()"
     >
       <.icon name={icon_name(@status)} class="size-3 shrink-0" /> {@label}
     </a>
