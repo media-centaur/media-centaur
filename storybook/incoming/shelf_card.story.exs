@@ -1,0 +1,128 @@
+defmodule MediaCentaurWeb.Storybook.Incoming.ShelfCard do
+  @moduledoc """
+  One Coming-up shelf card — 2:3 art (or the quiet ghost-letterform
+  placeholder), a nearness badge top-left, the shared status pill
+  bottom-right, and an under-pursuit progress hairline whose pill
+  anchors to the torrent row.
+  """
+
+  use PhoenixStorybook.Story, :component
+
+  alias MediaCentaurWeb.Components.Incoming.Shelf.Card
+
+  def function, do: &MediaCentaurWeb.Components.Incoming.Shelf.shelf_card/1
+  def render_source, do: :function
+
+  def template do
+    """
+    <div class="w-44">
+      <.psb-variation/>
+    </div>
+    """
+  end
+
+  def variations do
+    [
+      %Variation{
+        id: :in_pursuit,
+        description:
+          "Dropped today, already downloading — info pill with percent (anchoring to " <>
+            "#pursuit-<pursuit_id>) and the 2px progress hairline at the art's bottom edge.",
+        attributes: %{
+          card: %Card{
+            key: "sample-show-s02e05",
+            item_id: 1,
+            pursuit_id: "0af1c2d3-0000-0000-0000-000000000001",
+            title: "Sample Show",
+            subtitle: "S02E05 · \"The Vanishing Reel\"",
+            date_label: "Tonight",
+            status: :in_pursuit,
+            percent: 62,
+            kind: :episode
+          }
+        }
+      },
+      %Variation{
+        id: :armed,
+        description: "A future release that will auto-grab when it drops.",
+        attributes: %{
+          card: %Card{
+            key: "haxan-s01e06",
+            item_id: 2,
+            title: "Häxan",
+            subtitle: "S01E06 · Jul 17",
+            date_label: "Fri Jul 17",
+            status: :armed,
+            kind: :episode
+          }
+        }
+      },
+      %Variation{
+        id: :season_drop,
+        description:
+          "A whole season landing at once — stacked-sheets treatment and the " <>
+            "episode-count caption.",
+        attributes: %{
+          card: %Card{
+            key: "the-golem-s3",
+            item_id: 3,
+            title: "The Golem",
+            subtitle: "S3",
+            date_label: "Fri Jul 24",
+            kind: :season_drop,
+            episode_count: 8
+          }
+        }
+      },
+      %Variation{
+        id: :in_theaters,
+        description: "Watch-only — neutral pill (identity, not health), no grab affordance.",
+        attributes: %{
+          card: %Card{
+            key: "metropolis",
+            item_id: 4,
+            title: "Metropolis",
+            subtitle: "Feature · home release TBA",
+            date_label: "Now",
+            status: :in_theaters,
+            kind: :movie
+          }
+        }
+      },
+      %Variation{
+        id: :plain_tracked,
+        description:
+          "No pill at all — a plain dated card, the honest acquisition-off degradation " <>
+            "(the caption carries the date, nothing implies grabbing).",
+        attributes: %{
+          card: %Card{
+            key: "phantom-carriage-s01e03",
+            item_id: 5,
+            title: "The Phantom Carriage",
+            subtitle: "S01E03 · Jul 14",
+            date_label: "Tue",
+            kind: :episode
+          }
+        }
+      },
+      %Variation{
+        id: :with_artwork,
+        description:
+          "With real art the placeholder gives way to an eager+sync poster (fake URL — " <>
+            "renders broken outside the app).",
+        attributes: %{
+          card: %Card{
+            key: "nosferatu",
+            item_id: 6,
+            title: "Nosferatu",
+            subtitle: "Feature · home release",
+            date_label: "Aug 6",
+            status: :tracked,
+            art_url: "/images/sample-nosferatu-poster.jpg",
+            kind: :movie
+          }
+        }
+      }
+    ]
+  end
+end
