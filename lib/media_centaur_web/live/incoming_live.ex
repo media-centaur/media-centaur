@@ -96,8 +96,14 @@ defmodule MediaCentaurWeb.IncomingLive do
   }
 
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.ReleaseTracking.{Item, UpcomingFeed}
 
+  alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
+  alias MediaCentaurWeb.Components.Incoming.{Ledger, Shelf}
+  alias MediaCentaurWeb.Components.ReleaseTracking.{Detail, MiniMonth, Present, TitleDetail}
+  alias MediaCentaurWeb.Components.TrackModal
+  alias MediaCentaurWeb.IncomingLive.View
   alias MediaCentaurWeb.IncomingLive.PlanLogic
   alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
 
@@ -124,86 +130,114 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    # The Prowlarr-readiness gate is the only DB read on the static HTTP
-    # mount path — without it we can't decide whether to render or
-    # redirect. All other state (search session, download-client gate,
-    # active queue) is loaded after the WebSocket connects via
-    # `ensure_loaded/1`.
-    if Capabilities.prowlarr_ready?() do
-      if connected?(socket) do
-        Acquisition.subscribe()
-        Acquisition.subscribe_queue()
-        SearchSession.subscribe()
-      end
+    # No capability redirect: this page is the first acquisition surface
+    # that renders without Prowlarr (forecast-only). Capability gating is
+    # render-level, enforced once inside `View.build/1`. Forecast topics are
+    # always live; acquisition topics only when there's an indexer to hear
+    # from (re-checked in `:capabilities_changed` for mid-session setup).
+    prowlarr? = Capabilities.prowlarr_ready?()
 
-      {:ok,
-       maybe_start_storage(
-         assign(socket,
-           loaded?: false,
-           storage_drives: [],
-           page_backdrop: page_backdrop(),
-           search_session: %SearchSession{},
-           active_queue: [],
-           queue_connectivity: :initializing,
-           queue_last_success_at: nil,
-           queue_loaded?: false,
-           board_expanded_seasons: nil,
-           cancel_confirm: nil,
-           pending_cancels: %{},
-           download_client_ready: false,
-           history_filter: :failed,
-           history_search: "",
-           history_open?: false,
-           history_rows: [],
-           pursuit_rows: [],
-           expanded_pursuit_groups: MapSet.new(),
-           pursuits_reload_timer: nil,
-           reload_timer: nil,
-           selected_pursuit_id: nil,
-           pursuit_detail: nil,
-           omnibox_mode: :media,
-           omnibox_query: "",
-           omnibox_results: [],
-           omnibox_searching?: false,
-           omnibox_searched: nil,
-           plan_param: nil,
-           plan_stage: :loading,
-           plan_selection: nil,
-           plan_chosen: MapSet.new(),
-           plan_expanded_seasons: MapSet.new(),
-           plan_movie: nil,
-           plan_board: nil,
-           plan_grab_future: false,
-           plan_error: nil,
-           plan_last_activity: nil,
-           plan_descent: nil,
-           plan_alternatives: nil,
-           plan_approving?: false,
-           plan_discard_confirm?: false,
-           plan_drafts: []
-         )
-       )}
+    if connected?(socket) do
+      MediaCentaur.Library.subscribe()
+      ReleaseTracking.subscribe()
+      if prowlarr?, do: subscribe_acquisition()
+    end
+
+    today = Date.utc_today()
+
+    {:ok,
+     maybe_start_storage(
+       assign(socket,
+         loaded?: false,
+         subscribed_acquisition?: prowlarr? and connected?(socket),
+         today: today,
+         mini_month: {today.year, today.month},
+         mini_month_marks: %{},
+         calendar_open?: false,
+         focused_day: nil,
+         detail: nil,
+         view: %View{shelf: %View.ShelfSection{}, ledger: %View.LedgerSection{}},
+         grab_status_by_key: %{},
+         auto_grab_default_mode: AutoGrabSettings.load().default_mode,
+         ledger_expanded?: false,
+         ledger_rows: [],
+         forecast_reload_timer: nil,
+         track_modal_open: false,
+         track_suggestions: [],
+         track_suggestions_loading: false,
+         track_search_query: "",
+         track_search_results: [],
+         track_search_loading: false,
+         track_scope_item: nil,
+         track_collection_item: nil,
+         track_confirmed_ids: MapSet.new(),
+         storage_drives: [],
+         page_backdrop: page_backdrop(),
+         search_session: %SearchSession{},
+         active_queue: [],
+         queue_connectivity: :initializing,
+         queue_last_success_at: nil,
+         queue_loaded?: false,
+         board_expanded_seasons: nil,
+         cancel_confirm: nil,
+         pending_cancels: %{},
+         download_client_ready: false,
+         history_filter: :failed,
+         history_search: "",
+         history_open?: false,
+         history_rows: [],
+         pursuit_rows: [],
+         expanded_pursuit_groups: MapSet.new(),
+         pursuits_reload_timer: nil,
+         reload_timer: nil,
+         selected_pursuit_id: nil,
+         pursuit_detail: nil,
+         omnibox_mode: :media,
+         omnibox_query: "",
+         omnibox_results: [],
+         omnibox_searching?: false,
+         omnibox_searched: nil,
+         plan_param: nil,
+         plan_stage: :loading,
+         plan_selection: nil,
+         plan_chosen: MapSet.new(),
+         plan_expanded_seasons: MapSet.new(),
+         plan_movie: nil,
+         plan_board: nil,
+         plan_grab_future: false,
+         plan_error: nil,
+         plan_last_activity: nil,
+         plan_descent: nil,
+         plan_alternatives: nil,
+         plan_approving?: false,
+         plan_discard_confirm?: false,
+         plan_drafts: []
+       )
+     )}
+  end
+
+  defp subscribe_acquisition do
+    Acquisition.subscribe()
+    Acquisition.subscribe_queue()
+    SearchSession.subscribe()
+  end
+
+  defp subscribe_acquisition_once(socket) do
+    if socket.assigns.subscribed_acquisition? or not connected?(socket) do
+      socket
     else
-      {:ok, push_navigate(socket, to: "/")}
+      subscribe_acquisition()
+      assign(socket, subscribed_acquisition?: true)
     end
   end
 
-  # First-render data load — gated by `connected?` so the static HTTP
-  # render ships empty defaults and the WebSocket render fills them in
-  # once. See AGENTS.md → LiveView callbacks (Iron Law).
-  #
-  # Per the "no blocking LV page loads" rule, the four initial reads
-  # (search session, capability flag, active pursuit rows, history
-  # rows) run on a supervised task in parallel and message back via
-  # `{:acquisition_loaded, _}`. The `Acquisition.queue_state/0` read
-  # is `:persistent_term` — microsecond — and stays synchronous so the
-  # page can render the queue's freshness state immediately.
   # First-render data load — runs on BOTH the disconnected (static) and
-  # connected renders so the first paint already carries the search session,
-  # pursuit rows, and history, never an empty-state flash. Desktop
-  # first-paint correctness (see AGENTS.md → LiveView callbacks): the four
-  # reads are all local, so there is no traffic-scaling reason to defer
-  # them. Do not re-add a `connected?` gate.
+  # connected renders so the first paint already carries the forecast, search
+  # session, pursuit rows, and ledger, never an empty-state flash. Desktop
+  # first-paint correctness (see AGENTS.md → LiveView callbacks): the reads
+  # are all local, so there is no traffic-scaling reason to defer them. Do
+  # not re-add a `connected?` gate. The `Acquisition.queue_state/0` read is
+  # `:persistent_term` — microsecond — and safe without a client.
   defp ensure_loaded(socket) do
     if socket.assigns.loaded? do
       socket
@@ -211,6 +245,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       socket
       |> assign_queue_from_state(Acquisition.queue_state())
       |> load_acquisition()
+      |> build_view()
       |> assign(:loaded?, true)
     end
   end
@@ -251,23 +286,167 @@ defmodule MediaCentaurWeb.IncomingLive do
     end)
   end
 
+  # Acquisition reads only exist when an indexer is configured — without one
+  # the empty mount defaults are already the honest state, and `View.build/1`
+  # keeps the operational sections empty regardless.
   defp load_acquisition(socket) do
-    session = SearchSession.current()
+    if Capabilities.prowlarr_ready?() do
+      session = SearchSession.current()
 
+      assign(socket,
+        search_session: session,
+        # An active release-search session resumes in release mode — the
+        # one-search-surface flip must not hide work in progress (UIDR-014).
+        omnibox_mode: if(session.query != "" or session.groups != [], do: :release, else: :media),
+        download_client_ready: Capabilities.download_client_ready?(),
+        plan_drafts: Plans.list_drafts(),
+        pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows(),
+        ledger_rows: Pursuits.list_rows(:all_terminal),
+        history_rows: compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search)
+      )
+    else
+      socket
+    end
+  end
+
+  # The ledger reloads with the active rows — a pursuit leaving the active
+  # list is exactly the moment it enters the ledger.
+  defp load_pursuit_rows(socket) do
     assign(socket,
-      search_session: session,
-      # An active release-search session resumes in release mode — the
-      # one-search-surface flip must not hide work in progress (UIDR-014).
-      omnibox_mode: if(session.query != "" or session.groups != [], do: :release, else: :media),
-      download_client_ready: Capabilities.download_client_ready?(),
-      plan_drafts: Plans.list_drafts(),
       pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows(),
-      history_rows: compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search)
+      ledger_rows: Pursuits.list_rows(:all_terminal)
     )
   end
 
-  defp load_pursuit_rows(socket) do
-    assign(socket, pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows())
+  # Rebuild the composed page view from current assigns + fresh forecast
+  # reads. Every mutation of a View input (pursuit rows, drafts, ledger
+  # state, releases) funnels through here — one composition point, one
+  # rebuild path.
+  defp build_view(socket) do
+    releases = forecast_releases()
+    acquisition? = Capabilities.acquisition_ready?()
+    default_mode = AutoGrabSettings.load().default_mode
+    grab = grab_status_by_key(releases, acquisition?)
+
+    view =
+      View.build(%{
+        releases: releases,
+        watching_items: ReleaseTracking.list_watching_items(),
+        pursuit_rows: socket.assigns.pursuit_rows,
+        ledger_rows: socket.assigns.ledger_rows,
+        drafts: socket.assigns.plan_drafts,
+        today: socket.assigns.today,
+        prowlarr_ready?: Capabilities.prowlarr_ready?(),
+        acquisition_ready?: acquisition?,
+        auto_grab_default_mode: default_mode,
+        grab_status_by_key: grab,
+        ledger_expanded?: socket.assigns.ledger_expanded?
+      })
+
+    {year, month} = socket.assigns.mini_month
+
+    assign(socket,
+      view: view,
+      grab_status_by_key: grab,
+      auto_grab_default_mode: default_mode,
+      mini_month_marks: UpcomingFeed.mini_month_marks(view.feed, year, month)
+    )
+  end
+
+  defp forecast_releases do
+    %{upcoming: upcoming, released: released} = ReleaseTracking.list_releases()
+    upcoming ++ released
+  end
+
+  # `%{release_key => %{pursuit_id}}` for releases under an ACTIVE pursuit —
+  # the input the feed needs to mark `:under_pursuit` and the shelf needs to
+  # anchor a card to its torrent row.
+  defp grab_status_by_key(_releases, false), do: %{}
+
+  defp grab_status_by_key(releases, true) do
+    releases
+    |> Enum.map(&UpcomingFeed.release_key/1)
+    |> Enum.uniq()
+    |> Acquisition.statuses_for_releases()
+    # `statuses_for_releases/1` also returns cancelled/complete pursuits; only
+    # an ACTIVE pursuit means a release is genuinely being grabbed right now.
+    |> Enum.filter(fn {_key, {pursuit, _target}} -> pursuit.state == "active" end)
+    |> Map.new(fn {key, {pursuit, _target}} -> {key, %{pursuit_id: pursuit.id}} end)
+  end
+
+  # --- Per-title detail (the forecast slide-over) ---
+
+  defp build_detail(socket, item_id) do
+    case ReleaseTracking.get_item(item_id) do
+      nil ->
+        nil
+
+      item ->
+        acquisition? = Capabilities.acquisition_ready?()
+        default_mode = socket.assigns.auto_grab_default_mode
+
+        releases =
+          item_id
+          |> ReleaseTracking.list_releases_for_item()
+          |> Enum.map(&%{&1 | item: item})
+
+        context = %{
+          today: socket.assigns.today,
+          acquisition_ready?: acquisition?,
+          auto_grab_default_mode: default_mode,
+          grab_status_by_key: socket.assigns.grab_status_by_key
+        }
+
+        feed = UpcomingFeed.build(releases, context)
+
+        %Detail{
+          item_id: item.id,
+          name: item.name,
+          media_type: item.media_type,
+          backdrop_path: item.backdrop_path,
+          acquisition?: acquisition?,
+          auto_grab: Present.auto_grab_summary(item.auto_grab_mode, default_mode, acquisition?),
+          timeline: flatten_feed(feed),
+          activity: build_activity(item_id)
+        }
+    end
+  end
+
+  defp flatten_feed(%UpcomingFeed{buckets: buckets, unscheduled: unscheduled}) do
+    Enum.flat_map(UpcomingFeed.bucket_order(), &Map.get(buckets, &1, [])) ++ unscheduled
+  end
+
+  defp build_activity(item_id) do
+    item_id
+    |> ReleaseTracking.list_events_for_item(8)
+    |> Enum.map(&%{text: &1.description, at: MediaCentaur.Format.relative_ago(&1.inserted_at)})
+  end
+
+  defp first_event_on(%UpcomingFeed{} = feed, date) do
+    feed
+    |> flatten_feed()
+    |> Enum.find(&(&1.air_date == date))
+  end
+
+  defp shift_month(socket, delta) do
+    {year, month} = socket.assigns.mini_month
+    anchor = Date.new!(year, month, 1)
+
+    pivot =
+      if delta < 0,
+        do: Date.add(anchor, -1),
+        else: Date.add(Date.end_of_month(anchor), 1)
+
+    assign(socket,
+      mini_month: {pivot.year, pivot.month},
+      mini_month_marks: UpcomingFeed.mini_month_marks(socket.assigns.view.feed, pivot.year, pivot.month)
+    )
+  end
+
+  defp mark_tracked(results, tmdb_id) do
+    Enum.map(results, fn result ->
+      if result.tmdb_id == tmdb_id, do: %{result | already_tracked: true}, else: result
+    end)
   end
 
   defp compute_history_rows(history_filter, history_search) do
@@ -416,8 +595,8 @@ defmodule MediaCentaurWeb.IncomingLive do
       |> Enum.reject(fn {_k, v} -> v in [nil, ""] end)
 
     case merged do
-      [] -> "/download"
-      params -> "/download?" <> URI.encode_query(params)
+      [] -> "/incoming"
+      params -> "/incoming?" <> URI.encode_query(params)
     end
   end
 
@@ -450,6 +629,14 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   defp maybe_trigger_prowlarr_search(socket, _), do: socket
 
+  defp shelf_progress(download_cards) do
+    for %PursuitWithDownload{row: row, download: download} <- download_cards,
+        download && download.progress_pct,
+        into: %{} do
+      {row.id, round(download.progress_pct)}
+    end
+  end
+
   @impl true
   def render(assigns) do
     # Derive once per render — these values are read in multiple places
@@ -460,7 +647,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     # torrents at render time so the DB-backed `@pursuit_rows` doesn't
     # rebuild on every queue snapshot. The pairing is a pure helper —
     # see `QueueMatcher.match/2`.
-    {paired_rows, orphan_queue} = QueueMatcher.match(assigns.pursuit_rows, assigns.active_queue)
+    {paired_rows, orphan_queue} = QueueMatcher.match(assigns.view.in_flight, assigns.active_queue)
 
     # Partition the unified `[PursuitWithDownload]` list at render time:
     # - `download_cards` keeps the full 2-row card with progress footer
@@ -497,12 +684,19 @@ defmodule MediaCentaurWeb.IncomingLive do
         :telemetry_age,
         Logic.telemetry_age_label(assigns.queue_connectivity, assigns.queue_last_success_at)
       )
+      # Live percentages ride the same render-time pairing: the paired
+      # downloads stamp their progress onto in-pursuit shelf cards, so the
+      # shelf hairline tracks the torrent without rebuilding the View.
+      |> Phoenix.Component.assign(
+        :shelf_cards,
+        View.with_progress(assigns.view.shelf.cards, shelf_progress(download_cards))
+      )
 
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app
       flash={@flash}
-      current_path="/download"
+      current_path="/incoming"
       full_width
       acquisition_ready={@acquisition_ready}
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
@@ -538,11 +732,23 @@ defmodule MediaCentaurWeb.IncomingLive do
           decision_card={@pursuit_detail && @pursuit_detail.decision_card}
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
         />
+        <TrackModal.track_modal
+          open={@track_modal_open}
+          suggestions={@track_suggestions}
+          suggestions_loading={@track_suggestions_loading}
+          search_query={@track_search_query}
+          search_results={@track_search_results}
+          search_loading={@track_search_loading}
+          scope_item={@track_scope_item}
+          collection_item={@track_collection_item}
+          confirmed_ids={@track_confirmed_ids}
+        />
+        <TitleDetail.title_detail :if={@detail} detail={@detail} today={@today} />
       </:overlays>
       <%!-- data-nav-default-zone names the LAYOUT KEY in input config.js
             (like `library`/`home`), not a context within it — the nav graph
             is built from this value. --%>
-      <div class="relative" data-page-behavior="download" data-nav-default-zone="download">
+      <div class="relative" data-page-behavior="incoming" data-nav-default-zone="incoming">
         <%!-- Same ambient treatment as the home/library pages: a calm
               backdrop band behind the header (masked + dimmed by
               `.page-atmosphere`) plus the fixed side scrim, both behind
@@ -553,39 +759,35 @@ defmodule MediaCentaurWeb.IncomingLive do
         </div>
         <div :if={@page_backdrop} class="page-side-dim" aria-hidden="true"></div>
 
-        <%!-- Same header recipe + column placement as the library page
-              (left-aligned, text-3xl, muted count subtitle) so moving
-              between the two pages doesn't shift the title around.
+        <%!-- Same header recipe as the library page (left-aligned, text-3xl,
+              one muted subtitle line) so moving between pages doesn't shift
+              the title around.
 
-              Width model: the page is full-bleed (like home/library) so
-              the atmosphere band spans the viewport, but the content is a
-              single readable column capped at max-w-4xl — search and
-              drafts on top, active pursuits in the middle, the
-              bookkeeping zones (History disclosure, other downloads) at
-              the bottom. --%>
-        <div class="relative z-[1] max-w-4xl space-y-6">
+              Width model: the page is full-bleed (like home/library) so the
+              atmosphere band spans the viewport; the content column runs
+              max-w-6xl because the shelf earns the width — one axis, density
+              thinning downward: hero search, big-art shelf, operational
+              in-flight band, then the bookkeeping (ledger, History
+              disclosure, other downloads) at the bottom. --%>
+        <div class="relative z-[1] max-w-6xl space-y-8">
           <header>
-            <h1 class="text-3xl font-bold tracking-tight">Downloads</h1>
-            <%!-- One adaptive subtitle line, never a stack. When storage is calm
-                  (a single healthy drive) it *is* the subtitle — free space is the
-                  most useful ambient fact here. When storage opens up (low / multiple
-                  drives) it renders as its own card below, and the subtitle falls back
-                  to the activity summary. --%>
-            <p
-              :if={@storage_mode == :calm}
-              class="mt-1 flex items-center gap-2 text-sm text-base-content/60"
-            >
-              <.icon name="hero-circle-stack-mini" class="size-4 shrink-0 text-base-content/40" />
-              {DownloadStorage.calm_summary(@storage_drives)}
-            </p>
-            <p :if={@storage_mode != :calm} class="mt-1 text-sm text-base-content/60">
-              {Logic.pursuit_summary(length(@paired_rows), length(@download_cards))}
+            <h1 class="text-3xl font-bold tracking-tight">Incoming</h1>
+            <p class="mt-1 text-sm text-base-content/60">
+              Add to your library, and see what's on the way.
             </p>
           </header>
 
-          <DownloadStorage.download_storage drives={@storage_drives} />
+          <%!-- Escalated storage only (low space / multiple drives) — the
+                calm free-space figure lives on the ledger's foot line. --%>
+          <DownloadStorage.download_storage :if={@storage_mode != :calm} drives={@storage_drives} />
 
           <MediaOmnibox.media_omnibox
+            hero
+            prompt={
+              if @prowlarr_ready,
+                do: "What would you like to add?",
+                else: "What would you like to track?"
+            }
             mode={@omnibox_mode}
             query={@omnibox_query}
             results={@omnibox_results}
@@ -601,13 +803,34 @@ defmodule MediaCentaurWeb.IncomingLive do
             timeout_terms={@timeout_terms}
           />
 
-          <section :if={@plan_drafts != []} data-nav-zone="drafts" class="space-y-3">
+          <%!-- The shelf recedes while a release search owns the page —
+                dismissing the search (mode back to :media) restores it. --%>
+          <Shelf.shelf
+            :if={@omnibox_mode != :release}
+            cards={@shelf_cards}
+            overflow_count={@view.shelf.overflow_count}
+            stragglers={@view.shelf.stragglers}
+            tmdb_ready={@tmdb_ready}
+            calendar_open={@calendar_open?}
+          >
+            <:calendar>
+              <MiniMonth.mini_month
+                year={elem(@mini_month, 0)}
+                month={elem(@mini_month, 1)}
+                today={@today}
+                focused_day={@focused_day}
+                marks={@mini_month_marks}
+              />
+            </:calendar>
+          </Shelf.shelf>
+
+          <section :if={@view.drafts != []} data-nav-zone="drafts" class="space-y-3">
             <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
               Draft plans
             </h2>
             <div class="grid grid-cols-1 gap-2">
               <div
-                :for={draft <- @plan_drafts}
+                :for={draft <- @view.drafts}
                 id={"plan-draft-#{draft.id}"}
                 class="identity-banner flex items-center gap-3 px-4 py-3"
                 style={"--banner-hue: #{banner_hue(draft.title)}"}
@@ -638,7 +861,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           </section>
 
           <p
-            :if={!@download_client_ready}
+            :if={@prowlarr_ready and !@download_client_ready}
             class="scrim-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/50"
           >
             Connect a download client in
@@ -651,7 +874,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           <section :if={@paired_rows != []} data-nav-zone="pursuits" class="space-y-3">
             <div class="flex items-center justify-between gap-3">
               <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-                Active pursuits
+                In flight
               </h2>
               <div :if={@download_client_ready} class="flex items-center gap-2">
                 <ConnectivityBadge.connectivity_badge connectivity={@queue_connectivity} />
@@ -682,6 +905,13 @@ defmodule MediaCentaurWeb.IncomingLive do
               <.grouped_compact_rows entries={@active_compact} />
             </div>
           </section>
+
+          <Ledger.ledger
+            rows={@view.ledger.rows}
+            hidden_count={@view.ledger.hidden_count}
+            expanded={@view.ledger.expanded?}
+            storage_drives={if(@storage_mode == :calm, do: @storage_drives, else: [])}
+          />
 
           <History.history_zone
             empty?={@history_rows == []}
@@ -891,7 +1121,8 @@ defmodule MediaCentaurWeb.IncomingLive do
            omnibox_searching?: false,
            omnibox_searched: nil
          )
-         |> push_patch(to: "/download?plan=#{plan.id}")}
+         |> build_view()
+         |> push_patch(to: "/incoming?plan=#{plan.id}")}
 
       {:error, reason} ->
         Log.warning(:acquisition, "plan create failed — #{inspect(reason)}")
@@ -1017,19 +1248,20 @@ defmodule MediaCentaurWeb.IncomingLive do
       {:noreply,
        socket
        |> assign(plan_drafts: Plans.list_drafts())
+       |> build_view()
        |> put_flash(:info, "Plan discarded.")
-       |> push_patch(to: "/download")}
+       |> push_patch(to: "/incoming")}
     else
       _ -> {:noreply, put_flash(socket, :error, "Could not discard the plan.")}
     end
   end
 
   def handle_event("close_plan", _params, socket) do
-    {:noreply, push_patch(socket, to: "/download")}
+    {:noreply, push_patch(socket, to: "/incoming")}
   end
 
   def handle_event("resume_plan", %{"id" => plan_id}, socket) do
-    {:noreply, push_patch(socket, to: "/download?plan=#{plan_id}")}
+    {:noreply, push_patch(socket, to: "/incoming?plan=#{plan_id}")}
   end
 
   # ---------------------------------------------------------------------------
@@ -1074,7 +1306,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       when media_type in ~w(movie tv_series) do
     plan_type = if media_type == "movie", do: "movie", else: "tv"
 
-    {:noreply, push_patch(socket, to: "/download?plan=new&tmdb_id=#{tmdb_id}&tmdb_type=#{plan_type}")}
+    {:noreply, push_patch(socket, to: "/incoming?plan=new&tmdb_id=#{tmdb_id}&tmdb_type=#{plan_type}")}
   end
 
   def handle_event("grab_selected", _params, socket) do
@@ -1121,6 +1353,218 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   def handle_event("set_history_search", %{"search" => search}, socket) do
     {:noreply, socket |> assign(history_search: search) |> load_history()}
+  end
+
+  # --- Ledger / calendar disclosures ---
+
+  def handle_event("expand_ledger", _params, socket) do
+    {:noreply, socket |> assign(ledger_expanded?: true) |> build_view()}
+  end
+
+  def handle_event("toggle_calendar", _params, socket) do
+    {:noreply, assign(socket, calendar_open?: not socket.assigns.calendar_open?)}
+  end
+
+  def handle_event("mini_month_prev", _params, socket) do
+    {:noreply, shift_month(socket, -1)}
+  end
+
+  def handle_event("mini_month_next", _params, socket) do
+    {:noreply, shift_month(socket, +1)}
+  end
+
+  # Only marked days are clickable (see MiniMonth), so a jump always has a
+  # matching event. With no rail to scroll, the jump opens the day's first
+  # title straight into the detail slide-over.
+  def handle_event("jump_to_day", %{"date" => iso}, socket) do
+    with {:ok, date} <- Date.from_iso8601(iso),
+         %UpcomingFeed.Event{} = event <- first_event_on(socket.assigns.view.feed, date) do
+      {:noreply,
+       socket
+       |> assign(focused_day: date)
+       |> assign(detail: build_detail(socket, event.item_id))}
+    else
+      _no_event -> {:noreply, socket}
+    end
+  end
+
+  # --- Forecast detail / tracking events ---
+
+  def handle_event("select_event", %{"item-id" => item_id}, socket) do
+    {:noreply, assign(socket, detail: build_detail(socket, item_id))}
+  end
+
+  def handle_event("close_detail", _params, socket) do
+    {:noreply, assign(socket, detail: nil)}
+  end
+
+  def handle_event("toggle_auto_grab", %{"item-id" => item_id}, socket) do
+    with %Item{} = item <- ReleaseTracking.get_item(item_id) do
+      default = socket.assigns.auto_grab_default_mode
+
+      summary =
+        Present.auto_grab_summary(item.auto_grab_mode, default, Capabilities.acquisition_ready?())
+
+      ReleaseTracking.update_auto_grab(item, %{
+        auto_grab_mode: if(summary.on?, do: "off", else: "all_releases")
+      })
+    end
+
+    socket = build_view(socket)
+    {:noreply, assign(socket, detail: build_detail(socket, item_id))}
+  end
+
+  def handle_event("stop_tracking", %{"item-id" => item_id}, socket) do
+    case ReleaseTracking.get_item(item_id) do
+      nil ->
+        {:noreply, socket}
+
+      item ->
+        ReleaseTracking.create_event!(%{
+          item_id: item.id,
+          item_name: item.name,
+          event_type: :stopped_tracking,
+          description: "Stopped tracking #{item.name}"
+        })
+
+        ReleaseTracking.delete_item(item)
+
+        {:noreply,
+         socket
+         |> assign(detail: nil)
+         |> build_view()
+         |> put_flash(:info, "Stopped tracking #{item.name}")}
+    end
+  end
+
+  # --- Track modal events ---
+
+  def handle_event("open_track_modal", _params, socket) do
+    socket =
+      assign(socket,
+        track_modal_open: true,
+        track_suggestions_loading: true,
+        track_search_query: "",
+        track_search_results: [],
+        track_scope_item: nil,
+        track_collection_item: nil
+      )
+
+    send(self(), :load_track_suggestions)
+    {:noreply, socket}
+  end
+
+  def handle_event("close_track_modal", _params, socket) do
+    {:noreply,
+     assign(socket,
+       track_modal_open: false,
+       track_suggestions: [],
+       track_suggestions_loading: false,
+       track_search_query: "",
+       track_search_results: [],
+       track_search_loading: false,
+       track_scope_item: nil,
+       track_collection_item: nil,
+       track_confirmed_ids: MapSet.new()
+     )}
+  end
+
+  def handle_event("track_search", %{"query" => query}, socket) when byte_size(query) < 2 do
+    {:noreply,
+     assign(socket, track_search_query: query, track_search_results: [], track_search_loading: false)}
+  end
+
+  def handle_event("track_search", %{"query" => query}, socket) do
+    socket = assign(socket, track_search_query: query, track_search_loading: true)
+    send(self(), {:do_track_search, query})
+    {:noreply, socket}
+  end
+
+  def handle_event("track_suggestion", params, socket) do
+    tmdb_id = String.to_integer(params["tmdb-id"])
+    tmdb_id_str = to_string(tmdb_id)
+    confirmed = socket.assigns.track_confirmed_ids
+
+    if MapSet.member?(confirmed, tmdb_id_str) do
+      case ReleaseTracking.get_item_by_tmdb(tmdb_id, :tv_series) do
+        nil -> :ok
+        item -> ReleaseTracking.delete_item(item)
+      end
+
+      {:noreply, assign(socket, track_confirmed_ids: MapSet.delete(confirmed, tmdb_id_str))}
+    else
+      {last_season, last_episode} = ReleaseTracking.find_last_library_episode(params["tv-series-id"])
+
+      ReleaseTracking.track_from_search_async(
+        %{tmdb_id: tmdb_id, media_type: :tv_series, name: params["name"], poster_path: nil},
+        %{start_season: last_season, start_episode: last_episode}
+      )
+
+      {:noreply, assign(socket, track_confirmed_ids: MapSet.put(confirmed, tmdb_id_str))}
+    end
+  end
+
+  def handle_event("select_search_result", params, socket) do
+    case {Integer.parse(params["tmdb-id"] || ""), params["media-type"]} do
+      {{tmdb_id, ""}, "tv_series"} ->
+        scope_item = %TrackModal.ScopeItem{
+          tmdb_id: tmdb_id,
+          name: params["name"],
+          poster_path: params["poster-path"]
+        }
+
+        {:noreply, assign(socket, track_scope_item: scope_item, track_collection_item: nil)}
+
+      {{tmdb_id, ""}, "movie"} ->
+        ReleaseTracking.track_from_search_async(
+          %{
+            tmdb_id: tmdb_id,
+            media_type: :movie,
+            name: params["name"],
+            poster_path: params["poster-path"]
+          },
+          %{}
+        )
+
+        {:noreply,
+         assign(socket,
+           track_search_results: mark_tracked(socket.assigns.track_search_results, tmdb_id),
+           track_collection_item: nil
+         )}
+
+      _ ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("confirm_track", params, socket) do
+    tmdb_id = String.to_integer(params["tmdb_id"])
+
+    {start_season, start_episode} =
+      case params["scope"] do
+        "custom" ->
+          {String.to_integer(params["start_season"] || "1"),
+           String.to_integer(params["start_episode"] || "1")}
+
+        _all ->
+          {0, 0}
+      end
+
+    ReleaseTracking.track_from_search_async(
+      %{
+        tmdb_id: tmdb_id,
+        media_type: :tv_series,
+        name: params["name"],
+        poster_path: params["poster_path"]
+      },
+      %{start_season: start_season, start_episode: start_episode}
+    )
+
+    {:noreply,
+     assign(socket,
+       track_search_results: mark_tracked(socket.assigns.track_search_results, tmdb_id),
+       track_scope_item: nil
+     )}
   end
 
   # Group expand/collapse. Toggles membership of
@@ -1338,15 +1782,23 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   @impl true
   def handle_info(:capabilities_changed, socket) do
-    if Capabilities.prowlarr_ready?() do
-      # Ping QueueMonitor in case the user just configured the download
-      # client — without this nudge we would wait up to 30 s (idle cadence)
-      # for the queue to populate.
-      Acquisition.poll_queue_now()
-      {:noreply, assign(socket, download_client_ready: Capabilities.download_client_ready?())}
-    else
-      {:noreply, push_navigate(socket, to: "/")}
-    end
+    socket =
+      if Capabilities.prowlarr_ready?() do
+        # Ping QueueMonitor in case the user just configured the download
+        # client — without this nudge we would wait up to 30 s (idle cadence)
+        # for the queue to populate. Mid-session indexer setup also means we
+        # never subscribed to acquisition topics on mount — do it now.
+        Acquisition.poll_queue_now()
+
+        socket
+        |> subscribe_acquisition_once()
+        |> load_acquisition()
+        |> assign(download_client_ready: Capabilities.download_client_ready?())
+      else
+        socket
+      end
+
+    {:noreply, build_view(socket)}
   end
 
   def handle_info({:run_search_one, query}, socket) do
@@ -1401,8 +1853,10 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, socket}
   end
 
+  # Terminal transitions also move pursuits from the active list into the
+  # ledger — refresh both projections, then recompose.
   def handle_info(:reload_history, socket) do
-    {:noreply, load_history(socket)}
+    {:noreply, socket |> load_history() |> load_pursuit_rows() |> build_view()}
   end
 
   def handle_info(:refresh_storage, socket) do
@@ -1421,6 +1875,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         socket =
           socket
           |> assign(plan_drafts: Plans.list_drafts())
+          |> build_view()
           |> maybe_reload_plan_board(event)
 
         {:noreply, socket}
@@ -1448,7 +1903,37 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   def handle_info(:reload_pursuits, socket) do
-    {:noreply, load_pursuit_rows(socket)}
+    {:noreply, socket |> load_pursuit_rows() |> build_view()}
+  end
+
+  # --- Forecast (shelf / detail / calendar / track modal) ---
+
+  def handle_info({:releases_updated, _item_ids}, socket) do
+    {:noreply, debounce(socket, :forecast_reload_timer, :reload_forecast, 500)}
+  end
+
+  def handle_info({:entities_changed, %{entity_ids: _ids}}, socket) do
+    {:noreply, debounce(socket, :forecast_reload_timer, :reload_forecast, 500)}
+  end
+
+  def handle_info(:reload_forecast, socket) do
+    {:noreply, build_view(socket)}
+  end
+
+  def handle_info(:load_track_suggestions, socket) do
+    suggestions =
+      Enum.map(ReleaseTracking.suggest_trackable_items(), &struct!(TrackModal.Suggestion, &1))
+
+    {:noreply, assign(socket, track_suggestions: suggestions, track_suggestions_loading: false)}
+  end
+
+  def handle_info({:do_track_search, query}, socket) do
+    if query == socket.assigns.track_search_query do
+      results = Enum.map(ReleaseTracking.search_tmdb(query), &struct!(TrackModal.SearchResult, &1))
+      {:noreply, assign(socket, track_search_results: results, track_search_loading: false)}
+    else
+      {:noreply, socket}
+    end
   end
 
   # Result of the background pick task. Like the alternatives fetches,
@@ -1529,8 +2014,9 @@ defmodule MediaCentaurWeb.IncomingLive do
         {:noreply,
          socket
          |> assign(plan_drafts: Plans.list_drafts())
+         |> build_view()
          |> put_flash(:info, "Pursuit started.")
-         |> push_patch(to: "/download?selected=#{committed.pursuit_id}")}
+         |> push_patch(to: "/incoming?selected=#{committed.pursuit_id}")}
 
       {:error, {:overlap, units}} ->
         {:noreply,

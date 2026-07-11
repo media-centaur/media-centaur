@@ -4,9 +4,9 @@ defmodule MediaCentaurWeb.Storybook.Upcoming.TitleDetail do
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
-  alias MediaCentaurWeb.Components.Upcoming.Detail
+  alias MediaCentaurWeb.Components.ReleaseTracking.Detail
 
-  def function, do: &MediaCentaurWeb.Components.Upcoming.TitleDetail.title_detail/1
+  def function, do: &MediaCentaurWeb.Components.ReleaseTracking.TitleDetail.title_detail/1
   def render_source, do: :function
 
   @today ~D[2026-06-14]

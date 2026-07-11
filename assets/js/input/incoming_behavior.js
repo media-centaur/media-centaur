@@ -1,9 +1,9 @@
 /**
- * Download page behavior.
+ * Incoming page behavior.
  *
  * Navigation (including left-at-the-edge into the sidebar) is handled by
- * the framework via the `download` zone layout in config.js. The page's
- * own contribution is CLEAR: the downloads page has two clearable text
+ * the framework via the `incoming` zone layout in config.js. The page's
+ * own contribution is CLEAR: the page has two clearable text
  * surfaces — the omnibox query (the page's primary search) and the History
  * zone's title filter. CLEAR wipes the omnibox first; when it is already
  * empty it falls through to the history search. Focus stays where it is —
@@ -15,7 +15,7 @@
  */
 
 /**
- * @typedef {Object} DownloadDom
+ * @typedef {Object} IncomingDom
  * @property {function(): {value: string, clear: function}|null} getOmniboxInput
  * @property {function(): {value: string, clear: function}|null} getHistorySearch
  */
@@ -47,10 +47,10 @@ const REAL_DOM = {
 
 /**
  * Create a download page behavior instance.
- * @param {DownloadDom} dom - DOM interface for the clearable inputs
+ * @param {IncomingDom} dom - DOM interface for the clearable inputs
  * @returns {import("./page_behavior").PageBehavior}
  */
-export function createDownloadBehavior(dom = REAL_DOM) {
+export function createIncomingBehavior(dom = REAL_DOM) {
   return {
     onAttach() {},
     onDetach() {},
@@ -71,4 +71,4 @@ export function createDownloadBehavior(dom = REAL_DOM) {
 }
 
 /** Re-export the real DOM for the registry to pass through in production. */
-export { REAL_DOM as downloadDom }
+export { REAL_DOM as incomingDom }

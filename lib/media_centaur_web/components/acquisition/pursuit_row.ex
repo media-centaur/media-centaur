@@ -69,6 +69,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
     ~H"""
     <div
       :if={@density == :full && @vm.door == :media}
+      id={"pursuit-#{@vm.id}"}
       class="identity-banner block hover:brightness-110 transition-[filter] cursor-pointer"
       style={"--banner-hue: #{banner_hue(@vm.title)}"}
       data-nav-item
@@ -111,6 +112,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
 
     <div
       :if={@density == :full && @vm.door == :query}
+      id={"pursuit-#{@vm.id}"}
       class="identity-row rounded-xl p-4 space-y-2 block hover:brightness-110 transition-[filter] cursor-pointer"
       style={"--banner-hue: #{banner_hue(@vm.title)}"}
       data-nav-item

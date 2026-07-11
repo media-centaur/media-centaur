@@ -48,6 +48,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
     <section
       :if={@rows != [] || @hidden_count > 0}
       data-component="incoming-ledger"
+      data-nav-zone="ledger"
       class="space-y-3"
     >
       <div class="flex items-baseline justify-between">

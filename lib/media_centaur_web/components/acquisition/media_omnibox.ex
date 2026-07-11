@@ -58,6 +58,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
     doc:
       "Incoming-page front-door treatment: centered column, prompt line above the input, larger input, and a mode-hint line below (the active mode emphasized). Same events either way."
 
+  attr :prompt, :string,
+    default: "What would you like to add?",
+    doc:
+      "Hero-mode prompt line. The Incoming page reframes it to tracking when no indexer is configured, so the front door never promises a grab it can't make."
+
   def media_omnibox(assigns) do
     ~H"""
     <%!-- Deliberately glass, not scrim — the search card stays a light
@@ -72,7 +77,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
       ]}
     >
       <p :if={@hero} class="text-center text-[1.0625rem] text-base-content/65">
-        What would you like to add?
+        {@prompt}
       </p>
 
       <.media_form :if={@mode == :media} query={@query} hero={@hero} />

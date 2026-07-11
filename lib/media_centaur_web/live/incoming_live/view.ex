@@ -8,10 +8,11 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   facts, by one pure function. The LiveView holds a single `%View{}` assign
   instead of two pages' worth of loose section state.
 
-  Honest degradation is enforced here and only here: with
-  `acquisition_ready?: false` the operational sections come back empty and
-  the shelf carries no grab-implying statuses, regardless of what the caller
-  passes. Templates never re-check capabilities per section.
+  Honest degradation is enforced here and only here, on two distinct gates:
+  `prowlarr_ready?` (no indexer ⇒ the operational sections come back empty)
+  and `acquisition_ready?` (indexer + download client ⇒ only then may the
+  shelf claim `:armed`/`:in_pursuit`), regardless of what the caller passes.
+  Templates never re-check capabilities per section.
 
   Deliberately NOT composed here: live queue pairing. `QueueMatcher.match/2`
   runs at render time (see the render-time pairing note in the page module)
@@ -87,9 +88,9 @@ defmodule MediaCentaurWeb.IncomingLive.View do
         overflow_count: overflow_count,
         stragglers: UpcomingFeed.stragglers(inputs.watching_items)
       },
-      in_flight: if(inputs.acquisition_ready?, do: inputs.pursuit_rows, else: []),
+      in_flight: if(inputs.prowlarr_ready?, do: inputs.pursuit_rows, else: []),
       ledger: ledger_section(inputs),
-      drafts: if(inputs.acquisition_ready?, do: inputs.drafts, else: []),
+      drafts: if(inputs.prowlarr_ready?, do: inputs.drafts, else: []),
       feed: feed
     }
   end
@@ -120,7 +121,7 @@ defmodule MediaCentaurWeb.IncomingLive.View do
     }
   end
 
-  defp ledger_section(%{acquisition_ready?: false}), do: %LedgerSection{}
+  defp ledger_section(%{prowlarr_ready?: false}), do: %LedgerSection{}
 
   defp ledger_section(inputs) do
     {rows, hidden_count} = HistoryLogic.ledger_rows(inputs.ledger_rows, inputs.ledger_expanded?)

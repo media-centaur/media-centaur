@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Components.Upcoming.MonthGrid do
+defmodule MediaCentaurWeb.Components.ReleaseTracking.MonthGrid do
   @moduledoc """
   Pure calendar-grid math for the mini-month companion. Produces the weeks of a
   month as rows of seven cells (a `Date` or `nil` padding), Monday-first, so the

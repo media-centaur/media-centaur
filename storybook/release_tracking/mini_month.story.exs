@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.Storybook.Upcoming.MiniMonth do
 
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentaurWeb.Components.Upcoming.MiniMonth.mini_month/1
+  def function, do: &MediaCentaurWeb.Components.ReleaseTracking.MiniMonth.mini_month/1
   def render_source, do: :function
 
   def template do

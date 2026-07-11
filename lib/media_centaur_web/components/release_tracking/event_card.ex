@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Components.Upcoming.EventCard do
+defmodule MediaCentaurWeb.Components.ReleaseTracking.EventCard do
   @moduledoc """
   One release event on the Upcoming rail, in a `:hero` (large, proximity-scaled
   backdrop) or `:compact` (row) variant.
@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.Components.Upcoming.EventCard do
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
-  alias MediaCentaurWeb.Components.Upcoming.Present
+  alias MediaCentaurWeb.Components.ReleaseTracking.Present
 
   attr :event, Event, required: true, doc: "The release event view-model to render."
   attr :variant, :atom, values: [:hero, :feature, :compact], default: :compact
@@ -122,7 +122,7 @@ defmodule MediaCentaurWeb.Components.Upcoming.EventCard do
   defp status_affordance(%{event: %{status: :under_pursuit}} = assigns) do
     ~H"""
     <.link
-      navigate={"/download?selected=#{@event.pursuit_id}"}
+      navigate={"/incoming?selected=#{@event.pursuit_id}"}
       onclick="event.stopPropagation()"
       class="inline-flex items-center gap-1 text-sm text-info hover:underline"
     >

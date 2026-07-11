@@ -163,7 +163,7 @@ defmodule MediaCentaurWeb.HomeLive do
           <section :if={@coming_up_marquee.hero != nil} data-row="coming-up" data-nav-zone="coming_up">
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Coming Up</h2>
-              <.link navigate="/upcoming" class="text-sm text-base-content/60 hover:text-primary">
+              <.link navigate="/incoming" class="text-sm text-base-content/60 hover:text-primary">
                 See all →
               </.link>
             </div>
@@ -209,7 +209,7 @@ defmodule MediaCentaurWeb.HomeLive do
 
     destination =
       case zone do
-        "upcoming" -> "/upcoming"
+        "upcoming" -> "/incoming"
         "library" -> "/library"
         _ -> nil
       end

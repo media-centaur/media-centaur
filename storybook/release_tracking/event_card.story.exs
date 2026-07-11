@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.Storybook.Upcoming.EventCard do
 
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
 
-  def function, do: &MediaCentaurWeb.Components.Upcoming.EventCard.event_card/1
+  def function, do: &MediaCentaurWeb.Components.ReleaseTracking.EventCard.event_card/1
   def render_source, do: :function
 
   @today ~D[2026-06-14]

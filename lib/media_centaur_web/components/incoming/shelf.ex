@@ -99,23 +99,32 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
         <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
           Coming up
         </h3>
-        <button
-          type="button"
-          class="flex cursor-pointer items-center gap-1.5 text-xs text-base-content/50 transition-colors hover:text-base-content"
-          phx-click="toggle_calendar"
-          aria-expanded={to_string(@calendar_open)}
-          data-nav-item
-          tabindex="0"
-        >
-          <.icon name="hero-calendar-mini" class="size-3.5" /> Calendar
-          <.icon
-            name="hero-chevron-down-mini"
-            class={"size-3 transition-transform#{if @calendar_open, do: " rotate-180"}"}
-          />
-        </button>
+        <%!-- Header affordance zone (the upcoming page's `actions` precedent) —
+              keeps the toggle keyboard-reachable without nesting it into the
+              SHELF card row below. --%>
+        <div data-nav-zone="actions">
+          <button
+            type="button"
+            class="flex cursor-pointer items-center gap-1.5 text-xs text-base-content/50 transition-colors hover:text-base-content"
+            phx-click="toggle_calendar"
+            aria-expanded={to_string(@calendar_open)}
+            data-nav-item
+            tabindex="0"
+          >
+            <.icon name="hero-calendar-mini" class="size-3.5" /> Calendar
+            <.icon
+              name="hero-chevron-down-mini"
+              class={"size-3 transition-transform#{if @calendar_open, do: " rotate-180"}"}
+            />
+          </button>
+        </div>
       </div>
 
-      <div class="flex gap-5">
+      <%!-- The zone wraps the card row + terminus only. The calendar slot
+            below is MiniMonth's own `mini-month` zone and the header's
+            Calendar toggle rides with it via the wrapper div — nav zone
+            containers must never nest (input-system design rule). --%>
+      <div data-nav-zone="coming_up" class="flex gap-5">
         <.shelf_card :for={card <- @cards} card={card} />
         <.horizon_terminus overflow_count={@overflow_count} tmdb_ready={@tmdb_ready} />
       </div>
