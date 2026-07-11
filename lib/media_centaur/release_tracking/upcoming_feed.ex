@@ -157,6 +157,44 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     end)
   end
 
+  @doc """
+  The Incoming shelf: scheduled events flattened nearness-first (bucket order,
+  date-ascending within each bucket), capped at `cap`. Returns
+  `{items, overflow_count}` — the overflow feeds the calendar disclosure's
+  "N more" affordance so a capped shelf never silently truncates the forecast.
+  """
+  @spec shelf_items(t(), pos_integer()) :: {[Event.t()], non_neg_integer()}
+  def shelf_items(%UpcomingFeed{} = feed, cap) do
+    events = scheduled_events(feed)
+    {Enum.take(events, cap), max(length(events) - cap, 0)}
+  end
+
+  @doc """
+  The shelf card's date badge, graduating in explicitness with distance: an
+  arrived theatrical date → "Now"; today → "Tonight" (episodes) / "Today"
+  (movies); under a week → "Tue"; under a month → "Wed Jun 24"; beyond →
+  "Jul 24". A bare weekday is only unambiguous inside the coming week, hence
+  the `< 7` cutoff.
+  """
+  @spec shelf_date_label(Event.t(), Date.t()) :: String.t()
+  def shelf_date_label(%Event{air_date: date} = event, today) do
+    diff = Date.diff(date, today)
+
+    cond do
+      event.status == :theatrical_info and diff <= 0 -> "Now"
+      diff <= 0 and event.kind == :movie -> "Today"
+      diff <= 0 -> "Tonight"
+      diff < 7 -> weekday_abbr(date)
+      diff <= 30 -> "#{weekday_abbr(date)} #{month_day(date)}"
+      true -> month_day(date)
+    end
+  end
+
+  defp weekday_abbr(date), do: Calendar.strftime(date, "%a")
+
+  # Manual day interpolation — Calendar.strftime has no unpadded-day directive.
+  defp month_day(date), do: "#{Calendar.strftime(date, "%b")} #{date.day}"
+
   # Same-(item, season, air_date) episodes are one drop, not N rail entries.
   # Movies and undated/episode-less TV rows pass through untouched.
   defp collapse_season_drops(releases) do

@@ -470,4 +470,110 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       assert find_event(feed, "grabbing").status == :under_pursuit
     end
   end
+
+  describe "shelf_items/2 — the Incoming shelf presentation" do
+    test "flattens buckets nearness-first into one date-ordered list" do
+      item = tv_item()
+
+      releases = [
+        release(item, %{title: "later-ep", air_date: days(20), season_number: 1, episode_number: 3}),
+        release(item, %{title: "today-ep", air_date: days(0), season_number: 1, episode_number: 1}),
+        release(item, %{title: "week-ep", air_date: days(5), season_number: 1, episode_number: 2})
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context())
+      {items, overflow} = UpcomingFeed.shelf_items(feed, 6)
+
+      assert Enum.map(items, & &1.title) == ["today-ep", "week-ep", "later-ep"]
+      assert overflow == 0
+    end
+
+    test "caps at the requested size and reports the overflow count" do
+      item = tv_item()
+
+      releases =
+        for n <- 1..9 do
+          release(item, %{
+            title: "ep-#{n}",
+            air_date: days(n),
+            season_number: 1,
+            episode_number: n
+          })
+        end
+
+      feed = UpcomingFeed.build(releases, armed_context())
+      {items, overflow} = UpcomingFeed.shelf_items(feed, 6)
+
+      assert length(items) == 6
+      assert Enum.map(items, & &1.title) == for(n <- 1..6, do: "ep-#{n}")
+      assert overflow == 3
+    end
+
+    test "excludes unscheduled events (they are stragglers, not shelf cards)" do
+      item = tv_item()
+
+      releases = [
+        release(item, %{title: "dated", air_date: days(1), season_number: 1, episode_number: 1}),
+        release(item, %{title: "undated", air_date: nil, season_number: 1, episode_number: 2})
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context())
+      {items, overflow} = UpcomingFeed.shelf_items(feed, 6)
+
+      assert Enum.map(items, & &1.title) == ["dated"]
+      assert overflow == 0
+    end
+  end
+
+  describe "shelf_date_label/2 — graduated explicitness" do
+    # 2026-06-14 is a Sunday; days(2) = Tue Jun 16, days(10) = Wed Jun 24,
+    # days(40) = Fri Jul 24.
+    defp shelf_event(feed), do: feed |> UpcomingFeed.shelf_items(6) |> elem(0) |> hd()
+
+    test "an episode airing today reads Tonight" do
+      item = tv_item()
+      ep = release(item, %{title: "t", air_date: days(0), season_number: 1, episode_number: 1})
+      event = shelf_event(UpcomingFeed.build([ep], armed_context()))
+
+      assert UpcomingFeed.shelf_date_label(event, @today) == "Tonight"
+    end
+
+    test "a movie landing today reads Today" do
+      movie = release(movie_item(), %{title: "m", air_date: days(0), release_type: "digital"})
+      event = shelf_event(UpcomingFeed.build([movie], armed_context()))
+
+      assert UpcomingFeed.shelf_date_label(event, @today) == "Today"
+    end
+
+    test "a theatrical date that has arrived reads Now" do
+      movie = release(movie_item(), %{title: "m", air_date: days(0), release_type: "theatrical"})
+      event = shelf_event(UpcomingFeed.build([movie], armed_context()))
+
+      assert UpcomingFeed.shelf_date_label(event, @today) == "Now"
+    end
+
+    test "within a week reads as a bare weekday" do
+      item = tv_item()
+      ep = release(item, %{title: "t", air_date: days(2), season_number: 1, episode_number: 1})
+      event = shelf_event(UpcomingFeed.build([ep], armed_context()))
+
+      assert UpcomingFeed.shelf_date_label(event, @today) == "Tue"
+    end
+
+    test "within a month reads as weekday plus date" do
+      item = tv_item()
+      ep = release(item, %{title: "t", air_date: days(10), season_number: 1, episode_number: 1})
+      event = shelf_event(UpcomingFeed.build([ep], armed_context()))
+
+      assert UpcomingFeed.shelf_date_label(event, @today) == "Wed Jun 24"
+    end
+
+    test "beyond a month drops the weekday" do
+      item = tv_item()
+      ep = release(item, %{title: "t", air_date: days(40), season_number: 1, episode_number: 1})
+      event = shelf_event(UpcomingFeed.build([ep], armed_context()))
+
+      assert UpcomingFeed.shelf_date_label(event, @today) == "Jul 24"
+    end
+  end
 end
