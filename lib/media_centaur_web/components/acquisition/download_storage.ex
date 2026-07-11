@@ -123,12 +123,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStorage do
     """
   end
 
-  # Columns track the drive count — a lone (necessarily low, or it would be
-  # :calm) drive spans the full card instead of huddling in the first third
-  # of a three-column grid sized for drives that don't exist.
-  defp grid_class([_single]), do: "grid gap-y-2"
-  defp grid_class([_first, _second]), do: "grid gap-x-6 gap-y-2 sm:grid-cols-2"
-  defp grid_class(_rows), do: "grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3"
+  # Half-width drive cards regardless of count (owner call, 2026-07-11):
+  # the card closes the Incoming page as quiet bookkeeping, and a
+  # full-bleed bar there reads as a page-wide alarm. A lone drive sits in
+  # the left half; the right half stays empty air.
+  defp grid_class(_rows), do: "grid gap-x-6 gap-y-2 sm:grid-cols-2"
 
   defp row(drive) do
     severity = StatusHelpers.storage_severity(drive)
