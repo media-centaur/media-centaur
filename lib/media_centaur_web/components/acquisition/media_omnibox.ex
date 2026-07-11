@@ -53,14 +53,35 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   attr :any_loading?, :boolean, default: false, doc: "Release-mode: any group still searching."
 
+  attr :hero, :boolean,
+    default: false,
+    doc:
+      "Incoming-page front-door treatment: centered column, prompt line above the input, larger input, and a mode-hint line below (the active mode emphasized). Same events either way."
+
   def media_omnibox(assigns) do
     ~H"""
     <%!-- Deliberately glass, not scrim — the search card stays a light
           floating surface above the page's scrim-toned cards (user call:
-          the scrim version read too heavy here). --%>
-    <section data-nav-zone="omnibox" class="glass-surface rounded-xl p-4 space-y-3">
-      <.media_form :if={@mode == :media} query={@query} />
-      <.release_form :if={@mode == :release} session={@session} any_loading?={@any_loading?} />
+          the scrim version read too heavy here). Hero mode drops the card
+          chrome entirely: the input floats on the page as the front door. --%>
+    <section
+      data-nav-zone="omnibox"
+      class={[
+        @hero && "mx-auto w-full max-w-2xl space-y-3",
+        !@hero && "glass-surface rounded-xl p-4 space-y-3"
+      ]}
+    >
+      <p :if={@hero} class="text-center text-[1.0625rem] text-base-content/65">
+        What would you like to add?
+      </p>
+
+      <.media_form :if={@mode == :media} query={@query} hero={@hero} />
+      <.release_form
+        :if={@mode == :release}
+        session={@session}
+        any_loading?={@any_loading?}
+        hero={@hero}
+      />
 
       <.media_dropdown
         :if={@mode == :media && dropdown?(@query)}
@@ -68,7 +89,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
         searching?={@searching?}
       />
 
-      <div class="flex items-baseline justify-between gap-3 text-xs">
+      <.hero_mode_hint :if={@hero} mode={@mode} session={@session} />
+
+      <div :if={!@hero} class="flex items-baseline justify-between gap-3 text-xs">
         <span :if={@mode == :media} class="text-base-content/40">
           Type a movie or show — Media Centaur plans the downloads
         </span>
@@ -105,6 +128,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
   end
 
   attr :query, :string, required: true
+  attr :hero, :boolean, required: true
 
   defp media_form(assigns) do
     ~H"""
@@ -119,7 +143,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           type="text"
           name="query"
           value={@query}
-          class="input input-bordered w-full h-12 pl-12 text-base"
+          class={[
+            "input input-bordered w-full pl-12 text-base",
+            (@hero && "h-[52px] rounded-xl") || "h-12"
+          ]}
           placeholder="What do you want to watch?"
           phx-debounce="500"
           phx-hook="MouseAutofocus"
@@ -133,6 +160,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   attr :session, SearchSession, required: true
   attr :any_loading?, :boolean, required: true
+  attr :hero, :boolean, required: true
 
   defp release_form(assigns) do
     ~H"""
@@ -152,7 +180,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           type="text"
           name="query"
           value={@session.query}
-          class="input input-bordered w-full h-12 pl-12 font-mono text-sm"
+          class={[
+            "input input-bordered w-full pl-12 font-mono text-sm",
+            (@hero && "h-[52px] rounded-xl") || "h-12"
+          ]}
           placeholder="Title S01E{01-10}"
           phx-debounce="200"
           phx-hook="MouseAutofocus"
@@ -166,6 +197,62 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
         </span>
       </div>
     </form>
+    """
+  end
+
+  attr :mode, :atom, required: true
+  attr :session, SearchSession, default: nil
+
+  # The hero footer: release-mode syntax help (same vocabulary as the
+  # card footer) above the mode hint with the active mode emphasized.
+  # The inactive mode name is the flip control — same `omnibox_mode`
+  # event as the card's corner toggle.
+  defp hero_mode_hint(assigns) do
+    ~H"""
+    <div class="flex flex-col items-center gap-2 text-xs">
+      <span
+        :if={@mode == :release && @session}
+        class="flex flex-wrap items-center justify-center gap-x-3 text-base-content/40"
+      >
+        <span>Syntax:</span>
+        <code class="font-mono px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60">
+          {"{a,b,c}"}
+        </code>
+        <code class="font-mono px-1.5 py-0.5 rounded bg-base-content/10 text-base-content/60">
+          {"{00-09}"}
+        </code>
+        <span class={Logic.expansion_color(@session.expansion_preview)}>
+          {Logic.expansion_text(@session.expansion_preview)}
+        </span>
+      </span>
+
+      <p class="text-center text-sm text-base-content/35">
+        <.mode_hint_name active={@mode == :media} mode="media" label="Search titles" /> to add or plan
+        <span class="mx-1.5 opacity-60">·</span>
+        <.mode_hint_name active={@mode == :release} mode="release" label="search releases" /> directly
+      </p>
+    </div>
+    """
+  end
+
+  attr :active, :boolean, required: true
+  attr :mode, :string, required: true
+  attr :label, :string, required: true
+
+  defp mode_hint_name(assigns) do
+    ~H"""
+    <span :if={@active} class="font-medium text-base-content/70">{@label}</span>
+    <button
+      :if={!@active}
+      type="button"
+      class="cursor-pointer font-medium text-base-content/40 underline decoration-base-content/20 underline-offset-2 transition-colors hover:text-base-content/70"
+      phx-click="omnibox_mode"
+      phx-value-mode={@mode}
+      data-nav-item
+      tabindex="0"
+    >
+      {@label}
+    </button>
     """
   end
 

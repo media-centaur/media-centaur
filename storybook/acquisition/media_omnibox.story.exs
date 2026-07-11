@@ -118,6 +118,32 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
             expansion_preview: {:error, :invalid_syntax}
           }
         }
+      },
+      %VariationGroup{
+        id: :hero,
+        description:
+          "Hero mode — the Incoming page's front door. Centered column without the card " <>
+            "chrome, prompt line above a taller input, and the mode hint below with the " <>
+            "active mode emphasized (the inactive name is the flip control — same " <>
+            "omnibox_mode event as the corner toggle). Default (hero: false) renders " <>
+            "exactly as the variations above.",
+        variations: [
+          %Variation{
+            id: :hero_media,
+            attributes: %{mode: :media, hero: true}
+          },
+          %Variation{
+            id: :hero_release,
+            attributes: %{
+              mode: :release,
+              hero: true,
+              session: %SearchSession{
+                query: "Nosferatu 1922 {720p,1080p}",
+                expansion_preview: {:ok, 2}
+              }
+            }
+          }
+        ]
       }
     ]
   end
