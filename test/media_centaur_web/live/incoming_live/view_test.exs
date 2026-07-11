@@ -48,6 +48,7 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
         ledger_rows: [],
         drafts: [],
         today: @today,
+        prowlarr_ready?: true,
         acquisition_ready?: true,
         auto_grab_default_mode: "all_releases",
         grab_status_by_key: %{},
@@ -201,8 +202,8 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
     end
   end
 
-  describe "build/1 — honest degradation (acquisition off)" do
-    test "operational sections empty and no grab-implying shelf statuses, whatever the caller passes" do
+  describe "build/1 — honest degradation" do
+    test "no indexer: operational sections empty and no grab-implying shelf statuses, whatever the caller passes" do
       item = tv_item()
 
       releases = [
@@ -212,6 +213,7 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
       view =
         View.build(
           inputs(%{
+            prowlarr_ready?: false,
             acquisition_ready?: false,
             releases: releases,
             pursuit_rows: [pursuit_row(%{})],
@@ -226,6 +228,29 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
       assert view.ledger.hidden_count == 0
       assert view.drafts == []
       assert Enum.all?(view.shelf.cards, &(&1.status in [:tracked, :in_theaters, :landed]))
+    end
+
+    test "indexer without a download client: sections stay (pursuits can search) but nothing reads armed" do
+      item = tv_item()
+
+      releases = [
+        release(item, %{title: "ep", air_date: Date.add(@today, 1), season_number: 1, episode_number: 1})
+      ]
+
+      active = pursuit_row(%{})
+
+      view =
+        View.build(
+          inputs(%{
+            prowlarr_ready?: true,
+            acquisition_ready?: false,
+            releases: releases,
+            pursuit_rows: [active]
+          })
+        )
+
+      assert view.in_flight == [active]
+      assert Enum.all?(view.shelf.cards, &(&1.status != :armed))
     end
   end
 

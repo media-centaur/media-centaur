@@ -79,11 +79,11 @@ const TOUR = [
     waitFor: "#detail-modal[data-state='open']",
   },
 
-  // ─── Upcoming ────────────────────────────────────────────────────────
-  { name: "upcoming-calendar", url: "/upcoming", settleMs: 600 },
+  // ─── Incoming (forecast side) ────────────────────────────────────────────────────────
+  { name: "upcoming-calendar", url: "/incoming", settleMs: 600 },
   {
     name: "upcoming-track-modal",
-    url: "/upcoming",
+    url: "/incoming",
     action: async (page) => {
       // The Track New Show button lives in UpcomingCards; clicking
       // pushes `open_track_modal` and focuses the modal's search input.
@@ -126,15 +126,15 @@ const TOUR = [
 
   // ─── Status / Acquisition / Console ─────────────────────────────────
   { name: "status", url: "/status" },
-  { name: "download", url: "/download", settleMs: 800 },
+  { name: "download", url: "/incoming", settleMs: 800 },
   {
     name: "download-activity",
-    url: "/download?filter=all",
+    url: "/incoming?filter=all",
     settleMs: 800,
   },
   {
     name: "download-search",
-    url: "/download",
+    url: "/incoming",
     action: async (page) => {
       // Type a public-domain title into the search input and submit.
       // In showcase mode, Prowlarr is stubbed (see

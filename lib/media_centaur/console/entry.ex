@@ -146,8 +146,9 @@ defmodule MediaCentaur.Console.Entry do
 
   # App-module prefix → board subsystem. Matched with starts_with? on the
   # module name (so MediaCentaurWeb.IncomingLive matches the
-  # "MediaCentaurWeb.Acquisition" entry). Modules outside this table — other
-  # web pages, framework, deps — return nil and fall through to :system.
+  # "MediaCentaurWeb.Incoming" entry, and the surviving Components.Acquisition
+  # modules still match "MediaCentaurWeb.Acquisition"). Modules outside this
+  # table — other web pages, framework, deps — fall through to :system.
   @crash_frame_subsystems [
     {"MediaCentaur.Watcher", :watcher},
     {"MediaCentaur.Pipeline", :pipeline},
@@ -162,6 +163,7 @@ defmodule MediaCentaur.Console.Entry do
     {"MediaCentaur.ReleaseTracking", :acquisition},
     {"MediaCentaur.SelfUpdate", :self_update},
     {"MediaCentaurWeb.Acquisition", :acquisition},
+    {"MediaCentaurWeb.Incoming", :acquisition},
     {"MediaCentaurWeb.Library", :library},
     {"MediaCentaurWeb.Review", :pipeline}
   ]

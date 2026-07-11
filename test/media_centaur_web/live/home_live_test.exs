@@ -160,7 +160,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       assert render(view) =~ ~s|data-state="open"|
     end
 
-    test "clicking a Coming Up marquee card with no library entity navigates to /upcoming",
+    test "clicking a Coming Up marquee card with no library entity navigates to /incoming",
          %{conn: conn} do
       today = Date.utc_today()
 
@@ -185,7 +185,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       {:ok, view, _html} = live_async!(conn, "/")
 
-      assert {:error, {:live_redirect, %{to: "/upcoming" <> _}}} =
+      assert {:error, {:live_redirect, %{to: "/incoming" <> _}}} =
                view
                |> element(~s|[data-component="coming-up-marquee"] a[data-card="hero"]|)
                |> render_click()
@@ -318,8 +318,8 @@ defmodule MediaCentaurWeb.HomeLiveTest do
   end
 
   describe "zone redirects" do
-    test "redirects /?zone=upcoming to /upcoming", %{conn: conn} do
-      assert {:error, {:live_redirect, %{to: "/upcoming"}}} = live_async!(conn, "/?zone=upcoming")
+    test "redirects /?zone=upcoming to /incoming", %{conn: conn} do
+      assert {:error, {:live_redirect, %{to: "/incoming"}}} = live_async!(conn, "/?zone=upcoming")
     end
 
     test "redirects /?zone=library to /library", %{conn: conn} do
