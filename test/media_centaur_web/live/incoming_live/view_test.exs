@@ -124,6 +124,27 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
       assert Enum.find(view.shelf.cards, &(&1.status == :in_pursuit)).pursuit_id == pursuit_id
     end
 
+    test "a movie whose release title just repeats the movie name gets no subtitle" do
+      movie = movie_item(%{name: "Movie A"})
+      releases = [release(movie, %{title: "Movie A", air_date: @today, release_type: "digital"})]
+
+      view = View.build(inputs(%{releases: releases}))
+
+      assert [%Card{title: "Movie A", subtitle: nil}] = view.shelf.cards
+    end
+
+    test "a movie edition title distinct from the name survives as the subtitle" do
+      movie = movie_item(%{name: "Movie A"})
+
+      releases = [
+        release(movie, %{title: "Restored edition", air_date: @today, release_type: "digital"})
+      ]
+
+      view = View.build(inputs(%{releases: releases}))
+
+      assert [%Card{subtitle: "Restored edition"}] = view.shelf.cards
+    end
+
     test "a season drop becomes one stacked card with a bare season subtitle" do
       item = tv_item()
 
