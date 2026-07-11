@@ -132,6 +132,38 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
         attributes: %{rows: terminal_mix(), hidden_count: 0}
       },
       %Variation{
+        id: :archive_open,
+        description:
+          "\"View all\" state — the glimpse gives way to the filtered archive in place: " <>
+            "filter chips + search, with the caller's grouped rows in the :archive slot.",
+        attributes: %{
+          rows: terminal_mix(),
+          hidden_count: 3,
+          archive_open?: true,
+          filter: :failed,
+          search: "",
+          storage_drives: drives()
+        },
+        slots: [
+          """
+          <:archive>
+            <div class="scrim-surface rounded-xl px-4 py-3 text-sm">Sample Show — grouped archive rows render here</div>
+          </:archive>
+          """
+        ]
+      },
+      %Variation{
+        id: :archive_empty_filter,
+        description: "An open archive whose filter matches nothing — the filter-specific empty state.",
+        attributes: %{
+          rows: terminal_mix(),
+          archive_open?: true,
+          archive_empty?: true,
+          filter: :cancelled,
+          search: ""
+        }
+      },
+      %Variation{
         id: :empty_renders_nothing,
         description:
           "No terminal pursuits and nothing hidden — the component renders nothing at " <>

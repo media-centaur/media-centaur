@@ -34,12 +34,12 @@ export const inputConfig = {
     recently: "[data-nav-zone='recently'] [data-nav-item]",
     coming_up: "[data-nav-zone='coming_up'] [data-nav-item]",
     // Incoming page (single column: omnibox → shelf → drafts → pursuits →
-    // ledger → history). `coming_up` is shared with the home shelf above.
+    // ledger). `coming_up` is shared with the home shelf above; the ledger
+    // hosts both the glimpse rows and the expanded archive (chips + search).
     omnibox: "[data-nav-zone='omnibox'] [data-nav-item]",
     drafts: "[data-nav-zone='drafts'] [data-nav-item]",
     pursuits: "[data-nav-zone='pursuits'] [data-nav-item]",
     ledger: "[data-nav-zone='ledger'] [data-nav-item]",
-    history: "[data-nav-zone='history'] [data-nav-item]",
     other_downloads: "[data-nav-zone='other_downloads'] [data-nav-item]",
     // Guide: chapter sidebar + on-this-page outline (both vertical link lists).
     guide_chapters: "[data-nav-zone='guide_chapters'] [data-nav-item]",
@@ -66,7 +66,6 @@ export const inputConfig = {
     drafts: Context.MENU,
     pursuits: Context.MENU,
     ledger: Context.MENU,
-    history: Context.MENU,
     other_downloads: Context.MENU,
     guide_chapters: Context.MENU,
     guide_outline: Context.MENU,
@@ -117,23 +116,23 @@ export const inputConfig = {
     // Incoming: single column, top to bottom — omnibox (+ the header
     // `actions` Calendar toggle) → release-search results ("grid") → the
     // coming_up shelf (+ its `mini-month` calendar disclosure) → drafts →
-    // pursuits → ledger → history → other_downloads. Conditional zones
-    // (grid, coming_up while a release search owns the page, mini-month,
-    // drafts, ledger, other_downloads) are skipped via candidate lists,
-    // same convention as home. History collapsed still carries its
-    // disclosure toggle as a nav item, so the zone is always reachable.
+    // pursuits → ledger (glimpse AND expanded archive, one zone) →
+    // other_downloads. Conditional zones (grid, coming_up while a release
+    // search owns the page, mini-month, drafts, other_downloads) are
+    // skipped via candidate lists, same convention as home. The ledger
+    // always carries its "View all" toggle as a nav item once any history
+    // exists, so the archive stays reachable.
     incoming: {
-      omnibox:         { down: ["grid", "coming_up", "drafts", "pursuits", "ledger", "history"], right: ["actions"], left: ["sidebar"] },
+      omnibox:         { down: ["grid", "coming_up", "drafts", "pursuits", "ledger"], right: ["actions"], left: ["sidebar"] },
       actions:         { down: ["coming_up", "drafts", "pursuits"], left: ["omnibox", "sidebar"] },
-      grid:            { up: ["omnibox"], down: ["drafts", "pursuits", "ledger", "history"], left: ["sidebar"] },
-      coming_up:       { up: ["omnibox"], down: ["mini-month", "drafts", "pursuits", "ledger", "history"], left: ["sidebar"] },
-      "mini-month":    { up: ["coming_up"], down: ["drafts", "pursuits", "ledger", "history"], left: ["sidebar"] },
-      drafts:          { up: ["mini-month", "coming_up", "grid", "omnibox"], down: ["pursuits", "ledger", "history"], left: ["sidebar"] },
-      pursuits:        { up: ["drafts", "mini-month", "coming_up", "grid", "omnibox"], down: ["ledger", "history", "other_downloads"], left: ["sidebar"] },
-      ledger:          { up: ["pursuits", "drafts", "coming_up", "omnibox"], down: ["history", "other_downloads"], left: ["sidebar"] },
-      history:         { up: ["ledger", "pursuits", "drafts", "coming_up", "omnibox"], down: ["other_downloads"], left: ["sidebar"] },
-      other_downloads: { up: ["history", "ledger", "pursuits"], left: ["sidebar"] },
-      sidebar:         { right: ["coming_up", "pursuits", "omnibox", "ledger", "history"] },
+      grid:            { up: ["omnibox"], down: ["drafts", "pursuits", "ledger"], left: ["sidebar"] },
+      coming_up:       { up: ["omnibox"], down: ["mini-month", "drafts", "pursuits", "ledger"], left: ["sidebar"] },
+      "mini-month":    { up: ["coming_up"], down: ["drafts", "pursuits", "ledger"], left: ["sidebar"] },
+      drafts:          { up: ["mini-month", "coming_up", "grid", "omnibox"], down: ["pursuits", "ledger"], left: ["sidebar"] },
+      pursuits:        { up: ["drafts", "mini-month", "coming_up", "grid", "omnibox"], down: ["ledger", "other_downloads"], left: ["sidebar"] },
+      ledger:          { up: ["pursuits", "drafts", "coming_up", "omnibox"], down: ["other_downloads"], left: ["sidebar"] },
+      other_downloads: { up: ["ledger", "pursuits"], left: ["sidebar"] },
+      sidebar:         { right: ["coming_up", "pursuits", "omnibox", "ledger"] },
     },
     watch_history: {
       toolbar:   { down: ["grid"], left: ["sidebar"] },

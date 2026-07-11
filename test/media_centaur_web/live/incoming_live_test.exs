@@ -128,9 +128,25 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
          %{conn: conn} do
       Capabilities.clear_test_result(:download_client)
 
-      {:ok, _view, html} = live_async!(conn, ~p"/incoming")
+      # The mount reads QueueMonitor's `:persistent_term` snapshot, which is
+      # GLOBAL — a queue left by an earlier test in the run would render the
+      # other-downloads zone here (order-dependent). Same hermetic reset as
+      # the pursuit-modal suite.
+      queue_cache_key = {MediaCentaur.Downloads.QueueMonitor, :state}
+      :persistent_term.put(queue_cache_key, %MediaCentaur.Downloads.QueueState{items: []})
 
-      refute html =~ "Downloading"
+      on_exit(fn ->
+        :persistent_term.put(queue_cache_key, %MediaCentaur.Downloads.QueueState{items: []})
+      end)
+
+      {:ok, view, html} = live_async!(conn, ~p"/incoming")
+
+      # Scoped to the live-activity zones — a whole-page `=~ "Downloading"`
+      # refute also sweeps the Console drawer, whose GLOBAL log ring buffer
+      # carries lines logged by earlier tests in the run (order-dependent
+      # false match; same lesson as the page smoke).
+      refute has_element?(view, "[data-nav-zone='pursuits']")
+      refute has_element?(view, "[data-nav-zone='other_downloads']")
       assert html =~ "Connect a download client"
     end
 
@@ -1789,14 +1805,32 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   end
 
   describe "history disclosure" do
-    # History is terminal-state bookkeeping, not live activity — it sits
-    # at the bottom of the page, collapsed by default at every width so
-    # the page leads with active pursuits. Collapsed means the zone body
-    # (filter chips, search, rows) is not rendered at all; only the
-    # disclosure toggle is. The filter chips are the "is the zone
-    # expanded?" probe.
+    # The archive is the ledger's zoomed state ("View all") — one section,
+    # never a sibling duplicate. Closed means the archive body (filter
+    # chips, search, grouped rows) is not rendered at all; the glimpse rows
+    # and the toggle are. The filter chips are the "is the archive open?"
+    # probe. The section only exists once there IS history, so each test
+    # seeds one terminal pursuit.
 
-    @history_filter_chips "section[data-nav-zone='history'] button[phx-click='set_history_filter']"
+    @history_filter_chips "section[data-nav-zone='ledger'] button[phx-click='set_history_filter']"
+
+    setup do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          tmdb_id: "tmdb-ledger-seed",
+          tmdb_type: "movie",
+          title: "Sample Movie",
+          origin: "auto",
+          release_title: "Sample.Movie.2010.1080p.WEB-DL",
+          status: "failed"
+        })
+
+      pursuit
+      |> Ecto.Changeset.change(state: "exhausted")
+      |> MediaCentaur.Repo.update!()
+
+      :ok
+    end
 
     test "history starts collapsed — toggle present, body not rendered", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/incoming")
@@ -1856,7 +1890,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       Process.sleep(600)
 
       # No crash, page still renders History zone.
-      assert render(view) =~ "History"
+      assert render(view) =~ "Incoming"
     end
 
     test "grab_submitted broadcast triggers a debounced reload without crashing",
@@ -1869,7 +1903,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       Process.sleep(600)
 
-      assert render(view) =~ "History"
+      assert render(view) =~ "Incoming"
     end
   end
 
@@ -1904,9 +1938,28 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   end
 
   describe "history disclosure durability" do
-    # The History filter tabs (`phx-click="set_history_filter"`) render only
-    # when the disclosure is open, so their presence is a clean data-flow
-    # marker for expanded/collapsed — no HTML-structure assertions.
+    # The archive filter tabs (`phx-click="set_history_filter"`) render only
+    # when the archive is open, so their presence is a clean data-flow
+    # marker for open/closed — no HTML-structure assertions. Seeded history
+    # so the ledger section (and its toggle) exists at all.
+    setup do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          tmdb_id: "tmdb-ledger-durability",
+          tmdb_type: "movie",
+          title: "Sample Movie",
+          origin: "auto",
+          release_title: "Sample.Movie.2010.1080p.WEB-DL",
+          status: "failed"
+        })
+
+      pursuit
+      |> Ecto.Changeset.change(state: "exhausted")
+      |> MediaCentaur.Repo.update!()
+
+      :ok
+    end
+
     test "defaults collapsed and persists an expand across remounts", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/incoming")
       refute render(view) =~ "set_history_filter"
