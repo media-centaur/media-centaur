@@ -45,6 +45,21 @@ defmodule MediaCentaur.Reconciliation.AwaitingFilesTest do
     end
   end
 
+  describe "count_awaiting/0" do
+    test "counts only records still awaiting a mapping decision" do
+      assert Reconciliation.count_awaiting() == 0
+
+      {:ok, _pending} = Reconciliation.divert(attrs())
+      {:ok, resolved} = Reconciliation.divert(attrs(%{file_path: "/media/Sample Show/S02E02.mkv"}))
+      {:ok, dismissed} = Reconciliation.divert(attrs(%{file_path: "/media/Sample Show/S02E03.mkv"}))
+
+      {:ok, _} = Reconciliation.resolve_awaiting(resolved)
+      {:ok, _} = Reconciliation.dismiss_awaiting(dismissed)
+
+      assert Reconciliation.count_awaiting() == 1
+    end
+  end
+
   describe "listing" do
     test "list_awaiting/0 returns only pending records" do
       {:ok, pending} = Reconciliation.divert(attrs())

@@ -18,14 +18,18 @@ defmodule MediaCentaurWeb.ReconcileLive do
   """
   use MediaCentaurWeb, :live_view
 
+  import MediaCentaurWeb.Components.ReviewTabs
+
   alias MediaCentaur.Reconciliation
   alias MediaCentaur.Reconciliation.ShowReview
   alias MediaCentaurWeb.ReconcileView
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket), do: Reconciliation.subscribe()
-
+    # No Reconciliation.subscribe() here — MediaCentaurWeb.ReviewBadge
+    # (default live_session on_mount) already subscribes every LiveView to
+    # reconciliation:updates; a second subscribe would double-deliver each
+    # message.
     {:ok,
      socket
      |> assign(loaded?: false, selected_tmdb: nil, review: nil, targets: %{}, episode_options: [])
@@ -139,18 +143,25 @@ defmodule MediaCentaurWeb.ReconcileLive do
       current_path="/reconcile"
       acquisition_ready={assigns[:acquisition_ready] || false}
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
+      review_pending={assigns[:review_pending] || 0}
+      mapping_pending={assigns[:mapping_pending] || 0}
     >
       <div
         class="flex flex-col h-full gap-4"
         data-page-behavior="reconcile"
         data-nav-default-zone="reconcile-list"
       >
-        <div>
-          <h1 class="text-xl font-semibold">Episode mapping</h1>
-          <p class="text-sm text-base-content/50">
-            Files whose release numbering doesn't line up with the episode list. Confirm where each one belongs.
-          </p>
-        </div>
+        <h1 class="text-2xl font-bold">Review</h1>
+
+        <.review_tabs
+          active={:mapping}
+          identity_count={assigns[:review_pending] || 0}
+          mapping_count={assigns[:mapping_pending] || 0}
+        />
+
+        <p class="text-sm text-base-content/50">
+          Files whose release numbering doesn't line up with the episode list. Confirm where each one belongs.
+        </p>
 
         <div
           :if={@shows == []}

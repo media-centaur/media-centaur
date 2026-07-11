@@ -226,16 +226,22 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # (`missing_images_summary`, `blank_extra_names_count`) each run on
       # the disconnected + connected mount = +4 bounded aggregates total;
       # the budget absorbs them plus settings_entries cache-miss jitter.
+      #
+      # ReviewBadge (session-wide on_mount) adds two bounded counts
+      # (pending review files + awaiting mappings) on each mount phase
+      # = +4 aggregates on every page.
       mount_and_assert(
         conn,
         "/settings",
-        44,
+        48,
         "Config + Secret reads + maintenance health counts + per-client connection-test reads (per-key cache-miss DB fallback in test mode)"
       )
     end
 
     test "GET /setup mounts within budget", %{conn: conn} do
-      mount_and_assert(conn, "/setup", 15, "Initial setup wizard — minimal reads")
+      # ReviewBadge (session-wide on_mount) adds two bounded counts on
+      # each mount phase = +4 aggregates on every page.
+      mount_and_assert(conn, "/setup", 19, "Initial setup wizard — minimal reads")
     end
 
     test "GET /review mounts within budget", %{conn: conn} do

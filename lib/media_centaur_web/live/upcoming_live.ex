@@ -146,6 +146,8 @@ defmodule MediaCentaurWeb.UpcomingLive do
       full_width
       acquisition_ready={@acquisition_ready}
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
+      review_pending={assigns[:review_pending] || 0}
+      mapping_pending={assigns[:mapping_pending] || 0}
     >
       <:overlays>
         <TrackModal.track_modal

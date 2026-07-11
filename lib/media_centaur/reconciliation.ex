@@ -146,6 +146,12 @@ defmodule MediaCentaur.Reconciliation do
     Repo.all(from f in AwaitingFile, where: f.status == :pending, order_by: [asc: f.inserted_at])
   end
 
+  @doc "Number of files still awaiting a mapping decision."
+  @spec count_awaiting() :: non_neg_integer()
+  def count_awaiting do
+    Repo.aggregate(from(f in AwaitingFile, where: f.status == :pending), :count)
+  end
+
   @doc "Pending awaiting files for one show (by series TMDB id)."
   @spec awaiting_for_tmdb(integer()) :: [AwaitingFile.t()]
   def awaiting_for_tmdb(tmdb_id) do

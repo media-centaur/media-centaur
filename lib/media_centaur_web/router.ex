@@ -25,7 +25,11 @@ defmodule MediaCentaurWeb.Router do
     # The shared layout reads these assigns directly, so the nav stays
     # in sync without any LiveView opting in.
     live_session :default,
-      on_mount: [MediaCentaurWeb.Live.CapabilitiesAware, {MediaCentaurWeb.DiagnosticsBadge, :default}] do
+      on_mount: [
+        MediaCentaurWeb.Live.CapabilitiesAware,
+        {MediaCentaurWeb.DiagnosticsBadge, :default},
+        {MediaCentaurWeb.ReviewBadge, :default}
+      ] do
       live "/", HomeLive, :index
       live "/console", ConsolePageLive, :index
       live "/download", AcquisitionLive, :index

@@ -10,7 +10,8 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
 
   This module injects:
   - `console_mount/1` — shared mount setup (subscribe, snapshot, assigns, stream)
-  - 4 `handle_info` clauses for PubSub messages
+  - `handle_info` clauses for PubSub messages (plus a catch-all for
+    messages forwarded by session-wide on_mount hooks)
   - 11 `handle_event` clauses for user interactions
 
   Pure decision logic lives in `ConsoleLive.Logic` (ADR-030) and is unchanged.
@@ -146,6 +147,12 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
           {:noreply, socket}
         end
       end
+
+      # Session-wide on_mount hooks (DiagnosticsBadge, ReviewBadge) subscribe
+      # the routed ConsolePageLive to their PubSub topics and pass messages
+      # through — without a catch-all, any such broadcast while the console
+      # page is open is a FunctionClauseError.
+      def handle_info(_message, socket), do: {:noreply, socket}
 
       # --- Event handlers ---
 

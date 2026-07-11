@@ -52,6 +52,12 @@ defmodule MediaCentaur.Review do
     )
   end
 
+  @doc "Number of files still awaiting review (status `:pending`)."
+  @spec count_pending() :: non_neg_integer()
+  def count_pending do
+    Repo.aggregate(from(p in PendingFile, where: p.status == :pending), :count)
+  end
+
   @doc """
   Returns the set of file paths currently awaiting review (status
   `:pending`). Used by `Acquisition` to resolve whether a pursuit's
