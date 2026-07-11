@@ -612,6 +612,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       id: pursuit.id,
       title: pursuit.title,
       state: state_to_atom(pursuit.state),
+      updated_at: pursuit.updated_at,
       awaiting_decision?: Enum.any?(units, &UnitState.awaiting_decision?/1),
       season_number: pursuit.season_number,
       episode_number: pursuit.episode_number,

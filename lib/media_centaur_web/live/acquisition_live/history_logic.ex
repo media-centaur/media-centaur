@@ -73,4 +73,20 @@ defmodule MediaCentaurWeb.AcquisitionLive.HistoryLogic do
   def empty_state(:cancelled), do: "Nothing has been cancelled."
   def empty_state(:succeeded), do: "Nothing has finished yet."
   def empty_state(:all), do: "No past pursuits on record."
+
+  # The ledger is a glimpse, not the archive: collapsed it shows the last few
+  # outcomes, expanded it grows once — anything more is "View all history".
+  @ledger_collapsed_cap 4
+  @ledger_expanded_cap 12
+
+  @doc """
+  The Recently landed ledger rows: the newest terminal pursuits, capped.
+  Returns `{visible_rows, hidden_count}` so the disclosure can say what it
+  hides. Input order is preserved — `Pursuits.list_rows/1` owns newest-first.
+  """
+  @spec ledger_rows([PursuitRow.t()], boolean()) :: {[PursuitRow.t()], non_neg_integer()}
+  def ledger_rows(rows, expanded?) do
+    cap = if expanded?, do: @ledger_expanded_cap, else: @ledger_collapsed_cap
+    {Enum.take(rows, cap), max(length(rows) - cap, 0)}
+  end
 end
