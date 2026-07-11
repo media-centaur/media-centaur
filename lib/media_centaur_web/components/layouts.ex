@@ -139,14 +139,10 @@ defmodule MediaCentaurWeb.Layouts do
             <.icon name="hero-calendar" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Upcoming</span>
           </.link>
-        </nav>
-
-        <div class="sidebar-group-label sidebar-label">System</div>
-        <nav class="flex flex-col gap-0.5">
           <.link
             :if={@acquisition_ready}
             navigate="/download"
-            class={sidebar_link_class(@current_path, "/download") <> " sidebar-link-system"}
+            class={sidebar_link_class(@current_path, "/download")}
             data-tip="Downloads"
             data-nav-item
             data-nav-remember
@@ -155,6 +151,10 @@ defmodule MediaCentaurWeb.Layouts do
             <.icon name="hero-arrow-down-tray" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Downloads</span>
           </.link>
+        </nav>
+
+        <div class="sidebar-group-label sidebar-label">System</div>
+        <nav class="flex flex-col gap-0.5">
           <.link
             navigate="/status"
             class={sidebar_link_class(@current_path, "/status") <> " sidebar-link-system"}
