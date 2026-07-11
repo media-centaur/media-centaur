@@ -39,7 +39,7 @@ both pages leave most of their canvas unused.
   armed, in pursuit (with percent), in theaters (watch-only), tracked. Season drops get a
   stacked treatment. Overflow past the shelf cap grows the shelf in place ("Show all N" —
   the same idiom as the ledger's "Show earlier"). After the last card, a dashed horizon
-  terminus — "Nothing further on the horizon. Track something to extend the forecast."
+  terminus with a real card's footprint carries the action alone — "Track something".
   (The v1 calendar disclosure was cut during build review: its wayfinding job died with
   the timeline rail, and its marks duplicated the shelf's date labels. A real month view,
   if ever wanted, is its own future design.)
