@@ -66,7 +66,7 @@ Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
 | `library_behavior.js` | Yes* | Library: CLEAR → filter, sort tracking |
 | `review_behavior.js` | Yes | Review: no page-specific hooks |
 | `settings_behavior.js` | Yes | Settings: activateOnFocus for sections |
-| `download_behavior.js` | Yes | Download (`/download`) page navigation |
+| `incoming_behavior.js` | Yes | Incoming (`/incoming`) page navigation |
 | `status_behavior.js` | Yes | Status (`/status`) page navigation |
 | `watch_history_behavior.js` | Yes | Watch History (`/history`) page — filter pills, date badge, event list, pagination |
 | `controls_bridge.js` | No | Listens for `controls:updates` from `MediaCentaur.Controls` and rewrites the keyboard/gamepad source maps at runtime so user rebindings take effect without reload |
@@ -340,7 +340,7 @@ Actions in each context:
 
 **Nav zone containers must not nest.** Descendant selectors cross-contaminate. Exception: a zone whose selector uses a direct-child combinator (`> [data-nav-item]`) can contain a nested zone without double-counting items, should a future layout need it.
 
-**One element owns the modal overlay.** The adapter resolves the *active modal* as the first `[data-detail-mode='modal']` match in DOM order, and derives everything from that one element: `data-detail-view`, `data-dismiss-event`, and — unlike other contexts, which use flat config selectors — the MODAL context's nav items (`activeModalElement().querySelectorAll("[data-nav-item]")`). This keeps navigation and BACK pointed at the same overlay when modals stack (a confirm dialog over a detail modal, as on the downloads page). Pages that stack modals must render the topmost overlay *first* among their `[data-detail-mode]` elements — on `/download`, the confirm dialogs render at the top of `:overlays`, before the plan and pursuit modals.
+**One element owns the modal overlay.** The adapter resolves the *active modal* as the first `[data-detail-mode='modal']` match in DOM order, and derives everything from that one element: `data-detail-view`, `data-dismiss-event`, and — unlike other contexts, which use flat config selectors — the MODAL context's nav items (`activeModalElement().querySelectorAll("[data-nav-item]")`). This keeps navigation and BACK pointed at the same overlay when modals stack (a confirm dialog over a detail modal, as on the Incoming page). Pages that stack modals must render the topmost overlay *first* among their `[data-detail-mode]` elements — on `/incoming`, the confirm dialogs render at the top of `:overlays`, before the plan and pursuit modals.
 
 ## Page Behavior System
 

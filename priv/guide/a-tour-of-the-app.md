@@ -14,14 +14,13 @@ Media Centaur is a handful of pages reached from a sidebar on the left, in two g
 |---|---|---|
 | Home | `/` | Landing page: a hero title, Continue Watching, what's coming up, recently added |
 | Library | `/library` | Your full catalog as a poster grid — type tabs, sort, text filter; select a title for its detail overlay |
-| Upcoming | `/upcoming` | Time-ordered forecast of releases you're tracking, with status and auto-grab controls |
+| Incoming | `/incoming` | Everything arriving in your collection: search to add or plan, a shelf of tracked releases coming up, live downloads, and what recently landed. Without Prowlarr it shows the tracking side only |
 | Watch history | `/history` | Viewing stats, an activity heatmap, and a filterable list of everything watched |
-| Downloads | `/download` | Search, download plans, active pursuits, and history. Appears once Prowlarr + a download client are configured |
 | Review | `/review` | Files that couldn't be identified confidently, waiting for you to match them |
 | Status | `/status` | Operator dashboard: subsystem health, pipeline, storage, integrations, playback — with drill-ins |
 | Settings | `/settings` | Credentials, service toggles and actions, the setup tour, and the link to this guide |
 
-Library, Downloads, Review, and Settings are places you *act*; Watch history and Status are
+Library, Incoming, Review, and Settings are places you *act*; Watch history and Status are
 mostly *read* — though Status rewards clicking into its tiles.
 
 ## The Console, from anywhere

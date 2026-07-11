@@ -240,36 +240,6 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
   end
 
-  describe "prominence (proximity = prominence)" do
-    test "nearest is the hero, second-nearest a feature, the rest compact" do
-      item = tv_item()
-
-      releases =
-        for n <- [0, 3, 10, 20],
-            do:
-              release(item, %{
-                title: "ep#{n}",
-                air_date: days(n),
-                season_number: 1,
-                episode_number: n + 1
-              })
-
-      feed = UpcomingFeed.build(releases, armed_context())
-      ordered = all_events(feed)
-
-      assert Enum.map(ordered, & &1.prominence) == [:hero, :feature, :compact, :compact]
-    end
-
-    test "a lone event is the hero" do
-      item = tv_item()
-      one = release(item, %{title: "only", air_date: days(2), season_number: 1, episode_number: 1})
-
-      feed = UpcomingFeed.build([one], armed_context())
-
-      assert [%{prominence: :hero}] = all_events(feed)
-    end
-  end
-
   describe "season-drop collapse" do
     test "multiple episodes of one season on the same date collapse to a single :season_drop event" do
       item = tv_item()

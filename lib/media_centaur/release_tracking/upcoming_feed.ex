@@ -1,6 +1,7 @@
 defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   @moduledoc """
-  The view-model for the time-first Upcoming page.
+  The release-forecast view-model behind the Incoming page's Coming up shelf
+  and per-title detail timeline.
 
   A pure transform from `ReleaseTracking.Release` structs (with `:item`
   preloaded) into a date-ordered forecast of release **events**, bucketed by
@@ -53,7 +54,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   @type t :: %UpcomingFeed{buckets: %{atom() => [Event.t()]}, unscheduled: [Event.t()]}
 
   defmodule Event do
-    @moduledoc "One release event on the Upcoming rail."
+    @moduledoc "One release event in the forecast."
     defstruct [
       :id,
       :item_id,
@@ -69,8 +70,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       :kind,
       :episode_count,
       :backdrop_path,
-      :logo_path,
-      prominence: :compact
+      :logo_path
     ]
 
     @type t :: %Event{}
@@ -116,7 +116,6 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       scheduled
       |> Enum.filter(&forecast_worthy?(&1, context.today))
       |> Enum.sort_by(& &1.air_date, Date)
-      |> flag_prominence()
       |> bucketize(context.today)
 
     %UpcomingFeed{buckets: bucketed, unscheduled: unscheduled}
@@ -276,18 +275,6 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     is_nil(date) or Date.compare(date, today) != :lt or
       status in [:in_library, :under_pursuit, :armed]
   end
-
-  # Proximity = prominence: the nearest release is the hero, the second-nearest a
-  # smaller feature card, the rest compact rows.
-  defp flag_prominence(events) do
-    events
-    |> Enum.with_index()
-    |> Enum.map(fn {event, index} -> %{event | prominence: prominence_for(index)} end)
-  end
-
-  defp prominence_for(0), do: :hero
-  defp prominence_for(1), do: :feature
-  defp prominence_for(_index), do: :compact
 
   defp bucketize(events, today) do
     grouped = Enum.group_by(events, &bucket_for(&1.air_date, today))

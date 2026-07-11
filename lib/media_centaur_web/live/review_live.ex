@@ -351,7 +351,6 @@ defmodule MediaCentaurWeb.ReviewLive do
     <Layouts.app
       flash={@flash}
       current_path="/review"
-      acquisition_ready={@acquisition_ready}
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
       review_pending={assigns[:review_pending] || 0}
       mapping_pending={assigns[:mapping_pending] || 0}
