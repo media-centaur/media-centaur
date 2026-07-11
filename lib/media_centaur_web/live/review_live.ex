@@ -9,16 +9,16 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   require MediaCentaur.Log, as: Log
 
+  import MediaCentaurWeb.Components.ReviewTabs
   import MediaCentaurWeb.ReviewHelpers
 
   alias MediaCentaur.Review
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      Review.subscribe()
-    end
-
+    # No Review.subscribe() here — MediaCentaurWeb.ReviewBadge (default
+    # live_session on_mount) already subscribes every LiveView to
+    # review:updates; a second subscribe would double-deliver each message.
     {:ok,
      socket
      |> assign(loaded?: false)
@@ -353,6 +353,8 @@ defmodule MediaCentaurWeb.ReviewLive do
       current_path="/review"
       acquisition_ready={@acquisition_ready}
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
+      review_pending={assigns[:review_pending] || 0}
+      mapping_pending={assigns[:mapping_pending] || 0}
     >
       <div
         class="flex flex-col h-full gap-4"
@@ -386,6 +388,12 @@ defmodule MediaCentaurWeb.ReviewLive do
             </span>
           </div>
         </div>
+
+        <.review_tabs
+          active={:identity}
+          identity_count={assigns[:review_pending] || 0}
+          mapping_count={assigns[:mapping_pending] || 0}
+        />
 
         <%!-- Empty state --%>
         <div :if={@groups == []} data-nav-zone="review-list">

@@ -100,6 +100,8 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
       current_path="/history"
       acquisition_ready={@acquisition_ready}
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
+      review_pending={assigns[:review_pending] || 0}
+      mapping_pending={assigns[:mapping_pending] || 0}
     >
       <:overlays>
         <%!-- Deleting in-progress modal — persistent (no casual dismissal while

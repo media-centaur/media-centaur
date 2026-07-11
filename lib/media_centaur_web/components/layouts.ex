@@ -43,6 +43,27 @@ defmodule MediaCentaurWeb.Layouts do
     live-refreshed via the `error_reports` PubSub topic.
     """
 
+  attr :review_pending, :integer,
+    default: 0,
+    doc: """
+    Count of files awaiting identity review (`Review.count_pending/0`).
+    Together with `mapping_pending` it drives the sidebar Review entry:
+    hidden when both are zero, badged with the sum otherwise, targeting
+    /review while identity work exists and /reconcile when only mapping
+    work remains. Seeded app-wide by `MediaCentaurWeb.ReviewBadge`
+    (default `live_session` on_mount) and live-refreshed via the
+    `review:updates` PubSub topic.
+    """
+
+  attr :mapping_pending, :integer,
+    default: 0,
+    doc: """
+    Count of files awaiting an episode-mapping decision
+    (`Reconciliation.count_awaiting/0`). See `review_pending` — seeded by
+    `MediaCentaurWeb.ReviewBadge`, live-refreshed via the
+    `reconciliation:updates` PubSub topic.
+    """
+
   attr :full_width, :boolean, default: false, doc: "when true, removes max-w-7xl constraint"
 
   attr :acquisition_ready, :boolean,
@@ -148,24 +169,21 @@ defmodule MediaCentaurWeb.Layouts do
             </.badge>
           </.link>
           <.link
-            navigate="/review"
-            class={sidebar_link_class(@current_path, "/review") <> " sidebar-link-system"}
+            :if={@review_pending + @mapping_pending > 0}
+            navigate={if @review_pending > 0, do: "/review", else: "/reconcile"}
+            class={
+              sidebar_link_class(@current_path, ["/review", "/reconcile"]) <>
+                " sidebar-link-system"
+            }
             data-tip="Review"
             data-nav-item
             tabindex="0"
           >
             <.icon name="hero-document-text" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Review</span>
-          </.link>
-          <.link
-            navigate="/reconcile"
-            class={sidebar_link_class(@current_path, "/reconcile") <> " sidebar-link-system"}
-            data-tip="Episode mapping"
-            data-nav-item
-            tabindex="0"
-          >
-            <.icon name="hero-arrows-right-left" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Mapping</span>
+            <.badge variant="primary" size="xs" class="ml-auto">
+              {@review_pending + @mapping_pending}
+            </.badge>
           </.link>
           <.link
             navigate="/settings"
@@ -380,10 +398,12 @@ defmodule MediaCentaurWeb.Layouts do
     end)
   end
 
-  defp sidebar_link_class(current_path, path) do
+  # `paths` may be a list when one nav entry fronts several routes — the
+  # Review entry covers both review dimensions (/review and /reconcile).
+  defp sidebar_link_class(current_path, paths) do
     base = "sidebar-link tooltip tooltip-right"
 
-    if current_path == path do
+    if current_path in List.wrap(paths) do
       base <> " sidebar-link-active"
     else
       base

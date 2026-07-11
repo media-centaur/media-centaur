@@ -144,4 +144,34 @@ defmodule MediaCentaur.Review.PendingFileTest do
       assert Review.list_pending_files() == []
     end
   end
+
+  describe "count_pending/0" do
+    test "counts only files still awaiting review" do
+      assert Review.count_pending() == 0
+
+      first = Review.create_pending_file!(@valid_attrs)
+
+      dismissed =
+        Review.create_pending_file!(%{
+          file_path: "/media/dismissed-count.mkv",
+          parsed_title: "Dismissed"
+        })
+
+      {:ok, _dismissed} = Review.dismiss_pending_file(dismissed)
+
+      approved =
+        Review.create_pending_file!(%{
+          file_path: "/media/approved-count.mkv",
+          parsed_title: "Approved",
+          tmdb_id: 27_205,
+          tmdb_type: "movie"
+        })
+
+      {:ok, _approved} = Review.approve_pending_file(approved)
+
+      assert Review.count_pending() == 1
+      assert :ok = Review.destroy_pending_file!(first)
+      assert Review.count_pending() == 0
+    end
+  end
 end
