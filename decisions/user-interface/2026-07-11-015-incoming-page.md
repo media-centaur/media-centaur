@@ -25,7 +25,7 @@ The page is named **Incoming**, lives in the Watch nav group, and replaces both 
 * **In flight band** (compact, operational) — draft-plan banner, live torrent rows, searching pursuits. Chrome appears only here.
 * **Recently landed ledger** — terminal history dissolving into the page floor via a mask fade, "Show earlier" disclosure, storage free-space as the ambient foot line. "View all" expands the same section in place into the filtered archive (chips + search) — the page's ONE history surface (the sibling History disclosure was merged away during build review).
 
-An under-pursuit shelf card and its torrent row are two zoom levels of one object: the card's "In pursuit · N%" pill anchors to the row, which reuses the same art, title, and pill.
+An under-pursuit shelf card and its torrent row are two zoom levels of one object: the card's "In pursuit · N%" pill anchors to the row (any density), which highlights on landing and carries the same title. The row keeps its identity-banner treatment — duplicating the card's art and pill was considered and dropped during verify.
 
 Without acquisition capability the page degrades to forecast-only: in-flight band and ledger absent, hero copy reframed to tracking, and no surviving badge or caption implying grabbing is possible.
 

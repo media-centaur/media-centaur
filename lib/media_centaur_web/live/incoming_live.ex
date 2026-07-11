@@ -133,6 +133,11 @@ defmodule MediaCentaurWeb.IncomingLive do
   # actively landing on disk. The probe is a handful of statvfs calls on an
   # owned async task, and the timer only exists while someone has this page
   # open — the faster cadence costs nothing when nobody is watching.
+  # The ledger glimpse shows at most HistoryLogic's expanded cap (12); one
+  # extra row lets `ledger_rows/2` know whether anything stays hidden without
+  # reading the whole terminal-pursuit table on every mount and reload.
+  @ledger_read_cap 13
+
   @storage_refresh_ms 30_000
 
   @impl true
@@ -165,6 +170,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          auto_grab_default_mode: AutoGrabSettings.load().default_mode,
          ledger_expanded?: false,
          ledger_rows: [],
+         loaded_history_params: nil,
          forecast_reload_timer: nil,
          track_modal_open: false,
          track_suggestions: [],
@@ -185,7 +191,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          board_expanded_seasons: nil,
          cancel_confirm: nil,
          pending_cancels: %{},
-         download_client_ready: false,
          history_filter: :failed,
          history_search: "",
          history_open?: false,
@@ -274,7 +279,9 @@ defmodule MediaCentaurWeb.IncomingLive do
   # the connected render fills it in. The periodic refresh keeps the figure
   # honest as downloads land.
   defp maybe_start_storage(socket) do
-    if connected?(socket) do
+    # Storage headroom answers "do I have room for this grab?" — without an
+    # indexer nothing grabs, so the forecast-only page skips the df loop.
+    if connected?(socket) and Capabilities.prowlarr_ready?() do
       Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
       start_async_storage(socket)
     else
@@ -305,8 +312,9 @@ defmodule MediaCentaurWeb.IncomingLive do
         download_client_ready: Capabilities.download_client_ready?(),
         plan_drafts: Plans.list_drafts(),
         pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows(),
-        ledger_rows: Pursuits.list_rows(:all_terminal),
-        history_rows: compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search)
+        ledger_rows: Pursuits.list_rows(:all_terminal, limit: @ledger_read_cap),
+        history_rows: compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search),
+        loaded_history_params: {socket.assigns.history_filter, socket.assigns.history_search}
       )
     else
       socket
@@ -318,7 +326,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   defp load_pursuit_rows(socket) do
     assign(socket,
       pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows(),
-      ledger_rows: Pursuits.list_rows(:all_terminal)
+      ledger_rows: Pursuits.list_rows(:all_terminal, limit: @ledger_read_cap)
     )
   end
 
@@ -424,6 +432,44 @@ defmodule MediaCentaurWeb.IncomingLive do
     |> Enum.map(&%{text: &1.description, at: MediaCentaur.Format.relative_ago(&1.inserted_at)})
   end
 
+  # A media pick on the forecast-only page: track the title (movies grab no
+  # scope; shows start from the last library episode, like the track modal's
+  # suggestion path) and mark the dropdown row so the pick reads as done.
+  defp track_picked_result(socket, tmdb_id) do
+    case Enum.find(socket.assigns.omnibox_results, &(to_string(&1.tmdb_id) == to_string(tmdb_id))) do
+      nil ->
+        socket
+
+      result ->
+        scope =
+          case result.media_type do
+            :movie ->
+              %{}
+
+            :tv_series ->
+              {last_season, last_episode} = ReleaseTracking.find_last_library_episode(nil)
+              %{start_season: last_season, start_episode: last_episode}
+          end
+
+        ReleaseTracking.track_from_search_async(
+          %{
+            tmdb_id: result.tmdb_id,
+            media_type: result.media_type,
+            name: result.name,
+            poster_path: result.poster_path
+          },
+          scope
+        )
+
+        assign(socket,
+          omnibox_results:
+            Enum.map(socket.assigns.omnibox_results, fn row ->
+              if to_string(row.tmdb_id) == to_string(tmdb_id), do: %{row | tracked?: true}, else: row
+            end)
+        )
+    end
+  end
+
   defp mark_tracked(results, tmdb_id) do
     Enum.map(results, fn result ->
       if result.tmdb_id == tmdb_id, do: %{result | already_tracked: true}, else: result
@@ -465,11 +511,9 @@ defmodule MediaCentaurWeb.IncomingLive do
     )
   end
 
-  # `?search=…` and `?filter=…` deep-link from the upcoming-zone badges
-  # straight to a pre-filtered activity view. `?prowlarr_search=…` from
-  # the same zone pre-fills the manual-search box and auto-fires the
-  # search so a user clicking a "no acquisition yet" row immediately
-  # sees Prowlarr results.
+  # `?search=…` / `?filter=…` restore the archive's filter state (the
+  # pursuit-modal path helper always carries them). `?prowlarr_search=…`
+  # pre-fills the release-search box and auto-fires the search.
   @impl true
   def handle_params(params, _uri, socket) do
     was_loaded? = socket.assigns.loaded?
@@ -521,19 +565,27 @@ defmodule MediaCentaurWeb.IncomingLive do
   # never the URL's filter/search state. `build_pursuit_modal_path/2` always
   # carries `filter=failed`, so keying off it (as this used to) popped History
   # open whenever you returned to a pursuit-modal URL. There are no genuine
-  # `?filter=`/`?search=` deep-links to /download, so nothing in the URL should
+  # `?filter=`/`?search=` deep-links, so nothing in the URL should
   # override the pref. Defaults collapsed.
   defp maybe_open_history(socket, _params, false) do
     assign(socket, history_open?: history_open_pref())
   end
 
-  # Skip the sync history reload on first load — the async task spawned
-  # by `ensure_loaded/1` already issues it with the URL-snapshot filter
-  # values and messages back via `{:acquisition_loaded, _}`. Mid-session
-  # URL changes (filter clicks, deep-links) fall through to the sync
-  # path so the user sees an immediate result.
+  # First load: `ensure_loaded/1` already computed history_rows with the
+  # URL-snapshot filter values. Mid-session param changes fall through to
+  # the sync reload below.
   defp maybe_load_history(socket, false), do: socket
-  defp maybe_load_history(socket, true), do: load_history(socket)
+
+  defp maybe_load_history(socket, true) do
+    # Pursuit-modal patches carry filter/search params too — only a real
+    # change earns the full terminal-table re-read.
+    if {socket.assigns.history_filter, socket.assigns.history_search} ==
+         socket.assigns[:loaded_history_params] do
+      socket
+    else
+      load_history(socket)
+    end
+  end
 
   # Drives the pursuit detail modal off the `?selected=<pursuit_id>` URL
   # param so the modal participates in browser history — back/forward
@@ -560,10 +612,9 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  # Builds a path back to `/download` preserving the History zone
-  # filter/search so the modal open/close doesn't reset the user's
-  # surrounding view. Overrides are merged last and `nil`-valued keys
-  # remove the param.
+  # Builds a path back to `/incoming` preserving the archive filter/search
+  # so the modal open/close doesn't reset the user's surrounding view.
+  # Overrides are merged last and `nil`-valued keys remove the param.
   defp build_pursuit_modal_path(socket, overrides) do
     base = %{
       "search" => socket.assigns.history_search,
@@ -665,6 +716,13 @@ defmodule MediaCentaurWeb.IncomingLive do
         :telemetry_age,
         Logic.telemetry_age_label(assigns.queue_connectivity, assigns.queue_last_success_at)
       )
+      # The shelf recedes only while a release search actually owns the page
+      # (a query or results) — a bare mode flip keeps the forecast in view.
+      |> Phoenix.Component.assign(
+        :shelf_visible?,
+        assigns.omnibox_mode != :release or
+          (assigns.search_session.query == "" and assigns.search_session.groups == [])
+      )
       # Live percentages ride the same render-time pairing: the paired
       # downloads stamp their progress onto in-pursuit shelf cards, so the
       # shelf hairline tracks the torrent without rebuilding the View.
@@ -759,6 +817,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
           <MediaOmnibox.media_omnibox
             hero
+            release_mode_available={@prowlarr_ready}
             prompt={
               if @prowlarr_ready,
                 do: "What would you like to add?",
@@ -780,9 +839,10 @@ defmodule MediaCentaurWeb.IncomingLive do
           />
 
           <%!-- The shelf recedes while a release search owns the page —
-                dismissing the search (mode back to :media) restores it. --%>
+                clearing or dismissing the search restores it. A bare mode
+                flip (empty release box) keeps the forecast visible. --%>
           <Shelf.shelf
-            :if={@omnibox_mode != :release}
+            :if={@shelf_visible?}
             cards={@shelf_cards}
             overflow_count={@view.shelf.overflow_count}
             stragglers={@view.shelf.stragglers}
@@ -875,7 +935,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             rows={@view.ledger.rows}
             hidden_count={@view.ledger.hidden_count}
             expanded={@view.ledger.expanded?}
-            archive_open?={@history_open?}
+            archive_open?={@history_open? and @prowlarr_ready}
             filter={@history_filter}
             search={@history_search}
             archive_empty?={@history_rows == []}
@@ -1261,21 +1321,33 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   def handle_event("omnibox_mode", %{"mode" => mode}, socket) when mode in ~w(media release) do
-    {:noreply,
-     assign(socket,
-       omnibox_mode: String.to_existing_atom(mode),
-       omnibox_results: [],
-       omnibox_query: "",
-       omnibox_searching?: false,
-       omnibox_searched: nil
-     )}
+    # Release mode does not exist without an indexer — ignore a stale flip
+    # (the hint hides the control, but a lagging DOM can still fire it).
+    if mode == "release" and not Capabilities.prowlarr_ready?() do
+      {:noreply, socket}
+    else
+      {:noreply,
+       assign(socket,
+         omnibox_mode: String.to_existing_atom(mode),
+         omnibox_results: [],
+         omnibox_query: "",
+         omnibox_searching?: false,
+         omnibox_searched: nil
+       )}
+    end
   end
 
   def handle_event("omnibox_pick", %{"tmdb-id" => tmdb_id, "media-type" => media_type}, socket)
       when media_type in ~w(movie tv_series) do
-    plan_type = if media_type == "movie", do: "movie", else: "tv"
+    if Capabilities.prowlarr_ready?() do
+      plan_type = if media_type == "movie", do: "movie", else: "tv"
 
-    {:noreply, push_patch(socket, to: "/incoming?plan=new&tmdb_id=#{tmdb_id}&tmdb_type=#{plan_type}")}
+      {:noreply, push_patch(socket, to: "/incoming?plan=new&tmdb_id=#{tmdb_id}&tmdb_type=#{plan_type}")}
+    else
+      # Forecast-only page: the hero promised tracking, so a pick tracks —
+      # never the plan (grab) flow. Same shape the track modal uses.
+      {:noreply, track_picked_result(socket, tmdb_id)}
+    end
   end
 
   def handle_event("grab_selected", _params, socket) do
@@ -1728,20 +1800,32 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   @impl true
   def handle_info(:capabilities_changed, socket) do
-    socket =
-      if Capabilities.prowlarr_ready?() do
-        # Ping QueueMonitor in case the user just configured the download
-        # client — without this nudge we would wait up to 30 s (idle cadence)
-        # for the queue to populate. Mid-session indexer setup also means we
-        # never subscribed to acquisition topics on mount — do it now.
-        Acquisition.poll_queue_now()
+    prowlarr? = Capabilities.prowlarr_ready?()
 
-        socket
-        |> subscribe_acquisition_once()
-        |> load_acquisition()
-        |> assign(download_client_ready: Capabilities.download_client_ready?())
-      else
-        socket
+    socket =
+      cond do
+        prowlarr? and not socket.assigns.subscribed_acquisition? ->
+          # Prowlarr just appeared mid-session: we never subscribed to
+          # acquisition topics on mount — do it now, load the acquisition
+          # state, and ping QueueMonitor so the queue populates without
+          # waiting for the idle 30 s cadence.
+          Acquisition.poll_queue_now()
+
+          socket
+          |> subscribe_acquisition_once()
+          |> load_acquisition()
+          |> assign(download_client_ready: Capabilities.download_client_ready?())
+
+        prowlarr? ->
+          # Some other capability changed (a TMDB test, the download client):
+          # refresh the client flag and nudge the queue, but do NOT re-run
+          # load_acquisition — it recomputes omnibox_mode from the session
+          # and would snap a user out of a manually chosen mode.
+          Acquisition.poll_queue_now()
+          assign(socket, download_client_ready: Capabilities.download_client_ready?())
+
+        true ->
+          socket
       end
 
     {:noreply, build_view(socket)}
@@ -2463,7 +2547,11 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   defp load_history(socket) do
     rows = compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search)
-    assign(socket, history_rows: rows)
+
+    assign(socket,
+      history_rows: rows,
+      loaded_history_params: {socket.assigns.history_filter, socket.assigns.history_search}
+    )
   end
 
   defp retry_terms(socket, []), do: socket.assigns.search_session

@@ -117,11 +117,55 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "mounts forecast-only when Prowlarr is configured but untested", %{conn: conn} do
       Capabilities.clear_test_result(:prowlarr)
 
-      {:ok, _view, html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, html} = live_async!(conn, ~p"/incoming")
 
       assert html =~ "What would you like to track?"
       refute html =~ ~s(data-nav-zone="pursuits")
       refute html =~ ~s(data-nav-zone="ledger")
+
+      # No grab-implying affordances: the release-mode flip and the
+      # add-or-plan hint don't exist, and a stale mode flip is a no-op.
+      refute has_element?(view, "[phx-click='omnibox_mode'][phx-value-mode='release']")
+      refute html =~ "to add or plan"
+      assert html =~ "to track their releases"
+
+      render_click(view, "omnibox_mode", %{"mode" => "release"})
+      refute has_element?(view, "form[phx-change='query_change']")
+    end
+
+    test "a media pick on the forecast-only page tracks the title, never the plan flow", %{
+      conn: conn
+    } do
+      Capabilities.clear_test_result(:prowlarr)
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 424_242,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05"
+        }
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view)
+
+      html =
+        view
+        |> element("[phx-click='omnibox_pick'][phx-value-tmdb-id='424242']")
+        |> render_click()
+
+      # The pick's synchronous half marks the dropdown row as tracked and
+      # never opens the plan (grab) modal. The async tracking task itself
+      # is covered by the ReleaseTracking tests.
+      assert html =~ "Tracked"
+      refute has_element?(view, "#plan-modal[data-state='open']")
     end
 
     test "hides the active-downloads queue when the download client is untested",

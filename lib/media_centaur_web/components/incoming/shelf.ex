@@ -186,8 +186,11 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
     ~H"""
     <%!-- Same footprint as a real card (max-w-48 flex-1) so the ghost
           reads as the shelf's next slot, not a different object. Copy is
-          the action alone — icon + two words. --%>
+          the action alone — icon + two words — and with no action to offer
+          (no overflow, TMDB unconfigured) the ghost doesn't render at all:
+          an affordance-shaped element must afford something. --%>
     <article
+      :if={@overflow_count > 0 || @tmdb_ready}
       aria-label="End of forecast"
       class="min-w-0 max-w-48 flex-1"
       data-component="shelf-horizon"

@@ -80,7 +80,7 @@ defmodule MediaCentaurWeb.Components.TrackModal do
   attr :suggestions, :list,
     default: [],
     doc:
-      "list of `Suggestion.t()` structs. Phoenix `attr` has no list-of-typed-structs validator; element shape is enforced at construction in `UpcomingLive`."
+      "list of `Suggestion.t()` structs. Phoenix `attr` has no list-of-typed-structs validator; element shape is enforced at construction in `IncomingLive`."
 
   attr :suggestions_loading, :boolean, default: false
   attr :search_query, :string, default: ""

@@ -1728,6 +1728,13 @@ body:has(.modal-backdrop[data-state="open"]) {
    The per-title hue arrives via the inline `--banner-hue` custom
    property (derived from the title hash). */
 
+/* Landing target of a shelf pill's "jump to the live download" anchor —
+   the row the browser scrolled to reads brighter, so the jump lands
+   legibly. Static state, not an animation (ADR-012). */
+[id^="pursuit-"]:target {
+  filter: brightness(1.35);
+}
+
 .identity-banner {
   position: relative;
   overflow: hidden;

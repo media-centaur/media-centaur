@@ -696,7 +696,7 @@ defmodule MediaCentaur.Showcase do
 
   # Drives:
   #
-  #   - HomeLive "Coming Up This Week" + UpcomingLive Coming Up section —
+  #   - HomeLive "Coming Up This Week" + Incoming page's Coming up shelf —
   #     four releases scheduled within the next seven days, each tied to
   #     a grab in a *different* status so all four badge variants render
   #     side-by-side: Grabbed, Searching, Pending (snoozed), Scheduled

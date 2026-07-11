@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
   @moduledoc """
-  The Downloads page's hero search — one search surface, two modes
+  The Incoming page's hero search — one search surface, two modes
   (UIDR-014).
 
   **Media mode** (default) asks "What do you want to watch?": typing
@@ -58,6 +58,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
     doc:
       "Incoming-page front-door treatment: centered column, prompt line above the input, larger input, and a mode-hint line below (the active mode emphasized). Same events either way."
 
+  attr :release_mode_available, :boolean,
+    default: true,
+    doc:
+      "Whether release search exists at all (an indexer is configured). When false the hero hint drops the release-mode flip and reads as tracking — the forecast-only page must not offer a grab flow."
+
   attr :prompt, :string,
     default: "What would you like to add?",
     doc:
@@ -94,7 +99,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
         searching?={@searching?}
       />
 
-      <.hero_mode_hint :if={@hero} mode={@mode} session={@session} />
+      <.hero_mode_hint
+        :if={@hero}
+        mode={@mode}
+        session={@session}
+        release_mode_available={@release_mode_available}
+      />
 
       <div :if={!@hero} class="flex items-baseline justify-between gap-3 text-xs">
         <span :if={@mode == :media} class="text-base-content/40">
@@ -207,11 +217,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   attr :mode, :atom, required: true
   attr :session, SearchSession, default: nil
+  attr :release_mode_available, :boolean, required: true
 
   # The hero footer: release-mode syntax help (same vocabulary as the
   # card footer) above the mode hint with the active mode emphasized.
   # The inactive mode name is the flip control — same `omnibox_mode`
-  # event as the card's corner toggle.
+  # event as the card's corner toggle. Without an indexer there is no
+  # release mode and no plan flow — the hint says what a pick does.
   defp hero_mode_hint(assigns) do
     ~H"""
     <div class="flex flex-col items-center gap-2 text-xs">
@@ -231,10 +243,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
         </span>
       </span>
 
-      <p class="text-center text-sm text-base-content/35">
+      <p :if={@release_mode_available} class="text-center text-sm text-base-content/35">
         <.mode_hint_name active={@mode == :media} mode="media" label="Search titles" /> to add or plan
         <span class="mx-1.5 opacity-60">·</span>
         <.mode_hint_name active={@mode == :release} mode="release" label="search releases" /> directly
+      </p>
+      <p :if={!@release_mode_available} class="text-center text-sm text-base-content/35">
+        <span class="font-medium text-base-content/70">Search titles</span> to track their releases
       </p>
     </div>
     """

@@ -193,10 +193,10 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # (the SettingsCache isn't running) — that inflates the count
       # relative to production AND varies with full-suite ordering
       # (observed 38–50; the variance is entirely settings_entries
-      # lookups — the Incoming page's persisted `ui:downloads:history_open`
-      # pref added one more key to suite circulation, lifting the worst
-      # observed mount from 45 to 50). 52 still trips on any per-row N+1
-      # while absorbing the cache-miss jitter.
+      # lookups; the worst observed mount moved 45 → 50 after the Incoming
+      # merge landed, and the exact mechanism behind the suite-order jitter
+      # is unattributed — StatusLive's own query set is unchanged). 52
+      # still trips on any per-row N+1 while absorbing the jitter.
       mount_and_assert(
         conn,
         "/status",

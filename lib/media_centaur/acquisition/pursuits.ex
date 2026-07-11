@@ -202,15 +202,21 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   Ordered newest-updated first. Each row pairs the pursuit with its
   `current_target` via `fetch_targets_by_id/1`, so `release_title` and
   `target_status` come from the most recent attempt.
+
+  `limit:` caps the read (newest first) — the Incoming ledger glimpse only
+  ever shows a handful, so it must not pay for the whole terminal table.
   """
-  @spec list_rows(:active | :failed | :cancelled | :succeeded | :all_terminal) :: [PursuitRow.t()]
-  def list_rows(filter) do
+  @spec list_rows(:active | :failed | :cancelled | :succeeded | :all_terminal,
+          limit: pos_integer()
+        ) :: [PursuitRow.t()]
+  def list_rows(filter, opts \\ []) do
     states = states_for_filter(filter)
 
     pursuits =
       Pursuit
       |> where([p], p.state in ^states)
       |> order_by([p], desc: p.updated_at)
+      |> maybe_limit(opts[:limit])
       |> Repo.all()
 
     units_by_pursuit = Units.for_pursuits(Enum.map(pursuits, & &1.id))
@@ -254,6 +260,9 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   end
 
   defp download_location(_target, _pending_paths), do: :none
+
+  defp maybe_limit(query, nil), do: query
+  defp maybe_limit(query, cap), do: limit(query, ^cap)
 
   defp states_for_filter(:active), do: State.in_flight()
   defp states_for_filter(:failed), do: ["exhausted"]

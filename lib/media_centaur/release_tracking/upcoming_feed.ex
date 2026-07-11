@@ -10,8 +10,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   fact as injected `context`:
 
     * `:today` — `Date` to measure relative time against.
-    * `:acquisition_ready?` — is Prowlarr/acquisition usable
-      (`Capabilities.prowlarr_ready?/0`)? Gates the `:armed` status.
+    * `:acquisition_ready?` — can a grab actually fire (indexer + download
+      client; `Capabilities.acquisition_ready?/0`)? Gates the `:armed` status.
     * `:auto_grab_default_mode` — the global auto-grab default
       (`AutoGrabSettings.load/0` → `default_mode`) that an item's `"global"`
       mode inherits.
