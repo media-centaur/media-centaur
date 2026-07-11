@@ -149,6 +149,9 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   # them. `:unscheduled` never reaches the shelf (stragglers carry those).
   defp pill_status(:under_pursuit), do: :in_pursuit
   defp pill_status(:armed), do: :armed
+  # A fallback date can't lead a title's shelf card (the earlier armed date
+  # always sorts first and past armed dates are kept), but map it defensively.
+  defp pill_status(:armed_fallback), do: :tracked
   defp pill_status(:theatrical_info), do: :in_theaters
   defp pill_status(:in_library), do: :landed
   defp pill_status(:upcoming), do: :tracked

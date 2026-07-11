@@ -9,10 +9,26 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.PresentTest do
 
   describe "status_label/1 and status_tone/1" do
     test "each status has a label and a tone" do
-      for status <- [:armed, :under_pursuit, :in_library, :theatrical_info, :upcoming, :unscheduled] do
+      statuses = [
+        :armed,
+        :armed_fallback,
+        :under_pursuit,
+        :in_library,
+        :theatrical_info,
+        :upcoming,
+        :unscheduled
+      ]
+
+      for status <- statuses do
         assert is_binary(Present.status_label(status))
         assert Present.status_tone(status) in [:success, :info, :muted, :neutral]
       end
+    end
+
+    test "armed_fallback reads as conditional (neutral) — the earlier date carries the grab" do
+      assert Present.status_label(:armed_fallback) == "Grabs if still missing"
+      assert Present.status_tone(:armed_fallback) == :neutral
+      assert is_binary(Present.status_icon(:armed_fallback))
     end
 
     test "armed reads as auto-grabbing (success); under_pursuit as downloading (info); theatrical as muted info-only" do

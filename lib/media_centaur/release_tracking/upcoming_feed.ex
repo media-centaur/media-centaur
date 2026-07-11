@@ -37,9 +37,16 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     * `:armed` — a future release that **will** auto-grab when it drops (only
       when acquisition is ready AND the effective auto-grab mode is
       `"all_releases"`). Honest: never shown when a grab won't actually fire.
+    * `:armed_fallback` — a movie's later acquirable date (its physical
+      release after the digital one). The want ledger opens a single want per
+      film, anchored on the earliest acquirable date, so only that date's
+      release actually fires a grab; a later date matters only if the film is
+      still missing when it arrives. Shown neutral so the page never promises
+      two grabs for one film.
     * `:upcoming` — tracked and dated, but not auto-grabbing (neutral).
   """
 
+  alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
@@ -105,6 +112,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   """
   @spec build([Release.t()], map()) :: t()
   def build(releases, context) do
+    context = Map.put(context, :fallback_release_ids, fallback_release_ids(releases))
+
     events =
       releases
       |> collapse_season_drops()
@@ -242,9 +251,37 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       release.release_type == "theatrical" -> :theatrical_info
       is_nil(release.air_date) -> :unscheduled
       Map.has_key?(context.grab_status_by_key, release_key(release)) -> :under_pursuit
-      will_auto_grab?(release.item, context) -> :armed
+      will_auto_grab?(release.item, context) -> armed_status(release, context)
       true -> :upcoming
     end
+  end
+
+  defp armed_status(release, context) do
+    if MapSet.member?(context.fallback_release_ids, release.id),
+      do: :armed_fallback,
+      else: :armed
+  end
+
+  # One grab per film: the want ledger opens a single want per movie, anchored
+  # on its earliest acquirable date (`Wants.want_candidates/2`), so only that
+  # date's release actually fires the auto-grab. Every later acquirable date of
+  # the same film is a fallback — it matters only if the film is still missing.
+  # Same-day ties break on release type ("digital" sorts before "physical").
+  defp fallback_release_ids(releases) do
+    releases
+    |> Enum.filter(fn release ->
+      release.item.media_type == :movie and not is_nil(release.air_date) and
+        not release.in_library and
+        ReleaseTracking.acquirable_release_type?(release.release_type)
+    end)
+    |> Enum.group_by(&{&1.item_id, &1.part_tmdb_id || &1.item.tmdb_id})
+    |> Enum.flat_map(fn {_film, film_releases} ->
+      film_releases
+      |> Enum.sort_by(&{Date.to_iso8601(&1.air_date), &1.release_type || ""})
+      |> Enum.drop(1)
+      |> Enum.map(& &1.id)
+    end)
+    |> MapSet.new()
   end
 
   defp pursuit_id_for(%Release{} = release, context, :under_pursuit) do
