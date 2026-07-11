@@ -203,15 +203,19 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       )
     end
 
-    test "GET /upcoming mounts within budget", %{conn: conn} do
-      # Upcoming is a ReleaseTracking surface, not Library. Phase 3
-      # projections don't cover it; the LiveView reads from the
-      # ReleaseTracking context.
+    test "GET /incoming mounts within budget", %{conn: conn} do
+      # Incoming (the merged /upcoming + /download page, DDR-015) is a
+      # ReleaseTracking + Acquisition surface, not Library. Phase 3
+      # projections don't cover it; the LiveView reads both contexts.
+      # Without Prowlarr configured (this fixture) the acquisition reads
+      # are skipped and the mount is the forecast build: ReleaseTracking
+      # releases + watching items + auto-grab/settings reads, run on both
+      # the disconnected and connected renders (ADR-051).
       mount_and_assert(
         conn,
-        "/upcoming",
+        "/incoming",
         40,
-        "ReleaseTracking context reads + on_mount hooks (settings cache-miss in test mode)"
+        "ReleaseTracking forecast reads + on_mount hooks (settings cache-miss in test mode)"
       )
     end
 

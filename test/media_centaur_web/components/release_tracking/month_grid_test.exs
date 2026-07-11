@@ -1,8 +1,8 @@
-defmodule MediaCentaurWeb.Components.Upcoming.MonthGridTest do
+defmodule MediaCentaurWeb.Components.ReleaseTracking.MonthGridTest do
   @moduledoc "Pure calendar-grid math for the mini-month companion."
   use ExUnit.Case, async: true
 
-  alias MediaCentaurWeb.Components.Upcoming.MonthGrid
+  alias MediaCentaurWeb.Components.ReleaseTracking.MonthGrid
 
   describe "weeks/2" do
     test "every week has exactly seven cells" do

@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
   @moduledoc """
-  Covers the pursuit detail modal on `/download`. The detail used to be
+  Covers the pursuit detail modal on `/incoming`. The detail used to be
   a separate LiveView at `/download/:pursuit_id`; it is now opened in
   place via the `?selected=<pursuit_id>` URL param and rendered by the
   modal `MediaCentaurWeb.Components.Acquisition.PursuitModal`.
@@ -65,7 +65,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, html} = live_async!(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, html} = live_async!(conn, "/incoming?selected=#{pursuit.id}")
 
       # Modal is open
       assert has_element?(view, "#pursuit-modal[data-state='open']")
@@ -77,7 +77,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "satisfied", title: "Sample Movie", status: "acquired"})
 
-      {:ok, view, html} = live_async!(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, html} = live_async!(conn, "/incoming?selected=#{pursuit.id}")
 
       assert has_element?(view, "#pursuit-modal[data-state='open']")
       assert html =~ "Done"
@@ -85,7 +85,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
     end
 
     test "renders not-found inside the modal for an unknown id", %{conn: conn} do
-      {:ok, view, html} = live_async!(conn, "/download?selected=#{Ecto.UUID.generate()}")
+      {:ok, view, html} = live_async!(conn, "/incoming?selected=#{Ecto.UUID.generate()}")
 
       assert has_element?(view, "#pursuit-modal[data-state='open']")
       assert html =~ "Pursuit not found"
@@ -130,7 +130,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
           state: "exhausted"
         })
 
-      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, _html} = live_async!(conn, "/incoming?selected=#{pursuit.id}")
 
       # Both season headers render; the homogeneous season 1 is
       # collapsed (rows out of the DOM), the exceptional season 2 is
@@ -189,7 +189,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
           |> Repo.insert()
       end)
 
-      {:ok, view, _html} = live_async!(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/incoming")
 
       # `IncomingLive.ensure_loaded/1` defers `pursuit_rows` to an owned
       # `start_async(:acquisition_load, …)`; `live_async!` already drained it
@@ -199,20 +199,22 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       # The group renders collapsed by default — header visible, no
       # child rows yet. (The chevron is the only signal in the
       # snapshot; expanded? false means hero-chevron-right-mini.)
+      # Scoped to the pursuits zone: the merged page's shelf header
+      # also renders a hero-chevron-down-mini (the Calendar toggle),
+      # so a whole-page substring probe would false-positive.
       assert html =~ "Sample Show"
       assert html =~ "2 episodes"
-      assert html =~ "hero-chevron-right-mini"
-      refute html =~ "hero-chevron-down-mini"
+      assert has_element?(view, "section[data-nav-zone='pursuits'] span.hero-chevron-right-mini")
+      refute has_element?(view, "section[data-nav-zone='pursuits'] span.hero-chevron-down-mini")
 
       # Click the actual rendered header — this exercises whatever
       # `phx-value-*` attrs the component emits, not a hand-crafted
       # event payload.
-      expanded_html =
-        view
-        |> element("[phx-click='toggle_pursuit_group']")
-        |> render_click()
+      view
+      |> element("[phx-click='toggle_pursuit_group']")
+      |> render_click()
 
-      assert expanded_html =~ "hero-chevron-down-mini"
+      assert has_element?(view, "section[data-nav-zone='pursuits'] span.hero-chevron-down-mini")
     end
 
     test "awaiting-decision modal opens without blocking on Prowlarr (ADR-044)", %{conn: conn} do
@@ -243,7 +245,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       # Intentionally NOT live_async! — this test asserts the mount returns
       # without blocking on the (deliberately slow) Prowlarr fetch and shows
       # the loading state, so it must observe the un-drained mount.
-      {:ok, view, html} = live(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, html} = live(conn, "/incoming?selected=#{pursuit.id}")
       open_ms = System.monotonic_time(:millisecond) - start_ms
 
       # The failure mode this guards is a SYNCHRONOUS Prowlarr fetch,
@@ -265,7 +267,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
     end
 
     test "no `?selected=` param leaves the modal closed", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/incoming")
 
       assert has_element?(view, "#pursuit-modal[data-state='closed']")
     end
@@ -276,7 +278,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, _html} = live_async!(conn, "/incoming?selected=#{pursuit.id}")
       render_click(view, "cancel_pursuit", %{})
 
       # The command's PubSub broadcasts trigger handle_info DB work in
@@ -294,7 +296,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "failed"})
 
-      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, _html} = live_async!(conn, "/incoming?selected=#{pursuit.id}")
       render_click(view, "change_target", %{})
 
       # Settle the broadcast-triggered handle_info work (see above).
@@ -307,7 +309,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, _html} = live_async!(conn, "/incoming?selected=#{pursuit.id}")
       render_click(view, "request_decision", %{})
 
       # The click flips the unit to awaiting, which spawns the owned
@@ -343,7 +345,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
           position: 1
         })
 
-      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, _html} = live_async!(conn, "/incoming?selected=#{pursuit.id}")
 
       first_unit = pursuit.id |> Units.for_pursuit() |> hd()
       assert has_element?(view, "#unit-board-row-#{first_unit.id}")
@@ -374,7 +376,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, _html} = live_async!(conn, "/incoming?selected=#{pursuit.id}")
 
       unit = Units.single!(pursuit.id)
       refute has_element?(view, "#unit-board-row-#{unit.id}")
@@ -386,7 +388,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, _html} = live_async!(conn, "/download")
+      {:ok, view, _html} = live_async!(conn, "/incoming")
       assert has_element?(view, "#pursuit-modal[data-state='closed']")
 
       render_click(view, "select_pursuit", %{"id" => pursuit.id})
@@ -400,13 +402,13 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, _html} = live_async!(conn, "/download?selected=#{pursuit.id}")
+      {:ok, view, _html} = live_async!(conn, "/incoming?selected=#{pursuit.id}")
       assert has_element?(view, "#pursuit-modal[data-state='open']")
 
       render_click(view, "close_pursuit", %{})
 
       assert has_element?(view, "#pursuit-modal[data-state='closed']")
-      # URL was patched back to /download (with the default filter still
+      # URL was patched back to /incoming (with the default filter still
       # serialised — see build_pursuit_modal_path).
       patched = assert_patch(view)
       refute patched =~ "selected="
@@ -417,7 +419,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, _html} = live_async!(conn, "/download?filter=all&search=Sample")
+      {:ok, view, _html} = live_async!(conn, "/incoming?filter=all&search=Sample")
 
       render_click(view, "select_pursuit", %{"id" => pursuit.id})
       patched = assert_patch(view)

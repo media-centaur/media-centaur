@@ -44,8 +44,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         {"/review", "review"},
         {"/reconcile", "reconcile"},
         {"/console", "console"},
-        {"/history", "watch history"},
-        {"/upcoming", "upcoming"}
+        {"/history", "watch history"}
       ] do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
       assert {:ok, _view, html} = live_async!(conn, unquote(path))
@@ -319,11 +318,21 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
   end
 
-  describe "/?zone=upcoming with tracked-item fixtures" do
-    # Fixture covers every shape the Active card path renders so a
-    # render-time crash in any branch trips the smoke. Not data-correctness
-    # — just "no clause / boolean / nil errors on the way to the screen".
+  describe "/incoming forecast-only (Prowlarr NOT configured) with tracked-item fixtures" do
+    # The honest-degradation acceptance criterion (DDR-015): without
+    # Prowlarr the merged page must MOUNT and render the forecast —
+    # hero omnibox reframed to tracking plus the shelf — with no
+    # acquisition sections. The fixture covers the release shapes the
+    # forecast renders (TV episodes, streaming / theatrical / home-release
+    # movies) so a render-time crash in any branch trips the smoke. Not
+    # data-correctness — just "no clause / boolean / nil errors on the
+    # way to the screen". Also pins the legacy `/?zone=upcoming` home
+    # redirect onto the merged page.
     setup do
+      # Belt-and-braces: guarantee the capability probe reads "not ready"
+      # even if an earlier test leaked a green Prowlarr connection test.
+      MediaCentaur.Capabilities.clear_test_result(:prowlarr)
+
       tv_item =
         create_tracking_item(%{
           tmdb_id: 9_001,
@@ -426,17 +435,25 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       :ok
     end
 
-    test "upcoming zone renders without crashing", %{conn: conn} do
-      # /?zone=upcoming redirects to /upcoming (HomeLive handles zone params).
-      assert {:error, {:live_redirect, %{to: "/upcoming"}}} =
+    test "forecast-only /incoming renders without crashing", %{conn: conn} do
+      # /?zone=upcoming redirects to /incoming (HomeLive handles zone params).
+      assert {:error, {:live_redirect, %{to: "/incoming"}}} =
                live_async!(conn, "/?zone=upcoming")
 
-      assert {:ok, _view, html} = live_async!(conn, "/upcoming")
+      assert {:ok, view, html} = live_async!(conn, "/incoming")
       assert is_binary(html)
+
+      # Honest degradation: the hero omnibox reframes to tracking, the
+      # shelf renders the seeded forecast, and no acquisition section
+      # (in-flight pursuits, ledger) is on the page.
+      assert html =~ "What would you like to track?"
+      assert has_element?(view, ~s([data-nav-zone="coming_up"]), "Smoke TV Show")
+      refute html =~ ~s(data-nav-zone="pursuits")
+      refute html =~ ~s(data-nav-zone="ledger")
     end
   end
 
-  describe "/download" do
+  describe "/incoming (Prowlarr configured and tested)" do
     setup do
       original = :persistent_term.get({Config, :config}, %{})
 
@@ -449,6 +466,25 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       )
 
       MediaCentaur.Capabilities.save_test_result(:prowlarr, :ok)
+
+      # Seed a tracked upcoming release so the shelf renders an actual
+      # card (poster tile, date badge, status pill) rather than only the
+      # horizon terminus.
+      shelf_item =
+        create_tracking_item(%{
+          tmdb_id: 9_101,
+          media_type: :tv_series,
+          name: "Smoke Shelf Show"
+        })
+
+      create_tracking_release(%{
+        item_id: shelf_item.id,
+        air_date: Date.add(Date.utc_today(), 4),
+        season_number: 1,
+        episode_number: 1,
+        title: "Smoke Shelf Episode",
+        released: false
+      })
 
       # Seed an active pursuit + linked target so the unified pursuits-with-
       # downloads zone exercises its non-trivial branches (card rendering,
@@ -465,10 +501,11 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           status: "acquired"
         })
 
-      # Seed a second pursuit in :exhausted state so the new History zone
-      # exercises its rendered-row branch (default filter is :failed). An
-      # empty-state-only smoke would miss a render-path crash on the
-      # terminal-pursuit row template.
+      # Seed a second pursuit in :exhausted state so the terminal-pursuit
+      # surfaces exercise their rendered-row branches — the open ledger
+      # ("Recently landed") and the History zone (default filter is
+      # :failed). An empty-state-only smoke would miss a render-path
+      # crash on the terminal-pursuit row templates.
       {exhausted_pursuit, _target} =
         MediaCentaur.TestFactory.create_pursuit_with_target(%{
           tmdb_id: "smoke-history",
@@ -514,17 +551,26 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     end
 
     test "renders without crashing (Prowlarr configured and tested)", %{conn: conn} do
-      assert {:ok, view, html} = live_async!(conn, "/download")
+      assert {:ok, view, html} = live_async!(conn, "/incoming")
       assert is_binary(html)
 
-      # `IncomingLive.ensure_loaded/1` defers the pursuit-row + history
-      # reads to an owned `start_async(:acquisition_load, …)`; `live_async!`
-      # drained it at mount, so `render/1` reflects the loaded state.
+      # `IncomingLive.ensure_loaded/1` runs the pursuit-row + ledger +
+      # history reads on the first render; `live_async!` drained any owned
+      # async work at mount, so `render/1` reflects the loaded state.
       html = render(view)
+
+      # The seeded tracked release must render its shelf card — the
+      # big-art forecast branch, not just the horizon terminus.
+      assert has_element?(view, ~s([data-nav-zone="coming_up"]), "Smoke Shelf Show")
 
       # The seeded active pursuit must render its card, exercising the
       # PursuitRow component's no-match hint path (no queue item matches).
       assert html =~ "Sample Movie"
+
+      # The exhausted pursuits render openly in the ledger ("Recently
+      # landed") — the terminal rows the merged page keeps in view.
+      assert has_element?(view, "section[data-nav-zone='ledger']", "Sample Show")
+
       # History is collapsed by default — only the disclosure toggle
       # renders; the rows stay out of the DOM until toggled open. Scoped
       # to the history zone: a whole-page `=~` also sweeps the Console
@@ -536,14 +582,19 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
       # Expanded, the zone (default filter :failed) renders the exhausted
       # pursuit row. With two same-title same-state pursuits seeded, the
-      # group-render path fires (header reads "2 episodes").
-      view |> element("[phx-click='toggle_history']") |> render_click()
+      # group-render path fires (header reads "2 episodes"). Scoped to the
+      # history zone — the ledger's "View all history" button fires the
+      # same toggle_history event.
+      view
+      |> element("section[data-nav-zone='history'] [phx-click='toggle_history']")
+      |> render_click()
+
       assert has_element?(view, "section[data-nav-zone='history']", "Sample Show")
       assert has_element?(view, "section[data-nav-zone='history']", "2 episodes")
     end
   end
 
-  describe "/download?selected=:pursuit_id (pursuit detail modal)" do
+  describe "/incoming?selected=:pursuit_id (pursuit detail modal)" do
     setup do
       original = :persistent_term.get({Config, :config}, %{})
 
@@ -579,7 +630,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       conn: conn,
       pursuit_id: pursuit_id
     } do
-      assert {:ok, _view, html} = live_async!(conn, "/download?selected=#{pursuit_id}")
+      assert {:ok, _view, html} = live_async!(conn, "/incoming?selected=#{pursuit_id}")
       assert is_binary(html)
       assert html =~ "Sample Movie"
       assert html =~ ~s|data-state="open"|
@@ -587,7 +638,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
     test "renders not-found inside the modal for an unknown pursuit_id", %{conn: conn} do
       assert {:ok, _view, html} =
-               live_async!(conn, "/download?selected=#{Ecto.UUID.generate()}")
+               live_async!(conn, "/incoming?selected=#{Ecto.UUID.generate()}")
 
       assert html =~ "Pursuit not found"
     end
