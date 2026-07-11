@@ -28,8 +28,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   alias MediaCentaurWeb.Components.Acquisition.CellVocabulary
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
-  alias MediaCentaurWeb.AcquisitionLive.MoviePreview
-  alias MediaCentaurWeb.AcquisitionLive.PlanLogic
+  alias MediaCentaurWeb.IncomingLive.MoviePreview
+  alias MediaCentaurWeb.IncomingLive.PlanLogic
   alias MediaCentaurWeb.Components.Detail.CinematicBackdrop
   alias MediaCentaurWeb.Components.Detail.FacetStrip
   alias MediaCentaurWeb.Components.Detail.MetadataRow
@@ -56,7 +56,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :movie, :any,
     default: nil,
     doc:
-      "%MediaCentaurWeb.AcquisitionLive.MoviePreview{} | nil — the movie fast path's detail-shaped preview (built by PlanLogic.movie_preview/2)."
+      "%MediaCentaurWeb.IncomingLive.MoviePreview{} | nil — the movie fast path's detail-shaped preview (built by PlanLogic.movie_preview/2)."
 
   attr :board, :any,
     default: nil,

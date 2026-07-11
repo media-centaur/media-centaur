@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.Router do
       ] do
       live "/", HomeLive, :index
       live "/console", ConsolePageLive, :index
-      live "/download", AcquisitionLive, :index
+      live "/download", IncomingLive, :index
       live "/guide", GuideLive, :index
       live "/guide/:slug", GuideLive, :show
       live "/history", WatchHistoryLive, :index

@@ -517,7 +517,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       assert {:ok, view, html} = live_async!(conn, "/download")
       assert is_binary(html)
 
-      # `AcquisitionLive.ensure_loaded/1` defers the pursuit-row + history
+      # `IncomingLive.ensure_loaded/1` defers the pursuit-row + history
       # reads to an owned `start_async(:acquisition_load, …)`; `live_async!`
       # drained it at mount, so `render/1` reflects the loaded state.
       html = render(view)

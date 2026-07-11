@@ -22,8 +22,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
-  alias MediaCentaurWeb.AcquisitionLive.SearchSession
-  alias MediaCentaurWeb.AcquisitionLive.Logic
+  alias MediaCentaurWeb.IncomingLive.SearchSession
+  alias MediaCentaurWeb.IncomingLive.Logic
 
   defmodule Result do
     @moduledoc "One TMDB result row of the media-mode dropdown."

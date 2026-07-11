@@ -1,9 +1,9 @@
-defmodule MediaCentaurWeb.AcquisitionLive.LogicTest do
+defmodule MediaCentaurWeb.IncomingLive.LogicTest do
   use ExUnit.Case, async: true
 
   alias MediaCentaur.Search.SearchResult
   alias MediaCentaur.Downloads.QueueItem
-  alias MediaCentaurWeb.AcquisitionLive.Logic
+  alias MediaCentaurWeb.IncomingLive.Logic
 
   describe "connectivity_notice/1" do
     test "is quiet (nil) when the client is healthy or still connecting" do

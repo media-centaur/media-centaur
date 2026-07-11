@@ -12,13 +12,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.ConnectivityBadge do
   graded outage or auth failure.
 
   The healthy/degraded decision and the copy live in the pure
-  `MediaCentaurWeb.AcquisitionLive.Logic.connectivity_notice/1`; this
+  `MediaCentaurWeb.IncomingLive.Logic.connectivity_notice/1`; this
   component is a thin renderer of its output.
   """
 
   use Phoenix.Component
 
-  alias MediaCentaurWeb.AcquisitionLive.Logic
+  alias MediaCentaurWeb.IncomingLive.Logic
 
   attr :connectivity, :any,
     required: true,

@@ -34,7 +34,7 @@ defmodule MediaCentaur.Search do
       caller goes through this layer.
 
   In-flight search *UX* state is deliberately not here — it lives in
-  `MediaCentaurWeb.AcquisitionLive.SearchSession` (web-layer UI
+  `MediaCentaurWeb.IncomingLive.SearchSession` (web-layer UI
   infrastructure). This boundary stays pure operations.
 
   ## Where to start

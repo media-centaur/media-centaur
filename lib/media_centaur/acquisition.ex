@@ -178,7 +178,7 @@ defmodule MediaCentaur.Acquisition do
   notion of the queue. Subscribers that mirror queue state to UI must
   reconcile against in-flight optimistic mutations (see the
   "External-state reconciliation" section in
-  `MediaCentaurWeb.AcquisitionLive`'s moduledoc).
+  `MediaCentaurWeb.IncomingLive`'s moduledoc).
   """
   @type queue_message ::
           {:queue_state, MediaCentaur.Downloads.QueueState.t()}

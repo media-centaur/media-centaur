@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.AcquisitionLive.History do
+defmodule MediaCentaurWeb.IncomingLive.History do
   @moduledoc """
   History zone of the unified Downloads page — per-pursuit list of
   terminal pursuits (failed / cancelled / succeeded), filtered by
@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
   Pure function component. Sits at the bottom of the page as a
   collapsed-by-default disclosure at every width — History is
   terminal-state bookkeeping, so the page leads with active pursuits.
-  State (filter, search, entries) lives on the parent `AcquisitionLive`
+  State (filter, search, entries) lives on the parent `IncomingLive`
   socket. Entries are the `Logic.group_pursuit_rows/2` mixed list of
   `{:single, vm}` and `{:group, data}` tagged tuples — the rendering
   helper on the parent pattern-matches and dispatches to `PursuitRow`
@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.History do
 
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
-  alias MediaCentaurWeb.AcquisitionLive.HistoryLogic
+  alias MediaCentaurWeb.IncomingLive.HistoryLogic
 
   attr :empty?, :boolean, required: true
   attr :filter, :atom, required: true

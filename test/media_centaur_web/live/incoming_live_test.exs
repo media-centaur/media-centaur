@@ -1,11 +1,11 @@
-defmodule MediaCentaurWeb.AcquisitionLiveTest do
+defmodule MediaCentaurWeb.IncomingLiveTest do
   use MediaCentaurWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Plans
-  alias MediaCentaurWeb.AcquisitionLive.SearchSession
+  alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaur.Acquisition.Pursuits.Units
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent
   alias MediaCentaur.TmdbStubs
@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.AcquisitionLiveTest do
   alias MediaCentaur.Capabilities
   alias MediaCentaur.Secret
 
-  # `AcquisitionLive.ensure_loaded/1` defers the initial reads (search
+  # `IncomingLive.ensure_loaded/1` defers the initial reads (search
   # session, capability flag, active pursuit rows, history rows) to an
   # owned `start_async(:acquisition_load, …)` (ADR-049). `render_async/1`
   # awaits it deterministically — no wall-clock sleep.

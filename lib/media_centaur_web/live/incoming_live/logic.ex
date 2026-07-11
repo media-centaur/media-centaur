@@ -1,6 +1,6 @@
-defmodule MediaCentaurWeb.AcquisitionLive.Logic do
+defmodule MediaCentaurWeb.IncomingLive.Logic do
   @moduledoc """
-  Pure helpers for `MediaCentaurWeb.AcquisitionLive`.
+  Pure helpers for `MediaCentaurWeb.IncomingLive`.
 
   The LiveView is thin wiring — mount, event dispatch, render. View-only
   helpers (group loading predicates, error formatting, result lookup, grab
@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.Logic do
   without rendering or mounting a socket.
 
   Search session mutators (build/toggle/record/select) moved to
-  `MediaCentaurWeb.AcquisitionLive.SearchSession` — the LiveView calls those
+  `MediaCentaurWeb.IncomingLive.SearchSession` — the LiveView calls those
   through the `MediaCentaur.Acquisition` facade.
 
   Per ADR-030 (LiveView logic extraction).
