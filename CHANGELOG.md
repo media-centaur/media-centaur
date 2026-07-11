@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.103.1 — 2026-07-11
+
+### Fixed
+
+- **Movies with two release dates no longer promise two downloads.** A movie tracked with both a digital and a physical date showed "Auto-grabbing" on each date. Media Centaur grabs a film once, at its earliest available date — the later date now reads "Grabs if still missing" and only comes into play if the earlier grab found nothing by the time it arrives.
+
 ## v0.103.0 — 2026-07-11
 
 ### New
