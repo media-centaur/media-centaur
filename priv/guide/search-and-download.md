@@ -5,18 +5,20 @@ slug: search-and-download
 order: 14
 ---
 Acquisition is optional. With an indexer manager (Prowlarr) and a download client configured,
-Media Centaur can search for releases and grab them; until then the Downloads page stays
-hidden. Prowlarr searches across your indexers; the download client downloads (qBittorrent has
-the fullest support). Everything happens on the Downloads page (`/download`).
+Media Centaur can search for releases and grab them; until then the Incoming page shows only
+its [tracking side](/guide/release-tracking-and-upcoming). Prowlarr searches across your
+indexers; the download client downloads (qBittorrent has the fullest support). Everything
+happens on the Incoming page (`/incoming`).
 
 ## The page
 
 | Zone | What's there |
 |---|---|
-| Search box | Media mode (search TMDB for a title) or release mode (type release names, with `Show S0{1,2}` brace expansion) |
+| Search | Media mode (search TMDB for a title) or release mode (type release names, with `Show S0{1,2}` brace expansion) |
+| Coming up | Tracked releases as a shelf — see [release tracking](/guide/release-tracking-and-upcoming) |
 | Draft plans | Proposed plans awaiting your approval; durable across reloads |
-| Active pursuits | Live downloads, with progress |
-| History | Finished, failed, and cancelled pursuits |
+| In flight | Live downloads, with progress |
+| Recently landed | The newest outcomes; **View all** expands it into the full archive with failed/cancelled/succeeded filters and a title search |
 | Other downloads | Client torrents that match no tracked pursuit (orphans) |
 
 ## The flow

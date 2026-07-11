@@ -16,7 +16,7 @@ edge crosses into the next. Focus position is remembered per zone.
 | Arrows | Move focus up / down / left / right |
 | Enter | Select or activate the focused item |
 | Escape | Go back — close an overlay, leave the sidebar |
-| `[` / `]` | Cycle between zones (Watching, Library, Upcoming, Settings…) |
+| `[` / `]` | Cycle between zones (Watching, Library, Incoming, Settings…) |
 | `` ` `` (backtick) | Toggle the Console drawer from anywhere |
 
 ## Gamepad

@@ -66,19 +66,6 @@ defmodule MediaCentaurWeb.Layouts do
 
   attr :full_width, :boolean, default: false, doc: "when true, removes max-w-7xl constraint"
 
-  attr :acquisition_ready, :boolean,
-    default: false,
-    doc: """
-    Whether the Acquisition surface (Downloads nav, /download page) should
-    be visible. Seeded by `MediaCentaurWeb.Live.CapabilitiesAware`, which
-    runs as the default `live_session` on_mount, so every LV in the app
-    automatically threads this through `:acquisition_ready` in assigns.
-    Reading from assigns (rather than `Capabilities.acquisition_ready?/0`
-    inside the component) keeps LiveView's change tracking accurate —
-    the nav re-renders the moment the cache flips, no extra user
-    interaction required.
-    """
-
   slot :inner_block, required: true
 
   slot :overlays,

@@ -141,7 +141,6 @@ defmodule MediaCentaurWeb.ReconcileLive do
     <Layouts.app
       flash={@flash}
       current_path="/reconcile"
-      acquisition_ready={assigns[:acquisition_ready] || false}
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
       review_pending={assigns[:review_pending] || 0}
       mapping_pending={assigns[:mapping_pending] || 0}
