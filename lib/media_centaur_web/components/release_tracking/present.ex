@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Components.Upcoming.Present do
+defmodule MediaCentaurWeb.Components.ReleaseTracking.Present do
   @moduledoc """
   Pure presentation helpers for the Upcoming rail — status labels/tones/icons,
   the "what drops" descriptor, relative-day copy, and bucket labels.

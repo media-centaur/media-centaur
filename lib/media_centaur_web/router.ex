@@ -32,23 +32,25 @@ defmodule MediaCentaurWeb.Router do
       ] do
       live "/", HomeLive, :index
       live "/console", ConsolePageLive, :index
-      live "/download", IncomingLive, :index
       live "/guide", GuideLive, :index
       live "/guide/:slug", GuideLive, :show
       live "/history", WatchHistoryLive, :index
+      live "/incoming", IncomingLive, :index
       live "/library", LibraryLive, :index
       live "/reconcile", ReconcileLive, :index
       live "/review", ReviewLive, :index
       live "/settings", SettingsLive, :index
       live "/setup", SetupLive, :index
       live "/status", StatusLive, :index
-      live "/upcoming", UpcomingLive, :index
     end
 
-    # Backward-compat redirect — bookmarks to the old auto-grabs page land
-    # on the unified Downloads page where activity now lives. Kept for at
-    # least one release after v0.24.0; safe to drop later.
-    get "/download/auto-grabs", AcquisitionRedirectController, :auto_grabs
+    # Backward-compat redirects — the Upcoming and Downloads pages merged
+    # into /incoming (DDR-015); bookmarks and stale deep-links land there
+    # with their query strings intact (`?selected=<pursuit>` keeps opening
+    # the modal). The auto-grabs redirect predates the merge (v0.24.0).
+    get "/download", LegacyRedirectController, :download
+    get "/download/auto-grabs", LegacyRedirectController, :auto_grabs
+    get "/upcoming", LegacyRedirectController, :upcoming
   end
 
   # Phoenix Storybook — dev component catalog (also mounted in :test so

@@ -129,27 +129,19 @@ defmodule MediaCentaurWeb.Layouts do
             <.icon name="hero-book-open" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Library</span>
           </.link>
+          <%!-- One entry for the whole collection-growth story (DDR-015) —
+                unconditional: without acquisition the page degrades to an
+                honest forecast instead of disappearing. --%>
           <.link
-            navigate="/upcoming"
-            class={sidebar_link_class(@current_path, "/upcoming")}
-            data-tip="Upcoming"
-            data-nav-item
-            tabindex="0"
-          >
-            <.icon name="hero-calendar" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Upcoming</span>
-          </.link>
-          <.link
-            :if={@acquisition_ready}
-            navigate="/download"
-            class={sidebar_link_class(@current_path, "/download")}
-            data-tip="Downloads"
+            navigate="/incoming"
+            class={sidebar_link_class(@current_path, "/incoming")}
+            data-tip="Incoming"
             data-nav-item
             data-nav-remember
             tabindex="0"
           >
-            <.icon name="hero-arrow-down-tray" class="size-5 flex-shrink-0" />
-            <span class="sidebar-label">Downloads</span>
+            <.icon name="hero-inbox-arrow-down" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Incoming</span>
           </.link>
         </nav>
 

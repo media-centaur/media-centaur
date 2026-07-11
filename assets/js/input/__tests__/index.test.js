@@ -106,33 +106,77 @@ describe("App config", () => {
   })
 })
 
-describe("Upcoming page nav (real config)", () => {
-  const populated = { rail: 5, stragglers: 2, "mini-month": 2, actions: 1, sidebar: 4 }
+describe("Incoming page nav (real config)", () => {
+  // The everyday shape: shelf + pursuits + ledger populated, calendar
+  // closed (mini-month absent), no release-search results, no drafts.
+  const populated = {
+    omnibox: 1,
+    actions: 1,
+    coming_up: 6,
+    pursuits: 3,
+    ledger: 5,
+    history: 1,
+    sidebar: 4,
+  }
 
-  test("rail navigates down to stragglers, right to mini-month, left to sidebar, up to actions", () => {
-    const graph = buildNavGraph("upcoming", populated, inputConfig)
-    expect(graph.rail.down).toBe("stragglers")
-    expect(graph.rail.right).toBe("mini-month")
-    expect(graph.rail.left).toBe("sidebar")
-    expect(graph.rail.up).toBe("actions")
+  test("the shelf sits between the omnibox and the operational column", () => {
+    const graph = buildNavGraph("incoming", populated, inputConfig)
+    expect(graph.coming_up.up).toBe("omnibox")
+    expect(graph.coming_up.down).toBe("pursuits")
+    expect(graph.pursuits.down).toBe("ledger")
+    expect(graph.ledger.down).toBe("history")
   })
 
-  test("sidebar enters the rail first when populated", () => {
-    const graph = buildNavGraph("upcoming", populated, inputConfig)
-    expect(graph.sidebar.right).toBe("rail")
-    expect(resolveCursorStart("upcoming", populated, inputConfig)).toBe("rail")
+  test("sidebar enters the shelf first; cursor starts there too", () => {
+    const graph = buildNavGraph("incoming", populated, inputConfig)
+    expect(graph.sidebar.right).toBe("coming_up")
+    expect(resolveCursorStart("incoming", populated, inputConfig)).toBe("coming_up")
   })
 
-  test("an empty rail falls back to stragglers for both sidebar entry and cursor start", () => {
-    const counts = { rail: 0, stragglers: 2, "mini-month": 2, actions: 0, sidebar: 4 }
-    const graph = buildNavGraph("upcoming", counts, inputConfig)
-    expect(graph.sidebar.right).toBe("stragglers")
-    expect(resolveCursorStart("upcoming", counts, inputConfig)).toBe("stragglers")
+  test("an open calendar slots between the shelf and the drafts/pursuits column", () => {
+    const counts = { ...populated, "mini-month": 2 }
+    const graph = buildNavGraph("incoming", counts, inputConfig)
+    expect(graph.coming_up.down).toBe("mini-month")
+    expect(graph["mini-month"].up).toBe("coming_up")
+    expect(graph["mini-month"].down).toBe("pursuits")
   })
 
-  test("every upcoming context reaches the sidebar via left", () => {
-    const graph = buildNavGraph("upcoming", populated, inputConfig)
-    for (const context of ["rail", "stragglers", "mini-month", "actions"]) {
+  test("forecast-only (no acquisition): shelf falls through to history-less bottom", () => {
+    const counts = { omnibox: 1, actions: 1, coming_up: 6, sidebar: 4 }
+    const graph = buildNavGraph("incoming", counts, inputConfig)
+    expect(graph.coming_up.up).toBe("omnibox")
+    expect(graph.coming_up.down).toBeUndefined()
+    expect(resolveCursorStart("incoming", counts, inputConfig)).toBe("coming_up")
+  })
+
+  test("an empty shelf falls back to pursuits for sidebar entry and cursor start", () => {
+    const counts = { ...populated, coming_up: 0 }
+    const graph = buildNavGraph("incoming", counts, inputConfig)
+    expect(graph.sidebar.right).toBe("pursuits")
+    expect(resolveCursorStart("incoming", counts, inputConfig)).toBe("pursuits")
+  })
+
+  test("release-search results take the omnibox's down edge when present", () => {
+    const counts = { ...populated, grid: 8, coming_up: 0 }
+    const graph = buildNavGraph("incoming", counts, inputConfig)
+    expect(graph.omnibox.down).toBe("grid")
+    expect(graph.grid.up).toBe("omnibox")
+  })
+
+  test("every incoming context reaches the sidebar via left", () => {
+    const counts = { ...populated, "mini-month": 2, grid: 2, drafts: 1, other_downloads: 1 }
+    const graph = buildNavGraph("incoming", counts, inputConfig)
+    for (const context of [
+      "omnibox",
+      "coming_up",
+      "mini-month",
+      "grid",
+      "drafts",
+      "pursuits",
+      "ledger",
+      "history",
+      "other_downloads",
+    ]) {
       expect(graph[context].left).toBeDefined()
     }
   })

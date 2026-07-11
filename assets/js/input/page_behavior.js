@@ -20,9 +20,8 @@ import { createLibraryBehavior, libraryDom } from "./library_behavior"
 import { createReviewBehavior } from "./review_behavior"
 import { createReconcileBehavior } from "./reconcile_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
-import { createDownloadBehavior, downloadDom } from "./download_behavior"
+import { createIncomingBehavior, incomingDom } from "./incoming_behavior"
 import { createWatchHistoryBehavior } from "./watch_history_behavior"
-import { createUpcomingBehavior } from "./upcoming_behavior"
 import { createHomeBehavior, homeDom } from "./home_behavior"
 import { createSetupBehavior } from "./setup_behavior"
 import { createGuideBehavior } from "./guide_behavior"
@@ -39,9 +38,8 @@ const BEHAVIOR_REGISTRY = {
   review: () => createReviewBehavior(),
   reconcile: () => createReconcileBehavior(),
   settings: () => createSettingsBehavior(),
-  download: () => createDownloadBehavior(downloadDom),
+  incoming: () => createIncomingBehavior(incomingDom),
   "watch-history": () => withWipNotice(createWatchHistoryBehavior()),
-  upcoming: () => createUpcomingBehavior(),
   setup: () => createSetupBehavior(),
   guide: () => createGuideBehavior(),
 }

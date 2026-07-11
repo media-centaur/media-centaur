@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Components.Upcoming.Detail do
+defmodule MediaCentaurWeb.Components.ReleaseTracking.Detail do
   @moduledoc """
   View-model for the per-title detail slide-over: the title, its automation
   posture, its release timeline, and recent per-title activity. Built by the

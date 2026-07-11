@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Components.Upcoming.MiniMonth do
+defmodule MediaCentaurWeb.Components.ReleaseTracking.MiniMonth do
   @moduledoc """
   The quiet, persistent mini-month companion to the rail.
 
@@ -13,8 +13,8 @@ defmodule MediaCentaurWeb.Components.Upcoming.MiniMonth do
 
   import MediaCentaurWeb.CoreComponents
 
-  alias MediaCentaurWeb.Components.Upcoming.MonthGrid
-  alias MediaCentaurWeb.Components.Upcoming.Present
+  alias MediaCentaurWeb.Components.ReleaseTracking.MonthGrid
+  alias MediaCentaurWeb.Components.ReleaseTracking.Present
 
   @weekday_initials ~w(M T W T F S S)
 

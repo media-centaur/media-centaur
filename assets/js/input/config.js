@@ -18,12 +18,10 @@ export const inputConfig = {
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
-    // Upcoming page: track action, the editorial rail, the stragglers list,
-    // and the mini-month companion (month paging only — day cells are a
-    // mouse-only jump affordance).
+    // Incoming page header affordance (Calendar toggle) and the calendar
+    // disclosure itself (month paging only — day cells are a mouse-only
+    // jump affordance).
     actions: "[data-nav-zone='actions'] [data-nav-item]",
-    rail: "[data-nav-zone='rail'] [data-nav-item]",
-    stragglers: "[data-nav-zone='stragglers'] [data-nav-item]",
     "mini-month": "[data-nav-zone='mini-month'] [data-nav-item]",
     [Context.ZONE_TABS]: "[data-nav-zone='zone-tabs'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
@@ -35,10 +33,12 @@ export const inputConfig = {
     continue: "[data-nav-zone='continue'] [data-nav-item]",
     recently: "[data-nav-zone='recently'] [data-nav-item]",
     coming_up: "[data-nav-zone='coming_up'] [data-nav-item]",
-    // Download page (single column: omnibox → drafts → pursuits → history)
+    // Incoming page (single column: omnibox → shelf → drafts → pursuits →
+    // ledger → history). `coming_up` is shared with the home shelf above.
     omnibox: "[data-nav-zone='omnibox'] [data-nav-item]",
     drafts: "[data-nav-zone='drafts'] [data-nav-item]",
     pursuits: "[data-nav-zone='pursuits'] [data-nav-item]",
+    ledger: "[data-nav-zone='ledger'] [data-nav-item]",
     history: "[data-nav-zone='history'] [data-nav-item]",
     other_downloads: "[data-nav-zone='other_downloads'] [data-nav-item]",
     // Guide: chapter sidebar + on-this-page outline (both vertical link lists).
@@ -51,8 +51,6 @@ export const inputConfig = {
     sidebar: Context.MENU,
     sections: Context.MENU,
     actions: Context.MENU,
-    rail: Context.MENU,
-    stragglers: Context.MENU,
     "mini-month": Context.TOOLBAR,
     "review-list": Context.MENU,
     "review-detail": Context.MENU,
@@ -62,10 +60,12 @@ export const inputConfig = {
     continue: Context.SHELF,
     recently: Context.SHELF,
     coming_up: Context.SHELF,
-    // Download zones are vertical item lists.
+    // Incoming zones are vertical item lists (the shelf reuses the home
+    // pages' `coming_up` SHELF instance above).
     omnibox: Context.MENU,
     drafts: Context.MENU,
     pursuits: Context.MENU,
+    ledger: Context.MENU,
     history: Context.MENU,
     other_downloads: Context.MENU,
     guide_chapters: Context.MENU,
@@ -85,17 +85,6 @@ export const inputConfig = {
       grid:      { up: ["toolbar"],            left: ["sidebar"], right: ["drawer"] },
       sidebar:   { right: ["grid", "toolbar"] },
       drawer:    { left: ["grid", "toolbar"] },
-    },
-    // Upcoming: a track action over the editorial rail, the stragglers list
-    // below it, and the mini-month companion to the right. Conditional zones
-    // (actions when TMDB-ready, stragglers when non-empty) are skipped via
-    // candidate lists. left always reaches the sidebar.
-    upcoming: {
-      actions:      { down: ["rail", "stragglers"], left: ["sidebar"] },
-      rail:         { up: ["actions"], down: ["stragglers"], right: ["mini-month"], left: ["sidebar"] },
-      stragglers:   { up: ["rail", "actions"], right: ["mini-month"], left: ["sidebar"] },
-      "mini-month": { up: ["actions"], down: ["stragglers"], left: ["rail", "stragglers", "sidebar"] },
-      sidebar:      { right: ["rail", "stragglers", "mini-month", "actions"] },
     },
     settings: {
       sections:  { right: ["grid"],            left: ["sidebar"] },
@@ -125,20 +114,26 @@ export const inputConfig = {
       "review-detail": { left: ["review-list"] },
       sidebar:         { right: ["review-list", "review-detail"] },
     },
-    // Download: single column, top to bottom — omnibox → release-search
-    // results ("grid") → drafts → pursuits → history → other_downloads.
-    // Conditional zones (grid, drafts, other_downloads) are skipped via
-    // candidate lists, same convention as home. History collapsed still
-    // carries its disclosure toggle as a nav item, so the zone is always
-    // reachable.
-    download: {
-      omnibox:         { down: ["grid", "drafts", "pursuits", "history"], left: ["sidebar"] },
-      grid:            { up: ["omnibox"], down: ["drafts", "pursuits", "history"], left: ["sidebar"] },
-      drafts:          { up: ["grid", "omnibox"], down: ["pursuits", "history"], left: ["sidebar"] },
-      pursuits:        { up: ["drafts", "grid", "omnibox"], down: ["history", "other_downloads"], left: ["sidebar"] },
-      history:         { up: ["pursuits", "drafts", "grid", "omnibox"], down: ["other_downloads"], left: ["sidebar"] },
-      other_downloads: { up: ["history", "pursuits"], left: ["sidebar"] },
-      sidebar:         { right: ["pursuits", "omnibox", "history"] },
+    // Incoming: single column, top to bottom — omnibox (+ the header
+    // `actions` Calendar toggle) → release-search results ("grid") → the
+    // coming_up shelf (+ its `mini-month` calendar disclosure) → drafts →
+    // pursuits → ledger → history → other_downloads. Conditional zones
+    // (grid, coming_up while a release search owns the page, mini-month,
+    // drafts, ledger, other_downloads) are skipped via candidate lists,
+    // same convention as home. History collapsed still carries its
+    // disclosure toggle as a nav item, so the zone is always reachable.
+    incoming: {
+      omnibox:         { down: ["grid", "coming_up", "drafts", "pursuits", "ledger", "history"], right: ["actions"], left: ["sidebar"] },
+      actions:         { down: ["coming_up", "drafts", "pursuits"], left: ["omnibox", "sidebar"] },
+      grid:            { up: ["omnibox"], down: ["drafts", "pursuits", "ledger", "history"], left: ["sidebar"] },
+      coming_up:       { up: ["omnibox"], down: ["mini-month", "drafts", "pursuits", "ledger", "history"], left: ["sidebar"] },
+      "mini-month":    { up: ["coming_up"], down: ["drafts", "pursuits", "ledger", "history"], left: ["sidebar"] },
+      drafts:          { up: ["mini-month", "coming_up", "grid", "omnibox"], down: ["pursuits", "ledger", "history"], left: ["sidebar"] },
+      pursuits:        { up: ["drafts", "mini-month", "coming_up", "grid", "omnibox"], down: ["ledger", "history", "other_downloads"], left: ["sidebar"] },
+      ledger:          { up: ["pursuits", "drafts", "coming_up", "omnibox"], down: ["history", "other_downloads"], left: ["sidebar"] },
+      history:         { up: ["ledger", "pursuits", "drafts", "coming_up", "omnibox"], down: ["other_downloads"], left: ["sidebar"] },
+      other_downloads: { up: ["history", "ledger", "pursuits"], left: ["sidebar"] },
+      sidebar:         { right: ["coming_up", "pursuits", "omnibox", "ledger", "history"] },
     },
     watch_history: {
       toolbar:   { down: ["grid"], left: ["sidebar"] },
@@ -168,12 +163,11 @@ export const inputConfig = {
   cursorStartPriority: {
     watching:  ["grid", "zone_tabs", "sidebar"],
     library:   ["grid", "toolbar", "sidebar"],
-    upcoming:  ["rail", "stragglers", "mini-month", "actions", "sidebar"],
     settings:  ["sections", "grid", "sidebar"],
     guide:     ["guide_chapters", "guide_outline", "sidebar"],
     status:    ["grid", "toolbar", "sidebar"],
     review:    ["review-list", "review-detail", "sidebar"],
-    download:  ["pursuits", "omnibox", "sidebar"],
+    incoming:  ["coming_up", "pursuits", "omnibox", "sidebar"],
     watch_history: ["toolbar", "grid", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     setup:     ["grid"],

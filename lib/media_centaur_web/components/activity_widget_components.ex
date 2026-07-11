@@ -1028,7 +1028,7 @@ defmodule MediaCentaurWeb.ActivityWidgetComponents do
               </div>
               <div class="text-xs uppercase tracking-wider text-base-content/50">Success</div>
             </div>
-            <.link navigate={~p"/download"} class="block group">
+            <.link navigate={~p"/incoming"} class="block group">
               <div class="text-2xl font-semibold tabular-nums group-hover:text-primary">
                 {@acquisition_activity.throughput.active}
               </div>

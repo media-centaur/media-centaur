@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.Components.Upcoming.TitleDetail do
+defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleDetail do
   @moduledoc """
   The per-title detail slide-over — the "thing-first" depth behind the
   time-first rail. Carries the title's automation posture (an honest auto-grab
@@ -16,9 +16,9 @@ defmodule MediaCentaurWeb.Components.Upcoming.TitleDetail do
   use Phoenix.Component
 
   import MediaCentaurWeb.CoreComponents
-  import MediaCentaurWeb.Components.Upcoming.EventCard, only: [event_card: 1]
+  import MediaCentaurWeb.Components.ReleaseTracking.EventCard, only: [event_card: 1]
 
-  alias MediaCentaurWeb.Components.Upcoming.Detail
+  alias MediaCentaurWeb.Components.ReleaseTracking.Detail
 
   attr :detail, Detail, required: true, doc: "The title's detail view-model."
   attr :today, Date, required: true

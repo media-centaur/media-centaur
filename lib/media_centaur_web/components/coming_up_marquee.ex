@@ -104,7 +104,7 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
   defp see_all_tile(assigns) do
     ~H"""
     <.link
-      navigate="/upcoming"
+      navigate="/incoming"
       class="card-hover relative rounded-xl overflow-hidden glass-inset flex flex-col items-center justify-center gap-2 text-base-content/60 hover:text-primary hover:bg-base-content/5"
       data-component="coming-up-see-all"
       data-row-item
@@ -261,7 +261,7 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
   defp tile_link(assigns) do
     ~H"""
     <.link
-      navigate="/upcoming"
+      navigate="/incoming"
       data-card={@data_card}
       data-row-item
       data-nav-item
