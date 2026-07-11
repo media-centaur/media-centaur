@@ -1,29 +1,38 @@
 defmodule MediaCentaurWeb.IncomingLive do
   @moduledoc """
-  Unified Downloads page at `/download`. A single column of stacked
-  zones, top to bottom:
+  The Incoming page at `/incoming` (DDR-015) — Upcoming and Downloads
+  merged into one collection-growth destination. A single column with a
+  density gradient, top to bottom:
 
-  1. **Omnibox** (`data-nav-zone="omnibox"`) — one search surface, two
-     modes: TMDB media search feeding the plan flow, and Prowlarr
-     release search (results render in the search zone below it).
-  2. **Draft plans** (`data-nav-zone="drafts"`) — unapproved plan
+  1. **Hero omnibox** (`data-nav-zone="omnibox"`) — the front door: TMDB
+     media search feeding the plan/track flows, or Prowlarr release
+     search (results render in the search zone below; the shelf recedes
+     while release search owns the page).
+  2. **Coming up shelf** (`data-nav-zone="coming_up"`) — one card per
+     tracked title, nearness-ordered, statuses via the shared
+     `StatusPill` vocabulary. Calendar disclosure (`mini-month`) and the
+     header `actions` zone ride with it.
+  3. **Draft plans** (`data-nav-zone="drafts"`) — unapproved plan
      boards, resumable into the plan modal.
-  3. **Active pursuits** (`data-nav-zone="pursuits"`) — every live
-     pursuit, paired at render time with its torrent(s) from the
-     download-client queue. Refreshes live via PubSub + queue polls.
-  4. **History** (`data-nav-zone="history"`) — terminal pursuits
-     (failed / cancelled / succeeded) behind a collapsed-by-default
-     disclosure. Filter chips + title search.
-  5. **Other downloads** (`data-nav-zone="other_downloads"`) — client
-     torrents that match no tracked pursuit.
+  4. **In flight** (`data-nav-zone="pursuits"`) — every live pursuit,
+     paired at render time with its torrent(s) from the download-client
+     queue. Refreshes live via PubSub + queue polls.
+  5. **Recently landed** (`data-nav-zone="ledger"`) — THE history
+     surface: a newest-first glimpse that expands in place ("View all")
+     into the filtered archive (chips + search). One section, no
+     sibling duplicate.
+  6. **Other downloads** (`data-nav-zone="other_downloads"`) — client
+     torrents that match no tracked pursuit — then the Storage section.
 
-  Mounted at `/download`. Only available when Prowlarr is configured —
-  unauthenticated requests redirect to the library.
+  No capability gate on mount: without Prowlarr the page renders
+  forecast-only. Section honesty is enforced once, in
+  `MediaCentaurWeb.IncomingLive.View` (the page's single composition
+  point) — templates never re-check capabilities.
 
   See `MediaCentaur.Search.QueryExpander` for the supported brace
   syntax, `MediaCentaurWeb.IncomingLive.Logic` for search/group
   helpers, and `MediaCentaurWeb.IncomingLive.HistoryLogic` for the
-  History zone filter helpers.
+  ledger/archive filter helpers.
 
   ## External-state reconciliation
 
@@ -87,7 +96,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.Capabilities
 
   alias MediaCentaurWeb.IncomingLive.{
-    History,
     HistoryLogic,
     Logic,
     OrphanQueue,
@@ -906,17 +914,16 @@ defmodule MediaCentaurWeb.IncomingLive do
             rows={@view.ledger.rows}
             hidden_count={@view.ledger.hidden_count}
             expanded={@view.ledger.expanded?}
-            storage_drives={if(@storage_mode == :calm, do: @storage_drives, else: [])}
-          />
-
-          <History.history_zone
-            empty?={@history_rows == []}
+            archive_open?={@history_open?}
             filter={@history_filter}
             search={@history_search}
-            open?={@history_open?}
+            archive_empty?={@history_rows == []}
+            storage_drives={if(@storage_mode == :calm, do: @storage_drives, else: [])}
           >
-            <.grouped_compact_rows entries={@history_compact} />
-          </History.history_zone>
+            <:archive>
+              <.grouped_compact_rows entries={@history_compact} />
+            </:archive>
+          </Ledger.ledger>
 
           <OrphanQueue.orphan_zone items={@orphan_queue} />
 

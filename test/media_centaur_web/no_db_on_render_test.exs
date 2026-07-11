@@ -192,13 +192,15 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # test mode every Settings.get/1 falls through to a DB read
       # (the SettingsCache isn't running) — that inflates the count
       # relative to production AND varies with full-suite ordering
-      # (observed 38–45; the variance is entirely settings_entries
-      # lookups, 13 in the worst observed mount). 48 still trips on any
-      # per-row N+1 while absorbing the cache-miss jitter.
+      # (observed 38–50; the variance is entirely settings_entries
+      # lookups — the Incoming page's persisted `ui:downloads:history_open`
+      # pref added one more key to suite circulation, lifting the worst
+      # observed mount from 45 to 50). 52 still trips on any per-row N+1
+      # while absorbing the cache-miss jitter.
       mount_and_assert(
         conn,
         "/status",
-        48,
+        52,
         "Cross-context status surfaces (settings cache-miss DB fallback in test mode)"
       )
     end

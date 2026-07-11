@@ -1,19 +1,27 @@
 defmodule MediaCentaurWeb.Components.Incoming.Ledger do
   @moduledoc """
   The Recently-landed ledger — the Incoming page's quietest band
-  (DDR-015): terminal pursuits as open rows on the page surface, no
-  panel chrome, dissolving downward into the page bottom via a static
-  CSS mask (a treatment, not an animation — ADR-012 applies).
+  (DDR-015), and the page's ONE history surface: terminal pursuits as
+  open rows on the page surface, no panel chrome, dissolving downward
+  into the page bottom via a static CSS mask (a treatment, not an
+  animation — ADR-012 applies).
 
-  Each row is one terminal `PursuitRow`: a severity dot, the title with
-  its status sentence, the outcome word, and relative time. "Show
-  earlier" (`expand_ledger`) grows the ledger once; anything more is
-  "View all history" (`toggle_history`, the existing full history
-  disclosure). Storage sits as the ambient foot line, reusing
-  `DownloadStorage.calm_summary/1`.
+  Two zoom levels of the same archive:
 
-  With no rows and nothing hidden the component renders nothing at all
-  — history that hasn't happened doesn't earn an empty box.
+    * **Glimpse** (default) — the newest terminal `PursuitRow`s: a
+      severity dot, the title with its status sentence, the outcome
+      word, and relative time. "Show earlier" (`expand_ledger`) grows
+      the glimpse once.
+    * **Archive** (`toggle_history`, "View all") — the glimpse gives
+      way to the filtered view in place: lifecycle filter chips
+      (`set_history_filter`), title/release search
+      (`set_history_search`), and the caller-rendered grouped rows.
+      One section, never a sibling duplicate.
+
+  Storage sits as the ambient foot line in both modes, reusing
+  `DownloadStorage.calm_summary/1`. With no rows, nothing hidden, and
+  the archive closed the component renders nothing at all — history
+  that hasn't happened doesn't earn an empty box.
   """
 
   use Phoenix.Component
@@ -23,6 +31,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow
   alias MediaCentaur.Format
   alias MediaCentaurWeb.Components.Acquisition.DownloadStorage
+  alias MediaCentaurWeb.IncomingLive.HistoryLogic
 
   attr :rows, :list,
     default: [],
@@ -34,19 +43,38 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
 
   attr :expanded, :boolean,
     default: false,
-    doc: "The ledger grows once; expanded hides \"Show earlier\" even when more rows remain."
+    doc: "The glimpse grows once; expanded hides \"Show earlier\" even when more rows remain."
+
+  attr :archive_open?, :boolean,
+    default: false,
+    doc:
+      "\"View all\" state — the glimpse gives way to the filtered archive (chips + search + the `:archive` slot) in place."
+
+  attr :filter, :atom,
+    default: :failed,
+    doc: "Archive lifecycle filter (see `HistoryLogic.filter_atoms/0`)."
+
+  attr :search, :string, default: "", doc: "Archive title/release search needle."
+
+  attr :archive_empty?, :boolean,
+    default: false,
+    doc: "Whether the filtered archive has no rows — renders the filter-specific empty state."
 
   attr :storage_drives, :list,
     default: [],
     doc:
       "Media-dir drive maps (`Storage.measure_all/0` shape) — the foot line renders `DownloadStorage.calm_summary/1` when it has one to give."
 
+  slot :archive,
+    doc:
+      "Caller-provided render block for the archive entries — the parent's grouped-compact-rows helper, so the rendering path stays consistent with the In-flight zone."
+
   def ledger(assigns) do
     assigns = assign(assigns, :storage_summary, DownloadStorage.calm_summary(assigns.storage_drives))
 
     ~H"""
     <section
-      :if={@rows != [] || @hidden_count > 0}
+      :if={@rows != [] || @hidden_count > 0 || @archive_open?}
       data-component="incoming-ledger"
       data-nav-zone="ledger"
       class="space-y-3"
@@ -57,20 +85,27 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
         </h3>
         <button
           type="button"
-          class="cursor-pointer text-xs text-base-content/50 transition-colors hover:text-base-content"
+          class="flex cursor-pointer items-center gap-1 text-xs text-base-content/50 transition-colors hover:text-base-content"
           phx-click="toggle_history"
           data-nav-item
           tabindex="0"
         >
-          View all history
+          {if @archive_open?, do: "Show less", else: "View all"}
+          <.icon
+            name={if @archive_open?, do: "hero-chevron-up-mini", else: "hero-chevron-down-mini"}
+            class="size-3"
+          />
         </button>
       </div>
 
-      <%!-- Static mask treatment: the last rows dissolve toward the page
-            bottom. The fade zone is fixed-height, so expansion reveals
-            older rows *into* the fade instead of washing the whole
+      <%!-- Glimpse: static mask treatment — the last rows dissolve toward
+            the page bottom. The fade zone is fixed-height, so expansion
+            reveals older rows *into* the fade instead of washing the whole
             ledger out. --%>
-      <div class="[mask-image:linear-gradient(to_bottom,black_0,black_calc(100%-5rem),oklch(0%_0_0/0.16)_100%)]">
+      <div
+        :if={!@archive_open?}
+        class="[mask-image:linear-gradient(to_bottom,black_0,black_calc(100%-5rem),oklch(0%_0_0/0.16)_100%)]"
+      >
         <div
           :for={row <- @rows}
           id={"ledger-row-#{row.id}"}
@@ -92,12 +127,52 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
         </div>
       </div>
 
+      <%!-- Archive: the same section, zoomed — filters + search + grouped rows. --%>
+      <div :if={@archive_open?} class="flex flex-wrap items-center gap-2">
+        <button
+          :for={filter_atom <- HistoryLogic.filter_atoms()}
+          phx-click="set_history_filter"
+          phx-value-filter={Atom.to_string(filter_atom)}
+          class={[
+            "btn btn-sm",
+            @filter == filter_atom && "btn-primary",
+            @filter != filter_atom && "btn-ghost"
+          ]}
+          data-nav-item
+          tabindex="0"
+        >
+          {HistoryLogic.filter_label(filter_atom)}
+        </button>
+
+        <form phx-change="set_history_search" class="ml-auto">
+          <input
+            type="search"
+            name="search"
+            value={@search}
+            placeholder="Filter by title or release…"
+            class="input input-bordered input-sm w-64"
+            data-nav-item
+            tabindex="0"
+          />
+        </form>
+      </div>
+
       <div
-        :if={(@hidden_count > 0 && !@expanded) || @storage_summary}
+        :if={@archive_open? && @archive_empty?}
+        class="scrim-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40"
+      >
+        {HistoryLogic.empty_state(@filter)}
+      </div>
+      <div :if={@archive_open? && !@archive_empty?} class="grid grid-cols-1 gap-2">
+        {render_slot(@archive)}
+      </div>
+
+      <div
+        :if={(@hidden_count > 0 && !@expanded && !@archive_open?) || @storage_summary}
         class="flex items-center justify-between px-1"
       >
         <button
-          :if={@hidden_count > 0 && !@expanded}
+          :if={@hidden_count > 0 && !@expanded && !@archive_open?}
           type="button"
           class="flex cursor-pointer items-center gap-1.5 text-xs text-base-content/50 transition-colors hover:text-base-content"
           phx-click="expand_ledger"

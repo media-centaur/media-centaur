@@ -41,7 +41,7 @@ const REAL_DOM = {
     return clearableInput(el)
   },
   getHistorySearch() {
-    return clearableInput(document.querySelector("[data-nav-zone='history'] input[type='search']"))
+    return clearableInput(document.querySelector("[data-nav-zone='ledger'] input[type='search']"))
   },
 }
 

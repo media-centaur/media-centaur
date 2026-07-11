@@ -115,7 +115,6 @@ describe("Incoming page nav (real config)", () => {
     coming_up: 6,
     pursuits: 3,
     ledger: 5,
-    history: 1,
     sidebar: 4,
   }
 
@@ -124,7 +123,7 @@ describe("Incoming page nav (real config)", () => {
     expect(graph.coming_up.up).toBe("omnibox")
     expect(graph.coming_up.down).toBe("pursuits")
     expect(graph.pursuits.down).toBe("ledger")
-    expect(graph.ledger.down).toBe("history")
+    expect(graph.ledger.down).toBeUndefined()
   })
 
   test("sidebar enters the shelf first; cursor starts there too", () => {
@@ -174,7 +173,6 @@ describe("Incoming page nav (real config)", () => {
       "drafts",
       "pursuits",
       "ledger",
-      "history",
       "other_downloads",
     ]) {
       expect(graph[context].left).toBeDefined()
