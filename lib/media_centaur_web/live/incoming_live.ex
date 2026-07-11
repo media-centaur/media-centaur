@@ -777,10 +777,6 @@ defmodule MediaCentaurWeb.IncomingLive do
             </p>
           </header>
 
-          <%!-- Escalated storage only (low space / multiple drives) — the
-                calm free-space figure lives on the ledger's foot line. --%>
-          <DownloadStorage.download_storage :if={@storage_mode != :calm} drives={@storage_drives} />
-
           <MediaOmnibox.media_omnibox
             hero
             prompt={
@@ -923,6 +919,11 @@ defmodule MediaCentaurWeb.IncomingLive do
           </History.history_zone>
 
           <OrphanQueue.orphan_zone items={@orphan_queue} />
+
+          <%!-- Storage is bookkeeping — it closes the page, never leads it.
+                Calm free space is the ledger's foot line; the full card only
+                renders when storage escalates (low space / multiple drives). --%>
+          <DownloadStorage.download_storage :if={@storage_mode != :calm} drives={@storage_drives} />
         </div>
       </div>
     </Layouts.app>
