@@ -10,8 +10,7 @@ defmodule MediaCentaurWeb.IncomingLive do
      while release search owns the page).
   2. **Coming up shelf** (`data-nav-zone="coming_up"`) — one card per
      tracked title, nearness-ordered, statuses via the shared
-     `StatusPill` vocabulary. Calendar disclosure (`mini-month`) and the
-     header `actions` zone ride with it.
+     `StatusPill` vocabulary; overflow grows in place ("Show all N").
   3. **Draft plans** (`data-nav-zone="drafts"`) — unapproved plan
      boards, resumable into the plan modal.
   4. **In flight** (`data-nav-zone="pursuits"`) — every live pursuit,
@@ -109,7 +108,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
   alias MediaCentaurWeb.Components.Incoming.{Ledger, Shelf}
-  alias MediaCentaurWeb.Components.ReleaseTracking.{Detail, MiniMonth, Present, TitleDetail}
+  alias MediaCentaurWeb.Components.ReleaseTracking.{Detail, Present, TitleDetail}
   alias MediaCentaurWeb.Components.TrackModal
   alias MediaCentaurWeb.IncomingLive.View
   alias MediaCentaurWeb.IncomingLive.PlanLogic
@@ -159,11 +158,8 @@ defmodule MediaCentaurWeb.IncomingLive do
          loaded?: false,
          subscribed_acquisition?: prowlarr? and connected?(socket),
          today: today,
-         mini_month: {today.year, today.month},
-         mini_month_marks: %{},
-         calendar_open?: false,
-         focused_day: nil,
          detail: nil,
+         shelf_expanded?: false,
          view: %View{shelf: %View.ShelfSection{}, ledger: %View.LedgerSection{}},
          grab_status_by_key: %{},
          auto_grab_default_mode: AutoGrabSettings.load().default_mode,
@@ -348,16 +344,14 @@ defmodule MediaCentaurWeb.IncomingLive do
         acquisition_ready?: acquisition?,
         auto_grab_default_mode: default_mode,
         grab_status_by_key: grab,
-        ledger_expanded?: socket.assigns.ledger_expanded?
+        ledger_expanded?: socket.assigns.ledger_expanded?,
+        shelf_expanded?: socket.assigns.shelf_expanded?
       })
-
-    {year, month} = socket.assigns.mini_month
 
     assign(socket,
       view: view,
       grab_status_by_key: grab,
-      auto_grab_default_mode: default_mode,
-      mini_month_marks: UpcomingFeed.mini_month_marks(view.feed, year, month)
+      auto_grab_default_mode: default_mode
     )
   end
 
@@ -428,27 +422,6 @@ defmodule MediaCentaurWeb.IncomingLive do
     item_id
     |> ReleaseTracking.list_events_for_item(8)
     |> Enum.map(&%{text: &1.description, at: MediaCentaur.Format.relative_ago(&1.inserted_at)})
-  end
-
-  defp first_event_on(%UpcomingFeed{} = feed, date) do
-    feed
-    |> flatten_feed()
-    |> Enum.find(&(&1.air_date == date))
-  end
-
-  defp shift_month(socket, delta) do
-    {year, month} = socket.assigns.mini_month
-    anchor = Date.new!(year, month, 1)
-
-    pivot =
-      if delta < 0,
-        do: Date.add(anchor, -1),
-        else: Date.add(Date.end_of_month(anchor), 1)
-
-    assign(socket,
-      mini_month: {pivot.year, pivot.month},
-      mini_month_marks: UpcomingFeed.mini_month_marks(socket.assigns.view.feed, pivot.year, pivot.month)
-    )
   end
 
   defp mark_tracked(results, tmdb_id) do
@@ -815,18 +788,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             overflow_count={@view.shelf.overflow_count}
             stragglers={@view.shelf.stragglers}
             tmdb_ready={@tmdb_ready}
-            calendar_open={@calendar_open?}
-          >
-            <:calendar>
-              <MiniMonth.mini_month
-                year={elem(@mini_month, 0)}
-                month={elem(@mini_month, 1)}
-                today={@today}
-                focused_day={@focused_day}
-                marks={@mini_month_marks}
-              />
-            </:calendar>
-          </Shelf.shelf>
+          />
 
           <section :if={@view.drafts != []} data-nav-zone="drafts" class="space-y-3">
             <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
@@ -1369,31 +1331,8 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, socket |> assign(ledger_expanded?: true) |> build_view()}
   end
 
-  def handle_event("toggle_calendar", _params, socket) do
-    {:noreply, assign(socket, calendar_open?: not socket.assigns.calendar_open?)}
-  end
-
-  def handle_event("mini_month_prev", _params, socket) do
-    {:noreply, shift_month(socket, -1)}
-  end
-
-  def handle_event("mini_month_next", _params, socket) do
-    {:noreply, shift_month(socket, +1)}
-  end
-
-  # Only marked days are clickable (see MiniMonth), so a jump always has a
-  # matching event. With no rail to scroll, the jump opens the day's first
-  # title straight into the detail slide-over.
-  def handle_event("jump_to_day", %{"date" => iso}, socket) do
-    with {:ok, date} <- Date.from_iso8601(iso),
-         %UpcomingFeed.Event{} = event <- first_event_on(socket.assigns.view.feed, date) do
-      {:noreply,
-       socket
-       |> assign(focused_day: date)
-       |> assign(detail: build_detail(socket, event.item_id))}
-    else
-      _no_event -> {:noreply, socket}
-    end
+  def handle_event("expand_shelf", _params, socket) do
+    {:noreply, socket |> assign(shelf_expanded?: true) |> build_view()}
   end
 
   # --- Forecast detail / tracking events ---

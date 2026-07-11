@@ -303,67 +303,6 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
   end
 
-  describe "mini-month marks" do
-    test "marks each release day in the month with a count and dominant status" do
-      item_a = tv_item(%{tmdb_id: 1})
-      item_b = movie_item(%{tmdb_id: 2})
-
-      releases = [
-        release(item_a, %{title: "ep", air_date: ~D[2026-06-20], season_number: 1, episode_number: 1}),
-        release(item_b, %{title: "mov", air_date: ~D[2026-06-20], release_type: "digital"}),
-        release(item_a, %{title: "ep2", air_date: ~D[2026-06-25], season_number: 1, episode_number: 2})
-      ]
-
-      feed = UpcomingFeed.build(releases, armed_context())
-      marks = UpcomingFeed.mini_month_marks(feed, 2026, 6)
-
-      assert marks[~D[2026-06-20]].count == 2
-      assert marks[~D[2026-06-25]].count == 1
-    end
-
-    test "dominant status uses priority — under_pursuit beats armed on the same day" do
-      item_a = tv_item(%{tmdb_id: 1})
-      item_b = tv_item(%{tmdb_id: 2, name: "Other Show"})
-
-      pursued =
-        release(item_a, %{
-          title: "p",
-          air_date: ~D[2026-06-20],
-          released: true,
-          season_number: 1,
-          episode_number: 1
-        })
-
-      armed =
-        release(item_b, %{title: "a", air_date: ~D[2026-06-20], season_number: 1, episode_number: 1})
-
-      context =
-        armed_context(%{
-          grab_status_by_key: %{UpcomingFeed.release_key(pursued) => %{pursuit_id: Ecto.UUID.generate()}}
-        })
-
-      feed = UpcomingFeed.build([pursued, armed], context)
-      marks = UpcomingFeed.mini_month_marks(feed, 2026, 6)
-
-      assert marks[~D[2026-06-20]].status == :under_pursuit
-    end
-
-    test "only includes days within the requested month" do
-      item = tv_item()
-
-      releases = [
-        release(item, %{title: "jun", air_date: ~D[2026-06-20], season_number: 1, episode_number: 1}),
-        release(item, %{title: "jul", air_date: ~D[2026-07-05], season_number: 1, episode_number: 2})
-      ]
-
-      feed = UpcomingFeed.build(releases, armed_context())
-      marks = UpcomingFeed.mini_month_marks(feed, 2026, 6)
-
-      assert Map.has_key?(marks, ~D[2026-06-20])
-      refute Map.has_key?(marks, ~D[2026-07-05])
-    end
-  end
-
   describe "stragglers (tracked, nothing scheduled yet)" do
     test "returns watching items that have no dated release" do
       scheduled = tv_item(%{tmdb_id: 1, name: "Scheduled"})
@@ -554,6 +493,24 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
 
       assert length(items) == 6
       assert overflow == 2
+    end
+
+    test ":all lifts the cap — every title, nothing hidden" do
+      releases =
+        for n <- 1..9 do
+          release(tv_item(%{tmdb_id: n, name: "Show #{n}"}), %{
+            title: "ep-#{n}",
+            air_date: days(n),
+            season_number: 1,
+            episode_number: 1
+          })
+        end
+
+      feed = UpcomingFeed.build(releases, armed_context())
+      {items, overflow} = UpcomingFeed.shelf_items(feed, :all)
+
+      assert length(items) == 9
+      assert overflow == 0
     end
 
     test "excludes unscheduled events (they are stragglers, not shelf cards)" do

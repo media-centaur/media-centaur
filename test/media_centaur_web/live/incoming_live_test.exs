@@ -2127,37 +2127,27 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
   end
 
-  describe "calendar (mini-month) navigation" do
-    test "paging the month keeps the page rendering", %{conn: conn} do
-      tracked_with_release()
+  describe "shelf expansion" do
+    test "Show all grows the shelf past the cap in place", %{conn: conn} do
+      today = Date.utc_today()
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      for n <- 1..8 do
+        tracked_with_release(
+          %{tmdb_id: 700_000 + n, name: "Overflow Show #{n}"},
+          %{air_date: Date.add(today, n)}
+        )
+      end
 
-      assert render_hook(view, "mini_month_next", %{}) =~ "Incoming"
-      assert render_hook(view, "mini_month_prev", %{}) =~ "Incoming"
-    end
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
 
-    test "jump_to_day opens the day's first title in the detail slide-over", %{conn: conn} do
-      # With no rail to scroll on the merged page, a jump opens the day's
-      # first event directly in the detail slide-over.
-      {_item, _release} =
-        tracked_with_release(%{name: "Jump Day Show"}, %{air_date: Date.utc_today()})
+      # Capped: six cards + the Show all terminus.
+      assert view |> element("[data-component='shelf-horizon']") |> render() =~ "Show all 8"
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      html = view |> element("[phx-click='expand_shelf']") |> render_click()
 
-      jumped = render_hook(view, "jump_to_day", %{"date" => Date.to_iso8601(Date.utc_today())})
-
-      assert jumped =~ "Jump Day Show"
-      assert jumped =~ "Stop tracking"
-    end
-
-    test "jump_to_day on a day with no event is a no-op that keeps rendering", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, "/incoming")
-
-      jumped = render_hook(view, "jump_to_day", %{"date" => Date.to_iso8601(Date.utc_today())})
-
-      assert jumped =~ "Incoming"
-      refute jumped =~ "Stop tracking"
+      # Expanded: every title is a card and the terminus goes quiet.
+      assert html =~ "Overflow Show 8"
+      refute html =~ "Show all"
     end
   end
 

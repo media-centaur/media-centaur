@@ -111,7 +111,6 @@ describe("Incoming page nav (real config)", () => {
   // closed (mini-month absent), no release-search results, no drafts.
   const populated = {
     omnibox: 1,
-    actions: 1,
     coming_up: 6,
     pursuits: 3,
     ledger: 5,
@@ -132,16 +131,8 @@ describe("Incoming page nav (real config)", () => {
     expect(resolveCursorStart("incoming", populated, inputConfig)).toBe("coming_up")
   })
 
-  test("an open calendar slots between the shelf and the drafts/pursuits column", () => {
-    const counts = { ...populated, "mini-month": 2 }
-    const graph = buildNavGraph("incoming", counts, inputConfig)
-    expect(graph.coming_up.down).toBe("mini-month")
-    expect(graph["mini-month"].up).toBe("coming_up")
-    expect(graph["mini-month"].down).toBe("pursuits")
-  })
-
   test("forecast-only (no acquisition): shelf falls through to history-less bottom", () => {
-    const counts = { omnibox: 1, actions: 1, coming_up: 6, sidebar: 4 }
+    const counts = { omnibox: 1, coming_up: 6, sidebar: 4 }
     const graph = buildNavGraph("incoming", counts, inputConfig)
     expect(graph.coming_up.up).toBe("omnibox")
     expect(graph.coming_up.down).toBeUndefined()
@@ -163,12 +154,11 @@ describe("Incoming page nav (real config)", () => {
   })
 
   test("every incoming context reaches the sidebar via left", () => {
-    const counts = { ...populated, "mini-month": 2, grid: 2, drafts: 1, other_downloads: 1 }
+    const counts = { ...populated, grid: 2, drafts: 1, other_downloads: 1 }
     const graph = buildNavGraph("incoming", counts, inputConfig)
     for (const context of [
       "omnibox",
       "coming_up",
-      "mini-month",
       "grid",
       "drafts",
       "pursuits",

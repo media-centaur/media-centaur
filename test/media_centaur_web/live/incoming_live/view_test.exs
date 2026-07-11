@@ -52,7 +52,8 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
         acquisition_ready?: true,
         auto_grab_default_mode: "all_releases",
         grab_status_by_key: %{},
-        ledger_expanded?: false
+        ledger_expanded?: false,
+        shelf_expanded?: false
       },
       overrides
     )
@@ -188,6 +189,28 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
       assert length(view.shelf.cards) == 6
       assert view.shelf.overflow_count == 3
       assert [%UpcomingFeed.Straggler{name: "The Golem"}] = view.shelf.stragglers
+    end
+  end
+
+  describe "build/1 — shelf expansion" do
+    test "shelf_expanded? lifts the cap so overflow becomes visible cards" do
+      releases =
+        for n <- 1..9 do
+          release(tv_item(%{tmdb_id: n, name: "Show #{n}"}), %{
+            title: "ep-#{n}",
+            air_date: Date.add(@today, n),
+            season_number: 1,
+            episode_number: 1
+          })
+        end
+
+      capped = View.build(inputs(%{releases: releases}))
+      expanded = View.build(inputs(%{releases: releases, shelf_expanded?: true}))
+
+      assert length(capped.shelf.cards) == 6
+      assert capped.shelf.overflow_count == 3
+      assert length(expanded.shelf.cards) == 9
+      assert expanded.shelf.overflow_count == 0
     end
   end
 

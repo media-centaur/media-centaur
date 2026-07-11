@@ -18,11 +18,6 @@ export const inputConfig = {
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
-    // Incoming page header affordance (Calendar toggle) and the calendar
-    // disclosure itself (month paging only — day cells are a mouse-only
-    // jump affordance).
-    actions: "[data-nav-zone='actions'] [data-nav-item]",
-    "mini-month": "[data-nav-zone='mini-month'] [data-nav-item]",
     [Context.ZONE_TABS]: "[data-nav-zone='zone-tabs'] [data-nav-item]",
     "review-list": "[data-nav-zone='review-list'] [data-nav-item]",
     "review-detail": "[data-nav-zone='review-detail'] [data-nav-item]",
@@ -50,8 +45,6 @@ export const inputConfig = {
   instanceTypes: {
     sidebar: Context.MENU,
     sections: Context.MENU,
-    actions: Context.MENU,
-    "mini-month": Context.TOOLBAR,
     "review-list": Context.MENU,
     "review-detail": Context.MENU,
     "drill-in": Context.MENU,
@@ -113,23 +106,19 @@ export const inputConfig = {
       "review-detail": { left: ["review-list"] },
       sidebar:         { right: ["review-list", "review-detail"] },
     },
-    // Incoming: single column, top to bottom — omnibox (+ the header
-    // `actions` Calendar toggle) → release-search results ("grid") → the
-    // coming_up shelf (+ its `mini-month` calendar disclosure) → drafts →
-    // pursuits → ledger (glimpse AND expanded archive, one zone) →
-    // other_downloads. Conditional zones (grid, coming_up while a release
-    // search owns the page, mini-month, drafts, other_downloads) are
-    // skipped via candidate lists, same convention as home. The ledger
-    // always carries its "View all" toggle as a nav item once any history
-    // exists, so the archive stays reachable.
+    // Incoming: single column, top to bottom — omnibox → release-search
+    // results ("grid") → the coming_up shelf → drafts → pursuits → ledger
+    // (glimpse AND expanded archive, one zone) → other_downloads.
+    // Conditional zones (grid, coming_up while a release search owns the
+    // page, drafts, other_downloads) are skipped via candidate lists, same
+    // convention as home. The ledger always carries its "View all" toggle
+    // as a nav item once any history exists, so the archive stays reachable.
     incoming: {
-      omnibox:         { down: ["grid", "coming_up", "drafts", "pursuits", "ledger"], right: ["actions"], left: ["sidebar"] },
-      actions:         { down: ["coming_up", "drafts", "pursuits"], left: ["omnibox", "sidebar"] },
+      omnibox:         { down: ["grid", "coming_up", "drafts", "pursuits", "ledger"], left: ["sidebar"] },
       grid:            { up: ["omnibox"], down: ["drafts", "pursuits", "ledger"], left: ["sidebar"] },
-      coming_up:       { up: ["omnibox"], down: ["mini-month", "drafts", "pursuits", "ledger"], left: ["sidebar"] },
-      "mini-month":    { up: ["coming_up"], down: ["drafts", "pursuits", "ledger"], left: ["sidebar"] },
-      drafts:          { up: ["mini-month", "coming_up", "grid", "omnibox"], down: ["pursuits", "ledger"], left: ["sidebar"] },
-      pursuits:        { up: ["drafts", "mini-month", "coming_up", "grid", "omnibox"], down: ["ledger", "other_downloads"], left: ["sidebar"] },
+      coming_up:       { up: ["omnibox"], down: ["drafts", "pursuits", "ledger"], left: ["sidebar"] },
+      drafts:          { up: ["coming_up", "grid", "omnibox"], down: ["pursuits", "ledger"], left: ["sidebar"] },
+      pursuits:        { up: ["drafts", "coming_up", "grid", "omnibox"], down: ["ledger", "other_downloads"], left: ["sidebar"] },
       ledger:          { up: ["pursuits", "drafts", "coming_up", "omnibox"], down: ["other_downloads"], left: ["sidebar"] },
       other_downloads: { up: ["ledger", "pursuits"], left: ["sidebar"] },
       sidebar:         { right: ["coming_up", "pursuits", "omnibox", "ledger"] },
