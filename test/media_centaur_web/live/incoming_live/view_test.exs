@@ -60,16 +60,14 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
 
   describe "build/1 — shelf projection" do
     test "maps scheduled events into shelf cards nearness-first with graduated labels" do
-      item = tv_item()
-
       releases = [
-        release(item, %{
+        release(tv_item(%{tmdb_id: 1}), %{
           title: "The Vanishing Reel",
           air_date: @today,
           season_number: 2,
           episode_number: 5
         }),
-        release(item, %{
+        release(tv_item(%{tmdb_id: 2, name: "Other Show"}), %{
           title: "Signal Fires",
           air_date: Date.add(@today, 2),
           season_number: 2,
@@ -89,17 +87,21 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
     end
 
     test "statuses map into the shared pill union" do
-      item = tv_item()
       movie = movie_item()
 
       pursued =
-        release(item, %{title: "pursued", air_date: @today, season_number: 1, episode_number: 1})
+        release(tv_item(%{tmdb_id: 1}), %{
+          title: "pursued",
+          air_date: @today,
+          season_number: 1,
+          episode_number: 1
+        })
 
       pursuit_id = Ecto.UUID.generate()
 
       releases = [
         pursued,
-        release(item, %{
+        release(tv_item(%{tmdb_id: 2, name: "Other Show"}), %{
           title: "armed",
           air_date: Date.add(@today, 1),
           season_number: 1,
@@ -164,15 +166,13 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
     end
 
     test "overflow and stragglers ride along" do
-      item = tv_item()
-
       releases =
         for n <- 1..9 do
-          release(item, %{
+          release(tv_item(%{tmdb_id: n, name: "Show #{n}"}), %{
             title: "ep-#{n}",
             air_date: Date.add(@today, n),
             season_number: 1,
-            episode_number: n
+            episode_number: 1
           })
         end
 

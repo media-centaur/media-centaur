@@ -159,14 +159,17 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
 
   @doc """
   The Incoming shelf: scheduled events flattened nearness-first (bucket order,
-  date-ascending within each bucket), capped at `cap`. Returns
-  `{items, overflow_count}` — the overflow feeds the calendar disclosure's
-  "N more" affordance so a capped shelf never silently truncates the forecast.
+  date-ascending within each bucket), **one card per title** — a title's later
+  releases (a movie's physical date after its digital one, a weekly show's
+  following episodes) collapse into its soonest event, since the card's detail
+  slide-over and the calendar carry the full timeline. Capped at `cap`;
+  `{items, overflow_count}` counts hidden TITLES so a capped shelf never
+  silently truncates the forecast.
   """
   @spec shelf_items(t(), pos_integer()) :: {[Event.t()], non_neg_integer()}
   def shelf_items(%UpcomingFeed{} = feed, cap) do
-    events = scheduled_events(feed)
-    {Enum.take(events, cap), max(length(events) - cap, 0)}
+    titles = feed |> scheduled_events() |> Enum.uniq_by(& &1.item_id)
+    {Enum.take(titles, cap), max(length(titles) - cap, 0)}
   end
 
   @doc """

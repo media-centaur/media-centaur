@@ -473,12 +473,25 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
 
   describe "shelf_items/2 — the Incoming shelf presentation" do
     test "flattens buckets nearness-first into one date-ordered list" do
-      item = tv_item()
-
       releases = [
-        release(item, %{title: "later-ep", air_date: days(20), season_number: 1, episode_number: 3}),
-        release(item, %{title: "today-ep", air_date: days(0), season_number: 1, episode_number: 1}),
-        release(item, %{title: "week-ep", air_date: days(5), season_number: 1, episode_number: 2})
+        release(tv_item(%{tmdb_id: 1}), %{
+          title: "later-ep",
+          air_date: days(20),
+          season_number: 1,
+          episode_number: 3
+        }),
+        release(tv_item(%{tmdb_id: 2}), %{
+          title: "today-ep",
+          air_date: days(0),
+          season_number: 1,
+          episode_number: 1
+        }),
+        release(tv_item(%{tmdb_id: 3}), %{
+          title: "week-ep",
+          air_date: days(5),
+          season_number: 1,
+          episode_number: 2
+        })
       ]
 
       feed = UpcomingFeed.build(releases, armed_context())
@@ -489,15 +502,13 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
 
     test "caps at the requested size and reports the overflow count" do
-      item = tv_item()
-
       releases =
         for n <- 1..9 do
-          release(item, %{
+          release(tv_item(%{tmdb_id: n, name: "Show #{n}"}), %{
             title: "ep-#{n}",
             air_date: days(n),
             season_number: 1,
-            episode_number: n
+            episode_number: 1
           })
         end
 
@@ -507,6 +518,42 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       assert length(items) == 6
       assert Enum.map(items, & &1.title) == for(n <- 1..6, do: "ep-#{n}")
       assert overflow == 3
+    end
+
+    test "one card per title: same-item releases collapse into the soonest event" do
+      movie = movie_item()
+      show = tv_item()
+
+      releases = [
+        release(movie, %{title: "digital", air_date: days(10), release_type: "digital"}),
+        release(movie, %{title: "physical", air_date: days(70), release_type: "physical"}),
+        release(show, %{title: "ep-1", air_date: days(1), season_number: 1, episode_number: 1}),
+        release(show, %{title: "ep-2", air_date: days(8), season_number: 1, episode_number: 2})
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context())
+      {items, overflow} = UpcomingFeed.shelf_items(feed, 6)
+
+      assert Enum.map(items, & &1.title) == ["ep-1", "digital"]
+      assert overflow == 0
+    end
+
+    test "overflow counts hidden TITLES, not the collapsed later events" do
+      releases =
+        for n <- 1..8 do
+          item = movie_item(%{name: "Movie #{n}", tmdb_id: 3000 + n})
+
+          [
+            release(item, %{title: "m#{n}-soon", air_date: days(n), release_type: "digital"}),
+            release(item, %{title: "m#{n}-later", air_date: days(n + 40), release_type: "physical"})
+          ]
+        end
+
+      feed = UpcomingFeed.build(List.flatten(releases), armed_context())
+      {items, overflow} = UpcomingFeed.shelf_items(feed, 6)
+
+      assert length(items) == 6
+      assert overflow == 2
     end
 
     test "excludes unscheduled events (they are stragglers, not shelf cards)" do
