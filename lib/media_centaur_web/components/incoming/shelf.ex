@@ -5,10 +5,10 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
   A single row of large 2:3 poster cards in nearness order, each built
   from a `Card` view-model the LiveView composes out of
   `UpcomingFeed.shelf_items/2`. After the last card sits the dashed
-  horizon terminus: the forecast ends honestly ("Nothing further on
-  the horizon."), and when there is overflow it grows in place instead
-  ("Show all N" — the ledger's "Show earlier" idiom, applied to the
-  shelf). Tracked titles with nothing
+  horizon terminus — a ghost card with the same footprint as a real
+  one, carrying only the action: "Track something" (opens the track
+  modal), or "Show all N" when the cap hides titles (the ledger's
+  "Show earlier" idiom, applied to the shelf). Tracked titles with nothing
   scheduled fold into a quiet one-line disclosure under the shelf — no
   dead panel when there are none.
 
@@ -184,37 +184,36 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
 
   defp horizon_terminus(assigns) do
     ~H"""
+    <%!-- Same footprint as a real card (max-w-48 flex-1) so the ghost
+          reads as the shelf's next slot, not a different object. Copy is
+          the action alone — icon + two words. --%>
     <article
       aria-label="End of forecast"
-      class="min-w-0 max-w-44 flex-[0.92]"
+      class="min-w-0 max-w-48 flex-1"
       data-component="shelf-horizon"
     >
-      <div class="flex aspect-[2/3] flex-col items-center justify-center gap-2 rounded-xl border-[1.5px] border-dashed border-base-content/15 px-3 text-center text-xs leading-relaxed text-base-content/35">
+      <div class="flex aspect-[2/3] flex-col items-center justify-center gap-2.5 rounded-xl border-[1.5px] border-dashed border-base-content/15 px-3 text-center text-xs text-base-content/35">
         <.icon name="hero-plus-circle" class="size-6 text-base-content/20" />
-        <span :if={@overflow_count > 0}>
-          <button
-            type="button"
-            class="cursor-pointer text-primary/85 transition-colors hover:text-primary"
-            phx-click="expand_shelf"
-            data-nav-item
-            tabindex="0"
-          >
-            Show all {@total_count}
-          </button>
-        </span>
-        <span :if={@overflow_count == 0}>Nothing further on the horizon.</span>
-        <span :if={@overflow_count == 0 && @tmdb_ready}>
-          <button
-            type="button"
-            class="cursor-pointer text-primary/85 transition-colors hover:text-primary"
-            phx-click="open_track_modal"
-            data-nav-item
-            tabindex="0"
-          >
-            Track something
-          </button>
-          to extend the forecast.
-        </span>
+        <button
+          :if={@overflow_count > 0}
+          type="button"
+          class="cursor-pointer text-primary/85 transition-colors hover:text-primary"
+          phx-click="expand_shelf"
+          data-nav-item
+          tabindex="0"
+        >
+          Show all {@total_count}
+        </button>
+        <button
+          :if={@overflow_count == 0 && @tmdb_ready}
+          type="button"
+          class="cursor-pointer text-primary/85 transition-colors hover:text-primary"
+          phx-click="open_track_modal"
+          data-nav-item
+          tabindex="0"
+        >
+          Track something
+        </button>
       </div>
     </article>
     """
