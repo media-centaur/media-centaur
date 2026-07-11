@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.Present do
 
   @spec status_label(atom()) :: String.t()
   def status_label(:armed), do: "Auto-grabbing"
+  def status_label(:armed_fallback), do: "Grabs if still missing"
   def status_label(:under_pursuit), do: "Grabbing"
   def status_label(:in_library), do: "In your library"
   def status_label(:theatrical_info), do: "In theaters"
@@ -26,10 +27,12 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.Present do
   def status_tone(:in_library), do: :success
   def status_tone(:under_pursuit), do: :info
   def status_tone(:theatrical_info), do: :muted
-  def status_tone(status) when status in [:upcoming, :unscheduled], do: :neutral
+  # A fallback date carries no promise of its own — neutral, not success.
+  def status_tone(status) when status in [:armed_fallback, :upcoming, :unscheduled], do: :neutral
 
   @spec status_icon(atom()) :: String.t()
   def status_icon(:armed), do: "hero-bolt-mini"
+  def status_icon(:armed_fallback), do: "hero-bolt-mini"
   def status_icon(:under_pursuit), do: "hero-arrow-down-tray-mini"
   def status_icon(:in_library), do: "hero-check-circle-mini"
   def status_icon(:theatrical_info), do: "hero-ticket-mini"

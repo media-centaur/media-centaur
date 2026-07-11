@@ -82,6 +82,15 @@ defmodule MediaCentaurWeb.Storybook.Upcoming.EventCard do
             }
           },
           %Variation{
+            id: :armed_fallback,
+            description: "A movie's later acquirable date — only grabs if the film is still missing",
+            attributes: %{
+              variant: :compact,
+              today: @today,
+              event: movie(:armed_fallback, "The Cartographer", "physical", ~D[2026-08-30])
+            }
+          },
+          %Variation{
             id: :theatrical_info,
             attributes: %{
               variant: :compact,

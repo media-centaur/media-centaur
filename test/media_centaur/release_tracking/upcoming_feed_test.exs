@@ -193,6 +193,115 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     end
   end
 
+  describe "movie fallback dates (one grab per film)" do
+    test "the later of two acquirable dates is :armed_fallback, not :armed" do
+      item = movie_item()
+
+      releases = [
+        release(item, %{title: "digital", air_date: days(3), release_type: "digital"}),
+        release(item, %{title: "physical", air_date: days(40), release_type: "physical"})
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context())
+
+      assert find_event(feed, "digital").status == :armed
+      assert find_event(feed, "physical").status == :armed_fallback
+    end
+
+    test "the earliest acquirable date keeps the grab even after it passes" do
+      item = movie_item()
+
+      releases = [
+        release(item, %{title: "digital", air_date: days(-5), released: true, release_type: "digital"}),
+        release(item, %{title: "physical", air_date: days(40), release_type: "physical"})
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context())
+
+      assert find_event(feed, "digital").status == :armed
+      assert find_event(feed, "physical").status == :armed_fallback
+    end
+
+    test "a theatrical date never claims the grab — the digital date is still :armed" do
+      item = movie_item()
+
+      releases = [
+        release(item, %{title: "theatrical", air_date: days(1), release_type: "theatrical"}),
+        release(item, %{title: "digital", air_date: days(30), release_type: "digital"})
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context())
+
+      assert find_event(feed, "theatrical").status == :theatrical_info
+      assert find_event(feed, "digital").status == :armed
+    end
+
+    test "a film whose only acquirable date is physical arms that date" do
+      item = movie_item()
+      physical = release(item, %{title: "physical", air_date: days(40), release_type: "physical"})
+
+      feed = UpcomingFeed.build([physical], armed_context())
+
+      assert find_event(feed, "physical").status == :armed
+    end
+
+    test "collection parts are separate films — each part's earliest date is :armed" do
+      item = movie_item()
+
+      releases = [
+        release(item, %{title: "part-1", air_date: days(3), release_type: "digital", part_tmdb_id: 111}),
+        release(item, %{title: "part-2", air_date: days(20), release_type: "digital", part_tmdb_id: 222})
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context())
+
+      assert find_event(feed, "part-1").status == :armed
+      assert find_event(feed, "part-2").status == :armed
+    end
+
+    test "when auto-grab won't fire, both dates stay neutral :upcoming" do
+      item = movie_item(%{auto_grab_mode: "off"})
+
+      releases = [
+        release(item, %{title: "digital", air_date: days(3), release_type: "digital"}),
+        release(item, %{title: "physical", air_date: days(40), release_type: "physical"})
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context())
+
+      assert find_event(feed, "digital").status == :upcoming
+      assert find_event(feed, "physical").status == :upcoming
+    end
+
+    test "a past fallback date is dropped from the forecast (the earliest date carries the title)" do
+      item = movie_item()
+
+      releases = [
+        release(item, %{title: "digital", air_date: days(-60), released: true, release_type: "digital"}),
+        release(item, %{title: "physical", air_date: days(-5), released: true, release_type: "physical"})
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context())
+
+      assert find_event(feed, "digital").status == :armed
+      refute Enum.any?(all_events(feed), &(&1.title == "physical"))
+    end
+
+    test "an episode timeline is untouched — every future episode is :armed" do
+      item = tv_item()
+
+      releases = [
+        release(item, %{title: "e1", air_date: days(1), season_number: 1, episode_number: 1}),
+        release(item, %{title: "e2", air_date: days(8), season_number: 1, episode_number: 2})
+      ]
+
+      feed = UpcomingFeed.build(releases, armed_context())
+
+      assert find_event(feed, "e1").status == :armed
+      assert find_event(feed, "e2").status == :armed
+    end
+  end
+
   describe "armed honesty (only show auto-grabbing when it will actually fire)" do
     test "acquisition not ready → neutral :upcoming, never :armed" do
       item = tv_item()
