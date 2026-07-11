@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleDetail do
   error-tinted control on the page: Stop tracking.
 
   Enters from the right over a dimming scrim; on a wide screen it occludes the
-  mini-month (the right edge is either "the month" or "one title", never both).
+  shelf (the right edge is either "the month" or "one title", never both).
 
   Named `title_detail` rather than `detail_panel` so it does not collide with the
   existing `Components.DetailPanel` in storybook-coverage basename matching.

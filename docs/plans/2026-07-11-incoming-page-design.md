@@ -45,8 +45,10 @@ both pages leave most of their canvas unused.
   if ever wanted, is its own future design.)
 - **In flight band**: draft-plan banner (review / approve), live torrent rows
   (percent, speed, ETA), searching pursuits. An under-pursuit shelf card's pill anchors to
-  its torrent row; the row reuses the card's art, title, and pill so the pair reads as two
-  zoom levels of one object.
+  its torrent row (every row density carries the anchor id); the landing row highlights and
+  shares the card's title, so the pair reads as two zoom levels of one object. (The row keeps
+  its identity-banner treatment rather than duplicating the card's art and pill — amended
+  from the original "same art and pill" wording during verify.)
 - **Recently landed ledger**: terminal pursuits (landed / failed / cancelled) as open rows
   dissolving into the page floor via a mask fade; "Show earlier" reveals older rows into
   the dissolve; "View all" expands the same section in place into the filtered archive
@@ -69,8 +71,8 @@ both pages leave most of their canvas unused.
       empty box.
 - [x] A busy day (8+ torrents, multiple plans) keeps the shelf reachable — the in-flight
       band grows but the page's order and section voice hold.
-- [x] An under-pursuit shelf pill navigates to its torrent row; the row identifies itself
-      with the same art, title, and pill.
+- [x] An under-pursuit shelf pill navigates to its torrent row at any row density; the
+      landing row highlights and carries the same title.
 - [x] Keyboard/gamepad navigation traverses hero → shelf → band → ledger as proper nav
       zones (input-system page behavior).
 - [x] `/upcoming` and `/download` deep links land users on the new page.

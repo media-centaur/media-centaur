@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
   @moduledoc """
-  Renders one pursuit row on the Downloads index (`/download`).
+  Renders one pursuit row on the Incoming page's in-flight zone.
 
   Three surfaces per card:
 
@@ -148,6 +148,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
 
     <div
       :if={@density == :compact}
+      id={"pursuit-#{@vm.id}"}
       class={[
         "px-3 py-2 flex items-baseline gap-3 cursor-pointer",
         @framed && "identity-row rounded-lg hover:brightness-110 transition-[filter]",

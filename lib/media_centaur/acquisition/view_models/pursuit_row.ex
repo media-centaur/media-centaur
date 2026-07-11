@@ -1,9 +1,9 @@
 defmodule MediaCentaur.Acquisition.ViewModels.PursuitRow do
   @moduledoc """
-  Display contract for one row in the Downloads index — one card per
+  Display contract for one row in the Incoming page's in-flight zone — one card per
   active pursuit. Carries enough to render a meaningful title (show
   name + S/E) and a single severity-colored status sentence. Clicking
-  the row opens the pursuit detail modal on `/download?selected=<id>`.
+  the row opens the pursuit detail modal on `/incoming?selected=<id>`.
   """
 
   alias MediaCentaur.Acquisition.ViewModels.CurrentAction
