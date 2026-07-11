@@ -159,6 +159,9 @@ defmodule MediaCentaurWeb.IncomingLive.View do
     if event.title, do: "#{code} · “#{event.title}”", else: code
   end
 
+  # A movie release's title is usually just the movie's name again — only a
+  # genuinely distinct edition title ("Restored edition") earns the caption.
+  defp subtitle_for(%Event{kind: :movie, title: title, item_name: title}), do: nil
   defp subtitle_for(%Event{kind: :movie} = event), do: event.title
 
   defp episode_code(%Event{season_number: season, episode_number: episode}) do
