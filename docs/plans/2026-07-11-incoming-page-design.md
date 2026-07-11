@@ -54,21 +54,21 @@ both pages leave most of their canvas unused.
 
 ## Acceptance Criteria
 
-- [ ] All current Upcoming and Downloads capabilities are reachable from the one page
+- [x] All current Upcoming and Downloads capabilities are reachable from the one page
       (track, plan, approve, cancel, retry, release search, history filters — some behind
       disclosures/modals, none dropped).
-- [ ] With acquisition unconfigured, the page renders forecast-only and nothing on it
+- [x] With acquisition unconfigured, the page renders forecast-only and nothing on it
       implies grabbing is possible.
-- [ ] Empty states stay inviting: nothing tracked → hero + horizon terminus, no dead
+- [x] Empty states stay inviting: nothing tracked → hero + horizon terminus, no dead
       panels; nothing in flight → the band collapses entirely rather than rendering an
       empty box.
-- [ ] A busy day (8+ torrents, multiple plans) keeps the shelf reachable — the in-flight
+- [x] A busy day (8+ torrents, multiple plans) keeps the shelf reachable — the in-flight
       band grows but the page's order and section voice hold.
-- [ ] An under-pursuit shelf pill navigates to its torrent row; the row identifies itself
+- [x] An under-pursuit shelf pill navigates to its torrent row; the row identifies itself
       with the same art, title, and pill.
-- [ ] Keyboard/gamepad navigation traverses hero → shelf → band → ledger as proper nav
+- [x] Keyboard/gamepad navigation traverses hero → shelf → band → ledger as proper nav
       zones (input-system page behavior).
-- [ ] `/upcoming` and `/download` deep links land users on the new page.
+- [x] `/upcoming` and `/download` deep links land users on the new page.
 
 ## Anti-patterns
 
