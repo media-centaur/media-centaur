@@ -89,19 +89,21 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStorage do
       |> assign(:rows, Enum.map(assigns.drives, &row/1))
 
     ~H"""
-    <div
-      :if={@mode == :card}
-      class="glass-surface rounded-xl px-4 py-3 space-y-2"
-      data-component="download-storage"
-      data-mode="card"
-    >
-      <div class="flex items-center gap-2">
-        <.icon name="hero-circle-stack-mini" class="size-4 text-base-content/50 shrink-0" />
-        <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">Storage</h3>
-      </div>
+    <%!-- An open section like its neighbors (Coming up / Recently landed),
+          not one boxed panel: "Storage" is the section heading and each
+          drive gets its own half-wide glass card (owner call, 2026-07-11) —
+          bookkeeping voice, never a page-wide alarm band. --%>
+    <section :if={@mode == :card} class="space-y-3" data-component="download-storage" data-mode="card">
+      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+        Storage
+      </h3>
 
-      <div class={grid_class(@rows)}>
-        <div :for={row <- @rows} id={"download-storage-#{row.id}"} class="space-y-1">
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div
+          :for={row <- @rows}
+          id={"download-storage-#{row.id}"}
+          class="glass-surface rounded-xl px-4 py-3 space-y-1.5"
+        >
           <div class="flex items-baseline justify-between gap-2">
             <span class="flex items-center gap-1.5 truncate text-sm" title={row.mount_point}>
               <.icon :if={row.icon} name={row.icon} class={"size-4 shrink-0 #{row.text_class}"} />
@@ -119,15 +121,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStorage do
           </progress>
         </div>
       </div>
-    </div>
+    </section>
     """
   end
-
-  # Half-width drive cards regardless of count (owner call, 2026-07-11):
-  # the card closes the Incoming page as quiet bookkeeping, and a
-  # full-bleed bar there reads as a page-wide alarm. A lone drive sits in
-  # the left half; the right half stays empty air.
-  defp grid_class(_rows), do: "grid gap-x-6 gap-y-2 sm:grid-cols-2"
 
   defp row(drive) do
     severity = StatusHelpers.storage_severity(drive)
