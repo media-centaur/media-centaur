@@ -72,15 +72,16 @@ defmodule MediaCentaurWeb.IncomingLive.View do
     * `:pursuit_rows` / `:ledger_rows` / `:drafts` — acquisition reads
     * `:today`, `:acquisition_ready?`, `:auto_grab_default_mode`,
       `:grab_status_by_key` — the `UpcomingFeed` context facts
-    * `:ledger_expanded?` — the ledger disclosure state
+    * `:ledger_expanded?` / `:shelf_expanded?` — the disclosure states
+      ("Show earlier" on the ledger, "Show all" on the shelf)
 
-  The full `feed` rides along for the calendar disclosure
-  (`UpcomingFeed.mini_month_marks/3`) and per-title detail building.
+  The full `feed` rides along for per-title detail building.
   """
   @spec build(map()) :: t()
   def build(inputs) do
     feed = UpcomingFeed.build(inputs.releases, feed_context(inputs))
-    {events, overflow_count} = UpcomingFeed.shelf_items(feed, @shelf_cap)
+    shelf_cap = if Map.get(inputs, :shelf_expanded?, false), do: :all, else: @shelf_cap
+    {events, overflow_count} = UpcomingFeed.shelf_items(feed, shelf_cap)
 
     %View{
       shelf: %ShelfSection{

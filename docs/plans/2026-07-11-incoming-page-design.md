@@ -37,17 +37,22 @@ both pages leave most of their canvas unused.
 - **Coming up shelf**: large poster cards in nearness order with progressively explicit
   date labels (Tonight → Tue → Fri Jul 17 → Aug 6). States as shared pill vocabulary:
   armed, in pursuit (with percent), in theaters (watch-only), tracked. Season drops get a
-  stacked treatment. A calendar disclosure expands an inline month grid. After the last
-  card, a dashed horizon terminus — "Nothing further on the horizon. Track something to
-  extend the forecast." — scrolls back and focuses the omnibox.
+  stacked treatment. Overflow past the shelf cap grows the shelf in place ("Show all N" —
+  the same idiom as the ledger's "Show earlier"). After the last card, a dashed horizon
+  terminus — "Nothing further on the horizon. Track something to extend the forecast."
+  (The v1 calendar disclosure was cut during build review: its wayfinding job died with
+  the timeline rail, and its marks duplicated the shelf's date labels. A real month view,
+  if ever wanted, is its own future design.)
 - **In flight band**: draft-plan banner (review / approve), live torrent rows
   (percent, speed, ETA), searching pursuits. An under-pursuit shelf card's pill anchors to
   its torrent row; the row reuses the card's art, title, and pill so the pair reads as two
   zoom levels of one object.
 - **Recently landed ledger**: terminal pursuits (landed / failed / cancelled) as open rows
   dissolving into the page floor via a mask fade; "Show earlier" reveals older rows into
-  the dissolve; "View all history" opens the full filtered history; storage free-space sits
-  as the ledger's ambient foot line.
+  the dissolve; "View all" expands the same section in place into the filtered archive
+  (chips + search) — one history surface, no sibling section (merged during build review);
+  storage free-space sits as the ledger's ambient foot line, with the escalated per-drive
+  cards closing the page under a "Storage" section heading.
 - **Acquisition off**: in-flight band and ledger absent; hero copy reframes to tracking;
   release-search mode absent; no badge or caption implies grabbing is possible (armed
   captions become plain dates).

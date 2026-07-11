@@ -44,9 +44,6 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Straggler
 
-  # Status emphasis order — the "loudest" status wins a shared mini-month day.
-  @status_priority [:under_pursuit, :armed, :in_library, :theatrical_info, :upcoming]
-
   @bucket_order [:today, :this_week, :next_week, :later, :beyond]
 
   @empty_buckets Map.new(@bucket_order, &{&1, []})
@@ -126,24 +123,6 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   end
 
   @doc """
-  Per-day marks for the mini-month companion over the given calendar month —
-  `%{Date => %{count, status}}`. Count is the number of *events* (post
-  season-drop collapse) on that day; status is the highest-priority status
-  present (so a pursued day reads as `:under_pursuit` even alongside armed ones).
-  """
-  @spec mini_month_marks(t(), integer(), integer()) ::
-          %{Date.t() => %{count: pos_integer(), status: atom()}}
-  def mini_month_marks(%UpcomingFeed{} = feed, year, month) do
-    feed
-    |> scheduled_events()
-    |> Enum.filter(&(&1.air_date.year == year and &1.air_date.month == month))
-    |> Enum.group_by(& &1.air_date)
-    |> Map.new(fn {date, events} ->
-      {date, %{count: length(events), status: dominant_status(events)}}
-    end)
-  end
-
-  @doc """
   The "Tracking — nothing scheduled yet" stragglers: watching items with no
   dated release (hiatus shows, movies with no announced date). Items must have
   `:releases` preloaded.
@@ -166,7 +145,11 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   `{items, overflow_count}` counts hidden TITLES so a capped shelf never
   silently truncates the forecast.
   """
-  @spec shelf_items(t(), pos_integer()) :: {[Event.t()], non_neg_integer()}
+  @spec shelf_items(t(), pos_integer() | :all) :: {[Event.t()], non_neg_integer()}
+  def shelf_items(%UpcomingFeed{} = feed, :all) do
+    {feed |> scheduled_events() |> Enum.uniq_by(& &1.item_id), 0}
+  end
+
   def shelf_items(%UpcomingFeed{} = feed, cap) do
     titles = feed |> scheduled_events() |> Enum.uniq_by(& &1.item_id)
     {Enum.take(titles, cap), max(length(titles) - cap, 0)}
@@ -323,11 +306,6 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
 
   defp scheduled_events(%UpcomingFeed{buckets: buckets}) do
     Enum.flat_map(@bucket_order, &Map.get(buckets, &1, []))
-  end
-
-  defp dominant_status(events) do
-    present = MapSet.new(events, & &1.status)
-    Enum.find(@status_priority, :upcoming, &MapSet.member?(present, &1))
   end
 
   defp no_dated_release?(%{releases: releases}) when is_list(releases) do

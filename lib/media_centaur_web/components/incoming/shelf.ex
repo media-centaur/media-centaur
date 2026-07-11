@@ -6,8 +6,9 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
   from a `Card` view-model the LiveView composes out of
   `UpcomingFeed.shelf_items/2`. After the last card sits the dashed
   horizon terminus: the forecast ends honestly ("Nothing further on
-  the horizon."), and when there is overflow it points at the calendar
-  instead ("+N more on the calendar"). Tracked titles with nothing
+  the horizon."), and when there is overflow it grows in place instead
+  ("Show all N" — the ledger's "Show earlier" idiom, applied to the
+  shelf). Tracked titles with nothing
   scheduled fold into a quiet one-line disclosure under the shelf — no
   dead panel when there are none.
 
@@ -78,7 +79,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
 
   attr :overflow_count, :integer,
     default: 0,
-    doc: "Shelf-capped events beyond the visible cards — feeds the terminus' calendar pointer."
+    doc: "Titles beyond the visible cards — gates the terminus' \"Show all\" expansion."
 
   attr :stragglers, :list,
     default: [],
@@ -88,49 +89,22 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
     default: false,
     doc: "Gates the terminus' \"Track something\" affordance (opens the track modal)."
 
-  attr :calendar_open, :boolean, default: false
-
-  slot :calendar, doc: "Calendar disclosure body (month grid) — rendered when `calendar_open`."
-
   def shelf(assigns) do
     ~H"""
     <section data-component="incoming-shelf" class="space-y-4">
-      <div class="flex items-baseline justify-between">
-        <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
-          Coming up
-        </h3>
-        <%!-- Header affordance zone (the upcoming page's `actions` precedent) —
-              keeps the toggle keyboard-reachable without nesting it into the
-              SHELF card row below. --%>
-        <div data-nav-zone="actions">
-          <button
-            type="button"
-            class="flex cursor-pointer items-center gap-1.5 text-xs text-base-content/50 transition-colors hover:text-base-content"
-            phx-click="toggle_calendar"
-            aria-expanded={to_string(@calendar_open)}
-            data-nav-item
-            tabindex="0"
-          >
-            <.icon name="hero-calendar-mini" class="size-3.5" /> Calendar
-            <.icon
-              name="hero-chevron-down-mini"
-              class={"size-3 transition-transform#{if @calendar_open, do: " rotate-180"}"}
-            />
-          </button>
-        </div>
-      </div>
+      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
+        Coming up
+      </h3>
 
-      <%!-- The zone wraps the card row + terminus only. The calendar slot
-            below is MiniMonth's own `mini-month` zone and the header's
-            Calendar toggle rides with it via the wrapper div — nav zone
-            containers must never nest (input-system design rule). --%>
-      <div data-nav-zone="coming_up" class="flex gap-5">
+      <%!-- An expanded shelf wraps into rows; capped it stays one line
+            (six cards fit at 1600px, shrinking not wrapping). --%>
+      <div data-nav-zone="coming_up" class="flex flex-wrap gap-5">
         <.shelf_card :for={card <- @cards} card={card} />
-        <.horizon_terminus overflow_count={@overflow_count} tmdb_ready={@tmdb_ready} />
-      </div>
-
-      <div :if={@calendar_open && @calendar != []} class="glass-inset rounded-xl p-5">
-        {render_slot(@calendar)}
+        <.horizon_terminus
+          overflow_count={@overflow_count}
+          total_count={@overflow_count + length(@cards)}
+          tmdb_ready={@tmdb_ready}
+        />
       </div>
 
       <.stragglers_disclosure :if={@stragglers != []} stragglers={@stragglers} />
@@ -205,6 +179,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
   end
 
   attr :overflow_count, :integer, required: true
+  attr :total_count, :integer, required: true, doc: "Visible + hidden titles — the \"Show all N\" label."
   attr :tmdb_ready, :boolean, required: true
 
   defp horizon_terminus(assigns) do
@@ -220,11 +195,11 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
           <button
             type="button"
             class="cursor-pointer text-primary/85 transition-colors hover:text-primary"
-            phx-click="toggle_calendar"
+            phx-click="expand_shelf"
             data-nav-item
             tabindex="0"
           >
-            +{@overflow_count} more on the calendar
+            Show all {@total_count}
           </button>
         </span>
         <span :if={@overflow_count == 0}>Nothing further on the horizon.</span>

@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
   @moduledoc """
   The Coming-up shelf — nearness-ordered poster cards, the dashed
-  horizon terminus after the last card, the calendar disclosure in the
+  horizon terminus after the last card, and the
   section header, and the quiet stragglers line. The row shrinks its
   cards rather than wrapping.
   """
@@ -116,21 +116,9 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
       %Variation{
         id: :overflow,
         description:
-          "More forecast than shelf: the terminus points at the calendar (\"+N more\") " <>
+          "More forecast than shelf: the terminus grows the shelf in place (\"Show all N\") " <>
             "instead of claiming the horizon is empty.",
         attributes: %{cards: full_mix(), overflow_count: 4, tmdb_ready: true}
-      },
-      %Variation{
-        id: :calendar_open,
-        description: "The calendar disclosure open — the slot hosts the month grid.",
-        attributes: %{cards: full_mix(), calendar_open: true, tmdb_ready: true},
-        slots: [
-          """
-          <:calendar>
-            <div class="text-sm text-base-content/40">July 2026 month grid renders here (MonthGrid component).</div>
-          </:calendar>
-          """
-        ]
       },
       %Variation{
         id: :with_stragglers,
