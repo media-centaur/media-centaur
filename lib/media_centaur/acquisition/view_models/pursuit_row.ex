@@ -13,6 +13,10 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitRow do
     :id,
     :title,
     :state,
+    # When the pursuit last changed — for a terminal row this is when it
+    # reached its outcome, which the Recently landed ledger renders as
+    # relative time ("2 h ago").
+    :updated_at,
     :season_number,
     :episode_number,
     :release_title,

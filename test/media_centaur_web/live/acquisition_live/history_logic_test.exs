@@ -96,4 +96,43 @@ defmodule MediaCentaurWeb.AcquisitionLive.HistoryLogicTest do
       assert Logic.empty_state(:all) == "No past pursuits on record."
     end
   end
+
+  describe "ledger_rows/2 — the Recently landed ledger" do
+    defp terminal_row(n) do
+      row(%{id: "pursuit-#{n}", state: :satisfied, status: "Landed"})
+    end
+
+    test "collapsed shows the newest few and reports what stays hidden" do
+      rows = Enum.map(1..9, &terminal_row/1)
+
+      {visible, hidden} = Logic.ledger_rows(rows, false)
+
+      assert Enum.map(visible, & &1.id) == ["pursuit-1", "pursuit-2", "pursuit-3", "pursuit-4"]
+      assert hidden == 5
+    end
+
+    test "expanded reveals more without becoming the full history view" do
+      rows = Enum.map(1..20, &terminal_row/1)
+
+      {visible, hidden} = Logic.ledger_rows(rows, true)
+
+      assert length(visible) == 12
+      assert hidden == 8
+    end
+
+    test "fewer rows than the cap means nothing hidden" do
+      rows = Enum.map(1..2, &terminal_row/1)
+
+      assert {^rows, 0} = Logic.ledger_rows(rows, false)
+      assert {^rows, 0} = Logic.ledger_rows(rows, true)
+    end
+
+    test "input order is preserved (the read layer owns newest-first)" do
+      rows = [terminal_row(3), terminal_row(1), terminal_row(2)]
+
+      {visible, 0} = Logic.ledger_rows(rows, false)
+
+      assert Enum.map(visible, & &1.id) == ["pursuit-3", "pursuit-1", "pursuit-2"]
+    end
+  end
 end
