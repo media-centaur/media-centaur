@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   # owned `start_async(:acquisition_load, …)` (ADR-049). `render_async/1`
   # awaits it deterministically — no wall-clock sleep.
   defp render_after_async_load(view) do
-    render_async(view)
+    render_async(view, 2_000)
   end
 
   defp stub_prowlarr_with(results) do
@@ -154,7 +154,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> form("form[phx-change='omnibox_change']", %{query: "sample"})
       |> render_change()
 
-      render_async(view)
+      render_async(view, 2_000)
 
       html =
         view
@@ -375,7 +375,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       stub_plan_tmdb()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
-      render_async(view)
+      render_async(view, 2_000)
 
       # tv_detail fixture default poster, w154 for the larger header slot.
       assert has_element?(
@@ -388,7 +388,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       stub_plan_tmdb()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
-      render_async(view)
+      render_async(view, 2_000)
 
       # Collapsed by default — the season header renders, the episode rows don't.
       assert has_element?(view, "[phx-click='plan_toggle_season_expand'][phx-value-season='1']")
@@ -412,7 +412,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail())
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie")
-      html = render_async(view)
+      html = render_async(view, 2_000)
 
       assert html =~ "Sample Movie"
 
@@ -430,7 +430,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail())
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie")
-      html = render_async(view)
+      html = render_async(view, 2_000)
 
       # movie_detail fixture: overview, 139min runtime, Drama genre.
       assert html =~ "A sample movie overview."
@@ -447,7 +447,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
 
       # Targeting stage loads async; default preset = everything aired.
-      html = render_async(view)
+      html = render_async(view, 2_000)
       assert html =~ "Sample Show"
       assert html =~ "2 selected"
       assert html =~ "Plan 2 episodes"
@@ -500,7 +500,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> render_click()
 
       # Approval grabs run async (the LV must stay responsive).
-      _ = render_async(view)
+      _ = render_async(view, 2_000)
       _ = render(view)
 
       # Approval hands off to the pursuit modal — the board became the pursuit.
@@ -579,7 +579,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> element("button[phx-click='plan_find_more_alternatives'][phx-value-unit-id='#{unit.id}']")
       |> render_click()
 
-      html = render_async(view)
+      html = render_async(view, 2_000)
       assert html =~ "Sample.Show.S01E01.2160p.WEB-DL.x265"
       assert html =~ "Exclude this release"
 
@@ -692,7 +692,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # Release the parked search; the picker settles back to idle.
       send(searcher_pid, :proceed)
 
-      html = render_async(view)
+      html = render_async(view, 2_000)
       assert html =~ "Find more"
       refute html =~ "Searching…"
     end
@@ -896,7 +896,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> form("form[phx-change='omnibox_change']", %{query: "sample"})
       |> render_change()
 
-      html = render_async(view)
+      html = render_async(view, 2_000)
       assert html =~ "Sample Movie"
       assert html =~ "Sample Show"
 
@@ -935,7 +935,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> form("form[phx-change='omnibox_change']", %{query: "sample"})
       |> render_change()
 
-      render_async(view)
+      render_async(view, 2_000)
 
       assert has_element?(
                view,
