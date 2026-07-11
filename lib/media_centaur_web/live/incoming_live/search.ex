@@ -1,11 +1,11 @@
-defmodule MediaCentaurWeb.AcquisitionLive.Search do
+defmodule MediaCentaurWeb.IncomingLive.Search do
   @moduledoc """
   Release-search results zone of the Downloads page — grab feedback,
   group rendering, and the bulk-grab footer. **Headless since
   UIDR-014**: the query form, syntax hint, and expansion preview live
   in the omnibox hero (`MediaOmnibox`, release mode); this component
   renders what the session found. Pure function component; all events
-  bubble to the parent `AcquisitionLive` (`toggle_group`,
+  bubble to the parent `IncomingLive` (`toggle_group`,
   `select_result`, `retry_search`, `retry_all_timeouts`,
   `grab_selected`).
   """
@@ -15,8 +15,8 @@ defmodule MediaCentaurWeb.AcquisitionLive.Search do
 
   alias MediaCentaur.Format
   alias MediaCentaur.Search.Quality
-  alias MediaCentaurWeb.AcquisitionLive.SearchSession
-  alias MediaCentaurWeb.AcquisitionLive.Logic
+  alias MediaCentaurWeb.IncomingLive.SearchSession
+  alias MediaCentaurWeb.IncomingLive.Logic
 
   attr :session, SearchSession, required: true
   attr :any_loading?, :boolean, required: true

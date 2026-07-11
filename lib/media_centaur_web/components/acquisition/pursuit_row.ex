@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
   alias MediaCentaurWeb.Components.Acquisition.CellVocabulary
   alias MediaCentaur.Acquisition.ViewModels.{DownloadProgress, PursuitRow}
   alias MediaCentaur.Format
-  alias MediaCentaurWeb.AcquisitionLive.Logic
+  alias MediaCentaurWeb.IncomingLive.Logic
   alias MediaCentaurWeb.Components.Acquisition.PursuitStyle
 
   attr :vm, PursuitRow, required: true

@@ -164,7 +164,7 @@ defmodule MediaCentaur.Console.EntryTest do
         crash_reason:
           {%KeyError{key: :connectivity, term: %{}},
            [
-             {MediaCentaurWeb.AcquisitionLive, :assign_queue_from_state, 2,
+             {MediaCentaurWeb.IncomingLive, :assign_queue_from_state, 2,
               [file: ~c"lib/media_centaur_web/live/acquisition_live.ex", line: 100]},
              {Phoenix.LiveView.Utils, :call_handle_params!, 5,
               [file: ~c"lib/phoenix_live_view/utils.ex", line: 1]}

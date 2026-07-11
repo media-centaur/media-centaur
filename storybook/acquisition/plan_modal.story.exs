@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   alias MediaCentaur.Acquisition.ViewModels.DescentNarrative
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaur.Library.Person
-  alias MediaCentaurWeb.AcquisitionLive.MoviePreview
+  alias MediaCentaurWeb.IncomingLive.MoviePreview
   alias MediaCentaurWeb.Components.Detail.Facet
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.PlanModal.plan_modal/1

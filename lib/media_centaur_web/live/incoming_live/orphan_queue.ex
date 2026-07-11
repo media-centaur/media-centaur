@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.AcquisitionLive.OrphanQueue do
+defmodule MediaCentaurWeb.IncomingLive.OrphanQueue do
   @moduledoc """
   "Other downloads" residual section — torrents in the download client
   that did not pair with any tracked pursuit.
@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.OrphanQueue do
   import MediaCentaurWeb.CoreComponents, only: [badge: 1, button: 1, icon: 1]
 
   alias MediaCentaur.Downloads.QueueItem
-  alias MediaCentaurWeb.AcquisitionLive.Logic
+  alias MediaCentaurWeb.IncomingLive.Logic
 
   attr :items, :list,
     required: true,

@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.AcquisitionLive do
+defmodule MediaCentaurWeb.IncomingLive do
   @moduledoc """
   Unified Downloads page at `/download`. A single column of stacked
   zones, top to bottom:
@@ -21,8 +21,8 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   unauthenticated requests redirect to the library.
 
   See `MediaCentaur.Search.QueryExpander` for the supported brace
-  syntax, `MediaCentaurWeb.AcquisitionLive.Logic` for search/group
-  helpers, and `MediaCentaurWeb.AcquisitionLive.HistoryLogic` for the
+  syntax, `MediaCentaurWeb.IncomingLive.Logic` for search/group
+  helpers, and `MediaCentaurWeb.IncomingLive.HistoryLogic` for the
   History zone filter helpers.
 
   ## External-state reconciliation
@@ -86,7 +86,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   alias MediaCentaur.Acquisition.ViewModels.{Alternative, DescentNarrative, PursuitWithDownload}
   alias MediaCentaur.Capabilities
 
-  alias MediaCentaurWeb.AcquisitionLive.{
+  alias MediaCentaurWeb.IncomingLive.{
     History,
     HistoryLogic,
     Logic,
@@ -98,7 +98,7 @@ defmodule MediaCentaurWeb.AcquisitionLive do
   alias MediaCentaur.ReleaseTracking
 
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
-  alias MediaCentaurWeb.AcquisitionLive.PlanLogic
+  alias MediaCentaurWeb.IncomingLive.PlanLogic
   alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
 
   alias MediaCentaur.Settings

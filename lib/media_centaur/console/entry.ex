@@ -145,7 +145,7 @@ defmodule MediaCentaur.Console.Entry do
   end
 
   # App-module prefix → board subsystem. Matched with starts_with? on the
-  # module name (so MediaCentaurWeb.AcquisitionLive matches the
+  # module name (so MediaCentaurWeb.IncomingLive matches the
   # "MediaCentaurWeb.Acquisition" entry). Modules outside this table — other
   # web pages, framework, deps — return nil and fall through to :system.
   @crash_frame_subsystems [

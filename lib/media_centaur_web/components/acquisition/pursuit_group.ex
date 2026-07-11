@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitGroup do
       [chevron] <Title> · <N> episodes · <severity-colored verb>
 
   Clicking the header fires `toggle_pursuit_group` with
-  `phx-value-title` and `phx-value-state`. The parent `AcquisitionLive`
+  `phx-value-title` and `phx-value-state`. The parent `IncomingLive`
   toggles membership of `{title, state}` in its `expanded_pursuit_groups`
   `MapSet` and re-renders.
 

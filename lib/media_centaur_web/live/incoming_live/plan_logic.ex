@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.AcquisitionLive.PlanLogic do
+defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   @moduledoc """
   Pure selection logic for the targeting picker (UIDR-014, ADR-030):
   the chosen-units set, season tri-states, and the quick-action
@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.PlanLogic do
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Library.Person
   alias MediaCentaur.TMDB.Mapper
-  alias MediaCentaurWeb.AcquisitionLive.MoviePreview
+  alias MediaCentaurWeb.IncomingLive.MoviePreview
   alias MediaCentaurWeb.Components.Detail.Logic, as: DetailLogic
 
   @type unit :: {pos_integer(), pos_integer()}

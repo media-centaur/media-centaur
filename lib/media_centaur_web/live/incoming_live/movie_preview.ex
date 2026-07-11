@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.AcquisitionLive.MoviePreview do
+defmodule MediaCentaurWeb.IncomingLive.MoviePreview do
   @moduledoc """
   View-model for the plan modal's `:movie_confirm` stage — a detail-page
   shaped preview of the movie the user just picked from media search, so
@@ -6,7 +6,7 @@ defmodule MediaCentaurWeb.AcquisitionLive.MoviePreview do
   tagline, director, top cast, facets) the library's movie detail panel
   shows for a movie already owned.
 
-  Built by `AcquisitionLive.PlanLogic.movie_preview/2` from a raw TMDB
+  Built by `IncomingLive.PlanLogic.movie_preview/2` from a raw TMDB
   payload via `TMDB.Mapper` — the same derivation the import pipeline
   uses — so the preview can never drift from what ingestion would record.
   Absent TMDB fields collapse to `nil`/empty so the template drops them.

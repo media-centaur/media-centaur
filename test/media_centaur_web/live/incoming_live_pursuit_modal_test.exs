@@ -1,4 +1,4 @@
-defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
+defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
   @moduledoc """
   Covers the pursuit detail modal on `/download`. The detail used to be
   a separate LiveView at `/download/:pursuit_id`; it is now opened in
@@ -191,7 +191,7 @@ defmodule MediaCentaurWeb.AcquisitionLivePursuitModalTest do
 
       {:ok, view, _html} = live_async!(conn, "/download")
 
-      # `AcquisitionLive.ensure_loaded/1` defers `pursuit_rows` to an owned
+      # `IncomingLive.ensure_loaded/1` defers `pursuit_rows` to an owned
       # `start_async(:acquisition_load, …)`; `live_async!` already drained it
       # at mount, so `render/1` reflects the loaded state.
       html = render(view)

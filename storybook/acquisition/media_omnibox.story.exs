@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentaurWeb.AcquisitionLive.SearchSession
+  alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaurWeb.Components.Acquisition.MediaOmnibox
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.MediaOmnibox.media_omnibox/1

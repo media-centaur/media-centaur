@@ -1,8 +1,8 @@
-defmodule MediaCentaurWeb.AcquisitionLive.SearchSession do
+defmodule MediaCentaurWeb.IncomingLive.SearchSession do
   @moduledoc """
   Singleton GenServer holding the user's current acquisition search session.
 
-  Decouples the search workflow from `MediaCentaurWeb.AcquisitionLive`'s
+  Decouples the search workflow from `MediaCentaurWeb.IncomingLive`'s
   process lifetime so search state — query, brace-expanded groups, results,
   user selections, grab feedback — survives navigation, reconnect, and
   browser refresh. Lost on BEAM restart.

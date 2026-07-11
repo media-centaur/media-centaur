@@ -1,10 +1,10 @@
-defmodule MediaCentaurWeb.AcquisitionLive.PlanLogicTest do
+defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
   use ExUnit.Case, async: true
 
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Library.Person
-  alias MediaCentaurWeb.AcquisitionLive.MoviePreview
-  alias MediaCentaurWeb.AcquisitionLive.PlanLogic
+  alias MediaCentaurWeb.IncomingLive.MoviePreview
+  alias MediaCentaurWeb.IncomingLive.PlanLogic
 
   # S1: E1 in library, E2/E3 pickable. S2: E1 pickable, E2 unaired.
   defp selection do

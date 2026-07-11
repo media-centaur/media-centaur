@@ -144,7 +144,7 @@ const TOUR = [
       const input = page.locator("input[name='query']")
       await input.fill("Night of the Living Dead")
       await page.locator("button[type='submit']").click()
-      // Wait for the results card to appear. The AcquisitionLive
+      // Wait for the results card to appear. The IncomingLive
       // template only renders the results section when @groups is
       // non-empty, so a presence-check on the section heading is
       // enough to know the async search returned.

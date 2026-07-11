@@ -25,7 +25,7 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
-  alias MediaCentaurWeb.AcquisitionLive.HistoryLogic
+  alias MediaCentaurWeb.IncomingLive.HistoryLogic
   alias MediaCentaurWeb.Components.Incoming.Shelf.Card
   alias MediaCentaurWeb.IncomingLive.View
 
