@@ -32,6 +32,7 @@ cp -r ../contrib/mpv/scripts/ ~/.config/mpv/scripts/
 | `../contrib/mpv/input.conf` | Key bindings |
 | `../contrib/mpv/scripts/track-menu.lua` | Two-column audio/subtitle track selector overlay |
 | `../contrib/mpv/scripts/skip-intro.lua` | Chapter-based intro skip button |
+| `../contrib/mpv/scripts/hdr-display.lua` | Auto-switch the Hyprland output to HDR mode while HDR content plays |
 
 ## mpv.conf
 
@@ -40,6 +41,16 @@ cp -r ../contrib/mpv/scripts/ ~/.config/mpv/scripts/
 - `gpu-api=vulkan` with `vo=gpu-next` and `hwdec=nvdec` for hardware-accelerated decoding
 - `profile=gpu-hq` enables high-quality defaults
 - High-quality scaling: `ewa_lanczossharp` for up/chroma, `mitchell` for downscale
+
+### HDR
+
+- `target-colorspace-hint=yes` — when the compositor runs the display in HDR
+  mode, mpv passes HDR10/DV through untouched and the display does its own
+  tone mapping. The `hdr-display.lua` script (below) flips the display into
+  HDR mode automatically for HDR content.
+- SDR fallback (display in SDR mode): `tone-mapping=bt.2446a` +
+  `hdr-contrast-recovery=0.30` — the ITU HDR→SDR broadcast-conversion curve,
+  noticeably brighter than mpv's default spline on dim-graded films.
 
 ### Subtitles
 
@@ -142,3 +153,34 @@ mpv --msg-level=skip_intro=trace /path/to/video.mkv
 ```
 
 This outputs chapter change events, pattern matching results, overlay rendering, and skip actions.
+
+## hdr-display Plugin
+
+Keeps the desktop in SDR (where it looks right) while giving HDR films a
+real HDR signal. When mpv loads a file whose transfer function is PQ or HLG,
+the script switches the Hyprland output to 10-bit HDR mode (`hyprctl keyword
+monitor … cm, hdr`); when playback moves to SDR content or mpv quits, it
+restores the SDR monitor line. Combined with `target-colorspace-hint=yes`,
+the display receives the film's untouched HDR10 grade and applies its own
+tone mapping.
+
+### Behavior
+
+- **No key binding needed** — activates via a `video-params/gamma` observer
+- Expect a few seconds of black when entering/leaving HDR playback: the
+  display re-locks the HDMI link on the mode change (same as a game console)
+- HDR → HDR playlist transitions don't bounce the display (gamma is only
+  `nil` between files, and `nil` never triggers a revert)
+- The monitor lines in the script's config table must mirror
+  `~/.config/hypr/hyprland.conf` so the revert lands on the compositor's
+  steady state
+- If mpv is killed hard (no shutdown event), the display stays in HDR mode —
+  recover with the SDR `hyprctl keyword monitor` line or a Hyprland reload
+
+### Debugging
+
+```bash
+mpv --msg-level=hdr_display=debug /path/to/video.mkv
+```
+
+This outputs gamma observations and the hyprctl mode-switch commands.
