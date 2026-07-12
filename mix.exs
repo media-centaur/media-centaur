@@ -167,7 +167,7 @@ defmodule MediaCentaur.MixProject do
       ],
       "test.all": [
         "test",
-        "cmd bun test --dots assets/js/input/"
+        "cmd bun test --dots assets/js/input/ assets/js/__tests__/"
       ]
     ]
   end
