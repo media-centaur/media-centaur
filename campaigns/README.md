@@ -121,18 +121,18 @@ Use [`template.md`](template.md) as a starter.
   `Acquisition.Planner`: consolidation claims spans greedily, packs win
   at equal quality, upgrades are offer-as-swap only; regression test
   pins the shape.
-* [`duplicate-episode-copies.md`](duplicate-episode-copies.md) —
-  **planning.** When the library ends up with two playable copies of
-  the same unit (1080p pack copy + 4K single), today's behavior is
-  accidental: playback picks an arbitrary insertion-order WatchedFile,
-  both files persist on disk, and nothing surfaces the duplication.
-  Plan-level dedup is solved, but physical duplicates still arrive —
-  swap a pack-covered unit (the pack still contains it), a pack lands
-  with unwanted episodes, manual release-mode grabs, pre-v0.88.2
-  residue. Scope: deterministic quality-aware playback pick, duplicate
-  visibility + explicit reclamation, swap-time mitigation decision,
-  wiki documentation. Takes over the file-pick follow-up
-  `plan-solver-consolidation` scoped out. No code yet.
+* [`playable-item-versions.md`](playable-item-versions.md) —
+  **planning.** First-class multi-version support for playable items:
+  renditions (HDR/SDR, 2160p/1080p — second `WatchedFile`, shared
+  progress) vs cuts (director's cut — second `PlayableItem`, own
+  progress), per [ADR-059](../decisions/architecture/2026-07-12-059-cuts-vs-renditions.md).
+  Default pick = highest quality; user selects the **active** version
+  in the entity's Manage modal; entity-scoped "grab another version"
+  bypasses the in-library guard (manual only). Absorbs
+  `duplicate-episode-copies` (removed 2026-07-12): a duplicate is a
+  version the user didn't ask for, reclaimed from the same modal.
+  Phase 1 = renditions, Phase 2 = cuts; swap-time pack mitigation and
+  auto-upgrade stay deferred. No code yet.
 * [`external-dependency-health-classification.md`](external-dependency-health-classification.md) —
   **shipped v0.83.2; prod-reconcile remains.** Move download-client connectivity faults off the noisy `:log`
   incident track onto the existing `:subsystem` assessor track, so one qBit
