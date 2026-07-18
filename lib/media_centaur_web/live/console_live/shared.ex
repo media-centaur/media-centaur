@@ -148,7 +148,7 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
         end
       end
 
-      # Session-wide on_mount hooks (DiagnosticsBadge, ReviewBadge) subscribe
+      # Session-wide on_mount hook (ShellBadges) subscribe
       # the routed ConsolePageLive to their PubSub topics and pass messages
       # through — without a catch-all, any such broadcast while the console
       # page is open is a FunctionClauseError.

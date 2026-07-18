@@ -39,8 +39,8 @@ defmodule MediaCentaurWeb.Layouts do
     doc: """
     Count of unseen auto-detected open incidents, rendered as a discovery
     badge on the Status nav item. Seeded app-wide by
-    `MediaCentaurWeb.DiagnosticsBadge` (default `live_session` on_mount) and
-    live-refreshed via the `error_reports` PubSub topic.
+    `MediaCentaurWeb.ShellBadges` (default `live_session` on_mount) and
+    live-refreshed via the `shell:badges` derived topic.
     """
 
   attr :review_pending, :integer,
@@ -50,7 +50,7 @@ defmodule MediaCentaurWeb.Layouts do
     Together with `mapping_pending` it drives the sidebar Review entry:
     hidden when both are zero, badged with the sum otherwise, targeting
     /review while identity work exists and /reconcile when only mapping
-    work remains. Seeded app-wide by `MediaCentaurWeb.ReviewBadge`
+    work remains. Seeded app-wide by `MediaCentaurWeb.ShellBadges`
     (default `live_session` on_mount) and live-refreshed via the
     `review:updates` PubSub topic.
     """
@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.Layouts do
     doc: """
     Count of files awaiting an episode-mapping decision
     (`Reconciliation.count_awaiting/0`). See `review_pending` — seeded by
-    `MediaCentaurWeb.ReviewBadge`, live-refreshed via the
+    `MediaCentaurWeb.ShellBadges`, live-refreshed via the
     `reconciliation:updates` PubSub topic.
     """
 

@@ -197,6 +197,17 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # merge landed, and the exact mechanism behind the suite-order jitter
       # is unattributed — StatusLive's own query set is unchanged). 52
       # still trips on any per-row N+1 while absorbing the jitter.
+      #
+      # The Status.Views / ShellBadges projections are primed here so the
+      # mount takes the production path (ETS / persistent_term reads);
+      # unprimed, their test-mode fallbacks run the overview + storage +
+      # badge queries inline in the mount process, which this counter
+      # would misattribute to the navigation path.
+      MediaCentaur.Status.Views.Overview.refresh_cache()
+      MediaCentaur.Status.Views.Storage.refresh_cache()
+      MediaCentaurWeb.ShellBadges.refresh_cache()
+      on_exit(fn -> MediaCentaurWeb.ShellBadges.reset_cache() end)
+
       mount_and_assert(
         conn,
         "/status",

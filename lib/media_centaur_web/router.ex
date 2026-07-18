@@ -27,8 +27,7 @@ defmodule MediaCentaurWeb.Router do
     live_session :default,
       on_mount: [
         MediaCentaurWeb.Live.CapabilitiesAware,
-        {MediaCentaurWeb.DiagnosticsBadge, :default},
-        {MediaCentaurWeb.ReviewBadge, :default}
+        {MediaCentaurWeb.ShellBadges, :default}
       ] do
       live "/", HomeLive, :index
       live "/console", ConsolePageLive, :index

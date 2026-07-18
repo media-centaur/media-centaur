@@ -244,7 +244,7 @@ defmodule MediaCentaurWeb.SetupLive do
     {:noreply, socket}
   end
 
-  # Session-wide on_mount hooks (DiagnosticsBadge, ReviewBadge) subscribe
+  # Session-wide on_mount hook (ShellBadges) subscribe
   # every LiveView to their PubSub topics and pass the messages through —
   # without a catch-all, any broadcast during setup is a FunctionClauseError.
   def handle_info(_message, socket), do: {:noreply, socket}

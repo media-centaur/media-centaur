@@ -53,6 +53,7 @@ defmodule MediaCentaur.Topics do
   | `release_tracking:views` | `ReleaseTracking.Views.*` projections | `{:release_tracking_view_updated, :coming_up}` |
   | `watch_history:views` | `WatchHistory.Views.*` projections | `{:watch_history_view_updated, :summary}` |
   | `status:views` | `Status.Views.*` projections | `{:status_view_updated, :overview \| :storage}` |
+  | `shell:badges` | `MediaCentaurWeb.ShellBadges` projection | `{:shell_badges_updated}` |
 
   Adding a new projection that needs its own derived topic: prefer
   one topic per source-context (e.g. `watch_history:views` for any
@@ -113,6 +114,7 @@ defmodule MediaCentaur.Topics do
   def release_tracking_views, do: "release_tracking:views"
   def watch_history_views, do: "watch_history:views"
   def status_views, do: "status:views"
+  def shell_badges, do: "shell:badges"
   def integration_health, do: "integration_health:updates"
   def reconciliation_updates, do: "reconciliation:updates"
 end
