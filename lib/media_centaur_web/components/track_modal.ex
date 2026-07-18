@@ -231,7 +231,7 @@ defmodule MediaCentaurWeb.Components.TrackModal do
       <div class="aspect-[2/3] rounded-lg bg-base-300 overflow-hidden mb-2 ring-1 ring-base-content/10 group-hover:ring-primary/40 transition-all">
         <img
           :if={@suggestion.poster_url}
-          src={sized_image_url("/media-images/#{@suggestion.poster_url}", 240)}
+          src={sized_image_url(MediaCentaur.Library.Image.web_path(@suggestion.poster_url), 240)}
           class="w-full h-full object-cover"
           loading="lazy"
         />

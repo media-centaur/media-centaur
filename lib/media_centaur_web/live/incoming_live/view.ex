@@ -177,5 +177,5 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   defp art_url(%Event{backdrop_path: nil}), do: nil
 
   defp art_url(%Event{backdrop_path: path}),
-    do: sized_image_url("/media-images/" <> path, @shelf_art_width)
+    do: sized_image_url(MediaCentaur.Library.Image.web_path(path), @shelf_art_width)
 end

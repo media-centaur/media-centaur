@@ -138,7 +138,7 @@ defmodule MediaCentaurWeb.LiveHelpers do
     image = Enum.find(Map.get(entity, :images) || [], &(&1.role == role))
 
     if image && image.content_url do
-      "/media-images/#{image.content_url}#{cache_bust(image)}"
+      MediaCentaur.Library.Image.web_path(image.content_url) <> cache_bust(image)
     end
   end
 

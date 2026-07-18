@@ -82,7 +82,7 @@ defmodule MediaCentaur.Library.Posters do
       )
       |> Repo.all()
       |> Enum.map(fn {owner_id, content_url} ->
-        {{owner_type, owner_id}, "/media-images/#{content_url}"}
+        {{owner_type, owner_id}, Image.web_path(content_url)}
       end)
     end)
     |> Map.new()
