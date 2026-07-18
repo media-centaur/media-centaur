@@ -218,6 +218,17 @@ defmodule MediaCentaur.Application do
       {MediaCentaur.Cache.Worker, context: MediaCentaur.Library.Views.Search},
       {MediaCentaur.Cache.Worker, context: MediaCentaur.ReleaseTracking.Views.ComingUp},
       {MediaCentaur.Cache.Worker, context: MediaCentaur.WatchHistory.Views.Summary},
+      # Status-page projections (instant-navigation campaign). Async prime:
+      # both run disk probes (`df`, per-image checks) that must never block
+      # boot; the interval is the drift net for slices with no source event.
+      {MediaCentaur.Cache.Worker,
+       context: MediaCentaur.Status.Views.Overview,
+       prime: :async,
+       refresh_interval_ms: to_timeout(minute: 10)},
+      {MediaCentaur.Cache.Worker,
+       context: MediaCentaur.Status.Views.Storage,
+       prime: :async,
+       refresh_interval_ms: to_timeout(minute: 5)},
       # Pillar-2 GenServer (ADR-041) — owns active watch-progress
       # state in ETS, debounce-flushes to library_watch_progress.
       MediaCentaur.Library.Progress.Worker,

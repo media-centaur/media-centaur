@@ -52,6 +52,7 @@ defmodule MediaCentaur.Topics do
   | `library:views` | `Library.Views.*` projections | `{:library_view_updated, :continue_watching \| :hero_candidates \| :recently_added}` |
   | `release_tracking:views` | `ReleaseTracking.Views.*` projections | `{:release_tracking_view_updated, :coming_up}` |
   | `watch_history:views` | `WatchHistory.Views.*` projections | `{:watch_history_view_updated, :summary}` |
+  | `status:views` | `Status.Views.*` projections | `{:status_view_updated, :overview \| :storage}` |
 
   Adding a new projection that needs its own derived topic: prefer
   one topic per source-context (e.g. `watch_history:views` for any
@@ -111,6 +112,7 @@ defmodule MediaCentaur.Topics do
   def library_views, do: "library:views"
   def release_tracking_views, do: "release_tracking:views"
   def watch_history_views, do: "watch_history:views"
+  def status_views, do: "status:views"
   def integration_health, do: "integration_health:updates"
   def reconciliation_updates, do: "reconciliation:updates"
 end

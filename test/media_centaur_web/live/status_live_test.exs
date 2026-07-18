@@ -1,9 +1,11 @@
 defmodule MediaCentaurWeb.StatusLiveTest do
   use MediaCentaurWeb.ConnCase, async: false
 
+  import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Playback.Events.PlaybackStateChanged
+  alias MediaCentaur.Status.Views
 
   describe "GET /status" do
     test "renders without crashing", %{conn: conn} do
@@ -27,6 +29,58 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     test "tmdb drill-in renders the metadata-activity section", %{conn: conn} do
       {:ok, _view, html} = live_async!(conn, "/status?subsystem=tmdb")
       assert html =~ "metadata-activity"
+    end
+  end
+
+  describe "first paint from projections (instant-navigation)" do
+    # The Status page renders complete, current content on BOTH the dead and
+    # connected mounts by reading the Status.Views projections — no skeleton,
+    # no async pops (ADR-051; campaigns/instant-navigation.md Phase 1).
+
+    test "dead render includes the primed library overview", %{conn: conn} do
+      create_movie(%{name: "Sample Projection Movie"})
+      Views.Overview.refresh_cache()
+
+      html = conn |> get("/status?subsystem=library") |> html_response(200)
+
+      assert html =~ "overview-glance"
+      refute html =~ "Loading library overview…"
+    end
+
+    test "connected first render includes the overview without any async wait", %{conn: conn} do
+      create_movie(%{name: "Sample Projection Movie"})
+      Views.Overview.refresh_cache()
+
+      {:ok, _view, html} = live(conn, "/status?subsystem=library")
+
+      assert html =~ "overview-glance"
+      refute html =~ "Loading library overview…"
+    end
+
+    test "dead render includes the primed storage snapshot", %{conn: conn} do
+      Views.Storage.refresh_cache()
+
+      html = conn |> get("/status?subsystem=watcher") |> html_response(200)
+
+      # The watcher widget's database-drive card only renders from a
+      # populated storage_drives assign.
+      assert html =~ "Database"
+    end
+
+    test "overview projection refresh live-updates the open page", %{conn: conn} do
+      # Recently-added only lists entities with a present file, so link one —
+      # the name rendering in the strip is the observable update signal.
+      first_movie = create_movie(%{name: "Sample Projection Movie"})
+      create_linked_file(%{movie_id: first_movie.id})
+      Views.Overview.refresh_cache()
+
+      {:ok, view, _html} = live(conn, "/status?subsystem=library")
+
+      second_movie = create_movie(%{name: "Second Sample Movie"})
+      create_linked_file(%{movie_id: second_movie.id})
+      Views.Overview.refresh_cache()
+
+      assert render(view) =~ "Second Sample Movie"
     end
   end
 
