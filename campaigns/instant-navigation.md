@@ -122,9 +122,31 @@ longtasks). Re-create from this description if lost; re-run after each phase.
   primes Browse/HeroCandidates in setup since every page's root layout
   reads them.
 
+- **Phase 5 ✅ 2026-07-18.** Console `Buffer` broadcasts `{:log_entries,
+  batch}` on a 100ms flush window instead of one `{:log_entry, _}` per
+  line (buffer state still updates immediately; `clear` drops the
+  unflushed batch). Verified live end-to-end via drawer DOM.
+
+## Post-P5 sweep (2026-07-18, warm painted ms; baseline → now)
+
+| Page | before | after |
+|---|---|---|
+| `/` | ~55 | ~36–42 |
+| `/library` | ~64–72 (first visit 250–550) | ~52–55 (first visit ~92 after warmup) |
+| `/incoming` | ~91–100 | ~60–135 (noisy; backdrop decode) |
+| `/status` | ~112–133 + skeleton pops | ~84–106, no pops |
+| `/review` / `/reconcile` | ~46–68 | ~29–38 |
+| `/history` | ~122–130 @ 276KB | ~65–70 @ 78KB |
+| `/settings` | ~92–95 | ~95–117 (unchanged — the P7 target) |
+
 ## Next steps
 
-- Phase 5: console batch broadcast (`{:log_entries, [...]}` ~100ms flush).
+- **Re-measure gate for phases 6–9**: /settings is the one page still
+  paying real server work on the click path (~26ms: systemd
+  `service_state` probe + `missing_images_summary`) → do Phase 7 next
+  session if it still reads as the outlier. Phase 6 (acquisition read
+  model) only if /incoming's ~60ms+ warm number bothers in practice.
+  Phases 8–9 remain deferred/trivial as scoped.
 
 ## Completion criteria
 
