@@ -9,6 +9,8 @@ defmodule MediaCentaur.IntegrationHealth.Verifier do
   :integration_health_verifier, MyMock)` (see the `verifier/0` getter).
   """
 
+  alias MediaCentaur.Downloads.DownloadClient.Dispatcher
+
   @type id :: MediaCentaur.IntegrationHealth.Status.id()
 
   @callback run(id()) :: :ok | {:error, term()}
@@ -30,10 +32,25 @@ defmodule MediaCentaur.IntegrationHealth.Verifier do
     end
   end
 
+  # Route through the two-slot Dispatcher rather than hardcoding one
+  # driver: a usenet-only install has no torrent client, so probing
+  # qBittorrent would always error. Healthy = every configured slot
+  # tests :ok; unconfigured = no slot at all.
   def run(:download_client) do
-    case MediaCentaur.Downloads.DownloadClient.QBittorrent.test_connection() do
-      :ok -> :ok
-      {:error, reason} -> {:error, reason}
+    case Dispatcher.drivers() do
+      [] ->
+        {:error, :not_configured}
+
+      drivers ->
+        # Each driver reads its own slot config via `default_client/0`
+        # (same seam as `Acquisition.test_download_client/1`), so the
+        # paired ClientConfig isn't needed here.
+        Enum.reduce_while(drivers, :ok, fn {_client, module}, :ok ->
+          case module.test_connection() do
+            :ok -> {:cont, :ok}
+            {:error, reason} -> {:halt, {:error, reason}}
+          end
+        end)
     end
   end
 end

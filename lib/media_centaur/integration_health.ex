@@ -56,20 +56,22 @@ defmodule MediaCentaur.IntegrationHealth do
 
   use GenServer
 
-  alias MediaCentaur.{Config, Secret, Topics}
+  alias MediaCentaur.{Config, Downloads, Secret, Topics}
   alias MediaCentaur.IntegrationHealth.{Status, Verifier}
   require MediaCentaur.Log, as: Log
 
   @table :integration_health
   @integrations [:tmdb, :prowlarr, :download_client]
 
-  # Map an integration id to the Config key whose presence flips
-  # `configured?`. Single source of truth so adding a new integration is
-  # one line.
+  # Map a single-key integration id to the Config key whose presence
+  # flips `configured?`. `:download_client` is deliberately absent: it
+  # spans two slots (torrent + usenet), so it derives `configured?` from
+  # `Downloads.configured_clients/0` and reacts to any of the slot keys
+  # (`Downloads.config_key?/1`) — see `configured_for?/1` and
+  # `integration_for_key/1`.
   @config_key %{
     tmdb: :tmdb_api_key,
-    prowlarr: :prowlarr_api_key,
-    download_client: :download_client_password
+    prowlarr: :prowlarr_api_key
   }
 
   # ---------------------------------------------------------------------------
@@ -204,6 +206,8 @@ defmodule MediaCentaur.IntegrationHealth do
     end
   end
 
+  defp configured_for?(:download_client), do: Downloads.configured_clients() != []
+
   defp configured_for?(id) do
     @config_key
     |> Map.fetch!(id)
@@ -212,7 +216,11 @@ defmodule MediaCentaur.IntegrationHealth do
   end
 
   defp integration_for_key(key) do
-    Enum.find(@integrations, fn id -> Map.get(@config_key, id) == key end)
+    if Downloads.config_key?(key) do
+      :download_client
+    else
+      Enum.find([:tmdb, :prowlarr], fn id -> Map.get(@config_key, id) == key end)
+    end
   end
 
   defp kick_test(id) do
