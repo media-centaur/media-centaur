@@ -16,7 +16,7 @@ defmodule MediaCentaur.Pipeline.Import do
   `"review:intake"` if the file came from a review approval.
 
   Broadway config: 1 producer (PubSub subscriber), 5 processors (partitioned
-  by file path), 1 batcher (batch size 10, timeout 5s).
+  by file path), no batcher — each message acks after `handle_message`.
 
   See `docs/pipeline.md` for full architecture details.
   """
@@ -40,8 +40,7 @@ defmodule MediaCentaur.Pipeline.Import do
         module: {MediaCentaur.Pipeline.Import.Producer, []},
         concurrency: 1
       ],
-      processors: [default: [concurrency: @processor_concurrency, partition_by: &partition_key/1]],
-      batchers: [default: [concurrency: 1, batch_size: 10, batch_timeout: 5_000]]
+      processors: [default: [concurrency: @processor_concurrency, partition_by: &partition_key/1]]
     )
   end
 
@@ -63,11 +62,6 @@ defmodule MediaCentaur.Pipeline.Import do
 
         Broadway.Message.failed(message, reason)
     end
-  end
-
-  @impl true
-  def handle_batch(:default, messages, _batch_info, _context) do
-    messages
   end
 
   defp partition_key(%Broadway.Message{data: %Payload{file_path: path}}) do
