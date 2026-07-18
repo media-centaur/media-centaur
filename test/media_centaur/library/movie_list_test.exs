@@ -75,7 +75,7 @@ defmodule MediaCentaur.Library.MovieListTest do
     end
   end
 
-  describe "index_progress_by_movie/1 (via EpisodeList.index_progress_by_key/1)" do
+  describe "EpisodeList.index_progress_by_key/1 keys movie-series progress by movie_id" do
     test "indexes progress records by movie_id FK" do
       movie_id_a = Ecto.UUID.generate()
       movie_id_b = Ecto.UUID.generate()
@@ -89,41 +89,6 @@ defmodule MediaCentaur.Library.MovieListTest do
       assert index[movie_id_a] == progress_a
       assert index[movie_id_b] == progress_b
       assert map_size(index) == 2
-    end
-  end
-
-  describe "index_progress_by_movie/1" do
-    test "indexes by movie_id from movies with preloaded watch_progress" do
-      progress_a = build_progress(%{position_seconds: 30.0})
-      progress_b = build_progress(%{position_seconds: 60.0})
-
-      movie_a = build_movie(%{name: "Part 1", watch_progress: progress_a})
-      movie_b = build_movie(%{name: "Part 2", watch_progress: progress_b})
-
-      index = MovieList.index_progress_by_movie([movie_a, movie_b])
-
-      assert index[movie_a.id] == progress_a
-      assert index[movie_b.id] == progress_b
-      assert map_size(index) == 2
-    end
-
-    test "skips movies without watch_progress" do
-      progress = build_progress(%{position_seconds: 30.0})
-      movie_a = build_movie(%{name: "Part 1", watch_progress: progress})
-      movie_b = build_movie(%{name: "Part 2", watch_progress: nil})
-
-      index = MovieList.index_progress_by_movie([movie_a, movie_b])
-
-      assert index[movie_a.id] == progress
-      assert map_size(index) == 1
-    end
-
-    test "returns empty map for empty list" do
-      assert MovieList.index_progress_by_movie([]) == %{}
-    end
-
-    test "returns empty map for non-list" do
-      assert MovieList.index_progress_by_movie(nil) == %{}
     end
   end
 

@@ -172,29 +172,6 @@ defmodule MediaCentaur.Library.FilePresenceTest do
     end
   end
 
-  describe "list_stale/1" do
-    test "returns rows older than the threshold" do
-      old = DateTime.add(DateTime.utc_now(), -7200, :second)
-      now = DateTime.utc_now()
-      threshold = DateTime.add(DateTime.utc_now(), -3600, :second)
-
-      FilePresence.stamp("/media/movies/old.mkv", "/media/movies", old)
-      FilePresence.stamp("/media/movies/fresh.mkv", "/media/movies", now)
-
-      stale = FilePresence.list_stale(threshold)
-
-      assert Enum.map(stale, & &1.file_path) == ["/media/movies/old.mkv"]
-    end
-
-    test "threshold boundary excludes rows stamped exactly at the threshold" do
-      threshold = DateTime.utc_now()
-
-      FilePresence.stamp("/media/movies/exact.mkv", "/media/movies", threshold)
-
-      assert FilePresence.list_stale(threshold) == []
-    end
-  end
-
   describe "delete_paths/1" do
     test "removes the named paths and returns the count" do
       FilePresence.stamp("/media/movies/keep.mkv", "/media/movies")

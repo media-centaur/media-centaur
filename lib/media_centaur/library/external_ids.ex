@@ -38,8 +38,6 @@ defmodule MediaCentaur.Library.ExternalIds do
 
   @type owner :: %Movie{} | %TVSeries{} | %MovieSeries{} | %VideoObject{}
 
-  @type owner_type :: :movie | :tv_series | :movie_series | :video_object
-
   @sources ~w(tmdb imdb tvdb tmdb_collection)a
 
   @doc """
@@ -99,41 +97,8 @@ defmodule MediaCentaur.Library.ExternalIds do
     end)
   end
 
-  @doc """
-  Finds the container that owns the given `(source, external_id)` pair,
-  returning `{:ok, owner_type, record}` or `:not_found`.
-
-  Tries each owner type in order — `tmdb` and `imdb` sources may legitimately
-  attach to multiple container types (a movie and a TV series can share
-  TMDB id 12345 — different namespaces in the TMDB API). The first match
-  wins; callers needing type-specific lookup should call
-  `MediaCentaur.Library.find_by_external_id/2` with the owner type.
-  """
-  @spec find_owner(source(), String.t()) :: {:ok, owner_type(), owner()} | :not_found
-  def find_owner(source, external_id) when source in @sources and is_binary(external_id) do
-    source_str = Atom.to_string(source)
-
-    row =
-      Repo.one(
-        from(e in ExternalId,
-          where: e.source == ^source_str and e.external_id == ^external_id,
-          limit: 1
-        )
-      )
-
-    case row do
-      nil -> :not_found
-      %ExternalId{owner_type: type, owner_id: id} -> {:ok, type, Repo.get!(schema_for(type), id)}
-    end
-  end
-
   defp owner_type(%Movie{}), do: :movie
   defp owner_type(%TVSeries{}), do: :tv_series
   defp owner_type(%MovieSeries{}), do: :movie_series
   defp owner_type(%VideoObject{}), do: :video_object
-
-  defp schema_for(:movie), do: Movie
-  defp schema_for(:tv_series), do: TVSeries
-  defp schema_for(:movie_series), do: MovieSeries
-  defp schema_for(:video_object), do: VideoObject
 end

@@ -74,20 +74,6 @@ defmodule MediaCentaur.Library.EpisodeList do
   end
 
   @doc """
-  Indexes progress by episode_id from episodes with preloaded `watch_progress`.
-
-  Returns `%{episode_id => progress}` for episodes that have progress records.
-  Expects a flat list of episode structs with `:watch_progress` preloaded.
-  """
-  def index_progress_by_episode(episodes) when is_list(episodes) do
-    episodes
-    |> Enum.filter(&progress_loaded?/1)
-    |> Map.new(fn episode -> {episode.id, episode.watch_progress} end)
-  end
-
-  def index_progress_by_episode(_), do: %{}
-
-  @doc """
   Finds the content_url for a specific season/episode in an entity.
 
   Returns `{:ok, url}` or `{:error, :invalid_episode}`.
@@ -138,9 +124,4 @@ defmodule MediaCentaur.Library.EpisodeList do
       end)
     end)
   end
-
-  defp progress_loaded?(%{watch_progress: %Ecto.Association.NotLoaded{}}), do: false
-  defp progress_loaded?(%{watch_progress: nil}), do: false
-  defp progress_loaded?(%{watch_progress: _}), do: true
-  defp progress_loaded?(_), do: false
 end

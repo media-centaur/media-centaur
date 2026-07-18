@@ -121,47 +121,4 @@ defmodule MediaCentaur.Library.ExternalIdsTest do
       assert ExternalIds.get(reloaded, :imdb) == "tt0000001"
     end
   end
-
-  describe "find_owner/2" do
-    test "finds a Movie owning a TMDB id" do
-      movie = create_standalone_movie(%{name: "Sample Movie"})
-      {:ok, _} = ExternalIds.put(:tmdb, movie, "550")
-
-      assert {:ok, :movie, found} = ExternalIds.find_owner(:tmdb, "550")
-      assert found.id == movie.id
-    end
-
-    test "finds a TVSeries owning a TMDB id" do
-      tv = create_tv_series(%{name: "Sample Show"})
-      {:ok, _} = ExternalIds.put(:tmdb, tv, "1396")
-
-      assert {:ok, :tv_series, found} = ExternalIds.find_owner(:tmdb, "1396")
-      assert found.id == tv.id
-    end
-
-    test "finds a MovieSeries owning a tmdb_collection id" do
-      series = create_movie_series(%{name: "Sample Collection"})
-      {:ok, _} = ExternalIds.put(:tmdb_collection, series, "263")
-
-      assert {:ok, :movie_series, found} = ExternalIds.find_owner(:tmdb_collection, "263")
-      assert found.id == series.id
-    end
-
-    test "returns :not_found when no row matches" do
-      assert :not_found = ExternalIds.find_owner(:tmdb, "999999")
-    end
-
-    test "TMDB id 12345 can simultaneously belong to a Movie and a TVSeries" do
-      movie = create_standalone_movie(%{name: "Sample Movie"})
-      tv = create_tv_series(%{name: "Sample Show"})
-
-      assert {:ok, _} = ExternalIds.put(:tmdb, movie, "12345")
-      assert {:ok, _} = ExternalIds.put(:tmdb, tv, "12345")
-
-      # find_owner only finds *one* — caller specifies which by trying
-      # in order (mirrors the Inbound resolution flow).
-      assert {:ok, type, _} = ExternalIds.find_owner(:tmdb, "12345")
-      assert type in [:movie, :tv_series]
-    end
-  end
 end
