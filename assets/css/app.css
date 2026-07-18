@@ -1959,3 +1959,12 @@ body:has(.modal-backdrop[data-state="open"]) {
 .guide-callout[data-callout="warning"] .guide-callout-icon { color: var(--color-warning); }
 .guide-callout[data-callout="important"] { border-color: oklch(from var(--color-primary) l c h / 0.4); }
 .guide-callout[data-callout="important"] .guide-callout-icon { color: var(--color-primary); }
+
+/* --- Watch-history heatmap fills -------------------------------------- */
+/* Intensity buckets as classes, not inline color-mix style strings — the
+   per-rect style tripled the heatmap's navigation-payload share
+   (campaigns/instant-navigation.md Phase 2). */
+.hm-fill-0 { fill: var(--color-base-300); }
+.hm-fill-1 { fill: color-mix(in oklch, var(--color-success) 30%, transparent); }
+.hm-fill-2 { fill: color-mix(in oklch, var(--color-success) 60%, transparent); }
+.hm-fill-3 { fill: var(--color-success); }
