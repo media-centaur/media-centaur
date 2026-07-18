@@ -8,72 +8,21 @@ defmodule MediaCentaur.Subtitles.LanguageCode do
   needs a single canonical form, so this module funnels all inputs
   through one mapping.
 
+  Thin projection over `MediaCentaur.Iso639` — the boundary-neutral owner
+  of the one code table (ADR-048). This module used to hard-code its own
+  smaller 3→2 table, which drifted from the playback table (e.g. `est` /
+  `hrv` resolved for playback but returned `nil` here). Sharing the table
+  *widens* subtitle detection to the fuller language set — an intended
+  improvement the previous moduledoc already sanctioned ("expand the table
+  when a real-world rip surfaces a missing one").
+
   Unknown or non-language inputs (`forced`, `sdh`, `default`, `""`,
   `nil`) return `nil` — the caller's signal that the source carried
   no usable language metadata.
-
-  Only the codes most likely to appear in curated movie libraries are
-  enumerated; expand the table when a real-world rip surfaces a missing
-  one. The list is small on purpose — it's not a general-purpose ISO
-  registry.
   """
 
-  # ISO 639-2 (bibliographic + terminologic) → ISO 639-1
-  @three_to_two %{
-    "eng" => "en",
-    "spa" => "es",
-    "fre" => "fr",
-    "fra" => "fr",
-    "ger" => "de",
-    "deu" => "de",
-    "ita" => "it",
-    "por" => "pt",
-    "rus" => "ru",
-    "jpn" => "ja",
-    "kor" => "ko",
-    "chi" => "zh",
-    "zho" => "zh",
-    "ara" => "ar",
-    "hin" => "hi",
-    "nld" => "nl",
-    "dut" => "nl",
-    "swe" => "sv",
-    "nor" => "no",
-    "dan" => "da",
-    "fin" => "fi",
-    "pol" => "pl",
-    "ces" => "cs",
-    "cze" => "cs",
-    "tur" => "tr",
-    "heb" => "he",
-    "tha" => "th",
-    "vie" => "vi",
-    "ind" => "id",
-    "ell" => "el",
-    "gre" => "el",
-    "hun" => "hu",
-    "ron" => "ro",
-    "rum" => "ro",
-    "ukr" => "uk",
-    "bul" => "bg",
-    "cat" => "ca"
-  }
-
-  @two_letter_set @three_to_two |> Map.values() |> MapSet.new()
+  alias MediaCentaur.Iso639
 
   @spec normalize(String.t() | nil) :: String.t() | nil
-  def normalize(nil), do: nil
-  def normalize(""), do: nil
-
-  def normalize(code) when is_binary(code) do
-    lower = String.downcase(code)
-
-    cond do
-      Map.has_key?(@three_to_two, lower) -> Map.fetch!(@three_to_two, lower)
-      MapSet.member?(@two_letter_set, lower) -> lower
-      true -> nil
-    end
-  end
-
-  def normalize(_), do: nil
+  defdelegate normalize(code), to: Iso639, as: :to_iso1
 end
