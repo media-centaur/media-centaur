@@ -113,11 +113,18 @@ longtasks). Re-create from this description if lost; re-run after each phase.
   NoDbOnRender's /status test now primes the projections so it measures
   the production (ETS) path.
 
+- **Phase 4 ✅ 2026-07-18.** `MediaCentaurWeb.ArtworkWarmup` renders
+  `<link rel="prefetch" as="image">` hints in the root layout — up to 30
+  library-grid poster derivatives (same `sized_image_url/2` URLs the grid
+  requests) + the hero-candidate backdrops, projection reads only. All 30
+  fetch within ~2.5s of launch; first /library visit after warmup:
+  ~92ms painted / ~108ms all-images (was 250–550ms). NoDbOnRender now
+  primes Browse/HeroCandidates in setup since every page's root layout
+  reads them.
+
 ## Next steps
 
-- Phase 4: artwork warmup (prefetch first-screen derivatives at launch;
-  URLs must be byte-identical to what pages request — reuse
-  `sized_image_url/2`).
+- Phase 5: console batch broadcast (`{:log_entries, [...]}` ~100ms flush).
 
 ## Completion criteria
 

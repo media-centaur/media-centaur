@@ -14,6 +14,17 @@
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
+    <%!-- First-screen artwork warmup: lowest-priority browser prefetch at
+          launch so the first visit to a poster-heavy page decodes from
+          cache instead of blocking paint on fetch (ADR-012 sync decode;
+          campaigns/instant-navigation.md Phase 4). Rendered once — the
+          root layout survives live navigation. --%>
+    <link
+      :for={url <- MediaCentaurWeb.ArtworkWarmup.urls()}
+      rel="prefetch"
+      as="image"
+      href={url}
+    />
     <script>
       (() => {
         // Sidebar collapsed state
