@@ -70,6 +70,15 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
 
   setup %{conn: conn} = context do
     warmup_once(conn)
+
+    # The root layout's ArtworkWarmup prefetch hints read the Browse /
+    # HeroCandidates projections on every initial render. Prime them so
+    # mounts take the production (ETS) path — unprimed, the test-mode
+    # fallback would run the browse + hero queries inside the counted
+    # mount and misattribute them to every page's navigation budget.
+    MediaCentaur.Library.Views.Browse.refresh_cache()
+    MediaCentaur.Library.Views.HeroCandidates.refresh_cache()
+
     context
   end
 
