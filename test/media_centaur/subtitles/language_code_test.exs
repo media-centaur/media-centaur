@@ -44,5 +44,20 @@ defmodule MediaCentaur.Subtitles.LanguageCodeTest do
     test "returns nil for nil input (so callers can pipe optimistically)" do
       assert LanguageCode.normalize(nil) == nil
     end
+
+    # Sharing the one MediaCentaur.Iso639 table (ADR-048) widened subtitle
+    # detection beyond the old hard-coded 3→2 table: these languages used to
+    # return nil here (they only resolved for playback) and now normalise.
+    test "recognises the wider MediaCentaur.Iso639 language set (was nil pre-consolidation)" do
+      assert LanguageCode.normalize("est") == "et"
+      assert LanguageCode.normalize("et") == "et"
+      assert LanguageCode.normalize("hrv") == "hr"
+      assert LanguageCode.normalize("hr") == "hr"
+      assert LanguageCode.normalize("isl") == "is"
+      assert LanguageCode.normalize("ice") == "is"
+      assert LanguageCode.normalize("srp") == "sr"
+      assert LanguageCode.normalize("slk") == "sk"
+      assert LanguageCode.normalize("slo") == "sk"
+    end
   end
 end
