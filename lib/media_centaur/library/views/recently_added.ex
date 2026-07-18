@@ -87,9 +87,10 @@ defmodule MediaCentaur.Library.Views.RecentlyAdded do
   end
 
   defp read_from_ets(limit) do
+    # `:ordered_set` already iterates in key order, so `:ets.tab2list/1`
+    # returns rows already sorted by rank. No explicit sort needed.
     @table
     |> :ets.tab2list()
-    |> Enum.sort_by(fn {rank, _item} -> rank end)
     |> Enum.take(limit)
     |> Enum.map(fn {_rank, item} -> item end)
   end
