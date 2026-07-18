@@ -130,22 +130,13 @@ defmodule MediaCentaur.Library.Progress do
     end
   end
 
-  @doc """
-  Returns the in-memory `WatchProgress`-shaped row for the given
-  `playable_item_id`, or `nil` when no hot row exists. **Does NOT**
-  fall back to the persisted `library_watch_progress` table — use
-  `get/1` for read-after-write semantics with DB fallback.
-
-  Exists as a distinct entry point so overlay paths (e.g.
-  `Library.list_in_progress/1`'s in-memory overlay, the
-  `Playback.ProgressBroadcaster.broadcast/2` overlay) can ask "is
-  there a hotter version of this row than what I already loaded
-  from disk?" without paying for a per-row DB round-trip when the
-  answer is no. The DB read of the same row would be wasteful — the
-  caller already holds it.
-  """
+  # In-memory `WatchProgress`-shaped row for `playable_item_id`, or `nil`
+  # when no hot row exists. Does NOT fall back to the persisted table (unlike
+  # `get/1`). Sole caller is `overlay_in_memory/1`, which asks "is there a
+  # hotter version of this already-loaded DB row?" without a per-row DB
+  # round-trip when the answer is no.
   @spec lookup_in_memory(Ecto.UUID.t()) :: map() | nil
-  def lookup_in_memory(playable_item_id) when is_binary(playable_item_id) do
+  defp lookup_in_memory(playable_item_id) when is_binary(playable_item_id) do
     case lookup_in_memory_row(playable_item_id) do
       nil -> nil
       row -> row_to_schema(row)

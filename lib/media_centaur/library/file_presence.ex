@@ -22,8 +22,8 @@ defmodule MediaCentaur.Library.FilePresence do
     updates `last_seen_at` (UPSERT on conflict).
   * `last_seen_at` is the only presence signal. There is no
     `:present | :absent` state machine; absence is derived by
-    comparing `last_seen_at` against the configured TTL via
-    `list_stale/1`.
+    comparing `last_seen_at` against the configured TTL in
+    `Library.AbsenceSweeper` (its `last_seen_at < cutoff` sweep query).
   * Drive-unmount safety: an absence sweep MUST consult
     `MediaCentaur.Watcher.MountStatus` before deleting stale rows
     so an unplugged drive doesn't cascade-wipe the user's library.
@@ -170,17 +170,6 @@ defmodule MediaCentaur.Library.FilePresence do
     )
     |> Repo.all()
     |> MapSet.new()
-  end
-
-  @doc """
-  Returns FilePresence rows whose `last_seen_at` is older than the
-  given threshold. Caller is responsible for any drive-availability
-  guard before acting on the result (don't cascade-delete during an
-  unmount).
-  """
-  @spec list_stale(DateTime.t()) :: [t()]
-  def list_stale(threshold) do
-    Repo.all(from(p in __MODULE__, where: p.last_seen_at < ^threshold))
   end
 
   @doc """
