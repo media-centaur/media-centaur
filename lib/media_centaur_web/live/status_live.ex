@@ -9,12 +9,10 @@ defmodule MediaCentaurWeb.StatusLive do
   """
   use MediaCentaurWeb, :live_view
 
-  require MediaCentaur.Log, as: Log
-
   import MediaCentaurWeb.StatusHelpers
   import MediaCentaurWeb.HealthComponents
 
-  alias MediaCentaur.{Config, ErrorReports, Playback, SelfUpdate, Status, Storage}
+  alias MediaCentaur.{Config, ErrorReports, Playback, SelfUpdate, Status}
   alias MediaCentaur.SelfUpdate.Changelog
   alias MediaCentaur.Version
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
@@ -22,7 +20,6 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Pipeline.Stats
   alias MediaCentaur.Pipeline.Image, as: ImagePipeline
   alias MediaCentaur.Watcher
-  alias MediaCentaur.Library.AbsenceSweeper
   alias MediaCentaur.WatchHistory.Views.PlaybackActivity
   alias MediaCentaurWeb.StatusLive.ReportModal
   alias MediaCentaurWeb.Components.IssueView
@@ -32,111 +29,41 @@ defmodule MediaCentaurWeb.StatusLive do
   alias MediaCentaur.Downloads.QueueMonitor
   alias MediaCentaur.Runtime.Vitals
 
-  @storage_refresh_ms 5 * 60 * 1_000
+  @vitals_refresh_ms 5 * 60 * 1_000
 
   @impl true
   def mount(_params, _session, socket) do
-    socket = if connected?(socket), do: mount_connected(socket), else: mount_disconnected(socket)
+    if connected?(socket) do
+      Watcher.Supervisor.subscribe()
+      Playback.subscribe()
+      ErrorReports.subscribe()
+      SelfUpdate.subscribe()
+      SelfUpdate.subscribe_progress()
+      MediaCentaur.WatchHistory.subscribe()
+      Acquisition.subscribe_queue()
+      Capabilities.subscribe_changes()
+      Status.Views.subscribe()
+
+      # Visiting /status marks auto-detected incidents as seen, clearing
+      # the discovery badge on the Status nav item. The web layer owns
+      # the diagnostics_seen_at timestamp (DiagnosticsBadge), so the
+      # ErrorReports context stays free of any Settings dependency.
+      MediaCentaurWeb.DiagnosticsBadge.mark_seen()
+
+      Process.send_after(self(), :tick_pipeline, 1_000)
+      Process.send_after(self(), :refresh_vitals, @vitals_refresh_ms)
+    end
 
     {:ok,
      assign(socket,
+       loaded?: false,
        pipeline_concurrency: MediaCentaur.Pipeline.Discovery.processor_concurrency(),
-       image_pipeline_concurrency: 8
+       image_pipeline_concurrency: 8,
+       show_report_modal: false,
+       report_payload: nil,
+       report_snapshot: nil,
+       self_update_apply_progress: nil
      )}
-  end
-
-  defp mount_connected(socket) do
-    Watcher.Supervisor.subscribe()
-    Playback.subscribe()
-    ErrorReports.subscribe()
-    SelfUpdate.subscribe()
-    SelfUpdate.subscribe_progress()
-    MediaCentaur.Library.subscribe()
-    MediaCentaur.WatchHistory.subscribe()
-    Acquisition.subscribe_queue()
-    Capabilities.subscribe_changes()
-
-    # Visiting /status marks auto-detected incidents as seen, clearing
-    # the discovery badge on the Status nav item. The web layer owns
-    # the diagnostics_seen_at timestamp (DiagnosticsBadge), so the
-    # ErrorReports context stays free of any Settings dependency.
-    MediaCentaurWeb.DiagnosticsBadge.mark_seen()
-
-    Process.send_after(self(), :tick_pipeline, 1_000)
-    Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
-
-    pipeline_stats = Stats.get_snapshot()
-    image_stats = ImagePipeline.Stats.get_snapshot()
-
-    # Kick off expensive queries off the mount path via owned async.
-    # Mount returns immediately with empty defaults; each task fills
-    # its slice in via handle_async. Keeps /status responsive even
-    # with a big library and media dirs on slow / sleeping storage.
-    socket
-    |> assign_defaults()
-    |> assign(error_buckets: ErrorReports.list_buckets())
-    |> assign_board()
-    |> assign(pipeline_stats: pipeline_stats)
-    |> assign(image_pipeline_stats: image_stats)
-    |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
-    |> assign(image_dir_statuses: MediaCentaur.Watcher.Supervisor.image_dir_statuses())
-    |> assign(scan_stats: MediaCentaur.Watcher.Supervisor.scan_stats())
-    |> assign(config: load_config())
-    |> assign(rate_limiter: fetch_rate_limiter())
-    |> assign(metadata_stats: MediaCentaur.TMDB.MetadataStats.snapshot())
-    |> assign(retry_status: fetch_retry_status())
-    |> assign(playback: build_playback_state())
-    |> assign(playback_activity: PlaybackActivity.snapshot())
-    |> assign(system_vitals: Vitals.snapshot())
-    |> assign(acquisition_activity: build_acquisition_activity())
-    |> assign(retention_by_subsystem: MediaCentaur.Retention.status_by_subsystem())
-    |> assign(diagnostics_unseen: 0)
-    |> assign_self_update()
-    |> start_async_storage()
-    |> start_async_dir_health()
-    |> start_async_overview()
-  end
-
-  defp mount_disconnected(socket) do
-    socket
-    |> assign_defaults()
-    |> assign(pipeline_stats: Stats.empty_snapshot())
-    |> assign(image_pipeline_stats: ImagePipeline.Stats.empty_snapshot())
-    |> assign(watcher_statuses: [])
-    |> assign(image_dir_statuses: [])
-    |> assign(dir_health: [])
-    |> assign(config: %{})
-    |> assign(rate_limiter: nil)
-    |> assign(retry_status: nil)
-    |> assign(playback: %{state: :idle, now_playing: nil, sessions: %{}})
-    |> assign(playback_activity: PlaybackActivity.empty())
-    |> assign(system_vitals: empty_system_vitals())
-    |> assign(acquisition_activity: empty_acquisition_activity())
-    |> assign(retention_by_subsystem: %{})
-  end
-
-  defp assign_defaults(socket) do
-    socket
-    |> assign(error_buckets: [])
-    |> assign(board: HealthBoard.build_board([]))
-    |> assign(selected_subsystem: nil)
-    |> assign(selected_incident: nil)
-    |> assign(overview: nil)
-    |> assign(overview_refresh_pending: false)
-    |> assign(storage_drives: [])
-    |> assign(at_risk_summary: %{})
-    |> assign(dir_health: [])
-    |> assign(scan_stats: %{})
-    |> assign(metadata_stats: MediaCentaur.TMDB.MetadataStats.empty_snapshot())
-    |> assign(show_report_modal: false)
-    |> assign(report_payload: nil)
-    |> assign(report_snapshot: nil)
-    |> assign(self_update_status: :idle)
-    |> assign(self_update_release: nil)
-    |> assign(self_update_last_check_at: :none)
-    |> assign(self_update_apply_phase: nil)
-    |> assign(self_update_apply_progress: nil)
-    |> assign(self_update_history: [])
   end
 
   # Snapshot of the self-update subsystem for the Updates Activity widget.
@@ -177,25 +104,47 @@ defmodule MediaCentaurWeb.StatusLive do
     assign(socket, board: HealthBoard.build_board(socket.assigns.error_buckets))
   end
 
-  # Owned async (ADR-049): each load runs under the LiveView via
-  # `start_async/3` — cancelled with it, awaitable in tests, never an
-  # orphan under the global supervisor. Results land in the matching
-  # `handle_async/3` clauses below.
-  defp start_async_storage(socket) do
-    start_async(socket, :status_storage, fn ->
-      %{drives: Storage.measure_all(), at_risk: AbsenceSweeper.at_risk_summary()}
-    end)
+  # The full page state loads synchronously in handle_params — un-gated, so
+  # the dead render is already complete and the connected mount repeats the
+  # same cheap reads (ADR-051; do NOT re-add a `connected?` gate here, that
+  # is exactly the first-paint flash this shape removes). The two slices
+  # that are genuinely expensive — the library overview's per-image disk
+  # check and the storage `df` probes — are NOT computed here: they come
+  # from the `Status.Views` projections as ETS lookups, refreshed off the
+  # navigation path by their Cache.Workers.
+  defp ensure_loaded(%{assigns: %{loaded?: true}} = socket), do: socket
+
+  defp ensure_loaded(socket) do
+    socket
+    |> assign(loaded?: true)
+    |> assign(error_buckets: ErrorReports.list_buckets())
+    |> assign_board()
+    |> assign(pipeline_stats: Stats.get_snapshot())
+    |> assign(image_pipeline_stats: ImagePipeline.Stats.get_snapshot())
+    |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
+    |> assign(image_dir_statuses: MediaCentaur.Watcher.Supervisor.image_dir_statuses())
+    |> assign(scan_stats: MediaCentaur.Watcher.Supervisor.scan_stats())
+    |> assign(config: load_config())
+    |> assign(rate_limiter: fetch_rate_limiter())
+    |> assign(metadata_stats: MediaCentaur.TMDB.MetadataStats.snapshot())
+    |> assign(retry_status: fetch_retry_status())
+    |> assign(playback: build_playback_state())
+    |> assign(playback_activity: PlaybackActivity.snapshot())
+    |> assign(system_vitals: Vitals.snapshot())
+    |> assign(acquisition_activity: build_acquisition_activity())
+    |> assign(retention_by_subsystem: MediaCentaur.Retention.status_by_subsystem())
+    |> assign(diagnostics_unseen: 0)
+    |> assign(overview: Status.Views.overview())
+    |> assign_storage_snapshot(Status.Views.storage())
+    |> assign_self_update()
   end
 
-  defp start_async_dir_health(socket) do
-    start_async(socket, :status_dir_health, fn -> check_dir_health() end)
-  end
-
-  # The overview runs a per-image disk check (Maintenance.missing_images_summary/0)
-  # and several library counts, so it never belongs on the mount path — it lands
-  # via `handle_async(:status_overview, …)`.
-  defp start_async_overview(socket) do
-    start_async(socket, :status_overview, fn -> Status.fetch_overview() end)
+  defp assign_storage_snapshot(socket, snapshot) do
+    assign(socket,
+      storage_drives: snapshot.drives,
+      at_risk_summary: snapshot.at_risk,
+      dir_health: snapshot.dir_health
+    )
   end
 
   # Both the subsystem drill-in and the incident issue view are URL-driven
@@ -206,6 +155,8 @@ defmodule MediaCentaurWeb.StatusLive do
   # segment — `/status?subsystem=acquisition&incident=<fingerprint>`.
   @impl true
   def handle_params(params, _uri, socket) do
+    socket = ensure_loaded(socket)
+
     {:noreply,
      assign(socket,
        selected_subsystem: parse_subsystem(params),
@@ -394,45 +345,34 @@ defmodule MediaCentaurWeb.StatusLive do
      |> assign(pipeline_stats: pipeline_stats)
      |> assign(image_pipeline_stats: image_stats)
      |> assign(rate_limiter: fetch_rate_limiter())
-     |> assign(retry_status: fetch_retry_status())
-     |> start_async_dir_health()}
+     |> assign(retry_status: fetch_retry_status())}
   end
 
-  def handle_info(:refresh_storage, socket) do
-    Process.send_after(self(), :refresh_storage, @storage_refresh_ms)
-    socket = assign(socket, system_vitals: Vitals.snapshot())
-    {:noreply, socket |> start_async_storage() |> start_async_overview()}
+  def handle_info(:refresh_vitals, socket) do
+    Process.send_after(self(), :refresh_vitals, @vitals_refresh_ms)
+    {:noreply, assign(socket, system_vitals: Vitals.snapshot())}
   end
 
-  # Library changed (import, edit, delete). Debounce: a bulk import fires this
-  # many times, but a single recompute 2s after the last change suffices. The
-  # pending flag collapses the storm into one refresh.
-  def handle_info({:entities_changed, _payload}, socket) do
-    if socket.assigns.overview_refresh_pending do
-      {:noreply, socket}
-    else
-      Process.send_after(self(), :refresh_overview, 2_000)
-      {:noreply, assign(socket, overview_refresh_pending: true)}
-    end
+  # Status.Views projection refreshed (library overview: entity/review
+  # events + interval; storage: availability/watcher/config events +
+  # interval). Re-read is an ETS lookup — no debounce needed; the
+  # projection's Cache.Worker already serializes refreshes.
+  def handle_info({:status_view_updated, :overview}, socket) do
+    {:noreply, assign(socket, overview: Status.Views.overview())}
   end
 
-  def handle_info(:refresh_overview, socket) do
-    {:noreply, socket |> assign(overview_refresh_pending: false) |> start_async_overview()}
+  def handle_info({:status_view_updated, :storage}, socket) do
+    {:noreply, assign_storage_snapshot(socket, Status.Views.storage())}
   end
 
   def handle_info({:dir_state_changed, _dir, _role, _state}, socket) do
-    # Reload the at-risk summary too: a flip to :unavailable stops
-    # presence refreshes (count of stale rows ticks up over time), and
-    # a flip to :available resets last_seen_at for the dir
-    # (earliest_absent_since advances) via Library.AbsenceSweeper. The
-    # badge that drives the user's "drive offline N days, X files at
-    # risk" warning needs both reflected promptly.
+    # The at-risk/storage side of a dir flip arrives separately via the
+    # Storage projection (it subscribes to the same watcher topic).
     {:noreply,
      socket
      |> assign(watcher_statuses: MediaCentaur.Watcher.Supervisor.statuses())
      |> assign(image_dir_statuses: MediaCentaur.Watcher.Supervisor.image_dir_statuses())
-     |> assign(scan_stats: MediaCentaur.Watcher.Supervisor.scan_stats())
-     |> start_async_storage()}
+     |> assign(scan_stats: MediaCentaur.Watcher.Supervisor.scan_stats())}
   end
 
   @impl true
@@ -539,29 +479,6 @@ defmodule MediaCentaurWeb.StatusLive do
     {:noreply, socket}
   end
 
-  # --- Async results (owned via start_async/3, ADR-049) ---
-
-  @impl true
-  def handle_async(:status_storage, {:ok, %{drives: drives, at_risk: at_risk}}, socket) do
-    {:noreply,
-     socket
-     |> assign(storage_drives: drives)
-     |> assign(at_risk_summary: at_risk)}
-  end
-
-  def handle_async(:status_dir_health, {:ok, dir_health}, socket) do
-    {:noreply, assign(socket, dir_health: dir_health)}
-  end
-
-  def handle_async(:status_overview, {:ok, overview}, socket) do
-    {:noreply, assign(socket, overview: overview)}
-  end
-
-  def handle_async(name, {:exit, reason}, socket) do
-    Log.warning(:status, "status async #{inspect(name)} failed — #{inspect(reason)}")
-    {:noreply, socket}
-  end
-
   # --- Render ---
 
   @impl true
@@ -663,29 +580,6 @@ defmodule MediaCentaurWeb.StatusLive do
     }
   end
 
-  defp empty_system_vitals do
-    %{
-      uptime_seconds: 0,
-      memory: %{total: 0, processes: 0, ets: 0, binary: 0},
-      process_count: 0,
-      process_limit: 0,
-      run_queue: 0,
-      schedulers: 0,
-      host: %{otp: "", elixir: "", os: "", version: ""},
-      db: %{size_bytes: 0, wal_bytes: 0}
-    }
-  end
-
-  defp empty_acquisition_activity do
-    %{
-      configured?: false,
-      connectivity: :initializing,
-      last_poll_at: nil,
-      prowlarr_ready?: false,
-      throughput: Throughput.empty()
-    }
-  end
-
   # --- Playback State ---
 
   defp build_playback_state do
@@ -731,20 +625,5 @@ defmodule MediaCentaurWeb.StatusLive do
       database_path: config.get(:database_path),
       media_dirs_count: length(config.get(:media_dirs) || [])
     }
-  end
-
-  defp check_dir_health do
-    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
-
-    Enum.map(media_dirs, fn dir ->
-      image_dir = MediaCentaur.Config.images_dir_for(dir)
-
-      %{
-        dir: dir,
-        dir_exists: File.dir?(dir),
-        image_dir: image_dir,
-        image_dir_exists: File.dir?(image_dir)
-      }
-    end)
   end
 end

@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# nav-measure — objective page-navigation latency harness (instant-navigation campaign).
+#
+# Drives real LiveView live-navigations in headless Chromium against a running
+# instance and reports, per navigation: time to phx:page-loading-stop, time to
+# painted (double-rAF), time until all <img> complete, WS bytes received, and
+# any >50ms main-thread long tasks.
+#
+# Usage:
+#   scripts/nav-measure [base-url] [path ...]
+#
+# Defaults: base-url http://127.0.0.1:2160, a representative page cycle with
+# repeat visits (warm-cache behavior shows on the second visit).
+# Requires ~/scripts/agents/chromium-probe.
+set -euo pipefail
+
+base_url="${1:-http://127.0.0.1:2160}"
+shift || true
+paths=("$@")
+if [ ${#paths[@]} -eq 0 ]; then
+  paths=(/library /incoming /status /review /reconcile /history /settings / /library /status / /library)
+fi
+
+paths_json=$(printf '"%s",' "${paths[@]}")
+paths_json="[${paths_json%,}]"
+
+expr=$(cat <<EOF
+(async () => {
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  for (let i = 0; i < 100 && !(window.liveSocket && window.liveSocket.isConnected()); i++) await wait(100);
+  if (!window.liveSocket.isConnected()) return { error: "liveSocket never connected" };
+  const longTasks = [];
+  try {
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) longTasks.push({ start: e.startTime, dur: Math.round(e.duration) });
+    }).observe({ entryTypes: ["longtask"] });
+  } catch (e) {}
+  const frames = [];
+  const conn = window.liveSocket.getSocket().conn;
+  conn.addEventListener("message", (e) => frames.push({ t: performance.now(), bytes: (e.data && e.data.length) || 0 }));
+  const results = [];
+  for (const p of ${paths_json}) {
+    await wait(500);
+    const a = document.createElement("a");
+    a.href = p;
+    a.setAttribute("data-phx-link", "redirect");
+    a.setAttribute("data-phx-link-state", "push");
+    document.body.appendChild(a);
+    const frameIdx = frames.length;
+    const ltIdx = longTasks.length;
+    const stop = new Promise((res) => window.addEventListener("phx:page-loading-stop", res, { once: true }));
+    const t0 = performance.now();
+    a.click();
+    await stop;
+    const tStop = performance.now();
+    await new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(res)));
+    const tPaint = performance.now();
+    a.remove();
+    let tImgs = null;
+    const deadline = performance.now() + 4000;
+    while (performance.now() < deadline) {
+      if (Array.from(document.images).every((im) => im.complete)) { tImgs = performance.now(); break; }
+      await wait(16);
+    }
+    const navFrames = frames.slice(frameIdx).filter((f) => f.t <= tStop + 5);
+    results.push({
+      path: p,
+      loadingStopMs: Math.round(tStop - t0),
+      paintedMs: Math.round(tPaint - t0),
+      allImgsMs: tImgs ? Math.round(tImgs - t0) : ">4000",
+      wsKB: Math.round(navFrames.reduce((s, f) => s + f.bytes, 0) / 102.4) / 10,
+      longTasks: longTasks.slice(ltIdx).map((lt) => lt.dur),
+    });
+  }
+  return results;
+})()
+EOF
+)
+
+exec "$HOME/scripts/agents/chromium-probe" --timeout 90000 "$base_url/" "$expr"
