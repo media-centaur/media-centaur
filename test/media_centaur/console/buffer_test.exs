@@ -193,14 +193,47 @@ defmodule MediaCentaur.Console.BufferTest do
   end
 
   describe "PubSub broadcast on append" do
-    test "broadcasts {:log_entry, entry} when an entry is appended" do
+    # Appends broadcast as ~100ms batches, not per line — a navigation's
+    # burst of SQL/debug lines was pushing one WS frame + one hidden-drawer
+    # DOM insert per log line to every connected page while that same
+    # navigation was in flight (campaigns/instant-navigation.md Phase 5).
+
+    test "batches appended entries into one {:log_entries, entries} broadcast" do
       {_pid, name} = start_buffer()
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.console_logs())
 
-      entry = build_entry(message: "pubsub test")
-      Buffer.append(entry, name)
+      first_entry = build_entry(message: "pubsub batch one")
+      second_entry = build_entry(message: "pubsub batch two")
+      Buffer.append(first_entry, name)
+      Buffer.append(second_entry, name)
 
-      assert_receive {:log_entry, ^entry}, 500
+      # One flush, chronological order.
+      assert_receive {:log_entries, [^first_entry, ^second_entry]}, 500
+      refute_receive {:log_entries, _}, 150
+    end
+
+    test "a later append after a flush starts a new batch" do
+      {_pid, name} = start_buffer()
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.console_logs())
+
+      first_entry = build_entry(message: "batch window one")
+      Buffer.append(first_entry, name)
+      assert_receive {:log_entries, [^first_entry]}, 500
+
+      second_entry = build_entry(message: "batch window two")
+      Buffer.append(second_entry, name)
+      assert_receive {:log_entries, [^second_entry]}, 500
+    end
+
+    test "clear drops any unflushed batch" do
+      {_pid, name} = start_buffer()
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.console_logs())
+
+      Buffer.append(build_entry(message: "doomed entry"), name)
+      Buffer.clear(name)
+
+      assert_receive :buffer_cleared, 500
+      refute_receive {:log_entries, _}, 200
     end
   end
 

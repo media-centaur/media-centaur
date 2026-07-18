@@ -38,7 +38,7 @@ defmodule MediaCentaurWeb.ConsoleLiveTest do
     # Log.info calls are dropped at the Logger level in test config.
     Log.warning(:pipeline, "integration test entry")
 
-    assert_receive {:log_entry, %{message: "integration test entry"}}, 500
+    await_log_broadcast(["integration test entry"])
 
     rendered = render(console)
     assert rendered =~ "pipeline"
@@ -62,8 +62,7 @@ defmodule MediaCentaurWeb.ConsoleLiveTest do
 
     # Once the broadcasts land, the entries are in the buffer: the append cast is
     # processed before the later snapshot_window call (same GenServer, serialized).
-    assert_receive {:log_entry, %{message: "admitted app entry"}}, 500
-    assert_receive {:log_entry, %{message: "excluded framework entry"}}, 500
+    await_log_broadcast(["admitted app entry", "excluded framework entry"])
 
     {:ok, parent_view, _html} = live(conn, ~p"/")
     rendered = render(console_child(parent_view))
@@ -91,7 +90,7 @@ defmodule MediaCentaurWeb.ConsoleLiveTest do
     Log.warning(:pipeline, "will be cleared")
 
     # Wait deterministically for the entry to land in the buffer.
-    assert_receive {:log_entry, %{message: "will be cleared"}}, 500
+    await_log_broadcast(["will be cleared"])
 
     render_click(console, "clear_buffer")
 
@@ -107,5 +106,19 @@ defmodule MediaCentaurWeb.ConsoleLiveTest do
     # ConsolePageLive uses .console-fullpage, not console-sticky-root.
     refute html =~ "console-sticky-root"
     assert html =~ "console-fullpage"
+  end
+
+  # Batched broadcast contract (instant-navigation P5): appends arrive as
+  # {:log_entries, entries} flushes, possibly several messages per batch.
+  # Collect batches until every expected message has been seen.
+  defp await_log_broadcast(messages, seen \\ []) when is_list(messages) do
+    seen_messages = Enum.map(seen, & &1.message)
+
+    if messages -- seen_messages == [] do
+      :ok
+    else
+      assert_receive {:log_entries, entries}, 500
+      await_log_broadcast(messages, seen ++ entries)
+    end
   end
 end

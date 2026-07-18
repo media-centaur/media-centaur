@@ -151,17 +151,27 @@ defmodule MediaCentaur.Console.Buffer do
       entries: [],
       cap: cap,
       filter: filter,
-      persist_ref: nil
+      persist_ref: nil,
+      pending: [],
+      flush_ref: nil
     }
 
     {:ok, state}
   end
 
+  # Appends broadcast as `{:log_entries, entries}` batches on a short
+  # flush window rather than one `{:log_entry, _}` per line: every
+  # connected page holds the (hidden) console drawer, so a navigation's
+  # own burst of debug/SQL lines was costing one WS frame + one DOM
+  # insert per line on every open page while that navigation was in
+  # flight (campaigns/instant-navigation.md Phase 5). The buffer itself
+  # is updated immediately — only the broadcast batches.
   @impl true
   def handle_cast({:append, entry}, state) do
     new_entries = Enum.take([entry | state.entries], state.cap)
-    broadcast({:log_entry, entry})
-    {:noreply, %{state | entries: new_entries}}
+
+    state = %{state | entries: new_entries, pending: [entry | state.pending]}
+    {:noreply, schedule_flush(state)}
   end
 
   @impl true
@@ -184,8 +194,11 @@ defmodule MediaCentaur.Console.Buffer do
   end
 
   def handle_call(:clear, _from, state) do
+    # Drop the unflushed batch too — flushing it after the clear would
+    # resurrect rows the UI just emptied.
+    if state.flush_ref, do: Process.cancel_timer(state.flush_ref)
     broadcast(:buffer_cleared)
-    {:reply, :ok, %{state | entries: []}}
+    {:reply, :ok, %{state | entries: [], pending: [], flush_ref: nil}}
   end
 
   def handle_call({:resize, n}, _from, state) do
@@ -208,6 +221,13 @@ defmodule MediaCentaur.Console.Buffer do
   end
 
   @impl true
+  def handle_info(:flush_logs, %{pending: []} = state), do: {:noreply, %{state | flush_ref: nil}}
+
+  def handle_info(:flush_logs, state) do
+    broadcast({:log_entries, Enum.reverse(state.pending)})
+    {:noreply, %{state | pending: [], flush_ref: nil}}
+  end
+
   def handle_info(:persist, state) do
     try do
       persist_to_settings(state)
@@ -228,6 +248,14 @@ defmodule MediaCentaur.Console.Buffer do
   end
 
   # --- Private helpers ---
+
+  @flush_ms 100
+
+  defp schedule_flush(%{flush_ref: nil} = state) do
+    %{state | flush_ref: Process.send_after(self(), :flush_logs, @flush_ms)}
+  end
+
+  defp schedule_flush(state), do: state
 
   defp schedule_persist(state) do
     if state.persist_ref do
