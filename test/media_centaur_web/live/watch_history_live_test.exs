@@ -11,6 +11,57 @@ defmodule MediaCentaurWeb.WatchHistoryLiveTest do
     render_async(view)
   end
 
+  describe "heatmap payload (instant-navigation P2)" do
+    # Only the ACTIVE heatmap variant is rendered — pre-rendering all four
+    # (~1,460 <rect>s) made /history's navigation payload ~276KB, the
+    # heaviest page in the app. The filter buttons already round-trip to
+    # reload the events list, so the server swap costs no extra request
+    # (campaigns/instant-navigation.md Phase 2).
+
+    test "renders exactly one heatmap variant", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, "/history")
+
+      assert count_substrings(html, "data-heatmap=") == 1
+      assert html =~ ~s(data-heatmap="all")
+    end
+
+    test "zero-count cells ship no tooltip or click payload", %{conn: conn} do
+      # An empty history renders 365 zero cells; tooltip <title>s and
+      # phx-value-date on unclickable cells were ~40KB of dead payload.
+      {:ok, _view, html} = live_async!(conn, "/history")
+
+      assert count_substrings(html, "<title>") == 0
+      assert count_substrings(html, "phx-value-date") == 0
+    end
+
+    test "active cells keep tooltip and date-filter payload", %{conn: conn} do
+      movie = create_movie(%{name: "Heatmap Cell Movie"})
+      create_watch_event(%{entity_type: :movie, movie_id: movie.id, title: "Heatmap Cell Movie"})
+
+      {:ok, _view, html} = live_async!(conn, "/history")
+
+      assert count_substrings(html, "<title>") == 1
+      assert count_substrings(html, "phx-value-date") == 1
+    end
+
+    test "type filter swaps the rendered heatmap variant", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/history")
+
+      html =
+        view
+        |> element("button[phx-value-type=\"movie\"]", "Movies")
+        |> render_click()
+
+      assert count_substrings(html, "data-heatmap=") == 1
+      assert html =~ ~s(data-heatmap="movie")
+      refute html =~ ~s(data-heatmap="all")
+    end
+  end
+
+  defp count_substrings(string, pattern) do
+    string |> String.split(pattern) |> length() |> Kernel.-(1)
+  end
+
   describe "mount" do
     test "mounts the history page without error", %{conn: conn} do
       {:ok, _view, html} = live_async!(conn, "/history")

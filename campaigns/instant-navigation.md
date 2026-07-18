@@ -92,10 +92,20 @@ longtasks). Re-create from this description if lost; re-run after each phase.
   part of an Availability-owned redesign, see
   `Status.Views.StorageSnapshot` moduledoc.
 
+- **Phase 2 ✅ 2026-07-18.** /history payload 276KB → ~78KB, warm nav
+  122→~53ms, no long tasks. Scope revision vs the plan: the events list
+  was already paginated at 50 (streams/`temporary_assigns` unnecessary) —
+  the real weight was the 4 pre-rendered heatmap variants (~1,460
+  `<rect>`s). Now only the active variant renders (the type filter's
+  existing round-trip swaps it), fills are CSS classes (`.hm-fill-*`)
+  instead of inline color-mix strings, and zero-count cells ship no
+  tooltip/click attrs. Real-browser verified (probe gotcha: wait for
+  `phx-connected` on `[data-phx-main]`, not `liveSocket.isConnected()`,
+  before synthetic clicks — pre-join clicks are silently dropped).
+
 ## Next steps
 
-- Phase 2: /history payload diet (stream events + `temporary_assigns`,
-  render only the active heatmap variant).
+- Phase 3: shell badge projection (diagnostics/review/mapping counts).
 
 ## Completion criteria
 

@@ -187,37 +187,31 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
           </div>
         </div>
 
-        <%!-- Heatmap — all 4 type variants pre-rendered; JS toggles the wrapper instantly --%>
+        <%!-- Heatmap — only the ACTIVE type variant renders. Pre-rendering all
+              four variants put ~1,460 <rect>s in every /history navigation
+              payload (~276KB, the heaviest page in the app) to save a server
+              swap the type filter performs anyway for the events list
+              (campaigns/instant-navigation.md Phase 2). --%>
         <div class="glass-inset rounded-xl p-4 overflow-x-auto w-fit">
-          <div
-            :for={
-              {type, key, label} <- [
-                {nil, "all", "All Watched"},
-                {:movie, "movie", "Movies Watched"},
-                {:episode, "episode", "Episodes Watched"},
-                {:video_object, "video_object", "Videos Watched"}
-              ]
-            }
-            data-heatmap={key}
-            class={if @filter_type == type, do: "", else: "hidden"}
-          >
+          <div data-heatmap={heatmap_key(@filter_type)}>
             <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50 mb-3">
-              {label} — last 52 weeks
+              {heatmap_title(@filter_type)} — last 52 weeks
             </h2>
             <svg width="676" height="91" viewBox="0 0 676 91" xmlns="http://www.w3.org/2000/svg">
+              <%!-- Zero-count cells carry no tooltip/click attrs — on an
+                    empty year that's ~40KB of dead payload per navigation. --%>
               <rect
-                :for={cell <- @heatmap_cells_by_type[type]}
+                :for={cell <- @heatmap_cells_by_type[@filter_type]}
                 x={cell.x}
                 y={cell.y}
                 width="11"
                 height="11"
                 rx="2"
-                style={heatmap_fill(cell.count)}
-                class={if cell.count > 0, do: "cursor-pointer", else: "cursor-default"}
+                class={[heatmap_class(cell.count), cell.count > 0 && "cursor-pointer"]}
                 phx-click={if cell.count > 0, do: "filter_date"}
-                phx-value-date={Date.to_iso8601(cell.date)}
+                phx-value-date={if cell.count > 0, do: Date.to_iso8601(cell.date)}
               >
-                <title>{heatmap_tooltip(cell)}</title>
+                <title :if={cell.count > 0}>{heatmap_tooltip(cell)}</title>
               </rect>
             </svg>
           </div>
@@ -227,52 +221,21 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
         <div data-nav-zone="toolbar" class="flex flex-wrap items-center gap-3">
           <div role="group" class="join">
             <button
-              class={["join-item btn btn-sm", is_nil(@filter_type) && "btn-active"]}
+              :for={
+                {type, value, label} <- [
+                  {nil, "all", "All"},
+                  {:movie, "movie", "Movies"},
+                  {:episode, "episode", "Episodes"},
+                  {:video_object, "video_object", "Video"}
+                ]
+              }
+              class={["join-item btn btn-sm", @filter_type == type && "btn-active"]}
               data-nav-item
               tabindex="0"
-              phx-click={
-                JS.hide(to: "[data-heatmap]")
-                |> JS.show(to: "[data-heatmap='all']")
-                |> JS.push("filter_type", value: %{type: "all"})
-              }
+              phx-click="filter_type"
+              phx-value-type={value}
             >
-              All
-            </button>
-            <button
-              class={["join-item btn btn-sm", @filter_type == :movie && "btn-active"]}
-              data-nav-item
-              tabindex="0"
-              phx-click={
-                JS.hide(to: "[data-heatmap]")
-                |> JS.show(to: "[data-heatmap='movie']")
-                |> JS.push("filter_type", value: %{type: "movie"})
-              }
-            >
-              Movies
-            </button>
-            <button
-              class={["join-item btn btn-sm", @filter_type == :episode && "btn-active"]}
-              data-nav-item
-              tabindex="0"
-              phx-click={
-                JS.hide(to: "[data-heatmap]")
-                |> JS.show(to: "[data-heatmap='episode']")
-                |> JS.push("filter_type", value: %{type: "episode"})
-              }
-            >
-              Episodes
-            </button>
-            <button
-              class={["join-item btn btn-sm", @filter_type == :video_object && "btn-active"]}
-              data-nav-item
-              tabindex="0"
-              phx-click={
-                JS.hide(to: "[data-heatmap]")
-                |> JS.show(to: "[data-heatmap='video_object']")
-                |> JS.push("filter_type", value: %{type: "video_object"})
-              }
-            >
-              Video
+              {label}
             </button>
           </div>
 
@@ -547,12 +510,21 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
     {events, has_next}
   end
 
-  def heatmap_fill(0), do: "fill: var(--color-base-300)"
-  def heatmap_fill(1), do: "fill: color-mix(in oklch, var(--color-success) 30%, transparent)"
+  def heatmap_key(nil), do: "all"
+  def heatmap_key(type), do: Atom.to_string(type)
 
-  def heatmap_fill(n) when n <= 3, do: "fill: color-mix(in oklch, var(--color-success) 60%, transparent)"
+  def heatmap_title(nil), do: "All Watched"
+  def heatmap_title(:movie), do: "Movies Watched"
+  def heatmap_title(:episode), do: "Episodes Watched"
+  def heatmap_title(:video_object), do: "Videos Watched"
 
-  def heatmap_fill(_), do: "fill: var(--color-success)"
+  # Fill intensity as CSS classes (`.hm-fill-*` in app.css) rather than
+  # inline color-mix style strings — the ~70-char style on each of 365
+  # rects tripled the heatmap's payload share.
+  def heatmap_class(0), do: "hm-fill-0"
+  def heatmap_class(1), do: "hm-fill-1"
+  def heatmap_class(n) when n <= 3, do: "hm-fill-2"
+  def heatmap_class(_), do: "hm-fill-3"
 
   def heatmap_tooltip(%{count: 0, date: date}), do: Date.to_string(date)
   def heatmap_tooltip(%{count: 1, date: date}), do: "#{Date.to_string(date)} — 1 watched"

@@ -36,27 +36,28 @@ defmodule MediaCentaurWeb.WatchHistoryLiveHelpersTest do
     end
   end
 
-  # --- heatmap_fill/1 ---
+  # --- heatmap_class/1 ---
 
-  describe "heatmap_fill/1" do
-    test "returns base fill for 0 count" do
-      assert WatchHistoryLive.heatmap_fill(0) == "fill: var(--color-base-300)"
+  # Fill intensity moved from inline style strings to CSS classes
+  # (instant-navigation P2): the ~70-char color-mix string on every one of
+  # 365 <rect>s tripled the heatmap's share of the navigation payload.
+  describe "heatmap_class/1" do
+    test "returns base class for 0 count" do
+      assert WatchHistoryLive.heatmap_class(0) == "hm-fill-0"
     end
 
-    test "returns faint success fill for 1 count" do
-      assert WatchHistoryLive.heatmap_fill(1) ==
-               "fill: color-mix(in oklch, var(--color-success) 30%, transparent)"
+    test "returns faint class for 1 count" do
+      assert WatchHistoryLive.heatmap_class(1) == "hm-fill-1"
     end
 
-    test "returns medium success fill for 2-3 counts" do
-      fill = "fill: color-mix(in oklch, var(--color-success) 60%, transparent)"
-      assert WatchHistoryLive.heatmap_fill(2) == fill
-      assert WatchHistoryLive.heatmap_fill(3) == fill
+    test "returns medium class for 2-3 counts" do
+      assert WatchHistoryLive.heatmap_class(2) == "hm-fill-2"
+      assert WatchHistoryLive.heatmap_class(3) == "hm-fill-2"
     end
 
-    test "returns full success fill for 4+ counts" do
-      assert WatchHistoryLive.heatmap_fill(4) == "fill: var(--color-success)"
-      assert WatchHistoryLive.heatmap_fill(10) == "fill: var(--color-success)"
+    test "returns full class for 4+ counts" do
+      assert WatchHistoryLive.heatmap_class(4) == "hm-fill-3"
+      assert WatchHistoryLive.heatmap_class(10) == "hm-fill-3"
     end
   end
 
