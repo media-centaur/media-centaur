@@ -1420,7 +1420,7 @@ defmodule MediaCentaur.Library do
       )
 
     Map.new(rows, fn {entity_id, content_url} ->
-      {entity_id, "/media-images/#{content_url}"}
+      {entity_id, Image.web_path(content_url)}
     end)
   end
 

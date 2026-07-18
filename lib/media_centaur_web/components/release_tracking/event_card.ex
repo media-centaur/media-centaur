@@ -153,5 +153,5 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.EventCard do
   defp backdrop_src(%Event{backdrop_path: nil}, _width), do: nil
 
   defp backdrop_src(%Event{backdrop_path: path}, width),
-    do: sized_image_url("/media-images/" <> path, width)
+    do: sized_image_url(MediaCentaur.Library.Image.web_path(path), width)
 end

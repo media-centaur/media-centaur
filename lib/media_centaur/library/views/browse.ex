@@ -38,6 +38,7 @@ defmodule MediaCentaur.Library.Views.Browse do
 
   alias MediaCentaur.Library.Availability
   alias MediaCentaur.Library.Browser
+  alias MediaCentaur.Library.Image
   alias MediaCentaur.Library.Views.BrowseItem
   alias MediaCentaur.Topics
 
@@ -157,7 +158,7 @@ defmodule MediaCentaur.Library.Views.Browse do
   defp poster_url_from(%{images: images}) when is_list(images) do
     case Enum.find(images, &(&1.role == "poster")) do
       %{content_url: content_url} when is_binary(content_url) ->
-        "/media-images/#{content_url}"
+        Image.web_path(content_url)
 
       _ ->
         nil

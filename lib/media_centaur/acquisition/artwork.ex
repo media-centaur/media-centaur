@@ -93,14 +93,14 @@ defmodule MediaCentaur.Acquisition.Artwork do
 
   defp item_url(item, field) do
     case Map.get(item, field) do
-      path when is_binary(path) -> "/media-images/#{path}"
+      path when is_binary(path) -> MediaCentaur.Library.Image.web_path(path)
       _missing -> nil
     end
   end
 
   defp store_url(role, id) do
     if File.exists?(ImageStore.on_disk_path(role, id)) do
-      "/media-images/#{ImageStore.relative_path(role, id)}"
+      MediaCentaur.Library.Image.web_path(ImageStore.relative_path(role, id))
     end
   end
 

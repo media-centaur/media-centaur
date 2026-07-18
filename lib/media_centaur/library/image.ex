@@ -29,6 +29,22 @@ defmodule MediaCentaur.Library.Image do
 
   def owner_types, do: @owner_types
 
+  @web_prefix "/media-images/"
+
+  @doc """
+  Web URL for a stored image's `content_url`, as served by
+  `MediaCentaurWeb.Plugs.ImageServer` at `/media-images/*`.
+
+  The single owner of that route prefix — build image `src` URLs through
+  here rather than hand-interpolating `"/media-images/\#{content_url}"`,
+  which drifts across call sites and couples every builder to the string.
+  `nil` in → `nil` out, so callers can forward an optional `content_url`
+  without a guard.
+  """
+  @spec web_path(String.t() | nil) :: String.t() | nil
+  def web_path(nil), do: nil
+  def web_path(content_url) when is_binary(content_url), do: @web_prefix <> content_url
+
   def create_changeset(attrs) do
     %__MODULE__{}
     |> cast(attrs, [:role, :content_url, :extension, :owner_type, :owner_id])
