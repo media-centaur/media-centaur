@@ -103,11 +103,11 @@ defmodule MediaCentaurWeb.Live.SetupLive.Probes do
   # --- Download client ---
 
   @spec download_client(map()) :: Probe.Result.t()
-  def download_client(%{download_client_password_configured?: true}) do
+  def download_client(%{download_client_configured?: true}) do
     %Probe.Result{
       id: :download_client,
       status: :ok,
-      detail: "Credentials configured",
+      detail: "Client configured",
       critical?: false
     }
   end

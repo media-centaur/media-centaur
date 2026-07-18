@@ -96,14 +96,17 @@ defmodule MediaCentaurWeb.Live.SetupLive.ProbesTest do
   end
 
   describe "download_client/1" do
-    test "ok when password configured" do
+    # The step is satisfied when *any* client slot is configured (torrent or
+    # usenet), not when the torrent password specifically is set — a
+    # SABnzbd-only install has no torrent password but a working client.
+    test "ok when a client is configured" do
       assert %Probe.Result{id: :download_client, status: :ok, critical?: false} =
-               Probes.download_client(%{download_client_password_configured?: true})
+               Probes.download_client(%{download_client_configured?: true})
     end
 
-    test "not_configured when password missing" do
+    test "not_configured when no client is configured" do
       assert %Probe.Result{id: :download_client, status: :not_configured} =
-               Probes.download_client(%{download_client_password_configured?: false})
+               Probes.download_client(%{download_client_configured?: false})
     end
   end
 

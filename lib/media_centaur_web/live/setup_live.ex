@@ -257,7 +257,7 @@ defmodule MediaCentaurWeb.SetupLive do
     %{
       tmdb_api_key_configured?: Secret.present?(Config.get(:tmdb_api_key)),
       prowlarr_api_key_configured?: Secret.present?(Config.get(:prowlarr_api_key)),
-      download_client_password_configured?: Secret.present?(Config.get(:download_client_password)),
+      download_client_configured?: MediaCentaur.Downloads.configured_clients() != [],
       mpv_path: Config.get(:mpv_path),
       ffprobe_path: Config.get(:ffprobe_path),
       media_dirs_entries: Config.media_dirs_entries()

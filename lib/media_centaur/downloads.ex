@@ -63,6 +63,26 @@ defmodule MediaCentaur.Downloads do
     Enum.reject([torrent_slot(), usenet_slot()], &is_nil/1)
   end
 
+  # The flat `MediaCentaur.Config` keys backing the two client slots.
+  # Owned here so consumers (e.g. `IntegrationHealth`, which re-derives
+  # `configured?` on any of them) don't hardcode the set.
+  @config_keys [
+    :download_client_type,
+    :download_client_url,
+    :download_client_username,
+    :download_client_password,
+    :usenet_download_client_type,
+    :usenet_download_client_url,
+    :usenet_download_client_api_key
+  ]
+
+  @doc """
+  True when `key` is one of the config keys backing a download-client
+  slot — i.e. a change to it can flip `configured_clients/0`.
+  """
+  @spec config_key?(atom()) :: boolean()
+  def config_key?(key), do: key in @config_keys
+
   defp torrent_slot do
     case slot_identity(:download_client_type, :download_client_url) do
       nil ->

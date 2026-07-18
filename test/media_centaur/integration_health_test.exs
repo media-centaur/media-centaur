@@ -85,6 +85,30 @@ defmodule MediaCentaur.IntegrationHealthTest do
     end
   end
 
+  describe "configured? for the download_client integration (two-slot)" do
+    test "a usenet-only config marks download_client configured? true" do
+      # No torrent slot, but a configured usenet (SABnzbd) slot. The
+      # integration's `configured?` must derive from the two-slot model
+      # (Downloads.configured_clients/0), not from the torrent password key.
+      config = :persistent_term.get({Config, :config})
+
+      :persistent_term.put(
+        {Config, :config},
+        config
+        |> Map.put(:download_client_type, nil)
+        |> Map.put(:download_client_url, nil)
+        |> Map.put(:usenet_download_client_type, "sabnzbd")
+        |> Map.put(:usenet_download_client_url, "http://localhost:8080")
+      )
+
+      start_supervised!(IntegrationHealth)
+      :ok = drain_initial_seed_broadcasts()
+
+      assert %Status{id: :download_client, configured?: true} =
+               IntegrationHealth.status(:download_client)
+    end
+  end
+
   describe "verify/1 — happy path" do
     test "transitions :unknown → :pending → :ok and broadcasts each step" do
       IntegrationHealth.subscribe()
