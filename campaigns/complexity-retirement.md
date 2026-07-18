@@ -88,14 +88,16 @@ payoff ÷ risk.
    config clearing the wizard. qBittorrent-only prod path is unchanged
    (`driver_for(:torrent) → QBittorrent`).
 
-2. **Import pipeline: delete the dead batcher.**
-   *File:* `lib/media_centaur/pipeline/import.ex`. `handle_batch/3` is pure
-   identity; the batcher (`concurrency: 1, batch_size: 10, batch_timeout:
-   5_000`) only serializes imports and adds up to 5 s ack latency for zero work.
-   The completion broadcast fires in `handle_complete/1` on the
-   `handle_message` path. Delete `batchers:` + `handle_batch/3` together; fix the
-   stale moduledoc line. (Discovery's batcher genuinely serializes broadcasts —
-   leave it.)
+2. **✅ DONE (2026-07-19, commit fb1773b6).** **Import pipeline: delete the dead
+   batcher.** Removed `batchers:` + the identity `handle_batch/3` from
+   `import.ex`; messages now ack right after `handle_message` (no 5 s batch
+   latency). Completion broadcast still fires inline in `handle_complete/1`.
+   Fixed the stale moduledoc + `docs/pipeline.md` lines. Discovery's and Image's
+   batchers left intact. Pure dead-code deletion — no test exercised the batcher
+   (`pipeline_test.exs` drives `process_payload/1` directly), so no orphaned
+   tests. Precommit green. *(Note: found `credo --strict` pre-existing-red since
+   151daa35 — an unrelated `LongQuoteBlocks` overshoot in `console_live/shared.ex`
+   — fixed first in its own commit 0bdff879 to unblock the campaign.)*
 
 3. **Library: delete the test-only dead-function cluster.**
    Zero `lib/` callers, test-only: `FilePresence.list_stale/1`,
