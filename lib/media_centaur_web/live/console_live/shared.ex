@@ -80,12 +80,16 @@ defmodule MediaCentaurWeb.ConsoleLive.Shared do
       # --- PubSub handlers ---
 
       @impl true
-      def handle_info({:log_entry, entry}, socket) do
-        if Logic.should_insert_entry?(socket.assigns.filter, socket.assigns.paused, entry) do
-          {:noreply, stream_insert(socket, :entries, entry, at: 0)}
-        else
-          {:noreply, socket}
-        end
+      def handle_info({:log_entries, entries}, socket) do
+        # Chronological batch (Buffer flushes ~100ms windows); inserting
+        # each at 0 leaves the newest entry first, same as the old
+        # per-line contract.
+        socket =
+          entries
+          |> Enum.filter(&Logic.should_insert_entry?(socket.assigns.filter, socket.assigns.paused, &1))
+          |> Enum.reduce(socket, fn entry, acc -> stream_insert(acc, :entries, entry, at: 0) end)
+
+        {:noreply, socket}
       end
 
       def handle_info(:buffer_cleared, socket) do

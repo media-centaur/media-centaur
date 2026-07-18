@@ -236,8 +236,20 @@ defmodule MediaCentaur.Console.HandlerTest do
       event = %{level: :info, msg: {:string, "should be skipped"}, meta: meta}
       Handler.log(event, %{})
 
-      # No {:log_entry, _} should arrive.
-      refute_receive {:log_entry, _}, 100
+      # The skipped entry must not appear in any flushed batch. The shared
+      # Buffer may flush batches carrying unrelated lines logged elsewhere
+      # in the VM during the window, so refute on content, not on the
+      # message shape (flush window is 100ms).
+      refute log_flushed_within?("should be skipped", 200)
+    end
+  end
+
+  defp log_flushed_within?(message, timeout) do
+    receive do
+      {:log_entries, entries} ->
+        Enum.any?(entries, &(&1.message =~ message)) or log_flushed_within?(message, timeout)
+    after
+      timeout -> false
     end
   end
 
@@ -265,9 +277,10 @@ defmodule MediaCentaur.Console.HandlerTest do
       require Logger
       Logger.warning("integration test message", component: :pipeline)
 
-      assert_receive {:log_entry, entry}, 1_000
+      assert_receive {:log_entries, entries}, 1_000
+      entry = Enum.find(entries, &(&1.message =~ "integration test message"))
+      assert entry, "expected the flushed batch to carry the logged entry"
       assert entry.component == :pipeline
-      assert entry.message =~ "integration test message"
     end
   end
 end

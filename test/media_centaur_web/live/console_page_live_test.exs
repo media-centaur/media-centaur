@@ -25,7 +25,7 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
     require MediaCentaur.Log, as: Log
     Log.warning(:pipeline, "console page integration test")
 
-    assert_receive {:log_entry, %{message: "console page integration test"}}, 500
+    await_log_broadcast(["console page integration test"])
 
     rendered = render(view)
     assert rendered =~ "console page integration test"
@@ -39,11 +39,25 @@ defmodule MediaCentaurWeb.ConsolePageLiveTest do
     require MediaCentaur.Log, as: Log
     Log.warning(:pipeline, "will be cleared on page")
 
-    assert_receive {:log_entry, %{message: "will be cleared on page"}}, 500
+    await_log_broadcast(["will be cleared on page"])
 
     render_click(view, "clear_buffer")
     assert_receive :buffer_cleared, 500
 
     assert Console.recent_entries() == []
+  end
+
+  # Batched broadcast contract (instant-navigation P5): appends arrive as
+  # {:log_entries, entries} flushes, possibly several messages per batch.
+  # Collect batches until every expected message has been seen.
+  defp await_log_broadcast(messages, seen \\ []) when is_list(messages) do
+    seen_messages = Enum.map(seen, & &1.message)
+
+    if messages -- seen_messages == [] do
+      :ok
+    else
+      assert_receive {:log_entries, entries}, 500
+      await_log_broadcast(messages, seen ++ entries)
+    end
   end
 end
