@@ -91,7 +91,7 @@ Fetches full metadata for a matched file and publishes the entity event for Libr
 **Configuration:**
 - Producer: `Import.Producer` (PubSub subscriber to `"pipeline:matched"`)
 - Processors: 5 concurrent, partitioned by file path
-- Batcher: 1, batch size 10, timeout 5s
+- No batcher — each message acks after `handle_message` (the completion broadcast fires inline in `handle_complete/1`, so nothing needs batching)
 
 **Processing flow:**
 1. **Parse** — re-parse the file path directly via `Parser.parse/2` (Import may receive files from Discovery or Review, so it always re-parses)
