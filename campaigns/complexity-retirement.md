@@ -99,22 +99,30 @@ payoff ÷ risk.
    151daa35 — an unrelated `LongQuoteBlocks` overshoot in `console_live/shared.ex`
    — fixed first in its own commit 0bdff879 to unblock the campaign.)*
 
-3. **Library: delete the test-only dead-function cluster.**
-   Zero `lib/` callers, test-only: `FilePresence.list_stale/1`,
-   `ExternalIds.find_owner/2`, `EpisodeList.index_progress_by_episode/1`,
-   `MovieList.index_progress_by_movie/1`. `Progress.lookup_in_memory/1` is public
-   but only self-referenced → demote to `defp`. Delete functions + orphaned
-   tests; fix the three docstrings that describe these as the live mechanism
-   (they aren't — real paths are `AbsenceSweeper.expired_paths_under/2`,
-   `Library.find_by_external_id/2`, `index_progress_by_key/1`).
+3. **✅ DONE (2026-07-19, commit d101faee).** **Library: delete the test-only
+   dead-function cluster.** Removed `FilePresence.list_stale/1`,
+   `ExternalIds.find_owner/2` (+ orphaned `schema_for/1` + `owner_type` type),
+   `EpisodeList.index_progress_by_episode/1` and
+   `MovieList.index_progress_by_movie/1` (+ each module's now-orphaned
+   `progress_loaded?/1`). Demoted `Progress.lookup_in_memory/1` to `defp` (sole
+   caller `overlay_in_memory/1`). Fixed the FilePresence moduledoc (cited
+   `list_stale` → now names AbsenceSweeper's `last_seen_at` sweep) and the
+   `movie_list_test` describe mislabeled `index_progress_by_movie` (it exercises
+   the live `index_progress_by_key`). Orphaned tests removed same commit
+   (5423→5408). Precommit green.
 
-4. **Library view projections: delete the redundant `:ordered_set` sorts.**
-   *Files:* `views/continue_watching.ex`, `views/recently_added.ex`,
-   `views/hero_candidates.ex`. Each does
-   `:ets.tab2list |> Enum.sort_by(fn {rank,_} -> rank end)`, but the tables are
-   `:ordered_set` keyed by rank — `tab2list` already returns key order.
-   `views/browse.ex` documents this and omits the sort. Delete all three sorts.
+4. **✅ DONE (2026-07-19, commit d9f169e0).** **Library view projections: delete
+   the redundant `:ordered_set` sorts.** Dropped the `Enum.sort_by(fn {rank,_}
+   -> rank end)` from `continue_watching`, `recently_added`, `hero_candidates` —
+   `:ordered_set` iterates in unique-key order, so `tab2list` is already
+   rank-sorted (behavior-preserving; matches `browse.ex`'s documented pattern,
+   which we copied as the explanatory comment). Existing 184 view tests green.
    (Extraction of the shared skeleton is W4-1.)
+
+**Wave 1 complete (2026-07-19).** All four items shipped as individual commits
+(583343e4, fb1773b6, d101faee, d9f169e0), unpushed. Pre-existing `credo --strict`
+red (LongQuoteBlocks in `console_live/shared.ex`, from 151daa35) cleared in
+0bdff879 to unblock the campaign's precommit gate.
 
 ### Wave 2 — duplicated representations (low-medium risk collapses)
 
