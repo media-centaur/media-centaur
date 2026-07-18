@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   @impl true
   def mount(_params, _session, socket) do
-    # No Review.subscribe() here — MediaCentaurWeb.ReviewBadge (default
+    # No Review.subscribe() here — MediaCentaurWeb.ShellBadges (default
     # live_session on_mount) already subscribes every LiveView to
     # review:updates; a second subscribe would double-deliver each message.
     {:ok,

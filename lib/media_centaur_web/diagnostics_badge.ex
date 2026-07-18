@@ -4,17 +4,14 @@ defmodule MediaCentaurWeb.DiagnosticsBadge do
   incidents (`:log`/`:subsystem` newer than `diagnostics_seen_at`). Owns the
   `diagnostics_seen_at` Settings entry so `ErrorReports` needs no `Settings` dep.
 
-  Provides an `on_mount` hook that assigns `:diagnostics_unseen` app-wide and
-  live-refreshes it on the `error_reports` PubSub broadcast.
+  The app-wide `:diagnostics_unseen` assign is seeded by the
+  `MediaCentaurWeb.ShellBadges` on_mount hook, which reads this module's
+  `count/0` through its cached projection.
   """
-
-  import Phoenix.Component, only: [assign: 3]
-  import Phoenix.LiveView, only: [attach_hook: 4, connected?: 1]
 
   alias MediaCentaur.ErrorReports
   alias MediaCentaur.Settings
   alias MediaCentaur.Settings.Entry
-  alias MediaCentaur.Topics
 
   @key "diagnostics_seen_at"
   @epoch ~U[1970-01-01 00:00:00Z]
@@ -45,23 +42,4 @@ defmodule MediaCentaurWeb.DiagnosticsBadge do
 
     :ok
   end
-
-  def on_mount(:default, _params, _session, socket) do
-    if connected?(socket) do
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.error_reports())
-    end
-
-    socket =
-      socket
-      |> assign(:diagnostics_unseen, count())
-      |> attach_hook(:diagnostics_badge, :handle_info, &refresh/2)
-
-    {:cont, socket}
-  end
-
-  defp refresh({:buckets_changed, _buckets}, socket) do
-    {:cont, assign(socket, :diagnostics_unseen, count())}
-  end
-
-  defp refresh(_msg, socket), do: {:cont, socket}
 end

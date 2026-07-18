@@ -103,9 +103,21 @@ longtasks). Re-create from this description if lost; re-run after each phase.
   `phx-connected` on `[data-phx-main]`, not `liveSocket.isConnected()`,
   before synthetic clicks — pre-join clicks are silently dropped).
 
+- **Phase 3 ✅ 2026-07-18.** `DiagnosticsBadge`/`ReviewBadge` on_mount pair
+  collapsed into one `MediaCentaurWeb.ShellBadges` hook backed by a
+  `:persistent_term` Cache projection (`shell:badges` topic); the 4 COUNT
+  queries left every navigation. The hook keeps the review/reconciliation
+  source subscriptions (delivery contract for ReviewLive/ReconcileLive).
+  Full sweep after P3: review/reconcile ~30ms, home ~38ms, incoming
+  91→60ms, library ~44–55ms warm, /status ~75–90ms, /history ~60ms.
+  NoDbOnRender's /status test now primes the projections so it measures
+  the production (ETS) path.
+
 ## Next steps
 
-- Phase 3: shell badge projection (diagnostics/review/mapping counts).
+- Phase 4: artwork warmup (prefetch first-screen derivatives at launch;
+  URLs must be byte-identical to what pages request — reuse
+  `sized_image_url/2`).
 
 ## Completion criteria
 

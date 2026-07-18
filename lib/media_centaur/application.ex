@@ -229,6 +229,10 @@ defmodule MediaCentaur.Application do
        context: MediaCentaur.Status.Views.Storage,
        prime: :async,
        refresh_interval_ms: to_timeout(minute: 5)},
+      # Sidebar badge counts (diagnostics / review / mapping) — read by the
+      # ShellBadges on_mount hook on every navigation, so they must never
+      # cost a query on the mount path.
+      {MediaCentaur.Cache.Worker, context: MediaCentaurWeb.ShellBadges},
       # Pillar-2 GenServer (ADR-041) — owns active watch-progress
       # state in ETS, debounce-flushes to library_watch_progress.
       MediaCentaur.Library.Progress.Worker,
