@@ -111,9 +111,9 @@ defmodule MediaCentaur.SelfUpdate.Storage do
   def get_last_check_at do
     case Settings.get_by_key(@last_check_key) do
       {:ok, %{value: %{"at" => iso}}} when is_binary(iso) ->
-        case DateTime.from_iso8601(iso) do
-          {:ok, at, _offset} -> {:ok, at}
-          _ -> :none
+        case MediaCentaur.Iso8601.parse(iso) do
+          nil -> :none
+          at -> {:ok, at}
         end
 
       _ ->
@@ -157,12 +157,5 @@ defmodule MediaCentaur.SelfUpdate.Storage do
     %{release: release, classification: classification}
   end
 
-  defp decode_published_at(nil), do: DateTime.utc_now()
-
-  defp decode_published_at(iso) when is_binary(iso) do
-    case DateTime.from_iso8601(iso) do
-      {:ok, datetime, _offset} -> datetime
-      _ -> DateTime.utc_now()
-    end
-  end
+  defp decode_published_at(iso), do: MediaCentaur.Iso8601.parse(iso, DateTime.utc_now())
 end

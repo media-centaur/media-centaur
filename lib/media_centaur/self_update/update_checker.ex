@@ -198,14 +198,7 @@ defmodule MediaCentaur.SelfUpdate.UpdateChecker do
 
   defp html_url(%{"tag_name" => tag}), do: "https://github.com/#{@repo}/releases/tag/#{tag}"
 
-  defp parse_published_at(nil), do: {:ok, DateTime.utc_now()}
-
-  defp parse_published_at(iso) when is_binary(iso) do
-    case DateTime.from_iso8601(iso) do
-      {:ok, datetime, _offset} -> {:ok, datetime}
-      _ -> {:ok, DateTime.utc_now()}
-    end
-  end
+  defp parse_published_at(iso), do: {:ok, MediaCentaur.Iso8601.parse(iso, DateTime.utc_now())}
 
   @doc """
   Classifies a release relative to a local version string.

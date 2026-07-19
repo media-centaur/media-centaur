@@ -91,12 +91,5 @@ defmodule MediaCentaur.SelfUpdate.Health do
     end
   end
 
-  defp decode_at(iso) when is_binary(iso) do
-    case DateTime.from_iso8601(iso) do
-      {:ok, at, _offset} -> at
-      _ -> DateTime.utc_now()
-    end
-  end
-
-  defp decode_at(_), do: DateTime.utc_now()
+  defp decode_at(iso), do: MediaCentaur.Iso8601.parse(iso, DateTime.utc_now())
 end

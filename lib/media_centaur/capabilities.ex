@@ -236,12 +236,9 @@ defmodule MediaCentaur.Capabilities do
 
   defp parse(%{"status" => status, "tested_at" => iso})
        when status in ["ok", "error"] and is_binary(iso) do
-    case DateTime.from_iso8601(iso) do
-      {:ok, datetime, _offset} ->
-        %{status: String.to_existing_atom(status), tested_at: datetime}
-
-      _ ->
-        nil
+    case MediaCentaur.Iso8601.parse(iso) do
+      nil -> nil
+      datetime -> %{status: String.to_existing_atom(status), tested_at: datetime}
     end
   end
 
