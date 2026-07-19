@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Status.SelfUpdateWidget do
   @moduledoc "Storybook coverage for the self-update Activity widget (version, check cadence, auto-install, apply progress)."
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentaurWeb.ActivityWidgetComponents.self_update_widget/1
+  def function, do: &MediaCentaurWeb.Components.StatusWidgets.SelfUpdate.self_update_widget/1
 
   def render_source, do: :function
 

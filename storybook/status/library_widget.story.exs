@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.Storybook.Status.LibraryWidget do
 
   alias MediaCentaur.Status.LibraryOverview
 
-  def function, do: &MediaCentaurWeb.ActivityWidgetComponents.library_widget/1
+  def function, do: &MediaCentaurWeb.Components.StatusWidgets.Library.library_widget/1
   def render_source, do: :function
   def layout, do: :one_column
 

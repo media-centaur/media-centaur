@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Status.PipelineWidget do
   @moduledoc "Storybook coverage for the Pipeline Activity widget (content + image pipeline stages)."
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentaurWeb.ActivityWidgetComponents.pipeline_widget/1
+  def function, do: &MediaCentaurWeb.Components.StatusWidgets.Pipeline.pipeline_widget/1
 
   def render_source, do: :function
 

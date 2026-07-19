@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Status.SystemWidget do
   @moduledoc "Storybook coverage for the System runtime-vitals widget."
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentaurWeb.ActivityWidgetComponents.system_widget/1
+  def function, do: &MediaCentaurWeb.Components.StatusWidgets.System.system_widget/1
 
   def render_source, do: :function
 
