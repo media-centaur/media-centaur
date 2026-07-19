@@ -1777,7 +1777,7 @@ defmodule MediaCentaurWeb.IncomingLive do
                 build_decision(
                   pursuit,
                   header.awaiting_decision?,
-                  header.recipe.search_queries,
+                  header.search_queries,
                   nil,
                   force: true
                 )
@@ -2194,7 +2194,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   defp maybe_fetch_artwork(socket, header) do
     recipe = header.recipe
 
-    if recipe.recipe_type == :tmdb and recipe.tmdb_id != nil and is_nil(header.backdrop_url) and
+    if recipe.type == :tmdb and recipe.tmdb_id != nil and is_nil(header.backdrop_url) and
          Capabilities.tmdb_ready?() do
       pursuit_id = header.id
 
@@ -2229,7 +2229,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           decision_card_or_placeholder(
             pursuit,
             header.awaiting_decision?,
-            header.recipe.search_queries,
+            header.search_queries,
             socket.assigns.pursuit_detail
           )
 
@@ -2311,7 +2311,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       case Pursuits.get(pursuit_id) do
         {:ok, pursuit} ->
           header = Pursuits.header_from(pursuit)
-          build_decision(pursuit, header.awaiting_decision?, header.recipe.search_queries, nil)
+          build_decision(pursuit, header.awaiting_decision?, header.search_queries, nil)
 
         _ ->
           %{card: nil, results_by_guid: %{}}

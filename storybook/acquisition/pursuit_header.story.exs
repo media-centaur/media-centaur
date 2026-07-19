@@ -3,8 +3,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Acquisition.Pursuits.Recipe
   alias MediaCentaur.Acquisition.ViewModels.PursuitHeader
-  alias MediaCentaur.Acquisition.ViewModels.Recipe
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.PursuitHeader.pursuit_header/1
   def render_source, do: :function
@@ -33,12 +33,13 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
             logo_url:
               "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='90'><text x='0' y='64' font-family='sans-serif' font-size='56' font-weight='800' letter-spacing='6' fill='white'>SAMPLE SHOW</text></svg>",
             recipe: %Recipe{
-              recipe_type: :tmdb,
-              tmdb_type: "tv",
+              type: :tmdb,
+              title: "Sample Show",
+              tmdb_type: :tv,
               tmdb_id: "10",
-              season_number: 1,
-              search_queries: ["Sample Show Season 1", "Sample Show S01"]
+              season_number: 1
             },
+            search_queries: ["Sample Show Season 1", "Sample Show S01"],
             criteria_summary: "min_quality: 1080p"
           }
         }
@@ -52,12 +53,13 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
             title: "Public Domain Feature 1925",
             state: :active,
             recipe: %Recipe{
-              recipe_type: :tmdb,
-              tmdb_type: "movie",
+              type: :tmdb,
+              title: "Public Domain Feature 1925",
+              tmdb_type: :movie,
               tmdb_id: "1",
-              year: 1925,
-              search_queries: ["Public Domain Feature 1925"]
+              year: 1925
             },
+            search_queries: ["Public Domain Feature 1925"],
             criteria_summary: "max_quality: 2160p, min_quality: 1080p"
           }
         }
@@ -71,13 +73,14 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
             title: "Sample Show S01E03",
             state: :active,
             recipe: %Recipe{
-              recipe_type: :tmdb,
-              tmdb_type: "tv",
+              type: :tmdb,
+              title: "Sample Show",
+              tmdb_type: :tv,
               tmdb_id: "10",
               season_number: 1,
-              episode_number: 3,
-              search_queries: ["Sample Show S01E03", "Sample Show Season 1"]
+              episode_number: 3
             },
+            search_queries: ["Sample Show S01E03", "Sample Show Season 1"],
             criteria_summary: nil
           }
         }
@@ -91,10 +94,11 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
             title: "Phantom of the Opera (1925) · 1080p WEB-DL",
             state: :active,
             recipe: %Recipe{
-              recipe_type: :prowlarr_query,
-              manual_query: "Phantom of the Opera 1925",
-              search_queries: ["Phantom of the Opera 1925"]
+              type: :prowlarr_query,
+              title: "Phantom of the Opera (1925) · 1080p WEB-DL",
+              manual_query: "Phantom of the Opera 1925"
             },
+            search_queries: ["Phantom of the Opera 1925"],
             criteria_summary: nil
           }
         }
@@ -108,14 +112,15 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
             title: "Sample Show S01E{01,02,03}",
             state: :active,
             recipe: %Recipe{
-              recipe_type: :prowlarr_query,
-              manual_query: "Sample Show S01E{01,02,03}",
-              search_queries: [
-                "Sample Show S01E01",
-                "Sample Show S01E02",
-                "Sample Show S01E03"
-              ]
+              type: :prowlarr_query,
+              title: "Sample Show S01E{01,02,03}",
+              manual_query: "Sample Show S01E{01,02,03}"
             },
+            search_queries: [
+              "Sample Show S01E01",
+              "Sample Show S01E02",
+              "Sample Show S01E03"
+            ],
             criteria_summary: nil
           }
         }
@@ -130,8 +135,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
             state: :active,
             awaiting_decision?: true,
             recipe: %Recipe{
-              recipe_type: :tmdb,
-              tmdb_type: "tv",
+              type: :tmdb,
+              title: "Sample Show",
+              tmdb_type: :tv,
               season_number: 1,
               episode_number: 4
             },
@@ -146,7 +152,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
             id: "story-satisfied",
             title: "Movie A",
             state: :satisfied,
-            recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "movie", year: 2023},
+            recipe: %Recipe{type: :tmdb, title: "Movie A", tmdb_type: :movie, year: 2023},
             criteria_summary: nil
           }
         }
@@ -158,7 +164,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
             id: "story-exhausted",
             title: "Movie B",
             state: :exhausted,
-            recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "movie"},
+            recipe: %Recipe{type: :tmdb, title: "Movie B", tmdb_type: :movie},
             criteria_summary: nil
           }
         }

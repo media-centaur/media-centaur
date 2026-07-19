@@ -33,6 +33,11 @@ defmodule MediaCentaur.Acquisition do
       Pursuits.Events,
       Pursuits.InboundListener,
       Pursuits.Pursuit,
+      # Exported because the detail-header/status ViewModels embed it and the
+      # web layer + its stories read it directly (complexity-retirement W4-2):
+      # Recipe is a pure value-object projection, so exposing it is the ADR-039-
+      # compatible way to collapse the duplicate ViewModels.Recipe.
+      Pursuits.Recipe,
       QueueMatcher,
       Reactor,
       Target,
@@ -63,7 +68,6 @@ defmodule MediaCentaur.Acquisition do
       ViewModels.PursuitRow,
       ViewModels.PursuitStatus,
       ViewModels.PursuitWithDownload,
-      ViewModels.Recipe,
       ViewModels.Timeline,
       ViewModels.TimelineEntry,
       ViewModels.UnitBoard,

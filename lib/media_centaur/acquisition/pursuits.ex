@@ -20,7 +20,6 @@ defmodule MediaCentaur.Acquisition.Pursuits do
     PursuitHeader,
     PursuitRow,
     PursuitStatus,
-    Recipe,
     Timeline,
     TimelineEntry,
     UnitBoard
@@ -365,7 +364,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       title: pursuit.title,
       state: String.to_existing_atom(pursuit.state),
       origin: String.to_existing_atom(pursuit.origin),
-      recipe: build_recipe(pursuit),
+      recipe: PursuitRecipe.from(pursuit),
+      search_queries: search_queries_for(pursuit),
       criteria_summary: summarize_criteria(pursuit.criteria),
       current_action: current_action,
       next_step: next_step,
@@ -676,7 +676,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
       title: pursuit.title,
       state: String.to_existing_atom(pursuit.state),
       awaiting_decision?: awaiting_decision?(pursuit),
-      recipe: build_recipe(pursuit),
+      recipe: PursuitRecipe.from(pursuit),
+      search_queries: search_queries_for(pursuit),
       criteria_summary: summarize_criteria(pursuit.criteria),
       backdrop_url: artwork.backdrop_url,
       logo_url: artwork.logo_url
@@ -702,26 +703,6 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   end
 
   # --- status_for helpers ----------------------------------------------------
-
-  defp build_recipe(%Pursuit{recipe_type: "tmdb"} = p) do
-    %Recipe{
-      recipe_type: :tmdb,
-      tmdb_type: p.tmdb_type,
-      tmdb_id: p.tmdb_id,
-      season_number: p.season_number,
-      episode_number: p.episode_number,
-      year: p.year,
-      search_queries: search_queries_for(p)
-    }
-  end
-
-  defp build_recipe(%Pursuit{recipe_type: "prowlarr_query"} = p) do
-    %Recipe{
-      recipe_type: :prowlarr_query,
-      manual_query: p.manual_query,
-      search_queries: search_queries_for(p)
-    }
-  end
 
   # `QueryBuilder.build/1` returns `[{query, opts}]` ordered best-to-worst.
   # The UI only needs the query strings, so we strip the opts here. Kept

@@ -430,8 +430,8 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
     test "movie recipe carries the Prowlarr search query with the year" do
       pursuit = insert_pursuit(%{tmdb_type: "movie", title: "Sample Movie", year: 2010})
 
-      assert {:ok, %PursuitHeader{recipe: recipe}} = Pursuits.header_for(pursuit.id)
-      assert recipe.search_queries == ["Sample Movie 2010"]
+      assert {:ok, %PursuitHeader{search_queries: queries}} = Pursuits.header_for(pursuit.id)
+      assert queries == ["Sample Movie 2010"]
     end
 
     test "TV episode recipe carries the episode-specific query only" do
@@ -443,8 +443,8 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
           episode_number: 3
         })
 
-      assert {:ok, %PursuitHeader{recipe: recipe}} = Pursuits.header_for(pursuit.id)
-      assert recipe.search_queries == ["Sample Show S01E03"]
+      assert {:ok, %PursuitHeader{search_queries: queries}} = Pursuits.header_for(pursuit.id)
+      assert queries == ["Sample Show S01E03"]
     end
   end
 

@@ -3,12 +3,13 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Acquisition.Pursuits.Recipe
+
   alias MediaCentaur.Acquisition.ViewModels.{
     CurrentAction,
     DownloadProgress,
     NextStep,
-    PursuitStatus,
-    Recipe
+    PursuitStatus
   }
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.PursuitActivity.pursuit_activity/1
@@ -29,10 +30,11 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
       state: :active,
       origin: :auto,
       recipe: %Recipe{
-        recipe_type: :tmdb,
-        tmdb_type: "movie",
-        search_queries: ["Sample Movie 2010"]
+        type: :tmdb,
+        title: "Sample Movie",
+        tmdb_type: :movie
       },
+      search_queries: ["Sample Movie 2010"],
       current_action: %CurrentAction{
         verb: "Downloading",
         description: "Sample description.",
@@ -128,12 +130,13 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
           vm:
             base(
               recipe: %Recipe{
-                recipe_type: :tmdb,
-                tmdb_type: "tv",
+                type: :tmdb,
+                title: "Sample Show",
+                tmdb_type: :tv,
                 season_number: 1,
-                episode_number: 3,
-                search_queries: ["Sample Show S01E03", "Sample Show Season 1"]
+                episode_number: 3
               },
+              search_queries: ["Sample Show S01E03", "Sample Show Season 1"],
               current_action: %CurrentAction{
                 verb: "Searching",
                 description: "Looking for an acceptable release (attempt 2).",
