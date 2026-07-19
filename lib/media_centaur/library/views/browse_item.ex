@@ -22,13 +22,6 @@ defmodule MediaCentaur.Library.Views.BrowseItem do
                           piece the poster card displays today and reads cheaper
                           than calling `Date.year/1` per render.
     * `:poster_url`     — local artwork URL (`/media-images/<content_url>`) or nil
-    * `:present?`       — `true` when at least one backing file is currently
-                          reachable. The projection already filters to
-                          present-only entities at query time, so this
-                          defaults to `true`; the flag stays in the shape
-                          so the `:present_only` filter in `Views.browse/1`
-                          stays meaningful when the underlying query
-                          relaxes later.
     * `:rank`           — 0-indexed display rank, assigned by `refresh_cache/0`
                           after the source query runs. Reflects the projection's
                           recent-first (`inserted_at desc`) ordering — the
@@ -36,7 +29,7 @@ defmodule MediaCentaur.Library.Views.BrowseItem do
   """
 
   @enforce_keys [:id, :kind, :name]
-  defstruct [:id, :kind, :name, :date_published, :year, :poster_url, :present?, :rank]
+  defstruct [:id, :kind, :name, :date_published, :year, :poster_url, :rank]
 
   @type kind :: :movie | :tv_series | :movie_series | :video_object
 
@@ -47,7 +40,6 @@ defmodule MediaCentaur.Library.Views.BrowseItem do
           date_published: Date.t() | nil,
           year: integer() | nil,
           poster_url: String.t() | nil,
-          present?: boolean() | nil,
           rank: non_neg_integer() | nil
         }
 end

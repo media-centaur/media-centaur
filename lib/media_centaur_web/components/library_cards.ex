@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   attr :entry, MediaCentaur.Library.Views.BrowseItem,
     required: true,
     doc:
-      "A `Library.Views.BrowseItem` struct produced by the Browse projection (Library Schema v2 Phase 3.1). Carries the minimal display shape — `:id`, `:kind`, `:name`, `:date_published`, `:year`, `:poster_url`, `:present?`, `:rank`."
+      "A `Library.Views.BrowseItem` struct produced by the Browse projection (Library Schema v2 Phase 3.1). Carries the minimal display shape — `:id`, `:kind`, `:name`, `:date_published`, `:year`, `:poster_url`, `:rank`."
 
   attr :progress, :map,
     default: nil,

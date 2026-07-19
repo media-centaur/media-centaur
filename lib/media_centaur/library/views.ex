@@ -64,9 +64,7 @@ defmodule MediaCentaur.Library.Views do
   DB query when it isn't (test mode / pre-boot window).
 
   Options:
-    * `:kind`         — filter by `:movie | :tv_series | :movie_series | :video_object`
-    * `:present_only` — when `true`, exclude entities whose backing
-                        files aren't currently reachable
+    * `:kind` — filter by `:movie | :tv_series | :movie_series | :video_object`
   """
   @spec browse(keyword()) :: [BrowseItem.t()]
   def browse(opts \\ []), do: Browse.read(opts)
