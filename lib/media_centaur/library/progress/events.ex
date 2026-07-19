@@ -25,10 +25,12 @@ defmodule MediaCentaur.Library.Progress.Events do
   defmodule ProgressTicked do
     @moduledoc """
     Hot-path position tick from `Library.Progress.record/3`. Carries
-    the `playable_item_id` and current `position_seconds` so
-    projections that only need to refresh on activity (Continue
-    Watching, Detail) can react in microseconds without preloading
-    the full entity.
+    the `playable_item_id` and current `position_seconds`. No prod
+    subscriber today (the live progress bar is driven by
+    `playback:events` `:entity_progress_updated`); the tick exists as a
+    deterministic per-activity hook for tests and as the seam a future
+    activity-only projection could refresh on without preloading the
+    full entity.
     """
     @enforce_keys [:playable_item_id, :position_seconds]
     defstruct [:playable_item_id, :position_seconds]
