@@ -23,8 +23,11 @@ defmodule MediaCentaur.Library.Progress do
   All broadcasts go through `MediaCentaur.PubSub`:
 
     * `{:progress_ticked, %ProgressTicked{}}` on `library:progress`
-      for every `record/3` (live UX hook — keeps the progress bar
-      ticking forward without page reload).
+      for every `record/3`. No prod subscriber today — the live
+      progress bar is driven by `playback:events`
+      (`:entity_progress_updated`); per ADR-041 this is a deterministic
+      per-tick hook for tests and a seam for future activity-only
+      projections.
     * `{:progress_flushed, %ProgressFlushed{}}` on `library:progress`
       for every row flushed to disk (deterministic-sync hook for
       tests and for projections that want to react only after
