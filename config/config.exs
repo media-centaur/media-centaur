@@ -118,14 +118,14 @@ config :media_centaur, :diagnostics_issues_repo, "media-centaur/media-centaur"
 
 # Health-board Activity widgets (observability Phase 4 M3b). component => {module, fun}.
 config :media_centaur, :health_activity_widgets, %{
-  library: {MediaCentaurWeb.ActivityWidgetComponents, :library_widget},
-  watcher: {MediaCentaurWeb.ActivityWidgetComponents, :watcher_widget},
-  pipeline: {MediaCentaurWeb.ActivityWidgetComponents, :pipeline_widget},
-  tmdb: {MediaCentaurWeb.ActivityWidgetComponents, :tmdb_widget},
-  playback: {MediaCentaurWeb.ActivityWidgetComponents, :playback_widget},
-  acquisition: {MediaCentaurWeb.ActivityWidgetComponents, :acquisition_widget},
-  self_update: {MediaCentaurWeb.ActivityWidgetComponents, :self_update_widget},
-  system: {MediaCentaurWeb.ActivityWidgetComponents, :system_widget}
+  library: {MediaCentaurWeb.Components.StatusWidgets.Library, :library_widget},
+  watcher: {MediaCentaurWeb.Components.StatusWidgets.Watcher, :watcher_widget},
+  pipeline: {MediaCentaurWeb.Components.StatusWidgets.Pipeline, :pipeline_widget},
+  tmdb: {MediaCentaurWeb.Components.StatusWidgets.Tmdb, :tmdb_widget},
+  playback: {MediaCentaurWeb.Components.StatusWidgets.Playback, :playback_widget},
+  acquisition: {MediaCentaurWeb.Components.StatusWidgets.Acquisition, :acquisition_widget},
+  self_update: {MediaCentaurWeb.Components.StatusWidgets.SelfUpdate, :self_update_widget},
+  system: {MediaCentaurWeb.Components.StatusWidgets.System, :system_widget}
 }
 
 # Retention-policy providers (data-hygiene initiative). Each context that

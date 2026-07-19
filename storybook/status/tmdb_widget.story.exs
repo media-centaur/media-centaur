@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Status.TmdbWidget do
   @moduledoc "Storybook coverage for the TMDB Activity widget (config + rate-limiter budget + metadata-activity feed)."
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentaurWeb.ActivityWidgetComponents.tmdb_widget/1
+  def function, do: &MediaCentaurWeb.Components.StatusWidgets.Tmdb.tmdb_widget/1
 
   def render_source, do: :function
 

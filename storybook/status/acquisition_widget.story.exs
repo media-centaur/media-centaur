@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Status.AcquisitionWidget do
   @moduledoc "Storybook coverage for the Downloads Activity widget (connectivity + throughput)."
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentaurWeb.ActivityWidgetComponents.acquisition_widget/1
+  def function, do: &MediaCentaurWeb.Components.StatusWidgets.Acquisition.acquisition_widget/1
 
   def render_source, do: :function
 

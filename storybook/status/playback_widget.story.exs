@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Status.PlaybackWidget do
   @moduledoc "Storybook coverage for the Playback Activity widget (active sessions + now-playing progress)."
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentaurWeb.ActivityWidgetComponents.playback_widget/1
+  def function, do: &MediaCentaurWeb.Components.StatusWidgets.Playback.playback_widget/1
 
   def render_source, do: :function
 

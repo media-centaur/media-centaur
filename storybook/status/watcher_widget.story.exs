@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Status.WatcherWidget do
   @moduledoc "Storybook coverage for the Watcher Activity widget (media dirs + storage headroom + activity narrative)."
   use PhoenixStorybook.Story, :component
 
-  def function, do: &MediaCentaurWeb.ActivityWidgetComponents.watcher_widget/1
+  def function, do: &MediaCentaurWeb.Components.StatusWidgets.Watcher.watcher_widget/1
 
   # A watcher_statuses entry in the enriched Supervisor.statuses/0 shape.
   defp watcher(dir, state, opts \\ []) do
