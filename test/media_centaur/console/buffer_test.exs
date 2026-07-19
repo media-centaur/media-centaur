@@ -207,6 +207,12 @@ defmodule MediaCentaur.Console.BufferTest do
       Buffer.append(first_entry, name)
       Buffer.append(second_entry, name)
 
+      # Force the batch out deterministically. `append` is a cast and `flush`
+      # is a call from this same process, so message ordering guarantees both
+      # appends are processed before the flush — no racing the ~100ms flush
+      # timer against scheduler jitter (the source of a full-suite-load flake).
+      :ok = Buffer.flush(name)
+
       # One flush, chronological order.
       assert_receive {:log_entries, [^first_entry, ^second_entry]}, 500
       refute_receive {:log_entries, _}, 150
@@ -218,10 +224,12 @@ defmodule MediaCentaur.Console.BufferTest do
 
       first_entry = build_entry(message: "batch window one")
       Buffer.append(first_entry, name)
+      :ok = Buffer.flush(name)
       assert_receive {:log_entries, [^first_entry]}, 500
 
       second_entry = build_entry(message: "batch window two")
       Buffer.append(second_entry, name)
+      :ok = Buffer.flush(name)
       assert_receive {:log_entries, [^second_entry]}, 500
     end
 
