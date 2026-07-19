@@ -4,6 +4,7 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
   import MediaCentaur.TmdbStubs
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Refresher
+  alias MediaCentaur.ReleaseTracking.Release
 
   setup do
     setup_tmdb_client()
@@ -82,7 +83,7 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
       releases = ReleaseTracking.list_releases_for_item(item.id)
       assert length(releases) == 1
       assert hd(releases).air_date == ~D[2028-12-25]
-      assert hd(releases).released == false
+      refute Release.released?(hd(releases))
     end
 
     test "falls back to /movie/{id} when /collection/{id} returns 404 (solo-movie tracker)" do
@@ -115,35 +116,6 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
 
       reloaded = ReleaseTracking.get_item(item.id)
       assert reloaded.name == "Solo Movie"
-    end
-
-    test "marks past releases as released" do
-      item = create_tracking_item(%{tmdb_id: 1396, media_type: :tv_series, name: "Sample Show"})
-
-      ReleaseTracking.create_release!(%{
-        item_id: item.id,
-        air_date: Date.add(Date.utc_today(), -3),
-        title: "Past Episode",
-        season_number: 1,
-        episode_number: 1
-      })
-
-      stub_routes([
-        {"/tv/1396",
-         %{
-           "id" => 1396,
-           "name" => "Sample Show",
-           "status" => "Returning Series",
-           "poster_path" => "/bb.jpg",
-           "next_episode_to_air" => nil
-         }}
-      ])
-
-      :ok = Refresher.refresh_item(item)
-
-      {_count, _} = ReleaseTracking.mark_past_releases_as_released()
-      releases = ReleaseTracking.list_releases_for_item(item.id)
-      assert is_list(releases)
     end
   end
 
@@ -456,8 +428,8 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
       Refresher.sweep_now()
 
       releases = ReleaseTracking.list_releases_for_item(item.id)
-      assert Enum.find(releases, &(&1.id == past_release.id)).released == true
-      assert Enum.find(releases, &(&1.id == future_release.id)).released == false
+      assert Release.released?(Enum.find(releases, &(&1.id == past_release.id)))
+      refute Release.released?(Enum.find(releases, &(&1.id == future_release.id)))
     end
 
     test "broadcasts {:tracking_sweep_completed} — the drop planner's clock and the ComingUp refresh signal" do

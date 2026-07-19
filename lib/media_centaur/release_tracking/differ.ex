@@ -94,9 +94,16 @@ defmodule MediaCentaur.ReleaseTracking.Differ do
   # only fires for genuinely new dates — a later digital window, a sequel in a
   # tracked collection. Undated rows carry no schedule, so they are skipped.
   defp detect_additions(:movie, keys, new_by_key, _old_by_key) do
+    today = Date.utc_today()
+
     keys
     |> Enum.map(&new_by_key[&1])
-    |> Enum.filter(&(field(&1, :air_date) && !field(&1, :released)))
+    # future-dated only — `released` derives from `air_date`, so an already-
+    # aired date isn't announced as newly "scheduled".
+    |> Enum.filter(fn r ->
+      air_date = field(r, :air_date)
+      air_date && Date.after?(air_date, today)
+    end)
     |> Enum.map(fn release ->
       title = field(release, :title) || "Unknown"
       air_date = field(release, :air_date)

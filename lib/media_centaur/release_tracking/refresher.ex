@@ -35,8 +35,8 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   end
 
   @doc """
-  Run the cheap sweep synchronously: mark past releases as released,
-  sync the want ledger per watched item, and broadcast
+  Run the cheap sweep synchronously: sync the want ledger per watched
+  item and broadcast
   `{:tracking_sweep_completed}` (the drop planner's clock, ADR-056).
   Persists `last_swept_at`. Safe to call without the GenServer
   running — used by the timer, by tests, and by ops.
@@ -138,8 +138,6 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     # bandwidth. Bound the fan-out the same way Phase 1 bounds TMDB
     # fetches.
     bulk_download_images(successful)
-
-    ReleaseTracking.mark_past_releases_as_released()
 
     changed_ids = Enum.map(items, & &1.id)
 
@@ -264,7 +262,6 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
   defp do_sweep do
     Log.info(:library, "release tracking: sweep")
-    ReleaseTracking.mark_past_releases_as_released()
 
     Enum.each(ReleaseTracking.list_watching_items(), fn item ->
       # The sweep is the want ledger's heartbeat (ADR-056): idempotent

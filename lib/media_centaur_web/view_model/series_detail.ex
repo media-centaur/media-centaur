@@ -285,12 +285,15 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
     }
   end
 
-  defp upcoming_sub_status(%{released: false}), do: :unaired
-  defp upcoming_sub_status(%{released: true, in_library: false}), do: :aired_not_in_library
-  # The DB filter already excludes in_library: true, so this clause is
-  # unreachable in practice — but keeping it explicit makes the
-  # mapping total at the type level.
-  defp upcoming_sub_status(_), do: :aired_not_in_library
+  # `released` derives from `air_date` (no stored flag). The DB query already
+  # excludes aired-and-in-library rows, so an aired release here is
+  # not-in-library; an unaired one has a future/absent air_date.
+  defp upcoming_sub_status(release) do
+    if aired?(release), do: :aired_not_in_library, else: :unaired
+  end
+
+  defp aired?(%{air_date: %Date{} = air_date}), do: Date.compare(air_date, Date.utc_today()) != :gt
+  defp aired?(_), do: false
 
   # --- Helpers (extracted from DetailPanel) ---
 

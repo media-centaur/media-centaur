@@ -3,6 +3,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
   import Ecto.Query
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.ReleaseTracking.Release
 
   describe "persist_release!/2" do
     test "keeps release_type and part_tmdb_id so Differ keys stay stable" do
@@ -148,7 +149,8 @@ defmodule MediaCentaur.ReleaseTrackingTest do
                })
 
       assert release.air_date == ~D[2026-06-15]
-      assert release.released == false
+      # `released` is derived from `air_date` — 2026-06-15 is past, so aired.
+      assert Release.released?(release, ~D[2026-07-19])
     end
   end
 
@@ -178,6 +180,27 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       assert hd(upcoming).title == "Future Episode"
       assert length(released) == 1
       assert hd(released).title == "Past Episode"
+    end
+
+    test "classifies a release aired today as released even with a stale stored flag" do
+      # Simulates the across-midnight window: a row that was stamped
+      # `released: false` yesterday whose `air_date` is today. The old
+      # nightly sweep had to run to flip the flag; deriving `released` from
+      # `air_date` on read fixes the stale-across-midnight class of bug.
+      item = create_tracking_item()
+
+      ReleaseTracking.create_release!(%{
+        item_id: item.id,
+        air_date: Date.utc_today(),
+        title: "Aired Today",
+        season_number: 1,
+        episode_number: 1,
+        released: false
+      })
+
+      %{upcoming: upcoming, released: released} = ReleaseTracking.list_releases()
+      assert Enum.map(released, & &1.title) == ["Aired Today"]
+      assert upcoming == []
     end
   end
 
@@ -219,12 +242,17 @@ defmodule MediaCentaur.ReleaseTrackingTest do
           library_container_type: :movie
         })
 
-      create_tracking_release(%{item_id: item.id, title: "Old Movie", released: true, part_tmdb_id: 101})
+      create_tracking_release(%{
+        item_id: item.id,
+        title: "Old Movie",
+        air_date: Date.add(Date.utc_today(), -10),
+        part_tmdb_id: 101
+      })
 
       create_tracking_release(%{
         item_id: item.id,
         title: "Upcoming Movie",
-        released: false,
+        air_date: Date.add(Date.utc_today(), 30),
         part_tmdb_id: 102
       })
 
@@ -316,7 +344,12 @@ defmodule MediaCentaur.ReleaseTrackingTest do
           library_container_type: :movie
         })
 
-      release = create_tracking_release(%{item_id: item.id, title: "Old Movie", released: true})
+      release =
+        create_tracking_release(%{
+          item_id: item.id,
+          title: "Old Movie",
+          air_date: Date.add(Date.utc_today(), -10)
+        })
 
       ReleaseTracking.mark_in_library_releases(item)
 
@@ -334,11 +367,13 @@ defmodule MediaCentaur.ReleaseTrackingTest do
           library_container_type: :movie
         })
 
+      aired = Date.add(Date.utc_today(), -10)
+
       theatrical =
         create_tracking_release(%{
           item_id: item.id,
           title: "Theatrical Premiere",
-          released: true,
+          air_date: aired,
           release_type: "theatrical"
         })
 
@@ -346,7 +381,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
         create_tracking_release(%{
           item_id: item.id,
           title: "Digital Release",
-          released: true,
+          air_date: aired,
           release_type: "digital"
         })
 
@@ -354,12 +389,12 @@ defmodule MediaCentaur.ReleaseTrackingTest do
         create_tracking_release(%{
           item_id: item.id,
           title: "Physical Release",
-          released: true,
+          air_date: aired,
           release_type: "physical"
         })
 
       untyped =
-        create_tracking_release(%{item_id: item.id, title: "Untyped Release", released: true})
+        create_tracking_release(%{item_id: item.id, title: "Untyped Release", air_date: aired})
 
       ReleaseTracking.mark_in_library_releases(item)
 
@@ -491,7 +526,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       [release] = ReleaseTracking.list_relevant_releases_for_library_container(tv.id, :tv_series)
       assert release.season_number == 3
       assert release.episode_number == 1
-      assert release.released == false
+      refute Release.released?(release)
     end
 
     test "returns aired-but-not-in-library (released: true, in_library: false) releases" do
@@ -515,7 +550,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
 
       [release] = ReleaseTracking.list_relevant_releases_for_library_container(tv.id, :tv_series)
       assert release.episode_number == 5
-      assert release.released == true
+      assert Release.released?(release)
       assert release.in_library == false
     end
 
@@ -890,7 +925,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       releases = ReleaseTracking.list_releases_for_item(item.id)
       assert length(releases) == 1
       assert hd(releases).title == "Future Ep"
-      assert hd(releases).released == false
+      refute Release.released?(hd(releases))
     end
 
     test "tracks a movie with theatrical and digital releases" do

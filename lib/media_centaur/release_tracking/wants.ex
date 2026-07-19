@@ -35,7 +35,7 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   alias MediaCentaur.Library
   alias MediaCentaur.Repo
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Helpers, Item, Want}
+  alias MediaCentaur.ReleaseTracking.{Helpers, Item, Release, Want}
   alias MediaCentaur.Search.Quality
 
   @doc """
@@ -270,7 +270,7 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   defp want_candidates(%Item{media_type: :tv_series} = item, releases) do
     releases
     |> Enum.filter(fn release ->
-      release.released and not release.in_library and
+      Release.released?(release) and not release.in_library and
         is_integer(release.season_number) and is_integer(release.episode_number) and
         not dismissed_by_cutoff?(item, release.air_date)
     end)
@@ -290,7 +290,7 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
   defp want_candidates(%Item{media_type: :movie} = item, releases) do
     releases
     |> Enum.filter(fn release ->
-      release.released and not release.in_library and
+      Release.released?(release) and not release.in_library and
         ReleaseTracking.acquirable_release_type?(release.release_type)
     end)
     |> Enum.flat_map(fn release ->

@@ -15,7 +15,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
   import Ecto.Query
 
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, ImageStore, Item, Wants}
+  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, ImageStore, Item, Release, Wants}
   alias MediaCentaur.Repo
   alias MediaCentaur.TMDB.Client
 
@@ -122,7 +122,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
         # "All upcoming" (0,0) = only future episodes. Custom scope = include released too.
         releases =
           if start_season == 0 && start_episode == 0 do
-            Enum.reject(all_releases, & &1[:released])
+            Enum.reject(all_releases, &Release.released?/1)
           else
             all_releases
           end

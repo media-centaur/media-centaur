@@ -107,12 +107,15 @@ defmodule MediaCentaur.ReleaseTracking.DifferTest do
     # scheduled movie release is announced as `:release_scheduled` instead.
     test "movie release addition is announced as scheduled, never a season" do
       old = []
+      # Future-dated — the Differ announces genuinely upcoming releases as
+      # scheduled; an already-aired date is not (`released` derives from it).
+      future = Date.add(Date.utc_today(), 60)
 
       new = [
         %{
           season_number: nil,
           episode_number: nil,
-          air_date: ~D[2026-06-23],
+          air_date: future,
           title: "Sample Film",
           release_type: "theatrical"
         }
@@ -124,7 +127,7 @@ defmodule MediaCentaur.ReleaseTracking.DifferTest do
       assert [event] = events
       assert event.event_type == :release_scheduled
       assert event.metadata.title == "Sample Film"
-      assert event.metadata.air_date == ~D[2026-06-23]
+      assert event.metadata.air_date == future
     end
 
     # Regression: a movie's theatrical/digital/physical dates share

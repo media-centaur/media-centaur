@@ -25,8 +25,9 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUp do
 
     * `release_tracking:updates` — releases added/removed/changed
       (`releases_updated`, `item_removed`), plus the sweep tick
-      (`tracking_sweep_completed`) for bulk released-flag flips and
-      midnight rollover.
+      (`tracking_sweep_completed`) as the midnight-rollover re-read
+      signal (`released` is derived from `air_date`, so cached rows go
+      stale at midnight with no broadcast).
 
   Grab status enrichment is intentionally NOT included in this
   projection. Acquisition has a hard dependency on ReleaseTracking;
@@ -59,10 +60,10 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUp do
   @impl MediaCentaur.Cache
   def relevant?({:releases_updated, _}), do: true
   def relevant?({:item_removed, _, _}), do: true
-  # The sweep flips `released` flags in bulk without a per-item
-  # broadcast (in-library units open no want, so the ledger sync stays
-  # silent for them) — the tick is the projection's re-read signal and
-  # bounds midnight-rollover staleness to the sweep cadence.
+  # `released` is derived from `air_date` on read, so cached rows silently
+  # go stale at midnight (no broadcast fires when a date crosses today).
+  # The sweep tick is the projection's re-read signal, bounding that
+  # midnight-rollover staleness to the sweep cadence.
   def relevant?({:tracking_sweep_completed}), do: true
   def relevant?(_), do: false
 

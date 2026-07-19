@@ -3,6 +3,7 @@ defmodule MediaCentaur.ReleaseTracking.ScannerTest do
 
   import MediaCentaur.TmdbStubs
   alias MediaCentaur.ReleaseTracking
+  alias MediaCentaur.ReleaseTracking.Release
   alias MediaCentaur.ReleaseTracking.Scanner
 
   setup do
@@ -101,8 +102,8 @@ defmodule MediaCentaur.ReleaseTracking.ScannerTest do
       assert length(releases) == 2
       ep13 = Enum.find(releases, &(&1.episode_number == 13))
       ep14 = Enum.find(releases, &(&1.episode_number == 14))
-      assert ep13.released == true
-      assert ep14.released == false
+      assert Release.released?(ep13)
+      refute Release.released?(ep14)
     end
 
     test "skips ended TV series with no upcoming episodes" do
