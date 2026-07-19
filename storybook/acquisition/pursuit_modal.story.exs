@@ -12,6 +12,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.Acquisition.Pursuits.Recipe
+
   alias MediaCentaur.Acquisition.ViewModels.{
     Alternative,
     CurrentAction,
@@ -20,7 +22,6 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
     NextStep,
     PursuitHeader,
     PursuitStatus,
-    Recipe,
     Timeline,
     TimelineEntry
   }
@@ -144,7 +145,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
       id: "story-active",
       title: "Public Domain Feature 1925",
       state: :active,
-      recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "movie", year: 1925},
+      recipe: %Recipe{type: :tmdb, title: "Public Domain Feature 1925", tmdb_type: :movie, year: 1925},
       criteria_summary: "max_quality: 2160p, min_quality: 1080p"
     }
   end
@@ -156,8 +157,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
       state: :active,
       awaiting_decision?: true,
       recipe: %Recipe{
-        recipe_type: :tmdb,
-        tmdb_type: "tv",
+        type: :tmdb,
+        title: "Sample Show",
+        tmdb_type: :tv,
         season_number: 1,
         episode_number: 4
       },
@@ -170,7 +172,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
       id: "story-satisfied",
       title: "Movie A",
       state: :satisfied,
-      recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "movie", year: 2023},
+      recipe: %Recipe{type: :tmdb, title: "Movie A", tmdb_type: :movie, year: 2023},
       criteria_summary: nil
     }
   end
@@ -183,7 +185,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
       title: "Public Domain Feature 1925",
       state: :active,
       origin: :auto,
-      recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "movie"},
+      recipe: %Recipe{type: :tmdb, title: "Public Domain Feature 1925", tmdb_type: :movie},
       current_action: %CurrentAction{
         verb: "Downloading",
         description: "From qBittorrent • 42% • ETA 8m",
@@ -207,7 +209,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
       title: "Sample Show S01E04",
       state: :active,
       origin: :auto,
-      recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "tv"},
+      recipe: %Recipe{type: :tmdb, title: "Sample Show", tmdb_type: :tv},
       current_action: %CurrentAction{
         verb: "Decision needed",
         description: "Pick a release below.",
@@ -225,7 +227,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
       title: "Movie A",
       state: :satisfied,
       origin: :auto,
-      recipe: %Recipe{recipe_type: :tmdb, tmdb_type: "movie"},
+      recipe: %Recipe{type: :tmdb, title: "Movie A", tmdb_type: :movie},
       current_action: %CurrentAction{
         verb: "Done",
         description: "File landed and identity verified.",

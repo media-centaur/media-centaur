@@ -11,7 +11,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   drill-down lands.
   """
 
-  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Unit}
+  alias MediaCentaur.Acquisition.Pursuits.{Pursuit, Recipe, Unit}
   alias MediaCentaur.Acquisition.Pursuits.State
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Format
@@ -19,8 +19,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
   alias MediaCentaur.Acquisition.ViewModels.{
     CurrentAction,
     DownloadProgress,
-    NextStep,
-    Recipe
+    NextStep
   }
 
   alias MediaCentaur.Downloads.QueueItem
@@ -56,7 +55,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     :unit,
     :target,
     available_actions: [],
-    downloads: []
+    downloads: [],
+    search_queries: []
   ]
 
   @type action :: :cancel | :change_target | :request_decision
@@ -69,6 +69,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
           state: State.t(),
           origin: :auto | :manual,
           recipe: Recipe.t(),
+          search_queries: [String.t()],
           criteria_summary: String.t() | nil,
           current_action: CurrentAction.t(),
           next_step: NextStep.t() | nil,

@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
           keep the flat title row: imagery means a title you chose. --%>
     <header>
       <div
-        :if={@vm.recipe.recipe_type == :tmdb}
+        :if={@vm.recipe.type == :tmdb}
         class="relative flex items-end"
         style={"--banner-hue: #{banner_hue(@display_title)}; min-height: 13rem;"}
       >
@@ -67,12 +67,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
           </div>
 
           <div
-            :if={@vm.recipe.search_queries != []}
+            :if={@vm.search_queries != []}
             class="text-on-image space-y-0.5 text-xs text-base-content/70"
           >
             <ul class="space-y-0.5">
               <li
-                :for={query <- @vm.recipe.search_queries}
+                :for={query <- @vm.search_queries}
                 class="truncate font-mono text-base-content/80"
                 title={query}
               >
@@ -84,7 +84,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
       </div>
 
       <div
-        :if={@vm.recipe.recipe_type != :tmdb}
+        :if={@vm.recipe.type != :tmdb}
         class="flex items-baseline justify-between gap-3 px-6 pt-6"
       >
         <h2 class="text-lg font-medium truncate">{@display_title}</h2>
@@ -106,14 +106,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
         </div>
 
         <div
-          :if={@vm.recipe.recipe_type != :tmdb && recipe_summary(@vm.recipe)}
+          :if={@vm.recipe.type != :tmdb && recipe_summary(@vm.recipe)}
           class="text-xs text-base-content/70"
         >
           {recipe_summary(@vm.recipe)}
         </div>
 
         <div
-          :if={@vm.recipe.recipe_type != :tmdb && @vm.criteria_summary}
+          :if={@vm.recipe.type != :tmdb && @vm.criteria_summary}
           class="text-xs text-base-content/60"
         >
           Criteria: {@vm.criteria_summary}
@@ -126,13 +126,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
             this block covers query-door pursuits (the brace-expanded
             list, or the literal query when expansion fails). --%>
         <div
-          :if={@vm.recipe.recipe_type != :tmdb && @vm.recipe.search_queries != []}
+          :if={@vm.recipe.type != :tmdb && @vm.search_queries != []}
           class="text-xs text-base-content/60 space-y-0.5"
         >
-          <div class="text-base-content/50">{search_label(@vm.recipe.search_queries)}</div>
+          <div class="text-base-content/50">{search_label(@vm.search_queries)}</div>
           <ul class="space-y-0.5">
             <li
-              :for={query <- @vm.recipe.search_queries}
+              :for={query <- @vm.search_queries}
               class="font-mono text-base-content/80 truncate"
               title={query}
             >
@@ -151,7 +151,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
   # The heading text. For a Prowlarr-query pursuit, the manual query is
   # the human-meaningful identity; for everything else, `vm.title` is
   # already the show / movie name.
-  defp display_title(%{recipe: %{recipe_type: :prowlarr_query, manual_query: q}, title: title}) do
+  defp display_title(%{recipe: %{type: :prowlarr_query, manual_query: q}, title: title}) do
     cond do
       is_binary(q) and q != "" -> q
       is_binary(title) and title != "" -> title
@@ -164,7 +164,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
 
   # The release filename — shown as a demoted subtitle for Prowlarr-query
   # pursuits only. TMDB pursuits don't carry a release filename as `title`.
-  defp release_subtitle(%{recipe: %{recipe_type: :prowlarr_query, manual_query: q}, title: title})
+  defp release_subtitle(%{recipe: %{type: :prowlarr_query, manual_query: q}, title: title})
        when is_binary(title) and title != "" do
     if title != q, do: title
   end
@@ -173,18 +173,20 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
 
   # The recipe_summary line for prowlarr_query just labels the kind —
   # the manual_query is already shown as the heading.
-  defp recipe_summary(%{recipe_type: :prowlarr_query}), do: "Prowlarr query"
-  defp recipe_summary(%{tmdb_type: "movie", year: nil}), do: "Movie"
-  defp recipe_summary(%{tmdb_type: "movie", year: year}), do: "Movie • #{year}"
-  defp recipe_summary(%{tmdb_type: "tv", season_number: nil}), do: "TV"
+  defp recipe_summary(%{type: :prowlarr_query}), do: "Prowlarr query"
+  defp recipe_summary(%{tmdb_type: :movie, year: nil}), do: "Movie"
+  defp recipe_summary(%{tmdb_type: :movie, year: year}), do: "Movie • #{year}"
+  defp recipe_summary(%{tmdb_type: :tv, season_number: nil}), do: "TV"
 
-  defp recipe_summary(%{tmdb_type: "tv", season_number: season, episode_number: nil}),
+  defp recipe_summary(%{tmdb_type: :tv, season_number: season, episode_number: nil}),
     do: "TV • S#{pad(season)}"
 
-  defp recipe_summary(%{tmdb_type: "tv", season_number: season, episode_number: episode}),
+  defp recipe_summary(%{tmdb_type: :tv, season_number: season, episode_number: episode}),
     do: "TV • S#{pad(season)}E#{pad(episode)}"
 
-  defp recipe_summary(%{tmdb_type: type}) when is_binary(type), do: type
+  defp recipe_summary(%{tmdb_type: type}) when is_atom(type) and not is_nil(type),
+    do: Atom.to_string(type)
+
   defp recipe_summary(_), do: nil
 
   defp pad(num) when is_integer(num) and num < 10, do: "0#{num}"

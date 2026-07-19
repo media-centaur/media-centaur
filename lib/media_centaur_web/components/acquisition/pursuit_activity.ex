@@ -31,11 +31,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
               actual strings being tried. Header carries the canonical
               listing — this is a quick reference next to the verb. --%>
         <ul
-          :if={search_related?(@vm.current_action.verb) && @vm.recipe.search_queries != []}
+          :if={search_related?(@vm.current_action.verb) && @vm.search_queries != []}
           class="text-xs text-base-content/60 space-y-0.5 pt-1"
         >
           <li
-            :for={query <- @vm.recipe.search_queries}
+            :for={query <- @vm.search_queries}
             class="font-mono text-base-content/70 truncate"
             title={query}
           >
