@@ -269,7 +269,6 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
       date_published: year && Date.new!(year, 1, 1),
       year: year,
       poster_url: poster? && "/storybook/fixtures/poster.jpg",
-      present?: true,
       rank: 0
     }
   end

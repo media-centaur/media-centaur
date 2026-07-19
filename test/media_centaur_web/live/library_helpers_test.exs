@@ -19,7 +19,6 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
       date_published: Map.get(overrides, :date_published),
       year: Map.get(overrides, :year),
       poster_url: Map.get(overrides, :poster_url),
-      present?: Map.get(overrides, :present?, true),
       rank: Map.get(overrides, :rank)
     }
 

@@ -241,16 +241,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
       assert by_name["Poster Movie"].poster_url == "/media-images/#{movie.id}/poster.jpg"
       assert by_name["No Poster Movie"].poster_url == nil
     end
-
-    test "present? is true for entities with a present WatchedFile" do
-      on_exit_clear_table()
-
-      seed_present_movie("Present Movie")
-      assert :ok = Browse.refresh_cache()
-
-      [item] = Views.browse()
-      assert item.present? == true
-    end
   end
 
   describe "Views.browse/1 — filters" do
@@ -283,24 +273,20 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
       assert Enum.all?(tv, &(&1.kind == :tv_series))
     end
 
-    test ":present_only excludes entities with no present WatchedFile" do
+    test "browse excludes entities with no present WatchedFile" do
       on_exit_clear_table()
 
       # A standalone movie WITH a present file.
       seed_present_movie("Present Movie")
 
       # A standalone movie WITHOUT a present file. The browse query uses
-      # PresentableQueries which already filters to entities with present
-      # files, so an entity without a file simply won't appear in the
-      # projection at all — :present_only is a stricter view of the same
-      # data, primarily useful when the underlying query relaxes later.
+      # PresentableQueries, which already filters to entities with present
+      # files, so a fileless entity never reaches the projection at all.
       _absent = create_standalone_movie(%{name: "Absent Movie"})
 
       assert :ok = Browse.refresh_cache()
 
-      present = Views.browse(present_only: true)
-      assert Enum.all?(present, & &1.present?)
-      names = Enum.map(present, & &1.name)
+      names = Enum.map(Views.browse(), & &1.name)
       assert "Present Movie" in names
       refute "Absent Movie" in names
     end
@@ -461,7 +447,6 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
       assert item.year == nil
       assert item.date_published == nil
       assert item.poster_url == nil
-      assert item.present? == nil
       assert item.rank == nil
     end
   end

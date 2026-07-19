@@ -87,7 +87,6 @@ defmodule MediaCentaur.Library.Views.Browse do
 
   Options:
     * `:kind` — filter by `:movie | :tv_series | :movie_series | :video_object`
-    * `:present_only` — when `true`, keep only items with `present? == true`
   """
   @spec read(keyword()) :: [BrowseItem.t()]
   def read(opts \\ []) do
@@ -118,16 +117,11 @@ defmodule MediaCentaur.Library.Views.Browse do
   defp apply_filters(items, []), do: items
 
   defp apply_filters(items, opts) do
-    items
-    |> filter_by_kind(Keyword.get(opts, :kind))
-    |> filter_present_only(Keyword.get(opts, :present_only, false))
+    filter_by_kind(items, Keyword.get(opts, :kind))
   end
 
   defp filter_by_kind(items, nil), do: items
   defp filter_by_kind(items, kind), do: Enum.filter(items, &(&1.kind == kind))
-
-  defp filter_present_only(items, false), do: items
-  defp filter_present_only(items, true), do: Enum.filter(items, & &1.present?)
 
   # `entry` is the rich `%{entity:, progress:, progress_records:}` map
   # produced by `Browser.fetch_all_typed_entries/0` — the entity is the
@@ -144,7 +138,6 @@ defmodule MediaCentaur.Library.Views.Browse do
       date_published: date_published_from(entity.date_published),
       year: year_from(entity.date_published),
       poster_url: poster_url_from(entity),
-      present?: true,
       rank: nil
     }
   end
