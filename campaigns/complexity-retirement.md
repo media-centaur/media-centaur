@@ -195,11 +195,16 @@ owner wants to make deliberately, not fold into a mechanical sweep).
    whether the header owns a thin VM wrapping `Pursuits.Recipe` or embeds it
    directly; either way one representation, not two.
 
-3. **Split `activity_widget_components.ex` (1152 LOC, 8 subsystems).**
-   Split into `components/status_widgets/<subsystem>.ex`, mirroring
-   `components/detail/more_info/*`; move the 8 stories alongside. Pure `:html`
-   components, story-covered — mechanical. Removes the layer's highest-churn
-   merge-conflict hotspot. (Lowest priority — hygiene, no behavior at stake.)
+3. **✅ DONE (2026-07-19, commit 6f89a0c6).** **Split
+   `activity_widget_components.ex` (1152 LOC, 8 subsystems).** Split into
+   `components/status_widgets/{library,watcher,pipeline,tmdb,playback,
+   self_update,system,acquisition}.ex` (`MediaCentaurWeb.Components.StatusWidgets.*`),
+   mirroring `more_info/*`. Each holds its widget + only its own helpers;
+   `settings_link` (the one shared helper) → `StatusWidgets.Shared` (`:skip`
+   story). Rewired the `:health_activity_widgets` config registry + the 8 story
+   `function/0` refs. Pure `:html`, no behavior change; stories match by basename
+   so MC0009 holds. Precommit green (storybook + status page smoke). Only W4-2
+   (deferred) remains in Wave 4.
 
 ### Wave 5 — greenfield notes (fold in opportunistically, don't gate the campaign)
 
