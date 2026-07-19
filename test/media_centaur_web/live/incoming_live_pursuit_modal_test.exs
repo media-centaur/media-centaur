@@ -224,9 +224,9 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       # WebSocket message handler the entire time. The fix renders a
       # `loading?: true` card immediately and dispatches the Prowlarr
       # fetch to a Task.Supervisor child. We pin the contract by
-      # giving the Prowlarr stub a 300 ms delay: a regression to
+      # giving the Prowlarr stub an 800 ms delay: a regression to
       # synchronous behaviour would push the mount latency past the
-      # 150 ms ceiling.
+      # 500 ms ceiling.
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Show", status: "seeking"})
 
@@ -237,7 +237,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
         |> Repo.update()
 
       Req.Test.stub(:prowlarr, fn conn ->
-        Process.sleep(300)
+        Process.sleep(800)
         Req.Test.json(conn, [])
       end)
 
@@ -248,22 +248,24 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       {:ok, view, html} = live(conn, "/incoming?selected=#{pursuit.id}")
       open_ms = System.monotonic_time(:millisecond) - start_ms
 
-      # The failure mode this guards is a SYNCHRONOUS Prowlarr fetch,
-      # which would add the stub's full 300 ms on top of the mount
-      # (~470 ms+). The 250 ms ceiling discriminates that unambiguously
-      # while clearing environmental jitter — DB-only mounts measure
-      # 170–200 ms on a loaded dev box (observed 2026-06-09, identical
-      # with and without the unit-board queries).
-      assert open_ms < 250,
+      # The failure mode this guards is a SYNCHRONOUS Prowlarr fetch, which
+      # would add the stub's full 800 ms on top of the mount (~1000 ms+). The
+      # async path is a DB-only mount (170–200 ms on a loaded dev box). The
+      # 500 ms ceiling sits far below the blocked case and ~300 ms above the
+      # async baseline — wide enough that full-suite scheduler jitter can't
+      # trip it (the earlier 250 ms ceiling flaked at 254–299 ms under load).
+      # The `data-state='open'` + loading-copy assertions below are the
+      # deterministic backstop; this timing check adds the anti-blocking guard.
+      assert open_ms < 500,
              "modal open took #{open_ms} ms — should not block on Prowlarr (ADR-044)"
 
       assert has_element?(view, "#pursuit-modal[data-state='open']")
       assert html =~ "Searching for alternatives"
 
       # The un-drained mount is the assertion; the drain happens AFTER
-      # so the 300 ms-sleeping fetch task can't outlive the test and
+      # so the 800 ms-sleeping fetch task can't outlive the test and
       # race the next test's teardown (ADR-049).
-      render_async(view, 1000)
+      render_async(view, 1500)
     end
 
     test "no `?selected=` param leaves the modal closed", %{conn: conn} do

@@ -39,6 +39,16 @@ defmodule MediaCentaur.Console.Buffer do
     end
   end
 
+  @doc """
+  Flushes any pending batched entries immediately, cancelling the scheduled
+  flush timer. Synchronous — returns only after the `{:log_entries, _}`
+  broadcast has been sent. Lets callers (and tests) force the batch out on
+  demand instead of waiting on the ~100ms window; a no-op when nothing is
+  pending.
+  """
+  @spec flush(atom()) :: :ok
+  def flush(name \\ __MODULE__), do: GenServer.call(name, :flush)
+
   @doc "Returns `%{entries: [...], cap: integer, filter: %Filter{}}` for the default buffer."
   @spec snapshot() :: map()
   def snapshot, do: snapshot(__MODULE__)
@@ -220,13 +230,13 @@ defmodule MediaCentaur.Console.Buffer do
     {:reply, state.filter, state}
   end
 
-  @impl true
-  def handle_info(:flush_logs, %{pending: []} = state), do: {:noreply, %{state | flush_ref: nil}}
-
-  def handle_info(:flush_logs, state) do
-    broadcast({:log_entries, Enum.reverse(state.pending)})
-    {:noreply, %{state | pending: [], flush_ref: nil}}
+  def handle_call(:flush, _from, state) do
+    if state.flush_ref, do: Process.cancel_timer(state.flush_ref)
+    {:reply, :ok, flush_pending(state)}
   end
+
+  @impl true
+  def handle_info(:flush_logs, state), do: {:noreply, flush_pending(state)}
 
   def handle_info(:persist, state) do
     try do
@@ -256,6 +266,15 @@ defmodule MediaCentaur.Console.Buffer do
   end
 
   defp schedule_flush(state), do: state
+
+  # Broadcast the pending batch (if any) and clear the flush window. Shared by
+  # the timer path (`:flush_logs`) and the on-demand `flush/1` call.
+  defp flush_pending(%{pending: []} = state), do: %{state | flush_ref: nil}
+
+  defp flush_pending(state) do
+    broadcast({:log_entries, Enum.reverse(state.pending)})
+    %{state | pending: [], flush_ref: nil}
+  end
 
   defp schedule_persist(state) do
     if state.persist_ref do
