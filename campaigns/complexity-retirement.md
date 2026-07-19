@@ -126,30 +126,30 @@ red (LongQuoteBlocks in `console_live/shared.ex`, from 151daa35) cleared in
 
 ### Wave 2 — duplicated representations (low-medium risk collapses)
 
-1. **Own the `content_url → "/media-images/…"` web path in one helper.**
-   32 hand-built occurrences across 17 modules (`posters.ex`, `home_feed.ex`,
-   `release_tracking.ex`, `acquisition/artwork.ex`, several web components,
-   `image_server.ex`). No owner; `live_helpers.image_url/2` is a different
-   entity+role builder. Add one `image_path(content_url)` owned by Library (via
-   `Posters`/`Image`), route all sites through it. Respect the context boundary
-   for web-layer call sites. Kills a drift-prone, release-coupled string.
+**Wave 2 complete (2026-07-19).** Commits eaf23178, ce0b73e5, c00bb82e — unpushed.
 
-2. **Consolidate the two ISO 639 tables (ADR-048 single-table intent).**
-   `subtitles/language_code.ex` (2-letter, ~34 langs) and
-   `playback/iso639.ex` (3-letter, ~45 langs) hard-code overlapping tables that
-   drift (`.est.`/`.hrv.` resolve in playback, `nil` in subtitles UI). Extract
-   the table into one boundary-neutral module (the `top_level?` escape-hatch
-   pattern used by `WatcherStatus`/`Topics`) exposing `normalize/1` (→3-letter)
-   and `to_iso1/1` (→2-letter); `LanguageCode` becomes a thin projection.
-   Subtitle detection *widens* to the fuller set — the `LanguageCode` moduledoc
-   already sanctions this; call it out in the commit.
+1. **✅ DONE (eaf23178).** **Own the `/media-images/…` web path in
+   `Library.Image.web_path/1`.** Added the nil-tolerant single builder (owns
+   `@web_prefix`); routed ~11 construction sites (Library, ReleaseTracking,
+   Acquisition, web incl. `live_helpers.image_url/2` + the two `sized_image_url`
+   concat sites) through it. Boundary-clean (Image exported; every caller
+   context already deps on Library). Output byte-identical for real inputs;
+   `sized_image_url`'s `"/media-images/" <> _` match head left as the consumer
+   side of the contract.
 
-3. **Delete the speculative `BrowseItem.present?` field + dead `:present_only`.**
-   *Files:* `views/browse.ex`, `views/browse_item.ex`, `views.ex` doc. `present?`
-   is hardcoded `true` (source query already returns only present entities), so
-   `filter_present_only(items, true)` is a no-op and the `:present_only` Browse
-   option does nothing. Delete field, filter, and the doc/option. Keep Search's
-   separate, real `present_only`.
+2. **✅ DONE (ce0b73e5).** **Consolidate the two ISO 639 tables into
+   `MediaCentaur.Iso639`.** New boundary-neutral owner (`top_level?` escape
+   hatch) exposes `normalize/1` (→3-letter) + new `to_iso1/1` (→2-letter);
+   `Playback.Iso639` is a thin `defdelegate` facade (ADR-048 API + export + all
+   callers unchanged), `Subtitles.LanguageCode` projects via `to_iso1/1`.
+   Subtitle detection widened to the fuller set (intended; tests added for the
+   newly-recognised langs est/hrv/isl/srp/slk).
+
+3. **✅ DONE (c00bb82e).** **Delete speculative `BrowseItem.present?` +
+   `:present_only`.** Field was hardcoded `true`, filter a tautology, option a
+   no-op. Removed field/filter/option + doc/story/test refs; the real
+   "fileless entity excluded" coverage re-pointed at plain `Views.browse()`.
+   Kept Search's genuinely-real `present_only` (presence-agnostic source).
 
 ### Wave 3 — derivable state (medium risk, deletes a bug class)
 
