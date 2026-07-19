@@ -64,9 +64,9 @@ defmodule MediaCentaur.SelfUpdate.History do
 
   defp decode(%{"version" => version, "recorded_at" => iso})
        when is_binary(version) and is_binary(iso) do
-    case DateTime.from_iso8601(iso) do
-      {:ok, at, _offset} -> %{version: version, recorded_at: at}
-      _ -> nil
+    case MediaCentaur.Iso8601.parse(iso) do
+      nil -> nil
+      at -> %{version: version, recorded_at: at}
     end
   end
 
