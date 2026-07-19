@@ -153,16 +153,20 @@ red (LongQuoteBlocks in `console_live/shared.ex`, from 151daa35) cleared in
 
 ### Wave 3 — derivable state (medium risk, deletes a bug class)
 
-1. **Derive `Release.released` from `air_date`; delete the sweep.**
-   *Files:* `release_tracking/release.ex`, `release_tracking.ex`
-   (`mark_past_releases_as_released/0`), `helpers.ex` (creation-time stamping).
-   `released` is exactly `air_date != nil and air_date <= today`, materialized and
-   re-freshened by a midnight sweep — the stale-across-midnight class behind past
-   "Season announced" phantoms. Drop the column + stamping + sweep + its 2 calls;
-   replace ~19 read sites with an `air_date <= today` comparison (`fragment` at
-   query sites; `Date.compare` in the pure modules that already receive `today`).
-   Append-only drop migration (ADR-027 / safe-migration policy). **Red-first**
-   for the midnight-boundary case.
+**Wave 3 complete (2026-07-19, commit 8436bf5d — unpushed).**
+
+1. **✅ DONE (8436bf5d).** **Derive `Release.released` from `air_date`; delete the
+   sweep.** Dropped the column (append-only migration, reversible `down/0`), the
+   changeset field, persist-time stamping, `Helpers.mark_released/1`, and
+   `mark_past_releases_as_released/0` + its 2 refresher callers. Added
+   `Release.released?/2` (pure, accepts any `:air_date` map) and routed every
+   read site through it: `list_releases` split, detail-page + `mark_in_library`
+   queries (air_date comparisons), Differ movie-addition filter (future-only),
+   wants candidate filters, track-from-search reject, `series_detail`
+   `upcoming_sub_status`. Sweep tick still fires (coming_up re-reads on it for
+   midnight-rollover freshness of the derived value). **Red-first** midnight test
+   added; fixed ~10 fixtures that set `released:` without a matching `air_date`.
+   Prod DB migrates at deploy; CHANGELOG at ship time.
 
 ### Wave 4 — structural elegance (higher effort, high payoff)
 
