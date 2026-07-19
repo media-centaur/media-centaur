@@ -64,6 +64,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Availability
   alias MediaCentaur.Library.Views.ContinueWatchingItem
+  alias MediaCentaur.Library.Views.RankedProjection
   alias MediaCentaur.Topics
 
   @table :library_view_continue_watching
@@ -88,25 +89,12 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
 
   @impl MediaCentaur.Cache
   def refresh_cache do
-    ensure_table()
-
     items =
       [limit: @max_items]
       |> Library.list_in_progress()
       |> Enum.map(&to_view_model/1)
 
-    rows = Enum.with_index(items, fn item, rank -> {rank, item} end)
-
-    :ets.delete_all_objects(@table)
-    :ets.insert(@table, rows)
-
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
-      Topics.library_views(),
-      {:library_view_updated, :continue_watching}
-    )
-
-    :ok
+    RankedProjection.replace_rows(@table, :continue_watching, items)
   end
 
   @doc """
@@ -117,20 +105,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
   @spec read(keyword()) :: [ContinueWatchingItem.t()]
   def read(opts \\ []) do
     limit = Keyword.get(opts, :limit, 12)
-
-    case :ets.whereis(@table) do
-      :undefined -> read_from_db(limit)
-      _ref -> read_from_ets(limit)
-    end
-  end
-
-  defp read_from_ets(limit) do
-    # `:ordered_set` already iterates in key order, so `:ets.tab2list/1`
-    # returns rows already sorted by rank. No explicit sort needed.
-    @table
-    |> :ets.tab2list()
-    |> Enum.take(limit)
-    |> Enum.map(fn {_rank, item} -> item end)
+    RankedProjection.read(@table, limit, fn -> read_from_db(limit) end)
   end
 
   defp read_from_db(limit) do
@@ -149,15 +124,5 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
       logo_url: Map.get(row, :logo_url),
       last_watched_at: Map.get(row, :last_watched_at)
     }
-  end
-
-  defp ensure_table do
-    case :ets.whereis(@table) do
-      :undefined ->
-        :ets.new(@table, [:ordered_set, :public, :named_table, read_concurrency: true])
-
-      _ref ->
-        :ok
-    end
   end
 end

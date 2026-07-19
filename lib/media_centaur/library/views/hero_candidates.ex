@@ -32,6 +32,7 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Availability
   alias MediaCentaur.Library.Views.HeroCandidatesItem
+  alias MediaCentaur.Library.Views.RankedProjection
   alias MediaCentaur.Topics
 
   @table :library_view_hero_candidates
@@ -50,25 +51,12 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
 
   @impl MediaCentaur.Cache
   def refresh_cache do
-    ensure_table()
-
     items =
       []
       |> Library.list_hero_candidates()
       |> Enum.map(&to_view_model/1)
 
-    rows = Enum.with_index(items, fn item, rank -> {rank, item} end)
-
-    :ets.delete_all_objects(@table)
-    :ets.insert(@table, rows)
-
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
-      Topics.library_views(),
-      {:library_view_updated, :hero_candidates}
-    )
-
-    :ok
+    RankedProjection.replace_rows(@table, :hero_candidates, items)
   end
 
   @doc """
@@ -79,24 +67,8 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
   @spec read(keyword()) :: [HeroCandidatesItem.t()]
   def read(opts \\ []) do
     limit = Keyword.get(opts, :limit)
-
-    case :ets.whereis(@table) do
-      :undefined -> read_from_db(limit)
-      _ref -> read_from_ets(limit)
-    end
+    RankedProjection.read(@table, limit, fn -> read_from_db(limit) end)
   end
-
-  defp read_from_ets(limit) do
-    # `:ordered_set` already iterates in key order, so `:ets.tab2list/1`
-    # returns rows already sorted by rank. No explicit sort needed.
-    @table
-    |> :ets.tab2list()
-    |> maybe_take(limit)
-    |> Enum.map(fn {_rank, item} -> item end)
-  end
-
-  defp maybe_take(list, nil), do: list
-  defp maybe_take(list, limit), do: Enum.take(list, limit)
 
   defp read_from_db(limit) do
     [limit: limit]
@@ -115,15 +87,5 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
       backdrop_url: Map.get(row, :backdrop_url),
       logo_url: Map.get(row, :logo_url)
     }
-  end
-
-  defp ensure_table do
-    case :ets.whereis(@table) do
-      :undefined ->
-        :ets.new(@table, [:ordered_set, :public, :named_table, read_concurrency: true])
-
-      _ref ->
-        :ok
-    end
   end
 end
