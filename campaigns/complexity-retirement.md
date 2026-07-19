@@ -19,7 +19,18 @@ gets deleted and how behavior is preserved.
 
 ## Status
 
-In progress. Wave 1 started 2026-07-19.
+**Nearly complete (2026-07-19).** Waves 1, 2, 3, 5 fully shipped and Wave 4's
+W4-1 + W4-3 done — all pushed to `main`. The **only remaining item is W4-2**
+(collapse the two acquisition `Recipe` structs), deferred by the owner because
+it crosses the ADR-039 "components consume ViewModels" boundary and wants a
+deliberate design decision, not a mechanical sweep. This file stays until W4-2
+lands (or is explicitly dropped).
+
+*Pre-existing flake seen during the Wave 5 precommit (not introduced here): the
+Console log-batching timing tests (`Console.BufferTest` /
+`ConsoleLiveTest`, from `151daa35`) race under full-suite load — they pass in
+isolation. Unrelated to any campaign change; a candidate for a separate
+timing-hardening fix.*
 
 Findings verified at cited call sites during review; line numbers may have
 drifted — reconcile against `git log` before each item.
@@ -208,22 +219,26 @@ owner wants to make deliberately, not fold into a mechanical sweep).
 
 ### Wave 5 — greenfield notes (fold in opportunistically, don't gate the campaign)
 
-1. Fix the `library:progress` docstrings (`progress/events.ex`, `progress.ex`,
-   `topics.ex`) that call it a "live UX hook" — it has zero prod subscribers; per
-   ADR-041 it is a deterministic **test** hook. Correct the prose; keep the module.
-2. Rename `StatusHelpers.format_bytes` → `format_bytes_iec` and signpost that
-   media sizes use `Format.format_size_decimal` (SI). Deliberate split, just
-   unsignposted.
-3. Extract one "parse stored ISO8601 datetime, default on garbage" helper for the
-   ~6 Settings accessors that re-implement it (`self_update/health.ex`,
-   `storage.ex`, `history.ex`, `capabilities.ex`, `update_checker.ex`, …) —
-   preserve each call site's fallback polarity.
-4. `detail.ex`: compute `top_level_container(type, display)` once in `build_item`
-   instead of via ~20 `container_X` wrappers that each recompute it per row (keep
-   `container_director`/`container_year` — real logic).
-5. `Search.SearchProvider` single-impl behaviour — **keep** unless a second
-   provider is abandoned; the `@callback` gives cheap `@impl` checking. Logged so
-   it isn't re-flagged.
+**Wave 5 complete (2026-07-19, commits 81a062ae, dba844e8, 7f9e8abe, 5360ed89).**
+
+1. **✅ DONE (81a062ae).** Corrected the `library:progress` "live UX hook" prose
+   (`progress.ex`, `progress/events.ex`) — zero prod subscribers; the live bar is
+   driven by `playback:events`; per ADR-041 it's a deterministic test hook.
+   (`topics.ex` had no misleading prose.)
+2. **✅ DONE (dba844e8).** Renamed `StatusHelpers.format_bytes` →
+   `format_bytes_iec` (+ all callers) and signposted `Format.format_size_decimal`
+   (SI) for media sizes.
+3. **✅ DONE (7f9e8abe).** Extracted `MediaCentaur.Iso8601.parse/2`
+   (`datetime | default`, boundary-neutral) for the 6
+   self-update/capabilities stored-timestamp accessors; each keeps its fallback
+   polarity, the always-`now` sites collapse to one clause.
+4. **✅ DONE (5360ed89).** `detail.ex`: resolve `top_level_container` (+
+   `external_ids`) once per row in `build_item`; deleted the 19 trivial
+   `container_*` wrappers. Kept `container_year` (now takes the resolved
+   container) + `container_director` (raw Movie).
+5. **✅ KEEP by design.** `Search.SearchProvider` single-impl behaviour — its
+   moduledoc already documents the rationale (Prowlarr sole impl, future
+   providers implement without call-site changes). No change.
 
 ## Completion criteria
 
