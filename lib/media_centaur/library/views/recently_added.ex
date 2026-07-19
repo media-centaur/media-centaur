@@ -30,6 +30,7 @@ defmodule MediaCentaur.Library.Views.RecentlyAdded do
 
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Availability
+  alias MediaCentaur.Library.Views.RankedProjection
   alias MediaCentaur.Library.Views.RecentlyAddedItem
   alias MediaCentaur.Topics
 
@@ -50,25 +51,12 @@ defmodule MediaCentaur.Library.Views.RecentlyAdded do
 
   @impl MediaCentaur.Cache
   def refresh_cache do
-    ensure_table()
-
     items =
       [limit: @max_items]
       |> Library.list_recently_added()
       |> Enum.map(&to_view_model/1)
 
-    rows = Enum.with_index(items, fn item, rank -> {rank, item} end)
-
-    :ets.delete_all_objects(@table)
-    :ets.insert(@table, rows)
-
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
-      Topics.library_views(),
-      {:library_view_updated, :recently_added}
-    )
-
-    :ok
+    RankedProjection.replace_rows(@table, :recently_added, items)
   end
 
   @doc """
@@ -79,20 +67,7 @@ defmodule MediaCentaur.Library.Views.RecentlyAdded do
   @spec read(keyword()) :: [RecentlyAddedItem.t()]
   def read(opts \\ []) do
     limit = Keyword.get(opts, :limit, 16)
-
-    case :ets.whereis(@table) do
-      :undefined -> read_from_db(limit)
-      _ref -> read_from_ets(limit)
-    end
-  end
-
-  defp read_from_ets(limit) do
-    # `:ordered_set` already iterates in key order, so `:ets.tab2list/1`
-    # returns rows already sorted by rank. No explicit sort needed.
-    @table
-    |> :ets.tab2list()
-    |> Enum.take(limit)
-    |> Enum.map(fn {_rank, item} -> item end)
+    RankedProjection.read(@table, limit, fn -> read_from_db(limit) end)
   end
 
   defp read_from_db(limit) do
@@ -108,15 +83,5 @@ defmodule MediaCentaur.Library.Views.RecentlyAdded do
       year: Map.get(row, :year),
       poster_url: Map.get(row, :poster_url)
     }
-  end
-
-  defp ensure_table do
-    case :ets.whereis(@table) do
-      :undefined ->
-        :ets.new(@table, [:ordered_set, :public, :named_table, read_concurrency: true])
-
-      _ref ->
-        :ok
-    end
   end
 end

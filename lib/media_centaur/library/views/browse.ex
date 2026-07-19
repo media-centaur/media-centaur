@@ -40,6 +40,7 @@ defmodule MediaCentaur.Library.Views.Browse do
   alias MediaCentaur.Library.Browser
   alias MediaCentaur.Library.Image
   alias MediaCentaur.Library.Views.BrowseItem
+  alias MediaCentaur.Library.Views.RankedProjection
   alias MediaCentaur.Topics
 
   @table :library_view_browse
@@ -59,25 +60,12 @@ defmodule MediaCentaur.Library.Views.Browse do
 
   @impl MediaCentaur.Cache
   def refresh_cache do
-    ensure_table()
-
     items =
       Browser.fetch_all_typed_entries()
       |> Enum.take(@max_items)
       |> Enum.map(&to_view_model/1)
 
-    rows = Enum.with_index(items, fn item, rank -> {rank, %{item | rank: rank}} end)
-
-    :ets.delete_all_objects(@table)
-    :ets.insert(@table, rows)
-
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
-      Topics.library_views(),
-      {:library_view_updated, :browse}
-    )
-
-    :ok
+    RankedProjection.replace_rows(@table, :browse, items, rank_field: :rank)
   end
 
   @doc """
@@ -90,21 +78,9 @@ defmodule MediaCentaur.Library.Views.Browse do
   """
   @spec read(keyword()) :: [BrowseItem.t()]
   def read(opts \\ []) do
-    items =
-      case :ets.whereis(@table) do
-        :undefined -> read_from_db()
-        _ref -> read_from_ets()
-      end
-
-    apply_filters(items, opts)
-  end
-
-  defp read_from_ets do
-    # `:ordered_set` already iterates in key order, so `:ets.tab2list/1`
-    # returns rows already sorted by rank. No explicit sort needed.
     @table
-    |> :ets.tab2list()
-    |> Enum.map(fn {_rank, item} -> item end)
+    |> RankedProjection.read(nil, &read_from_db/0)
+    |> apply_filters(opts)
   end
 
   defp read_from_db do
@@ -159,14 +135,4 @@ defmodule MediaCentaur.Library.Views.Browse do
   end
 
   defp poster_url_from(_), do: nil
-
-  defp ensure_table do
-    case :ets.whereis(@table) do
-      :undefined ->
-        :ets.new(@table, [:ordered_set, :public, :named_table, read_concurrency: true])
-
-      _ref ->
-        :ok
-    end
-  end
 end
