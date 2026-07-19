@@ -21,14 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`complexity-retirement.md`](complexity-retirement.md) —
-  **planning.** Elegance pass from the 2026-07-19 complexity review: retire
-  stored-yet-derivable state (`Release.released` sweep), duplicated
-  representations (two ISO 639 tables, two acquisition `Recipe` structs, the
-  hand-built `/media-images/` prefix), test-only dead code, and one bypassed
-  abstraction that breaks usenet-only setup (`IntegrationHealth` ignoring the
-  two-slot `Dispatcher`). Deletion / collapse only, no new capability; sequenced
-  by payoff ÷ risk across 5 waves.
 * [`documentation-catch-up.md`](documentation-catch-up.md) —
   **planning.** A massive wiki / guide / documentation pass to catch
   everything up to date, probably including an updated showcase and webpage
