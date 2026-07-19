@@ -101,7 +101,7 @@ defmodule MediaCentaur.Format do
   `nil` for `nil` so callers can `:if` on the result.
 
   For on-disk / system sizes use a binary (1024-based) formatter instead
-  (`StatusHelpers.format_bytes/1`, `DetailPanel.format_file_size/1`).
+  (`StatusHelpers.format_bytes_iec/1`, `DetailPanel.format_file_size/1`).
 
       iex> MediaCentaur.Format.format_size_decimal(1_500_000_000)
       "1.5 GB"

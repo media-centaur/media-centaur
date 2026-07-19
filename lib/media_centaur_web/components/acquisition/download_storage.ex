@@ -72,7 +72,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStorage do
   space. Returns `nil` unless there is exactly one drive.
   """
   def calm_summary([drive]) do
-    "#{StatusHelpers.format_bytes(StatusHelpers.drive_free_bytes(drive))} free on #{drive.mount_point}"
+    "#{StatusHelpers.format_bytes_iec(StatusHelpers.drive_free_bytes(drive))} free on #{drive.mount_point}"
   end
 
   def calm_summary(_drives), do: nil
@@ -132,7 +132,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.DownloadStorage do
       id: drive.mount_point,
       mount_point: drive.mount_point,
       label: drive.mount_point,
-      free_label: StatusHelpers.format_bytes(StatusHelpers.drive_free_bytes(drive)),
+      free_label: StatusHelpers.format_bytes_iec(StatusHelpers.drive_free_bytes(drive)),
       usage_percent: drive.usage_percent,
       severity: severity,
       icon: if(severity != :ok, do: "hero-exclamation-triangle-mini"),

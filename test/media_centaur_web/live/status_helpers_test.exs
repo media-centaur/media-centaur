@@ -162,34 +162,34 @@ defmodule MediaCentaurWeb.StatusHelpersTest do
     end
   end
 
-  # --- format_bytes/1 ---
+  # --- format_bytes_iec/1 ---
 
-  describe "format_bytes/1" do
+  describe "format_bytes_iec/1" do
     # Three significant digits: one decimal below 10 units (where the fraction
     # carries real information), whole numbers above (where ".3" is noise).
 
     test "formats terabytes" do
       tib = Float.pow(1024.0, 4)
-      assert StatusHelpers.format_bytes(2.5 * tib) == "2.5 TiB"
+      assert StatusHelpers.format_bytes_iec(2.5 * tib) == "2.5 TiB"
     end
 
     test "drops the decimal at or above 10 units" do
       gib = Float.pow(1024.0, 3)
       mib = Float.pow(1024.0, 2)
-      assert StatusHelpers.format_bytes(100.0 * gib) == "100 GiB"
-      assert StatusHelpers.format_bytes(419.4 * mib) == "419 MiB"
-      assert StatusHelpers.format_bytes(512.0 * 1024.0) == "512 KiB"
+      assert StatusHelpers.format_bytes_iec(100.0 * gib) == "100 GiB"
+      assert StatusHelpers.format_bytes_iec(419.4 * mib) == "419 MiB"
+      assert StatusHelpers.format_bytes_iec(512.0 * 1024.0) == "512 KiB"
     end
 
     test "keeps one decimal below 10 units" do
       mib = Float.pow(1024.0, 2)
       gib = Float.pow(1024.0, 3)
-      assert StatusHelpers.format_bytes(8.2 * mib) == "8.2 MiB"
-      assert StatusHelpers.format_bytes(1.5 * gib) == "1.5 GiB"
+      assert StatusHelpers.format_bytes_iec(8.2 * mib) == "8.2 MiB"
+      assert StatusHelpers.format_bytes_iec(1.5 * gib) == "1.5 GiB"
     end
 
     test "shows whole bytes below a kilobyte" do
-      assert StatusHelpers.format_bytes(900) == "900 B"
+      assert StatusHelpers.format_bytes_iec(900) == "900 B"
     end
   end
 

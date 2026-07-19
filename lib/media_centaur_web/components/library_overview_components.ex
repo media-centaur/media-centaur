@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
 
   import MediaCentaurWeb.StatusHelpers,
     only: [
-      format_bytes: 1,
+      format_bytes_iec: 1,
       gap_count_class: 1,
       storage_severity: 1,
       storage_progress_class: 1,
@@ -42,7 +42,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
         <.stat label="Movies" value={@overview.movie_count} />
         <.stat label="Shows" value={@overview.show_count} />
         <.stat label="Episodes" value={@overview.episode_count} />
-        <.stat label="On disk" value={format_bytes(@overview.total_size_bytes)} />
+        <.stat label="On disk" value={format_bytes_iec(@overview.total_size_bytes)} />
       </div>
 
       <div :if={@overview.recently_added != []} class="space-y-2">
@@ -173,7 +173,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
         <div class="flex items-baseline justify-between gap-2">
           <span class="text-sm truncate">{drive_label(drive)}</span>
           <span class="text-xs font-mono text-base-content/60 shrink-0">
-            {format_bytes(drive.used_bytes)} / {format_bytes(drive.total_bytes)}
+            {format_bytes_iec(drive.used_bytes)} / {format_bytes_iec(drive.total_bytes)}
           </span>
         </div>
         <div class="flex items-center gap-2">
