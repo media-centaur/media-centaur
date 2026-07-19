@@ -76,15 +76,20 @@ defmodule MediaCentaurWeb.StatusHelpers do
   @kib 1024.0
   @mib Float.pow(1024.0, 2)
 
+  # IEC binary units (1024-based: KiB/MiB/GiB/TiB) — the right frame for storage
+  # and RAM figures on the Status page, where the OS reports binary sizes. For
+  # *media file* sizes use `MediaCentaur.Format.format_size_decimal/1` (SI,
+  # 1000-based) instead — that's the convention players/OS file managers show.
+  #
   # Magnitude-aware: pick the largest unit that keeps the number readable, so a
   # sub-gigabyte value (e.g. an 8 MiB database) doesn't collapse to "0.0 GiB".
   # Three significant digits: one decimal below 10 units (where the fraction
   # carries real information), whole numbers above (where ".3" is noise).
-  def format_bytes(bytes) when bytes >= @tib, do: "#{scaled(bytes / @tib)} TiB"
-  def format_bytes(bytes) when bytes >= @gib, do: "#{scaled(bytes / @gib)} GiB"
-  def format_bytes(bytes) when bytes >= @mib, do: "#{scaled(bytes / @mib)} MiB"
-  def format_bytes(bytes) when bytes >= @kib, do: "#{scaled(bytes / @kib)} KiB"
-  def format_bytes(bytes), do: "#{round(bytes)} B"
+  def format_bytes_iec(bytes) when bytes >= @tib, do: "#{scaled(bytes / @tib)} TiB"
+  def format_bytes_iec(bytes) when bytes >= @gib, do: "#{scaled(bytes / @gib)} GiB"
+  def format_bytes_iec(bytes) when bytes >= @mib, do: "#{scaled(bytes / @mib)} MiB"
+  def format_bytes_iec(bytes) when bytes >= @kib, do: "#{scaled(bytes / @kib)} KiB"
+  def format_bytes_iec(bytes), do: "#{round(bytes)} B"
 
   defp scaled(value) when value < 10, do: Float.round(value, 1)
   defp scaled(value), do: round(value)

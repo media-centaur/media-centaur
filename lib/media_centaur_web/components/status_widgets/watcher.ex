@@ -103,7 +103,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Watcher do
                 :if={health.dir_exists && drive}
                 class="text-xs font-mono text-base-content/60 shrink-0"
               >
-                {format_bytes(drive.used_bytes)} / {format_bytes(drive.total_bytes)}
+                {format_bytes_iec(drive.used_bytes)} / {format_bytes_iec(drive.total_bytes)}
               </span>
               <span :if={!health.dir_exists} class="text-xs text-base-content/40 shrink-0">
                 —
@@ -178,7 +178,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Watcher do
           <div class="flex items-baseline justify-between mb-1">
             <span class="text-sm font-medium">Database</span>
             <span class="text-xs text-base-content/60 font-mono">
-              {format_bytes(@db_drive.used_bytes)} / {format_bytes(@db_drive.total_bytes)}
+              {format_bytes_iec(@db_drive.used_bytes)} / {format_bytes_iec(@db_drive.total_bytes)}
             </span>
           </div>
           <div class="flex items-center gap-3">

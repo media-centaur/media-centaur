@@ -42,7 +42,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.System do
         <div data-component="system-vitals" class="mt-2 grid grid-cols-3 gap-3">
           <div>
             <div class="text-2xl font-semibold tabular-nums">
-              {format_bytes(@system_vitals.memory.total)}
+              {format_bytes_iec(@system_vitals.memory.total)}
             </div>
             <div class="text-xs uppercase tracking-wider text-base-content/50">Memory</div>
           </div>
@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.System do
           </div>
           <div>
             <div class="text-2xl font-semibold tabular-nums">
-              {format_bytes(@system_vitals.db.size_bytes)}
+              {format_bytes_iec(@system_vitals.db.size_bytes)}
             </div>
             <div class="text-xs uppercase tracking-wider text-base-content/50">Database</div>
           </div>
@@ -82,7 +82,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.System do
           <div class="flex items-baseline gap-2">
             <span class="text-base-content/50">WAL</span>
             <span class="tabular-nums text-base-content/80">
-              {format_bytes(@system_vitals.db.wal_bytes)}
+              {format_bytes_iec(@system_vitals.db.wal_bytes)}
             </span>
           </div>
         </div>
