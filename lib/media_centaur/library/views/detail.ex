@@ -646,6 +646,11 @@ defmodule MediaCentaur.Library.Views.Detail do
         # movie's own. For a collection-presented movie, `display` is the
         # full leaf and `top_level_container/2` promotes to the MovieSeries.
         display = display_container(type, presented_as, container)
+        # Resolve the top-level container (episode→series, collection-movie→
+        # series) once per row; the `container_*` metadata fields all read from
+        # it, so recomputing it per field was ~18× redundant work per row.
+        tlc = top_level_container(type, display)
+        external_ids = Map.get(tlc, :external_ids)
 
         %DetailItem{
           playable_item_id: item.id,
@@ -660,29 +665,31 @@ defmodule MediaCentaur.Library.Views.Detail do
           parent_container_type: parent_container_type(type, container),
           parent_container_id: parent_container_id(type, container),
           parent_container_name: parent_container_name(type, container),
-          container_name: container_name(type, display),
-          container_description: container_description(type, display),
-          container_year: container_year(type, display),
-          container_url: container_url(type, display),
-          container_tagline: container_tagline(type, display),
-          container_genres: container_genres(type, display),
-          container_studio: container_studio(type, display),
-          container_country_code: container_country_code(type, display),
-          container_original_language: container_original_language(type, display),
-          container_network: container_network(type, display),
-          container_status: container_status(type, display),
-          container_duration_seconds: container_duration_seconds(type, display),
-          container_content_rating: container_content_rating(type, display),
-          container_aggregate_rating: container_aggregate_rating(type, display),
-          container_vote_count: container_vote_count(type, display),
-          container_number_of_seasons: container_number_of_seasons(type, display),
+          container_name: Map.get(tlc, :name),
+          container_description: Map.get(tlc, :description),
+          container_year: container_year(tlc),
+          container_url: Map.get(tlc, :url),
+          container_tagline: Map.get(tlc, :tagline),
+          container_genres: Map.get(tlc, :genres),
+          container_studio: Map.get(tlc, :studio),
+          container_country_code: Map.get(tlc, :country_code),
+          container_original_language: Map.get(tlc, :original_language),
+          container_network: Map.get(tlc, :network),
+          container_status: Map.get(tlc, :status),
+          container_duration_seconds: Map.get(tlc, :duration_seconds),
+          container_content_rating: Map.get(tlc, :content_rating),
+          container_aggregate_rating: Map.get(tlc, :aggregate_rating_value),
+          container_vote_count: Map.get(tlc, :vote_count),
+          container_number_of_seasons: Map.get(tlc, :number_of_seasons),
+          # Director reads the raw `display` (a per-Movie field), NOT the
+          # promoted top-level container — see `container_director/2`.
           container_director: container_director(type, display),
-          cast: container_cast(type, display),
-          crew: container_crew(type, display),
-          extras: container_extras(type, display),
-          external_ids: container_external_ids(type, display),
-          imdb_id: external_id_value(container_external_ids(type, display), "imdb"),
-          tmdb_id: external_id_value(container_external_ids(type, display), "tmdb"),
+          cast: Map.get(tlc, :cast),
+          crew: Map.get(tlc, :crew),
+          extras: Map.get(tlc, :extras),
+          external_ids: external_ids,
+          imdb_id: external_id_value(external_ids, "imdb"),
+          tmdb_id: external_id_value(external_ids, "tmdb"),
           present?: watched_files != [],
           images: shared.images,
           seasons: shared.seasons,
@@ -939,50 +946,9 @@ defmodule MediaCentaur.Library.Views.Detail do
   defp top_level_container(:movie, %Movie{movie_series: %MovieSeries{} = ms}), do: ms
   defp top_level_container(_, container), do: container
 
-  defp container_name(type, container), do: Map.get(top_level_container(type, container), :name)
-
-  defp container_description(type, container),
-    do: Map.get(top_level_container(type, container), :description)
-
-  defp container_year(type, container) do
-    case top_level_container(type, container) do
-      %{date_published: %Date{year: year}} -> year
-      _ -> nil
-    end
-  end
-
-  defp container_url(type, container), do: Map.get(top_level_container(type, container), :url)
-
-  defp container_tagline(type, container), do: Map.get(top_level_container(type, container), :tagline)
-
-  defp container_genres(type, container), do: Map.get(top_level_container(type, container), :genres)
-
-  defp container_studio(type, container), do: Map.get(top_level_container(type, container), :studio)
-
-  defp container_country_code(type, container),
-    do: Map.get(top_level_container(type, container), :country_code)
-
-  defp container_original_language(type, container),
-    do: Map.get(top_level_container(type, container), :original_language)
-
-  defp container_network(type, container), do: Map.get(top_level_container(type, container), :network)
-
-  defp container_status(type, container), do: Map.get(top_level_container(type, container), :status)
-
-  defp container_duration_seconds(type, container),
-    do: Map.get(top_level_container(type, container), :duration_seconds)
-
-  defp container_content_rating(type, container),
-    do: Map.get(top_level_container(type, container), :content_rating)
-
-  defp container_aggregate_rating(type, container),
-    do: Map.get(top_level_container(type, container), :aggregate_rating_value)
-
-  defp container_vote_count(type, container),
-    do: Map.get(top_level_container(type, container), :vote_count)
-
-  defp container_number_of_seasons(type, container),
-    do: Map.get(top_level_container(type, container), :number_of_seasons)
+  # Year derives from the resolved top-level container's `date_published`.
+  defp container_year(%{date_published: %Date{year: year}}), do: year
+  defp container_year(_), do: nil
 
   # Director is a per-Movie field, NOT a top-level metadata bubble-up.
   # For a multi-child MovieSeries the projection's container is a
@@ -990,15 +956,6 @@ defmodule MediaCentaur.Library.Views.Detail do
   # not surface one child's director as the collection's director.
   defp container_director(:movie, %Movie{director: director}), do: director
   defp container_director(_type, _container), do: nil
-
-  defp container_cast(type, container), do: Map.get(top_level_container(type, container), :cast)
-
-  defp container_crew(type, container), do: Map.get(top_level_container(type, container), :crew)
-
-  defp container_extras(type, container), do: Map.get(top_level_container(type, container), :extras)
-
-  defp container_external_ids(type, container),
-    do: Map.get(top_level_container(type, container), :external_ids)
 
   defp external_id_value(nil, _), do: nil
 
