@@ -170,15 +170,20 @@ red (LongQuoteBlocks in `console_live/shared.ex`, from 151daa35) cleared in
 
 ### Wave 4 — structural elegance (higher effort, high payoff)
 
-1. **Extract `Library.Views.RankedProjection`.**
-   `continue_watching` / `recently_added` / `hero_candidates` / `browse` share an
-   identical `subscribe / relevant? / refresh_cache / read / read_from_ets /
-   read_from_db / to_view_model / ensure_table` skeleton (`cache.ex`'s behaviour
-   doc already names them as one flavour). Collapse to
-   `use Library.Views.RankedProjection` parameterized by
-   `{table, source_fun, item_mapper, default_limit, view_tag, extra_topics}`. Do
-   this *after* W1-4 so the sorts are already gone. External `read/refresh_cache`
-   contract unchanged; existing view tests cover it.
+1. **✅ DONE (2026-07-19, commit 74d158d9).** **Extract
+   `Library.Views.RankedProjection`.** Extracted the shared ETS/refresh/read
+   mechanics into `RankedProjection` as **plain functions** (`ensure_table/1`,
+   `replace_rows/3-4`, `read/3`, `read_from_ets/2`) rather than a `use`-macro —
+   `subscribe`/`relevant?`/`to_view_model` are genuinely per-projection, so a
+   macro would need `defoverridable` hooks for little gain (elixir-thinking:
+   simplest abstraction). All four projections delegate the boilerplate; browse's
+   differences (rank-in-struct, filters, unlimited read) covered by
+   `replace_rows` `:rank_field` + `limit: nil`. Behavior identical; 183 view
+   tests green.
+
+**W4-2 DEFERRED (owner's call 2026-07-19):** skipped for now — it crosses the
+ADR-039 "components consume ViewModels" boundary (a real design decision the
+owner wants to make deliberately, not fold into a mechanical sweep).
 
 2. **Collapse the two acquisition `Recipe` structs.**
    `view_models/recipe.ex` + `pursuits.ex` `build_recipe/1` duplicate the
