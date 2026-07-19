@@ -121,8 +121,7 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
     seasons = seasons_to_fetch(response, last_season)
 
     releases =
-      seasons
-      |> Enum.flat_map(fn season_num ->
+      Enum.flat_map(seasons, fn season_num ->
         case Client.get_season(tmdb_id, season_num) do
           {:ok, season_data} ->
             Extractor.extract_episodes_since(season_data, last_season, last_episode)
@@ -131,10 +130,9 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
             []
         end
       end)
-      |> mark_released()
 
     if releases == [] do
-      mark_released(Extractor.extract_tv_releases(response))
+      Extractor.extract_tv_releases(response)
     else
       releases
     end
@@ -170,29 +168,15 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
         episode_number: nil
       }
     end)
-    |> mark_released()
-  end
-
-  @doc """
-  Sets `:released` flag on each release based on whether `air_date` is today or earlier.
-  """
-  def mark_released(releases) do
-    today = Date.utc_today()
-
-    Enum.map(releases, fn release ->
-      aired = release.air_date != nil && Date.compare(release.air_date, today) != :gt
-      Map.put(release, :released, aired)
-    end)
   end
 
   @doc """
   Normalizes collection releases (from Extractor) into the standard release
-  shape with nil season/episode, then marks released status. Keeps the
-  part's own TMDB id — the want ledger keys collection-part wants on it.
+  shape with nil season/episode. Keeps the part's own TMDB id — the want
+  ledger keys collection-part wants on it.
   """
   def normalize_collection_releases(releases) do
-    releases
-    |> Enum.map(fn release ->
+    Enum.map(releases, fn release ->
       %{
         air_date: release.air_date,
         title: release.title,
@@ -201,6 +185,5 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
         episode_number: nil
       }
     end)
-    |> mark_released()
   end
 end

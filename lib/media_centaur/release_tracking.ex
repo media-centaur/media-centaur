@@ -309,7 +309,8 @@ defmodule MediaCentaur.ReleaseTracking do
   Every TV-side persistence path (initial scan, refresh, auto-track) routes
   through this so the Differ's keys stay stable across refreshes; dropping
   either field churns the calendar. Movie collections use
-  `persist_movie_releases/2`, which derives `released` from the air date.
+  `persist_movie_releases/2`. `released` is not stored — it derives from
+  `air_date` on read (`Release.released?/2`).
   """
   def persist_release!(%Item{} = item, release) do
     create_release!(%{
@@ -319,25 +320,21 @@ defmodule MediaCentaur.ReleaseTracking do
       season_number: release[:season_number],
       episode_number: release[:episode_number],
       release_type: release[:release_type],
-      part_tmdb_id: release[:part_tmdb_id],
-      released: release[:released] || false
+      part_tmdb_id: release[:part_tmdb_id]
     })
   end
 
   @doc """
-  Persists one movie release row, deriving `released` from the air date.
-  Movie counterpart to `persist_release!/2` (used for collection parts).
+  Persists one movie release row. Movie counterpart to `persist_release!/2`
+  (used for collection parts). `released` is derived from `air_date` on read.
   """
   def persist_movie_release!(%Item{} = item, release) do
-    released = release.air_date != nil and Date.compare(release.air_date, Date.utc_today()) != :gt
-
     create_release!(%{
       item_id: item.id,
       air_date: release.air_date,
       title: release.title,
       release_type: release.release_type,
-      part_tmdb_id: item.tmdb_id,
-      released: released
+      part_tmdb_id: item.tmdb_id
     })
   end
 
@@ -384,8 +381,8 @@ defmodule MediaCentaur.ReleaseTracking do
         )
       )
 
-    upcoming = Enum.reject(all, & &1.released)
-    released = Enum.filter(all, & &1.released)
+    today = Date.utc_today()
+    {released, upcoming} = Enum.split_with(all, &Release.released?(&1, today))
 
     %{upcoming: upcoming, released: released}
   end
@@ -418,8 +415,8 @@ defmodule MediaCentaur.ReleaseTracking do
 
   @doc """
   Returns releases relevant for inline display on a Library entity's
-  detail page: unaired releases (`released: false`) plus aired-but-not-
-  in-library releases (`released: true, in_library: false`).
+  detail page: unaired releases (`air_date` in the future / absent) plus
+  aired-but-not-in-library releases (`air_date <= today, in_library: false`).
 
   Excludes `in_library: true` rows — those belong on the Upcoming
   page's recently-completed lingering window, not the per-series
@@ -434,15 +431,18 @@ defmodule MediaCentaur.ReleaseTracking do
   @spec list_relevant_releases_for_library_container(Ecto.UUID.t(), :tv_series | :movie) ::
           [Release.t()]
   def list_relevant_releases_for_library_container(library_container_id, media_type) do
+    today = Date.utc_today()
+
     Repo.all(
       from(r in Release,
         join: i in assoc(r, :item),
+        # unaired (air_date in the future / absent), or aired but not yet
+        # in the library — `released` is derived from `air_date` on read.
         where:
           i.library_container_id == ^library_container_id and
             i.media_type == ^media_type and
             i.status == :watching and
-            (r.released == false or
-               (r.released == true and r.in_library == false)),
+            (is_nil(r.air_date) or r.air_date > ^today or r.in_library == false),
         order_by: [asc: r.season_number, asc: r.episode_number]
       )
     )
@@ -558,8 +558,8 @@ defmodule MediaCentaur.ReleaseTracking do
   Mark releases as in_library for a given item.
 
   TV series: episodes at or before last_library_season/episode are in the library.
-  Movies: all releases with `released: true` are marked (the library entity existing
-  means the collection is tracked, and released movies are available).
+  Movies: all aired releases (`air_date <= today`) are marked (the library entity
+  existing means the collection is tracked, and aired movies are available).
   """
   def mark_in_library_releases(%Item{media_type: :tv_series} = item) do
     season = item.last_library_season || 0
@@ -596,13 +596,15 @@ defmodule MediaCentaur.ReleaseTracking do
 
   def mark_in_library_releases(%Item{media_type: :movie} = item) do
     now = DateTime.utc_now(:second)
+    today = Date.utc_today()
     acquirable_types = acquirable_release_types()
 
     {count, _} =
       Repo.update_all(
         from(r in Release,
           where:
-            r.item_id == ^item.id and r.released == true and r.in_library == false and
+            r.item_id == ^item.id and not is_nil(r.air_date) and r.air_date <= ^today and
+              r.in_library == false and
               (is_nil(r.release_type) or r.release_type in ^acquirable_types)
         ),
         set: [in_library: true, in_library_at: now]
@@ -734,16 +736,5 @@ defmodule MediaCentaur.ReleaseTracking do
         logo_url: logo_url
       }
     end)
-  end
-
-  def mark_past_releases_as_released do
-    today = Date.utc_today()
-
-    Repo.update_all(
-      from(r in Release,
-        where: not is_nil(r.air_date) and r.air_date <= ^today and r.released == false
-      ),
-      set: [released: true]
-    )
   end
 end

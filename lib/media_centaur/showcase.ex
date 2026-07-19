@@ -505,7 +505,6 @@ defmodule MediaCentaur.Showcase do
       |> Enum.zip(days)
       |> Enum.each(fn {item, day} ->
         date = Date.new!(today.year, today.month, day)
-        released = Date.compare(date, today) != :gt
 
         {season_number, episode_number} =
           case item.media_type do
@@ -519,7 +518,6 @@ defmodule MediaCentaur.Showcase do
           title: calendar_release_title(item, season_number, episode_number),
           season_number: season_number,
           episode_number: episode_number,
-          released: released,
           in_library: false
         })
       end)
@@ -746,7 +744,6 @@ defmodule MediaCentaur.Showcase do
           title: "#{item.name} · S#{season_number}E#{episode_number}",
           season_number: season_number,
           episode_number: episode_number,
-          released: false,
           in_library: false
         })
 
