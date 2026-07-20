@@ -4,6 +4,20 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.104.0 — 2026-07-20
+
+### Improved
+
+- **Screens open instantly.** Moving between the library, the status page, and other views now paints right away — the first screen's artwork, the sidebar badges, and the counts are ready as the page appears instead of popping in a moment later.
+- **The status page paints immediately.** Its panels render from a cached snapshot the instant the page opens, rather than filling in one query at a time afterwards.
+- **More subtitle languages are recognised.** The subtitle-language detector now covers a wider set — Estonian, Croatian, Icelandic, Serbian, Slovak, and others — so sidecar and embedded tracks in those languages are labelled correctly instead of showing as unknown.
+
+### Fixed
+
+- **Usenet-only setups are recognised as having a download client.** If you configured only SABnzbd with no torrent client, the setup guide's download-client step could stay stuck and the status board could show a spurious qBittorrent connection error. Media Centaur now checks whichever client you actually configured.
+- **Release dates no longer go stale overnight.** A release due today could keep showing as upcoming — or a just-aired one keep an old label — until a background sweep caught up sometime after midnight. Whether a release has aired is now worked out live from its air date, so the calendar and "Coming up" are always current. This release includes a small database migration to drop the old stored flag.
+- **The app refreshes when you come back to it.** After the window or tab had been in the background, returning to it now reconnects and re-syncs the view instead of occasionally showing stale content until you reloaded by hand.
+
 ## v0.103.1 — 2026-07-11
 
 ### Fixed
