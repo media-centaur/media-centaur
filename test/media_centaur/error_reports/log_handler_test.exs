@@ -206,4 +206,71 @@ defmodule MediaCentaur.ErrorReports.LogHandlerTest do
     assert Buckets.get_bucket(:lh_buckets, Fingerprint.fingerprint(:system, minted).key)
     assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, minted).key)
   end
+
+  test "a stale-closure BadFunctionError from a hot-reload purge is not minted (dev-only artifact)" do
+    # Broadway/GenStage crash pattern: a process holds a closure captured before
+    # `Phoenix.CodeReloader` purged its defining module. `is_function/1` is true,
+    # so this can only be the stale-code case — the same condition can never
+    # arise in a compiled release, which never hot-swaps code.
+    skipped = "GenServer terminating ** (BadFunctionError) #{uniq()}"
+    sentinel = "ordinary system error #{uniq()}"
+    stale_fun = fn -> :ok end
+
+    LogHandler.log(
+      crash_event(:error, skipped, {%BadFunctionError{term: stale_fun}, []}),
+      config()
+    )
+
+    LogHandler.log(event(:error, sentinel, %{component: :system}), config())
+
+    assert Buckets.get_bucket(:lh_buckets, Fingerprint.fingerprint(:system, sentinel).key)
+    assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, skipped).key) == nil
+  end
+
+  test "an UndefinedFunctionError for a module no longer loaded is not minted (renamed/removed module)" do
+    # "module X is not available" only happens when the module has been purged
+    # — either mid-reload or because it was permanently renamed/removed, as
+    # happened when activity_widget_components.ex was split into per-subsystem
+    # modules. A compiled release never purges modules at runtime.
+    skipped = "GenServer terminating ** (UndefinedFunctionError) #{uniq()}"
+    sentinel = "ordinary system error #{uniq()}"
+
+    LogHandler.log(
+      crash_event(
+        :error,
+        skipped,
+        {%UndefinedFunctionError{
+           module: MediaCentaurWeb.NoSuchWidgetComponentsModule,
+           function: :self_update_widget,
+           arity: 1
+         }, []}
+      ),
+      config()
+    )
+
+    LogHandler.log(event(:error, sentinel, %{component: :system}), config())
+
+    assert Buckets.get_bucket(:lh_buckets, Fingerprint.fingerprint(:system, sentinel).key)
+    assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, skipped).key) == nil
+  end
+
+  test "an UndefinedFunctionError for a module that IS loaded still mints — real bug, not stale code" do
+    minted = "GenServer terminating ** (UndefinedFunctionError) #{uniq()}"
+
+    LogHandler.log(
+      crash_event(
+        :error,
+        minted,
+        {%UndefinedFunctionError{
+           module: MediaCentaur.ErrorReports.LogHandler,
+           function: :nope,
+           arity: 0
+         }, []}
+      ),
+      config()
+    )
+
+    assert Buckets.get_bucket(:lh_buckets, Fingerprint.fingerprint(:system, minted).key)
+    assert Store.get_incident_by_fingerprint(Fingerprint.fingerprint(:system, minted).key)
+  end
 end
