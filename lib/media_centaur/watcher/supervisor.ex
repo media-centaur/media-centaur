@@ -341,7 +341,8 @@ defmodule MediaCentaur.Watcher.Supervisor do
 
   @doc """
   Re-emits `{:file_detected, ...}` events for every `Library.FilePresence`
-  row that has no matching link in `library_watched_files`.
+  row that has no matching link in `library_watched_files` and still
+  exists on disk.
 
   Recovery hook for stranded files — Discovery can drop a message when
   a downstream service (TMDB, network) fails transiently, and PubSub
@@ -350,6 +351,14 @@ defmodule MediaCentaur.Watcher.Supervisor do
   back into the pipeline. Idempotent: Discovery's `already_linked?`
   check filters anything that has since been ingested.
 
+  The on-disk check matters because presence-without-a-link isn't
+  unique to a transient failure — a title the user removed and deleted
+  from disk leaves the same shape (a presence row, no `WatchedFile`)
+  with nothing left to recover. Without it, a long-unrun reconciliation
+  (e.g. after the ADR-023 startup race went unnoticed for a while) can
+  resurrect a whole backlog of already-deleted titles in one pass.
+  Skipped rows are left for `Library.AbsenceSweeper` to eventually purge.
+
   Returns `{:ok, count}` where `count` is the number of events emitted.
   """
   @spec rescan_unlinked() :: {:ok, non_neg_integer()}
@@ -357,10 +366,13 @@ defmodule MediaCentaur.Watcher.Supervisor do
     linked_paths = Library.linked_file_paths_subquery()
 
     rows =
-      Repo.all(
-        from p in FilePresence,
-          where: p.file_path not in subquery(linked_paths),
-          select: %{path: p.file_path, media_dir: p.media_dir}
+      Enum.filter(
+        Repo.all(
+          from p in FilePresence,
+            where: p.file_path not in subquery(linked_paths),
+            select: %{path: p.file_path, media_dir: p.media_dir}
+        ),
+        fn row -> File.exists?(row.path) end
       )
 
     Enum.each(rows, fn row ->

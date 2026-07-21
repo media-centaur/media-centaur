@@ -2,7 +2,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.FileEventHandler
+  alias MediaCentaur.Library.{FileEventHandler, FilePresence}
 
   describe "cleanup_removed_files/1" do
     test "deletes WatchedFile and standalone movie entity when file removed" do
@@ -25,6 +25,39 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       assert entity_ids == [movie.id]
       assert Library.list_watched_files() == []
       assert Library.list_movies() == []
+    end
+
+    test "also deletes the FilePresence row for the removed file" do
+      # Regression: leaving the presence row behind after a title is
+      # deleted (via the LiveView delete flow, which routes through this
+      # function) meant `Watcher.Supervisor.rescan_unlinked/0` would later
+      # treat it as "stranded" and resurrect the deleted title from a
+      # file that no longer exists.
+      movie =
+        create_entity(%{
+          type: :movie,
+          name: "Sample Movie",
+          content_url: "/media/movies/deleted_movie.mkv"
+        })
+
+      _file =
+        create_linked_file(%{
+          movie_id: movie.id,
+          file_path: "/media/movies/deleted_movie.mkv",
+          media_dir: "/media/movies"
+        })
+
+      assert MapSet.member?(
+               FilePresence.list_paths_for_media_dir("/media/movies"),
+               "/media/movies/deleted_movie.mkv"
+             )
+
+      FileEventHandler.cleanup_removed_files(["/media/movies/deleted_movie.mkv"])
+
+      refute MapSet.member?(
+               FilePresence.list_paths_for_media_dir("/media/movies"),
+               "/media/movies/deleted_movie.mkv"
+             )
     end
 
     test "deletes episode and keeps TV series when one episode removed" do
