@@ -6,7 +6,7 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   events from the Watcher, converts them to `%Payload{}` structs, and dispatches
   to Broadway processors on demand.
 
-  On startup, sends `:reconcile` to trigger watcher rescan (ADR-023).
+  On startup, sends `{:reconcile, 0}` to trigger watcher rescan (ADR-023).
   """
   use GenStage
   require MediaCentaur.Log, as: Log
@@ -15,14 +15,40 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   alias MediaCentaur.Pipeline.Payload
   alias MediaCentaur.Pipeline.ProducerQueue
 
+  # `MediaCentaur.Watcher.Supervisor` is a sibling child started later in the
+  # same supervision tree (its actual per-directory watchers are started from
+  # an async `init_services` Task, not the supervisor's own `start_link`) — so
+  # `running?/0` can read `false` for a moment after this producer's `init/1`
+  # runs, purely because the watchers haven't been told to start yet. A single
+  # unconditional check races that startup ordering and can silently skip
+  # reconciliation for the entire session. Retrying briefly closes the race
+  # without polling indefinitely: a deliberately-disabled watcher
+  # (`services:*:start_watchers` off) exhausts the budget and is skipped
+  # exactly as before.
+  @max_reconcile_attempts 20
+  @reconcile_retry_ms 100
+
   def start_link(opts), do: GenStage.start_link(__MODULE__, opts)
 
   @impl true
   def init(_opts) do
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_input())
-    send(self(), :reconcile)
+    send(self(), {:reconcile, 0})
     {:producer, %{queue: :queue.new(), demand: 0}}
   end
+
+  @doc false
+  def max_reconcile_attempts, do: @max_reconcile_attempts
+
+  @doc """
+  Decides what `{:reconcile, attempt}` should do next, given whether the
+  watcher currently reports running. Pure — exposed for testing the
+  race-retry boundary without spinning up the GenStage process.
+  """
+  @spec reconcile_action(non_neg_integer(), boolean()) :: :run | {:retry, pos_integer()} | :skip
+  def reconcile_action(_attempt, true), do: :run
+  def reconcile_action(attempt, false) when attempt >= @max_reconcile_attempts, do: :skip
+  def reconcile_action(_attempt, false), do: {:retry, @reconcile_retry_ms}
 
   @impl true
   def handle_demand(incoming_demand, state) do
@@ -51,14 +77,21 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
   # files that were missed while the pipeline was down, and re-emit any files
   # the watcher already knows about but the pipeline never finished ingesting
   # (stranded by a transient TMDB/network failure on a prior run).
-  def handle_info(:reconcile, state) do
-    if MediaCentaur.Watcher.Supervisor.running?() do
-      Log.info(:pipeline, "triggered watcher rescan — startup reconciliation")
+  def handle_info({:reconcile, attempt}, state) do
+    case reconcile_action(attempt, MediaCentaur.Watcher.Supervisor.running?()) do
+      :run ->
+        Log.info(:pipeline, "triggered watcher rescan — startup reconciliation")
 
-      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-        MediaCentaur.Watcher.Supervisor.scan()
-        MediaCentaur.Watcher.Supervisor.rescan_unlinked()
-      end)
+        Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+          MediaCentaur.Watcher.Supervisor.scan()
+          MediaCentaur.Watcher.Supervisor.rescan_unlinked()
+        end)
+
+      {:retry, delay_ms} ->
+        Process.send_after(self(), {:reconcile, attempt + 1}, delay_ms)
+
+      :skip ->
+        :ok
     end
 
     {:noreply, [], state}
