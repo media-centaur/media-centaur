@@ -20,7 +20,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
 
   alias MediaCentaur.Repo
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{EntityCascade, WatchedFile}
+  alias MediaCentaur.Library.{EntityCascade, FilePresence, WatchedFile}
   alias MediaCentaur.Library.Helpers
 
   import EntityCascade, only: [bulk_destroy: 2, delete_images: 1, destroy_progress: 1]
@@ -107,6 +107,14 @@ defmodule MediaCentaur.Library.FileEventHandler do
   @doc """
   Immediately cleans up all library records associated with the given file paths.
   Returns a list of affected entity IDs (for broadcasting).
+
+  Also drops the `Library.FilePresence` row for each path — a file gone from
+  disk has nothing left for `Watcher.Supervisor.rescan_unlinked/0` to recover,
+  and leaving the row behind let a later reconciliation pass resurrect a
+  deleted title from a path that no longer exists (the incident this guards
+  against). `AbsenceSweeper.purge_expired/1` also calls this before its own
+  `FilePresence.delete_paths/1` — redundant with the call here, but harmless
+  (deleting an already-gone row is a no-op).
   """
   @spec cleanup_removed_files([String.t()]) :: [String.t()]
   def cleanup_removed_files([]), do: []
@@ -114,11 +122,16 @@ defmodule MediaCentaur.Library.FileEventHandler do
   def cleanup_removed_files(file_paths) do
     watched_files = Library.list_files_by_paths(file_paths)
 
-    if watched_files == [] do
-      []
-    else
-      do_cleanup(watched_files, file_paths)
-    end
+    entity_ids =
+      if watched_files == [] do
+        []
+      else
+        do_cleanup(watched_files, file_paths)
+      end
+
+    FilePresence.delete_paths(file_paths)
+
+    entity_ids
   end
 
   # ---------------------------------------------------------------------------

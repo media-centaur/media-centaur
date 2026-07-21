@@ -328,8 +328,18 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     alias MediaCentaur.Topics
 
     test "re-emits file_detected for stranded files when key is updated", %{conn: conn} do
-      stranded_path = "/tmp/test/save-tmdb-stranded.mkv"
-      media_dir = "/tmp/test"
+      # `rescan_unlinked/0` only re-emits presence rows that still exist on
+      # disk (a deleted title leaves the same presence-without-link shape,
+      # with nothing to recover) — the fixture needs a real file, not just a
+      # stamped path.
+      media_dir =
+        Path.join(System.tmp_dir!(), "settings_live_test_#{System.unique_integer([:positive])}")
+
+      File.mkdir_p!(media_dir)
+      on_exit(fn -> File.rm_rf!(media_dir) end)
+
+      stranded_path = Path.join(media_dir, "save-tmdb-stranded.mkv")
+      File.write!(stranded_path, "stranded")
       FilePresence.stamp(stranded_path, media_dir)
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.pipeline_input())
