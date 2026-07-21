@@ -847,6 +847,22 @@ defmodule MediaCentaur.Library do
   end
 
   @doc """
+  Paths of already-imported files that live under `dir` — used to check
+  whether a folder is safe to delete wholesale (it isn't, if anything
+  other than the files being deleted also lives there). Filters in
+  Elixir rather than a SQL `LIKE` so a literal `%`/`_` in a real path
+  can't be misread as a wildcard.
+  """
+  @spec watched_file_paths_under(String.t()) :: [String.t()]
+  def watched_file_paths_under(dir) do
+    prefix = dir <> "/"
+
+    from(w in WatchedFile, select: w.file_path)
+    |> Repo.all()
+    |> Enum.filter(&String.starts_with?(&1, prefix))
+  end
+
+  @doc """
   Relink-on-move. Given newly-seen `{path, size}` pairs under
   `new_media_dir`, re-point any that `MoveMatcher` recognises as a file
   that *moved* — rewriting the `WatchedFile` / `ExtraFile` rows and the

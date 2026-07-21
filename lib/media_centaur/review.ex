@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Review do
-  use Boundary, deps: [MediaCentaur.TMDB], exports: [Rematch]
+  use Boundary, deps: [MediaCentaur.Library, MediaCentaur.TMDB], exports: [Rematch]
 
   @moduledoc """
   The review domain — files requiring human review before library ingestion.
@@ -14,6 +14,7 @@ defmodule MediaCentaur.Review do
   import Ecto.Query
 
   alias MediaCentaur.Repo
+  alias MediaCentaur.Library.FileEventHandler
   alias MediaCentaur.Review.PendingFile
 
   require MediaCentaur.Log, as: Log
@@ -215,6 +216,41 @@ defmodule MediaCentaur.Review do
   end
 
   @doc """
+  Deletes all files in a group individually from disk (and their DB
+  records) — for review items the user never wants, e.g. a broken/
+  incomplete download. Use this when no shared folder was deemed safe
+  to delete wholesale (see `MediaCentaur.DeleteTargets`); when one was,
+  the caller deletes the folder itself and calls
+  `destroy_pending_files/1` instead.
+  Returns `{deleted_count, error_count}`.
+  """
+  def delete_group(files) do
+    results = Enum.map(files, &delete_pending_file/1)
+    deleted = Enum.count(results, &match?({:ok, _}, &1))
+    errors = Enum.count(results, &match?({:error, _}, &1))
+    {deleted, errors}
+  end
+
+  @doc """
+  Destroys the `PendingFile` records for `files` without touching disk —
+  for when the caller has already deleted the containing folder directly
+  (via `MediaCentaur.Library.FileEventHandler.delete_folder/2`, guarded
+  by `MediaCentaur.DeleteTargets.resolve_folder_target/1`). This only
+  cleans up the DB record Review alone owns; `FileEventHandler` has no
+  concept of a `PendingFile`.
+  """
+  @spec destroy_pending_files([PendingFile.t()]) :: :ok
+  def destroy_pending_files(files) do
+    Enum.each(files, fn file ->
+      destroy_pending_file(file)
+      Log.info(:library, "deleted \"#{Path.basename(file.file_path)}\" — removed from review")
+      broadcast_reviewed(file.id)
+    end)
+
+    :ok
+  end
+
+  @doc """
   Sets the TMDB match on all files in a group.
   Returns `{updated_count, error_count}`.
   """
@@ -258,6 +294,41 @@ defmodule MediaCentaur.Review do
     end
 
     result
+  end
+
+  @doc """
+  Deletes the underlying file from disk (and its `Library.FilePresence`
+  row, via `FileEventHandler.delete_file/1` — the same primitive the
+  entity detail page uses), then destroys the `PendingFile` record
+  entirely. Unlike `dismiss/1` (which only flips `status: :dismissed`
+  and leaves everything else in place), this removes the clutter for a
+  review item the user never wants imported.
+  """
+  @spec delete_pending_file(PendingFile.t()) :: {:ok, PendingFile.t()} | {:error, term()}
+  def delete_pending_file(pending_file) do
+    case FileEventHandler.delete_file(pending_file.file_path) do
+      {:ok, _entity_ids} ->
+        result = destroy_pending_file(pending_file)
+
+        if match?({:ok, _}, result) do
+          Log.info(
+            :library,
+            "deleted \"#{Path.basename(pending_file.file_path)}\" — removed from review"
+          )
+
+          broadcast_reviewed(pending_file.id)
+        end
+
+        result
+
+      {:error, reason} ->
+        Log.warning(
+          :library,
+          "failed to delete #{pending_file.file_path}: #{inspect(reason)}"
+        )
+
+        {:error, reason}
+    end
   end
 
   def set_tmdb_match(pending_file, %{

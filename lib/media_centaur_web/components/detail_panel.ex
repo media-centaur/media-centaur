@@ -1569,37 +1569,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp delete_all_aria_label(1), do: "Delete the file for this entry"
   defp delete_all_aria_label(_), do: "Delete all files for this entry"
 
-  @doc """
-  Resolves one delete button's gesture state for `target`
-  (`:all | {:file, path} | {:folder, path}`). The lifecycle is
-  `:idle → :confirm → :deleting`:
-
-    * `:deleting` — an async delete is in flight for this target
-      (`deleting == target`); the button shows "Deleting…".
-    * `:confirm` — armed, awaiting the second click
-      (`delete_confirm == target`); the button shows "Click again…".
-    * `:idle` — neither.
-
-  `:deleting` outranks `:confirm` so a button can't claim both at once.
-  Pure — extracted per ADR-030 so the label/disabled logic is unit
-  tested without rendering.
-  """
-  @spec delete_gesture_state(term(), term(), term()) :: :idle | :confirm | :deleting
-  def delete_gesture_state(target, deleting, delete_confirm) do
-    cond do
-      deleting == target -> :deleting
-      delete_confirm == target -> :confirm
-      true -> :idle
-    end
-  end
-
-  @doc """
-  True while any delete is in flight. Every delete button disables
-  during it so a second destructive op can't be stacked on the busy
-  modal.
-  """
-  @spec delete_in_flight?(term()) :: boolean()
-  def delete_in_flight?(deleting), do: deleting != nil
+  # `delete_gesture_state/3` and `delete_in_flight?/1` moved to
+  # `MediaCentaurWeb.LiveHelpers` (imported above) — shared with
+  # `ReviewLive`'s delete gesture rather than duplicated here.
 
   @doc """
   Whether an episode's thumbnail, title and synopsis should be spoiler-blurred:

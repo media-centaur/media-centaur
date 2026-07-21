@@ -673,6 +673,9 @@ defmodule MediaCentaur.Acquisition do
   @doc "See `Acquisition.Targets.cancel_active_targets_for/3`."
   defdelegate cancel_active_targets_for(tmdb_id, tmdb_type, reason), to: Targets
 
+  @doc "See `Acquisition.Targets.find_content_path_for/1`."
+  defdelegate find_content_path_for(file_path), to: Targets
+
   @doc """
   Broadcasts an update message on `Topics.acquisition_updates/0`. Used
   by every Acquisition writer so there is one PubSub call site for the

@@ -28,7 +28,8 @@ defmodule MediaCentaurWeb do
       MediaCentaur.Runtime,
       MediaCentaur.Setup,
       MediaCentaur.Guide,
-      MediaCentaur.Reconciliation
+      MediaCentaur.Reconciliation,
+      MediaCentaur.DeleteTargets
     ],
     exports: [Endpoint]
 
