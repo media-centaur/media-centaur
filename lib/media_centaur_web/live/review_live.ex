@@ -12,7 +12,10 @@ defmodule MediaCentaurWeb.ReviewLive do
   import MediaCentaurWeb.Components.ReviewTabs
   import MediaCentaurWeb.ReviewHelpers
 
+  alias MediaCentaur.DeleteTargets
+  alias MediaCentaur.Library.FileEventHandler
   alias MediaCentaur.Review
+  alias MediaCentaurWeb.LiveHelpers
 
   @impl true
   def mount(_params, _session, socket) do
@@ -27,6 +30,7 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> assign(tmdb_ready: false)
      |> assign(processing: MapSet.new())
      |> assign(selected_key: nil)
+     |> assign(delete_confirm: nil)
      |> assign(search_open: nil)
      |> assign(search_query: "")
      |> assign(search_type: :movie)
@@ -89,6 +93,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       {:noreply,
        socket
        |> assign(selected_key: group_key)
+       |> assign(delete_confirm: nil)
        |> assign(search_open: nil)
        |> assign(search_query: "")
        |> assign(search_results: [])
@@ -131,6 +136,48 @@ defmodule MediaCentaurWeb.ReviewLive do
     else
       {:noreply, socket}
     end
+  end
+
+  # Click-to-confirm gesture (mirrors `EntityModal`'s delete_*_prompt, via
+  # the shared `LiveHelpers.delete_gesture_state/3`): the first click arms
+  # `delete_confirm` for this group and the button flips to "Click again to
+  # delete"; the second click on the SAME group actually deletes. Selecting
+  # a different item resets the arm (see select_item).
+  def handle_event("delete_prompt", %{"key" => key}, socket) do
+    group_key = decode_key(key)
+    group = socket.assigns.groups_by_key[group_key]
+
+    cond do
+      is_nil(group) ->
+        {:noreply, socket}
+
+      socket.assigns.delete_confirm == group_key ->
+        socket =
+          assign(socket,
+            delete_confirm: nil,
+            processing: MapSet.put(socket.assigns.processing, group_key)
+          )
+
+        {_deleted, errors} = execute_delete(group.files)
+
+        socket =
+          if errors > 0 do
+            socket
+            |> assign(processing: MapSet.delete(socket.assigns.processing, group_key))
+            |> put_flash(:error, "#{errors} file(s) failed to delete")
+          else
+            assign(socket, processing: MapSet.delete(socket.assigns.processing, group_key))
+          end
+
+        {:noreply, socket}
+
+      true ->
+        {:noreply, assign(socket, delete_confirm: group_key)}
+    end
+  end
+
+  def handle_event("delete_cancel", _params, socket) do
+    {:noreply, assign(socket, delete_confirm: nil)}
   end
 
   def handle_event("open_search", %{"key" => key}, socket) do
@@ -237,6 +284,31 @@ defmodule MediaCentaurWeb.ReviewLive do
     current = socket.assigns[:expanded_group]
     expanded = if current != group_key, do: group_key
     {:noreply, assign(socket, expanded_group: expanded)}
+  end
+
+  # Resolves fresh (never cached — see `MediaCentaur.DeleteTargets`) whether
+  # this group's files sit in a folder safe to delete wholesale. When they
+  # do, the whole folder goes (nfo/txt/samples included) and Review only
+  # has to clean up its own `PendingFile` rows afterward; otherwise each
+  # file is deleted individually.
+  defp execute_delete(files) do
+    paths = Enum.map(files, & &1.file_path)
+
+    case DeleteTargets.resolve_folder_target(paths) do
+      {:folder, dir} ->
+        case FileEventHandler.delete_folder(dir, paths) do
+          {:ok, _entity_ids} ->
+            Review.destroy_pending_files(files)
+            {length(files), 0}
+
+          {:error, reason} ->
+            Log.warning(:library, "failed to delete folder #{dir}: #{inspect(reason)}")
+            {0, length(files)}
+        end
+
+      :file_only ->
+        Review.delete_group(files)
+    end
   end
 
   @impl true
@@ -427,6 +499,7 @@ defmodule MediaCentaurWeb.ReviewLive do
               :if={@selected_key && @groups_by_key[@selected_key]}
               group={@groups_by_key[@selected_key]}
               processing={MapSet.member?(@processing, @selected_key)}
+              delete_confirm={@delete_confirm}
               search_open={@search_open == @selected_key}
               search_query={@search_query}
               search_type={@search_type}
@@ -585,6 +658,17 @@ defmodule MediaCentaurWeb.ReviewLive do
     tied = tied_candidates?(file)
     reason = review_reason(file)
 
+    # Resolved fresh on every render (never cached — see
+    # `MediaCentaur.DeleteTargets`) so it always reflects the group's
+    # current file paths, not a snapshot that could go stale across a move.
+    delete_target =
+      DeleteTargets.resolve_folder_target(Enum.map(assigns.group.files, & &1.file_path))
+
+    deleting_target = if assigns.processing, do: assigns.group.key
+
+    gesture =
+      LiveHelpers.delete_gesture_state(assigns.group.key, deleting_target, assigns.delete_confirm)
+
     assigns =
       assigns
       |> assign(file: file)
@@ -592,6 +676,8 @@ defmodule MediaCentaurWeb.ReviewLive do
       |> assign(tied: tied)
       |> assign(reason: reason)
       |> assign(encoded_key: encode_key(assigns.group.key))
+      |> assign(delete_target: delete_target)
+      |> assign(delete_gesture: gesture)
 
     ~H"""
     <div class="glass-surface rounded-lg overflow-y-auto h-full max-h-full thin-scrollbar relative">
@@ -676,6 +762,18 @@ defmodule MediaCentaurWeb.ReviewLive do
             tabindex="0"
           >
             {if @file_count > 1, do: "Dismiss All", else: "Dismiss"}
+          </.button>
+          <.button
+            variant="danger"
+            size="sm"
+            phx-click="delete_prompt"
+            phx-value-key={@encoded_key}
+            disabled={@processing}
+            data-nav-item
+            tabindex="0"
+            aria-label={delete_action_label(@delete_gesture, @delete_target, @file_count)}
+          >
+            {delete_action_label(@delete_gesture, @delete_target, @file_count)}
           </.button>
         </div>
 
@@ -1063,6 +1161,41 @@ defmodule MediaCentaurWeb.ReviewLive do
 
   defp zero_pad(number) when number < 10, do: "0#{number}"
   defp zero_pad(number), do: "#{number}"
+
+  @doc """
+  Label for the delete button across its three-state gesture
+  (`LiveHelpers.delete_gesture_state/3`) and the resolved delete target
+  (`MediaCentaur.DeleteTargets.resolve_folder_target/1`). Always names
+  what will actually be removed — a folder by name, or a file count —
+  rather than a generic "Delete", so confirming is never a guess.
+  """
+  @spec delete_action_label(
+          :idle | :confirm | :deleting,
+          {:folder, String.t()} | :file_only,
+          pos_integer()
+        ) ::
+          String.t()
+  def delete_action_label(:deleting, _delete_target, _file_count), do: "Deleting…"
+
+  def delete_action_label(:confirm, {:folder, dir}, _file_count) do
+    "Click again to delete folder \"#{Path.basename(dir)}\""
+  end
+
+  def delete_action_label(:confirm, :file_only, file_count) when file_count > 1 do
+    "Click again to delete #{file_count} files"
+  end
+
+  def delete_action_label(:confirm, :file_only, _file_count), do: "Click again to delete file"
+
+  def delete_action_label(:idle, {:folder, dir}, _file_count) do
+    "Delete folder \"#{Path.basename(dir)}\""
+  end
+
+  def delete_action_label(:idle, :file_only, file_count) when file_count > 1 do
+    "Delete #{file_count} files"
+  end
+
+  def delete_action_label(:idle, :file_only, _file_count), do: "Delete file"
 
   defp relative_file_path(file) do
     case file.media_directory do

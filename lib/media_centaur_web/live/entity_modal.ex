@@ -962,7 +962,15 @@ defmodule MediaCentaurWeb.Live.EntityModal do
           |> Enum.map(& &1.file.file_path)
           |> Enum.filter(&String.starts_with?(&1, folder_path <> "/"))
 
-        FileEventHandler.delete_folder(folder_path, file_paths)
+        # Belt-and-suspenders: `folder_path` is already derived from this
+        # entity's own files (never user-typed), but this confirms nothing
+        # ELSE already in the library also lives under it before the
+        # recursive `rm -rf` — see `MediaCentaur.DeleteTargets`.
+        if MediaCentaur.DeleteTargets.safe_to_delete_folder?(folder_path, file_paths) do
+          FileEventHandler.delete_folder(folder_path, file_paths)
+        else
+          {:error, "folder also contains other library content"}
+        end
 
       :all ->
         payload =
@@ -972,11 +980,16 @@ defmodule MediaCentaurWeb.Live.EntityModal do
           )
 
         Enum.each(payload.file_groups, fn group ->
-          if group.is_media_dir do
-            group.files |> Enum.map(& &1.path) |> FileEventHandler.delete_files()
-          else
-            file_paths = Enum.map(group.files, & &1.path)
+          file_paths = Enum.map(group.files, & &1.path)
+
+          if !group.is_media_dir and
+               MediaCentaur.DeleteTargets.safe_to_delete_folder?(group.dir, file_paths) do
             FileEventHandler.delete_folder(group.dir, file_paths)
+          else
+            # A media directory root, or a folder that also holds other
+            # already-imported content, can't be `rm -rf`'d wholesale — fall
+            # back to deleting just this entity's own files in it.
+            FileEventHandler.delete_files(file_paths)
           end
         end)
 

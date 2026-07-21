@@ -1073,6 +1073,38 @@ defmodule MediaCentaur.LibraryTest do
     end
   end
 
+  describe "watched_file_paths_under/1" do
+    test "returns paths of already-imported files that live under a directory" do
+      movie = create_movie(%{name: "Under Dir Movie"})
+
+      create_linked_file(%{
+        movie_id: movie.id,
+        file_path: "/media/movies/Some Release/movie.mkv",
+        media_dir: "/media/movies"
+      })
+
+      assert Library.watched_file_paths_under("/media/movies/Some Release") == [
+               "/media/movies/Some Release/movie.mkv"
+             ]
+    end
+
+    test "does not match a sibling directory with a similar name prefix" do
+      movie = create_movie(%{name: "Sibling Dir Movie"})
+
+      create_linked_file(%{
+        movie_id: movie.id,
+        file_path: "/media/movies/Some Release Extended/movie.mkv",
+        media_dir: "/media/movies"
+      })
+
+      assert Library.watched_file_paths_under("/media/movies/Some Release") == []
+    end
+
+    test "returns an empty list when nothing lives under the directory" do
+      assert Library.watched_file_paths_under("/media/movies/Nothing Here") == []
+    end
+  end
+
   defp all_error_messages(changeset) do
     changeset |> errors_on() |> Map.values() |> List.flatten()
   end

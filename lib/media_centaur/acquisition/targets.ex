@@ -54,6 +54,30 @@ defmodule MediaCentaur.Acquisition.Targets do
     |> Repo.all()
   end
 
+  @doc """
+  Finds the `content_path` (the download client's reported save location,
+  captured once by `DownloadIdentity` and never overwritten) that
+  `file_path` falls under — an exact match for a single-file release, or
+  an ancestor-directory match for a multi-file pack. `nil` when no target
+  relates to it.
+
+  Resolved fresh from the file's *current* path on every call rather than
+  cached anywhere, so a later move can only ever make this stop matching
+  (falling back to no folder boundary) — never falsely match the wrong
+  folder. Used by `MediaCentaur.DeleteTargets` to find the exact footprint
+  of a download, rather than guessing folder boundaries from disk layout.
+  """
+  @spec find_content_path_for(String.t()) :: String.t() | nil
+  def find_content_path_for(file_path) do
+    Target
+    |> where([t], not is_nil(t.content_path))
+    |> select([t], t.content_path)
+    |> Repo.all()
+    |> Enum.find(fn content_path ->
+      file_path == content_path or String.starts_with?(file_path, content_path <> "/")
+    end)
+  end
+
   defp auto_targets_filter(query, :all), do: query
 
   defp auto_targets_filter(query, :active), do: where(query, [t], t.status in ^TargetStatus.in_flight())

@@ -88,6 +88,121 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
     end
   end
 
+  describe "delete flow (click-to-confirm)" do
+    setup do
+      media_dir =
+        Path.join(System.tmp_dir!(), "review_live_test_#{System.unique_integer([:positive])}")
+
+      File.mkdir_p!(media_dir)
+      on_exit(fn -> File.rm_rf!(media_dir) end)
+
+      %{media_dir: media_dir}
+    end
+
+    test "first click arms confirmation, second click deletes the file and clears the row", %{
+      conn: conn,
+      media_dir: media_dir
+    } do
+      path = Path.join(media_dir, "broken.mkv")
+      File.write!(path, "garbage")
+
+      _file =
+        create_pending_file(%{
+          file_path: path,
+          media_directory: media_dir,
+          parsed_title: "Broken Download"
+        })
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      assert render_after_async_load(view) =~ "Broken Download"
+
+      key =
+        view
+        |> element("[phx-click='select_item']")
+        |> render()
+        |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
+
+      html = render_click(view, "delete_prompt", %{"key" => key})
+      assert html =~ "Click again to delete"
+      assert File.exists?(path), "the first click must only arm the confirmation, not delete"
+
+      render_click(view, "delete_prompt", %{"key" => key})
+
+      refute File.exists?(path)
+      refute render(view) =~ "Broken Download"
+    end
+
+    test "selecting a different item cancels an armed confirmation", %{
+      conn: conn,
+      media_dir: media_dir
+    } do
+      path_a = Path.join(media_dir, "a.mkv")
+      path_b = Path.join(media_dir, "b.mkv")
+      File.write!(path_a, "x")
+      File.write!(path_b, "x")
+
+      create_pending_file(%{file_path: path_a, media_directory: media_dir, parsed_title: "AAA"})
+      create_pending_file(%{file_path: path_b, media_directory: media_dir, parsed_title: "ZZZ"})
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+
+      [key_a, key_b] =
+        view
+        |> element("[data-nav-zone='review-list']")
+        |> render()
+        |> then(&Regex.scan(~r/phx-value-key="([^"]+)"/, &1))
+        |> Enum.map(&List.last/1)
+
+      render_click(view, "select_item", %{"key" => key_a})
+      html = render_click(view, "delete_prompt", %{"key" => key_a})
+      assert html =~ "Click again to delete"
+
+      render_click(view, "select_item", %{"key" => key_b})
+      render_click(view, "select_item", %{"key" => key_a})
+      html = render(view)
+
+      refute html =~ "Click again to delete"
+      assert File.exists?(path_a), "switching away must cancel the arm, not delete"
+    end
+
+    test "never deletes a configured media directory root — only the file, for a flat top-level release",
+         %{conn: conn, media_dir: media_dir} do
+      # A flat file directly in the media root has no meaningful "release
+      # folder" of its own — its dirname IS the media root. This is
+      # exactly the shape that must fall back to file-only deletion:
+      # confirm the whole media directory survives, not just this file.
+      config = :persistent_term.get({MediaCentaur.Config, :config})
+      :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, :media_dirs, [media_dir]))
+      on_exit(fn -> :persistent_term.put({MediaCentaur.Config, :config}, config) end)
+
+      path = Path.join(media_dir, "flat_movie.mkv")
+      File.write!(path, "x")
+
+      create_pending_file(%{
+        file_path: path,
+        media_directory: media_dir,
+        parsed_title: "Flat Movie"
+      })
+
+      {:ok, view, _html} = live_async!(conn, "/review")
+      render_after_async_load(view)
+
+      key =
+        view
+        |> element("[phx-click='select_item']")
+        |> render()
+        |> then(&List.last(Regex.run(~r/phx-value-key="([^"]+)"/, &1)))
+
+      assert render_click(view, "delete_prompt", %{"key" => key}) =~ "Click again to delete file"
+
+      render_click(view, "delete_prompt", %{"key" => key})
+
+      refute File.exists?(path)
+      assert File.dir?(media_dir), "the media directory root itself must never be removed"
+    end
+  end
+
   describe "live updates from review intake" do
     # The review queue is the user's choke point — every file the
     # auto-matcher couldn't decide on lands here. If the LV doesn't react

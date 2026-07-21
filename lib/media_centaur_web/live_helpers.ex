@@ -193,4 +193,39 @@ defmodule MediaCentaurWeb.LiveHelpers do
   the scrim rule keeps semantic colors the brightest accents.
   """
   def banner_hue(title), do: :erlang.phash2(title, 360)
+
+  @doc """
+  Resolves one delete button's gesture state for `target` — any sum
+  type identifying what a click targets (the entity detail page uses
+  `:all | {:file, path} | {:folder, path}`; Review uses `{:file, path} |
+  {:folder, path}`). The lifecycle is `:idle → :confirm → :deleting`:
+
+    * `:deleting` — an async/in-flight delete is running for this
+      target (`deleting == target`); the button shows "Deleting…".
+    * `:confirm` — armed, awaiting the second click
+      (`delete_confirm == target`); the button shows "Click again…".
+    * `:idle` — neither.
+
+  `:deleting` outranks `:confirm` so a button can't claim both at once.
+  Pure — shared by every host that implements the click-to-confirm
+  delete gesture (ADR-030: extracted so the label/disabled logic is
+  unit tested without rendering), rather than each host reimplementing
+  its own copy of this state machine.
+  """
+  @spec delete_gesture_state(term(), term(), term()) :: :idle | :confirm | :deleting
+  def delete_gesture_state(target, deleting, delete_confirm) do
+    cond do
+      deleting == target -> :deleting
+      delete_confirm == target -> :confirm
+      true -> :idle
+    end
+  end
+
+  @doc """
+  True while any delete is in flight for the host's `deleting` assign.
+  Every delete button disables during it so a second destructive op
+  can't be stacked on the busy view.
+  """
+  @spec delete_in_flight?(term()) :: boolean()
+  def delete_in_flight?(deleting), do: deleting != nil
 end
