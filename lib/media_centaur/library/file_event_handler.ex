@@ -23,7 +23,8 @@ defmodule MediaCentaur.Library.FileEventHandler do
   alias MediaCentaur.Library.{EntityCascade, FilePresence, WatchedFile}
   alias MediaCentaur.Library.Helpers
 
-  import EntityCascade, only: [bulk_destroy: 2, delete_images: 1, destroy_progress: 1]
+  import EntityCascade,
+    only: [bulk_destroy: 2, delete_images: 1, delete_playable_items: 2, destroy_progress: 1]
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
@@ -224,6 +225,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
       Enum.each(matched_episodes, fn episode ->
         destroy_progress(episode)
         delete_images(episode.images || [])
+        delete_playable_items(:episode, episode.id)
       end)
 
       bulk_destroy(matched_episodes, Library.Episode)
