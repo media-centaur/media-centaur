@@ -185,8 +185,8 @@ defmodule MediaCentaurWeb.ReconcileLive do
               data-nav-item
               tabindex="0"
               class={[
-                "w-full text-left glass-inset rounded-lg p-3 mb-2 cursor-pointer transition-colors",
-                @selected_tmdb == show.tmdb_id && "ring-1 ring-primary"
+                "w-full text-left glass-inset rounded-lg p-3 mb-2 cursor-pointer border border-transparent transition-colors",
+                @selected_tmdb == show.tmdb_id && "bg-primary/12 !border-primary/25"
               ]}
             >
               <div class="font-medium truncate">{show.title}</div>
