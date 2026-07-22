@@ -2,7 +2,8 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Library
-  alias MediaCentaur.Library.{FileEventHandler, FilePresence}
+  alias MediaCentaur.Library.{FileEventHandler, FilePresence, PlayableItem}
+  alias MediaCentaur.Repo
 
   describe "cleanup_removed_files/1" do
     test "deletes WatchedFile and standalone movie entity when file removed" do
@@ -118,6 +119,46 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
 
       # Only 1 WatchedFile remains
       assert length(Library.list_watched_files()) == 1
+    end
+
+    test "also deletes the removed episode's PlayableItem row" do
+      # Regression: partial-deletion (one episode's file removed, season/series
+      # survive) destroyed the Episode row but never cleaned up its
+      # PlayableItem — unlike full-series destroy (EntityCascade), which
+      # already does. 414 orphaned PlayableItem(episode) rows were found
+      # live, leaking since May — this is the actual leak, not just
+      # resurrection-incident fallout.
+      tv_series = create_entity(%{type: :tv_series, name: "PlayableItem Leak Show"})
+
+      season =
+        create_season(%{
+          tv_series_id: tv_series.id,
+          season_number: 1,
+          name: "Season 1",
+          number_of_episodes: 1
+        })
+
+      ep1 =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Pilot",
+          content_url: "/media/tv/leak/s01e01.mkv"
+        })
+
+      file1 =
+        create_linked_file(%{
+          tv_series_id: tv_series.id,
+          file_path: "/media/tv/leak/s01e01.mkv",
+          media_dir: "/media/tv"
+        })
+
+      playable_item_id = file1.playable_item_id
+
+      FileEventHandler.cleanup_removed_files(["/media/tv/leak/s01e01.mkv"])
+
+      assert {:error, _} = Library.fetch_episode(ep1.id)
+      assert Repo.get(PlayableItem, playable_item_id) == nil
     end
 
     test "deletes episode with recorded watch progress without FK violation" do

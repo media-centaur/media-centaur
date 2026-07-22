@@ -193,6 +193,7 @@ defmodule MediaCentaur.Library.EntityCascade do
     :ok
   end
 
+  @doc false
   # Drops every `PlayableItem` row pointing at `(container_type,
   # container_id)`. Library Schema v2 Phase 2 Task G hoisted PlayableItem
   # creation alongside the container row, so the cascade has to mirror it
@@ -201,7 +202,12 @@ defmodule MediaCentaur.Library.EntityCascade do
   # orphans would otherwise survive a destroy!. Cascading WatchedFile /
   # WatchProgress rows are dropped automatically via their
   # `on_delete: :delete_all` FK to PlayableItem.
-  defp delete_playable_items(container_type, container_id) do
+  #
+  # Public (not `defp`) and imported by `FileEventHandler` for its
+  # partial-deletion path (one episode's file removed, season/series
+  # survive) — a second cascade shape that destroys the leaf row directly
+  # rather than through `destroy!/1`, and must clean up the same way.
+  def delete_playable_items(container_type, container_id) do
     Repo.delete_all(
       from(p in PlayableItem,
         where: p.container_type == ^container_type and p.container_id == ^container_id
