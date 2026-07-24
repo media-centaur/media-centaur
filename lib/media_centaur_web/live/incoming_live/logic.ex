@@ -420,6 +420,7 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   @doc "User-facing label for a `QueueItem` state."
   @spec state_label(QueueItem.state() | nil) :: String.t()
   def state_label(:downloading), do: "Downloading"
+  def state_label(:fetching_nzb), do: "Fetching NZB…"
   def state_label(:queued), do: "Queued"
   def state_label(:stalled), do: "Stalled"
   def state_label(:paused), do: "Paused"
@@ -438,7 +439,9 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   """
   @spec state_badge_variant(QueueItem.state() | nil) :: String.t()
   def state_badge_variant(:downloading), do: "info"
-  def state_badge_variant(state) when state in [:verifying, :repairing, :extracting, :moving], do: "info"
+
+  def state_badge_variant(state)
+      when state in [:fetching_nzb, :verifying, :repairing, :extracting, :moving], do: "info"
 
   def state_badge_variant(:completed), do: "success"
   def state_badge_variant(:error), do: "error"
@@ -455,8 +458,8 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   @spec state_text_class(QueueItem.state() | nil) :: String.t()
   def state_text_class(:downloading), do: "text-info/80"
 
-  def state_text_class(state) when state in [:verifying, :repairing, :extracting, :moving],
-    do: "text-info/80"
+  def state_text_class(state)
+      when state in [:fetching_nzb, :verifying, :repairing, :extracting, :moving], do: "text-info/80"
 
   def state_text_class(:completed), do: "text-success/80"
   def state_text_class(:error), do: "text-error/80"

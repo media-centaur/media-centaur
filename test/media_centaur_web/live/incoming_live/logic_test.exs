@@ -603,6 +603,7 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
   describe "state_label/1" do
     test "returns user-facing label per state atom" do
       assert Logic.state_label(:downloading) == "Downloading"
+      assert Logic.state_label(:fetching_nzb) == "Fetching NZB…"
       assert Logic.state_label(:queued) == "Queued"
       assert Logic.state_label(:stalled) == "Stalled"
       assert Logic.state_label(:paused) == "Paused"
@@ -620,6 +621,7 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
   describe "state_badge_variant/1" do
     test "returns a `<.badge>` variant per state" do
       assert Logic.state_badge_variant(:downloading) == "info"
+      assert Logic.state_badge_variant(:fetching_nzb) == "info"
       assert Logic.state_badge_variant(:completed) == "success"
       assert Logic.state_badge_variant(:error) == "error"
       assert Logic.state_badge_variant(:paused) == "warning"

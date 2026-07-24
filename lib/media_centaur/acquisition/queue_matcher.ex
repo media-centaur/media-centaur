@@ -156,6 +156,21 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
   @spec to_download(QueueItem.t() | nil) :: DownloadProgress.t() | nil
   def to_download(nil), do: nil
 
+  # NZB-grab phase: SABnzbd is still fetching the .nzb from the indexer, so
+  # its `percentage`/`timeleft` describe that tiny fetch, not the media.
+  # Drop both — a bar that "starts at 19%" before content download begins
+  # is exactly the misleading signal this state exists to avoid.
+  def to_download(%QueueItem{state: :fetching_nzb} = qi) do
+    %DownloadProgress{
+      state: :fetching_nzb,
+      progress_pct: nil,
+      size_bytes: qi.size,
+      size_left_bytes: qi.size_left,
+      eta: nil,
+      client: qi.download_client
+    }
+  end
+
   def to_download(%QueueItem{} = qi) do
     %DownloadProgress{
       state: qi.state,

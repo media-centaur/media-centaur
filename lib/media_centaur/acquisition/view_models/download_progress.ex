@@ -4,7 +4,9 @@ defmodule MediaCentaur.Acquisition.ViewModels.DownloadProgress do
   @enforce_keys [:state]
   defstruct [:state, :progress_pct, :size_bytes, :size_left_bytes, :eta, :client]
 
-  @type state :: :downloading | :queued | :stalled | :paused | :completed | :error | :other
+  # Mirrors the queue item's state exactly — `to_download/1` passes it
+  # through unchanged, so any drift here is a lie about what can render.
+  @type state :: MediaCentaur.Downloads.QueueItem.state()
 
   @type t :: %__MODULE__{
           state: state(),
