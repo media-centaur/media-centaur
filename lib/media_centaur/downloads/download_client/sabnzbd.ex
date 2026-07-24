@@ -10,8 +10,15 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
   |-----------------|--------------------------------------------------|
   | Live queue      | `mode=queue`                                     |
   | History window  | `mode=history&limit=30`                          |
-  | Delete          | `mode=queue&name=delete&value=NZO_ID&del_files=1`|
+  | Delete (queue)  | `mode=queue&name=delete&value=NZO_ID&del_files=1`|
+  | Delete (history)| `mode=history&name=delete&value=NZO_ID&del_files=1`|
   | Connection test | `mode=queue&limit=1`                             |
+
+  Delete is store-specific: a job is in the queue while active and in
+  history once terminal (Completed/Failed). `cancel_download/2` tries the
+  queue, then falls back to history when SABnzbd reports it removed
+  nothing (`status: false`) — otherwise a failed job can never be
+  deleted and re-renders on every poll.
 
   ## Auth
 
@@ -87,10 +94,30 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
 
   @impl true
   def cancel_download(id, client \\ default_client()) do
-    case get_api(client, mode: "queue", name: "delete", value: id, del_files: 1) do
-      {:ok, _body} -> :ok
-      {:error, reason} -> {:error, reason}
+    # An NZO lives in exactly one store: the live queue while it's
+    # grabbing/downloading/post-processing, or history once it's terminal
+    # (Completed/Failed). Deletion is store-specific — the queue endpoint
+    # silently no-ops (`status: false`) for a history id, which left failed
+    # jobs undeletable and re-rendering on every poll. So attempt the queue
+    # delete, and fall back to history when SABnzbd reports it removed
+    # nothing. `del_files=1` removes the on-disk data in both stores.
+    case delete_slot(client, "queue", id) do
+      {:ok, %{"status" => false}} ->
+        case delete_slot(client, "history", id) do
+          {:ok, _body} -> :ok
+          {:error, reason} -> {:error, reason}
+        end
+
+      {:ok, _body} ->
+        :ok
+
+      {:error, reason} ->
+        {:error, reason}
     end
+  end
+
+  defp delete_slot(client, mode, id) do
+    get_api(client, mode: mode, name: "delete", value: id, del_files: 1)
   end
 
   @impl true

@@ -170,6 +170,45 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbdTest do
       assert :ok = SABnzbd.cancel_download("SABnzbd_nzo_q1", client)
     end
 
+    # A terminal job (Completed/Failed) lives in SABnzbd's history, not its
+    # queue. The queue delete matches nothing and reports `status: false` —
+    # so the driver must fall back to a history delete, or the errored entry
+    # can never be removed and re-renders on every poll.
+    test "falls back to a history delete when the id is not in the live queue", %{client: client} do
+      parent = self()
+
+      Req.Test.stub(:sabnzbd, fn conn ->
+        case conn.params["mode"] do
+          "queue" ->
+            Req.Test.json(conn, %{"status" => false, "nzo_ids" => []})
+
+          "history" ->
+            send(
+              parent,
+              {:history_delete, conn.params["name"], conn.params["value"], conn.params["del_files"]}
+            )
+
+            Req.Test.json(conn, %{"status" => true})
+        end
+      end)
+
+      assert :ok = SABnzbd.cancel_download("nzo_failed_1", client)
+      # The history delete must actually fire — a green :ok alone would also
+      # pass against the queue-only bug (the no-op queue delete returns :ok).
+      assert_receive {:history_delete, "delete", "nzo_failed_1", "1"}
+    end
+
+    # Cleanup cancels can arrive after the job already left both stores
+    # (e.g. the user clicked twice). Deleting an absent id is the desired
+    # end state, so it resolves :ok rather than erroring.
+    test "is idempotent — an id in neither queue nor history still resolves :ok", %{client: client} do
+      Req.Test.stub(:sabnzbd, fn conn ->
+        Req.Test.json(conn, %{"status" => false, "nzo_ids" => []})
+      end)
+
+      assert :ok = SABnzbd.cancel_download("already_gone", client)
+    end
+
     test "returns http_error tuple on non-200 responses", %{client: client} do
       Req.Test.stub(:sabnzbd, fn conn -> Plug.Conn.send_resp(conn, 500, "boom") end)
 
