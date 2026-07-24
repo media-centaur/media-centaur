@@ -1,5 +1,5 @@
 ---
-status: phase-1-in-progress
+status: phase-1-complete
 started: 2026-07-25
 last_updated: 2026-07-25
 ---
@@ -21,13 +21,19 @@ movie churns and finds nothing.
 
 ## Status
 
-**Planning — no code written yet.** The search *backend* is already
-unified (`ReleaseTracking.search_tmdb/1`); only the UI wrapper is
-duplicated. The prerequisite availability signal shipped this session:
-canonical movie-year derivation (`TMDB.Mapper.canonical_release_date/1`
-+ `us_typed_release_dates/1`, commit `6b3aaf27`). Rollout is two phases:
-Phase 1 = design-free de-duplication (below), Phase 2 = the smart action
-+ retiring the Track modal + a unified TV surface (open questions below).
+**Phase 1 complete (2026-07-25, two commits on main, unpushed).**
+`search_tmdb/1` now returns `[ReleaseTracking.TitleResult.t()]` — one
+struct, one normalization, in the context; both duplicate web structs
+(`MediaOmnibox.Result`, `TrackModal.SearchResult`) are deleted, and the
+shared identity-summary rendering lives in
+`Acquisition.TitleResultSummary` (with story) used by both surfaces.
+Verified live in a real browser on both flows (omnibox dropdown +
+Track modal results). Precommit green.
+
+**Next session = Phase 2** — the smart action, retiring the Track
+modal, and the unified TV surface. Resolve the open design questions
+first; the prerequisite availability signal (canonical movie-year
+derivation, commit `6b3aaf27`) is already in.
 
 ## Decisions made
 
@@ -68,21 +74,20 @@ Phase 1 = design-free de-duplication (below), Phase 2 = the smart action
 
 ## Next steps
 
-### Phase 1 — Consolidate the surface (cleanup, mostly deletion, no behavior change)
+### Phase 1 — Consolidate the surface ✅ done 2026-07-25
 
-1. **Merge the two result structs** — `MediaOmnibox.Result`
-   (`media_omnibox.ex:32`) and `TrackModal.SearchResult`
-   (`track_modal.ex:32`) are the same fields (`tmdb_id, media_type,
-   name, year, poster_path, tracked?/already_tracked, in_library?`).
-   Collapse to one shared view-model.
-2. **One result-row rendering** component used by both the omnibox
-   dropdown (`media_dropdown/1`, `media_omnibox.ex:282`) and the Track
-   modal results list (`track_modal.ex:253-320`).
-3. **One result-build/normalization** from the `search_tmdb/1` maps
-   (currently structified twice: `incoming_live.ex:2086-2093` and
-   `:1962`).
-4. Leave both entry points and the TV pickers exactly as they are —
-   Phase 1 must not change what any pick does.
+1. ✅ **Merged the two result structs** into
+   `MediaCentaur.ReleaseTracking.TitleResult` (context struct, contract
+   test at `test/media_centaur/release_tracking/title_result_test.exs`,
+   exported from the `ReleaseTracking` boundary).
+2. ✅ **One result-row rendering** —
+   `Acquisition.TitleResultSummary.title_result_summary/1` (identity
+   summary; row chrome stays per-surface, see Decisions). Story at
+   `storybook/acquisition/title_result_summary.story.exs`.
+3. ✅ **One result-build** — `search_tmdb/1` returns structs; both web
+   structification sites deleted.
+4. ✅ Entry points and TV pickers untouched; both flows verified in a
+   real browser (dropdown rows + modal results + Track button).
 
 ### Phase 2 — The feature (see open questions before building)
 
@@ -115,8 +120,8 @@ Phase 1 = design-free de-duplication (below), Phase 2 = the smart action
 6. **Already-in-library / already-tracked** result states — how the smart
    action reflects them (`in_library?`, `tracked?` are already on the
    struct).
-7. **Result-struct home** — web view-model vs. a context struct
-   (Phase 1 will settle this in passing).
+7. ~~**Result-struct home**~~ — settled in Phase 1: context struct
+   (`ReleaseTracking.TitleResult`, see Decisions).
 
 ## Completion criteria
 
