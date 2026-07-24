@@ -9,8 +9,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
 
   use PhoenixStorybook.Story, :component
 
+  alias MediaCentaur.ReleaseTracking.TitleResult
   alias MediaCentaurWeb.IncomingLive.SearchSession
-  alias MediaCentaurWeb.Components.Acquisition.MediaOmnibox
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.MediaOmnibox.media_omnibox/1
   def render_source, do: :function
@@ -39,7 +39,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
           mode: :media,
           query: "sample",
           results: [
-            %MediaOmnibox.Result{
+            %TitleResult{
               tmdb_id: 246_810,
               media_type: :tv_series,
               name: "Sample Show",
@@ -47,13 +47,13 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
               poster_path: "/sample-show-poster.jpg",
               tracked?: true
             },
-            %MediaOmnibox.Result{
+            %TitleResult{
               tmdb_id: 777,
               media_type: :movie,
               name: "Sample Movie",
               year: "2010"
             },
-            %MediaOmnibox.Result{
+            %TitleResult{
               tmdb_id: 778,
               media_type: :movie,
               name: "Sample Movie Returns: An Extraordinarily Long Title That Truncates",
@@ -72,7 +72,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
           query: "sample",
           results:
             for n <- 1..20 do
-              %MediaOmnibox.Result{
+              %TitleResult{
                 tmdb_id: 1000 + n,
                 media_type: if(rem(n, 3) == 0, do: :tv_series, else: :movie),
                 name: "Sample Title #{n}",

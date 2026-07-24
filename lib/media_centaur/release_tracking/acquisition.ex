@@ -15,7 +15,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
   import Ecto.Query
 
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, ImageStore, Item, Release, Wants}
+  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, ImageStore, Item, Release, TitleResult, Wants}
   alias MediaCentaur.Repo
   alias MediaCentaur.TMDB.Client
 
@@ -25,10 +25,10 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
   Searches TMDB's multi endpoint for movies and TV shows, preserving
   TMDB's cross-type relevance order (a regrouped movies-then-tv merge
   once starved every TV result out of the capped omnibox dropdown).
-  Person results are dropped. Returns a unified list of results with
-  media_type, tmdb_id, name, year, poster_path, and an already_tracked
-  flag.
+  Person results are dropped. Returns `[TitleResult.t()]` — the one
+  normalized shape every title-search surface consumes.
   """
+  @spec search_tmdb(String.t()) :: [TitleResult.t()]
   def search_tmdb(query) do
     results =
       case Client.search_multi(query) do
@@ -43,7 +43,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
 
     Enum.map(results, fn result ->
       tracked = MapSet.member?(tracked_tmdb_ids, {result.tmdb_id, result.media_type})
-      Map.put(result, :already_tracked, tracked)
+      %{result | tracked?: tracked}
     end)
   end
 
@@ -52,7 +52,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
   defp normalize_multi_result(_person_or_unknown), do: []
 
   defp normalize_movie_result(tmdb) do
-    %{
+    %TitleResult{
       tmdb_id: tmdb["id"],
       media_type: :movie,
       name: tmdb["title"],
@@ -62,7 +62,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
   end
 
   defp normalize_tv_result(tmdb) do
-    %{
+    %TitleResult{
       tmdb_id: tmdb["id"],
       media_type: :tv_series,
       name: tmdb["name"],

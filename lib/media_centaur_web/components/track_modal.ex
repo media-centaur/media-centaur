@@ -29,21 +29,6 @@ defmodule MediaCentaurWeb.Components.TrackModal do
           }
   end
 
-  defmodule SearchResult do
-    @moduledoc "View-model for a single TMDB search result row."
-    @enforce_keys [:tmdb_id, :media_type, :name, :year, :poster_path, :already_tracked]
-    defstruct [:tmdb_id, :media_type, :name, :year, :poster_path, :already_tracked]
-
-    @type t :: %__MODULE__{
-            tmdb_id: integer(),
-            media_type: :movie | :tv_series,
-            name: String.t(),
-            year: String.t() | nil,
-            poster_path: String.t() | nil,
-            already_tracked: boolean()
-          }
-  end
-
   defmodule ScopeItem do
     @moduledoc "View-model for the inline TV scope picker."
     @enforce_keys [:tmdb_id, :name, :poster_path]
@@ -87,7 +72,7 @@ defmodule MediaCentaurWeb.Components.TrackModal do
 
   attr :search_results, :list,
     default: [],
-    doc: "list of `SearchResult.t()` structs."
+    doc: "list of `MediaCentaur.ReleaseTracking.TitleResult.t()` structs."
 
   attr :search_loading, :boolean, default: false
   attr :scope_item, ScopeItem, default: nil
@@ -250,7 +235,7 @@ defmodule MediaCentaurWeb.Components.TrackModal do
 
   # --- Search Results ---
 
-  attr :result, SearchResult, required: true
+  attr :result, MediaCentaur.ReleaseTracking.TitleResult, required: true
   attr :scope_item, ScopeItem, default: nil
   attr :collection_item, CollectionItem, default: nil
 
@@ -297,11 +282,11 @@ defmodule MediaCentaurWeb.Components.TrackModal do
 
         <%!-- Action --%>
         <div class="flex-shrink-0">
-          <span :if={@result.already_tracked} class="text-xs text-success/70 font-medium">
+          <span :if={@result.tracked?} class="text-xs text-success/70 font-medium">
             Tracking
           </span>
           <.button
-            :if={!@result.already_tracked}
+            :if={!@result.tracked?}
             variant="secondary"
             size="xs"
             phx-click="select_search_result"

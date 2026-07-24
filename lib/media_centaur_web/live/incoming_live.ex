@@ -472,7 +472,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   defp mark_tracked(results, tmdb_id) do
     Enum.map(results, fn result ->
-      if result.tmdb_id == tmdb_id, do: %{result | already_tracked: true}, else: result
+      if result.tmdb_id == tmdb_id, do: %{result | tracked?: true}, else: result
     end)
   end
 
@@ -1959,7 +1959,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   def handle_info({:do_track_search, query}, socket) do
     if query == socket.assigns.track_search_query do
-      results = Enum.map(ReleaseTracking.search_tmdb(query), &struct!(TrackModal.SearchResult, &1))
+      results = ReleaseTracking.search_tmdb(query)
       {:noreply, assign(socket, track_search_results: results, track_search_loading: false)}
     else
       {:noreply, socket}
@@ -2077,21 +2077,9 @@ defmodule MediaCentaurWeb.IncomingLive do
   def handle_async(:omnibox_search, {:ok, {query, results}}, socket) do
     # Stale guard: only the newest query's results land.
     if query == socket.assigns.omnibox_query do
-      rows =
-        results
-        # One TMDB page, relevance-ranked — the dropdown scrolls; depth
-        # past 20 is a query-refinement problem, not a pagination one.
-        |> Enum.take(20)
-        |> Enum.map(fn result ->
-          %MediaOmnibox.Result{
-            tmdb_id: result.tmdb_id,
-            media_type: result.media_type,
-            name: result.name,
-            year: result.year,
-            poster_path: result.poster_path,
-            tracked?: result.already_tracked
-          }
-        end)
+      # One TMDB page, relevance-ranked — the dropdown scrolls; depth
+      # past 20 is a query-refinement problem, not a pagination one.
+      rows = Enum.take(results, 20)
 
       {:noreply, assign(socket, omnibox_results: rows, omnibox_searching?: false)}
     else
