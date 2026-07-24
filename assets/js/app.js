@@ -29,6 +29,7 @@ import {LogTail} from "./hooks/log_tail"
 import {CopyButton} from "./hooks/copy_button"
 import {CastGridFilter} from "./hooks/cast_grid_filter"
 import {MouseAutofocus} from "./hooks/mouse_autofocus"
+import {HoverPreview} from "./hooks/hover_preview"
 import {FlashAutoDismiss} from "./hooks/flash_auto_dismiss"
 import {installReconnectOnVisible} from "./reconnect_on_visible"
 import topbar from "../vendor/topbar"
@@ -44,6 +45,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     CopyButton,
     CastGridFilter,
     MouseAutofocus,
+    HoverPreview,
     FlashAutoDismiss,
     ScrollToResume: {
       mounted() { this._scrollToTarget() },

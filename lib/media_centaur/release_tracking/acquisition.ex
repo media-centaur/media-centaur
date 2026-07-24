@@ -57,7 +57,8 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
       media_type: :movie,
       name: tmdb["title"],
       year: extract_year(tmdb["release_date"]),
-      poster_path: tmdb["poster_path"]
+      poster_path: tmdb["poster_path"],
+      overview: presence(tmdb["overview"])
     }
   end
 
@@ -67,9 +68,14 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
       media_type: :tv_series,
       name: tmdb["name"],
       year: extract_year(tmdb["first_air_date"]),
-      poster_path: tmdb["poster_path"]
+      poster_path: tmdb["poster_path"],
+      overview: presence(tmdb["overview"])
     }
   end
+
+  defp presence(nil), do: nil
+  defp presence(""), do: nil
+  defp presence(text) when is_binary(text), do: text
 
   defp extract_year(nil), do: nil
   defp extract_year(""), do: nil

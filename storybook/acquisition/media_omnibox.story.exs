@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
 
   def template do
     """
-    <div class="max-w-2xl">
+    <div class="max-w-2xl relative min-h-[34rem]">
       <.psb-variation/>
     </div>
     """
@@ -33,8 +33,10 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
       %Variation{
         id: :media_results,
         description:
-          "Typed query with TMDB results — poster thumbnail (fake path, renders broken " <>
-            "outside the app), icon fallback, type chips, years, a tracked annotation.",
+          "Typed query with TMDB results — the floating spotlight overlay. The top " <>
+            "relevance hit fills the spotlight pane by default (poster, overview, primary " <>
+            "action); the list scrolls beside it. Poster paths are fake, so thumbnails " <>
+            "render broken outside the app; the icon fallback shows the no-poster treatment.",
         attributes: %{
           mode: :media,
           query: "sample",
@@ -45,19 +47,48 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
               name: "Sample Show",
               year: "2010",
               poster_path: "/sample-show-poster.jpg",
+              overview: "A sample overview line that helps confirm this is the show you meant.",
               tracked?: true
             },
             %TitleResult{
               tmdb_id: 777,
               media_type: :movie,
               name: "Sample Movie",
-              year: "2010"
+              year: "2010",
+              overview: "A sample movie overview."
             },
             %TitleResult{
               tmdb_id: 778,
               media_type: :movie,
               name: "Sample Movie Returns: An Extraordinarily Long Title That Truncates",
               year: "2012"
+            }
+          ]
+        }
+      },
+      %Variation{
+        id: :media_results_preview_swapped,
+        description:
+          "A non-top result previewed in the spotlight (mouse hover and d-pad focus both " <>
+            "swap the pane) — its list row carries the active highlight.",
+        attributes: %{
+          mode: :media,
+          query: "sample",
+          preview_id: {:movie, 777},
+          results: [
+            %TitleResult{
+              tmdb_id: 246_810,
+              media_type: :tv_series,
+              name: "Sample Show",
+              year: "2010",
+              overview: "A sample overview line."
+            },
+            %TitleResult{
+              tmdb_id: 777,
+              media_type: :movie,
+              name: "Sample Movie",
+              year: "2010",
+              overview: "The previewed movie's overview, shown while its row is hovered."
             }
           ]
         }

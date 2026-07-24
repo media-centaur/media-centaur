@@ -206,6 +206,8 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_results: [],
          omnibox_searching?: false,
          omnibox_searched: nil,
+         omnibox_preview: nil,
+         omnibox_results_open?: true,
          plan_param: nil,
          plan_stage: :loading,
          plan_selection: nil,
@@ -827,6 +829,8 @@ defmodule MediaCentaurWeb.IncomingLive do
             query={@omnibox_query}
             results={@omnibox_results}
             searching?={@omnibox_searching?}
+            preview_id={@omnibox_preview}
+            results_open={@omnibox_results_open?}
             session={@search_session}
             any_loading?={@any_loading?}
           />
@@ -1148,7 +1152,8 @@ defmodule MediaCentaurWeb.IncomingLive do
            omnibox_query: "",
            omnibox_results: [],
            omnibox_searching?: false,
-           omnibox_searched: nil
+           omnibox_searched: nil,
+           omnibox_preview: nil
          )
          |> build_view()
          |> push_patch(to: "/incoming?plan=#{plan.id}")}
@@ -1299,11 +1304,17 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   def handle_event("omnibox_change", %{"query" => query}, socket) do
     trimmed = String.trim(query)
-    socket = assign(socket, omnibox_query: query)
+    socket = assign(socket, omnibox_query: query, omnibox_results_open?: true)
 
     cond do
       String.length(trimmed) < 2 ->
-        {:noreply, assign(socket, omnibox_results: [], omnibox_searching?: false, omnibox_searched: nil)}
+        {:noreply,
+         assign(socket,
+           omnibox_results: [],
+           omnibox_searching?: false,
+           omnibox_searched: nil,
+           omnibox_preview: nil
+         )}
 
       # TMDB citizenship: a re-fire of the same effective query (trailing
       # space, blur/focus echo) never searches again — each debounce fire
@@ -1320,6 +1331,23 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
+  # Mouse hover and d-pad/keyboard focus share this event — whichever
+  # row the user is on fills the spotlight pane.
+  def handle_event("omnibox_preview", %{"tmdb-id" => tmdb_id, "media-type" => media_type}, socket)
+      when media_type in ~w(movie tv_series) do
+    case Integer.parse(tmdb_id) do
+      {id, ""} ->
+        {:noreply, assign(socket, omnibox_preview: {String.to_existing_atom(media_type), id})}
+
+      _invalid ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("omnibox_dismiss", _params, socket) do
+    {:noreply, assign(socket, omnibox_results_open?: false)}
+  end
+
   def handle_event("omnibox_mode", %{"mode" => mode}, socket) when mode in ~w(media release) do
     # Release mode does not exist without an indexer — ignore a stale flip
     # (the hint hides the control, but a lagging DOM can still fire it).
@@ -1332,7 +1360,9 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_results: [],
          omnibox_query: "",
          omnibox_searching?: false,
-         omnibox_searched: nil
+         omnibox_searched: nil,
+         omnibox_preview: nil,
+         omnibox_results_open?: true
        )}
     end
   end
@@ -2081,7 +2111,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       # past 20 is a query-refinement problem, not a pagination one.
       rows = Enum.take(results, 20)
 
-      {:noreply, assign(socket, omnibox_results: rows, omnibox_searching?: false)}
+      {:noreply, assign(socket, omnibox_results: rows, omnibox_searching?: false, omnibox_preview: nil)}
     else
       {:noreply, socket}
     end
