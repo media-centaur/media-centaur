@@ -4,6 +4,23 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.104.1 — 2026-07-24
+
+### New
+
+- **Delete a pending item's file from Review.** You can now remove a pending review item's file or folder directly from the Review screen, instead of hunting it down on disk.
+
+### Improved
+
+- **Clearer status for usenet downloads.** While SABnzbd is still fetching a download's details from your indexer — before any media has actually started transferring — the card now reads "Fetching NZB…" instead of jumping straight to "Downloading" with a percentage that wasn't really moving yet.
+
+### Fixed
+
+- **Cancelling a usenet download now removes it for good.** A failed or completed SABnzbd download listed under "Other downloads" could reappear every time you clicked cancel — the delete never reached your download client's history. Cancel-and-delete now clears it properly.
+- **Deleted titles stay deleted.** A library rescan could quietly bring back titles you'd removed. They now stay gone.
+- **Removing an episode's file cleans up after itself.** Deleting an episode's file no longer leaves a stale, unplayable entry behind in the library.
+- **Files changed while the app was off are reconciled at startup.** A timing race between startup and the file watcher could skip the first reconciliation pass, so changes made while Media Centaur wasn't running might be missed until later. Startup now retries until the watcher is ready.
+
 ## v0.104.0 — 2026-07-20
 
 ### Improved
