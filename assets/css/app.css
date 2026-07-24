@@ -185,6 +185,20 @@ html.psb .psb-variation-block .media-centaur {
   box-shadow: 0 4px 16px var(--glass-shadow);
 }
 
+/* Search-results overlay — the omnibox spotlight panel. Floats OVER page
+   content (not over the bare gradient like cards), so it needs near-opaque
+   ink and a stronger blur or the page ghosts through and every row fights
+   the content behind it. Width/height are part of the surface contract:
+   media-center scale, list scrolls inside. */
+.search-overlay {
+  width: min(88vw, 80rem);
+  max-height: 72vh;
+  background: oklch(from var(--color-base-100) calc(l + 0.03) c h / 0.94);
+  @apply backdrop-blur-[24px];
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 12px 48px oklch(0% 0 0 / 0.5);
+}
+
 /* Subsystem health tile — SELECTED state. A dedicated rule, NOT Tailwind
    `ring-*` / `bg-*` utilities: `.glass-surface` sets its own (unlayered)
    `background` and `box-shadow`, which clobber those utilities. This selector

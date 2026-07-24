@@ -41,17 +41,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.TitleResultSummary do
     </span>
     <span class="flex-1 min-w-0">
       <span class="block truncate text-sm font-medium">{@result.name}</span>
-      <span class="flex items-center gap-2 text-xs text-base-content/50">
-        <span class={[
-          "px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase",
-          if(@result.media_type == :movie,
-            do: "bg-warning/15 text-warning",
-            else: "bg-info/15 text-info"
-          )
-        ]}>
-          {if @result.media_type == :movie, do: "Movie", else: "TV"}
-        </span>
-        <span :if={@result.year}>{@result.year}</span>
+      <%!-- Quiet text, not colored chips — twenty amber MOVIE chips in a
+            result list is noise; type is metadata, color stays reserved
+            for interaction and state. --%>
+      <span class="flex items-center gap-1.5 text-xs text-base-content/50">
+        <span>{if @result.media_type == :movie, do: "Movie", else: "TV"}</span>
+        <span :if={@result.year}>· {@result.year}</span>
       </span>
     </span>
     """

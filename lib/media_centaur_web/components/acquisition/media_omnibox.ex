@@ -303,8 +303,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
         data-state={if @open, do: "open", else: "closed"}
         phx-click-away={@open && "omnibox_dismiss"}
         class={[
-          "absolute left-1/2 -translate-x-1/2 top-2 z-40 w-[min(88vw,80rem)]",
-          "glass-surface rounded-xl shadow-2xl shadow-black/40 overflow-hidden",
+          "absolute left-1/2 -translate-x-1/2 top-2 z-40",
+          "search-overlay rounded-xl overflow-hidden",
           "transition-opacity duration-150",
           "data-[state=closed]:opacity-0 data-[state=closed]:pointer-events-none"
         ]}
@@ -373,14 +373,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
   # One spotlight pane per result, all rendered up-front so every w342
   # poster is fetched and decoded before its row is ever hovered —
   # preview swaps are then a pure visibility toggle, never a network
-  # wait. Only the active pane is visible.
+  # wait. Only the active pane is visible. Visibility is the display
+  # class, NOT the `hidden` attribute — any display utility on the same
+  # element (author CSS) overrides the UA's `[hidden] { display: none }`,
+  # which once left all 20 panes stacked and visible.
   defp spotlight_pane(assigns) do
     ~H"""
     <div
       id={"omnibox-spotlight-#{@result.media_type}-#{@result.tmdb_id}"}
       data-active={@active || nil}
-      hidden={!@active}
-      class="flex gap-5"
+      class={[if(@active, do: "flex", else: "hidden"), "gap-5"]}
     >
       <span class="flex-shrink-0 w-[140px] aspect-[2/3] rounded-lg bg-base-content/10 ring-1 ring-base-content/10 overflow-hidden flex items-center justify-center">
         <img

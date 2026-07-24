@@ -53,7 +53,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.TitleResultSummary do
       },
       %Variation{
         id: :movie_no_poster_no_year,
-        description: "Sparse TMDB data — no poster, no year; the chip and name carry the row.",
+        description: "Sparse TMDB data — no poster, no year; the type label and name carry the row.",
         attributes: %{
           result: %TitleResult{
             tmdb_id: 778,
