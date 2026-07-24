@@ -10,6 +10,7 @@ defmodule MediaCentaur.ReleaseTracking do
     exports: [
       Item,
       Release,
+      TitleResult,
       Event,
       ImageStore,
       Want,

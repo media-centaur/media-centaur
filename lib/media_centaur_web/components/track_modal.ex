@@ -13,6 +13,7 @@ defmodule MediaCentaurWeb.Components.TrackModal do
 
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.Components.Acquisition.TitleResultSummary, only: [title_result_summary: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   defmodule Suggestion do
@@ -240,45 +241,10 @@ defmodule MediaCentaurWeb.Components.TrackModal do
   attr :collection_item, CollectionItem, default: nil
 
   defp search_result(assigns) do
-    type_label = if assigns.result.media_type == :movie, do: "Movie", else: "TV"
-
-    assigns = assign(assigns, :type_label, type_label)
-
     ~H"""
     <div class="rounded-lg border border-base-content/10 overflow-hidden">
       <div class="flex items-center gap-3 p-3">
-        <%!-- Poster thumbnail --%>
-        <div class="flex-shrink-0 w-10 h-14 rounded bg-base-300 overflow-hidden flex items-center justify-center">
-          <img
-            :if={@result.poster_path}
-            src={"https://image.tmdb.org/t/p/w92#{@result.poster_path}"}
-            alt=""
-            class="w-full h-full object-cover"
-            loading="lazy"
-          />
-          <.icon
-            :if={!@result.poster_path}
-            name={if @result.media_type == :movie, do: "hero-film-mini", else: "hero-tv-mini"}
-            class="size-5 text-base-content/20"
-          />
-        </div>
-
-        <%!-- Title + meta --%>
-        <div class="flex-1 min-w-0">
-          <p class="font-medium truncate">{@result.name}</p>
-          <div class="flex items-center gap-2 text-xs text-base-content/50">
-            <span class={[
-              "px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase",
-              if(@result.media_type == :movie,
-                do: "bg-warning/15 text-warning",
-                else: "bg-info/15 text-info"
-              )
-            ]}>
-              {@type_label}
-            </span>
-            <span :if={@result.year}>{@result.year}</span>
-          </div>
-        </div>
+        <.title_result_summary result={@result} />
 
         <%!-- Action --%>
         <div class="flex-shrink-0">
