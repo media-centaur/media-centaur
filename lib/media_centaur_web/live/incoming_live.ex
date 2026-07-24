@@ -809,7 +809,10 @@ defmodule MediaCentaurWeb.IncomingLive do
               thinning downward: hero search, big-art shelf, operational
               in-flight band, then the bookkeeping (ledger, History
               disclosure, other downloads) at the bottom. --%>
-        <div class="relative z-[1] max-w-6xl space-y-8">
+        <%!-- Centered, not left-anchored: on media-center-wide screens a
+              left-hugging column strands the right half of the display and
+              shoves the (input-anchored) search overlay into the sidebar. --%>
+        <div class="relative z-[1] max-w-6xl mx-auto space-y-8">
           <header>
             <h1 class="text-3xl font-bold tracking-tight">Incoming</h1>
             <p class="mt-1 text-sm text-base-content/60">
