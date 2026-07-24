@@ -4,6 +4,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
   import Ecto.Query
   alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Release
+  alias MediaCentaur.ReleaseTracking.TitleResult
 
   describe "persist_release!/2" do
     test "keeps release_type and part_tmdb_id so Differ keys stay stable" do
@@ -801,9 +802,9 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       results = ReleaseTracking.search_tmdb("test")
 
       assert [
-               %{tmdb_id: 200, media_type: :tv_series, name: "Test Show", year: "2025"},
-               %{tmdb_id: 100, media_type: :movie, name: "Test Movie", year: "2026"},
-               %{tmdb_id: 201, media_type: :tv_series, name: "Test Show Two", year: "2021"}
+               %TitleResult{tmdb_id: 200, media_type: :tv_series, name: "Test Show", year: "2025"},
+               %TitleResult{tmdb_id: 100, media_type: :movie, name: "Test Movie", year: "2026"},
+               %TitleResult{tmdb_id: 201, media_type: :tv_series, name: "Test Show Two", year: "2021"}
              ] = results
 
       assert hd(results).poster_path == "/t.jpg"
@@ -821,7 +822,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
         }
       ])
 
-      assert [%{tmdb_id: 100, media_type: :movie}] = ReleaseTracking.search_tmdb("test")
+      assert [%TitleResult{tmdb_id: 100, media_type: :movie}] = ReleaseTracking.search_tmdb("test")
     end
 
     test "marks already tracked results" do
@@ -838,7 +839,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       ])
 
       results = ReleaseTracking.search_tmdb("test")
-      assert hd(results).already_tracked == true
+      assert hd(results).tracked? == true
     end
 
     test "returns empty list for no results" do

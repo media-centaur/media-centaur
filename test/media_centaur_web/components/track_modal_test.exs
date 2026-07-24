@@ -11,7 +11,6 @@ defmodule MediaCentaurWeb.Components.TrackModalTest do
   alias MediaCentaurWeb.Components.TrackModal.{
     CollectionItem,
     ScopeItem,
-    SearchResult,
     Suggestion
   }
 
@@ -53,46 +52,9 @@ defmodule MediaCentaurWeb.Components.TrackModalTest do
     end
   end
 
-  describe "SearchResult struct" do
-    test "constructs with all enforced keys" do
-      result =
-        struct!(SearchResult, %{
-          tmdb_id: 1234,
-          media_type: :movie,
-          name: "Sample Movie",
-          year: "2010",
-          poster_path: "/abc.jpg",
-          already_tracked: false
-        })
-
-      assert %SearchResult{} = result
-      assert result.already_tracked == false
-    end
-
-    test "raises ArgumentError when already_tracked missing" do
-      assert_raise ArgumentError, fn ->
-        struct!(SearchResult, %{
-          tmdb_id: 1234,
-          media_type: :movie,
-          name: "Sample Movie",
-          year: "2010",
-          poster_path: nil
-        })
-      end
-    end
-
-    test "raises ArgumentError when media_type missing" do
-      assert_raise ArgumentError, fn ->
-        struct!(SearchResult, %{
-          tmdb_id: 1234,
-          name: "Sample Movie",
-          year: "2010",
-          poster_path: nil,
-          already_tracked: false
-        })
-      end
-    end
-  end
+  # The TMDB search-result row contract moved to the context —
+  # `MediaCentaur.ReleaseTracking.TitleResult`, locked in
+  # `test/media_centaur/release_tracking/title_result_test.exs`.
 
   describe "ScopeItem struct" do
     test "constructs with all enforced keys" do

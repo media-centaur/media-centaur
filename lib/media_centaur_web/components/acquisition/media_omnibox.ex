@@ -25,26 +25,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
   alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaurWeb.IncomingLive.Logic
 
-  defmodule Result do
-    @moduledoc "One TMDB result row of the media-mode dropdown."
-
-    @enforce_keys [:tmdb_id, :media_type, :name]
-    defstruct [:tmdb_id, :media_type, :name, :year, :poster_path, tracked?: false, in_library?: false]
-
-    @type t :: %__MODULE__{
-            tmdb_id: integer() | String.t(),
-            media_type: :movie | :tv_series,
-            name: String.t(),
-            year: String.t() | nil,
-            poster_path: String.t() | nil,
-            tracked?: boolean(),
-            in_library?: boolean()
-          }
-  end
-
   attr :mode, :atom, required: true, values: [:media, :release]
   attr :query, :string, default: "", doc: "Media-mode query (release mode reads the session)."
-  attr :results, :list, default: [], doc: "Media-mode `Result.t()` rows."
+
+  attr :results, :list,
+    default: [],
+    doc: "Media-mode `MediaCentaur.ReleaseTracking.TitleResult.t()` rows."
+
   attr :searching?, :boolean, default: false
 
   attr :session, SearchSession,
@@ -276,7 +263,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
     """
   end
 
-  attr :results, :list, required: true, doc: "`Result.t()` rows — typed at the public attr above."
+  attr :results, :list, required: true, doc: "`TitleResult.t()` rows — typed at the public attr above."
   attr :searching?, :boolean, required: true
 
   defp media_dropdown(assigns) do
