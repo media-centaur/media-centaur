@@ -142,6 +142,50 @@ defmodule MediaCentaur.TMDB.MapperTest do
       assert result.status == nil
     end
 
+    test "date_published prefers the earliest US typed release over a later theatrical release_date" do
+      # "It Ends" (TMDB 1422011): the top-level release_date is the US wide
+      # theatrical date (2026), but the film was digitally available in 2025.
+      # Every indexer release is tagged 2025, so the canonical year must be
+      # the earliest acquirable typed date, not the primary release_date.
+      data = %{
+        "title" => "Sample Movie",
+        "release_date" => "2026-08-21",
+        "release_dates" => %{
+          "results" => [
+            %{
+              "iso_3166_1" => "US",
+              "release_dates" => [
+                # Festival premieres (type 1) are ignored — not acquirable.
+                %{"type" => 1, "release_date" => "2025-03-07T00:00:00.000Z"},
+                %{"type" => 3, "release_date" => "2026-08-21T00:00:00.000Z"},
+                %{"type" => 4, "release_date" => "2025-12-10T00:00:00.000Z"}
+              ]
+            }
+          ]
+        }
+      }
+
+      result = Mapper.movie_attrs("1422011", data, nil)
+
+      assert result.date_published == ~D[2025-12-10]
+    end
+
+    test "date_published falls back to release_date when no US typed dates exist" do
+      data = %{
+        "title" => "Sample Movie",
+        "release_date" => "2010-05-01",
+        "release_dates" => %{
+          "results" => [
+            %{"iso_3166_1" => "US", "release_dates" => [%{"certification" => "PG-13"}]}
+          ]
+        }
+      }
+
+      result = Mapper.movie_attrs("1", data, nil)
+
+      assert result.date_published == ~D[2010-05-01]
+    end
+
     test "maps movie status" do
       data = %{"title" => "Upcoming", "status" => "In Production"}
       result = Mapper.movie_attrs("1", data, nil)

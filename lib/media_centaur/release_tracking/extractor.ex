@@ -3,6 +3,8 @@ defmodule MediaCentaur.ReleaseTracking.Extractor do
   Pure functions that extract release tracking data from raw TMDB JSON responses.
   """
 
+  alias MediaCentaur.TMDB.Mapper
+
   @tv_status_map %{
     "Returning Series" => :returning,
     "Ended" => :ended,
@@ -43,7 +45,7 @@ defmodule MediaCentaur.ReleaseTracking.Extractor do
   def extract_movie_release_dates(response) do
     title = response["title"]
 
-    case extract_us_typed_dates(response) do
+    case Mapper.us_typed_release_dates(response) do
       [] ->
         [
           %{
@@ -53,42 +55,11 @@ defmodule MediaCentaur.ReleaseTracking.Extractor do
           }
         ]
 
-      dates ->
-        Enum.map(dates, &Map.put(&1, :title, title))
-    end
-  end
-
-  @tracked_release_types %{3 => "theatrical", 4 => "digital", 5 => "physical"}
-
-  defp extract_us_typed_dates(%{"release_dates" => %{"results" => results}}) when is_list(results) do
-    us_entry = Enum.find(results, &(&1["iso_3166_1"] == "US"))
-
-    case us_entry do
-      %{"release_dates" => dates} when is_list(dates) ->
-        dates
-        |> Enum.filter(&Map.has_key?(@tracked_release_types, &1["type"]))
-        |> Enum.map(fn date ->
-          %{
-            air_date: parse_datetime_date(date["release_date"]),
-            release_type: Map.fetch!(@tracked_release_types, date["type"])
-          }
+      typed ->
+        Enum.map(typed, fn %{release_type: release_type, date: date} ->
+          %{air_date: date, release_type: release_type, title: title}
         end)
-
-      _ ->
-        []
     end
-  end
-
-  defp extract_us_typed_dates(_), do: []
-
-  defp parse_datetime_date(nil), do: nil
-  defp parse_datetime_date(""), do: nil
-
-  defp parse_datetime_date(datetime_string) do
-    # TMDB returns "2026-05-10T00:00:00.000Z" — extract the date portion
-    datetime_string
-    |> String.slice(0, 10)
-    |> parse_date()
   end
 
   def extract_collection_releases(collection) do

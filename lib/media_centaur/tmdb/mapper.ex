@@ -21,7 +21,7 @@ defmodule MediaCentaur.TMDB.Mapper do
       imdb_id: presence(movie["imdb_id"]),
       name: movie["title"],
       description: movie["overview"],
-      date_published: parse_date(movie["release_date"]),
+      date_published: canonical_release_date(movie),
       genres: extract_genre_names(movie["genres"]),
       url: tmdb_url(:movie, tmdb_id),
       duration_seconds: minutes_to_seconds(movie["runtime"]),
@@ -314,6 +314,58 @@ defmodule MediaCentaur.TMDB.Mapper do
     end)
   end
 
+  @movie_release_type_labels %{3 => "theatrical", 4 => "digital", 5 => "physical"}
+
+  @doc """
+  Extracts the US theatrical (type 3), digital (type 4), and physical
+  (type 5) release dates from a TMDB movie payload's appended
+  `release_dates`, each as `%{release_type: label, date: Date.t()}`.
+
+  Festival/premiere (type 1) and limited (type 2) entries are excluded:
+  they precede general availability and are not the year indexers tag a
+  release with. Entries whose date is missing or malformed are dropped.
+  Returns `[]` when the payload carries no US typed dates.
+  """
+  @spec us_typed_release_dates(map()) :: [%{release_type: String.t(), date: Date.t()}]
+  def us_typed_release_dates(%{"release_dates" => %{"results" => results}}) when is_list(results) do
+    case Enum.find(results, &(&1["iso_3166_1"] == "US")) do
+      %{"release_dates" => dates} when is_list(dates) ->
+        for entry <- dates,
+            label = Map.get(@movie_release_type_labels, entry["type"]),
+            not is_nil(label),
+            date = parse_tmdb_date(entry["release_date"]),
+            not is_nil(date) do
+          %{release_type: label, date: date}
+        end
+
+      _ ->
+        []
+    end
+  end
+
+  def us_typed_release_dates(_), do: []
+
+  @doc """
+  Derives a movie's canonical release date — the date the film first
+  became generally available, which is the year indexers tag its
+  releases with.
+
+  TMDB's top-level `release_date` is its *primary* release date, which
+  for a film with a festival/limited run before a later wide theatrical
+  release is the *later* date (e.g. "It Ends": digital 2025-12-10 but US
+  theatrical 2026-08-21, so `release_date` reads 2026). Preferring the
+  earliest US typed (theatrical/digital/physical) release keeps the
+  stored year aligned with scene tags; falls back to the primary
+  `release_date` when the payload carries no US typed dates.
+  """
+  @spec canonical_release_date(map()) :: Date.t() | nil
+  def canonical_release_date(movie) do
+    case us_typed_release_dates(movie) do
+      [] -> parse_date(movie["release_date"])
+      typed -> typed |> Enum.map(& &1.date) |> Enum.min(Date)
+    end
+  end
+
   @doc """
   Converts a TMDB `runtime` value (minutes) into integer seconds. TMDB
   returns `nil` (or omits the key) for unreleased / in-production titles
@@ -357,4 +409,22 @@ defmodule MediaCentaur.TMDB.Mapper do
   def parse_date(nil), do: nil
   def parse_date(""), do: nil
   def parse_date(iso) when is_binary(iso), do: Date.from_iso8601!(iso)
+
+  # Per-country release dates in TMDB's `release_dates` block are full
+  # datetimes ("2025-12-10T00:00:00.000Z"), not the bare date the
+  # top-level `release_date` carries. Take the date portion and parse
+  # leniently — a background library/tracking refresh must not crash on
+  # one malformed entry.
+  defp parse_tmdb_date(nil), do: nil
+  defp parse_tmdb_date(""), do: nil
+
+  defp parse_tmdb_date(value) when is_binary(value) do
+    value
+    |> String.slice(0, 10)
+    |> Date.from_iso8601()
+    |> case do
+      {:ok, date} -> date
+      _ -> nil
+    end
+  end
 end
