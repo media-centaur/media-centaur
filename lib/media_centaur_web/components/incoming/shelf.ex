@@ -183,41 +183,46 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
   attr :tmdb_ready, :boolean, required: true
 
   defp horizon_terminus(assigns) do
+    # The terminus offers at most one action. Overflow wins ("Show all N"
+    # grows the shelf in place); otherwise, with TMDB configured, the
+    # track affordance. With neither, there's nothing to afford and the
+    # ghost doesn't render — an affordance-shaped element must afford
+    # something.
+    action =
+      cond do
+        assigns.overflow_count > 0 ->
+          %{event: "expand_shelf", label: "Show all #{assigns.total_count}"}
+
+        assigns.tmdb_ready ->
+          %{event: "open_track_modal", label: "Track something"}
+
+        true ->
+          nil
+      end
+
+    assigns = assign(assigns, :action, action)
+
     ~H"""
     <%!-- Same footprint as a real card (max-w-48 flex-1) so the ghost
-          reads as the shelf's next slot, not a different object. Copy is
-          the action alone — icon + two words — and with no action to offer
-          (no overflow, TMDB unconfigured) the ghost doesn't render at all:
-          an affordance-shaped element must afford something. --%>
+          reads as the shelf's next slot, not a different object. The whole
+          dashed card is the click target — icon and label are one button,
+          not a decorative icon beside a text link. --%>
     <article
-      :if={@overflow_count > 0 || @tmdb_ready}
+      :if={@action}
       aria-label="End of forecast"
       class="min-w-0 max-w-48 flex-1"
       data-component="shelf-horizon"
     >
-      <div class="flex aspect-[2/3] flex-col items-center justify-center gap-2.5 rounded-xl border-[1.5px] border-dashed border-base-content/15 px-3 text-center text-xs text-base-content/35">
-        <.icon name="hero-plus-circle" class="size-6 text-base-content/20" />
-        <button
-          :if={@overflow_count > 0}
-          type="button"
-          class="cursor-pointer text-primary/85 transition-colors hover:text-primary"
-          phx-click="expand_shelf"
-          data-nav-item
-          tabindex="0"
-        >
-          Show all {@total_count}
-        </button>
-        <button
-          :if={@overflow_count == 0 && @tmdb_ready}
-          type="button"
-          class="cursor-pointer text-primary/85 transition-colors hover:text-primary"
-          phx-click="open_track_modal"
-          data-nav-item
-          tabindex="0"
-        >
-          Track something
-        </button>
-      </div>
+      <button
+        type="button"
+        class="flex aspect-[2/3] w-full cursor-pointer flex-col items-center justify-center gap-2.5 rounded-xl border-[1.5px] border-dashed border-base-content/15 px-3 text-center text-xs text-primary/85 transition-colors hover:border-primary/40 hover:text-primary"
+        phx-click={@action.event}
+        data-nav-item
+        tabindex="0"
+      >
+        <.icon name="hero-plus-circle" class="size-6 text-base-content/25" />
+        {@action.label}
+      </button>
     </article>
     """
   end
