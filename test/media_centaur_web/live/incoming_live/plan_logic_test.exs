@@ -205,6 +205,33 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
              preview.cast
   end
 
+  test "movie_preview carries the canonical release year for the download query" do
+    # Later theatrical release_date, earlier digital typed date — the plan
+    # query must use the year indexers actually tag (the digital 2025), not
+    # the primary theatrical 2026.
+    tmdb_movie = %{
+      "id" => 1_422_011,
+      "title" => "Sample Movie",
+      "release_date" => "2026-08-21",
+      "release_dates" => %{
+        "results" => [
+          %{
+            "iso_3166_1" => "US",
+            "release_dates" => [
+              %{"type" => 3, "release_date" => "2026-08-21T00:00:00.000Z"},
+              %{"type" => 4, "release_date" => "2025-12-10T00:00:00.000Z"}
+            ]
+          }
+        ]
+      }
+    }
+
+    preview = PlanLogic.movie_preview(tmdb_movie, false)
+
+    assert preview.year == 2025
+    assert "2025" in preview.metadata_items
+  end
+
   test "movie_preview tolerates a sparse TMDB payload" do
     tmdb_movie = %{"id" => 550, "title" => "Sample Movie", "overview" => ""}
 
@@ -213,6 +240,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
     assert %MoviePreview{} = preview
     assert preview.tmdb_id == "550"
     assert preview.title == "Sample Movie"
+    assert preview.year == nil
     assert preview.overview == nil
     assert preview.tagline == nil
     assert preview.in_library? == true

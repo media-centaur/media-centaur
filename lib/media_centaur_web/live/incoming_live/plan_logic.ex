@@ -205,6 +205,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
     %MoviePreview{
       tmdb_id: to_string(tmdb_id),
       title: attrs.name,
+      year: attrs.date_published && attrs.date_published.year,
       tagline: attrs.tagline,
       overview: presence(attrs.description),
       backdrop_url: images["backdrop"],
