@@ -210,11 +210,24 @@ defmodule MediaCentaur.Downloads.QueueItemTest do
       assert QueueItem.from_sabnzbd_queue(base_sab_slot(%{})).content_path == nil
     end
 
-    test "maps active statuses to :downloading" do
-      for status <- ~w(Downloading Grabbing Fetching) do
-        item = QueueItem.from_sabnzbd_queue(base_sab_slot(%{"status" => status}))
-        assert item.state == :downloading, "expected #{status} → :downloading"
-      end
+    test "Downloading maps to :downloading" do
+      item = QueueItem.from_sabnzbd_queue(base_sab_slot(%{"status" => "Downloading"}))
+      assert item.state == :downloading
+    end
+
+    # "Grabbing" is SABnzbd fetching the .nzb from the indexer — the content
+    # download has NOT started. Collapsing it into :downloading made the card
+    # claim "Downloading" (with a meaningless %) before a byte of media moved.
+    test "Grabbing (fetching the NZB, pre-download) maps to :fetching_nzb, not :downloading" do
+      item = QueueItem.from_sabnzbd_queue(base_sab_slot(%{"status" => "Grabbing"}))
+      assert item.state == :fetching_nzb
+    end
+
+    # "Fetching" is SABnzbd pulling extra par2 blocks to repair a damaged
+    # download — a repair-phase activity, not content download.
+    test "Fetching (extra repair blocks) maps to :repairing, not :downloading" do
+      item = QueueItem.from_sabnzbd_queue(base_sab_slot(%{"status" => "Fetching"}))
+      assert item.state == :repairing
     end
 
     test "maps waiting statuses to :queued" do

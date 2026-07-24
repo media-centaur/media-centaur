@@ -62,6 +62,7 @@ defmodule MediaCentaur.Downloads.QueueItem do
 
   @type state ::
           :downloading
+          | :fetching_nzb
           | :queued
           | :stalled
           | :paused
@@ -179,8 +180,18 @@ defmodule MediaCentaur.Downloads.QueueItem do
     }
   end
 
-  defp state_from_sabnzbd_queue(status) when status in ~w(Downloading Grabbing Fetching),
-    do: :downloading
+  defp state_from_sabnzbd_queue("Downloading"), do: :downloading
+
+  # "Grabbing" is SABnzbd fetching the .nzb from the indexer — the content
+  # download has not started, so it must NOT read as :downloading. Its own
+  # state lets the UI say "Fetching NZB…" instead of claiming a download
+  # (with a meaningless percentage) before a byte of media has moved.
+  defp state_from_sabnzbd_queue("Grabbing"), do: :fetching_nzb
+
+  # "Fetching" is SABnzbd pulling extra par2 blocks to repair a damaged
+  # download — a repair-phase activity, mapped alongside the history-side
+  # :repairing phase rather than looking like fresh content download.
+  defp state_from_sabnzbd_queue("Fetching"), do: :repairing
 
   defp state_from_sabnzbd_queue(status) when status in ~w(Queued Propagating), do: :queued
   defp state_from_sabnzbd_queue("Paused"), do: :paused

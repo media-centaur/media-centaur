@@ -77,6 +77,21 @@ defmodule MediaCentaur.Acquisition.QueueMatcherTest do
       download = QueueMatcher.to_download(item("h", "Sample", %{progress: 23.3}))
       assert download.progress_pct == 23.3
     end
+
+    # During the NZB-grab phase there is no content progress or meaningful
+    # ETA yet — SABnzbd's percentage/timeleft describe the tiny .nzb fetch,
+    # not the media. Suppress them so the card reads "Fetching NZB…" cleanly
+    # instead of showing a misleading bar that appears to "start at 19%".
+    test "suppresses progress and eta for :fetching_nzb" do
+      download =
+        QueueMatcher.to_download(
+          item("g", "Sample", %{state: :fetching_nzb, progress: 0.0, timeleft: "0:00:05"})
+        )
+
+      assert download.state == :fetching_nzb
+      assert download.progress_pct == nil
+      assert download.eta == nil
+    end
   end
 
   describe "match/2" do

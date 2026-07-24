@@ -218,6 +218,25 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
             }
           },
           %Variation{
+            id: :matched_fetching_nzb,
+            description:
+              "SABnzbd is still grabbing the .nzb from the indexer — content download hasn't started, so no progress bar or ETA is shown (they'd describe the tiny .nzb fetch, not the media).",
+            attributes: %{
+              vm:
+                row(:active, "Sample Movie",
+                  release_title: "Sample.Movie.2010.2160p.WEB-DL",
+                  status: any_action()
+                ),
+              download: %DownloadProgress{
+                state: :fetching_nzb,
+                progress_pct: nil,
+                eta: nil,
+                client: "SABnzbd"
+              },
+              queue_item_id: "nzo-fetching"
+            }
+          },
+          %Variation{
             id: :matched_stalled,
             attributes: %{
               vm:
