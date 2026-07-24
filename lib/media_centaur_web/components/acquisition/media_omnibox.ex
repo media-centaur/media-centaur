@@ -20,9 +20,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [icon: 1]
+  import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
   import MediaCentaurWeb.Components.Acquisition.TitleResultSummary, only: [title_result_summary: 1]
 
+  alias MediaCentaur.ReleaseTracking.TitleResult
   alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaurWeb.IncomingLive.Logic
 
@@ -34,6 +35,15 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
     doc: "Media-mode `MediaCentaur.ReleaseTracking.TitleResult.t()` rows."
 
   attr :searching?, :boolean, default: false
+
+  attr :preview_id, :any,
+    default: nil,
+    doc:
+      "`{media_type, tmdb_id}` of the spotlighted result, or nil for the top hit. See `previewed_result/2`."
+
+  attr :results_open, :boolean,
+    default: true,
+    doc: "Whether the results overlay is shown (click-away dismisses it; typing reopens)."
 
   attr :session, SearchSession,
     default: nil,
@@ -82,9 +92,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
       />
 
       <.media_dropdown
-        :if={@mode == :media && dropdown?(@query)}
+        :if={@mode == :media}
+        open={dropdown?(@query) && @results_open}
         results={@results}
         searching?={@searching?}
+        preview_id={@preview_id}
+        release_mode_available={@release_mode_available}
       />
 
       <.hero_mode_hint
@@ -264,41 +277,171 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
     """
   end
 
+  attr :open, :boolean, required: true
   attr :results, :list, required: true, doc: "`TitleResult.t()` rows — typed at the public attr above."
   attr :searching?, :boolean, required: true
 
+  attr :preview_id, :any,
+    required: true,
+    doc: "`{media_type, tmdb_id}` or nil — documented at the public attr above."
+
+  attr :release_mode_available, :boolean, required: true
+
+  # The results overlay: a wide floating spotlight panel (media-center
+  # scale) that never reflows the page. Always in the DOM while media
+  # mode is active — the glass surface carries a backdrop blur, and
+  # first-frame blur compositing on conditional render is the exact
+  # flash the always-in-DOM modal rule exists to prevent. Visibility is
+  # data-state + opacity, like the modal system.
   defp media_dropdown(assigns) do
+    assigns = assign(assigns, :preview, previewed_result(assigns.results, assigns.preview_id))
+
     ~H"""
-    <div class="glass-inset rounded-lg max-h-[60vh] overflow-y-auto">
-      <div :if={@searching?} class="flex items-center gap-2 px-4 py-3 text-sm text-base-content/40">
-        <span class="loading loading-spinner loading-xs"></span> Searching TMDB…
-      </div>
-
-      <button
-        :for={result <- @results}
-        id={"omnibox-result-#{result.media_type}-#{result.tmdb_id}"}
-        type="button"
-        class="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-base-content/[0.05] transition-colors"
-        phx-click="omnibox_pick"
-        phx-value-tmdb-id={result.tmdb_id}
-        phx-value-media-type={result.media_type}
-        data-nav-item
-        tabindex="0"
-      >
-        <.title_result_summary result={result} />
-        <span :if={result.tracked?} class="flex-shrink-0 text-xs text-base-content/40">
-          Tracked
-        </span>
-      </button>
-
+    <div class="relative h-0">
       <div
-        :if={!@searching? && @results == []}
-        class="px-4 py-3 text-sm text-base-content/40 text-center"
+        id="omnibox-media-results"
+        data-state={if @open, do: "open", else: "closed"}
+        phx-click-away={@open && "omnibox_dismiss"}
+        class={[
+          "absolute left-1/2 -translate-x-1/2 top-2 z-40 w-[min(88vw,80rem)]",
+          "glass-surface rounded-xl shadow-2xl shadow-black/40 overflow-hidden",
+          "transition-opacity duration-150",
+          "data-[state=closed]:opacity-0 data-[state=closed]:pointer-events-none"
+        ]}
       >
-        Nothing found on TMDB.
+        <div :if={@searching?} class="flex items-center gap-2 px-5 py-3 text-sm text-base-content/40">
+          <span class="loading loading-spinner loading-xs"></span> Searching TMDB…
+        </div>
+
+        <div
+          :if={!@searching? && @results == []}
+          class="px-5 py-4 text-sm text-base-content/40 text-center"
+        >
+          Nothing found on TMDB.
+        </div>
+
+        <div :if={@results != []} class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+          <div class="relative border-r border-base-content/10 p-6">
+            <.spotlight_pane
+              :for={{result, index} <- Enum.with_index(@results)}
+              result={result}
+              active={result == @preview}
+              index={index}
+              total={length(@results)}
+              release_mode_available={@release_mode_available}
+            />
+          </div>
+
+          <div class="max-h-[60vh] overflow-y-auto thin-scrollbar py-2">
+            <button
+              :for={result <- @results}
+              id={"omnibox-result-#{result.media_type}-#{result.tmdb_id}"}
+              type="button"
+              class={[
+                "w-full flex items-center gap-3 px-4 py-2 text-left transition-colors",
+                if(result == @preview,
+                  do: "bg-primary/10",
+                  else: "hover:bg-base-content/[0.05]"
+                )
+              ]}
+              phx-click="omnibox_pick"
+              phx-hook="HoverPreview"
+              phx-focus="omnibox_preview"
+              phx-value-tmdb-id={result.tmdb_id}
+              phx-value-media-type={result.media_type}
+              data-nav-item
+              tabindex="0"
+            >
+              <.title_result_summary result={result} />
+              <span :if={result.tracked?} class="flex-shrink-0 text-xs text-success/70">
+                Tracked
+              </span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
     """
+  end
+
+  attr :result, TitleResult, required: true
+  attr :active, :boolean, required: true
+  attr :index, :integer, required: true, doc: "0-based relevance position — drives the micro-label."
+  attr :total, :integer, required: true
+  attr :release_mode_available, :boolean, required: true
+
+  # One spotlight pane per result, all rendered up-front so every w342
+  # poster is fetched and decoded before its row is ever hovered —
+  # preview swaps are then a pure visibility toggle, never a network
+  # wait. Only the active pane is visible.
+  defp spotlight_pane(assigns) do
+    ~H"""
+    <div
+      id={"omnibox-spotlight-#{@result.media_type}-#{@result.tmdb_id}"}
+      data-active={@active || nil}
+      hidden={!@active}
+      class="flex gap-5"
+    >
+      <span class="flex-shrink-0 w-[140px] aspect-[2/3] rounded-lg bg-base-content/10 ring-1 ring-base-content/10 overflow-hidden flex items-center justify-center">
+        <img
+          :if={@result.poster_path}
+          src={"https://image.tmdb.org/t/p/w342#{@result.poster_path}"}
+          alt=""
+          class="w-full h-full object-cover"
+          loading="eager"
+          decoding="sync"
+        />
+        <.icon
+          :if={!@result.poster_path}
+          name={if @result.media_type == :movie, do: "hero-film-mini", else: "hero-tv-mini"}
+          class="size-8 text-base-content/25"
+        />
+      </span>
+
+      <div class="flex-1 min-w-0 flex flex-col gap-2">
+        <span class="text-[11px] font-medium uppercase tracking-wider text-base-content/40">
+          {if @index == 0, do: "Top result", else: "Result #{@index + 1} of #{@total}"}
+        </span>
+        <h3 class="text-xl font-semibold leading-snug line-clamp-2">{@result.name}</h3>
+        <span class="flex items-center gap-2 text-sm text-base-content/50">
+          <span>{if @result.media_type == :movie, do: "Movie", else: "TV Series"}</span>
+          <span :if={@result.year}>· {@result.year}</span>
+          <span :if={@result.tracked?} class="text-success/70">· Tracked</span>
+        </span>
+        <p :if={@result.overview} class="text-sm leading-relaxed text-base-content/60 line-clamp-4">
+          {@result.overview}
+        </p>
+        <div class="mt-auto pt-3">
+          <.button
+            variant="secondary"
+            size="sm"
+            phx-click="omnibox_pick"
+            phx-value-tmdb-id={@result.tmdb_id}
+            phx-value-media-type={@result.media_type}
+            data-nav-item
+            tabindex="0"
+          >
+            {if @release_mode_available, do: "Plan download", else: "Track"}
+          </.button>
+        </div>
+      </div>
+    </div>
+    """
+  end
+
+  @doc """
+  Resolves which result fills the spotlight: the one matching
+  `{media_type, tmdb_id}` when present, else the top hit (TMDB's #1
+  relevance match). A stale preview id — results changed under the
+  cursor — falls back to the top hit rather than an empty pane.
+  """
+  @spec previewed_result([TitleResult.t()], {atom(), integer()} | nil) :: TitleResult.t() | nil
+  def previewed_result([], _preview_id), do: nil
+
+  def previewed_result([top_hit | _rest] = results, preview_id) do
+    Enum.find(results, top_hit, fn result ->
+      {result.media_type, result.tmdb_id} == preview_id
+    end)
   end
 
   @doc """

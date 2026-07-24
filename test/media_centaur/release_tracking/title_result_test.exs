@@ -21,10 +21,11 @@ defmodule MediaCentaur.ReleaseTracking.TitleResultTest do
       assert %TitleResult{} = result
       assert result.year == nil
       assert result.poster_path == nil
+      assert result.overview == nil
       assert result.tracked? == false
     end
 
-    test "carries year, poster_path, and tracked? when given" do
+    test "carries year, poster_path, overview, and tracked? when given" do
       result =
         struct!(TitleResult, %{
           tmdb_id: 1234,
@@ -32,11 +33,13 @@ defmodule MediaCentaur.ReleaseTracking.TitleResultTest do
           name: "Sample Show",
           year: "2010",
           poster_path: "/abc.jpg",
+          overview: "A sample overview.",
           tracked?: true
         })
 
       assert result.year == "2010"
       assert result.poster_path == "/abc.jpg"
+      assert result.overview == "A sample overview."
       assert result.tracked? == true
     end
 

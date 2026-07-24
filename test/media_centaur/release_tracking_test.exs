@@ -788,7 +788,8 @@ defmodule MediaCentaur.ReleaseTrackingTest do
           "media_type" => "movie",
           "title" => "Test Movie",
           "release_date" => "2026-07-01",
-          "poster_path" => "/m.jpg"
+          "poster_path" => "/m.jpg",
+          "overview" => "A test movie overview."
         },
         %{
           "id" => 201,
@@ -808,6 +809,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
              ] = results
 
       assert hd(results).poster_path == "/t.jpg"
+      assert Enum.at(results, 1).overview == "A test movie overview."
     end
 
     test "drops person results from the multi search" do

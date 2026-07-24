@@ -158,7 +158,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       html =
         view
-        |> element("[phx-click='omnibox_pick'][phx-value-tmdb-id='424242']")
+        |> element("#omnibox-result-movie-424242")
         |> render_click()
 
       # The pick's synchronous half marks the dropdown row as tracked and
@@ -944,6 +944,85 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       # No poster on the TV result — icon placeholder, never a broken image.
       refute has_element?(view, "#omnibox-result-tv_series-246810 img")
+    end
+
+    test "the spotlight previews the top hit by default and swaps on row focus", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 246_810,
+          "media_type" => "tv",
+          "name" => "Sample Show",
+          "first_air_date" => "2010-06-16",
+          "overview" => "A sample show overview."
+        },
+        %{
+          "id" => 777,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05",
+          "overview" => "A sample movie overview."
+        }
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+
+      # TMDB's top relevance hit fills the spotlight without any interaction.
+      assert has_element?(view, "#omnibox-spotlight-tv_series-246810[data-active]")
+      refute has_element?(view, "#omnibox-spotlight-movie-777[data-active]")
+      assert render(view) =~ "A sample show overview."
+
+      # Focusing another row (mouse hover and d-pad focus share the event)
+      # swaps that result into the spotlight.
+      view
+      |> element("#omnibox-result-movie-777")
+      |> render_focus()
+
+      assert has_element?(view, "#omnibox-spotlight-movie-777[data-active]")
+      refute has_element?(view, "#omnibox-spotlight-tv_series-246810[data-active]")
+    end
+
+    test "clicking away dismisses the results overlay until typing resumes", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 777,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05"
+        }
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+      assert has_element?(view, "#omnibox-media-results[data-state='open']")
+
+      # phx-click-away fires this event; the overlay closes (data-state —
+      # the blur surface stays in the DOM per the always-in-DOM modal
+      # rule), the query stays.
+      render_click(view, "omnibox_dismiss", %{})
+      assert has_element?(view, "#omnibox-media-results[data-state='closed']")
+
+      # Typing again reopens the overlay with fresh results.
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample movie"})
+      |> render_change()
+
+      render_async(view, 2_000)
+      assert has_element?(view, "#omnibox-media-results[data-state='open']")
     end
 
     test "the dropdown shows the full first TMDB page, not just eight", %{conn: conn} do

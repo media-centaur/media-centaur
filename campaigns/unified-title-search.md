@@ -64,6 +64,21 @@ derivation, commit `6b3aaf27`) is already in.
 * `2026-07-25` — Dropped the dead `in_library?` field from the omnibox
   result struct — it was never set and never read. Phase 2 reintroduces
   it when the smart action actually computes it.
+* `2026-07-25` — **Omnibox results redesigned as a spotlight overlay**
+  (owner-picked direction, mockups compared in-browser): a wide floating
+  panel (`min(88vw, 80rem)`, always-in-DOM data-state toggle per the
+  blur rule, click-away dismiss) that never reflows the page. Left pane
+  spotlights the previewed result — w342 poster, overview (new
+  `TitleResult.overview` field), type/year/tracked meta, one primary
+  action ("Plan download" / "Track" per capability, same `omnibox_pick`
+  semantics) — defaulting to the top hit; hovering (JS `HoverPreview`
+  hook — LiveView has no `phx-mouseover` binding) or focusing
+  (`phx-focus`) any list row swaps it in. All panes render up-front so
+  posters preload and swaps are instant. Non-top previews are labeled
+  "Result N of M". The rejected alternative (poster-shelf direction)
+  optimizes recognition of the head, not retrieval of the tail. The
+  spotlight action area is the natural home for the Phase 2 smart
+  action. Wiki sync deferred to Phase 2 (this surface changes again).
 * `2026-07-25` — The shared rendering unit is the **identity summary**
   (poster thumb + title + type badge + year), extracted as
   `title_result_summary/1`. The row containers stay per-surface: their
