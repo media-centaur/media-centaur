@@ -203,7 +203,7 @@ html.psb .psb-variation-block .media-centaur {
      for the (scaled) hero above plus a bottom margin. Floor keeps small
      windows usable. */
   max-height: max(24rem, calc(100vh / var(--ui-scale, 1) - 21rem));
-  background: oklch(from var(--color-base-100) calc(l + 0.03) c h / 0.88);
+  background: oklch(from var(--color-base-100) calc(l + 0.03) c h / 0.82);
   @apply backdrop-blur-[24px];
   border: 1px solid var(--glass-border);
   box-shadow: 0 12px 48px oklch(0% 0 0 / 0.5);
