@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.105.0 — 2026-07-25
+
+### New
+
+- **A redesigned title search on the Incoming page.** Search results now open in a wide panel that floats over the page instead of pushing everything down. The best match is previewed in a spotlight — large poster, year, and a short description — and pointing at (or navigating to) any other result previews it the same way, labeled "Result 4 of 20", so you can be sure you've found the right title before you commit. The panel keeps itself on screen: results scroll inside it, the page behind stays put, and clicking anywhere else dismisses it.
+
+### Improved
+
+- **Quieter search result rows.** Results list their type as plain text ("Movie · 2003") instead of a colored badge on every row, so the list is easier to scan.
+- **The Incoming page is centered on wide screens** instead of hugging the left edge next to the sidebar.
+
+### Fixed
+
+- **Movie years now come from the film's earliest release.** A re-release or festival date no longer shifts which year a movie shows during search and matching.
+- **The "Track something" card on the Incoming shelf accepts clicks on its whole surface**, not just part of it.
+
 ## v0.104.1 — 2026-07-24
 
 ### New
