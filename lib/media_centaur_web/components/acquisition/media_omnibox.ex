@@ -320,8 +320,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           Nothing found on TMDB.
         </div>
 
-        <div :if={@results != []} class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-          <div class="relative border-r border-base-content/10 p-6">
+        <div
+          :if={@results != []}
+          class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] grid-rows-[minmax(0,1fr)] min-h-0"
+        >
+          <div class="relative border-r border-base-content/10 p-6 overflow-y-auto thin-scrollbar">
             <.spotlight_pane
               :for={{result, index} <- Enum.with_index(@results)}
               result={result}
@@ -332,7 +335,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
             />
           </div>
 
-          <div class="max-h-[60vh] overflow-y-auto thin-scrollbar py-2">
+          <div class="overflow-y-auto overscroll-contain thin-scrollbar py-2">
             <button
               :for={result <- @results}
               id={"omnibox-result-#{result.media_type}-#{result.tmdb_id}"}

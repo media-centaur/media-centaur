@@ -191,12 +191,31 @@ html.psb .psb-variation-block .media-centaur {
    the content behind it. Width/height are part of the surface contract:
    media-center scale, list scrolls inside. */
 .search-overlay {
-  width: min(88vw, 80rem);
-  max-height: 72vh;
-  background: oklch(from var(--color-base-100) calc(l + 0.03) c h / 0.94);
+  display: flex;
+  flex-direction: column;
+  /* Viewport units are divided by `--ui-scale`: the root `zoom`
+     multiplies them, so a bare `88vw` / `100vh` renders scale× too
+     large (same idiom as `.modal-panel`). */
+  width: min(calc(88vw / var(--ui-scale, 1)), 80rem);
+  /* Sized to the space actually BELOW the anchor: the panel starts
+     ~19rem down (header + prompt + input), so a viewport-blind 72vh
+     hung past the bottom of the screen. `100vh/S − 21rem` leaves room
+     for the (scaled) hero above plus a bottom margin. Floor keeps small
+     windows usable. */
+  max-height: max(24rem, calc(100vh / var(--ui-scale, 1) - 21rem));
+  background: oklch(from var(--color-base-100) calc(l + 0.03) c h / 0.88);
   @apply backdrop-blur-[24px];
   border: 1px solid var(--glass-border);
   box-shadow: 0 12px 48px oklch(0% 0 0 / 0.5);
+}
+
+/* The open search overlay is a modal layer: freeze the page behind it.
+   Without this, the wheel scrolls the page whenever the pointer isn't
+   over the result list — and when the list's own scroll bottoms out,
+   chaining hands the remaining delta to the page (overscroll-contain on
+   the list guards that seam too). */
+body:has(#omnibox-media-results[data-state="open"]) {
+  overflow: hidden;
 }
 
 /* Subsystem health tile — SELECTED state. A dedicated rule, NOT Tailwind
