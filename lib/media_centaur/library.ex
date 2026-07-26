@@ -1730,16 +1730,18 @@ defmodule MediaCentaur.Library do
   def find_or_create_movie_for_series(attrs) do
     movie_series_id = lookup_attr(attrs, :movie_series_id)
     tmdb_id = lookup_attr(attrs, :tmdb_id)
+    imdb_id = lookup_attr(attrs, :imdb_id)
 
     case find_child_movie_by_tmdb_id(movie_series_id, tmdb_id) do
       %Movie{} = movie ->
         {:ok, movie}
 
       nil ->
-        attrs_without_id = Map.drop(attrs, [:tmdb_id, "tmdb_id"])
+        attrs_without_id = Map.drop(attrs, [:tmdb_id, "tmdb_id", :imdb_id, "imdb_id"])
 
         with {:ok, movie} <- create_movie(attrs_without_id),
-             {:ok, _} <- maybe_put_tmdb(movie, tmdb_id) do
+             {:ok, _} <- maybe_put_external_id(movie, :tmdb, tmdb_id),
+             {:ok, _} <- maybe_put_external_id(movie, :imdb, imdb_id) do
           {:ok, movie}
         end
     end
@@ -1761,10 +1763,10 @@ defmodule MediaCentaur.Library do
     )
   end
 
-  defp maybe_put_tmdb(_movie, nil), do: {:ok, :no_id}
+  defp maybe_put_external_id(_movie, _source, nil), do: {:ok, :no_id}
 
-  defp maybe_put_tmdb(movie, tmdb_id) when is_binary(tmdb_id) do
-    ExternalIds.put(:tmdb, movie, tmdb_id)
+  defp maybe_put_external_id(movie, source, external_id) when is_binary(external_id) do
+    ExternalIds.put(source, movie, external_id)
   end
 
   # ---------------------------------------------------------------------------
