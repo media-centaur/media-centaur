@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.105.1 — 2026-07-26
+
+### Fixed
+
+- **Movies that belong to a collection now import with their full details.** Cast and crew, genres, status, and tagline were silently dropped when a movie was imported as part of a collection (a trilogy, an anthology), leaving the More info view without a cast list. New imports capture everything.
+
+### Improved
+
+- **"Refresh movie credits" repairs affected titles.** The maintenance action in Settings now restores the missing details — cast, crew, genres, and more — for collection movies imported by earlier versions. If a movie's More info view looks sparse, run it once.
+
 ## v0.105.0 — 2026-07-25
 
 ### New
