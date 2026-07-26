@@ -190,11 +190,14 @@ defmodule MediaCentaur.Maintenance do
   end
 
   @doc """
-  Backfills the `cast`, `crew`, and `imdb_id` fields on movies imported
-  before those fields existed. Iterates movies with a non-nil `tmdb_id`,
-  re-fetches TMDB metadata for any with empty `cast` *or* empty `crew`,
-  and updates all three credit-related columns in place — no images,
-  watch progress, or files are touched.
+  Backfills `cast`, `crew`, `imdb_id`, and the scalar metadata columns
+  (genres, status, tagline, vote count, language, studio, country) on
+  movies whose import path didn't write them — movies imported before
+  the credit fields existed, and collection children created while
+  `fetch_movie_in_collection` hand-built a subset of the movie attrs.
+  Iterates movies with a non-nil `tmdb_id`, re-fetches TMDB metadata
+  for any with empty `cast` *or* empty `crew`, and updates those
+  columns in place — no images, watch progress, or files are touched.
 
   Idempotent: subsequent runs skip movies that already have non-empty
   cast and non-empty crew. Rate-limited automatically by
@@ -368,14 +371,28 @@ defmodule MediaCentaur.Maintenance do
     end
   end
 
+  # Beyond cast/crew, restores the scalar columns the pre-fix
+  # collection-child import path never wrote (its hand-built attrs map
+  # dropped everything `Mapper.movie_attrs/3` derives beyond the basics).
+  # Rows damaged that way are exactly the ones with empty credits, so the
+  # driver's skip clause targets them and leaves healthy rows untouched.
   defp build_movie_credits_attrs(body) do
-    {
-      %{
-        cast: Mapper.extract_cast(body["credits"]),
-        crew: Mapper.extract_crew(body["credits"])
-      },
-      body["imdb_id"]
-    }
+    attrs =
+      body["id"]
+      |> Mapper.movie_attrs(body, nil)
+      |> Map.take([
+        :cast,
+        :crew,
+        :genres,
+        :vote_count,
+        :tagline,
+        :original_language,
+        :studio,
+        :country_code,
+        :status
+      ])
+
+    {attrs, body["imdb_id"]}
   end
 
   defp build_series_credits_attrs(body) do

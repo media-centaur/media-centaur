@@ -158,6 +158,59 @@ defmodule MediaCentaur.MaintenanceTest do
              ] = reloaded.crew
     end
 
+    test "restores scalar metadata dropped by the old collection-child import path" do
+      movie =
+        seed_movie_with_tmdb!(
+          %{name: "Sample Movie Two", cast: [], crew: [], genres: []},
+          "321"
+        )
+
+      stub_get_movie(
+        "321",
+        movie_detail(%{
+          "id" => 321,
+          "title" => "Sample Movie Two",
+          "status" => "Released",
+          "vote_count" => 4321,
+          "tagline" => "A sample tagline.",
+          "original_language" => "en",
+          "production_companies" => [%{"name" => "Sample Studio"}],
+          "production_countries" => [%{"iso_3166_1" => "US"}],
+          "credits" => %{
+            "cast" => [
+              %{
+                "name" => "Sample Actor",
+                "character" => "Lead",
+                "id" => 7,
+                "profile_path" => nil,
+                "order" => 0
+              }
+            ],
+            "crew" => [
+              %{
+                "id" => 9,
+                "name" => "Sample Director",
+                "department" => "Directing",
+                "job" => "Director",
+                "profile_path" => nil
+              }
+            ]
+          }
+        })
+      )
+
+      assert {:ok, %{updated: 1, skipped: 0, failed: 0}} = Maintenance.refresh_movie_credits()
+
+      reloaded = Repo.get!(Movie, movie.id)
+      assert reloaded.genres == ["Drama"]
+      assert reloaded.status == :released
+      assert reloaded.vote_count == 4321
+      assert reloaded.tagline == "A sample tagline."
+      assert reloaded.original_language == "en"
+      assert reloaded.studio == "Sample Studio"
+      assert reloaded.country_code == "US"
+    end
+
     test "skips movies that already have non-empty cast and crew" do
       existing_cast = [
         %{

@@ -86,6 +86,46 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadataTest do
       assert child.attrs.position == 1
     end
 
+    test "child movie attrs carry the full standalone-movie metadata" do
+      stub_routes([
+        {"/movie/155",
+         movie_in_collection_detail(%{
+           "status" => "Released",
+           "vote_count" => 1234,
+           "tagline" => "A sample tagline.",
+           "credits" => %{
+             "cast" => [
+               %{
+                 "id" => 42,
+                 "name" => "Sample Actor",
+                 "character" => "Lead",
+                 "profile_path" => "/actor.jpg",
+                 "order" => 0
+               }
+             ],
+             "crew" => [
+               %{"department" => "Directing", "job" => "Director", "name" => "A. Director"}
+             ]
+           }
+         })},
+        {"/collection/263", collection_detail()}
+      ])
+
+      payload = payload_for(%{tmdb_id: 155, title: "Sample Movie Two", year: 2008})
+
+      assert {:ok, result} = FetchMetadata.run(payload)
+      attrs = result.metadata.child_movie.attrs
+
+      assert [%{"name" => "Sample Actor", "character" => "Lead"}] = attrs.cast
+      assert [%{"name" => "A. Director", "job" => "Director"}] = attrs.crew
+      assert attrs.genres == ["Drama"]
+      assert attrs.status == :released
+      assert attrs.vote_count == 1234
+      assert attrs.tagline == "A sample tagline."
+      assert attrs.director == "A. Director"
+      assert attrs.position == 1
+    end
+
     test "handles collection fetch failure gracefully" do
       stub_routes([
         {"/movie/155", movie_in_collection_detail()},

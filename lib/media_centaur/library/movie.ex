@@ -141,13 +141,26 @@ defmodule MediaCentaur.Library.Movie do
   because `Ecto.Changeset.change/2` cannot coerce maps into
   `embeds_many` entries.
 
+  Also casts the scalar metadata columns the pre-fix collection-child
+  import path never wrote (genres, status, tagline, vote count,
+  language, studio, country), so the refresh heals rows created before
+  that path used `Mapper.movie_attrs/3`.
+
   The IMDB id no longer lives on this schema; the credits-refresh
   call site writes it separately via `Library.ExternalIds.put(:imdb,
   movie, id)` after this changeset has been applied.
   """
   def update_credits_changeset(movie, attrs) do
     movie
-    |> change()
+    |> cast(attrs, [
+      :genres,
+      :vote_count,
+      :tagline,
+      :original_language,
+      :studio,
+      :country_code,
+      :status
+    ])
     |> Person.put_credits(attrs)
   end
 end

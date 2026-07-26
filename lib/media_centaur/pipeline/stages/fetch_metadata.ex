@@ -150,19 +150,13 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
     # Library Schema v2 Phase 2 Task I — file_path no longer rides on the
     # child movie attrs; it's added at the event level by
     # `Pipeline.Stages.Ingest`, then linked to the leaf's WatchedFile by
-    # `Library.Inbound.link_file/2`.
-    child_attrs = %{
-      tmdb_id: to_string(tmdb_id),
-      name: movie_data["title"],
-      description: movie_data["overview"],
-      date_published: Mapper.parse_date(movie_data["release_date"]),
-      url: Mapper.tmdb_url(:movie, tmdb_id),
-      duration_seconds: Mapper.minutes_to_seconds(movie_data["runtime"]),
-      director: Mapper.extract_director(movie_data["credits"]),
-      content_rating: Mapper.extract_us_rating(movie_data["release_dates"]),
-      aggregate_rating_value: movie_data["vote_average"],
-      position: position
-    }
+    # `Library.Inbound.link_file/2`. The child uses the same mapping as a
+    # standalone movie — a hand-built subset here once dropped
+    # cast/crew/status/genres on every collection child.
+    child_attrs =
+      tmdb_id
+      |> Mapper.movie_attrs(movie_data, nil)
+      |> Map.put(:position, position)
 
     metadata = %{
       entity_type: :movie_series,

@@ -45,6 +45,30 @@ defmodule MediaCentaur.LibraryTest do
   # Post-Phase-7 no-op (legacy hook from the library-presence-unification campaign).
   defp record_present(_file), do: :ok
 
+  describe "find_or_create_movie_for_series/1" do
+    test "writes tmdb and imdb ExternalId rows for a new child movie" do
+      series = create_movie_series(%{name: "Sample Collection"})
+
+      {:ok, movie} =
+        Library.find_or_create_movie_for_series(%{
+          movie_series_id: series.id,
+          tmdb_id: "155",
+          imdb_id: "tt0000155",
+          name: "Sample Movie Two",
+          position: 1
+        })
+
+      external_ids =
+        movie
+        |> Repo.preload(:external_ids)
+        |> Map.fetch!(:external_ids)
+        |> Enum.map(&{&1.source, &1.external_id})
+        |> Enum.sort()
+
+      assert external_ids == [{"imdb", "tt0000155"}, {"tmdb", "155"}]
+    end
+  end
+
   describe "load_modal_entry/1 collection hoist" do
     test "a sole-possessed collection movie loads as a faithful movie, not the collection" do
       ms = create_movie_series(%{name: "Singleton Collection", genres: ["Adventure"]})
