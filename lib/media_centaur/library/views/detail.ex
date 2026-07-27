@@ -667,7 +667,7 @@ defmodule MediaCentaur.Library.Views.Detail do
           parent_container_name: parent_container_name(type, container),
           container_name: Map.get(tlc, :name),
           container_description: Map.get(tlc, :description),
-          container_year: container_year(tlc),
+          container_date_published: Map.get(tlc, :date_published),
           container_url: Map.get(tlc, :url),
           container_tagline: Map.get(tlc, :tagline),
           container_genres: Map.get(tlc, :genres),
@@ -947,9 +947,6 @@ defmodule MediaCentaur.Library.Views.Detail do
   defp top_level_container(_, container), do: container
 
   # Year derives from the resolved top-level container's `date_published`.
-  defp container_year(%{date_published: %Date{year: year}}), do: year
-  defp container_year(_), do: nil
-
   # Director is a per-Movie field, NOT a top-level metadata bubble-up.
   # For a multi-child MovieSeries the projection's container is a
   # constituent Movie; the entity-map for the MovieSeries modal must

@@ -50,8 +50,8 @@ defmodule MediaCentaur.Library.Views.DetailTest do
     {vo, file}
   end
 
-  defp seed_present_episode(series_name) do
-    series = create_tv_series(%{name: series_name})
+  defp seed_present_episode(series_name, series_overrides \\ %{}) do
+    series = create_tv_series(Map.merge(%{name: series_name}, series_overrides))
     season = create_season(%{tv_series_id: series.id, season_number: 1})
 
     episode =
@@ -132,7 +132,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       assert item.container_type == :movie
       assert item.container_id == movie.id
       assert item.container_name == "Movie A"
-      assert item.container_year == 2010
+      assert item.container_date_published == ~D[2010-01-01]
       assert item.present? == true
     end
 
@@ -198,6 +198,20 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       assert item.parent_container_type == :tv_series
       assert item.parent_container_id == series.id
       assert item.parent_container_name == "Sample Series"
+    end
+
+    test "carries the TVSeries first-air date as container_date_published" do
+      on_exit_clear_table()
+
+      {_series, _season, episode, _file} =
+        seed_present_episode("Dated Series", %{date_published: ~D[2019-04-08]})
+
+      pi = playable_item_for_episode(episode)
+
+      assert :ok = Detail.refresh_cache()
+
+      item = Views.detail(pi.id)
+      assert item.container_date_published == ~D[2019-04-08]
     end
 
     test "returns DetailItem for a VideoObject's PlayableItem" do
