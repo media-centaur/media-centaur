@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.105.2 — 2026-07-27
+
+### Fixed
+
+- **TV show pages now show the year the show first aired.** The info line under a show's title (next to the season count and status) was missing the original airing year. Movie collections now show their release year on this line as well.
+
 ## v0.105.1 — 2026-07-26
 
 ### Fixed
