@@ -41,7 +41,8 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     * `:container_name`             — top-level entity display name (TVSeries name for an
                                        episode, Movie name for a movie, etc.).
     * `:container_description`      — top-level entity description.
-    * `:container_year`             — release year derived from container.date_published.
+    * `:container_date_published`   — top-level container release date (movie release date,
+                                       TVSeries first air date).
     * `:container_url`              — TMDB URL on the container.
     * `:container_tagline`          — marketing tagline (Movie / TVSeries).
     * `:container_genres`           — list of genre strings.
@@ -98,7 +99,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     :parent_container_name,
     :container_name,
     :container_description,
-    :container_year,
+    :container_date_published,
     :container_url,
     :container_tagline,
     :container_genres,
@@ -144,7 +145,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
           parent_container_name: String.t() | nil,
           container_name: String.t() | nil,
           container_description: String.t() | nil,
-          container_year: integer() | nil,
+          container_date_published: Date.t() | nil,
           container_url: String.t() | nil,
           container_tagline: String.t() | nil,
           container_genres: [String.t()] | nil,
@@ -370,7 +371,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       collection: nil,
       name: item.container_name,
       description: item.container_description,
-      date_published: nil,
+      date_published: item.container_date_published,
       content_url: nil,
       url: item.container_url,
       tagline: item.container_tagline,
@@ -408,7 +409,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       collection: nil,
       name: item.container_name,
       description: item.container_description,
-      date_published: nil,
+      date_published: item.container_date_published,
       content_url: nil,
       url: item.container_url,
       tagline: item.container_tagline,

@@ -209,6 +209,14 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
       assert entity.number_of_seasons == 2
     end
 
+    test "passes the series first-air date through as :date_published" do
+      detail_item = tv_series_detail_item(container_date_published: ~D[2020-01-12])
+
+      entity = DetailItem.to_entity_map(detail_item)
+
+      assert entity.date_published == ~D[2020-01-12]
+    end
+
     test "expands DetailItem.Season list into the rich season shape SeriesDetail.build/4 consumes" do
       season =
         %DetailItem.Season{
@@ -310,7 +318,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
         parent_container_name: "Sample Show",
         container_name: "Sample Show",
         container_description: nil,
-        container_year: 2020,
+        container_date_published: ~D[2020-01-12],
         cast: [],
         crew: [],
         extras: [],
@@ -410,7 +418,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
         parent_container_name: nil,
         container_name: "Sample Movie",
         container_description: "A sample movie.",
-        container_year: 2010,
+        container_date_published: ~D[2010-07-16],
         container_url: "https://tmdb.example/movie/1",
         container_tagline: nil,
         container_genres: ["Drama"],
@@ -448,6 +456,14 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
       assert entity.type == :movie_series
       assert entity.id == detail_item.parent_container_id
       assert entity.name == detail_item.container_name
+    end
+
+    test "passes the collection release date through as :date_published" do
+      detail_item = movie_series_detail_item(container_date_published: ~D[2010-05-01])
+
+      entity = DetailItem.to_entity_map(detail_item)
+
+      assert entity.date_published == ~D[2010-05-01]
     end
 
     test "expands :movies list into the rich shape DetailPanel/build_facets consumes" do
@@ -503,7 +519,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
         parent_container_name: "Sample Saga",
         container_name: "Sample Saga",
         container_description: "A sample movie collection.",
-        container_year: 2010,
+        container_date_published: ~D[2010-07-16],
         container_url: nil,
         container_tagline: nil,
         container_genres: ["Adventure"],
@@ -557,7 +573,7 @@ defmodule MediaCentaur.Library.Views.DetailItemTest do
         parent_container_name: nil,
         container_name: "Sample Clip",
         container_description: "A sample standalone clip.",
-        container_year: 2024,
+        container_date_published: ~D[2024-06-01],
         container_url: nil,
         container_tagline: nil,
         container_genres: nil,
