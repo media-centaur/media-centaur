@@ -49,6 +49,34 @@ defmodule MediaCentaur.Acquisition.Pursuits.RecipeTest do
              } = Recipe.from(pursuit)
     end
 
+    test "carries the origin countries into the recipe and criteria" do
+      pursuit = %Pursuit{
+        recipe_type: "tmdb",
+        tmdb_type: "tv",
+        tmdb_id: "1396",
+        title: "Sample Show",
+        origin_country: ["US"]
+      }
+
+      recipe = Recipe.from(pursuit)
+      assert recipe.origin_country == ["US"]
+      assert Recipe.to_criteria(recipe).origin_country == ["US"]
+    end
+
+    test "a nil origin_country column reads as unknown origins (empty list)" do
+      pursuit = %Pursuit{
+        recipe_type: "tmdb",
+        tmdb_type: "tv",
+        tmdb_id: "1396",
+        title: "Sample Show",
+        origin_country: nil
+      }
+
+      recipe = Recipe.from(pursuit)
+      assert recipe.origin_country == []
+      assert Recipe.to_criteria(recipe).origin_country == []
+    end
+
     test "leaves season + episode nil for a series-level recipe" do
       pursuit = %Pursuit{
         recipe_type: "tmdb",

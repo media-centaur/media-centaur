@@ -36,6 +36,7 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
        TmdbStubs.tv_detail(%{
          "id" => 246_810,
          "name" => "Sample Show",
+         "origin_country" => ["US"],
          "seasons" => [
            %{"season_number" => 0, "episode_count" => 1},
            %{"season_number" => 1, "episode_count" => 2},
@@ -65,6 +66,13 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
       [aired, unaired] = season_two.episodes
       assert aired.aired?
       refute unaired.aired?
+    end
+
+    test "carries the show's origin countries for remake disambiguation" do
+      stub_sample_show()
+
+      assert {:ok, selection} = Targeting.series_selection("246810")
+      assert selection.origin_country == ["US"]
     end
 
     test "carries the series poster path for the picker header" do

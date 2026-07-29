@@ -30,6 +30,7 @@ defmodule MediaCentaur.ReleaseTracking.ScannerTest do
            "status" => "Returning Series",
            "number_of_seasons" => 6,
            "poster_path" => "/bb.jpg",
+           "origin_country" => ["US"],
            "next_episode_to_air" => %{
              "air_date" => "2026-06-15",
              "season_number" => 6,
@@ -49,6 +50,7 @@ defmodule MediaCentaur.ReleaseTracking.ScannerTest do
       assert hd(items).tmdb_id == 1396
       assert hd(items).library_container_type == :tv_series
       assert hd(items).library_container_id == tv_series.id
+      assert hd(items).origin_country == ["US"]
     end
 
     test "tracks a TV series with gap episodes since last library episode" do

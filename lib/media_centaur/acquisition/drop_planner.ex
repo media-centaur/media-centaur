@@ -112,6 +112,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
                tmdb_id: tmdb_id,
                tmdb_type: "tv",
                title: item.name,
+               origin_country: item.origin_country,
                tracking_item_id: item.id,
                origin: "manual",
                criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
@@ -226,6 +227,7 @@ defmodule MediaCentaur.Acquisition.DropPlanner do
                tmdb_id: tmdb_id,
                tmdb_type: "tv",
                title: item.name,
+               origin_country: item.origin_country,
                tracking_item_id: item.id,
                criteria: %{"min_quality" => min_quality, "max_quality" => max_quality}
              },

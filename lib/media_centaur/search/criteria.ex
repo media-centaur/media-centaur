@@ -20,7 +20,8 @@ defmodule MediaCentaur.Search.Criteria do
     :episode_number,
     :year,
     :manual_query,
-    :run
+    :run,
+    origin_country: []
   ]
 
   @type type :: :tmdb | :prowlarr_query
@@ -38,6 +39,11 @@ defmodule MediaCentaur.Search.Criteria do
           # a *later* run — a `CourSegmentation` run map. Drives
           # cour-aware query generation (`QueryBuilder`). Nil / first run
           # → the regular `Season N` queries.
-          run: map() | nil
+          run: map() | nil,
+          # TMDB `origin_country` ISO codes for the show (TV only, e.g.
+          # `["US"]`). Lets `TitleMatcher` accept scene country tags
+          # (`Title.US.S01`) that release groups append to disambiguate
+          # same-title remakes. Empty → tags are rejected (unknown origin).
+          origin_country: [String.t()]
         }
 end

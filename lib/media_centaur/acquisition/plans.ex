@@ -60,6 +60,7 @@ defmodule MediaCentaur.Acquisition.Plans do
         tmdb_id: selection.tmdb_id,
         tmdb_type: "tv",
         title: selection.title,
+        origin_country: selection.origin_country,
         criteria: Keyword.get(opts, :criteria, %{}),
         span_sizes: Targeting.aired_counts(selection),
         grab_future: Keyword.get(opts, :grab_future, false)
@@ -467,7 +468,12 @@ defmodule MediaCentaur.Acquisition.Plans do
   end
 
   defp verify(%Plan{tmdb_type: "tv"} = plan, unit, result) do
-    criteria = %Criteria{type: :tmdb, title: plan.title, tmdb_type: :tv}
+    criteria = %Criteria{
+      type: :tmdb,
+      title: plan.title,
+      tmdb_type: :tv,
+      origin_country: plan.origin_country || []
+    }
 
     with {:ok, scope} <- TitleMatcher.coverage(result, criteria),
          true <- ReleaseCoverage.covers?(scope, unit.season_number, unit.episode_number),

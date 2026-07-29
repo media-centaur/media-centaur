@@ -38,6 +38,9 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     field :poster_path, :string
     field :backdrop_path, :string
     field :logo_path, :string
+    # TMDB origin_country ISO codes (TV only) — self-heals on refresh
+    # for rows created before the column existed.
+    field :origin_country, {:array, :string}
     field :last_library_season, :integer, default: 0
     field :last_library_episode, :integer, default: 0
     field :dismiss_released_before, :date
@@ -78,6 +81,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :poster_path,
       :backdrop_path,
       :logo_path,
+      :origin_country,
       :last_library_season,
       :last_library_episode
     ])
@@ -99,6 +103,7 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :poster_path,
       :backdrop_path,
       :logo_path,
+      :origin_country,
       :last_library_season,
       :last_library_episode,
       :dismiss_released_before

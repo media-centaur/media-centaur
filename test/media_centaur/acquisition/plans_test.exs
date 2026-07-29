@@ -144,7 +144,10 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       # ── Create: inline Oban runs the planning pass immediately. ──────
       assert {:ok, plan} =
-               Plans.create_series_plan(selection(), [{1, 1}, {1, 2}, {1, 3}, {2, 1}])
+               Plans.create_series_plan(
+                 %{selection() | origin_country: ["US"]},
+                 [{1, 1}, {1, 2}, {1, 3}, {2, 1}]
+               )
 
       {:ok, plan} = Plans.get(plan.id)
       assert plan.status == "ready"
@@ -192,6 +195,9 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert pursuit.recipe_type == "tmdb"
       assert pursuit.tmdb_id == "246810"
       assert pursuit.title == "Sample Show"
+      # Origin countries cross the plan → pursuit boundary so the
+      # auto-grab matcher keeps accepting origin-tagged releases.
+      assert pursuit.origin_country == ["US"]
 
       # Only the found unit crossed the search→pursuit boundary.
       assert [unit] = Units.for_pursuit(pursuit.id)

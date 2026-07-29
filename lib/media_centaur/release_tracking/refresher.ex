@@ -239,7 +239,14 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
   defp update_item_metadata(item, response) do
     name = response["name"] || response["title"] || item.name
-    ReleaseTracking.update_item(item, %{name: name, last_refreshed_at: DateTime.utc_now()})
+
+    ReleaseTracking.update_item(item, %{
+      name: name,
+      last_refreshed_at: DateTime.utc_now(),
+      # Self-heals items created before the column existed; collection
+      # responses carry no origin_country and keep the stored value.
+      origin_country: response["origin_country"] || item.origin_country
+    })
   end
 
   defp schedule_refresh(interval) do
@@ -492,6 +499,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
             library_container_type: :tv_series,
             library_container_id: tv_series_id,
             last_refreshed_at: DateTime.utc_now(),
+            origin_country: response["origin_country"],
             last_library_season: last_season,
             last_library_episode: last_episode
           })
