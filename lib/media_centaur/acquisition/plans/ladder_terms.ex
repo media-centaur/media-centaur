@@ -8,18 +8,22 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
   an invariant pinned by the test suite.
 
   TV terms run broad-to-narrow: the series title, `Title Season N` +
-  `Title SNN` per season, `Title SNNENN` per episode. Movies are one
-  term (`Title [year]`). All terms pair with the Prowlarr `type` opt —
-  the corpus keys on term + type.
+  `Title SNN` per season, `Title SNNENN` per episode. Movies run
+  precise-to-broad: `Title year`, then the year-less `Title` (release
+  years drift — festival premiere vs theatrical). Every title is
+  sanitized via `Search.QueryTerm` (scene names carry no apostrophes).
+  All terms pair with the Prowlarr `type` opt — the corpus keys on
+  term + type.
   """
 
   alias MediaCentaur.Acquisition.Plans.{Plan, PlanUnit}
+  alias MediaCentaur.Search.QueryTerm
 
   @type term_pair :: {String.t(), keyword()}
 
   @doc "Every ladder term for the plan's wanted `{season, episode}` units."
   @spec for_plan(Plan.t(), [{pos_integer(), pos_integer()}]) :: [term_pair()]
-  def for_plan(%Plan{tmdb_type: "movie"} = plan, _wanted), do: [movie_term(plan)]
+  def for_plan(%Plan{tmdb_type: "movie"} = plan, _wanted), do: movie_terms(plan)
 
   def for_plan(%Plan{tmdb_type: "tv"} = plan, wanted) do
     seasons = wanted |> Enum.map(&elem(&1, 0)) |> Enum.uniq() |> Enum.sort()
@@ -28,7 +32,7 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
 
   @doc "The broadest rung — one term for an all-in-one release."
   @spec series_terms(Plan.t()) :: [term_pair()]
-  def series_terms(%Plan{tmdb_type: "tv"} = plan), do: [{plan.title, [type: :tv]}]
+  def series_terms(%Plan{tmdb_type: "tv"} = plan), do: [{title(plan), [type: :tv]}]
 
   @doc """
   The season rung — both text forms per season, broad-to-narrow within the rung.
@@ -39,8 +43,8 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
   def season_terms(%Plan{tmdb_type: "tv"} = plan, seasons) do
     Enum.flat_map(seasons, fn season ->
       [
-        {"#{plan.title} Season #{season}", [type: :tv]},
-        {"#{plan.title} S#{pad(season)}", [type: :tv]}
+        {"#{title(plan)} Season #{season}", [type: :tv]},
+        {"#{title(plan)} S#{pad(season)}", [type: :tv]}
       ]
     end)
   end
@@ -49,22 +53,32 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTerms do
   @spec episode_terms(Plan.t(), [{pos_integer(), pos_integer()}]) :: [term_pair()]
   def episode_terms(%Plan{tmdb_type: "tv"} = plan, units) do
     Enum.map(units, fn {season, episode} ->
-      {"#{plan.title} S#{pad(season)}E#{pad(episode)}", [type: :tv]}
+      {"#{title(plan)} S#{pad(season)}E#{pad(episode)}", [type: :tv]}
     end)
   end
 
   @doc "The ladder terms that can cover ONE unit: series, its season, its episode."
   @spec for_unit(Plan.t(), PlanUnit.t()) :: [term_pair()]
-  def for_unit(%Plan{tmdb_type: "movie"} = plan, %PlanUnit{}), do: [movie_term(plan)]
+  def for_unit(%Plan{tmdb_type: "movie"} = plan, %PlanUnit{}), do: movie_terms(plan)
 
   def for_unit(%Plan{tmdb_type: "tv"} = plan, %PlanUnit{} = unit) do
     for_plan(plan, [{unit.season_number, unit.episode_number}])
   end
 
-  defp movie_term(plan) do
-    term = if plan.year, do: "#{plan.title} #{plan.year}", else: plan.title
-    {term, [type: :movie]}
+  @doc """
+  The movie rungs, precise-to-broad: `Title year`, then the year-less
+  `Title`. Release names carry whichever year the group's source used
+  (festival premiere vs theatrical), so the year term alone can miss
+  every release of the right movie. No year → one term.
+  """
+  @spec movie_terms(Plan.t()) :: [term_pair()]
+  def movie_terms(%Plan{tmdb_type: "movie", year: nil} = plan), do: [{title(plan), [type: :movie]}]
+
+  def movie_terms(%Plan{tmdb_type: "movie"} = plan) do
+    [{"#{title(plan)} #{plan.year}", [type: :movie]}, {title(plan), [type: :movie]}]
   end
+
+  defp title(plan), do: QueryTerm.sanitize(plan.title)
 
   defp pad(number), do: number |> Integer.to_string() |> String.pad_leading(2, "0")
 end

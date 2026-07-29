@@ -25,21 +25,34 @@ defmodule MediaCentaur.Search.QueryBuilder do
   `Criteria` via the caller's own `to_criteria/1`.
   """
 
-  alias MediaCentaur.Search.{CourQueries, Criteria, QueryExpander}
+  alias MediaCentaur.Search.{CourQueries, Criteria, QueryExpander, QueryTerm}
   alias MediaCentaur.Format
 
   @type opt :: {:type, :movie | :tv} | {:year, integer()}
   @type query :: {String.t(), [opt()]}
 
   @spec build(Criteria.t()) :: [query()]
-  def build(%Criteria{type: :tmdb, tmdb_type: :movie} = criteria), do: build_movie(criteria)
-  def build(%Criteria{type: :tmdb, tmdb_type: :tv} = criteria), do: build_tv(criteria)
+  def build(%Criteria{type: :tmdb, tmdb_type: :movie} = criteria),
+    do: criteria |> sanitize_title() |> build_movie()
+
+  def build(%Criteria{type: :tmdb, tmdb_type: :tv} = criteria),
+    do: criteria |> sanitize_title() |> build_tv()
+
   def build(%Criteria{type: :prowlarr_query} = criteria), do: build_prowlarr_query(criteria)
+
+  # Constructed queries only — scene names carry no apostrophes, so a
+  # verbatim TMDB title can miss every release of the right title.
+  # User-typed manual queries pass through untouched.
+  defp sanitize_title(criteria), do: %{criteria | title: QueryTerm.sanitize(criteria.title)}
 
   defp build_movie(%Criteria{title: title, year: nil}), do: [{title, [type: :movie]}]
 
+  # Year query first, year-less fallback second — release names carry
+  # whichever year the group's source used (festival premiere vs
+  # theatrical), so the year query alone can miss every release of the
+  # right movie. The worker tries queries in order.
   defp build_movie(%Criteria{title: title, year: year}) when is_integer(year) do
-    [{"#{title} #{year}", [type: :movie, year: year]}]
+    [{"#{title} #{year}", [type: :movie, year: year]}, {title, [type: :movie]}]
   end
 
   # Later-cour residual: the first-run `Season N` query is wrong (it

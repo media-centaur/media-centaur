@@ -26,8 +26,9 @@ defmodule MediaCentaur.Search.TitleMatcher do
     * season + episode — episode-keyed criteria require both to match
       exactly; season-pack criteria require season match and reject
       results that pin a specific episode
-    * year (movies only) — must match if the parser extracted one;
-      missing year is tolerated
+    * year (movies only) — must match within ±1 if the parser extracted
+      one (festival premiere vs theatrical release routinely differ by
+      a year); missing year is tolerated
 
   Only the `:tmdb` criteria variant is matched here. Prowlarr-query
   criteria route directly to the decision card and don't apply title
@@ -157,7 +158,10 @@ defmodule MediaCentaur.Search.TitleMatcher do
 
   defp year_matches?(nil, _expected_year), do: true
   defp year_matches?(_parsed_year, nil), do: true
-  defp year_matches?(parsed_year, expected_year), do: parsed_year == expected_year
+
+  # ±1: release names carry whichever year the group's source used —
+  # festival premiere vs theatrical release routinely differ by one.
+  defp year_matches?(parsed_year, expected_year), do: abs(parsed_year - expected_year) <= 1
 
   defp normalize(title) do
     title

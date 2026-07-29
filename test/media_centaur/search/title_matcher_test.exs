@@ -122,6 +122,14 @@ defmodule MediaCentaur.Search.TitleMatcherTest do
       refute TitleMatcher.matches?(result("Sample.Movie.1995.1080p.BluRay.x264"), criteria)
     end
 
+    test "tolerates an off-by-one release year (festival premiere vs theatrical)" do
+      criteria = movie_criteria(%{title: "Sample Movie", year: 2000})
+
+      assert TitleMatcher.matches?(result("Sample.Movie.1999.1080p.BluRay.x264"), criteria)
+      assert TitleMatcher.matches?(result("Sample.Movie.2001.1080p.WEB-DL.H264"), criteria)
+      refute TitleMatcher.matches?(result("Sample.Movie.1998.1080p.BluRay.x264"), criteria)
+    end
+
     test "rejects when title differs" do
       criteria = movie_criteria(%{title: "Sample Movie", year: 2024})
 
