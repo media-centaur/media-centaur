@@ -366,7 +366,8 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       title: plan.title,
       tmdb_type: :tv,
       season_number: nil,
-      episode_number: nil
+      episode_number: nil,
+      origin_country: plan.origin_country || []
     }
   end
 

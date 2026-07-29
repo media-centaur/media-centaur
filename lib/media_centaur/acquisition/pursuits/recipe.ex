@@ -36,7 +36,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
     :season_number,
     :episode_number,
     :year,
-    :manual_query
+    :manual_query,
+    origin_country: []
   ]
 
   @type type :: :tmdb | :prowlarr_query
@@ -50,7 +51,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
           season_number: integer() | nil,
           episode_number: integer() | nil,
           year: integer() | nil,
-          manual_query: String.t() | nil
+          manual_query: String.t() | nil,
+          origin_country: [String.t()]
         }
 
   @spec from(Pursuit.t()) :: t()
@@ -62,7 +64,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
       tmdb_type: tmdb_type_atom(pursuit.tmdb_type),
       season_number: pursuit.season_number,
       episode_number: pursuit.episode_number,
-      year: pursuit.year
+      year: pursuit.year,
+      origin_country: pursuit.origin_country || []
     }
   end
 
@@ -114,7 +117,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Recipe do
       tmdb_type: recipe.tmdb_type,
       season_number: recipe.season_number,
       episode_number: recipe.episode_number,
-      year: recipe.year
+      year: recipe.year,
+      origin_country: recipe.origin_country
     }
   end
 

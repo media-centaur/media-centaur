@@ -114,6 +114,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
       tmdb_type: plan.tmdb_type,
       title: plan.title,
       year: plan.year,
+      origin_country: plan.origin_country,
       origin: pursuit_origin(plan),
       criteria: plan.criteria,
       units: unit_specs

@@ -35,6 +35,9 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
     field :tmdb_type, :string
     field :title, :string
     field :year, :integer
+    # TMDB origin_country ISO codes (TV only) — lets the matcher accept
+    # scene country tags on same-title remakes. Nil on pre-existing rows.
+    field :origin_country, {:array, :string}
     field :criteria, :map, default: %{}
     # Per-season aired-episode counts captured from the targeting
     # selection (`%{"1" => 24, "2" => 18}`), keyed by season number
@@ -67,6 +70,7 @@ defmodule MediaCentaur.Acquisition.Plans.Plan do
       :tmdb_type,
       :title,
       :year,
+      :origin_country,
       :criteria,
       :span_sizes,
       :grab_future,

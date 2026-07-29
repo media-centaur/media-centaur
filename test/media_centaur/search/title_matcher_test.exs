@@ -194,4 +194,83 @@ defmodule MediaCentaur.Search.TitleMatcherTest do
       assert :no_match = TitleMatcher.coverage(result("Sample.Show.S01.COMPLETE.1080p"), criteria)
     end
   end
+
+  describe "coverage/2 — scene country tags (remake disambiguation)" do
+    test "a season pack tagged with the show's origin country matches" do
+      criteria = tv_criteria(%{title: "Sample Show", origin_country: ["US"]})
+
+      assert {:ok, {:season, 1}} =
+               TitleMatcher.coverage(result("Sample.Show.US.S01.1080p.BluRay.x264-GROUP"), criteria)
+    end
+
+    test "a complete-series release tagged with the origin country matches" do
+      criteria = tv_criteria(%{title: "Sample Show", origin_country: ["US"]})
+
+      assert {:ok, :series} =
+               TitleMatcher.coverage(result("Sample.Show.US.COMPLETE.1080p.WEB-DL"), criteria)
+    end
+
+    test "an episode tagged with the origin country matches" do
+      criteria = tv_criteria(%{title: "Sample Show", origin_country: ["US"]})
+
+      assert {:ok, {:episode, 1, 3}} =
+               TitleMatcher.coverage(result("Sample.Show.US.S01E03.720p.BluRay.x264-GROUP"), criteria)
+    end
+
+    test "a country tag outside the show's origin countries is rejected" do
+      criteria = tv_criteria(%{title: "Sample Show", origin_country: ["AU"]})
+
+      assert :no_match =
+               TitleMatcher.coverage(result("Sample.Show.US.S01.1080p.BluRay.x264-GROUP"), criteria)
+
+      assert :no_match =
+               TitleMatcher.coverage(result("Sample.Show.US.S01E03.720p.BluRay.x264-GROUP"), criteria)
+    end
+
+    test "a country tag is rejected when the criteria carry no origin countries" do
+      criteria = tv_criteria(%{title: "Sample Show"})
+
+      assert :no_match =
+               TitleMatcher.coverage(result("Sample.Show.US.S01.1080p.BluRay.x264-GROUP"), criteria)
+    end
+
+    test "the scene UK tag maps to TMDB's GB origin code" do
+      criteria = tv_criteria(%{title: "Sample Show", origin_country: ["GB"]})
+
+      assert {:ok, {:season, 2}} =
+               TitleMatcher.coverage(result("Sample.Show.UK.S02.COMPLETE.1080p.WEB-DL"), criteria)
+    end
+
+    test "a country tag combined with a year token is tolerated" do
+      criteria = tv_criteria(%{title: "Sample Show", origin_country: ["US"]})
+
+      assert {:ok, {:season, 1}} =
+               TitleMatcher.coverage(result("Sample.Show.US.2011.S01.1080p.BluRay"), criteria)
+    end
+
+    test "an untagged release still matches regardless of origin countries" do
+      criteria = tv_criteria(%{title: "Sample Show", origin_country: ["US"]})
+
+      assert {:ok, {:season, 1}} =
+               TitleMatcher.coverage(result("Sample.Show.S01.1080p.BluRay.x264-GROUP"), criteria)
+    end
+
+    test "matches?/2 accepts an origin-tagged episode for the auto-grab gate" do
+      criteria =
+        tv_criteria(%{
+          title: "Sample Show",
+          season_number: 1,
+          episode_number: 1,
+          origin_country: ["US"]
+        })
+
+      assert TitleMatcher.matches?(result("Sample.Show.US.S01E01.1080p.WEB-DL.x264-GROUP"), criteria)
+    end
+
+    test "matches?/2 rejects an origin-tagged episode when origins are unknown" do
+      criteria = tv_criteria(%{title: "Sample Show", season_number: 1, episode_number: 1})
+
+      refute TitleMatcher.matches?(result("Sample.Show.US.S01E01.1080p.WEB-DL.x264-GROUP"), criteria)
+    end
+  end
 end

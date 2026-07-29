@@ -129,6 +129,7 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
         library_container_type: container_type,
         library_container_id: container_id,
         last_refreshed_at: DateTime.utc_now(),
+        origin_country: response["origin_country"],
         last_library_season: Keyword.get(opts, :last_library_season, 0),
         last_library_episode: Keyword.get(opts, :last_library_episode, 0)
       })

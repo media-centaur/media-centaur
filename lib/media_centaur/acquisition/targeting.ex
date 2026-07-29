@@ -64,14 +64,15 @@ defmodule MediaCentaur.Acquisition.Targeting do
     @moduledoc "The full targeting universe for one series."
 
     @enforce_keys [:tmdb_id, :title, :seasons, :tracked?]
-    defstruct [:tmdb_id, :title, :poster_path, :seasons, :tracked?]
+    defstruct [:tmdb_id, :title, :poster_path, :seasons, :tracked?, origin_country: []]
 
     @type t :: %__MODULE__{
             tmdb_id: String.t(),
             title: String.t(),
             poster_path: String.t() | nil,
             seasons: [Season.t()],
-            tracked?: boolean()
+            tracked?: boolean(),
+            origin_country: [String.t()]
           }
   end
 
@@ -94,7 +95,8 @@ defmodule MediaCentaur.Acquisition.Targeting do
          title: tv["name"],
          poster_path: tv["poster_path"],
          seasons: seasons,
-         tracked?: tracked?(tmdb_id)
+         tracked?: tracked?(tmdb_id),
+         origin_country: tv["origin_country"] || []
        }}
     end
   end

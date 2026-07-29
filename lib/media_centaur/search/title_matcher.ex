@@ -18,7 +18,11 @@ defmodule MediaCentaur.Search.TitleMatcher do
       criteria only accept parsed movies
     * normalised show/movie title — case-folded, alphanumerics only,
       whitespace collapsed (so `Sample's Show Twelve` matches
-      `Samples.Show.Twelve`)
+      `Samples.Show.Twelve`). A trailing scene country tag
+      (`Sample.Show.US.S01E01`) is accepted only when the criteria's
+      `origin_country` includes it — release groups append the tag to
+      disambiguate same-title remakes, so a mismatched or unverifiable
+      tag means the release is (or may be) the other show
     * season + episode — episode-keyed criteria require both to match
       exactly; season-pack criteria require season match and reject
       results that pin a specific episode
@@ -39,6 +43,10 @@ defmodule MediaCentaur.Search.TitleMatcher do
   # the first one is the show-identity prefix `coverage/2` verifies.
   @scope_tail ~r/\b(?:S\d{1,2}\b|Season[\s._-]+\d{1,2}\b|COMPLETE\b|Complete[\s._-]+(?:Series|Collection)\b)/i
   @trailing_year ~r/\b(?:19|20)\d{2}\s*$/
+
+  # Scene country tags → TMDB `origin_country` ISO 3166-1 codes. The
+  # scene writes UK where TMDB writes GB; the rest coincide.
+  @country_tags %{"us" => "US", "uk" => "GB", "gb" => "GB", "au" => "AU", "ca" => "CA", "nz" => "NZ"}
 
   @spec matches?(SearchResult.t(), Criteria.t()) :: boolean()
   def matches?(%SearchResult{title: title}, %Criteria{type: :tmdb} = criteria) do
@@ -75,12 +83,13 @@ defmodule MediaCentaur.Search.TitleMatcher do
         # battle-tested identity check `matches?/2` uses.
         parsed = Parser.parse(title)
 
-        if parsed.type == :tv and title_matches?(parsed.title, criteria.title),
-          do: {:ok, scope},
-          else: :no_match
+        if parsed.type == :tv and
+             title_matches?(parsed.title, criteria.title, criteria.origin_country),
+           do: {:ok, scope},
+           else: :no_match
 
       scope ->
-        if pack_title_matches?(title, criteria.title), do: {:ok, scope}, else: :no_match
+        if pack_title_matches?(title, criteria), do: {:ok, scope}, else: :no_match
     end
   end
 
@@ -90,14 +99,14 @@ defmodule MediaCentaur.Search.TitleMatcher do
   # files, so identity comes from the prefix before the first scope
   # token — normalized, with a trailing year token tolerated (release
   # groups often bake the show's year in).
-  defp pack_title_matches?(title, expected_title) do
+  defp pack_title_matches?(title, %Criteria{} = criteria) do
     case Regex.split(@scope_tail, title, parts: 2) do
       [prefix, _tail] ->
         prefix
         |> normalize()
         |> String.replace(@trailing_year, "")
         |> String.trim()
-        |> Kernel.==(normalize(expected_title))
+        |> title_matches?(criteria.title, criteria.origin_country)
 
       _no_scope_token ->
         false
@@ -105,23 +114,46 @@ defmodule MediaCentaur.Search.TitleMatcher do
   end
 
   defp matches_criteria?(%Parser.Result{type: :tv} = parsed, %Criteria{tmdb_type: :tv} = criteria) do
-    title_matches?(parsed.title, criteria.title) and
+    title_matches?(parsed.title, criteria.title, criteria.origin_country) and
       parsed.season == criteria.season_number and
       parsed.episode == criteria.episode_number
   end
 
   defp matches_criteria?(%Parser.Result{type: :movie} = parsed, %Criteria{tmdb_type: :movie} = criteria) do
-    title_matches?(parsed.title, criteria.title) and year_matches?(parsed.year, criteria.year)
+    title_matches?(parsed.title, criteria.title, criteria.origin_country) and
+      year_matches?(parsed.year, criteria.year)
   end
 
   defp matches_criteria?(_parsed, _criteria), do: false
 
-  defp title_matches?(parsed_title, expected_title)
+  defp title_matches?(parsed_title, expected_title, origin_countries)
        when is_binary(parsed_title) and is_binary(expected_title) do
-    normalize(parsed_title) == normalize(expected_title)
+    parsed = normalize(parsed_title)
+    expected = normalize(expected_title)
+
+    parsed == expected or origin_tagged_match?(parsed, expected, origin_countries)
   end
 
-  defp title_matches?(_, _), do: false
+  defp title_matches?(_, _, _), do: false
+
+  # `sample show us` matches `sample show` only when the show's TMDB
+  # origin countries include the tag. Empty origins reject every tag —
+  # without knowing the origin, a tagged release may be the same-title
+  # remake from another country.
+  defp origin_tagged_match?(parsed, expected, [_ | _] = origin_countries) do
+    case String.split(parsed, " ") do
+      [_, _ | _] = words ->
+        {[tag], rest} = words |> Enum.reverse() |> Enum.split(1)
+
+        Map.get(@country_tags, tag) in origin_countries and
+          rest |> Enum.reverse() |> Enum.join(" ") == expected
+
+      _single_word ->
+        false
+    end
+  end
+
+  defp origin_tagged_match?(_parsed, _expected, _origin_countries), do: false
 
   defp year_matches?(nil, _expected_year), do: true
   defp year_matches?(_parsed_year, nil), do: true

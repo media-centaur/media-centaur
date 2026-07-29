@@ -119,6 +119,35 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       refute_received {:searched, "Sample Show S02E01"}
     end
 
+    test "an origin-tagged pack satisfies the plan when the origin country matches (the Wilfred bug)" do
+      stub_recording_searches(%{
+        "Sample Show" => [
+          release("Sample.Show.US.S01-02.COMPLETE.1080p.WEB-DL", "us-pack", %{seeders: 20})
+        ]
+      })
+
+      selection = %{selection() | origin_country: ["US"]}
+      {:ok, plan} = Plans.create_series_plan(selection, [{1, 1}, {1, 2}, {1, 3}, {2, 1}])
+
+      units = Plans.units_for(plan.id)
+      assert Enum.all?(units, &(&1.status == "found"))
+      assert Enum.all?(units, &(&1.assigned_guid == "us-pack"))
+    end
+
+    test "an origin-tagged pack is still rejected when the plan's origin country differs" do
+      stub_recording_searches(%{
+        "Sample Show" => [
+          release("Sample.Show.US.S01-02.COMPLETE.1080p.WEB-DL", "us-pack", %{seeders: 20})
+        ]
+      })
+
+      selection = %{selection() | origin_country: ["AU"]}
+      {:ok, plan} = Plans.create_series_plan(selection, [{1, 1}])
+
+      units = Plans.units_for(plan.id)
+      assert Enum.all?(units, &(&1.status == "unfound"))
+    end
+
     test "season packs satisfy the residual — the episode rung is never searched" do
       stub_recording_searches(%{
         "Sample Show Season 1" => [
