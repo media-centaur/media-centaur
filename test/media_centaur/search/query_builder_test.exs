@@ -4,7 +4,7 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
   alias MediaCentaur.Search.{Criteria, QueryBuilder}
 
   describe "build/1 — movie" do
-    test "includes year and type=:movie when year is present" do
+    test "year query first, year-less fallback second (release years drift)" do
       criteria = %Criteria{
         type: :tmdb,
         tmdb_type: :movie,
@@ -12,10 +12,28 @@ defmodule MediaCentaur.Search.QueryBuilderTest do
         year: 2010
       }
 
-      assert [{query, opts}] = QueryBuilder.build(criteria)
+      assert [{query, opts}, {fallback_query, fallback_opts}] = QueryBuilder.build(criteria)
       assert query == "Sample Movie 2010"
       assert Keyword.get(opts, :type) == :movie
       assert Keyword.get(opts, :year) == 2010
+      assert fallback_query == "Sample Movie"
+      assert Keyword.get(fallback_opts, :type) == :movie
+      refute Keyword.has_key?(fallback_opts, :year)
+    end
+
+    test "strips apostrophes from constructed queries (scene names carry none)" do
+      movie = %Criteria{type: :tmdb, tmdb_type: :movie, title: "Sample's Movie", year: nil}
+      assert [{"Samples Movie", _opts}] = QueryBuilder.build(movie)
+
+      episode = %Criteria{
+        type: :tmdb,
+        tmdb_type: :tv,
+        title: "Sample's Show",
+        season_number: 1,
+        episode_number: 2
+      }
+
+      assert [{"Samples Show S01E02", _opts}] = QueryBuilder.build(episode)
     end
 
     test "omits year and year-opt when year is nil" do

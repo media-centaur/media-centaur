@@ -427,11 +427,11 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
       assert {:error, :not_found} = Pursuits.header_for(Ecto.UUID.generate())
     end
 
-    test "movie recipe carries the Prowlarr search query with the year" do
+    test "movie recipe carries the year query plus the year-less fallback" do
       pursuit = insert_pursuit(%{tmdb_type: "movie", title: "Sample Movie", year: 2010})
 
       assert {:ok, %PursuitHeader{search_queries: queries}} = Pursuits.header_for(pursuit.id)
-      assert queries == ["Sample Movie 2010"]
+      assert queries == ["Sample Movie 2010", "Sample Movie"]
     end
 
     test "TV episode recipe carries the episode-specific query only" do

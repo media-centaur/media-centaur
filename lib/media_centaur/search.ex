@@ -8,6 +8,7 @@ defmodule MediaCentaur.Search do
       Prowlarr,
       QueryBuilder,
       QueryExpander,
+      QueryTerm,
       Quality,
       ReleaseCoverage,
       ReleaseRedFlags,

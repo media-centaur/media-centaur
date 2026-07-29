@@ -10,6 +10,26 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTermsTest do
       assert LadderTerms.series_terms(plan()) == [{"Sample Show", [type: :tv]}]
     end
 
+    test "apostrophes are stripped from every term (scene names carry none)" do
+      tagged_plan = %Plan{title: "Sample's Show", tmdb_type: "tv"}
+
+      assert LadderTerms.series_terms(tagged_plan) == [{"Samples Show", [type: :tv]}]
+
+      assert LadderTerms.season_terms(tagged_plan, [1]) == [
+               {"Samples Show Season 1", [type: :tv]},
+               {"Samples Show S01", [type: :tv]}
+             ]
+
+      assert LadderTerms.episode_terms(tagged_plan, [{1, 2}]) == [{"Samples Show S01E02", [type: :tv]}]
+
+      movie_plan = %Plan{title: "Sample's Movie", tmdb_type: "movie", year: 2010}
+
+      assert LadderTerms.for_plan(movie_plan, []) == [
+               {"Samples Movie 2010", [type: :movie]},
+               {"Samples Movie", [type: :movie]}
+             ]
+    end
+
     test "season_terms/2 emits both text forms per season, in order" do
       assert LadderTerms.season_terms(plan(), [1, 3]) == [
                {"Sample Show Season 1", [type: :tv]},
@@ -41,9 +61,15 @@ defmodule MediaCentaur.Acquisition.Plans.LadderTermsTest do
                  LadderTerms.episode_terms(plan(), wanted)
     end
 
-    test "movie plans are unaffected" do
+    test "movie plans descend from the year term to the year-less term" do
+      # Release years drift (festival premiere vs theatrical) — the
+      # year-less rung keeps a wrong year from becoming a silent miss.
       movie_plan = %Plan{title: "Sample Movie", tmdb_type: "movie", year: 2010}
-      assert LadderTerms.for_plan(movie_plan, []) == [{"Sample Movie 2010", [type: :movie]}]
+
+      assert LadderTerms.for_plan(movie_plan, []) == [
+               {"Sample Movie 2010", [type: :movie]},
+               {"Sample Movie", [type: :movie]}
+             ]
     end
   end
 end

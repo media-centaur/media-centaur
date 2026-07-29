@@ -494,5 +494,57 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       # User preference: the acceptable 4K wins over the better-seeded 1080p.
       assert unit.assigned_guid == "movie-uhd"
     end
+
+    # Serves results keyed by exact query text — misses return empty,
+    # so a query the indexer wouldn't match (apostrophe, wrong year)
+    # stays a miss in the test exactly as it is live.
+    defp stub_movie_searches(results_by_query) do
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+            Req.Test.json(conn, Map.get(results_by_query, query, []))
+
+          _other ->
+            Req.Test.json(conn, %{})
+        end
+      end)
+    end
+
+    test "movie plans: a drifted release year descends to the year-less term and still matches" do
+      # TMDB says 2000 (theatrical); every release says 1999 (festival
+      # premiere). The year term finds nothing; the year-less rung plus
+      # the ±1 year tolerance land the release.
+      stub_movie_searches(%{
+        "Sample Movie" => [
+          release("Sample.Movie.1999.1080p.BluRay.x264", "movie-1999", %{seeders: 15})
+        ]
+      })
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "778", title: "Sample Movie", year: 2000})
+      {:ok, plan} = Plans.get(plan.id)
+      assert plan.status == "ready"
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "found"
+      assert unit.assigned_guid == "movie-1999"
+      assert unit.assigned_term == "Sample Movie"
+    end
+
+    test "movie plans: the search term carries no apostrophe (scene names carry none)" do
+      stub_movie_searches(%{
+        "Samples Movie 2010" => [
+          release("Samples.Movie.2010.1080p.BluRay.x264", "movie-apos", %{seeders: 15})
+        ]
+      })
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "779", title: "Sample's Movie", year: 2010})
+      {:ok, plan} = Plans.get(plan.id)
+      assert plan.status == "ready"
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "found"
+      assert unit.assigned_guid == "movie-apos"
+    end
   end
 end

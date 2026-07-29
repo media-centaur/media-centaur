@@ -403,11 +403,10 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   defp scope_label(:unknown), do: nil
 
   # ---------------------------------------------------------------------------
-  # Movies — one term, best acceptable pick
+  # Movies — precise-to-broad terms, best acceptable pick
   # ---------------------------------------------------------------------------
 
   defp run_movie(plan, units, force?) do
-    [{term, _opts}] = LadderTerms.for_plan(plan, [])
     excluded = units |> Enum.flat_map(& &1.excluded_release_guids) |> MapSet.new()
 
     criteria = %Criteria{type: :tmdb, title: plan.title, tmdb_type: :movie, year: plan.year}
@@ -421,23 +420,35 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
         _ -> plan_prefs.min_quality
       end
 
+    # Same residual discipline as the TV ladder: the broader (year-less)
+    # term is searched only when the year term yields nothing acceptable.
     best =
       plan
-      |> search(term, [type: :movie], force?)
-      |> Enum.filter(fn result ->
-        not ReleaseRedFlags.suspicious?(result.title, result.size_bytes) and
-          not MapSet.member?(excluded, result.guid) and
-          TitleMatcher.matches?(result, criteria) and
-          Quality.acceptable?(result.quality, min_quality, plan_prefs.max_quality)
+      |> LadderTerms.for_plan([])
+      |> Enum.reduce_while(nil, fn {term, opts}, _acc ->
+        pick =
+          plan
+          |> search(term, opts, force?)
+          |> Enum.filter(fn result ->
+            not ReleaseRedFlags.suspicious?(result.title, result.size_bytes) and
+              not MapSet.member?(excluded, result.guid) and
+              TitleMatcher.matches?(result, criteria) and
+              Quality.acceptable?(result.quality, min_quality, plan_prefs.max_quality)
+          end)
+          |> Enum.max_by(&{Quality.rank(&1.quality), &1.seeders || 0}, fn -> nil end)
+
+        case pick do
+          nil -> {:cont, nil}
+          result -> {:halt, {result, term}}
+        end
       end)
-      |> Enum.max_by(&{Quality.rank(&1.quality), &1.seeders || 0}, fn -> nil end)
 
     Enum.each(units, fn unit ->
       case best do
         nil ->
           {:ok, _} = Repo.update(PlanUnit.unfound_changeset(unit))
 
-        result ->
+        {result, term} ->
           {:ok, _} =
             Repo.update(
               PlanUnit.assign_changeset(unit, %{
