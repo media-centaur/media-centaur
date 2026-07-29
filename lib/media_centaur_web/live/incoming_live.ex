@@ -1321,7 +1321,8 @@ defmodule MediaCentaurWeb.IncomingLive do
 
       # TMDB citizenship: a re-fire of the same effective query (trailing
       # space, blur/focus echo) never searches again — each debounce fire
-      # costs two API calls (movie + tv).
+      # costs one API call (multi), up to three when the query carries a
+      # trailing year (movie + tv, plus the year-less fallback).
       trimmed == socket.assigns.omnibox_searched ->
         {:noreply, socket}
 
