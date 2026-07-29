@@ -21,19 +21,34 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
 
   # --- Search ---
 
+  # A query ending in a standalone year, optionally parenthesized
+  # ("Title 1999", "Title (1999)"). The title part must be non-empty —
+  # a bare year is a title query ("1999" the film), not a filter.
+  @trailing_year_query ~r/^(.+?)\s+\(?((?:19|20)\d{2})\)?$/
+
   @doc """
-  Searches TMDB's multi endpoint for movies and TV shows, preserving
-  TMDB's cross-type relevance order (a regrouped movies-then-tv merge
-  once starved every TV result out of the capped omnibox dropdown).
-  Person results are dropped. Returns `[TitleResult.t()]` — the one
-  normalized shape every title-search surface consumes.
+  Searches TMDB for movies and TV shows. Plain queries go to the multi
+  endpoint, preserving TMDB's cross-type relevance order (a regrouped
+  movies-then-tv merge once starved every TV result out of the capped
+  omnibox dropdown). Person results are dropped.
+
+  A trailing year ("Title 1999", "Title (1999)") never matches a TMDB
+  title through the multi endpoint, so it is stripped and sent as the
+  year filter of the per-type search endpoints instead, merged by
+  popularity. A year that filters everything out (wrong year, or a
+  number that is part of the title) falls back to a year-less multi
+  search of the stripped title — the year is a disambiguator, never a
+  gatekeeper.
+
+  Returns `[TitleResult.t()]` — the one normalized shape every
+  title-search surface consumes.
   """
   @spec search_tmdb(String.t()) :: [TitleResult.t()]
   def search_tmdb(query) do
     results =
-      case Client.search_multi(query) do
-        {:ok, results} -> Enum.flat_map(results, &normalize_multi_result/1)
-        {:error, _reason} -> []
+      case Regex.run(@trailing_year_query, String.trim(query)) do
+        [_full, title, year] -> year_search(title, String.to_integer(year))
+        nil -> multi_search(query)
       end
 
     tracked_tmdb_ids =
@@ -46,6 +61,35 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
       %{result | tracked?: tracked}
     end)
   end
+
+  defp multi_search(query) do
+    case Client.search_multi(query) do
+      {:ok, results} -> Enum.flat_map(results, &normalize_multi_result/1)
+      {:error, _reason} -> []
+    end
+  end
+
+  # The per-type endpoints carry no cross-type relevance rank, so the
+  # merged list orders by TMDB popularity instead.
+  defp year_search(title, year) do
+    movie_results = tag_media_type(Client.search_movie(title, year), "movie")
+    tv_results = tag_media_type(Client.search_tv(title, year), "tv")
+
+    case movie_results ++ tv_results do
+      [] ->
+        multi_search(title)
+
+      combined ->
+        combined
+        |> Enum.sort_by(&(&1["popularity"] || 0.0), :desc)
+        |> Enum.flat_map(&normalize_multi_result/1)
+    end
+  end
+
+  defp tag_media_type({:ok, results}, media_type),
+    do: Enum.map(results, &Map.put(&1, "media_type", media_type))
+
+  defp tag_media_type({:error, _reason}, _media_type), do: []
 
   defp normalize_multi_result(%{"media_type" => "movie"} = tmdb), do: [normalize_movie_result(tmdb)]
   defp normalize_multi_result(%{"media_type" => "tv"} = tmdb), do: [normalize_tv_result(tmdb)]

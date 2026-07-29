@@ -105,6 +105,64 @@ defmodule MediaCentaur.Pipeline.Stages.SearchTest do
   end
 
   # ---------------------------------------------------------------------------
+  # Year fallback — the parsed year is a disambiguator, never a gatekeeper.
+  # A wrongly-parsed year (or an off-by-one release year: festival premiere
+  # vs theatrical) must not turn a findable title into a silent miss; the
+  # year-less retry surfaces the candidate and the confidence score still
+  # carries the mismatch penalty.
+  # ---------------------------------------------------------------------------
+
+  describe "year fallback" do
+    defp stub_yearless_only(path, results) do
+      Req.Test.stub(:tmdb, fn conn ->
+        params = URI.decode_query(conn.query_string)
+        year_filtered? = params["year"] || params["first_air_date_year"]
+
+        if String.contains?(conn.request_path, path) and is_nil(year_filtered?) do
+          Req.Test.json(conn, %{"results" => results})
+        else
+          Req.Test.json(conn, %{"results" => []})
+        end
+      end)
+    end
+
+    test "movie: a wrong parsed year retries without the year filter" do
+      stub_yearless_only("search/movie", [
+        movie_search_result(%{
+          "id" => 550,
+          "title" => "Sample Movie",
+          "release_date" => "1999-10-15"
+        })
+      ])
+
+      payload = payload_with_parsed(%{year: 1997})
+
+      # Exact title + mismatched year scores 0.90 (1.0 − 0.15 + 0.05 top
+      # bonus) — still auto-approved. The penalty matters for near-miss
+      # titles, not exact ones.
+      assert {:ok, result} = Search.run(payload)
+      assert result.tmdb_id == 550
+      assert result.match_title == "Sample Movie"
+    end
+
+    test "TV: a wrong parsed year retries without the year filter" do
+      stub_yearless_only("search/tv", [
+        tv_search_result(%{
+          "id" => 1396,
+          "name" => "Sample Show",
+          "first_air_date" => "2008-01-20"
+        })
+      ])
+
+      payload = payload_with_parsed(%{title: "Sample Show", year: 2006, type: :tv})
+
+      assert {:ok, result} = Search.run(payload)
+      assert result.tmdb_id == 1396
+      assert result.match_title == "Sample Show"
+    end
+  end
+
+  # ---------------------------------------------------------------------------
   # Tied scores
   # ---------------------------------------------------------------------------
 

@@ -850,6 +850,124 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
   end
 
+  describe "search_tmdb/1 — trailing year in the query" do
+    setup do
+      MediaCentaur.TmdbStubs.setup_tmdb_client()
+      :ok
+    end
+
+    # The multi endpoint matches the whole query string against titles —
+    # "Test Movie 1999" matches nothing. A trailing year must instead be
+    # sent as the year filter of the per-type endpoints.
+    defp stub_year_search(movie_results, tv_results, multi_results) do
+      Req.Test.stub(:tmdb, fn conn ->
+        params = URI.decode_query(conn.query_string)
+
+        cond do
+          String.contains?(conn.request_path, "search/movie") ->
+            if params["year"],
+              do: Req.Test.json(conn, %{"results" => movie_results}),
+              else: Req.Test.json(conn, %{"results" => []})
+
+          String.contains?(conn.request_path, "search/tv") ->
+            if params["first_air_date_year"],
+              do: Req.Test.json(conn, %{"results" => tv_results}),
+              else: Req.Test.json(conn, %{"results" => []})
+
+          String.contains?(conn.request_path, "search/multi") ->
+            Req.Test.json(conn, %{"results" => multi_results})
+
+          true ->
+            Req.Test.json(conn, %{"results" => []})
+        end
+      end)
+    end
+
+    test "a trailing year routes to the year-filtered movie and tv searches" do
+      stub_year_search(
+        [%{"id" => 100, "title" => "Test Movie", "release_date" => "1999-07-01", "popularity" => 5.0}],
+        [],
+        []
+      )
+
+      assert [%TitleResult{tmdb_id: 100, media_type: :movie, year: "1999"}] =
+               ReleaseTracking.search_tmdb("Test Movie 1999")
+    end
+
+    test "a parenthesized trailing year is treated the same" do
+      stub_year_search(
+        [%{"id" => 100, "title" => "Test Movie", "release_date" => "1999-07-01", "popularity" => 5.0}],
+        [],
+        []
+      )
+
+      assert [%TitleResult{tmdb_id: 100, media_type: :movie}] =
+               ReleaseTracking.search_tmdb("Test Movie (1999)")
+    end
+
+    test "movie and tv year results merge by TMDB popularity" do
+      stub_year_search(
+        [%{"id" => 100, "title" => "Test Movie", "release_date" => "1999-07-01", "popularity" => 5.0}],
+        [%{"id" => 200, "name" => "Test Show", "first_air_date" => "1999-01-01", "popularity" => 10.0}],
+        []
+      )
+
+      assert [
+               %TitleResult{tmdb_id: 200, media_type: :tv_series},
+               %TitleResult{tmdb_id: 100, media_type: :movie}
+             ] = ReleaseTracking.search_tmdb("Test 1999")
+    end
+
+    test "falls back to a year-less multi search of the stripped title when the year filter finds nothing" do
+      Req.Test.stub(:tmdb, fn conn ->
+        params = URI.decode_query(conn.query_string)
+
+        # Only the stripped title may reach the multi fallback — the
+        # full "Test Movie 1997" string would match no TMDB title.
+        if String.contains?(conn.request_path, "search/multi") and params["query"] == "Test Movie" do
+          Req.Test.json(conn, %{
+            "results" => [
+              %{
+                "id" => 100,
+                "media_type" => "movie",
+                "title" => "Test Movie",
+                "release_date" => "2000-07-01",
+                "poster_path" => "/m.jpg"
+              }
+            ]
+          })
+        else
+          Req.Test.json(conn, %{"results" => []})
+        end
+      end)
+
+      assert [%TitleResult{tmdb_id: 100, media_type: :movie, year: "2000"}] =
+               ReleaseTracking.search_tmdb("Test Movie 1997")
+    end
+
+    test "a bare year is a plain query, not a year filter" do
+      Req.Test.stub(:tmdb, fn conn ->
+        if String.contains?(conn.request_path, "search/multi") do
+          Req.Test.json(conn, %{
+            "results" => [
+              %{
+                "id" => 300,
+                "media_type" => "movie",
+                "title" => "1999",
+                "release_date" => "2009-01-01",
+                "poster_path" => nil
+              }
+            ]
+          })
+        else
+          Req.Test.json(conn, %{"results" => []})
+        end
+      end)
+
+      assert [%TitleResult{tmdb_id: 300, media_type: :movie}] = ReleaseTracking.search_tmdb("1999")
+    end
+  end
+
   describe "track_from_search/2" do
     setup do
       MediaCentaur.TmdbStubs.setup_tmdb_client()

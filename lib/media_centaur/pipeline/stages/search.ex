@@ -106,13 +106,13 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   # ---------------------------------------------------------------------------
 
   defp search(title, year, :movie) do
-    with {:ok, results} <- Client.search_movie(title, year) do
+    with {:ok, results} <- with_year_fallback(&Client.search_movie/2, title, year) do
       {:ok, best_match(results, title, year, "title", "release_date")}
     end
   end
 
   defp search(title, year, :tv) do
-    with {:ok, results} <- Client.search_tv(title, year) do
+    with {:ok, results} <- with_year_fallback(&Client.search_tv/2, title, year) do
       {:ok, best_match(results, title, year, "name", "first_air_date")}
     end
   end
@@ -120,11 +120,13 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
   defp search(title, year, :unknown) do
     movie_task =
       Task.Supervisor.async(MediaCentaur.TaskSupervisor, fn ->
-        Client.search_movie(title, year)
+        with_year_fallback(&Client.search_movie/2, title, year)
       end)
 
     tv_task =
-      Task.Supervisor.async(MediaCentaur.TaskSupervisor, fn -> Client.search_tv(title, year) end)
+      Task.Supervisor.async(MediaCentaur.TaskSupervisor, fn ->
+        with_year_fallback(&Client.search_tv/2, title, year)
+      end)
 
     with {:ok, movie_results} <- Task.await(movie_task),
          {:ok, tv_results} <- Task.await(tv_task) do
@@ -151,6 +153,18 @@ defmodule MediaCentaur.Pipeline.Stages.Search do
             {:ok, tv_match}
           end
       end
+    end
+  end
+
+  # The year param is a hard TMDB filter — a wrongly-parsed year (or an
+  # off-by-one release year: festival premiere vs theatrical) would turn
+  # a findable title into a silent miss. Zero year-filtered results
+  # retry year-less; `Confidence.score/6` still penalizes the mismatch,
+  # so a dubious year lands in review rather than vanishing.
+  defp with_year_fallback(search_fun, title, year) do
+    case search_fun.(title, year) do
+      {:ok, []} when not is_nil(year) -> search_fun.(title, nil)
+      result -> result
     end
   end
 
