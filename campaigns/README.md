@@ -21,6 +21,14 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`below-floor-releases.md`](below-floor-releases.md) —
+  **planning — design not started.** When every findable release of a
+  title is below the user's quality floor, the plan board says a bare
+  "unfound" — indistinguishable from "doesn't exist on your indexers"
+  (*The Magician* 2005: 6 real releases, all ≤720p/unlabeled, silently
+  rejected). Movies have no offer path at all; TV offers cover scope,
+  not quality. Campaign carries the diagnosis + open questions into an
+  owner-led design session; no design decisions yet.
 * [`documentation-catch-up.md`](documentation-catch-up.md) —
   **planning.** A massive wiki / guide / documentation pass to catch
   everything up to date, probably including an updated showcase and webpage
