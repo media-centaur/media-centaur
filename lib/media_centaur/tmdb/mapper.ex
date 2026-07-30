@@ -347,24 +347,42 @@ defmodule MediaCentaur.TMDB.Mapper do
 
   @doc """
   Derives a movie's canonical release date — the date the film first
-  became generally available, which is the year indexers tag its
-  releases with.
+  became generally available *anywhere*, which is the year indexers tag
+  its releases with.
 
   TMDB's top-level `release_date` is its *primary* release date, which
-  for a film with a festival/limited run before a later wide theatrical
-  release is the *later* date (e.g. "It Ends": digital 2025-12-10 but US
-  theatrical 2026-08-21, so `release_date` reads 2026). Preferring the
-  earliest US typed (theatrical/digital/physical) release keeps the
-  stored year aligned with scene tags; falls back to the primary
-  `release_date` when the payload carries no US typed dates.
+  skews late two ways: a film with a digital run before a later wide
+  theatrical reads the theatrical year (e.g. "It Ends": digital
+  2025-12-10 but US theatrical 2026-08-21), and a foreign film
+  distributed in the US years after its original run reads the US year
+  (HK 1994 → US 1996) while scene tags carry the original year. The
+  earliest typed (theatrical/digital/physical) release across all
+  countries matches the tag convention; falls back to the primary
+  `release_date` when the payload carries no typed dates. Premieres
+  stay excluded (not acquirable) — a premiere-year tag lands within
+  `TitleMatcher`'s ±1 tolerance.
   """
   @spec canonical_release_date(map()) :: Date.t() | nil
   def canonical_release_date(movie) do
-    case us_typed_release_dates(movie) do
+    case global_typed_release_dates(movie) do
       [] -> parse_date(movie["release_date"])
-      typed -> typed |> Enum.map(& &1.date) |> Enum.min(Date)
+      dates -> Enum.min(dates, Date)
     end
   end
+
+  # All-countries counterpart of `us_typed_release_dates/1` (which the
+  # release calendar keeps — "when can I get it" is a user-market
+  # question; "what year is it tagged" is an origin question).
+  defp global_typed_release_dates(%{"release_dates" => %{"results" => results}}) when is_list(results) do
+    for country <- results,
+        entry <- country["release_dates"] || [],
+        Map.has_key?(@movie_release_type_labels, entry["type"]),
+        date = parse_tmdb_date(entry["release_date"]),
+        not is_nil(date),
+        do: date
+  end
+
+  defp global_typed_release_dates(_), do: []
 
   @doc """
   Converts a TMDB `runtime` value (minutes) into integer seconds. TMDB

@@ -170,6 +170,33 @@ defmodule MediaCentaur.TMDB.MapperTest do
       assert result.date_published == ~D[2025-12-10]
     end
 
+    test "date_published uses the original country's release year, not the later US date" do
+      # A foreign film distributed in the US years later (HK 1994 → US
+      # 1996): TMDB's primary date and every US typed date carry the US
+      # year, but scene releases are tagged with the original year — the
+      # canonical date must be the earliest typed release anywhere.
+      data = %{
+        "title" => "Sample Movie",
+        "release_date" => "1996-03-08",
+        "release_dates" => %{
+          "results" => [
+            %{
+              "iso_3166_1" => "US",
+              "release_dates" => [%{"type" => 3, "release_date" => "1996-03-08T00:00:00.000Z"}]
+            },
+            %{
+              "iso_3166_1" => "HK",
+              "release_dates" => [%{"type" => 3, "release_date" => "1994-07-14T00:00:00.000Z"}]
+            }
+          ]
+        }
+      }
+
+      result = Mapper.movie_attrs("11104", data, nil)
+
+      assert result.date_published == ~D[1994-07-14]
+    end
+
     test "date_published falls back to release_date when no US typed dates exist" do
       data = %{
         "title" => "Sample Movie",
