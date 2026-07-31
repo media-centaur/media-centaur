@@ -15,8 +15,10 @@ and can decide, instead of a dead end that reads like a search failure.
 
 ## Status
 
-Design settled and approved by the owner (2026-07-31 session).
-Implementation not started — next action is Phase 1 below.
+Phases 1+2 (movie offer path + board UI) implemented and verified
+2026-07-31 (`3428ab0c`), including a live-browser check against the
+real *The Magician* plan — 6 candidates offered with correct badges.
+Unreleased. Next: Phase 3 (TV parity) or ship movies-first.
 
 ## Settled design (2026-07-31)
 
@@ -115,21 +117,45 @@ vocabulary is "quality preference" / "lower quality available".
 
 ## Implementation phases
 
-1. **Movie offer path**: `run_movie` records a below-floor offer
-   (candidate set) when ≥1 identity-matched release exists but none is
-   acceptable; true unfound unchanged. Test-first per
-   `automated-testing`.
-2. **Board + panel UI**: chip state, candidate panel (quality badge /
-   size / seeders), per-candidate grab through the existing user-pick
-   path. Storybook stories for any new/changed components (MC0009).
-3. **TV parity**: same offer shape for episode/unit below-floor drops.
-   Until this lands, the movie/TV asymmetry is recorded here.
+1. ✅ **Movie offer path** (`3428ab0c`): `run_movie` stamps
+   `below_floor_count` on the unit (identity-verified, non-bait,
+   non-excluded releases below the floor, deduped across rungs) when
+   nothing acceptable exists; true unfound unchanged. The candidate
+   *set* is NOT persisted — it's served live from the corpus via the
+   existing swap picker (`alternatives_for/1`, which never
+   floor-filters), so only the durable verdict is denormalized. A
+   design refinement over the original "carrying the candidate set"
+   wording: one representation, the corpus.
+2. ✅ **Board + panel UI** (`3428ab0c`): `PlanBoard.BelowFloor` offer
+   row (approved copy verbatim; such units are excluded from the bare
+   `gaps` row), "Show them" opens the existing alternatives panel
+   (release attr now optional — no exclude-current verb when nothing
+   is assigned). Display-quality badges via new
+   `Quality.display_label/1` (presentation-only parse: 720p/576p/480p/
+   DVD; nil → "Quality unknown" ghost badge) — also upgraded the
+   assignment/alternative labels generally. Story variations added.
+3. **TV parity**: same offer shape for episode/unit below-floor drops
+   (stamp counts in `solve_groups`/unfound path, chip on unfound cells,
+   per-unit offer rows). Until this lands, the movie/TV asymmetry
+   stands as recorded here.
 4. **Ship**: wiki/guide update (vocabulary per approved copy — never
    reads as "not found"), CHANGELOG, tagged release.
 
+### Noted during Phase 1 (deferred)
+
+* Tracking drop plans that solve to zero found are deleted by the mode
+  gate (`delete_tracking_draft`) — a below-floor verdict on a *tracked*
+  movie never surfaces. Whether tracking should keep such drafts (or
+  the want should carry the verdict) is a Phase 3+ question.
+* Above-max-quality candidates (e.g. only 4K exists, max is 1080p) are
+  not counted — "lower quality available" would be a lie. They stay a
+  bare unfound; a separate "higher quality only" surface was not
+  designed.
+
 ## Next steps
 
-1. Phase 1 — movie offer path (test-first).
+1. Phase 3 — TV parity (or ship movies-first and fold TV into the next
+   release; owner's call at ship time).
 
 ## Completion criteria
 
