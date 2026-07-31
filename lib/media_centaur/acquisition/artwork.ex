@@ -66,7 +66,7 @@ defmodule MediaCentaur.Acquisition.Artwork do
     case detail(id, tmdb_type) do
       {:ok, data} ->
         if path = data["backdrop_path"], do: ImageStore.download_backdrop(id, path)
-        if path = logo_path(data), do: ImageStore.download_logo(id, path)
+        if path = MediaCentaur.TMDB.Mapper.pick_logo_path(data), do: ImageStore.download_logo(id, path)
         :ok
 
       {:error, reason} ->
@@ -80,13 +80,6 @@ defmodule MediaCentaur.Acquisition.Artwork do
       :movie -> Client.get_movie(id)
       :tv_series -> Client.get_tv(id)
     end
-  end
-
-  # Same pick as the pipeline mapper: English logo first, any second.
-  defp logo_path(data) do
-    logos = get_in(data, ["images", "logos"]) || []
-    logo = Enum.find(logos, &(&1["iso_639_1"] == "en")) || List.first(logos)
-    logo && logo["file_path"]
   end
 
   defp item_url(nil, _field), do: nil

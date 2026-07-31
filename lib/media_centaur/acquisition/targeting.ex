@@ -61,15 +61,31 @@ defmodule MediaCentaur.Acquisition.Targeting do
   end
 
   defmodule Selection do
-    @moduledoc "The full targeting universe for one series."
+    @moduledoc """
+    The full targeting universe for one series. `backdrop_path` /
+    `logo_path` are raw TMDB paths (the `get_tv` detail rides images
+    along) so the plan modal can wear the series' cinematic identity —
+    the same dress the movie fast path gets from its preview.
+    """
 
     @enforce_keys [:tmdb_id, :title, :seasons, :tracked?]
-    defstruct [:tmdb_id, :title, :poster_path, :seasons, :tracked?, origin_country: []]
+    defstruct [
+      :tmdb_id,
+      :title,
+      :poster_path,
+      :backdrop_path,
+      :logo_path,
+      :seasons,
+      :tracked?,
+      origin_country: []
+    ]
 
     @type t :: %__MODULE__{
             tmdb_id: String.t(),
             title: String.t(),
             poster_path: String.t() | nil,
+            backdrop_path: String.t() | nil,
+            logo_path: String.t() | nil,
             seasons: [Season.t()],
             tracked?: boolean(),
             origin_country: [String.t()]
@@ -94,6 +110,8 @@ defmodule MediaCentaur.Acquisition.Targeting do
          tmdb_id: tmdb_id,
          title: tv["name"],
          poster_path: tv["poster_path"],
+         backdrop_path: tv["backdrop_path"],
+         logo_path: TMDB.Mapper.pick_logo_path(tv),
          seasons: seasons,
          tracked?: tracked?(tmdb_id),
          origin_country: tv["origin_country"] || []

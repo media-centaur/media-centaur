@@ -84,6 +84,37 @@ defmodule MediaCentaur.Acquisition.TargetingTest do
       assert selection.poster_path == "/ggFHVNu6YYI5L9pCfOacjizRGt.jpg"
     end
 
+    test "carries the series backdrop and English-first logo for the plan modal's shell" do
+      TmdbStubs.stub_routes([
+        {"/tv/246810/season/1",
+         TmdbStubs.season_detail(%{
+           "season_number" => 1,
+           "episodes" => [
+             %{"episode_number" => 1, "name" => "Pilot", "air_date" => "2020-01-01"}
+           ]
+         })},
+        {"/tv/246810",
+         TmdbStubs.tv_detail(%{
+           "id" => 246_810,
+           "name" => "Sample Show",
+           "backdrop_path" => "/sample-backdrop.jpg",
+           "images" => %{
+             "logos" => [
+               %{"iso_639_1" => "de", "file_path" => "/logo-de.png"},
+               %{"iso_639_1" => "en", "file_path" => "/logo-en.png"}
+             ]
+           },
+           "seasons" => [%{"season_number" => 1, "episode_count" => 1}]
+         })}
+      ])
+
+      assert {:ok, selection} = Targeting.series_selection("246810")
+
+      assert selection.backdrop_path == "/sample-backdrop.jpg"
+      # English logo wins over list order — same pick the import mapper makes.
+      assert selection.logo_path == "/logo-en.png"
+    end
+
     test "marks library-present units (subtractions shown, not silent)" do
       stub_sample_show()
 

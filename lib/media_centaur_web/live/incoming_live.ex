@@ -222,6 +222,8 @@ defmodule MediaCentaurWeb.IncomingLive do
          plan_alternatives: nil,
          plan_approving?: false,
          plan_discard_confirm?: false,
+         plan_identity: nil,
+         plan_artwork: nil,
          plan_drafts: []
        )
      )}
@@ -312,7 +314,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         # one-search-surface flip must not hide work in progress (UIDR-014).
         omnibox_mode: if(session.query != "" or session.groups != [], do: :release, else: :media),
         download_client_ready: Capabilities.download_client_ready?(),
-        plan_drafts: Plans.list_drafts(),
+        plan_drafts: load_drafts(),
         pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows(),
         ledger_rows: Pursuits.list_rows(:all_terminal, limit: @ledger_read_cap),
         history_rows: compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search),
@@ -732,6 +734,17 @@ defmodule MediaCentaurWeb.IncomingLive do
         :shelf_cards,
         View.with_progress(assigns.view.shelf.cards, shelf_progress(download_cards))
       )
+      # The plan modal's cinematic shell — one identity following the
+      # request through every stage (UIDR-014).
+      |> Phoenix.Component.assign(
+        :plan_backdrop_url,
+        PlanLogic.shell_backdrop_url(assigns.plan_stage, %{
+          identity: assigns.plan_identity,
+          selection: assigns.plan_selection,
+          movie: assigns.plan_movie,
+          artwork: assigns.plan_artwork
+        })
+      )
 
     ~H"""
     <Layouts.console_mount socket={@socket} />
@@ -749,6 +762,8 @@ defmodule MediaCentaurWeb.IncomingLive do
         <PlanModal.plan_modal
           open={@plan_param != nil}
           stage={@plan_stage}
+          backdrop_url={@plan_backdrop_url}
+          identity={@plan_identity}
           selection={@plan_selection}
           chosen={@plan_chosen}
           expanded_seasons={@plan_expanded_seasons}
@@ -867,10 +882,29 @@ defmodule MediaCentaurWeb.IncomingLive do
                 class="identity-banner flex items-center gap-3 px-4 py-3"
                 style={"--banner-hue: #{banner_hue(draft.title)}"}
               >
-                <span class="absolute top-2 left-3 text-[10px] uppercase tracking-wider text-base-content/40">
+                <%!-- Cached tracking artwork wears the banner; the hue
+                      gradient stays underneath as the no-artwork look.
+                      Same left-weighted scrim recipe as the banner's own
+                      background so the title stays legible. --%>
+                <img
+                  :if={draft.backdrop_url}
+                  src={draft.backdrop_url}
+                  alt=""
+                  aria-hidden="true"
+                  class="absolute inset-0 h-full w-full object-cover pointer-events-none"
+                  loading="eager"
+                  decoding="sync"
+                />
+                <div
+                  :if={draft.backdrop_url}
+                  aria-hidden="true"
+                  class="absolute inset-0 pointer-events-none bg-gradient-to-r from-[oklch(13%_0.02_264/0.92)] via-[oklch(13%_0.02_264/0.72)] to-[oklch(13%_0.02_264/0.30)]"
+                >
+                </div>
+                <span class="absolute top-2 left-3 text-[10px] uppercase tracking-wider text-base-content/40 z-[1]">
                   Draft
                 </span>
-                <div class="min-w-0 flex-1 pt-3">
+                <div class="min-w-0 flex-1 pt-3 relative z-[1]">
                   <p class="identity-logotype truncate text-base leading-tight">{draft.title}</p>
                   <p class="text-xs text-info/90 mt-1 [text-shadow:0_1px_3px_oklch(0%_0_0/0.5)]">
                     {if draft.status == "planning",
@@ -1151,7 +1185,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         {:noreply,
          socket
          |> assign(
-           plan_drafts: Plans.list_drafts(),
+           plan_drafts: load_drafts(),
            omnibox_query: "",
            omnibox_results: [],
            omnibox_searching?: false,
@@ -1284,7 +1318,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          {:ok, _discarded} <- Plans.discard(plan) do
       {:noreply,
        socket
-       |> assign(plan_drafts: Plans.list_drafts())
+       |> assign(plan_drafts: load_drafts())
        |> build_view()
        |> put_flash(:info, "Plan discarded.")
        |> push_patch(to: "/incoming")}
@@ -1376,7 +1410,18 @@ defmodule MediaCentaurWeb.IncomingLive do
     if Capabilities.prowlarr_ready?() do
       plan_type = if media_type == "movie", do: "movie", else: "tv"
 
-      {:noreply, push_patch(socket, to: "/incoming?plan=new&tmdb_id=#{tmdb_id}&tmdb_type=#{plan_type}")}
+      # Carry the picked result into the plan flow — the modal opens
+      # already wearing its identity instead of a gray loading box.
+      picked =
+        Enum.find(socket.assigns.omnibox_results, fn result ->
+          to_string(result.tmdb_id) == to_string(tmdb_id) &&
+            to_string(result.media_type) == media_type
+        end)
+
+      {:noreply,
+       socket
+       |> assign(plan_identity: picked)
+       |> push_patch(to: "/incoming?plan=new&tmdb_id=#{tmdb_id}&tmdb_type=#{plan_type}")}
     else
       # Forecast-only page: the hero promised tracking, so a pick tracks —
       # never the plan (grab) flow. Same shape the track modal uses.
@@ -1938,7 +1983,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       struct == PlanEvents.Changed ->
         socket =
           socket
-          |> assign(plan_drafts: Plans.list_drafts())
+          |> assign(plan_drafts: load_drafts())
           |> build_view()
           |> maybe_reload_plan_board(event)
 
@@ -2070,6 +2115,19 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, socket}
   end
 
+  def handle_async({:plan_artwork, plan_id}, {:ok, urls}, socket) do
+    if socket.assigns.plan_param == plan_id do
+      {:noreply, assign(socket, plan_artwork: urls)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_async({:plan_artwork, _plan_id}, {:exit, reason}, socket) do
+    Log.warning(:acquisition, "plan artwork fetch crashed — #{inspect(reason)}")
+    {:noreply, socket}
+  end
+
   def handle_async(:plan_approve, {:ok, outcome}, socket) do
     socket = assign(socket, plan_approving?: false)
 
@@ -2077,7 +2135,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       {:ok, committed} ->
         {:noreply,
          socket
-         |> assign(plan_drafts: Plans.list_drafts())
+         |> assign(plan_drafts: load_drafts())
          |> build_view()
          |> put_flash(:info, "Pursuit started.")
          |> push_patch(to: "/incoming?selected=#{committed.pursuit_id}")}
@@ -2369,6 +2427,20 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   defp maybe_reload_modal_for_event(socket, _event), do: socket
 
+  # Draft rows carry their identity artwork when release tracking's local
+  # cache has it (`Artwork.resolve` — DB + disk only, no network); the
+  # synthetic hue gradient stays the fallback.
+  defp load_drafts do
+    Enum.map(Plans.list_drafts(), fn plan ->
+      %{
+        id: plan.id,
+        title: plan.title,
+        status: plan.status,
+        backdrop_url: Acquisition.Artwork.resolve(plan.tmdb_id, plan.tmdb_type).backdrop_url
+      }
+    end)
+  end
+
   defp apply_plan_modal_params(socket, params) do
     case Map.get(params, "plan") do
       nil ->
@@ -2380,7 +2452,9 @@ defmodule MediaCentaurWeb.IncomingLive do
           plan_descent: nil,
           plan_alternatives: nil,
           plan_error: nil,
-          plan_discard_confirm?: false
+          plan_discard_confirm?: false,
+          plan_identity: nil,
+          plan_artwork: nil
         )
 
       "new" ->
@@ -2408,7 +2482,9 @@ defmodule MediaCentaurWeb.IncomingLive do
         plan_chosen: MapSet.new(),
         plan_expanded_seasons: MapSet.new(),
         plan_grab_future: false,
-        plan_error: nil
+        plan_error: nil,
+        plan_identity: matching_plan_identity(socket, tmdb_id, tmdb_type),
+        plan_artwork: nil
       )
       |> start_async(:plan_targeting, fn -> load_targeting(tmdb_id, tmdb_type) end)
     end
@@ -2416,6 +2492,19 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   defp open_plan_targeting(socket, _params) do
     assign(socket, plan_param: nil, plan_stage: :error, plan_error: "Malformed plan link.")
+  end
+
+  # The picked search result survives into the loading stage only when it
+  # actually is this plan's title — a URL-driven open (refresh, shared
+  # link) has nothing in hand and gets the scrim-only shell.
+  defp matching_plan_identity(socket, tmdb_id, tmdb_type) do
+    identity = socket.assigns[:plan_identity]
+    wanted_type = if tmdb_type == "movie", do: :movie, else: :tv_series
+
+    if identity && to_string(identity.tmdb_id) == to_string(tmdb_id) &&
+         identity.media_type == wanted_type do
+      identity
+    end
   end
 
   # Runs in the :plan_targeting async task — TMDB + library reads only.
@@ -2446,6 +2535,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     case Plans.get(plan_id) do
       {:ok, plan} ->
         board = Plans.board_for(plan)
+        socket = maybe_load_plan_artwork(socket, plan_id, plan)
 
         assign(socket,
           plan_param: plan_id,
@@ -2461,6 +2551,27 @@ defmodule MediaCentaurWeb.IncomingLive do
           plan_stage: :error,
           plan_error: "Plan not found — it may have been discarded."
         )
+    end
+  end
+
+  # The board's identity artwork — release tracking's local cache first
+  # (same store the pursuit modal reads), the network `Artwork.ensure`
+  # kicked off-process only on a fresh open with an empty cache, mirroring
+  # `maybe_fetch_artwork/2` for pursuits.
+  defp maybe_load_plan_artwork(socket, plan_id, plan) do
+    if socket.assigns.plan_param == plan_id do
+      socket
+    else
+      artwork = Acquisition.Artwork.resolve(plan.tmdb_id, plan.tmdb_type)
+      socket = assign(socket, plan_artwork: artwork)
+
+      if is_nil(artwork.backdrop_url) and Capabilities.tmdb_ready?() do
+        start_async(socket, {:plan_artwork, plan_id}, fn ->
+          Acquisition.Artwork.ensure(plan.tmdb_id, plan.tmdb_type)
+        end)
+      else
+        socket
+      end
     end
   end
 

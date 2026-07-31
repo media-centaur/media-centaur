@@ -102,6 +102,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
       name: tmdb["title"],
       year: extract_year(tmdb["release_date"]),
       poster_path: tmdb["poster_path"],
+      backdrop_path: tmdb["backdrop_path"],
       overview: presence(tmdb["overview"])
     }
   end
@@ -113,6 +114,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
       name: tmdb["name"],
       year: extract_year(tmdb["first_air_date"]),
       poster_path: tmdb["poster_path"],
+      backdrop_path: tmdb["backdrop_path"],
       overview: presence(tmdb["overview"])
     }
   end

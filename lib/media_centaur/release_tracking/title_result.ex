@@ -10,7 +10,16 @@ defmodule MediaCentaur.ReleaseTracking.TitleResult do
   """
 
   @enforce_keys [:tmdb_id, :media_type, :name]
-  defstruct [:tmdb_id, :media_type, :name, :year, :poster_path, :overview, tracked?: false]
+  defstruct [
+    :tmdb_id,
+    :media_type,
+    :name,
+    :year,
+    :poster_path,
+    :backdrop_path,
+    :overview,
+    tracked?: false
+  ]
 
   @type t :: %__MODULE__{
           tmdb_id: integer(),
@@ -18,6 +27,7 @@ defmodule MediaCentaur.ReleaseTracking.TitleResult do
           name: String.t(),
           year: String.t() | nil,
           poster_path: String.t() | nil,
+          backdrop_path: String.t() | nil,
           overview: String.t() | nil,
           tracked?: boolean()
         }
