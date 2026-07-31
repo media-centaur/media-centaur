@@ -72,6 +72,31 @@ defmodule MediaCentaur.Search.Quality do
   def label(:hd_1080p), do: "1080p"
   def label(nil), do: "Unknown"
 
+  @doc """
+  Presentation-only quality label parsed from the release title.
+
+  Unlike the two-tier ladder (`parse/1`), this also names the
+  below-floor resolutions (`720p`, `576p`, `480p`) and a DVD rip with
+  no resolution token — so a below-floor candidate reads as what it is
+  instead of "Unknown". It never ranks: acceptability and sorting stay
+  on the ladder. Returns `nil` when the title carries no quality
+  signal at all (the caller labels that "Quality unknown").
+  """
+  @spec display_label(String.t()) :: String.t() | nil
+  def display_label(title) when is_binary(title) do
+    downcased = String.downcase(title)
+
+    cond do
+      uhd_4k?(downcased) -> "4K"
+      String.contains?(downcased, "1080p") -> "1080p"
+      String.contains?(downcased, "720p") -> "720p"
+      String.contains?(downcased, "576p") -> "576p"
+      String.contains?(downcased, "480p") -> "480p"
+      String.contains?(downcased, "dvdrip") -> "DVD"
+      true -> nil
+    end
+  end
+
   defp uhd_4k?(downcased) do
     String.contains?(downcased, "2160p") or
       String.contains?(downcased, "4k") or

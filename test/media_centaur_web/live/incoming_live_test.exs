@@ -863,6 +863,82 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "section", "No active pursuits")
       refute has_element?(view, "button", "Search for something to watch")
     end
+
+    test "a below-floor movie offers the picker instead of a bare gap", %{conn: conn} do
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+
+            results =
+              if query == "Sample Movie 2005" do
+                [
+                  %{
+                    "title" => "Sample.Movie.2005.720p.WEBRip.x264",
+                    "guid" => "bf-720p",
+                    "indexerId" => 1,
+                    "seeders" => 9,
+                    "size" => 1_400_000_000,
+                    "indexer" => "indexer-a"
+                  },
+                  %{
+                    "title" => "Sample.Movie.2005.AMZN.WEB-DL.DDP2.0.H.264",
+                    "guid" => "bf-unlabeled",
+                    "indexerId" => 1,
+                    "seeders" => 2,
+                    "size" => 1_000_000_000,
+                    "indexer" => "indexer-a"
+                  }
+                ]
+              else
+                []
+              end
+
+            Req.Test.json(conn, results)
+
+          {"POST", "/api/v1/search"} ->
+            Req.Test.json(conn, %{"approved" => true})
+
+          _other ->
+            Req.Test.json(conn, %{})
+        end
+      end)
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      html = render(view)
+
+      assert html =~ "Nothing matching your quality preference"
+      assert html =~ "2 lower-quality releases available"
+      refute html =~ "not available right now"
+
+      [unit] = Plans.units_for(plan.id)
+
+      view
+      |> element("button[phx-click='plan_show_alternatives'][phx-value-unit-id='#{unit.id}']")
+      |> render_click()
+
+      html = render(view)
+      assert html =~ "Sample.Movie.2005.720p.WEBRip.x264"
+      assert html =~ "Quality unknown"
+      # No current assignment — the exclude-and-re-solve verb has no target.
+      refute html =~ "Exclude this release"
+
+      view
+      |> element("button[phx-click='plan_choose_release'][phx-value-guid='bf-720p']")
+      |> render_click()
+
+      assert [grabbed] = Plans.units_for(plan.id)
+      assert grabbed.status == "found"
+      assert grabbed.assigned_guid == "bf-720p"
+      assert grabbed.assigned_quality == "720p"
+
+      # The offer row is gone; the chosen release row is the surface now.
+      html = render(view)
+      refute html =~ "Nothing matching your quality preference"
+      assert html =~ "Sample.Movie.2005.720p.WEBRip.x264"
+    end
   end
 
   describe "omnibox — one search surface, two modes (UIDR-014)" do

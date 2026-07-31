@@ -14,8 +14,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   * `:board` — the live coverage board over the durable draft plan:
     unit cells in season rows (consecutive same-release cells fuse
     into a capsule — consolidation made visible), the chosen releases
-    beneath with swap/exclude, gaps as an explicit warning row, and
-    the approval footer. Refresh-safe by construction.
+    beneath with swap/exclude, below-floor offers ("lower quality
+    available" with the picker as the explicit override), gaps as an
+    explicit warning row, and the approval footer. Refresh-safe by
+    construction.
   * `:error` — targeting failed (TMDB unreachable etc.).
 
   Pure rendering; the host owns all state and events.
@@ -701,6 +703,48 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         </div>
 
         <div
+          :for={below <- @board.below_floor}
+          :if={@board.status == :ready}
+          id={"plan-below-floor-#{below.unit_id}"}
+          class="space-y-1.5"
+        >
+          <div class="glass-inset rounded-lg px-3 py-2 border border-info/30 flex items-center gap-3">
+            <.icon name="hero-arrow-trending-down-mini" class="size-4 text-info flex-shrink-0" />
+            <span class="min-w-0 flex-1 text-sm">
+              <span class="text-base-content/90">
+                Nothing matching your quality preference<span :if={!@board.movie?}> for {below.unit_label}</span>
+              </span>
+              <span class="block text-xs text-base-content/50 mt-0.5">
+                {below.count} lower-quality {if below.count == 1, do: "release", else: "releases"} available.
+                Grabbing one takes it for this title without changing your preference.
+              </span>
+            </span>
+            <.button
+              variant="neutral"
+              size="xs"
+              class="flex-shrink-0"
+              phx-click={
+                if @alternatives && @alternatives.unit_id == below.unit_id,
+                  do: "plan_hide_alternatives",
+                  else: "plan_show_alternatives"
+              }
+              phx-value-unit-id={below.unit_id}
+              data-nav-item
+              tabindex="0"
+            >
+              {if @alternatives && @alternatives.unit_id == below.unit_id,
+                do: "Hide",
+                else: "Show them"}
+            </.button>
+          </div>
+
+          <.alternatives_panel
+            :if={@alternatives && @alternatives.unit_id == below.unit_id}
+            alternatives={@alternatives}
+          />
+        </div>
+
+        <div
           :if={@board.status == :ready && @board.gaps != []}
           class="glass-inset rounded-lg px-3 py-2 border border-warning/30 flex items-center gap-3"
         >
@@ -776,7 +820,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     required: true,
     doc: "%{unit_id, items, searching?} — typed at the public attr."
 
-  attr :release, PlanBoard.Release, required: true
+  attr :release, PlanBoard.Release,
+    default: nil,
+    doc:
+      "the currently assigned release when the picker opens from a release row (enables the exclude-and-re-solve verb); nil when it opens from a below-floor offer, which has no current assignment."
 
   defp alternatives_panel(assigns) do
     ~H"""
@@ -808,6 +855,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         </span>
         <.badge :if={alternative.quality} variant="info" size="xs" class="flex-shrink-0">
           {alternative.quality}
+        </.badge>
+        <.badge :if={!alternative.quality} variant="ghost" size="xs" class="flex-shrink-0">
+          Quality unknown
         </.badge>
         <span :if={alternative.seeders} class="flex-shrink-0 text-sm text-success/80 tabular-nums">
           ▲ {alternative.seeders}
@@ -847,6 +897,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           {if @alternatives[:searching?], do: "Searching…", else: "Find more"}
         </.button>
         <.button
+          :if={@release}
           variant="dismiss"
           size="xs"
           phx-click="plan_swap_release"

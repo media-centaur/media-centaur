@@ -257,12 +257,31 @@ defmodule MediaCentaur.Acquisition.Plans do
       covered: covered,
       seasons: seasons,
       releases: releases,
-      gaps: units |> Enum.filter(&(&1.status == "unfound")) |> Enum.map(& &1.label),
+      gaps:
+        units
+        |> Enum.filter(&(&1.status == "unfound" and &1.below_floor_count == 0))
+        |> Enum.map(& &1.label),
       total_size_bytes: total_size(releases),
       movie?: plan.tmdb_type == "movie",
       overlaps: PlanBoard.overlaps(releases, claims),
-      offers: offers(units)
+      offers: offers(units),
+      below_floor: below_floor(units)
     }
+  end
+
+  # Unfound units for which lower-quality releases exist (the planner's
+  # solve-time verdict) — surfaced as their own offer row, never a bare
+  # "not available" gap. The candidates are listed live via
+  # `alternatives_for/1`; choosing one is the explicit user pick that
+  # bypasses the floor.
+  defp below_floor(units) do
+    for unit <- units, unit.status == "unfound", unit.below_floor_count > 0 do
+      %PlanBoard.BelowFloor{
+        unit_id: unit.id,
+        unit_label: unit.label,
+        count: unit.below_floor_count
+      }
+    end
   end
 
   # Unfound units whose only coverage is an over-broad pack the planner
@@ -342,7 +361,7 @@ defmodule MediaCentaur.Acquisition.Plans do
             guid: result.guid,
             title: result.title,
             scope_label: scope_display(scope),
-            quality: Quality.label(result.quality),
+            quality: Quality.display_label(result.title),
             seeders: result.seeders,
             size_bytes: result.size_bytes,
             suspicious?: ReleaseRedFlags.suspicious?(result.title, result.size_bytes)
@@ -402,7 +421,7 @@ defmodule MediaCentaur.Acquisition.Plans do
         assigned_guid: result.guid,
         assigned_title: result.title,
         assigned_term: term,
-        assigned_quality: Quality.label(result.quality),
+        assigned_quality: Quality.display_label(result.title),
         assigned_seeders: result.seeders,
         assigned_indexer_id: result.indexer_id,
         assigned_size_bytes: result.size_bytes,

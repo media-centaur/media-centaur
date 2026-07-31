@@ -109,6 +109,31 @@ defmodule MediaCentaur.Search.QualityTest do
     end
   end
 
+  describe "display_label/1 — presentation-only parse from the release title" do
+    test "labels the ranked tiers like label/1" do
+      assert Quality.display_label("Sample.Movie.2023.2160p.UHD.BluRay.REMUX") == "4K"
+      assert Quality.display_label("Sample.Movie.2023.1080p.BluRay.x264-GROUP") == "1080p"
+    end
+
+    test "labels lower resolutions the ladder does not rank" do
+      assert Quality.display_label("Sample.Movie.2005.720p.WEBRip.x264") == "720p"
+      assert Quality.display_label("Sample.Show.S01E01.576p.DVDRip") == "576p"
+      assert Quality.display_label("Some.Old.Movie.1999.480p.DVDRip.XviD") == "480p"
+    end
+
+    test "labels a DVD rip with no resolution token as DVD" do
+      assert Quality.display_label("Sample.Movie.2005.DVDRip.x264-GROUP") == "DVD"
+    end
+
+    test "a resolution token wins over the DVD source token" do
+      assert Quality.display_label("Some.Old.Movie.1999.480p.DVDRip.XviD") == "480p"
+    end
+
+    test "returns nil when the title carries no quality signal" do
+      assert Quality.display_label("Sample.Movie.2005.AMZN.WEB-DL.DDP2.0.H.264") == nil
+    end
+  end
+
   describe "label/1" do
     test "returns human-readable label for 4K" do
       assert Quality.label(:uhd_4k) == "4K"

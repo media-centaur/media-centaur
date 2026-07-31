@@ -30,7 +30,11 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   steering pass.
 
   Movie plans skip the ladder: one term, best acceptable result by
-  quality-then-seeders (`TitleMatcher.matches?/2` identity).
+  quality-then-seeders (`TitleMatcher.matches?/2` identity). When
+  nothing acceptable exists but identity-verified releases do, the unit
+  lands unfound carrying `below_floor_count` — the "lower quality
+  available" verdict the board turns into an offer instead of a bare
+  gap (campaign `below-floor-releases`).
 
   Broadcasts `PlanEvents.SearchActivity` per term (the live activity
   feed), `PlanEvents.DescentStatus` per rung (the board's expectation
@@ -376,7 +380,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       assigned_guid: assignment.result.guid,
       assigned_title: assignment.result.title,
       assigned_term: Map.get(terms_by_guid, assignment.result.guid),
-      assigned_quality: Quality.label(assignment.result.quality),
+      assigned_quality: Quality.display_label(assignment.result.title),
       assigned_seeders: assignment.result.seeders,
       assigned_indexer_id: assignment.result.indexer_id,
       assigned_size_bytes: assignment.result.size_bytes,
@@ -422,31 +426,45 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
 
     # Same residual discipline as the TV ladder: the broader (year-less)
     # term is searched only when the year term yields nothing acceptable.
-    best =
+    # Alongside the pick, every walked rung accumulates the identity-
+    # verified releases *below* the floor (by guid — rungs overlap): when
+    # nothing acceptable exists, that count is the "lower quality
+    # available" verdict the unit carries instead of a bare unfound.
+    {best, below_floor_guids} =
       plan
       |> LadderTerms.for_plan([])
-      |> Enum.reduce_while(nil, fn {term, opts}, _acc ->
-        pick =
+      |> Enum.reduce_while({nil, MapSet.new()}, fn {term, opts}, {_best, below_floor_guids} ->
+        matched =
           plan
           |> search(term, opts, force?)
           |> Enum.filter(fn result ->
             not ReleaseRedFlags.suspicious?(result.title, result.size_bytes) and
               not MapSet.member?(excluded, result.guid) and
-              TitleMatcher.matches?(result, criteria) and
-              Quality.acceptable?(result.quality, min_quality, plan_prefs.max_quality)
+              TitleMatcher.matches?(result, criteria)
           end)
+
+        pick =
+          matched
+          |> Enum.filter(&Quality.acceptable?(&1.quality, min_quality, plan_prefs.max_quality))
           |> Enum.max_by(&{Quality.rank(&1.quality), &1.seeders || 0}, fn -> nil end)
 
+        below_floor_guids =
+          matched
+          |> Enum.filter(&(Quality.rank(&1.quality) < Quality.label_rank(min_quality)))
+          |> MapSet.new(& &1.guid)
+          |> MapSet.union(below_floor_guids)
+
         case pick do
-          nil -> {:cont, nil}
-          result -> {:halt, {result, term}}
+          nil -> {:cont, {nil, below_floor_guids}}
+          result -> {:halt, {{result, term}, below_floor_guids}}
         end
       end)
 
     Enum.each(units, fn unit ->
       case best do
         nil ->
-          {:ok, _} = Repo.update(PlanUnit.unfound_changeset(unit))
+          {:ok, _} =
+            Repo.update(PlanUnit.unfound_changeset(unit, nil, MapSet.size(below_floor_guids)))
 
         {result, term} ->
           {:ok, _} =
@@ -455,7 +473,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
                 assigned_guid: result.guid,
                 assigned_title: result.title,
                 assigned_term: term,
-                assigned_quality: Quality.label(result.quality),
+                assigned_quality: Quality.display_label(result.title),
                 assigned_seeders: result.seeders,
                 assigned_indexer_id: result.indexer_id,
                 assigned_size_bytes: result.size_bytes,

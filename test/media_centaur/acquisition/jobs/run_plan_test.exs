@@ -311,6 +311,123 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     end
   end
 
+  describe "movie below-floor releases" do
+    # The Magician (2005) shape: genuine releases of the film exist, all
+    # below the quality floor (≤720p or no resolution token). The unit
+    # stays unfound — the floor holds — but carries the count so the
+    # board can surface "lower quality available" instead of a bare gap.
+
+    test "a movie whose only releases are lower quality lands unfound carrying the count" do
+      stub_recording_searches(%{
+        "Sample Movie 2005" => [
+          release("Sample.Movie.2005.720p.WEBRip.x264", "bf-720p", %{
+            seeders: 9,
+            size: 1_400_000_000
+          }),
+          release("Sample.Movie.2005.DVDRip.x264", "bf-dvd", %{seeders: 4, size: 700_000_000}),
+          release("Sample.Movie.2005.AMZN.WEB-DL.DDP2.0.H.264", "bf-unlabeled", %{
+            seeders: 2,
+            size: 1_000_000_000
+          })
+        ],
+        # The year-less rung re-surfaces one of the same releases — the
+        # count dedups by guid across rungs.
+        "Sample Movie" => [
+          release("Sample.Movie.2005.720p.WEBRip.x264", "bf-720p", %{
+            seeders: 9,
+            size: 1_400_000_000
+          })
+        ]
+      })
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "unfound"
+      assert unit.assigned_guid == nil
+      assert unit.below_floor_count == 3
+    end
+
+    test "an acceptable release wins outright — no below-floor stamp" do
+      stub_recording_searches(%{
+        "Sample Movie 2005" => [
+          release("Sample.Movie.2005.1080p.WEB-DL.H.264", "good-1080p", %{
+            seeders: 12,
+            size: 4_000_000_000
+          }),
+          release("Sample.Movie.2005.720p.WEBRip.x264", "bf-720p", %{
+            seeders: 90,
+            size: 1_400_000_000
+          })
+        ]
+      })
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "found"
+      assert unit.assigned_guid == "good-1080p"
+      assert unit.below_floor_count == 0
+    end
+
+    test "a dry movie search stays a bare unfound" do
+      stub_recording_searches(%{})
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "unfound"
+      assert unit.below_floor_count == 0
+    end
+
+    test "releases that fail identity or look like bait never count" do
+      stub_recording_searches(%{
+        "Sample Movie 2005" => [
+          release("Different.Film.2005.720p.WEBRip.x264", "wrong-title", %{
+            seeders: 5,
+            size: 1_400_000_000
+          }),
+          release("Sample.Movie.2005.720p.WEBRip.x264.exe", "bait-exe", %{
+            seeders: 5,
+            size: 1_400_000_000
+          }),
+          release("Sample.Movie.2005.720p.WEBRip.x264-TINY", "bait-tiny", %{
+            seeders: 5,
+            size: 10_000_000
+          })
+        ]
+      })
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "unfound"
+      assert unit.below_floor_count == 0
+    end
+
+    test "a user-excluded release stops counting after the replan" do
+      stub_recording_searches(%{
+        "Sample Movie 2005" => [
+          release("Sample.Movie.2005.720p.WEBRip.x264", "bf-720p", %{
+            seeders: 9,
+            size: 1_400_000_000
+          })
+        ]
+      })
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.below_floor_count == 1
+
+      {:ok, _plan} = Plans.exclude_release(unit.id, "bf-720p")
+
+      assert [replanned] = Plans.units_for(plan.id)
+      assert replanned.status == "unfound"
+      assert replanned.below_floor_count == 0
+    end
+  end
+
   describe "crash containment" do
     test "an unexpected raise records the error and resolves planning — never a stuck spinner" do
       # A non-binary title from the indexer crashes SearchResult

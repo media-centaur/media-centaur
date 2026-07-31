@@ -58,6 +58,13 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
     field :offered_title, :string
     field :offered_scope, :string
     field :offered_size_bytes, :integer
+    # How many identity-verified, non-bait releases exist below the
+    # unit's quality floor when nothing acceptable was found — the
+    # planner's "lower quality available" verdict, stamped at solve
+    # time so the board's offer survives corpus expiry. The candidates
+    # themselves are served live from the corpus (`Plans.alternatives_for/1`);
+    # only the verdict is denormalized. 0 = a genuinely bare unfound.
+    field :below_floor_count, :integer, default: 0
     field :excluded_release_guids, {:array, :string}, default: []
     # Per-unit quality floor override (nil = inherit the plan's
     # criteria). The patience elevation (ADR-056 Q4: `min := max`
@@ -113,12 +120,14 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
   Marks the unit unfound, clearing any stale assignment. With an `offer`
   map (`offered_guid`/`offered_title`/`offered_scope`/`offered_size_bytes`)
   the unit is unfound *but* carries the over-broad pack the user can opt
-  into; `nil` clears any prior offer.
+  into; `nil` clears any prior offer. `below_floor_count` carries the
+  planner's "lower quality available" verdict (0 = bare unfound).
   """
-  def unfound_changeset(%__MODULE__{} = unit, offer \\ nil) do
+  def unfound_changeset(%__MODULE__{} = unit, offer \\ nil, below_floor_count \\ 0) do
     unit
     |> clear_assignment("unfound")
     |> put_offer(offer)
+    |> put_change(:below_floor_count, below_floor_count)
   end
 
   @doc """
@@ -158,7 +167,8 @@ defmodule MediaCentaur.Acquisition.Plans.PlanUnit do
       offered_guid: nil,
       offered_title: nil,
       offered_scope: nil,
-      offered_size_bytes: nil
+      offered_size_bytes: nil,
+      below_floor_count: 0
     )
   end
 
