@@ -877,11 +877,19 @@ defmodule MediaCentaurWeb.IncomingLive do
               Draft plans
             </h2>
             <div class="grid grid-cols-1 gap-2">
-              <div
+              <%!-- The whole banner is the click target — resuming the
+                    plan is the row's only verb, so it needs no inner
+                    button to hunt for. --%>
+              <button
                 :for={draft <- @view.drafts}
+                type="button"
                 id={"plan-draft-#{draft.id}"}
-                class="identity-banner flex items-center gap-3 px-4 py-3"
+                class="identity-banner flex items-center gap-3 px-4 py-3 w-full text-left cursor-pointer transition-[filter] hover:brightness-110"
                 style={"--banner-hue: #{banner_hue(draft.title)}"}
+                phx-click="resume_plan"
+                phx-value-id={draft.id}
+                data-nav-item
+                tabindex="0"
               >
                 <%!-- Cached tracking artwork wears the banner; the hue
                       gradient stays underneath as the no-artwork look.
@@ -913,17 +921,11 @@ defmodule MediaCentaurWeb.IncomingLive do
                       else: "Plan ready — review and approve"}
                   </p>
                 </div>
-                <.button
-                  variant="secondary"
-                  size="sm"
-                  phx-click="resume_plan"
-                  phx-value-id={draft.id}
-                  data-nav-item
-                  tabindex="0"
-                >
-                  Review plan
-                </.button>
-              </div>
+                <.icon
+                  name="hero-chevron-right-mini"
+                  class="size-5 flex-shrink-0 text-base-content/40 relative z-[1]"
+                />
+              </button>
             </div>
           </section>
 
