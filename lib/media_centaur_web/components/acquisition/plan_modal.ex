@@ -194,7 +194,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <h2 class="text-2xl font-semibold truncate text-on-image-lg">{@identity.name}</h2>
           <p class="text-sm text-base-content/60 mt-1 text-on-image">
             <span>{if @identity.media_type == :movie, do: "Movie", else: "TV Series"}</span>
-            <span :if={@identity.year}> ·              {@identity.year}</span>
+            <span :if={@identity.year}> ·                 {@identity.year}</span>
           </p>
         </div>
       </div>
@@ -328,6 +328,17 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           </span>
         </label>
         <div class="flex items-center gap-2">
+          <.button
+            :if={!@selection.tracked?}
+            variant="neutral"
+            size="sm"
+            phx-click="plan_track_only"
+            title="Follow future releases — download nothing now"
+            data-nav-item
+            tabindex="0"
+          >
+            Track only
+          </.button>
           <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
             Cancel
           </.button>
@@ -517,6 +528,17 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       </div>
 
       <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-end gap-2">
+        <.button
+          :if={!@movie.in_library?}
+          variant="neutral"
+          size="sm"
+          phx-click="plan_track_only"
+          title="Watch for this movie's release — download nothing now"
+          data-nav-item
+          tabindex="0"
+        >
+          Track release
+        </.button>
         <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
           Cancel
         </.button>

@@ -29,17 +29,38 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleDetail do
       <div class="absolute inset-0 bg-black/40" phx-click="close_detail"></div>
 
       <div class="absolute right-0 top-0 flex h-full w-[440px] max-w-full flex-col glass-nav shadow-2xl">
-        <div class="flex items-start justify-between gap-3 border-b border-base-content/10 p-5">
-          <div class="min-w-0">
+        <div class="relative flex items-start justify-between gap-3 overflow-hidden border-b border-base-content/10 p-5">
+          <%!-- The title's cached backdrop (tracking's own image store)
+                as a header band — the same identity the shelf card and
+                the acquisition modals wear; the flat header remains the
+                no-artwork state. --%>
+          <img
+            :if={@detail.backdrop_path}
+            src={MediaCentaur.Library.Image.web_path(@detail.backdrop_path)}
+            alt=""
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40"
+            loading="eager"
+            decoding="sync"
+          />
+          <div
+            :if={@detail.backdrop_path}
+            aria-hidden="true"
+            class="pointer-events-none absolute inset-0 bg-gradient-to-t from-[oklch(13%_0.02_264/0.85)] to-[oklch(13%_0.02_264/0.35)]"
+          >
+          </div>
+          <div class="relative min-w-0">
             <div class="flex items-center gap-2 text-xs uppercase tracking-wider text-base-content/40">
               <.icon name={media_icon(@detail.media_type)} class="size-4" />
               <span>{media_label(@detail.media_type)}</span>
             </div>
-            <h2 class="mt-1 truncate text-lg font-bold leading-tight">{@detail.name}</h2>
+            <h2 class="mt-1 truncate text-lg font-bold leading-tight text-on-image-lg">
+              {@detail.name}
+            </h2>
           </div>
           <button
             type="button"
-            class="rounded p-1 text-base-content/50 hover:bg-base-content/[0.06] hover:text-base-content"
+            class="relative rounded p-1 text-base-content/50 hover:bg-base-content/[0.06] hover:text-base-content"
             data-nav-item
             tabindex="0"
             phx-click="close_detail"

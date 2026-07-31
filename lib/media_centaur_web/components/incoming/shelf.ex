@@ -185,16 +185,17 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
   defp horizon_terminus(assigns) do
     # The terminus offers at most one action. Overflow wins ("Show all N"
     # grows the shelf in place); otherwise, with TMDB configured, the
-    # track affordance. With neither, there's nothing to afford and the
-    # ghost doesn't render — an affordance-shaped element must afford
-    # something.
+    # track affordance — a client-side focus of the omnibox, whose
+    # phx-focus opens the suggestion overlay (the retired Track modal's
+    # strip). With neither, there's nothing to afford and the ghost
+    # doesn't render — an affordance-shaped element must afford something.
     action =
       cond do
         assigns.overflow_count > 0 ->
           %{event: "expand_shelf", label: "Show all #{assigns.total_count}"}
 
         assigns.tmdb_ready ->
-          %{event: "open_track_modal", label: "Track something"}
+          %{event: Phoenix.LiveView.JS.focus(to: "#omnibox-media-input"), label: "Track something"}
 
         true ->
           nil

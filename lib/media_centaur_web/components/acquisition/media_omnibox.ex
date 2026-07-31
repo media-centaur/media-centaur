@@ -22,10 +22,29 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
   import MediaCentaurWeb.Components.Acquisition.TitleResultSummary, only: [title_result_summary: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   alias MediaCentaur.ReleaseTracking.TitleResult
   alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaurWeb.IncomingLive.Logic
+
+  defmodule Suggestion do
+    @moduledoc """
+    One suggested-trackable library show for the empty-query overlay —
+    the retired Track modal's suggestion strip, folded into the one
+    search surface.
+    """
+    @enforce_keys [:tv_series_id, :tmdb_id, :name, :media_type, :poster_url]
+    defstruct [:tv_series_id, :tmdb_id, :name, :media_type, :poster_url]
+
+    @type t :: %__MODULE__{
+            tv_series_id: integer(),
+            tmdb_id: String.t(),
+            name: String.t(),
+            media_type: :tv_series,
+            poster_url: String.t() | nil
+          }
+  end
 
   attr :mode, :atom, required: true, values: [:media, :release]
   attr :query, :string, default: "", doc: "Media-mode query (release mode reads the session)."
@@ -44,6 +63,26 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
   attr :results_open, :boolean,
     default: true,
     doc: "Whether the results overlay is shown (click-away dismisses it; typing reopens)."
+
+  attr :suggestions, :list,
+    default: [],
+    doc:
+      "`Suggestion.t()` rows — library shows not yet tracked, shown in the overlay while " <>
+        "the query is empty (focus loads them)."
+
+  attr :suggestions_loading?, :boolean, default: false
+
+  attr :confirmed_ids, :any,
+    default: nil,
+    doc:
+      "MapSet of tmdb-id strings whose suggestion was just tracked this session — the card " <>
+        "flips to Tracking (click again to undo)."
+
+  attr :suggestions_open?, :boolean,
+    default: false,
+    doc:
+      "Whether the empty-query suggestion overlay is shown — the host flips it on input " <>
+        "focus and off on dismiss/pick, independent of the typed-query dropdown."
 
   attr :session, SearchSession,
     default: nil,
@@ -93,11 +132,15 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
       <.media_dropdown
         :if={@mode == :media}
-        open={dropdown?(@query) && @results_open}
+        open={(dropdown?(@query) && @results_open) || (!dropdown?(@query) && @suggestions_open?)}
+        query={@query}
         results={@results}
         searching?={@searching?}
         preview_id={@preview_id}
         release_mode_available={@release_mode_available}
+        suggestions={@suggestions}
+        suggestions_loading?={@suggestions_loading?}
+        confirmed_ids={@confirmed_ids || MapSet.new()}
       />
 
       <.hero_mode_hint
@@ -165,6 +208,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           ]}
           placeholder="What do you want to watch?"
           phx-debounce="500"
+          phx-focus="omnibox_focus"
           phx-hook="MouseAutofocus"
           data-nav-item
           tabindex="0"
@@ -278,6 +322,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
   end
 
   attr :open, :boolean, required: true
+
+  attr :query, :string,
+    required: true,
+    doc: "the live query — an empty one shows the suggestion strip instead of results."
+
   attr :results, :list, required: true, doc: "`TitleResult.t()` rows — typed at the public attr above."
   attr :searching?, :boolean, required: true
 
@@ -286,6 +335,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
     doc: "`{media_type, tmdb_id}` or nil — documented at the public attr above."
 
   attr :release_mode_available, :boolean, required: true
+  attr :suggestions, :list, required: true, doc: "`Suggestion.t()` rows — typed at the public attr."
+  attr :suggestions_loading?, :boolean, required: true
+  attr :confirmed_ids, :any, required: true, doc: "MapSet — typed at the public attr."
 
   # The results overlay: a wide floating spotlight panel (media-center
   # scale) that never reflows the page. Always in the DOM while media
@@ -313,19 +365,29 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           ]
         }
       >
-        <div :if={@searching?} class="flex items-center gap-2 px-5 py-3 text-sm text-base-content/40">
+        <.suggestion_strip
+          :if={!dropdown?(@query)}
+          suggestions={@suggestions}
+          loading?={@suggestions_loading?}
+          confirmed_ids={@confirmed_ids}
+        />
+
+        <div
+          :if={dropdown?(@query) && @searching?}
+          class="flex items-center gap-2 px-5 py-3 text-sm text-base-content/40"
+        >
           <span class="loading loading-spinner loading-xs"></span> Searching TMDB…
         </div>
 
         <div
-          :if={!@searching? && @results == []}
+          :if={dropdown?(@query) && !@searching? && @results == []}
           class="px-5 py-4 text-sm text-base-content/40 text-center"
         >
           Nothing found on TMDB.
         </div>
 
         <div
-          :if={@results != []}
+          :if={dropdown?(@query) && @results != []}
           class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] grid-rows-[minmax(0,1fr)] min-h-0"
         >
           <div class="relative border-r border-base-content/10 p-6 overflow-y-auto thin-scrollbar">
@@ -368,6 +430,85 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
         </div>
       </div>
     </div>
+    """
+  end
+
+  attr :suggestions, :list, required: true, doc: "`Suggestion.t()` rows — typed at the public attr."
+  attr :loading?, :boolean, required: true
+  attr :confirmed_ids, :any, required: true, doc: "MapSet — typed at the public attr."
+
+  # The empty-query overlay: library shows not yet tracked, one-click
+  # Track cards (the retired Track modal's suggestion strip). A just-
+  # tracked card flips to Tracking; clicking again undoes it.
+  defp suggestion_strip(assigns) do
+    ~H"""
+    <div class="p-5 space-y-3">
+      <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+        Suggested from your library
+      </h3>
+      <div :if={@loading?} class="flex justify-center py-4">
+        <span class="loading loading-spinner loading-sm text-base-content/50"></span>
+      </div>
+      <p :if={!@loading? && @suggestions == []} class="text-sm text-base-content/40">
+        Shows in your library you aren't tracking yet appear here — type to search everything else.
+      </p>
+      <div
+        :if={!@loading? && @suggestions != []}
+        class="flex gap-3 overflow-x-auto thin-scrollbar p-1 -m-1 pb-2"
+      >
+        <.suggestion_card
+          :for={suggestion <- @suggestions}
+          suggestion={suggestion}
+          confirming={MapSet.member?(@confirmed_ids, suggestion.tmdb_id)}
+        />
+      </div>
+    </div>
+    """
+  end
+
+  attr :suggestion, Suggestion, required: true
+  attr :confirming, :boolean, required: true
+
+  defp suggestion_card(assigns) do
+    ~H"""
+    <button
+      type="button"
+      id={"omnibox-suggestion-#{@suggestion.tmdb_id}"}
+      phx-click="track_suggestion"
+      phx-value-tmdb-id={@suggestion.tmdb_id}
+      phx-value-tv-series-id={@suggestion.tv_series_id}
+      phx-value-name={@suggestion.name}
+      class="flex-shrink-0 w-28 group cursor-pointer text-left"
+      data-nav-item
+      tabindex="0"
+    >
+      <div class={[
+        "aspect-[2/3] rounded-lg overflow-hidden mb-2 ring-1 transition-all",
+        @confirming && "bg-success/10 ring-success/30 flex items-center justify-center",
+        !@confirming && "bg-base-300 ring-base-content/10 group-hover:ring-primary/40"
+      ]}>
+        <.icon :if={@confirming} name="hero-check-mini" class="size-8 text-success" />
+        <img
+          :if={!@confirming && @suggestion.poster_url}
+          src={sized_image_url(MediaCentaur.Library.Image.web_path(@suggestion.poster_url), 240)}
+          alt=""
+          class="w-full h-full object-cover"
+          loading="eager"
+          decoding="sync"
+        />
+        <div
+          :if={!@confirming && !@suggestion.poster_url}
+          class="w-full h-full flex items-center justify-center text-base-content/20"
+        >
+          <.icon name="hero-tv-mini" class="size-8" />
+        </div>
+      </div>
+      <p class="text-xs font-medium truncate">{@suggestion.name}</p>
+      <p :if={@confirming} class="text-xs text-success">Tracking</p>
+      <p :if={!@confirming} class="text-xs text-primary/70 group-hover:text-primary transition-colors">
+        + Track
+      </p>
+    </button>
     """
   end
 

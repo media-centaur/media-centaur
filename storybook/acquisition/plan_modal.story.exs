@@ -63,7 +63,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           "The picker wearing the series backdrop (UIDR-014 — the TV path gets the same " <>
             "cinematic shell as the movie confirm). Quick-action presets, tri-state season " <>
             "rows collapsed by default; season 1 expanded showing the episode drill-in: the " <>
-            "in-library row greyed (shown, never hidden), the unaired row inert.",
+            "in-library row greyed (shown, never hidden), the unaired row inert. The footer " <>
+            "carries Track only (follow future releases, download nothing) for an untracked " <>
+            "series — the retired Track modal's verb, re-homed.",
         attributes: %{
           open: true,
           stage: :targeting,
@@ -93,7 +95,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
             "that movie: hero (backdrop + logo, both rendered live from TMDB in the app — nil " <>
             "here pins the title fallback + film-icon frame), metadata row, overview, the same " <>
             "facet strip the owned detail panel shows (director, rating, language, studio, " <>
-            "genres), and a top-cast strip. Then the unchanged Cancel / Plan it footer.",
+            "genres), and a top-cast strip. The footer: Cancel · Track release (follow the " <>
+            "movie's release without grabbing — the retired Track modal's verb) · Plan it.",
         attributes: %{
           open: true,
           stage: :movie_confirm,

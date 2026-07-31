@@ -121,7 +121,6 @@ What belongs and what doesn't. Status mirrors the `@storybook_status` module att
 | `library_cards.toolbar/1` | ✅ covered | Tabs × sort × filter axes |
 | `poster_row/1` | ✅ covered | Horizontal 8-up row + artwork fallback |
 | `upcoming_cards.upcoming_zone/1` | ✅ covered | Calendar + active shows + tracked items + modal |
-| `track_modal/1` | 🖼 static example | Depends on TMDB context |
 | `coming_up_marquee/1` | ⚠️ skip | Depends on release-tracking timer state |
 | `console_components.chip_row/1` | ⚠️ skip | Log stream is sticky LiveView state |
 | `console_components.log_list/1` | ⚠️ skip | Log stream is sticky LiveView state |

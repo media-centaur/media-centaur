@@ -64,21 +64,25 @@ defmodule MediaCentaur.Credo.Checks.ImgAttributeDefaultsTest do
       |> refute_issues()
     end
 
-    test "lazy is allowed inside the track modal (search-result thumbnails)" do
+    test "a file dropped from the exempt list is scanned again" do
+      # TrackModal was an exempt surface until its retirement (the
+      # suggestion strip moved into the omnibox, eager like the rest of
+      # the page flow) — a leftover lazy in a non-exempt component must
+      # flag.
       ~S'''
-      defmodule MediaCentaurWeb.Components.TrackModal do
+      defmodule MediaCentaurWeb.Components.SomeSurface do
         use Phoenix.Component
 
-        def track_modal(assigns) do
+        def some_surface(assigns) do
           ~H"""
-          <img src={@suggestion.poster} loading="lazy" />
+          <img src={@poster} loading="lazy" />
           """
         end
       end
       '''
-      |> to_source_file("lib/media_centaur_web/components/track_modal.ex")
+      |> to_source_file("lib/media_centaur_web/components/some_surface.ex")
       |> run_check(ImgAttributeDefaults)
-      |> refute_issues()
+      |> assert_issue()
     end
 
     test "files outside lib/media_centaur_web are not scanned" do

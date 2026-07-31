@@ -31,6 +31,34 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
         attributes: %{mode: :media}
       },
       %Variation{
+        id: :media_suggestions,
+        description:
+          "Focused with nothing typed — library shows not yet tracked surface as one-click " <>
+            "Track cards in the overlay (the retired Track modal's suggestion strip, folded " <>
+            "into the one search surface). A confirmed card flips to Tracking.",
+        attributes: %{
+          mode: :media,
+          results_open: true,
+          suggestions: [
+            %MediaCentaurWeb.Components.Acquisition.MediaOmnibox.Suggestion{
+              tv_series_id: 1,
+              tmdb_id: "246810",
+              name: "Sample Show",
+              media_type: :tv_series,
+              poster_url: nil
+            },
+            %MediaCentaurWeb.Components.Acquisition.MediaOmnibox.Suggestion{
+              tv_series_id: 2,
+              tmdb_id: "246811",
+              name: "Sample Show Two",
+              media_type: :tv_series,
+              poster_url: nil
+            }
+          ],
+          confirmed_ids: {:eval, ~s|MapSet.new(["246811"])|}
+        }
+      },
+      %Variation{
         id: :media_results,
         description:
           "Typed query with TMDB results — the floating spotlight overlay. The top " <>
