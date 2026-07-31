@@ -872,7 +872,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "#plan-draft-#{plan.id}")
 
       view
-      |> element("#plan-draft-#{plan.id} button[phx-click='resume_plan']")
+      |> element("button#plan-draft-#{plan.id}")
       |> render_click()
 
       assert_patch(view, "/incoming?plan=#{plan.id}")
@@ -902,7 +902,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/incoming")
 
       view
-      |> element("#plan-draft-#{plan.id} button[phx-click='resume_plan']")
+      |> element("button#plan-draft-#{plan.id}")
       |> render_click()
 
       assert_patch(view, "/incoming?plan=#{plan.id}")
