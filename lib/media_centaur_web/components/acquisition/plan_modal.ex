@@ -34,6 +34,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   import MediaCentaurWeb.LiveHelpers, only: [format_size: 1]
 
   alias MediaCentaurWeb.Components.Acquisition.CellVocabulary
+  alias MediaCentaurWeb.Components.Acquisition.ReleaseFacts
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaurWeb.IncomingLive.MoviePreview
@@ -41,6 +42,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   alias MediaCentaurWeb.Components.Detail.CinematicBackdrop
   alias MediaCentaurWeb.Components.Detail.FacetStrip
   alias MediaCentaurWeb.Components.Detail.MetadataRow
+  alias MediaCentaurWeb.Components.Detail.TitleLayer
 
   attr :open, :boolean, required: true
 
@@ -192,7 +194,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <h2 class="text-2xl font-semibold truncate text-on-image-lg">{@identity.name}</h2>
           <p class="text-sm text-base-content/60 mt-1 text-on-image">
             <span>{if @identity.media_type == :movie, do: "Movie", else: "TV Series"}</span>
-            <span :if={@identity.year}> ·        {@identity.year}</span>
+            <span :if={@identity.year}> ·              {@identity.year}</span>
           </p>
         </div>
       </div>
@@ -484,33 +486,15 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
     ~H"""
     <div>
-      <%!-- 21:9 title layer, same as Detail.Hero — logo (or title) + tagline
-            seated at the bottom of the backdrop region; film-icon frame when
-            TMDB has no artwork at all. --%>
-      <div class={["relative aspect-[21/9]", !@hero_image && "glass-inset overflow-hidden"]}>
-        <div :if={!@hero_image} class="w-full h-full flex items-center justify-center">
-          <.icon name="hero-film" class="size-12 text-base-content/20" />
-        </div>
-        <div class="absolute bottom-4 left-6 right-6 space-y-1.5">
-          <img
-            :if={@movie.logo_url}
-            src={@movie.logo_url}
-            alt={@movie.title}
-            class="max-h-20 max-w-[70%] object-contain text-on-image-lg"
-            loading="eager"
-            decoding="sync"
-          />
-          <h2
-            :if={!@movie.logo_url}
-            class="text-2xl font-bold leading-snug text-white text-on-image-lg"
-          >
-            {@movie.title}
-          </h2>
-          <p :if={@movie.tagline} class="italic text-sm text-white/85 text-on-image">
-            {@movie.tagline}
-          </p>
-        </div>
-      </div>
+      <%!-- The shared 21:9 identity frame (Detail.TitleLayer) — the same
+            layer the owned detail hero wears; film-icon frame when TMDB
+            has no artwork at all. --%>
+      <TitleLayer.title_layer
+        title={@movie.title}
+        logo_url={@movie.logo_url}
+        tagline={@movie.tagline}
+        placeholder?={!@hero_image}
+      />
 
       <div class="px-6 pb-6 space-y-4">
         <div class="flex items-center justify-between gap-3">
@@ -677,27 +661,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
               id={"plan-release-#{release.swap_unit_id}"}
               class="glass-inset rounded-lg px-3 py-2 flex items-center gap-3"
             >
-              <.badge :if={release.scope_label} variant="ghost" size="xs" class="flex-shrink-0">
-                {release.scope_label}
-              </.badge>
-              <span
-                class="min-w-0 flex-1 truncate font-mono text-[13px] text-base-content/60"
-                title={release.title}
-              >
-                {release.title}
-              </span>
-              <.badge :if={release.quality} variant="info" size="xs" class="flex-shrink-0">
-                {release.quality}
-              </.badge>
-              <span :if={release.seeders} class="flex-shrink-0 text-sm text-success/80 tabular-nums">
-                ▲ {release.seeders}
-              </span>
-              <span
-                :if={release.size_bytes}
-                class="flex-shrink-0 text-sm text-base-content/50 tabular-nums"
-              >
-                {format_size(release.size_bytes)}
-              </span>
+              <ReleaseFacts.release_facts entry={release_entry(release)} />
               <.button
                 :if={@board.status == :ready}
                 variant="neutral"
@@ -925,37 +889,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         id={"plan-alternative-#{@alternatives.unit_id}-#{:erlang.phash2(alternative.guid)}"}
         class="flex items-center gap-3"
       >
-        <.badge :if={alternative.scope_label} variant="ghost" size="xs" class="flex-shrink-0">
-          {alternative.scope_label}
-        </.badge>
-        <span
-          class="min-w-0 flex-1 truncate font-mono text-[13px] text-base-content/60"
-          title={alternative.title}
-        >
-          {alternative.title}
-        </span>
-        <span
-          :if={alternative.suspicious?}
-          class="flex-shrink-0 text-[10px] uppercase tracking-wider text-error/80"
-          title="The release name looks like executable bait — only grab it if you're sure."
-        >
-          ⚠ looks fake
-        </span>
-        <.badge :if={alternative.quality} variant="info" size="xs" class="flex-shrink-0">
-          {alternative.quality}
-        </.badge>
-        <.badge :if={!alternative.quality} variant="ghost" size="xs" class="flex-shrink-0">
-          Quality unknown
-        </.badge>
-        <span :if={alternative.seeders} class="flex-shrink-0 text-sm text-success/80 tabular-nums">
-          ▲ {alternative.seeders}
-        </span>
-        <span
-          :if={alternative.size_bytes}
-          class="flex-shrink-0 text-sm text-base-content/50 tabular-nums"
-        >
-          {format_size(alternative.size_bytes)}
-        </span>
+        <ReleaseFacts.release_facts entry={alternative_entry(alternative)} />
         <.button
           variant="neutral"
           size="xs"
@@ -1048,6 +982,27 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     else
       "#{aired} aired"
     end
+  end
+
+  defp release_entry(%PlanBoard.Release{} = release) do
+    %ReleaseFacts.Entry{
+      title: release.title,
+      scope_label: release.scope_label,
+      quality: release.quality,
+      size_bytes: release.size_bytes,
+      seeders: release.seeders
+    }
+  end
+
+  defp alternative_entry(%PlanBoard.Alternative{} = alternative) do
+    %ReleaseFacts.Entry{
+      title: alternative.title,
+      scope_label: alternative.scope_label,
+      quality: alternative.quality,
+      size_bytes: alternative.size_bytes,
+      seeders: alternative.seeders,
+      suspicious?: alternative.suspicious?
+    }
   end
 
   defp descent_dot(:active), do: "bg-info animate-pulse"

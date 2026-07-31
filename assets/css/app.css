@@ -195,8 +195,34 @@ html.psb .psb-variation-block .media-centaur {
   flex-direction: column;
   /* Viewport units are divided by `--ui-scale`: the root `zoom`
      multiplies them, so a bare `88vw` / `100vh` renders scale× too
-     large (same idiom as `.modal-panel`). */
-  width: min(calc(88vw / var(--ui-scale, 1)), 80rem);
+     large (same idiom as `.modal-panel`).
+
+     Width cap: the panel may use everything right of the expanded
+     sidebar (200px + 16px gutters each side = 232px) — asymmetric on
+     purpose, so a tight viewport costs position, not spotlight width. */
+  --search-overlay-width: min(
+    calc(88vw / var(--ui-scale, 1)),
+    80rem,
+    calc(100vw / var(--ui-scale, 1) - 232px)
+  );
+  width: var(--search-overlay-width);
+  /* Anchor: centered on the omnibox column — but never under the
+     sidebar. `100%` here is the containing block (the omnibox column),
+     whose viewport-left edge is 52px + (main − 100%)/2 with
+     main = 100vw/S − 52px (the icon rail the content always reserves).
+     Requiring the panel's left edge ≥ 216px (expanded sidebar + gutter)
+     and solving for `left` (which, with the −50% translate, positions
+     the panel's center) gives the second term: 164px = 216 − 52. On
+     roomy viewports the centered 50% wins; when space is tight the
+     panel slides right off the sidebar instead of clipping under it. */
+  left: max(
+    50%,
+    calc(
+      164px - (100vw / var(--ui-scale, 1) - 52px - 100%) / 2 +
+        var(--search-overlay-width) / 2
+    )
+  );
+  transform: translateX(-50%);
   /* Sized to the space actually BELOW the anchor: the panel starts
      ~19rem down (header + prompt + input), so a viewport-blind 72vh
      hung past the bottom of the screen. `100vh/S − 21rem` leaves room
@@ -207,6 +233,23 @@ html.psb .psb-variation-block .media-centaur {
   @apply backdrop-blur-[24px];
   border: 1px solid var(--glass-border);
   box-shadow: 0 12px 48px oklch(0% 0 0 / 0.5);
+}
+
+/* Collapsed sidebar frees the left clearance — only the 52px icon rail
+   plus gutters (84px) needs avoiding; 16px = 68 − 52. */
+[data-sidebar="collapsed"] .search-overlay {
+  --search-overlay-width: min(
+    calc(88vw / var(--ui-scale, 1)),
+    80rem,
+    calc(100vw / var(--ui-scale, 1) - 84px)
+  );
+  left: max(
+    50%,
+    calc(
+      16px - (100vw / var(--ui-scale, 1) - 52px - 100%) / 2 +
+        var(--search-overlay-width) / 2
+    )
+  );
 }
 
 /* The open search overlay is a modal layer: freeze the page behind it.

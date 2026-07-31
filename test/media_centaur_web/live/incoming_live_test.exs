@@ -976,7 +976,9 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       html = render(view)
       assert html =~ "Sample.Movie.2005.720p.WEBRip.x264"
-      assert html =~ "Quality unknown"
+      # Unified release vocabulary (ReleaseFacts): unlabeled quality reads
+      # as the muted "Unknown" quality slot.
+      assert html =~ "Unknown"
       # No current assignment — the exclude-and-re-solve verb has no target.
       refute html =~ "Exclude this release"
 

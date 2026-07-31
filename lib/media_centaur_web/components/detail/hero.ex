@@ -16,6 +16,8 @@ defmodule MediaCentaurWeb.Components.Detail.Hero do
 
   import MediaCentaurWeb.LiveHelpers, only: [image_url: 2]
 
+  alias MediaCentaurWeb.Components.Detail.TitleLayer
+
   attr :entity, :map,
     required: true,
     doc:
@@ -38,39 +40,19 @@ defmodule MediaCentaurWeb.Components.Detail.Hero do
 
     ~H"""
     <div class="detail-hero relative">
-      <div class={[
-        "aspect-[21/9] relative",
-        @show_placeholder? && "glass-inset overflow-hidden"
-      ]}>
-        <%!-- Empty state when artwork is missing or storage isn't mounted —
-              ModalShell renders no panel-level backdrop in those cases, so
-              we fill the 21:9 frame with a quiet placeholder. --%>
-        <div :if={@show_placeholder?} class="w-full h-full flex items-center justify-center">
-          <.icon name="hero-film" class="size-12 text-base-content/20" />
-        </div>
-        <div :if={@actions != []} class="absolute top-3 right-3 flex items-center gap-1">
-          {render_slot(@actions)}
-        </div>
-        <div class="absolute bottom-4 left-6 right-6 space-y-1.5">
-          <img
-            :if={@logo && @available}
-            src={@logo}
-            class="max-h-20 max-w-[70%] object-contain text-on-image-lg"
-          />
-          <h2
-            :if={!@logo || !@available}
-            class="text-2xl font-bold leading-snug text-white text-on-image-lg"
-          >
-            {@entity.name}
-          </h2>
-          <p
-            :if={@tagline && @tagline != ""}
-            class="italic text-sm text-white/85 text-on-image"
-          >
-            {@tagline}
-          </p>
-        </div>
-      </div>
+      <%!-- Empty state when artwork is missing or storage isn't mounted —
+            ModalShell renders no panel-level backdrop in those cases, so
+            the shared TitleLayer fills the 21:9 frame with its quiet
+            placeholder. An unavailable entity also drops the logo back
+            to the title logotype. --%>
+      <TitleLayer.title_layer
+        title={@entity.name}
+        logo_url={(@available && @logo) || nil}
+        tagline={@tagline}
+        placeholder?={@show_placeholder?}
+      >
+        <:actions :if={@actions != []}>{render_slot(@actions)}</:actions>
+      </TitleLayer.title_layer>
     </div>
     """
   end

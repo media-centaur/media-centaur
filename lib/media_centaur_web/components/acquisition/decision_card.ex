@@ -10,9 +10,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
   use Phoenix.Component
 
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
-  import MediaCentaurWeb.LiveHelpers, only: [format_size: 1]
 
   alias MediaCentaur.Acquisition.ViewModels.{Alternative, DecisionCard}
+  alias MediaCentaurWeb.Components.Acquisition.ReleaseFacts
 
   attr :vm, DecisionCard, required: true
 
@@ -109,15 +109,15 @@ defmodule MediaCentaurWeb.Components.Acquisition.DecisionCard do
   defp alternative_row(assigns) do
     ~H"""
     <div class="glass-inset rounded-lg p-3 flex items-center gap-3">
-      <div class="min-w-0 flex-1 space-y-1">
-        <div class="text-sm truncate">{@alt.title}</div>
-        <div class="flex items-center gap-2 text-xs text-base-content/60">
-          <span>{@alt.indexer}</span>
-          <span :if={@alt.quality}>· {@alt.quality}</span>
-          <span :if={@alt.size_bytes}>· {format_size(@alt.size_bytes)}</span>
-          <span :if={@alt.seeders}>· {@alt.seeders} seeders</span>
-        </div>
-      </div>
+      <ReleaseFacts.release_facts entry={
+        %ReleaseFacts.Entry{
+          title: @alt.title,
+          quality: @alt.quality,
+          size_bytes: @alt.size_bytes,
+          seeders: @alt.seeders,
+          indexer: @alt.indexer
+        }
+      } />
       <.button
         variant="action"
         size="sm"

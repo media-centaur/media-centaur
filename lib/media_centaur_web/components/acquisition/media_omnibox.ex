@@ -302,12 +302,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
         id="omnibox-media-results"
         data-state={if @open, do: "open", else: "closed"}
         phx-click-away={@open && "omnibox_dismiss"}
-        class={[
-          "absolute left-1/2 -translate-x-1/2 top-2 z-40",
-          "search-overlay rounded-xl overflow-hidden",
-          "transition-opacity duration-150",
-          "data-[state=closed]:opacity-0 data-[state=closed]:pointer-events-none"
-        ]}
+        class={
+          [
+            # Horizontal anchor (left/translate) lives in the .search-overlay
+            # CSS — it clamps the panel against the sidebar.
+            "absolute top-2 z-40",
+            "search-overlay rounded-xl overflow-hidden",
+            "transition-opacity duration-150",
+            "data-[state=closed]:opacity-0 data-[state=closed]:pointer-events-none"
+          ]
+        }
       >
         <div :if={@searching?} class="flex items-center gap-2 px-5 py-3 text-sm text-base-content/40">
           <span class="loading loading-spinner loading-xs"></span> Searching TMDB…
