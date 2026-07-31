@@ -1,7 +1,7 @@
 ---
-status: planning
+status: in progress
 started: 2026-07-30
-last_updated: 2026-07-30
+last_updated: 2026-07-31
 ---
 # Below-floor releases — surface them properly
 
@@ -15,9 +15,50 @@ and can decide, instead of a dead end that reads like a search failure.
 
 ## Status
 
-Planning — the design conversation has not started. This file exists to
-carry the diagnosis context into it. **Do not design bottom-up from the
-current code**; the owner wants to lead the design session fresh.
+Design settled and approved by the owner (2026-07-31 session).
+Implementation not started — next action is Phase 1 below.
+
+## Settled design (2026-07-31)
+
+Below-floor becomes the **third instance of the planner's
+"offer, never auto-grab" shape**, alongside fit-gated pack offers and
+later-cour offers.
+
+* **Trigger**: search yields ≥1 identity-matched release but zero
+  acceptable ones → the unit records a below-floor offer carrying the
+  candidate set, instead of a bare `unfound`. Zero identity-matched
+  releases remains true `unfound`, untouched.
+* **Surface**: distinct unit state on the plan board (chip), with a
+  panel listing candidates — quality badge, size, seeders. Per-candidate
+  grab routes through the existing user-pick path, which already
+  bypasses the floor by explicit consent. UI polished as part of the
+  build, not a follow-up pass.
+* **Quality presentation**: known-below-floor (`720p`, `DVD`) and
+  unknown-quality (`Quality unknown`, no resolution token) are visually
+  distinct; both are offered.
+* **Ranking**: no new quality-ladder tiers — candidates order by
+  size/seeders within nil-quality.
+* **Grab semantics**: a below-floor grab is a plain grab. Recording
+  upgrade intent is deferred to `playable-item-versions.md`.
+* **Scope**: unified design for movies and TV; movies build first, TV
+  follows with the same offer shape (Phase 2).
+
+### Approved copy
+
+The word "floor" is **rejected** for user-facing copy — the user's
+vocabulary is "quality preference" / "lower quality available".
+
+* Chip: **Lower quality available**
+* Panel heading: **Nothing matching your quality preference**
+* Panel body: *Lower-quality releases are available. Grabbing one takes
+  it for this title without changing your preference.*
+* Badges: `720p` / `DVD` (known), `Quality unknown` (unlabeled)
+* Grab verb: reuse whatever the existing release picker uses — no new
+  verb.
+* Antecedent check at implementation time: copy must use the true name
+  of the quality setting as it appears in Settings; adjust "quality
+  preference" if Settings names it differently.
+* True-unfound wording stays as-is.
 
 ## The triggering case (2026-07-30)
 
@@ -51,33 +92,44 @@ current code**; the owner wants to lead the design session fresh.
   Below-floor is plausibly a third instance of the same shape — but that
   is a starting hypothesis for the design session, not a decision.
 
-## Open questions for the design session
+## Open questions — all settled 2026-07-31
 
-1. Scope: movies only (the diagnosed gap) or unify with TV episode
-   below-floor drops?
-2. Where does it surface — plan-unit offer on the board (like pack
-   offers), the expectation panel, or something else?
-3. Is "unknown quality" (no resolution token, e.g. the unlabeled AMZN
-   WEB-DL) presented the same as "known below floor" (720p)?
-4. Does accepting a below-floor release record intent — e.g. mark the
-   unit for a future upgrade sweep (touches the deferred auto-upgrade
-   ideas in `playable-item-versions.md`), or is it a plain grab?
-5. Does the quality ladder need a sub-1080p tier to *rank* below-floor
-   candidates, or is nil-quality + size/seeders enough to present them?
-6. Wording: "below your quality floor" vs "no acceptable release" — the
-   guide/wiki vocabulary must not read as "not found".
+1. Scope → unified in design, movies first in build.
+2. Surface → plan-unit offer (third "offer, never auto-grab" instance);
+   polish the UI as we go.
+3. Unknown quality vs known below floor → presented distinctly, both
+   offered.
+4. Upgrade intent on accept → deferred follow-up
+   (`playable-item-versions.md`); MVP grab is plain.
+5. Ladder tiers → no growth; nil-quality + size/seeders ranking.
+6. Wording → approved copy above; "floor" rejected as user vocabulary.
 
 ## Decisions made
 
 * `2026-07-30` — Campaign created from the *The Magician* diagnosis;
   no design decisions yet.
+* `2026-07-31` — Design session held; all six open questions settled
+  (see above). Below-floor is a planner offer, not a new policy — no
+  ADR needed; this file is the record. Copy approved with "quality
+  preference" vocabulary, "floor" rejected.
+
+## Implementation phases
+
+1. **Movie offer path**: `run_movie` records a below-floor offer
+   (candidate set) when ≥1 identity-matched release exists but none is
+   acceptable; true unfound unchanged. Test-first per
+   `automated-testing`.
+2. **Board + panel UI**: chip state, candidate panel (quality badge /
+   size / seeders), per-candidate grab through the existing user-pick
+   path. Storybook stories for any new/changed components (MC0009).
+3. **TV parity**: same offer shape for episode/unit below-floor drops.
+   Until this lands, the movie/TV asymmetry is recorded here.
+4. **Ship**: wiki/guide update (vocabulary per approved copy — never
+   reads as "not found"), CHANGELOG, tagged release.
 
 ## Next steps
 
-1. Owner-led design session (fresh context window) using this file as
-   the brief; settle the open questions above.
-2. Record the settled shape here (and an ADR if it changes planner
-   policy repo-wide), then plan implementation phases.
+1. Phase 1 — movie offer path (test-first).
 
 ## Completion criteria
 
