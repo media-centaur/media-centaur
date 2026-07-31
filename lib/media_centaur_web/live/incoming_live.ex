@@ -109,7 +109,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
   alias MediaCentaurWeb.Components.Incoming.{Ledger, Shelf}
   alias MediaCentaurWeb.Components.ReleaseTracking.{Detail, Present, TitleDetail}
-  alias MediaCentaurWeb.Components.TrackModal
+  alias MediaCentaurWeb.IncomingLive.MoviePreview
   alias MediaCentaurWeb.IncomingLive.View
   alias MediaCentaurWeb.IncomingLive.PlanLogic
   alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
@@ -172,15 +172,11 @@ defmodule MediaCentaurWeb.IncomingLive do
          ledger_rows: [],
          loaded_history_params: nil,
          forecast_reload_timer: nil,
-         track_modal_open: false,
          track_suggestions: [],
+         track_suggestions_loaded?: false,
          track_suggestions_loading: false,
-         track_search_query: "",
-         track_search_results: [],
-         track_search_loading: false,
-         track_scope_item: nil,
-         track_collection_item: nil,
          track_confirmed_ids: MapSet.new(),
+         omnibox_suggestions_open?: false,
          storage_drives: [],
          page_backdrop: page_backdrop(),
          search_session: %SearchSession{},
@@ -474,11 +470,23 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  defp mark_tracked(results, tmdb_id) do
-    Enum.map(results, fn result ->
-      if result.tmdb_id == tmdb_id, do: %{result | tracked?: true}, else: result
-    end)
+  # The plan modal's current identity, whichever stage holds it —
+  # `{tmdb_id :: integer, media_type, name}` or nil when nothing usable.
+  defp tracked_plan_identity(%{plan_movie: %MoviePreview{} = movie}) when movie.title != nil do
+    case Integer.parse(movie.tmdb_id) do
+      {tmdb_id, ""} -> {tmdb_id, :movie, movie.title}
+      _other -> nil
+    end
   end
+
+  defp tracked_plan_identity(%{plan_selection: %Targeting.Selection{} = selection}) do
+    case Integer.parse(selection.tmdb_id) do
+      {tmdb_id, ""} -> {tmdb_id, :tv_series, selection.title}
+      _other -> nil
+    end
+  end
+
+  defp tracked_plan_identity(_assigns), do: nil
 
   defp compute_history_rows(history_filter, history_search) do
     history_filter
@@ -787,17 +795,6 @@ defmodule MediaCentaurWeb.IncomingLive do
           decision_card={@pursuit_detail && @pursuit_detail.decision_card}
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
         />
-        <TrackModal.track_modal
-          open={@track_modal_open}
-          suggestions={@track_suggestions}
-          suggestions_loading={@track_suggestions_loading}
-          search_query={@track_search_query}
-          search_results={@track_search_results}
-          search_loading={@track_search_loading}
-          scope_item={@track_scope_item}
-          collection_item={@track_collection_item}
-          confirmed_ids={@track_confirmed_ids}
-        />
         <TitleDetail.title_detail :if={@detail} detail={@detail} today={@today} />
       </:overlays>
       <%!-- data-nav-default-zone names the LAYOUT KEY in input config.js
@@ -849,6 +846,10 @@ defmodule MediaCentaurWeb.IncomingLive do
             searching?={@omnibox_searching?}
             preview_id={@omnibox_preview}
             results_open={@omnibox_results_open?}
+            suggestions={@track_suggestions}
+            suggestions_loading?={@track_suggestions_loading}
+            suggestions_open?={@omnibox_suggestions_open?}
+            confirmed_ids={@track_confirmed_ids}
             session={@search_session}
             any_loading?={@any_loading?}
           />
@@ -1383,7 +1384,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   def handle_event("omnibox_dismiss", _params, socket) do
-    {:noreply, assign(socket, omnibox_results_open?: false)}
+    {:noreply, assign(socket, omnibox_results_open?: false, omnibox_suggestions_open?: false)}
   end
 
   def handle_event("omnibox_mode", %{"mode" => mode}, socket) when mode in ~w(media release) do
@@ -1400,7 +1401,8 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_searching?: false,
          omnibox_searched: nil,
          omnibox_preview: nil,
-         omnibox_results_open?: true
+         omnibox_results_open?: true,
+         omnibox_suggestions_open?: false
        )}
     end
   end
@@ -1534,47 +1536,20 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  # --- Track modal events ---
+  # --- Omnibox suggestion strip (the retired Track modal's verbs) ---
 
-  def handle_event("open_track_modal", _params, socket) do
-    socket =
-      assign(socket,
-        track_modal_open: true,
-        track_suggestions_loading: true,
-        track_search_query: "",
-        track_search_results: [],
-        track_scope_item: nil,
-        track_collection_item: nil
-      )
+  # Focusing the empty media input opens the suggestion overlay; the
+  # library scan runs once per mount (a tracked/untracked change flows
+  # through the track_suggestion toggle, not a rescan).
+  def handle_event("omnibox_focus", _params, socket) do
+    socket = assign(socket, omnibox_suggestions_open?: true)
 
-    send(self(), :load_track_suggestions)
-    {:noreply, socket}
-  end
-
-  def handle_event("close_track_modal", _params, socket) do
-    {:noreply,
-     assign(socket,
-       track_modal_open: false,
-       track_suggestions: [],
-       track_suggestions_loading: false,
-       track_search_query: "",
-       track_search_results: [],
-       track_search_loading: false,
-       track_scope_item: nil,
-       track_collection_item: nil,
-       track_confirmed_ids: MapSet.new()
-     )}
-  end
-
-  def handle_event("track_search", %{"query" => query}, socket) when byte_size(query) < 2 do
-    {:noreply,
-     assign(socket, track_search_query: query, track_search_results: [], track_search_loading: false)}
-  end
-
-  def handle_event("track_search", %{"query" => query}, socket) do
-    socket = assign(socket, track_search_query: query, track_search_loading: true)
-    send(self(), {:do_track_search, query})
-    {:noreply, socket}
+    if socket.assigns.track_suggestions_loaded? or socket.assigns.track_suggestions_loading do
+      {:noreply, socket}
+    else
+      send(self(), :load_track_suggestions)
+      {:noreply, assign(socket, track_suggestions_loading: true)}
+    end
   end
 
   def handle_event("track_suggestion", params, socket) do
@@ -1601,67 +1576,28 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  def handle_event("select_search_result", params, socket) do
-    case {Integer.parse(params["tmdb-id"] || ""), params["media-type"]} do
-      {{tmdb_id, ""}, "tv_series"} ->
-        scope_item = %TrackModal.ScopeItem{
-          tmdb_id: tmdb_id,
-          name: params["name"],
-          poster_path: params["poster-path"]
-        }
+  # Track without grabbing, from inside the plan modal — the TV picker's
+  # "Track only" and the movie confirm's "Track release". TV tracks all
+  # upcoming episodes (the back catalog is exactly what the open picker
+  # grabs); the async task and its TMDB enrichment are ReleaseTracking's.
+  def handle_event("plan_track_only", _params, socket) do
+    case tracked_plan_identity(socket.assigns) do
+      nil ->
+        {:noreply, socket}
 
-        {:noreply, assign(socket, track_scope_item: scope_item, track_collection_item: nil)}
+      {tmdb_id, media_type, name} ->
+        scope = if media_type == :tv_series, do: %{start_season: 0, start_episode: 0}, else: %{}
 
-      {{tmdb_id, ""}, "movie"} ->
         ReleaseTracking.track_from_search_async(
-          %{
-            tmdb_id: tmdb_id,
-            media_type: :movie,
-            name: params["name"],
-            poster_path: params["poster-path"]
-          },
-          %{}
+          %{tmdb_id: tmdb_id, media_type: media_type, name: name, poster_path: nil},
+          scope
         )
 
         {:noreply,
-         assign(socket,
-           track_search_results: mark_tracked(socket.assigns.track_search_results, tmdb_id),
-           track_collection_item: nil
-         )}
-
-      _ ->
-        {:noreply, socket}
+         socket
+         |> put_flash(:info, "Tracking #{name} — it will appear under Coming up.")
+         |> push_patch(to: "/incoming")}
     end
-  end
-
-  def handle_event("confirm_track", params, socket) do
-    tmdb_id = String.to_integer(params["tmdb_id"])
-
-    {start_season, start_episode} =
-      case params["scope"] do
-        "custom" ->
-          {String.to_integer(params["start_season"] || "1"),
-           String.to_integer(params["start_episode"] || "1")}
-
-        _all ->
-          {0, 0}
-      end
-
-    ReleaseTracking.track_from_search_async(
-      %{
-        tmdb_id: tmdb_id,
-        media_type: :tv_series,
-        name: params["name"],
-        poster_path: params["poster_path"]
-      },
-      %{start_season: start_season, start_episode: start_episode}
-    )
-
-    {:noreply,
-     assign(socket,
-       track_search_results: mark_tracked(socket.assigns.track_search_results, tmdb_id),
-       track_scope_item: nil
-     )}
   end
 
   # Group expand/collapse. Toggles membership of
@@ -2031,18 +1967,17 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   def handle_info(:load_track_suggestions, socket) do
     suggestions =
-      Enum.map(ReleaseTracking.suggest_trackable_items(), &struct!(TrackModal.Suggestion, &1))
+      Enum.map(
+        ReleaseTracking.suggest_trackable_items(),
+        &struct!(MediaOmnibox.Suggestion, &1)
+      )
 
-    {:noreply, assign(socket, track_suggestions: suggestions, track_suggestions_loading: false)}
-  end
-
-  def handle_info({:do_track_search, query}, socket) do
-    if query == socket.assigns.track_search_query do
-      results = ReleaseTracking.search_tmdb(query)
-      {:noreply, assign(socket, track_search_results: results, track_search_loading: false)}
-    else
-      {:noreply, socket}
-    end
+    {:noreply,
+     assign(socket,
+       track_suggestions: suggestions,
+       track_suggestions_loading: false,
+       track_suggestions_loaded?: true
+     )}
   end
 
   # Result of the background pick task. Like the alternatives fetches,

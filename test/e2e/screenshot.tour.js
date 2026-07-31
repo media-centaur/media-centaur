@@ -82,15 +82,15 @@ const TOUR = [
   // ─── Incoming (forecast side) ────────────────────────────────────────────────────────
   { name: "upcoming-calendar", url: "/incoming", settleMs: 600 },
   {
-    name: "upcoming-track-modal",
+    name: "upcoming-track-suggestions",
     url: "/incoming",
     action: async (page) => {
-      // The Track New Show button lives in UpcomingCards; clicking
-      // pushes `open_track_modal` and focuses the modal's search input.
+      // The Track modal is retired: focusing the omnibox opens the
+      // library-suggestions overlay (the shelf's "Track something"
+      // ghost card does the same client-side focus).
       await page
-        .locator("[phx-click*='open_track_modal']")
-        .first()
-        .click({ timeout: 5_000 })
+        .locator("#omnibox-media-input")
+        .focus({ timeout: 5_000 })
         .catch(() => {})
     },
     settleMs: 800,

@@ -35,8 +35,6 @@ defmodule MediaCentaur.Credo.Checks.ImgAttributeDefaults do
 
       * `cast_grid.ex` — cast headshots inside the "More Info"
         pane (often 50+; user must reveal to see them)
-      * `track_modal.ex` — track-search result thumbnails
-        (unbounded N inside a deliberately opened modal)
 
       To extend the allowlist, add the file to `@exempt_files` with
       a one-line comment explaining why this surface is genuinely
@@ -50,7 +48,6 @@ defmodule MediaCentaur.Credo.Checks.ImgAttributeDefaults do
   # can grow into the dozens behind an explicit reveal.
   @exempt_files [
     "components/detail/more_info/cast_grid.ex",
-    "components/track_modal.ex",
     "credo/checks/img_attribute_defaults_test.exs"
   ]
 

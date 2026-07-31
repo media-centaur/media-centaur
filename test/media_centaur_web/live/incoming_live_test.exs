@@ -439,6 +439,40 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
              )
     end
 
+    test "the TV picker offers Track only for an untracked series", %{conn: conn} do
+      stub_plan_tmdb()
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      render_async(view, 2_000)
+
+      view
+      |> element("button[phx-click='plan_track_only']")
+      |> render_click()
+
+      # The synchronous half: flash + hand back to the page (the shelf is
+      # where the tracked title appears). The tracking task itself is
+      # covered by the ReleaseTracking tests.
+      assert_patch(view, "/incoming")
+      assert render(view) =~ "Tracking Sample Show"
+    end
+
+    test "the movie confirm offers Track release when the movie is not in the library", %{
+      conn: conn
+    } do
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail())
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie")
+      render_async(view, 2_000)
+
+      view
+      |> element("button[phx-click='plan_track_only']")
+      |> render_click()
+
+      assert_patch(view, "/incoming")
+      assert render(view) =~ "Tracking Sample Movie"
+    end
+
     test "the picker's seasons start collapsed and expand on demand", %{conn: conn} do
       stub_plan_tmdb()
 
@@ -2305,36 +2339,39 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       :ok
     end
 
-    test "the Track something button opens the modal", %{conn: conn} do
+    test "focusing the empty omnibox surfaces library shows not yet tracked", %{conn: conn} do
+      tv_series = create_tv_series(%{name: "Suggestible Show"})
+      create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "556677"})
+
       {:ok, view, _html} = live_async!(conn, "/incoming")
 
       view
-      |> element("button[phx-click='open_track_modal']", "Track something")
-      |> render_click()
+      |> element("#omnibox-media-input")
+      |> render_focus()
 
-      assert has_element?(view, "#track-modal[data-state='open']")
+      html = render(view)
+      assert html =~ "Suggested from your library"
+      assert html =~ "Suggestible Show"
     end
 
-    test "search renders TMDB results", %{conn: conn} do
-      TmdbStubs.setup_tmdb_client()
-
-      TmdbStubs.stub_search_multi([
-        %{
-          "id" => 777,
-          "media_type" => "movie",
-          "title" => "Sample Movie",
-          "release_date" => "2010-03-05",
-          "poster_path" => "/sample-movie-poster.jpg"
-        }
-      ])
+    test "a suggestion click starts tracking; the card flips to Tracking", %{conn: conn} do
+      tv_series = create_tv_series(%{name: "Suggestible Show"})
+      create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "556677"})
 
       {:ok, view, _html} = live_async!(conn, "/incoming")
 
       view
-      |> form("form[phx-change='track_search']", %{query: "sample"})
-      |> render_change()
+      |> element("#omnibox-media-input")
+      |> render_focus()
 
-      assert render(view) =~ "Sample Movie"
+      html =
+        view
+        |> element("button[phx-click='track_suggestion'][phx-value-tmdb-id='556677']")
+        |> render_click()
+
+      # The synchronous half flips the card; the async tracking task
+      # itself is covered by the ReleaseTracking tests.
+      assert html =~ "Tracking"
     end
   end
 
