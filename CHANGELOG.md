@@ -4,6 +4,29 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.106.0 — 2026-07-31
+
+### New
+
+- **When nothing matches your quality preference, the plan now shows you what does exist.** Instead of a bare "not available", the plan board tells you lower-quality releases are out there and lets you look through them and grab one — just for that title, without changing your preference.
+- **Track a title without downloading anything.** The episode picker has a new "Track only" button and the movie confirmation has "Track release" — both follow the title's future releases and hand you back to the page, no downloads started.
+
+### Improved
+
+- **The download planner keeps the title's artwork through every step.** Picking a movie already dressed the confirmation in its backdrop; now the whole flow follows suit — the loading view shows the title you picked immediately, the episode picker wears the show's backdrop and logo, and the plan board keeps the artwork instead of dropping back to plain text. Draft plan rows on the Incoming page show the title's artwork too.
+- **Tracking suggestions live in the search box now.** Click into the empty search field (or the "Track something" card) and shows from your library you aren't tracking yet appear as one-click Track cards. The separate "Track New Releases" window is gone — searching and tracking are one surface.
+- **Release details read the same everywhere.** Quality, size, and seeders now use one format across the plan board, the release pickers, and release search — and seeder counts are color-coded, so a dying release stands out before you grab it.
+- **Draft plans open with a click anywhere on the row**, not just on a button.
+- **The tracked-title panel shows the title's artwork** in its header.
+
+### Fixed
+
+- **The search results panel no longer slides under the sidebar.** On smaller windows part of the spotlight poster could be hidden behind the navigation; the panel now stays clear of it.
+- **Movie releases that used to slip through the net now land.** Titles with apostrophes, releases tagged with a slightly different year than the movie's official one, and releases carrying a country tag (matching the movie's origin country) are all recognized now.
+- **Movie years come from the film's earliest release anywhere in the world**, not just its US date — so search and matching agree with how releases are actually named.
+
+This release includes two small database migrations; they run automatically on first start after updating.
+
 ## v0.105.2 — 2026-07-27
 
 ### Fixed
