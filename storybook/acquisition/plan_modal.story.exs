@@ -242,6 +242,61 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         }
       },
       %Variation{
+        id: :board_below_floor,
+        description:
+          "Below-floor offer (movie) — genuine releases exist but all sit below the quality " <>
+            "preference, so instead of a bare \"not available\" gap the board says what exists " <>
+            "and offers the picker. Grabbing one is an explicit per-title override.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          board: board(:below_floor),
+          last_activity: "2 searches · 62 results, none matching your quality preference"
+        }
+      },
+      %Variation{
+        id: :board_below_floor_open,
+        description:
+          "The below-floor picker open — known-lower candidates badge their real resolution " <>
+            "(720p, DVD), an unlabeled release badges \"Quality unknown\"; no exclude-current " <>
+            "verb because nothing is assigned yet.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          board: board(:below_floor),
+          alternatives: %{
+            unit_id: "story-unit-movie",
+            items: [
+              %PlanBoard.Alternative{
+                guid: "bf-720p",
+                title: "Sample.Movie.2005.720p.WEBRip.x264-GROUP",
+                scope_label: nil,
+                quality: "720p",
+                seeders: 9,
+                size_bytes: 1_400_000_000
+              },
+              %PlanBoard.Alternative{
+                guid: "bf-dvd",
+                title: "Sample.Movie.2005.DVDRip.x264-GROUP",
+                scope_label: nil,
+                quality: "DVD",
+                seeders: 4,
+                size_bytes: 700_000_000
+              },
+              %PlanBoard.Alternative{
+                guid: "bf-unlabeled",
+                title: "Sample.Movie.2005.AMZN.WEB-DL.DDP2.0.H.264",
+                scope_label: nil,
+                quality: nil,
+                seeders: 2,
+                size_bytes: 1_000_000_000
+              }
+            ]
+          },
+          last_activity: "2 searches · 62 results, none matching your quality preference"
+        }
+      },
+      %Variation{
         id: :error,
         description: "Targeting failed — honest dead end, one way out.",
         attributes: %{
@@ -366,6 +421,43 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           scope_label: "Season 1 pack",
           title: "Sample.Show.S01.COMPLETE.1080p.WEB-DL",
           size_bytes: 9_400_000_000
+        }
+      ]
+    }
+  end
+
+  defp board(:below_floor) do
+    %PlanBoard{
+      plan_id: "story-plan-movie",
+      title: "Sample Movie",
+      status: :ready,
+      wanted: 1,
+      covered: 0,
+      movie?: true,
+      seasons: [
+        %PlanBoard.SeasonRow{
+          season_number: nil,
+          cells: [
+            %PlanBoard.Cell{
+              plan_unit_id: "story-unit-movie",
+              season_number: nil,
+              episode_number: nil,
+              label: "Sample Movie",
+              state: :unfound,
+              release_guid: nil,
+              release_title: nil
+            }
+          ]
+        }
+      ],
+      releases: [],
+      gaps: [],
+      total_size_bytes: nil,
+      below_floor: [
+        %PlanBoard.BelowFloor{
+          unit_id: "story-unit-movie",
+          unit_label: "Sample Movie",
+          count: 3
         }
       ]
     }

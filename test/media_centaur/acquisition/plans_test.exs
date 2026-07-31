@@ -138,6 +138,93 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     end)
   end
 
+  # Movie whose only real releases sit below the quality floor (the
+  # Magician-2005 shape): 720p, DVD, and one with no resolution token.
+  defp stub_below_floor_movie do
+    Req.Test.stub(:prowlarr, fn conn ->
+      case {conn.method, conn.request_path} do
+        {"GET", "/api/v1/search"} ->
+          %{"query" => query} = URI.decode_query(conn.query_string)
+
+          results =
+            if query == "Sample Movie 2005" do
+              [
+                release("Sample.Movie.2005.720p.WEBRip.x264", "bf-720p", %{
+                  seeders: 9,
+                  size: 1_400_000_000
+                }),
+                release("Sample.Movie.2005.DVDRip.x264", "bf-dvd", %{
+                  seeders: 4,
+                  size: 700_000_000
+                }),
+                release("Sample.Movie.2005.AMZN.WEB-DL.DDP2.0.H.264", "bf-unlabeled", %{
+                  seeders: 2,
+                  size: 1_000_000_000
+                })
+              ]
+            else
+              []
+            end
+
+          Req.Test.json(conn, results)
+
+        _other ->
+          Req.Test.json(conn, %{})
+      end
+    end)
+  end
+
+  describe "below-floor movie offers on the board" do
+    test "board_for surfaces the below-floor offer instead of a bare gap" do
+      stub_below_floor_movie()
+
+      {:ok, created} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      {:ok, plan} = Plans.get(created.id)
+      assert plan.status == "ready"
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "unfound"
+
+      board = Plans.board_for(plan)
+
+      assert [offer] = board.below_floor
+      assert offer.unit_id == unit.id
+      assert offer.unit_label == "Sample Movie"
+      assert offer.count == 3
+
+      # The offer row owns the unit — it is not also a bare "not
+      # available" gap.
+      assert board.gaps == []
+    end
+
+    test "the candidates are choosable through the swap picker, with display-quality labels" do
+      stub_below_floor_movie()
+
+      {:ok, created} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      assert [unit] = Plans.units_for(created.id)
+
+      {:ok, alternatives} = Plans.alternatives_for(unit.id)
+
+      assert Enum.map(alternatives, &{&1.guid, &1.quality}) == [
+               {"bf-720p", "720p"},
+               {"bf-dvd", "DVD"},
+               {"bf-unlabeled", nil}
+             ]
+
+      # Grabbing one is a deliberate user pick — the floor does not
+      # apply, and the assignment carries the display quality.
+      assert {:ok, _plan} = Plans.choose_release(unit.id, "bf-720p")
+
+      assert [grabbed] = Plans.units_for(created.id)
+      assert grabbed.status == "found"
+      assert grabbed.assigned_guid == "bf-720p"
+      assert grabbed.assigned_quality == "720p"
+
+      {:ok, reloaded} = Plans.get(created.id)
+      assert Plans.board_for(reloaded).below_floor == []
+    end
+  end
+
   describe "the draft-plan lifecycle (ADR-055 Phase 3)" do
     test "create → autonomous solve → steer → approve → one composite pursuit" do
       stub_ladder_results()

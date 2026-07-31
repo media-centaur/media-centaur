@@ -111,6 +111,27 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
           }
   end
 
+  defmodule BelowFloor do
+    @moduledoc """
+    The "lower quality available" offer: an unfound unit for which
+    identity-verified releases exist, all below the quality floor
+    (campaign `below-floor-releases`). The count is the planner's
+    solve-time verdict (durable on the unit); the candidates themselves
+    are listed live through the swap picker (`Plans.alternatives_for/1`),
+    where choosing one is the deliberate user pick that bypasses the
+    floor. Never presented as a bare "not available" gap.
+    """
+
+    @enforce_keys [:unit_id, :unit_label, :count]
+    defstruct [:unit_id, :unit_label, :count]
+
+    @type t :: %__MODULE__{
+            unit_id: Ecto.UUID.t(),
+            unit_label: String.t(),
+            count: pos_integer()
+          }
+  end
+
   defmodule Overlap do
     @moduledoc """
     A duplicate-data warning: one assigned release physically contains
@@ -145,7 +166,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
     :total_size_bytes,
     movie?: false,
     overlaps: [],
-    offers: []
+    offers: [],
+    below_floor: []
   ]
 
   @type status :: :planning | :ready | :committed | :discarded
@@ -163,7 +185,8 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
           total_size_bytes: integer() | nil,
           movie?: boolean(),
           overlaps: [Overlap.t()],
-          offers: [Offer.t()]
+          offers: [Offer.t()],
+          below_floor: [BelowFloor.t()]
         }
 
   @doc """
