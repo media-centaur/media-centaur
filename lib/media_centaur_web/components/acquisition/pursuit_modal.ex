@@ -24,6 +24,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
     UnitBoard
   }
 
+  alias MediaCentaurWeb.Components.Detail.CinematicBackdrop
+
   attr :open, :boolean, required: true
 
   attr :pursuit_id, :string,
@@ -79,29 +81,22 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
     >
       <%!-- No close-X — backdrop click and Escape both close, and the
             URL preserves history so browser-back also works. --%>
-      <%!-- Same panel-level treatment as the library detail modal: the
-            backdrop spans 70% of the scroll height fading into the panel,
-            the atmosphere dim covers the full scroll height, and the
-            header/content flow over both (z-2). The header renders only
-            the overlaid identity facts — or its synthetic gradient when
-            no artwork is cached. --%>
+      <%!-- Same cinematic shell as the library detail modal and the plan
+            modal, via the shared CinematicBackdrop (early-fade: the
+            pursuit detail is a work surface, the image is a header
+            treatment). The header renders only the overlaid identity
+            facts — or its synthetic gradient when no artwork is cached. --%>
       <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative thin-scrollbar">
         <div :if={@not_found?} class="p-8 text-center text-sm text-base-content/60">
           Pursuit not found.
         </div>
 
-        <div
-          :if={!@not_found? && @header && @header.backdrop_url}
-          class="modal-page-backdrop modal-page-backdrop--early-fade"
-          aria-hidden="true"
+        <CinematicBackdrop.cinematic_backdrop
+          :if={!@not_found? && @header}
+          backdrop_url={@header.backdrop_url}
+          early_fade
         >
-          <img src={@header.backdrop_url} alt="" loading="eager" decoding="sync" fetchpriority="high" />
-        </div>
-
-        <div :if={!@not_found? && @header} class="modal-page-content">
-          <div :if={@header.backdrop_url} class="modal-page-atmosphere" aria-hidden="true"></div>
-
-          <div class="relative z-[2] pb-6 space-y-4">
+          <div class="pb-6 space-y-4">
             <PursuitHeader.pursuit_header vm={@header} />
 
             <div class="px-6 space-y-4">
@@ -134,7 +129,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
               <PursuitTimeline.timeline :if={@timeline} vm={@timeline} />
             </div>
           </div>
-        </div>
+        </CinematicBackdrop.cinematic_backdrop>
       </div>
     </.modal>
     """

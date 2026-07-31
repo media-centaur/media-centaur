@@ -13,8 +13,7 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
 
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
 
-  alias MediaCentaur.Format
-  alias MediaCentaur.Search.Quality
+  alias MediaCentaurWeb.Components.Acquisition.ReleaseFacts
   alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaurWeb.IncomingLive.Logic
 
@@ -129,24 +128,14 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
 
   defp group_status_summary(%{group: %{status: :ready, results: [_ | _]}} = assigns) do
     ~H"""
-    <span class={["text-xs font-bold w-10 shrink-0", quality_color(@group.featured.quality)]}>
-      {Quality.label(@group.featured.quality)}
-    </span>
-    <span class="flex-1 min-w-0 text-sm truncate" title={@group.featured.title}>
-      {@group.featured.title}
-    </span>
-    <span
-      :if={@group.featured.size_bytes}
-      class="text-xs tabular-nums shrink-0 text-base-content/60"
-    >
-      {Format.format_size_decimal(@group.featured.size_bytes)}
-    </span>
-    <span
-      :if={@group.featured.seeders}
-      class={["text-xs tabular-nums shrink-0", seeder_color(@group.featured.seeders)]}
-    >
-      {@group.featured.seeders}S
-    </span>
+    <ReleaseFacts.release_facts entry={
+      %ReleaseFacts.Entry{
+        title: @group.featured.title,
+        quality: @group.featured.quality,
+        size_bytes: @group.featured.size_bytes,
+        seeders: @group.featured.seeders
+      }
+    } />
     """
   end
 
@@ -212,19 +201,15 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
           }
           class={selection_icon_class(@session.selections, @group.term, result.guid)}
         />
-        <span class={["text-xs font-bold w-10 shrink-0", quality_color(result.quality)]}>
-          {Quality.label(result.quality)}
-        </span>
-        <span class="flex-1 min-w-0 truncate" title={result.title}>{result.title}</span>
-        <span class="flex items-center gap-3 shrink-0 text-xs text-base-content/50">
-          <span :if={result.size_bytes} class="tabular-nums">
-            {Format.format_size_decimal(result.size_bytes)}
-          </span>
-          <span :if={result.seeders} class={["tabular-nums", seeder_color(result.seeders)]}>
-            {result.seeders}S
-          </span>
-          <span class="max-w-24 truncate">{result.indexer_name}</span>
-        </span>
+        <ReleaseFacts.release_facts entry={
+          %ReleaseFacts.Entry{
+            title: result.title,
+            quality: result.quality,
+            size_bytes: result.size_bytes,
+            seeders: result.seeders,
+            indexer: result.indexer_name
+          }
+        } />
       </button>
     </div>
     """
@@ -290,12 +275,4 @@ defmodule MediaCentaurWeb.IncomingLive.Search do
   defp grab_message_icon({:error, _}), do: "hero-x-circle-mini"
 
   defp grab_message_text({_, text}), do: text
-
-  defp quality_color(:uhd_4k), do: "text-success"
-  defp quality_color(:hd_1080p), do: "text-info"
-  defp quality_color(nil), do: "text-base-content/40"
-
-  defp seeder_color(n) when n >= 10, do: "text-success"
-  defp seeder_color(n) when n >= 3, do: "text-warning"
-  defp seeder_color(_), do: "text-error"
 end
