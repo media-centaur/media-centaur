@@ -14,6 +14,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
 
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Library.Person
+  alias MediaCentaur.ReleaseTracking.TitleResult
   alias MediaCentaur.TMDB.Mapper
   alias MediaCentaurWeb.IncomingLive.MoviePreview
   alias MediaCentaurWeb.Components.Detail.Logic, as: DetailLogic
@@ -259,4 +260,55 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
 
   defp presence(value) when is_binary(value) and value != "", do: value
   defp presence(_value), do: nil
+
+  @doc """
+  The plan modal's shell backdrop — one cinematic identity following the
+  request through every stage (UIDR-014). Sources, in the order each
+  stage trusts them:
+
+  * `:loading` — the picked search result (`identity`), so the modal
+    opens already dressed instead of as a gray box.
+  * `:targeting` — the series' own backdrop, identity as the fallback.
+  * `:movie_confirm` — the detail-shaped preview (backdrop, then poster).
+  * `:board` — release tracking's local cache (`artwork`), then whatever
+    the earlier stages of this session already showed. A refresh loses
+    the in-session fallbacks; the async `Artwork.ensure` fills the cache
+    so the next open wears it again.
+  * `:error` — nothing. An honest dead end isn't a cinematic moment.
+
+  `sources` carries `%{identity:, selection:, movie:, artwork:}`, any of
+  them nil.
+  """
+  @spec shell_backdrop_url(atom(), map()) :: String.t() | nil
+  def shell_backdrop_url(:loading, sources), do: identity_backdrop(sources.identity)
+
+  def shell_backdrop_url(:targeting, sources) do
+    selection_backdrop(sources.selection) || identity_backdrop(sources.identity)
+  end
+
+  def shell_backdrop_url(:movie_confirm, sources), do: movie_backdrop(sources.movie)
+
+  def shell_backdrop_url(:board, sources) do
+    artwork_backdrop(sources.artwork) || movie_backdrop(sources.movie) ||
+      selection_backdrop(sources.selection) || identity_backdrop(sources.identity)
+  end
+
+  def shell_backdrop_url(_loading_or_error, _sources), do: nil
+
+  @doc "Hotlinked TMDB backdrop at modal width — nil path stays nil."
+  @spec tmdb_backdrop_url(String.t() | nil) :: String.t() | nil
+  def tmdb_backdrop_url(nil), do: nil
+  def tmdb_backdrop_url(path), do: "https://image.tmdb.org/t/p/w1280#{path}"
+
+  defp identity_backdrop(%TitleResult{backdrop_path: path}), do: tmdb_backdrop_url(path)
+  defp identity_backdrop(_absent), do: nil
+
+  defp selection_backdrop(%Targeting.Selection{backdrop_path: path}), do: tmdb_backdrop_url(path)
+  defp selection_backdrop(_absent), do: nil
+
+  defp movie_backdrop(%MoviePreview{} = movie), do: movie.backdrop_url || movie.poster_url
+  defp movie_backdrop(_absent), do: nil
+
+  defp artwork_backdrop(%{backdrop_url: url}) when is_binary(url), do: url
+  defp artwork_backdrop(_absent), do: nil
 end

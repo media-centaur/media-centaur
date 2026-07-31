@@ -14,31 +14,76 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   alias MediaCentaur.Acquisition.ViewModels.DescentNarrative
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaur.Library.Person
+  alias MediaCentaur.ReleaseTracking.TitleResult
   alias MediaCentaurWeb.IncomingLive.MoviePreview
   alias MediaCentaurWeb.Components.Detail.Facet
 
   def function, do: &MediaCentaurWeb.Components.Acquisition.PlanModal.plan_modal/1
   def render_source, do: :function
 
+  # A self-contained gradient standing in for a TMDB backdrop — the
+  # shell's cinematic layer demonstrated without hotlinking artwork.
+  @sample_backdrop "data:image/svg+xml;utf8," <>
+                     "<svg xmlns='http://www.w3.org/2000/svg' width='1280' height='720'>" <>
+                     "<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>" <>
+                     "<stop offset='0' stop-color='%232b3a5c'/>" <>
+                     "<stop offset='1' stop-color='%230d1017'/></linearGradient></defs>" <>
+                     "<rect width='1280' height='720' fill='url(%23g)'/></svg>"
+
   def variations do
     [
       %Variation{
         id: :loading,
-        description: "Targeting universe loading from TMDB.",
+        description:
+          "Loading, already dressed — the picked search result's identity (title, poster, " <>
+            "backdrop) paints immediately; TMDB detail fills in behind it. No gray box.",
+        attributes: %{
+          open: true,
+          stage: :loading,
+          backdrop_url: @sample_backdrop,
+          identity: %TitleResult{
+            tmdb_id: 246_810,
+            media_type: :tv_series,
+            name: "Sample Show",
+            year: "2008",
+            poster_path: nil
+          }
+        }
+      },
+      %Variation{
+        id: :loading_bare,
+        description:
+          "Loading with nothing in hand (a shared / refreshed plan link) — the scrim-only " <>
+            "shell and the spinner line.",
         attributes: %{open: true, stage: :loading}
       },
       %Variation{
         id: :targeting,
         description:
-          "The picker — quick-action presets, tri-state season rows collapsed by default; " <>
-            "season 1 expanded here showing the episode drill-in: the in-library row greyed " <>
-            "(shown, never hidden), the unaired row inert; season 2 stays collapsed.",
+          "The picker wearing the series backdrop (UIDR-014 — the TV path gets the same " <>
+            "cinematic shell as the movie confirm). Quick-action presets, tri-state season " <>
+            "rows collapsed by default; season 1 expanded showing the episode drill-in: the " <>
+            "in-library row greyed (shown, never hidden), the unaired row inert.",
+        attributes: %{
+          open: true,
+          stage: :targeting,
+          backdrop_url: @sample_backdrop,
+          selection: selection(),
+          chosen: {:eval, ~s|MapSet.new([{1, 2}, {1, 3}, {2, 1}])|},
+          expanded_seasons: {:eval, ~s|MapSet.new([1])|}
+        }
+      },
+      %Variation{
+        id: :targeting_no_artwork,
+        description:
+          "The picker when TMDB has no backdrop — the scrim-only shell; poster thumb and " <>
+            "title carry the identity.",
         attributes: %{
           open: true,
           stage: :targeting,
           selection: selection(),
-          chosen: {:eval, ~s|MapSet.new([{1, 2}, {1, 3}, {2, 1}])|},
-          expanded_seasons: {:eval, ~s|MapSet.new([1])|}
+          chosen: {:eval, ~s|MapSet.new([{1, 2}])|},
+          expanded_seasons: {:eval, ~s|MapSet.new()|}
         }
       },
       %Variation{
@@ -134,10 +179,13 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       %Variation{
         id: :board_ready,
         description:
-          "Ready — the season pack fused into one capsule, a single covering the stray episode, an explicit gap row, the approval footer.",
+          "Ready — the shell keeps the title's backdrop through the board (no themed → plain " <>
+            "regression mid-flow); the season pack fused into one capsule, a single covering " <>
+            "the stray episode, an explicit gap row, the approval footer.",
         attributes: %{
           open: true,
           stage: :board,
+          backdrop_url: @sample_backdrop,
           board: board(:ready),
           last_activity: "9 searches · 6 from corpus"
         }

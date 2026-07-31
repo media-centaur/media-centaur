@@ -812,6 +812,31 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       assert Enum.at(results, 1).overview == "A test movie overview."
     end
 
+    test "carries each result's backdrop path for the plan flow's cinematic shell" do
+      MediaCentaur.TmdbStubs.stub_search_multi([
+        %{
+          "id" => 100,
+          "media_type" => "movie",
+          "title" => "Test Movie",
+          "release_date" => "2026-07-01",
+          "poster_path" => "/m.jpg",
+          "backdrop_path" => "/m-backdrop.jpg"
+        },
+        %{
+          "id" => 200,
+          "media_type" => "tv",
+          "name" => "Test Show",
+          "first_air_date" => "2025-01-01",
+          "poster_path" => "/t.jpg",
+          "backdrop_path" => "/t-backdrop.jpg"
+        }
+      ])
+
+      assert [movie, show] = ReleaseTracking.search_tmdb("test")
+      assert movie.backdrop_path == "/m-backdrop.jpg"
+      assert show.backdrop_path == "/t-backdrop.jpg"
+    end
+
     test "drops person results from the multi search" do
       MediaCentaur.TmdbStubs.stub_search_multi([
         %{"id" => 999, "media_type" => "person", "name" => "Test Actor"},

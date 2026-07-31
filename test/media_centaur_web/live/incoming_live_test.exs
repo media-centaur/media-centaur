@@ -384,6 +384,61 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
              )
     end
 
+    test "the TV picker dresses the modal in the series backdrop", %{conn: conn} do
+      stub_plan_tmdb()
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
+      render_async(view, 2_000)
+
+      # tv_detail fixture default backdrop, w1280 on the cinematic shell —
+      # the TV path wears the same dress the movie confirm always has.
+      assert has_element?(
+               view,
+               "[data-plan-modal] .modal-page-backdrop img[src='https://image.tmdb.org/t/p/w1280/tsRy63Mu5cu8etL1X7ZLyf7UP1M.jpg']"
+             )
+    end
+
+    test "the board wears release tracking's cached artwork for the plan's title", %{conn: conn} do
+      stub_plan_tmdb()
+
+      create_tracking_item(%{
+        tmdb_id: 777,
+        media_type: :movie,
+        name: "Sample Movie",
+        backdrop_path: "tracking/backdrop-777.jpg"
+      })
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      render_async(view, 2_000)
+
+      assert has_element?(
+               view,
+               "[data-plan-modal] .modal-page-backdrop img[src='/media-images/tracking/backdrop-777.jpg']"
+             )
+    end
+
+    test "draft rows wear cached artwork instead of the synthetic gradient", %{conn: conn} do
+      stub_plan_tmdb()
+
+      create_tracking_item(%{
+        tmdb_id: 777,
+        media_type: :movie,
+        name: "Sample Movie",
+        backdrop_path: "tracking/backdrop-777.jpg"
+      })
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      assert has_element?(
+               view,
+               "#plan-draft-#{plan.id} img[src='/media-images/tracking/backdrop-777.jpg']"
+             )
+    end
+
     test "the picker's seasons start collapsed and expand on demand", %{conn: conn} do
       stub_plan_tmdb()
 

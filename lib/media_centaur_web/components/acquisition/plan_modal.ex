@@ -4,6 +4,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   carrying a media-search request from targeting through approval —
   no wizard step-dots.
 
+  The whole surface is a cinematic shell: every stage renders inside the
+  shared `Detail.CinematicBackdrop`, wearing the title's backdrop from
+  the moment the modal opens (the picked search result dresses the
+  loading stage) through targeting, confirm, and the board. The host
+  picks the per-stage source via `PlanLogic.shell_backdrop_url/2`.
+
   Stages, driven by the host LiveView's `?plan=` param:
 
   * `:loading` — the targeting universe is being fetched.
@@ -41,6 +47,19 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :stage, :atom,
     default: :loading,
     values: [:loading, :targeting, :movie_confirm, :board, :error]
+
+  attr :backdrop_url, :string,
+    default: nil,
+    doc:
+      "the shell's cinematic backdrop — one identity following the request through every " <>
+        "stage (PlanLogic.shell_backdrop_url/2 picks the source per stage). Nil renders the " <>
+        "atmosphere scrim alone."
+
+  attr :identity, :any,
+    default: nil,
+    doc:
+      "%ReleaseTracking.TitleResult{} | nil — the picked search result, dressing the " <>
+        ":loading stage the instant the modal opens."
 
   attr :selection, :any,
     default: nil,
@@ -97,43 +116,97 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       data-detail-mode={@open && "modal"}
       data-dismiss-event={@on_close}
     >
+      <%!-- The scroll container is the positioning context CinematicBackdrop
+            documents: the backdrop scrolls with the content. One backdrop
+            element persists across stage patches, so targeting → board keeps
+            the identity painted without a re-decode. --%>
       <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative thin-scrollbar">
-        <div
-          :if={@stage == :loading}
-          class="p-10 flex items-center justify-center gap-3 text-sm text-base-content/50"
+        <CinematicBackdrop.cinematic_backdrop
+          backdrop_url={@backdrop_url}
+          early_fade={@stage != :movie_confirm}
         >
-          <span class="loading loading-spinner loading-sm"></span> Loading from TMDB…
-        </div>
+          <.loading_stage :if={@stage == :loading} identity={@identity} />
 
-        <div :if={@stage == :error} class="p-8 text-center text-sm space-y-3">
-          <p class="text-error">{@error || "Couldn't load this title from TMDB."}</p>
-          <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
-            Close
-          </.button>
-        </div>
+          <div :if={@stage == :error} class="p-8 text-center text-sm space-y-3">
+            <p class="text-error">{@error || "Couldn't load this title from TMDB."}</p>
+            <.button variant="dismiss" size="sm" phx-click={@on_close} data-nav-item tabindex="0">
+              Close
+            </.button>
+          </div>
 
-        <.targeting_stage
-          :if={@stage == :targeting && @selection}
-          selection={@selection}
-          chosen={@chosen || MapSet.new()}
-          expanded_seasons={@expanded_seasons || MapSet.new()}
-          grab_future={@grab_future}
-          on_close={@on_close}
-        />
+          <.targeting_stage
+            :if={@stage == :targeting && @selection}
+            selection={@selection}
+            chosen={@chosen || MapSet.new()}
+            expanded_seasons={@expanded_seasons || MapSet.new()}
+            grab_future={@grab_future}
+            on_close={@on_close}
+          />
 
-        <.movie_stage :if={@stage == :movie_confirm && @movie} movie={@movie} on_close={@on_close} />
+          <.movie_stage :if={@stage == :movie_confirm && @movie} movie={@movie} on_close={@on_close} />
 
-        <.board_stage
-          :if={@stage == :board && @board}
-          board={@board}
-          alternatives={@alternatives}
-          approving={@approving}
-          last_activity={@last_activity}
-          descent={@descent}
-          on_close={@on_close}
-        />
+          <.board_stage
+            :if={@stage == :board && @board}
+            board={@board}
+            alternatives={@alternatives}
+            approving={@approving}
+            last_activity={@last_activity}
+            descent={@descent}
+            on_close={@on_close}
+          />
+        </CinematicBackdrop.cinematic_backdrop>
       </div>
     </.modal>
+    """
+  end
+
+  # ---------------------------------------------------------------------------
+  # Loading stage
+  # ---------------------------------------------------------------------------
+
+  attr :identity, :any, required: true, doc: "TitleResult | nil — typed at the public attr."
+
+  # With the picked result in hand the modal opens already dressed —
+  # identity header first, the spinner demoted to a status line. Without
+  # one (URL-driven open) the honest spinner row stands alone.
+  defp loading_stage(assigns) do
+    ~H"""
+    <div :if={@identity} class="p-6 space-y-4">
+      <div class="flex items-center gap-4">
+        <span class="flex-shrink-0 w-14 h-[84px] rounded-lg bg-base-content/10 overflow-hidden flex items-center justify-center">
+          <img
+            :if={@identity.poster_path}
+            src={"https://image.tmdb.org/t/p/w154#{@identity.poster_path}"}
+            alt=""
+            class="w-full h-full object-cover"
+            loading="eager"
+            decoding="sync"
+          />
+          <.icon
+            :if={!@identity.poster_path}
+            name={if @identity.media_type == :movie, do: "hero-film", else: "hero-tv"}
+            class="size-6 text-base-content/25"
+          />
+        </span>
+        <div class="min-w-0">
+          <h2 class="text-2xl font-semibold truncate text-on-image-lg">{@identity.name}</h2>
+          <p class="text-sm text-base-content/60 mt-1 text-on-image">
+            <span>{if @identity.media_type == :movie, do: "Movie", else: "TV Series"}</span>
+            <span :if={@identity.year}> ·        {@identity.year}</span>
+          </p>
+        </div>
+      </div>
+      <p class="flex items-center gap-2 text-sm text-base-content/50">
+        <span class="loading loading-spinner loading-xs"></span> Loading from TMDB…
+      </p>
+    </div>
+
+    <div
+      :if={!@identity}
+      class="p-10 flex items-center justify-center gap-3 text-sm text-base-content/50"
+    >
+      <span class="loading loading-spinner loading-sm"></span> Loading from TMDB…
+    </div>
     """
   end
 
@@ -166,13 +239,27 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             <.icon :if={!@selection.poster_path} name="hero-tv" class="size-6 text-base-content/25" />
           </span>
           <div class="min-w-0">
-            <h2 class="text-2xl font-semibold truncate">
+            <%!-- Same identity treatment as the movie hero: the series logo
+                  when TMDB has one, the title as logotype fallback — both
+                  over the shell backdrop, so shadowed (UIDR-011). --%>
+            <img
+              :if={@selection.logo_path}
+              src={"https://image.tmdb.org/t/p/w300#{@selection.logo_path}"}
+              alt={@selection.title}
+              title={@selection.title}
+              class="max-h-14 max-w-[70%] object-contain object-left text-on-image-lg"
+              loading="eager"
+              decoding="sync"
+            />
+            <h2 :if={!@selection.logo_path} class="text-2xl font-semibold truncate text-on-image-lg">
               {@selection.title}
+            </h2>
+            <p class="text-sm text-base-content/60 mt-1 text-on-image">
+              {selection_meta(@selection)}
               <.badge :if={@selection.tracked?} variant="warning" size="xs" class="ml-2 align-middle">
                 Tracked
               </.badge>
-            </h2>
-            <p class="text-sm text-base-content/50 mt-1">{selection_meta(@selection)}</p>
+            </p>
           </div>
         </div>
 
@@ -389,13 +476,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   defp movie_stage(assigns) do
     # Mirror the owned detail Hero: backdrop is the hero image, poster the
-    # fallback. The image itself is painted by the shared CinematicBackdrop
-    # (`.modal-page-backdrop` + atmosphere scrim); this frame is just the
-    # transparent title layer that sits over it.
+    # fallback. The image itself is painted by the SHELL's CinematicBackdrop
+    # (plan_modal/1 wraps every stage; the host feeds it this same
+    # backdrop-or-poster via PlanLogic.shell_backdrop_url) — this frame is
+    # just the transparent title layer that sits over it.
     assigns = assign(assigns, :hero_image, assigns.movie.backdrop_url || assigns.movie.poster_url)
 
     ~H"""
-    <CinematicBackdrop.cinematic_backdrop backdrop_url={@hero_image}>
+    <div>
       <%!-- 21:9 title layer, same as Detail.Hero — logo (or title) + tagline
             seated at the bottom of the backdrop region; film-icon frame when
             TMDB has no artwork at all. --%>
@@ -460,7 +548,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           Plan it
         </.button>
       </div>
-    </CinematicBackdrop.cinematic_backdrop>
+    </div>
     """
   end
 
@@ -531,8 +619,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     <div class="flex flex-col max-h-full">
       <div class="p-6 pb-4 space-y-4">
         <div>
-          <h2 class="text-2xl font-semibold truncate">{@board.title}</h2>
-          <p class="text-sm mt-1">
+          <h2 class="text-2xl font-semibold truncate text-on-image-lg">{@board.title}</h2>
+          <p class="text-sm mt-1 text-on-image">
             <span :if={@board.status == :planning} class="text-base-content/50">
               <span class="loading loading-spinner loading-xs align-middle mr-1"></span>
               Planning · {@board.wanted} {if @board.movie?, do: "unit", else: "episodes"} wanted

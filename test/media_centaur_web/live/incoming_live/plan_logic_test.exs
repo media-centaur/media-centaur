@@ -253,4 +253,83 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
     assert preview.facets == []
     assert preview.cast == []
   end
+
+  describe "shell_backdrop_url/2 — the plan modal's cinematic shell" do
+    alias MediaCentaur.ReleaseTracking.TitleResult
+
+    defp sources(overrides) do
+      Map.merge(%{identity: nil, selection: nil, movie: nil, artwork: nil}, overrides)
+    end
+
+    defp identity(backdrop_path) do
+      struct!(TitleResult, %{
+        tmdb_id: 246_810,
+        media_type: :tv_series,
+        name: "Sample Show",
+        backdrop_path: backdrop_path
+      })
+    end
+
+    test "loading dresses from the picked search result immediately" do
+      assert PlanLogic.shell_backdrop_url(:loading, sources(%{identity: identity("/pick.jpg")})) ==
+               "https://image.tmdb.org/t/p/w1280/pick.jpg"
+    end
+
+    test "loading with no identity in hand renders the scrim alone" do
+      assert PlanLogic.shell_backdrop_url(:loading, sources(%{})) == nil
+    end
+
+    test "targeting wears the selection's backdrop" do
+      selection = %Targeting.Selection{
+        tmdb_id: "246810",
+        title: "Sample Show",
+        tracked?: false,
+        seasons: [],
+        backdrop_path: "/series.jpg"
+      }
+
+      assert PlanLogic.shell_backdrop_url(:targeting, sources(%{selection: selection})) ==
+               "https://image.tmdb.org/t/p/w1280/series.jpg"
+    end
+
+    test "targeting falls back to the picked identity when TMDB has no series backdrop" do
+      selection = %Targeting.Selection{
+        tmdb_id: "246810",
+        title: "Sample Show",
+        tracked?: false,
+        seasons: []
+      }
+
+      assert PlanLogic.shell_backdrop_url(
+               :targeting,
+               sources(%{selection: selection, identity: identity("/pick.jpg")})
+             ) == "https://image.tmdb.org/t/p/w1280/pick.jpg"
+    end
+
+    test "movie confirm wears the preview's backdrop, poster as fallback" do
+      movie = %MoviePreview{tmdb_id: "550", in_library?: false, backdrop_url: "https://x/b.jpg"}
+      assert PlanLogic.shell_backdrop_url(:movie_confirm, sources(%{movie: movie})) == "https://x/b.jpg"
+
+      poster_only = %MoviePreview{tmdb_id: "550", in_library?: false, poster_url: "https://x/p.jpg"}
+
+      assert PlanLogic.shell_backdrop_url(:movie_confirm, sources(%{movie: poster_only})) ==
+               "https://x/p.jpg"
+    end
+
+    test "board prefers locally cached artwork, then falls back through the flow's earlier stages" do
+      movie = %MoviePreview{tmdb_id: "550", in_library?: false, backdrop_url: "https://x/movie.jpg"}
+      artwork = %{backdrop_url: "/media-images/tracking/backdrop-550.jpg", logo_url: nil}
+
+      assert PlanLogic.shell_backdrop_url(:board, sources(%{movie: movie, artwork: artwork})) ==
+               "/media-images/tracking/backdrop-550.jpg"
+
+      # No cache yet — the confirm stage's backdrop carries over (refresh loses
+      # it, and the async ensure fills the cache for the next open).
+      assert PlanLogic.shell_backdrop_url(:board, sources(%{movie: movie})) == "https://x/movie.jpg"
+    end
+
+    test "the error stage is honest — no artwork" do
+      assert PlanLogic.shell_backdrop_url(:error, sources(%{identity: identity("/pick.jpg")})) == nil
+    end
+  end
 end

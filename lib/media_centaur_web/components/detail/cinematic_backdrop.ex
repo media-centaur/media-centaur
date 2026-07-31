@@ -28,11 +28,22 @@ defmodule MediaCentaurWeb.Components.Detail.CinematicBackdrop do
     doc:
       "absolute image URL painted behind the content (local `/media-images/…` or a TMDB hotlink). `nil` renders the atmosphere scrim alone — no backdrop image."
 
+  attr :early_fade, :boolean,
+    default: false,
+    doc:
+      "fade the backdrop into `base-100` high up (`--early-fade`) — for work surfaces " <>
+        "(pickers, boards, the pursuit detail) where the image is a header treatment, not " <>
+        "a hero. Default keeps the tall fade for hero layers (detail panel, movie confirm)."
+
   slot :inner_block, required: true
 
   def cinematic_backdrop(assigns) do
     ~H"""
-    <div :if={@backdrop_url} class="modal-page-backdrop" aria-hidden="true">
+    <div
+      :if={@backdrop_url}
+      class={["modal-page-backdrop", @early_fade && "modal-page-backdrop--early-fade"]}
+      aria-hidden="true"
+    >
       <img src={@backdrop_url} alt="" loading="eager" decoding="sync" fetchpriority="high" />
     </div>
 

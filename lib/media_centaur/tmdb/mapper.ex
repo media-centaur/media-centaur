@@ -157,14 +157,20 @@ defmodule MediaCentaur.TMDB.Mapper do
           %{role: "poster", url: tmdb_image_url(data["poster_path"]), extension: "jpg"},
         data["backdrop_path"] &&
           %{role: "backdrop", url: tmdb_image_url(data["backdrop_path"]), extension: "jpg"},
-        logo_path(data) &&
-          %{role: "logo", url: tmdb_image_url(logo_path(data)), extension: "png"}
+        pick_logo_path(data) &&
+          %{role: "logo", url: tmdb_image_url(pick_logo_path(data)), extension: "png"}
       ],
       &is_nil/1
     )
   end
 
-  defp logo_path(data) do
+  @doc """
+  The canonical logo pick from a detail payload's ride-along images:
+  English first, any second, nil without logos. The single definition of
+  "which logo" — import, acquisition artwork, and targeting all share it.
+  """
+  @spec pick_logo_path(map()) :: String.t() | nil
+  def pick_logo_path(data) do
     logos = get_in(data, ["images", "logos"]) || []
     logo = Enum.find(logos, &(&1["iso_639_1"] == "en")) || List.first(logos)
     logo && logo["file_path"]

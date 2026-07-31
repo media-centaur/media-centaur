@@ -35,6 +35,16 @@ defmodule MediaCentaurWeb.Storybook.Detail.CinematicBackdrop do
         slots: [content_slot()]
       },
       %Variation{
+        id: :early_fade,
+        description:
+          "Work-surface variant (`early_fade`) — the backdrop resolves into the panel " <>
+            "background high up, so pickers and boards read over solid ground while the " <>
+            "header band keeps the identity. The pursuit modal and the plan modal's " <>
+            "non-hero stages wear this.",
+        attributes: %{backdrop_url: @backdrop, early_fade: true},
+        slots: [content_slot()]
+      },
+      %Variation{
         id: :atmosphere_only,
         description:
           "No backdrop URL — just the atmosphere scrim over the content (the state a title " <>
