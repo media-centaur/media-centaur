@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.107.0 — 2026-08-01
+
+### New
+
+- **Open your download client from inside Media Centaur.** Settings → Acquisition now links straight to qBittorrent's and SABnzbd's own web interfaces once a URL is configured, and a failed download's detail view offers the same link — one click to the client's full job log.
+
+### Improved
+
+- **When SABnzbd can't repair a download, you now see exactly why.** A usenet download whose repair fails ("Repair failed, not enough repair blocks") used to surface as a generic "download client reported an error" and then quietly vanish as the search moved on. Now the pursuit shows SABnzbd's own message word for word, tells you a different release will be tried automatically, and keeps the reason on the pursuit's timeline — so you can always look back and see why a release was abandoned.
+
 ## v0.106.1 — 2026-08-01
 
 ### New
