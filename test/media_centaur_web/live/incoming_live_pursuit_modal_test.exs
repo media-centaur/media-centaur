@@ -236,8 +236,11 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
         |> Ecto.Changeset.change(awaiting_decision_at: DateTime.utc_now(:second))
         |> Repo.update()
 
+      # The 800 ms delay applies to the search fetch this test pins; the
+      # IndexerHealth snapshot endpoints (UIDR-016, mount async) answer
+      # instantly so they don't eat the post-assertion drain budget.
       Req.Test.stub(:prowlarr, fn conn ->
-        Process.sleep(800)
+        if conn.request_path == "/api/v1/search", do: Process.sleep(800)
         Req.Test.json(conn, [])
       end)
 

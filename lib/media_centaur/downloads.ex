@@ -9,6 +9,7 @@ defmodule MediaCentaur.Downloads do
       DownloadClient.SABnzbd,
       Health,
       HealthHistory,
+      IncidentContext,
       Connectivity,
       QueueItem,
       QueueMonitor,

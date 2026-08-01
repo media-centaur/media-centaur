@@ -1,8 +1,10 @@
 defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
   use ExUnit.Case, async: true
 
+  alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Library.Person
+  alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaurWeb.IncomingLive.MoviePreview
   alias MediaCentaurWeb.IncomingLive.PlanLogic
 
@@ -330,6 +332,73 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
 
     test "the error stage is honest — no artwork" do
       assert PlanLogic.shell_backdrop_url(:error, sources(%{identity: identity("/pick.jpg")})) == nil
+    end
+  end
+
+  describe "gap_banner_line/2 (UIDR-016 degraded-search honesty)" do
+    defp blind_health(state) do
+      %IndexerHealth{state: state, checked_at: ~U[2026-08-01 00:00:00Z]}
+    end
+
+    test "healthy search keeps the availability verdict" do
+      assert PlanLogic.gap_banner_line(["Sample Movie"], blind_health(:ok)) ==
+               "1 not available right now — Sample Movie"
+
+      assert PlanLogic.gap_banner_line(["S01E01", "S01E02"], nil) ==
+               "2 not available right now — S01E01, S01E02"
+    end
+
+    test "a blind search never claims unavailability" do
+      assert PlanLogic.gap_banner_line(["Sample Movie"], blind_health(:blind)) ==
+               "Couldn't check availability — no indexers are answering — Sample Movie"
+    end
+
+    test "an unreachable provider never claims unavailability" do
+      assert PlanLogic.gap_banner_line(["Sample Movie"], blind_health(:unreachable)) ==
+               "Couldn't check availability — Prowlarr is unreachable — Sample Movie"
+    end
+
+    test "degraded search still ran, so the verdict stands" do
+      assert PlanLogic.gap_banner_line(["Sample Movie"], blind_health(:degraded)) ==
+               "1 not available right now — Sample Movie"
+    end
+  end
+
+  describe "search_activity_line/2" do
+    defp activity(outcome, result_count) do
+      %PlanEvents.SearchActivity{
+        plan_id: "plan-1",
+        term: "Sample Movie 2005",
+        outcome: outcome,
+        result_count: result_count
+      }
+    end
+
+    test "live outcomes report the count" do
+      assert PlanLogic.search_activity_line(activity(:live, 62), nil) ==
+               "Searched: Sample Movie 2005 — 62 found"
+    end
+
+    test "a zero-count live outcome while blind reports the outage, not knowledge" do
+      health = %IndexerHealth{state: :blind, checked_at: ~U[2026-08-01 00:00:00Z]}
+
+      assert PlanLogic.search_activity_line(activity(:live, 0), health) ==
+               "Searched: Sample Movie 2005 — couldn't reach any indexer"
+    end
+
+    test "a zero-count live outcome with healthy indexers is genuine knowledge" do
+      health = %IndexerHealth{state: :ok, checked_at: ~U[2026-08-01 00:00:00Z]}
+
+      assert PlanLogic.search_activity_line(activity(:live, 0), health) ==
+               "Searched: Sample Movie 2005 — 0 found"
+    end
+
+    test "corpus and error outcomes are unchanged" do
+      assert PlanLogic.search_activity_line(activity(:corpus, 5), nil) ==
+               "Sample Movie 2005 — 5 known (corpus)"
+
+      assert PlanLogic.search_activity_line(activity(:error, 0), nil) ==
+               "Search failed: Sample Movie 2005"
     end
   end
 end

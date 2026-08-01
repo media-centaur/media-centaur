@@ -12,9 +12,11 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   subtractions shown, never silently applied).
   """
 
+  alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Library.Person
   alias MediaCentaur.ReleaseTracking.TitleResult
+  alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaur.TMDB.Mapper
   alias MediaCentaurWeb.IncomingLive.MoviePreview
   alias MediaCentaurWeb.Components.Detail.Logic, as: DetailLogic
@@ -311,4 +313,52 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
 
   defp artwork_backdrop(%{backdrop_url: url}) when is_binary(url), do: url
   defp artwork_backdrop(_absent), do: nil
+
+  @doc """
+  The gap banner's verdict (UIDR-016): "not available right now" is a
+  claim about the world, so it only renders when the search actually
+  asked someone. A blind search (`IndexerHealth.blind?/1` — every
+  enabled indexer backed off, or Prowlarr unreachable) says the check
+  couldn't happen instead.
+  """
+  @spec gap_banner_line([String.t()], IndexerHealth.t() | nil) :: String.t()
+  def gap_banner_line(gaps, search_health) do
+    names = Enum.join(gaps, ", ")
+
+    case blind_reason(search_health) do
+      nil -> "#{length(gaps)} not available right now — #{names}"
+      reason -> "Couldn't check availability — #{reason} — #{names}"
+    end
+  end
+
+  @doc """
+  The board ticker's line for a `PlanEvents.SearchActivity` — same
+  honesty rule as the gap banner: a zero-result live search while blind
+  reports the outage, never "0 found".
+  """
+  @spec search_activity_line(PlanEvents.SearchActivity.t(), IndexerHealth.t() | nil) ::
+          String.t()
+  def search_activity_line(%PlanEvents.SearchActivity{} = activity, search_health) do
+    case {activity.outcome, activity.result_count, blind_reason(search_health)} do
+      {:error, _count, _reason} ->
+        "Search failed: #{activity.term}"
+
+      {:corpus, count, _reason} ->
+        "#{activity.term} — #{count} known (corpus)"
+
+      {:live, 0, reason} when not is_nil(reason) ->
+        "Searched: #{activity.term} — couldn't reach any indexer"
+
+      {:live, count, _reason} ->
+        "Searched: #{activity.term} — #{count} found"
+    end
+  end
+
+  defp blind_reason(%IndexerHealth{state: :unreachable}), do: "Prowlarr is unreachable"
+
+  defp blind_reason(%IndexerHealth{} = health) do
+    if IndexerHealth.blind?(health), do: "no indexers are answering"
+  end
+
+  defp blind_reason(nil), do: nil
 end

@@ -43,8 +43,9 @@ defmodule MediaCentaur.Downloads.IncidentContext do
   contract **structurally rather than via `@behaviour`**: the registry binds
   assessors by `function_exported?(module, :assess, 0)` purely by name, so a
   subsystem reports health without a compile-time `Downloads → ErrorReports`
-  edge. Registered under the `:acquisition` component in
-  `config :media_centaur, :diagnostics_contributors`.
+  edge. Reaches the evaluator through the `acquisition` component's composite
+  assessor (`MediaCentaur.Acquisition.IncidentContext`), which pairs this
+  probe with the search-provider probe (`Search.IncidentContext`).
   """
 
   alias MediaCentaur.Downloads.QueueMonitor

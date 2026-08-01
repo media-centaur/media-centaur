@@ -117,10 +117,13 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.Settings
   alias MediaCentaur.Storage
 
+  alias MediaCentaur.Search.IndexerHealth
+
   alias MediaCentaurWeb.Components.Acquisition.{
     ConnectivityBadge,
     DownloadStorage,
     MediaOmnibox,
+    NeedsAttention,
     PlanModal,
     PursuitGroup,
     PursuitModal,
@@ -178,6 +181,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          track_confirmed_ids: MapSet.new(),
          omnibox_suggestions_open?: false,
          storage_drives: [],
+         search_health: IndexerHealth.cached(),
          page_backdrop: page_backdrop(),
          search_session: %SearchSession{},
          active_queue: [],
@@ -290,10 +294,16 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   defp start_async_storage(socket) do
-    start_async(socket, :acquisition_storage, fn ->
+    socket
+    |> start_async(:acquisition_storage, fn ->
       # Only drives a download can land on — a DB/image-cache-only drive can't
       # answer "do I have room for this grab?" (see DownloadStorage.media_dir_drives/1).
       DownloadStorage.media_dir_drives(Storage.measure_all())
+    end)
+    |> start_async(:indexer_health, fn ->
+      # Two cheap Prowlarr reads (roster + back-offs) — the Needs attention
+      # section's search card and the plan banner's honesty (UIDR-016).
+      IndexerHealth.check()
     end)
   end
 
@@ -783,6 +793,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           descent={@plan_descent}
           alternatives={@plan_alternatives}
           approving={@plan_approving?}
+          search_health={@search_health}
         />
         <PursuitModal.pursuit_modal
           open={@selected_pursuit_id != nil}
@@ -992,10 +1003,15 @@ defmodule MediaCentaurWeb.IncomingLive do
 
           <OrphanQueue.orphan_zone items={@orphan_queue} />
 
-          <%!-- Storage is bookkeeping — it closes the page, never leads it.
-                Calm free space is the ledger's foot line; the full card only
-                renders when storage escalates (low space / multiple drives). --%>
-          <DownloadStorage.download_storage :if={@storage_mode != :calm} drives={@storage_drives} />
+          <%!-- Needs attention is bookkeeping — it closes the page, never
+                leads it (UIDR-016). Calm free space stays the ledger's foot
+                line; cards only render when storage escalates (low space /
+                multiple drives) or search health degrades. --%>
+          <NeedsAttention.needs_attention
+            :if={NeedsAttention.visible?(@storage_mode, @search_health)}
+            drives={if(@storage_mode == :card, do: @storage_drives, else: [])}
+            search_health={@search_health}
+          />
         </div>
       </div>
     </Layouts.app>
@@ -2193,6 +2209,10 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, assign(socket, storage_drives: drives)}
   end
 
+  def handle_async(:indexer_health, {:ok, health}, socket) do
+    {:noreply, assign(socket, search_health: health)}
+  end
+
   def handle_async(name, {:exit, reason}, socket) do
     Log.warning(:acquisition, "acquisition async #{inspect(name)} failed — #{inspect(reason)}")
     {:noreply, socket}
@@ -2531,7 +2551,9 @@ defmodule MediaCentaurWeb.IncomingLive do
   # the open plan just re-reads the board.
   defp maybe_reload_plan_board(socket, %PlanEvents.Changed{plan_id: plan_id}) do
     if socket.assigns.plan_param == plan_id do
-      open_plan_board(socket, plan_id)
+      socket
+      |> assign(:search_health, IndexerHealth.cached())
+      |> open_plan_board(plan_id)
     else
       socket
     end
@@ -2539,14 +2561,16 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   defp maybe_note_plan_activity(socket, %PlanEvents.SearchActivity{} = activity) do
     if socket.assigns.plan_param == activity.plan_id do
-      line =
-        case activity.outcome do
-          :error -> "Search failed: #{activity.term}"
-          :corpus -> "#{activity.term} — #{activity.result_count} known (corpus)"
-          :live -> "Searched: #{activity.term} — #{activity.result_count} found"
-        end
+      # A zero-result live search just refreshed the IndexerHealth cache
+      # (Corpus disambiguates empty-vs-blind at search time, UIDR-016) —
+      # re-read it so the ticker and the gap banner speak from the same
+      # moment-of-truth observation.
+      search_health = IndexerHealth.cached()
 
-      assign(socket, plan_last_activity: line)
+      assign(socket,
+        plan_last_activity: PlanLogic.search_activity_line(activity, search_health),
+        search_health: search_health
+      )
     else
       socket
     end

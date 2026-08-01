@@ -19,4 +19,6 @@ defmodule MediaCentaurWeb.Storybook.Acquisition do
   def entry("decision_card"), do: [icon: {:fa, "wand-magic-sparkles", :thin}, name: "Decision card"]
 
   def entry("connectivity_badge"), do: [icon: {:fa, "signal-stream", :thin}, name: "Connectivity badge"]
+
+  def entry("needs_attention"), do: [icon: {:fa, "triangle-exclamation", :thin}, name: "Needs attention"]
 end
