@@ -58,28 +58,28 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
             <.badge variant="type" size="xs">
               {if @vm.recipe.tmdb_type in [:movie, "movie"], do: "Movie", else: "TV"}
             </.badge>
-            <span :if={recipe_summary(@vm.recipe)} class="text-base-content/80">
-              {recipe_summary(@vm.recipe)}
+            <span :if={hero_scope(@vm.recipe)} class="text-base-content/80">
+              {hero_scope(@vm.recipe)}
             </span>
             <span :if={@vm.criteria_summary} class="text-base-content/70">
               {@vm.criteria_summary}
             </span>
           </div>
 
-          <div
+          <%!-- The literal indexer queries, compressed to one labeled line —
+                unlabeled monospace lines under the title read as duplicate
+                titles, not searches. Full list in the tooltip when truncated. --%>
+          <p
             :if={@vm.search_queries != []}
-            class="text-on-image space-y-0.5 text-xs text-base-content/70"
+            class="text-on-image min-w-0 truncate text-xs text-base-content/50"
+            title={Enum.join(@vm.search_queries, "  ·  ")}
           >
-            <ul class="space-y-0.5">
-              <li
-                :for={query <- @vm.search_queries}
-                class="truncate font-mono text-base-content/80"
-                title={query}
-              >
-                {query}
-              </li>
-            </ul>
-          </div>
+            {search_label(@vm.search_queries)}:
+            <%= for {query, index} <- Enum.with_index(@vm.search_queries) do %>
+              <span :if={index > 0} class="text-base-content/30">·</span>
+              <span class="font-mono text-base-content/70">{query}</span>
+            <% end %>
+          </p>
         </div>
       </div>
 
@@ -147,6 +147,19 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
 
   defp search_label([_]), do: "Search query"
   defp search_label(_), do: "Search queries"
+
+  # The hero meta row already opens with the type badge — this is only the
+  # scope beyond it (year, SxxExx), so "Movie" never reads twice.
+  defp hero_scope(%{tmdb_type: type, year: year}) when type in [:movie, "movie"],
+    do: if(year, do: "#{year}")
+
+  defp hero_scope(%{season_number: nil}), do: nil
+  defp hero_scope(%{season_number: season, episode_number: nil}), do: "S#{pad(season)}"
+
+  defp hero_scope(%{season_number: season, episode_number: episode}),
+    do: "S#{pad(season)}E#{pad(episode)}"
+
+  defp hero_scope(_), do: nil
 
   # The heading text. For a Prowlarr-query pursuit, the manual query is
   # the human-meaningful identity; for everything else, `vm.title` is

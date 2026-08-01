@@ -200,7 +200,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <h2 class="text-2xl font-semibold truncate text-on-image-lg">{@identity.name}</h2>
           <p class="text-sm text-base-content/60 mt-1 text-on-image">
             <span>{if @identity.media_type == :movie, do: "Movie", else: "TV Series"}</span>
-            <span :if={@identity.year}> ·                      {@identity.year}</span>
+            <span :if={@identity.year}> ·                                    {@identity.year}</span>
           </p>
         </div>
       </div>
@@ -233,7 +233,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
     ~H"""
     <div class="flex flex-col max-h-full">
-      <div class="p-6 pb-4 space-y-4">
+      <div class="p-6 pb-6 space-y-5">
         <div class="flex items-center gap-4">
           <span class="flex-shrink-0 w-14 h-[84px] rounded-lg bg-base-content/10 overflow-hidden flex items-center justify-center">
             <img
@@ -376,7 +376,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
     ~H"""
     <div class={["glass-inset rounded-lg", @state == :disabled && "opacity-50"]}>
-      <div class="flex items-center gap-3 px-3 py-2">
+      <div class="flex items-center gap-3 px-4 py-2.5">
         <.tri_checkbox
           state={@state}
           phx-click="plan_toggle_season"
@@ -405,7 +405,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           :for={episode <- @season.episodes}
           id={"plan-episode-#{episode.season_number}-#{episode.episode_number}"}
           class={[
-            "flex items-baseline gap-3 pl-9 pr-3 py-1.5",
+            "flex items-baseline gap-3 pl-10 pr-4 py-2",
             (!episode.aired? || episode.in_library?) && "opacity-40"
           ]}
         >
@@ -513,7 +513,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         placeholder?={!@hero_image}
       />
 
-      <div class="px-6 pb-6 space-y-4">
+      <div class="px-6 pb-6 space-y-5">
         <div class="flex items-center justify-between gap-3">
           <MetadataRow.metadata_row badge_text="Movie" items={@movie.metadata_items} />
           <span class={[
@@ -633,10 +633,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   defp board_stage(assigns) do
     ~H"""
     <div class="flex flex-col max-h-full">
-      <div class="p-6 pb-4 space-y-4">
+      <div class="p-6 pb-6 space-y-6">
         <div>
           <h2 class="text-2xl font-semibold truncate text-on-image-lg">{@board.title}</h2>
-          <p class="text-sm mt-1 text-on-image">
+          <p class="text-sm mt-1.5 text-on-image">
             <span :if={@board.status == :planning} class="text-base-content/50">
               <span class="loading loading-spinner loading-xs align-middle mr-1"></span>
               Planning · {@board.wanted} {if @board.movie?, do: "unit", else: "episodes"} wanted
@@ -650,7 +650,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           </p>
         </div>
 
-        <div :if={@descent} class="glass-inset rounded-lg px-3 py-2 space-y-1.5">
+        <div :if={@descent} class="glass-inset rounded-lg px-4 py-3 space-y-2">
           <p class="text-sm text-base-content/70">{@descent.headline}</p>
           <div :for={row <- @descent.rows} class="flex items-center gap-2 text-xs">
             <span class={["size-1.5 rounded-full flex-shrink-0", descent_dot(row.state)]}></span>
@@ -684,14 +684,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           </div>
         </div>
 
-        <div :if={@board.releases != []} class="space-y-1.5">
+        <div :if={@board.releases != []} class="space-y-2">
           <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
             Releases — {length(@board.releases)}
           </h3>
-          <div :for={release <- @board.releases} class="space-y-1.5">
+          <div :for={release <- @board.releases} class="space-y-2">
             <div
               id={"plan-release-#{release.swap_unit_id}"}
-              class="glass-inset rounded-lg px-3 py-2 flex items-center gap-3"
+              class="glass-inset rounded-lg px-4 py-2.5 flex items-center gap-3"
             >
               <ReleaseFacts.release_facts entry={release_entry(release)} />
               <.button
@@ -740,7 +740,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           :for={overlap <- @board.overlaps}
           :if={@board.status == :ready}
           id={"plan-overlap-#{:erlang.phash2(overlap.exclude_guid)}"}
-          class="glass-inset rounded-lg px-3 py-2 border border-warning/30 flex items-center gap-3"
+          class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3"
         >
           <.icon name="hero-exclamation-triangle-mini" class="size-4 text-warning flex-shrink-0" />
           <span class="min-w-0 flex-1 text-sm text-warning/90">{overlap.description}</span>
@@ -763,7 +763,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           :for={offer <- @board.offers}
           :if={@board.status == :ready}
           id={"plan-offer-#{offer.unit_id}"}
-          class="glass-inset rounded-lg px-3 py-2 border border-warning/30 flex items-center gap-3"
+          class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3"
         >
           <.icon name="hero-archive-box-mini" class="size-4 text-warning flex-shrink-0" />
           <span class="min-w-0 flex-1 text-sm text-warning/90">
@@ -790,15 +790,15 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           :for={below <- @board.below_floor}
           :if={@board.status == :ready}
           id={"plan-below-floor-#{below.unit_id}"}
-          class="space-y-1.5"
+          class="space-y-2"
         >
-          <div class="glass-inset rounded-lg px-3 py-2 border border-info/30 flex items-center gap-3">
+          <div class="glass-inset rounded-lg px-4 py-3 border border-info/30 flex items-center gap-3">
             <.icon name="hero-arrow-trending-down-mini" class="size-4 text-info flex-shrink-0" />
             <span class="min-w-0 flex-1 text-sm">
               <span class="text-base-content/90">
                 Nothing matching your quality preference<span :if={!@board.movie?}> for {below.unit_label}</span>
               </span>
-              <span class="block text-xs text-base-content/50 mt-0.5">
+              <span class="block text-xs text-base-content/50 mt-1">
                 {below.count} lower-quality {if below.count == 1, do: "release", else: "releases"} available.
                 Grabbing one takes it for this title without changing your preference.
               </span>
@@ -830,7 +830,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
         <div
           :if={@board.status == :ready && @board.gaps != []}
-          class="glass-inset rounded-lg px-3 py-2 border border-warning/30 flex items-center gap-3"
+          class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3"
         >
           <.icon name="hero-exclamation-triangle-mini" class="size-4 text-warning flex-shrink-0" />
           <span class="min-w-0 flex-1 text-sm text-warning/90 truncate">
@@ -911,7 +911,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   defp alternatives_panel(assigns) do
     ~H"""
-    <div class="glass-inset rounded-lg px-3 py-2 ml-4 space-y-1.5 border border-base-content/10">
+    <div class="glass-inset rounded-lg px-4 py-3 ml-4 space-y-1 border border-base-content/10">
       <p :if={@alternatives.items == []} class="text-xs text-base-content/40 py-1">
         Nothing else in the corpus yet — Find more runs this span's searches.
       </p>
@@ -919,7 +919,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       <div
         :for={alternative <- @alternatives.items}
         id={"plan-alternative-#{@alternatives.unit_id}-#{:erlang.phash2(alternative.guid)}"}
-        class="flex items-center gap-3"
+        class="flex items-center gap-3 py-1.5"
       >
         <ReleaseFacts.release_facts entry={alternative_entry(alternative)} />
         <.button
@@ -936,7 +936,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         </.button>
       </div>
 
-      <div class="flex items-center justify-end gap-2 pt-1 border-t border-base-content/5">
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-base-content/5">
         <.button
           variant="neutral"
           size="xs"
