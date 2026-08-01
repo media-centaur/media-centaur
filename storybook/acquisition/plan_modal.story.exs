@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaur.Library.Person
   alias MediaCentaur.ReleaseTracking.TitleResult
+  alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaurWeb.IncomingLive.MoviePreview
   alias MediaCentaurWeb.Components.Detail.Facet
 
@@ -191,6 +192,28 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           backdrop_url: @sample_backdrop,
           board: board(:ready),
           last_activity: "9 searches · 6 from corpus"
+        }
+      },
+      %Variation{
+        id: :board_gaps_search_blind,
+        description:
+          "The gap search ran while search was blind (every enabled indexer backed off, " <>
+            "UIDR-016) — the banner says availability couldn't be checked instead of " <>
+            "presenting \"not available\" as knowledge. Search again stays; Track these " <>
+            "later stops reading as an informed conclusion.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          backdrop_url: @sample_backdrop,
+          board: board(:blind_gap),
+          search_health: %IndexerHealth{
+            state: :blind,
+            checked_at: ~U[2026-08-01 00:00:00Z],
+            retry_at: ~U[2026-08-01 00:25:00Z],
+            enabled_count: 1,
+            backed_off: [%{name: "Indexer A", retry_at: ~U[2026-08-01 00:25:00Z]}]
+          },
+          last_activity: "Searched: Sample Movie — couldn't reach any indexer"
         }
       },
       %Variation{
@@ -448,6 +471,34 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       ],
       gaps: ["S02E02 · Finale"],
       total_size_bytes: 12_400_000_000
+    }
+  end
+
+  defp board(:blind_gap) do
+    %PlanBoard{
+      plan_id: "story-plan",
+      title: "Sample Movie",
+      status: :ready,
+      wanted: 1,
+      covered: 0,
+      movie?: true,
+      seasons: [
+        %PlanBoard.SeasonRow{
+          season_number: nil,
+          cells: [
+            %PlanBoard.Cell{
+              plan_unit_id: "story-unit-movie-gap",
+              season_number: nil,
+              episode_number: nil,
+              label: "Sample Movie",
+              state: :unfound
+            }
+          ]
+        }
+      ],
+      releases: [],
+      gaps: ["Sample Movie"],
+      total_size_bytes: nil
     }
   end
 

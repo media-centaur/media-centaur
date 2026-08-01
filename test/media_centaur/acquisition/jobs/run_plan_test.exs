@@ -84,6 +84,14 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
     Req.Test.stub(:prowlarr, fn conn ->
       case {conn.method, conn.request_path} do
+        # IndexerHealth snapshot (UIDR-016): an empty roster classifies as
+        # :unconfigured — not blind — so corpus recording behaves as before.
+        {"GET", "/api/v1/indexer"} ->
+          Req.Test.json(conn, [])
+
+        {"GET", "/api/v1/indexerstatus"} ->
+          Req.Test.json(conn, [])
+
         {"GET", "/api/v1/search"} ->
           %{"query" => query} = URI.decode_query(conn.query_string)
           send(test_pid, {:searched, query})

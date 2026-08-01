@@ -2,14 +2,18 @@ defmodule MediaCentaur.Acquisition.CorpusTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Acquisition.Corpus
-  alias MediaCentaur.Search.{Prowlarr, SearchResult}
+  alias MediaCentaur.Search.{IndexerHealth, Prowlarr, SearchResult}
 
   setup do
     Req.Test.stub(:prowlarr, fn conn -> Req.Test.json(conn, []) end)
     client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
     :persistent_term.put({Prowlarr, :client}, client)
+    IndexerHealth.clear_cache()
 
-    on_exit(fn -> :persistent_term.erase({Prowlarr, :client}) end)
+    on_exit(fn ->
+      :persistent_term.erase({Prowlarr, :client})
+      IndexerHealth.clear_cache()
+    end)
 
     :ok
   end
@@ -132,6 +136,49 @@ defmodule MediaCentaur.Acquisition.CorpusTest do
 
       assert {:ok, [%SearchResult{guid: "guid-new"}]} =
                Corpus.search("Sample Show S01E01", force: true)
+    end
+
+    test "a zero-result search while search is blind is not recorded as fresh knowledge" do
+      # Prowlarr answers the search with an empty 200 — but every enabled
+      # indexer is backed off, so nothing was actually asked (UIDR-016).
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.request_path do
+          "/api/v1/search" ->
+            Req.Test.json(conn, [])
+
+          "/api/v1/indexer" ->
+            Req.Test.json(conn, [%{"id" => 1, "name" => "Indexer A", "enable" => true}])
+
+          "/api/v1/indexerstatus" ->
+            Req.Test.json(conn, [%{"indexerId" => 1, "disabledTill" => "2099-01-01T00:00:00Z"}])
+        end
+      end)
+
+      assert {:ok, []} = Corpus.search("Sample Show S01E01", [])
+
+      refute Corpus.fresh?("Sample Show S01E01", [])
+      # The moment-of-truth observation landed in the health cache.
+      assert %IndexerHealth{state: :blind} = IndexerHealth.cached()
+    end
+
+    test "a zero-result search with live indexers records as usual" do
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.request_path do
+          "/api/v1/search" ->
+            Req.Test.json(conn, [])
+
+          "/api/v1/indexer" ->
+            Req.Test.json(conn, [%{"id" => 1, "name" => "Indexer A", "enable" => true}])
+
+          "/api/v1/indexerstatus" ->
+            Req.Test.json(conn, [])
+        end
+      end)
+
+      assert {:ok, []} = Corpus.search("Sample Show S01E01", [])
+
+      # A genuine zero-result answer is knowledge and stays fresh.
+      assert Corpus.fresh?("Sample Show S01E01", [])
     end
 
     test "a live-search failure neither records nor poisons freshness" do

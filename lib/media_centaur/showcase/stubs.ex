@@ -32,6 +32,14 @@ defmodule MediaCentaur.Showcase.Stubs do
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.send_resp(200, "{}")
 
+      {"GET", "/api/v1/indexer"} ->
+        # IndexerHealth snapshot (UIDR-016): one enabled, healthy indexer so
+        # the showcase never grows a "Needs attention" search card.
+        Req.Test.json(conn, [%{"id" => 1, "name" => "Cinema 10.net", "enable" => true}])
+
+      {"GET", "/api/v1/indexerstatus"} ->
+        Req.Test.json(conn, [])
+
       _ ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")

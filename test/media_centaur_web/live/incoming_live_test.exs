@@ -342,6 +342,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     defp stub_plan_prowlarr do
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
+          # IndexerHealth snapshot (UIDR-016): an empty roster classifies as
+          # :unconfigured — not blind — so corpus recording behaves as before.
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
           {"GET", "/api/v1/search"} ->
             %{"query" => query} = URI.decode_query(conn.query_string)
 
@@ -608,6 +616,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
+          # IndexerHealth snapshot (UIDR-016): an empty roster classifies as
+          # :unconfigured — not blind — so corpus recording behaves as before.
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
           {"GET", "/api/v1/search"} ->
             %{"query" => query} = URI.decode_query(conn.query_string)
 
@@ -702,6 +718,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
+          # IndexerHealth snapshot (UIDR-016): an empty roster classifies as
+          # :unconfigured — not blind — so corpus recording behaves as before.
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
           {"GET", "/api/v1/search"} ->
             %{"query" => query} = URI.decode_query(conn.query_string)
 
@@ -791,6 +815,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
+          # IndexerHealth snapshot (UIDR-016): an empty roster classifies as
+          # :unconfigured — not blind — so corpus recording behaves as before.
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
           {"GET", "/api/v1/search"} ->
             %{"query" => query} = URI.decode_query(conn.query_string)
 
@@ -956,6 +988,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     test "a below-floor movie offers the picker instead of a bare gap", %{conn: conn} do
       Req.Test.stub(:prowlarr, fn conn ->
         case {conn.method, conn.request_path} do
+          # IndexerHealth snapshot (UIDR-016): an empty roster classifies as
+          # :unconfigured — not blind — so corpus recording behaves as before.
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
           {"GET", "/api/v1/search"} ->
             %{"query" => query} = URI.decode_query(conn.query_string)
 
@@ -1346,6 +1386,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         # Grabs POST to /api/v1/search too (the Prowlarr grab gotcha) —
         # discriminate searches from grabs by method.
         case {conn.method, conn.request_path} do
+          # IndexerHealth snapshot (UIDR-016): an empty roster classifies as
+          # :unconfigured — not blind — so corpus recording behaves as before.
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
           {"GET", "/api/v1/search"} ->
             %{"query" => query} = URI.decode_query(conn.query_string)
 
@@ -1437,6 +1485,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       Req.Test.stub(:qbittorrent, fn conn ->
         case {conn.method, conn.request_path} do
+          # IndexerHealth snapshot (UIDR-016): an empty roster classifies as
+          # :unconfigured — not blind — so corpus recording behaves as before.
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
           {"POST", "/api/v2/torrents/delete"} ->
             {:ok, body, conn} = Plug.Conn.read_body(conn)
             assert body == "hashes=aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111&deleteFiles=true"
@@ -1499,7 +1555,16 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # the user saw "they just sit there".
       Req.Test.stub(:qbittorrent, fn conn ->
         case {conn.method, conn.request_path} do
-          {"POST", "/api/v2/torrents/delete"} -> Plug.Conn.send_resp(conn, 200, "")
+          # IndexerHealth snapshot (UIDR-016): an empty roster classifies as
+          # :unconfigured — not blind — so corpus recording behaves as before.
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
+          {"POST", "/api/v2/torrents/delete"} ->
+            Plug.Conn.send_resp(conn, 200, "")
         end
       end)
 
@@ -1539,6 +1604,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       Req.Test.stub(:qbittorrent, fn conn ->
         case {conn.method, conn.request_path} do
+          # IndexerHealth snapshot (UIDR-016): an empty roster classifies as
+          # :unconfigured — not blind — so corpus recording behaves as before.
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
           {"POST", "/api/v2/torrents/delete"} ->
             :counters.add(delete_counter, 1, 1)
             Plug.Conn.send_resp(conn, 200, "")
@@ -1595,7 +1668,16 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # `phx-update="stream"`.
       Req.Test.stub(:qbittorrent, fn conn ->
         case {conn.method, conn.request_path} do
-          {"POST", "/api/v2/torrents/delete"} -> Plug.Conn.send_resp(conn, 200, "")
+          # IndexerHealth snapshot (UIDR-016): an empty roster classifies as
+          # :unconfigured — not blind — so corpus recording behaves as before.
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
+          {"POST", "/api/v2/torrents/delete"} ->
+            Plug.Conn.send_resp(conn, 200, "")
         end
       end)
 
@@ -1876,8 +1958,20 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "groups in :loading become :abandoned with retry affordance after LV crash", %{conn: conn} do
-      Req.Test.stub(:prowlarr, fn _conn ->
-        :timer.sleep(:infinity)
+      # Searches hang forever; the IndexerHealth snapshot endpoints stay
+      # responsive so mount's health async (UIDR-016) doesn't eat the
+      # render_async budget — this test is about search-session lifecycle.
+      Req.Test.stub(:prowlarr, fn conn ->
+        case conn.request_path do
+          "/api/v1/indexer" ->
+            Req.Test.json(conn, [%{"id" => 1, "name" => "Indexer A", "enable" => true}])
+
+          "/api/v1/indexerstatus" ->
+            Req.Test.json(conn, [])
+
+          _search ->
+            :timer.sleep(:infinity)
+        end
       end)
 
       {:ok, view, _html} = live_async!(conn, "/incoming")

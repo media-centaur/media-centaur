@@ -5,6 +5,8 @@ defmodule MediaCentaur.Search do
       CourCoverage,
       CourQueries,
       Criteria,
+      IncidentContext,
+      IndexerHealth,
       Prowlarr,
       QueryBuilder,
       QueryExpander,

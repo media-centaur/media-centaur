@@ -105,6 +105,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     default: false,
     doc: "Approval grabs in flight — the footer button shows progress and ignores clicks."
 
+  attr :search_health, :any,
+    default: nil,
+    doc:
+      "`MediaCentaur.Search.IndexerHealth.t()` | nil — when `blind?/1`, the gap banner says availability couldn't be checked instead of \"not available right now\" (UIDR-016)."
+
   attr :on_close, :string, default: "close_plan"
 
   def plan_modal(assigns) do
@@ -154,6 +159,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             approving={@approving}
             last_activity={@last_activity}
             descent={@descent}
+            search_health={@search_health}
             on_close={@on_close}
           />
         </CinematicBackdrop.cinematic_backdrop>
@@ -194,7 +200,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <h2 class="text-2xl font-semibold truncate text-on-image-lg">{@identity.name}</h2>
           <p class="text-sm text-base-content/60 mt-1 text-on-image">
             <span>{if @identity.media_type == :movie, do: "Movie", else: "TV Series"}</span>
-            <span :if={@identity.year}> ·                 {@identity.year}</span>
+            <span :if={@identity.year}> ·                      {@identity.year}</span>
           </p>
         </div>
       </div>
@@ -618,6 +624,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     required: true,
     doc: "%DescentNarrative.View{} | nil — typed at the public attr."
 
+  attr :search_health, :any,
+    required: true,
+    doc: "IndexerHealth.t() | nil — typed at the public attr."
+
   attr :on_close, :string, required: true
 
   defp board_stage(assigns) do
@@ -824,7 +834,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         >
           <.icon name="hero-exclamation-triangle-mini" class="size-4 text-warning flex-shrink-0" />
           <span class="min-w-0 flex-1 text-sm text-warning/90 truncate">
-            {length(@board.gaps)} not available right now — {Enum.join(@board.gaps, ", ")}
+            {PlanLogic.gap_banner_line(@board.gaps, @search_health)}
           </span>
           <.button
             variant="neutral"

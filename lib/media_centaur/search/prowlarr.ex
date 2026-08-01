@@ -183,6 +183,64 @@ defmodule MediaCentaur.Search.Prowlarr do
   end
 
   @doc """
+  Snapshots the indexer roster and per-indexer back-off state — the raw
+  material for `MediaCentaur.Search.IndexerHealth.classify/3`.
+
+  Two reads: `GET /api/v1/indexer` (which indexers exist and are
+  enabled) and `GET /api/v1/indexerstatus` (which are temporarily
+  disabled after failures, and until when). Prowlarr reports a back-off
+  as `disabledTill`; an entry can also carry `disabledTill: null` for a
+  failure that didn't escalate — kept, and filtered by the classifier.
+  """
+  @spec indexer_snapshot(Req.Request.t()) ::
+          {:ok, %{indexers: [map()], backoffs: [map()]}} | {:error, term()}
+  def indexer_snapshot(client \\ default_client()) do
+    with {:ok, indexers} <- get_list(client, "/api/v1/indexer"),
+         {:ok, statuses} <- get_list(client, "/api/v1/indexerstatus") do
+      {:ok,
+       %{
+         indexers:
+           Enum.map(indexers, fn indexer ->
+             %{id: indexer["id"], name: indexer["name"], enabled: indexer["enable"] == true}
+           end),
+         backoffs:
+           Enum.map(statuses, fn status ->
+             %{indexer_id: status["indexerId"], disabled_till: parse_datetime(status["disabledTill"])}
+           end)
+       }}
+    end
+  end
+
+  defp get_list(client, path) do
+    # Health probe — must fail fast like ping/1, never inherit the 60s
+    # search budget: an unanswered roster read IS the unhealthy signal.
+    case Req.get(client, url: path, receive_timeout: @ping_timeout_ms) do
+      {:ok, %{status: 200, body: body}} when is_list(body) ->
+        {:ok, body}
+
+      {:ok, %{status: status, body: body}} ->
+        Log.warning(:acquisition, "prowlarr #{path} failed — status=#{status}")
+        {:error, {:http_error, status, body}}
+
+      {:error, reason} ->
+        # Same transient-connectivity treatment as search/2: console-visible,
+        # but no `:log` incident — persistent unreachability surfaces through
+        # the `:subsystem` track (Search.IncidentContext, ADR-054).
+        Log.warning(:acquisition, "prowlarr #{path} error — #{inspect(reason)}", mc_incident: :skip)
+        {:error, reason}
+    end
+  end
+
+  defp parse_datetime(nil), do: nil
+
+  defp parse_datetime(value) when is_binary(value) do
+    case DateTime.from_iso8601(value) do
+      {:ok, datetime, _offset} -> datetime
+      {:error, _reason} -> nil
+    end
+  end
+
+  @doc """
   Lists download clients configured in Prowlarr.
 
   Returns a list of `%{name, type, url, username, enabled}` maps. The

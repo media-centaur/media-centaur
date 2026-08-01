@@ -27,7 +27,7 @@ defmodule MediaCentaur.Acquisition.Corpus do
 
   alias MediaCentaur.Acquisition.Corpus.{Candidate, SearchRecord}
   alias MediaCentaur.Repo
-  alias MediaCentaur.Search.{Prowlarr, SearchResult}
+  alias MediaCentaur.Search.{IndexerHealth, Prowlarr, SearchResult}
 
   @freshness_window_minutes 30
   @retention_days 14
@@ -52,11 +52,23 @@ defmodule MediaCentaur.Acquisition.Corpus do
       {:ok, candidates_for(term, search_opts)}
     else
       with {:ok, results} <- Prowlarr.search(term, search_opts) do
-        record!(term, search_opts, results)
+        if results != [] or not blind?() do
+          record!(term, search_opts, results)
+        end
+
         {:ok, results}
       end
     end
   end
+
+  # A zero-result 200 from Prowlarr is ambiguous: "no releases exist" or
+  # "every indexer I'd ask is backed off / unreachable" look identical
+  # (UIDR-016). Only the empty case pays for the disambiguating health
+  # snapshot; a blind answer is an outage, and per this module's contract
+  # an outage must never masquerade as fresh negative knowledge. The
+  # check also lands the moment-of-truth observation in the
+  # `IndexerHealth` cache, which the plan UI reads for the same honesty.
+  defp blind?, do: IndexerHealth.blind?(IndexerHealth.check())
 
   @doc """
   Records a completed live search: upserts the search row (freshness)
