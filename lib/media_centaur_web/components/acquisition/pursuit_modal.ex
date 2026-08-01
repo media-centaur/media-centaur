@@ -56,6 +56,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
     default: "toggle_board_season",
     doc: "Season-header toggle event for the unit board's roll-up."
 
+  attr :client_url, :string,
+    default: nil,
+    doc:
+      "Download client web-UI URL for the status VM's protocol slot — forwarded to the Activity card's \"Open <client>\" link on error states."
+
   attr :not_found?, :boolean, default: false
 
   attr :on_close, :string, default: "close_pursuit"
@@ -116,6 +121,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
               <PursuitActivity.pursuit_activity
                 :if={@status && !@decision_card}
                 vm={@status}
+                client_url={@client_url}
                 on_cancel={@on_cancel}
                 on_request_decision={@on_request_decision}
               />

@@ -38,7 +38,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Policy do
       State.terminal?(snapshot.pursuit.state) -> :no_action
       UnitState.terminal?(snapshot.unit.state) -> :no_action
       UnitState.awaiting_decision?(snapshot.unit) -> :no_action
-      snapshot.download_failed? -> {:auto_cancel, :download_failed}
+      is_binary(snapshot.download_failure_message) -> {:auto_cancel, :download_failed}
       zero_seeders_confirmed?(snapshot) -> {:auto_cancel, :zero_seeders}
       stall_confirmed?(snapshot) -> {:request_decision, stall_prompt(snapshot)}
       exhaustion_reached?(snapshot) -> {:exhaust, :max_attempts}

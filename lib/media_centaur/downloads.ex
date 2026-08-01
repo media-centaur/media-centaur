@@ -84,6 +84,20 @@ defmodule MediaCentaur.Downloads do
   @spec config_key?(atom()) :: boolean()
   def config_key?(key), do: key in @config_keys
 
+  @doc """
+  The configured client's web-UI URL for a protocol slot, or nil when
+  the slot isn't configured. The same URL the driver talks to — the UI
+  renders it as an "Open SABnzbd / qBittorrent" link so the user can
+  reach the client's own interface (job logs, failure details) from
+  where Media Centaur reports a problem.
+  """
+  @spec client_web_url(:torrent | :usenet) :: String.t() | nil
+  def client_web_url(protocol) when protocol in [:torrent, :usenet] do
+    Enum.find_value(configured_clients(), fn %ClientConfig{} = client ->
+      client.protocol == protocol && client.url
+    end)
+  end
+
   defp torrent_slot do
     case slot_identity(:download_client_type, :download_client_url) do
       nil ->

@@ -110,6 +110,44 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancelTest do
       assert kinds == ["auto_cancelled", "target_changed"]
     end
 
+    test "records the client's failure detail on the auto_cancelled event" do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{
+          status: "acquired",
+          release_title: "Sample.Show.S01E01.x264",
+          prowlarr_guid: "dead-release-1"
+        })
+
+      assert {:ok, _pivoted} =
+               run(%{
+                 pursuit_id: pursuit.id,
+                 reason: :download_failed,
+                 detail: "Repair failed, not enough repair blocks"
+               })
+
+      [event] =
+        Event
+        |> where([e], e.pursuit_id == ^pursuit.id and e.kind == "auto_cancelled")
+        |> Repo.all()
+
+      assert event.payload["reason"] == "download_failed"
+      assert event.payload["detail"] == "Repair failed, not enough repair blocks"
+    end
+
+    test "detail is optional — events without one keep a nil detail" do
+      {pursuit, _target} =
+        create_pursuit_with_target(%{status: "acquired", prowlarr_guid: "g2"})
+
+      assert {:ok, _pivoted} = run(%{pursuit_id: pursuit.id, reason: :zero_seeders})
+
+      [event] =
+        Event
+        |> where([e], e.pursuit_id == ^pursuit.id and e.kind == "auto_cancelled")
+        |> Repo.all()
+
+      assert event.payload["detail"] == nil
+    end
+
     test "enqueues a PursueTarget Oban job for the new target" do
       {pursuit, _target} = create_pursuit_with_target(%{status: "acquired", prowlarr_guid: "g1"})
 

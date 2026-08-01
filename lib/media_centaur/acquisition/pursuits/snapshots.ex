@@ -54,7 +54,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Snapshots do
           thresholds.zero_seeders_window_hours,
           now
         ),
-      download_failed?: download_failed?(queue_state, current_target)
+      download_failure_message: download_failure_message(queue_state, current_target)
     }
   end
 
@@ -63,14 +63,15 @@ defmodule MediaCentaur.Acquisition.Pursuits.Snapshots do
   # `fail_message`: par2-unrepairable, unpack-failed). Gating on the
   # message, not just `state == :error`, keeps qBittorrent's ambiguous
   # `error`/`missingFiles` states (often user-moved files) out of the
-  # auto-pivot path.
-  defp download_failed?(:unknown, _target), do: false
-  defp download_failed?(_queue, nil), do: false
+  # auto-pivot path. The message itself rides the snapshot so the
+  # auto_cancelled event can record why the client gave up.
+  defp download_failure_message(:unknown, _target), do: nil
+  defp download_failure_message(_queue, nil), do: nil
 
-  defp download_failed?(queue, %Target{} = target) when is_list(queue) do
+  defp download_failure_message(queue, %Target{} = target) when is_list(queue) do
     case QueueMatcher.find_item(queue, target.torrent_hash, target.release_title) do
-      %QueueItem{state: :error, failure_message: message} when is_binary(message) -> true
-      _ -> false
+      %QueueItem{state: :error, failure_message: message} when is_binary(message) -> message
+      _ -> nil
     end
   end
 

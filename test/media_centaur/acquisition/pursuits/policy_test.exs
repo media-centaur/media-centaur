@@ -136,8 +136,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.PolicyTest do
     # A client-reported terminal failure (SABnzbd's par2-unrepairable /
     # unpack-failed) is deterministic — no observation window: the same
     # release will fail the same way, so pivot immediately.
-    test "download_failed? returns {:auto_cancel, :download_failed} with no window" do
-      snapshot = build_snapshot(%{state: "active"}, %{download_failed?: true})
+    test "a download_failure_message returns {:auto_cancel, :download_failed} with no window" do
+      snapshot =
+        build_snapshot(
+          %{state: "active"},
+          %{download_failure_message: "Repair failed, not enough repair blocks"}
+        )
 
       assert Policy.evaluate(snapshot) == {:auto_cancel, :download_failed}
     end
@@ -147,7 +151,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.PolicyTest do
         build_snapshot(
           %{state: "active"},
           %{
-            download_failed?: true,
+            download_failure_message: "Repair failed, not enough repair blocks",
             zero_seeders_observed?: true,
             zero_seeders_window_elapsed?: true,
             stall_observed?: true,
@@ -159,7 +163,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.PolicyTest do
     end
 
     test "a terminal pursuit stays untouched even when its download failed" do
-      snapshot = build_snapshot(%{state: "satisfied"}, %{download_failed?: true})
+      snapshot =
+        build_snapshot(
+          %{state: "satisfied"},
+          %{download_failure_message: "Repair failed, not enough repair blocks"}
+        )
 
       assert Policy.evaluate(snapshot) == :no_action
     end

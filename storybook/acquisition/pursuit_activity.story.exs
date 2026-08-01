@@ -229,6 +229,29 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitActivity do
         }
       },
       %Variation{
+        id: :download_failed_at_client,
+        description: "Client-reported terminal failure — the client's own message + open link",
+        attributes: %{
+          vm:
+            base(
+              current_action: %CurrentAction{
+                verb: "Failed",
+                description: "SABnzbd: Repair failed, not enough repair blocks",
+                severity: :error
+              },
+              download: %DownloadProgress{state: :error, client: "SABnzbd", protocol: :usenet},
+              next_step: %NextStep{
+                description:
+                  "A different release will be tried automatically — open SABnzbd for the job log."
+              },
+              available_actions: [:cancel, :change_target]
+            ),
+          client_url: "http://localhost:8085",
+          on_cancel: "noop",
+          on_change_target: "noop"
+        }
+      },
+      %Variation{
         id: :awaiting_decision,
         attributes: %{
           vm:

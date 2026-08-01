@@ -58,6 +58,9 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
   def execute(%{pursuit_id: id, reason: reason} = args) when is_atom(reason) do
     label = fn pursuit -> "pursuit auto-cancelled (#{reason}) — #{pursuit.title}" end
     now = DateTime.utc_now(:second)
+    # The client's own failure message (SABnzbd's fail_message) for
+    # :download_failed — recorded on the event so the timeline says why.
+    detail = Map.get(args, :detail)
 
     result =
       Runner.run(id, label, fn pursuit ->
@@ -75,7 +78,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
                  pursuit_id: pursuit.id,
                  pursuit_title: pursuit.title,
                  occurred_at: now,
-                 reason: Atom.to_string(reason)
+                 reason: Atom.to_string(reason),
+                 detail: detail
                }) do
           with {:ok, {pivoted, new_target}} <-
                  pivot_if_had_target(pursuit, attempted_unit, unit, now) do

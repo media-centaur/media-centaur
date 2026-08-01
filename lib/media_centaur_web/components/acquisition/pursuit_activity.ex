@@ -9,13 +9,18 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [button: 1]
+  import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitStatus
 
   attr :vm, PursuitStatus, required: true
   attr :on_cancel, :string, default: nil
   attr :on_request_decision, :string, default: nil
+
+  attr :client_url, :string,
+    default: nil,
+    doc:
+      "The download client's web-UI URL (Downloads.client_web_url/1). Rendered as an \"Open <client>\" link when the current action is an error, so the user can reach the client's own job log."
 
   def pursuit_activity(assigns) do
     ~H"""
@@ -77,6 +82,18 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
         Next: {@vm.next_step.description}
       </div>
 
+      <a
+        :if={@client_url && @vm.current_action.severity == :error}
+        href={@client_url}
+        target="_blank"
+        rel="noopener"
+        class="inline-flex items-center gap-1.5 text-xs text-base-content/60 transition-colors hover:text-base-content"
+        data-nav-item
+        tabindex="0"
+      >
+        <.icon name="hero-arrow-top-right-on-square-mini" class="size-3.5" /> Open {client_name(@vm)}
+      </a>
+
       <div :if={@vm.available_actions != []} class="flex flex-wrap gap-2 justify-end pt-1">
         <.button
           :if={:request_decision in @vm.available_actions and @on_request_decision}
@@ -106,6 +123,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitActivity do
     </section>
     """
   end
+
+  defp client_name(%PursuitStatus{download: %{client: client}}) when is_binary(client), do: client
+  defp client_name(_vm), do: "download client"
 
   defp severity_class(:success), do: "text-success"
   defp severity_class(:warning), do: "text-warning"

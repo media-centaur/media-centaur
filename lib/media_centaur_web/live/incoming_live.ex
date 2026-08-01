@@ -269,6 +269,14 @@ defmodule MediaCentaurWeb.IncomingLive do
   # Ambient page backdrop — same ETS-backed hero-candidate pool the
   # home/library pages draw from, in the downloads page's own slot so
   # no backdrop repeats across pages when the pool allows.
+  # The activity card's "Open SABnzbd/qBittorrent" link on error states
+  # — resolved here rather than in the pure status VM because it reads
+  # live client config.
+  defp pursuit_client_url(%{status: %{download: %{protocol: protocol}}})
+       when protocol in [:torrent, :usenet], do: MediaCentaur.Downloads.client_web_url(protocol)
+
+  defp pursuit_client_url(_detail), do: nil
+
   defp page_backdrop do
     case HomeLogic.select_page_hero(MediaCentaur.Library.Views.hero_candidates(), 2) do
       %{backdrop_url: url} when is_binary(url) -> url
@@ -804,6 +812,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           unit_board={@pursuit_detail && @pursuit_detail.unit_board}
           board_expanded_seasons={@board_expanded_seasons}
           decision_card={@pursuit_detail && @pursuit_detail.decision_card}
+          client_url={pursuit_client_url(@pursuit_detail)}
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
         />
         <TitleDetail.title_detail :if={@detail} detail={@detail} today={@today} />

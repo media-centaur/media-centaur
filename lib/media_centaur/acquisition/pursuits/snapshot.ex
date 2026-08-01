@@ -24,10 +24,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.Snapshot do
     :stall_window_elapsed?,
     :zero_seeders_observed?,
     :zero_seeders_window_elapsed?,
-    # Client-reported terminal failure of the unit's tracked download
-    # (SABnzbd's par2-unrepairable / unpack-failed). Deterministic — no
-    # observation window; Policy pivots immediately.
-    :download_failed?
+    # The client's terminal-failure detail for the unit's tracked
+    # download (SABnzbd's `fail_message`, e.g. "Repair failed, not
+    # enough repair blocks"). Presence IS the failure signal —
+    # deterministic, no observation window; Policy pivots immediately
+    # and the message is recorded on the auto_cancelled event.
+    :download_failure_message
   ]
 
   @type queue_state :: [QueueItem.t()] | :unknown
@@ -43,6 +45,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Snapshot do
           stall_window_elapsed?: boolean() | nil,
           zero_seeders_observed?: boolean() | nil,
           zero_seeders_window_elapsed?: boolean() | nil,
-          download_failed?: boolean() | nil
+          download_failure_message: String.t() | nil
         }
 end

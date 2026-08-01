@@ -80,6 +80,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
       title: title,
       state: Keyword.get(opts, :state, :downloading),
       health: Keyword.get(opts, :health),
+      failure_message: Keyword.get(opts, :failure_message),
       status: nil
     }
   end
@@ -231,6 +232,32 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
         |> Repo.all()
 
       assert length(events) == 1
+      assert Repo.get!(Pursuit, pursuit.id).state == "active"
+    end
+
+    test "client-reported terminal failure → auto-pivot records the client's message on the event" do
+      release = "Sample.Show.S01E01.1080p.WEB-DL"
+      pursuit = insert_pursuit(%{})
+      set_current_target_release(pursuit, release)
+
+      seed_queue([
+        queue_item(release,
+          state: :error,
+          failure_message: "Repair failed, not enough repair blocks"
+        )
+      ])
+
+      Oban.Testing.with_testing_mode(:manual, fn ->
+        assert :ok = Watcher.perform(%Oban.Job{args: %{}})
+      end)
+
+      [event] =
+        Event
+        |> Ecto.Query.where(pursuit_id: ^pursuit.id, kind: "auto_cancelled")
+        |> Repo.all()
+
+      assert event.payload["reason"] == "download_failed"
+      assert event.payload["detail"] == "Repair failed, not enough repair blocks"
       assert Repo.get!(Pursuit, pursuit.id).state == "active"
     end
 

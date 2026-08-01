@@ -351,14 +351,36 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatus do
     }
   end
 
+  # A failure detail means the client declared the download
+  # unrecoverable (SABnzbd's "Repair failed, not enough repair blocks" /
+  # "Unpacking failed") — show the client's own words, and set the
+  # expectation that the Watcher pivots to a different release on its
+  # own. Without a detail (qBittorrent's ambiguous error states) the
+  # recovery is manual.
+  defp derive_acquired_in_queue(%QueueItem{state: :error, failure_message: message} = qi)
+       when is_binary(message) do
+    {
+      %CurrentAction{
+        verb: "Failed",
+        description: "#{qi.download_client || "Download client"}: #{message}",
+        severity: :error
+      },
+      %NextStep{
+        description:
+          "A different release will be tried automatically — open #{qi.download_client || "your download client"} for the job log."
+      },
+      [:cancel, :change_target]
+    }
+  end
+
   defp derive_acquired_in_queue(%QueueItem{state: :error}) do
     {
       %CurrentAction{
-        verb: "Error",
+        verb: "Failed",
         description: "Download client reported an error.",
         severity: :error
       },
-      %NextStep{description: "Check your client or change target."},
+      %NextStep{description: "Check your download client or change target."},
       [:cancel, :change_target]
     }
   end
