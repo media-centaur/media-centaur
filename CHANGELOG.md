@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.106.1 — 2026-08-01
+
+### New
+
+- **A "Needs attention" area on the Incoming page.** The storage warnings now share one section that also watches your search setup: it tells you when Prowlarr can't be reached, or when your indexers are sitting out after failed searches — and when they'll retry. It only appears when something actually needs you; a healthy system shows nothing.
+
+### Improved
+
+- **An empty search no longer pretends to be an answer when your indexer was down.** Prowlarr reports an empty search both when nothing exists and when its indexers are temporarily disabled after failures — the two used to look identical, so a title with plenty of releases could show "not available right now". The plan now says availability couldn't be checked, points at the indexer trouble, and doesn't remember the empty result as if it were real — press Search again once things recover.
+- **A sustained search outage shows up on the Status page** as an acquisition issue, and clears itself when the indexers come back.
+
 ## v0.106.0 — 2026-07-31
 
 ### New
