@@ -8,9 +8,10 @@ defmodule MediaCentaurWeb.IncomingLive do
      media search feeding the plan/track flows, or Prowlarr release
      search (results render in the search zone below; the shelf recedes
      while release search owns the page).
-  2. **Coming up shelf** (`data-nav-zone="coming_up"`) — one card per
-     tracked title, nearness-ordered, statuses via the shared
-     `StatusPill` vocabulary; overflow grows in place ("Show all N").
+  2. **Coming up agenda** (`data-nav-zone="coming_up_list"`) — one
+     compact date-led row per tracked title, nearness-ordered, statuses
+     via the shared `StatusPill` vocabulary; overflow grows in place
+     ("Show all N").
   3. **Draft plans** (`data-nav-zone="drafts"`) — unapproved plan
      boards, resumable into the plan modal.
   4. **In flight** (`data-nav-zone="pursuits"`) — every live pursuit,
@@ -123,6 +124,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     ConnectivityBadge,
     DownloadStorage,
     MediaOmnibox,
+    MediaResults,
     NeedsAttention,
     PlanModal,
     PursuitGroup,
@@ -175,11 +177,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          ledger_rows: [],
          loaded_history_params: nil,
          forecast_reload_timer: nil,
-         track_suggestions: [],
-         track_suggestions_loaded?: false,
-         track_suggestions_loading: false,
-         track_confirmed_ids: MapSet.new(),
-         omnibox_suggestions_open?: false,
          storage_drives: [],
          search_health: IndexerHealth.cached(),
          page_backdrop: page_backdrop(),
@@ -206,8 +203,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_results: [],
          omnibox_searching?: false,
          omnibox_searched: nil,
-         omnibox_preview: nil,
-         omnibox_results_open?: true,
          plan_param: nil,
          plan_stage: :loading,
          plan_selection: nil,
@@ -451,8 +446,8 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   # A media pick on the forecast-only page: track the title (movies grab no
-  # scope; shows start from the last library episode, like the track modal's
-  # suggestion path) and mark the dropdown row so the pick reads as done.
+  # scope; shows start from the last library episode) and mark the dropdown
+  # row so the pick reads as done.
   defp track_picked_result(socket, tmdb_id) do
     case Enum.find(socket.assigns.omnibox_results, &(to_string(&1.tmdb_id) == to_string(tmdb_id))) do
       nil ->
@@ -746,12 +741,12 @@ defmodule MediaCentaurWeb.IncomingLive do
         :telemetry_age,
         Logic.telemetry_age_label(assigns.queue_connectivity, assigns.queue_last_success_at)
       )
-      # The shelf recedes only while a release search actually owns the page
-      # (a query or results) — a bare mode flip keeps the forecast in view.
+      # The shelf recedes only while a search actually owns the page (an
+      # active media query, or a release query/results) — a bare mode
+      # flip keeps the forecast in view.
       |> Phoenix.Component.assign(
         :shelf_visible?,
-        assigns.omnibox_mode != :release or
-          (assigns.search_session.query == "" and assigns.search_session.groups == [])
+        Logic.shelf_visible?(assigns.omnibox_mode, assigns.omnibox_query, assigns.search_session)
       )
       # Live percentages ride the same render-time pairing: the paired
       # downloads stamp their progress onto in-pursuit shelf cards, so the
@@ -821,24 +816,20 @@ defmodule MediaCentaurWeb.IncomingLive do
             (like `library`/`home`), not a context within it — the nav graph
             is built from this value. --%>
       <div class="relative" data-page-behavior="incoming" data-nav-default-zone="incoming">
-        <%!-- Same ambient treatment as the home/library pages: a calm
-              backdrop band behind the header (masked + dimmed by
-              `.page-atmosphere`) plus the fixed side scrim, both behind
-              the content (z-0) so they enrich the surface, never the
-              cards. --%>
-        <div :if={@page_backdrop} class="page-atmosphere" aria-hidden="true">
-          <img src={@page_backdrop} alt="" loading="eager" decoding="sync" />
-        </div>
-        <div :if={@page_backdrop} class="page-side-dim" aria-hidden="true"></div>
+        <%!-- Backdrop trial: the ambient movie image (`.page-atmosphere`
+              band fed by @page_backdrop) is removed while we evaluate the
+              page without it. The dark side/bottom scrim stays — it's a
+              pure gradient, so it needs no image and keeps the page's
+              depth. --%>
+        <div class="page-side-dim" aria-hidden="true"></div>
 
         <%!-- Same header recipe as the library page (left-aligned, text-3xl,
               one muted subtitle line) so moving between pages doesn't shift
               the title around.
 
-              Width model: the page is full-bleed (like home/library) so the
-              atmosphere band spans the viewport; the content column runs
-              max-w-6xl because the shelf earns the width — one axis, density
-              thinning downward: hero search, big-art shelf, operational
+              Width model: the page is full-bleed (like home/library); the
+              content column runs max-w-6xl — one axis, density thinning
+              downward: hero search, the Coming-up agenda list, operational
               in-flight band, then the bookkeeping (ledger, History
               disclosure, other downloads) at the bottom. --%>
         <%!-- Centered, not left-anchored: on media-center-wide screens a
@@ -862,16 +853,20 @@ defmodule MediaCentaurWeb.IncomingLive do
             }
             mode={@omnibox_mode}
             query={@omnibox_query}
-            results={@omnibox_results}
-            searching?={@omnibox_searching?}
-            preview_id={@omnibox_preview}
-            results_open={@omnibox_results_open?}
-            suggestions={@track_suggestions}
-            suggestions_loading?={@track_suggestions_loading}
-            suggestions_open?={@omnibox_suggestions_open?}
-            confirmed_ids={@track_confirmed_ids}
             session={@search_session}
             any_loading?={@any_loading?}
+          />
+
+          <%!-- Both search modes answer flat, in the page (UIDR-014):
+                media results here, release results in the search zone
+                below. No floating overlays — clearing the query is the
+                one dismissal. --%>
+          <MediaResults.media_results
+            :if={@omnibox_mode == :media}
+            query={@omnibox_query}
+            results={@omnibox_results}
+            searching?={@omnibox_searching?}
+            release_mode_available={@prowlarr_ready}
           />
 
           <Search.search_zone
@@ -881,15 +876,14 @@ defmodule MediaCentaurWeb.IncomingLive do
             timeout_terms={@timeout_terms}
           />
 
-          <%!-- The shelf recedes while a release search owns the page —
-                clearing or dismissing the search restores it. A bare mode
-                flip (empty release box) keeps the forecast visible. --%>
+          <%!-- The shelf recedes while a search owns the page — clearing
+                the query restores it. A bare mode flip (empty box) keeps
+                the forecast visible. --%>
           <Shelf.shelf
             :if={@shelf_visible?}
             cards={@shelf_cards}
             overflow_count={@view.shelf.overflow_count}
             stragglers={@view.shelf.stragglers}
-            tmdb_ready={@tmdb_ready}
           />
 
           <section :if={@view.drafts != []} data-nav-zone="drafts" class="space-y-3">
@@ -1217,8 +1211,7 @@ defmodule MediaCentaurWeb.IncomingLive do
            omnibox_query: "",
            omnibox_results: [],
            omnibox_searching?: false,
-           omnibox_searched: nil,
-           omnibox_preview: nil
+           omnibox_searched: nil
          )
          |> build_view()
          |> push_patch(to: "/incoming?plan=#{plan.id}")}
@@ -1369,7 +1362,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   def handle_event("omnibox_change", %{"query" => query}, socket) do
     trimmed = String.trim(query)
-    socket = assign(socket, omnibox_query: query, omnibox_results_open?: true)
+    socket = assign(socket, omnibox_query: query)
 
     cond do
       String.length(trimmed) < 2 ->
@@ -1377,8 +1370,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          assign(socket,
            omnibox_results: [],
            omnibox_searching?: false,
-           omnibox_searched: nil,
-           omnibox_preview: nil
+           omnibox_searched: nil
          )}
 
       # TMDB citizenship: a re-fire of the same effective query (trailing
@@ -1397,21 +1389,21 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  # Mouse hover and d-pad/keyboard focus share this event — whichever
-  # row the user is on fills the spotlight pane.
-  def handle_event("omnibox_preview", %{"tmdb-id" => tmdb_id, "media-type" => media_type}, socket)
-      when media_type in ~w(movie tv_series) do
-    case Integer.parse(tmdb_id) do
-      {id, ""} ->
-        {:noreply, assign(socket, omnibox_preview: {String.to_existing_atom(media_type), id})}
-
-      _invalid ->
-        {:noreply, socket}
-    end
-  end
-
-  def handle_event("omnibox_dismiss", _params, socket) do
-    {:noreply, assign(socket, omnibox_results_open?: false, omnibox_suggestions_open?: false)}
+  # The flat results section's one reset — clearing the query is the
+  # only dismissal (results are page content, not an overlay). The
+  # refocus puts pointer users straight into the next search; the
+  # client-side input wipe rides the button's JS.dispatch (see
+  # MediaResults).
+  def handle_event("omnibox_clear", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(
+       omnibox_query: "",
+       omnibox_results: [],
+       omnibox_searching?: false,
+       omnibox_searched: nil
+     )
+     |> push_event("omnibox:refocus", %{})}
   end
 
   def handle_event("omnibox_mode", %{"mode" => mode}, socket) when mode in ~w(media release) do
@@ -1426,10 +1418,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_results: [],
          omnibox_query: "",
          omnibox_searching?: false,
-         omnibox_searched: nil,
-         omnibox_preview: nil,
-         omnibox_results_open?: true,
-         omnibox_suggestions_open?: false
+         omnibox_searched: nil
        )}
     end
   end
@@ -1560,46 +1549,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          |> assign(detail: nil)
          |> build_view()
          |> put_flash(:info, "Stopped tracking #{item.name}")}
-    end
-  end
-
-  # --- Omnibox suggestion strip (the retired Track modal's verbs) ---
-
-  # Focusing the empty media input opens the suggestion overlay; the
-  # library scan runs once per mount (a tracked/untracked change flows
-  # through the track_suggestion toggle, not a rescan).
-  def handle_event("omnibox_focus", _params, socket) do
-    socket = assign(socket, omnibox_suggestions_open?: true)
-
-    if socket.assigns.track_suggestions_loaded? or socket.assigns.track_suggestions_loading do
-      {:noreply, socket}
-    else
-      send(self(), :load_track_suggestions)
-      {:noreply, assign(socket, track_suggestions_loading: true)}
-    end
-  end
-
-  def handle_event("track_suggestion", params, socket) do
-    tmdb_id = String.to_integer(params["tmdb-id"])
-    tmdb_id_str = to_string(tmdb_id)
-    confirmed = socket.assigns.track_confirmed_ids
-
-    if MapSet.member?(confirmed, tmdb_id_str) do
-      case ReleaseTracking.get_item_by_tmdb(tmdb_id, :tv_series) do
-        nil -> :ok
-        item -> ReleaseTracking.delete_item(item)
-      end
-
-      {:noreply, assign(socket, track_confirmed_ids: MapSet.delete(confirmed, tmdb_id_str))}
-    else
-      {last_season, last_episode} = ReleaseTracking.find_last_library_episode(params["tv-series-id"])
-
-      ReleaseTracking.track_from_search_async(
-        %{tmdb_id: tmdb_id, media_type: :tv_series, name: params["name"], poster_path: nil},
-        %{start_season: last_season, start_episode: last_episode}
-      )
-
-      {:noreply, assign(socket, track_confirmed_ids: MapSet.put(confirmed, tmdb_id_str))}
     end
   end
 
@@ -1992,21 +1941,6 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, build_view(socket)}
   end
 
-  def handle_info(:load_track_suggestions, socket) do
-    suggestions =
-      Enum.map(
-        ReleaseTracking.suggest_trackable_items(),
-        &struct!(MediaOmnibox.Suggestion, &1)
-      )
-
-    {:noreply,
-     assign(socket,
-       track_suggestions: suggestions,
-       track_suggestions_loading: false,
-       track_suggestions_loaded?: true
-     )}
-  end
-
   # Result of the background pick task. Like the alternatives fetches,
   # only applies the outcome when the modal is still on the same pursuit
   # — a closed or pivoted modal drops the stale result. Success is
@@ -2135,7 +2069,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       # past 20 is a query-refinement problem, not a pagination one.
       rows = Enum.take(results, 20)
 
-      {:noreply, assign(socket, omnibox_results: rows, omnibox_searching?: false, omnibox_preview: nil)}
+      {:noreply, assign(socket, omnibox_results: rows, omnibox_searching?: false)}
     else
       {:noreply, socket}
     end
@@ -2410,7 +2344,15 @@ defmodule MediaCentaurWeb.IncomingLive do
   defp apply_plan_modal_params(socket, params) do
     case Map.get(params, "plan") do
       nil ->
-        assign(socket,
+        socket
+        # Closing the plan modal hands the page back to searching: refocus
+        # the omnibox (client-side, pointer users only — see the
+        # `omnibox:refocus` listener in app.js; keyboard/gamepad focus is
+        # the input system's, ADR-053).
+        |> then(fn socket ->
+          if socket.assigns.plan_param, do: push_event(socket, "omnibox:refocus", %{}), else: socket
+        end)
+        |> assign(
           plan_param: nil,
           plan_selection: nil,
           plan_movie: nil,

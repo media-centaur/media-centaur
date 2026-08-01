@@ -29,8 +29,11 @@ export const inputConfig = {
     recently: "[data-nav-zone='recently'] [data-nav-item]",
     coming_up: "[data-nav-zone='coming_up'] [data-nav-item]",
     // Incoming page (single column: omnibox → shelf → drafts → pursuits →
-    // ledger). `coming_up` is shared with the home shelf above; the ledger
-    // hosts both the glimpse rows and the expanded archive (chips + search).
+    // ledger). `coming_up_list` is the incoming page's own vertical take on
+    // the forecast (the home pages keep the horizontal `coming_up` shelf
+    // above); the ledger hosts both the glimpse rows and the expanded
+    // archive (chips + search).
+    coming_up_list: "[data-nav-zone='coming_up_list'] [data-nav-item]",
     omnibox: "[data-nav-zone='omnibox'] [data-nav-item]",
     drafts: "[data-nav-zone='drafts'] [data-nav-item]",
     pursuits: "[data-nav-zone='pursuits'] [data-nav-item]",
@@ -53,8 +56,10 @@ export const inputConfig = {
     continue: Context.SHELF,
     recently: Context.SHELF,
     coming_up: Context.SHELF,
-    // Incoming zones are vertical item lists (the shelf reuses the home
-    // pages' `coming_up` SHELF instance above).
+    // Incoming zones are vertical item lists — including the forecast,
+    // which is an agenda list here (the home pages keep their horizontal
+    // `coming_up` SHELF instance above).
+    coming_up_list: Context.MENU,
     omnibox: Context.MENU,
     drafts: Context.MENU,
     pursuits: Context.MENU,
@@ -107,21 +112,22 @@ export const inputConfig = {
       sidebar:         { right: ["review-list", "review-detail"] },
     },
     // Incoming: single column, top to bottom — omnibox → release-search
-    // results ("grid") → the coming_up shelf → drafts → pursuits → ledger
-    // (glimpse AND expanded archive, one zone) → other_downloads.
-    // Conditional zones (grid, coming_up while a release search owns the
-    // page, drafts, other_downloads) are skipped via candidate lists, same
-    // convention as home. The ledger always carries its "View all" toggle
-    // as a nav item once any history exists, so the archive stays reachable.
+    // results ("grid") → the coming_up_list agenda → drafts → pursuits →
+    // ledger (glimpse AND expanded archive, one zone) → other_downloads.
+    // Conditional zones (grid, coming_up_list while a release search owns
+    // the page, drafts, other_downloads) are skipped via candidate lists,
+    // same convention as home. The ledger always carries its "View all"
+    // toggle as a nav item once any history exists, so the archive stays
+    // reachable.
     incoming: {
-      omnibox:         { down: ["grid", "coming_up", "drafts", "pursuits", "ledger"], left: ["sidebar"] },
+      omnibox:         { down: ["grid", "coming_up_list", "drafts", "pursuits", "ledger"], left: ["sidebar"] },
       grid:            { up: ["omnibox"], down: ["drafts", "pursuits", "ledger"], left: ["sidebar"] },
-      coming_up:       { up: ["omnibox"], down: ["drafts", "pursuits", "ledger"], left: ["sidebar"] },
-      drafts:          { up: ["coming_up", "grid", "omnibox"], down: ["pursuits", "ledger"], left: ["sidebar"] },
-      pursuits:        { up: ["drafts", "coming_up", "grid", "omnibox"], down: ["ledger", "other_downloads"], left: ["sidebar"] },
-      ledger:          { up: ["pursuits", "drafts", "coming_up", "omnibox"], down: ["other_downloads"], left: ["sidebar"] },
+      coming_up_list:  { up: ["omnibox"], down: ["drafts", "pursuits", "ledger"], left: ["sidebar"] },
+      drafts:          { up: ["coming_up_list", "grid", "omnibox"], down: ["pursuits", "ledger"], left: ["sidebar"] },
+      pursuits:        { up: ["drafts", "coming_up_list", "grid", "omnibox"], down: ["ledger", "other_downloads"], left: ["sidebar"] },
+      ledger:          { up: ["pursuits", "drafts", "coming_up_list", "omnibox"], down: ["other_downloads"], left: ["sidebar"] },
       other_downloads: { up: ["ledger", "pursuits"], left: ["sidebar"] },
-      sidebar:         { right: ["coming_up", "pursuits", "omnibox", "ledger"] },
+      sidebar:         { right: ["coming_up_list", "pursuits", "omnibox", "ledger"] },
     },
     watch_history: {
       toolbar:   { down: ["grid"], left: ["sidebar"] },
@@ -155,7 +161,7 @@ export const inputConfig = {
     guide:     ["guide_chapters", "guide_outline", "sidebar"],
     status:    ["grid", "toolbar", "sidebar"],
     review:    ["review-list", "review-detail", "sidebar"],
-    incoming:  ["coming_up", "pursuits", "omnibox", "sidebar"],
+    incoming:  ["coming_up_list", "pursuits", "omnibox", "sidebar"],
     watch_history: ["toolbar", "grid", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     setup:     ["grid"],

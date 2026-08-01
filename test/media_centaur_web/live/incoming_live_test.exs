@@ -1153,17 +1153,12 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "#omnibox-result-tv_series-246810 img")
     end
 
-    test "the spotlight previews the top hit by default and swaps on row focus", %{conn: conn} do
+    test "a media query owns the page — flat results replace the forecast until cleared", %{
+      conn: conn
+    } do
       TmdbStubs.setup_tmdb_client()
 
       TmdbStubs.stub_search_multi([
-        %{
-          "id" => 246_810,
-          "media_type" => "tv",
-          "name" => "Sample Show",
-          "first_air_date" => "2010-06-16",
-          "overview" => "A sample show overview."
-        },
         %{
           "id" => 777,
           "media_type" => "movie",
@@ -1173,66 +1168,60 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         }
       ])
 
+      tracked_with_release(%{name: "Forecast Show"})
       {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      assert has_element?(view, "[data-nav-zone='coming_up_list']")
 
       view
       |> form("form[phx-change='omnibox_change']", %{query: "sample"})
       |> render_change()
 
-      render_async(view, 2_000)
+      html = render_async(view, 2_000)
 
-      # TMDB's top relevance hit fills the spotlight without any interaction.
-      assert has_element?(view, "#omnibox-spotlight-tv_series-246810[data-active]")
-      refute has_element?(view, "#omnibox-spotlight-movie-777[data-active]")
-      assert render(view) =~ "A sample show overview."
+      # Results are page content in the search zone — no floating overlay.
+      assert has_element?(view, "section[data-nav-zone='grid'] #omnibox-result-movie-777")
+      refute has_element?(view, "#omnibox-media-results")
+      # A flat row has room for the overview the popup reserved for its
+      # spotlight pane.
+      assert html =~ "A sample movie overview."
+      # The forecast recedes while the search owns the page…
+      refute has_element?(view, "[data-nav-zone='coming_up_list']")
 
-      # Focusing another row (mouse hover and d-pad focus share the event)
-      # swaps that result into the spotlight.
+      # …and returns when the query clears.
       view
-      |> element("#omnibox-result-movie-777")
-      |> render_focus()
+      |> form("form[phx-change='omnibox_change']", %{query: ""})
+      |> render_change()
 
-      assert has_element?(view, "#omnibox-spotlight-movie-777[data-active]")
-      refute has_element?(view, "#omnibox-spotlight-tv_series-246810[data-active]")
+      refute has_element?(view, "#omnibox-result-movie-777")
+      assert has_element?(view, "[data-nav-zone='coming_up_list']")
     end
 
-    test "clicking away dismisses the results overlay until typing resumes", %{conn: conn} do
+    test "an exhausted query renders the honest empty answer; Clear search resets it", %{
+      conn: conn
+    } do
       TmdbStubs.setup_tmdb_client()
-
-      TmdbStubs.stub_search_multi([
-        %{
-          "id" => 777,
-          "media_type" => "movie",
-          "title" => "Sample Movie",
-          "release_date" => "2010-03-05"
-        }
-      ])
+      TmdbStubs.stub_search_multi([])
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming")
 
       view
-      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> form("form[phx-change='omnibox_change']", %{query: "zzzz"})
       |> render_change()
 
-      render_async(view, 2_000)
-      assert has_element?(view, "#omnibox-media-results[data-state='open']")
+      html = render_async(view, 2_000)
+      assert html =~ "Nothing found on TMDB."
 
-      # phx-click-away fires this event; the overlay closes (data-state —
-      # the blur surface stays in the DOM per the always-in-DOM modal
-      # rule), the query stays.
-      render_click(view, "omnibox_dismiss", %{})
-      assert has_element?(view, "#omnibox-media-results[data-state='closed']")
-
-      # Typing again reopens the overlay with fresh results.
+      # The results section carries its own reset — no click-away, no
+      # overlay to lose; clearing the query is the one dismissal.
       view
-      |> form("form[phx-change='omnibox_change']", %{query: "sample movie"})
-      |> render_change()
+      |> element("#media-results-clear")
+      |> render_click()
 
-      render_async(view, 2_000)
-      assert has_element?(view, "#omnibox-media-results[data-state='open']")
+      refute has_element?(view, "[data-component='media-results']")
     end
 
-    test "the dropdown shows the full first TMDB page, not just eight", %{conn: conn} do
+    test "the results show the full first TMDB page, not just eight", %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
 
       TmdbStubs.stub_search_multi(
@@ -2408,64 +2397,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert html =~ "First Paint Show",
              "tracked releases must render on the disconnected first paint"
-    end
-  end
-
-  describe "track modal" do
-    setup do
-      # The shelf terminus' "Track something" affordance is gated on TMDB
-      # readiness — mark it configured + green so the real button renders
-      # (the old conditional-click port silently skipped when it didn't).
-      config = :persistent_term.get({MediaCentaur.Config, :config})
-
-      :persistent_term.put(
-        {MediaCentaur.Config, :config},
-        Map.put(config, :tmdb_api_key, Secret.wrap("tmdb-test-key"))
-      )
-
-      Capabilities.save_test_result(:tmdb, :ok)
-
-      on_exit(fn ->
-        :persistent_term.put({MediaCentaur.Config, :config}, config)
-        Capabilities.clear_test_result(:tmdb)
-      end)
-
-      :ok
-    end
-
-    test "focusing the empty omnibox surfaces library shows not yet tracked", %{conn: conn} do
-      tv_series = create_tv_series(%{name: "Suggestible Show"})
-      create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "556677"})
-
-      {:ok, view, _html} = live_async!(conn, "/incoming")
-
-      view
-      |> element("#omnibox-media-input")
-      |> render_focus()
-
-      html = render(view)
-      assert html =~ "Suggested from your library"
-      assert html =~ "Suggestible Show"
-    end
-
-    test "a suggestion click starts tracking; the card flips to Tracking", %{conn: conn} do
-      tv_series = create_tv_series(%{name: "Suggestible Show"})
-      create_external_id(%{tv_series_id: tv_series.id, source: "tmdb", external_id: "556677"})
-
-      {:ok, view, _html} = live_async!(conn, "/incoming")
-
-      view
-      |> element("#omnibox-media-input")
-      |> render_focus()
-
-      html =
-        view
-        |> element("button[phx-click='track_suggestion'][phx-value-tmdb-id='556677']")
-        |> render_click()
-
-      # The synchronous half flips the card; the async tracking task
-      # itself is covered by the ReleaseTracking tests.
-      assert html =~ "Tracking"
     end
   end
 

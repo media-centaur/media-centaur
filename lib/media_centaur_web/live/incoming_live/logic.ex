@@ -16,6 +16,8 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
 
   alias MediaCentaur.Search.SearchResult
   alias MediaCentaur.Downloads.{Health, QueueItem}
+  alias MediaCentaurWeb.Components.Acquisition.MediaResults
+  alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaurWeb.LiveHelpers
 
   # How long after a user-initiated cancel we keep suppressing the
@@ -32,6 +34,19 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
           results: [SearchResult.t()],
           status: status()
         }
+
+  @doc """
+  Whether the Coming-up forecast is on the page. The shelf recedes only
+  while a search actually owns the page: an active media query
+  (`MediaResults.active_query?/1` — the flat results section's own
+  render gate, so the two can never disagree) or a release session
+  with a query or results. A bare mode flip (empty box) keeps the
+  forecast in view.
+  """
+  @spec shelf_visible?(:media | :release, String.t(), SearchSession.t()) :: boolean()
+  def shelf_visible?(:media, media_query, _session), do: not MediaResults.active_query?(media_query)
+
+  def shelf_visible?(:release, _media_query, session), do: session.query == "" and session.groups == []
 
   @doc """
   Returns the terms of every group whose status is a Prowlarr request timeout

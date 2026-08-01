@@ -879,6 +879,30 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
     end
   end
 
+  describe "shelf_visible?/3" do
+    alias MediaCentaurWeb.IncomingLive.SearchSession
+
+    test "media mode: the forecast recedes exactly while the typed query is active" do
+      session = %SearchSession{}
+      assert Logic.shelf_visible?(:media, "", session)
+      assert Logic.shelf_visible?(:media, "a", session)
+      refute Logic.shelf_visible?(:media, "ab", session)
+    end
+
+    test "release mode: a query or results own the page; a bare flip keeps the forecast" do
+      assert Logic.shelf_visible?(:release, "", %SearchSession{})
+      refute Logic.shelf_visible?(:release, "", %SearchSession{query: "Sample Show S01E01"})
+
+      refute Logic.shelf_visible?(:release, "", %SearchSession{
+               groups: [%{term: "Sample Show", status: :ready, results: []}]
+             })
+    end
+
+    test "the media query is mode-scoped — it never hides the forecast in release mode" do
+      assert Logic.shelf_visible?(:release, "sample", %SearchSession{})
+    end
+  end
+
   describe "watching_summary_label/1" do
     # The open-wants pointer (ADR-056 Q7): count + link to Tracking,
     # never want cards; nil hides the line entirely.

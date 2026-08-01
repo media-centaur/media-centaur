@@ -28,8 +28,7 @@ import {Console} from "./hooks/console"
 import {LogTail} from "./hooks/log_tail"
 import {CopyButton} from "./hooks/copy_button"
 import {CastGridFilter} from "./hooks/cast_grid_filter"
-import {MouseAutofocus} from "./hooks/mouse_autofocus"
-import {HoverPreview} from "./hooks/hover_preview"
+import {MouseAutofocus, shouldAutofocus} from "./hooks/mouse_autofocus"
 import {FlashAutoDismiss} from "./hooks/flash_auto_dismiss"
 import {installReconnectOnVisible} from "./reconnect_on_visible"
 import topbar from "../vendor/topbar"
@@ -45,7 +44,6 @@ const liveSocket = new LiveSocket("/live", Socket, {
     CopyButton,
     CastGridFilter,
     MouseAutofocus,
-    HoverPreview,
     FlashAutoDismiss,
     ScrollToResume: {
       mounted() { this._scrollToTarget() },
@@ -65,6 +63,22 @@ const liveSocket = new LiveSocket("/live", Socket, {
       }
     },
   },
+})
+
+// Incoming page: "Clear search" wipes the omnibox input client-side. The
+// server resets @omnibox_query, but LiveView never overwrites a focused
+// input's value — without this, the stale text would sit in the box.
+window.addEventListener("omnibox:clear-input", (event) => {
+  event.target.value = ""
+})
+
+// Incoming page: closing the plan modal hands the page back to searching, so
+// focus returns to the omnibox — pointer users only (same gate as
+// MouseAutofocus): for keyboard/gamepad the input system owns focus (ADR-053).
+window.addEventListener("phx:omnibox:refocus", () => {
+  if (shouldAutofocus(document.documentElement.dataset.input)) {
+    document.getElementById("omnibox-media-input")?.focus()
+  }
 })
 
 // Upcoming page: clicking a marked day in the mini-month scrolls the rail to

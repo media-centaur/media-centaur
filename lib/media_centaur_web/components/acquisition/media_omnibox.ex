@@ -4,8 +4,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
   (UIDR-014).
 
   **Media mode** (default) asks "What do you want to watch?": typing
-  searches TMDB and the results drop down inside the card; picking a
-  title starts a download plan. **Release mode** is the naked
+  searches TMDB and the results render flat below the hero (the
+  `MediaResults` section — page content, no overlay); picking a title
+  starts a download plan. **Release mode** is the naked
   release-name search — the same box flips to the brace-expansion
   query form (monospace input, Enter to search, syntax hint, expansion
   preview) whose results render below the hero in the existing search
@@ -20,69 +21,13 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
-  import MediaCentaurWeb.Components.Acquisition.TitleResultSummary, only: [title_result_summary: 1]
-  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
+  import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
-  alias MediaCentaur.ReleaseTracking.TitleResult
   alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaurWeb.IncomingLive.Logic
 
-  defmodule Suggestion do
-    @moduledoc """
-    One suggested-trackable library show for the empty-query overlay —
-    the retired Track modal's suggestion strip, folded into the one
-    search surface.
-    """
-    @enforce_keys [:tv_series_id, :tmdb_id, :name, :media_type, :poster_url]
-    defstruct [:tv_series_id, :tmdb_id, :name, :media_type, :poster_url]
-
-    @type t :: %__MODULE__{
-            tv_series_id: integer(),
-            tmdb_id: String.t(),
-            name: String.t(),
-            media_type: :tv_series,
-            poster_url: String.t() | nil
-          }
-  end
-
   attr :mode, :atom, required: true, values: [:media, :release]
   attr :query, :string, default: "", doc: "Media-mode query (release mode reads the session)."
-
-  attr :results, :list,
-    default: [],
-    doc: "Media-mode `MediaCentaur.ReleaseTracking.TitleResult.t()` rows."
-
-  attr :searching?, :boolean, default: false
-
-  attr :preview_id, :any,
-    default: nil,
-    doc:
-      "`{media_type, tmdb_id}` of the spotlighted result, or nil for the top hit. See `previewed_result/2`."
-
-  attr :results_open, :boolean,
-    default: true,
-    doc: "Whether the results overlay is shown (click-away dismisses it; typing reopens)."
-
-  attr :suggestions, :list,
-    default: [],
-    doc:
-      "`Suggestion.t()` rows — library shows not yet tracked, shown in the overlay while " <>
-        "the query is empty (focus loads them)."
-
-  attr :suggestions_loading?, :boolean, default: false
-
-  attr :confirmed_ids, :any,
-    default: nil,
-    doc:
-      "MapSet of tmdb-id strings whose suggestion was just tracked this session — the card " <>
-        "flips to Tracking (click again to undo)."
-
-  attr :suggestions_open?, :boolean,
-    default: false,
-    doc:
-      "Whether the empty-query suggestion overlay is shown — the host flips it on input " <>
-        "focus and off on dismiss/pick, independent of the typed-query dropdown."
 
   attr :session, SearchSession,
     default: nil,
@@ -128,19 +73,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
         session={@session}
         any_loading?={@any_loading?}
         hero={@hero}
-      />
-
-      <.media_dropdown
-        :if={@mode == :media}
-        open={(dropdown?(@query) && @results_open) || (!dropdown?(@query) && @suggestions_open?)}
-        query={@query}
-        results={@results}
-        searching?={@searching?}
-        preview_id={@preview_id}
-        release_mode_available={@release_mode_available}
-        suggestions={@suggestions}
-        suggestions_loading?={@suggestions_loading?}
-        confirmed_ids={@confirmed_ids || MapSet.new()}
       />
 
       <.hero_mode_hint
@@ -208,7 +140,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           ]}
           placeholder="What do you want to watch?"
           phx-debounce="500"
-          phx-focus="omnibox_focus"
           phx-hook="MouseAutofocus"
           data-nav-item
           tabindex="0"
@@ -320,285 +251,4 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
     </button>
     """
   end
-
-  attr :open, :boolean, required: true
-
-  attr :query, :string,
-    required: true,
-    doc: "the live query — an empty one shows the suggestion strip instead of results."
-
-  attr :results, :list, required: true, doc: "`TitleResult.t()` rows — typed at the public attr above."
-  attr :searching?, :boolean, required: true
-
-  attr :preview_id, :any,
-    required: true,
-    doc: "`{media_type, tmdb_id}` or nil — documented at the public attr above."
-
-  attr :release_mode_available, :boolean, required: true
-  attr :suggestions, :list, required: true, doc: "`Suggestion.t()` rows — typed at the public attr."
-  attr :suggestions_loading?, :boolean, required: true
-  attr :confirmed_ids, :any, required: true, doc: "MapSet — typed at the public attr."
-
-  # The results overlay: a wide floating spotlight panel (media-center
-  # scale) that never reflows the page. Always in the DOM while media
-  # mode is active — the glass surface carries a backdrop blur, and
-  # first-frame blur compositing on conditional render is the exact
-  # flash the always-in-DOM modal rule exists to prevent. Visibility is
-  # data-state + opacity, like the modal system.
-  defp media_dropdown(assigns) do
-    assigns = assign(assigns, :preview, previewed_result(assigns.results, assigns.preview_id))
-
-    ~H"""
-    <div class="relative h-0">
-      <div
-        id="omnibox-media-results"
-        data-state={if @open, do: "open", else: "closed"}
-        phx-click-away={@open && "omnibox_dismiss"}
-        class={
-          [
-            # Horizontal anchor (left/translate) lives in the .search-overlay
-            # CSS — it clamps the panel against the sidebar.
-            "absolute top-2 z-40",
-            "search-overlay rounded-xl overflow-hidden",
-            "transition-opacity duration-150",
-            "data-[state=closed]:opacity-0 data-[state=closed]:pointer-events-none"
-          ]
-        }
-      >
-        <.suggestion_strip
-          :if={!dropdown?(@query)}
-          suggestions={@suggestions}
-          loading?={@suggestions_loading?}
-          confirmed_ids={@confirmed_ids}
-        />
-
-        <div
-          :if={dropdown?(@query) && @searching?}
-          class="flex items-center gap-2 px-5 py-3 text-sm text-base-content/40"
-        >
-          <span class="loading loading-spinner loading-xs"></span> Searching TMDB…
-        </div>
-
-        <div
-          :if={dropdown?(@query) && !@searching? && @results == []}
-          class="px-5 py-4 text-sm text-base-content/40 text-center"
-        >
-          Nothing found on TMDB.
-        </div>
-
-        <div
-          :if={dropdown?(@query) && @results != []}
-          class="grid grid-cols-[minmax(0,2fr)_minmax(0,3fr)] grid-rows-[minmax(0,1fr)] min-h-0"
-        >
-          <div class="relative border-r border-base-content/10 p-6 overflow-y-auto thin-scrollbar">
-            <.spotlight_pane
-              :for={{result, index} <- Enum.with_index(@results)}
-              result={result}
-              active={result == @preview}
-              index={index}
-              total={length(@results)}
-              release_mode_available={@release_mode_available}
-            />
-          </div>
-
-          <div class="overflow-y-auto overscroll-contain thin-scrollbar py-2">
-            <button
-              :for={result <- @results}
-              id={"omnibox-result-#{result.media_type}-#{result.tmdb_id}"}
-              type="button"
-              class={[
-                "w-full flex items-center gap-3 px-4 py-2 text-left transition-colors",
-                if(result == @preview,
-                  do: "bg-primary/10",
-                  else: "hover:bg-base-content/[0.05]"
-                )
-              ]}
-              phx-click="omnibox_pick"
-              phx-hook="HoverPreview"
-              phx-focus="omnibox_preview"
-              phx-value-tmdb-id={result.tmdb_id}
-              phx-value-media-type={result.media_type}
-              data-nav-item
-              tabindex="0"
-            >
-              <.title_result_summary result={result} />
-              <span :if={result.tracked?} class="flex-shrink-0 text-xs text-success/70">
-                Tracked
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  attr :suggestions, :list, required: true, doc: "`Suggestion.t()` rows — typed at the public attr."
-  attr :loading?, :boolean, required: true
-  attr :confirmed_ids, :any, required: true, doc: "MapSet — typed at the public attr."
-
-  # The empty-query overlay: library shows not yet tracked, one-click
-  # Track cards (the retired Track modal's suggestion strip). A just-
-  # tracked card flips to Tracking; clicking again undoes it.
-  defp suggestion_strip(assigns) do
-    ~H"""
-    <div class="p-5 space-y-3">
-      <h3 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
-        Suggested from your library
-      </h3>
-      <div :if={@loading?} class="flex justify-center py-4">
-        <span class="loading loading-spinner loading-sm text-base-content/50"></span>
-      </div>
-      <p :if={!@loading? && @suggestions == []} class="text-sm text-base-content/40">
-        Shows in your library you aren't tracking yet appear here — type to search everything else.
-      </p>
-      <div
-        :if={!@loading? && @suggestions != []}
-        class="flex gap-3 overflow-x-auto thin-scrollbar p-1 -m-1 pb-2"
-      >
-        <.suggestion_card
-          :for={suggestion <- @suggestions}
-          suggestion={suggestion}
-          confirming={MapSet.member?(@confirmed_ids, suggestion.tmdb_id)}
-        />
-      </div>
-    </div>
-    """
-  end
-
-  attr :suggestion, Suggestion, required: true
-  attr :confirming, :boolean, required: true
-
-  defp suggestion_card(assigns) do
-    ~H"""
-    <button
-      type="button"
-      id={"omnibox-suggestion-#{@suggestion.tmdb_id}"}
-      phx-click="track_suggestion"
-      phx-value-tmdb-id={@suggestion.tmdb_id}
-      phx-value-tv-series-id={@suggestion.tv_series_id}
-      phx-value-name={@suggestion.name}
-      class="flex-shrink-0 w-28 group cursor-pointer text-left"
-      data-nav-item
-      tabindex="0"
-    >
-      <div class={[
-        "aspect-[2/3] rounded-lg overflow-hidden mb-2 ring-1 transition-all",
-        @confirming && "bg-success/10 ring-success/30 flex items-center justify-center",
-        !@confirming && "bg-base-300 ring-base-content/10 group-hover:ring-primary/40"
-      ]}>
-        <.icon :if={@confirming} name="hero-check-mini" class="size-8 text-success" />
-        <img
-          :if={!@confirming && @suggestion.poster_url}
-          src={sized_image_url(MediaCentaur.Library.Image.web_path(@suggestion.poster_url), 240)}
-          alt=""
-          class="w-full h-full object-cover"
-          loading="eager"
-          decoding="sync"
-        />
-        <div
-          :if={!@confirming && !@suggestion.poster_url}
-          class="w-full h-full flex items-center justify-center text-base-content/20"
-        >
-          <.icon name="hero-tv-mini" class="size-8" />
-        </div>
-      </div>
-      <p class="text-xs font-medium truncate">{@suggestion.name}</p>
-      <p :if={@confirming} class="text-xs text-success">Tracking</p>
-      <p :if={!@confirming} class="text-xs text-primary/70 group-hover:text-primary transition-colors">
-        + Track
-      </p>
-    </button>
-    """
-  end
-
-  attr :result, TitleResult, required: true
-  attr :active, :boolean, required: true
-  attr :index, :integer, required: true, doc: "0-based relevance position — drives the micro-label."
-  attr :total, :integer, required: true
-  attr :release_mode_available, :boolean, required: true
-
-  # One spotlight pane per result, all rendered up-front so every w342
-  # poster is fetched and decoded before its row is ever hovered —
-  # preview swaps are then a pure visibility toggle, never a network
-  # wait. Only the active pane is visible. Visibility is the display
-  # class, NOT the `hidden` attribute — any display utility on the same
-  # element (author CSS) overrides the UA's `[hidden] { display: none }`,
-  # which once left all 20 panes stacked and visible.
-  defp spotlight_pane(assigns) do
-    ~H"""
-    <div
-      id={"omnibox-spotlight-#{@result.media_type}-#{@result.tmdb_id}"}
-      data-active={@active || nil}
-      class={[if(@active, do: "flex", else: "hidden"), "gap-5"]}
-    >
-      <span class="flex-shrink-0 w-[140px] aspect-[2/3] rounded-lg bg-base-content/10 ring-1 ring-base-content/10 overflow-hidden flex items-center justify-center">
-        <img
-          :if={@result.poster_path}
-          src={"https://image.tmdb.org/t/p/w342#{@result.poster_path}"}
-          alt=""
-          class="w-full h-full object-cover"
-          loading="eager"
-          decoding="sync"
-        />
-        <.icon
-          :if={!@result.poster_path}
-          name={if @result.media_type == :movie, do: "hero-film-mini", else: "hero-tv-mini"}
-          class="size-8 text-base-content/25"
-        />
-      </span>
-
-      <div class="flex-1 min-w-0 flex flex-col gap-2">
-        <span class="text-[11px] font-medium uppercase tracking-wider text-base-content/40">
-          {if @index == 0, do: "Top result", else: "Result #{@index + 1} of #{@total}"}
-        </span>
-        <h3 class="text-xl font-semibold leading-snug line-clamp-2">{@result.name}</h3>
-        <span class="flex items-center gap-2 text-sm text-base-content/50">
-          <span>{if @result.media_type == :movie, do: "Movie", else: "TV Series"}</span>
-          <span :if={@result.year}>· {@result.year}</span>
-          <span :if={@result.tracked?} class="text-success/70">· Tracked</span>
-        </span>
-        <p :if={@result.overview} class="text-sm leading-relaxed text-base-content/60 line-clamp-4">
-          {@result.overview}
-        </p>
-        <div class="mt-auto pt-3">
-          <.button
-            variant="secondary"
-            size="sm"
-            phx-click="omnibox_pick"
-            phx-value-tmdb-id={@result.tmdb_id}
-            phx-value-media-type={@result.media_type}
-            data-nav-item
-            tabindex="0"
-          >
-            {if @release_mode_available, do: "Plan download", else: "Track"}
-          </.button>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  @doc """
-  Resolves which result fills the spotlight: the one matching
-  `{media_type, tmdb_id}` when present, else the top hit (TMDB's #1
-  relevance match). A stale preview id — results changed under the
-  cursor — falls back to the top hit rather than an empty pane.
-  """
-  @spec previewed_result([TitleResult.t()], {atom(), integer()} | nil) :: TitleResult.t() | nil
-  def previewed_result([], _preview_id), do: nil
-
-  def previewed_result([top_hit | _rest] = results, preview_id) do
-    Enum.find(results, top_hit, fn result ->
-      {result.media_type, result.tmdb_id} == preview_id
-    end)
-  end
-
-  @doc """
-  Whether the media-mode dropdown has anything to say — any query of
-  two or more characters (the dropdown body covers searching, results,
-  and the honest "nothing found" answer).
-  """
-  @spec dropdown?(String.t()) :: boolean()
-  def dropdown?(query), do: String.length(String.trim(query)) >= 2
 end

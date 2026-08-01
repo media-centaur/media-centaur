@@ -1,0 +1,106 @@
+defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
+  @moduledoc """
+  The flat media-search answer sheet — TMDB results as page content
+  below the omnibox (no floating overlay). Rows carry poster thumb,
+  identity line, overview, and the one verb (Plan download / Track);
+  the header row holds the search status and the Clear search reset.
+  """
+
+  use PhoenixStorybook.Story, :component
+
+  alias MediaCentaur.ReleaseTracking.TitleResult
+
+  def function, do: &MediaCentaurWeb.Components.Acquisition.MediaResults.media_results/1
+  def render_source, do: :function
+  def layout, do: :one_column
+
+  defp results do
+    [
+      %TitleResult{
+        tmdb_id: 246_810,
+        media_type: :tv_series,
+        name: "Sample Show",
+        year: "2010",
+        poster_path: "/sample-show-poster.jpg",
+        overview: "A sample overview line that helps confirm this is the show you meant.",
+        tracked?: true
+      },
+      %TitleResult{
+        tmdb_id: 777,
+        media_type: :movie,
+        name: "Sample Movie",
+        year: "2010",
+        overview: "A sample movie overview."
+      },
+      %TitleResult{
+        tmdb_id: 778,
+        media_type: :movie,
+        name: "Sample Movie Returns: An Extraordinarily Long Title That Truncates",
+        year: "2012"
+      }
+    ]
+  end
+
+  def variations do
+    [
+      %Variation{
+        id: :results,
+        description:
+          "The answer sheet: one row per TMDB hit in relevance order — poster thumb " <>
+            "(fake paths render broken outside the app; the icon fallback shows the " <>
+            "no-poster treatment), identity line with quiet type/year text, overview, " <>
+            "tracked marker, and the row verb.",
+        attributes: %{
+          query: "sample",
+          results: results(),
+          searching?: false,
+          release_mode_available: true
+        }
+      },
+      %Variation{
+        id: :track_only,
+        description:
+          "No indexer configured — the row verb honestly reads Track; nothing " <>
+            "promises a grab the page can't make.",
+        attributes: %{
+          query: "sample",
+          results: Enum.take(results(), 2),
+          searching?: false,
+          release_mode_available: false
+        }
+      },
+      %Variation{
+        id: :searching,
+        description: "Type-ahead in flight — status in the header row, prior rows still standing.",
+        attributes: %{
+          query: "sample",
+          results: Enum.take(results(), 1),
+          searching?: true,
+          release_mode_available: true
+        }
+      },
+      %Variation{
+        id: :no_results,
+        description: "The honest empty answer, with Clear search as the one reset.",
+        attributes: %{
+          query: "zzzzz",
+          results: [],
+          searching?: false,
+          release_mode_available: true
+        }
+      },
+      %Variation{
+        id: :inactive_query,
+        description:
+          "Under two typed characters the section does not exist at all — results are " <>
+            "page content gated on an active query, never an empty shell.",
+        attributes: %{
+          query: "z",
+          results: [],
+          searching?: false,
+          release_mode_available: true
+        }
+      }
+    ]
+  end
+end

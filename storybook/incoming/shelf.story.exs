@@ -1,9 +1,8 @@
 defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
   @moduledoc """
-  The Coming-up shelf — nearness-ordered poster cards, the dashed
-  horizon terminus after the last card, and the
-  section header, and the quiet stragglers line. The row shrinks its
-  cards rather than wrapping.
+  The Coming-up shelf — a nearness-ordered agenda list of date-led
+  rows, the horizon action row after the last entry, the section
+  header, and the quiet stragglers line.
   """
 
   use PhoenixStorybook.Story, :component
@@ -75,9 +74,9 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
     ]
   end
 
-  # The same forecast with acquisition off: no armed / in-pursuit pills,
-  # no hairline — armed captions degrade to plain dates so nothing
-  # surviving implies grabbing. Watch-only identity (in theaters) stays.
+  # The same forecast with acquisition off: no armed / in-pursuit pills —
+  # armed rows degrade to plain dated rows so nothing surviving implies
+  # grabbing. Watch-only identity (in theaters) stays.
   defp acquisition_off_mix do
     Enum.map(full_mix(), fn
       %Card{status: status} = card when status in [:in_pursuit, :armed, :tracked] ->
@@ -93,32 +92,30 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
       %Variation{
         id: :full_shelf,
         description:
-          "Six cards, nearness-first with graduated date labels (Tonight → Tue → " <>
+          "Six rows, nearness-first with graduated date labels (Tonight → Tue → " <>
             "Fri Jul 17 → Fri Jul 24 → Now → Aug 6): tonight's episode in pursuit, a plain " <>
             "tracked episode, an armed episode, a season drop, an in-theaters feature, and a " <>
-            "tracked feature — then the horizon terminus with the track affordance.",
-        attributes: %{cards: full_mix(), tmdb_ready: true}
+            "tracked feature.",
+        attributes: %{cards: full_mix()}
       },
       %Variation{
         id: :acquisition_off,
-        description:
-          "Honest degradation: no armed or in-pursuit pills, no hairline — plain date " <>
-            "captions only. The terminus (tracking is exactly what still works) survives.",
-        attributes: %{cards: acquisition_off_mix(), tmdb_ready: true}
+        description: "Honest degradation: no armed or in-pursuit pills — plain dated rows only.",
+        attributes: %{cards: acquisition_off_mix()}
       },
       %Variation{
         id: :empty_shelf,
         description:
-          "Nothing tracked and nothing scheduled — the terminus alone extends the " <>
-            "invitation; no dead panels.",
-        attributes: %{cards: [], tmdb_ready: true}
+          "Nothing tracked and nothing scheduled — the section renders nothing at " <>
+            "all (no dead panels; the omnibox is the standing track affordance).",
+        attributes: %{cards: []}
       },
       %Variation{
         id: :overflow,
         description:
-          "More forecast than shelf: the terminus grows the shelf in place (\"Show all N\") " <>
-            "instead of claiming the horizon is empty.",
-        attributes: %{cards: full_mix(), overflow_count: 4, tmdb_ready: true}
+          "More forecast than list: the horizon action grows the list in place " <>
+            "(\"Show all N\") instead of claiming the horizon is empty.",
+        attributes: %{cards: full_mix(), overflow_count: 4}
       },
       %Variation{
         id: :with_stragglers,
@@ -127,7 +124,6 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
             "the shelf — expand for the names.",
         attributes: %{
           cards: full_mix(),
-          tmdb_ready: true,
           stragglers: [
             %Straggler{item_id: 101, name: "Sherlock Jr.", media_type: :movie},
             %Straggler{item_id: 102, name: "Safety Last!", media_type: :movie},

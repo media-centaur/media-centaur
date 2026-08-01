@@ -447,7 +447,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       # shelf renders the seeded forecast, and no acquisition section
       # (in-flight pursuits, ledger) is on the page.
       assert html =~ "What would you like to track?"
-      assert has_element?(view, ~s([data-nav-zone="coming_up"]), "Smoke TV Show")
+      assert has_element?(view, ~s([data-nav-zone="coming_up_list"]), "Smoke TV Show")
       refute html =~ ~s(data-nav-zone="pursuits")
       refute html =~ ~s(data-nav-zone="ledger")
     end
@@ -561,7 +561,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
       # The seeded tracked release must render its shelf card — the
       # big-art forecast branch, not just the horizon terminus.
-      assert has_element?(view, ~s([data-nav-zone="coming_up"]), "Smoke Shelf Show")
+      assert has_element?(view, ~s([data-nav-zone="coming_up_list"]), "Smoke Shelf Show")
 
       # The seeded active pursuit must render its card, exercising the
       # PursuitRow component's no-match hint path (no queue item matches).

@@ -5,6 +5,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition do
   def folder_icon, do: {:fa, "arrow-down-to-bracket", :light, "psb:mr-1"}
 
   def entry("media_omnibox"), do: [icon: {:fa, "magnifying-glass", :thin}, name: "Media omnibox"]
+  def entry("media_results"), do: [icon: {:fa, "list", :thin}, name: "Media results"]
 
   def entry("title_result_summary"),
     do: [icon: {:fa, "clapperboard", :thin}, name: "Title result summary"]
