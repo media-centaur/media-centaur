@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.Storybook.Incoming do
   def folder_icon, do: {:fa, "inbox", :light, "psb:mr-1"}
 
   def entry("status_pill"), do: [icon: {:fa, "tag", :thin}, name: "Status pill"]
-  def entry("shelf"), do: [icon: {:fa, "images", :thin}, name: "Coming up shelf"]
-  def entry("shelf_card"), do: [icon: {:fa, "image-portrait", :thin}, name: "Shelf card"]
+  def entry("shelf"), do: [icon: {:fa, "list", :thin}, name: "Coming up shelf"]
+  def entry("shelf_row"), do: [icon: {:fa, "list", :thin}, name: "Shelf row"]
   def entry("ledger"), do: [icon: {:fa, "clock-rotate-left", :thin}, name: "Landed ledger"]
 end

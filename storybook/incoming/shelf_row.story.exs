@@ -1,21 +1,21 @@
-defmodule MediaCentaurWeb.Storybook.Incoming.ShelfCard do
+defmodule MediaCentaurWeb.Storybook.Incoming.ShelfRow do
   @moduledoc """
-  One Coming-up shelf card — 2:3 art (or the quiet ghost-letterform
-  placeholder), a nearness badge top-left, the shared status pill
-  bottom-right, and an under-pursuit progress hairline whose pill
-  anchors to the torrent row.
+  One Coming-up agenda row — date column, 2:3 poster thumb (or the
+  quiet ghost-letterform placeholder), title/subtitle, and the shared
+  status pill on the right (an under-pursuit pill carries the percent
+  and anchors to the torrent row).
   """
 
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaurWeb.Components.Incoming.Shelf.Card
 
-  def function, do: &MediaCentaurWeb.Components.Incoming.Shelf.shelf_card/1
+  def function, do: &MediaCentaurWeb.Components.Incoming.Shelf.shelf_row/1
   def render_source, do: :function
 
   def template do
     """
-    <div class="w-44">
+    <div class="max-w-2xl">
       <.psb-variation/>
     </div>
     """
@@ -26,8 +26,8 @@ defmodule MediaCentaurWeb.Storybook.Incoming.ShelfCard do
       %Variation{
         id: :in_pursuit,
         description:
-          "Dropped today, already downloading — info pill with percent (anchoring to " <>
-            "#pursuit-<pursuit_id>) and the 2px progress hairline at the art's bottom edge.",
+          "Dropped today, already downloading — info pill with percent, anchoring to " <>
+            "#pursuit-<pursuit_id>.",
         attributes: %{
           card: %Card{
             key: "sample-show-s02e05",
@@ -59,9 +59,7 @@ defmodule MediaCentaurWeb.Storybook.Incoming.ShelfCard do
       },
       %Variation{
         id: :season_drop,
-        description:
-          "A whole season landing at once — stacked-sheets treatment and the " <>
-            "episode-count caption.",
+        description: "A whole season landing at once — the episode-count caption.",
         attributes: %{
           card: %Card{
             key: "the-golem-s3",
@@ -92,8 +90,8 @@ defmodule MediaCentaurWeb.Storybook.Incoming.ShelfCard do
       %Variation{
         id: :plain_tracked,
         description:
-          "No pill at all — a plain dated card, the honest acquisition-off degradation " <>
-            "(the caption carries the date, nothing implies grabbing).",
+          "No pill at all — a plain dated row, the honest acquisition-off degradation " <>
+            "(the date column carries the date, nothing implies grabbing).",
         attributes: %{
           card: %Card{
             key: "phantom-carriage-s01e03",
@@ -108,7 +106,7 @@ defmodule MediaCentaurWeb.Storybook.Incoming.ShelfCard do
       %Variation{
         id: :with_artwork,
         description:
-          "With real art the placeholder gives way to an eager+sync poster (fake URL — " <>
+          "With real art the placeholder gives way to an eager+sync thumb (fake URL — " <>
             "renders broken outside the app).",
         attributes: %{
           card: %Card{

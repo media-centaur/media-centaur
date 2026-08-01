@@ -111,7 +111,7 @@ describe("Incoming page nav (real config)", () => {
   // closed (mini-month absent), no release-search results, no drafts.
   const populated = {
     omnibox: 1,
-    coming_up: 6,
+    coming_up_list: 6,
     pursuits: 3,
     ledger: 5,
     sidebar: 4,
@@ -119,35 +119,35 @@ describe("Incoming page nav (real config)", () => {
 
   test("the shelf sits between the omnibox and the operational column", () => {
     const graph = buildNavGraph("incoming", populated, inputConfig)
-    expect(graph.coming_up.up).toBe("omnibox")
-    expect(graph.coming_up.down).toBe("pursuits")
+    expect(graph.coming_up_list.up).toBe("omnibox")
+    expect(graph.coming_up_list.down).toBe("pursuits")
     expect(graph.pursuits.down).toBe("ledger")
     expect(graph.ledger.down).toBeUndefined()
   })
 
   test("sidebar enters the shelf first; cursor starts there too", () => {
     const graph = buildNavGraph("incoming", populated, inputConfig)
-    expect(graph.sidebar.right).toBe("coming_up")
-    expect(resolveCursorStart("incoming", populated, inputConfig)).toBe("coming_up")
+    expect(graph.sidebar.right).toBe("coming_up_list")
+    expect(resolveCursorStart("incoming", populated, inputConfig)).toBe("coming_up_list")
   })
 
   test("forecast-only (no acquisition): shelf falls through to history-less bottom", () => {
-    const counts = { omnibox: 1, coming_up: 6, sidebar: 4 }
+    const counts = { omnibox: 1, coming_up_list: 6, sidebar: 4 }
     const graph = buildNavGraph("incoming", counts, inputConfig)
-    expect(graph.coming_up.up).toBe("omnibox")
-    expect(graph.coming_up.down).toBeUndefined()
-    expect(resolveCursorStart("incoming", counts, inputConfig)).toBe("coming_up")
+    expect(graph.coming_up_list.up).toBe("omnibox")
+    expect(graph.coming_up_list.down).toBeUndefined()
+    expect(resolveCursorStart("incoming", counts, inputConfig)).toBe("coming_up_list")
   })
 
   test("an empty shelf falls back to pursuits for sidebar entry and cursor start", () => {
-    const counts = { ...populated, coming_up: 0 }
+    const counts = { ...populated, coming_up_list: 0 }
     const graph = buildNavGraph("incoming", counts, inputConfig)
     expect(graph.sidebar.right).toBe("pursuits")
     expect(resolveCursorStart("incoming", counts, inputConfig)).toBe("pursuits")
   })
 
   test("release-search results take the omnibox's down edge when present", () => {
-    const counts = { ...populated, grid: 8, coming_up: 0 }
+    const counts = { ...populated, grid: 8, coming_up_list: 0 }
     const graph = buildNavGraph("incoming", counts, inputConfig)
     expect(graph.omnibox.down).toBe("grid")
     expect(graph.grid.up).toBe("omnibox")
@@ -158,7 +158,7 @@ describe("Incoming page nav (real config)", () => {
     const graph = buildNavGraph("incoming", counts, inputConfig)
     for (const context of [
       "omnibox",
-      "coming_up",
+      "coming_up_list",
       "grid",
       "drafts",
       "pursuits",

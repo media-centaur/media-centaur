@@ -200,7 +200,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           <h2 class="text-2xl font-semibold truncate text-on-image-lg">{@identity.name}</h2>
           <p class="text-sm text-base-content/60 mt-1 text-on-image">
             <span>{if @identity.media_type == :movie, do: "Movie", else: "TV Series"}</span>
-            <span :if={@identity.year}> ·                                    {@identity.year}</span>
+            <span :if={@identity.year}> ·                                     {@identity.year}</span>
           </p>
         </div>
       </div>

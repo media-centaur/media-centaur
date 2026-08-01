@@ -234,43 +234,6 @@ defmodule MediaCentaur.ReleaseTracking do
     end
   end
 
-  # --- Suggestions ---
-
-  @active_tv_statuses [:returning, :in_production, :planned]
-
-  @doc """
-  Returns untracked library TV series with active TMDB status and external IDs.
-  Used to populate the suggestions section of the Track New Show modal.
-  """
-  def suggest_trackable_items do
-    tracked_tv_tmdb_ids =
-      from(i in Item,
-        where: i.media_type == :tv_series,
-        select: fragment("CAST(? AS TEXT)", i.tmdb_id)
-      )
-
-    Repo.all(
-      from(tv in MediaCentaur.Library.TVSeries,
-        join: ext in MediaCentaur.Library.ExternalId,
-        on:
-          ext.owner_id == tv.id and ext.owner_type == :tv_series and
-            ext.source == "tmdb",
-        left_join: img in MediaCentaur.Library.Image,
-        on: img.owner_id == tv.id and img.owner_type == :tv_series and img.role == "poster",
-        where:
-          (tv.status in ^@active_tv_statuses or is_nil(tv.status)) and
-            ext.external_id not in subquery(tracked_tv_tmdb_ids),
-        select: %{
-          tv_series_id: tv.id,
-          tmdb_id: ext.external_id,
-          name: tv.name,
-          media_type: :tv_series,
-          poster_url: img.content_url
-        }
-      )
-    )
-  end
-
   @doc "Broadcasts a `{:releases_updated, item_ids}` event to subscribers."
   def broadcast_releases_updated(item_ids) do
     Phoenix.PubSub.broadcast(
