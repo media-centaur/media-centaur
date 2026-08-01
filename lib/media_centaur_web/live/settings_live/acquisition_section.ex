@@ -247,6 +247,11 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
             ok_label="Connected"
             error_label="Unreachable / auth failed"
           />
+          <.open_client_link
+            :if={@download_client_display.url not in [nil, ""]}
+            url={@download_client_display.url}
+            label="Open qBittorrent"
+          />
           <.button
             type="submit"
             variant="neutral"
@@ -357,6 +362,11 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
             ok_label="Connected"
             error_label="Unreachable / bad API key"
           />
+          <.open_client_link
+            :if={@usenet_client_display.url not in [nil, ""]}
+            url={@usenet_client_display.url}
+            label="Open SABnzbd"
+          />
           <.button
             type="submit"
             variant="neutral"
@@ -377,6 +387,27 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
 
       <.auto_grab_defaults_form :if={@prowlarr_ready} auto_grab={@auto_grab} />
     </div>
+    """
+  end
+
+  attr :url, :string, required: true, doc: "The client's web-UI URL as shown in the form."
+  attr :label, :string, required: true, doc: "e.g. \"Open SABnzbd\"."
+
+  # The client's own web UI — where per-job logs and failure details
+  # live (e.g. SABnzbd's "Repair failed" breakdown), one click from
+  # where the client is configured.
+  defp open_client_link(assigns) do
+    ~H"""
+    <a
+      href={@url}
+      target="_blank"
+      rel="noopener"
+      class="ml-auto inline-flex shrink-0 items-center gap-1.5 text-xs text-base-content/60 transition-colors hover:text-base-content"
+      data-nav-item
+      tabindex="0"
+    >
+      <.icon name="hero-arrow-top-right-on-square-mini" class="size-3.5" /> {@label}
+    </a>
     """
   end
 

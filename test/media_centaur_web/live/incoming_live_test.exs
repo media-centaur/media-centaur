@@ -2377,7 +2377,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
   # /incoming in both capability states.
   # ---------------------------------------------------------------------------
 
-  defp tracked_with_release(attrs \\ %{}, release_attrs \\ %{}) do
+  defp tracked_with_release(attrs, release_attrs \\ %{}) do
     item =
       create_tracking_item(
         Map.merge(%{tmdb_id: :rand.uniform(900_000), media_type: :tv_series, name: "Sample Show"}, attrs)

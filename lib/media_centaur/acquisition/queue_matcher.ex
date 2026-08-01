@@ -167,7 +167,8 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
       size_bytes: qi.size,
       size_left_bytes: qi.size_left,
       eta: nil,
-      client: qi.download_client
+      client: qi.download_client,
+      protocol: qi.protocol
     }
   end
 
@@ -182,7 +183,8 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
       size_bytes: qi.size,
       size_left_bytes: qi.size_left,
       eta: qi.timeleft,
-      client: qi.download_client
+      client: qi.download_client,
+      protocol: qi.protocol
     }
   end
 end

@@ -100,4 +100,24 @@ defmodule MediaCentaur.DownloadsTest do
       assert Downloads.configured_clients() == []
     end
   end
+
+  describe "client_web_url/1" do
+    test "returns the configured slot's URL" do
+      put_config(
+        usenet_download_client_type: "sabnzbd",
+        usenet_download_client_url: "http://localhost:8085"
+      )
+
+      assert Downloads.client_web_url(:usenet) == "http://localhost:8085"
+    end
+
+    test "nil for an unconfigured slot" do
+      put_config(
+        usenet_download_client_type: "sabnzbd",
+        usenet_download_client_url: "http://localhost:8085"
+      )
+
+      assert Downloads.client_web_url(:torrent) == nil
+    end
+  end
 end

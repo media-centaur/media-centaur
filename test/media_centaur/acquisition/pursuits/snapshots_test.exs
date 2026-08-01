@@ -4,6 +4,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.SnapshotsTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Acquisition.Pursuits.{Snapshot, Snapshots, Units}
+  alias MediaCentaur.Acquisition.Target
+  alias MediaCentaur.Downloads.QueueItem
 
   describe "build/2" do
     test "freezes pursuit, unit, current target, queue state, and now into a Snapshot struct" do
@@ -80,6 +82,51 @@ defmodule MediaCentaur.Acquisition.Pursuits.SnapshotsTest do
       snapshot = Snapshots.build(pursuit, Units.single!(pursuit.id))
       assert snapshot.zero_seeders_observed? == true
       assert snapshot.zero_seeders_window_elapsed? == true
+    end
+  end
+
+  describe "build/4 — download_failure_message" do
+    # The client's terminal-failure detail (SABnzbd's `fail_message`) is
+    # the failure signal itself — presence means the client declared the
+    # download unrecoverable. It rides the snapshot so the auto-cancel
+    # event can record *why*, not just that it happened.
+
+    defp release_target(release_title) do
+      struct(Target, %{release_title: release_title, torrent_hash: nil})
+    end
+
+    defp failed_item(title, failure_message) do
+      %QueueItem{id: "nzo_1", title: title, state: :error, failure_message: failure_message}
+    end
+
+    test "carries the matched item's failure message" do
+      pursuit = create_pursuit()
+      unit = Units.single!(pursuit.id)
+      queue = [failed_item("Sample.Show.S01E01.1080p", "Repair failed, not enough repair blocks")]
+
+      snapshot = Snapshots.build(pursuit, unit, queue, release_target("Sample.Show.S01E01.1080p"))
+
+      assert snapshot.download_failure_message == "Repair failed, not enough repair blocks"
+    end
+
+    test "nil when the matched item errored without a failure detail (ambiguous torrent error)" do
+      pursuit = create_pursuit()
+      unit = Units.single!(pursuit.id)
+      queue = [failed_item("Sample.Show.S01E01.1080p", nil)]
+
+      snapshot = Snapshots.build(pursuit, unit, queue, release_target("Sample.Show.S01E01.1080p"))
+
+      assert snapshot.download_failure_message == nil
+    end
+
+    test "nil when the queue state is unknown or there is no current target" do
+      pursuit = create_pursuit()
+      unit = Units.single!(pursuit.id)
+
+      assert Snapshots.build(pursuit, unit, :unknown, release_target("X")).download_failure_message ==
+               nil
+
+      assert Snapshots.build(pursuit, unit, [], nil).download_failure_message == nil
     end
   end
 end

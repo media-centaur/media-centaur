@@ -78,10 +78,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
       # the current target (write-once); later resolves the lifecycle stage.
       DownloadIdentity.capture!(current_target, queue, release_title)
 
-      pursuit
-      |> Snapshots.build(refreshed, queue, current_target)
-      |> Policy.evaluate()
-      |> dispatch(pursuit, refreshed)
+      snapshot = Snapshots.build(pursuit, refreshed, queue, current_target)
+      dispatch(Policy.evaluate(snapshot), pursuit, refreshed, snapshot)
     end)
 
     # Safety-net for the PubSub-driven completion path — closes
@@ -96,18 +94,26 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
     :ok
   end
 
-  defp dispatch(:no_action, _pursuit, _unit), do: :ok
+  defp dispatch(:no_action, _pursuit, _unit, _snapshot), do: :ok
 
-  defp dispatch({:auto_cancel, reason}, pursuit, unit) do
+  defp dispatch({:auto_cancel, reason}, pursuit, unit, snapshot) do
     Log.info(
       :acquisition,
       "pursuit watcher dispatch — auto_cancel (#{reason}) — #{pursuit.title}"
     )
 
-    AutoCancel.execute(%{pursuit_id: pursuit.id, unit_id: unit.id, reason: reason})
+    # `detail` is the client's own failure message (set for
+    # :download_failed, nil otherwise) — recorded on the auto_cancelled
+    # event so the timeline can say why the client gave up.
+    AutoCancel.execute(%{
+      pursuit_id: pursuit.id,
+      unit_id: unit.id,
+      reason: reason,
+      detail: snapshot.download_failure_message
+    })
   end
 
-  defp dispatch({:request_decision, prompt}, pursuit, unit) do
+  defp dispatch({:request_decision, prompt}, pursuit, unit, _snapshot) do
     Log.info(
       :acquisition,
       "pursuit watcher dispatch — request_decision — #{pursuit.title}"
@@ -116,7 +122,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Watcher do
     RequestDecision.execute(%{pursuit_id: pursuit.id, unit_id: unit.id, prompt: prompt})
   end
 
-  defp dispatch({:exhaust, reason}, pursuit, unit) do
+  defp dispatch({:exhaust, reason}, pursuit, unit, _snapshot) do
     Log.info(:acquisition, "pursuit watcher dispatch — exhaust (#{reason}) — #{pursuit.title}")
     Exhaust.execute(%{pursuit_id: pursuit.id, unit_id: unit.id, reason: reason})
   end

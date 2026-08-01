@@ -173,12 +173,36 @@ defmodule MediaCentaur.Acquisition.ViewModels.PursuitStatusTest do
       assert actions == [:cancel]
     end
 
-    test "error -> Error with change_target" do
-      {action, _next, actions} =
+    test "error without a failure detail -> Failed with the generic description" do
+      {action, next, actions} =
         PursuitStatus.derive(pursuit(:active), unit(), target(:acquired), queue_item(:error))
 
-      assert action.verb == "Error"
+      assert action.verb == "Failed"
       assert action.severity == :error
+      assert action.description == "Download client reported an error."
+      assert next.description =~ "download client"
+      assert :change_target in actions
+    end
+
+    test "error with a client failure message -> the client's own words, verbatim" do
+      # SABnzbd's terminal failures ("Repair failed, not enough repair
+      # blocks", "Unpacking failed") name the exact condition — the user
+      # must see that, not a generic "reported an error".
+      {action, next, actions} =
+        PursuitStatus.derive(
+          pursuit(:active),
+          unit(),
+          target(:acquired),
+          queue_item(:error, %{
+            download_client: "SABnzbd",
+            failure_message: "Repair failed, not enough repair blocks"
+          })
+        )
+
+      assert action.verb == "Failed"
+      assert action.severity == :error
+      assert action.description == "SABnzbd: Repair failed, not enough repair blocks"
+      assert next.description =~ "different release"
       assert :change_target in actions
     end
 

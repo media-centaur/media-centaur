@@ -76,7 +76,10 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
   defp summary_for("health_changed", _), do: "Health changed"
   defp summary_for("stall_confirmed", _), do: "Stall confirmed"
   defp summary_for("zero_seeders_confirmed", _), do: "Zero seeders confirmed"
-  defp summary_for("auto_cancelled", %{"reason" => r}), do: "Auto-cancelled (#{r})"
+
+  defp summary_for("auto_cancelled", %{"reason" => r}) when is_binary(r),
+    do: "Auto-cancelled — #{cancel_reason_phrase(r)}"
+
   defp summary_for("auto_cancelled", _), do: "Auto-cancelled"
   defp summary_for("fallback_initiated", _), do: "Fallback initiated"
   defp summary_for("user_decision_requested", _), do: "User decision requested"
@@ -94,6 +97,12 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
   # cleanly without a migration.
   defp summary_for("pursuit_re_searched", _), do: "Re-searched Prowlarr"
   defp summary_for(kind, _), do: kind
+
+  # Policy's cancel_reason atoms → user copy. Unknown reasons fall back
+  # to underscore-stripping so a future reason never renders raw.
+  defp cancel_reason_phrase("download_failed"), do: "download failed"
+  defp cancel_reason_phrase("zero_seeders"), do: "no seeders"
+  defp cancel_reason_phrase(reason), do: String.replace(reason, "_", " ")
 
   defp transition_phrase(same, same), do: nil
   defp transition_phrase(nil, to) when is_binary(to), do: to
@@ -119,7 +128,9 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
 
   # ─── Severity ───
 
-  defp severity_for(kind) when kind in ~w(stall_confirmed zero_seeders_confirmed), do: :warning
+  defp severity_for(kind) when kind in ~w(stall_confirmed zero_seeders_confirmed auto_cancelled),
+    do: :warning
+
   defp severity_for(kind) when kind in ~w(identity_mismatch pursuit_exhausted), do: :error
 
   defp severity_for(kind) when kind in ~w(release_picked identity_verified pursuit_satisfied),
@@ -149,6 +160,12 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntry do
        when is_binary(indexer), do: indexer
 
   defp detail_for(%Event{kind: "release_picked", payload: %{"quality" => q}}) when is_binary(q), do: q
+
+  # The download client's own failure message ("Repair failed, not
+  # enough repair blocks") — the one line that tells the user precisely
+  # why this release was abandoned.
+  defp detail_for(%Event{kind: "auto_cancelled", payload: %{"detail" => detail}})
+       when is_binary(detail) and detail != "", do: detail
 
   defp detail_for(%Event{kind: "pursuit_started", denormalized_pursuit_title: title})
        when is_binary(title) and title != "", do: "for: #{title}"

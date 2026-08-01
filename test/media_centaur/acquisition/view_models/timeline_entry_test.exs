@@ -131,11 +131,33 @@ defmodule MediaCentaur.Acquisition.ViewModels.TimelineEntryTest do
                )
     end
 
-    test "auto_cancelled carries reason" do
-      assert %TimelineEntry{summary: "Auto-cancelled (zero_seeders)"} =
+    test "auto_cancelled humanizes the reason and reads as a warning" do
+      assert %TimelineEntry{summary: "Auto-cancelled — no seeders", severity: :warning} =
                TimelineEntry.from_event(
                  event(kind: "auto_cancelled", payload: %{"reason" => "zero_seeders"})
                )
+    end
+
+    test "auto_cancelled for a failed download carries the client's message as the detail" do
+      assert %TimelineEntry{
+               summary: "Auto-cancelled — download failed",
+               detail: "Repair failed, not enough repair blocks",
+               severity: :warning
+             } =
+               TimelineEntry.from_event(
+                 event(
+                   kind: "auto_cancelled",
+                   payload: %{
+                     "reason" => "download_failed",
+                     "detail" => "Repair failed, not enough repair blocks"
+                   }
+                 )
+               )
+    end
+
+    test "auto_cancelled without a reason stays generic" do
+      assert %TimelineEntry{summary: "Auto-cancelled"} =
+               TimelineEntry.from_event(event(kind: "auto_cancelled", payload: %{}))
     end
 
     test "unknown kind falls back to the kind string" do
