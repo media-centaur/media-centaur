@@ -19,6 +19,8 @@ defmodule MediaCentaurWeb do
       MediaCentaur.SelfUpdate,
       MediaCentaur.SpoilerFree,
       MediaCentaur.LibraryCardInfo,
+      MediaCentaur.LibraryBackdrop,
+      MediaCentaur.IncomingBackdrop,
       MediaCentaur.UIScale,
       MediaCentaur.Subtitles,
       MediaCentaur.TMDB,

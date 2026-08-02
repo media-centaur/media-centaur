@@ -10,6 +10,8 @@ defmodule MediaCentaurWeb.SettingsLive do
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LibraryCardInfoAware
+  use MediaCentaurWeb.Live.LibraryBackdropAware
+  use MediaCentaurWeb.Live.IncomingBackdropAware
 
   require MediaCentaur.Log, as: Log
 
@@ -670,6 +672,28 @@ defmodule MediaCentaurWeb.SettingsLive do
     })
 
     {:noreply, assign(socket, spoiler_free: enabled)}
+  end
+
+  def handle_event("toggle_library_backdrop", _params, socket) do
+    enabled = !socket.assigns.library_backdrop
+
+    Settings.find_or_create_entry!(%{
+      key: MediaCentaur.LibraryBackdrop.setting_key(),
+      value: %{"enabled" => enabled}
+    })
+
+    {:noreply, assign(socket, library_backdrop: enabled)}
+  end
+
+  def handle_event("toggle_incoming_backdrop", _params, socket) do
+    enabled = !socket.assigns.incoming_backdrop
+
+    Settings.find_or_create_entry!(%{
+      key: MediaCentaur.IncomingBackdrop.setting_key(),
+      value: %{"enabled" => enabled}
+    })
+
+    {:noreply, assign(socket, incoming_backdrop: enabled)}
   end
 
   def handle_event("set_ui_scale", %{"choice" => scale}, socket) do
@@ -1659,6 +1683,8 @@ defmodule MediaCentaurWeb.SettingsLive do
                 spoiler_free={@spoiler_free}
                 ui_scale={@ui_scale}
                 show_card_info={@show_card_info}
+                library_backdrop={@library_backdrop}
+                incoming_backdrop={@incoming_backdrop}
                 tmdb_test={@tmdb_test}
                 tmdb_testing={@tmdb_testing}
                 prowlarr_test={@prowlarr_test}
@@ -1777,7 +1803,12 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   defp section_content(%{active_section: "preferences"} = assigns) do
     ~H"""
-    <Preferences.render spoiler_free={@spoiler_free} ui_scale={@ui_scale} />
+    <Preferences.render
+      spoiler_free={@spoiler_free}
+      ui_scale={@ui_scale}
+      library_backdrop={@library_backdrop}
+      incoming_backdrop={@incoming_backdrop}
+    />
     """
   end
 

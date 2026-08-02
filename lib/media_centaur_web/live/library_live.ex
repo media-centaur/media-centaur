@@ -32,6 +32,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   use MediaCentaurWeb.Live.EntityModal
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LibraryCardInfoAware
+  use MediaCentaurWeb.Live.LibraryBackdropAware
 
   alias MediaCentaur.{
     Library,
@@ -343,15 +344,18 @@ defmodule MediaCentaurWeb.LibraryLive do
       <div class="relative" data-page-behavior="library" data-nav-default-zone="library">
         <%!-- Calm backdrop band behind the header — a sense of place that
               ties the browse page to the home page's visual language without
-              a full hero. Masked + dimmed by `.page-atmosphere`. --%>
-        <div :if={@hero_backdrop} class="page-atmosphere" aria-hidden="true">
+              a full hero. Masked + dimmed by `.page-atmosphere`. Off when the
+              user disables the Library backdrop preference. --%>
+        <div :if={@hero_backdrop && @library_backdrop} class="page-atmosphere" aria-hidden="true">
           <img src={@hero_backdrop} alt="" loading="eager" decoding="sync" />
         </div>
         <%!-- Same fixed dark scrim the home page uses (left-weighted + a
               vertical dim that holds down the page) so the library reads as a
               rich dark surface rather than flat grey. It sits behind the grid
-              (z-0), so it darkens the background, never the posters. --%>
-        <div :if={@hero_backdrop} class="page-side-dim" aria-hidden="true"></div>
+              (z-0), so it darkens the background, never the posters.
+              Unconditional — the scrim carries the page's depth with or
+              without the artwork band. --%>
+        <div class="page-side-dim" aria-hidden="true"></div>
 
         <div class="relative z-[1]">
           <header class="mb-5">

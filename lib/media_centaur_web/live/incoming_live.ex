@@ -79,6 +79,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   """
 
   use MediaCentaurWeb, :live_view
+  use MediaCentaurWeb.Live.IncomingBackdropAware
 
   require MediaCentaur.Log, as: Log
 
@@ -822,11 +823,14 @@ defmodule MediaCentaurWeb.IncomingLive do
             (like `library`/`home`), not a context within it — the nav graph
             is built from this value. --%>
       <div class="relative" data-page-behavior="incoming" data-nav-default-zone="incoming">
-        <%!-- Backdrop trial: the ambient movie image (`.page-atmosphere`
-              band fed by @page_backdrop) is removed while we evaluate the
-              page without it. The dark side/bottom scrim stays — it's a
-              pure gradient, so it needs no image and keeps the page's
-              depth. --%>
+        <%!-- Ambient movie image behind the page, same hero-candidate pool
+              as home/library. Off when the user disables the Incoming
+              backdrop preference. --%>
+        <div :if={@page_backdrop && @incoming_backdrop} class="page-atmosphere" aria-hidden="true">
+          <img src={@page_backdrop} alt="" loading="eager" decoding="sync" />
+        </div>
+        <%!-- The dark side/bottom scrim is unconditional — a pure gradient,
+              no image needed, and it keeps the page's depth either way. --%>
         <div class="page-side-dim" aria-hidden="true"></div>
 
         <%!-- No page header: the search input IS the page's headline (its

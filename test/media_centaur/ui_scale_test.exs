@@ -13,12 +13,19 @@ defmodule MediaCentaur.UIScaleTest do
       assert UIScale.normalize(1.1) == 1.1
     end
 
-    test "clamps a too-small value up to the minimum" do
-      assert UIScale.normalize(0.1) == 0.8
+    test "clamps a too-small value up to the minimum (100% is the floor)" do
+      assert UIScale.normalize(0.1) == 1.0
+    end
+
+    test "clamps a below-floor legacy value up to 100%" do
+      # 80%/90% were selectable before the floor moved to 100%; a stored
+      # legacy value must clamp up rather than survive the picker change.
+      assert UIScale.normalize(0.8) == 1.0
+      assert UIScale.normalize(0.9) == 1.0
     end
 
     test "clamps a too-large value down to the maximum" do
-      assert UIScale.normalize(9.0) == 1.5
+      assert UIScale.normalize(9.0) == 2.0
     end
 
     test "parses a string (the picker submits phx-value-scale as a string)" do
@@ -41,7 +48,7 @@ defmodule MediaCentaur.UIScaleTest do
     end
 
     test "clamps an out-of-range stored value" do
-      assert UIScale.parse(%{"scale" => 5.0}) == 1.5
+      assert UIScale.parse(%{"scale" => 5.0}) == 2.0
     end
 
     test "defaults for an unrecognized shape" do
@@ -59,8 +66,8 @@ defmodule MediaCentaur.UIScaleTest do
   end
 
   describe "options/0" do
-    test "includes 100% and every option survives normalization unchanged" do
-      assert 1.0 in UIScale.options()
+    test "runs 100% through 200% and every option survives normalization unchanged" do
+      assert UIScale.options() == [1.0, 1.1, 1.25, 1.5, 1.75, 2.0]
       assert Enum.all?(UIScale.options(), &(UIScale.normalize(&1) == &1))
     end
   end
@@ -84,8 +91,8 @@ defmodule MediaCentaur.UIScaleTest do
     end
 
     test "clamps out-of-range input before storing" do
-      assert UIScale.set(5.0) == 1.5
-      assert UIScale.scale() == 1.5
+      assert UIScale.set(5.0) == 2.0
+      assert UIScale.scale() == 2.0
     end
   end
 

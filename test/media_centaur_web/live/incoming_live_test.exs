@@ -109,7 +109,9 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       {:ok, _view, html} = live_async!(conn, ~p"/incoming")
 
-      assert html =~ "What would you like to track?"
+      # The hero has no prompt line — the tracking reframe lives in the
+      # mode-hint copy under the input.
+      assert html =~ "to track their releases"
       refute html =~ ~s(data-nav-zone="pursuits")
       refute html =~ ~s(data-nav-zone="ledger")
     end
@@ -119,7 +121,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       {:ok, view, html} = live_async!(conn, ~p"/incoming")
 
-      assert html =~ "What would you like to track?"
+      # The hero front door (media search input) renders even forecast-only.
+      assert html =~ "What do you want to watch?"
       refute html =~ ~s(data-nav-zone="pursuits")
       refute html =~ ~s(data-nav-zone="ledger")
 
@@ -198,7 +201,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, _view, html} = live_async!(conn, ~p"/incoming")
 
       assert html =~ "Incoming"
-      assert html =~ "What would you like to add?"
+      # No prompt line above the input — the placeholder is the page's ask,
+      # and the add-or-plan framing lives in the mode hint.
+      assert html =~ "What do you want to watch?"
+      assert html =~ "to add or plan"
       assert html =~ "data-page-behavior=\"incoming\""
       # The default-zone value is the LAYOUT KEY in input config.js, not a
       # context within it — `"pursuits"` here once left the page's nav graph
