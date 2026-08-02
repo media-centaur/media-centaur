@@ -213,9 +213,12 @@ defmodule MediaCentaur.Console.BufferTest do
       # timer against scheduler jitter (the source of a full-suite-load flake).
       :ok = Buffer.flush(name)
 
-      # One flush, chronological order.
+      # One flush, chronological order. The refute matches only this
+      # buffer's entries: the suite's global Console.Buffer broadcasts on
+      # the same topic, so refuting any {:log_entries, _} races every
+      # concurrently-logging test in the suite.
       assert_receive {:log_entries, [^first_entry, ^second_entry]}, 500
-      refute_receive {:log_entries, _}, 150
+      refute_receive {:log_entries, [%{message: "pubsub batch" <> _} | _]}, 150
     end
 
     test "a later append after a flush starts a new batch" do
@@ -237,11 +240,15 @@ defmodule MediaCentaur.Console.BufferTest do
       {_pid, name} = start_buffer()
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.console_logs())
 
-      Buffer.append(build_entry(message: "doomed entry"), name)
+      doomed_entry = build_entry(message: "doomed entry")
+      Buffer.append(doomed_entry, name)
       Buffer.clear(name)
 
+      # Only this buffer's entry counts as a leak — the suite's global
+      # Console.Buffer broadcasts on the same topic, so refuting any
+      # {:log_entries, _} races every concurrently-logging test.
       assert_receive :buffer_cleared, 500
-      refute_receive {:log_entries, _}, 200
+      refute_receive {:log_entries, [^doomed_entry]}, 200
     end
   end
 
