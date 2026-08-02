@@ -79,18 +79,18 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   end
 
   describe "page backdrop toggles" do
-    test "renders both rows checked by default", %{conn: conn} do
+    test "renders both rows unchecked by default", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
       assert has_element?(view, "span", "Library backdrop")
       assert has_element?(view, "span", "Incoming backdrop")
 
-      assert has_element?(
+      refute has_element?(
                view,
                "div[phx-click=toggle_library_backdrop] input[type=checkbox][checked]"
              )
 
-      assert has_element?(
+      refute has_element?(
                view,
                "div[phx-click=toggle_incoming_backdrop] input[type=checkbox][checked]"
              )
@@ -100,20 +100,20 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
       view |> element("div[phx-click=toggle_library_backdrop]") |> render_click()
-      assert MediaCentaur.LibraryBackdrop.enabled?() == false
+      assert MediaCentaur.LibraryBackdrop.enabled?() == true
 
       view |> element("div[phx-click=toggle_library_backdrop]") |> render_click()
-      assert MediaCentaur.LibraryBackdrop.enabled?() == true
+      assert MediaCentaur.LibraryBackdrop.enabled?() == false
     end
 
     test "toggling the Incoming backdrop persists the flag", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
       view |> element("div[phx-click=toggle_incoming_backdrop]") |> render_click()
-      assert MediaCentaur.IncomingBackdrop.enabled?() == false
+      assert MediaCentaur.IncomingBackdrop.enabled?() == true
 
       view |> element("div[phx-click=toggle_incoming_backdrop]") |> render_click()
-      assert MediaCentaur.IncomingBackdrop.enabled?() == true
+      assert MediaCentaur.IncomingBackdrop.enabled?() == false
     end
   end
 
