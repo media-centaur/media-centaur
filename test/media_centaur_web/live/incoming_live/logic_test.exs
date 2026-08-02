@@ -879,27 +879,40 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
     end
   end
 
-  describe "shelf_visible?/3" do
+  describe "search_owns_page?/3" do
     alias MediaCentaurWeb.IncomingLive.SearchSession
 
-    test "media mode: the forecast recedes exactly while the typed query is active" do
+    test "media mode: the search owns the page exactly while the typed query is active" do
       session = %SearchSession{}
-      assert Logic.shelf_visible?(:media, "", session)
-      assert Logic.shelf_visible?(:media, "a", session)
-      refute Logic.shelf_visible?(:media, "ab", session)
+      refute Logic.search_owns_page?(:media, "", session)
+      refute Logic.search_owns_page?(:media, "a", session)
+      assert Logic.search_owns_page?(:media, "ab", session)
     end
 
-    test "release mode: a query or results own the page; a bare flip keeps the forecast" do
-      assert Logic.shelf_visible?(:release, "", %SearchSession{})
-      refute Logic.shelf_visible?(:release, "", %SearchSession{query: "Sample Show S01E01"})
+    test "release mode: a query or results own the page; a bare flip owns nothing" do
+      refute Logic.search_owns_page?(:release, "", %SearchSession{})
+      assert Logic.search_owns_page?(:release, "", %SearchSession{query: "Sample Show S01E01"})
 
-      refute Logic.shelf_visible?(:release, "", %SearchSession{
+      assert Logic.search_owns_page?(:release, "", %SearchSession{
                groups: [%{term: "Sample Show", status: :ready, results: []}]
              })
     end
 
-    test "the media query is mode-scoped — it never hides the forecast in release mode" do
-      assert Logic.shelf_visible?(:release, "sample", %SearchSession{})
+    test "the media query is mode-scoped — it owns nothing in release mode" do
+      refute Logic.search_owns_page?(:release, "sample", %SearchSession{})
+    end
+  end
+
+  describe "parse_zone/1" do
+    test "recognizes the two non-default zones" do
+      assert Logic.parse_zone("activity") == :activity
+      assert Logic.parse_zone("history") == :history
+    end
+
+    test "everything else — absent, junk — is Coming up" do
+      assert Logic.parse_zone(nil) == :coming_up
+      assert Logic.parse_zone("") == :coming_up
+      assert Logic.parse_zone("garbage") == :coming_up
     end
   end
 

@@ -189,7 +189,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
           |> Repo.insert()
       end)
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/incoming?zone=activity")
 
       # `IncomingLive.ensure_loaded/1` defers `pursuit_rows` to an owned
       # `start_async(:acquisition_load, …)`; `live_async!` already drained it
@@ -272,7 +272,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
     end
 
     test "no `?selected=` param leaves the modal closed", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/incoming?zone=activity")
 
       assert has_element?(view, "#pursuit-modal[data-state='closed']")
     end
@@ -393,7 +393,7 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Movie", status: "seeking"})
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/incoming?zone=activity")
       assert has_element?(view, "#pursuit-modal[data-state='closed']")
 
       render_click(view, "select_pursuit", %{"id" => pursuit.id})

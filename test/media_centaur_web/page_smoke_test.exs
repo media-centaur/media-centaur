@@ -554,18 +554,28 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       assert {:ok, view, html} = live_async!(conn, "/incoming")
       assert is_binary(html)
 
+      # Default zone is Coming up: the tab bar plus the seeded tracked
+      # release's agenda row — the forecast branch, not just the horizon.
+      assert has_element?(view, ~s([data-nav-zone="zone-tabs"]))
+      assert has_element?(view, ~s([data-nav-zone="coming_up_list"]), "Smoke Shelf Show")
+    end
+
+    test "renders without crashing (?zone=activity)", %{conn: conn} do
+      assert {:ok, view, html} = live_async!(conn, "/incoming?zone=activity")
+      assert is_binary(html)
+
       # `IncomingLive.ensure_loaded/1` runs the pursuit-row + ledger +
       # history reads on the first render; `live_async!` drained any owned
       # async work at mount, so `render/1` reflects the loaded state.
       html = render(view)
 
-      # The seeded tracked release must render its shelf card — the
-      # big-art forecast branch, not just the horizon terminus.
-      assert has_element?(view, ~s([data-nav-zone="coming_up_list"]), "Smoke Shelf Show")
-
       # The seeded active pursuit must render its card, exercising the
       # PursuitRow component's no-match hint path (no queue item matches).
       assert html =~ "Sample Movie"
+    end
+
+    test "renders without crashing (?zone=history)", %{conn: conn} do
+      assert {:ok, view, _html} = live_async!(conn, "/incoming?zone=history")
 
       # The exhausted pursuits render openly in the ledger ("Recently
       # landed") — the terminal rows the merged page keeps in view.

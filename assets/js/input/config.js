@@ -111,23 +111,24 @@ export const inputConfig = {
       "review-detail": { left: ["review-list"] },
       sidebar:         { right: ["review-list", "review-detail"] },
     },
-    // Incoming: single column, top to bottom — omnibox → release-search
-    // results ("grid") → the coming_up_list agenda → drafts → pursuits →
-    // ledger (glimpse AND expanded archive, one zone) → other_downloads.
-    // Conditional zones (grid, coming_up_list while a release search owns
-    // the page, drafts, other_downloads) are skipped via candidate lists,
-    // same convention as home. The ledger always carries its "View all"
-    // toggle as a nav item once any history exists, so the archive stays
-    // reachable.
+    // Incoming: omnibox on top, then the zone tabs (Coming up | Activity |
+    // History) — one tab's content renders at a time, so the candidate
+    // lists do the routing: Coming up shows coming_up_list; Activity shows
+    // drafts → pursuits → other_downloads; History shows the ledger
+    // (glimpse AND expanded archive, one zone). While a search owns the
+    // page only "grid" (the flat results) exists below the omnibox and the
+    // tabs recede. The ledger always carries its "View all" toggle as a
+    // nav item once any history exists, so the archive stays reachable.
     incoming: {
-      omnibox:         { down: ["grid", "coming_up_list", "drafts", "pursuits", "ledger"], left: ["sidebar"] },
-      grid:            { up: ["omnibox"], down: ["drafts", "pursuits", "ledger"], left: ["sidebar"] },
-      coming_up_list:  { up: ["omnibox"], down: ["drafts", "pursuits", "ledger"], left: ["sidebar"] },
-      drafts:          { up: ["coming_up_list", "grid", "omnibox"], down: ["pursuits", "ledger"], left: ["sidebar"] },
-      pursuits:        { up: ["drafts", "coming_up_list", "grid", "omnibox"], down: ["ledger", "other_downloads"], left: ["sidebar"] },
-      ledger:          { up: ["pursuits", "drafts", "coming_up_list", "omnibox"], down: ["other_downloads"], left: ["sidebar"] },
-      other_downloads: { up: ["ledger", "pursuits"], left: ["sidebar"] },
-      sidebar:         { right: ["coming_up_list", "pursuits", "omnibox", "ledger"] },
+      omnibox:         { down: ["grid", "zone_tabs", "coming_up_list", "drafts", "pursuits", "ledger"], left: ["sidebar"] },
+      grid:            { up: ["omnibox"], left: ["sidebar"] },
+      zone_tabs:       { up: ["omnibox"], down: ["coming_up_list", "drafts", "pursuits", "ledger", "other_downloads"], left: ["sidebar"] },
+      coming_up_list:  { up: ["zone_tabs", "omnibox"], left: ["sidebar"] },
+      drafts:          { up: ["zone_tabs", "omnibox"], down: ["pursuits", "other_downloads"], left: ["sidebar"] },
+      pursuits:        { up: ["drafts", "zone_tabs", "omnibox"], down: ["other_downloads"], left: ["sidebar"] },
+      ledger:          { up: ["zone_tabs", "omnibox"], left: ["sidebar"] },
+      other_downloads: { up: ["pursuits", "drafts", "zone_tabs"], left: ["sidebar"] },
+      sidebar:         { right: ["coming_up_list", "pursuits", "ledger", "zone_tabs", "omnibox"] },
     },
     watch_history: {
       toolbar:   { down: ["grid"], left: ["sidebar"] },
@@ -161,7 +162,7 @@ export const inputConfig = {
     guide:     ["guide_chapters", "guide_outline", "sidebar"],
     status:    ["grid", "toolbar", "sidebar"],
     review:    ["review-list", "review-detail", "sidebar"],
-    incoming:  ["coming_up_list", "pursuits", "omnibox", "sidebar"],
+    incoming:  ["coming_up_list", "pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["toolbar", "grid", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     setup:     ["grid"],

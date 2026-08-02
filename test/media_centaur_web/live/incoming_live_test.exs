@@ -183,7 +183,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         :persistent_term.put(queue_cache_key, %MediaCentaur.Downloads.QueueState{items: []})
       end)
 
-      {:ok, view, html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, html} = live_async!(conn, ~p"/incoming?zone=activity")
 
       # Scoped to the live-activity zones — a whole-page `=~ "Downloading"`
       # refute also sweeps the Console drawer, whose GLOBAL log ring buffer
@@ -439,7 +439,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
 
       assert has_element?(
                view,
@@ -603,7 +603,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # Approval hands off to the pursuit modal — the board became the pursuit.
       {:ok, plan} = Plans.get(draft.id)
       assert plan.status == "committed"
-      assert_patch(view, "/incoming?selected=#{plan.pursuit_id}")
+      assert_patch(view, "/incoming?selected=#{plan.pursuit_id}&zone=activity")
 
       units = Units.for_pursuit(plan.pursuit_id)
       assert length(units) == 2
@@ -899,7 +899,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} =
         Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
 
       assert has_element?(view, "#plan-draft-#{plan.id}")
 
@@ -907,7 +907,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> element("button#plan-draft-#{plan.id}")
       |> render_click()
 
-      assert_patch(view, "/incoming?plan=#{plan.id}")
+      assert_patch(view, "/incoming?plan=#{plan.id}&zone=activity")
 
       view
       |> element("button[phx-click='plan_discard_prompt']")
@@ -918,7 +918,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> render_click()
 
       _ = render(view)
-      assert_patch(view, "/incoming")
+      assert_patch(view, "/incoming?zone=activity")
 
       {:ok, discarded} = Plans.get(plan.id)
       assert discarded.status == "discarded"
@@ -931,13 +931,13 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, plan} =
         Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
 
       view
       |> element("button#plan-draft-#{plan.id}")
       |> render_click()
 
-      assert_patch(view, "/incoming?plan=#{plan.id}")
+      assert_patch(view, "/incoming?plan=#{plan.id}&zone=activity")
 
       # The footer button only prompts — the plan is untouched.
       html =
@@ -1408,6 +1408,147 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
   end
 
+  describe "zone tabs (Coming up | Activity | History)" do
+    # One seeded row per tab so switching provably swaps content:
+    # a tracked release (forecast), an active pursuit (Activity), and
+    # an exhausted pursuit (History's ledger).
+    defp seed_all_zones do
+      tracked_with_release(%{name: "Tabbed Forecast Show"})
+
+      MediaCentaur.TestFactory.create_pursuit_with_target(%{
+        media_type: :movie,
+        title: "Tabbed Active Movie"
+      })
+
+      {exhausted_pursuit, _target} =
+        MediaCentaur.TestFactory.create_pursuit_with_target(%{
+          media_type: :movie,
+          title: "Tabbed Landed Movie"
+        })
+
+      exhausted_pursuit
+      |> Ecto.Changeset.change(state: "exhausted")
+      |> MediaCentaur.Repo.update!()
+
+      :ok
+    end
+
+    test "the tab bar renders; Coming up is the default and the only zone on the page", %{
+      conn: conn
+    } do
+      seed_all_zones()
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      assert has_element?(view, "[data-nav-zone='zone-tabs']")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] .zone-tab-active", "Coming up")
+
+      assert has_element?(view, "[data-nav-zone='coming_up_list']")
+      refute has_element?(view, "[data-nav-zone='pursuits']")
+      refute has_element?(view, "[data-nav-zone='ledger']")
+    end
+
+    test "clicking Activity patches the URL and swaps in the operational sections", %{
+      conn: conn
+    } do
+      seed_all_zones()
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> element("[data-nav-zone='zone-tabs'] [phx-value-zone='activity']")
+      |> render_click()
+
+      assert_patch(view, "/incoming?zone=activity")
+      assert has_element?(view, "[data-nav-zone='pursuits']")
+      refute has_element?(view, "[data-nav-zone='coming_up_list']")
+      refute has_element?(view, "[data-nav-zone='ledger']")
+    end
+
+    test "?zone=history mounts straight into the ledger", %{conn: conn} do
+      seed_all_zones()
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] .zone-tab-active", "History")
+      assert has_element?(view, "[data-nav-zone='ledger']")
+      refute has_element?(view, "[data-nav-zone='coming_up_list']")
+      refute has_element?(view, "[data-nav-zone='pursuits']")
+    end
+
+    test "an active search recedes the tab bar and the zone content; clearing restores them", %{
+      conn: conn
+    } do
+      seed_all_zones()
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 777,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05"
+        }
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+
+      refute has_element?(view, "[data-nav-zone='zone-tabs']")
+      refute has_element?(view, "[data-nav-zone='coming_up_list']")
+      assert has_element?(view, "#omnibox-result-movie-777")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: ""})
+      |> render_change()
+
+      assert has_element?(view, "[data-nav-zone='zone-tabs']")
+      assert has_element?(view, "[data-nav-zone='coming_up_list']")
+    end
+
+    test "empty Activity and History tabs say so instead of rendering a void", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
+      assert has_element?(view, "[data-component='zone-empty']", "Nothing in flight")
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+      assert has_element?(view, "[data-component='zone-empty']", "Nothing landed yet")
+    end
+
+    test "plan-modal patches keep the zone — closing a draft doesn't dump you on Coming up", %{
+      conn: conn
+    } do
+      stub_plan_tmdb()
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
+
+      view
+      |> element("#plan-draft-#{plan.id}")
+      |> render_click()
+
+      assert_patch(view, "/incoming?plan=#{plan.id}&zone=activity")
+
+      render_click(view, "close_plan", %{})
+      assert_patch(view, "/incoming?zone=activity")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] .zone-tab-active", "Activity")
+    end
+
+    test "the forecast-only page has no tab bar — nothing to tab between", %{conn: conn} do
+      Capabilities.clear_test_result(:prowlarr)
+      tracked_with_release(%{name: "Tabbed Forecast Show"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
+
+      refute has_element?(view, "[data-nav-zone='zone-tabs']")
+      # A zone param can't conjure acquisition sections the page honestly
+      # doesn't have — the forecast stays.
+      assert has_element?(view, "[data-nav-zone='coming_up_list']")
+      refute has_element?(view, "[data-nav-zone='pursuits']")
+    end
+  end
+
   describe "submit_search and grab_selected" do
     test "renders results, lets user select, and submits a grab", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/incoming")
@@ -1581,7 +1722,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
       # Seed the queue via the same PubSub broadcast QueueMonitor emits.
@@ -1648,7 +1789,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
       stale_item = %QueueItem{
@@ -1698,7 +1839,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
       send(
@@ -1761,7 +1902,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         end
       end)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
       Req.Test.allow(:qbittorrent, self(), view.pid)
 
       items =
@@ -2088,7 +2229,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
     test "queue_snapshot broadcast paints the active queue",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
 
       item = %QueueItem{
         id: "hash-snapshot",
@@ -2112,7 +2253,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # QueueMonitor pre-filters completed items, but the LV defends in
       # depth — a stale snapshot from cache or a future driver that emits
       # completed entries must not surface seeded torrents on /incoming.
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
 
       done = %QueueItem{id: "h1", title: "Already Done Movie", state: :completed}
       live_item = %QueueItem{id: "h2", title: "Still Downloading Movie", state: :downloading}
@@ -2126,7 +2267,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
     test "empty queue_snapshot transitions to the empty state",
          %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
 
       seed = %QueueItem{id: "h3", title: "Soon To Vanish", state: :downloading}
       send(view.pid, {:queue_state, %MediaCentaur.Downloads.QueueState{items: [seed]}})
@@ -2161,7 +2302,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       monitor = start_supervised!(MediaCentaur.Downloads.QueueMonitor)
       Req.Test.allow(:qbittorrent, self(), monitor)
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
 
       # Drain any racing mount-time poll so the subsequent assert_receive
       # observes the post-:capabilities_changed call specifically.
@@ -2198,7 +2339,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
          %{conn: conn} do
       pursuit = pursuit_with_acquired_target("Sample Movie 2010", "Sample.Movie.2010.1080p.WEB-DL")
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/incoming?zone=activity")
 
       matching = %QueueItem{
         id: "hash-paired",
@@ -2229,7 +2370,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
          %{conn: conn} do
       _pursuit = pursuit_with_acquired_target("Sample Movie 2010", "Sample.Movie.2010.1080p.WEB-DL")
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/incoming?zone=activity")
 
       unrelated = %QueueItem{
         id: "hash-orphan",
@@ -2262,7 +2403,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
           status: "seeking"
         })
 
-      {:ok, view, _html} = live_async!(conn, "/incoming")
+      {:ok, view, _html} = live_async!(conn, "/incoming?zone=activity")
 
       assert render_after_async_load(view) =~ "Sample Show S01E03"
     end
@@ -2297,14 +2438,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "history starts collapsed — toggle present, body not rendered", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
 
       assert has_element?(view, "[phx-click='toggle_history']")
       refute has_element?(view, @history_filter_chips)
     end
 
     test "toggling expands and collapses the zone", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
 
       view |> element("[phx-click='toggle_history']") |> render_click()
       assert has_element?(view, @history_filter_chips)
@@ -2328,7 +2469,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # build_pursuit_modal_path/2 always carries filter= in the patch URL;
       # only the FIRST load's params may auto-expand, otherwise clicking
       # any pursuit row would pop the history zone open underneath the modal.
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
 
       render_patch(view, "/incoming?filter=failed&selected=#{Ecto.UUID.generate()}")
 
@@ -2425,7 +2566,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "defaults collapsed and persists an expand across remounts", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
       refute render(view) =~ "set_history_filter"
 
       view |> element("[phx-click='toggle_history']") |> render_click()
@@ -2433,19 +2574,19 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       # A fresh mount = navigating away and back. A plain socket assign would
       # reset to collapsed here; the persisted preference keeps it open.
-      {:ok, remounted, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, remounted, _html} = live_async!(conn, ~p"/incoming?zone=history")
       assert render(remounted) =~ "set_history_filter"
     end
 
     test "a collapse also persists across remounts", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
       view |> element("[phx-click='toggle_history']") |> render_click()
       assert render(view) =~ "set_history_filter"
 
       view |> element("[phx-click='toggle_history']") |> render_click()
       refute render(view) =~ "set_history_filter"
 
-      {:ok, remounted, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, remounted, _html} = live_async!(conn, ~p"/incoming?zone=history")
       refute render(remounted) =~ "set_history_filter"
     end
   end

@@ -1,8 +1,9 @@
 defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
   @moduledoc """
   The Coming-up shelf — a nearness-ordered agenda list of date-led
-  rows, the horizon action row after the last entry, the section
-  header, and the quiet stragglers line.
+  rows, the horizon action row after the last entry, and the quiet
+  stragglers line. No section header: the zone tab (or, forecast-only,
+  the rows themselves) names the view.
   """
 
   use PhoenixStorybook.Story, :component
