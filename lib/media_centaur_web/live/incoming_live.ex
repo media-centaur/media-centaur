@@ -829,9 +829,9 @@ defmodule MediaCentaurWeb.IncomingLive do
               depth. --%>
         <div class="page-side-dim" aria-hidden="true"></div>
 
-        <%!-- Same header recipe as the library page (left-aligned, text-3xl,
-              one muted subtitle line) so moving between pages doesn't shift
-              the title around.
+        <%!-- No page header: the search input IS the page's headline (its
+              placeholder carries the prompt), so a title above it read as
+              a second, redundant heading. The sidebar carries orientation.
 
               Width model: the page is full-bleed (like home/library); the
               content column runs max-w-6xl — one axis, density thinning
@@ -841,22 +841,10 @@ defmodule MediaCentaurWeb.IncomingLive do
         <%!-- Centered, not left-anchored: on media-center-wide screens a
               left-hugging column strands the right half of the display and
               shoves the (input-anchored) search overlay into the sidebar. --%>
-        <div class="relative z-[1] max-w-6xl mx-auto space-y-8">
-          <header>
-            <h1 class="text-3xl font-bold tracking-tight">Incoming</h1>
-            <p class="mt-1 text-sm text-base-content/60">
-              Add to your library, and see what's on the way.
-            </p>
-          </header>
-
+        <div class="relative z-[1] max-w-6xl mx-auto space-y-8 pt-10">
           <MediaOmnibox.media_omnibox
             hero
             release_mode_available={@prowlarr_ready}
-            prompt={
-              if @prowlarr_ready,
-                do: "What would you like to add?",
-                else: "What would you like to track?"
-            }
             mode={@omnibox_mode}
             query={@omnibox_query}
             session={@search_session}
@@ -890,7 +878,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           <div
             :if={@prowlarr_ready && !@search_owns?}
             data-nav-zone="zone-tabs"
-            class="flex items-center justify-center gap-8 pt-4"
+            class="flex items-center justify-center gap-8 pt-16"
           >
             <.zone_tab zone={:coming_up} active_zone={@zone} label="Coming up" />
             <.zone_tab

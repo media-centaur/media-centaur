@@ -38,17 +38,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
   attr :hero, :boolean,
     default: false,
     doc:
-      "Incoming-page front-door treatment: centered column, prompt line above the input, larger input, and a mode-hint line below (the active mode emphasized). Same events either way."
+      "Incoming-page front-door treatment: centered column, larger input, and a mode-hint line below (the active mode emphasized). Same events either way."
 
   attr :release_mode_available, :boolean,
     default: true,
     doc:
       "Whether release search exists at all (an indexer is configured). When false the hero hint drops the release-mode flip and reads as tracking — the forecast-only page must not offer a grab flow."
-
-  attr :prompt, :string,
-    default: "What would you like to add?",
-    doc:
-      "Hero-mode prompt line. The Incoming page reframes it to tracking when no indexer is configured, so the front door never promises a grab it can't make."
 
   def media_omnibox(assigns) do
     ~H"""
@@ -63,10 +58,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
         !@hero && "glass-surface rounded-xl p-4 space-y-3"
       ]}
     >
-      <p :if={@hero} class="text-center text-[1.0625rem] text-base-content/65">
-        {@prompt}
-      </p>
-
       <.media_form :if={@mode == :media} query={@query} hero={@hero} />
       <.release_form
         :if={@mode == :release}
