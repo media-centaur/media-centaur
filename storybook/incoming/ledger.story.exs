@@ -2,12 +2,14 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
   @moduledoc """
   The History archive — the History tab's whole content, always open:
   lifecycle filter chips (All leading and default) + title/release
-  search, the caller's grouped rows in the `:archive` slot, and storage
-  as the ambient foot line. No glimpse, no disclosure — the zone tab
-  already did the quieting the old shared-page treatment existed for.
+  search, the grouped terminal rows in the quiet ledger vocabulary
+  (dot · title · outcome word · relative time; sentences only for
+  failures and partials), and storage as the ambient foot line.
   """
 
   use PhoenixStorybook.Story, :component
+
+  alias MediaCentaur.Acquisition.ViewModels.{CurrentAction, PursuitRow}
 
   def function, do: &MediaCentaurWeb.Components.Incoming.Ledger.ledger/1
   def render_source, do: :function
@@ -28,41 +30,116 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
     ]
   end
 
+  defp row(id, title, opts) do
+    %PursuitRow{
+      id: id,
+      title: title,
+      state: Keyword.fetch!(opts, :state),
+      status: %CurrentAction{
+        verb: Keyword.fetch!(opts, :verb),
+        description: Keyword.fetch!(opts, :description),
+        severity: Keyword.fetch!(opts, :severity)
+      },
+      updated_at: DateTime.add(DateTime.utc_now(), -Keyword.fetch!(opts, :hours_ago), :hour),
+      season_number: opts[:season],
+      episode_number: opts[:episode],
+      units_satisfied: opts[:units_satisfied] || 1,
+      units_wanted: opts[:units_wanted] || 1
+    }
+  end
+
+  defp terminal_mix do
+    [
+      {:single,
+       row("ledger-demo-1", "Safety Last!",
+         state: :satisfied,
+         verb: "Done",
+         description: "File landed and identity verified.",
+         severity: :success,
+         hours_ago: 2
+       )},
+      {:group,
+       %{
+         title: "Sample Show",
+         state: :cancelled,
+         awaiting?: false,
+         count: 3,
+         verb: "Cancelled",
+         severity: :info,
+         expanded?: false,
+         vms:
+           for episode <- 1..3 do
+             row("ledger-demo-group-#{episode}", "Sample Show",
+               state: :cancelled,
+               verb: "Cancelled",
+               description: "Pursuit cancelled.",
+               severity: :info,
+               season: 2,
+               episode: episode,
+               hours_ago: 26
+             )
+           end
+       }},
+      {:single,
+       row("ledger-demo-2", "Sample Documentary",
+         state: :satisfied,
+         verb: "Done",
+         description: "File landed and identity verified.",
+         severity: :success,
+         units_satisfied: 10,
+         units_wanted: 10,
+         hours_ago: 30
+       )},
+      {:single,
+       row("ledger-demo-3", "A Trip to the Moon",
+         state: :exhausted,
+         verb: "Gave up",
+         description: "Exhausted after 3 attempts.",
+         severity: :error,
+         hours_ago: 96
+       )},
+      {:single,
+       row("ledger-demo-4", "The Cabinet of Dr. Caligari",
+         state: :cancelled,
+         verb: "Cancelled",
+         description: "Pursuit cancelled.",
+         severity: :info,
+         hours_ago: 120
+       )}
+    ]
+  end
+
+  defp expanded_group_mix do
+    Enum.map(terminal_mix(), fn
+      {:group, data} -> {:group, %{data | expanded?: true}}
+      entry -> entry
+    end)
+  end
+
   def variations do
     [
       %Variation{
         id: :archive,
         description:
-          "The open archive: chips with All active, search on the right, the caller's " <>
-            "grouped rows below, storage on the foot line.",
+          "The open archive: chips with All active, search on the right, quiet rows below — " <>
+            "dot, title, composite \"N of M\" chip where one exists, one colored outcome " <>
+            "word, relative time. Only the failure carries its diagnostic sentence; the " <>
+            "episode cluster folds behind its disclosure row. Storage on the foot line.",
         attributes: %{
+          entries: terminal_mix(),
           filter: :all,
           search: "",
           storage_drives: drives()
-        },
-        slots: [
-          """
-          <:archive>
-            <div class="scrim-surface rounded-xl px-4 py-3 text-sm">Sample Show — grouped archive rows render here</div>
-          </:archive>
-          """
-        ]
+        }
       },
       %Variation{
-        id: :filtered,
-        description: "A lifecycle slice active — the chip row shows where you are.",
+        id: :group_expanded,
+        description: "The episode cluster opened — members inset under the disclosure row.",
         attributes: %{
-          filter: :failed,
-          search: "",
-          storage_drives: drives()
-        },
-        slots: [
-          """
-          <:archive>
-            <div class="scrim-surface rounded-xl px-4 py-3 text-sm">Sample Documentary — failed rows render here</div>
-          </:archive>
-          """
-        ]
+          entries: expanded_group_mix(),
+          filter: :all,
+          search: ""
+        }
       },
       %Variation{
         id: :empty_filter,
@@ -70,18 +147,18 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
           "A filter that matches nothing — the filter-specific honest answer; the chips " <>
             "stay so widening the filter stays possible.",
         attributes: %{
+          entries: [],
           filter: :cancelled,
-          search: "",
-          archive_empty?: true
+          search: ""
         }
       },
       %Variation{
         id: :no_history_at_all,
-        description: "Nothing on record yet — All's own empty state, no storage line without data.",
+        description: "Nothing on record yet — All's own empty state.",
         attributes: %{
+          entries: [],
           filter: :all,
-          search: "",
-          archive_empty?: true
+          search: ""
         }
       }
     ]

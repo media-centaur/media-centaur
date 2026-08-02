@@ -1499,6 +1499,36 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "[data-nav-zone='pursuits']")
     end
 
+    test "archive rows speak the quiet vocabulary — sentences only where they inform", %{
+      conn: conn
+    } do
+      for {title, state} <- [
+            {"Quiet Landed Movie", "satisfied"},
+            {"Quiet Cancelled Movie", "cancelled"},
+            {"Loud Failed Movie", "exhausted"}
+          ] do
+        {pursuit, _target} =
+          MediaCentaur.TestFactory.create_pursuit_with_target(%{media_type: :movie, title: title})
+
+        pursuit |> Ecto.Changeset.change(state: state) |> MediaCentaur.Repo.update!()
+      end
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+
+      # One colored outcome word per row plus relative time…
+      assert has_element?(view, "[data-nav-zone='ledger']", "Landed")
+      assert has_element?(view, "[data-nav-zone='ledger']", "Cancelled")
+      assert has_element?(view, "[data-nav-zone='ledger']", "Failed")
+      assert has_element?(view, "[data-nav-zone='ledger']", "ago")
+
+      # …no rote sentences where the outcome word already says it…
+      refute has_element?(view, "[data-nav-zone='ledger']", "File landed and identity verified.")
+      refute has_element?(view, "[data-nav-zone='ledger']", "Pursuit cancelled.")
+
+      # …but failures keep their diagnostic sentence.
+      assert has_element?(view, "[data-nav-zone='ledger']", "Exhausted after")
+    end
+
     test "an active search recedes the tab bar and the zone content; clearing restores them", %{
       conn: conn
     } do

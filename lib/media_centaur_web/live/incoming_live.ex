@@ -1024,15 +1024,11 @@ defmodule MediaCentaurWeb.IncomingLive do
 
           <Ledger.ledger
             :if={!@search_owns? && @zone == :history}
+            entries={@history_compact}
             filter={@history_filter}
             search={@history_search}
-            archive_empty?={@history_rows == []}
             storage_drives={if(@storage_mode == :calm, do: @storage_drives, else: [])}
-          >
-            <:archive>
-              <.grouped_compact_rows entries={@history_compact} />
-            </:archive>
-          </Ledger.ledger>
+          />
 
           <OrphanQueue.orphan_zone :if={!@search_owns? && @zone == :activity} items={@orphan_queue} />
 
