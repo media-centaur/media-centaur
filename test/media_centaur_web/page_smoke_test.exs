@@ -443,10 +443,11 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       assert {:ok, view, html} = live_async!(conn, "/incoming")
       assert is_binary(html)
 
-      # Honest degradation: the hero omnibox reframes to tracking, the
-      # shelf renders the seeded forecast, and no acquisition section
-      # (in-flight pursuits, ledger) is on the page.
-      assert html =~ "What would you like to track?"
+      # Honest degradation: the hero mode hint reframes to tracking (the
+      # hero has no prompt line), the shelf renders the seeded forecast,
+      # and no acquisition section (in-flight pursuits, ledger) is on the
+      # page.
+      assert html =~ "to track their releases"
       assert has_element?(view, ~s([data-nav-zone="coming_up_list"]), "Smoke TV Show")
       refute html =~ ~s(data-nav-zone="pursuits")
       refute html =~ ~s(data-nav-zone="ledger")

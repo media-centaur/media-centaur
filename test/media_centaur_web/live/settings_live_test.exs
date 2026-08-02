@@ -78,6 +78,45 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     end
   end
 
+  describe "page backdrop toggles" do
+    test "renders both rows checked by default", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
+
+      assert has_element?(view, "span", "Library backdrop")
+      assert has_element?(view, "span", "Incoming backdrop")
+
+      assert has_element?(
+               view,
+               "div[phx-click=toggle_library_backdrop] input[type=checkbox][checked]"
+             )
+
+      assert has_element?(
+               view,
+               "div[phx-click=toggle_incoming_backdrop] input[type=checkbox][checked]"
+             )
+    end
+
+    test "toggling the Library backdrop persists the flag", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
+
+      view |> element("div[phx-click=toggle_library_backdrop]") |> render_click()
+      assert MediaCentaur.LibraryBackdrop.enabled?() == false
+
+      view |> element("div[phx-click=toggle_library_backdrop]") |> render_click()
+      assert MediaCentaur.LibraryBackdrop.enabled?() == true
+    end
+
+    test "toggling the Incoming backdrop persists the flag", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
+
+      view |> element("div[phx-click=toggle_incoming_backdrop]") |> render_click()
+      assert MediaCentaur.IncomingBackdrop.enabled?() == false
+
+      view |> element("div[phx-click=toggle_incoming_backdrop]") |> render_click()
+      assert MediaCentaur.IncomingBackdrop.enabled?() == true
+    end
+  end
+
   describe "language & subtitle policy" do
     test "renders the picker and the audio/subtitle form", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=language")

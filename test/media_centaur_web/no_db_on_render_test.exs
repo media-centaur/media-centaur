@@ -256,10 +256,14 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # ReviewBadge (session-wide on_mount) adds two bounded counts
       # (pending review files + awaiting mappings) on each mount phase
       # = +4 aggregates on every page.
+      #
+      # The per-page backdrop preferences (LibraryBackdropAware +
+      # IncomingBackdropAware on SettingsLive) add two settings keys, each
+      # read on the disconnected + connected mount = +4 cache-miss reads.
       mount_and_assert(
         conn,
         "/settings",
-        48,
+        52,
         "Config + Secret reads + maintenance health counts + per-client connection-test reads (per-key cache-miss DB fallback in test mode)"
       )
     end

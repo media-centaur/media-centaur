@@ -13,6 +13,8 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
 
   attr :spoiler_free, :boolean, required: true
   attr :ui_scale, :float, required: true
+  attr :library_backdrop, :boolean, required: true
+  attr :incoming_backdrop, :boolean, required: true
 
   def render(assigns) do
     ~H"""
@@ -32,6 +34,22 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="Blur episode descriptions until hovered"
           checked={@spoiler_free}
           event="toggle_spoiler_free"
+          color="info"
+        />
+
+        <.settings_row
+          label="Library backdrop"
+          description="Show ambient artwork behind the Library page"
+          checked={@library_backdrop}
+          event="toggle_library_backdrop"
+          color="info"
+        />
+
+        <.settings_row
+          label="Incoming backdrop"
+          description="Show ambient artwork behind the Incoming page"
+          checked={@incoming_backdrop}
+          event="toggle_incoming_backdrop"
           color="info"
         />
 

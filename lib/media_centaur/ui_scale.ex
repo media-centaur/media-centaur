@@ -40,8 +40,9 @@ defmodule MediaCentaur.UIScale do
 
   # Selectable steps shown in the Preferences picker, smallest → largest. The
   # clamp range is derived from this list, so the picker and `set/1` can never
-  # disagree about the bounds.
-  @options [0.8, 0.9, 1.0, 1.1, 1.25, 1.5]
+  # disagree about the bounds. 100% is the floor — sub-100% scales shipped
+  # briefly and read as broken on a TV, so stored legacy values clamp up.
+  @options [1.0, 1.1, 1.25, 1.5, 1.75, 2.0]
   @min Enum.min(@options)
   @max Enum.max(@options)
 
