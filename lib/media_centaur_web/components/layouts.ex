@@ -86,7 +86,7 @@ defmodule MediaCentaurWeb.Layouts do
     ~H"""
     <div
       id="input-system"
-      class="flex min-h-screen"
+      class="flex min-h-viewport"
       phx-hook="InputSystem"
       data-input-bindings={Jason.encode!(input_bindings())}
       data-global-bindings={Jason.encode!(global_bindings())}

@@ -54,7 +54,7 @@ defmodule MediaCentaurWeb.GuideLive do
         <nav
           data-nav-zone="guide_chapters"
           class="w-48 shrink-0 sticky top-6 self-start space-y-4 px-1.5 thin-scrollbar overflow-y-auto"
-          style="max-height: calc(100vh - 3rem)"
+          style="max-height: calc(100 * var(--pvh) - 3rem)"
         >
           <div :for={{part, chapters} <- @parts}>
             <div class="px-3 mb-1 text-xs font-medium uppercase tracking-wider text-base-content/45">
