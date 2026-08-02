@@ -61,8 +61,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.NeedsAttention do
       class="space-y-3"
       data-component="needs-attention"
     >
+      <%!-- "Heads up", not "Needs attention" — awareness, not alarm
+            (owner call: nothing here is broken, it's just worth
+            knowing). The module keeps its UIDR-016 name. --%>
       <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
-        Needs attention
+        Heads up
       </h3>
 
       <div class="grid gap-3 sm:grid-cols-2">

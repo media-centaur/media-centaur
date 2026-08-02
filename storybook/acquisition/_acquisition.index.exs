@@ -21,5 +21,5 @@ defmodule MediaCentaurWeb.Storybook.Acquisition do
 
   def entry("connectivity_badge"), do: [icon: {:fa, "signal-stream", :thin}, name: "Connectivity badge"]
 
-  def entry("needs_attention"), do: [icon: {:fa, "triangle-exclamation", :thin}, name: "Needs attention"]
+  def entry("needs_attention"), do: [icon: {:fa, "triangle-exclamation", :thin}, name: "Heads up"]
 end

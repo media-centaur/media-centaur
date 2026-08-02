@@ -49,12 +49,28 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
 
   @doc """
   The Incoming page's zone from its URL param — Coming up is the
-  default and the fallback for anything unrecognized.
+  fallback for anything unrecognized. All three zones are addressable
+  explicitly (`?zone=coming_up` beats the smart default).
   """
   @spec parse_zone(String.t() | nil) :: :coming_up | :activity | :history
+  def parse_zone("coming_up"), do: :coming_up
   def parse_zone("activity"), do: :activity
   def parse_zone("history"), do: :history
   def parse_zone(_default), do: :coming_up
+
+  @doc """
+  The zone a `handle_params` pass lands on. An explicit param always
+  wins; a bare path on the FIRST load smart-defaults to Activity when
+  something is actually going on (live pursuits or draft plans) —
+  after that, a bare path is plainly Coming up, so the tab click that
+  patches to the clean URL never gets bounced by the smart default.
+  """
+  @spec initial_zone(String.t() | nil, boolean(), boolean()) :: :coming_up | :activity | :history
+  def initial_zone(zone_param, _first_load?, _activity?) when is_binary(zone_param),
+    do: parse_zone(zone_param)
+
+  def initial_zone(nil, true, true), do: :activity
+  def initial_zone(nil, _first_load?, _activity?), do: :coming_up
 
   @doc """
   Returns the terms of every group whose status is a Prowlarr request timeout
