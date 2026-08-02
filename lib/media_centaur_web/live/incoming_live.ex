@@ -24,9 +24,9 @@ defmodule MediaCentaurWeb.IncomingLive do
   and other downloads (`"other_downloads"`): client torrents matching
   no tracked pursuit.
 
-  **History** — Recently landed (`"ledger"`), THE history surface: a
-  newest-first glimpse that expands in place ("View all") into the
-  filtered archive (chips + search), with the calm storage foot line.
+  **History** — the archive (`"ledger"`), THE history surface, always
+  open: lifecycle filter chips (All default) + title/release search
+  over the grouped terminal rows, with the calm storage foot line.
 
   No capability gate on mount: without Prowlarr the page renders
   forecast-only. Section honesty is enforced once, in
@@ -119,7 +119,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaurWeb.IncomingLive.PlanLogic
   alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
 
-  alias MediaCentaur.Settings
   alias MediaCentaur.Storage
 
   alias MediaCentaur.Search.IndexerHealth
@@ -142,11 +141,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   # actively landing on disk. The probe is a handful of statvfs calls on an
   # owned async task, and the timer only exists while someone has this page
   # open — the faster cadence costs nothing when nobody is watching.
-  # The ledger glimpse shows at most HistoryLogic's expanded cap (12); one
-  # extra row lets `ledger_rows/2` know whether anything stays hidden without
-  # reading the whole terminal-pursuit table on every mount and reload.
-  @ledger_read_cap 13
-
   @storage_refresh_ms 30_000
 
   @impl true
@@ -174,11 +168,9 @@ defmodule MediaCentaurWeb.IncomingLive do
          today: today,
          detail: nil,
          shelf_expanded?: false,
-         view: %View{shelf: %View.ShelfSection{}, ledger: %View.LedgerSection{}},
+         view: %View{shelf: %View.ShelfSection{}},
          grab_status_by_key: %{},
          auto_grab_default_mode: AutoGrabSettings.load().default_mode,
-         ledger_expanded?: false,
-         ledger_rows: [],
          loaded_history_params: nil,
          forecast_reload_timer: nil,
          storage_drives: [],
@@ -194,7 +186,6 @@ defmodule MediaCentaurWeb.IncomingLive do
          pending_cancels: %{},
          history_filter: :failed,
          history_search: "",
-         history_open?: false,
          history_rows: [],
          pursuit_rows: [],
          expanded_pursuit_groups: MapSet.new(),
@@ -330,7 +321,6 @@ defmodule MediaCentaurWeb.IncomingLive do
         download_client_ready: Capabilities.download_client_ready?(),
         plan_drafts: load_drafts(),
         pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows(),
-        ledger_rows: Pursuits.list_rows(:all_terminal, limit: @ledger_read_cap),
         history_rows: compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search),
         loaded_history_params: {socket.assigns.history_filter, socket.assigns.history_search}
       )
@@ -339,13 +329,12 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
-  # The ledger reloads with the active rows — a pursuit leaving the active
-  # list is exactly the moment it enters the ledger.
+  # The History archive reloads with the active rows — a pursuit leaving
+  # the active list is exactly the moment it enters the archive.
   defp load_pursuit_rows(socket) do
-    assign(socket,
-      pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows(),
-      ledger_rows: Pursuits.list_rows(:all_terminal, limit: @ledger_read_cap)
-    )
+    socket
+    |> assign(pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows())
+    |> load_history()
   end
 
   # Rebuild the composed page view from current assigns + fresh forecast
@@ -363,14 +352,12 @@ defmodule MediaCentaurWeb.IncomingLive do
         releases: releases,
         watching_items: ReleaseTracking.list_watching_items(),
         pursuit_rows: socket.assigns.pursuit_rows,
-        ledger_rows: socket.assigns.ledger_rows,
         drafts: socket.assigns.plan_drafts,
         today: socket.assigns.today,
         prowlarr_ready?: Capabilities.prowlarr_ready?(),
         acquisition_ready?: acquisition?,
         auto_grab_default_mode: default_mode,
         grab_status_by_key: grab,
-        ledger_expanded?: socket.assigns.ledger_expanded?,
         shelf_expanded?: socket.assigns.shelf_expanded?
       })
 
@@ -558,7 +545,6 @@ defmodule MediaCentaurWeb.IncomingLive do
         history_search: Map.get(params, "search", ""),
         history_filter: HistoryLogic.parse_filter(Map.get(params, "filter"))
       )
-      |> maybe_open_history(params, was_loaded?)
       |> ensure_loaded()
       |> assign_zone(params, was_loaded?)
       |> maybe_load_history(was_loaded?)
@@ -589,39 +575,6 @@ defmodule MediaCentaurWeb.IncomingLive do
       end
 
     assign(socket, zone: zone)
-  end
-
-  # Durable History disclosure preference. Persisted in Settings (not the URL
-  # or socket state) so it survives navigating away and coming back — a plain
-  # assign resets on every remount. Defaults collapsed so the page leads with
-  # active pursuits.
-  @history_open_key "ui:downloads:history_open"
-
-  defp history_open_pref do
-    case Settings.get_by_key(@history_open_key) do
-      {:ok, %{value: %{"open" => open}}} when is_boolean(open) -> open
-      _ -> false
-    end
-  end
-
-  defp put_history_open_pref(open?) do
-    # find_or_create_entry upserts (insert when absent, update when present) —
-    # same helper DiagnosticsBadge uses for its persisted timestamp.
-    Settings.find_or_create_entry(%{key: @history_open_key, value: %{"open" => open?}})
-    :ok
-  end
-
-  # On a modal patch (loaded?=true) leave the disclosure as the user left it.
-  defp maybe_open_history(socket, _params, true), do: socket
-
-  # On a fresh load, the persisted preference is the sole source of truth —
-  # never the URL's filter/search state. `build_pursuit_modal_path/2` always
-  # carries `filter=failed`, so keying off it (as this used to) popped History
-  # open whenever you returned to a pursuit-modal URL. There are no genuine
-  # `?filter=`/`?search=` deep-links, so nothing in the URL should
-  # override the pref. Defaults collapsed.
-  defp maybe_open_history(socket, _params, false) do
-    assign(socket, history_open?: history_open_pref())
   end
 
   # First load: `ensure_loaded/1` already computed history_rows with the
@@ -800,11 +753,6 @@ defmodule MediaCentaurWeb.IncomingLive do
         :activity_empty?,
         assigns.view.drafts == [] and paired_rows == [] and active_compact == [] and
           orphan_queue == [] and assigns.download_client_ready
-      )
-      |> Phoenix.Component.assign(
-        :history_empty?,
-        assigns.view.ledger.rows == [] and assigns.view.ledger.hidden_count == 0 and
-          not (assigns.history_open? and Capabilities.prowlarr_ready?())
       )
       # Live percentages ride the same render-time pairing: the paired
       # downloads stamp their progress onto in-pursuit shelf cards, so the
@@ -1076,10 +1024,6 @@ defmodule MediaCentaurWeb.IncomingLive do
 
           <Ledger.ledger
             :if={!@search_owns? && @zone == :history}
-            rows={@view.ledger.rows}
-            hidden_count={@view.ledger.hidden_count}
-            expanded={@view.ledger.expanded?}
-            archive_open?={@history_open? and @prowlarr_ready}
             filter={@history_filter}
             search={@history_search}
             archive_empty?={@history_rows == []}
@@ -1093,16 +1037,11 @@ defmodule MediaCentaurWeb.IncomingLive do
           <OrphanQueue.orphan_zone :if={!@search_owns? && @zone == :activity} items={@orphan_queue} />
 
           <p
-            :if={
-              !@search_owns? &&
-                ((@zone == :activity && @activity_empty?) || (@zone == :history && @history_empty?))
-            }
+            :if={!@search_owns? && @zone == :activity && @activity_empty?}
             data-component="zone-empty"
             class="py-10 text-center text-sm text-base-content/40"
           >
-            {if @zone == :activity,
-              do: "Nothing in flight — approved plans and their downloads appear here.",
-              else: "Nothing landed yet — finished downloads appear here."}
+            Nothing in flight — approved plans and their downloads appear here.
           </p>
 
           <%!-- Needs attention is bookkeeping — it closes the page, never
@@ -1633,12 +1572,6 @@ defmodule MediaCentaurWeb.IncomingLive do
   # actions are gone — rows are passive and clicking one opens the
   # pursuit modal where Cancel / Change target live.
 
-  def handle_event("toggle_history", _params, socket) do
-    open? = !socket.assigns.history_open?
-    put_history_open_pref(open?)
-    {:noreply, assign(socket, history_open?: open?)}
-  end
-
   def handle_event("set_history_filter", %{"filter" => filter}, socket) do
     {:noreply,
      socket
@@ -1650,11 +1583,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, socket |> assign(history_search: search) |> load_history()}
   end
 
-  # --- Ledger / calendar disclosures ---
-
-  def handle_event("expand_ledger", _params, socket) do
-    {:noreply, socket |> assign(ledger_expanded?: true) |> build_view()}
-  end
+  # --- Shelf disclosure ---
 
   def handle_event("expand_shelf", _params, socket) do
     {:noreply, socket |> assign(shelf_expanded?: true) |> build_view()}

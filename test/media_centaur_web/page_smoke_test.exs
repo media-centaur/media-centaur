@@ -580,24 +580,12 @@ defmodule MediaCentaurWeb.PageSmokeTest do
     test "renders without crashing (?zone=history)", %{conn: conn} do
       assert {:ok, view, _html} = live_async!(conn, "/incoming?zone=history")
 
-      # The exhausted pursuits render openly in the ledger ("Recently
-      # landed") — the terminal rows the merged page keeps in view.
-      assert has_element?(view, "section[data-nav-zone='ledger']", "Sample Show")
-
-      # The archive starts closed — the glimpse shows rows, but the filter
-      # chips only render once "View all" opens the archive in place.
-      refute has_element?(view, "section[data-nav-zone='ledger'] [phx-click='set_history_filter']")
-
-      # Opened, the archive (default filter :failed) renders the exhausted
-      # pursuit rows through the grouped path — two same-title same-state
-      # pursuits collapse into a group whose header reads "2 episodes".
-      # Scoped to the ledger zone: a whole-page `=~` also sweeps the
-      # Console drawer, whose GLOBAL log ring buffer carries titles logged
-      # by earlier tests in the run — an order-dependent false match.
-      view
-      |> element("section[data-nav-zone='ledger'] [phx-click='toggle_history']")
-      |> render_click()
-
+      # The History tab IS the archive: filter chips + search render
+      # immediately (no disclosure), default filter :all, and the two
+      # same-title exhausted pursuits collapse into a group whose header
+      # reads "2 episodes". Scoped to the ledger zone: a whole-page `=~`
+      # also sweeps the Console drawer, whose GLOBAL log ring buffer
+      # carries titles logged by earlier tests in the run.
       assert has_element?(view, "section[data-nav-zone='ledger'] [phx-click='set_history_filter']")
       assert has_element?(view, "section[data-nav-zone='ledger']", "Sample Show")
       assert has_element?(view, "section[data-nav-zone='ledger']", "2 episodes")

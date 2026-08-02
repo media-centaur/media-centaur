@@ -12,7 +12,9 @@ defmodule MediaCentaurWeb.IncomingLive.HistoryLogic do
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow
 
-  @filter_atoms [:failed, :cancelled, :succeeded, :all]
+  # :all leads — it is the History tab's default face; the lifecycle
+  # slices follow.
+  @filter_atoms [:all, :failed, :cancelled, :succeeded]
 
   @doc """
   Filters a list of `PursuitRow` view-models by case-insensitive
@@ -43,7 +45,9 @@ defmodule MediaCentaurWeb.IncomingLive.HistoryLogic do
   def parse_filter("cancelled"), do: :cancelled
   def parse_filter("succeeded"), do: :succeeded
   def parse_filter("all"), do: :all
-  def parse_filter(_), do: :failed
+  # Unrecognized/absent means the whole archive — the History tab shows
+  # everything until the user narrows it.
+  def parse_filter(_), do: :all
 
   @doc "Every filter atom in the order the chips render."
   @spec filter_atoms() :: [atom()]
@@ -73,20 +77,4 @@ defmodule MediaCentaurWeb.IncomingLive.HistoryLogic do
   def empty_state(:cancelled), do: "Nothing has been cancelled."
   def empty_state(:succeeded), do: "Nothing has finished yet."
   def empty_state(:all), do: "No past pursuits on record."
-
-  # The ledger is a glimpse, not the archive: collapsed it shows the last few
-  # outcomes, expanded it grows once — anything more is "View all history".
-  @ledger_collapsed_cap 4
-  @ledger_expanded_cap 12
-
-  @doc """
-  The Recently landed ledger rows: the newest terminal pursuits, capped.
-  Returns `{visible_rows, hidden_count}` so the disclosure can say what it
-  hides. Input order is preserved — `Pursuits.list_rows/1` owns newest-first.
-  """
-  @spec ledger_rows([PursuitRow.t()], boolean()) :: {[PursuitRow.t()], non_neg_integer()}
-  def ledger_rows(rows, expanded?) do
-    cap = if expanded?, do: @ledger_expanded_cap, else: @ledger_collapsed_cap
-    {Enum.take(rows, cap), max(length(rows) - cap, 0)}
-  end
 end

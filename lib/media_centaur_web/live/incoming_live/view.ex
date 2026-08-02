@@ -26,14 +26,13 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
-  alias MediaCentaurWeb.IncomingLive.HistoryLogic
   alias MediaCentaurWeb.Components.Incoming.Shelf.Card
   alias MediaCentaurWeb.IncomingLive.View
 
   @shelf_cap 6
   @shelf_art_width 342
 
-  defstruct shelf: nil, in_flight: [], ledger: nil, drafts: [], feed: %UpcomingFeed{}
+  defstruct shelf: nil, in_flight: [], drafts: [], feed: %UpcomingFeed{}
 
   defmodule ShelfSection do
     @moduledoc "The Coming up shelf: capped cards plus what the cap hides."
@@ -46,21 +45,9 @@ defmodule MediaCentaurWeb.IncomingLive.View do
           }
   end
 
-  defmodule LedgerSection do
-    @moduledoc "The Recently landed glimpse: newest terminal rows, capped."
-    defstruct rows: [], hidden_count: 0, expanded?: false
-
-    @type t :: %__MODULE__{
-            rows: [PursuitRow.t()],
-            hidden_count: non_neg_integer(),
-            expanded?: boolean()
-          }
-  end
-
   @type t :: %View{
           shelf: ShelfSection.t(),
           in_flight: [PursuitRow.t()],
-          ledger: LedgerSection.t(),
           drafts: [map()],
           feed: UpcomingFeed.t()
         }
@@ -69,11 +56,11 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   Build the page view from already-read facts:
 
     * `:releases` / `:watching_items` — `ReleaseTracking` reads (items preloaded)
-    * `:pursuit_rows` / `:ledger_rows` / `:drafts` — acquisition reads
+    * `:pursuit_rows` / `:drafts` — acquisition reads (the History
+      archive reads separately via `compute_history_rows`)
     * `:today`, `:acquisition_ready?`, `:auto_grab_default_mode`,
       `:grab_status_by_key` — the `UpcomingFeed` context facts
-    * `:ledger_expanded?` / `:shelf_expanded?` — the disclosure states
-      ("Show earlier" on the ledger, "Show all" on the shelf)
+    * `:shelf_expanded?` — the shelf's "Show all" disclosure state
 
   The full `feed` rides along for per-title detail building.
   """
@@ -90,7 +77,6 @@ defmodule MediaCentaurWeb.IncomingLive.View do
         stragglers: UpcomingFeed.stragglers(inputs.watching_items)
       },
       in_flight: if(inputs.prowlarr_ready?, do: inputs.pursuit_rows, else: []),
-      ledger: ledger_section(inputs),
       drafts: if(inputs.prowlarr_ready?, do: inputs.drafts, else: []),
       feed: feed
     }
@@ -120,13 +106,6 @@ defmodule MediaCentaurWeb.IncomingLive.View do
       auto_grab_default_mode: inputs.auto_grab_default_mode,
       grab_status_by_key: if(inputs.acquisition_ready?, do: inputs.grab_status_by_key, else: %{})
     }
-  end
-
-  defp ledger_section(%{prowlarr_ready?: false}), do: %LedgerSection{}
-
-  defp ledger_section(inputs) do
-    {rows, hidden_count} = HistoryLogic.ledger_rows(inputs.ledger_rows, inputs.ledger_expanded?)
-    %LedgerSection{rows: rows, hidden_count: hidden_count, expanded?: inputs.ledger_expanded?}
   end
 
   defp card_from_event(%Event{} = event, today) do

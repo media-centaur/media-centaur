@@ -45,14 +45,12 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
         releases: [],
         watching_items: [],
         pursuit_rows: [],
-        ledger_rows: [],
         drafts: [],
         today: @today,
         prowlarr_ready?: true,
         acquisition_ready?: true,
         auto_grab_default_mode: "all_releases",
         grab_status_by_key: %{},
-        ledger_expanded?: false,
         shelf_expanded?: false
       },
       overrides
@@ -215,34 +213,19 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
   end
 
   describe "build/1 — operational sections" do
-    test "in-flight rows, ledger, and drafts pass through when acquisition is ready" do
+    test "in-flight rows and drafts pass through when acquisition is ready" do
       active = pursuit_row(%{state: :active})
-      terminal = Enum.map(1..9, fn n -> pursuit_row(%{id: "terminal-#{n}", state: :satisfied}) end)
 
       view =
         View.build(
           inputs(%{
             pursuit_rows: [active],
-            ledger_rows: terminal,
             drafts: [%{id: "draft-1", title: "The Golem", status: "ready"}]
           })
         )
 
       assert view.in_flight == [active]
-      assert length(view.ledger.rows) == 4
-      assert view.ledger.hidden_count == 5
-      refute view.ledger.expanded?
       assert [%{id: "draft-1"}] = view.drafts
-    end
-
-    test "an expanded ledger reveals more" do
-      terminal = Enum.map(1..9, fn n -> pursuit_row(%{id: "terminal-#{n}", state: :satisfied}) end)
-
-      view = View.build(inputs(%{ledger_rows: terminal, ledger_expanded?: true}))
-
-      assert length(view.ledger.rows) == 9
-      assert view.ledger.hidden_count == 0
-      assert view.ledger.expanded?
     end
   end
 
@@ -261,15 +244,12 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
             acquisition_ready?: false,
             releases: releases,
             pursuit_rows: [pursuit_row(%{})],
-            ledger_rows: [pursuit_row(%{state: :satisfied})],
             drafts: [%{id: "draft-1"}],
             grab_status_by_key: %{some: :junk}
           })
         )
 
       assert view.in_flight == []
-      assert view.ledger.rows == []
-      assert view.ledger.hidden_count == 0
       assert view.drafts == []
       assert Enum.all?(view.shelf.cards, &(&1.status in [:tracked, :in_theaters, :landed]))
     end
