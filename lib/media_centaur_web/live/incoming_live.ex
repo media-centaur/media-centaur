@@ -1441,25 +1441,32 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   def handle_event("omnibox_pick", %{"tmdb-id" => tmdb_id, "media-type" => media_type}, socket)
       when media_type in ~w(movie tv_series) do
-    if Capabilities.prowlarr_ready?() do
-      plan_type = if media_type == "movie", do: "movie", else: "tv"
+    picked =
+      Enum.find(socket.assigns.omnibox_results, fn result ->
+        to_string(result.tmdb_id) == to_string(tmdb_id) &&
+          to_string(result.media_type) == media_type
+      end)
 
-      # Carry the picked result into the plan flow — the modal opens
-      # already wearing its identity instead of a gray loading box.
-      picked =
-        Enum.find(socket.assigns.omnibox_results, fn result ->
-          to_string(result.tmdb_id) == to_string(tmdb_id) &&
-            to_string(result.media_type) == media_type
-        end)
+    cond do
+      not Capabilities.prowlarr_ready?() ->
+        # Forecast-only page: the hero promised tracking, so a pick tracks —
+        # never the plan (grab) flow. Same shape the track modal uses.
+        {:noreply, track_picked_result(socket, tmdb_id)}
 
-      {:noreply,
-       socket
-       |> assign(plan_identity: picked)
-       |> push_patch(to: "/incoming?plan=new&tmdb_id=#{tmdb_id}&tmdb_type=#{plan_type}")}
-    else
-      # Forecast-only page: the hero promised tracking, so a pick tracks —
-      # never the plan (grab) flow. Same shape the track modal uses.
-      {:noreply, track_picked_result(socket, tmdb_id)}
+      picked && MediaResults.release_status(picked, Date.utc_today()) == :upcoming ->
+        # An unreleased title has nothing to grab — the row's verb says
+        # "Track release" and the pick does exactly that, in place.
+        {:noreply, track_picked_result(socket, tmdb_id)}
+
+      true ->
+        plan_type = if media_type == "movie", do: "movie", else: "tv"
+
+        # Carry the picked result into the plan flow — the modal opens
+        # already wearing its identity instead of a gray loading box.
+        {:noreply,
+         socket
+         |> assign(plan_identity: picked)
+         |> push_patch(to: "/incoming?plan=new&tmdb_id=#{tmdb_id}&tmdb_type=#{plan_type}")}
     end
   end
 

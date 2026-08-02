@@ -1197,6 +1197,49 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "[data-nav-zone='coming_up_list']")
     end
 
+    test "an upcoming row's verb is Track release — picking it tracks, never the plan flow", %{
+      conn: conn
+    } do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 777,
+          "media_type" => "movie",
+          "title" => "Released Movie",
+          "release_date" => "2020-01-01"
+        },
+        %{
+          "id" => 888,
+          "media_type" => "movie",
+          "title" => "Upcoming Movie",
+          "release_date" => "2999-01-01"
+        }
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+
+      # The verb tells the truth per row: a released title can be planned;
+      # an unreleased one can only be tracked.
+      assert has_element?(view, "#omnibox-result-movie-777", "Plan download")
+      assert has_element?(view, "#omnibox-result-movie-888", "Track release")
+
+      # Picking the upcoming row tracks it in place (the row flips to
+      # Tracked) — no plan modal, no navigation.
+      view
+      |> element("#omnibox-result-movie-888")
+      |> render_click()
+
+      assert has_element?(view, "#omnibox-result-movie-888", "Tracked")
+      refute has_element?(view, "#omnibox-result-movie-888", "Track release")
+    end
+
     test "the upcoming/released chips scope the results; the active chip toggles back off", %{
       conn: conn
     } do
