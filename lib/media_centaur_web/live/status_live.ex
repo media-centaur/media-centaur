@@ -505,7 +505,7 @@ defmodule MediaCentaurWeb.StatusLive do
           dismiss={:persistent}
           data-testid="report-modal"
           data-captures-keys
-          panel_class="flex flex-col max-h-[88vh]"
+          panel_class="flex flex-col max-h-[calc(88*var(--pvh))]"
         >
           <.live_component
             id="report-modal-body"

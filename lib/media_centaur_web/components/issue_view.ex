@@ -29,7 +29,7 @@ defmodule MediaCentaurWeb.Components.IssueView do
       on_close={@on_close}
       data-detail-mode={!is_nil(@bucket) && "modal"}
       data-dismiss-event={@on_close}
-      panel_class="flex flex-col max-h-[85vh]"
+      panel_class="flex flex-col max-h-[calc(85*var(--pvh))]"
     >
       <div :if={@bucket} class="flex flex-col min-h-0">
         <div class="px-6 pt-5 pb-4 border-b border-base-300">

@@ -115,7 +115,9 @@ html { scrollbar-gutter: stable; }
    adds the same class), but NOT the storybook chrome body — where our
    gradient and dark theme would make the light chrome unreadable. */
 body.media-centaur {
-  min-height: 100dvh;
+  /* `100dvh` would render at scale × viewport under the root zoom (see
+     `--pvh`), padding every page with trailing whitespace. */
+  min-height: calc(100 * var(--pvh));
   background-image:
     radial-gradient(ellipse at 20% 15%, var(--glass-gradient-a), transparent 60%),
     radial-gradient(ellipse at 80% 80%, var(--glass-gradient-b), transparent 60%);
@@ -133,6 +135,19 @@ body.media-centaur {
    the property) renders unscaled. */
 html {
   zoom: var(--ui-scale, 1);
+  /* One PHYSICAL viewport-height unit. `zoom` scales every rendered length
+     but does NOT compensate viewport units — a bare `Nvh` renders at
+     `Nvh × scale`, so e.g. `min-height: 100vh` forces two physical screens
+     of page height at 200% (trailing-whitespace bug). Any rule that means
+     "N% of the physical viewport" must write `calc(N * var(--pvh))`
+     instead of `Nvh`: (N × 1dvh / S) × S = N dvh physical at every scale. */
+  --pvh: calc(1dvh / var(--ui-scale, 1));
+}
+
+/* Zoom-safe replacement for Tailwind's `min-h-screen`: fill at least one
+   physical viewport regardless of UI scale (see `--pvh` above). */
+.min-h-viewport {
+  min-height: calc(100 * var(--pvh));
 }
 
 /* Storybook chrome readability override.
@@ -519,10 +534,11 @@ body:has(.modal-backdrop[data-state="open"]) {
 /* ── Modal page-level atmosphere ──
    Mirror of `.page-side-dim` (HomeLive) but absolute (panel-scoped). A
    left-side weight + a vertical scrim that fades to a constant dim and
-   holds it to the panel bottom. Vertical stops are vh-based so the
+   holds it to the panel bottom. Vertical stops are viewport-based so the
    transparent → dim transition lands near the bottom of the hero (matching
    the original 70% of a ~92vh panel) and the constant-dim region holds
-   regardless of how tall the content gets. */
+   regardless of how tall the content gets. Stops use `--pvh` so they track
+   the *physical* panel geometry at any UI scale. */
 .modal-page-atmosphere {
   position: absolute;
   inset: 0;
@@ -538,8 +554,8 @@ body:has(.modal-backdrop[data-state="open"]) {
     linear-gradient(
       to bottom,
       transparent 0,
-      transparent 12vh,
-      oklch(0% 0 0 / 0.55) 36vh,
+      transparent calc(12 * var(--pvh)),
+      oklch(0% 0 0 / 0.55) calc(36 * var(--pvh)),
       oklch(0% 0 0 / 0.55) 100%
     );
 }
@@ -968,17 +984,15 @@ body:has(.modal-backdrop[data-state="open"]) {
   --side-rail: 52px;
 }
 
-/* ZOOM CAVEAT: the root `zoom: var(--ui-scale)` multiplies viewport-unit
-   lengths, so a bare `65vh` cap renders at `65vh × scale` physical — at
-   1.5× that's ~97vh and the billboard eats the whole screen, pushing
-   Continue Watching off the fold. Dividing the vh cap by `--ui-scale`
-   holds it at 65% of the *physical* viewport at any scale: (65vh/S)×S =
-   65vh. The `400px` floor and the `vw` term are content/element-relative
-   (the hero is `width:100%`, already tracking the zoom), so they stay as
-   they are. Same idiom the sidebar needed for its 100vh. */
+/* ZOOM CAVEAT: the cap means 65% of the *physical* viewport, so it uses
+   `--pvh` (see the `html` zoom block) — a bare `65vh` would render at
+   65vh × scale and the billboard would eat the whole screen at 1.5×+,
+   pushing Continue Watching off the fold. The `400px` floor and the `vw`
+   term are content/element-relative (the hero is `width:100%`, already
+   tracking the zoom), so they stay as they are. */
 .hero-fluid {
   width: 100%;
-  min-height: clamp(400px, calc((100vw - var(--side-rail)) * 0.5625), calc(65vh / var(--ui-scale, 1)));
+  min-height: clamp(400px, calc((100vw - var(--side-rail)) * 0.5625), calc(65 * var(--pvh)));
 }
 
 /* ── Page-level backdrop ──
@@ -991,10 +1005,8 @@ body:has(.modal-backdrop[data-state="open"]) {
   top: -1.5rem;
   left: -1.5rem;
   right: -1.5rem;
-  /* One physical viewport tall. Divided by `--ui-scale` because the root
-     `zoom` multiplies `vh` (a bare 100vh renders at 100vh × scale — 1.5×
-     viewport at 1.5×, overflowing). (100vh/S)×S = 100vh physical. */
-  height: calc(100vh / var(--ui-scale, 1));
+  /* One physical viewport tall (see `--pvh` in the `html` zoom block). */
+  height: calc(100 * var(--pvh));
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
@@ -1496,7 +1508,9 @@ body:has(.modal-backdrop[data-state="open"]) {
   top: 0;
   left: 0;
   right: 0;
-  height: 55vh;
+  /* 55% of the physical viewport — bare `55vh` would overshoot the screen
+     entirely at 200% UI scale (see `--pvh`). */
+  height: calc(55 * var(--pvh));
   display: flex;
   flex-direction: column;
   background: color-mix(in oklab, var(--color-base-100) 92%, transparent);

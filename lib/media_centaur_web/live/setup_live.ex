@@ -435,7 +435,7 @@ defmodule MediaCentaurWeb.SetupLive do
       |> assign(:blocked?, blocked?)
 
     ~H"""
-    <Layouts.input_system_root class="relative min-h-screen">
+    <Layouts.input_system_root class="relative min-h-viewport">
       <%!-- Same scrim as the rest of the app (Settings et al.) — depth without a
             photographic backdrop competing with a first-run wizard. --%>
       <div class="page-side-dim" aria-hidden="true"></div>
