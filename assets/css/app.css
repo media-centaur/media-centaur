@@ -606,6 +606,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   text-decoration: none;
   padding-bottom: 0.25rem;
   position: relative;
+  cursor: pointer;
   transition: color 150ms;
 }
 

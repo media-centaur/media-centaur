@@ -61,7 +61,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
         id: :hero,
         description:
           "Hero mode — the Incoming page's front door. Centered column without the card " <>
-            "chrome, prompt line above a taller input, and the mode hint below with the " <>
+            "chrome, a taller input, and the mode hint below with the " <>
             "active mode emphasized (the inactive name is the flip control — same " <>
             "omnibox_mode event as the corner toggle). Default (hero: false) renders " <>
             "exactly as the variations above.",
