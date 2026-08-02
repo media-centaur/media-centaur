@@ -558,9 +558,9 @@ defmodule MediaCentaurWeb.IncomingLive do
         history_search: Map.get(params, "search", ""),
         history_filter: HistoryLogic.parse_filter(Map.get(params, "filter"))
       )
-      |> assign_zone(params)
       |> maybe_open_history(params, was_loaded?)
       |> ensure_loaded()
+      |> assign_zone(params, was_loaded?)
       |> maybe_load_history(was_loaded?)
       |> apply_pursuit_modal_params(params)
       |> apply_plan_modal_params(params)
@@ -570,13 +570,23 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   # The zone tabs (Coming up | Activity | History) are URL state
-  # (UIDR-006). Forecast-only installs have nothing to tab between, so
-  # the param is ignored and everything renders as Coming up.
-  defp assign_zone(socket, params) do
+  # (UIDR-006). Runs after `ensure_loaded/1` so the first bare-path load
+  # can smart-default to Activity when something is actually going on
+  # (live pursuits or draft plans) — the reads are already in assigns,
+  # so the decision costs nothing. Forecast-only installs have nothing
+  # to tab between; the param is ignored and everything renders as
+  # Coming up.
+  defp assign_zone(socket, params, was_loaded?) do
     zone =
-      if socket.assigns.prowlarr_ready,
-        do: Logic.parse_zone(params["zone"]),
-        else: :coming_up
+      if socket.assigns.prowlarr_ready do
+        Logic.initial_zone(
+          params["zone"],
+          not was_loaded?,
+          socket.assigns.pursuit_rows != [] or socket.assigns.plan_drafts != []
+        )
+      else
+        :coming_up
+      end
 
     assign(socket, zone: zone)
   end

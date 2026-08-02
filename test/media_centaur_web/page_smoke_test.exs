@@ -550,18 +550,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       :ok
     end
 
-    test "renders without crashing (Prowlarr configured and tested)", %{conn: conn} do
+    test "renders without crashing (smart default — seeded activity wins)", %{conn: conn} do
       assert {:ok, view, html} = live_async!(conn, "/incoming")
-      assert is_binary(html)
-
-      # Default zone is Coming up: the tab bar plus the seeded tracked
-      # release's agenda row — the forecast branch, not just the horizon.
-      assert has_element?(view, ~s([data-nav-zone="zone-tabs"]))
-      assert has_element?(view, ~s([data-nav-zone="coming_up_list"]), "Smoke Shelf Show")
-    end
-
-    test "renders without crashing (?zone=activity)", %{conn: conn} do
-      assert {:ok, view, html} = live_async!(conn, "/incoming?zone=activity")
       assert is_binary(html)
 
       # `IncomingLive.ensure_loaded/1` runs the pursuit-row + ledger +
@@ -569,9 +559,22 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       # async work at mount, so `render/1` reflects the loaded state.
       html = render(view)
 
-      # The seeded active pursuit must render its card, exercising the
-      # PursuitRow component's no-match hint path (no queue item matches).
+      # The seeded active pursuit pulls the bare-path mount to Activity,
+      # and its card exercises the PursuitRow component's no-match hint
+      # path (no queue item matches).
+      assert has_element?(view, ~s([data-nav-zone="zone-tabs"] .zone-tab-active), "Activity")
       assert html =~ "Sample Movie"
+    end
+
+    test "renders without crashing (?zone=coming_up)", %{conn: conn} do
+      assert {:ok, view, html} = live_async!(conn, "/incoming?zone=coming_up")
+      assert is_binary(html)
+
+      # The explicit zone beats the smart default: the tab bar plus the
+      # seeded tracked release's agenda row — the forecast branch, not
+      # just the horizon.
+      assert has_element?(view, ~s([data-nav-zone="zone-tabs"]))
+      assert has_element?(view, ~s([data-nav-zone="coming_up_list"]), "Smoke Shelf Show")
     end
 
     test "renders without crashing (?zone=history)", %{conn: conn} do

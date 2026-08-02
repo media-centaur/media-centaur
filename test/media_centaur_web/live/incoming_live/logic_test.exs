@@ -904,7 +904,8 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
   end
 
   describe "parse_zone/1" do
-    test "recognizes the two non-default zones" do
+    test "recognizes all three explicit zones" do
+      assert Logic.parse_zone("coming_up") == :coming_up
       assert Logic.parse_zone("activity") == :activity
       assert Logic.parse_zone("history") == :history
     end
@@ -913,6 +914,25 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
       assert Logic.parse_zone(nil) == :coming_up
       assert Logic.parse_zone("") == :coming_up
       assert Logic.parse_zone("garbage") == :coming_up
+    end
+  end
+
+  describe "initial_zone/3" do
+    test "an explicit param always wins" do
+      assert Logic.initial_zone("history", true, true) == :history
+      assert Logic.initial_zone("coming_up", true, true) == :coming_up
+    end
+
+    test "a fresh mount with live activity lands on Activity" do
+      assert Logic.initial_zone(nil, true, true) == :activity
+    end
+
+    test "a quiet fresh mount lands on Coming up" do
+      assert Logic.initial_zone(nil, true, false) == :coming_up
+    end
+
+    test "after first load a bare path is Coming up — tab clicks never re-trigger the smart default" do
+      assert Logic.initial_zone(nil, false, true) == :coming_up
     end
   end
 

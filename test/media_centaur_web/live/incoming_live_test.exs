@@ -1433,10 +1433,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       :ok
     end
 
-    test "the tab bar renders; Coming up is the default and the only zone on the page", %{
+    test "a quiet first mount lands on Coming up with only that zone on the page", %{
       conn: conn
     } do
-      seed_all_zones()
+      tracked_with_release(%{name: "Tabbed Forecast Show"})
       {:ok, view, _html} = live_async!(conn, ~p"/incoming")
 
       assert has_element?(view, "[data-nav-zone='zone-tabs']")
@@ -1447,11 +1447,32 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "[data-nav-zone='ledger']")
     end
 
-    test "clicking Activity patches the URL and swaps in the operational sections", %{
+    test "live activity pulls a fresh mount to Activity; Coming up stays one click away", %{
       conn: conn
     } do
       seed_all_zones()
       {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] .zone-tab-active", "Activity")
+      assert has_element?(view, "[data-nav-zone='pursuits']")
+
+      # The tab click patches to the bare path — the smart default must
+      # not re-fire mid-session and bounce the user back.
+      view
+      |> element("[data-nav-zone='zone-tabs'] [phx-value-zone='coming_up']")
+      |> render_click()
+
+      assert_patch(view, "/incoming")
+      assert has_element?(view, "[data-nav-zone='zone-tabs'] .zone-tab-active", "Coming up")
+      assert has_element?(view, "[data-nav-zone='coming_up_list']")
+      refute has_element?(view, "[data-nav-zone='pursuits']")
+    end
+
+    test "clicking Activity patches the URL and swaps in the operational sections", %{
+      conn: conn
+    } do
+      seed_all_zones()
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=coming_up")
 
       view
       |> element("[data-nav-zone='zone-tabs'] [phx-value-zone='activity']")
@@ -1488,7 +1509,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         }
       ])
 
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=coming_up")
 
       view
       |> form("form[phx-change='omnibox_change']", %{query: "sample"})
