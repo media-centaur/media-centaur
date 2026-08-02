@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.108.0 — 2026-08-02
+
+### New
+
+- **The Incoming page is now search-first.** The page opens straight into "What do you want to watch?" — and answers land in the page itself, not in a floating panel. Results from a title search appear right below the box; clearing the query is the only dismissal.
+- **Three tabs organize everything below the search.** *Coming up* is your release calendar, *Activity* is what's moving right now (approved plans and their downloads), and *History* is the open archive of everything that finished — filter it by Failed, Cancelled, or Succeeded, or search it by title. The page opens on the tab that matters: Activity while something is in flight, Coming up otherwise.
+- **Choose which pages wear artwork.** Settings → Preferences has two new toggles — *Library backdrop* and *Incoming backdrop* — for the ambient artwork behind each page. Both start on, and the darkened depth behind the content stays either way.
+- **The interface scales up to 200%.** Interface scale gains 175% and 200% steps for reading from the couch. The ladder now starts at 100% — the old 80% and 90% steps are gone, and if you had one set it becomes 100%.
+
+### Improved
+
+- **Search results say what picking them does.** A title that isn't out yet offers *Track*; a released one offers *Plan* — and chips above the results narrow them to upcoming or released titles.
+- **The "Needs attention" area became a small warning sign beside the tabs.** Storage and search-setup trouble shows as one tinted glyph — details on hover, gone entirely while everything is healthy.
+- **The Incoming backdrop reaches deeper into the page,** with the darkening starting higher so the search area sits on settled dark. The Settings page's background darkening is gentler too — no more hard band across the lower half.
+- **The download plan window is less cramped,** and a pursuit's header presents its search queries more clearly.
+
 ## v0.107.0 — 2026-08-01
 
 ### New
