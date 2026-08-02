@@ -1621,8 +1621,10 @@ defmodule MediaCentaurWeb.SettingsLive do
         <%!-- Scrim only — no `.page-atmosphere` image. Settings has no content
               entity to source a hero from, so it gets the dimmed sense-of-place
               of the other pages without a random backdrop competing with a
-              utility surface. Fixed + behind content (z-0). --%>
-        <div class="page-side-dim" aria-hidden="true"></div>
+              utility surface. The calm variant: the page is mostly bare, so
+              the standard ramp reads as a harsh band here. Fixed + behind
+              content (z-0). --%>
+        <div class="page-side-dim page-side-dim-calm" aria-hidden="true"></div>
 
         <div class="relative z-[1] space-y-6">
           <header>

@@ -826,12 +826,16 @@ defmodule MediaCentaurWeb.IncomingLive do
         <%!-- Ambient movie image behind the page, same hero-candidate pool
               as home/library. Off when the user disables the Incoming
               backdrop preference. --%>
-        <div :if={@page_backdrop && @incoming_backdrop} class="page-atmosphere" aria-hidden="true">
+        <div
+          :if={@page_backdrop && @incoming_backdrop}
+          class="page-atmosphere page-atmosphere-deep"
+          aria-hidden="true"
+        >
           <img src={@page_backdrop} alt="" loading="eager" decoding="sync" />
         </div>
         <%!-- The dark side/bottom scrim is unconditional — a pure gradient,
               no image needed, and it keeps the page's depth either way. --%>
-        <div class="page-side-dim" aria-hidden="true"></div>
+        <div class="page-side-dim page-side-dim-high" aria-hidden="true"></div>
 
         <%!-- No page header: the search input IS the page's headline (its
               placeholder carries the prompt), so a title above it read as
