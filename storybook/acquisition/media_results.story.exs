@@ -21,6 +21,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
         media_type: :tv_series,
         name: "Sample Show",
         year: "2010",
+        release_date: ~D[2010-06-16],
         poster_path: "/sample-show-poster.jpg",
         overview: "A sample overview line that helps confirm this is the show you meant.",
         tracked?: true
@@ -30,13 +31,15 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
         media_type: :movie,
         name: "Sample Movie",
         year: "2010",
+        release_date: ~D[2010-03-05],
         overview: "A sample movie overview."
       },
       %TitleResult{
         tmdb_id: 778,
         media_type: :movie,
         name: "Sample Movie Returns: An Extraordinarily Long Title That Truncates",
-        year: "2012"
+        year: "2999",
+        release_date: ~D[2999-01-01]
       }
     ]
   end
@@ -49,24 +52,58 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           "The answer sheet: one row per TMDB hit in relevance order — poster thumb " <>
             "(fake paths render broken outside the app; the icon fallback shows the " <>
             "no-poster treatment), identity line with quiet type/year text, overview, " <>
-            "tracked marker, and the row verb.",
+            "tracked marker, and the row verb. The upcoming/released chips sit between " <>
+            "the box and the rows with counts.",
         attributes: %{
           query: "sample",
           results: results(),
           searching?: false,
-          release_mode_available: true
+          release_mode_available: true,
+          scope: :all,
+          today: ~D[2026-08-02]
+        }
+      },
+      %Variation{
+        id: :scoped_upcoming,
+        description:
+          "The Upcoming chip active — only future/undated titles remain; clicking the " <>
+            "active chip returns to everything.",
+        attributes: %{
+          query: "sample",
+          results: results(),
+          searching?: false,
+          release_mode_available: true,
+          scope: :upcoming,
+          today: ~D[2026-08-02]
+        }
+      },
+      %Variation{
+        id: :scoped_empty,
+        description:
+          "An active scope with nothing on its side — the honest scoped-empty line " <>
+            "(the chip stays so toggling off remains possible).",
+        attributes: %{
+          query: "sample",
+          results: Enum.take(results(), 2),
+          searching?: false,
+          release_mode_available: true,
+          scope: :upcoming,
+          today: ~D[2026-08-02]
         }
       },
       %Variation{
         id: :track_only,
         description:
           "No indexer configured — the row verb honestly reads Track; nothing " <>
-            "promises a grab the page can't make.",
+            "promises a grab the page can't make. (Also the Released scope: both " <>
+            "rows are out.)",
         attributes: %{
           query: "sample",
           results: Enum.take(results(), 2),
           searching?: false,
-          release_mode_available: false
+          release_mode_available: false,
+          scope: :released,
+          today: ~D[2026-08-02]
         }
       },
       %Variation{

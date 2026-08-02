@@ -34,7 +34,25 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     required: true,
     doc: "Whether an indexer is configured — flips the row verb between plan and track."
 
+  attr :scope, :atom,
+    default: :all,
+    values: [:all, :upcoming, :released],
+    doc: "Release-status filter — the chips between the box and the rows; `:all` shows everything."
+
+  attr :today, :any,
+    default: nil,
+    doc: "`Date.t()` the upcoming/released split compares against — nil means today (fixed in stories)."
+
   def media_results(assigns) do
+    today = assigns.today || Date.utc_today()
+
+    assigns =
+      assigns
+      |> assign(:today, today)
+      |> assign(:visible, scope(assigns.results, assigns.scope, today))
+      |> assign(:upcoming_count, Enum.count(assigns.results, &(release_status(&1, today) == :upcoming)))
+      |> assign(:released_count, Enum.count(assigns.results, &(release_status(&1, today) == :released)))
+
     ~H"""
     <section
       :if={active_query?(@query)}
@@ -44,6 +62,18 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     >
       <div class="flex items-center justify-between gap-3 px-1">
         <span class="flex items-center gap-2 text-xs text-base-content/40">
+          <.scope_chip
+            scope={:upcoming}
+            label="Upcoming"
+            count={@upcoming_count}
+            active={@scope == :upcoming}
+          />
+          <.scope_chip
+            scope={:released}
+            label="Released"
+            count={@released_count}
+            active={@scope == :released}
+          />
           <span :if={@searching?} class="loading loading-spinner loading-xs"></span>
           <span :if={@searching?}>Searching TMDB…</span>
         </span>
@@ -73,12 +103,50 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
         Nothing found on TMDB.
       </div>
 
+      <div
+        :if={!@searching? && @results != [] && @visible == []}
+        class="glass-inset rounded-lg px-4 py-6 text-center text-sm text-base-content/40"
+      >
+        No {if @scope == :upcoming, do: "upcoming", else: "released"} titles in these results.
+      </div>
+
       <.result_row
-        :for={result <- @results}
+        :for={result <- @visible}
         result={result}
         release_mode_available={@release_mode_available}
       />
     </section>
+    """
+  end
+
+  attr :scope, :atom, required: true
+  attr :label, :string, required: true
+  attr :count, :integer, required: true
+  attr :active, :boolean, required: true
+
+  # One filter chip. Rendered while it has anything to offer or is the
+  # active scope (so toggling off stays possible when a refined query
+  # empties its side). Clicking the active chip returns to everything —
+  # the host's `omnibox_scope` handler owns that toggle.
+  defp scope_chip(assigns) do
+    ~H"""
+    <button
+      :if={@count > 0 || @active}
+      type="button"
+      class={[
+        "cursor-pointer rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
+        @active && "border-primary/50 bg-primary/10 text-primary",
+        !@active &&
+          "border-base-content/15 text-base-content/50 hover:border-base-content/30 hover:text-base-content/70"
+      ]}
+      phx-click="omnibox_scope"
+      phx-value-scope={@scope}
+      aria-pressed={to_string(@active)}
+      data-nav-item
+      tabindex="0"
+    >
+      {@label} <span class="opacity-60">{@count}</span>
+    </button>
     """
   end
 
@@ -146,4 +214,27 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   """
   @spec active_query?(String.t()) :: boolean()
   def active_query?(query), do: String.length(String.trim(query)) >= 2
+
+  @doc """
+  A result's release status as of `today`. A passed date (including
+  today) is `:released`; a future date is `:upcoming` — and so is a
+  missing one, because TMDB leaves unreleased titles undated.
+  """
+  @spec release_status(TitleResult.t(), Date.t()) :: :released | :upcoming
+  def release_status(%TitleResult{release_date: nil}, _today), do: :upcoming
+
+  def release_status(%TitleResult{release_date: release_date}, today) do
+    if Date.after?(release_date, today), do: :upcoming, else: :released
+  end
+
+  @doc """
+  Applies the upcoming/released scope to the result list, preserving
+  TMDB relevance order. `:all` passes everything through untouched.
+  """
+  @spec scope([TitleResult.t()], :all | :upcoming | :released, Date.t()) :: [TitleResult.t()]
+  def scope(results, :all, _today), do: results
+
+  def scope(results, scope, today) when scope in [:upcoming, :released] do
+    Enum.filter(results, &(release_status(&1, today) == scope))
+  end
 end

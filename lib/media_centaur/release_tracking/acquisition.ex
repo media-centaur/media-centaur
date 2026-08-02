@@ -101,6 +101,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
       media_type: :movie,
       name: tmdb["title"],
       year: extract_year(tmdb["release_date"]),
+      release_date: extract_date(tmdb["release_date"]),
       poster_path: tmdb["poster_path"],
       backdrop_path: tmdb["backdrop_path"],
       overview: presence(tmdb["overview"])
@@ -113,6 +114,7 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
       media_type: :tv_series,
       name: tmdb["name"],
       year: extract_year(tmdb["first_air_date"]),
+      release_date: extract_date(tmdb["first_air_date"]),
       poster_path: tmdb["poster_path"],
       backdrop_path: tmdb["backdrop_path"],
       overview: presence(tmdb["overview"])
@@ -126,6 +128,18 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
   defp extract_year(nil), do: nil
   defp extract_year(""), do: nil
   defp extract_year(<<year::binary-size(4), _::binary>>), do: year
+
+  # Full date, not just the year — the results' upcoming/released scoping
+  # compares against today. TMDB leaves unreleased titles undated or with
+  # partial strings; both come through as nil.
+  defp extract_date(date_string) when is_binary(date_string) do
+    case Date.from_iso8601(date_string) do
+      {:ok, date} -> date
+      {:error, _reason} -> nil
+    end
+  end
+
+  defp extract_date(_missing), do: nil
 
   # --- Track from search ---
 

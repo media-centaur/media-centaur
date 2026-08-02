@@ -1197,6 +1197,54 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "[data-nav-zone='coming_up_list']")
     end
 
+    test "the upcoming/released chips scope the results; the active chip toggles back off", %{
+      conn: conn
+    } do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 777,
+          "media_type" => "movie",
+          "title" => "Released Movie",
+          "release_date" => "2020-01-01"
+        },
+        %{
+          "id" => 888,
+          "media_type" => "movie",
+          "title" => "Upcoming Movie",
+          "release_date" => "2999-01-01"
+        }
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+
+      # Unscoped: both rows, both chips with counts.
+      assert has_element?(view, "#omnibox-result-movie-777")
+      assert has_element?(view, "#omnibox-result-movie-888")
+
+      view
+      |> element("button[phx-click='omnibox_scope'][phx-value-scope='upcoming']")
+      |> render_click()
+
+      refute has_element?(view, "#omnibox-result-movie-777")
+      assert has_element?(view, "#omnibox-result-movie-888")
+
+      # Clicking the active chip returns to everything.
+      view
+      |> element("button[phx-click='omnibox_scope'][phx-value-scope='upcoming']")
+      |> render_click()
+
+      assert has_element?(view, "#omnibox-result-movie-777")
+      assert has_element?(view, "#omnibox-result-movie-888")
+    end
+
     test "an exhausted query renders the honest empty answer; Clear search resets it", %{
       conn: conn
     } do
