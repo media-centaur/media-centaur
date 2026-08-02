@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.108.1 — 2026-08-02
+
+### Improved
+
+- **Page backdrops now start off.** The *Library backdrop* and *Incoming backdrop* preferences default to off on new installs — the ambient artwork appears only once you turn it on in Settings → Preferences. A migration in this release keeps whatever your install shows today: existing setups keep their backdrops (and any toggle you've already set) unchanged.
+
+### Fixed
+
+- **Pages no longer stretch past the screen at interface scales above 100%.** With the scale at 150% or higher, every page grew taller than the viewport — a stretch of blank space below the content and a scrollbar that never went away. Pages now fit the screen exactly at every scale step, and full-height surfaces like the setup screen, the console drawer, and dialog windows size themselves to the real screen height.
+
 ## v0.108.0 — 2026-08-02
 
 ### New
