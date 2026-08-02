@@ -890,7 +890,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           <div
             :if={@prowlarr_ready && !@search_owns?}
             data-nav-zone="zone-tabs"
-            class="flex items-center justify-center gap-8"
+            class="flex items-center justify-center gap-8 pt-4"
           >
             <.zone_tab zone={:coming_up} active_zone={@zone} label="Coming up" />
             <.zone_tab
