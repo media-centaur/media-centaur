@@ -1026,6 +1026,14 @@ body:has(.modal-backdrop[data-state="open"]) {
   mask-composite: intersect;
 }
 
+/* Incoming variant — the search-first page has no header block holding the
+   band down, so the artwork reaches deeper before its fade-out and the
+   vertical dim starts higher, keeping the tab row and first list rows
+   readable over the image. */
+.page-atmosphere-deep {
+  height: 36rem;
+}
+
 .page-atmosphere img {
   position: absolute;
   inset: 0;
@@ -1033,26 +1041,6 @@ body:has(.modal-backdrop[data-state="open"]) {
   height: 100%;
   object-fit: cover;
   object-position: center 25%;
-}
-
-/* Library dark scrim — same vocabulary as `.page-side-dim` (home) but a
-   touch lighter, since the browse grid wants a calmer backdrop than the
-   home hero. Fixed so it holds as the grid scrolls; behind the grid (z-0),
-   so it darkens the background, never the posters. */
-.page-side-dim {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(to right, oklch(0% 0 0 / 0.36) 0%, transparent 35%, transparent 100%),
-    linear-gradient(
-      to bottom,
-      transparent 0%,
-      transparent 35%,
-      oklch(0% 0 0 / 0.4) 70%,
-      oklch(0% 0 0 / 0.4) 100%
-    );
 }
 
 .page-backdrop img {
@@ -1104,6 +1092,48 @@ body:has(.modal-backdrop[data-state="open"]) {
       transparent 0%,
       transparent 35%,
       oklch(0% 0 0 / 0.55) 70%,
+      oklch(0% 0 0 / 0.55) 100%
+    );
+}
+
+/* Settings-only variant: the page is mostly bare below the section card,
+   so the base ramp (35% → 70%, 0.55) shows as a harsh band with nothing
+   covering it. Lower peak, longer slope — depth without a visible edge.
+   Must stay AFTER .page-side-dim — same specificity, source order
+   decides. */
+.page-side-dim-calm {
+  background:
+    linear-gradient(
+      to right,
+      oklch(0% 0 0 / 0.50) 0%,
+      transparent 35%,
+      transparent 100%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      transparent 20%,
+      oklch(0% 0 0 / 0.35) 90%,
+      oklch(0% 0 0 / 0.35) 100%
+    );
+}
+
+/* Incoming-only variant (paired with .page-side-dim on that page's
+   scrim): the vertical dim starts at the very top instead of waiting
+   until 35%, so the search area already sits on settled dark. Must stay
+   AFTER .page-side-dim — same specificity, source order decides. */
+.page-side-dim-high {
+  background:
+    linear-gradient(
+      to right,
+      oklch(0% 0 0 / 0.50) 0%,
+      transparent 35%,
+      transparent 100%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0%,
+      oklch(0% 0 0 / 0.55) 30%,
       oklch(0% 0 0 / 0.55) 100%
     );
 }
