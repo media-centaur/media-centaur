@@ -40,6 +40,15 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
         name: "Sample Movie Returns: An Extraordinarily Long Title That Truncates",
         year: "2999",
         release_date: ~D[2999-01-01]
+      },
+      %TitleResult{
+        tmdb_id: 779,
+        media_type: :tv_series,
+        name: "Sample Upcoming Show",
+        year: "2999",
+        release_date: ~D[2999-03-01],
+        overview: "Already tracked and not yet out — the verb slot stays empty.",
+        tracked?: true
       }
     ]
   end

@@ -113,6 +113,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
       <.result_row
         :for={result <- @visible}
         result={result}
+        status={release_status(result, @today)}
         release_mode_available={@release_mode_available}
       />
     </section>
@@ -151,9 +152,18 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   end
 
   attr :result, TitleResult, required: true
+
+  attr :status, :atom,
+    required: true,
+    values: [:upcoming, :released],
+    doc: "`release_status/2` of this row — picks the verb the click honestly performs."
+
   attr :release_mode_available, :boolean, required: true
 
   defp result_row(assigns) do
+    assigns =
+      assign(assigns, :verb, verb(assigns.result, assigns.status, assigns.release_mode_available))
+
     ~H"""
     <button
       id={"omnibox-result-#{@result.media_type}-#{@result.tmdb_id}"}
@@ -199,13 +209,27 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
         </span>
       </span>
 
-      <span class="inline-flex shrink-0 items-center gap-1 self-center text-xs font-medium text-primary/70">
-        {if @release_mode_available, do: "Plan download", else: "Track"}
+      <span
+        :if={@verb}
+        class="inline-flex shrink-0 items-center gap-1 self-center text-xs font-medium text-primary/70"
+      >
+        {@verb}
         <.icon name="hero-chevron-right-mini" class="size-3.5" />
       </span>
     </button>
     """
   end
+
+  # The row's one verb, honest per release status: a released title can
+  # be planned (or tracked without an indexer); an unreleased one can
+  # only be tracked — the host's `omnibox_pick` performs exactly this
+  # split. An already-tracked upcoming row affords nothing further, so
+  # the verb slot stays empty (the identity line carries the Tracked
+  # marker).
+  defp verb(%TitleResult{tracked?: true}, :upcoming, _release_mode_available), do: nil
+  defp verb(%TitleResult{}, :upcoming, _release_mode_available), do: "Track release"
+  defp verb(%TitleResult{}, :released, true), do: "Plan download"
+  defp verb(%TitleResult{}, :released, false), do: "Track"
 
   @doc """
   Whether the typed query is active — two or more characters after
