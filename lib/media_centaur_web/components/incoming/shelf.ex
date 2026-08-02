@@ -88,18 +88,17 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
 
   def shelf(assigns) do
     ~H"""
+    <%!-- No section header: with tabs the view is already named "Coming
+          up", and on the forecast-only page the date-led rows speak for
+          themselves. Centered at a readable measure — the column sits
+          under the centered omnibox and tabs, and titles don't drift
+          from their status pills on media-center-wide screens. --%>
     <section
       :if={@cards != [] || @stragglers != []}
       data-component="incoming-shelf"
-      class="space-y-4"
+      class="mx-auto w-full max-w-3xl space-y-4"
     >
-      <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
-        Coming up
-      </h3>
-
-      <%!-- Capped at a readable measure so title and status pill don't
-            drift apart on media-center-wide screens. --%>
-      <div data-nav-zone="coming_up_list" class="flex max-w-3xl flex-col">
+      <div data-nav-zone="coming_up_list" class="flex flex-col">
         <.shelf_row :for={card <- @cards} card={card} />
         <.horizon_action
           overflow_count={@overflow_count}

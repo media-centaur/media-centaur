@@ -1,28 +1,32 @@
 defmodule MediaCentaurWeb.IncomingLive do
   @moduledoc """
   The Incoming page at `/incoming` (DDR-015) — Upcoming and Downloads
-  merged into one collection-growth destination. A single column with a
-  density gradient, top to bottom:
+  merged into one collection-growth destination. The hero omnibox is
+  the standing front door; below it, zone tabs (UIDR-006, `?zone=`)
+  split the content into three calm views — **Coming up** (default),
+  **Activity**, and **History**. While a search owns the page
+  (`Logic.search_owns_page?/3`) the tabs and their content recede
+  behind the flat results; forecast-only installs (no indexer) get no
+  tab bar at all. The sections, by tab:
 
-  1. **Hero omnibox** (`data-nav-zone="omnibox"`) — the front door: TMDB
-     media search feeding the plan/track flows, or Prowlarr release
-     search (results render in the search zone below; the shelf recedes
-     while release search owns the page).
-  2. **Coming up agenda** (`data-nav-zone="coming_up_list"`) — one
-     compact date-led row per tracked title, nearness-ordered, statuses
-     via the shared `StatusPill` vocabulary; overflow grows in place
-     ("Show all N").
-  3. **Draft plans** (`data-nav-zone="drafts"`) — unapproved plan
-     boards, resumable into the plan modal.
-  4. **In flight** (`data-nav-zone="pursuits"`) — every live pursuit,
-     paired at render time with its torrent(s) from the download-client
-     queue. Refreshes live via PubSub + queue polls.
-  5. **Recently landed** (`data-nav-zone="ledger"`) — THE history
-     surface: a newest-first glimpse that expands in place ("View all")
-     into the filtered archive (chips + search). One section, no
-     sibling duplicate.
-  6. **Other downloads** (`data-nav-zone="other_downloads"`) — client
-     torrents that match no tracked pursuit — then the Storage section.
+  Always present: the **hero omnibox** (`data-nav-zone="omnibox"`) —
+  TMDB media search answering flat in `MediaResults`, or Prowlarr
+  release search answering in the search zone (`"grid"`).
+
+  **Coming up** — the agenda (`data-nav-zone="coming_up_list"`): one
+  compact date-led row per tracked title, nearness-ordered, statuses
+  via the shared `StatusPill` vocabulary; overflow grows in place
+  ("Show all N").
+
+  **Activity** — draft plans (`"drafts"`, resumable into the plan
+  modal); **In flight** (`"pursuits"`): every live pursuit paired at
+  render time with its torrent(s), refreshed via PubSub + queue polls;
+  and other downloads (`"other_downloads"`): client torrents matching
+  no tracked pursuit.
+
+  **History** — Recently landed (`"ledger"`), THE history surface: a
+  newest-first glimpse that expands in place ("View all") into the
+  filtered archive (chips + search), with the calm storage foot line.
 
   No capability gate on mount: without Prowlarr the page renders
   forecast-only. Section honesty is enforced once, in
@@ -554,6 +558,7 @@ defmodule MediaCentaurWeb.IncomingLive do
         history_search: Map.get(params, "search", ""),
         history_filter: HistoryLogic.parse_filter(Map.get(params, "filter"))
       )
+      |> assign_zone(params)
       |> maybe_open_history(params, was_loaded?)
       |> ensure_loaded()
       |> maybe_load_history(was_loaded?)
@@ -562,6 +567,18 @@ defmodule MediaCentaurWeb.IncomingLive do
       |> maybe_trigger_prowlarr_search(Map.get(params, "prowlarr_search"))
 
     {:noreply, socket}
+  end
+
+  # The zone tabs (Coming up | Activity | History) are URL state
+  # (UIDR-006). Forecast-only installs have nothing to tab between, so
+  # the param is ignored and everything renders as Coming up.
+  defp assign_zone(socket, params) do
+    zone =
+      if socket.assigns.prowlarr_ready,
+        do: Logic.parse_zone(params["zone"]),
+        else: :coming_up
+
+    assign(socket, zone: zone)
   end
 
   # Durable History disclosure preference. Persisted in Settings (not the URL
@@ -638,13 +655,29 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
+  # Path back to the page keeping the zone tab (default zone = clean
+  # URL) — every modal open/close patch routes through this so leaving
+  # a modal never dumps the user on a different tab.
+  defp incoming_path(socket, params \\ %{}) do
+    params =
+      if socket.assigns.zone == :coming_up,
+        do: params,
+        else: Map.put(params, "zone", to_string(socket.assigns.zone))
+
+    case URI.encode_query(params) do
+      "" -> "/incoming"
+      query -> "/incoming?" <> query
+    end
+  end
+
   # Builds a path back to `/incoming` preserving the archive filter/search
   # so the modal open/close doesn't reset the user's surrounding view.
   # Overrides are merged last and `nil`-valued keys remove the param.
   defp build_pursuit_modal_path(socket, overrides) do
     base = %{
       "search" => socket.assigns.history_search,
-      "filter" => to_string(socket.assigns.history_filter)
+      "filter" => to_string(socket.assigns.history_filter),
+      "zone" => if(socket.assigns.zone != :coming_up, do: to_string(socket.assigns.zone))
     }
 
     merged =
@@ -742,12 +775,26 @@ defmodule MediaCentaurWeb.IncomingLive do
         :telemetry_age,
         Logic.telemetry_age_label(assigns.queue_connectivity, assigns.queue_last_success_at)
       )
-      # The shelf recedes only while a search actually owns the page (an
-      # active media query, or a release query/results) — a bare mode
-      # flip keeps the forecast in view.
+      # While a search owns the page (an active media query, or a release
+      # query/results) the tab bar and the active zone's content recede —
+      # a bare mode flip keeps them in view.
       |> Phoenix.Component.assign(
-        :shelf_visible?,
-        Logic.shelf_visible?(assigns.omnibox_mode, assigns.omnibox_query, assigns.search_session)
+        :search_owns?,
+        Logic.search_owns_page?(assigns.omnibox_mode, assigns.omnibox_query, assigns.search_session)
+      )
+      # Honest empty tabs: one quiet line instead of a void. Activity is
+      # empty when none of its sections (drafts, in-flight, other
+      # downloads, the connect-a-client hint) will render; History mirrors
+      # the ledger's own render gate.
+      |> Phoenix.Component.assign(
+        :activity_empty?,
+        assigns.view.drafts == [] and paired_rows == [] and active_compact == [] and
+          orphan_queue == [] and assigns.download_client_ready
+      )
+      |> Phoenix.Component.assign(
+        :history_empty?,
+        assigns.view.ledger.rows == [] and assigns.view.ledger.hidden_count == 0 and
+          not (assigns.history_open? and Capabilities.prowlarr_ready?())
       )
       # Live percentages ride the same render-time pairing: the paired
       # downloads stamp their progress onto in-pursuit shelf cards, so the
@@ -878,17 +925,37 @@ defmodule MediaCentaurWeb.IncomingLive do
             timeout_terms={@timeout_terms}
           />
 
-          <%!-- The shelf recedes while a search owns the page — clearing
-                the query restores it. A bare mode flip (empty box) keeps
-                the forecast visible. --%>
+          <%!-- Zone tabs (UIDR-006): the page's three calm views. Only
+                rendered when acquisition exists — forecast-only installs
+                have nothing to tab between — and receded while a search
+                owns the page, like everything below the omnibox. --%>
+          <div
+            :if={@prowlarr_ready && !@search_owns?}
+            data-nav-zone="zone-tabs"
+            class="flex justify-center gap-8"
+          >
+            <.zone_tab zone={:coming_up} active_zone={@zone} label="Coming up" />
+            <.zone_tab
+              zone={:activity}
+              active_zone={@zone}
+              label="Activity"
+              count={length(@download_cards) + length(@active_compact)}
+            />
+            <.zone_tab zone={:history} active_zone={@zone} label="History" />
+          </div>
+
           <Shelf.shelf
-            :if={@shelf_visible?}
+            :if={!@search_owns? && @zone == :coming_up}
             cards={@shelf_cards}
             overflow_count={@view.shelf.overflow_count}
             stragglers={@view.shelf.stragglers}
           />
 
-          <section :if={@view.drafts != []} data-nav-zone="drafts" class="space-y-3">
+          <section
+            :if={@view.drafts != [] && !@search_owns? && @zone == :activity}
+            data-nav-zone="drafts"
+            class="space-y-3"
+          >
             <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
               Draft plans
             </h2>
@@ -946,7 +1013,9 @@ defmodule MediaCentaurWeb.IncomingLive do
           </section>
 
           <p
-            :if={@prowlarr_ready and !@download_client_ready}
+            :if={
+              @prowlarr_ready and !@download_client_ready and !@search_owns? and @zone == :activity
+            }
             class="scrim-surface rounded-xl px-4 py-3 text-center text-sm text-base-content/50"
           >
             Connect a download client in
@@ -956,7 +1025,11 @@ defmodule MediaCentaurWeb.IncomingLive do
             to see live torrent activity under each pursuit.
           </p>
 
-          <section :if={@paired_rows != []} data-nav-zone="pursuits" class="space-y-3">
+          <section
+            :if={@paired_rows != [] && !@search_owns? && @zone == :activity}
+            data-nav-zone="pursuits"
+            class="space-y-3"
+          >
             <div class="flex items-center justify-between gap-3">
               <h2 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
                 In flight
@@ -992,6 +1065,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           </section>
 
           <Ledger.ledger
+            :if={!@search_owns? && @zone == :history}
             rows={@view.ledger.rows}
             hidden_count={@view.ledger.hidden_count}
             expanded={@view.ledger.expanded?}
@@ -1006,20 +1080,60 @@ defmodule MediaCentaurWeb.IncomingLive do
             </:archive>
           </Ledger.ledger>
 
-          <OrphanQueue.orphan_zone items={@orphan_queue} />
+          <OrphanQueue.orphan_zone :if={!@search_owns? && @zone == :activity} items={@orphan_queue} />
+
+          <p
+            :if={
+              !@search_owns? &&
+                ((@zone == :activity && @activity_empty?) || (@zone == :history && @history_empty?))
+            }
+            data-component="zone-empty"
+            class="py-10 text-center text-sm text-base-content/40"
+          >
+            {if @zone == :activity,
+              do: "Nothing in flight — approved plans and their downloads appear here.",
+              else: "Nothing landed yet — finished downloads appear here."}
+          </p>
 
           <%!-- Needs attention is bookkeeping — it closes the page, never
                 leads it (UIDR-016). Calm free space stays the ledger's foot
                 line; cards only render when storage escalates (low space /
                 multiple drives) or search health degrades. --%>
           <NeedsAttention.needs_attention
-            :if={NeedsAttention.visible?(@storage_mode, @search_health)}
+            :if={!@search_owns? && NeedsAttention.visible?(@storage_mode, @search_health)}
             drives={if(@storage_mode == :card, do: @storage_drives, else: [])}
             search_health={@search_health}
           />
         </div>
       </div>
     </Layouts.app>
+    """
+  end
+
+  attr :zone, :atom, required: true, values: [:coming_up, :activity, :history]
+  attr :active_zone, :atom, required: true, doc: "The page's current zone — styles the active tab."
+  attr :label, :string, required: true
+
+  attr :count, :integer,
+    default: nil,
+    doc: "Live tally on the tab (Activity's in-flight count) — hidden at zero."
+
+  defp zone_tab(assigns) do
+    ~H"""
+    <%!-- Deliberately NO data-nav-zone-value: that attribute makes the
+          active tab name the input system's LAYOUT key (the library
+          page's mechanism). These are content tabs inside the single
+          `incoming` layout — the candidate lists route around whichever
+          zones the active tab renders. --%>
+    <a
+      class={["zone-tab", @zone == @active_zone && "zone-tab-active"]}
+      data-nav-item
+      tabindex="0"
+      phx-click="switch_zone"
+      phx-value-zone={@zone}
+    >
+      {@label}<span :if={@count && @count > 0} class="ml-1.5 text-xs text-base-content/45">{@count}</span>
+    </a>
     """
   end
 
@@ -1217,7 +1331,7 @@ defmodule MediaCentaurWeb.IncomingLive do
            omnibox_scope: :all
          )
          |> build_view()
-         |> push_patch(to: "/incoming?plan=#{plan.id}")}
+         |> push_patch(to: incoming_path(socket, %{"plan" => plan.id}))}
 
       {:error, reason} ->
         Log.warning(:acquisition, "plan create failed — #{inspect(reason)}")
@@ -1345,18 +1459,26 @@ defmodule MediaCentaurWeb.IncomingLive do
        |> assign(plan_drafts: load_drafts())
        |> build_view()
        |> put_flash(:info, "Plan discarded.")
-       |> push_patch(to: "/incoming")}
+       |> push_patch(to: incoming_path(socket))}
     else
       _ -> {:noreply, put_flash(socket, :error, "Could not discard the plan.")}
     end
   end
 
   def handle_event("close_plan", _params, socket) do
-    {:noreply, push_patch(socket, to: "/incoming")}
+    {:noreply, push_patch(socket, to: incoming_path(socket))}
+  end
+
+  # Zone-tab switching is a URL patch (UIDR-006) — the default zone
+  # keeps a clean URL so data-nav-remember doesn't pin a stale param.
+  def handle_event("switch_zone", %{"zone" => zone}, socket)
+      when zone in ~w(coming_up activity history) do
+    to = if zone == "coming_up", do: "/incoming", else: "/incoming?zone=#{zone}"
+    {:noreply, push_patch(socket, to: to)}
   end
 
   def handle_event("resume_plan", %{"id" => plan_id}, socket) do
-    {:noreply, push_patch(socket, to: "/incoming?plan=#{plan_id}")}
+    {:noreply, push_patch(socket, to: incoming_path(socket, %{"plan" => plan_id}))}
   end
 
   # ---------------------------------------------------------------------------
@@ -1466,7 +1588,9 @@ defmodule MediaCentaurWeb.IncomingLive do
         {:noreply,
          socket
          |> assign(plan_identity: picked)
-         |> push_patch(to: "/incoming?plan=new&tmdb_id=#{tmdb_id}&tmdb_type=#{plan_type}")}
+         |> push_patch(
+           to: incoming_path(socket, %{"plan" => "new", "tmdb_id" => tmdb_id, "tmdb_type" => plan_type})
+         )}
     end
   end
 
@@ -1595,6 +1719,8 @@ defmodule MediaCentaurWeb.IncomingLive do
         {:noreply,
          socket
          |> put_flash(:info, "Tracking #{name} — it will appear under Coming up.")
+         # Deliberately the plain path (= Coming up), not incoming_path/1:
+         # the flash points there, and showing the new row beats describing it.
          |> push_patch(to: "/incoming")}
     end
   end
@@ -2057,7 +2183,9 @@ defmodule MediaCentaurWeb.IncomingLive do
          |> assign(plan_drafts: load_drafts())
          |> build_view()
          |> put_flash(:info, "Pursuit started.")
-         |> push_patch(to: "/incoming?selected=#{committed.pursuit_id}")}
+         # The new pursuit is Activity content — land there under the
+         # opened pursuit modal, so closing it shows In flight.
+         |> push_patch(to: "/incoming?selected=#{committed.pursuit_id}&zone=activity")}
 
       {:error, {:overlap, units}} ->
         {:noreply,

@@ -107,57 +107,65 @@ describe("App config", () => {
 })
 
 describe("Incoming page nav (real config)", () => {
-  // The everyday shape: shelf + pursuits + ledger populated, calendar
-  // closed (mini-month absent), no release-search results, no drafts.
-  const populated = {
-    omnibox: 1,
-    coming_up_list: 6,
-    pursuits: 3,
-    ledger: 5,
-    sidebar: 4,
-  }
+  // One tab's content renders at a time: the zone tabs route down into
+  // whichever content zone the active tab populated.
+  const comingUpView = { omnibox: 1, zone_tabs: 3, coming_up_list: 6, sidebar: 4 }
 
-  test("the shelf sits between the omnibox and the operational column", () => {
-    const graph = buildNavGraph("incoming", populated, inputConfig)
-    expect(graph.coming_up_list.up).toBe("omnibox")
-    expect(graph.coming_up_list.down).toBe("pursuits")
-    expect(graph.pursuits.down).toBe("ledger")
-    expect(graph.ledger.down).toBeUndefined()
+  test("Coming up view: tabs sit between the omnibox and the agenda", () => {
+    const graph = buildNavGraph("incoming", comingUpView, inputConfig)
+    expect(graph.omnibox.down).toBe("zone_tabs")
+    expect(graph.zone_tabs.up).toBe("omnibox")
+    expect(graph.zone_tabs.down).toBe("coming_up_list")
+    expect(graph.coming_up_list.up).toBe("zone_tabs")
+    expect(resolveCursorStart("incoming", comingUpView, inputConfig)).toBe("coming_up_list")
   })
 
-  test("sidebar enters the shelf first; cursor starts there too", () => {
-    const graph = buildNavGraph("incoming", populated, inputConfig)
-    expect(graph.sidebar.right).toBe("coming_up_list")
-    expect(resolveCursorStart("incoming", populated, inputConfig)).toBe("coming_up_list")
-  })
-
-  test("forecast-only (no acquisition): shelf falls through to history-less bottom", () => {
-    const counts = { omnibox: 1, coming_up_list: 6, sidebar: 4 }
+  test("Activity view: tabs route into drafts → pursuits → other downloads", () => {
+    const counts = { omnibox: 1, zone_tabs: 3, drafts: 1, pursuits: 3, other_downloads: 2, sidebar: 4 }
     const graph = buildNavGraph("incoming", counts, inputConfig)
-    expect(graph.coming_up_list.up).toBe("omnibox")
-    expect(graph.coming_up_list.down).toBeUndefined()
-    expect(resolveCursorStart("incoming", counts, inputConfig)).toBe("coming_up_list")
-  })
-
-  test("an empty shelf falls back to pursuits for sidebar entry and cursor start", () => {
-    const counts = { ...populated, coming_up_list: 0 }
-    const graph = buildNavGraph("incoming", counts, inputConfig)
-    expect(graph.sidebar.right).toBe("pursuits")
+    expect(graph.zone_tabs.down).toBe("drafts")
+    expect(graph.drafts.down).toBe("pursuits")
+    expect(graph.pursuits.down).toBe("other_downloads")
+    expect(graph.other_downloads.up).toBe("pursuits")
     expect(resolveCursorStart("incoming", counts, inputConfig)).toBe("pursuits")
   })
 
-  test("release-search results take the omnibox's down edge when present", () => {
-    const counts = { ...populated, grid: 8, coming_up_list: 0 }
+  test("History view: tabs route into the ledger; sidebar falls through to it", () => {
+    const counts = { omnibox: 1, zone_tabs: 3, ledger: 5, sidebar: 4 }
+    const graph = buildNavGraph("incoming", counts, inputConfig)
+    expect(graph.zone_tabs.down).toBe("ledger")
+    expect(graph.ledger.up).toBe("zone_tabs")
+    expect(graph.sidebar.right).toBe("ledger")
+  })
+
+  test("search owns the page: only the flat results grid below the omnibox", () => {
+    const counts = { omnibox: 1, grid: 8, sidebar: 4 }
     const graph = buildNavGraph("incoming", counts, inputConfig)
     expect(graph.omnibox.down).toBe("grid")
     expect(graph.grid.up).toBe("omnibox")
   })
 
+  test("forecast-only (no tabs in the DOM): the agenda leans on the candidate fallback", () => {
+    const counts = { omnibox: 1, coming_up_list: 6, sidebar: 4 }
+    const graph = buildNavGraph("incoming", counts, inputConfig)
+    expect(graph.coming_up_list.up).toBe("omnibox")
+    expect(resolveCursorStart("incoming", counts, inputConfig)).toBe("coming_up_list")
+  })
+
+  test("sidebar enters the agenda first; cursor starts there too", () => {
+    const graph = buildNavGraph("incoming", comingUpView, inputConfig)
+    expect(graph.sidebar.right).toBe("coming_up_list")
+  })
+
   test("every incoming context reaches the sidebar via left", () => {
-    const counts = { ...populated, grid: 2, drafts: 1, other_downloads: 1 }
+    const counts = {
+      omnibox: 1, zone_tabs: 3, grid: 2, coming_up_list: 6,
+      drafts: 1, pursuits: 3, ledger: 5, other_downloads: 1, sidebar: 4,
+    }
     const graph = buildNavGraph("incoming", counts, inputConfig)
     for (const context of [
       "omnibox",
+      "zone_tabs",
       "coming_up_list",
       "grid",
       "drafts",
