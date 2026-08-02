@@ -701,6 +701,34 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       :ok
     end
 
+    test "carries the full release date through — the upcoming/released filter needs it" do
+      MediaCentaur.TmdbStubs.stub_search_multi([
+        %{
+          "id" => 100,
+          "media_type" => "movie",
+          "title" => "Dated Movie",
+          "release_date" => "2026-07-01"
+        },
+        %{
+          "id" => 200,
+          "media_type" => "tv",
+          "name" => "Dated Show",
+          "first_air_date" => "2025-01-15"
+        },
+        %{
+          "id" => 101,
+          "media_type" => "movie",
+          "title" => "Undated Movie"
+        }
+      ])
+
+      assert [
+               %TitleResult{tmdb_id: 100, release_date: ~D[2026-07-01]},
+               %TitleResult{tmdb_id: 200, release_date: ~D[2025-01-15]},
+               %TitleResult{tmdb_id: 101, release_date: nil}
+             ] = ReleaseTracking.search_tmdb("dated")
+    end
+
     test "preserves TMDB's relevance order across movie and TV results" do
       # The multi endpoint ranks across types — a TV show may outrank
       # every movie. The merge must not regroup by type (the old

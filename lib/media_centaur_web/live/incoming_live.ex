@@ -203,6 +203,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_results: [],
          omnibox_searching?: false,
          omnibox_searched: nil,
+         omnibox_scope: :all,
          plan_param: nil,
          plan_stage: :loading,
          plan_selection: nil,
@@ -867,6 +868,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             results={@omnibox_results}
             searching?={@omnibox_searching?}
             release_mode_available={@prowlarr_ready}
+            scope={@omnibox_scope}
           />
 
           <Search.search_zone
@@ -1211,7 +1213,8 @@ defmodule MediaCentaurWeb.IncomingLive do
            omnibox_query: "",
            omnibox_results: [],
            omnibox_searching?: false,
-           omnibox_searched: nil
+           omnibox_searched: nil,
+           omnibox_scope: :all
          )
          |> build_view()
          |> push_patch(to: "/incoming?plan=#{plan.id}")}
@@ -1401,9 +1404,21 @@ defmodule MediaCentaurWeb.IncomingLive do
        omnibox_query: "",
        omnibox_results: [],
        omnibox_searching?: false,
-       omnibox_searched: nil
+       omnibox_searched: nil,
+       omnibox_scope: :all
      )
      |> push_event("omnibox:refocus", %{})}
+  end
+
+  # The upcoming/released chips between the box and the rows. Clicking
+  # the active chip toggles back to everything; the scope survives query
+  # refinements (the chips stay visible, so the state stays legible) and
+  # resets with the query.
+  def handle_event("omnibox_scope", %{"scope" => scope}, socket) when scope in ~w(upcoming released) do
+    scope = String.to_existing_atom(scope)
+    current = socket.assigns.omnibox_scope
+
+    {:noreply, assign(socket, omnibox_scope: if(current == scope, do: :all, else: scope))}
   end
 
   def handle_event("omnibox_mode", %{"mode" => mode}, socket) when mode in ~w(media release) do
@@ -1418,7 +1433,8 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_results: [],
          omnibox_query: "",
          omnibox_searching?: false,
-         omnibox_searched: nil
+         omnibox_searched: nil,
+         omnibox_scope: :all
        )}
     end
   end
