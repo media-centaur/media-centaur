@@ -7,6 +7,11 @@ defmodule MediaCentaur.LibraryBackdrop do
   The dark scrim underneath is unconditional; this flag only controls the
   image.
 
+  Default-off: a fresh install renders no backdrop until the user turns
+  it on. Installs that predate the flip keep their backdrop via the
+  `SeedBackdropDefaultsForExistingInstalls` migration, which seeds an
+  explicit `enabled: true` row on non-empty databases.
+
   Reads route through `Settings.get_by_key/1`, which is itself
   `:persistent_term`-cached at the Settings layer (see
   `MediaCentaur.Settings`). No per-flag cache is needed here.
@@ -25,16 +30,16 @@ defmodule MediaCentaur.LibraryBackdrop do
   def enabled? do
     case Settings.get_by_key(@setting_key) do
       {:ok, %{value: value}} -> enabled?(value)
-      _ -> true
+      _ -> false
     end
   end
 
   @doc """
-  Parses a stored setting value into the flag. Default-on: only an explicit
-  `%{"enabled" => false}` hides the backdrop. Lets the generic `SettingAware`
+  Parses a stored setting value into the flag. Default-off: only an explicit
+  `%{"enabled" => true}` shows the backdrop. Lets the generic `SettingAware`
   on_mount trait apply the same polarity on live updates.
   """
   @spec enabled?(map()) :: boolean()
-  def enabled?(%{"enabled" => false}), do: false
-  def enabled?(_), do: true
+  def enabled?(%{"enabled" => true}), do: true
+  def enabled?(_), do: false
 end

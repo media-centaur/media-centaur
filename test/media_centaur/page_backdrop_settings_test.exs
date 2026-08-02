@@ -1,8 +1,11 @@
 defmodule MediaCentaur.PageBackdropSettingsTest do
   @moduledoc """
   Tests for the per-page backdrop typed Settings accessors
-  (`LibraryBackdrop`, `IncomingBackdrop`) — both default-on, so the
-  ambient artwork band renders until the user turns it off.
+  (`LibraryBackdrop`, `IncomingBackdrop`) — both default-off, so the
+  ambient artwork band only renders once the user turns it on. Existing
+  installs that were on the default-on regime are seeded an explicit
+  `enabled: true` row by the `SeedBackdropDefaultsForExistingInstalls`
+  migration (which skips fresh databases).
   """
   use MediaCentaur.DataCase, async: false
 
@@ -15,9 +18,9 @@ defmodule MediaCentaur.PageBackdropSettingsTest do
         {IncomingBackdrop, "incoming_backdrop"}
       ] do
     describe "#{inspect(module)}.enabled?/0" do
-      test "returns true when no setting entry exists (default-on)" do
+      test "returns false when no setting entry exists (default-off)" do
         assert {:ok, nil} = Settings.get_by_key(unquote(module).setting_key())
-        assert unquote(module).enabled?() == true
+        assert unquote(module).enabled?() == false
       end
 
       test "returns true when the stored value is enabled: true" do
@@ -40,14 +43,14 @@ defmodule MediaCentaur.PageBackdropSettingsTest do
         assert unquote(module).enabled?() == false
       end
 
-      test "returns true (default-on) when the stored value is shaped unexpectedly" do
+      test "returns false (default-off) when the stored value is shaped unexpectedly" do
         {:ok, _} =
           Settings.find_or_create_entry(%{
             key: unquote(module).setting_key(),
             value: %{"something_else" => "yes"}
           })
 
-        assert unquote(module).enabled?() == true
+        assert unquote(module).enabled?() == false
       end
     end
 
