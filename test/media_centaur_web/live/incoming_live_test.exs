@@ -1484,12 +1484,17 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "[data-nav-zone='ledger']")
     end
 
-    test "?zone=history mounts straight into the ledger", %{conn: conn} do
+    test "?zone=history mounts straight into the open archive", %{conn: conn} do
       seed_all_zones()
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
 
       assert has_element?(view, "[data-nav-zone='zone-tabs'] .zone-tab-active", "History")
-      assert has_element?(view, "[data-nav-zone='ledger']")
+      # The tab IS "View all": filter chips and search render immediately,
+      # no disclosure to open, and the default filter shows everything.
+      assert has_element?(view, "[data-nav-zone='ledger'] [phx-click='set_history_filter']")
+      assert has_element?(view, "[data-nav-zone='ledger'] input[type='search']")
+      assert has_element?(view, "[data-nav-zone='ledger']", "Tabbed Landed Movie")
+      refute has_element?(view, "[phx-click='toggle_history']")
       refute has_element?(view, "[data-nav-zone='coming_up_list']")
       refute has_element?(view, "[data-nav-zone='pursuits']")
     end
@@ -1533,8 +1538,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
       assert has_element?(view, "[data-component='zone-empty']", "Nothing in flight")
 
+      # History has no separate zone-empty line — the always-open archive
+      # carries its own honest per-filter empty state.
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
-      assert has_element?(view, "[data-component='zone-empty']", "Nothing landed yet")
+      assert has_element?(view, "section[data-nav-zone='ledger']", "No past pursuits on record.")
     end
 
     test "plan-modal patches keep the zone — closing a draft doesn't dump you on Coming up", %{
@@ -2430,74 +2437,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
   end
 
-  describe "history disclosure" do
-    # The archive is the ledger's zoomed state ("View all") — one section,
-    # never a sibling duplicate. Closed means the archive body (filter
-    # chips, search, grouped rows) is not rendered at all; the glimpse rows
-    # and the toggle are. The filter chips are the "is the archive open?"
-    # probe. The section only exists once there IS history, so each test
-    # seeds one terminal pursuit.
-
-    @history_filter_chips "section[data-nav-zone='ledger'] button[phx-click='set_history_filter']"
-
-    setup do
-      {pursuit, _target} =
-        create_pursuit_with_target(%{
-          tmdb_id: "tmdb-ledger-seed",
-          tmdb_type: "movie",
-          title: "Sample Movie",
-          origin: "auto",
-          release_title: "Sample.Movie.2010.1080p.WEB-DL",
-          status: "failed"
-        })
-
-      pursuit
-      |> Ecto.Changeset.change(state: "exhausted")
-      |> MediaCentaur.Repo.update!()
-
-      :ok
-    end
-
-    test "history starts collapsed — toggle present, body not rendered", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
-
-      assert has_element?(view, "[phx-click='toggle_history']")
-      refute has_element?(view, @history_filter_chips)
-    end
-
-    test "toggling expands and collapses the zone", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
-
-      view |> element("[phx-click='toggle_history']") |> render_click()
-      assert has_element?(view, @history_filter_chips)
-
-      view |> element("[phx-click='toggle_history']") |> render_click()
-      refute has_element?(view, @history_filter_chips)
-    end
-
-    test "a filter param in the URL does not force History open (respects the pref)", %{conn: conn} do
-      # Regression: build_pursuit_modal_path/2 always carries filter=failed, so
-      # landing fresh on such a URL (e.g. browser back to a pursuit-modal URL)
-      # used to auto-expand History and override a collapsed preference. There
-      # are no genuine ?filter=/?search= deep-links to /download, so the URL
-      # filter state must never open the zone — only the persisted pref does.
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?filter=failed&search=Sample")
-
-      refute has_element?(view, @history_filter_chips)
-    end
-
-    test "opening the pursuit modal does not auto-expand history", %{conn: conn} do
-      # build_pursuit_modal_path/2 always carries filter= in the patch URL;
-      # only the FIRST load's params may auto-expand, otherwise clicking
-      # any pursuit row would pop the history zone open underneath the modal.
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
-
-      render_patch(view, "/incoming?filter=failed&selected=#{Ecto.UUID.generate()}")
-
-      refute has_element?(view, @history_filter_chips)
-    end
-  end
-
   describe "live updates from grab lifecycle" do
     # The activity zone shows recent grabs and their state. PubSub events
     # from acquisition coalesce through a 500ms debounce so a season-grab
@@ -2560,55 +2499,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       true ->
         Process.sleep(10)
         do_await_session_groups(status, deadline)
-    end
-  end
-
-  describe "history disclosure durability" do
-    # The archive filter tabs (`phx-click="set_history_filter"`) render only
-    # when the archive is open, so their presence is a clean data-flow
-    # marker for open/closed — no HTML-structure assertions. Seeded history
-    # so the ledger section (and its toggle) exists at all.
-    setup do
-      {pursuit, _target} =
-        create_pursuit_with_target(%{
-          tmdb_id: "tmdb-ledger-durability",
-          tmdb_type: "movie",
-          title: "Sample Movie",
-          origin: "auto",
-          release_title: "Sample.Movie.2010.1080p.WEB-DL",
-          status: "failed"
-        })
-
-      pursuit
-      |> Ecto.Changeset.change(state: "exhausted")
-      |> MediaCentaur.Repo.update!()
-
-      :ok
-    end
-
-    test "defaults collapsed and persists an expand across remounts", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
-      refute render(view) =~ "set_history_filter"
-
-      view |> element("[phx-click='toggle_history']") |> render_click()
-      assert render(view) =~ "set_history_filter"
-
-      # A fresh mount = navigating away and back. A plain socket assign would
-      # reset to collapsed here; the persisted preference keeps it open.
-      {:ok, remounted, _html} = live_async!(conn, ~p"/incoming?zone=history")
-      assert render(remounted) =~ "set_history_filter"
-    end
-
-    test "a collapse also persists across remounts", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
-      view |> element("[phx-click='toggle_history']") |> render_click()
-      assert render(view) =~ "set_history_filter"
-
-      view |> element("[phx-click='toggle_history']") |> render_click()
-      refute render(view) =~ "set_history_filter"
-
-      {:ok, remounted, _html} = live_async!(conn, ~p"/incoming?zone=history")
-      refute render(remounted) =~ "set_history_filter"
     end
   end
 

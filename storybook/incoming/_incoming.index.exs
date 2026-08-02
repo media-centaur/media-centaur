@@ -7,5 +7,5 @@ defmodule MediaCentaurWeb.Storybook.Incoming do
   def entry("status_pill"), do: [icon: {:fa, "tag", :thin}, name: "Status pill"]
   def entry("shelf"), do: [icon: {:fa, "list", :thin}, name: "Coming up shelf"]
   def entry("shelf_row"), do: [icon: {:fa, "list", :thin}, name: "Shelf row"]
-  def entry("ledger"), do: [icon: {:fa, "clock-rotate-left", :thin}, name: "Landed ledger"]
+  def entry("ledger"), do: [icon: {:fa, "clock-rotate-left", :thin}, name: "History archive"]
 end

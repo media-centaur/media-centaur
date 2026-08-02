@@ -1,15 +1,13 @@
 defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
   @moduledoc """
-  The Recently-landed ledger — open borderless rows dissolving into
-  the page bottom via a static CSS mask. Severity dot, title + status
-  sentence, outcome, relative time; "Show earlier" grows it once;
-  storage sits as the ambient foot line. With no rows and nothing
-  hidden the component renders nothing at all.
+  The History archive — the History tab's whole content, always open:
+  lifecycle filter chips (All leading and default) + title/release
+  search, the caller's grouped rows in the `:archive` slot, and storage
+  as the ambient foot line. No glimpse, no disclosure — the zone tab
+  already did the quieting the old shared-page treatment existed for.
   """
 
   use PhoenixStorybook.Story, :component
-
-  alias MediaCentaur.Acquisition.ViewModels.{CurrentAction, PursuitRow}
 
   def function, do: &MediaCentaurWeb.Components.Incoming.Ledger.ledger/1
   def render_source, do: :function
@@ -30,117 +28,15 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
     ]
   end
 
-  defp row(id, title, opts) do
-    %PursuitRow{
-      id: id,
-      title: title,
-      state: Keyword.fetch!(opts, :state),
-      status: %CurrentAction{
-        verb: Keyword.fetch!(opts, :verb),
-        description: Keyword.fetch!(opts, :description),
-        severity: Keyword.fetch!(opts, :severity)
-      },
-      updated_at: DateTime.add(DateTime.utc_now(), -Keyword.fetch!(opts, :hours_ago), :hour),
-      season_number: opts[:season],
-      episode_number: opts[:episode]
-    }
-  end
-
-  defp terminal_mix do
-    [
-      row("ledger-demo-1", "Safety Last!",
-        state: :satisfied,
-        verb: "Done",
-        description: "File landed and identity verified.",
-        severity: :success,
-        hours_ago: 2
-      ),
-      row("ledger-demo-2", "Sample Show",
-        state: :satisfied,
-        verb: "Done",
-        description: "File landed and identity verified.",
-        severity: :success,
-        season: 2,
-        episode: 4,
-        hours_ago: 26
-      ),
-      row("ledger-demo-3", "A Trip to the Moon",
-        state: :exhausted,
-        verb: "Gave up",
-        description: "Exhausted after 3 attempts.",
-        severity: :error,
-        hours_ago: 96
-      ),
-      row("ledger-demo-4", "The Cabinet of Dr. Caligari",
-        state: :cancelled,
-        verb: "Cancelled",
-        description: "Pursuit cancelled.",
-        severity: :info,
-        hours_ago: 120
-      )
-    ]
-  end
-
-  defp expanded_mix do
-    terminal_mix() ++
-      [
-        row("ledger-demo-5", "Nosferatu",
-          state: :satisfied,
-          verb: "Done",
-          description: "File landed and identity verified.",
-          severity: :success,
-          hours_ago: 168
-        ),
-        row("ledger-demo-6", "Sample Show",
-          state: :partial,
-          verb: "Partially done",
-          description: "Some of this pursuit landed; the rest didn't.",
-          severity: :warning,
-          season: 2,
-          episode: 3,
-          hours_ago: 312
-        ),
-        row("ledger-demo-7", "Sample Documentary",
-          state: :exhausted,
-          verb: "Gave up",
-          description: "Exhausted after 5 attempts.",
-          severity: :error,
-          hours_ago: 408
-        )
-      ]
-  end
-
   def variations do
     [
       %Variation{
-        id: :terminal_mix,
+        id: :archive,
         description:
-          "Landed / failed / cancelled — collapsed cap with more behind \"Show earlier\", " <>
-            "storage on the foot line. The last rows dissolve into the mask fade.",
-        attributes: %{rows: terminal_mix(), hidden_count: 3, storage_drives: drives()}
-      },
-      %Variation{
-        id: :expanded,
-        description:
-          "Grown once — older rows (including a partial landing) reveal into the fade; " <>
-            ~s{"Show earlier" is gone (anything more is "View all history").},
-        attributes: %{rows: expanded_mix(), hidden_count: 2, expanded: true, storage_drives: drives()}
-      },
-      %Variation{
-        id: :no_storage_line,
-        description: "No single healthy drive to summarise — the foot line drops away.",
-        attributes: %{rows: terminal_mix(), hidden_count: 0}
-      },
-      %Variation{
-        id: :archive_open,
-        description:
-          "\"View all\" state — the glimpse gives way to the filtered archive in place: " <>
-            "filter chips + search, with the caller's grouped rows in the :archive slot.",
+          "The open archive: chips with All active, search on the right, the caller's " <>
+            "grouped rows below, storage on the foot line.",
         attributes: %{
-          rows: terminal_mix(),
-          hidden_count: 3,
-          archive_open?: true,
-          filter: :failed,
+          filter: :all,
           search: "",
           storage_drives: drives()
         },
@@ -153,22 +49,40 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
         ]
       },
       %Variation{
-        id: :archive_empty_filter,
-        description: "An open archive whose filter matches nothing — the filter-specific empty state.",
+        id: :filtered,
+        description: "A lifecycle slice active — the chip row shows where you are.",
         attributes: %{
-          rows: terminal_mix(),
-          archive_open?: true,
-          archive_empty?: true,
+          filter: :failed,
+          search: "",
+          storage_drives: drives()
+        },
+        slots: [
+          """
+          <:archive>
+            <div class="scrim-surface rounded-xl px-4 py-3 text-sm">Sample Documentary — failed rows render here</div>
+          </:archive>
+          """
+        ]
+      },
+      %Variation{
+        id: :empty_filter,
+        description:
+          "A filter that matches nothing — the filter-specific honest answer; the chips " <>
+            "stay so widening the filter stays possible.",
+        attributes: %{
           filter: :cancelled,
-          search: ""
+          search: "",
+          archive_empty?: true
         }
       },
       %Variation{
-        id: :empty_renders_nothing,
-        description:
-          "No terminal pursuits and nothing hidden — the component renders nothing at " <>
-            "all (no empty box), even when storage data is present.",
-        attributes: %{rows: [], hidden_count: 0, storage_drives: drives()}
+        id: :no_history_at_all,
+        description: "Nothing on record yet — All's own empty state, no storage line without data.",
+        attributes: %{
+          filter: :all,
+          search: "",
+          archive_empty?: true
+        }
       }
     ]
   end
