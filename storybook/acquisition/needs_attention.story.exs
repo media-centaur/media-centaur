@@ -1,5 +1,10 @@
 defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
-  @moduledoc "Problem-only section for acquisition capability faults (UIDR-016) — search-health and storage cards, absent while healthy."
+  @moduledoc """
+  The Heads-up glyph (UIDR-016) — acquisition capability faults
+  compressed to one severity-tinted triangle in the tab row, absent
+  while healthy. Hover or focus reveals the details panel; click pins
+  it (the `open` attr renders the pinned state for the story matrix).
+  """
 
   use PhoenixStorybook.Story, :component
 
@@ -34,7 +39,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
 
   def template do
     """
-    <div class="max-w-2xl">
+    <div class="max-w-2xl min-h-[22rem] flex justify-end">
       <.psb-variation/>
     </div>
     """
@@ -45,13 +50,28 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
       %Variation{
         id: :healthy_renders_nothing,
         description:
-          "Healthy system → the section is absent, not empty (silence is the healthy state). This preview is intentionally blank.",
+          "Healthy system → no glyph at all, not a gray one (silence is the healthy state). This preview is intentionally blank.",
         attributes: %{drives: [], search_health: health(:ok, enabled_count: 2)}
+      },
+      %Variation{
+        id: :glyph_resting,
+        description:
+          "A condition exists but the panel isn't open — just the tinted triangle. Hover or focus it to peek; storybook renders the resting state.",
+        attributes: %{
+          drives: [
+            drive("/mnt/media", 500, 420, 84)
+          ],
+          search_health: health(:ok, enabled_count: 2)
+        }
       },
       %Variation{
         id: :prowlarr_unreachable,
         description: "Prowlarr API can't be reached — error tone, names the one fix",
-        attributes: %{drives: [], search_health: health(:unreachable, reason: :econnrefused)}
+        attributes: %{
+          drives: [],
+          search_health: health(:unreachable, reason: :econnrefused),
+          open: true
+        }
       },
       %Variation{
         id: :search_blind_single_indexer,
@@ -64,7 +84,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
               enabled_count: 1,
               retry_at: @retry_soon,
               backed_off: [%{name: "Indexer A", retry_at: @retry_soon}]
-            )
+            ),
+          open: true
         }
       },
       %Variation{
@@ -81,7 +102,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
                 %{name: "Indexer B", retry_at: @retry_later},
                 %{name: "Indexer C", retry_at: @retry_later}
               ]
-            )
+            ),
+          open: true
         }
       },
       %Variation{
@@ -94,7 +116,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
               enabled_count: 3,
               retry_at: @retry_soon,
               backed_off: [%{name: "Indexer B", retry_at: @retry_soon}]
-            )
+            ),
+          open: true
         }
       },
       %Variation{
@@ -105,7 +128,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
             drive("/mnt/media", 4000, 1200, 30),
             drive("/mnt/media2", 500, 420, 84)
           ],
-          search_health: health(:ok, enabled_count: 2)
+          search_health: health(:ok, enabled_count: 2),
+          open: true
         }
       },
       %Variation{
@@ -118,7 +142,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.NeedsAttention do
               enabled_count: 1,
               retry_at: @retry_soon,
               backed_off: [%{name: "Indexer A", retry_at: @retry_soon}]
-            )
+            ),
+          open: true
         }
       }
     ]

@@ -890,7 +890,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           <div
             :if={@prowlarr_ready && !@search_owns?}
             data-nav-zone="zone-tabs"
-            class="flex justify-center gap-8"
+            class="flex items-center justify-center gap-8"
           >
             <.zone_tab zone={:coming_up} active_zone={@zone} label="Coming up" />
             <.zone_tab
@@ -900,6 +900,18 @@ defmodule MediaCentaurWeb.IncomingLive do
               count={length(@download_cards) + length(@active_compact)}
             />
             <.zone_tab zone={:history} active_zone={@zone} label="History" />
+
+            <%!-- Heads up rides the tab row as its quiet fourth slot
+                  (UIDR-016): one severity-tinted glyph next to the tabs
+                  — a far-edge anchor orphans it on wide viewports —
+                  details on hover/focus, absent while healthy. Inside
+                  the zone-tabs nav zone so left/right reaches it from
+                  the couch. --%>
+            <NeedsAttention.needs_attention
+              :if={NeedsAttention.visible?(@storage_mode, @search_health)}
+              drives={if(@storage_mode == :card, do: @storage_drives, else: [])}
+              search_health={@search_health}
+            />
           </div>
 
           <Shelf.shelf
@@ -1039,16 +1051,6 @@ defmodule MediaCentaurWeb.IncomingLive do
           >
             Nothing in flight — approved plans and their downloads appear here.
           </p>
-
-          <%!-- Needs attention is bookkeeping — it closes the page, never
-                leads it (UIDR-016). Calm free space stays the ledger's foot
-                line; cards only render when storage escalates (low space /
-                multiple drives) or search health degrades. --%>
-          <NeedsAttention.needs_attention
-            :if={!@search_owns? && NeedsAttention.visible?(@storage_mode, @search_health)}
-            drives={if(@storage_mode == :card, do: @storage_drives, else: [])}
-            search_health={@search_health}
-          />
         </div>
       </div>
     </Layouts.app>
