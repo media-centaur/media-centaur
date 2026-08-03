@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import {
   COLD_DELAY_MS,
   WARM_WINDOW_MS,
+  clickHides,
   parseUiScale,
   shouldShow,
   showDelay,
@@ -24,6 +25,21 @@ describe("shouldShow", () => {
   test("no label → false even when collapsed", () => {
     expect(shouldShow("collapsed", undefined)).toBe(false)
     expect(shouldShow("collapsed", "")).toBe(false)
+  })
+})
+
+// A real pointer click means the user is navigating away or toggling the
+// rail — hide. But keyboard nav in the sidebar activates links on focus via
+// element.click(), which fires with detail 0; hiding on those would kill the
+// tooltip the instant focus reveals it.
+describe("clickHides", () => {
+  test("pointer click (detail ≥ 1) → hide", () => {
+    expect(clickHides({ detail: 1 })).toBe(true)
+    expect(clickHides({ detail: 2 })).toBe(true)
+  })
+
+  test("synthetic activation click (detail 0) → keep the tooltip", () => {
+    expect(clickHides({ detail: 0 })).toBe(false)
   })
 })
 

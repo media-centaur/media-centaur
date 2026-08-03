@@ -88,7 +88,6 @@ function createMockReader(overrides = {}) {
     getActiveItemIndex: () => -1,
     getZoneTabCount: () => 2,
     getEntityIndex: () => -1,
-    getSidebarCollapsed: () => false,
     getPageBehavior: () => null,
     getCurrentFocusedSubItem: () => null,
     getItemAt: () => null,
@@ -601,9 +600,7 @@ describe("Orchestrator", () => {
   describe("exit sidebar uses forceContext", () => {
     test("exit sidebar restores to pre-sidebar context", () => {
       const { system, calls } = setup({
-        getItemCount: (ctx) => ctx === Context.TOOLBAR ? 5 : 8,
-        getSidebarCollapsed: () => true,
-        getActiveItemIndex: (ctx) => ctx === Context.TOOLBAR ? 2 : -1,
+        getItemCount: (ctx) => ctx === Context.TOOLBAR ? 5 : 8,        getActiveItemIndex: (ctx) => ctx === Context.TOOLBAR ? 2 : -1,
       })
       system.start({})
 
@@ -615,8 +612,9 @@ describe("Orchestrator", () => {
       system._executeExitSidebar()
 
       expect(system.focusMachine.context).toBe(Context.TOOLBAR)
+      // Rail width is the user's preference — nav never touches it
       const sidebarCalls = calls.filter(c => c.method === "setSidebarState")
-      expect(sidebarCalls[0].args).toEqual([true]) // collapsed
+      expect(sidebarCalls.length).toBe(0)
     })
 
     test("exit sidebar stays in sidebar when no content", () => {
@@ -634,9 +632,7 @@ describe("Orchestrator", () => {
     test("exit sidebar goes to toolbar when grid is empty", () => {
       const { system, calls } = setup({
         getZone: () => "library",
-        getItemCount: (ctx) => ctx === "grid" ? 0 : 3,
-        getSidebarCollapsed: () => false,
-        getActiveItemIndex: (ctx) => ctx === Context.TOOLBAR ? 0 : -1,
+        getItemCount: (ctx) => ctx === "grid" ? 0 : 3,        getActiveItemIndex: (ctx) => ctx === Context.TOOLBAR ? 0 : -1,
       })
       system.start({})
       system.focusMachine.forceContext("sidebar")
@@ -1082,7 +1078,7 @@ describe("Orchestrator", () => {
       expect(navCalls.some(c => c.args[0] === "sidebar")).toBe(false)
     })
 
-    test("LEFT at the grid's left wall enters the sidebar, expands it, and records pre-sidebar context", () => {
+    test("LEFT at the grid's left wall enters the sidebar without expanding it and records pre-sidebar context", () => {
       let onActionCallback = null
       const mockSource = { start() {}, stop() {} }
       const { system, calls } = setup({
@@ -1107,9 +1103,10 @@ describe("Orchestrator", () => {
 
       // Should enter sidebar
       expect(system.focusMachine.context).toBe("sidebar")
-      // Should expand sidebar (setSidebarState(false))
+      // Rail stays at the user's chosen width — the collapsed rail labels
+      // the focused icon via the SidebarTooltip hook instead
       const sidebarCalls = calls.filter(c => c.method === "setSidebarState")
-      expect(sidebarCalls.some(c => c.args[0] === false)).toBe(true)
+      expect(sidebarCalls.length).toBe(0)
       // Should record pre-sidebar context for exit restoration
       expect(system._preSidebarContext).toBe(Context.GRID)
     })
@@ -1149,9 +1146,7 @@ describe("Orchestrator", () => {
       const mockSource = { start() {}, stop() {} }
       const { system } = setup({
         getPageBehavior: () => "library",
-        getItemCount: () => 8,
-        getSidebarCollapsed: () => true,
-      }, {
+        getItemCount: () => 8,      }, {
         sources: [
           (callbacks) => {
             onActionCallback = callbacks.onAction
@@ -1626,9 +1621,7 @@ describe("Orchestrator", () => {
       const mockSource = { start() {}, stop() {} }
       const { system, calls } = setup({
         getCurrentFocusedItem: () => mockItem,
-        getItemCount: () => 8,
-        getSidebarCollapsed: () => true,
-      }, {
+        getItemCount: () => 8,      }, {
         sources: [
           (callbacks) => {
             onActionCallback = callbacks.onAction
@@ -1660,9 +1653,7 @@ describe("Orchestrator", () => {
       const mockSource = { start() {}, stop() {} }
       const { system, calls } = setup({
         getCurrentFocusedItem: () => mockItem,
-        getItemCount: () => 8,
-        getSidebarCollapsed: () => true,
-      }, {
+        getItemCount: () => 8,      }, {
         sources: [
           (callbacks) => {
             onActionCallback = callbacks.onAction
@@ -1695,9 +1686,7 @@ describe("Orchestrator", () => {
       const mockSource = { start() {}, stop() {} }
       const { system, calls } = setup({
         getCurrentFocusedItem: () => mockItem,
-        getItemCount: () => 8,
-        getSidebarCollapsed: () => true,
-      }, {
+        getItemCount: () => 8,      }, {
         sources: [
           (callbacks) => {
             onActionCallback = callbacks.onAction
