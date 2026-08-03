@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.109.0 — 2026-08-03
+
+### Improved
+
+- **The History tab groups your download history under date headers.** Entries on the Incoming page's History tab now sit under Today, Yesterday, This week, and month headings — you can scan to "what landed last week" instead of reading each row's timestamp.
+- **A long history loads in pages.** The tab shows the 50 most recent entries and a *Show older* button at the bottom reveals more. The Failed / Cancelled / Succeeded filters and the title search always cover your entire history, not just the entries on screen — searching brings back matches from any point in the past.
+
 ## v0.108.1 — 2026-08-02
 
 ### Improved
