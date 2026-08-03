@@ -202,18 +202,28 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   `current_target` via `fetch_targets_by_id/1`, so `release_title` and
   `target_status` come from the most recent attempt.
 
-  `limit:` caps the read (newest first) — the Incoming ledger glimpse only
-  ever shows a handful, so it must not pay for the whole terminal table.
+  `limit:` caps the read (newest first) — the History window and the
+  Incoming ledger glimpse only ever show a slice, so neither pays for
+  the whole terminal table.
+
+  `search:` narrows in SQL by case-insensitive substring (SQLite `LIKE`
+  semantics — ASCII case folding) against the pursuit title or any of
+  the pursuit's targets' `release_title`. LIKE wildcards in the needle
+  are treated as literals. Searching the query keeps a bounded `limit:`
+  window honest — the needle is matched against the whole archive, not
+  the loaded slice.
   """
   @spec list_rows(:active | :failed | :cancelled | :succeeded | :all_terminal,
-          limit: pos_integer()
+          limit: pos_integer(),
+          search: String.t()
         ) :: [PursuitRow.t()]
   def list_rows(filter, opts \\ []) do
     states = states_for_filter(filter)
 
     pursuits =
-      Pursuit
+      from(p in Pursuit, as: :pursuit)
       |> where([p], p.state in ^states)
+      |> apply_search(opts[:search])
       |> order_by([p], desc: p.updated_at)
       |> maybe_limit(opts[:limit])
       |> Repo.all()
@@ -262,6 +272,30 @@ defmodule MediaCentaur.Acquisition.Pursuits do
 
   defp maybe_limit(query, nil), do: query
   defp maybe_limit(query, cap), do: limit(query, ^cap)
+
+  defp apply_search(query, search) when search in [nil, ""], do: query
+
+  defp apply_search(query, search) when is_binary(search) do
+    pattern = "%" <> escape_like(search) <> "%"
+
+    release_match =
+      from(t in Target,
+        where:
+          t.pursuit_id == parent_as(:pursuit).id and
+            fragment("? LIKE ? ESCAPE '\\'", t.release_title, ^pattern)
+      )
+
+    where(
+      query,
+      [p],
+      fragment("? LIKE ? ESCAPE '\\'", p.title, ^pattern) or exists(release_match)
+    )
+  end
+
+  # LIKE metacharacters in the user's needle are literals, not wildcards.
+  defp escape_like(needle) do
+    String.replace(needle, ["\\", "%", "_"], fn char -> "\\" <> char end)
+  end
 
   defp states_for_filter(:active), do: State.in_flight()
   defp states_for_filter(:failed), do: ["exhausted"]

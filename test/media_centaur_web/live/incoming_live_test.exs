@@ -1535,6 +1535,67 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert has_element?(view, "[data-nav-zone='ledger']", "Exhausted after")
     end
 
+    test "the archive loads a bounded window; Show older reveals the rest", %{conn: conn} do
+      page_size = MediaCentaurWeb.IncomingLive.HistoryLogic.page_size()
+
+      for index <- 1..(page_size + 1) do
+        {pursuit, _target} =
+          MediaCentaur.TestFactory.create_pursuit_with_target(%{
+            media_type: :movie,
+            title: "Windowed Movie #{index}"
+          })
+
+        pursuit
+        |> Ecto.Changeset.change(
+          state: "satisfied",
+          updated_at: DateTime.add(DateTime.utc_now(:second), -index, :hour)
+        )
+        |> MediaCentaur.Repo.update!()
+      end
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+
+      assert has_element?(view, "[data-nav-zone='ledger']", "Windowed Movie 1")
+      refute has_element?(view, "[data-nav-zone='ledger']", "Windowed Movie #{page_size + 1}")
+      assert has_element?(view, "[phx-click='history_show_older']")
+
+      view |> element("[phx-click='history_show_older']") |> render_click()
+
+      assert has_element?(view, "[data-nav-zone='ledger']", "Windowed Movie #{page_size + 1}")
+      refute has_element?(view, "[phx-click='history_show_older']")
+
+      # A new search resets the window — the needle runs over the whole
+      # archive in SQL, and the first page of matches comes back.
+      view
+      |> form("form[phx-change='set_history_search']")
+      |> render_change(%{search: "Windowed"})
+
+      assert has_element?(view, "[phx-click='history_show_older']")
+      refute has_element?(view, "[data-nav-zone='ledger']", "Windowed Movie #{page_size + 1}")
+    end
+
+    test "the archive is sectioned by date landmarks", %{conn: conn} do
+      for {title, days_ago} <- [{"Fresh Landed Movie", 0}, {"Old Landed Movie", 40}] do
+        {pursuit, _target} =
+          MediaCentaur.TestFactory.create_pursuit_with_target(%{media_type: :movie, title: title})
+
+        pursuit
+        |> Ecto.Changeset.change(
+          state: "satisfied",
+          updated_at: DateTime.add(DateTime.utc_now(:second), -days_ago, :day)
+        )
+        |> MediaCentaur.Repo.update!()
+      end
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+
+      month_label =
+        Calendar.strftime(DateTime.add(DateTime.utc_now(), -40, :day), "%B %Y")
+
+      assert has_element?(view, "[data-nav-zone='ledger'] h3", "Today")
+      assert has_element?(view, "[data-nav-zone='ledger'] h3", month_label)
+    end
+
     test "an active search recedes the tab bar and the zone content; clearing restores them", %{
       conn: conn
     } do

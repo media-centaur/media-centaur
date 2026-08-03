@@ -406,6 +406,67 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
     end
   end
 
+  describe "list_rows/2 with search:" do
+    test "narrows by case-insensitive pursuit-title substring" do
+      match = set_state(insert_pursuit(%{title: "Sample Adventure", tmdb_id: "2060"}), "satisfied")
+      _other = set_state(insert_pursuit(%{title: "Other Feature", tmdb_id: "2061"}), "satisfied")
+
+      rows = Pursuits.list_rows(:all_terminal, search: "sample adv")
+      assert Enum.map(rows, & &1.id) == [match.id]
+    end
+
+    test "matches a target's release_title when the title doesn't hit" do
+      match = set_state(insert_pursuit(%{title: "Sample Show", tmdb_id: "2062"}), "satisfied")
+
+      insert_target_for(match, %{
+        release_title: "Sample.Show.S01E01.1080p.WEB-DL",
+        status: "succeeded"
+      })
+
+      _other = set_state(insert_pursuit(%{title: "Sample Show", tmdb_id: "2063"}), "satisfied")
+
+      rows = Pursuits.list_rows(:all_terminal, search: "1080p")
+      assert Enum.map(rows, & &1.id) == [match.id]
+    end
+
+    test "treats LIKE wildcards as literals" do
+      match = set_state(insert_pursuit(%{title: "Sample 100% Show", tmdb_id: "2064"}), "satisfied")
+      _other = set_state(insert_pursuit(%{title: "Sample 1000 Show", tmdb_id: "2065"}), "satisfied")
+
+      rows = Pursuits.list_rows(:all_terminal, search: "100%")
+      assert Enum.map(rows, & &1.id) == [match.id]
+    end
+
+    test "empty search returns every row in the bucket" do
+      satisfied = set_state(insert_pursuit(%{title: "Sample A", tmdb_id: "2066"}), "satisfied")
+      cancelled = set_state(insert_pursuit(%{title: "Sample B", tmdb_id: "2067"}), "cancelled")
+
+      rows = Pursuits.list_rows(:all_terminal, search: "")
+      assert Enum.sort(Enum.map(rows, & &1.id)) == Enum.sort([satisfied.id, cancelled.id])
+    end
+
+    test "limit: caps the newest-first read after search narrowing" do
+      titles_by_age = [
+        {"Sample Newest", "2068", ~U[2026-08-01 12:00:00Z]},
+        {"Sample Middle", "2069", ~U[2026-07-01 12:00:00Z]},
+        {"Sample Oldest", "2070", ~U[2026-06-01 12:00:00Z]}
+      ]
+
+      [newest, middle, _oldest] =
+        for {title, tmdb_id, updated_at} <- titles_by_age do
+          %{title: title, tmdb_id: tmdb_id}
+          |> insert_pursuit()
+          |> Ecto.Changeset.change(state: "satisfied", updated_at: updated_at)
+          |> Repo.update!()
+        end
+
+      _nonmatch = set_state(insert_pursuit(%{title: "Other", tmdb_id: "2071"}), "satisfied")
+
+      rows = Pursuits.list_rows(:all_terminal, search: "sample", limit: 2)
+      assert Enum.map(rows, & &1.id) == [newest.id, middle.id]
+    end
+  end
+
   describe "header_for/1" do
     alias MediaCentaur.Acquisition.ViewModels.PursuitHeader
 

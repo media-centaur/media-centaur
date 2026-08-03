@@ -2,14 +2,17 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
   @moduledoc """
   The History archive — the History tab's whole content, always open:
   lifecycle filter chips (All leading and default) + title/release
-  search, the grouped terminal rows in the quiet ledger vocabulary
-  (dot · title · outcome word · relative time; sentences only for
-  failures and partials), and storage as the ambient foot line.
+  search, the grouped terminal rows bucketed under date-section
+  headers in the quiet ledger vocabulary (dot · title · outcome word ·
+  relative time; sentences only for failures and partials), a Show
+  older row when the archive extends past the window, and storage as
+  the ambient foot line.
   """
 
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.Acquisition.ViewModels.{CurrentAction, PursuitRow}
+  alias MediaCentaurWeb.IncomingLive.HistoryLogic
 
   def function, do: &MediaCentaurWeb.Components.Incoming.Ledger.ledger/1
   def render_source, do: :function
@@ -116,17 +119,22 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
     end)
   end
 
+  # Bucketed through the real helper so the story pins the exact shape
+  # the app hands the component — labels included.
+  defp sections(entries), do: HistoryLogic.section_entries(entries, Date.utc_today())
+
   def variations do
     [
       %Variation{
         id: :archive,
         description:
-          "The open archive: chips with All active, search on the right, quiet rows below — " <>
-            "dot, title, composite \"N of M\" chip where one exists, one colored outcome " <>
-            "word, relative time. Only the failure carries its diagnostic sentence; the " <>
-            "episode cluster folds behind its disclosure row. Storage on the foot line.",
+          "The open archive: chips with All active, search on the right, quiet rows " <>
+            "bucketed under date-section headers — dot, title, composite \"N of M\" chip " <>
+            "where one exists, one colored outcome word, relative time. Only the failure " <>
+            "carries its diagnostic sentence; the episode cluster folds behind its " <>
+            "disclosure row. Storage on the foot line.",
         attributes: %{
-          entries: terminal_mix(),
+          sections: sections(terminal_mix()),
           filter: :all,
           search: "",
           storage_drives: drives()
@@ -136,9 +144,21 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
         id: :group_expanded,
         description: "The episode cluster opened — members inset under the disclosure row.",
         attributes: %{
-          entries: expanded_group_mix(),
+          sections: sections(expanded_group_mix()),
           filter: :all,
           search: ""
+        }
+      },
+      %Variation{
+        id: :more_beyond_window,
+        description:
+          "The archive extends past the loaded window — the quiet Show older row " <>
+            "widens it by a page.",
+        attributes: %{
+          sections: sections(terminal_mix()),
+          filter: :all,
+          search: "",
+          has_older?: true
         }
       },
       %Variation{
@@ -147,7 +167,7 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
           "A filter that matches nothing — the filter-specific honest answer; the chips " <>
             "stay so widening the filter stays possible.",
         attributes: %{
-          entries: [],
+          sections: [],
           filter: :cancelled,
           search: ""
         }
@@ -156,7 +176,7 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Ledger do
         id: :no_history_at_all,
         description: "Nothing on record yet — All's own empty state.",
         attributes: %{
-          entries: [],
+          sections: [],
           filter: :all,
           search: ""
         }

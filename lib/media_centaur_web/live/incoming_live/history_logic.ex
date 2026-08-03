@@ -16,24 +16,73 @@ defmodule MediaCentaurWeb.IncomingLive.HistoryLogic do
   # slices follow.
   @filter_atoms [:all, :failed, :cancelled, :succeeded]
 
-  @doc """
-  Filters a list of `PursuitRow` view-models by case-insensitive
-  substring match on either the show title (`title`) or the release
-  filename (`release_title`). An empty needle returns the input unchanged.
+  # One "Show older" click's worth of archive rows. The window keeps the
+  # tab's load bounded as the terminal table grows; search and filter
+  # narrow in SQL across the whole archive, so the window never hides a
+  # match — only defers it behind Show older.
+  @page_size 50
+
+  @doc "Rows per archive window — the initial load and each Show older step."
+  @spec page_size() :: pos_integer()
+  def page_size, do: @page_size
+
+  @typedoc """
+  One grouped archive entry, in the `Logic.group_pursuit_rows/2` shape:
+  a lone pursuit or an episode cluster.
   """
-  @spec filter_pursuit_rows_by_search([PursuitRow.t()], String.t()) :: [PursuitRow.t()]
-  def filter_pursuit_rows_by_search(rows, ""), do: rows
+  @type entry :: {:single, PursuitRow.t()} | {:group, %{vms: [PursuitRow.t()]}}
 
-  def filter_pursuit_rows_by_search(rows, search) do
-    needle = String.downcase(search)
+  @doc """
+  Splits an ordered (newest-first) entry list into date sections —
+  `[{label, entries}]` — so a long archive reads by time landmark
+  instead of per-row relative-time fine print. Labels: `"Today"`,
+  `"Yesterday"`, `"This week"` (within the past 7 days), then
+  `"July 2026"`-style month names; entries without a timestamp fall
+  into `"Earlier"`. A group is placed by its newest member — the same
+  time its disclosure row displays.
 
-    Enum.filter(rows, fn %PursuitRow{title: title, release_title: release} ->
-      contains?(title, needle) or contains?(release, needle)
+  Consecutive entries sharing a label share a section; the input's
+  order is preserved, so a query-ordered list yields chronologically
+  descending sections.
+  """
+  @spec section_entries([entry()], Date.t()) :: [{String.t(), [entry()]}]
+  def section_entries(entries, today) do
+    entries
+    |> Enum.chunk_by(&section_label(entry_time(&1), today))
+    |> Enum.map(fn [first | _rest] = chunk ->
+      {section_label(entry_time(first), today), chunk}
     end)
   end
 
-  defp contains?(nil, _needle), do: false
-  defp contains?(value, needle), do: String.contains?(String.downcase(value), needle)
+  @doc """
+  The newest `updated_at` among a group's members — `nil` when none
+  carry one. Shared by the section bucketing here and the group row's
+  displayed time in `Ledger`, so a cluster is always placed by the same
+  instant it shows.
+  """
+  @spec latest_time([PursuitRow.t()]) :: DateTime.t() | nil
+  def latest_time(view_models) do
+    view_models
+    |> Enum.map(& &1.updated_at)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.max(DateTime, fn -> nil end)
+  end
+
+  defp entry_time({:single, %PursuitRow{updated_at: updated_at}}), do: updated_at
+  defp entry_time({:group, %{vms: view_models}}), do: latest_time(view_models)
+
+  defp section_label(nil, _today), do: "Earlier"
+
+  defp section_label(%DateTime{} = at, today) do
+    days_ago = Date.diff(today, DateTime.to_date(at))
+
+    cond do
+      days_ago <= 0 -> "Today"
+      days_ago == 1 -> "Yesterday"
+      days_ago < 7 -> "This week"
+      true -> Calendar.strftime(at, "%B %Y")
+    end
+  end
 
   @doc """
   Parses a `?filter=` URL value or a `phx-value-filter` event value
