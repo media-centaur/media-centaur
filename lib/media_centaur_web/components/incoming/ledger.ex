@@ -8,15 +8,20 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
   shared-page treatment existed for. No section header either: the tab
   says History.
 
-  Rows speak outcome-first: severity dot, title (episode clusters as a
-  `toggle_pursuit_group` disclosure, members within), the composite
-  "N of M" chip where it exists, one colored outcome word, relative
-  time. The status *sentence* renders only where it informs — failures
-  and partials carry their diagnostics; "Landed"/"Cancelled" need no
-  elaboration. Clicking a row opens the pursuit modal
-  (`select_pursuit`), same contract as the In-flight cards.
+  Rows arrive pre-bucketed into date sections (`HistoryLogic.
+  section_entries/2` — Today / Yesterday / This week / month names) so
+  a long archive scans by time landmark. Rows speak outcome-first:
+  severity dot, title (episode clusters as a `toggle_pursuit_group`
+  disclosure, members within), the composite "N of M" chip where it
+  exists, one colored outcome word, relative time. The status
+  *sentence* renders only where it informs — failures and partials
+  carry their diagnostics; "Landed"/"Cancelled" need no elaboration.
+  Clicking a row opens the pursuit modal (`select_pursuit`), same
+  contract as the In-flight cards.
 
-  Storage sits as the ambient foot line, reusing
+  The archive renders a bounded window; when the archive holds more,
+  a quiet Show older row (`history_show_older`) widens it. Storage
+  sits as the ambient foot line, reusing
   `DownloadStorage.calm_summary/1`. An empty archive renders the
   filter-specific honest answer (`HistoryLogic.empty_state/1`) under
   the chips — the chips stay so widening the filter stays possible.
@@ -24,24 +29,29 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
 
   use Phoenix.Component
 
-  import MediaCentaurWeb.CoreComponents, only: [badge: 1, icon: 1]
+  import MediaCentaurWeb.CoreComponents, only: [badge: 1, button: 1, icon: 1]
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow
   alias MediaCentaur.Format
   alias MediaCentaurWeb.Components.Acquisition.DownloadStorage
   alias MediaCentaurWeb.IncomingLive.HistoryLogic
 
-  attr :entries, :list,
+  attr :sections, :list,
     default: [],
     doc:
-      "Grouped archive entries (`Logic.group_pursuit_rows/2` shape): `{:single, PursuitRow.t()}` " <>
-        "or `{:group, %{title, state, awaiting?, count, verb, severity, vms, expanded?}}`."
+      "Date-bucketed archive entries (`HistoryLogic.section_entries/2` shape): " <>
+        "`{label, entries}` where each entry is `{:single, PursuitRow.t()}` or " <>
+        "`{:group, %{title, state, awaiting?, count, verb, severity, vms, expanded?}}`."
 
   attr :filter, :atom,
     default: :all,
     doc: "Lifecycle filter (see `HistoryLogic.filter_atoms/0`) — `:all` is the tab's face."
 
   attr :search, :string, default: "", doc: "Title/release search needle."
+
+  attr :has_older?, :boolean,
+    default: false,
+    doc: "The archive holds rows past the window — renders the Show older row."
 
   attr :storage_drives, :list,
     default: [],
@@ -90,21 +100,38 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
       </div>
 
       <div
-        :if={@entries == []}
+        :if={@sections == []}
         class="scrim-surface rounded-xl px-4 py-6 text-center text-sm text-base-content/40"
       >
         {HistoryLogic.empty_state(@filter)}
       </div>
 
-      <div :if={@entries != []}>
-        <%= for entry <- @entries do %>
-          <%= case entry do %>
-            <% {:single, vm} -> %>
-              <.history_row vm={vm} />
-            <% {:group, data} -> %>
-              <.history_group data={data} />
+      <div :if={@sections != []} class="space-y-4">
+        <div :for={{label, entries} <- @sections}>
+          <h3 class="pb-1 text-xs font-medium uppercase tracking-wider text-base-content/40">
+            {label}
+          </h3>
+          <%= for entry <- entries do %>
+            <%= case entry do %>
+              <% {:single, vm} -> %>
+                <.history_row vm={vm} />
+              <% {:group, data} -> %>
+                <.history_group data={data} />
+            <% end %>
           <% end %>
-        <% end %>
+        </div>
+
+        <div :if={@has_older?} class="flex justify-center pt-1">
+          <.button
+            variant="dismiss"
+            size="sm"
+            phx-click="history_show_older"
+            data-nav-item
+            tabindex="0"
+          >
+            Show older
+          </.button>
+        </div>
       </div>
 
       <div :if={@storage_summary} class="flex items-center justify-end px-1">
@@ -167,9 +194,10 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
     doc: "One `Logic.group_pursuit_rows/2` group — title/state/awaiting?/count/vms/expanded?."
 
   # An episode cluster: same quiet grid as a row, with the disclosure
-  # chevron in the dot column and the newest member's time on the right.
+  # chevron in the dot column and the newest member's time on the right —
+  # the same instant `HistoryLogic.section_entries/2` buckets it by.
   defp history_group(assigns) do
-    assigns = assign(assigns, :latest, latest_time(assigns.data.vms))
+    assigns = assign(assigns, :latest, HistoryLogic.latest_time(assigns.data.vms))
 
     ~H"""
     <div
@@ -201,13 +229,6 @@ defmodule MediaCentaurWeb.Components.Incoming.Ledger do
       <.history_row :for={vm <- @data.vms} vm={vm} indent />
     </div>
     """
-  end
-
-  defp latest_time(vms) do
-    vms
-    |> Enum.map(& &1.updated_at)
-    |> Enum.reject(&is_nil/1)
-    |> Enum.max(DateTime, fn -> nil end)
   end
 
   defp episode_word(1), do: "episode"

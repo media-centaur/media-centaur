@@ -188,6 +188,8 @@ defmodule MediaCentaurWeb.IncomingLive do
          history_filter: :failed,
          history_search: "",
          history_rows: [],
+         history_limit: HistoryLogic.page_size(),
+         history_has_older?: false,
          pursuit_rows: [],
          expanded_pursuit_groups: MapSet.new(),
          pursuits_reload_timer: nil,
@@ -314,17 +316,18 @@ defmodule MediaCentaurWeb.IncomingLive do
     if Capabilities.prowlarr_ready?() do
       session = SearchSession.current()
 
-      assign(socket,
-        search_session: session,
-        # An active release-search session resumes in release mode — the
-        # one-search-surface flip must not hide work in progress (UIDR-014).
-        omnibox_mode: if(session.query != "" or session.groups != [], do: :release, else: :media),
-        download_client_ready: Capabilities.download_client_ready?(),
-        plan_drafts: load_drafts(),
-        pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows(),
-        history_rows: compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search),
-        loaded_history_params: {socket.assigns.history_filter, socket.assigns.history_search}
+      load_history(
+        assign(socket,
+          search_session: session,
+          omnibox_mode: if(session.query != "" or session.groups != [], do: :release, else: :media),
+          download_client_ready: Capabilities.download_client_ready?(),
+          plan_drafts: load_drafts(),
+          pursuit_rows: MediaCentaur.Acquisition.Pursuits.list_active_rows()
+        )
       )
+
+      # An active release-search session resumes in release mode — the
+      # one-search-surface flip must not hide work in progress (UIDR-014).
     else
       socket
     end
@@ -494,11 +497,16 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   defp tracked_plan_identity(_assigns), do: nil
 
-  defp compute_history_rows(history_filter, history_search) do
-    history_filter
-    |> HistoryLogic.list_rows_filter()
-    |> Pursuits.list_rows()
-    |> HistoryLogic.filter_pursuit_rows_by_search(history_search)
+  # Fetches one row past the window so `history_has_older?` is a fact
+  # about the archive, not a guess — search/filter narrow in SQL over
+  # the whole terminal table, the limit only bounds what renders.
+  defp compute_history_rows(history_filter, history_search, history_limit) do
+    rows =
+      history_filter
+      |> HistoryLogic.list_rows_filter()
+      |> Pursuits.list_rows(search: history_search, limit: history_limit + 1)
+
+    {Enum.take(rows, history_limit), length(rows) > history_limit}
   end
 
   # QueueMonitor pre-filters completed items, but defend in depth: an
@@ -585,12 +593,16 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   defp maybe_load_history(socket, true) do
     # Pursuit-modal patches carry filter/search params too — only a real
-    # change earns the full terminal-table re-read.
+    # change earns the re-read. A real change also resets the window: a
+    # new filter or needle is a new view of the archive, not page N of
+    # the old one.
     if {socket.assigns.history_filter, socket.assigns.history_search} ==
          socket.assigns[:loaded_history_params] do
       socket
     else
-      load_history(socket)
+      socket
+      |> assign(history_limit: HistoryLogic.page_size())
+      |> load_history()
     end
   end
 
@@ -723,7 +735,10 @@ defmodule MediaCentaurWeb.IncomingLive do
         assigns.expanded_pursuit_groups
       )
 
-    history_compact = Logic.group_pursuit_rows(assigns.history_rows, assigns.expanded_pursuit_groups)
+    history_sections =
+      assigns.history_rows
+      |> Logic.group_pursuit_rows(assigns.expanded_pursuit_groups)
+      |> HistoryLogic.section_entries(assigns.today)
 
     assigns =
       assigns
@@ -732,7 +747,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       |> Phoenix.Component.assign(:paired_rows, paired_rows)
       |> Phoenix.Component.assign(:download_cards, download_cards)
       |> Phoenix.Component.assign(:active_compact, active_compact)
-      |> Phoenix.Component.assign(:history_compact, history_compact)
+      |> Phoenix.Component.assign(:history_sections, history_sections)
       |> Phoenix.Component.assign(:orphan_queue, orphan_queue)
       |> Phoenix.Component.assign(:storage_mode, DownloadStorage.display_mode(assigns.storage_drives))
       |> Phoenix.Component.assign(
@@ -1032,9 +1047,10 @@ defmodule MediaCentaurWeb.IncomingLive do
 
           <Ledger.ledger
             :if={!@search_owns? && @zone == :history}
-            entries={@history_compact}
+            sections={@history_sections}
             filter={@history_filter}
             search={@history_search}
+            has_older?={@history_has_older?}
             storage_drives={if(@storage_mode == :calm, do: @storage_drives, else: [])}
           />
 
@@ -1569,12 +1585,28 @@ defmodule MediaCentaurWeb.IncomingLive do
   def handle_event("set_history_filter", %{"filter" => filter}, socket) do
     {:noreply,
      socket
-     |> assign(history_filter: HistoryLogic.parse_filter(filter))
+     |> assign(
+       history_filter: HistoryLogic.parse_filter(filter),
+       history_limit: HistoryLogic.page_size()
+     )
      |> load_history()}
   end
 
   def handle_event("set_history_search", %{"search" => search}, socket) do
-    {:noreply, socket |> assign(history_search: search) |> load_history()}
+    {:noreply,
+     socket
+     |> assign(history_search: search, history_limit: HistoryLogic.page_size())
+     |> load_history()}
+  end
+
+  # Widens the archive window by one page. The whole window re-reads —
+  # bounded, and it keeps one source of truth (`history_limit`) instead
+  # of an accumulated cursor that PubSub refreshes would have to merge.
+  def handle_event("history_show_older", _params, socket) do
+    {:noreply,
+     socket
+     |> assign(history_limit: socket.assigns.history_limit + HistoryLogic.page_size())
+     |> load_history()}
   end
 
   # --- Shelf disclosure ---
@@ -2675,10 +2707,16 @@ defmodule MediaCentaurWeb.IncomingLive do
   defp quality_label(_), do: nil
 
   defp load_history(socket) do
-    rows = compute_history_rows(socket.assigns.history_filter, socket.assigns.history_search)
+    {rows, has_older?} =
+      compute_history_rows(
+        socket.assigns.history_filter,
+        socket.assigns.history_search,
+        socket.assigns.history_limit
+      )
 
     assign(socket,
       history_rows: rows,
+      history_has_older?: has_older?,
       loaded_history_params: {socket.assigns.history_filter, socket.assigns.history_search}
     )
   end
