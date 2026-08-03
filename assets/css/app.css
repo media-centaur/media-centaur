@@ -662,9 +662,10 @@ body:has(.modal-backdrop[data-state="open"]) {
   color: oklch(from var(--color-base-content) l c h / 0.7);
 }
 
+/* Active state signals via full-strength color + the underline only — a
+   font-weight bump would change glyph widths and shift the tab row. */
 .zone-tab-active {
   color: var(--color-base-content);
-  font-weight: 600;
 }
 
 .zone-tab-active::after {
@@ -903,6 +904,20 @@ body:has(.modal-backdrop[data-state="open"]) {
   border-radius: var(--radius-box, 0.5rem);
 }
 
+/* Pre-set the ring color on UNfocused items too. Tailwind v4's
+   `transition-colors` includes outline-color, so any nav item carrying it
+   (e.g. the Incoming rows' hover-bg transition) would otherwise fade the
+   ring in from currentColor — a white flash before it settles primary.
+   With the color constant, only the (untransitioned) width appears. */
+[data-input=keyboard] [data-nav-item],
+[data-input=gamepad] [data-nav-item],
+[data-input=keyboard] [data-nav-sub-item],
+[data-input=gamepad] [data-nav-sub-item],
+[data-input=keyboard] [data-nav-focus-ring],
+[data-input=gamepad] [data-nav-focus-ring] {
+  outline-color: var(--color-primary);
+}
+
 /* Subsystem health tiles: gold focus highlight (keyboard/gamepad nav). The
    focused subsystem reads as the active card on the status board — a warmer,
    stronger cue than the default primary ring. Gold is an intentional
@@ -915,6 +930,14 @@ body:has(.modal-backdrop[data-state="open"]) {
   outline-offset: 2px;
   border-radius: var(--radius-box, 0.5rem);
   box-shadow: 0 0 0 4px oklch(0.83 0.15 88 / 0.22);
+}
+
+/* Same anti-flash pre-set as nav items above, in the tiles' gold. Later in
+   source than the primary pre-set, so it wins for tiles (which carry both
+   data-nav-item and data-subsystem-tile). */
+[data-input=keyboard] [data-subsystem-tile],
+[data-input=gamepad] [data-subsystem-tile] {
+  outline-color: oklch(0.83 0.15 88);
 }
 
 /* Delegated focus ring — when a nav item has data-nav-focus-target, the ring
