@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.110.1 — 2026-08-03
+
+### Improved
+
+- **Collapsed sidebar icons now show a label when you point at them.** Hovering an icon in the collapsed sidebar brings up a small floating label — Home, Library, Incoming, and so on — that follows smoothly as you move along the rail. Labels also appear when you highlight an icon with the keyboard or a controller, and they position correctly at every interface scale. Previously these labels could be cut off by the sidebar's edge and never appeared.
+
 ## v0.110.0 — 2026-08-03
 
 ### New
