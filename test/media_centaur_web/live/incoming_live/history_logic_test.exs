@@ -152,4 +152,56 @@ defmodule MediaCentaurWeb.IncomingLive.HistoryLogicTest do
       assert Logic.empty_state(:all) == "No past pursuits on record."
     end
   end
+
+  describe "adaptive_window/2" do
+    defp raw_row(updated_at), do: row(%{updated_at: updated_at})
+
+    defp days_ago(days), do: DateTime.new!(Date.add(@today, -days), ~T[12:00:00], "Etc/UTC")
+
+    test "a busy week cuts at the week; older rows are deferred" do
+      week_rows = for days <- 0..4, do: raw_row(days_ago(days))
+      old = raw_row(days_ago(45))
+
+      assert {^week_rows, true} = Logic.adaptive_window(week_rows ++ [old], @today)
+    end
+
+    test "the week boundary matches the section labels: 6 days ago stays, 7 goes" do
+      week_rows = for _ <- 1..4, do: raw_row(days_ago(2))
+      six_days = raw_row(days_ago(6))
+      seven_days = raw_row(days_ago(7))
+
+      kept = week_rows ++ [six_days]
+      assert {^kept, true} = Logic.adaptive_window(kept ++ [seven_days], @today)
+    end
+
+    test "a sparse week widens to the past month" do
+      this_week = [raw_row(days_ago(1)), raw_row(days_ago(3))]
+      this_month = [raw_row(days_ago(10)), raw_row(days_ago(15)), raw_row(days_ago(25))]
+      old = raw_row(days_ago(60))
+
+      kept = this_week ++ this_month
+      assert {^kept, true} = Logic.adaptive_window(kept ++ [old], @today)
+    end
+
+    test "a sparse month widens to the past quarter" do
+      spread = for days <- [1, 12, 40, 55, 80], do: raw_row(days_ago(days))
+      ancient = raw_row(days_ago(200))
+
+      assert {^spread, true} = Logic.adaptive_window(spread ++ [ancient], @today)
+    end
+
+    test "a sparse archive shows everything — no scope, no trim" do
+      sparse = [raw_row(days_ago(2)), raw_row(days_ago(120)), raw_row(nil)]
+
+      assert {^sparse, false} = Logic.adaptive_window(sparse, @today)
+      assert {[], false} = Logic.adaptive_window([], @today)
+    end
+
+    test "undated rows only surface in the whole-list fallback" do
+      week_rows = for days <- 0..4, do: raw_row(days_ago(days))
+      undated = raw_row(nil)
+
+      assert {^week_rows, true} = Logic.adaptive_window(week_rows ++ [undated], @today)
+    end
+  end
 end
