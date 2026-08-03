@@ -22,9 +22,40 @@ defmodule MediaCentaurWeb.IncomingLive.HistoryLogic do
   # match — only defers it behind Show older.
   @page_size 50
 
+  # The first window is also time-boxed, adaptively: the past week if it
+  # has enough to show, else the past month, else the past quarter, else
+  # the whole fetched page. The week boundary mirrors `section_label/2`'s
+  # "This week"; the wider scopes exist so a quiet stretch never renders
+  # as a near-empty view with everything real hidden behind a button.
+  @window_scopes_days [7, 30, 90]
+  @min_window_entries 5
+
   @doc "Rows per archive window — the initial load and each Show older step."
   @spec page_size() :: pos_integer()
   def page_size, do: @page_size
+
+  @doc """
+  Time-boxes an ordered (newest-first) row list to the smallest scope
+  that holds at least #{@min_window_entries} rows — past week, past
+  month, past quarter, then the whole list — returning
+  `{kept, trimmed_any?}`. Rows with no timestamp only appear in the
+  whole-list fallback (they section as "Earlier"). `trimmed_any?` feeds
+  `history_has_older?` so Show older renders whenever the time box hid
+  something, even with the count window not yet full.
+  """
+  @spec adaptive_window([PursuitRow.t()], Date.t()) :: {[PursuitRow.t()], boolean()}
+  def adaptive_window(rows, today) do
+    @window_scopes_days
+    |> Enum.find_value(fn days ->
+      kept = Enum.filter(rows, &within_days?(&1.updated_at, today, days))
+      if length(kept) >= @min_window_entries, do: {kept, length(kept) < length(rows)}
+    end)
+    |> Kernel.||({rows, false})
+  end
+
+  defp within_days?(nil, _today, _days), do: false
+
+  defp within_days?(%DateTime{} = at, today, days), do: Date.diff(today, DateTime.to_date(at)) < days
 
   @typedoc """
   One grouped archive entry, in the `Logic.group_pursuit_rows/2` shape:

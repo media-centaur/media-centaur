@@ -190,6 +190,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          history_search: "",
          history_rows: [],
          history_limit: HistoryLogic.page_size(),
+         history_week_only?: true,
          history_has_older?: false,
          pursuit_rows: [],
          expanded_pursuit_groups: MapSet.new(),
@@ -501,14 +502,26 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   # Fetches one row past the window so `history_has_older?` is a fact
   # about the archive, not a guess — search/filter narrow in SQL over
-  # the whole terminal table, the limit only bounds what renders.
-  defp compute_history_rows(history_filter, history_search, history_limit) do
+  # the whole terminal table, the limit only bounds what renders. The
+  # first window is additionally time-boxed, adaptively
+  # (`HistoryLogic.adaptive_window/2` — week, widening while sparse);
+  # the first Show older lifts the time box, later ones widen the
+  # count window.
+  defp compute_history_rows(history_filter, history_search, history_limit, week_only?, today) do
     rows =
       history_filter
       |> HistoryLogic.list_rows_filter()
       |> Pursuits.list_rows(search: history_search, limit: history_limit + 1)
 
-    {Enum.take(rows, history_limit), length(rows) > history_limit}
+    windowed = Enum.take(rows, history_limit)
+    beyond_count? = length(rows) > history_limit
+
+    if week_only? do
+      {kept, trimmed_any?} = HistoryLogic.adaptive_window(windowed, today)
+      {kept, trimmed_any? or beyond_count?}
+    else
+      {windowed, beyond_count?}
+    end
   end
 
   # QueueMonitor pre-filters completed items, but defend in depth: an
@@ -604,7 +617,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       socket
     else
       socket
-      |> assign(history_limit: HistoryLogic.page_size())
+      |> assign(history_limit: HistoryLogic.page_size(), history_week_only?: true)
       |> load_history()
     end
   end
@@ -1608,7 +1621,8 @@ defmodule MediaCentaurWeb.IncomingLive do
      socket
      |> assign(
        history_filter: HistoryLogic.parse_filter(filter),
-       history_limit: HistoryLogic.page_size()
+       history_limit: HistoryLogic.page_size(),
+       history_week_only?: true
      )
      |> load_history()}
   end
@@ -1616,17 +1630,27 @@ defmodule MediaCentaurWeb.IncomingLive do
   def handle_event("set_history_search", %{"search" => search}, socket) do
     {:noreply,
      socket
-     |> assign(history_search: search, history_limit: HistoryLogic.page_size())
+     |> assign(
+       history_search: search,
+       history_limit: HistoryLogic.page_size(),
+       history_week_only?: true
+     )
      |> load_history()}
   end
 
-  # Widens the archive window by one page. The whole window re-reads —
-  # bounded, and it keeps one source of truth (`history_limit`) instead
-  # of an accumulated cursor that PubSub refreshes would have to merge.
+  # Widens the archive window: lifts the adaptive time box AND grows the
+  # count limit by one page, so the click always reveals something
+  # whether the window was time-cut or count-full. The whole window
+  # re-reads — bounded, and it keeps one source of truth
+  # (`history_limit`) instead of an accumulated cursor that PubSub
+  # refreshes would have to merge.
   def handle_event("history_show_older", _params, socket) do
     {:noreply,
      socket
-     |> assign(history_limit: socket.assigns.history_limit + HistoryLogic.page_size())
+     |> assign(
+       history_limit: socket.assigns.history_limit + HistoryLogic.page_size(),
+       history_week_only?: false
+     )
      |> load_history()}
   end
 
@@ -2742,7 +2766,9 @@ defmodule MediaCentaurWeb.IncomingLive do
       compute_history_rows(
         socket.assigns.history_filter,
         socket.assigns.history_search,
-        socket.assigns.history_limit
+        socket.assigns.history_limit,
+        socket.assigns.history_week_only?,
+        socket.assigns.today
       )
 
     assign(socket,

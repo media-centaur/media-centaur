@@ -1592,8 +1592,72 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       month_label =
         Calendar.strftime(DateTime.add(DateTime.utc_now(), -40, :day), "%B %Y")
 
+      # Two entries total: too sparse for any time scope, so the
+      # adaptive window shows the whole page — both sections, no
+      # pointless button.
       assert has_element?(view, "[data-nav-zone='ledger'] h3", "Today")
       assert has_element?(view, "[data-nav-zone='ledger'] h3", month_label)
+      refute has_element?(view, "[phx-click='history_show_older']")
+    end
+
+    test "a busy week is the first window; Show older reaches the archive", %{conn: conn} do
+      seeds =
+        for index <- 1..5, do: {"Recent Week Movie #{index}", index}
+
+      for {title, days_ago} <- seeds ++ [{"Beyond Week Movie", 45}] do
+        {pursuit, _target} =
+          MediaCentaur.TestFactory.create_pursuit_with_target(%{media_type: :movie, title: title})
+
+        pursuit
+        |> Ecto.Changeset.change(
+          state: "satisfied",
+          updated_at: DateTime.add(DateTime.utc_now(:second), -days_ago, :day)
+        )
+        |> MediaCentaur.Repo.update!()
+      end
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+
+      assert has_element?(view, "[data-nav-zone='ledger']", "Recent Week Movie 1")
+      refute has_element?(view, "[data-nav-zone='ledger']", "Beyond Week Movie")
+      assert has_element?(view, "[phx-click='history_show_older']")
+
+      view |> element("[phx-click='history_show_older']") |> render_click()
+
+      assert has_element?(view, "[data-nav-zone='ledger']", "Beyond Week Movie")
+      refute has_element?(view, "[phx-click='history_show_older']")
+    end
+
+    test "a sparse week widens to the month before offering Show older", %{conn: conn} do
+      seeds =
+        [{"Lone Week Movie", 2}] ++
+          for(index <- 1..4, do: {"Month Movie #{index}", 10 + index}) ++
+          [{"Quarter Movie", 60}]
+
+      for {title, days_ago} <- seeds do
+        {pursuit, _target} =
+          MediaCentaur.TestFactory.create_pursuit_with_target(%{media_type: :movie, title: title})
+
+        pursuit
+        |> Ecto.Changeset.change(
+          state: "satisfied",
+          updated_at: DateTime.add(DateTime.utc_now(:second), -days_ago, :day)
+        )
+        |> MediaCentaur.Repo.update!()
+      end
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
+
+      # One entry this week is too sparse — the window widens to the
+      # month (5 entries), deferring only the quarter-old row.
+      assert has_element?(view, "[data-nav-zone='ledger']", "Lone Week Movie")
+      assert has_element?(view, "[data-nav-zone='ledger']", "Month Movie 4")
+      refute has_element?(view, "[data-nav-zone='ledger']", "Quarter Movie")
+      assert has_element?(view, "[phx-click='history_show_older']")
+
+      view |> element("[phx-click='history_show_older']") |> render_click()
+
+      assert has_element?(view, "[data-nav-zone='ledger']", "Quarter Movie")
     end
 
     test "an active search recedes the tab bar and the zone content; clearing restores them", %{
