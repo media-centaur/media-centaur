@@ -918,8 +918,9 @@ export class Orchestrator {
   }
 
   _executeEnterSidebar() {
+    // The rail keeps the user's chosen width — a collapsed rail labels the
+    // focused icon via the SidebarTooltip hook (focusin), no auto-expand.
     const primaryMenu = this._config.primaryMenu
-    this.writer.setSidebarState(false)
     const activeIndex = this.reader.getActiveItemIndex(primaryMenu)
     if (activeIndex >= 0) {
       this.writer.focusByIndex(primaryMenu, activeIndex)
@@ -945,9 +946,6 @@ export class Orchestrator {
       this.focusMachine.forceContext(primaryMenu)
       return
     }
-
-    const wasCollapsed = this.reader.getSidebarCollapsed()
-    this.writer.setSidebarState(wasCollapsed)
 
     this.focusMachine.forceContext(restoreTo)
     this._restoreContextFocus(restoreTo)

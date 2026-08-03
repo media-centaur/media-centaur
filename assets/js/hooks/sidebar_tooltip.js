@@ -63,6 +63,18 @@ export function tooltipPosition(rect, scale) {
 }
 
 /**
+ * Should a click hide the tooltip? Only a real pointer click (detail ≥ 1)
+ * means the user is leaving — keyboard nav activates links via
+ * element.click() (detail 0) on focus, and hiding on those would kill the
+ * tooltip the instant focus reveals it.
+ * @param {{detail: number}} event
+ * @returns {boolean}
+ */
+export function clickHides(event) {
+  return event.detail > 0
+}
+
+/**
  * Parse the raw `--ui-scale` custom-property string from computed style.
  * @param {string|undefined} raw
  * @returns {number} the scale, or 1 for anything absent or malformed
@@ -124,8 +136,11 @@ export const SidebarTooltip = {
       this.show(link, { immediate: true })
     }
     this.onFocusOut = () => this.hide()
-    // Click navigates or toggles the rail — either way the anchor is gone.
-    this.onClick = () => this.hide()
+    // A pointer click navigates or toggles the rail — either way the anchor
+    // is gone. Keyboard activate-on-focus clicks (detail 0) keep the tooltip.
+    this.onClick = (event) => {
+      if (clickHides(event)) this.hide()
+    }
     this.onScroll = () => this.hide()
 
     this.el.addEventListener("mouseover", this.onMouseOver)

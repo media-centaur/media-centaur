@@ -255,13 +255,6 @@ export function createDomReader(config = {}) {
     },
 
     /**
-     * Get the sidebar collapsed preference from localStorage.
-     */
-    getSidebarCollapsed() {
-      return localStorage.getItem("phx:sidebar-collapsed") === "true"
-    },
-
-    /**
      * Get the page behavior name from the data-page-behavior attribute.
      * Returns null if no behavior is set.
      */
@@ -381,17 +374,6 @@ export function createDomWriter(config = {}) {
       if (!selector) return
       const tabs = document.querySelectorAll(selector)
       tabs[index]?.click()
-    },
-
-    /**
-     * Set sidebar expanded/collapsed state on <html>.
-     */
-    setSidebarState(collapsed) {
-      if (collapsed) {
-        document.documentElement.dataset.sidebar = "collapsed"
-      } else {
-        delete document.documentElement.dataset.sidebar
-      }
     },
 
     /**
