@@ -91,7 +91,12 @@ defmodule MediaCentaurWeb.Layouts do
       data-input-bindings={Jason.encode!(input_bindings())}
       data-global-bindings={Jason.encode!(global_bindings())}
     >
-      <aside id="sidebar" class="sidebar glass-sidebar" data-nav-zone="sidebar">
+      <aside
+        id="sidebar"
+        class="sidebar glass-sidebar"
+        data-nav-zone="sidebar"
+        phx-hook="SidebarTooltip"
+      >
         <div class="sidebar-group-label sidebar-label">Watch</div>
         <nav class="flex flex-col gap-0.5">
           <.link
@@ -379,8 +384,10 @@ defmodule MediaCentaurWeb.Layouts do
 
   # `paths` may be a list when one nav entry fronts several routes — the
   # Review entry covers both review dimensions (/review and /reconcile).
+  # Collapsed-rail tooltips come from the SidebarTooltip hook reading each
+  # link's data-tip — no tooltip classes here.
   defp sidebar_link_class(current_path, paths) do
-    base = "sidebar-link tooltip tooltip-right"
+    base = "sidebar-link"
 
     if current_path in List.wrap(paths) do
       base <> " sidebar-link-active"

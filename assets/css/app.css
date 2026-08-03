@@ -405,15 +405,36 @@ html.psb .psb-variation-block .media-centaur {
   transform: rotate(180deg);
 }
 
-/* Tooltips: only show when sidebar is collapsed */
-.sidebar-link::before,
-.sidebar-link::after {
-  display: none !important;
+/* Collapsed-rail tooltip — a single element in <body>, driven by the
+   SidebarTooltip hook (hooks/sidebar_tooltip.js). Lives outside the rail
+   because the rail (overflow-y: auto) and each link (overflow: hidden)
+   clip pseudo-element tooltips at the 52px collapsed width. Position is
+   set entirely via transform by the hook; the transform transition is what
+   lets the open tooltip glide between icons. Blur is static — only
+   opacity/transform animate. */
+.sidebar-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  pointer-events: none;
+  padding: 0.3125rem 0.625rem;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  white-space: nowrap;
+  color: oklch(from var(--color-base-content) l c h / 0.95);
+  background: var(--glass-nav-bg);
+  @apply backdrop-blur-[12px];
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 16px var(--glass-shadow);
+  opacity: 0;
+  transition: opacity 0.12s ease-out, transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-[data-sidebar=collapsed] .sidebar-link:hover::before,
-[data-sidebar=collapsed] .sidebar-link:hover::after {
-  display: block !important;
+.sidebar-tooltip[data-state="open"] {
+  opacity: 1;
 }
 
 /* ── Detail Shell ──
