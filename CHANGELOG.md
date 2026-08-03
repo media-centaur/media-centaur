@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.110.0 — 2026-08-03
+
+### New
+
+- **Tracked titles without a date now live in the Coming up list.** Shows on hiatus and movies with no announced date used to be a line of plain text you couldn't do anything with. They're now real entries at the end of the list, tucked behind a "Not scheduled yet" line — click it to show them, and click any of them to manage the title like any other entry.
+
+### Improved
+
+- **Coming up entries open the same kind of window as everything else.** Clicking an entry used to slide a panel in from the right — the only place in the app that did. It now opens a centered window, the same as downloads, with the next release shown first, the auto-grab switch, the full release timeline, and recent activity. The window has its own address, so refreshing keeps it open and the back button closes it.
+- **The "Armed" label is gone.** A release that will be grabbed automatically now says **Will grab** — no app-specific vocabulary to learn. The same wording now appears everywhere the status shows up.
+- **History starts with what's recent.** The History tab now opens showing the past week. If your week was quiet it automatically widens to the past month or quarter so the view is never nearly empty, and **Show older** still walks back through the full archive. Filters and search cover everything, as before.
+
 ## v0.109.0 — 2026-08-03
 
 ### Improved
