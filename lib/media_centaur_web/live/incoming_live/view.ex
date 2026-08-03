@@ -35,13 +35,17 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   defstruct shelf: nil, in_flight: [], drafts: [], feed: %UpcomingFeed{}
 
   defmodule ShelfSection do
-    @moduledoc "The Coming up shelf: capped cards plus what the cap hides."
+    @moduledoc """
+    The Coming up shelf: capped dated cards, what the cap hides, and the
+    tracked-but-unscheduled titles as rows of the same `Card` vocabulary
+    (UIDR-017) — schedule state is a property of a row, not a class split.
+    """
     defstruct cards: [], overflow_count: 0, stragglers: []
 
     @type t :: %__MODULE__{
             cards: [Card.t()],
             overflow_count: non_neg_integer(),
-            stragglers: [UpcomingFeed.Straggler.t()]
+            stragglers: [Card.t()]
           }
   end
 
@@ -74,7 +78,8 @@ defmodule MediaCentaurWeb.IncomingLive.View do
       shelf: %ShelfSection{
         cards: Enum.map(events, &card_from_event(&1, inputs.today)),
         overflow_count: overflow_count,
-        stragglers: UpcomingFeed.stragglers(inputs.watching_items)
+        stragglers:
+          inputs.watching_items |> UpcomingFeed.stragglers() |> Enum.map(&card_from_straggler/1)
       },
       in_flight: if(inputs.prowlarr_ready?, do: inputs.pursuit_rows, else: []),
       drafts: if(inputs.prowlarr_ready?, do: inputs.drafts, else: []),
@@ -135,6 +140,24 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   defp pill_status(:in_library), do: :landed
   defp pill_status(:upcoming), do: :tracked
 
+  # A straggler is the same row vocabulary with schedule facts absent:
+  # no date label (the shelf renders the muted em-dash), the media type
+  # as the caption, and the neutral Tracked pill.
+  defp card_from_straggler(%UpcomingFeed.Straggler{} = straggler) do
+    %Card{
+      key: "straggler-#{straggler.item_id}",
+      item_id: straggler.item_id,
+      title: straggler.name,
+      subtitle: media_label(straggler.media_type),
+      status: :tracked,
+      art_url: straggler.backdrop_path && backdrop_art_url(straggler.backdrop_path),
+      kind: :title
+    }
+  end
+
+  defp media_label(:tv_series), do: "TV series"
+  defp media_label(:movie), do: "Movie"
+
   defp subtitle_for(%Event{kind: :season_drop} = event), do: "S#{event.season_number}"
 
   defp subtitle_for(%Event{kind: :episode} = event) do
@@ -154,7 +177,8 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   defp pad(number), do: number |> to_string() |> String.pad_leading(2, "0")
 
   defp art_url(%Event{backdrop_path: nil}), do: nil
+  defp art_url(%Event{backdrop_path: path}), do: backdrop_art_url(path)
 
-  defp art_url(%Event{backdrop_path: path}),
+  defp backdrop_art_url(path),
     do: sized_image_url(MediaCentaur.Library.Image.web_path(path), @shelf_art_width)
 end

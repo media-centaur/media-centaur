@@ -179,6 +179,7 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
         id: "straggler-item",
         name: "The Golem",
         media_type: :movie,
+        backdrop_path: nil,
         releases: [%{air_date: nil}]
       }
 
@@ -186,7 +187,47 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
 
       assert length(view.shelf.cards) == 6
       assert view.shelf.overflow_count == 3
-      assert [%UpcomingFeed.Straggler{name: "The Golem"}] = view.shelf.stragglers
+      assert [%Card{title: "The Golem"}] = view.shelf.stragglers
+    end
+
+    test "stragglers map into shelf Cards: undated, tracked, media type as subtitle" do
+      straggler = %{
+        id: "straggler-item",
+        name: "The Golem",
+        media_type: :movie,
+        backdrop_path: "/art/golem-backdrop.jpg",
+        releases: []
+      }
+
+      view = View.build(inputs(%{watching_items: [straggler]}))
+
+      assert [
+               %Card{
+                 key: "straggler-straggler-item",
+                 item_id: "straggler-item",
+                 title: "The Golem",
+                 subtitle: "Movie",
+                 date_label: nil,
+                 status: :tracked,
+                 kind: :title
+               } = card
+             ] = view.shelf.stragglers
+
+      assert card.art_url =~ "golem-backdrop"
+    end
+
+    test "a TV straggler carries the series subtitle" do
+      straggler = %{
+        id: "tv-straggler",
+        name: "Sample Show",
+        media_type: :tv_series,
+        backdrop_path: nil,
+        releases: [%{air_date: nil}]
+      }
+
+      view = View.build(inputs(%{watching_items: [straggler]}))
+
+      assert [%Card{subtitle: "TV series", status: :tracked, art_url: nil}] = view.shelf.stragglers
     end
   end
 

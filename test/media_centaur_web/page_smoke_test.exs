@@ -487,6 +487,16 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         released: false
       })
 
+      # Seed a tracked title with NO dated release so the coming-up zone
+      # exercises the straggler-row branch ("Not scheduled yet" divider +
+      # undated row), not just dated agenda rows.
+      straggler_item =
+        create_tracking_item(%{
+          tmdb_id: 9_102,
+          media_type: :tv_series,
+          name: "Smoke Hiatus Show"
+        })
+
       # Seed an active pursuit + linked target so the unified pursuits-with-
       # downloads zone exercises its non-trivial branches (card rendering,
       # release_title threading, no-match hint derivation). Per the
@@ -548,7 +558,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         :persistent_term.put({Config, :config}, original)
       end)
 
-      :ok
+      %{shelf_item: shelf_item, straggler_item: straggler_item}
     end
 
     test "renders without crashing (smart default — seeded activity wins)", %{conn: conn} do
@@ -567,15 +577,34 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       assert html =~ "Sample Movie"
     end
 
-    test "renders without crashing (?zone=coming_up)", %{conn: conn} do
+    test "renders without crashing (?zone=coming_up)", %{conn: conn, straggler_item: straggler} do
       assert {:ok, view, html} = live_async!(conn, "/incoming?zone=coming_up")
       assert is_binary(html)
 
       # The explicit zone beats the smart default: the tab bar plus the
       # seeded tracked release's agenda row — the forecast branch, not
-      # just the horizon.
+      # just the horizon. The undated tracked title sits collapsed
+      # behind the "Not scheduled yet" toggle; expanding renders the
+      # straggler-row branch (UIDR-017).
       assert has_element?(view, ~s([data-nav-zone="zone-tabs"]))
       assert has_element?(view, ~s([data-nav-zone="coming_up_list"]), "Smoke Shelf Show")
+      refute has_element?(view, "#shelf-straggler-#{straggler.id}")
+
+      view
+      |> element("[data-component=shelf-unscheduled-divider]")
+      |> render_click()
+
+      assert has_element?(view, "#shelf-straggler-#{straggler.id}", "Smoke Hiatus Show")
+    end
+
+    test "renders without crashing (?title= opens the title modal)", %{
+      conn: conn,
+      shelf_item: shelf_item
+    } do
+      assert {:ok, view, _html} = live_async!(conn, "/incoming?title=#{shelf_item.id}")
+
+      assert has_element?(view, "#title-modal[data-state=open]")
+      assert has_element?(view, "#title-modal", "Smoke Shelf Show")
     end
 
     test "renders without crashing (?zone=history)", %{conn: conn} do

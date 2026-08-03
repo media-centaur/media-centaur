@@ -5,10 +5,14 @@ defmodule MediaCentaurWeb.Components.Incoming.StatusPill do
   card and the in-flight torrent row. Speaking the same pill on both is
   what welds the pair together (DDR-015).
 
-  Color is state/health only (never identity): armed and landed read
-  success, in-pursuit reads info, failed reads error, cancelled reads
-  muted; the watch-only and waiting statuses (in theaters, tracked,
-  searching) stay neutral.
+  Color is state/health only (never identity): will-grab (`:armed`)
+  and landed read success, in-pursuit reads info, failed reads error,
+  cancelled reads muted; the watch-only and waiting statuses (in
+  theaters, tracked, searching) stay neutral.
+
+  Copy states what happens (UIDR-017): the `:armed` status reads
+  "Will grab" — the internal atom keeps its name, the user never
+  sees it.
 
   An `:in_pursuit` pill can carry a `percent` ("In pursuit · 62%") and
   an `anchor` — when set, the pill renders as a link to that fragment
@@ -60,7 +64,7 @@ defmodule MediaCentaurWeb.Components.Incoming.StatusPill do
 
   defp label(:in_pursuit, percent) when is_integer(percent), do: "In pursuit · #{percent}%"
   defp label(:in_pursuit, _percent), do: "In pursuit"
-  defp label(:armed, _percent), do: "Armed"
+  defp label(:armed, _percent), do: "Will grab"
   defp label(:in_theaters, _percent), do: "In theaters"
   defp label(:tracked, _percent), do: "Tracked"
   defp label(:searching, _percent), do: "Searching"

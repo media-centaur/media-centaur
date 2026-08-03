@@ -1,9 +1,9 @@
 defmodule MediaCentaurWeb.Components.ReleaseTracking.Detail do
   @moduledoc """
-  View-model for the per-title detail slide-over: the title, its automation
-  posture, its release timeline, and recent per-title activity. Built by the
-  LiveView from `ReleaseTracking` + `Acquisition` reads and rendered by
-  `DetailPanel`.
+  View-model for the per-title depth surface (the title modal): the title,
+  its automation posture, its release timeline, recent per-title activity,
+  and when tracking began. Built by the LiveView from `ReleaseTracking` +
+  `Acquisition` reads and rendered by `TitleModal`.
   """
 
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.Detail do
     :backdrop_path,
     :acquisition?,
     :auto_grab,
+    :tracking_since,
     timeline: [],
     activity: []
   ]
@@ -28,6 +29,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.Detail do
           backdrop_path: String.t() | nil,
           acquisition?: boolean(),
           auto_grab: %{on?: boolean(), label: String.t()},
+          tracking_since: DateTime.t() | NaiveDateTime.t() | nil,
           timeline: [Event.t()],
           activity: [activity_entry()]
         }

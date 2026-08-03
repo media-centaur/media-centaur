@@ -10,9 +10,14 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
   `#pursuit-<pursuit_id>` — the same object's other zoom level. When
   the cap hides titles, a "Show all N" action row follows the last
   entry (the ledger's "Show earlier" idiom, applied to the shelf).
-  Tracked titles with nothing scheduled fold into a quiet one-line
-  disclosure under the list. An empty forecast renders nothing at all —
-  no dead panel; the omnibox above is the standing track affordance.
+  Tracked titles with nothing scheduled are rows of the same anatomy
+  behind a quiet "Not scheduled yet · N" hairline toggle (UIDR-017),
+  collapsed by default — the ledger's grow-in-place idiom, applied to
+  bookkeeping. Expanded, the empty date slot renders a muted em-dash
+  so the columns stay aligned, and the row opens the same title modal
+  as any dated row. An empty forecast with no stragglers renders
+  nothing at all — no dead panel; the omnibox above is the standing
+  track affordance.
 
   Every row is `phx-click="select_event"` and a nav item; the zone is
   `coming_up_list` (a vertical MENU instance — the home pages keep the
@@ -34,7 +39,10 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
     `key` is the stable DOM identity (`shelf-<key>`); `status` is the
     `StatusPill` union or `nil` for a plain dated row (the honest
     acquisition-off degradation); `percent` and `pursuit_id` only
-    matter for `:in_pursuit` rows.
+    matter for `:in_pursuit` rows. `kind: :title` marks a row that
+    represents the bare tracked title (a straggler) rather than a
+    scheduled event — `date_label` is nil and the date slot renders
+    the muted em-dash.
     """
 
     @enforce_keys [:key, :item_id, :title, :kind]
@@ -71,7 +79,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
               | nil,
             percent: integer() | nil,
             art_url: String.t() | nil,
-            kind: :episode | :movie | :season_drop,
+            kind: :episode | :movie | :season_drop | :title,
             episode_count: pos_integer() | nil
           }
   end
@@ -84,7 +92,11 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
 
   attr :stragglers, :list,
     default: [],
-    doc: "`UpcomingFeed.Straggler.t()` rows — tracked titles with nothing scheduled."
+    doc: "`Card.t()` rows (kind `:title`) — tracked titles with nothing scheduled."
+
+  attr :stragglers_expanded?, :boolean,
+    default: false,
+    doc: "Whether the \"Not scheduled yet\" section shows its rows (collapsed by default)."
 
   def shelf(assigns) do
     ~H"""
@@ -104,9 +116,32 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
           overflow_count={@overflow_count}
           total_count={@overflow_count + length(@cards)}
         />
+        <%!-- The divider IS the toggle — collapsed by default, the
+              count says what it hides ("Not scheduled yet · 3");
+              expanding grows the list in place, the same idiom as the
+              horizon's "Show all N". Indented to start under the date
+              column so, expanded, the label sits by the em-dashes it
+              explains. --%>
+        <button
+          :if={@stragglers != []}
+          type="button"
+          class="mt-3 mb-1 flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-1 text-left transition-colors hover:bg-base-content/[0.04]"
+          data-component="shelf-unscheduled-divider"
+          phx-click="toggle_stragglers"
+          data-nav-item
+          tabindex="0"
+        >
+          <span class="w-24 shrink-0"></span>
+          <span class="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider text-base-content/35 whitespace-nowrap">
+            <.icon
+              name="hero-chevron-right-mini"
+              class={"size-3 transition-transform#{if @stragglers_expanded?, do: " rotate-90"}"}
+            /> Not scheduled yet · {length(@stragglers)}
+          </span>
+          <span class="h-px flex-1 bg-base-content/10"></span>
+        </button>
+        <.shelf_row :for={card <- @stragglers} :if={@stragglers_expanded?} card={card} />
       </div>
-
-      <.stragglers_disclosure :if={@stragglers != []} stragglers={@stragglers} />
     </section>
     """
   end
@@ -124,10 +159,17 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
       data-nav-item
       tabindex="0"
     >
-      <%!-- Always rendered (empty when undated) so the date column keeps
-            the rows aligned. --%>
-      <span class="w-24 shrink-0 text-xs font-medium text-base-content/55">
+      <%!-- Always rendered so the date column keeps the rows aligned;
+            an undated (straggler) row shows a dimmer em-dash — "no
+            date, on purpose", not a layout gap. --%>
+      <span
+        :if={@card.date_label}
+        class="w-24 shrink-0 text-xs font-medium text-base-content/55"
+      >
         {@card.date_label}
+      </span>
+      <span :if={!@card.date_label} class="w-24 shrink-0 text-xs font-medium text-base-content/30">
+        —
       </span>
 
       <div class="glass-inset relative h-12 w-8 shrink-0 overflow-hidden rounded-md border border-base-content/10">
@@ -188,31 +230,6 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
     </button>
     """
   end
-
-  attr :stragglers, :list, required: true, doc: "Non-empty `Straggler.t()` rows."
-
-  defp stragglers_disclosure(assigns) do
-    ~H"""
-    <details class="text-xs text-base-content/40" data-component="shelf-stragglers">
-      <summary class="cursor-pointer list-none transition-colors hover:text-base-content/70">
-        <span class="inline-flex items-center gap-1">
-          <.icon
-            name="hero-chevron-right-mini"
-            class="size-3 transition-transform [details[open]_&]:rotate-90"
-          /> Also tracking {straggler_count_label(@stragglers)} with nothing scheduled
-        </span>
-      </summary>
-      <div class="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 pl-4">
-        <span :for={straggler <- @stragglers} id={"shelf-straggler-#{straggler.item_id}"}>
-          {straggler.name}
-        </span>
-      </div>
-    </details>
-    """
-  end
-
-  defp straggler_count_label([_single]), do: "1 title"
-  defp straggler_count_label(stragglers), do: "#{length(stragglers)} titles"
 
   defp pill_anchor(%Card{status: :in_pursuit, pursuit_id: pursuit_id}) when not is_nil(pursuit_id) do
     "#pursuit-#{pursuit_id}"

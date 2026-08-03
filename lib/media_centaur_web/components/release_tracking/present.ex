@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.Present do
   @type tone :: :success | :info | :muted | :neutral
 
   @spec status_label(atom()) :: String.t()
-  def status_label(:armed), do: "Auto-grabbing"
+  def status_label(:armed), do: "Will grab"
   def status_label(:armed_fallback), do: "Grabs if still missing"
   def status_label(:under_pursuit), do: "Grabbing"
   def status_label(:in_library), do: "In your library"

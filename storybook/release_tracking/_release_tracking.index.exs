@@ -4,5 +4,5 @@ defmodule MediaCentaurWeb.Storybook.ReleaseTracking do
   def folder_open?, do: false
   def folder_icon, do: {:fa, "calendar", :light, "psb:mr-1"}
 
-  def entry("title_detail"), do: [icon: {:fa, "panorama", :thin}, name: "Title detail"]
+  def entry("title_modal"), do: [icon: {:fa, "panorama", :thin}, name: "Title modal"]
 end
