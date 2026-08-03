@@ -2640,18 +2640,77 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
   end
 
-  describe "detail slide-over" do
-    test "select_event opens the per-title detail; close_detail closes it", %{conn: conn} do
+  describe "title modal" do
+    test "select_event patches to ?title= and opens the modal; close_detail patches away", %{
+      conn: conn
+    } do
       {item, _release} = tracked_with_release(%{name: "Detail Show"})
 
       {:ok, view, _html} = live_async!(conn, "/incoming")
 
-      opened = render_hook(view, "select_event", %{"item-id" => item.id})
+      render_hook(view, "select_event", %{"item-id" => item.id})
+      assert_patch(view, "/incoming?title=#{item.id}")
+
+      assert has_element?(view, "#title-modal[data-state=open]")
+      opened = render(view)
       assert opened =~ "Detail Show"
       assert opened =~ "Stop tracking"
 
-      closed = render_hook(view, "close_detail", %{})
-      refute closed =~ "Stop tracking"
+      render_hook(view, "close_detail", %{})
+      assert_patch(view, "/incoming")
+      assert has_element?(view, "#title-modal[data-state=closed]")
+    end
+
+    test "mounting with ?title= opens the modal directly (shareable URL)", %{conn: conn} do
+      {item, _release} = tracked_with_release(%{name: "Deep Link Show"})
+
+      {:ok, view, _html} = live_async!(conn, "/incoming?title=#{item.id}")
+
+      assert has_element?(view, "#title-modal[data-state=open]")
+      assert render(view) =~ "Deep Link Show"
+    end
+
+    test "an unknown ?title= id renders the page with the modal closed", %{conn: conn} do
+      {:ok, view, _html} =
+        live_async!(conn, "/incoming?title=#{Ecto.UUID.generate()}")
+
+      assert has_element?(view, "#title-modal[data-state=closed]")
+    end
+
+    test "stragglers start collapsed behind the divider toggle; expanded rows open the same modal",
+         %{conn: conn} do
+      item = create_tracking_item(%{name: "Hiatus Show", media_type: :tv_series})
+
+      {:ok, view, _html} = live_async!(conn, "/incoming")
+
+      # Collapsed by default: the toggle row carries the count, the rows
+      # themselves are not rendered.
+      assert has_element?(view, "[data-component=shelf-unscheduled-divider]", "Not scheduled yet")
+      assert has_element?(view, "[data-component=shelf-unscheduled-divider]", "1")
+      refute has_element?(view, "#shelf-straggler-#{item.id}")
+
+      view
+      |> element("[data-component=shelf-unscheduled-divider]")
+      |> render_click()
+
+      assert has_element?(view, "#shelf-straggler-#{item.id}")
+
+      view
+      |> element("#shelf-straggler-#{item.id}")
+      |> render_click()
+
+      assert_patch(view, "/incoming?title=#{item.id}")
+      assert has_element?(view, "#title-modal[data-state=open]")
+      assert render(view) =~ "Hiatus Show"
+
+      # Collapsing again hides the rows.
+      render_hook(view, "close_detail", %{})
+
+      view
+      |> element("[data-component=shelf-unscheduled-divider]")
+      |> render_click()
+
+      refute has_element?(view, "#shelf-straggler-#{item.id}")
     end
   end
 

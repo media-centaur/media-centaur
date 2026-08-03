@@ -43,8 +43,10 @@ defmodule MediaCentaurWeb.Storybook.Incoming.ShelfRow do
         }
       },
       %Variation{
-        id: :armed,
-        description: "A future release that will auto-grab when it drops.",
+        id: :will_grab,
+        description:
+          "A future release that will be grabbed automatically when it appears — " <>
+            "the \"Will grab\" pill (status atom stays :armed).",
         attributes: %{
           card: %Card{
             key: "haxan-s01e06",
@@ -100,6 +102,23 @@ defmodule MediaCentaurWeb.Storybook.Incoming.ShelfRow do
             subtitle: "S01E03 · Jul 14",
             date_label: "Tue",
             kind: :episode
+          }
+        }
+      },
+      %Variation{
+        id: :straggler,
+        description:
+          "A tracked title with nothing scheduled (UIDR-017): empty date slot rendered " <>
+            "as a muted em-dash so the columns stay aligned, media type as the subtitle, " <>
+            "neutral Tracked pill.",
+        attributes: %{
+          card: %Card{
+            key: "straggler-201",
+            item_id: 201,
+            title: "Sherlock Jr.",
+            subtitle: "Movie",
+            status: :tracked,
+            kind: :title
           }
         }
       },

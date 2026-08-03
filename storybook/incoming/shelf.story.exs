@@ -1,14 +1,14 @@
 defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
   @moduledoc """
   The Coming-up shelf — a nearness-ordered agenda list of date-led
-  rows, the horizon action row after the last entry, and the quiet
-  stragglers line. No section header: the zone tab (or, forecast-only,
-  the rows themselves) names the view.
+  rows, the horizon action row after the last entry, and the undated
+  straggler rows under a "Not scheduled yet" hairline (UIDR-017). No
+  section header: the zone tab (or, forecast-only, the rows
+  themselves) names the view.
   """
 
   use PhoenixStorybook.Story, :component
 
-  alias MediaCentaur.ReleaseTracking.UpcomingFeed.Straggler
   alias MediaCentaurWeb.Components.Incoming.Shelf.Card
 
   def function, do: &MediaCentaurWeb.Components.Incoming.Shelf.shelf/1
@@ -75,8 +75,37 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
     ]
   end
 
-  # The same forecast with acquisition off: no armed / in-pursuit pills —
-  # armed rows degrade to plain dated rows so nothing surviving implies
+  defp straggler_rows do
+    [
+      %Card{
+        key: "straggler-101",
+        item_id: 101,
+        title: "Sherlock Jr.",
+        subtitle: "Movie",
+        status: :tracked,
+        kind: :title
+      },
+      %Card{
+        key: "straggler-102",
+        item_id: 102,
+        title: "Safety Last!",
+        subtitle: "Movie",
+        status: :tracked,
+        kind: :title
+      },
+      %Card{
+        key: "straggler-103",
+        item_id: 103,
+        title: "A Trip to the Moon",
+        subtitle: "Movie",
+        status: :tracked,
+        kind: :title
+      }
+    ]
+  end
+
+  # The same forecast with acquisition off: no will-grab / in-pursuit pills —
+  # will-grab rows degrade to plain dated rows so nothing surviving implies
   # grabbing. Watch-only identity (in theaters) stays.
   defp acquisition_off_mix do
     Enum.map(full_mix(), fn
@@ -95,8 +124,8 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
         description:
           "Six rows, nearness-first with graduated date labels (Tonight → Tue → " <>
             "Fri Jul 17 → Fri Jul 24 → Now → Aug 6): tonight's episode in pursuit, a plain " <>
-            "tracked episode, an armed episode, a season drop, an in-theaters feature, and a " <>
-            "tracked feature.",
+            "tracked episode, a will-grab episode, a season drop, an in-theaters feature, " <>
+            "and a tracked feature.",
         attributes: %{cards: full_mix()}
       },
       %Variation{
@@ -119,18 +148,31 @@ defmodule MediaCentaurWeb.Storybook.Incoming.Shelf do
         attributes: %{cards: full_mix(), overflow_count: 4}
       },
       %Variation{
-        id: :with_stragglers,
+        id: :stragglers_collapsed,
         description:
-          "Tracked titles with nothing scheduled fold into a one-line disclosure under " <>
-            "the shelf — expand for the names.",
+          "The default: tracked titles with nothing scheduled sit collapsed behind " <>
+            "the \"Not scheduled yet · N\" toggle row — quiet bookkeeping until asked " <>
+            "for (UIDR-017).",
+        attributes: %{cards: full_mix(), stragglers: straggler_rows()}
+      },
+      %Variation{
+        id: :stragglers_expanded,
+        description:
+          "Expanded: real rows under the hairline — empty date slot (muted em-dash " <>
+            "keeps the columns aligned), media type as the subtitle, neutral Tracked " <>
+            "pill; same anatomy, same click-through as dated rows.",
         attributes: %{
           cards: full_mix(),
-          stragglers: [
-            %Straggler{item_id: 101, name: "Sherlock Jr.", media_type: :movie},
-            %Straggler{item_id: 102, name: "Safety Last!", media_type: :movie},
-            %Straggler{item_id: 103, name: "A Trip to the Moon", media_type: :movie}
-          ]
+          stragglers: straggler_rows(),
+          stragglers_expanded?: true
         }
+      },
+      %Variation{
+        id: :stragglers_only,
+        description:
+          "Nothing dated but titles still tracked: the toggle (and, expanded, the " <>
+            "rows) renders on its own — presence never depends on the schedule.",
+        attributes: %{cards: [], stragglers: straggler_rows(), stragglers_expanded?: true}
       }
     ]
   end

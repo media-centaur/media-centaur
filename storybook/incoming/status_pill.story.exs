@@ -16,9 +16,9 @@ defmodule MediaCentaurWeb.Storybook.Incoming.StatusPill do
       %VariationGroup{
         id: :all_statuses,
         description:
-          "The full union. Armed and landed read success, in pursuit reads info, " <>
-            "failed reads error, cancelled reads muted; in theaters / tracked / " <>
-            "searching stay neutral (identity, not health).",
+          "The full union. Will grab (:armed) and landed read success, in pursuit " <>
+            "reads info, failed reads error, cancelled reads muted; in theaters / " <>
+            "tracked / searching stay neutral (identity, not health).",
         variations:
           for status <- [
                 :armed,

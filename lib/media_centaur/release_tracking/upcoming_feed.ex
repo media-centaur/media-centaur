@@ -84,8 +84,12 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   end
 
   defmodule Straggler do
-    @moduledoc "A tracked title with no dated release yet (the quiet catch-all)."
-    defstruct [:item_id, :name, :media_type]
+    @moduledoc """
+    A tracked title with no dated release yet. Carries enough identity
+    (name, media type, backdrop) for the shelf to render it as a
+    first-class agenda row (UIDR-017).
+    """
+    defstruct [:item_id, :name, :media_type, :backdrop_path]
 
     @type t :: %Straggler{}
   end
@@ -140,7 +144,12 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     watching_items
     |> Enum.filter(&no_dated_release?/1)
     |> Enum.map(fn item ->
-      %Straggler{item_id: item.id, name: item.name, media_type: item.media_type}
+      %Straggler{
+        item_id: item.id,
+        name: item.name,
+        media_type: item.media_type,
+        backdrop_path: Map.get(item, :backdrop_path)
+      }
     end)
   end
 
@@ -148,8 +157,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
   The Incoming shelf: scheduled events flattened nearness-first (bucket order,
   date-ascending within each bucket), **one card per title** — a title's later
   releases (a movie's physical date after its digital one, a weekly show's
-  following episodes) collapse into its soonest event, since the card's detail
-  slide-over and the calendar carry the full timeline. Capped at `cap`;
+  following episodes) collapse into its soonest event, since the title
+  modal carries the full timeline. Capped at `cap`;
   `{items, overflow_count}` counts hidden TITLES so a capped shelf never
   silently truncates the forecast.
   """

@@ -114,7 +114,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.Acquisition.{PlanEvents, Plans, Targeting}
   alias MediaCentaurWeb.Components.Incoming.{Ledger, Shelf}
-  alias MediaCentaurWeb.Components.ReleaseTracking.{Detail, Present, TitleDetail}
+  alias MediaCentaurWeb.Components.ReleaseTracking.{Detail, Present, TitleModal}
   alias MediaCentaurWeb.IncomingLive.MoviePreview
   alias MediaCentaurWeb.IncomingLive.View
   alias MediaCentaurWeb.IncomingLive.PlanLogic
@@ -169,6 +169,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          today: today,
          detail: nil,
          shelf_expanded?: false,
+         stragglers_expanded?: false,
          view: %View{shelf: %View.ShelfSection{}},
          grab_status_by_key: %{},
          auto_grab_default_mode: AutoGrabSettings.load().default_mode,
@@ -393,7 +394,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     |> Map.new(fn {key, {pursuit, _target}} -> {key, %{pursuit_id: pursuit.id}} end)
   end
 
-  # --- Per-title detail (the forecast slide-over) ---
+  # --- Per-title detail (the title modal, UIDR-017) ---
 
   defp build_detail(socket, item_id) do
     case ReleaseTracking.get_item(item_id) do
@@ -425,6 +426,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           backdrop_path: item.backdrop_path,
           acquisition?: acquisition?,
           auto_grab: Present.auto_grab_summary(item.auto_grab_mode, default_mode, acquisition?),
+          tracking_since: item.inserted_at,
           timeline: flatten_feed(feed),
           activity: build_activity(item_id)
         }
@@ -558,6 +560,7 @@ defmodule MediaCentaurWeb.IncomingLive do
       |> assign_zone(params, was_loaded?)
       |> maybe_load_history(was_loaded?)
       |> apply_pursuit_modal_params(params)
+      |> apply_title_modal_params(params)
       |> apply_plan_modal_params(params)
       |> maybe_trigger_prowlarr_search(Map.get(params, "prowlarr_search"))
 
@@ -629,6 +632,23 @@ defmodule MediaCentaurWeb.IncomingLive do
     else
       assign(socket, selected_pursuit_id: nil, pursuit_detail: nil, board_expanded_seasons: nil)
     end
+  end
+
+  # Drives the title modal off the `?title=<item_id>` URL param — the
+  # same idiom as the pursuit modal's `?selected=` (UIDR-017): back/
+  # forward closes/opens, refresh preserves state, the URL is shareable.
+  # An unknown id leaves the modal closed (build_detail returns nil).
+  defp apply_title_modal_params(socket, %{"title" => item_id})
+       when is_binary(item_id) and item_id != "" do
+    if socket.assigns.detail && socket.assigns.detail.item_id == item_id do
+      socket
+    else
+      assign(socket, detail: build_detail(socket, item_id))
+    end
+  end
+
+  defp apply_title_modal_params(socket, _params) do
+    if socket.assigns.detail == nil, do: socket, else: assign(socket, detail: nil)
   end
 
   # Path back to the page keeping the zone tab (default zone = clean
@@ -832,7 +852,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           client_url={pursuit_client_url(@pursuit_detail)}
           not_found?={(@pursuit_detail && @pursuit_detail.not_found?) || false}
         />
-        <TitleDetail.title_detail :if={@detail} detail={@detail} today={@today} />
+        <TitleModal.title_modal open={@detail != nil} detail={@detail} today={@today} />
       </:overlays>
       <%!-- data-nav-default-zone names the LAYOUT KEY in input config.js
             (like `library`/`home`), not a context within it — the nav graph
@@ -930,6 +950,7 @@ defmodule MediaCentaurWeb.IncomingLive do
             cards={@shelf_cards}
             overflow_count={@view.shelf.overflow_count}
             stragglers={@view.shelf.stragglers}
+            stragglers_expanded?={@stragglers_expanded?}
           />
 
           <section
@@ -1615,14 +1636,21 @@ defmodule MediaCentaurWeb.IncomingLive do
     {:noreply, socket |> assign(shelf_expanded?: true) |> build_view()}
   end
 
+  # The "Not scheduled yet" section's grow-in-place toggle. Pure display
+  # state — collapsed is the calm default on every fresh visit, so there
+  # is nothing to persist.
+  def handle_event("toggle_stragglers", _params, socket) do
+    {:noreply, assign(socket, stragglers_expanded?: !socket.assigns.stragglers_expanded?)}
+  end
+
   # --- Forecast detail / tracking events ---
 
   def handle_event("select_event", %{"item-id" => item_id}, socket) do
-    {:noreply, assign(socket, detail: build_detail(socket, item_id))}
+    {:noreply, push_patch(socket, to: incoming_path(socket, %{"title" => item_id}))}
   end
 
   def handle_event("close_detail", _params, socket) do
-    {:noreply, assign(socket, detail: nil)}
+    {:noreply, push_patch(socket, to: incoming_path(socket))}
   end
 
   def handle_event("toggle_auto_grab", %{"item-id" => item_id}, socket) do
@@ -1658,9 +1686,12 @@ defmodule MediaCentaurWeb.IncomingLive do
 
         {:noreply,
          socket
-         |> assign(detail: nil)
          |> build_view()
-         |> put_flash(:info, "Stopped tracking #{item.name}")}
+         |> put_flash(:info, "Stopped tracking #{item.name}")
+         # The URL still carries ?title= for the deleted item; patching
+         # home closes the modal through the same param-driven path as
+         # every other dismissal.
+         |> push_patch(to: incoming_path(socket))}
     end
   end
 
