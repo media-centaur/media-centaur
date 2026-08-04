@@ -25,6 +25,12 @@ defmodule MediaCentaurWeb.Components.Detail.Hero do
 
   attr :tagline, :string, default: nil
   attr :available, :boolean, default: true
+
+  attr :season_fraction, :float,
+    default: nil,
+    doc:
+      "current-season watched fraction (0.0–1.0) from `MediaCentaurWeb.ViewModel.Orientation.season_fraction/1`. Non-nil renders the luminous season-progress hairline pinned to the frame's bottom edge (TV series orientation); `nil` (movies, collections) suppresses the track entirely."
+
   slot :actions, doc: "top-right overlay actions (tracking bell, etc.)"
 
   def hero(assigns) do
@@ -53,6 +59,17 @@ defmodule MediaCentaurWeb.Components.Detail.Hero do
       >
         <:actions :if={@actions != []}>{render_slot(@actions)}</:actions>
       </TitleLayer.title_layer>
+      <div
+        :if={@season_fraction}
+        class="season-hairline"
+        role="progressbar"
+        aria-valuenow={round(@season_fraction * 100)}
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-label="Season progress"
+      >
+        <div class="season-hairline-fill" style={"width: #{@season_fraction * 100}%"} />
+      </div>
     </div>
     """
   end

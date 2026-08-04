@@ -39,6 +39,12 @@ defmodule MediaCentaurWeb.Components.ModalShell do
     doc: "list of `MediaCentaur.Library.WatchProgress.t()` rows preloaded from the entity."
 
   attr :expanded_seasons, MapSet, default: nil
+
+  attr :expanded_episode_details, MapSet,
+    default: nil,
+    doc:
+      "Forwarded to `DetailPanel.detail_panel/1`. `{season_number, episode_number}` keys of episode rows whose synopsis/thumbnail disclosure is open."
+
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close_detail"
   attr :rematch_confirm, :boolean, default: false
@@ -108,6 +114,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
             progress_records={@progress_records}
             seasons_view={@seasons_view}
             expanded_seasons={@expanded_seasons}
+            expanded_episode_details={@expanded_episode_details}
             on_play={@on_play}
             on_close={@on_close}
             rematch_confirm={@rematch_confirm}

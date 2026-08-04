@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaur.{Format, Library, Playback, ReleaseTracking}
   alias MediaCentaur.Library.FileEventHandler
   alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
-  alias MediaCentaurWeb.Components.{DetailPanel, ModalShell}
+  alias MediaCentaurWeb.Components.ModalShell
   alias MediaCentaurWeb.ViewModel.SeriesDetail
   alias MediaCentaurWeb.{LibraryProgress, LiveHelpers}
 
@@ -122,16 +122,12 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         {:noreply, push_patch(socket, to: build_modal_path(socket, %{view: new_view}))}
       end
 
-      def handle_event("toggle_season", %{"season" => season_str}, socket) do
-        season_number = String.to_integer(season_str)
-        expanded = socket.assigns[:expanded_seasons] || MapSet.new()
+      def handle_event("toggle_season", params, socket) do
+        EntityModal.handle_toggle_season(params, socket)
+      end
 
-        expanded =
-          if MapSet.member?(expanded, season_number),
-            do: MapSet.delete(expanded, season_number),
-            else: MapSet.put(expanded, season_number)
-
-        {:noreply, assign(socket, expanded_seasons: expanded)}
+      def handle_event("toggle_episode_details", params, socket) do
+        EntityModal.handle_toggle_episode_details(params, socket)
       end
 
       # --- Playback ---
@@ -546,6 +542,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       detail_view: :main,
       detail_files: [],
       expanded_seasons: MapSet.new(),
+      expanded_episode_details: MapSet.new(),
       rematch_confirm: nil,
       delete_confirm: nil,
       deleting: nil,
@@ -578,13 +575,17 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     entity_switched = selection_changed && socket.assigns.selected_entity_id != nil
     detail_view = if entity_switched, do: :main, else: detail_view
 
+    # Seasons open collapsed (2026-08-04 orientation design) — the hero
+    # marquee/hairline/subline carry "where am I", so nothing auto-expands
+    # and nothing auto-scrolls. `expanded_seasons` only ever changes via
+    # the user's toggle_season clicks within one selection.
     {selected_entry, expanded_seasons} =
       cond do
         selected_id == nil ->
           {nil, MapSet.new()}
 
         selection_changed ->
-          load_entry_and_expand(selected_id)
+          {load_entry_or_nil(selected_id), MapSet.new()}
 
         true ->
           {socket.assigns.selected_entry, socket.assigns.expanded_seasons}
@@ -633,6 +634,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         detail_view: detail_view,
         detail_files: detail_files,
         expanded_seasons: expanded_seasons,
+        expanded_episode_details:
+          if(selection_changed,
+            do: MapSet.new(),
+            else: socket.assigns.expanded_episode_details
+          ),
         tracking_status: tracking_status
       )
 
@@ -694,6 +700,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   attr :expanded_seasons, MapSet, required: true
 
+  attr :expanded_episode_details, MapSet,
+    required: true,
+    doc:
+      "`{season_number, episode_number}` keys of episode rows whose synopsis/thumbnail disclosure is open. Reset on selection change."
+
   attr :rematch_confirm, :any,
     required: true,
     doc: "`true | false` — confirmation flag for the rematch destructive action."
@@ -725,6 +736,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       progress_records={(@selected_entry && @selected_entry.progress_records) || []}
       seasons_view={MediaCentaurWeb.Live.EntityModal.seasons_view_from_entry(@selected_entry)}
       expanded_seasons={@expanded_seasons}
+      expanded_episode_details={@expanded_episode_details}
       rematch_confirm={@rematch_confirm == @selected_entity_id}
       detail_view={@detail_view}
       detail_files={@detail_files}
@@ -758,6 +770,43 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   @doc false
   def playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
+
+  @doc """
+  Toggles one season's accordion expansion. `expanded_seasons` holds
+  season numbers; nothing auto-expands (2026-08-04 orientation design).
+  """
+  @spec handle_toggle_season(map(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_toggle_season(%{"season" => season_str}, socket) do
+    season_number = String.to_integer(season_str)
+    expanded = socket.assigns[:expanded_seasons] || MapSet.new()
+
+    expanded =
+      if MapSet.member?(expanded, season_number),
+        do: MapSet.delete(expanded, season_number),
+        else: MapSet.put(expanded, season_number)
+
+    {:noreply, Phoenix.Component.assign(socket, expanded_seasons: expanded)}
+  end
+
+  @doc """
+  Toggles the synopsis/thumbnail disclosure for one episode row.
+  `expanded_episode_details` holds `{season_number, episode_number}`
+  keys; the set resets on selection change (`apply_modal_params/2`).
+  """
+  @spec handle_toggle_episode_details(map(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_toggle_episode_details(%{"season" => season_str, "episode" => episode_str}, socket) do
+    episode_key = {String.to_integer(season_str), String.to_integer(episode_str)}
+    expanded = socket.assigns[:expanded_episode_details] || MapSet.new()
+
+    expanded =
+      if MapSet.member?(expanded, episode_key),
+        do: MapSet.delete(expanded, episode_key),
+        else: MapSet.put(expanded, episode_key)
+
+    {:noreply, Phoenix.Component.assign(socket, expanded_episode_details: expanded)}
+  end
 
   @doc """
   Clear the per-entity track override for the open entity and drop the
@@ -1078,17 +1127,14 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   defp parse_view("credits"), do: :credits
   defp parse_view(_), do: :main
 
-  defp load_entry_and_expand(id) do
+  defp load_entry_or_nil(id) do
     case load_entry(id) do
-      {:ok, entry} ->
-        {entry, DetailPanel.auto_expand_season(entry.entity, entry.progress)}
-
-      :not_found ->
-        {nil, MapSet.new()}
+      {:ok, entry} -> entry
+      :not_found -> nil
     end
   end
 
-  # The single loader both the fresh open (`load_entry_and_expand/1`) and
+  # The single loader both the fresh open (`load_entry_or_nil/1`) and
   # the post-mutation refresh (`refresh_selected_entry/1`) go through, so
   # the two paths can never disagree on an entry's shape. A TV series goes
   # through `SeriesDetail.compose/1` and becomes a `%SeriesDetail{}` struct

@@ -246,12 +246,18 @@ defmodule MediaCentaurWeb.PageSmokeTest do
 
     test "library detail panel mounts for a TV series with upcoming + future-season releases",
          %{conn: conn, tv: tv} do
-      assert {:ok, _view, html} =
+      assert {:ok, view, _html} =
                live_async!(conn, ~p"/library?selected=#{tv.id}")
 
-      # Confirm the upcoming-row data-role appears at least once — without
-      # the typed `seasons_view` flowing through, no upcoming row would
-      # render at all.
+      # Seasons open collapsed (2026-08-04 orientation design), so
+      # expand season 1 to exercise the upcoming-row render path.
+      # Without the typed `seasons_view` flowing through, no upcoming
+      # row would render at all.
+      html =
+        view
+        |> element(~s|button[phx-click="toggle_season"][phx-value-season="1"]|)
+        |> render_click()
+
       assert html =~ "data-role=\"upcoming-episode-row\""
     end
   end

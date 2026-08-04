@@ -122,6 +122,31 @@ defmodule MediaCentaurWeb.Storybook.Detail.Hero do
         ]
       },
       %Variation{
+        id: :with_season_hairline,
+        description:
+          "TV orientation — `season_fraction: 0.41` renders the luminous season-progress " <>
+            "hairline pinned to the frame's bottom edge, filled to 41% with the glowing " <>
+            "leading edge. `nil` (all other variations) suppresses the track entirely.",
+        attributes: %{
+          entity: entity_with_logo(),
+          tagline: "A demonstrative tagline",
+          available: true,
+          season_fraction: 0.41
+        }
+      },
+      %Variation{
+        id: :season_hairline_unstarted,
+        description:
+          "`season_fraction: 0.0` — the track renders with no fill: an unstarted " <>
+            "season still shows the rail so the hero reads consistently across states.",
+        attributes: %{
+          entity: entity_with_logo(),
+          tagline: "A demonstrative tagline",
+          available: true,
+          season_fraction: 0.0
+        }
+      },
+      %Variation{
         id: :unavailable,
         description:
           "`available: false` (storage offline / file missing) — the placeholder " <>
