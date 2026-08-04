@@ -14,6 +14,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
     tv_series =
       create_tv_series(%{
         name: "Orientation Fixture Show",
+        description: "A sample synopsis about a fictional workplace.",
         genres: ["Comedy"],
         network: "Sample Network",
         aggregate_rating_value: 7.5,
@@ -71,18 +72,18 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
       assert has_element?(view, ~s|button[phx-click="toggle_season"][phx-value-season="2"]|)
     end
 
-    test "hero renders marquee, hairline, and subline for the next episode",
+    test "hero carries the hairline; the Play button alone names the next episode",
          %{conn: conn, tv_series: tv_series} do
       {:ok, _view, html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
 
-      # Marquee position (S2 · E1), season hairline, and the whisper
-      # subline derived from the same season counts the accordion shows.
-      assert html =~ "Up next"
-      assert html =~ "S2"
-      assert html =~ "E1"
+      # The up-next marquee was removed as redundant with the Play
+      # button's own label — the hairline is the only orientation
+      # element, and the description takes the right column.
       assert html =~ "season-hairline"
-      assert html =~ "0 of 3 this season"
-      assert html =~ "25% of the series"
+      assert html =~ "Play S2E1"
+      refute html =~ "Up next"
+      refute html =~ "orientation-marquee"
+      assert html =~ "A sample synopsis about a fictional workplace."
     end
 
     test "expanding a season renders dense rows without synopses",
@@ -155,8 +156,9 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
 
       {:ok, _view, html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
 
-      assert html =~ "Series complete"
-      assert html =~ "4 episodes watched"
+      # No completion marquee — the playback CTA carries the state.
+      refute html =~ "Series complete"
+      assert html =~ "Watch again"
     end
   end
 end

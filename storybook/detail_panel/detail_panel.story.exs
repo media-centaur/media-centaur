@@ -213,10 +213,10 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         description:
           "`:tv_series` as it opens (2026-08-04 orientation design): " <>
             "`expanded_seasons: MapSet.new()` — every season collapsed to its " <>
-            "header row. Orientation lives in the hero region: the marquee " <>
-            "(`S1 · E2`, overline, whispered subline) above the Play CTA and the " <>
-            "season hairline on the hero's bottom edge. The PlayCard renders no " <>
-            "progress row for TV — the subline carries it.",
+            "header row. Play controls left, synopsis right (hairline-accented " <>
+            "at xl), and the season hairline on the hero's bottom edge as the " <>
+            "only orientation element — the Play button's label names the next " <>
+            "episode. The PlayCard renders no progress row for TV.",
         attributes: Map.put(tv_series_attrs(), :expanded_seasons, MapSet.new())
       },
       %Variation{
