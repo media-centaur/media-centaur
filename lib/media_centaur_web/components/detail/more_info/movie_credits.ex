@@ -55,6 +55,12 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfo.MovieCredits do
       Enum.reject(
         [
           {"Studio", assigns.entity[:studio]},
+          {"Genres", format_genres(assigns.entity[:genres])},
+          {"Rating",
+           MediaCentaurWeb.LibraryFormatters.format_rating(
+             assigns.entity[:aggregate_rating_value],
+             assigns.entity[:vote_count]
+           )},
           {"Country", assigns.entity[:country_code]},
           {"Language", Iso639.display_name(assigns.entity[:original_language])},
           {"Runtime", format_runtime(assigns.entity[:duration_seconds])},
@@ -87,4 +93,7 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfo.MovieCredits do
     do: LibraryFormatters.format_human_duration(seconds)
 
   defp format_runtime(_), do: nil
+
+  defp format_genres([_head | _tail] = genres), do: Enum.join(genres, ", ")
+  defp format_genres(_genres), do: nil
 end

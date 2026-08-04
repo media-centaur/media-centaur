@@ -1,8 +1,10 @@
 defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   @moduledoc """
   Shared entity detail content rendered inside the entity modal — hero,
-  metadata row, play card, facet strip, and the type-specific content
-  list (movie / TV seasons + episodes / movie series). The Manage
+  metadata row, play card, orientation marquee (TV), and the
+  type-specific content list (movie / TV seasons + episodes / movie
+  series; the facet strip renders for movie series only — movies and
+  TV carry catalog facts in the More info view). The Manage
   sub-view (`detail_view: :info`) layers files (grouped by directory,
   with quality badges + an "added on" date), External IDs, the
   Rematch action, and a quiet UUID footer. Delete confirmations are

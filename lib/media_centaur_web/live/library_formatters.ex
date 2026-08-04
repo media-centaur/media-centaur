@@ -31,6 +31,27 @@ defmodule MediaCentaurWeb.LibraryFormatters do
 
   def format_human_duration(_seconds), do: "< 1m"
 
+  # --- Rating ---
+
+  @doc """
+  Aggregate rating as display text: `"★ 7.5 (802 votes)"`, votes ≥ 1000
+  abbreviated (`"12.4k votes"`), the parenthetical dropped when the
+  vote count is absent or zero, `nil` when there is no rating.
+  """
+  def format_rating(rating, vote_count) when is_number(rating) do
+    star = "★ #{rating |> Kernel.*(1.0) |> Float.round(1)}"
+
+    case vote_count do
+      count when is_integer(count) and count > 0 -> "#{star} (#{format_votes(count)} votes)"
+      _absent -> star
+    end
+  end
+
+  def format_rating(_rating, _vote_count), do: nil
+
+  defp format_votes(count) when count >= 1000, do: "#{Float.round(count / 1000, 1)}k"
+  defp format_votes(count), do: Integer.to_string(count)
+
   # --- Type and year ---
 
   def format_type(:movie), do: "Movie"
