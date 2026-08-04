@@ -22,6 +22,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.MetadataRow
   alias MediaCentaurWeb.Components.Detail.MoreInfoPanel
   alias MediaCentaurWeb.Components.Detail.PlayCard
+  alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaurWeb.ViewModel.EpisodeListItem
   alias MediaCentaurWeb.ViewModel.Orientation
 
@@ -57,6 +58,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     default: nil,
     doc:
       "`{season_number, episode_number}` keys of episode rows whose synopsis/thumbnail disclosure is open. Owned by the host modal (`toggle_episode_details`)."
+
+  attr :all_episode_details_open, :boolean,
+    default: false,
+    doc:
+      "list-level episode-details toggle — opens every episode row's synopsis/thumbnail block at once. ORed with `expanded_episode_details`, so per-row disclosures survive turning it off. Owned by the host modal (`toggle_all_episode_details`)."
 
   attr :available, :boolean, default: true
   attr :on_play, :string, default: "play"
@@ -97,10 +103,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
     extra_progress_by_id = index_extra_progress(assigns.entity)
 
-    has_scrollable_content =
-      assigns.detail_view in [:info, :credits] ||
-        assigns.entity.type in [:tv_series, :movie_series] ||
-        entity_extras(assigns.entity) != []
+    has_scrollable_content = scrollable_content?(assigns.entity, assigns.detail_view)
 
     playback = build_playback(assigns)
     facets = build_facets(assigns.entity)
@@ -112,6 +115,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:expanded_seasons, expanded_seasons)
       |> assign(:expanded_episode_details, assigns.expanded_episode_details || MapSet.new())
       |> assign(:orientation, orientation)
+      |> assign(:season_fraction, orientation && Orientation.season_fraction(orientation))
+      |> assign(
+        :block_backdrop_url,
+        assigns.available &&
+          (image_url(assigns.entity, "backdrop") || image_url(assigns.entity, "poster"))
+      )
       |> assign(
         :description_right?,
         assigns.entity.type in [:movie, :tv_series] && assigns.entity.description not in [nil, ""]
@@ -127,30 +136,61 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
     ~H"""
     <div class="detail-panel">
-      <div id="detail-header">
-        <Hero.hero
-          entity={@entity}
-          tagline={@tagline}
-          available={@available}
-          season_fraction={@orientation && Orientation.season_fraction(@orientation)}
+      <%!-- Hero window: transparent 21:9 frame the fixed panel-level
+            backdrop shows through. Scrolls away; the orientation block
+            below overlaps its lower edge at rest (negative margin, see
+            .detail-orientation) and pins to the scrollport top. --%>
+      <Hero.hero entity={@entity} available={@available}>
+        <:actions :if={@tracking_status}>
+          <.button
+            variant="dismiss"
+            size="sm"
+            shape="circle"
+            class="opacity-60 hover:opacity-100 transition-opacity"
+            phx-click="toggle_tracking"
+            title={tracking_title(@tracking_status)}
+          >
+            <.icon
+              name={tracking_icon(@tracking_status)}
+              class={"size-5 #{tracking_color(@tracking_status)}"}
+            />
+          </.button>
+        </:actions>
+      </Hero.hero>
+      <%!-- Orientation block: identity lockup + hairline + metadata +
+            play controls + synopsis, pinned as one unit once scrolled
+            to the top. Must be a direct child of .detail-panel — a
+            wrapper that ends before #detail-content would release the
+            sticky early. Same block for every entity type: movies
+            simply never scroll enough to pin it. --%>
+      <div
+        class="detail-orientation"
+        data-role="detail-orientation"
+        style={@block_backdrop_url && "--detail-backdrop: url('#{@block_backdrop_url}')"}
+      >
+        <div class="px-6">
+          <TitleLayer.lockup
+            title={@entity.name}
+            logo_url={(@available && image_url(@entity, "logo")) || nil}
+            tagline={@tagline}
+          />
+        </div>
+        <div
+          :if={@season_fraction}
+          class="season-hairline mt-4"
+          role="progressbar"
+          aria-valuenow={round(@season_fraction * 100)}
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-label="Season progress"
         >
-          <:actions :if={@tracking_status}>
-            <.button
-              variant="dismiss"
-              size="sm"
-              shape="circle"
-              class="opacity-60 hover:opacity-100 transition-opacity"
-              phx-click="toggle_tracking"
-              title={tracking_title(@tracking_status)}
-            >
-              <.icon
-                name={tracking_icon(@tracking_status)}
-                class={"size-5 #{tracking_color(@tracking_status)}"}
-              />
-            </.button>
-          </:actions>
-        </Hero.hero>
-        <div class="p-4">
+          <div class="season-hairline-fill" style={"width: #{@season_fraction * 100}%"} />
+        </div>
+        <%!-- pt-6 (vs the p-4 sides): the season hairline sits flush on
+              the hero window's bottom edge, so the block below needs
+              extra clearance to read as separate from the progress
+              track. --%>
+        <div class="px-4 pb-4 pt-6">
           <%!-- Two real columns sharing one top line: identity facts +
                 play controls on the left, prose (or the movie-series
                 facet strip) on the right. The metadata row lives INSIDE
@@ -202,12 +242,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             </div>
             <div
               :if={@description_right?}
-              class="min-w-0 xl:col-span-3 xl:col-start-3 xl:row-start-1 xl:self-center"
+              class="min-w-0 xl:col-span-3 xl:col-start-3 xl:row-start-1"
             >
-              <p class={[
-                "text-[15px] leading-relaxed text-base-content/75 line-clamp-6 max-w-[72ch]",
-                "xl:border-l xl:border-base-content/10 xl:pl-6"
-              ]}>
+              <p class="text-[15px] leading-relaxed text-base-content/75 line-clamp-6 max-w-[72ch]">
                 {@entity.description}
               </p>
             </div>
@@ -224,7 +261,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       <div
         :if={@has_scrollable_content}
         id="detail-content"
-        class="px-4 pb-4"
+        class="detail-content-slab px-4 pb-5"
         phx-hook="ScrollToResume"
         data-entity-id={@entity.id}
       >
@@ -246,6 +283,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               seasons_view={@seasons_view}
               expanded_seasons={@expanded_seasons}
               expanded_episode_details={@expanded_episode_details}
+              all_episode_details_open={@all_episode_details_open}
               progress_by_key={@progress_by_key}
               resume_episode_key={@resume_episode_key}
               extra_progress_by_id={@extra_progress_by_id}
@@ -425,11 +463,32 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
     ~H"""
     <div :if={@season_views != []} class="pt-3 space-y-3">
+      <div class="flex justify-end">
+        <button
+          type="button"
+          phx-click="toggle_all_episode_details"
+          data-role="episode-details-toggle"
+          aria-pressed={to_string(@all_episode_details_open)}
+          data-nav-item
+          tabindex="0"
+          class={[
+            "flex items-center gap-1.5 text-xs cursor-pointer rounded-md px-2 py-1 -my-1 transition-colors hover:bg-base-content/10",
+            if(@all_episode_details_open,
+              do: "text-base-content/70",
+              else: "text-base-content/40 hover:text-base-content/70"
+            )
+          ]}
+        >
+          <.icon name="hero-bars-3-bottom-left-mini" class="size-3.5" />
+          {if @all_episode_details_open, do: "Hide details", else: "Show details"}
+        </button>
+      </div>
       <.season_section
         :for={season_view <- @season_views}
         season={season_view}
         expanded={MapSet.member?(@expanded_seasons, season_view.season_number)}
         expanded_episode_details={@expanded_episode_details}
+        all_episode_details_open={@all_episode_details_open}
         extra_progress_by_id={@extra_progress_by_id}
         entity_id={@entity.id}
         on_play={@on_play}
@@ -496,6 +555,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     default: nil,
     doc: "`{season_number, episode_number}` keys with open synopsis disclosures."
 
+  attr :all_episode_details_open, :boolean,
+    default: false,
+    doc: "list-level episode-details toggle — ORed with `expanded_episode_details` per row."
+
   attr :extra_progress_by_id, :map, default: %{}, doc: @doc_extra_progress_by_id
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
@@ -518,14 +581,14 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         />
         <span>{@season.name || "Season #{@season.season_number}"}</span>
         <span class="flex-1" />
-        <span :if={@season.kind == :library} class="text-xs text-base-content/40 tabular-nums">
+        <span
+          :if={@season.kind == :library && !season_complete?(@season)}
+          class="text-xs text-base-content/40 tabular-nums"
+        >
           {season_progress_label(@season.watched_count, @season.total_count)}
         </span>
         <.icon
-          :if={
-            @season.kind == :library && @season.watched_count == @season.total_count &&
-              (@season.total_count || 0) > 0
-          }
+          :if={@season.kind == :library && season_complete?(@season)}
           name="hero-check-mini"
           class="size-3.5 self-center text-success"
         />
@@ -539,10 +602,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           :for={item <- @season.items}
           item={item}
           details_open={
-            MapSet.member?(
-              @expanded_episode_details || MapSet.new(),
-              {@season.season_number, item_episode_number(item)}
-            )
+            @all_episode_details_open ||
+              MapSet.member?(
+                @expanded_episode_details || MapSet.new(),
+                {@season.season_number, item_episode_number(item)}
+              )
           }
           entity_id={@entity_id}
           on_play={@on_play}
@@ -1082,6 +1146,23 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       />
     </div>
     """
+  end
+
+  @doc """
+  Whether the detail modal's content region scrolls — TV / movie-series
+  lists, entity-level extras, or the Manage / More info sub-views.
+
+  Shared with `ModalShell`, which pins the panel at its full height for
+  scrollable entries (`.modal-panel--full`): the season accordion then
+  changes only the inner scroll, never the panel geometry — otherwise
+  the backdrop (sized against the panel, `object-fit: cover`) re-crops
+  on every toggle and the transition jars.
+  """
+  @spec scrollable_content?(map(), atom()) :: boolean()
+  def scrollable_content?(entity, detail_view) do
+    detail_view in [:info, :credits] ||
+      entity.type in [:tv_series, :movie_series] ||
+      entity_extras(entity) != []
   end
 
   defp entity_extras(%{extras: extras}) when is_list(extras) do
@@ -1657,7 +1738,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   # --- Helpers ---
 
-  defp season_progress_label(watched, total) when watched == total and total > 0, do: "watched"
+  # A complete season shows only the check icon — no "watched" label
+  # next to it (the label renders exclusively for incomplete seasons).
+  defp season_complete?(%{watched_count: watched, total_count: total}),
+    do: watched == total and (total || 0) > 0
+
   defp season_progress_label(watched, total), do: "#{total - watched} remaining"
 
   # Episode number across the EpisodeListItem variants — Library nests it

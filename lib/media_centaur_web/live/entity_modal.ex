@@ -130,6 +130,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         EntityModal.handle_toggle_episode_details(params, socket)
       end
 
+      def handle_event("toggle_all_episode_details", _params, socket) do
+        EntityModal.handle_toggle_all_episode_details(socket)
+      end
+
       # --- Playback ---
 
       def handle_event("play", %{"id" => id}, socket) do
@@ -543,6 +547,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       detail_files: [],
       expanded_seasons: MapSet.new(),
       expanded_episode_details: MapSet.new(),
+      all_episode_details_open: false,
       rematch_confirm: nil,
       delete_confirm: nil,
       deleting: nil,
@@ -639,6 +644,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
             do: MapSet.new(),
             else: socket.assigns.expanded_episode_details
           ),
+        all_episode_details_open:
+          if(selection_changed, do: false, else: socket.assigns.all_episode_details_open),
         tracking_status: tracking_status
       )
 
@@ -705,6 +712,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     doc:
       "`{season_number, episode_number}` keys of episode rows whose synopsis/thumbnail disclosure is open. Reset on selection change."
 
+  attr :all_episode_details_open, :boolean,
+    required: true,
+    doc:
+      "list-level episode-details toggle — opens every episode disclosure at once. Reset on selection change."
+
   attr :rematch_confirm, :any,
     required: true,
     doc: "`true | false` — confirmation flag for the rematch destructive action."
@@ -737,6 +749,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       seasons_view={MediaCentaurWeb.Live.EntityModal.seasons_view_from_entry(@selected_entry)}
       expanded_seasons={@expanded_seasons}
       expanded_episode_details={@expanded_episode_details}
+      all_episode_details_open={@all_episode_details_open}
       rematch_confirm={@rematch_confirm == @selected_entity_id}
       detail_view={@detail_view}
       detail_files={@detail_files}
@@ -806,6 +819,24 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         else: MapSet.put(expanded, episode_key)
 
     {:noreply, Phoenix.Component.assign(socket, expanded_episode_details: expanded)}
+  end
+
+  @doc """
+  Flips the list-level episode-details toggle — every episode row's
+  synopsis/thumbnail block opens (or closes) at once. ORed with the
+  per-row `expanded_episode_details` set in the renderer, so per-row
+  disclosures survive turning the toggle off. Resets on selection
+  change (`apply_modal_params/2`).
+  """
+  @spec handle_toggle_all_episode_details(Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_toggle_all_episode_details(socket) do
+    {:noreply,
+     Phoenix.Component.assign(
+       socket,
+       :all_episode_details_open,
+       !socket.assigns[:all_episode_details_open]
+     )}
   end
 
   @doc """

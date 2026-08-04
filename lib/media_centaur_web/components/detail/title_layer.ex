@@ -33,23 +33,42 @@ defmodule MediaCentaurWeb.Components.Detail.TitleLayer do
       <div :if={@actions != []} class="absolute top-3 right-3 flex items-center gap-1">
         {render_slot(@actions)}
       </div>
-      <div class="absolute bottom-4 left-6 right-6 space-y-1.5">
-        <img
-          :if={@logo_url}
-          src={@logo_url}
-          alt={@title}
-          title={@title}
-          class="max-h-20 max-w-[70%] object-contain text-on-image-lg"
-          loading="eager"
-          decoding="sync"
-        />
-        <h2 :if={!@logo_url} class="text-2xl font-bold leading-snug text-white text-on-image-lg">
-          {@title}
-        </h2>
-        <p :if={@tagline && @tagline != ""} class="italic text-sm text-white/85 text-on-image">
-          {@tagline}
-        </p>
+      <div class="absolute bottom-4 left-6 right-6">
+        <.lockup title={@title} logo_url={@logo_url} tagline={@tagline} />
       </div>
+    </div>
+    """
+  end
+
+  @doc """
+  The identity lockup alone — logo PNG (or logotype text fallback) plus
+  optional tagline, shadowed for legibility over imagery (UIDR-011).
+  `title_layer/1` seats it bottom-left inside its 21:9 frame; the detail
+  panel's orientation block seats it in normal flow so it pins with the
+  block on scroll. One representation of the lockup, two seatings.
+  """
+  attr :title, :string, required: true
+  attr :logo_url, :string, default: nil, doc: "logo image URL; nil falls back to the title text."
+  attr :tagline, :string, default: nil, doc: "italic line under the title; blank/nil drops it."
+
+  def lockup(assigns) do
+    ~H"""
+    <div class="space-y-1.5">
+      <img
+        :if={@logo_url}
+        src={@logo_url}
+        alt={@title}
+        title={@title}
+        class="max-h-20 max-w-[70%] object-contain text-on-image-lg"
+        loading="eager"
+        decoding="sync"
+      />
+      <h2 :if={!@logo_url} class="text-2xl font-bold leading-snug text-white text-on-image-lg">
+        {@title}
+      </h2>
+      <p :if={@tagline && @tagline != ""} class="italic text-sm text-white/85 text-on-image">
+        {@tagline}
+      </p>
     </div>
     """
   end

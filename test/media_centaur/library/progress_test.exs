@@ -456,6 +456,7 @@ defmodule MediaCentaur.Library.ProgressTest do
   defp count_queries(fun) do
     ref = make_ref()
     parent = self()
+    worker = Process.whereis(Progress.Worker)
     handler_id = {:progress_flush_query_count, ref}
 
     :ok =
@@ -463,7 +464,15 @@ defmodule MediaCentaur.Library.ProgressTest do
         handler_id,
         [:media_centaur, :repo, :query],
         fn _event, _measurements, metadata, _config ->
-          send(parent, {:query, ref, metadata.source, metadata.query})
+          # Ecto emits this event synchronously in the process that ran
+          # the query, so `self()` here is the emitter. Only the flush
+          # worker's queries belong in the tally — without the filter,
+          # background writers (incident minting, settings reads) leak
+          # extra begin/commit pairs into the count under full-suite
+          # load and the test flakes.
+          if self() == worker do
+            send(parent, {:query, ref, metadata.source, metadata.query})
+          end
         end,
         nil
       )

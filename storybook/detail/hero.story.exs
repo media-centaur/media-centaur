@@ -1,35 +1,26 @@
 defmodule MediaCentaurWeb.Storybook.Detail.Hero do
   @moduledoc """
-  21:9 detail-panel hero — the title-layer frame that sits on top of
-  the modal-panel backdrop.
+  Detail-panel hero window — the transparent 21:9 frame at the top of
+  the detail document. The panel-level *fixed* backdrop shows through
+  it; the identity lockup and season hairline live in the orientation
+  block below (see `DetailPanel`), which overlaps this frame at rest
+  and pins on scroll (2026-08-05 sticky-orientation design).
 
-  This component itself is **transparent**: it only renders the logo
-  (or title fallback), the optional tagline, and a top-right `actions`
-  slot. The backdrop image and atmospheric scrims live at the parent
-  `ModalShell` level. The story's template recreates that context with
-  a `placehold.co` backdrop so the previews show the hero against
-  realistic artwork rather than an empty void.
+  The component renders only two things of its own:
 
-  Behaviour the variations pin:
+    * a quiet film placeholder filling the frame when the entity has
+      neither a `"backdrop"` nor a `"poster"` image, or when
+      `available: false` — see `:missing_artwork` / `:unavailable`;
+    * the top-right `actions` overlay (tracking bell) — see
+      `:with_actions`.
 
-    * When the entity has neither a `"backdrop"` nor a `"poster"` image
-      (or `available: false`), the 21:9 frame fills with a quiet film
-      placeholder icon — see `:missing_artwork` and `:unavailable`.
-    * The logo `<img>` only renders when a `"logo"` image exists *and*
-      `available` is true; otherwise the entity name renders as an
-      `<h2>` fallback — see `:without_logo`.
-    * The tagline `<p>` only renders when `tagline` is non-nil and
-      non-empty — see `:no_tagline`.
-    * The `actions` slot renders absolutely-positioned in the top-right
-      corner when given; absent or empty slot suppresses the wrapper —
-      see `:with_actions`.
+  With artwork present and no actions, the frame is intentionally
+  empty — `:with_backdrop` shows it against the template's stand-in
+  backdrop, exactly the see-through state the real modal composes.
 
-  Image fixtures use minimally-shaped maps `(%{role: "...", content_url: "..."})`;
-  `image_url/2` reads only those two fields. The `content_url` paths are
-  intentionally bogus — for the `*_with_logo` cases the real `<img>` tag
-  will 404, but that's fine for layout verification, and the
-  `:missing_artwork` / `:without_logo` variations exercise the
-  more-interesting placeholder/fallback paths.
+  Image fixtures use minimally-shaped maps
+  (`%{role: "...", content_url: "..."}`); `image_url/2` reads only
+  those two fields.
   """
 
   use PhoenixStorybook.Story, :component
@@ -38,10 +29,9 @@ defmodule MediaCentaurWeb.Storybook.Detail.Hero do
   def render_source, do: :function
   def layout, do: :one_column
 
-  # The component is full-bleed (`aspect-[21/9]`, fills its container)
-  # and the template wrapper paints a backdrop image behind it. Iframe
-  # isolation keeps each variation's backdrop confined to its own
-  # preview rather than bleeding across the storybook column.
+  # Full-bleed frame; the template paints a stand-in backdrop behind it
+  # (the real one lives at the modal-panel level). Iframe isolation
+  # keeps each variation's backdrop confined to its own preview.
   def container, do: {:iframe, style: "min-height: 360px; width: 100%;"}
 
   def template do
@@ -66,10 +56,10 @@ defmodule MediaCentaurWeb.Storybook.Detail.Hero do
         id: :with_backdrop,
         description:
           "Happy path — entity has a `\"backdrop\"` image, so the placeholder is " <>
-            "suppressed. The logo image and tagline render over the (template-level) backdrop.",
+            "suppressed and the frame is a transparent window onto the " <>
+            "(template-level) backdrop.",
         attributes: %{
-          entity: entity_with_logo(),
-          tagline: "A demonstrative tagline",
+          entity: entity_with_artwork(),
           available: true
         }
       },
@@ -77,33 +67,9 @@ defmodule MediaCentaurWeb.Storybook.Detail.Hero do
         id: :missing_artwork,
         description:
           "No backdrop, no poster (`images: []`) — the 21:9 frame fills with the " <>
-            "`hero-film` placeholder icon. The title text still renders bottom-left " <>
-            "since there's no logo either.",
+            "`hero-film` placeholder icon.",
         attributes: %{
           entity: entity_without_artwork(),
-          tagline: "A demonstrative tagline",
-          available: true
-        }
-      },
-      %Variation{
-        id: :without_logo,
-        description:
-          "Has a backdrop but no `\"logo\"` image — the placeholder is suppressed, " <>
-            "but the title falls back to an `<h2>` heading instead of the logo `<img>`.",
-        attributes: %{
-          entity: entity_backdrop_only(),
-          tagline: "A demonstrative tagline",
-          available: true
-        }
-      },
-      %Variation{
-        id: :no_tagline,
-        description:
-          "`tagline: nil` — the tagline `<p>` is omitted. The logo and frame layout " <>
-            "should remain otherwise identical to `:with_backdrop`.",
-        attributes: %{
-          entity: entity_with_logo(),
-          tagline: nil,
           available: true
         }
       },
@@ -113,8 +79,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.Hero do
           "Exercises the `actions` slot with a tracking-bell-style button — " <>
             "rendered absolutely positioned in the top-right of the 21:9 frame.",
         attributes: %{
-          entity: entity_with_logo(),
-          tagline: "A demonstrative tagline",
+          entity: entity_with_artwork(),
           available: true
         },
         slots: [
@@ -122,39 +87,12 @@ defmodule MediaCentaurWeb.Storybook.Detail.Hero do
         ]
       },
       %Variation{
-        id: :with_season_hairline,
-        description:
-          "TV orientation — `season_fraction: 0.41` renders the luminous season-progress " <>
-            "hairline pinned to the frame's bottom edge, filled to 41% with the glowing " <>
-            "leading edge. `nil` (all other variations) suppresses the track entirely.",
-        attributes: %{
-          entity: entity_with_logo(),
-          tagline: "A demonstrative tagline",
-          available: true,
-          season_fraction: 0.41
-        }
-      },
-      %Variation{
-        id: :season_hairline_unstarted,
-        description:
-          "`season_fraction: 0.0` — the track renders with no fill: an unstarted " <>
-            "season still shows the rail so the hero reads consistently across states.",
-        attributes: %{
-          entity: entity_with_logo(),
-          tagline: "A demonstrative tagline",
-          available: true,
-          season_fraction: 0.0
-        }
-      },
-      %Variation{
         id: :unavailable,
         description:
           "`available: false` (storage offline / file missing) — the placeholder " <>
-            "renders even when the entity has artwork, and the title falls back to " <>
-            "the `<h2>` heading instead of the logo image.",
+            "renders even when the entity has artwork.",
         attributes: %{
-          entity: entity_with_logo(),
-          tagline: "A demonstrative tagline",
+          entity: entity_with_artwork(),
           available: false
         }
       }
@@ -163,17 +101,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.Hero do
 
   # --- Fixtures ----------------------------------------------------------
 
-  defp entity_with_logo do
-    %{
-      name: "Sample Show",
-      images: [
-        %{role: "backdrop", content_url: "fixtures/hero-backdrop.jpg"},
-        %{role: "logo", content_url: "fixtures/hero-logo.png"}
-      ]
-    }
-  end
-
-  defp entity_backdrop_only do
+  defp entity_with_artwork do
     %{
       name: "Sample Show",
       images: [

@@ -5,6 +5,37 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
   alias MediaCentaurWeb.Components.DetailPanel
 
+  describe "scrollable_content?/2" do
+    # Entities arrive as the loose modal-entry map shape (`entity: :map`
+    # on the component) — minimal maps mirror that contract.
+
+    test "true for TV series and movie series regardless of view" do
+      assert DetailPanel.scrollable_content?(%{type: :tv_series}, :main)
+      assert DetailPanel.scrollable_content?(%{type: :movie_series}, :main)
+    end
+
+    test "false for a bare movie on the main view" do
+      refute DetailPanel.scrollable_content?(%{type: :movie, extras: []}, :main)
+    end
+
+    test "true for any entity on the Manage or More info sub-views" do
+      assert DetailPanel.scrollable_content?(%{type: :movie, extras: []}, :info)
+      assert DetailPanel.scrollable_content?(%{type: :movie, extras: []}, :credits)
+    end
+
+    test "true for a movie carrying entity-level extras" do
+      extra = build_extra(%{owner_type: :movie})
+
+      assert DetailPanel.scrollable_content?(%{type: :movie, extras: [extra]}, :main)
+    end
+
+    test "season-owned extras alone do not make a movie scrollable" do
+      extra = build_extra(%{owner_type: :season})
+
+      refute DetailPanel.scrollable_content?(%{type: :movie, extras: [extra]}, :main)
+    end
+  end
+
   describe "blur_spoilers?/2" do
     test "blurs a fully-unwatched episode in spoiler-free mode" do
       assert DetailPanel.blur_spoilers?(true, :unwatched)
