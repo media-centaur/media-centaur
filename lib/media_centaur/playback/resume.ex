@@ -127,11 +127,23 @@ defmodule MediaCentaur.Playback.Resume do
           [] ->
             find_next_unwatched(items, progress_by_key)
 
-          [{url, _id} | _] ->
-            {:play_next, url, 0.0}
+          [{url, id} | _] ->
+            # An incidental replay of an old episode must not walk the
+            # play target back into watched territory: when the item
+            # after the anchor is already completed, skip to the first
+            # unwatched item instead. Partial (in-progress) items are
+            # still legitimate targets.
+            if completed?(progress_by_key[id]) do
+              find_next_unwatched(items, progress_by_key)
+            else
+              {:play_next, url, 0.0}
+            end
         end
     end
   end
+
+  defp completed?(%{completed: true}), do: true
+  defp completed?(_), do: false
 
   defp find_next_unwatched(items, progress_by_key) do
     unwatched =
