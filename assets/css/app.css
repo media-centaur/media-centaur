@@ -510,6 +510,105 @@ body:has(.modal-backdrop[data-state="open"]) {
   transition: opacity 150ms ease-out, transform 150ms ease-out;
 }
 
+/* Entries whose content region scrolls (TV seasons, movie-series lists,
+   extras, the Manage/More-info sub-views — `DetailPanel.scrollable_content?/2`)
+   pin the panel at its full height. Expanding a season then changes only
+   the inner scroll position, never the panel geometry — with the default
+   content-fit height, every accordion toggle resized the panel and the
+   backdrop (percentage-sized, object-fit: cover) visibly re-cropped. */
+.modal-panel--full {
+  height: calc((100vh - 200px) / var(--ui-scale, 1));
+}
+
+/* ── Detail-modal scroll rail ──
+   The panel is height-pinned (.modal-panel--full), so overflow flips with
+   the season accordion; `scrollbar-gutter: stable` reserves the rail
+   permanently so the scrollbar's arrival doesn't re-flow the content.
+   The rail is painted to disappear: track and gutter pin to base-100 —
+   the same shim the backdrop fades into at the panel's bottom — and the
+   thumb derives from base-content at low alpha so it stays findable
+   without reading as a bright strip over the backdrop image. */
+.modal-detail-scroll {
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  /* #0f1116: user-picked rail tone, sampled from the panel's bottom shim
+     (base-100 under the atmosphere dim). Track only — a background on the
+     container itself would repaint every content gap in the panel, not
+     just the rail. */
+  scrollbar-color: oklch(from var(--color-base-content) l c h / 0.15) #0f1116;
+  scroll-padding: 1rem;
+}
+
+/* ── Detail orientation block ──
+   Identity lockup + season hairline + metadata/controls/synopsis, pinned
+   as one unit (2026-08-05 sticky-orientation design). Native sticky —
+   no scroll listeners, no snap points; momentum and interruption behave
+   exactly like normal scrolling. The negative margin seats the block
+   over the hero window's lower edge at rest (the lockup reads as "on"
+   the fixed backdrop); once scrolled, the block pins at the scrollport
+   top and the episode list continues underneath it. */
+.detail-orientation {
+  position: sticky;
+  /* Breathing room between the pinned logo and the modal's top edge. */
+  --orientation-pin-inset: 1.5rem;
+  top: var(--orientation-pin-inset);
+  z-index: 20;
+  /* Lockup height (~logo 5rem + tagline) + the hairline gap: how far the
+     block reaches up into the 21:9 hero window at rest. Tune visually. */
+  --orientation-overlap: 7.5rem;
+  margin-top: calc(-1 * var(--orientation-overlap));
+  container-type: scroll-state;
+}
+
+/* Pinned backing: the block's own slice of the backdrop (via
+   `--detail-backdrop`, set inline by DetailPanel), darkened to the shim
+   tone. Opaque, so rows scrolling behind the pinned block are fully
+   obscured — but because the backing IS the image already behind the
+   block at the pinned position, the stuck fade is image-over-aligned-
+   image and reads as seamless (unlike the flat black veil this
+   replaces). Bottom mask feathers the edge where rows emerge. Without
+   artwork the wash alone renders. */
+.detail-orientation::before {
+  content: "";
+  position: absolute;
+  /* Reaches up past the pin inset so rows can't peek through the
+     breathing-room strip above the pinned block. */
+  inset: calc(-1 * var(--orientation-pin-inset)) 0 -2rem 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 250ms ease-out;
+  background-image:
+    linear-gradient(rgb(15 17 22 / 0.85), rgb(15 17 22 / 0.85)),
+    var(--detail-backdrop, none);
+  background-size: cover;
+  background-position: center top;
+  mask-image: linear-gradient(to bottom, black calc(100% - 2.5rem), transparent);
+}
+
+@container scroll-state(stuck: top) {
+  .detail-orientation::before {
+    opacity: 1;
+  }
+}
+
+/* Rising slab: the content region carries its own darkening with it —
+   scrolling raises a translucent #0f1116 wash from below that covers
+   the fixed backdrop just enough to make row text pop, as part of the
+   scroll motion rather than any state change. The ~10rem top ramp lets
+   it emerge from the atmosphere dim instead of arriving as a hard
+   line. This is the ONLY darkening layer — the earlier stuck-state
+   veil was removed as a fundamentally wrong model (it materialized on
+   pin instead of riding the scroll). */
+.detail-content-slab {
+  background: linear-gradient(
+    to bottom,
+    rgb(15 17 22 / 0) 0%,
+    rgb(15 17 22 / 0.78) 10rem,
+    rgb(15 17 22 / 0.78) 100%
+  );
+}
+
 /* ── Modal page-level backdrop ──
    Mirror of `.page-backdrop` (HomeLive) but scoped to the modal panel.
    Anchored to the top of the panel and fades into base-100 — the image
@@ -546,6 +645,18 @@ body:has(.modal-backdrop[data-state="open"]) {
     oklch(from var(--color-base-100) l c h / 0.55) 75%,
     var(--color-base-100) 100%
   );
+}
+
+/* Keep the detail scroller's scrollbar permanently alive: 1px of
+   guaranteed overflow means the #0f1116 track (scrollbar-color above)
+   paints the full rail in EVERY state. Without it, a non-overflowing
+   panel (collapsed seasons) dropped the scrollbar and the reserved
+   gutter fell back to panel base-100 — a visibly lighter strip against
+   the #0f1116 slab. Content-fit panels (movies) have no definite
+   container height, so the calc resolves to auto there and nothing
+   changes. */
+.modal-detail-scroll > .modal-page-content {
+  min-height: calc(100% + 1px);
 }
 
 /* ── Modal page-level content anchor ──
@@ -877,10 +988,7 @@ body:has(.modal-backdrop[data-state="open"]) {
    custom CSS per the multi-element-system rule. */
 
 .season-hairline {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
   height: 2px;
   background: oklch(from var(--color-base-content) l c h / 0.09);
 }

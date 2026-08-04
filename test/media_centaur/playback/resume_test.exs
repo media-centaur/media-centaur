@@ -168,7 +168,7 @@ defmodule MediaCentaur.Playback.ResumeTest do
         )
       ]
 
-      assert {:play_next, "/tv/show/S01E04.mkv", 0.0} = Resume.resolve(entity, records)
+      assert {:play_next, "/tv/show/S01E04.mkv", +0.0} = Resume.resolve(entity, records)
     end
 
     test "advancing onto a partially-watched episode still targets it" do
@@ -194,7 +194,7 @@ defmodule MediaCentaur.Playback.ResumeTest do
         )
       ]
 
-      assert {:play_next, "/tv/show/S01E02.mkv", 0.0} = Resume.resolve(entity, records)
+      assert {:play_next, "/tv/show/S01E02.mkv", +0.0} = Resume.resolve(entity, records)
     end
 
     test "season boundary → play_next first episode of next season" do

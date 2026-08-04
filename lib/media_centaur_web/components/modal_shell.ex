@@ -45,6 +45,10 @@ defmodule MediaCentaurWeb.Components.ModalShell do
     doc:
       "Forwarded to `DetailPanel.detail_panel/1`. `{season_number, episode_number}` keys of episode rows whose synopsis/thumbnail disclosure is open."
 
+  attr :all_episode_details_open, :boolean,
+    default: false,
+    doc: "Forwarded to `DetailPanel.detail_panel/1`. List-level episode-details toggle."
+
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close_detail"
   attr :rematch_confirm, :boolean, default: false
@@ -87,47 +91,59 @@ defmodule MediaCentaurWeb.Components.ModalShell do
       open={@open}
       dismiss={:ephemeral}
       on_close={@on_close}
+      panel_class={
+        if @entity && DetailPanel.scrollable_content?(@entity, @detail_view),
+          do: "modal-panel--full"
+      }
       data-detail-mode={@open && "modal"}
       data-detail-view={@open && to_string(@detail_view)}
     >
       <%!-- No close-X — backdrop click and Escape both close, and the
             URL preserves history so browser-back also works. --%>
 
-      <%!-- Single scroll surface for the entire detail. Backdrop image
-              and atmospheric scrim live inside the scroll container so
-              they scroll with the content, mirroring HomeLive's
-              page-level `.page-backdrop` treatment. The hero, metadata,
-              and content list all flow as one continuous document. --%>
-      <%!-- The backdrop image and atmospheric scrim live inside this scroll
-              container (its positioning context) so they scroll with the
-              content, mirroring HomeLive's page-level `.page-backdrop`. The
-              hero, metadata, and content list flow as one document. --%>
+      <%!-- Fixed cinematic stage (2026-08-05 sticky-orientation design):
+              the backdrop pins to the panel, BEHIND the transparent
+              scroll surface, so it never moves while the document —
+              atmosphere scrim included — scrolls over it. The image
+              extends under the reserved scrollbar gutter, so the rail
+              blends into the picture instead of cutting it off. --%>
+      <CinematicBackdrop.backdrop :if={@entity} backdrop_url={@backdrop_url} />
+      <%!-- Single scroll surface for the entire detail document. The
+              atmosphere scrim scrolls with the content (it lives in
+              .modal-page-content); only the backdrop stays put.
+              .modal-detail-scroll owns the rail treatment: stable
+              gutter (no re-flow when the scrollbar appears), track
+              painted to the shim tone. See the app.css comment. --%>
       <div
         :if={@entity}
-        class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative thin-scrollbar"
+        class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative z-[1] modal-detail-scroll"
       >
-        <CinematicBackdrop.cinematic_backdrop backdrop_url={@backdrop_url}>
-          <DetailPanel.detail_panel
-            entity={@entity}
-            progress={@progress}
-            resume={@resume}
-            progress_records={@progress_records}
-            seasons_view={@seasons_view}
-            expanded_seasons={@expanded_seasons}
-            expanded_episode_details={@expanded_episode_details}
-            on_play={@on_play}
-            on_close={@on_close}
-            rematch_confirm={@rematch_confirm}
-            detail_view={@detail_view}
-            detail_files={@detail_files}
-            delete_confirm={@delete_confirm}
-            deleting={@deleting}
-            spoiler_free={@spoiler_free}
-            tracking_status={@tracking_status}
-            available={@available}
-            tmdb_ready={@tmdb_ready}
-          />
-        </CinematicBackdrop.cinematic_backdrop>
+        <div class="modal-page-content">
+          <div class="modal-page-atmosphere" aria-hidden="true"></div>
+          <div class="relative z-[2]">
+            <DetailPanel.detail_panel
+              entity={@entity}
+              progress={@progress}
+              resume={@resume}
+              progress_records={@progress_records}
+              seasons_view={@seasons_view}
+              expanded_seasons={@expanded_seasons}
+              expanded_episode_details={@expanded_episode_details}
+              all_episode_details_open={@all_episode_details_open}
+              on_play={@on_play}
+              on_close={@on_close}
+              rematch_confirm={@rematch_confirm}
+              detail_view={@detail_view}
+              detail_files={@detail_files}
+              delete_confirm={@delete_confirm}
+              deleting={@deleting}
+              spoiler_free={@spoiler_free}
+              tracking_status={@tracking_status}
+              available={@available}
+              tmdb_ready={@tmdb_ready}
+            />
+          </div>
+        </div>
       </div>
     </.modal>
     """

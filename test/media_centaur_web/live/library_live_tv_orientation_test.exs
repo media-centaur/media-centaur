@@ -123,6 +123,75 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
       refute render(view) =~ "Synopsis for S2E1"
     end
 
+    test "the episode-details toggle opens every synopsis in expanded seasons at once",
+         %{conn: conn, tv_series: tv_series} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      view
+      |> element(~s|button[phx-click="toggle_season"][phx-value-season="2"]|)
+      |> render_click()
+
+      refute render(view) =~ "Synopsis for S2E1"
+
+      view
+      |> element(~s|button[phx-click="toggle_all_episode_details"]|)
+      |> render_click()
+
+      html = render(view)
+      assert html =~ "Synopsis for S2E1"
+      assert html =~ "Synopsis for S2E2"
+      assert html =~ "Synopsis for S2E3"
+
+      view
+      |> element(~s|button[phx-click="toggle_all_episode_details"]|)
+      |> render_click()
+
+      refute render(view) =~ "Synopsis for S2E1"
+    end
+
+    test "turning the episode-details toggle off keeps per-row disclosures open",
+         %{conn: conn, tv_series: tv_series} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      view
+      |> element(~s|button[phx-click="toggle_season"][phx-value-season="2"]|)
+      |> render_click()
+
+      view
+      |> element(
+        ~s|button[phx-click="toggle_episode_details"][phx-value-season="2"][phx-value-episode="1"]|
+      )
+      |> render_click()
+
+      view |> element(~s|button[phx-click="toggle_all_episode_details"]|) |> render_click()
+      view |> element(~s|button[phx-click="toggle_all_episode_details"]|) |> render_click()
+
+      html = render(view)
+      assert html =~ "Synopsis for S2E1"
+      refute html =~ "Synopsis for S2E2"
+    end
+
+    test "a fully watched season header shows only the check, no label",
+         %{conn: conn, tv_series: tv_series} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      season_one_header =
+        view
+        |> element(~s|button[phx-click="toggle_season"][phx-value-season="1"]|)
+        |> render()
+
+      refute season_one_header =~ "watched"
+      assert season_one_header =~ "hero-check-mini"
+
+      season_two_header =
+        view
+        |> element(~s|button[phx-click="toggle_season"][phx-value-season="2"]|)
+        |> render()
+
+      assert season_two_header =~ "3 remaining"
+      refute season_two_header =~ "hero-check-mini"
+    end
+
     test "catalog facts live in More info, not on the main view",
          %{conn: conn, tv_series: tv_series} do
       {:ok, _view, main_html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")

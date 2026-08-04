@@ -39,13 +39,7 @@ defmodule MediaCentaurWeb.Components.Detail.CinematicBackdrop do
 
   def cinematic_backdrop(assigns) do
     ~H"""
-    <div
-      :if={@backdrop_url}
-      class={["modal-page-backdrop", @early_fade && "modal-page-backdrop--early-fade"]}
-      aria-hidden="true"
-    >
-      <img src={@backdrop_url} alt="" loading="eager" decoding="sync" fetchpriority="high" />
-    </div>
+    <.backdrop backdrop_url={@backdrop_url} early_fade={@early_fade} />
 
     <div class="modal-page-content">
       <div class="modal-page-atmosphere" aria-hidden="true"></div>
@@ -53,6 +47,30 @@ defmodule MediaCentaurWeb.Components.Detail.CinematicBackdrop do
       <div class="relative z-[2]">
         {render_slot(@inner_block)}
       </div>
+    </div>
+    """
+  end
+
+  @doc """
+  The backdrop image layer alone. `cinematic_backdrop/1` composes it
+  inside the caller's scroll container (backdrop scrolls with content —
+  the plan modal's treatment); `ModalShell` seats it directly in the
+  modal panel instead, where it stays *fixed* while the detail document
+  scrolls over it (2026-08-05 sticky-orientation design). Scheduled
+  convergence: the plan modal preview should eventually adopt the fixed
+  seating too, so both cinematic surfaces move the same way.
+  """
+  attr :backdrop_url, :string, default: nil, doc: "see `cinematic_backdrop/1`."
+  attr :early_fade, :boolean, default: false, doc: "see `cinematic_backdrop/1`."
+
+  def backdrop(assigns) do
+    ~H"""
+    <div
+      :if={@backdrop_url}
+      class={["modal-page-backdrop", @early_fade && "modal-page-backdrop--early-fade"]}
+      aria-hidden="true"
+    >
+      <img src={@backdrop_url} alt="" loading="eager" decoding="sync" fetchpriority="high" />
     </div>
     """
   end

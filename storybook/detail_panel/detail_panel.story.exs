@@ -69,6 +69,10 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
        button collapses to the "Offline" pill, episode thumbnails
        become empty placeholder rectangles, the Rematch action is
        replaced with the "needs TMDB" hint.
+    15. `:tv_series_all_episode_details_open` — `all_episode_details_open: true`
+       opens every episode row's synopsis/thumbnail block at once
+       (the list-level "Show details" toggle above the seasons,
+       ORed with per-row `expanded_episode_details`).
 
   ## Fudged data
 
@@ -213,8 +217,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         description:
           "`:tv_series` as it opens (2026-08-04 orientation design): " <>
             "`expanded_seasons: MapSet.new()` — every season collapsed to its " <>
-            "header row. Play controls left, synopsis right (hairline-accented " <>
-            "at xl), and the season hairline on the hero's bottom edge as the " <>
+            "header row. Play controls left, synopsis right (top-aligned, " <>
+            "no rule), and the season hairline on the hero's bottom edge as the " <>
             "only orientation element — the Play button's label names the next " <>
             "episode. The PlayCard renders no progress row for TV.",
         attributes: Map.put(tv_series_attrs(), :expanded_seasons, MapSet.new())
@@ -239,6 +243,17 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             "grows an inline synopsis + thumbnail block beneath it. The chevron " <>
             "flips to point up and `aria-expanded` is true.",
         attributes: Map.put(tv_series_attrs(), :expanded_episode_details, MapSet.new([{1, 3}]))
+      },
+      %Variation{
+        id: :tv_series_all_episode_details_open,
+        description:
+          "Same shape, with the list-level episode-details toggle on " <>
+            "(`all_episode_details_open: true`) — every episode row in the " <>
+            "expanded season grows its inline synopsis + thumbnail block, and " <>
+            "the toggle above the seasons reads **Hide details** " <>
+            "(`aria-pressed=\"true\"`). Per-row disclosures stay independent " <>
+            "underneath (ORed, not overwritten).",
+        attributes: Map.put(tv_series_attrs(), :all_episode_details_open, true)
       },
       %Variation{
         id: :tv_series_spoiler_free,

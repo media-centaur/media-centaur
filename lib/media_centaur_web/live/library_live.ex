@@ -473,6 +473,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           detail_files={@detail_files}
           expanded_seasons={@expanded_seasons}
           expanded_episode_details={@expanded_episode_details}
+          all_episode_details_open={@all_episode_details_open}
           rematch_confirm={@rematch_confirm}
           delete_confirm={@delete_confirm}
           tracking_status={@tracking_status}
