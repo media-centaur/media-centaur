@@ -11,7 +11,14 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
   import Phoenix.LiveViewTest
 
   defp create_series_with_two_seasons(_context) do
-    tv_series = create_tv_series(%{name: "Orientation Fixture Show"})
+    tv_series =
+      create_tv_series(%{
+        name: "Orientation Fixture Show",
+        genres: ["Comedy"],
+        network: "Sample Network",
+        aggregate_rating_value: 7.5,
+        vote_count: 802
+      })
 
     season_one = create_season(%{tv_series_id: tv_series.id, season_number: 1})
     season_two = create_season(%{tv_series_id: tv_series.id, season_number: 2})
@@ -113,6 +120,25 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
       |> render_click()
 
       refute render(view) =~ "Synopsis for S2E1"
+    end
+
+    test "catalog facts live in More info, not on the main view",
+         %{conn: conn, tv_series: tv_series} do
+      {:ok, _view, main_html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      # The main view carries orientation + actions only — no facet
+      # strip (network / rating / genres moved to More info).
+      refute main_html =~ "Genres"
+      refute main_html =~ "Sample Network"
+
+      {:ok, _view, credits_html} =
+        live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=credits")
+
+      assert credits_html =~ "Sample Network"
+      assert credits_html =~ "Genres"
+      assert credits_html =~ "Comedy"
+      assert credits_html =~ "Rating"
+      assert credits_html =~ "7.5"
     end
 
     test "fully watched series states completion instead of a next episode",

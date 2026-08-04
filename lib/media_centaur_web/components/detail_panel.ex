@@ -152,26 +152,27 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             badge_text={format_type(@entity.type)}
             items={@metadata_items}
           />
-          <%!-- Action + synopsis on the left, structured metadata on the right.
-                Below xl: single column — play card, synopsis, then the facet
-                strip as a horizontal row (the layout the half-width view uses).
-                At xl:+ two equal columns top-align (`items-start`) so the
-                facet strip rises to sit beside the play button instead of
-                dropping to the (often short) synopsis line — which used to
-                leave an L-shaped void next to the buttons and below the
-                synopsis on wide displays. Equal columns keep the play-button
-                row from wrapping while the synopsis stays at a readable
-                measure (capped below).
+          <%!-- Action + synopsis on the left; the right column carries the
+                orientation marquee (TV) or the facet strip (movie series) —
+                whichever the type has. Catalog facts (network / rating /
+                genres / language) live in the More info view, not here
+                (2026-08-04 part-1 split): the main view is for deciding to
+                press Play, not for reference lookup. Movies have no right
+                column at all, so the grid collapses to a single full-width
+                stack for them. Below xl everything is one column with the
+                orientation first (it's the page's answer to "where am I").
                 File paths are intentionally NOT rendered here — they live in
                 the Manage view's Files section, grouped by directory with
-                delete affordances. The main view stays focused on what to
-                watch, not where it lives on disk. --%>
-          <div class="space-y-4 xl:space-y-0 xl:grid xl:grid-cols-2 xl:gap-8 xl:items-start">
-            <div class="space-y-4 min-w-0">
-              <OrientationMarquee.orientation_marquee
-                :if={@orientation}
-                orientation={@orientation}
-              />
+                delete affordances. --%>
+          <div class={[
+            "space-y-4",
+            (@orientation || @facets != []) &&
+              "xl:space-y-0 xl:grid xl:grid-cols-2 xl:gap-8 xl:items-start"
+          ]}>
+            <div :if={@orientation} class="min-w-0 xl:col-start-2 xl:row-start-1">
+              <OrientationMarquee.orientation_marquee orientation={@orientation} />
+            </div>
+            <div class="space-y-4 min-w-0 xl:col-start-1 xl:row-start-1">
               <PlayCard.play_card
                 on_play={@on_play}
                 target_id={@playback.target_id}
@@ -189,7 +190,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 {@entity.description}
               </p>
             </div>
-            <div class="min-w-0 space-y-3">
+            <div :if={@facets != []} class="min-w-0 space-y-3 xl:col-start-2 xl:row-start-1">
               <FacetStrip.facet_strip facets={@facets} layout={:row} class="xl:hidden" />
               <FacetStrip.facet_strip facets={@facets} layout={:stacked} class="hidden xl:grid" />
             </div>
@@ -261,9 +262,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     }
   end
 
-  defp build_facets(%{type: :movie} = movie), do: Logic.facets_for(:movie, movie)
-  defp build_facets(%{type: :tv_series} = tv), do: Logic.facets_for(:tv_series, tv)
-
+  # Only movie series still render a facet strip on the main view —
+  # movies and TV carry their catalog facts in the More info view
+  # (movie series has no More info button yet, so removing its strip
+  # would orphan the data; joins the deferred movie-series analog).
   defp build_facets(%{type: :movie_series, movies: movies} = ms) when is_list(movies),
     do: Logic.facets_for(:movie_series, ms, movies)
 

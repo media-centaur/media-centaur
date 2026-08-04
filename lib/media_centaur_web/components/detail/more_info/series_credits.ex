@@ -61,6 +61,12 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfo.SeriesCredits do
           {"Network", assigns.entity[:network]},
           {"First aired", MediaCentaur.Format.iso_date(assigns.entity[:date_published])},
           {"Status", format_status(assigns.entity[:status])},
+          {"Genres", format_genres(assigns.entity[:genres])},
+          {"Rating",
+           MediaCentaurWeb.LibraryFormatters.format_rating(
+             assigns.entity[:aggregate_rating_value],
+             assigns.entity[:vote_count]
+           )},
           {"Country", assigns.entity[:country_code]},
           {"Language", Iso639.display_name(assigns.entity[:original_language])}
         ],
@@ -83,6 +89,9 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfo.SeriesCredits do
   end
 
   defp filter_crew(crew, jobs), do: Enum.filter(crew, &(&1.job in jobs))
+
+  defp format_genres([_head | _tail] = genres), do: Enum.join(genres, ", ")
+  defp format_genres(_genres), do: nil
 
   defp format_status(nil), do: nil
   defp format_status(status) when is_atom(status), do: Map.get(@tv_status_labels, status)
