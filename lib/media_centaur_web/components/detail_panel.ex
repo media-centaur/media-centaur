@@ -200,7 +200,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 {@entity.description}
               </p>
             </div>
-            <div :if={@description_right?} class="min-w-0 xl:col-span-3 xl:col-start-3 xl:row-start-1">
+            <div
+              :if={@description_right?}
+              class="min-w-0 xl:col-span-3 xl:col-start-3 xl:row-start-1 xl:self-center"
+            >
               <p class={[
                 "text-[15px] leading-relaxed text-base-content/75 line-clamp-6 max-w-[72ch]",
                 "xl:border-l xl:border-base-content/10 xl:pl-6"
