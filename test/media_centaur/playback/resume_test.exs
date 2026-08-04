@@ -140,6 +140,63 @@ defmodule MediaCentaur.Playback.ResumeTest do
       assert position == 0.0
     end
 
+    test "replaying an old watched episode advances past watched territory to the first unwatched" do
+      ep1 = episode(1, "/tv/show/S01E01.mkv")
+      ep2 = episode(2, "/tv/show/S01E02.mkv")
+      ep3 = episode(3, "/tv/show/S01E03.mkv")
+      ep4 = episode(4, "/tv/show/S01E04.mkv")
+      entity = tv_series([season(1, [ep1, ep2, ep3, ep4])])
+
+      # Episodes 1–3 completed; episode 1 was replayed most recently (an
+      # incidental replay). Advancing must not offer the already-watched
+      # episode 2 — it skips to episode 4, the first unwatched.
+      records = [
+        progress(
+          episode_id: ep1.id,
+          completed: true,
+          last_watched_at: ~U[2026-01-20 20:00:00Z]
+        ),
+        progress(
+          episode_id: ep2.id,
+          completed: true,
+          last_watched_at: ~U[2026-01-14 20:00:00Z]
+        ),
+        progress(
+          episode_id: ep3.id,
+          completed: true,
+          last_watched_at: ~U[2026-01-15 20:00:00Z]
+        )
+      ]
+
+      assert {:play_next, "/tv/show/S01E04.mkv", 0.0} = Resume.resolve(entity, records)
+    end
+
+    test "advancing onto a partially-watched episode still targets it" do
+      ep1 = episode(1, "/tv/show/S01E01.mkv")
+      ep2 = episode(2, "/tv/show/S01E02.mkv")
+      ep3 = episode(3, "/tv/show/S01E03.mkv")
+      entity = tv_series([season(1, [ep1, ep2, ep3])])
+
+      # Episode 2 has an old in-progress (not completed) record. The
+      # watched-skip only applies to completed episodes — a partial
+      # episode is still the right next target after episode 1.
+      records = [
+        progress(
+          episode_id: ep1.id,
+          completed: true,
+          last_watched_at: ~U[2026-01-20 20:00:00Z]
+        ),
+        progress(
+          episode_id: ep2.id,
+          position: 300.0,
+          duration: 1500.0,
+          last_watched_at: ~U[2026-01-10 20:00:00Z]
+        )
+      ]
+
+      assert {:play_next, "/tv/show/S01E02.mkv", 0.0} = Resume.resolve(entity, records)
+    end
+
     test "season boundary → play_next first episode of next season" do
       s1e1 = episode(1, "/tv/show/S01E01.mkv")
       s1e2 = episode(2, "/tv/show/S01E02.mkv")
