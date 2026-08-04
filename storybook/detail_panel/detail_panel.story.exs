@@ -207,10 +207,22 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         }
       },
       %Variation{
+        id: :tv_series_collapsed_default,
+        description:
+          "`:tv_series` as it opens (2026-08-04 orientation design): " <>
+            "`expanded_seasons: MapSet.new()` — every season collapsed to its " <>
+            "header row. Orientation lives in the hero region: the marquee " <>
+            "(`S1 · E2`, overline, whispered subline) above the Play CTA and the " <>
+            "season hairline on the hero's bottom edge. The PlayCard renders no " <>
+            "progress row for TV — the subline carries it.",
+        attributes: Map.put(tv_series_attrs(), :expanded_seasons, MapSet.new())
+      },
+      %Variation{
         id: :tv_series_with_seasons,
         description:
           "`:tv_series` with two seasons. `expanded_seasons: MapSet.new([1])` " <>
-            "expands season 1 to show watched / current / unwatched episode rows + a " <>
+            "expands season 1 into dense one-line episode rows (number · title · " <>
+            "runtime · watched toggle — no synopsis, no thumbnail) + a " <>
             "missing-episode placeholder for the gap at episode 4. Season 2 stays " <>
             "collapsed showing only its header. The Resume CTA reads **Resume " <>
             "Episode 2** — driven by `resume_label_from_progress/2`. " <>
@@ -218,13 +230,23 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         attributes: tv_series_attrs()
       },
       %Variation{
+        id: :tv_series_episode_details_open,
+        description:
+          "Same shape, with episode 3's disclosure open " <>
+            "(`expanded_episode_details: MapSet.new([{1, 3}])`) — the dense row " <>
+            "grows an inline synopsis + thumbnail block beneath it. The chevron " <>
+            "flips to point up and `aria-expanded` is true.",
+        attributes: Map.put(tv_series_attrs(), :expanded_episode_details, MapSet.new([{1, 3}]))
+      },
+      %Variation{
         id: :tv_series_spoiler_free,
         description:
-          "Same library shape as 3 but `spoiler_free: true`. Unwatched episodes " <>
-            "have their thumbnail, title, and description `.spoiler-blur`'d; the " <>
-            "leading episode number stays legible for navigation. Watched / current " <>
-            "rows (episodes 1–2) render unblurred. Hover or keyboard focus on a row " <>
-            "reveals it (`[data-role=\"episode-row\"]:hover`).",
+          "Same library shape but `spoiler_free: true`. Unwatched episodes have " <>
+            "their title `.spoiler-blur`'d in the dense row (and synopsis/thumbnail " <>
+            "behind the disclosure); the leading episode number stays legible for " <>
+            "navigation. Watched / current rows (episodes 1–2) render unblurred. " <>
+            "Hover or keyboard focus on a row reveals it " <>
+            "(`[data-role=\"episode-row\"]:hover`).",
         attributes: Map.put(tv_series_attrs(), :spoiler_free, true)
       },
       %Variation{

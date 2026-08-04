@@ -21,44 +21,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.MetadataRow
   alias MediaCentaurWeb.Components.Detail.MoreInfoPanel
+  alias MediaCentaurWeb.Components.Detail.OrientationMarquee
   alias MediaCentaurWeb.Components.Detail.PlayCard
   alias MediaCentaurWeb.ViewModel.EpisodeListItem
+  alias MediaCentaurWeb.ViewModel.Orientation
 
   # --- Public API ---
-
-  @doc """
-  Computes which seasons should be auto-expanded based on current progress.
-
-  Returns a MapSet of season numbers. If there's a current episode, expands that season.
-  Otherwise expands Season 1 (if it exists).
-  """
-  def auto_expand_season(%{type: :tv_series, seasons: seasons}, %{
-        current_episode: %{season: season_number}
-      })
-      when is_list(seasons) do
-    if Enum.any?(seasons, &(&1.season_number == season_number)) do
-      MapSet.new([season_number])
-    else
-      default_expand_season(seasons)
-    end
-  end
-
-  def auto_expand_season(%{type: :tv_series, seasons: seasons}, _progress) when is_list(seasons) do
-    default_expand_season(seasons)
-  end
-
-  def auto_expand_season(_entity, _progress), do: MapSet.new()
-
-  defp default_expand_season(seasons) do
-    if Enum.any?(seasons, &(&1.season_number == 1)) do
-      MapSet.new([1])
-    else
-      case seasons do
-        [first | _] -> MapSet.new([first.season_number])
-        [] -> MapSet.new()
-      end
-    end
-  end
 
   # Shared doc strings for the recurring loose-attr shapes in this module.
   # Each points at the typed producer in the data layer (Library) so the
@@ -85,6 +53,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :resume, :map, default: nil, doc: @doc_resume
   attr :progress_records, :list, default: [], doc: @doc_progress_records
   attr :expanded_seasons, MapSet, default: nil
+
+  attr :expanded_episode_details, MapSet,
+    default: nil,
+    doc:
+      "`{season_number, episode_number}` keys of episode rows whose synopsis/thumbnail disclosure is open. Owned by the host modal (`toggle_episode_details`)."
+
   attr :available, :boolean, default: true
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close"
@@ -107,8 +81,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         "pattern-matches on — no tuple ADTs, no shape-guessing inside the component."
 
   def detail_panel(assigns) do
-    expanded_seasons =
-      assigns.expanded_seasons || auto_expand_season(assigns.entity, assigns.progress)
+    # Seasons render collapsed unless the user expanded them — the hero
+    # orientation block (marquee + hairline + subline) answers "where am
+    # I", so nothing auto-expands (2026-08-04 orientation design).
+    expanded_seasons = assigns.expanded_seasons || MapSet.new()
+
+    orientation =
+      if assigns.entity.type == :tv_series and is_list(assigns.seasons_view) do
+        Orientation.build(assigns.seasons_view, assigns.resume)
+      end
 
     progress_by_key = EpisodeList.index_progress_by_key(assigns.progress_records)
 
@@ -130,6 +111,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     assigns =
       assigns
       |> assign(:expanded_seasons, expanded_seasons)
+      |> assign(:expanded_episode_details, assigns.expanded_episode_details || MapSet.new())
+      |> assign(:orientation, orientation)
       |> assign(:progress_by_key, progress_by_key)
       |> assign(:resume_episode_key, resume_episode_key)
       |> assign(:extra_progress_by_id, extra_progress_by_id)
@@ -142,7 +125,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     ~H"""
     <div class="detail-panel">
       <div id="detail-header">
-        <Hero.hero entity={@entity} tagline={@tagline} available={@available}>
+        <Hero.hero
+          entity={@entity}
+          tagline={@tagline}
+          available={@available}
+          season_fraction={@orientation && Orientation.season_fraction(@orientation)}
+        >
           <:actions :if={@tracking_status}>
             <.button
               variant="dismiss"
@@ -180,6 +168,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 watch, not where it lives on disk. --%>
           <div class="space-y-4 xl:space-y-0 xl:grid xl:grid-cols-2 xl:gap-8 xl:items-start">
             <div class="space-y-4 min-w-0">
+              <OrientationMarquee.orientation_marquee
+                :if={@orientation}
+                orientation={@orientation}
+              />
               <PlayCard.play_card
                 on_play={@on_play}
                 target_id={@playback.target_id}
@@ -228,6 +220,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               entity={@entity}
               seasons_view={@seasons_view}
               expanded_seasons={@expanded_seasons}
+              expanded_episode_details={@expanded_episode_details}
               progress_by_key={@progress_by_key}
               resume_episode_key={@resume_episode_key}
               extra_progress_by_id={@extra_progress_by_id}
@@ -247,8 +240,18 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     {label, target_id} =
       Logic.playback_props(assigns.entity, assigns.resume, assigns.progress)
 
-    percent = overall_progress_percent(assigns.progress, assigns.entity)
-    remaining = progress_remaining_text(assigns.progress, assigns.entity)
+    # TV series carry their progress in the hero orientation block
+    # (hairline + subline), so the PlayCard's percent/remaining row is
+    # suppressed (percent 0 hides it). Other types keep the card row.
+    {percent, remaining} =
+      if assigns.entity.type == :tv_series do
+        {0, nil}
+      else
+        {
+          overall_progress_percent(assigns.progress, assigns.entity),
+          progress_remaining_text(assigns.progress, assigns.entity)
+        }
+      end
 
     %{
       label: label,
@@ -361,15 +364,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   def progress_remaining_text(nil, _entity), do: nil
 
-  def progress_remaining_text(progress, %{type: :tv_series}) do
-    remaining = progress.episodes_total - progress.episodes_completed
-
-    cond do
-      remaining <= 0 -> "Watched"
-      remaining == 1 -> "1 episode left"
-      true -> "#{remaining} episodes left"
-    end
-  end
+  # No :tv_series clause — TV progress lives in the hero orientation
+  # block (`ViewModel.Orientation`), not on the PlayCard (2026-08-04).
 
   def progress_remaining_text(progress, %{type: :movie_series}) do
     remaining = progress.episodes_total - progress.episodes_completed
@@ -407,6 +403,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         :for={season_view <- @season_views}
         season={season_view}
         expanded={MapSet.member?(@expanded_seasons, season_view.season_number)}
+        expanded_episode_details={@expanded_episode_details}
         extra_progress_by_id={@extra_progress_by_id}
         entity_id={@entity.id}
         on_play={@on_play}
@@ -468,6 +465,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     doc: "`%MediaCentaurWeb.ViewModel.SeasonView{}` — typed season bucket."
 
   attr :expanded, :boolean, required: true
+
+  attr :expanded_episode_details, MapSet,
+    default: nil,
+    doc: "`{season_number, episode_number}` keys with open synopsis disclosures."
+
   attr :extra_progress_by_id, :map, default: %{}, doc: @doc_extra_progress_by_id
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
@@ -480,18 +482,27 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       <button
         phx-click="toggle_season"
         phx-value-season={@season.season_number}
-        class="flex items-center gap-2 w-full text-sm font-medium text-base-content/70 hover:text-base-content"
+        class="flex items-baseline gap-2 w-full text-sm font-medium text-base-content/70 hover:text-base-content cursor-pointer"
         data-nav-item
         tabindex="0"
       >
         <.icon
           name={if @expanded, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
-          class="size-4"
+          class="size-4 self-center"
         />
         <span>{@season.name || "Season #{@season.season_number}"}</span>
-        <span :if={@season.kind == :library} class="text-xs text-base-content/40">
+        <span class="flex-1" />
+        <span :if={@season.kind == :library} class="text-xs text-base-content/40 tabular-nums">
           {season_progress_label(@season.watched_count, @season.total_count)}
         </span>
+        <.icon
+          :if={
+            @season.kind == :library && @season.watched_count == @season.total_count &&
+              (@season.total_count || 0) > 0
+          }
+          name="hero-check-mini"
+          class="size-3.5 self-center text-success"
+        />
         <span :if={@season.kind == :future} class="text-xs text-base-content/40">
           upcoming
         </span>
@@ -501,6 +512,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <.season_item
           :for={item <- @season.items}
           item={item}
+          details_open={
+            MapSet.member?(
+              @expanded_episode_details || MapSet.new(),
+              {@season.season_number, item_episode_number(item)}
+            )
+          }
           entity_id={@entity_id}
           on_play={@on_play}
           spoiler_free={@spoiler_free}
@@ -524,6 +541,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # criterion.
 
   attr :item, :map, required: true, doc: "%EpisodeListItem.{Library | Missing | Upcoming}{}"
+  attr :details_open, :boolean, default: false
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
@@ -533,6 +551,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     ~H"""
     <.episode_row
       item={@item}
+      details_open={@details_open}
       entity_id={@entity_id}
       on_play={@on_play}
       spoiler_free={@spoiler_free}
@@ -559,11 +578,18 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     required: true,
     doc: "`%MediaCentaurWeb.ViewModel.EpisodeListItem.Library{}` — typed library episode."
 
+  attr :details_open, :boolean,
+    default: false,
+    doc: "whether the synopsis/thumbnail disclosure below the dense row is open."
+
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
   attr :available, :boolean, default: true
 
+  # Dense one-line row (2026-08-04 orientation design): number · title ·
+  # runtime · watched toggle. Synopsis + thumbnail render only behind the
+  # per-row disclosure — the list is an index, not a reading surface.
   defp episode_row(assigns) do
     assigns =
       assigns
@@ -577,7 +603,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     ~H"""
     <div
       class={[
-        "p-2 rounded cursor-pointer hover:bg-base-content/5",
+        "px-2 py-1.5 rounded cursor-pointer hover:bg-base-content/5",
         episode_row_class(@state, @is_resume_target)
       ]}
       data-role="episode-row"
@@ -587,38 +613,32 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       data-nav-item
       tabindex="0"
     >
-      <div class="flex items-start gap-3 text-sm">
-        <div class="w-20 flex-shrink-0">
-          <img
-            :if={@thumbnail && @available}
-            src={sized_image_url(@thumbnail, 240)}
-            class={[
-              "w-20 aspect-video rounded object-cover object-top",
-              blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
-            ]}
+      <div class="flex items-center gap-3 text-sm">
+        <span class="w-6 flex-shrink-0 text-right text-base-content/50 font-mono text-xs tabular-nums">
+          {@episode.episode_number}
+        </span>
+        <span class={[
+          "flex-1 min-w-0 truncate text-base-content/90",
+          blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
+        ]}>
+          {@episode.name || "—"}
+        </span>
+        <button
+          :if={@episode.description || @thumbnail}
+          type="button"
+          phx-click="toggle_episode_details"
+          phx-value-season={@season_number}
+          phx-value-episode={@episode.episode_number}
+          data-nav-sub-item
+          class="flex-shrink-0 p-1.5 -m-1 rounded-md cursor-pointer text-base-content/30 hover:text-base-content/70 hover:bg-base-content/10 transition-colors"
+          aria-expanded={to_string(@details_open)}
+          aria-label={if @details_open, do: "Hide episode details", else: "Show episode details"}
+        >
+          <.icon
+            name={if @details_open, do: "hero-chevron-up-mini", else: "hero-chevron-down-mini"}
+            class="size-4"
           />
-          <div
-            :if={(@thumbnail && !@available) || !@thumbnail}
-            class="w-20 aspect-video rounded bg-base-300/30"
-          />
-        </div>
-        <div class="flex-1 min-w-0">
-          <span class="truncate block text-base-content/90">
-            <span class="text-base-content/50 font-mono text-xs">{@episode.episode_number}.</span>
-            <span class={[blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"]}>
-              {@episode.name || "—"}
-            </span>
-          </span>
-          <p
-            :if={@episode.description}
-            class={[
-              "line-clamp-2 text-xs text-base-content/50",
-              blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
-            ]}
-          >
-            {@episode.description}
-          </p>
-        </div>
+        </button>
         <.watched_toggle
           event="toggle_watched"
           state={@state}
@@ -629,9 +649,28 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           phx-value-episode={@episode.episode_number}
         />
       </div>
+      <div :if={@details_open} class="mt-2 ml-9 mb-1 flex items-start gap-3">
+        <img
+          :if={@thumbnail && @available}
+          src={sized_image_url(@thumbnail, 240)}
+          class={[
+            "w-28 aspect-video rounded object-cover object-top flex-shrink-0",
+            blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
+          ]}
+        />
+        <p
+          :if={@episode.description}
+          class={[
+            "text-xs text-base-content/50 leading-relaxed",
+            blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
+          ]}
+        >
+          {@episode.description}
+        </p>
+      </div>
       <div
         :if={@state == :current}
-        class="mt-1 ml-[calc(5rem+0.75rem)] h-0.5 rounded-full bg-base-content/10 overflow-hidden"
+        class="mt-1 ml-9 h-0.5 rounded-full bg-base-content/10 overflow-hidden"
       >
         <div
           class="h-full bg-info rounded-full"
@@ -656,16 +695,13 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       data-nav-item
       tabindex="0"
     >
-      <div class="flex items-start gap-3 text-sm">
-        <div class="w-20 flex-shrink-0">
-          <div class="w-20 aspect-video rounded bg-base-content/5 border border-dashed border-base-content/10" />
-        </div>
-        <div class="flex-1 min-w-0">
-          <span class="truncate block text-base-content/70 italic">
-            <span class="text-base-content/40 font-mono text-xs">{@item.episode_number}.</span>
-            Episode {@item.episode_number}
-          </span>
-        </div>
+      <div class="flex items-center gap-3 text-sm">
+        <span class="w-6 flex-shrink-0 text-right text-base-content/40 font-mono text-xs tabular-nums">
+          {@item.episode_number}
+        </span>
+        <span class="flex-1 min-w-0 truncate text-base-content/70 italic">
+          Episode {@item.episode_number}
+        </span>
       </div>
     </div>
     """
@@ -686,16 +722,13 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp upcoming_episode_row(assigns) do
     ~H"""
     <div class="p-2 rounded opacity-60" data-role="upcoming-episode-row">
-      <div class="flex items-start gap-3 text-sm">
-        <div class="w-20 flex-shrink-0">
-          <div class="w-20 aspect-video rounded bg-base-300/20" />
-        </div>
-        <div class="flex-1 min-w-0">
-          <span class="truncate block text-base-content/70">
-            <span class="text-base-content/40 font-mono text-xs">{@item.episode_number}.</span>
-            {@item.title || "Episode #{@item.episode_number}"}
-          </span>
-        </div>
+      <div class="flex items-center gap-3 text-sm">
+        <span class="w-6 flex-shrink-0 text-right text-base-content/40 font-mono text-xs tabular-nums">
+          {@item.episode_number}
+        </span>
+        <span class="flex-1 min-w-0 truncate text-base-content/70">
+          {@item.title || "Episode #{@item.episode_number}"}
+        </span>
         <div class="flex items-center gap-2 flex-shrink-0">
           <.badge variant="ghost" size="sm" class="gap-1">
             <.icon name="hero-calendar-mini" class="size-3" />
@@ -1600,6 +1633,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   defp season_progress_label(watched, total) when watched == total and total > 0, do: "watched"
   defp season_progress_label(watched, total), do: "#{total - watched} remaining"
+
+  # Episode number across the EpisodeListItem variants — Library nests it
+  # on the episode struct; Missing/Upcoming carry it directly.
+  defp item_episode_number(%EpisodeListItem.Library{episode: episode}), do: episode.episode_number
+
+  defp item_episode_number(%{episode_number: episode_number}), do: episode_number
 
   defp resume_episode_key(%{"seasonNumber" => season, "episodeNumber" => episode})
        when is_integer(season) and is_integer(episode) do

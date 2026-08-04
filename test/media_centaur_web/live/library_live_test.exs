@@ -414,7 +414,14 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
          %{conn: conn, tv_series: tv_series, episode: episode} do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
-      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      # Seasons open collapsed (2026-08-04 orientation design) — expand
+      # season 1 so the episode row (and its toggle) renders.
+      html =
+        view
+        |> element(~s|button[phx-click="toggle_season"][phx-value-season="1"]|)
+        |> render_click()
 
       assert html =~ "Mark watched"
       refute html =~ "Mark unwatched"
@@ -446,7 +453,14 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
-      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      # Seasons open collapsed (2026-08-04 orientation design) — expand
+      # season 1 so the episode row (and its toggle) renders.
+      html =
+        view
+        |> element(~s|button[phx-click="toggle_season"][phx-value-season="1"]|)
+        |> render_click()
 
       assert html =~ "Mark unwatched"
 

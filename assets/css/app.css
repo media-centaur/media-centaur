@@ -871,6 +871,68 @@ body:has(.modal-backdrop[data-state="open"]) {
   outline: none;
 }
 
+/* ── Season Hairline ──
+   Luminous season-progress line pinned to the detail hero's bottom edge
+   (TV orientation). Coordinated glow across track/fill/leading edge —
+   custom CSS per the multi-element-system rule. */
+
+.season-hairline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: oklch(from var(--color-base-content) l c h / 0.09);
+}
+
+.season-hairline-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(
+    90deg,
+    oklch(from var(--color-primary) l c h / 0.75),
+    var(--color-primary)
+  );
+  box-shadow:
+    0 0 10px 1px oklch(from var(--color-primary) l c h / 0.55),
+    0 0 26px 2px oklch(from var(--color-primary) l c h / 0.25);
+  transition: width 300ms ease-out;
+}
+
+/* The leading edge burns slightly brighter — suppressed at 0 width. */
+.season-hairline-fill:not([style*="width: 0"])::after {
+  content: "";
+  position: absolute;
+  right: -1px;
+  top: -1px;
+  bottom: -1px;
+  width: 3px;
+  border-radius: 2px;
+  background: oklch(from var(--color-primary) calc(l * 1.25) calc(c * 0.7) h);
+  box-shadow: 0 0 12px 2px oklch(from var(--color-primary) l c h / 0.55);
+}
+
+/* ── Orientation Marquee ──
+   Large "S4 · E10" display type in the TV detail action region. The
+   faint primary cast reads like light from the screen. */
+
+.orientation-marquee-episode {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  text-shadow:
+    0 1px 2px oklch(0% 0 0 / 0.5),
+    0 0 26px oklch(from var(--color-primary) l c h / 0.35);
+}
+
+.orientation-marquee-dot {
+  color: oklch(from var(--color-base-content) l c h / 0.4);
+  font-weight: 400;
+  padding: 0 6px;
+}
+
 /* ── Spoiler Free Mode ──
    Blur episode descriptions for unwatched episodes, reveal on hover/focus. */
 
