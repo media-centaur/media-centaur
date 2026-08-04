@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
       orientation = Orientation.build(seasons, resume_hint(4, 10))
 
       assert orientation.state == :in_progress
-      assert orientation.next == %{season_number: 4, episode_number: 10, runtime_seconds: 1260}
+      assert orientation.next == %{season_number: 4, episode_number: 10}
       assert orientation.season == %{number: 4, watched: 9, total: 22}
       assert orientation.series == %{watched: 67, total: 138, percent: 49, season_count: 7}
     end
@@ -73,14 +73,6 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
       orientation = Orientation.build(seasons, resume_hint(1, 4))
 
       assert orientation.series == %{watched: 3, total: 10, percent: 30, season_count: 1}
-    end
-
-    test "missing runtime yields nil runtime_seconds" do
-      seasons = [library_season(1, 3, 10, runtime_seconds: nil, resume_target: true)]
-
-      orientation = Orientation.build(seasons, resume_hint(1, 4))
-
-      assert orientation.next.runtime_seconds == nil
     end
 
     test "without a resume hint, next falls back to the first unwatched library item" do
@@ -101,7 +93,7 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
       orientation = Orientation.build(seasons, resume_hint(1, 1))
 
       assert orientation.state == :unstarted
-      assert orientation.next == %{season_number: 1, episode_number: 1, runtime_seconds: 1260}
+      assert orientation.next == %{season_number: 1, episode_number: 1}
       assert orientation.season == %{number: 1, watched: 0, total: 21}
       assert orientation.series == %{watched: 0, total: 36, percent: 0, season_count: 2}
     end
@@ -136,95 +128,14 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
       assert_in_delta Orientation.season_fraction(orientation), 9 / 22, 0.0001
     end
 
-    test "zero when there is no current season" do
+    test "full for a completed series — the hairline reads finished, not empty" do
       orientation = Orientation.build([library_season(1, 5, 5)], nil)
 
-      assert Orientation.season_fraction(orientation) == 0.0
+      assert Orientation.season_fraction(orientation) == 1.0
     end
   end
 
-  describe "subline/1" do
-    test "mid-series carries runtime, season counts, and series percent" do
-      seasons = [
-        library_season(1, 21, 21),
-        library_season(2, 9, 22, resume_target: true),
-        library_season(3, 0, 13)
-      ]
-
-      orientation = Orientation.build(seasons, resume_hint(2, 10))
-
-      assert Orientation.subline(orientation) ==
-               "21m · 9 of 22 this season · 54% of the series"
-    end
-
-    test "single-season series drops the series clause" do
-      seasons = [library_season(1, 9, 22, resume_target: true)]
-
-      orientation = Orientation.build(seasons, resume_hint(1, 10))
-
-      assert Orientation.subline(orientation) == "21m · 9 of 22 this season"
-    end
-
-    test "missing runtime drops the runtime segment" do
-      seasons = [
-        library_season(1, 9, 22, runtime_seconds: nil, resume_target: true),
-        library_season(2, 0, 13)
-      ]
-
-      orientation = Orientation.build(seasons, resume_hint(1, 10))
-
-      assert Orientation.subline(orientation) == "9 of 22 this season · 26% of the series"
-    end
-
-    test "unstarted series states sizes instead of progress" do
-      seasons = [library_season(1, 0, 21), library_season(2, 0, 15)]
-
-      orientation = Orientation.build(seasons, resume_hint(1, 1))
-
-      assert Orientation.subline(orientation) ==
-               "21m · 21 episodes this season · 36 in the series"
-    end
-
-    test "complete series states the total watched" do
-      seasons = [library_season(1, 21, 21), library_season(2, 15, 15)]
-
-      orientation = Orientation.build(seasons, nil)
-
-      assert Orientation.subline(orientation) == "36 episodes watched"
-    end
-
-    test "empty orientation yields nil" do
-      orientation = Orientation.build([], nil)
-
-      assert Orientation.subline(orientation) == nil
-    end
-  end
-
-  describe "overline/1" do
-    test "state-dependent overline copy" do
-      in_progress = Orientation.build([library_season(1, 9, 22, resume_target: true)], nil)
-      unstarted = Orientation.build([library_season(1, 0, 22)], nil)
-      complete = Orientation.build([library_season(1, 22, 22)], nil)
-
-      assert Orientation.overline(in_progress) == "Up next"
-      assert Orientation.overline(unstarted) == "Start here"
-      assert Orientation.overline(complete) == "Series complete"
-    end
-  end
-
-  describe "marquee/1" do
-    test "formats the next episode position" do
-      seasons = [library_season(1, 9, 22, resume_target: true)]
-
-      orientation = Orientation.build(seasons, resume_hint(1, 10))
-
-      assert Orientation.marquee(orientation) == {"S1", "E10"}
-    end
-
-    test "nil when the series is complete" do
-      orientation = Orientation.build([library_season(1, 5, 5)], nil)
-
-      assert Orientation.marquee(orientation) == nil
-    end
-  end
+  # subline/marquee/overline were removed 2026-08-05: the up-next block
+  # duplicated the Play button's own label, so the hairline is the only
+  # orientation element the hero renders.
 end

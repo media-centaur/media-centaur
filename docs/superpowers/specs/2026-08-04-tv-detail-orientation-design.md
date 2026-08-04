@@ -2,6 +2,16 @@
 
 *2026-08-04 · status: direction approved via mockups (`mockups/detail-orientation/7-marquee-quiet`, gitignored — keep until implemented)*
 
+> **Revised 2026-08-05 after live use.** The marquee + subline block
+> described below was shipped, then removed as redundant: the Play
+> button's own label already names the next episode, and the subline's
+> runtime/series-percent read as noise. What survives of the hero
+> orientation is the **season hairline** (full for a completed series)
+> and the Play label; the description moved into the freed right
+> column, and catalog facts (network / rating / genres / language)
+> moved to the More info view. `ViewModel.Orientation` remains as the
+> hairline's derivation. Sections below describe the original design.
+
 ## Problem
 
 The TV series detail page auto-scrolls to the current episode

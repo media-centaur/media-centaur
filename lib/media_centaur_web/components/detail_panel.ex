@@ -21,7 +21,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.MetadataRow
   alias MediaCentaurWeb.Components.Detail.MoreInfoPanel
-  alias MediaCentaurWeb.Components.Detail.OrientationMarquee
   alias MediaCentaurWeb.Components.Detail.PlayCard
   alias MediaCentaurWeb.ViewModel.EpisodeListItem
   alias MediaCentaurWeb.ViewModel.Orientation
@@ -113,6 +112,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:expanded_seasons, expanded_seasons)
       |> assign(:expanded_episode_details, assigns.expanded_episode_details || MapSet.new())
       |> assign(:orientation, orientation)
+      |> assign(
+        :description_right?,
+        assigns.entity.type in [:movie, :tv_series] && assigns.entity.description not in [nil, ""]
+      )
       |> assign(:progress_by_key, progress_by_key)
       |> assign(:resume_episode_key, resume_episode_key)
       |> assign(:extra_progress_by_id, extra_progress_by_id)
@@ -152,26 +155,25 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             badge_text={format_type(@entity.type)}
             items={@metadata_items}
           />
-          <%!-- Action + synopsis on the left; the right column carries the
-                orientation marquee (TV) or the facet strip (movie series) —
-                whichever the type has. Catalog facts (network / rating /
+          <%!-- Play controls on the left; the right column carries the
+                synopsis (movies + TV, hairline-accented at xl) or the facet
+                strip (movie series). Catalog facts (network / rating /
                 genres / language) live in the More info view, not here
-                (2026-08-04 part-1 split): the main view is for deciding to
-                press Play, not for reference lookup. Movies have no right
-                column at all, so the grid collapses to a single full-width
-                stack for them. Below xl everything is one column with the
-                orientation first (it's the page's answer to "where am I").
+                (2026-08-04 split): the main view is for deciding to press
+                Play, not for reference lookup. An up-next marquee block was
+                tried in the right column and removed — it duplicated the
+                Play button's own label; the hero hairline is the only
+                orientation element. Entities without a description (or
+                movie-series facets) collapse to a single full-width stack.
+                Below xl everything is one column, controls first.
                 File paths are intentionally NOT rendered here — they live in
                 the Manage view's Files section, grouped by directory with
                 delete affordances. --%>
           <div class={[
             "space-y-4",
-            (@orientation || @facets != []) &&
+            (@description_right? || @facets != []) &&
               "xl:space-y-0 xl:grid xl:grid-cols-2 xl:gap-8 xl:items-start"
           ]}>
-            <div :if={@orientation} class="min-w-0 xl:col-start-2 xl:row-start-1">
-              <OrientationMarquee.orientation_marquee orientation={@orientation} />
-            </div>
             <div class="space-y-4 min-w-0 xl:col-start-1 xl:row-start-1">
               <PlayCard.play_card
                 on_play={@on_play}
@@ -184,9 +186,17 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 show_more_info={@entity.type in [:movie, :tv_series]}
               />
               <p
-                :if={@entity.description}
+                :if={@entity.description && !@description_right?}
                 class="text-sm text-base-content/70 line-clamp-8 xl:max-w-[50ch]"
               >
+                {@entity.description}
+              </p>
+            </div>
+            <div :if={@description_right?} class="min-w-0 xl:col-start-2 xl:row-start-1">
+              <p class={[
+                "text-[15px] leading-relaxed text-base-content/75 line-clamp-6 max-w-[60ch]",
+                "xl:border-l xl:border-base-content/10 xl:pl-6"
+              ]}>
                 {@entity.description}
               </p>
             </div>
