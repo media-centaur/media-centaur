@@ -150,31 +150,35 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             </.button>
           </:actions>
         </Hero.hero>
-        <div class="p-4 space-y-4">
-          <MetadataRow.metadata_row
-            badge_text={format_type(@entity.type)}
-            items={@metadata_items}
-          />
-          <%!-- Play controls on the left; the right column carries the
-                synopsis (movies + TV, hairline-accented at xl) or the facet
-                strip (movie series). Catalog facts (network / rating /
-                genres / language) live in the More info view, not here
-                (2026-08-04 split): the main view is for deciding to press
-                Play, not for reference lookup. An up-next marquee block was
-                tried in the right column and removed — it duplicated the
-                Play button's own label; the hero hairline is the only
-                orientation element. Entities without a description (or
-                movie-series facets) collapse to a single full-width stack.
-                Below xl everything is one column, controls first.
-                File paths are intentionally NOT rendered here — they live in
-                the Manage view's Files section, grouped by directory with
-                delete affordances. --%>
+        <div class="p-4">
+          <%!-- Two real columns sharing one top line: identity facts +
+                play controls on the left, prose (or the movie-series
+                facet strip) on the right. The metadata row lives INSIDE
+                the left column — as a full-width line above the grid it
+                left the buttons alone with dead space while the synopsis
+                floated anchorless at mid-page. Catalog facts (network /
+                rating / genres / language) live in the More info view,
+                not here (2026-08-04 split): the main view is for
+                deciding to press Play, not for reference lookup. An
+                up-next marquee block was tried in the right column and
+                removed — it duplicated the Play button's own label; the
+                hero hairline is the only orientation element. Entities
+                without a description (or movie-series facets) collapse
+                to a single full-width stack. Below xl everything is one
+                column, metadata and controls first.
+                File paths are intentionally NOT rendered here — they
+                live in the Manage view's Files section, grouped by
+                directory with delete affordances. --%>
           <div class={[
             "space-y-4",
             (@description_right? || @facets != []) &&
               "xl:space-y-0 xl:grid xl:grid-cols-2 xl:gap-8 xl:items-start"
           ]}>
             <div class="space-y-4 min-w-0 xl:col-start-1 xl:row-start-1">
+              <MetadataRow.metadata_row
+                badge_text={format_type(@entity.type)}
+                items={@metadata_items}
+              />
               <PlayCard.play_card
                 on_play={@on_play}
                 target_id={@playback.target_id}
