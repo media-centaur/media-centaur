@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.110.2 — 2026-08-04
+
+### Improved
+
+- **The sidebar now expands when you point at it.** The sidebar rests as a slim icon rail and slides out to show its labels while your mouse is over it — or, with the keyboard or a controller, while the highlight is inside it. Move away and it tucks back out of your way. The **Collapse** button at the bottom now pins it as a rail instead: it never expands, and pointing at an icon shows its floating label. **Expand** switches back, and your choice still persists across restarts.
+
+### Fixed
+
+- **The keyboard highlight no longer flashes white.** On the Incoming page, moving the highlight between entries briefly showed a white border before it settled into blue. The highlight now appears in its final color immediately, everywhere in the app.
+- **Tab headers no longer shift as you switch tabs.** The Coming up / Activity / History headers on the Incoming page (and the tabs on the Library page) changed width slightly when active, nudging their neighbors sideways. They now stay put.
+
 ## v0.110.1 — 2026-08-03
 
 ### Improved
