@@ -169,12 +169,16 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 File paths are intentionally NOT rendered here — they
                 live in the Manage view's Files section, grouped by
                 directory with delete affordances. --%>
+          <%!-- Asymmetric split: the controls row is a fixed-size cluster,
+                the prose wants measure — 2/5 vs 3/5 keeps the description
+                column from wasting half the panel on a button row's
+                worth of content. --%>
           <div class={[
             "space-y-4",
             (@description_right? || @facets != []) &&
-              "xl:space-y-0 xl:grid xl:grid-cols-2 xl:gap-8 xl:items-start"
+              "xl:space-y-0 xl:grid xl:grid-cols-5 xl:gap-8 xl:items-start"
           ]}>
-            <div class="space-y-4 min-w-0 xl:col-start-1 xl:row-start-1">
+            <div class="space-y-4 min-w-0 xl:col-span-2 xl:col-start-1 xl:row-start-1">
               <MetadataRow.metadata_row
                 badge_text={format_type(@entity.type)}
                 items={@metadata_items}
@@ -196,15 +200,18 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 {@entity.description}
               </p>
             </div>
-            <div :if={@description_right?} class="min-w-0 xl:col-start-2 xl:row-start-1">
+            <div :if={@description_right?} class="min-w-0 xl:col-span-3 xl:col-start-3 xl:row-start-1">
               <p class={[
-                "text-[15px] leading-relaxed text-base-content/75 line-clamp-6 max-w-[60ch]",
+                "text-[15px] leading-relaxed text-base-content/75 line-clamp-6 max-w-[72ch]",
                 "xl:border-l xl:border-base-content/10 xl:pl-6"
               ]}>
                 {@entity.description}
               </p>
             </div>
-            <div :if={@facets != []} class="min-w-0 space-y-3 xl:col-start-2 xl:row-start-1">
+            <div
+              :if={@facets != []}
+              class="min-w-0 space-y-3 xl:col-span-3 xl:col-start-3 xl:row-start-1"
+            >
               <FacetStrip.facet_strip facets={@facets} layout={:row} class="xl:hidden" />
               <FacetStrip.facet_strip facets={@facets} layout={:stacked} class="hidden xl:grid" />
             </div>
