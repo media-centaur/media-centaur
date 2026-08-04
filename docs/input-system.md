@@ -480,6 +480,7 @@ Each `data-*` attribute on `<html>` is a **projection** of exactly one piece of 
 | `data-nav-context` | `FocusContextMachine.context` | `onContextChanged` callback → `setNavContext` |
 | `data-gamepad-type` | `GamepadSource` controller detection | `setControllerType` on connect |
 | `data-sidebar` | `localStorage` | Inline script in `root.html.heex` |
+| `data-sidebar-hover` | Pointer position over the rail | Delegated `mouseover` listener in `root.html.heex` |
 
 **Design rules:**
 

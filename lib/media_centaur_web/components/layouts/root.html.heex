@@ -54,6 +54,19 @@
           document.documentElement.style.setProperty("--ui-scale", e.detail.scale);
         });
 
+        // Sidebar flyout hover state, projected onto <html> (data-sidebar-hover)
+        // instead of relying on .sidebar:hover — live navigation replaces the
+        // rail element, and pseudo-state on the new node lags a frame (visible
+        // collapse+reopen). The attribute survives navigation, so the open rail
+        // stays open across page switches. Delegated: survives DOM replacement.
+        document.addEventListener("mouseover", (e) => {
+          const inSidebar = !!e.target.closest?.("#sidebar");
+          document.documentElement.toggleAttribute("data-sidebar-hover", inSidebar);
+        });
+        document.documentElement.addEventListener("mouseleave", () => {
+          document.documentElement.removeAttribute("data-sidebar-hover");
+        });
+
         window.addEventListener("phx:toggle-sidebar", () => {
           const el = document.documentElement;
           const collapsed = el.getAttribute("data-sidebar") === "collapsed";

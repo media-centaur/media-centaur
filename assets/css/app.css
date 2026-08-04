@@ -277,11 +277,24 @@ html.psb .psb-variation-block .media-centaur {
 }
 
 /* ── Collapsible Sidebar ──
-   Expands to 200px (icon + label), collapses to 52px (icon-only).
-   State stored on <html data-sidebar="collapsed"> for flash-free paint. */
+   Icon-only 52px rail that flies out to 200px (icon + label). Two modes,
+   toggled by the bottom chevron and persisted on <html data-sidebar> via
+   localStorage (root.html.heex) for flash-free paint:
+
+   - auto (attribute absent): rests at 52px, expands while the mouse is
+     over it — or, in keyboard/gamepad mode, while the nav cursor is
+     inside it (:focus-within; sidebar items receive real DOM focus).
+   - pinned (data-sidebar="collapsed"): always 52px; the glass tooltip
+     labels the hovered/focused icon instead.
+
+   `--sidebar-expanded` (0/1) is the single expansion switch — every
+   expanded-state property derives from it, so the condition lives in one
+   selector. Content margin stays 52px in both modes: the expanded rail
+   overlays content rather than reflowing it. */
 
 .sidebar {
-  width: 200px;
+  --sidebar-expanded: 0;
+  width: calc(52px + 148px * var(--sidebar-expanded));
   position: fixed;
   /* top:0 + bottom:0 (not height:100vh) so the bar stays pinned to the
      viewport under the root `zoom` UI scale — a 100vh height would scale past
@@ -294,20 +307,27 @@ html.psb .psb-variation-block .media-centaur {
   z-index: 40;
   display: flex;
   flex-direction: column;
-  padding: 1rem;
+  padding: 1rem calc(0.5rem + 0.5rem * var(--sidebar-expanded));
   gap: 0.25rem;
   overflow-x: hidden;
   overflow-y: auto;
   transition: width 0.25s ease, padding 0.25s ease;
 }
 
-#input-system > main {
-  margin-left: 52px;
+/* The expansion condition reads html-level attributes, never the rail's own
+   pseudo-state (:hover / :focus-within): live navigation replaces the aside,
+   and pseudo-state on the fresh node is only re-evaluated a frame later — the
+   open rail would paint collapsed, then animate back open. Both attributes
+   live on <html>, which survives navigation, so the new rail paints expanded
+   on its first frame. data-sidebar-hover is maintained by a delegated
+   listener in root.html.heex; data-nav-context by the input system. */
+html:not([data-sidebar=collapsed])[data-sidebar-hover] .sidebar,
+html:not([data-sidebar=collapsed]):is([data-input=keyboard], [data-input=gamepad])[data-nav-context=sidebar] .sidebar {
+  --sidebar-expanded: 1;
 }
 
-[data-sidebar=collapsed] .sidebar {
-  width: 52px;
-  padding: 1rem 0.5rem;
+#input-system > main {
+  margin-left: 52px;
 }
 
 /* Sidebar navigation links — colors use theme variables */
@@ -339,7 +359,9 @@ html.psb .psb-variation-block .media-centaur {
   color: oklch(from var(--color-primary) l c h / 0.8);
 }
 
-/* Sidebar group label — small, uppercase, dim. Separates Watch from System. */
+/* Sidebar group label — small, uppercase, dim. Separates Watch from System.
+   Collapsed: text fades out but the box (padding + line height) stays, so
+   the icon rows below it don't shift between expanded and collapsed. */
 .sidebar-group-label {
   font-size: 0.625rem;
   font-weight: 600;
@@ -347,12 +369,7 @@ html.psb .psb-variation-block .media-centaur {
   text-transform: uppercase;
   color: oklch(from var(--color-base-content) l c h / 0.4);
   padding: 0.75rem 0.5rem 0.25rem 0.5rem;
-}
-
-/* Collapsed: hide the label text but KEEP its box (padding + line height)
-   so the icon rows below it don't shift between expanded and collapsed. */
-[data-sidebar=collapsed] .sidebar-group-label {
-  opacity: 0;
+  opacity: var(--sidebar-expanded);
   overflow: hidden;
 }
 
@@ -372,37 +389,28 @@ html.psb .psb-variation-block .media-centaur {
   background: oklch(from var(--color-primary) l c h / 0.10);
 }
 
+/* Expanded: demote system icons to 16px alongside the smaller font.
+   Collapsed: there are no labels, so the demotion conveys nothing and only
+   breaks the icon centering — collapsed centering relies on the icon
+   filling the padding box, which a 16px icon doesn't. Render at the full
+   icon size so they center like the rest. */
 .sidebar-link-system .size-5 {
-  width: 1rem;
-  height: 1rem;
+  width: calc(1.25rem - 0.25rem * var(--sidebar-expanded));
+  height: calc(1.25rem - 0.25rem * var(--sidebar-expanded));
 }
 
-/* Collapsed: there are no labels, so the system-group demotion (smaller icon)
-   conveys nothing and only breaks the icon centering — collapsed centering
-   relies on the icon filling the padding box, which a 16px icon doesn't.
-   Render system icons at the full icon size so they center like the rest. */
-[data-sidebar=collapsed] .sidebar-link-system .size-5 {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-/* Label text fades out when collapsed */
+/* Label text fades in with expansion */
 .sidebar-label {
   white-space: nowrap;
+  opacity: var(--sidebar-expanded);
   transition: opacity 0.2s;
 }
 
-[data-sidebar=collapsed] .sidebar-label {
-  opacity: 0;
-}
-
-/* Collapse button chevron rotates */
+/* Collapse button chevron points at the action: « (collapse) while the
+   rail is visually expanded, » (expand) while it shows as a rail. */
 .sidebar-collapse-icon {
+  transform: rotate(calc(180deg * (1 - var(--sidebar-expanded))));
   transition: transform 0.25s;
-}
-
-[data-sidebar=collapsed] .sidebar-collapse-icon {
-  transform: rotate(180deg);
 }
 
 /* Collapsed-rail tooltip — a single element in <body>, driven by the
