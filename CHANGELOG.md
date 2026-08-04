@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.111.0 — 2026-08-04
+
+### Improved
+
+- **The TV series page no longer drops you into a wall of episodes.** It now opens at the top, with the play controls on the left and the show's description beside them. The Play button names your next episode (by position only — spoiler-free mode holds), and a slim progress line along the bottom edge of the artwork shows how far through the current season you are.
+- **Seasons start collapsed.** Each season row shows how much of it remains ("13 remaining", or "watched" with a check). Expand a season to see its episodes as compact one-line rows — number, title, runtime, watched toggle. The small chevron on a row reveals that episode's synopsis and thumbnail when you want them.
+- **Show reference details moved to More info.** Network, rating, genres, and language now live on the More info page alongside the credits, keeping the main view focused on watching.
+
+### Fixed
+
+- **Replaying an old episode no longer hijacks the Play button.** Rewatching (or accidentally starting) an episode you'd already seen used to make Play offer the episode right after it — even if you'd watched that one too. Play now skips ahead to your first unwatched episode.
+
 ## v0.110.2 — 2026-08-04
 
 ### Improved
