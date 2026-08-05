@@ -416,12 +416,10 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
 
-      # Seasons open collapsed (2026-08-04 orientation design) — expand
-      # season 1 so the episode row (and its toggle) renders.
-      html =
-        view
-        |> element(~s|button[phx-click="toggle_season"][phx-value-season="1"]|)
-        |> render_click()
+      # Season 1 holds the next episode, so it opens expanded and the
+      # episode row (with its toggle) is on screen already
+      # (2026-08-05 auto-orient design).
+      html = render(view)
 
       assert html =~ "Mark watched"
       refute html =~ "Mark unwatched"

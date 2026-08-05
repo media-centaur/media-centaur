@@ -56,12 +56,46 @@ const liveSocket = new LiveSocket("/live", Socket, {
       },
       _scrollToTarget() {
         this._lastEntityId = this.el.dataset.entityId
+        // `data-scroll-to-resume` is the only signal for whether to
+        // scroll — the server decides (DetailPanel.autoscroll_resume?/1).
+        // A target row can exist without being somewhere to return to:
+        // an unstarted series highlights its first episode but opens on
+        // the hero.
+        if (this.el.dataset.scrollToResume === undefined) return
         const target = this.el.querySelector("[data-resume-target]")
         if (target) {
           requestAnimationFrame(() => {
+            this._reserveOrientationBlock()
             target.scrollIntoView({ block: "center", behavior: "instant" })
           })
         }
+      },
+      // The orientation block pins over the top of the scrollport, so the
+      // region a row can actually be seen in starts below it. Centering
+      // against the raw scrollport puts the next episode *behind* the
+      // block — measured at over half the scrollport's height on a
+      // 1920x1080 display. scroll-padding is the platform's own name for
+      // this: it insets the "optimal viewing region" that block:"center"
+      // centers within. Left set on
+      // the port so later programmatic scrolls (keyboard/gamepad nav
+      // stepping through episode rows) land clear of the block too.
+      _reserveOrientationBlock() {
+        const port = this.el.closest(".modal-detail-scroll")
+        const block = port && port.querySelector("[data-role='detail-orientation']")
+        if (!port || !block) return
+        // Layout pixels throughout — offsetHeight/clientHeight/computed
+        // `top`, never getBoundingClientRect(). The media-center UI runs
+        // under a `--ui-scale` transform, so rects come back in visual
+        // pixels and mixing the two silently doubles one side.
+        //
+        // Sticky `top` is the gap the block pins at; height is constant
+        // whether pinned or at rest, so this is safe to read pre-scroll.
+        const pinInset = parseFloat(getComputedStyle(block).top) || 0
+        const reserved = pinInset + block.offsetHeight
+        // A port too short to hold the block plus a row would push the
+        // target off the bottom — leave the default padding alone there.
+        if (reserved > port.clientHeight - 96) return
+        port.style.scrollPaddingTop = `${Math.round(reserved)}px`
       }
     },
   },

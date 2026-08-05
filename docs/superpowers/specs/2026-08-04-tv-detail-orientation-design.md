@@ -2,6 +2,14 @@
 
 *2026-08-04 · status: direction approved via mockups (`mockups/detail-orientation/7-marquee-quiet`, gitignored — keep until implemented)*
 
+> **Revised again 2026-08-05 — see
+> [TV Modal Auto-Orient](2026-08-05-tv-modal-auto-orient-design.md).** The
+> "All seasons collapsed by default" and "Auto-scroll" sections below no
+> longer hold: once the orientation block became sticky, opening mid-list
+> stopped costing the hero, so the season holding the next episode opens
+> expanded and the document opens scrolled to that episode. Everything else
+> here still stands.
+
 > **Revised 2026-08-05 after live use.** The marquee + subline block
 > described below was shipped, then removed as redundant: the Play
 > button's own label already names the next episode, and the subline's

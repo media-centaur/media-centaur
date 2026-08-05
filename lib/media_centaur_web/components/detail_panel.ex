@@ -86,9 +86,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         "pattern-matches on — no tuple ADTs, no shape-guessing inside the component."
 
   def detail_panel(assigns) do
-    # Seasons render collapsed unless the user expanded them — the hero
-    # orientation block (marquee + hairline + subline) answers "where am
-    # I", so nothing auto-expands (2026-08-04 orientation design).
+    # Which seasons render open is the host modal's call — it seeds the
+    # set from `Orientation.initial_expanded_seasons/1` on selection and
+    # then owns it through toggle_season (2026-08-05 auto-orient design).
     expanded_seasons = assigns.expanded_seasons || MapSet.new()
 
     orientation =
@@ -116,6 +116,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:expanded_episode_details, assigns.expanded_episode_details || MapSet.new())
       |> assign(:orientation, orientation)
       |> assign(:season_fraction, orientation && Orientation.season_fraction(orientation))
+      |> assign(:autoscroll_resume?, autoscroll_resume?(orientation))
       |> assign(
         :block_backdrop_url,
         assigns.available &&
@@ -264,6 +265,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         class="detail-content-slab px-4 pb-5"
         phx-hook="ScrollToResume"
         data-entity-id={@entity.id}
+        data-scroll-to-resume={@autoscroll_resume? || nil}
       >
         <%= case @detail_view do %>
           <% :credits -> %>
@@ -296,6 +298,23 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     </div>
     """
   end
+
+  # Whether the detail document opens scrolled to its resume target —
+  # the sole signal the `ScrollToResume` hook reads.
+  #
+  # TV asks `Orientation`: an unstarted series expands season 1 but has
+  # no position to return to, so it must not scroll even though its E1
+  # row still carries `data-resume-target` (that attribute drives the
+  # next-up highlight, so it can't double as the scroll signal).
+  #
+  # Everything else answers true, matching the behaviour that was
+  # implicit before this flag existed — a movie-series with nothing
+  # watched renders no target row, so the hook finds nothing to scroll
+  # to. The default lives here rather than in a view model because
+  # movie-series has no `SeriesDetail` equivalent yet; when it gets one
+  # (playable-item-versions campaign), this derivation moves there.
+  defp autoscroll_resume?(%Orientation{} = orientation), do: Orientation.autoscroll?(orientation)
+  defp autoscroll_resume?(nil), do: true
 
   # --- Header content builders (used in detail_panel/1) ---
 

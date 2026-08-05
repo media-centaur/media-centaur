@@ -3,10 +3,12 @@ defmodule MediaCentaurWeb.ViewModel.Orientation do
   Series orientation for the TV detail hero: which episode is next and
   how far through the current season.
 
-  One value, computed once. Its only rendered trace is the hero's
-  season hairline (`season_fraction/1`) — a marquee/subline block was
-  tried and removed as redundant with the Play button's own label
-  (2026-08-05). Season and series counts derive from the same
+  One value, three projections: the hero's season hairline
+  (`season_fraction/1`), which season the accordion opens with
+  (`initial_expanded_seasons/1`), and whether the document opens
+  scrolled to the next episode (`autoscroll?/1`). A marquee/subline
+  block was a fourth, tried and removed as redundant with the Play
+  button's own label (2026-08-05). Season and series counts derive from the same
   `SeasonView.watched_count`/`total_count` the accordion headers render,
   so the hero and the season rows can never disagree. `:future` seasons
   (TMDB-known, no library files) are excluded from all counts — you
@@ -89,6 +91,32 @@ defmodule MediaCentaurWeb.ViewModel.Orientation do
     do: watched / total
 
   def season_fraction(%__MODULE__{}), do: 0.0
+
+  @doc """
+  Season numbers the accordion opens with on load — the one holding the
+  next episode, or none when there is no next episode (a completed
+  series opens as a compact rewatch index).
+
+  Season expansion and the scroll landing are the same "where am I"
+  question the hairline answers, so both derive from here rather than
+  re-reading the resume target (2026-08-05 auto-orient design; this
+  replaces the blanket collapse of 2026-08-04).
+  """
+  @spec initial_expanded_seasons(t()) :: MapSet.t(non_neg_integer())
+  def initial_expanded_seasons(%__MODULE__{season: %{number: number}}), do: MapSet.new([number])
+  def initial_expanded_seasons(%__MODULE__{}), do: MapSet.new()
+
+  @doc """
+  Whether the detail document should open scrolled to the next episode.
+
+  True only mid-series. An unstarted series has a *first* episode, not a
+  next one — there is no position to return to, so it opens on the hero
+  with season 1 expanded underneath. A completed series expands nothing
+  and so has nothing to scroll to.
+  """
+  @spec autoscroll?(t()) :: boolean()
+  def autoscroll?(%__MODULE__{state: :in_progress, season: %{}}), do: true
+  def autoscroll?(%__MODULE__{}), do: false
 
   # --- Derivation ---
 
