@@ -277,6 +277,55 @@ defmodule MediaCentaur.LibraryTest do
              "Query count should not grow with TV series count (N+1 detected). " <>
                "Baseline (1 series) = #{baseline}, expanded (10 series) = #{expanded}"
     end
+
+    test "finished series do not consume the limit and starve unfinished ones" do
+      # The SQL `limit` used to be applied before the completed-series test,
+      # which ran in Elixir afterwards. Six finished series ordered ahead of
+      # the unfinished one would fill the fetcher's window and then all be
+      # rejected, so Continue Watching rendered short — the row's whole job
+      # is to surface the thing you haven't finished.
+      now = DateTime.utc_now()
+
+      # Six series with exactly one episode each, all of it watched — the
+      # file is linked through the episode's own PlayableItem so no synthetic
+      # unwatched episode is created alongside it.
+      for index <- 1..6 do
+        series = create_tv_series(%{name: "Finished #{index}"})
+        season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
+        episode = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
+        playable_item = create_playable_item_for_episode(episode)
+        record_present(create_linked_file(%{playable_item_id: playable_item.id}))
+
+        create_watch_progress(%{
+          episode_id: episode.id,
+          position_seconds: 60.0,
+          duration_seconds: 60.0,
+          completed: true,
+          last_watched_at: DateTime.add(now, -index, :minute)
+        })
+      end
+
+      # One series watched less recently than all six, with an episode left.
+      unfinished = create_tv_series(%{name: "Still Going"})
+      season = create_season(%{tv_series_id: unfinished.id, season_number: 1, name: "S1"})
+      watched = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
+      unwatched = create_episode(%{season_id: season.id, episode_number: 2, name: "S1E2"})
+      watched_item = create_playable_item_for_episode(watched)
+      _unwatched_item = create_playable_item_for_episode(unwatched)
+      record_present(create_linked_file(%{playable_item_id: watched_item.id}))
+
+      create_watch_progress(%{
+        episode_id: watched.id,
+        position_seconds: 60.0,
+        duration_seconds: 60.0,
+        completed: true,
+        last_watched_at: DateTime.add(now, -10, :minute)
+      })
+
+      names = Enum.map(Library.list_in_progress(limit: 3), & &1.entity_name)
+
+      assert "Still Going" in names
+    end
   end
 
   defp seed_in_progress_tv_series(count, episodes_per_series, opts \\ []) do

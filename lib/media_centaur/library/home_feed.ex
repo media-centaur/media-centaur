@@ -294,7 +294,11 @@ defmodule MediaCentaur.Library.HomeFeed do
     end
   end
 
-  # Fetches TV series that have at least one incomplete episode WatchProgress record.
+  # Fetches TV series the user has started but not finished.
+  #
+  # Both halves of "in progress" are tested in SQL, before `limit`. The
+  # unfinished test used to run in Elixir after the fetch, so a window full
+  # of finished series was fetched, rejected, and left the row short.
   defp fetch_in_progress_tv_series(limit) do
     series_list =
       from(t in TVSeries,
@@ -309,6 +313,28 @@ defmodule MediaCentaur.Library.HomeFeed do
               join: s in "library_seasons",
               on: s.id == ep.season_id,
               where: s.tv_series_id == parent_as(:series).id,
+              select: 1
+            )
+          ),
+        where:
+          exists(
+            from(ep in "library_episodes",
+              as: :episode,
+              join: s in "library_seasons",
+              on: s.id == ep.season_id,
+              where: s.tv_series_id == parent_as(:series).id,
+              where:
+                not exists(
+                  from(wp in WatchProgress,
+                    join: pi in PlayableItem,
+                    on: pi.id == wp.playable_item_id,
+                    where:
+                      pi.container_type == ^:episode and
+                        pi.container_id == parent_as(:episode).id and
+                        wp.completed == true,
+                    select: 1
+                  )
+                ),
               select: 1
             )
           ),
@@ -480,6 +506,29 @@ defmodule MediaCentaur.Library.HomeFeed do
               join: m in Movie,
               on: m.id == pi.container_id and pi.container_type == ^:movie,
               where: m.movie_series_id == parent_as(:item).id,
+              select: 1
+            )
+          ),
+        # Same reason as the TV fetcher: the not-finished test must run
+        # before `limit`, or a window of finished collections is fetched,
+        # rejected in Elixir, and the row comes back short (or empty).
+        where:
+          exists(
+            from(m in Movie,
+              as: :child_movie,
+              where: m.movie_series_id == parent_as(:item).id,
+              where:
+                not exists(
+                  from(wp in WatchProgress,
+                    join: pi in PlayableItem,
+                    on: pi.id == wp.playable_item_id,
+                    where:
+                      pi.container_type == ^:movie and
+                        pi.container_id == parent_as(:child_movie).id and
+                        wp.completed == true,
+                    select: 1
+                  )
+                ),
               select: 1
             )
           ),
