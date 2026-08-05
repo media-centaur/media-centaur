@@ -118,14 +118,14 @@ defmodule MediaCentaurWeb.Components.ModalShell do
               hides behind the opaque backing anyway. --%>
       <div :if={@entity} class="modal-page-atmosphere z-0" aria-hidden="true"></div>
       <%!-- Single scroll surface for the entire detail document. Only the
-              content (and its slab dim) scrolls; backdrop and atmosphere
+              content (and its sheet) scrolls; backdrop and atmosphere
               stay put. .modal-detail-scroll owns the rail treatment:
               stable gutter (no re-flow when the scrollbar appears), track
               painted to the shim tone. See the app.css comment. --%>
       <div
         :if={@entity}
         id="detail-scrollport"
-        phx-hook="ScrollRailWidth"
+        phx-hook="DetailScrollGeometry"
         class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative z-[1] modal-detail-scroll"
       >
         <div class="modal-page-content">
