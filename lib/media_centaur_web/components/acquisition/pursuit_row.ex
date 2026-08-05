@@ -87,7 +87,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
             </div>
             <div
               :if={is_nil(@download)}
-              class={"mt-1 text-xs [text-shadow:0_1px_3px_oklch(0%_0_0/0.5)] #{PursuitStyle.severity_text_class(@vm.status.severity)}"}
+              class={"mt-1 text-xs text-on-image #{PursuitStyle.severity_text_class(@vm.status.severity)}"}
             >
               {@vm.status.verb} — {@vm.status.description}
             </div>

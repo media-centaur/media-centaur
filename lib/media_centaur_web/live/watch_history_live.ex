@@ -5,8 +5,9 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
   """
   use MediaCentaurWeb, :live_view
 
-  alias MediaCentaur.{Format, WatchHistory}
+  alias MediaCentaur.WatchHistory
   alias MediaCentaur.WatchHistory.Views, as: WatchHistoryViews
+  alias MediaCentaurWeb.LibraryFormatters
 
   @page_size 50
 
@@ -298,8 +299,11 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
             <span class="text-xs text-base-content/40 whitespace-nowrap shrink-0">
               {format_completed_at(event.completed_at)}
             </span>
-            <span class="text-xs text-base-content/40 whitespace-nowrap shrink-0 tabular-nums w-14 text-right">
-              {Format.format_seconds(round(event.duration_seconds))}
+            <%!-- `Xh Ym`, the app-wide duration vocabulary (UIDR-004). The
+                  clock-style `Format.format_seconds/1` belongs to player
+                  overlays, where a scrub position is the point. --%>
+            <span class="text-xs text-base-content/40 whitespace-nowrap shrink-0 tabular-nums w-16 text-right">
+              {LibraryFormatters.format_human_duration(round(event.duration_seconds))}
             </span>
             <.button
               variant="destructive_inline"
@@ -307,7 +311,8 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
               class="text-base-content/30 hover:text-error opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
               phx-click="remove_event"
               phx-value-id={event.id}
-              tabindex="-1"
+              data-confirm="Remove this from your watch history?"
+              tabindex="0"
               aria-label="Remove from history"
             >
               <.icon name="hero-x-mark-mini" class="size-3" />

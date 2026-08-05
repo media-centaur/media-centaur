@@ -1005,7 +1005,7 @@ defmodule MediaCentaurWeb.IncomingLive do
                 <div
                   :if={draft.backdrop_url}
                   aria-hidden="true"
-                  class="absolute inset-0 pointer-events-none bg-gradient-to-r from-[oklch(13%_0.02_264/0.92)] via-[oklch(13%_0.02_264/0.72)] to-[oklch(13%_0.02_264/0.30)]"
+                  class="absolute inset-0 pointer-events-none image-scrim-r"
                 >
                 </div>
                 <span class="absolute top-2 left-3 text-[10px] uppercase tracking-wider text-base-content/40 z-[1]">
@@ -1013,7 +1013,7 @@ defmodule MediaCentaurWeb.IncomingLive do
                 </span>
                 <div class="min-w-0 flex-1 pt-3 relative z-[1]">
                   <p class="identity-logotype truncate text-base leading-tight">{draft.title}</p>
-                  <p class="text-xs text-info/90 mt-1 [text-shadow:0_1px_3px_oklch(0%_0_0/0.5)]">
+                  <p class="text-xs text-info/90 mt-1 text-on-image">
                     {if draft.status == "planning",
                       do: "Planning…",
                       else: "Plan ready — review and approve"}
