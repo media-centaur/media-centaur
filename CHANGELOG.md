@@ -4,6 +4,14 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.114.0 — 2026-08-05
+
+### Improved
+
+- **The series page darkens behind the scrolling episode list.** As you scroll, a subtle darkening rises with the content, so episode rows and the show's description stay readable even over bright artwork — including as they pass across the lightest parts of the backdrop. At rest, the artwork shows through untouched.
+- **The pinned header no longer flashes or drifts.** The artwork, title, and play controls that stay pinned while the episode list scrolls now blend seamlessly with the backdrop behind them: pinning is instant with no flicker, the imagery no longer doubles or shifts at any window size, and the transition into the pinned state is invisible.
+- **Collapsed seasons no longer leave empty space.** A series page with its seasons collapsed now sizes itself to its content instead of reserving a full-height panel of blank space.
+
 ## v0.113.0 — 2026-08-05
 
 ### Improved
