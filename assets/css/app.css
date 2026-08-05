@@ -590,6 +590,15 @@ body:has(.modal-backdrop[data-state="open"]) {
     rgb(15 17 22 / 0.78) 20rem,
     rgb(15 17 22 / 0.78) 100%
   );
+  /* How far the sheet's box reaches ABOVE #detail-content's row flow —
+     up behind the orientation block's metadata/synopsis section. The
+     block's pre-pin travel crosses the backdrop's bright upper region
+     (above the atmosphere's vertical scrim), and without the reach the
+     synopsis rides over raw imagery there. Consumed by BOTH sheet
+     copies (content margin/padding pair and the replica's anchor) plus
+     the DetailScrollGeometry hook's pin-scroll correction — one value,
+     three couplings. */
+  --detail-sheet-reach: 8rem;
   border-radius: 0.75rem;
   overflow: hidden;
   background-color: var(--color-base-100);
@@ -812,8 +821,18 @@ body:has(.modal-backdrop[data-state="open"]) {
    two-stop linear ramp: a linear ramp has derivative discontinuities
    at both ends, and the eye amplifies those into visible lines (Mach
    bands) riding with the content. Eased stops (zero slope at both
-   ends) spread the same total darkening with no perceptible edge. */
+   ends) spread the same total darkening with no perceptible edge.
+
+   The margin/padding pair extends the box UP by --detail-sheet-reach
+   without moving the rows: the gradient's zero-point starts behind the
+   orientation block's synopsis section (which paints above at z-20),
+   so the darkening keeps that text readable during the pre-pin travel
+   across the backdrop's bright upper region. The negative margin
+   shifts #detail-content's offsetTop, so DetailScrollGeometry adds the
+   measured margin back when deriving the block's in-flow position. */
 .detail-content-sheet {
+  margin-top: calc(-1 * var(--detail-sheet-reach));
+  padding-top: var(--detail-sheet-reach);
   background: var(--detail-sheet);
 }
 
@@ -826,13 +845,14 @@ body:has(.modal-backdrop[data-state="open"]) {
    to the outside).
 
    Geometry that makes it exact:
-   - The element anchors its gradient zero-point at the block's bottom
-     edge (backing box bottom − 2rem). Pre-pin, block and content move
-     together, so in block coordinates the real sheet's top edge is
-     ALWAYS at the block's bottom — the replica needs no motion, and it
-     is invisible anyway (the backing's opacity gates it), contributing
-     zero pixels at the pin flip. The instant-flip invariant holds
-     untouched.
+   - The element anchors its gradient zero-point --detail-sheet-reach
+     above the block's bottom edge (backing box bottom − 2rem − reach),
+     because the real sheet's box reaches that far up behind the block.
+     Pre-pin, block and content move together, so in block coordinates
+     the real sheet's top edge is ALWAYS at that anchor — the replica
+     needs no motion, and it is invisible anyway (the backing's opacity
+     gates it), contributing zero pixels at the pin flip. The
+     instant-flip invariant holds untouched.
    - Post-pin, the content moves while the block doesn't: required
      translation is exactly −(scrollTop − pinScroll). The keyframes run
      translateY 0 → −2000px over an animation-range of the same length,
@@ -850,7 +870,7 @@ body:has(.modal-backdrop[data-state="open"]) {
    #detail-content top edge while pinned). */
 .orientation-backing-sheet {
   position: absolute;
-  top: calc(100% - 2rem);
+  top: calc(100% - 2rem - var(--detail-sheet-reach));
   left: 0;
   right: 0;
   height: 3000px;
