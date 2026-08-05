@@ -542,6 +542,54 @@ body:has(.modal-backdrop[data-state="open"]) {
      see `.orientation-backing-image`. */
   --modal-panel-h: calc((100vh - 200px) / var(--ui-scale, 1));
   max-height: var(--modal-panel-h);
+  /* ── Sub-row layer gradients ──
+     Every darkening layer under the detail document's rows paints
+     twice: the real copy (panel- or content-anchored) and its replica
+     inside the pinned orientation block's backing
+     (`.orientation-backing-*`). The pinned-block illusion requires each
+     pair to be IDENTICAL, so each gradient is declared once here and
+     consumed twice — identity is structural, not a comment-discipline
+     promise. Layers in paint order:
+
+     backdrop-fade — the backdrop image's fade into base-100, so the
+       dense lower panel resolves to a clean surface.
+     atmosphere — left-side weight + vertical scrim settling to a
+       constant dim; panel-fixed (see `.modal-page-atmosphere`).
+     sheet — the list's darkening, glued to the scroll (consumed by
+       `.detail-content-sheet` and `.orientation-backing-sheet`).
+       #0f1116 = base-100, kept in literal rgb so the alpha ramp stays
+       exact. */
+  --detail-backdrop-fade: linear-gradient(
+    to bottom,
+    transparent 0%,
+    transparent 45%,
+    oklch(from var(--color-base-100) l c h / 0.55) 75%,
+    var(--color-base-100) 100%
+  );
+  --detail-atmosphere:
+    linear-gradient(
+      to right,
+      oklch(0% 0 0 / 0.50) 0%,
+      transparent 35%,
+      transparent 100%
+    ),
+    linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(12 * var(--pvh)),
+      oklch(0% 0 0 / 0.55) calc(36 * var(--pvh)),
+      oklch(0% 0 0 / 0.55) 100%
+    );
+  --detail-sheet: linear-gradient(
+    to bottom,
+    rgb(15 17 22 / 0) 0,
+    rgb(15 17 22 / 0.09) 4rem,
+    rgb(15 17 22 / 0.28) 8rem,
+    rgb(15 17 22 / 0.50) 12rem,
+    rgb(15 17 22 / 0.69) 16rem,
+    rgb(15 17 22 / 0.78) 20rem,
+    rgb(15 17 22 / 0.78) 100%
+  );
   border-radius: 0.75rem;
   overflow: hidden;
   background-color: var(--color-base-100);
@@ -605,6 +653,10 @@ body:has(.modal-backdrop[data-state="open"]) {
      just the rail. */
   scrollbar-color: oklch(from var(--color-base-content) l c h / 0.15) #0f1116;
   scroll-padding: 1rem;
+  /* Named timeline for the backing's sheet replica — explicit rather
+     than scroll(nearest) so an intermediate overflow box can never
+     silently capture the binding. */
+  scroll-timeline-name: --detail-scroll;
 }
 
 /* ── Detail orientation block ──
@@ -661,7 +713,7 @@ body:has(.modal-backdrop[data-state="open"]) {
      also lands this box's top edge exactly at the panel's top edge
      while stuck (block top = scrollport top + pin inset). Extends right
      by the reserved scrollbar gutter (`--modal-rail-w`, published by
-     the ScrollRailWidth hook) because the panel backdrop runs under the
+     the DetailScrollGeometry hook) because the panel backdrop runs under the
      rail while this block, living inside the scroller, stops short of
      it. */
   inset: calc(-1 * var(--orientation-pin-inset)) calc(-1 * var(--modal-rail-w, 0px))
@@ -709,40 +761,21 @@ body:has(.modal-backdrop[data-state="open"]) {
   left: 0;
   width: 100%;
   height: calc(var(--modal-panel-h, 100vh) * 0.7);
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    transparent 45%,
-    oklch(from var(--color-base-100) l c h / 0.55) 75%,
-    var(--color-base-100) 100%
-  );
+  background: var(--detail-backdrop-fade);
 }
 
-/* Verbatim replica of `.modal-page-atmosphere` (keep the two
-   backgrounds textually identical). The atmosphere is panel-fixed and
-   this box's top edge sits at the panel's top edge while stuck, so the
-   same absolute (`--pvh`) stops paint the same pixels — the backing
-   equals its surroundings at every pinned depth, which is what makes
-   the instant on/off flip invisible. No tone of its own (an earlier
-   flat 0.85 shim visibly darkened the block on pin); the dim's only
-   job is to match what the atmosphere already painted. */
+/* Replica of `.modal-page-atmosphere` (same var, so identical by
+   construction). The atmosphere is panel-fixed and this box's top edge
+   sits at the panel's top edge while stuck, so the same absolute
+   (`--pvh`) stops paint the same pixels — the backing equals its
+   surroundings at every pinned depth, which is what makes the instant
+   on/off flip invisible. No tone of its own (an earlier flat 0.85 shim
+   visibly darkened the block on pin); the dim's only job is to match
+   what the atmosphere already painted. */
 .orientation-backing-dim {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(
-      to right,
-      oklch(0% 0 0 / 0.50) 0%,
-      transparent 35%,
-      transparent 100%
-    ),
-    linear-gradient(
-      to bottom,
-      transparent 0,
-      transparent calc(12 * var(--pvh)),
-      oklch(0% 0 0 / 0.55) calc(36 * var(--pvh)),
-      oklch(0% 0 0 / 0.55) 100%
-    );
+  background: var(--detail-atmosphere);
 }
 
 @container scroll-state(stuck: top) {
@@ -751,32 +784,93 @@ body:has(.modal-backdrop[data-state="open"]) {
   }
 }
 
-/* Rising slab: the content region carries its own darkening with it —
-   scrolling raises a translucent #0f1116 wash from below that covers
-   the fixed backdrop just enough to make row text pop, as part of the
-   scroll motion rather than any state change. This is the ONLY
-   darkening layer — the earlier stuck-state veil was removed as a
-   fundamentally wrong model (it materialized on pin instead of riding
-   the scroll).
+/* The sheet: the list's darkening — the content region's own
+   background, glued to the scroll by construction. A translucent wash
+   that rises 1:1 with the scroll over the fixed backdrop, as part of
+   the scroll motion, never a state change (an earlier stuck-state veil
+   and a block-attached shade both died for materializing darkness that
+   didn't ride the scroll). Rows paint on top of it, so it darkens the
+   imagery behind them, not the rows. Behind the pinned block the
+   backing repaints it (`.orientation-backing-sheet`, same gradient
+   var) so the sheet appears to slide up behind the lockup while the
+   rows vanish.
 
-   The top ramp is smoothstep-eased across intermediate stops, not a
+   WHY a background and not a panel-level animated layer: a revision
+   tried promoting the sheet to a panel-owned element (sibling of the
+   atmosphere, scroll-driven translateY, both copies sharing one
+   declaration in panel coordinates). Chromium's compositor then
+   painted the ENTIRE scroller's contents ~120px above their layout
+   positions at deep scroll — lockup cropped above the panel, void
+   below the last row — while getBoundingClientRect reported everything
+   correct. The corruption appeared with the panel-level animated child
+   present (any size ≥ ~3000px, animation active or not) and vanished
+   with it hidden; the in-scroller replica never triggered it. Paint
+   and layout must agree, so the real sheet stays a plain background
+   and only the replica (safe) uses the scroll timeline.
+
+   The ramp is smoothstep-eased across intermediate stops, not a
    two-stop linear ramp: a linear ramp has derivative discontinuities
    at both ends, and the eye amplifies those into visible lines (Mach
-   bands). Over the bright backdrop the end-stop line read as a
-   distinct dark bar riding up and down with the content. Eased stops
-   (zero slope at both ends) spread the same total darkening with no
-   perceptible edge. */
-.detail-content-slab {
-  background: linear-gradient(
-    to bottom,
-    rgb(15 17 22 / 0) 0,
-    rgb(15 17 22 / 0.09) 4rem,
-    rgb(15 17 22 / 0.28) 8rem,
-    rgb(15 17 22 / 0.50) 12rem,
-    rgb(15 17 22 / 0.69) 16rem,
-    rgb(15 17 22 / 0.78) 20rem,
-    rgb(15 17 22 / 0.78) 100%
-  );
+   bands) riding with the content. Eased stops (zero slope at both
+   ends) spread the same total darkening with no perceptible edge. */
+.detail-content-sheet {
+  background: var(--detail-sheet);
+}
+
+/* Sheet replica: the backing's copy of the content sheet. The sheet is
+   content-anchored — it rises 1:1 with the scroll — so unlike the
+   panel-fixed replicas above it cannot just sit still; it must MOVE
+   like the content while living in the block's stacking context (above
+   the opaque backing, below the block's text — a depth no content-flow
+   element can reach, because the block is one atomic stacking context
+   to the outside).
+
+   Geometry that makes it exact:
+   - The element anchors its gradient zero-point at the block's bottom
+     edge (backing box bottom − 2rem). Pre-pin, block and content move
+     together, so in block coordinates the real sheet's top edge is
+     ALWAYS at the block's bottom — the replica needs no motion, and it
+     is invisible anyway (the backing's opacity gates it), contributing
+     zero pixels at the pin flip. The instant-flip invariant holds
+     untouched.
+   - Post-pin, the content moves while the block doesn't: required
+     translation is exactly −(scrollTop − pinScroll). The keyframes run
+     translateY 0 → −2000px over an animation-range of the same length,
+     which makes the rate exactly 1:1 by construction; the phase
+     (`--detail-pin-scroll`) is measured layout, published by the
+     DetailScrollGeometry hook. The 999999px fallback keeps the replica
+     parked (no darkening behind the block) if the hook hasn't
+     published.
+   - The 2000px clamp is invisible: after ~(box height + ramp) of
+     post-pin travel the plateau covers the whole clip window, and a
+     frozen plateau equals a moving one. Element height covers the
+     deepest translate plus the box.
+
+   Verified by `detail-backdrop.spec.js` (replica top edge ==
+   #detail-content top edge while pinned). */
+.orientation-backing-sheet {
+  position: absolute;
+  top: calc(100% - 2rem);
+  left: 0;
+  right: 0;
+  height: 3000px;
+  background: var(--detail-sheet);
+  animation-name: orientation-sheet-rise;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+  animation-timeline: --detail-scroll;
+  animation-range: var(--detail-pin-scroll, 999999px)
+    calc(var(--detail-pin-scroll, 999999px) + 2000px);
+}
+
+@keyframes orientation-sheet-rise {
+  from {
+    transform: translateY(0);
+  }
+
+  to {
+    transform: translateY(-2000px);
+  }
 }
 
 /* ── Modal page-level backdrop ──
@@ -808,13 +902,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    transparent 45%,
-    oklch(from var(--color-base-100) l c h / 0.55) 75%,
-    var(--color-base-100) 100%
-  );
+  background: var(--detail-backdrop-fade);
 }
 
 /* Keep the detail scroller's scrollbar alive whenever the panel is at

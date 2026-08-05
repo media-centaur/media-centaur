@@ -47,25 +47,33 @@ const liveSocket = new LiveSocket("/live", Socket, {
     MouseAutofocus,
     FlashAutoDismiss,
     SidebarTooltip,
-    // The pinned orientation block repaints the panel backdrop as its own
-    // opaque backing, and the two copies must cover an identical box or
-    // they drift apart (same image, two `cover` scales, both anchored
-    // top-left — visible as a ghosted second image toward the right edge).
-    // The block lives inside this scroller, so it is narrower than the
-    // panel by the reserved scrollbar gutter, while the panel backdrop
-    // deliberately extends under that gutter so the rail sits over the
-    // picture. CSS cannot read its own scrollbar width, so publish it and
-    // let `.orientation-backing` add it back.
-    ScrollRailWidth: {
+    // Publishes the detail scroller's measured geometry as CSS vars for
+    // the pinned orientation block's backing replicas — layout facts CSS
+    // cannot read about itself:
+    //
+    // --modal-rail-w: the reserved scrollbar gutter. The block lives
+    //   inside this scroller, so it is narrower than the panel by the
+    //   gutter, while the panel backdrop deliberately extends under it so
+    //   the rail sits over the picture. The backing's clip window adds
+    //   the gutter back, or the two backdrop copies cover different boxes
+    //   and drift apart (same image, two `cover` scales — visible as a
+    //   ghosted second image toward the right edge).
+    //
+    // --detail-pin-scroll: the scroll offset at which the block pins
+    //   (its in-flow top reaches the pin inset). Phases the backing's
+    //   sheet replica: post-pin the content sheet keeps moving while the
+    //   block doesn't, so the replica translates by −(scroll − pin) — a
+    //   scroll-driven animation whose range starts here.
+    DetailScrollGeometry: {
       mounted() {
-        this._publish()
         this._ro = new ResizeObserver(() => this._publish())
-        this._ro.observe(this.el)
+        this._observed = new Set()
+        this._publish()
       },
-      // The var lives in a client-written inline style, and morphdom syncs
+      // The vars live in a client-written inline style, and morphdom syncs
       // patched elements back to the server-rendered markup (which has no
       // style attribute) — so any LiveView patch that touches the scroller
-      // (e.g. a season toggle) silently wipes it, and the ResizeObserver
+      // (e.g. a season toggle) silently wipes them, and the ResizeObserver
       // never re-fires because nothing resized. Re-assert after every
       // patch. Regression: collapse+re-expand a season left the backing
       // 14px (one rail) narrower than the panel backdrop.
@@ -75,10 +83,40 @@ const liveSocket = new LiveSocket("/live", Socket, {
       destroyed() {
         if (this._ro) this._ro.disconnect()
       },
+      // Observe once per node (re-observing would re-fire the initial
+      // delivery and loop). The scroller catches viewport/panel resizes;
+      // the content wrapper catches in-flow growth the scroller can't
+      // see (late-loading lockup imagery, list changes), so the
+      // published geometry never goes stale between resizes.
+      _observe(el) {
+        if (el && !this._observed.has(el)) {
+          this._observed.add(el)
+          this._ro.observe(el)
+        }
+      },
       _publish() {
-        // Layout pixels on both sides — safe to hand straight to CSS.
+        this._observe(this.el)
+        this._observe(this.el.querySelector(".modal-page-content"))
+        // Layout pixels throughout (offsetTop/offsetHeight/computed
+        // `top`, never getBoundingClientRect) — the UI runs under a
+        // root zoom, and rects come back in visual pixels.
         const rail = this.el.offsetWidth - this.el.clientWidth
         this.el.style.setProperty("--modal-rail-w", `${rail}px`)
+
+        const block = this.el.querySelector("[data-role='detail-orientation']")
+        const content = this.el.querySelector("#detail-content")
+        if (!block || !content) return
+        // The block's in-flow position can't be read off the block itself
+        // (sticky offsets shift offsetTop while stuck), but the content
+        // region below it is never sticky: block in-flow top = content
+        // top − block height, both stable at any scroll depth.
+        let contentTop = 0
+        for (let el = content; el && el !== this.el; el = el.offsetParent) {
+          contentTop += el.offsetTop
+        }
+        const pinInset = parseFloat(getComputedStyle(block).top) || 0
+        const pinScroll = contentTop - block.offsetHeight - pinInset
+        this.el.style.setProperty("--detail-pin-scroll", `${Math.max(0, pinScroll)}px`)
       }
     },
     ScrollToResume: {

@@ -36,6 +36,7 @@ async function measureBoxes(page) {
       pinned: Math.abs(b.top - (s.top + pinInset)) < 2,
       scrollTop: scroller.scrollTop,
       railPublished: getComputedStyle(scroller).getPropertyValue("--modal-rail-w").trim(),
+      pinScrollPublished: getComputedStyle(scroller).getPropertyValue("--detail-pin-scroll").trim(),
       railMeasured: scroller.offsetWidth - scroller.clientWidth,
       dx: i.left - p.left,
       dy: i.top - p.top,
@@ -87,8 +88,15 @@ async function openPinnableTvDetail(page) {
         const img = document.querySelector(
           '#detail-modal[data-state="open"] .modal-page-backdrop img'
         )
+        // The orientation block's images (logo lockup, backing clone)
+        // must also be settled: a logo finishing after sampling grows
+        // the block and shifts every measured offset below it.
+        const blockImgs = [...document.querySelectorAll(
+          '#detail-modal[data-state="open"] .detail-orientation img'
+        )]
         return img && img.complete && img.naturalWidth > 0 &&
-          !!document.querySelector(".orientation-backing-image")
+          !!document.querySelector(".orientation-backing-image") &&
+          blockImgs.every((i) => i.complete)
       }, { timeout: 3000 })
       .then(() => true)
       .catch(() => false)
@@ -130,6 +138,39 @@ test.describe("detail pinned-backdrop geometry", () => {
     expect(boxes.railPublished).toBe(`${boxes.railMeasured}px`)
   })
 
+  test("backing sheet replica tracks the content edge while pinned", async ({ page }) => {
+    if (!(await openPinnableTvDetail(page))) { test.skip(); return }
+
+    // The hook publishes the scroll offset at which the block pins; the
+    // sheet replica's rise is phased from it.
+    const pinScroll = await page.evaluate(() => {
+      const scroller = document.querySelector("#detail-scrollport")
+      return parseFloat(getComputedStyle(scroller).getPropertyValue("--detail-pin-scroll"))
+    })
+    expect(pinScroll).toBeGreaterThan(0)
+
+    // The illusion's invariant: the replica's top edge must coincide with
+    // the real sheet's top edge (= #detail-content's top, whose
+    // background IS the sheet) at every pinned depth — one conceptual
+    // sheet, split across the backing boundary. Constant-free: compares
+    // two live rects.
+    for (const depth of [150, 500]) {
+      const delta = await page.evaluate(async ({ pinScroll, depth }) => {
+        const scroller = document.querySelector("#detail-scrollport")
+        scroller.scrollTop = pinScroll + depth
+        // Scroll-driven animations resolve on the frame after the scroll;
+        // two rAFs guarantee the transform is current before sampling.
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
+        const sheet = document.querySelector(".orientation-backing-sheet")
+        const content = document.querySelector("#detail-content")
+        if (!sheet || !content) return { missing: true }
+        return { dt: sheet.getBoundingClientRect().top - content.getBoundingClientRect().top }
+      }, { pinScroll, depth })
+      expect(delta.missing).toBeFalsy()
+      expect(Math.abs(delta.dt)).toBeLessThan(1)
+    }
+  })
+
   test("box equality survives season collapse + re-expand (morphdom patch)", async ({ page }) => {
     if (!(await openPinnableTvDetail(page))) { test.skip(); return }
 
@@ -163,5 +204,8 @@ test.describe("detail pinned-backdrop geometry", () => {
     const after = await measureBoxes(page)
     expectBoxEquality(after)
     expect(after.railPublished).toBe(`${after.railMeasured}px`)
+    // Both hook-published vars live in the same client-written inline
+    // style that morphdom wipes — re-assert covers the pin phase too.
+    expect(after.pinScrollPublished).not.toBe("")
   })
 })

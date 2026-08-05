@@ -182,6 +182,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           />
           <div class="orientation-backing-fade"></div>
           <div class="orientation-backing-dim"></div>
+          <%!-- Replica of the content sheet, translated with the scroll
+                so the darkening appears to slide up behind the lockup
+                while the rows vanish below — see
+                .orientation-backing-sheet in app.css. --%>
+          <div class="orientation-backing-sheet"></div>
         </div>
         <div class="px-6">
           <TitleLayer.lockup
@@ -276,7 +281,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       <div
         :if={@has_scrollable_content}
         id="detail-content"
-        class="detail-content-slab px-4 pb-5"
+        class="detail-content-sheet px-4 pb-5"
         phx-hook="ScrollToResume"
         data-entity-id={@entity.id}
         data-scroll-to-resume={@autoscroll_resume? || nil}
