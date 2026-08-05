@@ -124,16 +124,54 @@ body.media-centaur {
   background-attachment: fixed;
 }
 
-/* Global UI scale. `--ui-scale` is server-rendered onto <html> from the
-   `ui_scale` Setting (flash-free first paint) and updated live by the Settings
-   picker via the `phx:ui-scale` event. Applied at the document root so it
-   behaves like browser zoom — viewport units on fixed chrome (the 100vh
-   sidebar, modal clamps) resolve against the scaled root rather than an
-   ambiguous mid-tree ancestor. `zoom` (not transform) reflows layout and scales
-   every unit — rem-based Tailwind sizing and px-defined chrome alike — so the
-   whole shell grows uniformly. Defaults to 1, so storybook (which never sets
-   the property) renders unscaled. */
+/* Global UI scale — two factors with different owners, composed here.
+
+   `--auto-scale` (owned by the design): screen CSS-px width over the 1920px
+   reference width the app is composed at, set pre-paint by the inline head
+   script in root.html.heex. Every screen shows the intended composition
+   with no user setup — a 4K display at dPR 1 gets 2×, a 1080p TV 1×, an
+   OS-scaled hi-DPI laptop 1× (screen.width is CSS px, so OS scaling has
+   already been applied).
+
+   `--ui-scale-pref` (owned by the user): the Settings picker factor,
+   server-rendered onto <html> for a flash-free first paint and updated
+   live via the `phx:ui-scale` event. 100% means "as designed".
+
+   `--ui-scale` (effective): their product — the single value every
+   compensation idiom (`--pvh`, rect division in hooks) keeps reading.
+   Browser zoom composes on top of both untouched.
+
+   All three are registered `<number>` properties so `getComputedStyle`
+   returns a resolved number (hooks parseFloat it), not a calc() token
+   stream. Each defaults to 1, so storybook (which never sets them)
+   renders unscaled.
+
+   Applied at the document root so it behaves like browser zoom — viewport
+   units on fixed chrome (the 100vh sidebar, modal clamps) resolve against
+   the scaled root rather than an ambiguous mid-tree ancestor. `zoom` (not
+   transform) reflows layout and scales every unit — rem-based Tailwind
+   sizing and px-defined chrome alike — so the whole shell grows
+   uniformly. */
+@property --auto-scale {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
+@property --ui-scale-pref {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
+@property --ui-scale {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 1;
+}
+
 html {
+  --ui-scale: calc(var(--auto-scale) * var(--ui-scale-pref));
   zoom: var(--ui-scale, 1);
   /* One PHYSICAL viewport-height unit. `zoom` scales every rendered length
      but does NOT compensate viewport units — a bare `Nvh` renders at

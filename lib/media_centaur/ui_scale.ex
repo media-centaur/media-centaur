@@ -2,15 +2,27 @@ defmodule MediaCentaur.UIScale do
   use Boundary, deps: [MediaCentaur.Settings]
 
   @moduledoc """
-  Typed accessor for the `ui_scale` Settings entry — a global zoom factor
-  applied to the whole app shell (`#input-system { zoom: var(--ui-scale) }`).
+  Typed accessor for the `ui_scale` Settings entry — the user's **preference
+  factor** in the two-factor UI scale, where 1.0 means "as designed".
 
-  The Settings table is the single source of truth. First paint is flash-free
-  because `root.html.heex` server-renders `--ui-scale` from `cached_scale/0`;
-  live changes reach the open document through a `push_event` that sets the CSS
-  custom property without a reload (see `SettingsLive`'s `set_ui_scale`). The
-  custom property lives on `<html>`, which LiveView never tears down, so the
-  scale persists across live navigation between pages.
+  The effective shell zoom is composed in CSS (`html { zoom: --ui-scale }`,
+  see `assets/css/app.css`) as the product of two factors with different
+  owners:
+
+    * `--auto-scale` — owned by the design: screen width over the 1920 CSS px
+      reference width the app is composed at, computed pre-paint by the inline
+      head script in `root.html.heex`. Density correction is automatic; no
+      user setup.
+    * `--ui-scale-pref` — owned by the user: this setting, an accessibility /
+      taste multiplier on top of the intended size.
+
+  The Settings table is the single source of truth for the preference. First
+  paint is flash-free because `root.html.heex` server-renders
+  `--ui-scale-pref` from `cached_scale/0`; live changes reach the open
+  document through a `push_event` that sets the CSS custom property without a
+  reload (see `SettingsLive`'s `set_ui_scale`). The custom property lives on
+  `<html>`, which LiveView never tears down, so the scale persists across live
+  navigation between pages.
 
   The root layout renders on *every* page, so its read must never touch the
   database (ADR-041, `NoDbOnRenderTest`). `cached_scale/0` is therefore
@@ -40,8 +52,10 @@ defmodule MediaCentaur.UIScale do
 
   # Selectable steps shown in the Preferences picker, smallest → largest. The
   # clamp range is derived from this list, so the picker and `set/1` can never
-  # disagree about the bounds. 100% is the floor — sub-100% scales shipped
-  # briefly and read as broken on a TV, so stored legacy values clamp up.
+  # disagree about the bounds. 100% ("as designed") is the floor — the
+  # automatic factor already handles density, so shrinking below the intended
+  # size has no accessibility case and sub-100% options historically read as
+  # broken on a TV. Stored out-of-range values clamp into the list's bounds.
   @options [1.0, 1.1, 1.25, 1.5, 1.75, 2.0]
   @min Enum.min(@options)
   @max Enum.max(@options)

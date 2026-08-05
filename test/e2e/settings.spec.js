@@ -174,13 +174,17 @@ test.describe("interface scale picker", () => {
     // Leave the shared instance at 100% so a stuck scale doesn't zoom the
     // rest of the suite.
     await page.getByRole("button", { name: "100%", exact: true }).click()
+    // parseFloat: the value is "1.0" when server-rendered but "1" after the
+    // pushed event's JSON number goes through setProperty.
     await expect
       .poll(() =>
         page.evaluate(() =>
-          document.documentElement.style.getPropertyValue("--ui-scale"),
+          parseFloat(
+            document.documentElement.style.getPropertyValue("--ui-scale-pref"),
+          ),
         ),
       )
-      .toBe("1.0")
+      .toBe(1)
   })
 
   test("clicking a scale actually rescales the shell", async ({ page }) => {
@@ -188,18 +192,49 @@ test.describe("interface scale picker", () => {
 
     await page.getByRole("button", { name: "125%", exact: true }).click()
 
-    // User-visible effect: the whole shell scales via --ui-scale on <html>.
+    // The click lands as the preference factor on <html>…
     await expect
       .poll(() =>
         page.evaluate(() =>
-          document.documentElement.style.getPropertyValue("--ui-scale"),
+          parseFloat(
+            document.documentElement.style.getPropertyValue("--ui-scale-pref"),
+          ),
         ),
       )
-      .toBe("1.25")
+      .toBe(1.25)
+
+    // …and the effective scale the shell zooms by is auto × preference
+    // (both registered `<number>` properties, so computed style resolves
+    // the calc to a plain number).
+    const { auto, effective } = await page.evaluate(() => {
+      const styles = getComputedStyle(document.documentElement)
+      return {
+        auto: parseFloat(styles.getPropertyValue("--auto-scale")),
+        effective: parseFloat(styles.getPropertyValue("--ui-scale")),
+      }
+    })
+    expect(effective).toBeCloseTo(auto * 1.25, 5)
 
     // And the picker reflects the now-active option.
     await expect(
       page.locator('button[phx-click="set_ui_scale"][aria-pressed="true"]'),
     ).toHaveText("125%")
+  })
+
+  test("auto scale tracks the screen against the 1920px reference width", async ({
+    page,
+  }) => {
+    // The head script derives --auto-scale from screen.width (CSS px) over
+    // the 1920 reference, floored at 0.7 — no user input involved.
+    const { screenWidth, auto } = await page.evaluate(() => ({
+      screenWidth: screen.width,
+      auto: parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          "--auto-scale",
+        ),
+      ),
+    }))
+    const expected = Math.max(0.7, screenWidth / 1920)
+    expect(auto).toBeCloseTo(expected, 3)
   })
 })
