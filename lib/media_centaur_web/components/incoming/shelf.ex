@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
   Every row is `phx-click="select_event"` and a nav item; the zone is
   `coming_up_list` (a vertical MENU instance — the home pages keep the
   horizontal `coming_up` SHELF). Desktop rendering rules apply
-  (ADR-012): eager+sync art, stable iterator ids, no entrance
+  (UIDR-012): eager+sync art, stable iterator ids, no entrance
   animations.
   """
 

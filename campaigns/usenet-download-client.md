@@ -1,5 +1,6 @@
 ---
-status: implemented (2026-07-10 — MC-side P1–P3 built & committed same day as the reconciliation; remaining = wiki page + live smoke test once the user enters the SABnzbd API key)
+status: in-progress
+status_note: implemented (2026-07-10 — MC-side P1–P3 built & committed same day as the reconciliation; remaining = wiki page + live smoke test once the user enters the SABnzbd API key)
 started: 2026-05-31
 last_updated: 2026-07-10
 ---

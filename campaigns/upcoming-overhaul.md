@@ -1,5 +1,6 @@
 ---
-status: shipped — v0.94.0 (+ v0.94.1 backdrop/alignment polish)
+status: complete
+status_note: shipped — v0.94.0 (+ v0.94.1 backdrop/alignment polish)
 started: 2026-06-14
 last_updated: 2026-06-14
 ---

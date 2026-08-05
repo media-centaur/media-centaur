@@ -15,8 +15,8 @@ stall / zero-seeder observations — lives directly on the pursuit row,
 and idempotency is key-equality on the TMDB tuple
 `(tmdb_id, tmdb_type, season_number, episode_number)`.
 
-The media-search campaign
-([campaigns/media-search-tmdb-acquisition.md](../../campaigns/media-search-tmdb-acquisition.md))
+The media-search campaign (`campaigns/media-search-tmdb-acquisition.md`,
+completed and removed — see git history)
 requires pursuits that cover **many wanted things at once**: a
 brace-expanded file search (`Sample Show S01E{01-10}`) should be one
 pursuit with ten wanted units, and a future TMDB media search will

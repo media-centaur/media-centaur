@@ -13,7 +13,7 @@ description: "Use this skill before any UI work — LiveView templates, componen
 - **Live data feels alive.** Smooth real-time updates, quiet when idle.
 - **Inspiration:** Linear.app — clean, fast, focused, excellent dark mode.
 
-## Rendering Defaults ([ADR-012])
+## Rendering Defaults ([UIDR-012])
 
 Media Centaur is a specialized desktop app, not a public-internet web app. We trade memory and bandwidth (essentially free in this context) for instant perception. These rules apply to every UI surface unless explicitly justified otherwise:
 
@@ -82,7 +82,7 @@ Body has a fixed two-tone radial gradient background. Glass surfaces float above
 
 Every recipe below has a runnable counterpart in **Phoenix Storybook** at <http://localhost:1080/storybook> (dev-only). When adding a recipe, add a story; when changing a component that already has a story, **edit the story variation first** and treat it as the acceptance criterion before editing the component itself. See `storybook` skill → *Storybook-first for visual changes*.
 
-The full philosophy and triage table live at [`docs/storybook.md`](../../docs/storybook.md). The dedicated [`storybook`](../storybook/SKILL.md) skill covers conventions and anti-patterns.
+The full philosophy and triage table live at [`docs/storybook.md`](../../../docs/storybook.md). The dedicated [`storybook`](../storybook/SKILL.md) skill covers conventions and anti-patterns.
 
 **Story rule.** Story modules must live under `MediaCentaurWeb.Storybook.*` — that places them inside the `MediaCentaurWeb` boundary. The default `Storybook.*` namespace from the generator is wrong for this repo.
 
@@ -322,7 +322,7 @@ All UI decisions live in `decisions/user-interface/` using MADR 4.0 format.
 
 ## Component Inventory
 
-Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intentionally skipped (state too coupled). See [`docs/storybook.md`](../../docs/storybook.md) for the full triage.
+Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intentionally skipped (state too coupled). See [`docs/storybook.md`](../../../docs/storybook.md) for the full triage.
 
 | Component | File | Purpose | Story |
 |-----------|------|---------|-------|

@@ -1,5 +1,6 @@
 ---
-status: parked — v2 backbone (deferred until v1 is complete)
+status: parked
+status_note: parked — v2 backbone (deferred until v1 is complete)
 started: 2026-06-17
 last_updated: 2026-06-17
 ---

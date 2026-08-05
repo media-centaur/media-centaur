@@ -22,6 +22,7 @@ database_path = "~/.local/share/media-centaur/media-centaur.db"
 # TOML `media_dirs` present here (or in an existing user config) are
 # imported into the app's database on first boot, after which this key is
 # ignored and edits live in the UI.
+# media_dirs = ["/mnt/media/movies", "/mnt/media/tv"]
 
 # ---------------------------------------------------------------------------
 # Everything else — TMDB, pipeline thresholds, playback paths, Prowlarr,

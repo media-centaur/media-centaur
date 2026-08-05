@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
   First-screen artwork URLs for the root layout's `<link rel="prefetch">`
   hints (instant-navigation campaign Phase 4).
 
-  ADR-012 mandates `loading="eager" decoding="sync"` — a page paints only
+  UIDR-012 mandates `loading="eager" decoding="sync"` — a page paints only
   once its artwork is decoded — which makes the first visit to a
   poster-heavy page pay fetch + decode on the click path (~250–550ms
   measured on /library). These hints let the browser pull the artwork

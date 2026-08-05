@@ -4,7 +4,7 @@
 
 **Date:** 2026-06-01
 **Status:** approved design, pre-implementation
-**Campaign:** [`campaigns/observability-dashboard.md`](../../../campaigns/observability-dashboard.md) — Phase 4, Milestone 2 (reporting rebuild)
+**Campaign:** `campaigns/observability-dashboard.md` (completed and removed — see git history) — Phase 4, Milestone 2 (reporting rebuild)
 **Supersedes:** the master spec's vaguer "guided 3-step consent modal (… manual
 redaction …)" line ([2026-05-31 spec](2026-05-31-observability-dashboard-design.md) D3), and the throwaway
 structured-section proposal in `mockups/observability/CONSENT-FLOW-PROPOSAL.md`.

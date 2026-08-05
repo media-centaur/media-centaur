@@ -217,6 +217,6 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
     %{label: "Idle", dot_class: "bg-base-content/30", text_class: "text-base-content/50"}
   end
 
-  # Stable iterator id (ADR-012): completion timestamps are seconds apart.
+  # Stable iterator id (UIDR-012): completion timestamps are seconds apart.
   defp watch_row_id(%{at: %DateTime{} = at}), do: "watch-#{DateTime.to_unix(at, :microsecond)}"
 end

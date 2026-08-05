@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to execute task-by-task. Steps use checkbox (`- [ ]`). Invoke `automated-testing`, `otp-thinking`, `phoenix-thinking`, and `coding-guidelines` BEFORE touching code.
 
-**Goal:** Push the remaining Library read paths into Pillar 2 (in-memory projections via the established Cache.Worker pattern from [ADR-041](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)). After Phase 3, no LiveView mount/render path hits `MediaCentaur.Repo` directly for Library data — they read from `Library.Views.*` ETS tables. Watch progress moves to a Pillar-2 GenServer with debounced persistence.
+**Goal:** Push the remaining Library read paths into Pillar 2 (in-memory projections via the established Cache.Worker pattern from [ADR-041](../../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)). After Phase 3, no LiveView mount/render path hits `MediaCentaur.Repo` directly for Library data — they read from `Library.Views.*` ETS tables. Watch progress moves to a Pillar-2 GenServer with debounced persistence.
 
 **Architecture premise:** This is a local desktop app — statefulness is an asset. The four ADR-041 projections already live; Phase 3 fans the same pattern across the remaining read paths. Reads are microseconds (`:ets.tab2list/1` / `:ets.lookup/2`), not milliseconds. Writes go through Pillar-1 unchanged; projections rebuild on PubSub events.
 
@@ -456,7 +456,7 @@ Each task above gets a fresh subagent dispatch:
 
 ## Pointers
 
-- [ADR-041 — In-memory projection architecture](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)
+- [ADR-041 — In-memory projection architecture](../../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)
 - `library-schema-v2`
 - `desktop-rearchitecture` — partner campaign; Phase 3's projections feed Workstream A
 - `lib/media_centaur/cache.ex` — Cache.Worker behaviour

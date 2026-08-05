@@ -247,4 +247,4 @@ These are explicitly *not* decided in this plan — they need a decision at task
 
 * `Library.Views.Search` consumer flip — separate Phase 3 follow-up (decision pending on per-leaf vs. entity-only).
 * ReleaseTracking projection for the modal's "future seasons" panel — would be premature; the current `list_relevant_releases_for_library_container/2` call is cheap and already cached at the LiveView layer.
-* Playback session projection — already paradigm-correct ([ADR-041](../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)).
+* Playback session projection — already paradigm-correct ([ADR-041](../../../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md)).

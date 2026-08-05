@@ -1,7 +1,6 @@
 # Phase 4 — Subsystem Health Board UI (design)
 
-Surface design for **Phase 4** of the [observability dashboard
-campaign](../../../campaigns/observability-dashboard.md). The backend
+Surface design for **Phase 4** of the observability dashboard campaign (completed and removed — see git history). The backend
 (Phases 1–3) is complete: durable incident store, subsystem fault lifecycle,
 frozen context snapshots, and private-repo report submission all exist behind
 `MediaCentaur.ErrorReports`. This doc settles the **user-facing surface** — the

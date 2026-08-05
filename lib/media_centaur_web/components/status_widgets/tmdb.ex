@@ -111,7 +111,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Tmdb do
     """
   end
 
-  # Stable iterator id (ADR-012) for a recent-enrichment row. Enrichments are
+  # Stable iterator id (UIDR-012) for a recent-enrichment row. Enrichments are
   # seconds apart, so the microsecond stamp is collision-proof in practice.
   defp enriched_row_id(%{at: %DateTime{} = at}), do: "enriched-#{DateTime.to_unix(at, :microsecond)}"
 end

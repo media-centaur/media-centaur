@@ -493,7 +493,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   # once. See AGENTS.md → LiveView callbacks (Iron Law).
   # Loads on BOTH the disconnected (static) render and the connected
   # render — deliberately NOT gated on `connected?/1`. This is a desktop
-  # app (ADR-012): the first paint must already carry real data, never the
+  # app (UIDR-012): the first paint must already carry real data, never the
   # 0-count / empty-grid mount placeholders that would otherwise flash
   # before the socket connects. The read is cheap (a `Library.Views.browse`
   # ETS lookup plus a bounded set of local SQLite queries), so building it

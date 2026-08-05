@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: in-progress
 started: 2026-07-18
 last_updated: 2026-07-18
 ---
@@ -55,7 +55,7 @@ longtasks). Re-create from this description if lost; re-run after each phase.
    on_mount hooks become reads (they already subscribe to the
    invalidation topics).
 4. **Artwork warmup** — idle-time prefetch of first-screen derivatives for
-   main destinations; ADR-012 eager/sync stays.
+   main destinations; UIDR-012 eager/sync stays.
 5. **Console batch broadcast** — `{:log_entries, [...]}` ~100ms flush
    replaces per-line broadcasts.
 6. **Acquisition read model** — de-dupes IncomingLive `build_view` +

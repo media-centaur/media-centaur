@@ -1,5 +1,6 @@
 ---
-status: shipped v0.99.2 — deferred items + 75% default validation remain
+status: in-progress
+status_note: shipped v0.99.2 — deferred items + 75% default validation remain
 started: 2026-06-18
 last_updated: 2026-06-18
 ---

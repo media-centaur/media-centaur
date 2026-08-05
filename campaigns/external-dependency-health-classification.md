@@ -1,5 +1,6 @@
 ---
-status: shipped in v0.83.2; remaining = prod reconcile (user+prod) + wiki two-track note + grab-acceptance kind
+status: in-progress
+status_note: shipped in v0.83.2; remaining = prod reconcile (user+prod) + wiki two-track note + grab-acceptance kind
 started: 2026-06-08
 last_updated: 2026-06-10
 ---

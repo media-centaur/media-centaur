@@ -2,7 +2,7 @@
 
 The media manager processes video files through three Broadway pipelines: **Discovery**, **Import**, and **Image**. All cross-pipeline communication uses PubSub events — no direct function calls.
 
-For the data format produced at the end of the pipeline, see [`DATA-FORMAT.md`](specs/DATA-FORMAT.md). For image handling, see [`IMAGE-CACHING.md`](specs/IMAGE-CACHING.md).
+For the data format produced at the end of the pipeline, see [`DATA-FORMAT.md`](../specs/DATA-FORMAT.md). For image handling, see [`IMAGE-CACHING.md`](../specs/IMAGE-CACHING.md).
 
 ---
 

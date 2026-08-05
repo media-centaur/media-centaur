@@ -194,7 +194,7 @@
           {MediaCentaur.Credo.Checks.TypedComponentAttrs, []},
           {MediaCentaur.Credo.Checks.DestructiveFileQuery, []},
           # MC0016 enforces eager + sync-decode on in-flow `<img>` tags per
-          # ADR-012. Lazy is allowed only in reveal-bounded surfaces named
+          # UIDR-012. Lazy is allowed only in reveal-bounded surfaces named
           # in the check's `@exempt_files` list.
           {MediaCentaur.Credo.Checks.ImgAttributeDefaults, []},
           # MC0015 catches `execute("UPDATE …")` / `execute("DELETE …")` in

@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-31
 **Status:** approved design, pre-implementation
-**Campaign:** [`campaigns/observability-dashboard.md`](../../../campaigns/observability-dashboard.md)
+**Campaign:** `campaigns/observability-dashboard.md` (completed and removed — see git history)
 
 ## Motivation
 

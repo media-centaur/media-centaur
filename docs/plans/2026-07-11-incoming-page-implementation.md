@@ -37,7 +37,7 @@ dispositions (all folded into the steps below):
 3. **One first-paint rule (desktop app)** — everything DB-backed builds on the first
    render, both disconnected and connected (UpcomingLive's `ensure_loaded` pattern
    generalizes; AcquisitionLive's deferred pursuit/history load is retired). Only the
-   external qBittorrent queue arrives progressively via PubSub. ADR-012/MC0016 desktop
+   external qBittorrent queue arrives progressively via PubSub. UIDR-012/MC0016 desktop
    defaults are acceptance criteria: `loading="eager" decoding="sync"` on all art, stable
    iterator DOM ids, no entrance animations (the ledger mask-fade is static treatment).
 4. **No orphan namespace** — new page-surface components live in `components/incoming/`;

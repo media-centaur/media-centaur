@@ -49,7 +49,7 @@ Story-first makes the catalog the gate: if the variation doesn't render the new 
 
 ## Philosophy (eight rules)
 
-Full long-form: [`docs/storybook.md`](../../docs/storybook.md). Abridged:
+Full long-form: [`docs/storybook.md`](../../../docs/storybook.md). Abridged:
 
 1. **Components, not pages.** Catalog `<.button>`, `<.poster_card>`, `<.modal_shell>`. Skip full LiveViews — page smoke tests cover them.
 2. **Stories follow the contract.** Variations are struct/map literals matching typed `attr`s. If you can't story without faking context, fix the contract.
@@ -423,7 +423,7 @@ If you reach for fake context state (mocked PubSub, fake LiveView assigns) to ma
 
 - Push the contextual lookup up into the LiveView. The component becomes pure.
 - Wrap the data shape in a typed struct/ViewModel the component accepts directly.
-- Add the component to the **Skip** list in [`docs/storybook.md`](../../docs/storybook.md) with a note explaining why.
+- Add the component to the **Skip** list in [`docs/storybook.md`](../../../docs/storybook.md) with a note explaining why.
 
 ## Common errors and fixes
 
@@ -440,7 +440,7 @@ If you reach for fake context state (mocked PubSub, fake LiveView assigns) to ma
 
 ## See also
 
-- [`docs/storybook.md`](../../docs/storybook.md) — philosophy, per-component triage, project routes
+- [`docs/storybook.md`](../../../docs/storybook.md) — philosophy, per-component triage, project routes
 - [`user-interface`](../user-interface/SKILL.md) — component recipes; storybook stories are runnable companions
 - [`automated-testing`](../automated-testing/SKILL.md) — where logic + assertions go
 - [`references/sandboxing.md`](references/sandboxing.md) — deep dive on the chrome/sandbox split + theme override architecture

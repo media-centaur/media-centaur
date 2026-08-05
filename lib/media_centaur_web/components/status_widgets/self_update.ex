@@ -161,7 +161,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.SelfUpdate do
   # Friendly, non-zero-padded date for the upgrade-history rows, e.g. "Jun 7, 2026".
   defp history_date(%DateTime{} = at), do: Calendar.strftime(at, "%H:%M · %b %-d, %Y")
 
-  # Stable, unique iterator id (ADR-012). `recorded_at` makes it collision-proof
+  # Stable, unique iterator id (UIDR-012). `recorded_at` makes it collision-proof
   # even if the same version appears twice (a deliberate downgrade-then-re-upgrade
   # records two rows, since dedup only compares against the newest entry).
   defp history_row_id(%{version: version, recorded_at: at}),

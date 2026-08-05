@@ -37,7 +37,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
   end
 
   describe "first paint (disconnected render) — no empty-state flash" do
-    # Desktop-app rendering principle (ADR-012): the static first render
+    # Desktop-app rendering principle (UIDR-012): the static first render
     # served before the WebSocket connects must already carry real data.
     # Previously `ensure_loaded/1` gated `load_library/1` on
     # `connected?/1`, so the disconnected render showed the mount

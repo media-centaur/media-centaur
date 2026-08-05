@@ -6,7 +6,7 @@ Thanks for your interest. This is a small project with a specific scope (see [No
 
 - **Bug reports** — open a [GitHub issue](https://github.com/media-centaur/media-centaur/issues) with repro steps, what you expected, what happened, and relevant logs (the in-app `/console` drawer captures thinking logs; press `` ` `` to open it).
 - **Feature requests** — open an issue to discuss first. If it lands in the [Non-Goals](README.md#non-goals) list, I'll almost certainly close it — that's not personal, just scope discipline.
-- **Download-client drivers** — adding support for Transmission, Deluge, SABnzbd, NZBGet, etc. is contained work with a clear `@behaviour`. See [Adding a download-client driver](README.md#adding-a-download-client-driver) for the contract.
+- **Download-client drivers** — adding support for Transmission, Deluge, NZBGet, etc. (qBittorrent and SABnzbd ship today) is contained work with a clear `@behaviour`. See [Adding a download-client driver](docs/download-clients.md) for the contract.
 - **Parser rules** — the `lib/media_centaur/parser.ex` module matches filename patterns to media metadata. If a filename you own isn't being parsed correctly, a failing test case (with the real path) is a great contribution.
 - **Pull requests** — for anything non-trivial, open an issue first so we agree on the approach before you spend time.
 

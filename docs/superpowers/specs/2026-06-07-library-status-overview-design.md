@@ -100,7 +100,7 @@ story (MC0009):
 
 Visual language: daisyUI `card glass-surface` like the activity widgets; color
 reserved for health/severity (gap counts use warning hue only when > 0,
-neutral at 0); name+icon for identity; eager+sync posters (ADR-012 / MC0016).
+neutral at 0); name+icon for identity; eager+sync posters (UIDR-012 / MC0016).
 
 ## Async & reactivity
 

@@ -1,5 +1,6 @@
 ---
-status: phase-1-complete
+status: in-progress
+status_note: phase-1-complete
 started: 2026-07-25
 last_updated: 2026-07-25
 ---
@@ -85,7 +86,7 @@ derivation, commit `6b3aaf27`) is already in.
   click semantics genuinely differ (whole-row pick vs. Track button +
   inline pickers), and Phase 2 deletes the modal wrapper anyway.
   Summary adopts the omnibox's styling (the surviving surface),
-  including eager image loading per ADR-012.
+  including eager image loading per UIDR-012.
 
 ## Next steps
 

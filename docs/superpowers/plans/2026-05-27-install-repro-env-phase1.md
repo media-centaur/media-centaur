@@ -1040,9 +1040,9 @@ installation issues. Boots from a known-clean snapshot, runs the production
 
 > **Phase 1** ships Mint 22.3 only. Other distros, pre-built shareable images,
 > upgrade/uninstall scenarios, and CI integration are tracked in
-> [`campaigns/install-repro-matrix.md`](../campaigns/install-repro-matrix.md).
+> [`campaigns/install-repro-matrix.md`](../../../campaigns/install-repro-matrix.md).
 >
-> Spec: [`docs/superpowers/specs/2026-05-27-install-repro-env-design.md`](../docs/superpowers/specs/2026-05-27-install-repro-env-design.md).
+> Spec: [`docs/superpowers/specs/2026-05-27-install-repro-env-design.md`](../specs/2026-05-27-install-repro-env-design.md).
 
 ## One-time setup
 

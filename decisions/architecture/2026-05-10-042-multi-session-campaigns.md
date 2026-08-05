@@ -93,6 +93,21 @@ accumulating across sessions.
 * **Remove** the file when status flips to `complete` or
   `abandoned` — git history preserves the verbatim record.
   (Amended 2026-05-23; previously archived to `campaigns/done/`.)
+* **Never link a campaign from a permanent document.** Decision
+  records and design specs outlive campaigns by construction, so a
+  markdown link from an ADR to a campaign file is a dead link waiting
+  for that campaign to ship. Name it in backticks instead —
+  `` `campaigns/foo.md` (completed and removed — see git history)`` —
+  which stays true either way and still tells a reader where to look.
+  (Amended 2026-08-05, after two ADRs and three design specs
+  accumulated dangling campaign links this way.)
+* **Keep `campaigns/README.md` in sync in the same commit** that adds
+  or removes a campaign file. It is the entry point CLAUDE.md points
+  at; a campaign missing from it is invisible.
+
+The `status:` frontmatter takes one of `planning`, `in-progress`,
+`parked`, `complete`, `abandoned` — nothing else, so the field stays
+greppable. Narrative belongs in the **Status** section, not the key.
 
 ### Consequences
 

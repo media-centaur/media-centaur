@@ -1,5 +1,5 @@
 ---
-status: in progress
+status: in-progress
 started: 2026-07-30
 last_updated: 2026-07-31
 ---

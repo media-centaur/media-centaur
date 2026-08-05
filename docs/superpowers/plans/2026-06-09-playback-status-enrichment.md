@@ -444,7 +444,7 @@ Place these private helpers near the existing playback helpers (e.g. after `now_
   defp pluralize(1, word), do: word
   defp pluralize(_n, word), do: word <> "s"
 
-  # Stable iterator id (ADR-012): completion timestamps are seconds apart.
+  # Stable iterator id (UIDR-012): completion timestamps are seconds apart.
   defp watch_row_id(%{at: %DateTime{} = at}), do: "watch-#{DateTime.to_unix(at, :microsecond)}"
 ```
 
