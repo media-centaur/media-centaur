@@ -169,6 +169,13 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         data-role="detail-orientation"
         style={@block_backdrop_url && "--detail-backdrop: url('#{@block_backdrop_url}')"}
       >
+        <%!-- Opaque backing while pinned: clip window + an image layer
+              that rebuilds the panel backdrop's exact box, so the copy
+              renders pixel-identical to the backdrop behind it (see
+              .orientation-backing in app.css). --%>
+        <div class="orientation-backing" aria-hidden="true">
+          <div class="orientation-backing-image"></div>
+        </div>
         <div class="px-6">
           <TitleLayer.lockup
             title={@entity.name}

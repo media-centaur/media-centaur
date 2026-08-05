@@ -55,7 +55,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
     // panel by the reserved scrollbar gutter, while the panel backdrop
     // deliberately extends under that gutter so the rail sits over the
     // picture. CSS cannot read its own scrollbar width, so publish it and
-    // let `.detail-orientation::before` add it back.
+    // let `.orientation-backing` add it back.
     ScrollRailWidth: {
       mounted() {
         this._publish()
