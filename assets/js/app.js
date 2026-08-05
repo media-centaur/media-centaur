@@ -109,13 +109,18 @@ const liveSocket = new LiveSocket("/live", Socket, {
         // The block's in-flow position can't be read off the block itself
         // (sticky offsets shift offsetTop while stuck), but the content
         // region below it is never sticky: block in-flow top = content
-        // top − block height, both stable at any scroll depth.
+        // top − block height, both stable at any scroll depth. The
+        // content's negative margin (--detail-sheet-reach — the sheet's
+        // box extending up behind the block) shifts its offsetTop above
+        // the block's flow bottom; subtracting the measured margin
+        // recovers the true flow edge.
         let contentTop = 0
         for (let el = content; el && el !== this.el; el = el.offsetParent) {
           contentTop += el.offsetTop
         }
+        const contentMarginTop = parseFloat(getComputedStyle(content).marginTop) || 0
         const pinInset = parseFloat(getComputedStyle(block).top) || 0
-        const pinScroll = contentTop - block.offsetHeight - pinInset
+        const pinScroll = contentTop - contentMarginTop - block.offsetHeight - pinInset
         this.el.style.setProperty("--detail-pin-scroll", `${Math.max(0, pinScroll)}px`)
       }
     },
