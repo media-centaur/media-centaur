@@ -122,15 +122,6 @@ defmodule MediaCentaur.Config do
   end
 
   @doc """
-  Returns the list of config keys that must always be stored as
-  `%Secret{}` in `:persistent_term`. Adding to this list also requires
-  adding the key (or a substring match) to `:phoenix, :filter_parameters`
-  in `config/config.exs`.
-  """
-  @spec sensitive_keys() :: [atom()]
-  def sensitive_keys, do: @sensitive_keys
-
-  @doc """
   Loads configuration from TOML and stores it in `:persistent_term`.
   Must be called once before any `get/1` calls — typically at the
   top of `Application.start/2`, before the children list.

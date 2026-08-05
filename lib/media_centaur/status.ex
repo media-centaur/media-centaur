@@ -23,14 +23,6 @@ defmodule MediaCentaur.Status do
   alias MediaCentaur.Review
   alias MediaCentaur.Status.LibraryOverview
 
-  def fetch_stats do
-    %{
-      library: fetch_library_stats(),
-      pending_review: fetch_pending_review(),
-      recent_changes: fetch_recent_changes()
-    }
-  end
-
   @recently_added_limit 12
 
   @doc """
@@ -68,8 +60,4 @@ defmodule MediaCentaur.Status do
   end
 
   def fetch_library_stats, do: Library.stats()
-
-  def fetch_pending_review do
-    Enum.take(Review.list_pending_files_for_review(), 20)
-  end
 end
