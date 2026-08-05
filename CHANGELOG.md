@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.113.0 — 2026-08-05
+
+### Improved
+
+- **Fine-grained interface scaling.** The Interface scale setting in Preferences is now a stepper: adjust the size of the whole interface in 5% steps, anywhere from 70% to 200%, and press **Reset** to return to 100% at any time. Previously only a handful of sizes from 100% up were offered — you can now also make the interface smaller to fit more on screen. Your screen is still sized automatically first; this setting fine-tunes on top, and no combination of settings can shrink the interface into unusability.
+
 ## v0.112.0 — 2026-08-05
 
 ### New
