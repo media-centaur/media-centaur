@@ -164,17 +164,24 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             wrapper that ends before #detail-content would release the
             sticky early. Same block for every entity type: movies
             simply never scroll enough to pin it. --%>
-      <div
-        class="detail-orientation"
-        data-role="detail-orientation"
-        style={@block_backdrop_url && "--detail-backdrop: url('#{@block_backdrop_url}')"}
-      >
-        <%!-- Opaque backing while pinned: clip window + an image layer
-              that rebuilds the panel backdrop's exact box, so the copy
-              renders pixel-identical to the backdrop behind it (see
-              .orientation-backing in app.css). --%>
+      <div class="detail-orientation" data-role="detail-orientation">
+        <%!-- Opaque backing while pinned: clip window + a real <img>
+              clone of the panel backdrop in an identical box, so both
+              copies go through the same object-fit rendering path and
+              cannot drift (see .orientation-backing in app.css). Fade
+              and dim layers replicate what the panel paints over the
+              backdrop so the pinned block matches its surroundings. --%>
         <div class="orientation-backing" aria-hidden="true">
-          <div class="orientation-backing-image"></div>
+          <img
+            :if={@block_backdrop_url}
+            class="orientation-backing-image"
+            src={@block_backdrop_url}
+            alt=""
+            loading="eager"
+            decoding="sync"
+          />
+          <div class="orientation-backing-fade"></div>
+          <div class="orientation-backing-dim"></div>
         </div>
         <div class="px-6">
           <TitleLayer.lockup

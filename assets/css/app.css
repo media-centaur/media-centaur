@@ -608,24 +608,32 @@ body:has(.modal-backdrop[data-state="open"]) {
   container-type: scroll-state;
 }
 
-/* Pinned backing: the block's own slice of the backdrop (via
-   `--detail-backdrop`, set inline by DetailPanel), dimmed to match the
-   atmosphere scrim. Opaque, so rows scrolling behind the pinned block
-   are fully obscured — but because the backing IS the image already
-   behind the block at the pinned position, dimmed as the atmosphere
-   already dims it, the stuck fade is image-over-aligned-image and
-   reads as seamless. Bottom mask feathers the edge where rows emerge.
-   Without artwork an opaque base-100 wash renders instead.
+/* Pinned backing: the block's own copy of the panel backdrop, layered
+   as the panel itself layers it. Opaque, so rows scrolling behind the
+   pinned block are fully obscured — but because the backing rebuilds
+   exactly what the panel already painted behind the block at the pinned
+   position (image, fade, atmosphere dim), the stuck fade is
+   image-over-aligned-image and reads as seamless. Bottom mask feathers
+   the edge where rows emerge. Without artwork the opaque base-100 floor
+   plus the dim layers render instead.
 
-   Two elements because clip window and image box are DIFFERENT shapes.
-   An earlier single-pseudo-element version painted `cover` into the
-   clip window's own box and asserted both layers would come out
-   width-dominated — false at the panel's real geometry (a 1000×616
-   backdrop box is height-dominated for 16:9 art), so the copy rendered
-   at a different scale and center-crop than the panel backdrop and
-   read as a second, drifted image. The only reliable contract is to
-   rebuild the panel backdrop's box exactly and let the identical
-   `cover` fit reproduce the identical rendering. */
+   Design history, kept because each ancestor failed differently:
+   1. A single pseudo-element painted `cover` into its own clip-window
+      box, asserting both layers would come out width-dominated — false
+      at the panel's real geometry (a 1000×616 backdrop box is
+      height-dominated for 16:9 art), so the copy rendered at a
+      different scale/crop and read as a second, drifted image.
+   2. A background-image in a replica box fixed the geometry but left
+      two couplings: `background` vs `object-fit` rasterization (two
+      engine code paths asked to agree) and a flat dim that ignored the
+      panel's fade — the copy read brighter than its surroundings.
+   The current form closes both: a real <img> with the SAME source and
+   the SAME object-fit/object-position in the SAME box renders through
+   the same code path as the panel backdrop — identical by definition,
+   at every viewport size, UI scale, DPR, and image aspect ratio — and
+   the fade/dim overlays replicate the panel's own layers verbatim.
+   `mc-ui-probe align|shift` (agent script) measures both the box math
+   and the rendered pixels; run it after touching any of this. */
 .orientation-backing {
   position: absolute;
   /* Clip window. Reaches up past the pin inset so rows can't peek
@@ -644,40 +652,62 @@ body:has(.modal-backdrop[data-state="open"]) {
   opacity: 0;
   transition: opacity 250ms ease-out;
   mask-image: linear-gradient(to bottom, black calc(100% - 2.5rem), transparent);
+  /* Opaque floor: obscures rows below the image box and when there is
+     no artwork at all. */
+  background-color: var(--color-base-100);
 }
 
-/* The image layer replicates `.modal-page-backdrop`'s box 1:1 — same
+/* `<img>` clone of the panel backdrop in a replica of its box — same
    width (the clip window is already panel-wide), same height (70% of
-   the panel height, rebuilt from `--modal-panel-h` since a percentage
-   here would resolve against the clip window), same top edge (0 = the
-   panel's top while stuck), same `cover` + `center top` anchoring as
-   the img it must cover. Identical box + identical fit ⇒ identical
-   rendered image at every viewport size, UI scale, and image aspect
-   ratio (incl. the poster fallback) — alignment holds by construction,
-   not by coincidence of two independent `cover` fits.
-
-   The dim layers replicate `.modal-page-atmosphere` (left-side weight +
-   the vertical scrim's constant-dim hold value) rather than adding a
-   tone of their own — an earlier flat 0.85 shim made the block visibly
-   darken the moment it pinned. The image copy is what obscures the
-   rows; the dim's only job is to match what the atmosphere already
-   painted behind the block, so pinning changes nothing to the eye. The
-   scrim's 12→36pvh ramp scrolls away with the content, so by pin depth
-   the hold value is the true surrounding — a static flat 0.55 matches
-   it exactly. base-100 underneath keeps the no-artwork fallback opaque. */
+   the panel height via `--modal-panel-h`; a percentage would resolve
+   against the clip window), same top edge (0 = the panel's top while
+   stuck), same object-fit/object-position as `.modal-page-backdrop
+   img`. Same source URL, so it is the same decoded bitmap. */
 .orientation-backing-image {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: calc(var(--modal-panel-h, 100vh) * 0.7);
-  background-color: var(--color-base-100);
-  background-image:
-    linear-gradient(to right, oklch(0% 0 0 / 0.50) 0%, transparent 35%),
-    linear-gradient(oklch(0% 0 0 / 0.55), oklch(0% 0 0 / 0.55)),
-    var(--detail-backdrop, none);
-  background-size: cover;
-  background-position: center top;
+  object-fit: cover;
+  object-position: center top;
+}
+
+/* Replica of `.modal-page-backdrop::after` over the same box: the fade
+   into base-100 that the panel paints on its backdrop. Without it the
+   copy's lower region reads brighter than the surrounding backdrop. */
+.orientation-backing-fade {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(var(--modal-panel-h, 100vh) * 0.7);
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    transparent 45%,
+    oklch(from var(--color-base-100) l c h / 0.55) 75%,
+    var(--color-base-100) 100%
+  );
+}
+
+/* Replica of `.modal-page-atmosphere`: the left-side weight plus the
+   vertical scrim's constant-dim hold value. The scrim's 12→36pvh ramp
+   scrolls away with the content, so by pin depth the hold is the true
+   surrounding — a static flat 0.55 matches it exactly. No tone of its
+   own (an earlier flat 0.85 shim visibly darkened the block on pin);
+   the dim's only job is to match what the atmosphere already painted. */
+.orientation-backing-dim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to right,
+      oklch(0% 0 0 / 0.50) 0%,
+      transparent 35%,
+      transparent 100%
+    ),
+    linear-gradient(oklch(0% 0 0 / 0.55), oklch(0% 0 0 / 0.55));
 }
 
 @container scroll-state(stuck: top) {
