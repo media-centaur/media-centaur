@@ -49,52 +49,95 @@ defmodule MediaCentaurWeb.SettingsLive.Components do
 
   attr :description, :string, required: true
 
-  attr :options, :list,
+  attr :value_label, :string,
     required: true,
-    doc: "list of `{value, label}` tuples — the segmented choices, in display order."
+    doc: "the current value formatted for display, e.g. `\"115%\"`."
 
-  attr :selected, :any,
+  attr :down_value, :any,
     required: true,
-    doc: "the currently-selected option value; compared with `==` against each option value."
+    doc: "absolute target one step down — already clamped by the value's owner."
 
+  attr :up_value, :any,
+    required: true,
+    doc: "absolute target one step up — already clamped by the value's owner."
+
+  attr :reset_value, :any, required: true, doc: "the default the Reset button returns to."
+  attr :at_min, :boolean, required: true
+  attr :at_max, :boolean, required: true
+  attr :at_default, :boolean, required: true
   attr :event, :string, required: true
 
   @doc """
-  A segmented pick-one-of-N control — the enum counterpart to `settings_row`'s
-  toggle. Each option is a focusable nav item (keyboard/gamepad navigable, where
-  a native `<select>` is hostile), and the active one carries `aria-pressed`.
-  Clicking pushes `@event` with `phx-value-choice` set to the chosen option
-  value. (The param is `choice`, not `value`: a `<button>` has a native `value`
-  DOM property that LiveView merges into the payload and would clobber a
-  `phx-value-value` with the element's empty string.)
+  A bounded-numeric stepper — the counterpart to `settings_row`'s toggle for a
+  continuous setting. Renders −/+ buttons around the formatted value plus a
+  Reset, all focusable nav items (keyboard/gamepad navigable). The component is
+  a dumb renderer: every button carries a precomputed **absolute** target in
+  `phx-value-choice`, so the arithmetic (step, clamp) stays with the value's
+  owner and the event handler keeps idempotent set-to-value semantics. At a
+  bound the button's target equals the current value (a no-op) and it reads
+  `aria-disabled` — it deliberately stays clickable and focusable so the nav
+  graph never shifts under focus. (The param is `choice`, not `value`: a
+  `<button>` has a native `value` DOM property that LiveView merges into the
+  payload and would clobber a `phx-value-value` with the element's empty
+  string.)
   """
-  def settings_choice(assigns) do
+  def settings_stepper(assigns) do
     ~H"""
     <div class="flex items-center justify-between py-2.5 px-3.5 gap-4 rounded-lg">
       <div class="min-w-0">
         <span class="font-medium">{@label}</span>
         <p class="text-xs text-base-content/50 mt-0.5">{@description}</p>
       </div>
-      <div class="flex gap-1 shrink-0" role="group">
+      <div class="flex items-center gap-1 shrink-0" role="group">
         <button
-          :for={{value, label} <- @options}
           type="button"
           data-nav-item
           tabindex="0"
           phx-click={@event}
-          phx-value-choice={value}
-          aria-pressed={to_string(value == @selected)}
+          phx-value-choice={@down_value}
+          aria-label="Decrease scale"
+          aria-disabled={to_string(@at_min)}
+          class={[stepper_button_class(), @at_min && "opacity-30", !@at_min && "cursor-pointer"]}
+        >
+          <.icon name="hero-minus-mini" class="size-4" />
+        </button>
+        <span class="w-12 text-center text-sm tabular-nums">{@value_label}</span>
+        <button
+          type="button"
+          data-nav-item
+          tabindex="0"
+          phx-click={@event}
+          phx-value-choice={@up_value}
+          aria-label="Increase scale"
+          aria-disabled={to_string(@at_max)}
+          class={[stepper_button_class(), @at_max && "opacity-30", !@at_max && "cursor-pointer"]}
+        >
+          <.icon name="hero-plus-mini" class="size-4" />
+        </button>
+        <button
+          type="button"
+          data-nav-item
+          tabindex="0"
+          phx-click={@event}
+          phx-value-choice={@reset_value}
+          aria-label="Reset scale"
+          aria-disabled={to_string(@at_default)}
           class={[
-            "px-2.5 py-1 rounded-md text-sm cursor-pointer transition-colors duration-150",
-            value == @selected && "bg-primary text-primary-content font-medium",
-            value != @selected && "text-base-content/60 hover:bg-base-content/[0.06]"
+            "px-2.5 py-1 rounded-md text-sm transition-colors duration-150 text-base-content/60",
+            @at_default && "opacity-30",
+            !@at_default && "cursor-pointer hover:bg-base-content/[0.06]"
           ]}
         >
-          {label}
+          Reset
         </button>
       </div>
     </div>
     """
+  end
+
+  defp stepper_button_class do
+    "flex items-center justify-center size-7 rounded-md text-base-content/60 " <>
+      "transition-colors duration-150 hover:bg-base-content/[0.06]"
   end
 
   # Card title row — one consistent treatment for every settings card:

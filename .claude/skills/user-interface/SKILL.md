@@ -380,6 +380,6 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 - `phx-value-value` on a `<button>`/`<input>` — the key `value` collides with the element's native `value` DOM property, which LiveView merges into the click payload and clobbers to `""`. The render looks right and a `render_click` test passes; it only breaks on a real click. Use a descriptive key (`phx-value-choice`, `phx-value-id`). Enforced by Credo **MC0021**. (`phx-value-name` does **not** collide — only `value`.)
 - Relying on `<button>` for a pointer cursor — Tailwind v4 Preflight does **not** set `cursor: pointer` on buttons; add `cursor-pointer` explicitly, or a styled button feels inert on hover.
 
-### Enum settings: `settings_choice`
+### Non-toggle settings controls
 
-For a pick-one-of-N setting, use `MediaCentaurWeb.SettingsLive.Components.settings_choice/1` (the segmented sibling of `settings_row`) — focusable nav items with `aria-pressed`, the right control for a d-pad/10-foot UI where a native `<select>` is hostile. Don't hand-roll a third variant.
+For a bounded numeric setting, use `MediaCentaurWeb.SettingsLive.Components.settings_stepper/1` (the −/value/+/Reset sibling of `settings_row`) — focusable nav items, absolute precomputed targets in `phx-value-choice` (the value's owner does the arithmetic), `aria-disabled` no-ops at the bounds so the nav graph never shifts. For a pick-one-of-N enum setting, restore `settings_choice/1` from git history (removed with the interface-scale stepper change when its last call site went away) rather than hand-rolling a segmented control — a native `<select>` is hostile to d-pad/10-foot use either way.

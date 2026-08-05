@@ -53,11 +53,16 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           color="info"
         />
 
-        <.settings_choice
+        <.settings_stepper
           label="Interface scale"
-          description="The interface sizes itself to your screen automatically — use this to enlarge it further."
-          options={UIScale.choices()}
-          selected={@ui_scale}
+          description="The interface sizes itself to your screen automatically — adjust in 5% steps if you'd like it larger or smaller."
+          value_label={UIScale.percent(@ui_scale)}
+          down_value={UIScale.decrement(@ui_scale)}
+          up_value={UIScale.increment(@ui_scale)}
+          reset_value={UIScale.default()}
+          at_min={@ui_scale <= UIScale.min()}
+          at_max={@ui_scale >= UIScale.max()}
+          at_default={@ui_scale == UIScale.default()}
           event="set_ui_scale"
         />
       </div>

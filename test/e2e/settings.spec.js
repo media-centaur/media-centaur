@@ -159,49 +159,44 @@ test.describe("settings navigation", () => {
   })
 })
 
-test.describe("interface scale picker", () => {
+test.describe("interface scale stepper", () => {
   // Regression guard. `phx-value-value` collided with the <button> native
-  // `value` property, so clicking the scale picker sent %{"value" => ""} and
+  // `value` property, so clicking the scale control sent %{"value" => ""} and
   // silently did nothing. A `render_click/3` LiveViewTest can't catch this —
   // it reads the attribute off the DOM and never simulates the browser's
   // native-value merge. Only a real click can. (The author-time side is
   // guarded by Credo MC0021 NoPhxValueValue; this guards the behaviour.)
+  const prefFactor = (page) =>
+    page.evaluate(() =>
+      // parseFloat: the value is "1.0" when server-rendered but "1" after
+      // the pushed event's JSON number goes through setProperty.
+      parseFloat(
+        document.documentElement.style.getPropertyValue("--ui-scale-pref"),
+      ),
+    )
+
   test.beforeEach(async ({ navigateTo }) => {
     await navigateTo("/settings?section=preferences")
   })
 
   test.afterEach(async ({ page }) => {
     // Leave the shared instance at 100% so a stuck scale doesn't zoom the
-    // rest of the suite.
-    await page.getByRole("button", { name: "100%", exact: true }).click()
-    // parseFloat: the value is "1.0" when server-rendered but "1" after the
-    // pushed event's JSON number goes through setProperty.
-    await expect
-      .poll(() =>
-        page.evaluate(() =>
-          parseFloat(
-            document.documentElement.style.getPropertyValue("--ui-scale-pref"),
-          ),
-        ),
-      )
-      .toBe(1)
+    // rest of the suite. At the default Reset carries aria-disabled, which
+    // Playwright treats as unclickable — skip it when already home.
+    if ((await prefFactor(page)) !== 1) {
+      await page.getByRole("button", { name: "Reset scale" }).click()
+    }
+    await expect.poll(() => prefFactor(page)).toBe(1)
   })
 
-  test("clicking a scale actually rescales the shell", async ({ page }) => {
-    await page.getByRole("button", { name: "100%", exact: true }).waitFor()
+  test("stepping the scale actually rescales the shell", async ({ page }) => {
+    const increase = page.getByRole("button", { name: "Increase scale" })
+    await increase.waitFor()
 
-    await page.getByRole("button", { name: "125%", exact: true }).click()
+    await increase.click()
 
     // The click lands as the preference factor on <html>…
-    await expect
-      .poll(() =>
-        page.evaluate(() =>
-          parseFloat(
-            document.documentElement.style.getPropertyValue("--ui-scale-pref"),
-          ),
-        ),
-      )
-      .toBe(1.25)
+    await expect.poll(() => prefFactor(page)).toBe(1.05)
 
     // …and the effective scale the shell zooms by is auto × preference
     // (both registered `<number>` properties, so computed style resolves
@@ -213,12 +208,17 @@ test.describe("interface scale picker", () => {
         effective: parseFloat(styles.getPropertyValue("--ui-scale")),
       }
     })
-    expect(effective).toBeCloseTo(auto * 1.25, 5)
+    expect(effective).toBeCloseTo(auto * 1.05, 5)
 
-    // And the picker reflects the now-active option.
-    await expect(
-      page.locator('button[phx-click="set_ui_scale"][aria-pressed="true"]'),
-    ).toHaveText("125%")
+    // The stepper re-renders around the new value with the next target.
+    await expect(page.getByText("105%", { exact: true })).toBeVisible()
+
+    // And stepping down crosses below 100% — the range floor is 70%.
+    const decrease = page.getByRole("button", { name: "Decrease scale" })
+    await decrease.click()
+    await decrease.click()
+    await expect.poll(() => prefFactor(page)).toBe(0.95)
+    await expect(page.getByText("95%", { exact: true })).toBeVisible()
   })
 
   test("auto scale tracks the screen against the 1920px reference width", async ({
