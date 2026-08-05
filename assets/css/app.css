@@ -719,16 +719,27 @@ body:has(.modal-backdrop[data-state="open"]) {
 /* Rising slab: the content region carries its own darkening with it —
    scrolling raises a translucent #0f1116 wash from below that covers
    the fixed backdrop just enough to make row text pop, as part of the
-   scroll motion rather than any state change. The ~10rem top ramp lets
-   it emerge from the atmosphere dim instead of arriving as a hard
-   line. This is the ONLY darkening layer — the earlier stuck-state
-   veil was removed as a fundamentally wrong model (it materialized on
-   pin instead of riding the scroll). */
+   scroll motion rather than any state change. This is the ONLY
+   darkening layer — the earlier stuck-state veil was removed as a
+   fundamentally wrong model (it materialized on pin instead of riding
+   the scroll).
+
+   The top ramp is smoothstep-eased across intermediate stops, not a
+   two-stop linear ramp: a linear ramp has derivative discontinuities
+   at both ends, and the eye amplifies those into visible lines (Mach
+   bands). Over the bright backdrop the end-stop line read as a
+   distinct dark bar riding up and down with the content. Eased stops
+   (zero slope at both ends) spread the same total darkening with no
+   perceptible edge. */
 .detail-content-slab {
   background: linear-gradient(
     to bottom,
-    rgb(15 17 22 / 0) 0%,
-    rgb(15 17 22 / 0.78) 10rem,
+    rgb(15 17 22 / 0) 0,
+    rgb(15 17 22 / 0.09) 4rem,
+    rgb(15 17 22 / 0.28) 8rem,
+    rgb(15 17 22 / 0.50) 12rem,
+    rgb(15 17 22 / 0.69) 16rem,
+    rgb(15 17 22 / 0.78) 20rem,
     rgb(15 17 22 / 0.78) 100%
   );
 }
