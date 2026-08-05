@@ -536,8 +536,12 @@ body:has(.modal-backdrop[data-state="open"]) {
      viewport at >1×, so the panel overflows the page and its inner
      scroll area never engages (the report: can't scroll a long episode
      list at higher UI scale). (X/S)×S = X physical. Same idiom as the
-     home hero / page-backdrop. */
-  max-height: calc((100vh - 200px) / var(--ui-scale, 1));
+     home hero / page-backdrop.
+     Named as a variable because the orientation backing must rebuild the
+     panel backdrop's exact box (70% of this) from inside the scroller —
+     see `.orientation-backing-image`. */
+  --modal-panel-h: calc((100vh - 200px) / var(--ui-scale, 1));
+  max-height: var(--modal-panel-h);
   border-radius: 0.75rem;
   overflow: hidden;
   background-color: var(--color-base-100);
@@ -561,7 +565,7 @@ body:has(.modal-backdrop[data-state="open"]) {
    content-fit height, every accordion toggle resized the panel and the
    backdrop (percentage-sized, object-fit: cover) visibly re-cropped. */
 .modal-panel--full {
-  height: calc((100vh - 200px) / var(--ui-scale, 1));
+  height: var(--modal-panel-h);
 }
 
 /* ── Detail-modal scroll rail ──
@@ -611,33 +615,61 @@ body:has(.modal-backdrop[data-state="open"]) {
    block at the pinned position, the stuck fade is image-over-aligned-
    image and reads as seamless (unlike the flat black veil this
    replaces). Bottom mask feathers the edge where rows emerge. Without
-   artwork the wash alone renders. */
-.detail-orientation::before {
-  content: "";
+   artwork the wash alone renders.
+
+   Two elements because clip window and image box are DIFFERENT shapes.
+   An earlier single-pseudo-element version painted `cover` into the
+   clip window's own box and asserted both layers would come out
+   width-dominated — false at the panel's real geometry (a 1000×616
+   backdrop box is height-dominated for 16:9 art), so the copy rendered
+   at a different scale and center-crop than the panel backdrop and
+   read as a second, drifted image. The only reliable contract is to
+   rebuild the panel backdrop's box exactly and let the identical
+   `cover` fit reproduce the identical rendering. */
+.orientation-backing {
   position: absolute;
-  /* Reaches up past the pin inset so rows can't peek through the
-     breathing-room strip above the pinned block, and right by the
-     reserved scrollbar gutter (`--modal-rail-w`, published by the
-     ScrollRailWidth hook) so this box is exactly as wide as the panel
-     backdrop's. Both layers are width-dominated `cover` fits anchored
-     top-left, so equal width is what makes them register 1:1 — without
-     it the two copies of the image drift apart toward the right edge. */
+  /* Clip window. Reaches up past the pin inset so rows can't peek
+     through the breathing-room strip above the pinned block — which
+     also lands this box's top edge exactly at the panel's top edge
+     while stuck (block top = scrollport top + pin inset). Extends right
+     by the reserved scrollbar gutter (`--modal-rail-w`, published by
+     the ScrollRailWidth hook) because the panel backdrop runs under the
+     rail while this block, living inside the scroller, stops short of
+     it. */
   inset: calc(-1 * var(--orientation-pin-inset)) calc(-1 * var(--modal-rail-w, 0px))
     -2rem 0;
   z-index: -1;
+  overflow: hidden;
   pointer-events: none;
   opacity: 0;
   transition: opacity 250ms ease-out;
+  mask-image: linear-gradient(to bottom, black calc(100% - 2.5rem), transparent);
+}
+
+/* The image layer replicates `.modal-page-backdrop`'s box 1:1 — same
+   width (the clip window is already panel-wide), same height (70% of
+   the panel height, rebuilt from `--modal-panel-h` since a percentage
+   here would resolve against the clip window), same top edge (0 = the
+   panel's top while stuck), same `cover` + `center top` anchoring as
+   the img it must cover. Identical box + identical fit ⇒ identical
+   rendered image at every viewport size, UI scale, and image aspect
+   ratio (incl. the poster fallback) — alignment holds by construction,
+   not by coincidence of two independent `cover` fits. */
+.orientation-backing-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(var(--modal-panel-h, 100vh) * 0.7);
   background-image:
     linear-gradient(rgb(15 17 22 / 0.85), rgb(15 17 22 / 0.85)),
     var(--detail-backdrop, none);
   background-size: cover;
   background-position: center top;
-  mask-image: linear-gradient(to bottom, black calc(100% - 2.5rem), transparent);
 }
 
 @container scroll-state(stuck: top) {
-  .detail-orientation::before {
+  .orientation-backing {
     opacity: 1;
   }
 }
