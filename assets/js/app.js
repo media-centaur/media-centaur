@@ -62,6 +62,16 @@ const liveSocket = new LiveSocket("/live", Socket, {
         this._ro = new ResizeObserver(() => this._publish())
         this._ro.observe(this.el)
       },
+      // The var lives in a client-written inline style, and morphdom syncs
+      // patched elements back to the server-rendered markup (which has no
+      // style attribute) — so any LiveView patch that touches the scroller
+      // (e.g. a season toggle) silently wipes it, and the ResizeObserver
+      // never re-fires because nothing resized. Re-assert after every
+      // patch. Regression: collapse+re-expand a season left the backing
+      // 14px (one rail) narrower than the panel backdrop.
+      updated() {
+        this._publish()
+      },
       destroyed() {
         if (this._ro) this._ro.disconnect()
       },
