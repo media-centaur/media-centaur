@@ -1185,11 +1185,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   Whether the detail modal's content region scrolls — TV / movie-series
   lists, entity-level extras, or the Manage / More info sub-views.
 
-  Shared with `ModalShell`, which pins the panel at its full height for
-  scrollable entries (`.modal-panel--full`): the season accordion then
-  changes only the inner scroll, never the panel geometry — otherwise
-  the backdrop (sized against the panel, `object-fit: cover`) re-crops
-  on every toggle and the transition jars.
+  Shared with `ModalShell`, which tags scrollable entries with
+  `.modal-panel--full`: those panels get a constant backdrop box
+  (sized in `--modal-panel-h` units, not a panel percentage) and a
+  top-anchored position, so the content-fit panel can grow and shrink
+  with the season accordion without re-cropping or shifting the
+  backdrop image. See the `.modal-panel--full` comment in app.css.
   """
   @spec scrollable_content?(map(), atom()) :: boolean()
   def scrollable_content?(entity, detail_view) do
