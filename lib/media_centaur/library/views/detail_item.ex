@@ -57,6 +57,13 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     * `:container_vote_count`       — TMDB vote count.
     * `:container_number_of_seasons` — TVSeries season count.
     * `:container_director`         — director name (Movie only).
+    * `:shared_key`                 — the `{entity_type, entity_id}` grouping this row belongs
+                                       to. `Views.Detail` stores the entity-level fields
+                                       (`:cast`, `:crew`, `:seasons`, `:movies`, `:images`,
+                                       `:external_ids`) once per key in a companion ETS table
+                                       and re-attaches them on read — ETS deep-copies every
+                                       row, so storing them inline duplicated one series' cast
+                                       into all of its episodes' rows.
     * `:cast`                       — `[%Library.Person{}]` embedded cast list.
     * `:crew`                       — `[%Library.Person{}]` embedded crew list.
     * `:extras`                     — `[%Library.Extra{}]` bonus features.
@@ -114,6 +121,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     :container_vote_count,
     :container_number_of_seasons,
     :container_director,
+    :shared_key,
     :cast,
     :crew,
     :extras,
@@ -160,6 +168,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
           container_vote_count: integer() | nil,
           container_number_of_seasons: integer() | nil,
           container_director: String.t() | nil,
+          shared_key: {atom(), Ecto.UUID.t()} | nil,
           cast: [struct()] | nil,
           crew: [struct()] | nil,
           extras: [struct()] | nil,

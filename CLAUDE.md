@@ -183,32 +183,8 @@ _A config-driven dev tool for Elixir projects to manage AGENTS.md files and agen
 ## usage_rules:elixir usage
 [usage_rules:elixir usage rules](deps/usage_rules/usage-rules/elixir.md)
 <!-- usage_rules:elixir-end -->
-<!-- usage_rules-start -->
-## usage_rules usage
-_A config-driven dev tool for Elixir projects to manage AGENTS.md files and agent skills from dependencies_
-
-[usage_rules usage rules](deps/usage_rules/usage-rules.md)
-<!-- usage_rules-end -->
 <!-- usage_rules:otp-start -->
 ## usage_rules:otp usage
 [usage_rules:otp usage rules](deps/usage_rules/usage-rules/otp.md)
 <!-- usage_rules:otp-end -->
-<!-- ex_code_view-start -->
-## ex_code_view usage
-_⚠️ ALPHA — expect rough edges. Interactive code visualizations for Elixir projects — 3D software city and Ecto ERD, rendered as self-contained HTML._
-
-[ex_code_view usage rules](deps/ex_code_view/usage-rules.md)
-<!-- ex_code_view-end -->
-<!-- ex_code_view:schema-extractors-start -->
-## ex_code_view:schema-extractors usage
-[ex_code_view:schema-extractors usage rules](deps/ex_code_view/usage-rules/schema-extractors.md)
-<!-- ex_code_view:schema-extractors-end -->
-<!-- ex_code_view:viewer-js-start -->
-## ex_code_view:viewer-js usage
-[ex_code_view:viewer-js usage rules](deps/ex_code_view/usage-rules/viewer-js.md)
-<!-- ex_code_view:viewer-js-end -->
-<!-- ex_code_view:views-start -->
-## ex_code_view:views usage
-[ex_code_view:views usage rules](deps/ex_code_view/usage-rules/views.md)
-<!-- ex_code_view:views-end -->
 <!-- usage-rules-end -->

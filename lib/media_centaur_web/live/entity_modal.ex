@@ -391,9 +391,13 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # stale, image-less row — a placeholder never flipped to artwork that
   # landed while the modal was open. Reacting here, after the cache is
   # fresh, is the same projection-refresh signal the grid/home consume.
-  # The `playable_item_id` isn't matched: `refresh_selected_entry/1` reads
-  # only the open entity, and detail changes are infrequent.
-  def handle_modal_pubsub({:library_view_updated, :detail, _playable_item_id}, socket) do
+  # A whole-table rebuild now arrives as a single `:all`; a partial refresh
+  # still names the row that changed. Both refresh the open entry — the modal
+  # holds an `entity_id`, not a `playable_item_id`, so it cannot filter a
+  # partial id, and partial refreshes are genuinely one-at-a-time. What this
+  # clause must never do again is refresh once per row in the library, which
+  # is what the old per-row rebuild fan-out caused.
+  def handle_modal_pubsub({:library_view_updated, :detail, _id}, socket) do
     if socket.assigns[:selected_entity_id] do
       {:cont, refresh_selected_entry(socket)}
     else

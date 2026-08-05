@@ -94,6 +94,25 @@ defmodule MediaCentaur.Library.Views.Detail do
   # full and partial refreshes alongside the main `@table`.
   @canonical_table :library_view_detail_canonical
 
+  # Entity-level payload, stored once per `{entity_type, entity_id}` grouping
+  # instead of once per row.
+  #
+  # ETS deep-copies every term on `:ets.insert/2`, so the functional sharing
+  # the build path achieves (one `shared` map flowing into every sibling row)
+  # is destroyed at the table boundary. Storing `:cast` and `:seasons` inline
+  # meant a 900-member series cast was physically copied into each of its
+  # episodes' rows: measured at 219 MB across 765 rows for 41 distinct cast
+  # lists and 18 distinct season trees. Splitting them out reduces the same
+  # projection to ~15 MB and drops the per-read heap copy from ~180 KB to a
+  # few hundred bytes for the rows that don't need the entity payload.
+  #
+  # Rows are deflated on write (`deflate/1`) and re-joined on read
+  # (`inflate/1`), so `DetailItem` reaches every consumer fully populated —
+  # the split is invisible above `read/1` and `read_by_container/2`.
+  @shared_table :library_view_detail_shared
+
+  @shared_fields [:cast, :crew, :seasons, :movies, :images, :external_ids]
+
   @impl MediaCentaur.Cache
   def subscribe do
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_updates())
@@ -114,15 +133,24 @@ defmodule MediaCentaur.Library.Views.Detail do
 
     :ets.delete_all_objects(@table)
     :ets.delete_all_objects(@canonical_table)
+    :ets.delete_all_objects(@shared_table)
 
     Enum.each(items, fn item ->
-      :ets.insert(@table, {item.playable_item_id, item})
-      broadcast_row(item.playable_item_id)
+      {light, shared_entry} = deflate(item)
+      :ets.insert(@shared_table, shared_entry)
+      :ets.insert(@table, {item.playable_item_id, light})
     end)
 
     items
     |> build_canonical_entries()
     |> Enum.each(&:ets.insert(@canonical_table, &1))
+
+    # One event for the whole table. Broadcasting per row made every
+    # subscriber re-read once per row in the library to converge on data it
+    # already had — 765 reads and 765 re-renders per rebuild on a real
+    # library. Per-row 3-tuples remain the contract for *partial* refresh,
+    # where the id genuinely discriminates.
+    broadcast_row(:all)
 
     :ok
   end
@@ -152,9 +180,14 @@ defmodule MediaCentaur.Library.Views.Detail do
   end
 
   def handle_message({:availability_changed, _dir, _state}) do
-    # Presence flips can affect many rows; the cheap path is a full
-    # rebuild rather than walking every row to recompute `:present?`.
-    refresh_cache()
+    # A drive mounting or unmounting changes exactly one field — `:present?`.
+    # Rebuilding the whole projection to flip a boolean re-ran every
+    # container query and re-copied every row (measured at 276 ms on a
+    # 765-row library), which a flapping network mount could trigger
+    # repeatedly. Recompute presence from one query and patch the affected
+    # rows in place instead.
+    ensure_table()
+    reconcile_presence()
   end
 
   def handle_message(_msg), do: :ok
@@ -223,7 +256,7 @@ defmodule MediaCentaur.Library.Views.Detail do
 
   defp read_from_ets(playable_item_id) do
     case :ets.lookup(@table, playable_item_id) do
-      [{^playable_item_id, %DetailItem{} = item}] -> item
+      [{^playable_item_id, %DetailItem{} = item}] -> inflate(item)
       _ -> nil
     end
   end
@@ -236,9 +269,85 @@ defmodule MediaCentaur.Library.Views.Detail do
       _ref ->
         with [{_key, pi_id}] <- :ets.lookup(@canonical_table, {container_type, container_id}),
              [{^pi_id, %DetailItem{} = item}] <- :ets.lookup(@table, pi_id) do
-          item
+          inflate(item)
         else
           _ -> nil
+        end
+    end
+  end
+
+  # --- Presence reconciliation (drive mount / unmount) ---
+
+  # Recomputes only the file-derived fields — `:present?`, `:watched_files`,
+  # `:subtitle_tracks` — for every stored row, from three batched queries
+  # rather than the full `build_all_items/0` pipeline. Presence is structural
+  # (`WatchedFile.file_presence_id` cascade-deletes with `FilePresence`), so
+  # a drive flip changes these three and nothing else: not the grouping, not
+  # the containers, not the entity payload.
+  #
+  # Rows are read and written in their deflated form so the entity payload is
+  # never re-copied. One `:all` broadcast covers the batch.
+  defp reconcile_presence do
+    rows = :ets.tab2list(@table)
+    playable_items = Enum.map(rows, fn {_id, item} -> %PlayableItem{id: item.playable_item_id} end)
+
+    watched_files = build_watched_files_map(playable_items)
+    subtitle_tracks = build_subtitle_tracks_map(watched_files)
+    media_infos = build_media_infos_map(watched_files)
+
+    changed? =
+      Enum.reduce(rows, false, fn {id, %DetailItem{} = item}, acc ->
+        files = Map.get(watched_files, id, [])
+
+        updated = %{
+          item
+          | present?: files != [],
+            watched_files: build_watched_files(files, media_infos),
+            subtitle_tracks: build_subtitle_tracks(Map.get(subtitle_tracks, id, []))
+        }
+
+        if updated == item do
+          acc
+        else
+          :ets.insert(@table, {id, updated})
+          true
+        end
+      end)
+
+    if changed?, do: broadcast_row(:all)
+
+    :ok
+  end
+
+  # --- Shared entity payload split (see @shared_table) ---
+
+  # Splits a fully-built row into the per-row remainder and the entity-level
+  # payload, returning both ready for `:ets.insert/2`. Rows sharing a
+  # `shared_key` write the same entity entry — last write wins, and they are
+  # all built from the same source, so the value is identical.
+  defp deflate(%DetailItem{shared_key: key} = item) do
+    shared = Map.take(Map.from_struct(item), @shared_fields)
+    light = Enum.reduce(@shared_fields, item, &Map.put(&2, &1, nil))
+    {light, {key, shared}}
+  end
+
+  # Re-attaches the entity payload to a stored row. Degrades to the row as
+  # stored — entity fields nil, the same shape a metadata-less entity
+  # produces — rather than raising, in the two cases where the payload is
+  # unavailable: a missing entry (entity deleted between the row write and
+  # this read), and a missing table (the two tables have independent
+  # lifetimes; a dev hot reload can take one down while the other survives).
+  defp inflate(%DetailItem{shared_key: nil} = item), do: item
+
+  defp inflate(%DetailItem{shared_key: key} = item) do
+    case :ets.whereis(@shared_table) do
+      :undefined ->
+        item
+
+      _ref ->
+        case :ets.lookup(@shared_table, key) do
+          [{^key, shared}] -> struct(item, shared)
+          _ -> item
         end
     end
   end
@@ -684,6 +793,7 @@ defmodule MediaCentaur.Library.Views.Detail do
           # Director reads the raw `display` (a per-Movie field), NOT the
           # promoted top-level container — see `container_director/2`.
           container_director: container_director(type, display),
+          shared_key: grouping,
           cast: Map.get(tlc, :cast),
           crew: Map.get(tlc, :crew),
           extras: Map.get(tlc, :extras),
@@ -723,7 +833,9 @@ defmodule MediaCentaur.Library.Views.Detail do
         broadcast_row(playable_item_id)
 
       %DetailItem{} = item ->
-        :ets.insert(@table, {playable_item_id, item})
+        {light, shared_entry} = deflate(item)
+        :ets.insert(@shared_table, shared_entry)
+        :ets.insert(@table, {playable_item_id, light})
 
         new_keys =
           item
@@ -826,6 +938,8 @@ defmodule MediaCentaur.Library.Views.Detail do
     |> Enum.reject(&(&1 in live_ids))
   end
 
+  # `playable_item_id` is a row UUID for partial refreshes, or `:all` when
+  # the whole table was rebuilt.
   defp broadcast_row(playable_item_id) do
     Phoenix.PubSub.broadcast(
       MediaCentaur.PubSub,
@@ -835,21 +949,12 @@ defmodule MediaCentaur.Library.Views.Detail do
   end
 
   defp ensure_table do
-    case :ets.whereis(@table) do
-      :undefined ->
-        :ets.new(@table, [:set, :public, :named_table, read_concurrency: true])
-
-      _ref ->
-        :ok
-    end
-
-    case :ets.whereis(@canonical_table) do
-      :undefined ->
-        :ets.new(@canonical_table, [:set, :public, :named_table, read_concurrency: true])
-
-      _ref ->
-        :ok
-    end
+    Enum.each([@table, @canonical_table, @shared_table], fn table ->
+      case :ets.whereis(table) do
+        :undefined -> :ets.new(table, [:set, :public, :named_table, read_concurrency: true])
+        _ref -> :ok
+      end
+    end)
   end
 
   # --- Container fetchers with preloads (batched) ---

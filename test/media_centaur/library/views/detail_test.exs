@@ -20,6 +20,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
   alias MediaCentaur.Topics
 
   @table :library_view_detail
+  @shared_table :library_view_detail_shared
 
   # Post-Phase-4 (library-presence-unification): `create_linked_file/1`
   # auto-stamps Library.FilePresence, so a linked file IS a present file.
@@ -28,11 +29,22 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
   defp on_exit_clear_table do
     on_exit(fn ->
-      case :ets.whereis(@table) do
-        :undefined -> :ok
-        _ref -> :ets.delete(@table)
+      for table <- [@table, @shared_table] do
+        case :ets.whereis(table) do
+          :undefined -> :ok
+          _ref -> :ets.delete(table)
+        end
       end
     end)
+  end
+
+  # Two billed cast members — enough to prove the shared payload survives
+  # the split without bloating the fixture.
+  defp sample_cast do
+    [
+      %{name: "Actor One", character: "Lead", order: 0, tmdb_person_id: 1},
+      %{name: "Actor Two", character: "Support", order: 1, tmdb_person_id: 2}
+    ]
   end
 
   defp seed_present_movie(name, overrides \\ %{}) do
@@ -282,8 +294,8 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       )
 
       :ok = Detail.refresh_cache()
-      assert_receive {:library_view_updated, :detail, broadcasted_id}, 1_000
-      assert broadcasted_id == pi.id
+      # A full rebuild announces the whole table, not each row.
+      assert_receive {:library_view_updated, :detail, :all}, 1_000
 
       assert %DetailItem{parent_container_name: "New Title"} = Views.detail(pi.id)
     end
@@ -325,43 +337,111 @@ defmodule MediaCentaur.Library.Views.DetailTest do
   end
 
   describe "broadcast contract" do
-    test "emits {:library_view_updated, :detail, playable_item_id} (3-tuple, NOT 2-tuple)" do
+    test "a full rebuild emits exactly one :all message, not one per row" do
       on_exit_clear_table()
 
-      {movie, _file} = seed_present_movie("Broadcast Movie")
-      pi = playable_item_for_movie(movie)
+      # Three rows. A per-row fan-out on full rebuild made every open
+      # detail modal re-read (and re-render) once per row in the whole
+      # library — 765 reads on a real library to converge on the row it
+      # already had. The whole-table refresh is a single event.
+      {movie_a, _} = seed_present_movie("Movie Alpha")
+      {movie_b, _} = seed_present_movie("Movie Bravo")
+      {movie_c, _} = seed_present_movie("Movie Charlie")
+      for m <- [movie_a, movie_b, movie_c], do: playable_item_for_movie(m)
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
 
       assert :ok = Detail.refresh_cache()
 
-      # Cold start broadcasts one message per row in the table.
-      assert_receive {:library_view_updated, :detail, broadcasted_id}, 1_000
-      assert broadcasted_id == pi.id
+      assert_receive {:library_view_updated, :detail, :all}, 1_000
+      refute_received {:library_view_updated, :detail, _other}
 
       # Must NOT be the 2-tuple shape used by Browse.
       refute_received {:library_view_updated, :detail}
     end
 
-    test "broadcasts one message per affected row, not a firehose 2-tuple" do
+    test "a partial rebuild still emits the per-row 3-tuple" do
       on_exit_clear_table()
 
-      {movie_a, _file_a} = seed_present_movie("Movie Alpha")
-      {movie_b, _file_b} = seed_present_movie("Movie Bravo")
-      pi_a = playable_item_for_movie(movie_a)
-      pi_b = playable_item_for_movie(movie_b)
-
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
+      {movie, _file} = seed_present_movie("Targeted Movie")
+      pi = playable_item_for_movie(movie)
 
       assert :ok = Detail.refresh_cache()
 
-      received_ids =
-        for _ <- 1..2 do
-          assert_receive {:library_view_updated, :detail, id}, 1_000
-          id
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
+
+      :ok = Detail.handle_message({:entities_changed, %EntitiesChanged{entity_ids: [movie.id]}})
+
+      assert_receive {:library_view_updated, :detail, broadcasted_id}, 1_000
+      assert broadcasted_id == pi.id
+    end
+  end
+
+  describe "shared entity payload is stored once per entity" do
+    test "sibling episode rows read back identical cast and seasons" do
+      on_exit_clear_table()
+
+      series = create_tv_series(%{name: "Shared Payload Show", cast: sample_cast()})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      pis =
+        for n <- 1..3 do
+          episode =
+            create_episode(%{season_id: season.id, episode_number: n, name: "Episode #{n}"})
+
+          pi = create_playable_item_for_episode(episode)
+          create_linked_file(%{playable_item_id: pi.id, file_path: "/media/s01e0#{n}.mkv"})
+          pi
         end
 
-      assert Enum.sort(received_ids) == Enum.sort([pi_a.id, pi_b.id])
+      assert :ok = Detail.refresh_cache()
+
+      [first | rest] = Enum.map(pis, &Views.detail(&1.id))
+
+      assert length(first.cast) == 2
+      assert first.cast == Enum.at(rest, 0).cast
+      assert first.seasons == Enum.at(rest, 0).seasons
+      assert first.cast == Enum.at(rest, 1).cast
+      assert first.seasons == Enum.at(rest, 1).seasons
+    end
+
+    test "a row still reads when the shared table is gone" do
+      on_exit_clear_table()
+
+      {movie, _file} = seed_present_movie("Orphaned Shared Movie")
+      pi = playable_item_for_movie(movie)
+
+      assert :ok = Detail.refresh_cache()
+
+      # The two tables have independent lifetimes: a hot code reload in dev
+      # kills the owning process and takes its tables with it, and they can
+      # come back one at a time. A read that raises here would 500 the detail
+      # modal instead of degrading to a metadata-less row.
+      :ets.delete(@shared_table)
+
+      assert %DetailItem{name: "Orphaned Shared Movie"} = Views.detail(pi.id)
+    end
+
+    test "the shared table holds one entry per entity, not one per row" do
+      on_exit_clear_table()
+
+      series = create_tv_series(%{name: "One Entry Show", cast: sample_cast()})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      for n <- 1..4 do
+        episode = create_episode(%{season_id: season.id, episode_number: n, name: "Ep #{n}"})
+        pi = create_playable_item_for_episode(episode)
+        create_linked_file(%{playable_item_id: pi.id, file_path: "/media/one/s01e0#{n}.mkv"})
+      end
+
+      assert :ok = Detail.refresh_cache()
+
+      # Four rows, one entity. Storing the cast + season tree per row is
+      # what made the projection 219 MB for a 765-row library — ETS
+      # deep-copies each row, so functional sharing does not survive the
+      # `:ets.insert` boundary.
+      assert :ets.info(:library_view_detail, :size) == 4
+      assert :ets.info(:library_view_detail_shared, :size) == 1
     end
   end
 

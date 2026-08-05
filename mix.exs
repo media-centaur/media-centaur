@@ -89,7 +89,6 @@ defmodule MediaCentaur.MixProject do
       # the storybook routes in :dev; :test and :prod just need the module to
       # load. The bytecode footprint is small and no routes are exposed.
       {:phoenix_storybook, "~> 1.0"},
-      {:ex_code_view, path: "../../ex_code_view", only: :dev},
       {:earmark_parser, "~> 1.4"},
       {:phoenix_live_view, "~> 1.1.0"},
       {:lazy_html, ">= 0.1.0", only: :test},
@@ -177,12 +176,10 @@ defmodule MediaCentaur.MixProject do
       file: "CLAUDE.md",
       usage_rules: [
         {:elixir, link: :markdown},
-        {:otp, link: :markdown},
-        {:ex_code_view, link: :markdown}
+        {:otp, link: :markdown}
       ],
       skills: [
         location: ".claude/skills",
-        deps: [:ex_code_view],
         build: [
           "phoenix-framework": [
             description:
