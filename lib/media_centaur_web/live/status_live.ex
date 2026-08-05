@@ -73,7 +73,7 @@ defmodule MediaCentaurWeb.StatusLive do
   # path must avoid DB reads.
   #
   # Tombstone: this used to defer the read "to keep `activity_bundle/1` free of
-  # DB queries on the render path (ADR-012)." That rule is retired — ADR-051
+  # DB queries on the render path (UIDR-012)." That rule is retired — ADR-051
   # supersedes the "no DB on the render/mount path" gate for local reads (it
   # caused first-paint flashes, and a local query is one user's millisecond).
   # Don't re-add a "keep the render path DB-free" gate here.

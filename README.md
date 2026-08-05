@@ -95,6 +95,8 @@ Full installation guide and recovery playbook: **[Wiki → Installation](https:/
 
 **Arch:** `sudo pacman -S sqlite mpv inotify-tools` &nbsp;·&nbsp; **Debian/Ubuntu:** `sudo apt install sqlite3 mpv inotify-tools`
 
+Building from source additionally needs **Elixir 1.15+** and **Erlang/OTP 26+**. The one-line installer above ships a self-contained release, so users installing it need neither.
+
 ---
 
 ## Documentation

@@ -45,8 +45,12 @@ Map of contributor docs:
 | Download clients (two-slot model, prowlarr-stack bootstrap contract, add-a-client checklist) | [`docs/download-clients.md`](docs/download-clients.md) |
 | Other domains | [`docs/watcher.md`](docs/watcher.md), [`docs/tmdb.md`](docs/tmdb.md), [`docs/playback.md`](docs/playback.md), [`docs/input-system.md`](docs/input-system.md), [`docs/mpv.md`](docs/mpv.md) |
 | Component catalog (Phoenix Storybook, dev-only) | [`docs/storybook.md`](docs/storybook.md) |
+| Configuration keys and precedence | [`docs/configuration.md`](docs/configuration.md) |
+| Prowlarr / acquisition setup | [`docs/acquisition/`](docs/acquisition/) |
 | Protocol specs (data format, image caching) | [`specs/`](specs/) |
-| Decision records | [`decisions/`](decisions/) |
+| Decision records (ADR-NNN + UIDR-NNN, indexed) | [`decisions/README.md`](decisions/README.md) |
+
+Historical design specs and implementation plans live under [`docs/plans/`](docs/plans/) and [`docs/superpowers/`](docs/superpowers/). They record what was decided at the time and are **not** maintained against the current code — read them for rationale, not for present-tense truth. `docs/getting-started.md` and `docs/installation.md` are pointer stubs to the wiki.
 
 ## Version Control (Git)
 
@@ -140,7 +144,7 @@ End-user docs live across three surfaces:
 | GitHub Pages | `docs-site/index.html` (auto-deployed via `.github/workflows/pages.yml`) | Marketing landing |
 | GitHub Wiki | `../media-centaur.wiki/` (git, sibling repo) | Fleshed-out user docs |
 
-**Internal contributor docs** (`docs/`) stay in this repo. User-facing pages under `docs/` are pointer stubs to the wiki.
+**Internal contributor docs** (`docs/`) stay in this repo. The two user-facing entry points under `docs/` — `getting-started.md` and `installation.md` — are pointer stubs to the wiki; everything else in `docs/` is written for contributors.
 
 **Keep the wiki in sync with user-visible changes** — same unit of work as the code. New setting → `Settings-Reference.md`; new config key → `Configuration-File.md`; keybinding change → `Keyboard-and-Gamepad.md`; new UI flow → corresponding *Using Media Centaur* page; new download driver → `Prowlarr-Integration.md` / `Download-Clients.md`; new failure mode → `Troubleshooting.md`; non-obvious behaviour decision → `FAQ.md`.
 
@@ -158,7 +162,9 @@ If a feature is WIP and the user-visible shape hasn't settled, note the wiki upd
 
 ## Decision Records
 
-Decision records live in `decisions/` ([MADR 4.0](https://adr.github.io/madr/)). Filename convention: `YYYY-MM-DD-NNN-short-title.md`, numbered per category (`architecture/`, `user-interface/`). See `decisions/README.md` for the index.
+Decision records live in `decisions/` ([MADR 4.0](https://adr.github.io/madr/)). Filename convention: `YYYY-MM-DD-NNN-short-title.md`, numbered per category (`architecture/`, `user-interface/`). [`decisions/README.md`](decisions/README.md) indexes every record — regenerate it when you add or retire one.
+
+Architecture records are cited as **ADR-NNN**, user-interface records as **UIDR-NNN**. They number independently, so `ADR-012` and `UIDR-012` are different documents — cite the right prefix. Numbering gaps are deliberate: a record that became fictional, was superseded, or is now enforced by a Credo check gets retired rather than left to mislead.
 
 **Prefer moduledocs for technical concepts.** Document module-internal contracts (syntax, parsing behavior, struct shape, format details) in the relevant `@moduledoc`. Reserve ADRs for decisions that apply repository-wide or supersede an existing ADR. Test: would a contributor want to read this looking at the module, or while browsing `decisions/`? Former → moduledoc; latter → ADR.
 
@@ -170,7 +176,9 @@ Decision records live in `decisions/` ([MADR 4.0](https://adr.github.io/madr/)).
 
 ## Defaults
 
-`defaults/` contains git-tracked starter configs — seed values shipped with the repo, **never overwritten at runtime**. `defaults/media-centaur.toml` carries **only bootstrap state** — `database_path`, `port`, and the initial `media_dirs` seed (the values the app needs before its database is reachable). Every runtime preference lives in the Settings database and is set in-app; TOML is no longer read for those keys (see the `MediaCentaur.Config` moduledoc). Keep each bootstrap key entered with a logical default and a comment, and the file must always be valid TOML.
+`defaults/` contains git-tracked starter configs — seed values shipped with the repo, **never overwritten at runtime**. `defaults/media-centaur.toml` carries **only bootstrap state** — `database_path`, `port`, and the initial `media_dirs` seed (the values the app needs before its database is reachable). Every runtime preference lives in the Settings database and is set in-app; TOML is no longer read for those keys (see the `MediaCentaur.Config` moduledoc). Keep every bootstrap key present in the file with a comment and a logical default — commented out where the built-in default is right, but always shown, so a user editing the file can see the key's shape without reading the source. The file must always be valid TOML.
+
+`defaults/` also holds `media-centaur-showcase.toml` and `media-centaur-profile.toml` (config overrides, above) plus the `media-centaur*.service` systemd units.
 
 <!-- usage-rules-start -->
 <!-- usage_rules-start -->

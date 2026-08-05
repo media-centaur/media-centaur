@@ -10,7 +10,7 @@ defmodule MediaCentaur.Credo.Checks.ImgAttributeDefaults do
       allowlist below. Media Centaur is a specialized desktop app
       with a bounded library; lazy-loading defers the fetch until
       intersection-observer fires, which is exactly the perceived
-      latency we're paying to remove (ADR-012).
+      latency we're paying to remove (UIDR-012).
 
       Use `loading="eager"` with `decoding="sync"` instead. For
       hero / page-dominant images, also set `fetchpriority="high"`.
@@ -40,7 +40,7 @@ defmodule MediaCentaur.Credo.Checks.ImgAttributeDefaults do
       a one-line comment explaining why this surface is genuinely
       reveal-bounded rather than in the page flow.
 
-      Source: ADR-012 (`decisions/user-interface/2026-05-20-012-desktop-app-rendering-defaults.md`).
+      Source: UIDR-012 (`decisions/user-interface/2026-05-20-012-desktop-app-rendering-defaults.md`).
       """
     ]
 
@@ -92,7 +92,7 @@ defmodule MediaCentaur.Credo.Checks.ImgAttributeDefaults do
       issue_meta,
       message:
         ~s(Replace `loading="lazy"` with `loading="eager" decoding="sync"` ) <>
-          "(this is a desktop app — see ADR-012). If this surface is genuinely " <>
+          "(this is a desktop app — see UIDR-012). If this surface is genuinely " <>
           "reveal-bounded, add the file to `@exempt_files` in " <>
           "`MediaCentaur.Credo.Checks.ImgAttributeDefaults` with a justification.",
       trigger: ~s(loading="lazy"),

@@ -21,7 +21,7 @@ Never apply a fix first and write the test after. A test authored against alread
 
 **Regression tests are append-only** ([ADR-027]). Parser and pipeline tests may only be added, never removed or weakened. Assertions must not be loosened (exact match → substring, tightening bounds). If a test fails after a code change, fix the code.
 
-**Test through the public interface** ([ADR-026], [ADR-012]). Never promote `defp` to `def` for testability. Never use `:sys.get_state`, `GenServer.call/cast` from outside the owning module, or assert on `render_component` HTML output. Extract testable logic into pure function modules.
+**Test through the public interface** ([ADR-026]). Never promote `defp` to `def` for testability. Never use `:sys.get_state`, `GenServer.call/cast` from outside the owning module, or assert on `render_component` HTML output. Extract testable logic into pure function modules.
 
 **Variable naming applies in tests.** Never abbreviate — `file` not `wf`, `movie` not `e`, `result` not `res`.
 
@@ -437,7 +437,6 @@ const msgs = filterDebugMessages(logs)   // filter for [input] prefix
 
 | ADR | Policy |
 |-----|--------|
-| [ADR-012] | Test-first, spec-first, zero warnings, test through public interface |
 | [ADR-016] | Test environment never reads user config or real filesystem paths |
 | [ADR-025] | Bulk operations: `return_errors?: true`, check `error_count`, `strategy: :stream` |
 | [ADR-026] | GenServer API encapsulation — test public functions, not message protocol |
@@ -445,7 +444,6 @@ const msgs = filterDebugMessages(logs)   // filter for [input] prefix
 | [ADR-049] | Testing principles — owned async, tests drive async, O(1) teardown, suite terminates within budget |
 
 [ADR-003]: decisions/architecture/2026-02-20-003-ash-as-exclusive-data-interface.md
-[ADR-012]: decisions/architecture/2026-02-27-012-engineering-standards.md
 [ADR-016]: decisions/architecture/2026-03-01-016-test-env-filesystem-isolation.md
 [ADR-025]: decisions/architecture/2026-03-07-025-ash-bulk-operation-safety.md
 [ADR-026]: decisions/architecture/2026-03-07-026-genserver-api-encapsulation.md

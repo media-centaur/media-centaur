@@ -8,6 +8,13 @@ defmodule MediaCentaur.MixProject do
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
+      description: "Library management and playback for a personal movie and TV collection.",
+      source_url: "https://github.com/media-centaur/media-centaur",
+      homepage_url: "https://media-centaur.github.io/media-centaur/",
+      package: [
+        licenses: ["MIT"],
+        links: %{"GitHub" => "https://github.com/media-centaur/media-centaur"}
+      ],
       aliases: aliases(),
       deps: deps(),
       compilers: [:boundary, :phoenix_live_view] ++ Mix.compilers(),

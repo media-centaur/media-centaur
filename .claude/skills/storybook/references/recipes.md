@@ -341,7 +341,7 @@ def variations do
   [
     %Variation{
       id: :default,
-      description: "Static visual — runtime behaviour requires the input system; see [`docs/input-system.md`](../../docs/input-system.md).",
+      description: "Static visual — runtime behaviour requires the input system; see [`docs/input-system.md`](../../../docs/input-system.md).",
       attributes: %{items: sample_items()}
     }
   ]

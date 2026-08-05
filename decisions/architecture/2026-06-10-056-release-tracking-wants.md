@@ -181,4 +181,5 @@ it is the one datum painful to backfill.
   ship before the seeker dies (campaign risk #5).
 
 Rollout, use-case inventory, and phase sequencing:
-[campaigns/release-tracking-plan-convergence.md](../../campaigns/release-tracking-plan-convergence.md).
+`campaigns/release-tracking-plan-convergence.md` (completed and removed —
+see git history).

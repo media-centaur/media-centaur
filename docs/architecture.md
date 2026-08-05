@@ -87,6 +87,16 @@ The backend is organised into twelve bounded contexts plus a TMDB adapter, all e
 | `MediaCentaur.TMDB` | TMDB HTTP adapter + rate limiter | Cross-cutting adapter, not a bounded context owner. |
 | `MediaCentaur.Capabilities` | Pure query layer over Settings | Predicates that gate features on a passing Test Connection. Reads `Settings`, owns no state. |
 | `MediaCentaur.Controls` | Compile-time keybinding catalog + persisted overrides | Used by Settings → Controls UI. |
+| `MediaCentaur.Downloads` | Download-client drivers (`qBittorrent`, `SABnzbd`) behind one `@behaviour`, queue monitor, client health | Two-slot model — see [docs/download-clients.md](download-clients.md). |
+| `MediaCentaur.Search` | Indexer search providers (Prowlarr) + query expansion | Feeds Acquisition; gated by `Capabilities`. |
+| `MediaCentaur.Subtitles` | `subtitles_*` table, embedded + sidecar track detection | Owned by Library's ingest path, read by Playback. |
+| `MediaCentaur.Reconciliation` | `reconciliation_*` table, episode-mapping models | Resolves files whose season/episode claim disagrees with the library. |
+| `MediaCentaur.ErrorReports` | `incidents` table, error buckets, public-issue submission | Drives the Status page's report modal. |
+| `MediaCentaur.IntegrationHealth` | Per-integration `configured? × test_state` in ETS | Gates the Setup tour; no DB tables. |
+| `MediaCentaur.Diagnostics` | Read-side aggregator over ErrorReports + Playback | Composition only, owns no state. |
+| `MediaCentaur.Status` | Read-side aggregator for the Status page | Composition only, owns no state. |
+| `MediaCentaur.Guide` | Markdown guide book rendering | Static content; no DB tables. |
+| `MediaCentaur.Setup` | First-run tour state + probes | Reads Capabilities and IntegrationHealth. |
 
 ## Data Flow
 
@@ -148,25 +158,23 @@ PubSub listener GenServers (`Library.Inbound`, `Review.Intake`, `ReleaseTracking
 
 ## PubSub Topics
 
-`MediaCentaur.Topics` is the single source of truth for every topic string. Read [`lib/media_centaur/topics.ex`](../lib/media_centaur/topics.ex) instead of duplicating the list here. The current set, grouped by owner:
+The canonical taxonomy — every topic, its owning context, and the message
+shape it carries — lives in the `MediaCentaur.Topics` moduledoc
+(`lib/media_centaur/topics.ex`), next to the functions that produce the
+strings. It is deliberately **not** duplicated here: this section used to
+carry its own table and had drifted 13 topics behind the module, missing
+the entire derived-views family that ADR-041 introduced.
 
-| Owner | Topics |
-|-------|--------|
-| Library | `library:updates`, `library:commands`, `library:file_events`, `library:watch_completed` |
-| Pipeline | `pipeline:input`, `pipeline:matched`, `pipeline:images`, `pipeline:publish` |
-| Watcher | `watcher:state` |
-| Review | `review:intake`, `review:updates` |
-| Playback | `playback:events` |
-| Settings | `settings:updates`, `config:updates` |
-| ReleaseTracking | `release_tracking:updates` |
-| WatchHistory | `watch_history:events` |
-| Console | `console:logs`, `service:journal` |
-| Acquisition | `acquisition:updates` |
-| Capabilities | `capabilities:updates` |
-| SelfUpdate | `self_update:status`, `self_update:progress` |
-| Controls | `controls:updates` |
+Three roles in the taxonomy (see `MediaCentaur.Cache` for how they compose):
 
-Each context exposes a `subscribe/0` facade that wraps `Phoenix.PubSub.subscribe/2` with the right topic — LiveViews call `Library.subscribe()`, `Playback.subscribe()`, etc., never `Phoenix.PubSub.subscribe/2` directly. This is enforced by the `ContextSubscribeFacade` Credo check.
+* **Source topics** carry canonical events about the truth
+  (`library:updates`, `watch_history:events`, `playback:events`, …). Only
+  the source-of-truth context broadcasts on these.
+* **Derived topics** (`library:views`, `release_tracking:views`,
+  `status:views`, `watch_history:views`) carry `{:*_view_updated, view_id}`
+  after a projection rebuild. **LiveViews subscribe to derived topics,
+  never to source topics for cache-driven data** (ADR-041).
+* **Command topics** (`library:commands`) carry external write requests.
 
 ## Key Principles
 

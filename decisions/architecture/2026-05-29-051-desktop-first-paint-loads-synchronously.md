@@ -18,7 +18,7 @@ That justification is a **web-app** concern. Media Centaur is a single-user
 user-visible bug: the static HTTP render (the first thing painted) ran with the
 mount placeholders, so every page flashed fabricated values — `0 titles · 0
 movies · 0 shows`, empty grids, empty lists — until the socket connected and
-re-rendered with real data. ADR-012 already commits this app to *"render
+re-rendered with real data. UIDR-012 already commits this app to *"render
 correctly the first time"*; the gate violated that everywhere.
 
 Four pages had additionally pushed their (still local) loads onto
@@ -30,7 +30,7 @@ on the disconnected render at all.
 
 Chosen option: **load synchronously on the first render**, because the loads
 are local and bounded, so a correct first paint costs a single user a few
-milliseconds — a trade ADR-012 already endorses.
+milliseconds — a trade UIDR-012 already endorses.
 
 - `ensure_loaded/1` is gated **only** by `not socket.assigns.loaded?` — never
   by `connected?`. The load runs in `handle_params/3` on both the disconnected
@@ -58,11 +58,11 @@ if its first paint proves to flash.
 ### Consequences
 
 * Good, because the first paint is correct on every page — no empty-state flash,
-  honouring ADR-012's desktop-rendering contract.
+  honouring UIDR-012's desktop-rendering contract.
 * Good, because removing the cargo-culted async indirection makes the load path
   simpler and easier to reason about.
 * Bad, because a full page load / cross-page navigation now runs the local
   queries inline; on a pathologically large local dataset this could become
   perceptible, at which point that specific page upgrades to the skeleton
-  exception. Relates to [ADR-012](2026-02-27-012-engineering-standards.md) and
+  exception. Relates to [UIDR-012](../user-interface/2026-05-20-012-desktop-app-rendering-defaults.md) and
   [ADR-049](2026-05-22-049-testing-principles.md).
