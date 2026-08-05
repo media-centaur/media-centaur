@@ -100,6 +100,27 @@ as the scroll signal.
   invocations of one pure builder from the same inputs is not two
   representations; a dual-source attr would be.
 
+## Surfaced defect — pinned backing registration
+
+Opening pinned by default exposed a pre-existing misregistration from the
+sticky-orientation change: `.detail-orientation::before` repaints the backdrop as
+the block's opaque backing, and it drifted from the panel backdrop underneath it —
+visible as a second image over the first.
+
+Both layers are width-dominated `cover` fits anchored top-left, so their scale is
+set entirely by their box width, and the widths differed by the reserved scrollbar
+gutter: the panel backdrop spans the full panel (deliberately extending under the
+rail so it sits over the picture), while the block lives inside the scroller and is
+narrower by exactly that gutter. Measured 1905 vs 1895 visual px — coincident at the
+left edge, ~10px apart by the right.
+
+CSS cannot read its own scrollbar width, so the `ScrollRailWidth` hook publishes it
+as `--modal-rail-w` on the scrollport and the backing extends right by it. Verified:
+both boxes now compute to `952.333px`.
+
+Not caused by the auto-orient change — nothing in it touches CSS or layout — but it
+became the first thing on screen for every in-progress series, so it is fixed here.
+
 ## Known incoherence — scheduled
 
 `DetailPanel.autoscroll_resume?/1` returns a bare `true` for every non-TV type

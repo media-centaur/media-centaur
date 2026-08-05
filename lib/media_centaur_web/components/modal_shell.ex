@@ -116,6 +116,8 @@ defmodule MediaCentaurWeb.Components.ModalShell do
               painted to the shim tone. See the app.css comment. --%>
       <div
         :if={@entity}
+        id="detail-scrollport"
+        phx-hook="ScrollRailWidth"
         class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative z-[1] modal-detail-scroll"
       >
         <div class="modal-page-content">

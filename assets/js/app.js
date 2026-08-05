@@ -47,6 +47,30 @@ const liveSocket = new LiveSocket("/live", Socket, {
     MouseAutofocus,
     FlashAutoDismiss,
     SidebarTooltip,
+    // The pinned orientation block repaints the panel backdrop as its own
+    // opaque backing, and the two copies must cover an identical box or
+    // they drift apart (same image, two `cover` scales, both anchored
+    // top-left — visible as a ghosted second image toward the right edge).
+    // The block lives inside this scroller, so it is narrower than the
+    // panel by the reserved scrollbar gutter, while the panel backdrop
+    // deliberately extends under that gutter so the rail sits over the
+    // picture. CSS cannot read its own scrollbar width, so publish it and
+    // let `.detail-orientation::before` add it back.
+    ScrollRailWidth: {
+      mounted() {
+        this._publish()
+        this._ro = new ResizeObserver(() => this._publish())
+        this._ro.observe(this.el)
+      },
+      destroyed() {
+        if (this._ro) this._ro.disconnect()
+      },
+      _publish() {
+        // Layout pixels on both sides — safe to hand straight to CSS.
+        const rail = this.el.offsetWidth - this.el.clientWidth
+        this.el.style.setProperty("--modal-rail-w", `${rail}px`)
+      }
+    },
     ScrollToResume: {
       mounted() { this._scrollToTarget() },
       updated() {
@@ -76,9 +100,9 @@ const liveSocket = new LiveSocket("/live", Socket, {
       // block — measured at over half the scrollport's height on a
       // 1920x1080 display. scroll-padding is the platform's own name for
       // this: it insets the "optimal viewing region" that block:"center"
-      // centers within. Left set on
-      // the port so later programmatic scrolls (keyboard/gamepad nav
-      // stepping through episode rows) land clear of the block too.
+      // centers within. Left set on the port so later programmatic
+      // scrolls (keyboard/gamepad nav stepping through episode rows)
+      // land clear of the block too.
       _reserveOrientationBlock() {
         const port = this.el.closest(".modal-detail-scroll")
         const block = port && port.querySelector("[data-role='detail-orientation']")

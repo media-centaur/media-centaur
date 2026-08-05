@@ -572,8 +572,14 @@ body:has(.modal-backdrop[data-state="open"]) {
   content: "";
   position: absolute;
   /* Reaches up past the pin inset so rows can't peek through the
-     breathing-room strip above the pinned block. */
-  inset: calc(-1 * var(--orientation-pin-inset)) 0 -2rem 0;
+     breathing-room strip above the pinned block, and right by the
+     reserved scrollbar gutter (`--modal-rail-w`, published by the
+     ScrollRailWidth hook) so this box is exactly as wide as the panel
+     backdrop's. Both layers are width-dominated `cover` fits anchored
+     top-left, so equal width is what makes them register 1:1 — without
+     it the two copies of the image drift apart toward the right edge. */
+  inset: calc(-1 * var(--orientation-pin-inset)) calc(-1 * var(--modal-rail-w, 0px))
+    -2rem 0;
   z-index: -1;
   pointer-events: none;
   opacity: 0;
