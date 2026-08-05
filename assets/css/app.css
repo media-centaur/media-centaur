@@ -558,19 +558,39 @@ body:has(.modal-backdrop[data-state="open"]) {
   transition: opacity 150ms ease-out, transform 150ms ease-out;
 }
 
-/* Entries whose content region scrolls (TV seasons, movie-series lists,
-   extras, the Manage/More-info sub-views — `DetailPanel.scrollable_content?/2`)
-   pin the panel at its full height. Expanding a season then changes only
-   the inner scroll position, never the panel geometry — with the default
-   content-fit height, every accordion toggle resized the panel and the
-   backdrop (percentage-sized, object-fit: cover) visibly re-cropped. */
-.modal-panel--full {
-  height: var(--modal-panel-h);
+/* Entries whose content region can scroll (TV seasons, movie-series
+   lists, extras, the Manage/More-info sub-views —
+   `DetailPanel.scrollable_content?/2`) are content-fit like everything
+   else: a collapsed season list no longer reserves a full-height panel
+   of empty space. The two rules below are what make that safe — the
+   panel used to be height-pinned here because with a percentage-sized
+   backdrop, every accordion toggle re-cropped the image:
+
+   1. The backdrop box is sized in --modal-panel-h units instead of a
+      panel percentage, so it is CONSTANT regardless of the panel's
+      actual height. Growing/shrinking the panel just clips more or
+      less of the same image — identical to the pinned value whenever
+      the panel is at max height, which is the only state the pinned
+      orientation backing (same calc) can be visible in.
+   2. The panel is top-anchored instead of centered, at the exact
+      offset where the centered full-height panel's top edge sat
+      (100px physical — half the 200px gutter in --modal-panel-h).
+      Centered, a height change would move the top edge and drag the
+      top-anchored backdrop with it on every toggle. */
+.modal-panel--full .modal-page-backdrop {
+  height: calc(var(--modal-panel-h, 100vh) * 0.7);
+}
+
+.modal-backdrop:has(.modal-panel--full) {
+  align-items: flex-start;
+  /* Divided by --ui-scale for the same reason as --modal-panel-h:
+     rendered offset ×scale must equal 100 physical px. */
+  padding-top: calc(100px / var(--ui-scale, 1));
 }
 
 /* ── Detail-modal scroll rail ──
-   The panel is height-pinned (.modal-panel--full), so overflow flips with
-   the season accordion; `scrollbar-gutter: stable` reserves the rail
+   Overflow flips with the season accordion (content-fit panel under a
+   max-height cap); `scrollbar-gutter: stable` reserves the rail
    permanently so the scrollbar's arrival doesn't re-flow the content.
    The rail is painted to disappear: track and gutter pin to base-100 —
    the same shim the backdrop fades into at the panel's bottom — and the
@@ -797,14 +817,13 @@ body:has(.modal-backdrop[data-state="open"]) {
   );
 }
 
-/* Keep the detail scroller's scrollbar permanently alive: 1px of
-   guaranteed overflow means the #0f1116 track (scrollbar-color above)
-   paints the full rail in EVERY state. Without it, a non-overflowing
-   panel (collapsed seasons) dropped the scrollbar and the reserved
-   gutter fell back to panel base-100 — a visibly lighter strip against
-   the #0f1116 slab. Content-fit panels (movies) have no definite
-   container height, so the calc resolves to auto there and nothing
-   changes. */
+/* Keep the detail scroller's scrollbar alive whenever the panel is at
+   its height cap: 1px of guaranteed overflow means the #0f1116 track
+   (scrollbar-color above) paints the full rail rather than flickering
+   away when content lands exactly at the cap. Content-fit states
+   (movies, collapsed seasons) have no definite container height, so
+   the calc resolves to auto there and no scrollbar is forced — a
+   short panel legitimately has no rail. */
 .modal-detail-scroll > .modal-page-content {
   min-height: calc(100% + 1px);
 }
