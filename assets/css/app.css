@@ -609,13 +609,13 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 /* Pinned backing: the block's own slice of the backdrop (via
-   `--detail-backdrop`, set inline by DetailPanel), darkened to the shim
-   tone. Opaque, so rows scrolling behind the pinned block are fully
-   obscured — but because the backing IS the image already behind the
-   block at the pinned position, the stuck fade is image-over-aligned-
-   image and reads as seamless (unlike the flat black veil this
-   replaces). Bottom mask feathers the edge where rows emerge. Without
-   artwork the wash alone renders.
+   `--detail-backdrop`, set inline by DetailPanel), dimmed to match the
+   atmosphere scrim. Opaque, so rows scrolling behind the pinned block
+   are fully obscured — but because the backing IS the image already
+   behind the block at the pinned position, dimmed as the atmosphere
+   already dims it, the stuck fade is image-over-aligned-image and
+   reads as seamless. Bottom mask feathers the edge where rows emerge.
+   Without artwork an opaque base-100 wash renders instead.
 
    Two elements because clip window and image box are DIFFERENT shapes.
    An earlier single-pseudo-element version painted `cover` into the
@@ -654,15 +654,27 @@ body:has(.modal-backdrop[data-state="open"]) {
    the img it must cover. Identical box + identical fit ⇒ identical
    rendered image at every viewport size, UI scale, and image aspect
    ratio (incl. the poster fallback) — alignment holds by construction,
-   not by coincidence of two independent `cover` fits. */
+   not by coincidence of two independent `cover` fits.
+
+   The dim layers replicate `.modal-page-atmosphere` (left-side weight +
+   the vertical scrim's constant-dim hold value) rather than adding a
+   tone of their own — an earlier flat 0.85 shim made the block visibly
+   darken the moment it pinned. The image copy is what obscures the
+   rows; the dim's only job is to match what the atmosphere already
+   painted behind the block, so pinning changes nothing to the eye. The
+   scrim's 12→36pvh ramp scrolls away with the content, so by pin depth
+   the hold value is the true surrounding — a static flat 0.55 matches
+   it exactly. base-100 underneath keeps the no-artwork fallback opaque. */
 .orientation-backing-image {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: calc(var(--modal-panel-h, 100vh) * 0.7);
+  background-color: var(--color-base-100);
   background-image:
-    linear-gradient(rgb(15 17 22 / 0.85), rgb(15 17 22 / 0.85)),
+    linear-gradient(to right, oklch(0% 0 0 / 0.50) 0%, transparent 35%),
+    linear-gradient(oklch(0% 0 0 / 0.55), oklch(0% 0 0 / 0.55)),
     var(--detail-backdrop, none);
   background-size: cover;
   background-position: center top;
