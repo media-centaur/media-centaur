@@ -50,21 +50,6 @@ defmodule MediaCentaur.Diagnostics do
     end
   end
 
-  @doc "Recent console log entries (newest first)."
-  def log_recent(count \\ 20) do
-    entries = MediaCentaur.Console.recent_entries(count)
-
-    if entries == [] do
-      IO.puts("No log entries in buffer")
-    else
-      for entry <- Enum.reverse(entries) do
-        ts = Calendar.strftime(entry.timestamp, "%H:%M:%S")
-        component = entry.component || :system
-        IO.puts("[#{ts}] [#{entry.level}] [#{component}] #{entry.message}")
-      end
-    end
-  end
-
   @doc "Watcher and pipeline state, media dirs, config."
   def services do
     watcher_children = length(Supervisor.which_children(MediaCentaur.Watcher.Supervisor))

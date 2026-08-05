@@ -42,8 +42,6 @@ defmodule MediaCentaur.Review do
     end
   end
 
-  def get_pending_file!(id), do: Repo.get!(PendingFile, id)
-
   def list_pending_files_for_review do
     Repo.all(
       from(p in PendingFile,
@@ -95,20 +93,12 @@ defmodule MediaCentaur.Review do
     Repo.update(PendingFile.approve_changeset(pending_file))
   end
 
-  def approve_pending_file!(pending_file), do: Repo.bang!(approve_pending_file(pending_file))
-
   def dismiss_pending_file(pending_file) do
     Repo.update(PendingFile.dismiss_changeset(pending_file))
   end
 
-  def dismiss_pending_file!(pending_file), do: Repo.bang!(dismiss_pending_file(pending_file))
-
   def set_pending_file_match(pending_file, attrs) do
     Repo.update(PendingFile.set_tmdb_match_changeset(pending_file, attrs))
-  end
-
-  def set_pending_file_match!(pending_file, attrs) do
-    Repo.bang!(set_pending_file_match(pending_file, attrs))
   end
 
   def destroy_pending_file(pending_file), do: Repo.delete(pending_file)
@@ -261,7 +251,7 @@ defmodule MediaCentaur.Review do
     {updated, errors}
   end
 
-  def approve_and_process(pending_file) do
+  defp approve_and_process(pending_file) do
     Log.info(
       :library,
       "approved \"#{Path.basename(pending_file.file_path)}\" — tmdb:#{pending_file.tmdb_id} (#{pending_file.tmdb_type})"

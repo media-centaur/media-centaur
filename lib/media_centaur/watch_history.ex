@@ -27,9 +27,6 @@ defmodule MediaCentaur.WatchHistory do
     |> Repo.insert()
   end
 
-  @doc "Get a single event by id, raising if not found."
-  def get_event!(id), do: Repo.get!(Event, id)
-
   @doc "Get a single event by id, returning nil if not found."
   def get_event(id), do: Repo.get(Event, id)
 

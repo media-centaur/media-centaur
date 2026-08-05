@@ -157,8 +157,6 @@ defmodule MediaCentaur.Library do
     end
   end
 
-  def get_tv_series!(id), do: Repo.get!(TVSeries, id)
-
   def fetch_tv_series_with_associations(id) do
     case Repo.get(TVSeries, id) do
       nil ->
@@ -186,8 +184,6 @@ defmodule MediaCentaur.Library do
     Repo.update(TVSeries.update_changeset(tv_series, attrs))
   end
 
-  def update_tv_series!(tv_series, attrs), do: Repo.bang!(update_tv_series(tv_series, attrs))
-
   def destroy_tv_series(tv_series), do: Repo.delete(tv_series)
   def destroy_tv_series!(tv_series), do: destroy_bang!(tv_series)
 
@@ -201,8 +197,6 @@ defmodule MediaCentaur.Library do
       movie_series -> {:ok, movie_series}
     end
   end
-
-  def get_movie_series!(id), do: Repo.get!(MovieSeries, id)
 
   def fetch_movie_series_with_associations(id) do
     case Repo.get(MovieSeries, id) do
@@ -227,12 +221,6 @@ defmodule MediaCentaur.Library do
 
   def create_movie_series!(attrs), do: Repo.bang!(create_movie_series(attrs))
 
-  def update_movie_series(movie_series, attrs) do
-    Repo.update(MovieSeries.update_changeset(movie_series, attrs))
-  end
-
-  def update_movie_series!(movie_series, attrs), do: Repo.bang!(update_movie_series(movie_series, attrs))
-
   def destroy_movie_series(movie_series), do: Repo.delete(movie_series)
   def destroy_movie_series!(movie_series), do: destroy_bang!(movie_series)
 
@@ -253,8 +241,6 @@ defmodule MediaCentaur.Library do
     end
   end
 
-  def get_video_object!(id), do: Repo.get!(VideoObject, id)
-
   def get_video_object_with_associations!(id) do
     VideoObject
     |> Repo.get!(id)
@@ -267,12 +253,6 @@ defmodule MediaCentaur.Library do
   end
 
   def create_video_object!(attrs), do: Repo.bang!(create_video_object(attrs))
-
-  def update_video_object(video_object, attrs) do
-    Repo.update(VideoObject.update_changeset(video_object, attrs))
-  end
-
-  def update_video_object!(video_object, attrs), do: Repo.bang!(update_video_object(video_object, attrs))
 
   def destroy_video_object(video_object), do: Repo.delete(video_object)
   def destroy_video_object!(video_object), do: destroy_bang!(video_object)
@@ -322,20 +302,11 @@ defmodule MediaCentaur.Library do
     )
   end
 
-  @doc """
-  Fetches the `PlayableItem` row at the exact `(container_type, container_id,
-  position)` triple. Used by `Library.Inbound` for race-loss recovery on the
-  uniqueness constraint — the recovery semantically wants the row at the
-  SAME position, not just any row for the container (a container can carry
-  multiple PlayableItems for director's cuts).
-
-  Returns `nil` if no row exists for the triple.
-  """
   @spec find_playable_item(PlayableItem.container_type(), Ecto.UUID.t(), integer()) ::
           PlayableItem.t() | nil
-  def find_playable_item(container_type, container_id, position)
-      when container_type in [:movie, :episode, :video_object] and is_binary(container_id) and
-             is_integer(position) do
+  defp find_playable_item(container_type, container_id, position)
+       when container_type in [:movie, :episode, :video_object] and is_binary(container_id) and
+              is_integer(position) do
     Repo.one(
       from(p in PlayableItem,
         where:
@@ -391,14 +362,6 @@ defmodule MediaCentaur.Library do
         end
     end
   end
-
-  @doc "Deletes a `PlayableItem` row."
-  @spec destroy_playable_item(PlayableItem.t()) :: {:ok, PlayableItem.t()} | {:error, Ecto.Changeset.t()}
-  def destroy_playable_item(item), do: Repo.delete(item)
-
-  @doc "Bang variant of `destroy_playable_item/1`."
-  @spec destroy_playable_item!(PlayableItem.t()) :: :ok
-  def destroy_playable_item!(item), do: destroy_bang!(item)
 
   @doc """
   Resolves a list of top-level entity UUIDs to the set of `PlayableItem`
@@ -1384,15 +1347,6 @@ defmodule MediaCentaur.Library do
     end
   end
 
-  def update_image(image, attrs) do
-    Repo.update(Image.update_changeset(image, attrs))
-  end
-
-  def update_image!(image, attrs), do: Repo.bang!(update_image(image, attrs))
-
-  def destroy_image(image), do: Repo.delete(image)
-  def destroy_image!(image), do: destroy_bang!(image)
-
   @doc """
   Lists the `Library.Image` rows owned by `(owner_type, owner_id)`.
 
@@ -1449,9 +1403,6 @@ defmodule MediaCentaur.Library do
   end
 
   def create_external_id!(attrs), do: Repo.bang!(create_external_id(attrs))
-
-  def destroy_external_id(external_id), do: Repo.delete(external_id)
-  def destroy_external_id!(external_id), do: destroy_bang!(external_id)
 
   @doc """
   Returns the container of the given type that owns the given TMDB id
@@ -1690,8 +1641,6 @@ defmodule MediaCentaur.Library do
     end
   end
 
-  def get_movie!(id), do: Repo.get!(Movie, id)
-
   def create_movie(attrs) do
     Repo.insert(Movie.create_changeset(attrs))
   end
@@ -1784,8 +1733,6 @@ defmodule MediaCentaur.Library do
     end
   end
 
-  def get_extra!(id), do: Repo.get!(Extra, id)
-
   @doc """
   Find or create an extra by its `(owner_type, owner_id, content_url)`
   tuple. Used by ingest to upsert extras without re-discovering the
@@ -1839,9 +1786,6 @@ defmodule MediaCentaur.Library do
   def count_blank_extra_names do
     Repo.aggregate(from(e in Extra, where: is_nil(e.name) or e.name == ""), :count)
   end
-
-  def destroy_extra(extra), do: Repo.delete(extra)
-  def destroy_extra!(extra), do: destroy_bang!(extra)
 
   # ---------------------------------------------------------------------------
   # ExtraFile (file presence for Extras — parallel to WatchedFile for
@@ -1943,8 +1887,6 @@ defmodule MediaCentaur.Library do
     end
   end
 
-  def get_season!(id), do: Repo.get!(Season, id)
-
   def create_season(attrs) do
     Repo.insert(Season.create_changeset(attrs))
   end
@@ -2002,8 +1944,6 @@ defmodule MediaCentaur.Library do
     end
   end
 
-  def get_episode!(id), do: Repo.get!(Episode, id)
-
   def find_or_create_episode(attrs) do
     find_or_insert_by(
       Episode,
@@ -2011,8 +1951,6 @@ defmodule MediaCentaur.Library do
       attrs
     )
   end
-
-  def find_or_create_episode!(attrs), do: Repo.bang!(find_or_create_episode(attrs))
 
   @doc """
   Finds the Episode under `tv_series_id` linked to `file_path` via its
@@ -2090,9 +2028,6 @@ defmodule MediaCentaur.Library do
   end
 
   def create_episode!(attrs), do: Repo.bang!(create_episode(attrs))
-
-  def destroy_episode(episode), do: Repo.delete(episode)
-  def destroy_episode!(episode), do: destroy_bang!(episode)
 
   # ---------------------------------------------------------------------------
   # WatchProgress
@@ -2288,9 +2223,6 @@ defmodule MediaCentaur.Library do
   end
 
   def mark_extra_incomplete!(progress), do: Repo.bang!(mark_extra_incomplete(progress))
-
-  def destroy_extra_progress(progress), do: Repo.delete(progress)
-  def destroy_extra_progress!(progress), do: destroy_bang!(progress)
 
   # ---------------------------------------------------------------------------
   # ChangeEntry
