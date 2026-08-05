@@ -697,8 +697,9 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   def handle_event("set_ui_scale", %{"choice" => scale}, socket) do
-    # Persist (single source of truth) and push the new factor to the open
-    # document so the whole shell rescales without a reload. The CSS custom
+    # Persist (single source of truth) and push the new preference factor to
+    # the open document so the whole shell rescales without a reload — the
+    # effective zoom is composed in CSS as auto × preference. The CSS custom
     # property lives on <html>, so it also survives live navigation away from
     # Settings — no per-page :ui_scale assign needed elsewhere.
     applied = UIScale.set(scale)

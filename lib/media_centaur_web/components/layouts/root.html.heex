@@ -1,5 +1,9 @@
 <!DOCTYPE html>
-<html lang="en" data-input="mouse" style={"--ui-scale: #{MediaCentaur.UIScale.cached_scale()}"}>
+<html
+  lang="en"
+  data-input="mouse"
+  style={"--ui-scale-pref: #{MediaCentaur.UIScale.cached_scale()}"}
+>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -27,6 +31,27 @@
     />
     <script>
       (() => {
+        // Auto UI scale — the design is composed at 1920 CSS px wide. Scale
+        // the shell so every screen shows that composition regardless of
+        // resolution: screen.width is CSS px, so OS display scaling is
+        // already accounted for. Floored at 0.7 so small laptops render a
+        // readable miniature rather than a broken one. The Settings picker
+        // multiplies on top (--ui-scale-pref, server-rendered on <html>);
+        // browser zoom composes on top of both. Runs synchronously in <head>
+        // so the first paint is already scaled; recomputed when the window
+        // lands on a different screen (resize fires on maximize/fullscreen
+        // there, and Screen's own change event covers the rest).
+        const applyAutoScale = () => {
+          const auto = Math.max(0.7, screen.width / 1920);
+          document.documentElement.style.setProperty(
+            "--auto-scale",
+            String(Math.round(auto * 10000) / 10000)
+          );
+        };
+        applyAutoScale();
+        window.addEventListener("resize", applyAutoScale);
+        screen.addEventListener?.("change", applyAutoScale);
+
         // Sidebar collapsed state
         const sidebarState = localStorage.getItem("phx:sidebar-collapsed");
         if (sidebarState === "true") {
@@ -46,12 +71,13 @@
           }
         }, true);
 
-        // UI scale — server-rendered onto <html> for first paint; updated live
-        // (no reload) when the Settings picker pushes a new value. Lives on
-        // documentElement, which LiveView never replaces, so it persists across
-        // live navigation between pages.
+        // UI scale preference — server-rendered onto <html> for first paint;
+        // updated live (no reload) when the Settings picker pushes a new
+        // value. Lives on documentElement, which LiveView never replaces, so
+        // it persists across live navigation between pages. The effective
+        // --ui-scale is composed in CSS: auto × preference.
         window.addEventListener("phx:ui-scale", (e) => {
-          document.documentElement.style.setProperty("--ui-scale", e.detail.scale);
+          document.documentElement.style.setProperty("--ui-scale-pref", e.detail.scale);
         });
 
         // Sidebar flyout hover state, projected onto <html> (data-sidebar-hover)

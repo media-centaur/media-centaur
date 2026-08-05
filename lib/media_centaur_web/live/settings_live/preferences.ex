@@ -55,7 +55,7 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
 
         <.settings_choice
           label="Interface scale"
-          description="Resize the whole interface — handy from across the room or on a high-DPI display."
+          description="The interface sizes itself to your screen automatically — use this to enlarge it further."
           options={UIScale.choices()}
           selected={@ui_scale}
           event="set_ui_scale"

@@ -14,6 +14,12 @@ export default defineConfig({
 
   use: {
     baseURL: BASE_URL,
+    // Pin the emulated window.screen: the shell auto-scales itself from
+    // screen.width against the 1920px reference (root.html.heex), and the
+    // tiny default headless screen would floor that at 0.7× — shifting
+    // every layout the nav tests assert geometry against. A 1080p screen
+    // means auto-scale 1, i.e. the reference composition.
+    screen: { width: 1920, height: 1080 },
     trace: "retain-on-failure",
     video: "retain-on-failure",
     actionTimeout: 5_000,
