@@ -133,9 +133,10 @@ body.media-centaur {
    OS-scaled hi-DPI laptop 1× (screen.width is CSS px, so OS scaling has
    already been applied).
 
-   `--ui-scale-pref` (owned by the user): the Settings picker factor,
-   server-rendered onto <html> for a flash-free first paint and updated
-   live via the `phx:ui-scale` event. 100% means "as designed".
+   `--ui-scale-pref` (owned by the user): the Settings stepper factor
+   (70%–200% in 5% steps), server-rendered onto <html> for a flash-free
+   first paint and updated live via the `phx:ui-scale` event. 100% means
+   "as designed".
 
    `--ui-scale` (effective): their product — the single value every
    compensation idiom (`--pvh`, rect division in hooks) keeps reading.
@@ -171,7 +172,12 @@ body.media-centaur {
 }
 
 html {
-  --ui-scale: calc(var(--auto-scale) * var(--ui-scale-pref));
+  /* The max() floor is last-resort insurance: no combination of factors may
+     shrink the shell into unusability, whatever bug produces it. 0.45 sits
+     just below the smallest legitimate product (0.7 auto floor × 0.7 pref).
+     No upper guard on purpose — auto exactly compensates screen size, so
+     large products (4K × 200%) are legitimate and must not be capped. */
+  --ui-scale: max(0.45, var(--auto-scale) * var(--ui-scale-pref));
   zoom: var(--ui-scale, 1);
   /* One PHYSICAL viewport-height unit. `zoom` scales every rendered length
      but does NOT compensate viewport units — a bare `Nvh` renders at

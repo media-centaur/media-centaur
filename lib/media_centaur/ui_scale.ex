@@ -16,6 +16,16 @@ defmodule MediaCentaur.UIScale do
     * `--ui-scale-pref` — owned by the user: this setting, an accessibility /
       taste multiplier on top of the intended size.
 
+  The preference is a bounded continuous multiplier, not an enum: any value on
+  a 5% grid between `min/0` and `max/0`, adjusted through the Settings stepper
+  in 5% steps. This module owns all of the arithmetic — `increment/1`,
+  `decrement/1`, and `normalize/1` (snap-to-grid + clamp) — so the stepper
+  component stays a dumb renderer of precomputed target values and no float
+  math leaks into the view layer. The grid keeps stored values canonical and
+  repeated stepping drift-free; the clamp guarantees no stored preference can
+  make the shell unusable (the composed product carries a second, last-resort
+  floor in `app.css`).
+
   The Settings table is the single source of truth for the preference. First
   paint is flash-free because `root.html.heex` server-renders
   `--ui-scale-pref` from `cached_scale/0`; live changes reach the open
@@ -28,7 +38,7 @@ defmodule MediaCentaur.UIScale do
   database (ADR-041, `NoDbOnRenderTest`). `cached_scale/0` is therefore
   cache-only via `Settings.get_cached/1`; production serves requests only after
   the settings cache is warm, so it returns the real value, while a cold cache
-  (tests, boot window) harmlessly yields the default. The picker and `set/1`
+  (tests, boot window) harmlessly yields the default. The stepper and `set/1`
   use `scale/0`, which keeps the normal `Settings.get_by_key/1` DB fallback for
   read-after-write correctness.
 
@@ -50,15 +60,19 @@ defmodule MediaCentaur.UIScale do
   @setting_key "ui_scale"
   @default 1.0
 
-  # Selectable steps shown in the Preferences picker, smallest → largest. The
-  # clamp range is derived from this list, so the picker and `set/1` can never
-  # disagree about the bounds. 100% ("as designed") is the floor — the
-  # automatic factor already handles density, so shrinking below the intended
-  # size has no accessibility case and sub-100% options historically read as
-  # broken on a TV. Stored out-of-range values clamp into the list's bounds.
-  @options [1.0, 1.1, 1.25, 1.5, 1.75, 2.0]
-  @min Enum.min(@options)
-  @max Enum.max(@options)
+  # Adjustable range and step of the preference factor. 70% is the floor —
+  # the automatic factor already handles density, so anything below that is
+  # unreadably small on every surface we ship for. 200% is the ceiling for
+  # the same reason in the other direction. Stored out-of-range values clamp
+  # into the range; off-grid values snap to the 5% grid.
+  @min 0.7
+  @max 2.0
+  @step 0.05
+  # Grid steps per 1.0 — snapping computes `round(value × grid) / grid` so the
+  # only float operation is a single division, which IEEE rounds to the same
+  # double as the equivalent literal (0.7 == 14/20). Multiplying by @step
+  # instead would reintroduce drift (14 × 0.05 ≠ 0.7 exactly).
+  @grid round(1 / @step)
 
   @doc "The setting key in the Settings table."
   @spec setting_key() :: String.t()
@@ -68,13 +82,25 @@ defmodule MediaCentaur.UIScale do
   @spec default() :: float()
   def default, do: @default
 
-  @doc "Selectable scale steps for the Preferences picker."
-  @spec options() :: [float()]
-  def options, do: @options
+  @doc "The smallest selectable preference factor."
+  @spec min() :: float()
+  def min, do: @min
 
-  @doc "Selectable `{factor, label}` pairs for the Preferences picker, e.g. `{1.25, \"125%\"}`."
-  @spec choices() :: [{float(), String.t()}]
-  def choices, do: Enum.map(@options, &{&1, percent(&1)})
+  @doc "The largest selectable preference factor."
+  @spec max() :: float()
+  def max, do: @max
+
+  @doc "The stepper increment (5%)."
+  @spec step() :: float()
+  def step, do: @step
+
+  @doc "The next step up from `value`, clamped to `max/0`."
+  @spec increment(term()) :: float()
+  def increment(value), do: normalize(normalize(value) + @step)
+
+  @doc "The next step down from `value`, clamped to `min/0`."
+  @spec decrement(term()) :: float()
+  def decrement(value), do: normalize(normalize(value) - @step)
 
   @doc "The current UI scale factor, clamped, defaulting to #{@default}."
   @spec scale() :: float()
@@ -99,8 +125,8 @@ defmodule MediaCentaur.UIScale do
 
   @doc """
   Persists a new scale, normalizing and clamping the input first. Accepts a
-  float, integer, or string (the picker submits `phx-value-scale` as a string).
-  Returns the clamped float that was stored.
+  float, integer, or string (the stepper submits `phx-value-choice` as a
+  string). Returns the normalized float that was stored.
   """
   @spec set(term()) :: float()
   def set(value) do
@@ -118,15 +144,23 @@ defmodule MediaCentaur.UIScale do
   def parse(%{"scale" => value}), do: normalize(value)
   def parse(_), do: @default
 
-  @doc "Normalizes input to a clamped float; non-numbers fall back to the default."
+  @doc """
+  Normalizes input to a float on the 5% grid within `min/0`..`max/0`;
+  non-numbers fall back to the default. Snapping before clamping keeps every
+  produced value canonical, so equality checks against the bounds are exact.
+  """
   @spec normalize(term()) :: float()
-  def normalize(value), do: value |> to_float() |> clamp()
+  def normalize(value), do: value |> to_float() |> snap() |> clamp()
 
   @doc ~S(Formats a factor as an integer percent string, e.g. `1.25` → `"125%"`.)
   @spec percent(float()) :: String.t()
   def percent(scale), do: "#{round(scale * 100)}%"
 
-  defp clamp(value), do: value |> max(@min) |> min(@max)
+  # Snap to the 5% grid via integer arithmetic so repeated stepping can't
+  # accumulate binary-float drift (see @grid).
+  defp snap(value), do: round(value * @grid) / @grid
+
+  defp clamp(value), do: value |> Kernel.max(@min) |> Kernel.min(@max)
 
   defp to_float(value) when is_float(value), do: value
   defp to_float(value) when is_integer(value), do: value * 1.0
