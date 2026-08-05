@@ -320,6 +320,30 @@ html.psb .psb-variation-block .media-centaur {
   filter: drop-shadow(0 2px 10px rgba(0, 0, 0, 0.85));
 }
 
+/* ── Image scrims (UIDR-011 companion) ──
+   The other half of the text-on-imagery problem: where a whole region of
+   text sits over a backdrop, a per-glyph shadow isn't enough and the
+   surface needs to fade into the page instead. These derive from
+   `--color-base-100` so a change to the theme's base hue carries; the
+   literal `oklch(13% 0.02 264/…)` these replaced was the base colour
+   transcribed by hand, and would have silently desynchronised. */
+.image-scrim-t {
+  background-image: linear-gradient(
+    to top,
+    oklch(from var(--color-base-100) l c h / 0.9),
+    oklch(from var(--color-base-100) l c h / 0.35)
+  );
+}
+
+.image-scrim-r {
+  background-image: linear-gradient(
+    to right,
+    oklch(from var(--color-base-100) l c h / 0.92),
+    oklch(from var(--color-base-100) l c h / 0.72) 50%,
+    oklch(from var(--color-base-100) l c h / 0.3)
+  );
+}
+
 /* ── Collapsible Sidebar ──
    Icon-only 52px rail that flies out to 200px (icon + label). Two modes,
    toggled by the bottom chevron and persisted on <html data-sidebar> via

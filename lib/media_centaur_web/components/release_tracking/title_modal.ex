@@ -61,7 +61,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
           <div
             :if={@detail.backdrop_path}
             aria-hidden="true"
-            class="pointer-events-none absolute inset-0 bg-gradient-to-t from-[oklch(13%_0.02_264/0.9)] to-[oklch(13%_0.02_264/0.35)]"
+            class="pointer-events-none absolute inset-0 image-scrim-t"
           >
           </div>
           <div class="relative flex items-start justify-between gap-3">
