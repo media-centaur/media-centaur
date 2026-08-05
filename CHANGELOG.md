@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.112.0 — 2026-08-05
+
+### New
+
+- **The interface now sizes itself to your screen.** Whatever you're on — a 4K TV, a 1080p monitor, a laptop — Media Centaur shows the same layout at the same apparent size, with nothing to configure. Higher-resolution screens just get a sharper picture. The **Interface scale** setting is now a personal enlargement on top of that automatic size (100% is the designed size), and browser zoom keeps working independently. If you had raised the scale to compensate for a high-resolution screen, a migration in this release resets it to 100% — the automatic sizing now does that job, so things look the same as before.
+
+### Improved
+
+- **The TV series page opens on the season you're watching.** The current season starts expanded with your next episode scrolled into view, instead of a fully collapsed season list.
+- **The top of the series page stays with you.** The artwork, title, and play controls now stay pinned while the episode list scrolls beneath them, so Play and your progress are always in reach.
+
 ## v0.111.0 — 2026-08-04
 
 ### Improved
