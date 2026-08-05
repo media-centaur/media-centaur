@@ -612,10 +612,10 @@ body:has(.modal-backdrop[data-state="open"]) {
    as the panel itself layers it. Opaque, so rows scrolling behind the
    pinned block are fully obscured — but because the backing rebuilds
    exactly what the panel already painted behind the block at the pinned
-   position (image, fade, atmosphere dim), the stuck fade is
-   image-over-aligned-image and reads as seamless. Bottom mask feathers
-   the edge where rows emerge. Without artwork the opaque base-100 floor
-   plus the dim layers render instead.
+   position (image, fade, atmosphere dim), toggling it swaps identical
+   pixels and is invisible. Bottom mask feathers the edge where rows
+   emerge. Without artwork the opaque base-100 floor plus the dim
+   layers render instead.
 
    Design history, kept because each ancestor failed differently:
    1. A single pseudo-element painted `cover` into its own clip-window
@@ -649,8 +649,15 @@ body:has(.modal-backdrop[data-state="open"]) {
   z-index: -1;
   overflow: hidden;
   pointer-events: none;
+  /* NO opacity transition — the flip is deliberately instant. The
+     backing replicates image, fade, and atmosphere exactly, and at the
+     pin boundary the block's in-flow position coincides with its
+     pinned position with no rows behind it — so ON and OFF are
+     pixel-identical there and an instant swap is invisible. A fade is
+     strictly worse: while fading out the unpinned block travels with
+     the content, dragging a still-visible panel-anchored slice along
+     as a misaligned ghost. */
   opacity: 0;
-  transition: opacity 250ms ease-out;
   mask-image: linear-gradient(to bottom, black calc(100% - 2.5rem), transparent);
   /* Opaque floor: obscures rows below the image box and when there is
      no artwork at all. */
@@ -691,12 +698,14 @@ body:has(.modal-backdrop[data-state="open"]) {
   );
 }
 
-/* Replica of `.modal-page-atmosphere`: the left-side weight plus the
-   vertical scrim's constant-dim hold value. The scrim's 12→36pvh ramp
-   scrolls away with the content, so by pin depth the hold is the true
-   surrounding — a static flat 0.55 matches it exactly. No tone of its
-   own (an earlier flat 0.85 shim visibly darkened the block on pin);
-   the dim's only job is to match what the atmosphere already painted. */
+/* Verbatim replica of `.modal-page-atmosphere` (keep the two
+   backgrounds textually identical). The atmosphere is panel-fixed and
+   this box's top edge sits at the panel's top edge while stuck, so the
+   same absolute (`--pvh`) stops paint the same pixels — the backing
+   equals its surroundings at every pinned depth, which is what makes
+   the instant on/off flip invisible. No tone of its own (an earlier
+   flat 0.85 shim visibly darkened the block on pin); the dim's only
+   job is to match what the atmosphere already painted. */
 .orientation-backing-dim {
   position: absolute;
   inset: 0;
@@ -707,7 +716,13 @@ body:has(.modal-backdrop[data-state="open"]) {
       transparent 35%,
       transparent 100%
     ),
-    linear-gradient(oklch(0% 0 0 / 0.55), oklch(0% 0 0 / 0.55));
+    linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent calc(12 * var(--pvh)),
+      oklch(0% 0 0 / 0.55) calc(36 * var(--pvh)),
+      oklch(0% 0 0 / 0.55) 100%
+    );
 }
 
 @container scroll-state(stuck: top) {
@@ -795,11 +810,8 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 /* ── Modal page-level content anchor ──
-   Positioning context for the atmosphere. Grows with the content so the
-   absolute atmosphere inside it covers the full scroll height — not just
-   the visible scroll padding box, which would scroll off and end the dim
-   partway down. `min-height: 100%` keeps the atmosphere covering the
-   viewport for short entries (e.g. a single Movie). */
+   `min-height: 100%` keeps short entries (e.g. a single Movie) filling
+   the scrollport so the rail-liveness calc below has a definite height. */
 .modal-page-content {
   position: relative;
   z-index: 1;
@@ -807,17 +819,20 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 /* ── Modal page-level atmosphere ──
-   Mirror of `.page-side-dim` (HomeLive) but absolute (panel-scoped). A
-   left-side weight + a vertical scrim that fades to a constant dim and
-   holds it to the panel bottom. Vertical stops are viewport-based so the
-   transparent → dim transition lands near the bottom of the hero (matching
-   the original 70% of a ~92vh panel) and the constant-dim region holds
-   regardless of how tall the content gets. Stops use `--pvh` so they track
-   the *physical* panel geometry at any UI scale. */
+   Mirror of `.page-side-dim` (HomeLive) but absolute and PANEL-FIXED
+   like the backdrop (2026-08-05 instant-pin revision — it previously
+   scrolled with the content). A left-side weight + a vertical scrim
+   that fades to a constant dim and holds it to the panel bottom.
+   Vertical stops land the transparent → dim transition near the bottom
+   of the hero; `--pvh` keeps them tracking the *physical* panel
+   geometry at any UI scale. Panel-fixed matters for the pinned
+   orientation block: its backing replicates this gradient verbatim
+   (`.orientation-backing-dim`), and replica == original at every
+   scroll depth only if the original never moves. Keep the two
+   backgrounds textually identical. */
 .modal-page-atmosphere {
   position: absolute;
   inset: 0;
-  z-index: 0;
   pointer-events: none;
   background:
     linear-gradient(

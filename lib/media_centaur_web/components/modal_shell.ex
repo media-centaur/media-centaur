@@ -108,11 +108,19 @@ defmodule MediaCentaurWeb.Components.ModalShell do
               extends under the reserved scrollbar gutter, so the rail
               blends into the picture instead of cutting it off. --%>
       <CinematicBackdrop.backdrop :if={@entity} backdrop_url={@backdrop_url} />
-      <%!-- Single scroll surface for the entire detail document. The
-              atmosphere scrim scrolls with the content (it lives in
-              .modal-page-content); only the backdrop stays put.
-              .modal-detail-scroll owns the rail treatment: stable
-              gutter (no re-flow when the scrollbar appears), track
+      <%!-- Atmosphere scrim is panel-fixed like the backdrop (2026-08-05
+              instant-pin revision): the pinned orientation block's backing
+              replicates it verbatim, and that replica only equals the real
+              thing at every scroll depth if the real thing never moves.
+              At rest this renders identically to the earlier
+              scrolls-with-content seating (content coords == panel coords
+              until you scroll); once scrolled, everything above the ramp
+              hides behind the opaque backing anyway. --%>
+      <div :if={@entity} class="modal-page-atmosphere z-0" aria-hidden="true"></div>
+      <%!-- Single scroll surface for the entire detail document. Only the
+              content (and its slab dim) scrolls; backdrop and atmosphere
+              stay put. .modal-detail-scroll owns the rail treatment:
+              stable gutter (no re-flow when the scrollbar appears), track
               painted to the shim tone. See the app.css comment. --%>
       <div
         :if={@entity}
@@ -121,7 +129,6 @@ defmodule MediaCentaurWeb.Components.ModalShell do
         class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative z-[1] modal-detail-scroll"
       >
         <div class="modal-page-content">
-          <div class="modal-page-atmosphere" aria-hidden="true"></div>
           <div class="relative z-[2]">
             <DetailPanel.detail_panel
               entity={@entity}
