@@ -135,6 +135,58 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
     end
   end
 
+  describe "initial_expanded_seasons/1" do
+    test "mid-series opens the season holding the next episode" do
+      seasons = [
+        library_season(1, 21, 21),
+        library_season(2, 9, 22, resume_target: true),
+        library_season(3, 0, 13)
+      ]
+
+      orientation = Orientation.build(seasons, resume_hint(2, 10))
+
+      assert Orientation.initial_expanded_seasons(orientation) == MapSet.new([2])
+    end
+
+    test "unstarted series opens season one" do
+      seasons = [library_season(1, 0, 21), library_season(2, 0, 15)]
+
+      orientation = Orientation.build(seasons, resume_hint(1, 1))
+
+      assert Orientation.initial_expanded_seasons(orientation) == MapSet.new([1])
+    end
+
+    test "completed series opens nothing — the rows are a rewatch index" do
+      orientation = Orientation.build([library_season(1, 5, 5)], nil)
+
+      assert Orientation.initial_expanded_seasons(orientation) == MapSet.new()
+    end
+
+    test "no current season opens nothing" do
+      orientation = Orientation.build([future_season(1)], nil)
+
+      assert Orientation.initial_expanded_seasons(orientation) == MapSet.new()
+    end
+  end
+
+  describe "autoscroll?/1" do
+    test "mid-series scrolls to the next episode" do
+      seasons = [library_season(1, 21, 21), library_season(2, 9, 22, resume_target: true)]
+
+      assert Orientation.autoscroll?(Orientation.build(seasons, resume_hint(2, 10)))
+    end
+
+    test "unstarted series stays on the hero" do
+      orientation = Orientation.build([library_season(1, 0, 21)], resume_hint(1, 1))
+
+      refute Orientation.autoscroll?(orientation)
+    end
+
+    test "completed series stays on the hero" do
+      refute Orientation.autoscroll?(Orientation.build([library_season(1, 5, 5)], nil))
+    end
+  end
+
   # subline/marquee/overline were removed 2026-08-05: the up-next block
   # duplicated the Play button's own label, so the hairline is the only
   # orientation element the hero renders.

@@ -213,14 +213,16 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         }
       },
       %Variation{
-        id: :tv_series_collapsed_default,
+        id: :tv_series_all_collapsed,
         description:
-          "`:tv_series` as it opens (2026-08-04 orientation design): " <>
-            "`expanded_seasons: MapSet.new()` — every season collapsed to its " <>
-            "header row. Play controls left, synopsis right (top-aligned, " <>
-            "no rule), and the season hairline on the hero's bottom edge as the " <>
-            "only orientation element — the Play button's label names the next " <>
-            "episode. The PlayCard renders no progress row for TV.",
+          "`expanded_seasons: MapSet.new()` — every season collapsed to its " <>
+            "header row. Since the 2026-08-05 auto-orient design this is no " <>
+            "longer how a series in progress opens (the host seeds the current " <>
+            "season from `Orientation.initial_expanded_seasons/1`); it is the " <>
+            "**completed-series** state, where there is no next episode and the " <>
+            "rows serve as a compact rewatch index. Play controls left, synopsis " <>
+            "right (top-aligned, no rule), season hairline on the hero's bottom " <>
+            "edge. The PlayCard renders no progress row for TV.",
         attributes: Map.put(tv_series_attrs(), :expanded_seasons, MapSet.new())
       },
       %Variation{

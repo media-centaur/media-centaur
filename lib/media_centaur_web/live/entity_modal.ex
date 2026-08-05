@@ -63,6 +63,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaur.Library.FileEventHandler
   alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
   alias MediaCentaurWeb.Components.ModalShell
+  alias MediaCentaurWeb.ViewModel.Orientation
   alias MediaCentaurWeb.ViewModel.SeriesDetail
   alias MediaCentaurWeb.{LibraryProgress, LiveHelpers}
 
@@ -580,17 +581,20 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     entity_switched = selection_changed && socket.assigns.selected_entity_id != nil
     detail_view = if entity_switched, do: :main, else: detail_view
 
-    # Seasons open collapsed (2026-08-04 orientation design) — the hero
-    # marquee/hairline/subline carry "where am I", so nothing auto-expands
-    # and nothing auto-scrolls. `expanded_seasons` only ever changes via
-    # the user's toggle_season clicks within one selection.
+    # The season holding the next episode opens expanded (2026-08-05
+    # auto-orient design, revising the blanket collapse of 2026-08-04).
+    # Which season that is comes from `Orientation` — the same value the
+    # hero hairline reads — so the open season and the hairline cannot
+    # disagree. Seeded on selection change only; within one selection
+    # `expanded_seasons` changes solely via toggle_season clicks.
     {selected_entry, expanded_seasons} =
       cond do
         selected_id == nil ->
           {nil, MapSet.new()}
 
         selection_changed ->
-          {load_entry_or_nil(selected_id), MapSet.new()}
+          entry = load_entry_or_nil(selected_id)
+          {entry, initial_expanded_seasons(entry)}
 
         true ->
           {socket.assigns.selected_entry, socket.assigns.expanded_seasons}
@@ -651,6 +655,16 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
     if should_load_files?, do: start_async_files_load(socket, selected_id), else: socket
   end
+
+  # Only TV carries a season accordion; movie / movie-series entries load
+  # as plain maps and open with nothing expanded.
+  defp initial_expanded_seasons(%SeriesDetail{seasons: seasons, resume_target: resume_target}) do
+    seasons
+    |> Orientation.build(resume_target)
+    |> Orientation.initial_expanded_seasons()
+  end
+
+  defp initial_expanded_seasons(_entry), do: MapSet.new()
 
   @doc """
   Reload the currently-selected entry from the database. Call from the
