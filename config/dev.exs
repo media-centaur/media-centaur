@@ -1,5 +1,4 @@
 import Config
-config :ex_code_view, output_dir: "tmp"
 
 # Use custom formatter that shows [level][component] for thinking logs
 # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
