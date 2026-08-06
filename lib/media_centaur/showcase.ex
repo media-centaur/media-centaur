@@ -253,7 +253,7 @@ defmodule MediaCentaur.Showcase do
     case TMDB.Client.get_season(tmdb_id, season_number, client) do
       {:ok, season_data} ->
         season =
-          Library.create_season!(%{
+          Library.Seasons.create!(%{
             tv_series_id: series.id,
             season_number: season_number,
             name: season_data["name"] || "Season #{season_number}",
@@ -278,7 +278,7 @@ defmodule MediaCentaur.Showcase do
     episode_name = episode_data["name"] || "Episode #{episode_number}"
 
     episode =
-      Library.create_episode!(%{
+      Library.Episodes.create!(%{
         season_id: season.id,
         episode_number: episode_number,
         name: episode_name,

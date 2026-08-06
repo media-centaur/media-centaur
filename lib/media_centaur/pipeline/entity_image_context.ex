@@ -38,7 +38,7 @@ defmodule MediaCentaur.Pipeline.EntityImageContext do
   def find_tmdb_context(entity_id, :video_object), do: lookup_tmdb_id(entity_id, :tmdb, :video_object)
 
   def find_tmdb_context(episode_id, :episode) do
-    with {:ok, episode} <- Library.fetch_episode(episode_id),
+    with {:ok, episode} <- Library.Episodes.fetch(episode_id),
          %Season{} = season <- Repo.get(Season, episode.season_id),
          {:ok, tmdb_id} <- find_tmdb_context(season.tv_series_id, :tv_series) do
       {:ok, {tmdb_id, season.season_number, episode.episode_number, season.tv_series_id}}
@@ -94,7 +94,7 @@ defmodule MediaCentaur.Pipeline.EntityImageContext do
         {:ok, media_dir}
 
       _ ->
-        with {:ok, %Episode{} = episode} <- Library.fetch_episode(episode_id),
+        with {:ok, %Episode{} = episode} <- Library.Episodes.fetch(episode_id),
              %Season{} = season <- Repo.get(Season, episode.season_id) do
           find_media_dir(season.tv_series_id, :tv_series)
         else

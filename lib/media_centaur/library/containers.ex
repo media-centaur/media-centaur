@@ -32,8 +32,10 @@ defmodule MediaCentaur.Library.Containers do
     ExternalIds,
     Movie,
     MovieSeries,
+    PlayableItem,
     TVSeries,
     VideoObject,
+    WatchedFile,
     Writes
   }
 
@@ -208,6 +210,40 @@ defmodule MediaCentaur.Library.Containers do
           {:ok, movie}
         end
     end
+  end
+
+  @doc """
+  The child movies of a collection, with `:content_url` materialised.
+  Extra preloads may be passed as `load:`.
+  """
+  @spec list_child_movies(Ecto.UUID.t(), keyword()) :: [Movie.t()]
+  def list_child_movies(movie_series_id, opts \\ []) do
+    preloads = List.flatten([ContentUrls.required_preload() | Keyword.get(opts, :load, [])])
+
+    from(m in Movie, where: m.movie_series_id == ^movie_series_id)
+    |> Repo.all()
+    |> Repo.preload(preloads)
+    |> Enum.map(&ContentUrls.populate/1)
+  end
+
+  @doc """
+  The child movie under `movie_series_id` linked to `file_path` via its
+  `PlayableItem → WatchedFile` chain, or `nil`. The collection-child
+  counterpart of `Library.Episodes.find_by_path/2`.
+  """
+  @spec find_child_movie_by_path(Ecto.UUID.t(), String.t()) :: Movie.t() | nil
+  def find_child_movie_by_path(movie_series_id, file_path)
+      when is_binary(movie_series_id) and is_binary(file_path) do
+    Repo.one(
+      from(m in Movie,
+        join: pi in PlayableItem,
+        on: pi.container_id == m.id and pi.container_type == :movie,
+        join: w in WatchedFile,
+        on: w.playable_item_id == pi.id,
+        where: m.movie_series_id == ^movie_series_id and w.file_path == ^file_path,
+        limit: 1
+      )
+    )
   end
 
   defp preload_full(type, record) when type in @types do

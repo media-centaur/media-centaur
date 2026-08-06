@@ -213,12 +213,12 @@ defmodule MediaCentaur.Library.FileEventHandler do
   end
 
   defp delete_children_for_paths(entity_id, removed_paths) do
-    seasons = Library.list_seasons_by_owner_id(entity_id)
+    seasons = Library.Seasons.list_for_tv_series(entity_id)
 
     Enum.each(seasons, fn season ->
       matched_episodes =
         Enum.filter(
-          Library.list_episodes_for_season(season.id, load: [:images, :watch_progress]),
+          Library.Episodes.list_for_season(season.id, load: [:images, :watch_progress]),
           &(&1.content_url && MapSet.member?(removed_paths, &1.content_url))
         )
 
@@ -233,7 +233,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
 
     matched_movies =
       Enum.filter(
-        Library.list_movies_by_owner_id(entity_id, load: [:images, :watch_progress, :external_ids]),
+        Library.Containers.list_child_movies(entity_id, load: [:images, :watch_progress, :external_ids]),
         &(&1.content_url && MapSet.member?(removed_paths, &1.content_url))
       )
 
@@ -252,7 +252,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
 
     matched_extras =
       Enum.filter(
-        Library.list_extras_by_owner_id(entity_id),
+        Library.Extras.list_for_owner(entity_id),
         &(&1.content_url && MapSet.member?(removed_paths, &1.content_url))
       )
 
@@ -263,9 +263,9 @@ defmodule MediaCentaur.Library.FileEventHandler do
 
   defp cleanup_empty_seasons(seasons) do
     Enum.each(seasons, fn season ->
-      if Library.list_episodes_for_season(season.id) == [] do
-        bulk_destroy(Library.list_extras_for_season(season.id), Library.Extra)
-        Library.destroy_season!(season)
+      if Library.Episodes.list_for_season(season.id) == [] do
+        bulk_destroy(Library.Extras.list_for_season(season.id), Library.Extra)
+        Library.Seasons.destroy!(season)
       end
     end)
   end

@@ -118,7 +118,7 @@ defmodule MediaCentaur.Playback.Resolver do
   # --- Episode resolution ---
 
   defp resolve_episode(uuid) do
-    case Library.fetch_episode(uuid) do
+    case Library.Episodes.fetch(uuid) do
       {:ok, episode} ->
         resolve_episode_playback(episode)
 
@@ -133,7 +133,7 @@ defmodule MediaCentaur.Playback.Resolver do
   end
 
   defp resolve_episode_playback(episode) do
-    with {:ok, season} <- Library.fetch_season(episode.season_id),
+    with {:ok, season} <- Library.Seasons.fetch(episode.season_id),
          {:ok, tv_series} <-
            Library.Containers.fetch_with_associations(:tv_series, season.tv_series_id) do
       entity = EntityShape.to_view_model(tv_series, :tv_series)
@@ -265,7 +265,7 @@ defmodule MediaCentaur.Playback.Resolver do
   # --- Extra resolution ---
 
   defp resolve_extra(uuid) do
-    case Library.fetch_extra(uuid) do
+    case Library.Extras.fetch(uuid) do
       {:ok, extra} ->
         resolve_extra_playback(extra)
 

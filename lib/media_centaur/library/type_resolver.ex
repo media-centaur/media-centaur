@@ -105,7 +105,7 @@ defmodule MediaCentaur.Library.TypeResolver do
     do: fetch_with_preload(Library.Containers.fetch(:movie, id), preloads)
 
   defp fetch_container(:episode, id, preloads),
-    do: fetch_with_preload(Library.fetch_episode(id), preloads)
+    do: fetch_with_preload(Library.Episodes.fetch(id), preloads)
 
   defp fetch_container(:video_object, id, preloads),
     do: fetch_with_preload(Library.Containers.fetch(:video_object, id), preloads)

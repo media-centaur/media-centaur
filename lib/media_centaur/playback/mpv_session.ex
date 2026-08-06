@@ -774,7 +774,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   defp resolve_or_create_playable_item_id(%{episode_id: episode_id}) when not is_nil(episode_id) do
     position =
-      case Library.fetch_episode(episode_id) do
+      case Library.Episodes.fetch(episode_id) do
         {:ok, %{episode_number: n}} when is_integer(n) -> n
         _ -> 1
       end

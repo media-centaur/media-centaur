@@ -219,8 +219,8 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
 
     test "fully watched series states completion instead of a next episode",
          %{conn: conn, tv_series: tv_series} do
-      for season <- MediaCentaur.Library.list_seasons_for_tv_series(tv_series.id),
-          episode <- MediaCentaur.Library.list_episodes_for_season(season.id) do
+      for season <- MediaCentaur.Library.Seasons.list_for_tv_series(tv_series.id),
+          episode <- MediaCentaur.Library.Episodes.list_for_season(season.id) do
         create_watch_progress(%{
           episode_id: episode.id,
           position_seconds: 0.0,

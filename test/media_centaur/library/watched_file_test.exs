@@ -99,7 +99,7 @@ defmodule MediaCentaur.Library.WatchedFileTest do
       tv_series = create_entity(%{type: :tv_series, name: "Resolver Show"})
 
       {:ok, season} =
-        Library.find_or_create_season_for_tv_series(%{
+        Library.Seasons.find_or_create(%{
           tv_series_id: tv_series.id,
           season_number: 1,
           name: "S1",
@@ -107,7 +107,7 @@ defmodule MediaCentaur.Library.WatchedFileTest do
         })
 
       {:ok, episode} =
-        Library.find_or_create_episode(%{
+        Library.Episodes.find_or_create(%{
           season_id: season.id,
           episode_number: 1,
           name: "E1",

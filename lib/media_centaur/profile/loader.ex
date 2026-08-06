@@ -114,7 +114,7 @@ defmodule MediaCentaur.Profile.Loader do
       series = Library.Containers.create!(:tv_series, %{name: "Profile Series #{series_index}"})
 
       season =
-        Library.create_season!(%{
+        Library.Seasons.create!(%{
           tv_series_id: series.id,
           season_number: 1,
           name: "Season 1"
@@ -133,7 +133,7 @@ defmodule MediaCentaur.Profile.Loader do
           )
 
         episode =
-          Library.create_episode!(%{
+          Library.Episodes.create!(%{
             season_id: season.id,
             episode_number: episode_number,
             name: "S01E#{episode_number}"

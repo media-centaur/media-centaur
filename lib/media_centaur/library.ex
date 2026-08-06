@@ -10,11 +10,14 @@ defmodule MediaCentaur.Library do
       EntityShape,
       Episode,
       EpisodeList,
+      Episodes,
       Events,
       Events.EntitiesChanged,
       ExternalId,
       ExternalIds,
+      Extra,
       ExtraFile,
+      Extras,
       FileEventHandler,
       FilePresence,
       Files,
@@ -25,6 +28,7 @@ defmodule MediaCentaur.Library do
       Movie,
       MovieList,
       MovieSeries,
+      OwnerRef,
       Person,
       PlayableItem,
       PlayableItems,
@@ -39,6 +43,7 @@ defmodule MediaCentaur.Library do
       ProgressSummary,
       Relink,
       Season,
+      Seasons,
       TVSeries,
       TypeResolver,
       VideoObject,
@@ -69,9 +74,7 @@ defmodule MediaCentaur.Library do
 
   alias MediaCentaur.Library.{
     ChangeEntry,
-    ContentUrls,
     Episode,
-    Extra,
     ExternalId,
     HomeFeed,
     Image,
@@ -84,8 +87,7 @@ defmodule MediaCentaur.Library do
     Season,
     TVSeries,
     VideoObject,
-    WatchedFile,
-    Writes
+    WatchedFile
   }
 
   @doc "Subscribe the caller to library entity change events."
@@ -93,11 +95,6 @@ defmodule MediaCentaur.Library do
   def subscribe do
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_updates())
   end
-
-  # Leaf preload chain for materialising the virtual `content_url` field
-  # (Library Schema v2 Phase 2 Task I). Owned by `Library.ContentUrls`,
-  # which consumes it — see that moduledoc.
-  @leaf_file_path_preload ContentUrls.required_preload()
 
   # ---------------------------------------------------------------------------
   # Search-index source
@@ -303,41 +300,6 @@ defmodule MediaCentaur.Library do
   end
 
   @doc """
-  Lists seasons for a TV series by its ID.
-  """
-  def list_seasons_by_owner_id(owner_id) do
-    Repo.all(from(s in Season, where: s.tv_series_id == ^owner_id))
-  end
-
-  @doc """
-  Lists movies for a movie series or standalone by their FK.
-  """
-  def list_movies_by_owner_id(owner_id, opts \\ []) do
-    preloads = Keyword.get(opts, :load, [])
-
-    # Preload the WatchedFile chain so the virtual `content_url`
-    # populates on the returned Movie structs (Library Schema v2
-    # Phase 2 Task I).
-    full_preloads = List.flatten([@leaf_file_path_preload | preloads])
-
-    from(m in Movie, where: m.movie_series_id == ^owner_id)
-    |> Repo.all()
-    |> Repo.preload(full_preloads)
-    |> Enum.map(&ContentUrls.populate/1)
-  end
-
-  @doc """
-  Lists extras owned by the given UUID — works for any owner type
-  (movie / tv_series / movie_series / season) because the
-  `(owner_type, owner_id)` discriminator makes the type irrelevant to
-  the lookup. Callers that need only one owner type should query
-  `Extra` directly.
-  """
-  def list_extras_by_owner_id(owner_id) do
-    Repo.all(from(x in Extra, where: x.owner_id == ^owner_id))
-  end
-
-  @doc """
   Resolves any entity id + current possession to a **presentable
   identity** — a `{kind, id}` pair — applying the single movie-vs-collection
   hoist rule. This is the one authority every read surface consults
@@ -540,15 +502,6 @@ defmodule MediaCentaur.Library do
   ]
   defp translate_image_owner(attrs) when is_map(attrs),
     do: translate_legacy_owner(attrs, @image_owner_legacy_keys)
-
-  @extra_owner_legacy_keys [
-    movie_id: :movie,
-    tv_series_id: :tv_series,
-    movie_series_id: :movie_series,
-    season_id: :season
-  ]
-  defp translate_extra_owner(attrs) when is_map(attrs),
-    do: translate_legacy_owner(attrs, @extra_owner_legacy_keys)
 
   @external_id_owner_legacy_keys [
     movie_id: :movie,
@@ -847,229 +800,7 @@ defmodule MediaCentaur.Library do
   end
 
   # ---------------------------------------------------------------------------
-  # Extra
   # ---------------------------------------------------------------------------
-
-  def list_extras_for_season(season_id) do
-    Repo.all(from(x in Extra, where: x.owner_type == :season and x.owner_id == ^season_id))
-  end
-
-  def fetch_extra(id) do
-    case Repo.get(Extra, id) do
-      nil -> {:error, :not_found}
-      extra -> {:ok, extra}
-    end
-  end
-
-  @doc """
-  Find or create an extra by its `(owner_type, owner_id, content_url)`
-  tuple. Used by ingest to upsert extras without re-discovering the
-  same bonus feature on every Watcher event.
-  """
-  def find_or_create_extra_by_owner(attrs) do
-    Writes.find_or_insert_by(
-      Extra,
-      [
-        owner_type: Writes.attr(attrs, :owner_type),
-        owner_id: Writes.attr(attrs, :owner_id),
-        content_url: Writes.attr(attrs, :content_url)
-      ],
-      attrs
-    )
-  end
-
-  def create_extra(attrs) do
-    Repo.insert(Extra.create_changeset(translate_extra_owner(attrs)))
-  end
-
-  def create_extra!(attrs), do: Repo.bang!(create_extra(attrs))
-
-  @doc """
-  Re-derives an extra's display name. The only update path for `Extra.name`;
-  rejects a blank value via `Extra.update_name_changeset/2`. Used by the
-  re-derive sweep (`MediaCentaur.Pipeline.ExtraRederive`).
-  """
-  @spec update_extra_name(Extra.t(), String.t() | nil) ::
-          {:ok, Extra.t()} | {:error, Ecto.Changeset.t()}
-  def update_extra_name(%Extra{} = extra, name) do
-    extra
-    |> Extra.update_name_changeset(%{name: name})
-    |> Repo.update()
-  end
-
-  @doc """
-  Extras whose `name` can be re-derived from a file path — i.e. those carrying a
-  `content_url`. Drives the re-derive sweep (`Pipeline.ExtraRederive`).
-  """
-  @spec list_rederivable_extras() :: [Extra.t()]
-  def list_rederivable_extras do
-    Repo.all(from(e in Extra, where: not is_nil(e.content_url)))
-  end
-
-  @doc """
-  Count of extras with a blank or missing `name` — the visible symptom the
-  re-derive sweep repairs; drives the Maintenance button's prominence.
-  """
-  @spec count_blank_extra_names() :: non_neg_integer()
-  def count_blank_extra_names do
-    Repo.aggregate(from(e in Extra, where: is_nil(e.name) or e.name == ""), :count)
-  end
-
-  # ---------------------------------------------------------------------------
-  # Season
-  # ---------------------------------------------------------------------------
-
-  def list_seasons, do: Repo.all(Season)
-
-  def fetch_season(id) do
-    case Repo.get(Season, id) do
-      nil -> {:error, :not_found}
-      season -> {:ok, season}
-    end
-  end
-
-  def create_season(attrs) do
-    Repo.insert(Season.create_changeset(attrs))
-  end
-
-  def create_season!(attrs), do: Repo.bang!(create_season(attrs))
-
-  def destroy_season(season), do: Repo.delete(season)
-  def destroy_season!(season), do: Writes.destroy!(season)
-
-  def find_or_create_season_for_tv_series(attrs) do
-    Writes.find_or_insert_by(
-      Season,
-      [
-        tv_series_id: Writes.attr(attrs, :tv_series_id),
-        season_number: Writes.attr(attrs, :season_number)
-      ],
-      attrs
-    )
-  end
-
-  def list_seasons_for_tv_series(tv_series_id) do
-    Repo.all(from(s in Season, where: s.tv_series_id == ^tv_series_id))
-  end
-
-  # ---------------------------------------------------------------------------
-  # Episode
-  # ---------------------------------------------------------------------------
-
-  def list_episodes, do: Repo.all(Episode)
-
-  def list_episodes_for_season(season_id, opts \\ []) do
-    preloads = Keyword.get(opts, :load, [])
-
-    # Preload the WatchedFile chain so the virtual `content_url`
-    # populates on the returned Episode structs (Library Schema v2
-    # Phase 2 Task I).
-    full_preloads = List.flatten([@leaf_file_path_preload | preloads])
-
-    from(e in Episode, where: e.season_id == ^season_id)
-    |> Repo.all()
-    |> Repo.preload(full_preloads)
-    |> Enum.map(&ContentUrls.populate/1)
-  end
-
-  def fetch_episode(id) do
-    case Repo.get(Episode, id) do
-      nil ->
-        {:error, :not_found}
-
-      episode ->
-        # Populate the virtual `content_url` so consumers (`Resolver`,
-        # detail panel) that read `episode.content_url` post-fetch see
-        # the on-disk path (Library Schema v2 Phase 2 Task I).
-        {:ok, episode |> Repo.preload(@leaf_file_path_preload) |> ContentUrls.populate()}
-    end
-  end
-
-  def find_or_create_episode(attrs) do
-    Writes.find_or_insert_by(
-      Episode,
-      [season_id: Writes.attr(attrs, :season_id), episode_number: Writes.attr(attrs, :episode_number)],
-      attrs
-    )
-  end
-
-  @doc """
-  Finds the Episode under `tv_series_id` linked to `file_path` via its
-  `PlayableItem → WatchedFile` chain. After Library Schema v2 Phase 2
-  Task I dropped `Episode.content_url`, this lookup goes through the
-  WatchedFile join — `WatchedFile.file_path` is the sole source of truth
-  for "the file on disk for this Episode."
-
-  Returns `nil` when no Episode has been linked to `file_path` — callers
-  must handle the missing-row case (typically an ingest race or a stale
-  event).
-  """
-  @spec find_episode_by_path(Ecto.UUID.t(), String.t()) :: Episode.t() | nil
-  def find_episode_by_path(tv_series_id, file_path)
-      when is_binary(tv_series_id) and is_binary(file_path) do
-    Repo.one(
-      from(e in Episode,
-        join: s in Season,
-        on: s.id == e.season_id,
-        join: pi in PlayableItem,
-        on: pi.container_id == e.id and pi.container_type == :episode,
-        join: w in WatchedFile,
-        on: w.playable_item_id == pi.id,
-        where: s.tv_series_id == ^tv_series_id and w.file_path == ^file_path,
-        limit: 1
-      )
-    )
-  end
-
-  @doc """
-  Finds the child Movie under `movie_series_id` linked to `file_path`
-  via its `PlayableItem → WatchedFile` chain. The collection-child
-  counterpart of `find_episode_by_path/2`.
-  """
-  @spec find_movie_by_path(Ecto.UUID.t(), String.t()) :: Movie.t() | nil
-  def find_movie_by_path(movie_series_id, file_path)
-      when is_binary(movie_series_id) and is_binary(file_path) do
-    Repo.one(
-      from(m in Movie,
-        join: pi in PlayableItem,
-        on: pi.container_id == m.id and pi.container_type == :movie,
-        join: w in WatchedFile,
-        on: w.playable_item_id == pi.id,
-        where: m.movie_series_id == ^movie_series_id and w.file_path == ^file_path,
-        limit: 1
-      )
-    )
-  end
-
-  @doc """
-  Finds the Episode under `tv_series_id` with `(season_number, episode_number)`.
-  Used by callers that have the (season_number, episode_number) tuple
-  directly — `Library.Inbound`'s `leaf_container_for` walks this path
-  because at file-link time the WatchedFile doesn't exist yet (it's
-  being created in the same flow).
-  """
-  @spec find_episode_by_season_episode(Ecto.UUID.t(), integer(), integer()) :: Episode.t() | nil
-  def find_episode_by_season_episode(tv_series_id, season_number, episode_number)
-      when is_binary(tv_series_id) and is_integer(season_number) and is_integer(episode_number) do
-    Repo.one(
-      from(e in Episode,
-        join: s in Season,
-        on: s.id == e.season_id,
-        where:
-          s.tv_series_id == ^tv_series_id and
-            s.season_number == ^season_number and
-            e.episode_number == ^episode_number,
-        limit: 1
-      )
-    )
-  end
-
-  def create_episode(attrs) do
-    Repo.insert(Episode.create_changeset(attrs))
-  end
-
-  def create_episode!(attrs), do: Repo.bang!(create_episode(attrs))
-
   # ---------------------------------------------------------------------------
   # ChangeEntry
   # ---------------------------------------------------------------------------

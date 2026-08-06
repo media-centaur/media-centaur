@@ -333,7 +333,7 @@ defmodule MediaCentaur.Library.InboundTest do
       # Library Schema v2 Phase 2 Task I: `Episode.content_url` is a
       # derived virtual; the persisted path lives on `WatchedFile.file_path`
       # linked through the Episode's PlayableItem.
-      assert {:ok, reloaded_episode} = Library.fetch_episode(episode.id)
+      assert {:ok, reloaded_episode} = Library.Episodes.fetch(episode.id)
       assert reloaded_episode.content_url == "/media/TV/Sample.Show.S01E01.mkv"
 
       # Pending images: tv_series poster + episode thumb
@@ -351,7 +351,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert %Library.TVSeries{} = tv_series
       # The headline reconciliation guarantee: no fabricated season node and
       # no file link — the diverted file is parked elsewhere (the queue).
-      assert Library.list_seasons_for_tv_series(tv_series.id) == []
+      assert Library.Seasons.list_for_tv_series(tv_series.id) == []
       assert Library.find_present_episode("1396", 2, 1) == :not_found
     end
 
@@ -393,7 +393,7 @@ defmodule MediaCentaur.Library.InboundTest do
 
       # Phase 2 Task I — read content_url via the Library getter, not the
       # raw preloaded Episode (which carries only the virtual field).
-      assert {:ok, reloaded_episode} = Library.fetch_episode(episode.id)
+      assert {:ok, reloaded_episode} = Library.Episodes.fetch(episode.id)
       assert reloaded_episode.content_url == "/media/TV/Sample.Show.S01E02.mkv"
     end
 

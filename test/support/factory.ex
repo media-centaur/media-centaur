@@ -20,6 +20,7 @@ defmodule MediaCentaur.TestFactory do
     ExternalId,
     Movie,
     MovieSeries,
+    OwnerRef,
     Person,
     PlayableItem,
     Season,
@@ -82,7 +83,7 @@ defmodule MediaCentaur.TestFactory do
       owner_id: nil
     }
 
-    struct(Image, Map.merge(defaults, translate_owner_keys(overrides, :image)))
+    struct(Image, Map.merge(defaults, OwnerRef.normalise(Map.new(overrides), :image)))
   end
 
   def build_external_id(overrides \\ %{}) do
@@ -94,7 +95,7 @@ defmodule MediaCentaur.TestFactory do
       owner_id: nil
     }
 
-    struct(ExternalId, Map.merge(defaults, translate_owner_keys(overrides, :external_id)))
+    struct(ExternalId, Map.merge(defaults, OwnerRef.normalise(Map.new(overrides), :external_id)))
   end
 
   @doc """
@@ -149,7 +150,7 @@ defmodule MediaCentaur.TestFactory do
       owner_id: nil
     }
 
-    struct(Extra, Map.merge(defaults, translate_owner_keys(overrides, :extra)))
+    struct(Extra, Map.merge(defaults, OwnerRef.normalise(Map.new(overrides), :extra)))
   end
 
   def build_season(overrides \\ %{}) do
@@ -417,22 +418,22 @@ defmodule MediaCentaur.TestFactory do
   end
 
   def create_image(attrs) do
-    attrs |> Map.new() |> translate_owner_keys(:image) |> Library.create_image!()
+    attrs |> Map.new() |> OwnerRef.normalise(:image) |> Library.create_image!()
   end
 
   def create_external_id(attrs) do
-    attrs |> Map.new() |> translate_owner_keys(:external_id) |> Library.create_external_id!()
+    attrs |> Map.new() |> OwnerRef.normalise(:external_id) |> Library.create_external_id!()
   end
 
   def create_season(attrs) do
-    Library.create_season!(attrs)
+    Library.Seasons.create!(attrs)
   end
 
   def create_episode(attrs) do
     attrs = Map.new(attrs)
     content_url = attrs[:content_url]
     clean_attrs = Map.delete(attrs, :content_url)
-    episode = Library.create_episode!(clean_attrs)
+    episode = Library.Episodes.create!(clean_attrs)
     link_factory_content_url_for_episode(episode, content_url)
   end
 
@@ -502,7 +503,7 @@ defmodule MediaCentaur.TestFactory do
   end
 
   def create_extra(attrs) do
-    attrs |> Map.new() |> translate_owner_keys(:extra) |> Library.create_extra!()
+    attrs |> Map.new() |> OwnerRef.normalise(:extra) |> Library.Extras.create!()
   end
 
   @doc """
@@ -672,7 +673,7 @@ defmodule MediaCentaur.TestFactory do
     # Phase 2 Task I `Episode.content_url` no longer exists; the link
     # is recorded only on the WatchedFile.
     episode =
-      Library.find_episode_by_path(tv_series_id, file_path) ||
+      Library.Episodes.find_by_path(tv_series_id, file_path) ||
         create_factory_episode_for_tv_series(tv_series_id)
 
     ensure_factory_playable_item(:episode, episode.id, episode.episode_number || 1)
@@ -681,7 +682,7 @@ defmodule MediaCentaur.TestFactory do
   defp resolve_playable_item_id_for_factory(%{movie_series_id: movie_series_id, file_path: file_path})
        when is_binary(movie_series_id) do
     movie =
-      Library.find_movie_by_path(movie_series_id, file_path) ||
+      Library.Containers.find_child_movie_by_path(movie_series_id, file_path) ||
         create_factory_movie_for_series(movie_series_id)
 
     ensure_factory_playable_item(:movie, movie.id, movie.position || 1)
@@ -693,7 +694,7 @@ defmodule MediaCentaur.TestFactory do
   # episode_number so multiple calls don't share one episode.
   defp create_factory_episode_for_tv_series(tv_series_id) do
     {:ok, season} =
-      Library.find_or_create_season_for_tv_series(%{
+      Library.Seasons.find_or_create(%{
         tv_series_id: tv_series_id,
         season_number: 9001,
         name: "Factory Season",
@@ -703,7 +704,7 @@ defmodule MediaCentaur.TestFactory do
     episode_number = System.unique_integer([:positive]) + 9000
 
     {:ok, episode} =
-      Library.find_or_create_episode(%{
+      Library.Episodes.find_or_create(%{
         season_id: season.id,
         episode_number: episode_number,
         name: "Factory Episode"
@@ -1190,40 +1191,4 @@ defmodule MediaCentaur.TestFactory do
   # keep their natural call shape; new tests can write either form.
   #
   # If both legacy and modern keys are present, the modern keys win.
-
-  @image_owner_keys [:movie_id, :episode_id, :tv_series_id, :movie_series_id, :video_object_id]
-  @extra_owner_keys [:movie_id, :tv_series_id, :movie_series_id, :season_id]
-  @external_id_owner_keys [:movie_id, :tv_series_id, :movie_series_id, :video_object_id]
-
-  @owner_key_to_type %{
-    movie_id: :movie,
-    episode_id: :episode,
-    tv_series_id: :tv_series,
-    movie_series_id: :movie_series,
-    video_object_id: :video_object,
-    season_id: :season
-  }
-
-  defp translate_owner_keys(attrs, kind) do
-    attrs = Map.new(attrs)
-    keys = owner_keys_for(kind)
-
-    case Enum.find(keys, fn key -> not is_nil(Map.get(attrs, key)) end) do
-      nil ->
-        attrs
-
-      legacy_key ->
-        owner_id = Map.get(attrs, legacy_key)
-        owner_type = Map.fetch!(@owner_key_to_type, legacy_key)
-
-        attrs
-        |> Map.drop(keys)
-        |> Map.put_new(:owner_type, owner_type)
-        |> Map.put_new(:owner_id, owner_id)
-    end
-  end
-
-  defp owner_keys_for(:image), do: @image_owner_keys
-  defp owner_keys_for(:extra), do: @extra_owner_keys
-  defp owner_keys_for(:external_id), do: @external_id_owner_keys
 end

@@ -617,18 +617,18 @@ defmodule MediaCentaur.Library.Inbound do
   end
 
   defp find_or_create_season(:tv_series, attrs) do
-    Library.find_or_create_season_for_tv_series(attrs)
+    Library.Seasons.find_or_create(attrs)
   end
 
   defp find_or_create_season(_entity_type, attrs) do
     # Non-TV-series types create seasons directly (rare case — extras with season context)
-    Library.create_season(attrs)
+    Library.Seasons.create(attrs)
   end
 
   defp create_episode(season, episode_data) do
     episode_attrs = Map.put(episode_data.attrs, :season_id, season.id)
 
-    case Library.find_or_create_episode(episode_attrs) do
+    case Library.Episodes.find_or_create(episode_attrs) do
       {:ok, episode} ->
         # Library Schema v2 Phase 2 Task G — Episode is a leaf, so pair
         # it with its PlayableItem at the `episode_number` position. The
@@ -711,7 +711,7 @@ defmodule MediaCentaur.Library.Inbound do
       owner_id: owner_id
     }
 
-    with {:ok, extra} <- Library.find_or_create_extra_by_owner(extra_attrs) do
+    with {:ok, extra} <- Library.Extras.find_or_create_by_owner(extra_attrs) do
       link_extra_file(extra, media_dir)
     end
   end
@@ -851,7 +851,7 @@ defmodule MediaCentaur.Library.Inbound do
     # Phase 2 Task I the `Episode.content_url` column is gone — the
     # unambiguous key is `(tv_series_id, season_number, episode_number)`,
     # which the event already carries on its season + episode payload.
-    case Library.find_episode_by_season_episode(entity.id, season_number, episode_number) do
+    case Library.Episodes.find_by_season_episode(entity.id, season_number, episode_number) do
       nil -> nil
       episode -> {:episode, episode.id, episode.episode_number || 1}
     end

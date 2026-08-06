@@ -1064,25 +1064,25 @@ defmodule MediaCentaur.LibraryTest do
       series = create_tv_series(%{name: "Dup Season Show"})
 
       assert {:ok, _season} =
-               Library.create_season(%{tv_series_id: series.id, season_number: 3, name: "S3"})
+               Library.Seasons.create(%{tv_series_id: series.id, season_number: 3, name: "S3"})
 
       assert {:error, changeset} =
-               Library.create_season(%{tv_series_id: series.id, season_number: 3, name: "S3 again"})
+               Library.Seasons.create(%{tv_series_id: series.id, season_number: 3, name: "S3 again"})
 
       refute changeset.valid?
       assert "has already been taken" in all_error_messages(changeset)
-      assert length(Library.list_seasons_for_tv_series(series.id)) == 1
+      assert length(Library.Seasons.list_for_tv_series(series.id)) == 1
     end
 
     test "find_or_create_season_for_tv_series/1 is idempotent — repeated calls yield one season" do
       series = create_tv_series(%{name: "Idempotent Season Show"})
       attrs = %{tv_series_id: series.id, season_number: 1, name: "S1", number_of_episodes: 10}
 
-      assert {:ok, first} = Library.find_or_create_season_for_tv_series(attrs)
-      assert {:ok, second} = Library.find_or_create_season_for_tv_series(attrs)
+      assert {:ok, first} = Library.Seasons.find_or_create(attrs)
+      assert {:ok, second} = Library.Seasons.find_or_create(attrs)
 
       assert first.id == second.id
-      assert length(Library.list_seasons_for_tv_series(series.id)) == 1
+      assert length(Library.Seasons.list_for_tv_series(series.id)) == 1
     end
   end
 
@@ -1092,14 +1092,14 @@ defmodule MediaCentaur.LibraryTest do
       season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
 
       assert {:ok, _episode} =
-               Library.create_episode(%{season_id: season.id, episode_number: 1, name: "Pilot"})
+               Library.Episodes.create(%{season_id: season.id, episode_number: 1, name: "Pilot"})
 
       assert {:error, changeset} =
-               Library.create_episode(%{season_id: season.id, episode_number: 1, name: "Pilot again"})
+               Library.Episodes.create(%{season_id: season.id, episode_number: 1, name: "Pilot again"})
 
       refute changeset.valid?
       assert "has already been taken" in all_error_messages(changeset)
-      assert length(Library.list_episodes_for_season(season.id)) == 1
+      assert length(Library.Episodes.list_for_season(season.id)) == 1
     end
 
     test "find_or_create_episode/1 is idempotent — repeated calls yield one episode" do
@@ -1107,11 +1107,11 @@ defmodule MediaCentaur.LibraryTest do
       season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
       attrs = %{season_id: season.id, episode_number: 5, name: "E5"}
 
-      assert {:ok, first} = Library.find_or_create_episode(attrs)
-      assert {:ok, second} = Library.find_or_create_episode(attrs)
+      assert {:ok, first} = Library.Episodes.find_or_create(attrs)
+      assert {:ok, second} = Library.Episodes.find_or_create(attrs)
 
       assert first.id == second.id
-      assert length(Library.list_episodes_for_season(season.id)) == 1
+      assert length(Library.Episodes.list_for_season(season.id)) == 1
     end
   end
 
