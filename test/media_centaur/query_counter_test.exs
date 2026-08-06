@@ -59,6 +59,71 @@ defmodule MediaCentaur.QueryCounterTest do
     end
   end
 
+  describe "process scoping" do
+    test "ignores queries emitted by processes outside the scope" do
+      {_result, queries} =
+        QueryCounter.count(fn ->
+          Task.await(Task.async(fn -> Repo.aggregate(Movie, :count, :id) end))
+          :ok
+        end)
+
+      assert queries == [],
+             """
+             count/1 must scope to the calling process. A background worker issuing
+             a query during the measured window inflated the count by \
+             #{length(queries)} — this is what makes query budgets flake under
+             full-suite parallelism.
+             """
+    end
+
+    test "from: extends the scope with pids derived from the callback's result" do
+      {task, queries} =
+        QueryCounter.count(
+          fn ->
+            task = Task.async(fn -> Repo.aggregate(Movie, :count, :id) end)
+            Task.await(task)
+            task
+          end,
+          from: fn task -> [task.pid] end
+        )
+
+      assert %Task{} = task
+
+      assert length(queries) == 1,
+             "expected the scoped task's single query, got #{length(queries)}"
+    end
+
+    test "from: still counts the caller's own queries" do
+      {_task, queries} =
+        QueryCounter.count(
+          fn ->
+            task = Task.async(fn -> Repo.aggregate(Movie, :count, :id) end)
+            Task.await(task)
+            Repo.aggregate(Movie, :count, :id)
+            task
+          end,
+          from: fn task -> [task.pid] end
+        )
+
+      assert length(queries) == 2,
+             "expected one query from the task and one from the caller, got #{length(queries)}"
+    end
+
+    test "from: excludes processes it does not name" do
+      {_task, queries} =
+        QueryCounter.count(
+          fn ->
+            Task.await(Task.async(fn -> Repo.aggregate(Movie, :count, :id) end))
+            Task.await(Task.async(fn -> Repo.aggregate(Movie, :count, :id) end))
+            :ok
+          end,
+          from: fn _ -> [] end
+        )
+
+      assert queries == []
+    end
+  end
+
   describe "format/1" do
     test "renders an empty list as the empty string" do
       assert QueryCounter.format([]) == ""
