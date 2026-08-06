@@ -14,7 +14,7 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
         duration_seconds: 300.0
       })
 
-      found = Library.get_extra_progress_by_extra(extra.id)
+      found = Library.ProgressRecords.fetch_for_extra(extra.id)
 
       assert found.extra_id == extra.id
       assert found.position_seconds == 45.0
@@ -39,7 +39,7 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
         duration_seconds: 120.0
       })
 
-      found = Library.get_extra_progress_by_extra(extra.id)
+      found = Library.ProgressRecords.fetch_for_extra(extra.id)
       assert found.position_seconds == 80.0
     end
 
@@ -54,7 +54,7 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
           duration_seconds: 300.0
         })
 
-      {:ok, _} = Library.mark_extra_completed(progress)
+      {:ok, _} = Library.ProgressRecords.mark_completed(progress)
 
       create_extra_progress(%{
         extra_id: extra.id,
@@ -62,7 +62,7 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
         duration_seconds: 300.0
       })
 
-      updated = Library.get_extra_progress_by_extra(extra.id)
+      updated = Library.ProgressRecords.fetch_for_extra(extra.id)
 
       assert updated.completed == true
       assert updated.position_seconds == 10.0
@@ -85,8 +85,8 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
         duration_seconds: 180.0
       })
 
-      found_1 = Library.get_extra_progress_by_extra(extra_1.id)
-      found_2 = Library.get_extra_progress_by_extra(extra_2.id)
+      found_1 = Library.ProgressRecords.fetch_for_extra(extra_1.id)
+      found_2 = Library.ProgressRecords.fetch_for_extra(extra_2.id)
 
       assert found_1 != nil
       assert found_2 != nil
@@ -107,7 +107,7 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
 
       assert progress.completed == false
 
-      {:ok, updated} = Library.mark_extra_completed(progress)
+      {:ok, updated} = Library.ProgressRecords.mark_completed(progress)
       assert updated.completed == true
     end
   end
@@ -124,10 +124,10 @@ defmodule MediaCentaur.Library.ExtraProgressTest do
           duration_seconds: 300.0
         })
 
-      {:ok, completed} = Library.mark_extra_completed(progress)
+      {:ok, completed} = Library.ProgressRecords.mark_completed(progress)
       assert completed.completed == true
 
-      {:ok, incomplete} = Library.mark_extra_incomplete(completed)
+      {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
       assert incomplete.completed == false
     end
   end

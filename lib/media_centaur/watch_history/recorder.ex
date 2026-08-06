@@ -3,7 +3,7 @@ defmodule MediaCentaur.WatchHistory.Recorder do
   GenServer that subscribes to `"library:watch_completed"` and records a
   `WatchEvent` for each transition-to-completed.
 
-  `Library.mark_watch_completed/1` broadcasts `{:entity_watch_completed, record}`
+  `Library.ProgressRecords.mark_completed/1` broadcasts `{:entity_watch_completed, record}`
   exactly once per transition (pre-update record had `completed: false`), so no
   dedup is needed here.
   """
@@ -68,7 +68,7 @@ defmodule MediaCentaur.WatchHistory.Recorder do
   # WatchProgress holds only `playable_item_id` since Library Schema v2
   # Phase 2 Task C. The owning leaf is reached via the linked
   # `PlayableItem`'s `(container_type, container_id)` discriminator.
-  # `Library.mark_watch_completed/1` doesn't preload `:playable_item` —
+  # `Library.ProgressRecords.mark_completed/1` doesn't preload `:playable_item` —
   # we do it here so each clause can dispatch on container type.
   defp build_event_attrs(record) do
     record = Repo.preload(record, :playable_item)

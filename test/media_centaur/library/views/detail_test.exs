@@ -92,17 +92,17 @@ defmodule MediaCentaur.Library.Views.DetailTest do
   end
 
   defp playable_item_for_movie(movie) do
-    [item | _] = Library.list_playable_items_for(:movie, movie.id)
+    [item | _] = Library.PlayableItems.list_for(:movie, movie.id)
     item
   end
 
   defp playable_item_for_episode(episode) do
-    [item | _] = Library.list_playable_items_for(:episode, episode.id)
+    [item | _] = Library.PlayableItems.list_for(:episode, episode.id)
     item
   end
 
   defp playable_item_for_video_object(vo) do
-    [item | _] = Library.list_playable_items_for(:video_object, vo.id)
+    [item | _] = Library.PlayableItems.list_for(:video_object, vo.id)
     item
   end
 
@@ -265,7 +265,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
       # Movie with a PlayableItem but no WatchedFile at all.
       movie = create_standalone_movie(%{name: "Fileless Movie"})
-      {:ok, pi} = Library.find_or_create_playable_item(:movie, movie.id, 1)
+      {:ok, pi} = Library.PlayableItems.find_or_create(:movie, movie.id, 1)
 
       assert :ok = Detail.refresh_cache()
       item = Views.detail(pi.id)
@@ -324,7 +324,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       # means the WatchedFile getting stamped. Start with a PlayableItem
       # but no WatchedFile; stamp it and watch present? flip.
       movie = create_standalone_movie(%{name: "Late Arrival"})
-      {:ok, pi} = Library.find_or_create_playable_item(:movie, movie.id, 1)
+      {:ok, pi} = Library.PlayableItems.find_or_create(:movie, movie.id, 1)
 
       assert :ok = Detail.refresh_cache()
       assert %DetailItem{present?: false} = Views.detail(pi.id)
@@ -538,7 +538,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       {movie, _file} = seed_present_movie("Multi-Cut Movie")
       pi_one = playable_item_for_movie(movie)
       # Seed a second cut at position 2.
-      {:ok, pi_two} = Library.find_or_create_playable_item(:movie, movie.id, 2)
+      {:ok, pi_two} = Library.PlayableItems.find_or_create(:movie, movie.id, 2)
 
       assert :ok = Detail.refresh_cache()
 

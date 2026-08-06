@@ -404,8 +404,7 @@ defmodule MediaCentaur.Showcase do
     |> Enum.with_index()
     |> Enum.map(fn {{movie, pct}, idx} ->
       {:ok, _} =
-        Library.find_or_create_watch_progress_for_movie(%{
-          movie_id: movie.id,
+        Library.ProgressRecords.find_or_create_for_container(:movie, movie.id, %{
           position_seconds: pct * duration,
           duration_seconds: duration,
           completed: completed?,
@@ -429,8 +428,7 @@ defmodule MediaCentaur.Showcase do
     |> Enum.with_index()
     |> Enum.map(fn {{episode, pct}, idx} ->
       {:ok, _} =
-        Library.find_or_create_watch_progress_for_episode(%{
-          episode_id: episode.id,
+        Library.ProgressRecords.find_or_create_for_container(:episode, episode.id, %{
           position_seconds: pct * duration,
           duration_seconds: duration,
           completed: completed?,
@@ -1224,7 +1222,7 @@ defmodule MediaCentaur.Showcase do
   defp showcase_leaf_for(video_object_id, :video_object_id), do: {:video_object, video_object_id, 1}
 
   defp ensure_showcase_playable_item(container_type, container_id, position) do
-    case MediaCentaur.Library.create_playable_item(%{
+    case MediaCentaur.Library.PlayableItems.create(%{
            container_type: container_type,
            container_id: container_id,
            position: position
@@ -1233,7 +1231,7 @@ defmodule MediaCentaur.Showcase do
         {:ok, item}
 
       {:error, %Ecto.Changeset{}} ->
-        [item | _] = MediaCentaur.Library.list_playable_items_for(container_type, container_id)
+        [item | _] = MediaCentaur.Library.PlayableItems.list_for(container_type, container_id)
         {:ok, item}
     end
   end

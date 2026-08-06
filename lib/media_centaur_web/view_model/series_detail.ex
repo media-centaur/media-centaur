@@ -94,7 +94,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
 
   defp compose_from_detail(detail_item, entity_id) do
     entity = detail_item |> DetailItem.to_entity_map() |> Library.put_track_override()
-    progress_records = Library.list_progress_records_for_tv_series(entity_id)
+    progress_records = Library.ProgressRecords.list_for_tv_series(entity_id)
     progress_summary = ProgressSummary.compute(entity, progress_records)
 
     entry = %{

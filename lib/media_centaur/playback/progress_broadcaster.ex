@@ -118,7 +118,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
 
         progress_records =
           type
-          |> Library.list_progress_records_for_container(id)
+          |> Library.ProgressRecords.list_for_container(id)
           |> overlay_in_memory_progress()
 
         {:ok, entity, progress_records}
@@ -145,7 +145,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcaster do
   Loads the current ExtraProgress record and broadcasts it.
   """
   def broadcast_extra(entity_id, extra_id) do
-    progress = MediaCentaur.Library.get_extra_progress_by_extra(extra_id)
+    progress = MediaCentaur.Library.ProgressRecords.fetch_for_extra(extra_id)
 
     Log.info(:playback, "broadcast extra progress — #{Format.short_id(extra_id)}")
 

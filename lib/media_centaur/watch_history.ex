@@ -220,9 +220,9 @@ defmodule MediaCentaur.WatchHistory do
   end
 
   defp reset_watch_progress(%Event{movie_id: movie_id}) when not is_nil(movie_id) do
-    case Library.fetch_watch_progress_by_fk(:movie_id, movie_id) do
+    case Library.ProgressRecords.fetch_for_container(:movie, movie_id) do
       {:ok, progress} ->
-        Library.mark_watch_incomplete(progress)
+        Library.ProgressRecords.mark_incomplete(progress)
         Library.broadcast_entities_changed([movie_id])
 
       _ ->
@@ -231,9 +231,9 @@ defmodule MediaCentaur.WatchHistory do
   end
 
   defp reset_watch_progress(%Event{episode_id: episode_id}) when not is_nil(episode_id) do
-    case Library.fetch_watch_progress_by_fk(:episode_id, episode_id) do
+    case Library.ProgressRecords.fetch_for_container(:episode, episode_id) do
       {:ok, progress} ->
-        Library.mark_watch_incomplete(progress)
+        Library.ProgressRecords.mark_incomplete(progress)
         Library.broadcast_entities_changed([episode_id])
 
       _ ->
@@ -242,9 +242,9 @@ defmodule MediaCentaur.WatchHistory do
   end
 
   defp reset_watch_progress(%Event{video_object_id: video_object_id}) when not is_nil(video_object_id) do
-    case Library.fetch_watch_progress_by_fk(:video_object_id, video_object_id) do
+    case Library.ProgressRecords.fetch_for_container(:video_object, video_object_id) do
       {:ok, progress} ->
-        Library.mark_watch_incomplete(progress)
+        Library.ProgressRecords.mark_incomplete(progress)
         Library.broadcast_entities_changed([video_object_id])
 
       _ ->

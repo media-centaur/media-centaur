@@ -367,10 +367,10 @@ defmodule MediaCentaur.Library.Inbound do
   defp maybe_ensure_self_playable_item!(_record, _type), do: :ok
 
   # Race-safe PlayableItem upsert at the `(container_type, container_id,
-  # position)` triple. Delegates to `Library.find_or_create_playable_item/3`
+  # position)` triple. Delegates to `Library.PlayableItems.find_or_create/3`
   # — the canonical seam handles the unique-index race-loss case.
   defp ensure_playable_item!(container_type, container_id, position) do
-    case Library.find_or_create_playable_item(container_type, container_id, position) do
+    case Library.PlayableItems.find_or_create(container_type, container_id, position) do
       {:ok, %Library.PlayableItem{id: id}} -> id
       {:error, reason} -> raise "PlayableItem creation failed: #{inspect(reason)}"
     end
@@ -806,7 +806,7 @@ defmodule MediaCentaur.Library.Inbound do
   # Resolves the leaf PlayableItem id for an event so `link_file/2` can
   # wire the WatchedFile to it. After Library Schema v2 Phase 2 Task G
   # the PlayableItem is created alongside the leaf container, so this
-  # lookup is normally a find — `Library.find_or_create_playable_item/3`
+  # lookup is normally a find — `Library.PlayableItems.find_or_create/3`
   # remains the seam for the rare case where the leaf row predates
   # Task G (legacy data, factories that bypass Inbound).
   defp leaf_playable_item_id_for(entity, event) do

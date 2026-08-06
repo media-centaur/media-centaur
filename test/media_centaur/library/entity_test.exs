@@ -76,7 +76,7 @@ defmodule MediaCentaur.Library.EntityTest do
       assert movie.content_url == nil
 
       {:ok, playable_item} =
-        Library.find_or_create_playable_item(:movie, movie.id, movie.position || 1)
+        Library.PlayableItems.find_or_create(:movie, movie.id, movie.position || 1)
 
       _file =
         Library.link_file!(%{

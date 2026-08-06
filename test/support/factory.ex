@@ -405,7 +405,7 @@ defmodule MediaCentaur.TestFactory do
 
   defp do_link_factory_content_url(record, container_type, url, position) do
     {:ok, playable_item} =
-      Library.find_or_create_playable_item(container_type, record.id, position)
+      Library.PlayableItems.find_or_create(container_type, record.id, position)
 
     Library.link_file!(%{
       playable_item_id: playable_item.id,
@@ -535,13 +535,13 @@ defmodule MediaCentaur.TestFactory do
   end
 
   @doc """
-  Persists a `PlayableItem` row via `Library.create_playable_item!/1`. The
+  Persists a `PlayableItem` row via `Library.PlayableItems.create!/1`. The
   caller supplies `:container_type` / `:container_id` pointing at an
   existing container; defaults fill in `:position` when unset.
   """
   def create_playable_item(attrs) do
     defaults = %{position: 1}
-    Library.create_playable_item!(Map.merge(defaults, Map.new(attrs)))
+    Library.PlayableItems.create!(Map.merge(defaults, Map.new(attrs)))
   end
 
   @doc """
@@ -581,7 +581,7 @@ defmodule MediaCentaur.TestFactory do
   end
 
   defp find_or_create_factory_playable_item(container_type, container_id, position) do
-    {:ok, item} = Library.find_or_create_playable_item(container_type, container_id, position)
+    {:ok, item} = Library.PlayableItems.find_or_create(container_type, container_id, position)
     item
   end
 
@@ -724,7 +724,7 @@ defmodule MediaCentaur.TestFactory do
   end
 
   defp ensure_factory_playable_item(container_type, container_id, position) do
-    case Library.create_playable_item(%{
+    case Library.PlayableItems.create(%{
            container_type: container_type,
            container_id: container_id,
            position: position
@@ -733,7 +733,7 @@ defmodule MediaCentaur.TestFactory do
         item.id
 
       {:error, %Ecto.Changeset{}} ->
-        [item | _] = Library.list_playable_items_for(container_type, container_id)
+        [item | _] = Library.PlayableItems.list_for(container_type, container_id)
         item.id
     end
   end
@@ -756,25 +756,36 @@ defmodule MediaCentaur.TestFactory do
     defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
     merged = Map.merge(defaults, Map.new(attrs))
 
-    cond_result =
-      cond do
-        merged[:movie_id] -> Library.find_or_create_watch_progress_for_movie(merged)
-        merged[:episode_id] -> Library.find_or_create_watch_progress_for_episode(merged)
-        merged[:video_object_id] -> Library.find_or_create_watch_progress_for_video_object(merged)
-      end
+    # Callers identify the progress row by its container — `movie_id:`,
+    # `episode_id:`, `video_object_id:` — which the writer takes as an
+    # explicit `(type, id)` pair, so the key is translated here rather
+    # than smuggled through the attrs map.
+    {container_type, container_id} = container_ref(merged)
+    progress_attrs = Map.drop(merged, [:movie_id, :episode_id, :video_object_id])
+
+    result =
+      Library.ProgressRecords.find_or_create_for_container(
+        container_type,
+        container_id,
+        progress_attrs
+      )
 
     # Preload `:playable_item` so tests can read the container_id back
     # without an extra DB round-trip (Library Schema v2 Phase 2 Task C
     # removed the direct `movie_id` / `episode_id` / `video_object_id`
     # columns; the container link lives on the PlayableItem).
-    then(cond_result, fn {:ok, record} ->
+    then(result, fn {:ok, record} ->
       MediaCentaur.Repo.preload(record, :playable_item)
     end)
   end
 
+  defp container_ref(%{movie_id: id}) when not is_nil(id), do: {:movie, id}
+  defp container_ref(%{episode_id: id}) when not is_nil(id), do: {:episode, id}
+  defp container_ref(%{video_object_id: id}) when not is_nil(id), do: {:video_object, id}
+
   def create_extra_progress(attrs) do
     defaults = %{position_seconds: 0.0, duration_seconds: 0.0}
-    Library.find_or_create_extra_progress!(Map.merge(defaults, attrs))
+    Library.ProgressRecords.find_or_create_for_extra!(Map.merge(defaults, attrs))
   end
 
   # ---------------------------------------------------------------------------

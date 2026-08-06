@@ -591,7 +591,7 @@ defmodule MediaCentaur.Library.InboundTest do
       # The winner has exactly one PlayableItem (created when the winner
       # was first set up via `create_entity` — Task G ensures every leaf
       # has a PlayableItem) — never two.
-      items = Library.list_playable_items_for(:movie, winner.id)
+      items = Library.PlayableItems.list_for(:movie, winner.id)
       assert length(items) == 1
     end
   end
@@ -605,7 +605,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert {:ok, movie, :new, _images} = Inbound.ingest(movie_event())
 
       assert [%PlayableItem{container_type: :movie, position: 1}] =
-               Library.list_playable_items_for(:movie, movie.id)
+               Library.PlayableItems.list_for(:movie, movie.id)
     end
 
     test "episode ingest creates PlayableItem(:episode, episode.id, episode_number)" do
@@ -615,7 +615,7 @@ defmodule MediaCentaur.Library.InboundTest do
       episode = hd(hd(tv_series.seasons).episodes)
 
       assert [%PlayableItem{container_type: :episode, container_id: container_id, position: 1}] =
-               Library.list_playable_items_for(:episode, episode.id)
+               Library.PlayableItems.list_for(:episode, episode.id)
 
       assert container_id == episode.id
     end
@@ -642,7 +642,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert {:ok, video_object, :new, _images} = Inbound.ingest(event)
 
       assert [%PlayableItem{container_type: :video_object, position: 1}] =
-               Library.list_playable_items_for(:video_object, video_object.id)
+               Library.PlayableItems.list_for(:video_object, video_object.id)
     end
 
     test "movie-series-child ingest creates PlayableItem(:movie, child.id, child.position)" do
@@ -654,7 +654,7 @@ defmodule MediaCentaur.Library.InboundTest do
       # Position on the PlayableItem mirrors the child's own `position`
       # (collection ordering) — defaulting to 1 when missing.
       assert [%PlayableItem{container_type: :movie, container_id: container_id, position: 1}] =
-               Library.list_playable_items_for(:movie, child.id)
+               Library.PlayableItems.list_for(:movie, child.id)
 
       assert container_id == child.id
 
@@ -708,7 +708,7 @@ defmodule MediaCentaur.Library.InboundTest do
       # Each episode has its own PlayableItem keyed by its episode_number.
       Enum.each(episodes, fn episode ->
         assert [%PlayableItem{position: pos}] =
-                 Library.list_playable_items_for(:episode, episode.id)
+                 Library.PlayableItems.list_for(:episode, episode.id)
 
         assert pos == episode.episode_number
       end)

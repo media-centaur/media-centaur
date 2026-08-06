@@ -890,79 +890,77 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     as: :resolve_progress_fk_from_entry
 
   @doc false
-  def toggle_watch_progress(entity_id, fk_key, fk_id) do
-    progress = load_progress_by_fk(fk_key, fk_id)
-    changed_record = apply_progress_transition(progress, fk_key, fk_id)
+  def toggle_watch_progress(entity_id, container_type, container_id) do
+    progress = load_progress(container_type, container_id)
+    changed_record = apply_progress_transition(progress, container_type, container_id)
     ProgressBroadcaster.broadcast(entity_id, changed_record)
   end
 
-  defp load_progress_by_fk(_fk_key, nil), do: nil
+  defp load_progress(_container_type, nil), do: nil
 
-  defp load_progress_by_fk(fk_key, fk_id) do
-    case Library.fetch_watch_progress_by_fk(fk_key, fk_id) do
+  defp load_progress(container_type, container_id) do
+    case Library.ProgressRecords.fetch_for_container(container_type, container_id) do
       {:ok, record} -> record
       _ -> nil
     end
   end
 
-  defp apply_progress_transition(%{completed: true} = progress, _fk_key, _fk_id) do
+  defp apply_progress_transition(%{completed: true} = progress, _container_type, _container_id) do
     Log.info(
       :library,
       "toggled incomplete — was completed, position #{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)}"
     )
 
-    Library.mark_watch_incomplete!(progress)
+    Library.ProgressRecords.mark_incomplete!(progress)
   end
 
-  defp apply_progress_transition(%{completed: false} = progress, _fk_key, _fk_id) do
+  defp apply_progress_transition(%{completed: false} = progress, _container_type, _container_id) do
     Log.info(:library, fn ->
       "toggled completed — was #{completion_percentage(progress)} through (#{Format.format_seconds(progress.position_seconds)} of #{Format.format_seconds(progress.duration_seconds)})"
     end)
 
-    Library.mark_watch_completed!(progress)
+    Library.ProgressRecords.mark_completed!(progress)
   end
 
-  defp apply_progress_transition(nil, fk_key, fk_id) when not is_nil(fk_id) do
+  defp apply_progress_transition(nil, container_type, container_id) when not is_nil(container_id) do
     Log.info(:library, "toggled completed — no prior progress, created fresh record")
 
-    params = %{fk_key => fk_id, position_seconds: 0.0, duration_seconds: 0.0}
-    {:ok, record} = create_progress_by_fk(fk_key, params)
-    Library.mark_watch_completed!(record)
+    {:ok, record} =
+      Library.ProgressRecords.find_or_create_for_container(container_type, container_id, %{
+        position_seconds: 0.0,
+        duration_seconds: 0.0
+      })
+
+    Library.ProgressRecords.mark_completed!(record)
   end
 
-  defp apply_progress_transition(nil, _fk_key, nil), do: nil
-
-  defp create_progress_by_fk(:movie_id, params),
-    do: Library.find_or_create_watch_progress_for_movie(params)
-
-  defp create_progress_by_fk(:episode_id, params),
-    do: Library.find_or_create_watch_progress_for_episode(params)
+  defp apply_progress_transition(nil, _container_type, nil), do: nil
 
   @doc false
   def toggle_extra_watched(entity_id, extra_id) do
-    progress = Library.get_extra_progress_by_extra(extra_id)
+    progress = Library.ProgressRecords.fetch_for_extra(extra_id)
 
     case progress do
       %{completed: true} ->
         Log.info(:library, "extra toggled incomplete")
-        Library.mark_extra_incomplete!(progress)
+        Library.ProgressRecords.mark_incomplete!(progress)
 
       %{completed: false} ->
         Log.info(:library, "extra toggled completed")
-        Library.mark_extra_completed!(progress)
+        Library.ProgressRecords.mark_completed!(progress)
 
       nil ->
         Log.info(:library, "extra toggled completed — no prior progress, created fresh record")
 
         {:ok, record} =
-          Library.find_or_create_extra_progress(%{
+          Library.ProgressRecords.find_or_create_for_extra(%{
             extra_id: extra_id,
             entity_id: entity_id,
             position_seconds: 0.0,
             duration_seconds: 0.0
           })
 
-        Library.mark_extra_completed!(record)
+        Library.ProgressRecords.mark_completed!(record)
     end
 
     ProgressBroadcaster.broadcast_extra(entity_id, extra_id)

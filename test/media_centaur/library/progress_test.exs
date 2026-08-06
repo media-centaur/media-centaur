@@ -426,7 +426,7 @@ defmodule MediaCentaur.Library.ProgressTest do
           duration_seconds: 100.0
         })
 
-      {:ok, _completed} = MediaCentaur.Library.mark_watch_completed(progress)
+      {:ok, _completed} = MediaCentaur.Library.ProgressRecords.mark_completed(progress)
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_progress())
 

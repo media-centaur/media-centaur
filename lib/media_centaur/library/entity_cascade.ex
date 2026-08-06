@@ -221,7 +221,7 @@ defmodule MediaCentaur.Library.EntityCascade do
   def destroy_progress(%{watch_progress: nil}), do: :ok
   def destroy_progress(%{watch_progress: %Ecto.Association.NotLoaded{}}), do: :ok
 
-  def destroy_progress(%{watch_progress: progress}), do: Library.destroy_watch_progress!(progress)
+  def destroy_progress(%{watch_progress: progress}), do: Library.ProgressRecords.destroy!(progress)
 
   # Some records (Season, TVSeries) don't have a :watch_progress field.
   def destroy_progress(_record), do: :ok

@@ -124,12 +124,12 @@ defmodule MediaCentaur.Library.PlayableItemTest do
     end
   end
 
-  describe "Library.create_playable_item/1" do
+  describe "Library.PlayableItems.create/1" do
     test "inserts a row through the context boundary" do
       movie = create_standalone_movie(%{name: "Sample Movie"})
 
       assert {:ok, item} =
-               Library.create_playable_item(%{
+               Library.PlayableItems.create(%{
                  container_type: :movie,
                  container_id: movie.id,
                  position: 1,
@@ -142,38 +142,38 @@ defmodule MediaCentaur.Library.PlayableItemTest do
 
     test "returns an error changeset for invalid attrs" do
       assert {:error, changeset} =
-               Library.create_playable_item(%{container_type: :bogus, container_id: nil})
+               Library.PlayableItems.create(%{container_type: :bogus, container_id: nil})
 
       refute changeset.valid?
     end
   end
 
-  describe "Library.fetch_playable_item/1" do
+  describe "Library.PlayableItems.fetch/1" do
     test "returns {:ok, item} for an existing id" do
       movie = create_standalone_movie(%{name: "Sample Movie"})
 
       {:ok, inserted} =
-        Library.create_playable_item(%{
+        Library.PlayableItems.create(%{
           container_type: :movie,
           container_id: movie.id,
           position: 1
         })
 
-      assert {:ok, fetched} = Library.fetch_playable_item(inserted.id)
+      assert {:ok, fetched} = Library.PlayableItems.fetch(inserted.id)
       assert fetched.id == inserted.id
     end
 
     test "returns {:error, :not_found} for an unknown id" do
-      assert {:error, :not_found} = Library.fetch_playable_item(Ecto.UUID.generate())
+      assert {:error, :not_found} = Library.PlayableItems.fetch(Ecto.UUID.generate())
     end
   end
 
-  describe "Library.list_playable_items_for/2" do
+  describe "Library.PlayableItems.list_for/2" do
     test "lists items for a container, ordered by position" do
       movie = create_standalone_movie(%{name: "Sample Movie"})
 
       {:ok, _theatrical} =
-        Library.create_playable_item(%{
+        Library.PlayableItems.create(%{
           container_type: :movie,
           container_id: movie.id,
           position: 1,
@@ -181,14 +181,14 @@ defmodule MediaCentaur.Library.PlayableItemTest do
         })
 
       {:ok, _directors} =
-        Library.create_playable_item(%{
+        Library.PlayableItems.create(%{
           container_type: :movie,
           container_id: movie.id,
           position: 2,
           name: "Director's Cut"
         })
 
-      items = Library.list_playable_items_for(:movie, movie.id)
+      items = Library.PlayableItems.list_for(:movie, movie.id)
 
       assert length(items) == 2
       assert Enum.map(items, & &1.position) == [1, 2]
@@ -200,20 +200,20 @@ defmodule MediaCentaur.Library.PlayableItemTest do
       movie_b = create_standalone_movie(%{name: "Movie B"})
 
       {:ok, _a} =
-        Library.create_playable_item(%{
+        Library.PlayableItems.create(%{
           container_type: :movie,
           container_id: movie_a.id,
           position: 1
         })
 
       {:ok, _b} =
-        Library.create_playable_item(%{
+        Library.PlayableItems.create(%{
           container_type: :movie,
           container_id: movie_b.id,
           position: 1
         })
 
-      items = Library.list_playable_items_for(:movie, movie_a.id)
+      items = Library.PlayableItems.list_for(:movie, movie_a.id)
       assert length(items) == 1
       assert hd(items).container_id == movie_a.id
     end
@@ -224,7 +224,7 @@ defmodule MediaCentaur.Library.PlayableItemTest do
       movie = create_standalone_movie(%{name: "Sample Movie"})
 
       {:ok, _} =
-        Library.create_playable_item(%{
+        Library.PlayableItems.create(%{
           container_type: :movie,
           container_id: movie.id,
           position: 1
@@ -244,7 +244,7 @@ defmodule MediaCentaur.Library.PlayableItemTest do
       episode = create_episode(%{season_id: season.id, episode_number: 1})
 
       {:ok, _} =
-        Library.create_playable_item(%{
+        Library.PlayableItems.create(%{
           container_type: :episode,
           container_id: episode.id,
           position: 1
@@ -259,7 +259,7 @@ defmodule MediaCentaur.Library.PlayableItemTest do
       video_object = create_video_object(%{name: "Sample Video"})
 
       {:ok, _} =
-        Library.create_playable_item(%{
+        Library.PlayableItems.create(%{
           container_type: :video_object,
           container_id: video_object.id,
           position: 1

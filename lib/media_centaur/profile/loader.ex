@@ -93,7 +93,7 @@ defmodule MediaCentaur.Profile.Loader do
       file_path = Path.join("priv/profile/media", "movie_#{i}.mkv")
 
       {:ok, playable_item} =
-        Library.create_playable_item(%{
+        Library.PlayableItems.create(%{
           container_type: :movie,
           container_id: movie.id,
           position: 1
@@ -140,7 +140,7 @@ defmodule MediaCentaur.Profile.Loader do
           })
 
         {:ok, playable_item} =
-          Library.create_playable_item(%{
+          Library.PlayableItems.create(%{
             container_type: :episode,
             container_id: episode.id,
             position: episode_number
@@ -163,8 +163,7 @@ defmodule MediaCentaur.Profile.Loader do
     |> Enum.with_index()
     |> Enum.each(fn {movie_id, index} ->
       {:ok, _} =
-        Library.find_or_create_watch_progress_for_movie(%{
-          movie_id: movie_id,
+        Library.ProgressRecords.find_or_create_for_container(:movie, movie_id, %{
           position_seconds: 30.0 + index * 1.5,
           duration_seconds: 100.0,
           completed: false
@@ -178,8 +177,7 @@ defmodule MediaCentaur.Profile.Loader do
     |> Enum.with_index()
     |> Enum.each(fn {episode_id, index} ->
       {:ok, _} =
-        Library.find_or_create_watch_progress_for_episode(%{
-          episode_id: episode_id,
+        Library.ProgressRecords.find_or_create_for_container(:episode, episode_id, %{
           position_seconds: 60.0 + index * 1.5,
           duration_seconds: 1000.0,
           completed: false

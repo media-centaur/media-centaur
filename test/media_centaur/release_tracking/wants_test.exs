@@ -393,7 +393,7 @@ defmodule MediaCentaur.ReleaseTracking.WantsTest do
 
   defp playable_item_id_for_episode(episode) do
     {:ok, playable_item} =
-      Library.create_playable_item(%{
+      Library.PlayableItems.create(%{
         container_type: :episode,
         container_id: episode.id,
         position: episode.episode_number || 1,

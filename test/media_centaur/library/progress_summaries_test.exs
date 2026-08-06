@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Library.ProgressSummariesTest do
   @moduledoc """
-  Spec for `Library.list_progress_summaries/1` — the bulk progress
+  Spec for `Library.ProgressRecords.summaries/1` — the bulk progress
   lookup used by projection consumers (Phase 3.1).
 
   Returns `%{entity_id => summary}` keyed by container UUID. Each
@@ -55,13 +55,13 @@ defmodule MediaCentaur.Library.ProgressSummariesTest do
 
   describe "list_progress_summaries/1 — empty / no-progress cases" do
     test "returns empty map for empty id list" do
-      assert Library.list_progress_summaries([]) == %{}
+      assert Library.ProgressRecords.summaries([]) == %{}
     end
 
     test "entities with no WatchProgress are absent from the result" do
       movie = seed_present_movie("Untouched Movie")
 
-      result = Library.list_progress_summaries([movie.id])
+      result = Library.ProgressRecords.summaries([movie.id])
 
       assert result == %{}
     end
@@ -81,7 +81,7 @@ defmodule MediaCentaur.Library.ProgressSummariesTest do
           completed: false
         })
 
-      result = Library.list_progress_summaries([movie.id])
+      result = Library.ProgressRecords.summaries([movie.id])
 
       assert summary = result[movie.id]
       assert summary.episodes_completed == 0
@@ -106,7 +106,7 @@ defmodule MediaCentaur.Library.ProgressSummariesTest do
           last_watched_at: ~U[2026-05-15 00:00:00Z]
         })
 
-      result = Library.list_progress_summaries([movie.id])
+      result = Library.ProgressRecords.summaries([movie.id])
 
       assert result[movie.id].episodes_completed == 1
       assert result[movie.id].episodes_total == 1
@@ -124,7 +124,7 @@ defmodule MediaCentaur.Library.ProgressSummariesTest do
           last_watched_at: ~U[2026-05-15 00:00:00Z]
         })
 
-      result = Library.list_progress_summaries([vo.id])
+      result = Library.ProgressRecords.summaries([vo.id])
 
       assert result[vo.id].episodes_completed == 0
       assert result[vo.id].episodes_total == 1
@@ -155,7 +155,7 @@ defmodule MediaCentaur.Library.ProgressSummariesTest do
           completed: true
         })
 
-      result = Library.list_progress_summaries([series.id])
+      result = Library.ProgressRecords.summaries([series.id])
 
       summary = result[series.id]
       assert summary.episodes_completed == 1
@@ -188,7 +188,7 @@ defmodule MediaCentaur.Library.ProgressSummariesTest do
           last_watched_at: ~U[2026-05-14 00:00:00Z]
         })
 
-      result = Library.list_progress_summaries([movie.id, series.id])
+      result = Library.ProgressRecords.summaries([movie.id, series.id])
 
       assert result |> Map.keys() |> Enum.sort() == Enum.sort([movie.id, series.id])
       assert result[movie.id].episodes_completed == 0
@@ -224,7 +224,7 @@ defmodule MediaCentaur.Library.ProgressSummariesTest do
 
       ids = [m1.id, m2.id, m3.id, s1.id, s2.id]
 
-      {result, queries} = QueryCounter.count(fn -> Library.list_progress_summaries(ids) end)
+      {result, queries} = QueryCounter.count(fn -> Library.ProgressRecords.summaries(ids) end)
 
       assert map_size(result) == 5
 
