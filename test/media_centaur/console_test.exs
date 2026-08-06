@@ -2,14 +2,7 @@ defmodule MediaCentaur.ConsoleTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Console
-  alias MediaCentaur.Console.{Buffer, Filter}
-
-  setup do
-    # Buffer is started by the application supervision tree — no need to start it here.
-    # Clear any entries accumulated before this test.
-    Buffer.clear()
-    :ok
-  end
+  alias MediaCentaur.Console.Filter
 
   describe "snapshot/0" do
     test "returns the expected map shape" do
