@@ -1,5 +1,7 @@
 defmodule MediaCentaur.Diagnostics do
-  use Boundary, top_level?: true, check: [in: false, out: false]
+  use Boundary,
+    top_level?: true,
+    deps: [MediaCentaur.ErrorReports, MediaCentaur.Playback]
 
   @moduledoc """
   Structured diagnostic functions for production troubleshooting.

@@ -29,6 +29,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.Retention,
       MediaCentaur.Runtime,
       MediaCentaur.Setup,
+      MediaCentaur.Status,
       MediaCentaur.Guide,
       MediaCentaur.Reconciliation,
       MediaCentaur.DeleteTargets

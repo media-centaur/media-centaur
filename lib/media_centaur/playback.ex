@@ -1,7 +1,14 @@
 defmodule MediaCentaur.Playback do
   use Boundary,
     deps: [MediaCentaur.Library, MediaCentaur.Settings],
-    exports: [Iso639, LanguagePolicy, ProgressBroadcaster, ResumeTarget, Sessions]
+    exports: [
+      Iso639,
+      LanguagePolicy,
+      ProgressBroadcaster,
+      ResumeTarget,
+      SessionRegistry,
+      Sessions
+    ]
 
   @moduledoc """
   Public facade for the playback context — subscriptions and top-level queries.

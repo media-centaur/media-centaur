@@ -5,6 +5,8 @@ defmodule MediaCentaur.Library do
       AbsenceSweeper,
       Availability,
       Browser,
+      ChangeLog,
+      Completeness,
       Containers,
       ContentUrls,
       EntityShape,
