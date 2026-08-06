@@ -25,6 +25,7 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
   alias MediaCentaur.Library
+  alias MediaCentaurWeb.HomeLive.Logic
 
   @poster_limit 30
   @poster_width 640
@@ -49,7 +50,20 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
     |> Enum.map(&sized_image_url(&1, @poster_width))
   end
 
+  # Only the candidates the backdrop-bearing pages are showing right now.
+  # The rotation means the eligible pool is far larger than what any page
+  # will request before the next block, so warming the whole pool would
+  # prefetch dozens of images nobody loads. Asking `select_page_hero/2` for
+  # each slot keeps this in lockstep with what the pages actually render.
   defp backdrop_urls do
-    Enum.map(Library.Views.hero_candidates(), & &1.backdrop_url)
+    case Library.Views.hero_candidates() do
+      [] ->
+        []
+
+      candidates ->
+        0..(Logic.hero_pages() - 1)
+        |> Enum.map(&Logic.select_page_hero(candidates, &1).backdrop_url)
+        |> Enum.uniq()
+    end
   end
 end

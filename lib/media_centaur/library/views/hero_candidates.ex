@@ -26,6 +26,9 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
     * Refreshes replace every row in a single `:ets.delete_all_objects`
       + `:ets.insert` pair. Concurrent readers see either the previous
       snapshot or the new one, never a partial state.
+    * Capped at `max_items/0` rows — callers read this projection
+      unlimited and pick one hero from it, so the cached set is copied
+      out whole on every read.
   """
   @behaviour MediaCentaur.Cache
 
@@ -36,6 +39,14 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
   alias MediaCentaur.Topics
 
   @table :library_view_hero_candidates
+
+  # Every production caller reads this projection unlimited and picks one
+  # hero from it, so the cached set is copied out in full on each read.
+  # The pick rotates every 7 hours (`HomeLive.Logic`), which means the pool
+  # only has to be large enough that a title doesn't come back around too
+  # soon — 60 gives ~17 days. Beyond that the extra rows cost render-path
+  # memory and buy nothing the user can perceive.
+  @max_items 60
 
   @impl MediaCentaur.Cache
   def subscribe do
@@ -49,10 +60,14 @@ defmodule MediaCentaur.Library.Views.HeroCandidates do
   def relevant?({:availability_changed, _, _}), do: true
   def relevant?(_), do: false
 
+  @doc "Upper bound on the number of rows this projection caches."
+  @spec max_items() :: pos_integer()
+  def max_items, do: @max_items
+
   @impl MediaCentaur.Cache
   def refresh_cache do
     items =
-      []
+      [limit: @max_items]
       |> Library.list_hero_candidates()
       |> Enum.map(&to_view_model/1)
 

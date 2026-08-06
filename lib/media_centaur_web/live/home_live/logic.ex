@@ -66,6 +66,13 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
   @hero_pages 3
 
   @doc """
+  How many pages render an ambient backdrop. Slot indices for
+  `select_page_hero/3` run `0..hero_pages() - 1`.
+  """
+  @spec hero_pages() :: pos_integer()
+  def hero_pages, do: @hero_pages
+
+  @doc """
   Page-keyed hero pick: every backdrop-bearing page gets its own slot so
   no two pages show the same artwork whenever the pool allows
   (`count >= #{@hero_pages}`). Slots are spaced evenly across the pool

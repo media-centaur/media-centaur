@@ -167,6 +167,36 @@ defmodule MediaCentaur.Library.Views.HeroCandidatesTest do
     end
   end
 
+  describe "projection bounding" do
+    # Every production caller reads this projection with no `:limit`
+    # (HomeLive, LibraryLive, IncomingLive, ArtworkWarmup) and then picks a
+    # single hero from it. Without a cap in `refresh_cache/0` the ETS table
+    # grows with the library and each of those reads copies the whole thing
+    # out — carrying `overview`, `genres`, and four URLs per row — to render
+    # one card. The cap keeps the rotation pool generous (7h rotation ×
+    # @max_items ≈ 17 days before a title repeats) while bounding the cost.
+    test "caps the cached projection at max_items/0 even when more candidates qualify" do
+      on_exit_clear_table()
+
+      overflow = HeroCandidates.max_items() + 1
+      for index <- 1..overflow, do: seed_hero_candidate("Hero Candidate #{index}")
+
+      assert :ok = HeroCandidates.refresh_cache()
+
+      assert length(Views.hero_candidates()) == HeroCandidates.max_items()
+    end
+
+    test "an unlimited read still returns every cached row below the cap" do
+      on_exit_clear_table()
+
+      for index <- 1..3, do: seed_hero_candidate("Small Pool #{index}")
+
+      assert :ok = HeroCandidates.refresh_cache()
+
+      assert length(Views.hero_candidates()) == 3
+    end
+  end
+
   describe "HeroCandidatesItem struct" do
     test "enforces id and name" do
       assert_raise ArgumentError, fn ->
