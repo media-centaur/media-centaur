@@ -370,13 +370,7 @@ defmodule MediaCentaur.TestFactory do
 
     merged = Map.merge(defaults, Map.drop(attrs, [:type, :tmdb_id, :imdb_id, :content_url]))
 
-    record =
-      case type do
-        :movie -> Library.create_movie!(merged)
-        :tv_series -> Library.create_tv_series!(merged)
-        :movie_series -> Library.create_movie_series!(merged)
-        :video_object -> Library.create_video_object!(merged)
-      end
+    record = Library.Containers.create!(type, merged)
 
     # TMDB / IMDB ids now live on `library_external_ids` rows
     # (Library Schema v2 Phase 1 Task 6). Forward any test-supplied
@@ -443,29 +437,19 @@ defmodule MediaCentaur.TestFactory do
   end
 
   def create_movie(attrs) do
-    create_with_external_ids(:movie, %{}, attrs, &Library.create_movie!/1)
+    create_with_external_ids(:movie, %{}, attrs)
   end
 
   def create_tv_series(attrs \\ %{}) do
-    create_with_external_ids(:tv_series, %{name: "Test TV Series"}, attrs, &Library.create_tv_series!/1)
+    create_with_external_ids(:tv_series, %{name: "Test TV Series"}, attrs)
   end
 
   def create_movie_series(attrs \\ %{}) do
-    create_with_external_ids(
-      :movie_series,
-      %{name: "Test Movie Series"},
-      attrs,
-      &Library.create_movie_series!/1
-    )
+    create_with_external_ids(:movie_series, %{name: "Test Movie Series"}, attrs)
   end
 
   def create_video_object(attrs \\ %{}) do
-    create_with_external_ids(
-      :video_object,
-      %{name: "Test Video"},
-      attrs,
-      &Library.create_video_object!/1
-    )
+    create_with_external_ids(:video_object, %{name: "Test Video"}, attrs)
   end
 
   # Routes test-supplied `tmdb_id` / `imdb_id` through `ExternalIds.put/3`
@@ -474,14 +458,14 @@ defmodule MediaCentaur.TestFactory do
   # Also translates the legacy `content_url:` shorthand into a present
   # WatchedFile so callers' `record.content_url` reads keep working after
   # Library Schema v2 Phase 2 Task I dropped the persisted column.
-  defp create_with_external_ids(type, defaults, attrs, creator) do
+  defp create_with_external_ids(type, defaults, attrs) do
     attrs = Map.new(attrs)
     tmdb_id = attrs[:tmdb_id]
     imdb_id = attrs[:imdb_id]
     content_url = attrs[:content_url]
     clean_attrs = defaults |> Map.merge(attrs) |> Map.drop([:tmdb_id, :imdb_id, :content_url])
 
-    record = creator.(clean_attrs)
+    record = Library.Containers.create!(type, clean_attrs)
     tmdb_source = if type == :movie_series, do: :tmdb_collection, else: :tmdb
     _ = Library.ExternalIds.put(tmdb_source, record, tmdb_id)
     _ = Library.ExternalIds.put(:imdb, record, imdb_id)
@@ -505,7 +489,7 @@ defmodule MediaCentaur.TestFactory do
     movie_attrs =
       defaults |> Map.merge(attrs) |> Map.drop([:tmdb_id, :imdb_id, :content_url])
 
-    record = Library.create_movie!(movie_attrs)
+    record = Library.Containers.create!(:movie, movie_attrs)
     _ = Library.ExternalIds.put(:tmdb, record, tmdb_id)
     _ = Library.ExternalIds.put(:imdb, record, imdb_id)
     link_factory_content_url(record, :movie, content_url)
@@ -621,10 +605,10 @@ defmodule MediaCentaur.TestFactory do
 
     # Reload with associations
     case type do
-      :movie -> Library.get_movie_with_associations!(record.id)
-      :tv_series -> Library.get_tv_series_with_associations!(record.id)
-      :movie_series -> Library.get_movie_series_with_associations!(record.id)
-      :video_object -> Library.get_video_object_with_associations!(record.id)
+      :movie -> Library.Containers.get_with_associations!(:movie, record.id)
+      :tv_series -> Library.Containers.get_with_associations!(:tv_series, record.id)
+      :movie_series -> Library.Containers.get_with_associations!(:movie_series, record.id)
+      :video_object -> Library.Containers.get_with_associations!(:video_object, record.id)
     end
   end
 
@@ -730,7 +714,7 @@ defmodule MediaCentaur.TestFactory do
 
   defp create_factory_movie_for_series(movie_series_id) do
     {:ok, movie} =
-      Library.create_movie(%{
+      Library.Containers.create(:movie, %{
         name: "Factory Child Movie #{System.unique_integer([:positive])}",
         movie_series_id: movie_series_id,
         position: 1

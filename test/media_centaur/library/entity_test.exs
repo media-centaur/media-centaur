@@ -7,7 +7,7 @@ defmodule MediaCentaur.Library.EntityTest do
     test "id is a UUID and survives a round-trip read" do
       movie = create_entity(%{type: :movie, name: "Round Trip"})
 
-      {:ok, found} = Library.fetch_movie(movie.id)
+      {:ok, found} = Library.Containers.fetch(:movie, movie.id)
       assert found.id == movie.id
     end
 
@@ -48,19 +48,19 @@ defmodule MediaCentaur.Library.EntityTest do
 
     test "movie type round-trips correctly" do
       movie = create_entity(%{type: :movie, name: "Movie Entity"})
-      {:ok, found} = Library.fetch_movie(movie.id)
+      {:ok, found} = Library.Containers.fetch(:movie, movie.id)
       assert found.name == "Movie Entity"
     end
 
     test "tv_series type round-trips correctly" do
       tv_series = create_entity(%{type: :tv_series, name: "TV Entity"})
-      {:ok, found} = Library.fetch_tv_series(tv_series.id)
+      {:ok, found} = Library.Containers.fetch(:tv_series, tv_series.id)
       assert found.name == "TV Entity"
     end
 
     test "movie_series type round-trips correctly" do
       movie_series = create_entity(%{type: :movie_series, name: "Movie Series Entity"})
-      {:ok, found} = Library.fetch_movie_series(movie_series.id)
+      {:ok, found} = Library.Containers.fetch(:movie_series, movie_series.id)
       assert found.name == "Movie Series Entity"
     end
   end
@@ -70,7 +70,7 @@ defmodule MediaCentaur.Library.EntityTest do
       # Library Schema v2 Phase 2 Task I dropped `Movie.content_url` as
       # a persisted column. The file path now lives on the WatchedFile
       # linked to the Movie's PlayableItem; the virtual `content_url`
-      # field is materialised by `Library.populate_content_urls/1` at
+      # field is materialised by `Library.ContentUrls.populate/1` at
       # fetch time.
       movie = create_entity(%{type: :movie, name: "Direct Play"})
       assert movie.content_url == nil
@@ -85,7 +85,7 @@ defmodule MediaCentaur.Library.EntityTest do
           media_dir: "/media/movies"
         })
 
-      assert {:ok, reloaded} = Library.fetch_movie(movie.id)
+      assert {:ok, reloaded} = Library.Containers.fetch(:movie, movie.id)
       assert reloaded.content_url == "/media/movies/test.mkv"
     end
   end
@@ -101,7 +101,7 @@ defmodule MediaCentaur.Library.EntityTest do
         extension: "jpg"
       })
 
-      {:ok, loaded} = Library.fetch_movie_with_associations(movie.id)
+      {:ok, loaded} = Library.Containers.fetch_with_associations(:movie, movie.id)
 
       assert length(loaded.images) == 1
       assert hd(loaded.images).role == "poster"
@@ -116,7 +116,7 @@ defmodule MediaCentaur.Library.EntityTest do
         external_id: "335984"
       })
 
-      {:ok, loaded} = Library.fetch_movie_with_associations(movie.id)
+      {:ok, loaded} = Library.Containers.fetch_with_associations(:movie, movie.id)
 
       assert length(loaded.external_ids) == 1
       assert hd(loaded.external_ids).source == "tmdb"
@@ -134,7 +134,7 @@ defmodule MediaCentaur.Library.EntityTest do
         content_url: "/media/tv/show/S01/S01E01.mkv"
       })
 
-      {:ok, loaded} = Library.fetch_tv_series_with_associations(tv_series.id)
+      {:ok, loaded} = Library.Containers.fetch_with_associations(:tv_series, tv_series.id)
 
       assert length(loaded.seasons) == 1
       assert hd(loaded.seasons).season_number == 1
@@ -151,7 +151,7 @@ defmodule MediaCentaur.Library.EntityTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, loaded} = Library.fetch_movie_with_associations(movie.id)
+      {:ok, loaded} = Library.Containers.fetch_with_associations(:movie, movie.id)
 
       assert loaded.watch_progress != nil
       assert loaded.watch_progress.position_seconds == 600.0

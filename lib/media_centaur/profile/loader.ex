@@ -85,7 +85,7 @@ defmodule MediaCentaur.Profile.Loader do
   defp seed_movies(count) do
     Enum.map(1..count, fn i ->
       movie =
-        Library.create_movie!(%{
+        Library.Containers.create!(:movie, %{
           name: "Profile Movie #{i}",
           position: 0
         })
@@ -111,7 +111,7 @@ defmodule MediaCentaur.Profile.Loader do
 
   defp seed_series(count, episodes_per_series) do
     Enum.flat_map(1..count, fn series_index ->
-      series = Library.create_tv_series!(%{name: "Profile Series #{series_index}"})
+      series = Library.Containers.create!(:tv_series, %{name: "Profile Series #{series_index}"})
 
       season =
         Library.create_season!(%{

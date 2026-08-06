@@ -107,14 +107,14 @@ defmodule MediaCentaur.Library.Inbound do
   end
 
   defp reload_with_content_url(%Library.Movie{} = movie, :movie) do
-    case Library.fetch_movie(movie.id) do
+    case Library.Containers.fetch(:movie, movie.id) do
       {:ok, reloaded} -> reloaded
       _ -> movie
     end
   end
 
   defp reload_with_content_url(%Library.VideoObject{} = video, :video_object) do
-    case Library.fetch_video_object(video.id) do
+    case Library.Containers.fetch(:video_object, video.id) do
       {:ok, reloaded} -> reloaded
       _ -> video
     end
@@ -444,19 +444,19 @@ defmodule MediaCentaur.Library.Inbound do
   defp tmdb_source_for(_), do: :tmdb
 
   defp create_type_record(:tv_series, attrs, shared_id) do
-    Library.create_tv_series(Map.put(attrs, :id, shared_id))
+    Library.Containers.create(:tv_series, Map.put(attrs, :id, shared_id))
   end
 
   defp create_type_record(:movie_series, attrs, shared_id) do
-    Library.create_movie_series(Map.put(attrs, :id, shared_id))
+    Library.Containers.create(:movie_series, Map.put(attrs, :id, shared_id))
   end
 
   defp create_type_record(:movie, attrs, shared_id) do
-    Library.create_movie(Map.put(attrs, :id, shared_id))
+    Library.Containers.create(:movie, Map.put(attrs, :id, shared_id))
   end
 
   defp create_type_record(:video_object, attrs, shared_id) do
-    Library.create_video_object(Map.put(attrs, :id, shared_id))
+    Library.Containers.create(:video_object, Map.put(attrs, :id, shared_id))
   end
 
   # Maps entity_type atom to the owner_type string used in image metadata
@@ -651,7 +651,7 @@ defmodule MediaCentaur.Library.Inbound do
     movie_attrs =
       maybe_put(child_movie_data.attrs, :movie_series_id, entity_id, entity_type == :movie_series)
 
-    result = Library.find_or_create_movie_for_series(movie_attrs)
+    result = Library.Containers.find_or_create_movie_for_series(movie_attrs)
 
     case result do
       {:ok, movie} ->

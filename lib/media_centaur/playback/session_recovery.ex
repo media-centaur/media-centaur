@@ -166,7 +166,7 @@ defmodule MediaCentaur.Playback.SessionRecovery do
   defp resolve_typed_entity(id) do
     case TypeResolver.resolve_container(id,
            standalone_movie: false,
-           preload: Library.full_preloads_by_type()
+           preload: Library.Containers.full_preloads_by_type()
          ) do
       {:ok, type, record} -> {:ok, EntityShape.to_view_model(record, type)}
       :not_found -> :not_found

@@ -32,7 +32,9 @@ Stages are independent. Order below is recommended, not required.
 
 ## Status
 
-Stages 1–5 not started. The 2026-08-05 audit sweep's Critical and
+Stage 1 discussed and its approach agreed (2026-08-06) — see the stage
+for the reconciled evidence and module map; implementation not started.
+Stages 2–5 not started. The 2026-08-05 audit sweep's Critical and
 Moderate-with-user-impact findings are already fixed and pushed to
 `main` (see *Decisions made*); this campaign is the tail.
 
@@ -92,23 +94,135 @@ The repo's own `coding-guidelines` skill names this exactly: *"`# ---`
 section dividers separating distinct domains — that's a smell, and the
 new code is the cheapest moment to fix it."*
 
-**Approach.** Keep `Library` as the facade; move each section's queries
-to `Library.{Images, ExternalIds, Episodes, Seasons, …}` behind
-delegators. `Library.HomeFeed` (`library.ex:~2260`) and
-`Library.EntityCascade` are the two sections already extracted and are
-the reference shape. Boundary `exports:` already lists most of the
-sub-modules, so the boundary declaration barely moves.
+**Reconciled 2026-08-06.** The facts hold (2779 lines, 21 sections, 163
+public / 63 private functions), but two section headers understate their
+contents:
 
-**Open questions for the owner**
-* One campaign of N mechanical commits, or split-on-next-touch over
-  months? The former is verifiable in one precommit run; the latter
-  never blocks feature work.
-* Does the facade keep delegating forever, or do call sites migrate to
-  `Library.Images.list/2` directly? (Facade-forever is cheaper and
-  keeps `Library` the single documented entry point; direct calls are
-  honest but touch ~200 sites.)
-* Fold Stage 4's naming unification into the same pass, since both
-  rewrite the same function heads?
+* **`FileMediaInfo`** (612 lines, 28 pub / 20 priv) is five domains, not
+  one: media-info probing · watched-file path queries · `relink_moved_files`
+  · `populate_content_urls` (view shaping) · `resolve_presentable` ·
+  `load_modal_entry` (detail-modal builder).
+* **`HomeLive Facade`** (343 lines, 11 pub / 14 priv) is three lines of
+  actual delegators, then `stats/0` plus ~330 lines of progress-record
+  and progress-summary aggregation that has nothing to do with the home
+  page.
+
+Call sites: **189** in `lib/`, **471** in `test/`. The `lib/`
+distribution is lopsided — 62 of 104 distinct functions have exactly one
+caller, 84 have ≤2, only 6 have ≥5.
+
+**Approach (agreed 2026-08-06).**
+
+* **Cadence:** one campaign of N mechanical commits, precommit green per
+  commit. Split-on-next-touch was already tried implicitly — `HomeFeed`
+  and `EntityCascade` came out and the file is still 2779 lines, so it
+  demonstrably does not converge.
+* **Facade:** delegate only functions with 3+ call sites (~20). For the
+  84 called once or twice, move the call site and delete the delegator.
+  A facade of 163 delegators for an API where 60% of functions have a
+  single caller is a phone book, not an entry point.
+* **Naming:** plural sibling modules, following the existing
+  `ExternalId` (schema) / `ExternalIds` (queries) precedent. Schema
+  modules here are lean — changesets and pure helpers — and stay that
+  way; folding queries into them would make every schema moduledoc say
+  "the shape *and* the queries."
+* **Stage 4 stays separate.** Only five functions are affected by the
+  naming unification and Stage 4 also carries policy rewrites unrelated
+  to the split. Renaming while moving makes no commit reviewable as a
+  pure move.
+
+### Greenfield pass (`unify_design`, 2026-08-06)
+
+**Core idea.** Every operation in `library.ex` acts on an *addressable
+library entity* — `(type, id)` — or on data hanging off one. The
+codebase already knows this in pieces: `PlayableItem` (canonical leaf
+identity, Schema v2 Phase 2), the `(owner_type, owner_id)` discriminator
+on four sidecar tables, `TypeResolver`, `EntityShape`. What is left in
+`library.ex` is the layer that never got told.
+
+**Module map — organised by role, not by table.**
+
+| Role | Modules |
+|---|---|
+| Records | `Containers` (4 types, dispatched) · `Seasons` · `Episodes` · `Extras` · `PlayableItems` |
+| Files | `Files` (WatchedFile **+** ExtraFile) · `MediaInfo` · `Relink` |
+| Progress | `ProgressRecords` (WatchProgress **+** ExtraProgress **+** aggregation) |
+| Sidecars on `(owner_type, owner_id)` | `Images` · `ExternalIds` · `MediaTrackOverrides` |
+| Derived / read | `SearchIndex` · `Stats` · `ContentUrls` · `ModalEntry` |
+
+Merges into modules that already exist: `ExternalId` (225L) →
+`Library.ExternalIds`; `ChangeEntry` (25L) → `Library.ChangeLog`;
+`resolve_presentable` family → `Library.PresentableQueries`; `Helpers`
+(87L, all private) → `Library.Helpers`; `relink_moved_files` family →
+new `Library.Relink`, pairing with the existing `Library.MoveMatcher`.
+
+`ProgressRecords` is named to avoid colliding with both the
+`WatchProgress` schema and `Library.Progress` (the ETS projection API);
+it is the DB side. `ModalEntry` and `ContentUrls` are view-shaping, not
+queries, but are called from the context, so they stay at `Library.*`.
+
+**Containers collapse.** The TVSeries / MovieSeries / VideoObject /
+Movie sections repeat the same eight-function CRUD shape four times
+(~200 lines of near-duplicate). They collapse into one type-dispatched
+`Library.Containers` — `fetch(:tv_series, id)`, `create!(:movie, attrs)`
+— mirroring the `(owner_type, owner_id)` discriminator the schema
+already uses and the existing `Library.TypeResolver`. `Containers` also
+becomes the owner of *what a container is*: the type list is currently
+hand-written in `ExternalId` and implicit in `TypeResolver`'s
+try-each-table order.
+
+### Incoherences and their disposition
+
+**(a) `WatchProgress`'s API speaks a schema that no longer exists — fix
+in Stage 1.** Schema v2 Phase 2 Task C collapsed three FKs into one
+`playable_item_id`; the schema has exactly one FK. The API still offers
+`fetch_watch_progress_by_fk(:movie_id, id)` — a column name that does not
+exist, translated to `(:movie, id)` on the first line of the body — and
+three `find_or_create_watch_progress_for_{movie,episode,video_object}`
+that accept "the legacy `:movie_id` key" and then
+`Map.drop([:movie_id, :episode_id, :video_object_id])`. That is a
+compatibility layer for a completed migration. Converges to
+`ProgressRecords.fetch_for_container/2` and
+`find_or_create_for_container/3`; the only real per-type difference —
+canonical position (`Movie.position` / `Episode.episode_number` / `1`) —
+moves to `PlayableItems.canonical_position/2`. 12 lib + 15 test sites.
+
+**(b) Three container-type dispatches for progress, three signatures —
+fix in Stage 1.** `fetch_progress_for_container/2`,
+`find_or_create_watch_progress_for_container/4`, and
+`list_progress_records_for_container/2` (filed 500 lines away under
+"HomeLive Facade"). Same idea, three shapes, two sections. Free once (a)
+lands.
+
+**(c) `MediaTrackOverride` owner types — fix in Stage 1.**
+`[:tv_series, :movie]` excluded `:video_object` with no stated reason; a
+standalone video's remembered track selection is the same use case as a
+movie's. Add `:video_object`.
+
+**(d) `Extra` is a parallel playable — scheduled convergence, not now.**
+`ExtraFile ∥ WatchedFile` and `ExtraProgress ∥ WatchProgress` are the
+same seven operations twice, differing only in key (`extra_id` vs
+`playable_item_id`). Converging means making `Extra` a `PlayableItem`;
+the ExtraFile unification shipped in v0.95.4 and left this deliberately.
+**Disposition:** group `Files` and `ProgressRecords` by role so both
+parallels sit in one file each — the duplication becomes visible and
+pressurised instead of filed apart. Convergence point: the next change
+that touches Extra playback.
+
+**(e) `ReleaseTracking.Item.@container_types` duplicates the container
+universe across a context boundary — deferred to Stage 2**, which is
+already the Boundary stage.
+
+**(f) Generic CRUD macro — refused.** `create_X` / `create_X!` /
+`fetch_X` / `destroy_X` / `destroy_X!` repeats across ~10 tables and a
+`use Library.Record, schema: X` macro would collapse it. Refused: it
+manufactures ~50 generated functions in a codebase that just deleted 35
+unreferenced public functions (commit `18950c88`) and relies on grep to
+find them. Codegen makes that class of dead code undetectable. The
+`Containers` collapse is different — runtime dispatch on an explicit
+atom, four real bodies to one.
+
+**Target.** `Library` facade at 300–400 lines.
 
 **Verification.** `mix precommit`; `mix boundaries`; the moduledoc of
 each new module names *one* thing.

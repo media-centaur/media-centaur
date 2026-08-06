@@ -71,7 +71,7 @@ defmodule MediaCentaur.Playback.Resolver do
   end
 
   defp resolve_typed_entity(uuid) do
-    case TypeResolver.resolve_container(uuid, preload: Library.full_preloads_by_type()) do
+    case TypeResolver.resolve_container(uuid, preload: Library.Containers.full_preloads_by_type()) do
       {:ok, type, record} ->
         progress = EntityShape.extract_progress(record, type)
         {:ok, EntityShape.to_view_model(record, type), progress}
@@ -134,7 +134,8 @@ defmodule MediaCentaur.Playback.Resolver do
 
   defp resolve_episode_playback(episode) do
     with {:ok, season} <- Library.fetch_season(episode.season_id),
-         {:ok, tv_series} <- Library.fetch_tv_series_with_associations(season.tv_series_id) do
+         {:ok, tv_series} <-
+           Library.Containers.fetch_with_associations(:tv_series, season.tv_series_id) do
       entity = EntityShape.to_view_model(tv_series, :tv_series)
       progress_records = EntityShape.extract_progress(tv_series, :tv_series)
 
@@ -174,7 +175,7 @@ defmodule MediaCentaur.Playback.Resolver do
   # --- Movie (child) resolution ---
 
   defp resolve_movie(uuid) do
-    case Library.fetch_movie(uuid) do
+    case Library.Containers.fetch(:movie, uuid) do
       {:ok, movie} ->
         resolve_movie_playback(movie)
 
@@ -239,7 +240,7 @@ defmodule MediaCentaur.Playback.Resolver do
 
   defp resolve_movie_parent(movie) do
     if movie.movie_series_id do
-      case Library.fetch_movie_series_with_associations(movie.movie_series_id) do
+      case Library.Containers.fetch_with_associations(:movie_series, movie.movie_series_id) do
         {:ok, ms} ->
           entity = EntityShape.to_view_model(ms, :movie_series)
           progress = EntityShape.extract_progress(ms, :movie_series)
@@ -250,7 +251,7 @@ defmodule MediaCentaur.Playback.Resolver do
       end
     else
       # Standalone movie — resolve as its own entity
-      case Library.fetch_movie_with_associations(movie.id) do
+      case Library.Containers.fetch_with_associations(:movie, movie.id) do
         {:ok, m} ->
           progress = EntityShape.extract_progress(m, :movie)
           {:ok, EntityShape.to_view_model(m, :movie), progress}

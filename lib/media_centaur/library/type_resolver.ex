@@ -54,16 +54,16 @@ defmodule MediaCentaur.Library.TypeResolver do
     standalone_only = Keyword.get(opts, :standalone_movie, true)
 
     cond do
-      record = try_get(Library.fetch_tv_series(id), preloads[:tv_series]) ->
+      record = try_get(Library.Containers.fetch(:tv_series, id), preloads[:tv_series]) ->
         {:ok, :tv_series, record}
 
-      record = try_get(Library.fetch_movie_series(id), preloads[:movie_series]) ->
+      record = try_get(Library.Containers.fetch(:movie_series, id), preloads[:movie_series]) ->
         {:ok, :movie_series, record}
 
       record = try_movie(id, preloads[:movie], standalone_only) ->
         {:ok, :movie, record}
 
-      record = try_get(Library.fetch_video_object(id), preloads[:video_object]) ->
+      record = try_get(Library.Containers.fetch(:video_object, id), preloads[:video_object]) ->
         {:ok, :video_object, record}
 
       true ->
@@ -101,29 +101,30 @@ defmodule MediaCentaur.Library.TypeResolver do
     end
   end
 
-  defp fetch_container(:movie, id, preloads), do: fetch_with_preload(Library.fetch_movie(id), preloads)
+  defp fetch_container(:movie, id, preloads),
+    do: fetch_with_preload(Library.Containers.fetch(:movie, id), preloads)
 
   defp fetch_container(:episode, id, preloads),
     do: fetch_with_preload(Library.fetch_episode(id), preloads)
 
   defp fetch_container(:video_object, id, preloads),
-    do: fetch_with_preload(Library.fetch_video_object(id), preloads)
+    do: fetch_with_preload(Library.Containers.fetch(:video_object, id), preloads)
 
   defp fetch_with_preload({:ok, record}, nil), do: {:ok, record}
 
   defp fetch_with_preload({:ok, record}, preloads),
-    do: {:ok, record |> Repo.preload(preloads) |> Library.populate_content_urls()}
+    do: {:ok, record |> Repo.preload(preloads) |> Library.ContentUrls.populate()}
 
   defp fetch_with_preload({:error, :not_found}, _), do: :not_found
 
   defp try_get({:ok, record}, preloads) when is_list(preloads),
-    do: record |> Repo.preload(preloads) |> Library.populate_content_urls()
+    do: record |> Repo.preload(preloads) |> Library.ContentUrls.populate()
 
   defp try_get({:ok, record}, nil), do: record
   defp try_get(_, _), do: nil
 
   defp try_movie(id, preloads, standalone_only) do
-    case Library.fetch_movie(id) do
+    case Library.Containers.fetch(:movie, id) do
       {:ok, %{movie_series_id: nil} = movie} ->
         apply_preloads(movie, preloads)
 
@@ -136,7 +137,7 @@ defmodule MediaCentaur.Library.TypeResolver do
   end
 
   defp apply_preloads(record, preloads) when is_list(preloads),
-    do: record |> Repo.preload(preloads) |> Library.populate_content_urls()
+    do: record |> Repo.preload(preloads) |> Library.ContentUrls.populate()
 
   defp apply_preloads(record, nil), do: record
 end

@@ -761,7 +761,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   # but stops at the PlayableItem.
   defp resolve_or_create_playable_item_id(%{movie_id: movie_id}) when not is_nil(movie_id) do
     position =
-      case Library.fetch_movie(movie_id) do
+      case Library.Containers.fetch(:movie, movie_id) do
         {:ok, %{position: pos}} when is_integer(pos) -> pos
         _ -> 1
       end

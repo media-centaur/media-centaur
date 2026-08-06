@@ -347,7 +347,7 @@ defmodule MediaCentaur.Library.Views.BrowseTest do
       series = seed_present_tv_series("Old Name")
       :ok = Browse.refresh_cache()
 
-      {:ok, _updated} = MediaCentaur.Library.update_tv_series(series, %{name: "New Name"})
+      {:ok, _updated} = MediaCentaur.Library.Containers.update(series, %{name: "New Name"})
 
       :ok = Browse.refresh_cache()
 

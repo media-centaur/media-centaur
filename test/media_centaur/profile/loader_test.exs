@@ -23,7 +23,7 @@ defmodule MediaCentaur.Profile.LoaderTest do
     test "creates the configured number of movies and episodes" do
       cfg = Loader.config(:small)
 
-      assert length(Library.list_movies()) == cfg.movies
+      assert length(Library.Containers.list(:movie)) == cfg.movies
       # Episodes per series × series = total episodes seeded.
       total_episodes = cfg.series * cfg.episodes_per_series
       assert length(Library.list_episodes()) == total_episodes

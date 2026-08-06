@@ -85,7 +85,7 @@ defmodule MediaCentaur.Library.EntityCascade do
   defp resolve_entity!(id) do
     case TypeResolver.resolve_container(id,
            standalone_movie: false,
-           preload: Library.full_preloads_by_type()
+           preload: Library.Containers.full_preloads_by_type()
          ) do
       {:ok, type, record} -> {record, type}
       :not_found -> raise "entity #{id} not found in any type-specific table"
@@ -128,10 +128,10 @@ defmodule MediaCentaur.Library.EntityCascade do
     delete_image_dirs(record)
   end
 
-  defp destroy_record!(record, :tv_series), do: Library.destroy_tv_series!(record)
-  defp destroy_record!(record, :movie_series), do: Library.destroy_movie_series!(record)
-  defp destroy_record!(record, :movie), do: Library.destroy_movie!(record)
-  defp destroy_record!(record, :video_object), do: Library.destroy_video_object!(record)
+  defp destroy_record!(record, :tv_series), do: Library.Containers.destroy!(record)
+  defp destroy_record!(record, :movie_series), do: Library.Containers.destroy!(record)
+  defp destroy_record!(record, :movie), do: Library.Containers.destroy!(record)
+  defp destroy_record!(record, :video_object), do: Library.Containers.destroy!(record)
 
   # ---------------------------------------------------------------------------
   # Uniform polymorphic cleanup

@@ -21,7 +21,7 @@ defmodule MediaCentaur.Library.Movie do
   `content_url` no longer carries a persisted column (Library Schema v2
   Phase 2 Task I dropped it). It is materialised at read time from
   `playable_items.watched_files.file_path` by
-  `MediaCentaur.Library.populate_content_urls/1` — the read-side seam the
+  `MediaCentaur.Library.ContentUrls.populate/1` — the read-side seam the
   detail panel, resume pipeline, and playback resolvers consume. Writes
   must go through `Library.link_file/1` against a `PlayableItem` — not
   through this schema.
@@ -43,7 +43,7 @@ defmodule MediaCentaur.Library.Movie do
     field :director, :string
     field :content_rating, :string
     # Virtual: populated from `playable_items.watched_files.file_path` by
-    # `MediaCentaur.Library.populate_content_urls/1` (Library Schema v2
+    # `MediaCentaur.Library.ContentUrls.populate/1` (Library Schema v2
     # Phase 2 Task I). The persisted column was dropped; `WatchedFile` is
     # the sole source of truth.
     field :content_url, :string, virtual: true
