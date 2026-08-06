@@ -98,15 +98,32 @@ defmodule MediaCentaur.TMDB.Mapper do
   `link_file/2` consumes it via `event.file_path`.
   """
   def episode_attrs(season_id, season_data, episode_number, _file_path) do
+    season_data
+    |> episode_attrs(episode_number)
+    |> Map.put(:season_id, season_id)
+  end
+
+  @doc """
+  The episode fields TMDB supplies for `episode_number` within
+  `season_data`. Every field is `nil` when the season carries no such
+  episode — an unmatched episode number is an ordinary case (a file
+  numbered beyond what TMDB knows about), not an error.
+
+  Split out from `episode_attrs/4` because the metadata pipeline stage
+  needs the same shape without a `season_id` — TMDB has no notion of one,
+  and the stage attaches it after the Season row exists.
+  """
+  @spec episode_attrs(map(), integer()) :: map()
+  def episode_attrs(season_data, episode_number) do
     episodes = season_data["episodes"] || []
     tmdb_episode = Enum.find(episodes, &(&1["episode_number"] == episode_number))
 
     %{
-      season_id: season_id,
       episode_number: episode_number,
       name: tmdb_episode && tmdb_episode["name"],
       description: tmdb_episode && tmdb_episode["overview"],
-      duration_seconds: tmdb_episode && minutes_to_seconds(tmdb_episode["runtime"])
+      duration_seconds: tmdb_episode && minutes_to_seconds(tmdb_episode["runtime"]),
+      date_published: tmdb_episode && parse_date(tmdb_episode["air_date"])
     }
   end
 

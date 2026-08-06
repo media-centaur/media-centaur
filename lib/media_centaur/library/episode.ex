@@ -29,6 +29,9 @@ defmodule MediaCentaur.Library.Episode do
     field :name, :string
     field :description, :string
     field :duration_seconds, :integer
+    # TMDB `air_date`. Nil for episodes scraped before the column existed
+    # and for episodes TMDB has not dated yet (unaired).
+    field :date_published, :date
     # Virtual: populated from `playable_items.watched_files.file_path` by
     # `MediaCentaur.Library.ContentUrls.populate/1` (Library Schema v2
     # Phase 2 Task I). The persisted column was dropped; `WatchedFile` is
@@ -73,6 +76,7 @@ defmodule MediaCentaur.Library.Episode do
       :name,
       :description,
       :duration_seconds,
+      :date_published,
       :season_id
     ])
     |> validate_required([:season_id, :episode_number])

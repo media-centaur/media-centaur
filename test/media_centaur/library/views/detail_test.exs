@@ -135,12 +135,12 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       on_exit_clear_table()
 
       {movie, _file} = seed_present_movie("Movie A", %{date_published: ~D[2010-01-01]})
-      pi = playable_item_for_movie(movie)
+      playable_item = playable_item_for_movie(movie)
 
       assert :ok = Detail.refresh_cache()
 
-      assert %DetailItem{} = item = Views.detail(pi.id)
-      assert item.playable_item_id == pi.id
+      assert %DetailItem{} = item = Views.detail(playable_item.id)
+      assert item.playable_item_id == playable_item.id
       assert item.container_type == :movie
       assert item.container_id == movie.id
       assert item.container_name == "Movie A"
@@ -157,11 +157,11 @@ defmodule MediaCentaur.Library.Views.DetailTest do
           crew: [%{name: "Director B", job: "Director", department: "Directing", tmdb_person_id: 2}]
         })
 
-      pi = playable_item_for_movie(movie)
+      playable_item = playable_item_for_movie(movie)
 
       assert :ok = Detail.refresh_cache()
 
-      item = Views.detail(pi.id)
+      item = Views.detail(playable_item.id)
       assert [%{name: "Actor A"}] = item.cast
       assert [%{name: "Director B", job: "Director"}] = item.crew
     end
@@ -172,11 +172,11 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       {movie, _file} = seed_present_movie("Movie With Extras")
       _extra = create_extra(%{movie_id: movie.id, name: "Behind the Scenes", position: 1})
 
-      pi = playable_item_for_movie(movie)
+      playable_item = playable_item_for_movie(movie)
 
       assert :ok = Detail.refresh_cache()
 
-      item = Views.detail(pi.id)
+      item = Views.detail(playable_item.id)
       assert [%{name: "Behind the Scenes"}] = item.extras
     end
 
@@ -184,11 +184,11 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       on_exit_clear_table()
 
       {movie, _file} = seed_present_movie("ExtIds Movie", %{tmdb_id: "12345", imdb_id: "tt0001"})
-      pi = playable_item_for_movie(movie)
+      playable_item = playable_item_for_movie(movie)
 
       assert :ok = Detail.refresh_cache()
 
-      item = Views.detail(pi.id)
+      item = Views.detail(playable_item.id)
       sources = item.external_ids |> Enum.map(& &1.source) |> Enum.sort()
       assert sources == ["imdb", "tmdb"]
       assert item.imdb_id == "tt0001"
@@ -198,11 +198,11 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       on_exit_clear_table()
 
       {series, _season, episode, _file} = seed_present_episode("Sample Series")
-      pi = playable_item_for_episode(episode)
+      playable_item = playable_item_for_episode(episode)
 
       assert :ok = Detail.refresh_cache()
 
-      assert %DetailItem{} = item = Views.detail(pi.id)
+      assert %DetailItem{} = item = Views.detail(playable_item.id)
       assert item.container_type == :episode
       assert item.container_id == episode.id
       # Episode-level name + the parent TVSeries-level container metadata.
@@ -212,17 +212,47 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       assert item.parent_container_name == "Sample Series"
     end
 
+    test "carries the episode's own air date onto the season's episode row" do
+      on_exit_clear_table()
+
+      series = create_tv_series(%{name: "Aired Series"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      episode =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Pilot",
+          date_published: ~D[2008-01-20]
+        })
+
+      playable_item = create_playable_item_for_episode(episode)
+
+      create_linked_file(%{
+        playable_item_id: playable_item.id,
+        file_path: "/media/test/Aired Series.S01E01.mkv"
+      })
+
+      assert :ok = Detail.refresh_cache()
+
+      item = Views.detail(playable_item.id)
+
+      assert [season_row] = item.seasons
+      assert [episode_row] = season_row.episodes
+      assert episode_row.date_published == ~D[2008-01-20]
+    end
+
     test "carries the TVSeries first-air date as container_date_published" do
       on_exit_clear_table()
 
       {_series, _season, episode, _file} =
         seed_present_episode("Dated Series", %{date_published: ~D[2019-04-08]})
 
-      pi = playable_item_for_episode(episode)
+      playable_item = playable_item_for_episode(episode)
 
       assert :ok = Detail.refresh_cache()
 
-      item = Views.detail(pi.id)
+      item = Views.detail(playable_item.id)
       assert item.container_date_published == ~D[2019-04-08]
     end
 
@@ -230,11 +260,11 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       on_exit_clear_table()
 
       {vo, _file} = seed_present_video_object("Concert A")
-      pi = playable_item_for_video_object(vo)
+      playable_item = playable_item_for_video_object(vo)
 
       assert :ok = Detail.refresh_cache()
 
-      item = Views.detail(pi.id)
+      item = Views.detail(playable_item.id)
       assert item.container_type == :video_object
       assert item.container_id == vo.id
       assert item.container_name == "Concert A"
@@ -249,15 +279,15 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       # (ADR-046) would also remove the entity, defeating the test.
       movie = create_standalone_movie(%{name: "Disappearing Movie"})
       file = create_linked_file(%{movie_id: movie.id})
-      pi = playable_item_for_movie(movie)
+      playable_item = playable_item_for_movie(movie)
 
       assert :ok = Detail.refresh_cache()
-      assert %DetailItem{present?: true} = Views.detail(pi.id)
+      assert %DetailItem{present?: true} = Views.detail(playable_item.id)
 
       MediaCentaur.Repo.delete!(file)
 
       assert :ok = Detail.refresh_cache()
-      assert %DetailItem{present?: false} = Views.detail(pi.id)
+      assert %DetailItem{present?: false} = Views.detail(playable_item.id)
     end
 
     test "DetailItem.present? is false for a PlayableItem with no WatchedFile" do
@@ -265,10 +295,10 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
       # Movie with a PlayableItem but no WatchedFile at all.
       movie = create_standalone_movie(%{name: "Fileless Movie"})
-      {:ok, pi} = Library.PlayableItems.find_or_create(:movie, movie.id, 1)
+      {:ok, playable_item} = Library.PlayableItems.find_or_create(:movie, movie.id, 1)
 
       assert :ok = Detail.refresh_cache()
-      item = Views.detail(pi.id)
+      item = Views.detail(playable_item.id)
       assert item.present? == false
     end
   end
@@ -280,10 +310,10 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_views())
 
       {series, _season, episode, _file} = seed_present_episode("Old Title")
-      pi = playable_item_for_episode(episode)
+      playable_item = playable_item_for_episode(episode)
 
       assert :ok = Detail.refresh_cache()
-      assert %DetailItem{parent_container_name: "Old Title"} = Views.detail(pi.id)
+      assert %DetailItem{parent_container_name: "Old Title"} = Views.detail(playable_item.id)
 
       {:ok, _updated} = Library.Containers.update(series, %{name: "New Title"})
 
@@ -297,22 +327,22 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       # A full rebuild announces the whole table, not each row.
       assert_receive {:library_view_updated, :detail, :all}, 1_000
 
-      assert %DetailItem{parent_container_name: "New Title"} = Views.detail(pi.id)
+      assert %DetailItem{parent_container_name: "New Title"} = Views.detail(playable_item.id)
     end
 
     test "deleted Movie's DetailItem is removed from the table" do
       on_exit_clear_table()
 
       {movie, _file} = seed_present_movie("Will Be Gone")
-      pi = playable_item_for_movie(movie)
+      playable_item = playable_item_for_movie(movie)
 
       :ok = Detail.refresh_cache()
-      assert %DetailItem{} = Views.detail(pi.id)
+      assert %DetailItem{} = Views.detail(playable_item.id)
 
       MediaCentaur.Repo.delete!(movie)
 
       :ok = Detail.refresh_cache()
-      assert Views.detail(pi.id) == nil
+      assert Views.detail(playable_item.id) == nil
     end
   end
 
@@ -324,15 +354,15 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       # means the WatchedFile getting stamped. Start with a PlayableItem
       # but no WatchedFile; stamp it and watch present? flip.
       movie = create_standalone_movie(%{name: "Late Arrival"})
-      {:ok, pi} = Library.PlayableItems.find_or_create(:movie, movie.id, 1)
+      {:ok, playable_item} = Library.PlayableItems.find_or_create(:movie, movie.id, 1)
 
       assert :ok = Detail.refresh_cache()
-      assert %DetailItem{present?: false} = Views.detail(pi.id)
+      assert %DetailItem{present?: false} = Views.detail(playable_item.id)
 
       _file = create_linked_file(%{movie_id: movie.id})
 
       :ok = Detail.refresh_cache()
-      assert %DetailItem{present?: true} = Views.detail(pi.id)
+      assert %DetailItem{present?: true} = Views.detail(playable_item.id)
     end
   end
 
@@ -364,7 +394,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       on_exit_clear_table()
 
       {movie, _file} = seed_present_movie("Targeted Movie")
-      pi = playable_item_for_movie(movie)
+      playable_item = playable_item_for_movie(movie)
 
       assert :ok = Detail.refresh_cache()
 
@@ -373,7 +403,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       :ok = Detail.handle_message({:entities_changed, %EntitiesChanged{entity_ids: [movie.id]}})
 
       assert_receive {:library_view_updated, :detail, broadcasted_id}, 1_000
-      assert broadcasted_id == pi.id
+      assert broadcasted_id == playable_item.id
     end
   end
 
@@ -389,9 +419,9 @@ defmodule MediaCentaur.Library.Views.DetailTest do
           episode =
             create_episode(%{season_id: season.id, episode_number: n, name: "Episode #{n}"})
 
-          pi = create_playable_item_for_episode(episode)
-          create_linked_file(%{playable_item_id: pi.id, file_path: "/media/s01e0#{n}.mkv"})
-          pi
+          playable_item = create_playable_item_for_episode(episode)
+          create_linked_file(%{playable_item_id: playable_item.id, file_path: "/media/s01e0#{n}.mkv"})
+          playable_item
         end
 
       assert :ok = Detail.refresh_cache()
@@ -409,7 +439,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       on_exit_clear_table()
 
       {movie, _file} = seed_present_movie("Orphaned Shared Movie")
-      pi = playable_item_for_movie(movie)
+      playable_item = playable_item_for_movie(movie)
 
       assert :ok = Detail.refresh_cache()
 
@@ -419,7 +449,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       # modal instead of degrading to a metadata-less row.
       :ets.delete(@shared_table)
 
-      assert %DetailItem{name: "Orphaned Shared Movie"} = Views.detail(pi.id)
+      assert %DetailItem{name: "Orphaned Shared Movie"} = Views.detail(playable_item.id)
     end
 
     test "the shared table holds one entry per entity, not one per row" do
@@ -430,8 +460,8 @@ defmodule MediaCentaur.Library.Views.DetailTest do
 
       for n <- 1..4 do
         episode = create_episode(%{season_id: season.id, episode_number: n, name: "Ep #{n}"})
-        pi = create_playable_item_for_episode(episode)
-        create_linked_file(%{playable_item_id: pi.id, file_path: "/media/one/s01e0#{n}.mkv"})
+        playable_item = create_playable_item_for_episode(episode)
+        create_linked_file(%{playable_item_id: playable_item.id, file_path: "/media/one/s01e0#{n}.mkv"})
       end
 
       assert :ok = Detail.refresh_cache()
@@ -491,24 +521,24 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       on_exit_clear_table()
 
       {movie, _file} = seed_present_movie("Resolve Me")
-      pi = playable_item_for_movie(movie)
+      playable_item = playable_item_for_movie(movie)
 
       assert :ok = Detail.refresh_cache()
 
       assert %DetailItem{playable_item_id: id} = Views.detail_by_container(:movie, movie.id)
-      assert id == pi.id
+      assert id == playable_item.id
     end
 
     test "resolves a VideoObject container UUID to its PlayableItem" do
       on_exit_clear_table()
 
       {vo, _file} = seed_present_video_object("VO Resolve")
-      pi = playable_item_for_video_object(vo)
+      playable_item = playable_item_for_video_object(vo)
 
       assert :ok = Detail.refresh_cache()
 
       assert %DetailItem{playable_item_id: id} = Views.detail_by_container(:video_object, vo.id)
-      assert id == pi.id
+      assert id == playable_item.id
     end
 
     test "returns nil for an unknown container UUID" do
@@ -574,11 +604,11 @@ defmodule MediaCentaur.Library.Views.DetailTest do
   describe "Views.detail/1 — ETS path vs DB fallback" do
     test "falls back to DB query when the ETS table is absent" do
       {movie, _file} = seed_present_movie("Cold Read")
-      pi = playable_item_for_movie(movie)
+      playable_item = playable_item_for_movie(movie)
 
       assert :undefined = :ets.whereis(@table)
 
-      item = Views.detail(pi.id)
+      item = Views.detail(playable_item.id)
       assert item.container_name == "Cold Read"
       assert item.container_type == :movie
     end
