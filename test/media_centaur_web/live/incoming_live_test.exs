@@ -470,11 +470,11 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert render(view) =~ "Tracking Sample Show"
     end
 
-    test "the movie confirm offers Track release when the movie is not in the library", %{
+    test "the movie confirm offers Track release for a movie that isn't out yet", %{
       conn: conn
     } do
       TmdbStubs.setup_tmdb_client()
-      TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail())
+      TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail(%{"release_date" => "2099-01-01"}))
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie")
       render_async(view, 2_000)
@@ -485,6 +485,19 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert_patch(view, "/incoming")
       assert render(view) =~ "Tracking Sample Movie"
+    end
+
+    test "the movie confirm drops Track release once the movie is out", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.stub_get_movie(550, TmdbStubs.movie_detail())
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=550&tmdb_type=movie")
+      render_async(view, 2_000)
+
+      # A released movie has no future release to watch for — the stage
+      # offers the download, nothing else.
+      refute has_element?(view, "button[phx-click='plan_track_only']")
+      assert has_element?(view, "button[phx-click='plan_create']", "Download")
     end
 
     test "the picker's seasons start collapsed and expand on demand", %{conn: conn} do
@@ -553,7 +566,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       html = render_async(view, 2_000)
       assert html =~ "Sample Show"
       assert html =~ "2 selected"
-      assert html =~ "Plan 2 episodes"
+      assert html =~ "Download 2 episodes"
 
       # Seasons start collapsed — episode rows appear only after expanding.
       view
@@ -596,7 +609,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert html =~ "Plan ready · 2 of 2 covered"
       assert html =~ "Sample.Show.S01.COMPLETE.1080p.WEB-DL"
       assert html =~ "Season 1 pack"
-      assert html =~ "Approve &amp; grab"
+      assert html =~ "Approve plan"
 
       view
       |> element("button[phx-click='plan_approve']")
@@ -1231,9 +1244,9 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       render_async(view, 2_000)
 
-      # The verb tells the truth per row: a released title can be planned;
-      # an unreleased one can only be tracked.
-      assert has_element?(view, "#omnibox-result-movie-777", "Plan download")
+      # The verb tells the truth per row: a released title can be
+      # downloaded; an unreleased one can only be tracked.
+      assert has_element?(view, "#omnibox-result-movie-777", "Download")
       assert has_element?(view, "#omnibox-result-movie-888", "Track release")
 
       # Picking the upcoming row tracks it in place (the row flips to

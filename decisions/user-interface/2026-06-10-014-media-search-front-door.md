@@ -47,7 +47,14 @@ season checkboxes — presets are *presets*, checkbox state is the only
 source of truth. In-library episodes render greyed with an "In
 library" chip (subtractions shown, never hidden — campaign decision);
 unaired seasons render inert. Footer: quality range pill, "grab
-future" opt-in, "Plan N episodes" with a live count.
+future" opt-in, "Download N episodes" with a live count.
+
+Verbs name the **goal, not the step**: a search row and the movie
+confirm say *Download* (the plan is machinery on the way there, not
+what the user asked for); only the board's footer, where a proposal
+exists to accept, says *Approve plan*. *Track release* appears on the
+movie confirm only while the movie isn't out yet — for a movie already
+released there is no future release to watch for.
 
 ### 3. One coverage language: unit cells, everywhere
 
@@ -60,7 +67,7 @@ monospace release name, quality/seeders/size, swap + exclude); cell ↔
 release row highlight on hover/selection. A live activity ticker
 (searches, corpus vs live) replaces any spinner — **planning must
 visibly work**. The approval step is the board's footer (coverage
-summary + Discard + "Approve & grab N releases"), not a separate
+summary + Discard + "Approve plan"), not a separate
 screen; gaps render as an explicit warning row with a disabled "track
 these later" slot (wired in campaign Phase 4).
 

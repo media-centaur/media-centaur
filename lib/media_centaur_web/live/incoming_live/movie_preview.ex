@@ -16,6 +16,11 @@ defmodule MediaCentaurWeb.IncomingLive.MoviePreview do
   is the year `Plans.create_movie_plan/2` stamps on the plan so the
   indexer query matches how releases are actually tagged.
 
+  `upcoming?` says the movie isn't out anywhere yet — its canonical
+  release date is missing or still ahead. It gates the stage's *Track
+  release* verb: watching for a release only makes sense while there is
+  one to wait for.
+
   `facets` are `Detail.Facet` structs (rendered by `Detail.FacetStrip`),
   `cast` are `Library.Person` structs (the library's cast shape), and the
   image fields are absolute TMDB CDN URLs — a not-yet-owned movie has no
@@ -38,7 +43,8 @@ defmodule MediaCentaurWeb.IncomingLive.MoviePreview do
           metadata_items: [String.t()],
           facets: [Facet.t()],
           cast: [Person.t()],
-          in_library?: boolean()
+          in_library?: boolean(),
+          upcoming?: boolean()
         }
 
   @enforce_keys [:tmdb_id, :in_library?]
@@ -53,5 +59,6 @@ defmodule MediaCentaurWeb.IncomingLive.MoviePreview do
             metadata_items: [],
             facets: [],
             cast: [],
-            in_library?: false
+            in_library?: false,
+            upcoming?: false
 end
