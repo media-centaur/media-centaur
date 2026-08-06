@@ -99,13 +99,13 @@ defmodule MediaCentaur.Library.ExternalIdsTest do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       {:ok, _} = ExternalIds.put(:tmdb, movie, "550")
 
-      reloaded = Library.get_movie_with_associations!(movie.id)
+      reloaded = Library.Containers.get_with_associations!(:movie, movie.id)
       assert ExternalIds.get(reloaded, :tmdb) == "550"
     end
 
     test "returns nil when the source is absent" do
       movie = create_standalone_movie(%{name: "Sample Movie"})
-      reloaded = Library.get_movie_with_associations!(movie.id)
+      reloaded = Library.Containers.get_with_associations!(:movie, movie.id)
 
       assert ExternalIds.get(reloaded, :tmdb) == nil
       assert ExternalIds.get(reloaded, :imdb) == nil
@@ -116,7 +116,7 @@ defmodule MediaCentaur.Library.ExternalIdsTest do
       {:ok, _} = ExternalIds.put(:tmdb, movie, "550")
       {:ok, _} = ExternalIds.put(:imdb, movie, "tt0000001")
 
-      reloaded = Library.get_movie_with_associations!(movie.id)
+      reloaded = Library.Containers.get_with_associations!(:movie, movie.id)
       assert ExternalIds.get(reloaded, :tmdb) == "550"
       assert ExternalIds.get(reloaded, :imdb) == "tt0000001"
     end

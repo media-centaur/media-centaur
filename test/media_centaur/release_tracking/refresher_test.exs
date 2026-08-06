@@ -311,7 +311,7 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
         })
 
       # Delete the library entity
-      MediaCentaur.Library.destroy_tv_series(tv_series)
+      MediaCentaur.Library.Containers.destroy(tv_series)
 
       # Simulate PubSub event — call the function directly since GenServer isn't running in test
       Refresher.refresh_item_tracking_for([tv_series.id])

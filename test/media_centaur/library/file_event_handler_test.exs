@@ -25,7 +25,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
 
       assert entity_ids == [movie.id]
       assert Library.list_watched_files() == []
-      assert Library.list_movies() == []
+      assert Library.Containers.list(:movie) == []
     end
 
     test "also deletes the FilePresence row for the removed file" do
@@ -115,7 +115,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       assert hd(remaining_episodes).episode_number == 2
 
       assert {:ok, _} = Library.fetch_season(season.id)
-      assert {:ok, _} = Library.fetch_tv_series(tv_series.id)
+      assert {:ok, _} = Library.Containers.fetch(:tv_series, tv_series.id)
 
       # Only 1 WatchedFile remains
       assert length(Library.list_watched_files()) == 1
@@ -222,7 +222,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       assert entity_ids == [tv_series.id]
       assert {:error, _} = Library.fetch_episode(ep1.id)
       assert {:error, :not_found} = Library.fetch_watch_progress_by_fk(:episode_id, ep1.id)
-      assert {:ok, _} = Library.fetch_tv_series(tv_series.id)
+      assert {:ok, _} = Library.Containers.fetch(:tv_series, tv_series.id)
     end
 
     test "deletes empty season when all its episodes are removed" do
@@ -280,7 +280,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       # Season 1 should be gone (empty), season 2 should remain
       assert {:error, _} = Library.fetch_season(season.id)
       assert {:ok, _} = Library.fetch_season(season2.id)
-      assert {:ok, _} = Library.fetch_tv_series(tv_series.id)
+      assert {:ok, _} = Library.Containers.fetch(:tv_series, tv_series.id)
     end
 
     test "deletes entire TV series when all files removed" do
@@ -370,9 +370,9 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       FileEventHandler.cleanup_removed_files(["/media/movies/sample_movie_one.mkv"])
 
       # Movie 1 is gone, series and other movies remain
-      assert {:error, _} = Library.fetch_movie(movie1.id)
-      assert length(Library.list_movies()) == 2
-      assert {:ok, _} = Library.fetch_movie_series(movie_series.id)
+      assert {:error, _} = Library.Containers.fetch(:movie, movie1.id)
+      assert length(Library.Containers.list(:movie)) == 2
+      assert {:ok, _} = Library.Containers.fetch(:movie_series, movie_series.id)
     end
 
     test "deletes extra when its file is removed" do
@@ -408,7 +408,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
 
       # Extra is gone, movie entity remains
       assert {:error, _} = Library.fetch_extra(extra.id)
-      assert {:ok, _} = Library.fetch_movie(movie.id)
+      assert {:ok, _} = Library.Containers.fetch(:movie, movie.id)
       assert length(Library.list_watched_files()) == 1
     end
 
@@ -555,7 +555,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       refute File.exists?(path_a)
       refute File.exists?(path_b)
       assert Library.list_watched_files() == []
-      assert Library.list_movies() == []
+      assert Library.Containers.list(:movie) == []
 
       # The whole batch lands as a single entities_changed broadcast.
       assert_receive {:entities_changed, %{entity_ids: broadcast_ids}}
@@ -590,7 +590,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       assert File.dir?(stubborn_path)
       # The deletable file's records were cleaned despite the batch failure.
       assert Library.list_watched_files() == []
-      assert Library.list_movies() == []
+      assert Library.Containers.list(:movie) == []
     end
   end
 end

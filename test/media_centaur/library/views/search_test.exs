@@ -409,7 +409,7 @@ defmodule MediaCentaur.Library.Views.SearchTest do
 
       assert [%SearchItem{name: "Old Name"}] = Views.search("Old Name")
 
-      {:ok, _updated} = MediaCentaur.Library.update_tv_series(series, %{name: "New Name"})
+      {:ok, _updated} = MediaCentaur.Library.Containers.update(series, %{name: "New Name"})
       :ok = Search.refresh_cache()
 
       assert Views.search("Old Name") == []

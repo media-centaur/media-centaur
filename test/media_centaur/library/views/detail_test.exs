@@ -285,7 +285,7 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       assert :ok = Detail.refresh_cache()
       assert %DetailItem{parent_container_name: "Old Title"} = Views.detail(pi.id)
 
-      {:ok, _updated} = Library.update_tv_series(series, %{name: "New Title"})
+      {:ok, _updated} = Library.Containers.update(series, %{name: "New Title"})
 
       Phoenix.PubSub.broadcast(
         MediaCentaur.PubSub,

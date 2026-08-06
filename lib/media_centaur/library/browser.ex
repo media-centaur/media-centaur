@@ -22,7 +22,7 @@ defmodule MediaCentaur.Library.Browser do
 
   # Leaf preload chain for materialising the virtual `Episode.content_url` /
   # `Movie.content_url` / `VideoObject.content_url` field (Library Schema
-  # v2 Phase 2 Task I). `Library.populate_content_urls/1` walks
+  # v2 Phase 2 Task I). `Library.ContentUrls.populate/1` walks
   # `playable_items.watched_files` and stamps the file path on the leaf
   # struct — the catalog grid keeps reading `entity.content_url` /
   # `episode.content_url` without code changes.
@@ -191,14 +191,14 @@ defmodule MediaCentaur.Library.Browser do
     PresentableQueries.standalone_movies()
     |> Repo.all()
     |> Repo.preload(@standalone_movie_preloads)
-    |> Enum.map(&Library.populate_content_urls/1)
+    |> Enum.map(&Library.ContentUrls.populate/1)
   end
 
   defp fetch_hoisted_movies do
     PresentableQueries.singleton_collection_movies()
     |> Repo.all()
     |> Repo.preload(@hoisted_movie_preloads)
-    |> Enum.map(&Library.populate_content_urls/1)
+    |> Enum.map(&Library.ContentUrls.populate/1)
   end
 
   defp fetch_all_tv_series do
@@ -208,14 +208,14 @@ defmodule MediaCentaur.Library.Browser do
     )
     |> Repo.all()
     |> Repo.preload(@tv_series_preloads)
-    |> Enum.map(&Library.populate_content_urls/1)
+    |> Enum.map(&Library.ContentUrls.populate/1)
   end
 
   defp fetch_all_movie_series do
     PresentableQueries.multi_child_movie_series()
     |> Repo.all()
     |> Repo.preload(@movie_series_preloads)
-    |> Enum.map(&Library.populate_content_urls/1)
+    |> Enum.map(&Library.ContentUrls.populate/1)
   end
 
   defp fetch_all_video_objects do
@@ -225,7 +225,7 @@ defmodule MediaCentaur.Library.Browser do
     )
     |> Repo.all()
     |> Repo.preload(@video_object_preloads)
-    |> Enum.map(&Library.populate_content_urls/1)
+    |> Enum.map(&Library.ContentUrls.populate/1)
   end
 
   # --- Type-Specific Fetchers (by IDs) ---
@@ -234,14 +234,14 @@ defmodule MediaCentaur.Library.Browser do
     from([m] in PresentableQueries.standalone_movies(), where: m.id in ^ids)
     |> Repo.all()
     |> Repo.preload(@standalone_movie_preloads)
-    |> Enum.map(&Library.populate_content_urls/1)
+    |> Enum.map(&Library.ContentUrls.populate/1)
   end
 
   defp fetch_hoisted_movies_by_ids(ids) do
     from([m] in PresentableQueries.singleton_collection_movies(), where: m.id in ^ids)
     |> Repo.all()
     |> Repo.preload(@hoisted_movie_preloads)
-    |> Enum.map(&Library.populate_content_urls/1)
+    |> Enum.map(&Library.ContentUrls.populate/1)
   end
 
   defp fetch_tv_series_by_ids(ids) do
@@ -252,14 +252,14 @@ defmodule MediaCentaur.Library.Browser do
     )
     |> Repo.all()
     |> Repo.preload(@tv_series_preloads)
-    |> Enum.map(&Library.populate_content_urls/1)
+    |> Enum.map(&Library.ContentUrls.populate/1)
   end
 
   defp fetch_movie_series_by_ids(ids) do
     from([ms] in PresentableQueries.multi_child_movie_series(), where: ms.id in ^ids)
     |> Repo.all()
     |> Repo.preload(@movie_series_preloads)
-    |> Enum.map(&Library.populate_content_urls/1)
+    |> Enum.map(&Library.ContentUrls.populate/1)
   end
 
   defp fetch_video_objects_by_ids(ids) do
@@ -270,7 +270,7 @@ defmodule MediaCentaur.Library.Browser do
     )
     |> Repo.all()
     |> Repo.preload(@video_object_preloads)
-    |> Enum.map(&Library.populate_content_urls/1)
+    |> Enum.map(&Library.ContentUrls.populate/1)
   end
 
   # --- Typed Entry Builder ---

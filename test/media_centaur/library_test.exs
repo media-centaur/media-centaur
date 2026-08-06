@@ -50,7 +50,7 @@ defmodule MediaCentaur.LibraryTest do
       series = create_movie_series(%{name: "Sample Collection"})
 
       {:ok, movie} =
-        Library.find_or_create_movie_for_series(%{
+        Library.Containers.find_or_create_movie_for_series(%{
           movie_series_id: series.id,
           tmdb_id: "155",
           imdb_id: "tt0000155",
@@ -844,10 +844,18 @@ defmodule MediaCentaur.LibraryTest do
       series = create_movie_series(%{name: "Sample Saga"})
 
       part1 =
-        Library.create_movie!(%{name: "Saga Part 1", movie_series_id: series.id, position: 0})
+        Library.Containers.create!(:movie, %{
+          name: "Saga Part 1",
+          movie_series_id: series.id,
+          position: 0
+        })
 
       part2 =
-        Library.create_movie!(%{name: "Saga Part 2", movie_series_id: series.id, position: 1})
+        Library.Containers.create!(:movie, %{
+          name: "Saga Part 2",
+          movie_series_id: series.id,
+          position: 1
+        })
 
       record_present(create_linked_file(%{movie_id: part1.id}))
       record_present(create_linked_file(%{movie_id: part2.id}))

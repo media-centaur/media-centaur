@@ -51,7 +51,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
 
       EntityCascade.destroy!(tv_series.id)
 
-      assert {:error, _} = Library.fetch_tv_series(tv_series.id)
+      assert {:error, _} = Library.Containers.fetch(:tv_series, tv_series.id)
       assert Library.list_seasons() == []
       assert Library.list_all_images() == []
     end
@@ -86,7 +86,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
 
       EntityCascade.destroy!(movie.id)
 
-      assert {:error, _} = Library.fetch_movie(movie.id)
+      assert {:error, _} = Library.Containers.fetch(:movie, movie.id)
       assert Library.list_all_images() == []
     end
 
@@ -101,7 +101,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
 
       EntityCascade.destroy!(movie.id)
 
-      assert {:error, _} = Library.fetch_movie(movie.id)
+      assert {:error, _} = Library.Containers.fetch(:movie, movie.id)
       assert Library.list_playable_items_for(:movie, movie.id) == []
     end
 
@@ -111,7 +111,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
 
       EntityCascade.destroy!(video_object.id)
 
-      assert {:error, _} = Library.fetch_video_object(video_object.id)
+      assert {:error, _} = Library.Containers.fetch(:video_object, video_object.id)
       assert Library.list_playable_items_for(:video_object, video_object.id) == []
     end
 
@@ -126,7 +126,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
 
       EntityCascade.destroy!(tv_series.id)
 
-      assert {:error, _} = Library.fetch_tv_series(tv_series.id)
+      assert {:error, _} = Library.Containers.fetch(:tv_series, tv_series.id)
       assert Library.list_playable_items_for(:episode, episode1.id) == []
       assert Library.list_playable_items_for(:episode, episode2.id) == []
     end
@@ -135,7 +135,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
       series = create_entity(%{type: :movie_series, name: "Sample Collection"})
 
       {:ok, child} =
-        Library.create_movie(%{
+        Library.Containers.create(:movie, %{
           name: "Sample Child",
           movie_series_id: series.id,
           content_url: "/media/child.mkv",
@@ -146,8 +146,8 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
 
       EntityCascade.destroy!(series.id)
 
-      assert {:error, _} = Library.fetch_movie_series(series.id)
-      assert {:error, _} = Library.fetch_movie(child.id)
+      assert {:error, _} = Library.Containers.fetch(:movie_series, series.id)
+      assert {:error, _} = Library.Containers.fetch(:movie, child.id)
       assert Library.list_playable_items_for(:movie, child.id) == []
     end
 

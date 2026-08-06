@@ -14,7 +14,7 @@ defmodule MediaCentaur.Library.Episode do
   `content_url` no longer carries a persisted column (Library Schema v2
   Phase 2 Task I dropped it). It is materialised at read time from
   `playable_items.watched_files.file_path` by
-  `MediaCentaur.Library.populate_content_urls/1`. Writes must go through
+  `MediaCentaur.Library.ContentUrls.populate/1`. Writes must go through
   `Library.link_file/1` against the Episode's `PlayableItem`.
   """
   use Ecto.Schema
@@ -30,7 +30,7 @@ defmodule MediaCentaur.Library.Episode do
     field :description, :string
     field :duration_seconds, :integer
     # Virtual: populated from `playable_items.watched_files.file_path` by
-    # `MediaCentaur.Library.populate_content_urls/1` (Library Schema v2
+    # `MediaCentaur.Library.ContentUrls.populate/1` (Library Schema v2
     # Phase 2 Task I). The persisted column was dropped; `WatchedFile` is
     # the sole source of truth.
     field :content_url, :string, virtual: true

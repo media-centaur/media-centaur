@@ -147,7 +147,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert movie.content_url == "/media/Sample.Movie.1999.mkv"
 
       # Type-specific Movie record created directly
-      assert {:ok, reloaded} = Library.fetch_movie(movie.id)
+      assert {:ok, reloaded} = Library.Containers.fetch(:movie, movie.id)
       assert reloaded.name == "Sample Movie"
       assert reloaded.content_url == "/media/Sample.Movie.1999.mkv"
 
@@ -199,7 +199,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert series.name == "Sample Movie Collection"
 
       # Type-specific MovieSeries record created directly
-      assert {:ok, reloaded} = Library.fetch_movie_series(series.id)
+      assert {:ok, reloaded} = Library.Containers.fetch(:movie_series, series.id)
       assert reloaded.name == "Sample Movie Collection"
 
       # tmdb_id stored on a polymorphic ExternalId row
@@ -216,7 +216,7 @@ defmodule MediaCentaur.Library.InboundTest do
       # Phase 2 Task I — content_url is a virtual derived from WatchedFile,
       # not a column on the preloaded child Movie. Read it via the
       # Library getter.
-      assert {:ok, reloaded_movie} = Library.fetch_movie(movie.id)
+      assert {:ok, reloaded_movie} = Library.Containers.fetch(:movie, movie.id)
       assert reloaded_movie.content_url == "/media/Sample.Movie.2008.mkv"
 
       # Pending images include movie_series + child movie images
@@ -260,7 +260,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert entity.id == series.id
 
       # Child movie created with movie_series_id FK, load via MovieSeries
-      assert {:ok, movie_series} = Library.fetch_movie_series(entity.id)
+      assert {:ok, movie_series} = Library.Containers.fetch(:movie_series, entity.id)
       movie_series = MediaCentaur.Repo.preload(movie_series, :movies)
       assert length(movie_series.movies) == 1
       movie = hd(movie_series.movies)
@@ -385,7 +385,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert entity.id == existing.id
 
       # Season/Episode created with tv_series_id FK, load via TVSeries
-      assert {:ok, tv_series} = Library.fetch_tv_series(entity.id)
+      assert {:ok, tv_series} = Library.Containers.fetch(:tv_series, entity.id)
       tv_series = MediaCentaur.Repo.preload(tv_series, seasons: :episodes)
       assert length(tv_series.seasons) == 1
       episode = hd(hd(tv_series.seasons).episodes)
@@ -419,7 +419,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == existing.id
 
-      {:ok, reloaded} = Library.fetch_movie(entity.id)
+      {:ok, reloaded} = Library.Containers.fetch(:movie, entity.id)
       assert reloaded.content_url == "/media/Sample.Movie.1999.mkv"
     end
 
@@ -435,7 +435,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert {:ok, entity, :existing, _pending_images} = Inbound.ingest(movie_event())
       assert entity.id == existing.id
 
-      {:ok, reloaded} = Library.fetch_movie(entity.id)
+      {:ok, reloaded} = Library.Containers.fetch(:movie, entity.id)
       assert reloaded.content_url == "/media/original.mkv"
     end
   end
@@ -545,7 +545,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert entity.id == existing.id
 
       # Extra created with movie_id FK, load via the Movie type record
-      assert {:ok, movie} = Library.fetch_movie(entity.id)
+      assert {:ok, movie} = Library.Containers.fetch(:movie, entity.id)
       movie = MediaCentaur.Repo.preload(movie, :extras)
       assert length(movie.extras) == 1
       assert hd(movie.extras).name == "Deleted Scenes"
@@ -568,7 +568,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert entity.id == winner.id
 
       # No duplicate was created — only the winner remains.
-      movies = Library.list_movies()
+      movies = Library.Containers.list(:movie)
       assert length(movies) == 1
       assert hd(movies).id == winner.id
     end
@@ -790,7 +790,7 @@ defmodule MediaCentaur.Library.InboundTest do
       series = create_entity(%{type: :movie_series, name: "Collection"})
 
       {:ok, movie} =
-        Library.find_or_create_movie_for_series(%{
+        Library.Containers.find_or_create_movie_for_series(%{
           movie_series_id: series.id,
           tmdb_id: "155",
           name: "Movie",
@@ -856,7 +856,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert :ok = Inbound.handle_rematch(movie.id)
 
       # Entity destroyed
-      assert {:error, _} = Library.fetch_movie(movie.id)
+      assert {:error, _} = Library.Containers.fetch(:movie, movie.id)
 
       # WatchedFiles destroyed
       assert Library.list_watched_files_by_entity_id(movie.id) == []
@@ -920,7 +920,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert :ok = Inbound.handle_rematch(tv_series.id)
 
       # Entity fully destroyed
-      assert {:error, _} = Library.fetch_tv_series(tv_series.id)
+      assert {:error, _} = Library.Containers.fetch(:tv_series, tv_series.id)
 
       # Both files sent to review
       assert_received {:files_for_review, files}

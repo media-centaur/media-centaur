@@ -5,6 +5,8 @@ defmodule MediaCentaur.Library do
       AbsenceSweeper,
       Availability,
       Browser,
+      Containers,
+      ContentUrls,
       EntityShape,
       Episode,
       EpisodeList,
@@ -46,7 +48,8 @@ defmodule MediaCentaur.Library do
       Views.HeroCandidatesItem,
       Views.RecentlyAdded,
       Views.RecentlyAddedItem,
-      WatchedFile
+      WatchedFile,
+      Writes
     ]
 
   @moduledoc """
@@ -61,12 +64,12 @@ defmodule MediaCentaur.Library do
 
   alias MediaCentaur.Library.{
     ChangeEntry,
+    ContentUrls,
     Episode,
     Extra,
     ExtraFile,
     ExtraProgress,
     ExternalId,
-    ExternalIds,
     FileMediaInfo,
     FilePresence,
     HomeFeed,
@@ -82,7 +85,8 @@ defmodule MediaCentaur.Library do
     TVSeries,
     VideoObject,
     WatchProgress,
-    WatchedFile
+    WatchedFile,
+    Writes
   }
 
   @doc "Subscribe the caller to library entity change events."
@@ -91,171 +95,10 @@ defmodule MediaCentaur.Library do
     Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_updates())
   end
 
-  # Leaf preload chain for materialising the virtual `Episode.content_url` /
-  # `Movie.content_url` / `VideoObject.content_url` field (Library Schema
-  # v2 Phase 2 Task I). `populate_content_urls/1` walks
-  # `playable_items.watched_files` and stamps the file path on the leaf
-  # struct — callers that previously read `episode.content_url` keep
-  # working without code changes.
-  @leaf_file_path_preload [playable_items: :watched_files]
-
-  @tv_series_full_preloads [
-    :images,
-    :external_ids,
-    :extras,
-    :watched_files,
-    seasons: [:extras, episodes: [:images, :watch_progress] ++ @leaf_file_path_preload]
-  ]
-
-  @movie_series_full_preloads [
-    :images,
-    :external_ids,
-    :extras,
-    :watched_files,
-    movies: [:images, :watch_progress] ++ @leaf_file_path_preload
-  ]
-
-  @movie_full_preloads [
-    :images,
-    :external_ids,
-    :extras,
-    :watched_files,
-    :watch_progress,
-    {:playable_items, :watched_files}
-  ]
-
-  @video_object_full_preloads [
-    :images,
-    :external_ids,
-    :watched_files,
-    :watch_progress,
-    {:playable_items, :watched_files}
-  ]
-
-  @doc """
-  Returns a `[type: preloads]` keyword list covering the four playable entity
-  types. Used by `TypeResolver.resolve_container/2` and other multi-type
-  lookups that preload across all four tables in one call.
-  """
-  def full_preloads_by_type do
-    [
-      tv_series: @tv_series_full_preloads,
-      movie_series: @movie_series_full_preloads,
-      movie: @movie_full_preloads,
-      video_object: @video_object_full_preloads
-    ]
-  end
-
-  # ---------------------------------------------------------------------------
-  # TVSeries
-  # ---------------------------------------------------------------------------
-
-  def fetch_tv_series(id) do
-    case Repo.get(TVSeries, id) do
-      nil -> {:error, :not_found}
-      tv_series -> {:ok, tv_series}
-    end
-  end
-
-  def fetch_tv_series_with_associations(id) do
-    case Repo.get(TVSeries, id) do
-      nil ->
-        {:error, :not_found}
-
-      tv_series ->
-        {:ok, tv_series |> Repo.preload(@tv_series_full_preloads) |> populate_content_urls()}
-    end
-  end
-
-  def get_tv_series_with_associations!(id) do
-    TVSeries
-    |> Repo.get!(id)
-    |> Repo.preload(@tv_series_full_preloads)
-    |> populate_content_urls()
-  end
-
-  def create_tv_series(attrs) do
-    Repo.insert(TVSeries.create_changeset(attrs))
-  end
-
-  def create_tv_series!(attrs), do: Repo.bang!(create_tv_series(attrs))
-
-  def update_tv_series(tv_series, attrs) do
-    Repo.update(TVSeries.update_changeset(tv_series, attrs))
-  end
-
-  def destroy_tv_series(tv_series), do: Repo.delete(tv_series)
-  def destroy_tv_series!(tv_series), do: destroy_bang!(tv_series)
-
-  # ---------------------------------------------------------------------------
-  # MovieSeries
-  # ---------------------------------------------------------------------------
-
-  def fetch_movie_series(id) do
-    case Repo.get(MovieSeries, id) do
-      nil -> {:error, :not_found}
-      movie_series -> {:ok, movie_series}
-    end
-  end
-
-  def fetch_movie_series_with_associations(id) do
-    case Repo.get(MovieSeries, id) do
-      nil ->
-        {:error, :not_found}
-
-      movie_series ->
-        {:ok, movie_series |> Repo.preload(@movie_series_full_preloads) |> populate_content_urls()}
-    end
-  end
-
-  def get_movie_series_with_associations!(id) do
-    MovieSeries
-    |> Repo.get!(id)
-    |> Repo.preload(@movie_series_full_preloads)
-    |> populate_content_urls()
-  end
-
-  def create_movie_series(attrs) do
-    Repo.insert(MovieSeries.create_changeset(attrs))
-  end
-
-  def create_movie_series!(attrs), do: Repo.bang!(create_movie_series(attrs))
-
-  def destroy_movie_series(movie_series), do: Repo.delete(movie_series)
-  def destroy_movie_series!(movie_series), do: destroy_bang!(movie_series)
-
-  # ---------------------------------------------------------------------------
-  # VideoObject
-  # ---------------------------------------------------------------------------
-
-  def fetch_video_object(id) do
-    case Repo.get(VideoObject, id) do
-      nil ->
-        {:error, :not_found}
-
-      video_object ->
-        # Populate the virtual `content_url` so consumers that read
-        # `video_object.content_url` post-fetch see the on-disk path
-        # (Library Schema v2 Phase 2 Task I).
-        {:ok, video_object |> Repo.preload(@leaf_file_path_preload) |> populate_content_urls()}
-    end
-  end
-
-  def get_video_object_with_associations!(id) do
-    VideoObject
-    |> Repo.get!(id)
-    |> Repo.preload(@video_object_full_preloads)
-    |> populate_content_urls()
-  end
-
-  def create_video_object(attrs) do
-    Repo.insert(VideoObject.create_changeset(attrs))
-  end
-
-  def create_video_object!(attrs), do: Repo.bang!(create_video_object(attrs))
-
-  def destroy_video_object(video_object), do: Repo.delete(video_object)
-  def destroy_video_object!(video_object), do: destroy_bang!(video_object)
+  # Leaf preload chain for materialising the virtual `content_url` field
+  # (Library Schema v2 Phase 2 Task I). Owned by `Library.ContentUrls`,
+  # which consumes it — see that moduledoc.
+  @leaf_file_path_preload ContentUrls.required_preload()
 
   # ---------------------------------------------------------------------------
   # PlayableItem
@@ -621,8 +464,8 @@ defmodule MediaCentaur.Library do
   def list_watched_files, do: Repo.all(WatchedFile)
 
   def link_file(attrs) do
-    file_path = lookup_attr(attrs, :file_path)
-    media_dir = lookup_attr(attrs, :media_dir)
+    file_path = Writes.attr(attrs, :file_path)
+    media_dir = Writes.attr(attrs, :media_dir)
     attrs = ensure_file_presence_id(attrs, file_path, media_dir)
 
     result =
@@ -942,86 +785,6 @@ defmodule MediaCentaur.Library do
   def playable_file_path(_), do: nil
 
   @doc """
-  Stamps the virtual `:content_url` field on a fetched container (and its
-  preloaded leaves) from the WatchedFile chain.
-
-  The container types `:movie`, `:episode`, and `:video_object` carry
-  `content_url` as a virtual schema field (Library Schema v2 Phase 2
-  Task I dropped the persisted column; the on-disk path now lives only
-  on `library_watched_files.file_path` via `PlayableItem`). This helper
-  is the single seam that materialises that virtual at read time so
-  downstream consumers (`EntityShape`, `EpisodeList`, `MovieList`, the
-  detail panel) keep their natural `record.content_url` reads.
-
-  Walks the record's preloaded `playable_items.watched_files` and
-  records the first WatchedFile's `file_path` on the leaf. Stamps `nil`
-  when no WatchedFile is linked — the same shape the dropped column
-  used to carry. Recurses into `:seasons → :episodes` for TVSeries and
-  `:movies` for MovieSeries.
-
-  Callers must preload `playable_items: :watched_files` on the leaf
-  level. `full_preloads_by_type/0` and the typed `fetch_*_with_associations`
-  paths already include it (Library Schema v2 Phase 2 Task I).
-  """
-  @spec populate_content_urls(struct() | nil) :: struct() | nil
-  def populate_content_urls(nil), do: nil
-
-  def populate_content_urls(%Movie{} = movie), do: populate_leaf_content_url(movie)
-
-  def populate_content_urls(%Episode{} = episode), do: populate_leaf_content_url(episode)
-
-  def populate_content_urls(%VideoObject{} = video), do: populate_leaf_content_url(video)
-
-  def populate_content_urls(%TVSeries{seasons: seasons} = tv_series) when is_list(seasons) do
-    %{tv_series | seasons: Enum.map(seasons, &populate_season_content_urls/1)}
-  end
-
-  def populate_content_urls(%MovieSeries{movies: movies} = ms) when is_list(movies) do
-    %{ms | movies: Enum.map(movies, &populate_leaf_content_url/1)}
-  end
-
-  def populate_content_urls(other), do: other
-
-  defp populate_season_content_urls(%Season{episodes: episodes} = season) when is_list(episodes) do
-    %{season | episodes: Enum.map(episodes, &populate_leaf_content_url/1)}
-  end
-
-  defp populate_season_content_urls(season), do: season
-
-  defp populate_leaf_content_url(%{playable_items: playable_items} = leaf)
-       when is_list(playable_items) do
-    url =
-      playable_items
-      # Multi-PlayableItem leaves (multi-cut Movie, multi-part Episode)
-      # pick the lowest `:position` PI for the content_url surface — a
-      # deterministic canonical-cut choice rather than whatever order
-      # Repo happened to return. Per Phase 2 follow-up.
-      |> Enum.sort_by(& &1.position)
-      |> Enum.find_value(fn
-        %PlayableItem{watched_files: [%WatchedFile{file_path: path} | _]} when is_binary(path) ->
-          path
-
-        _ ->
-          nil
-      end)
-
-    %{leaf | content_url: url}
-  end
-
-  defp populate_leaf_content_url(%{playable_items: %Ecto.Association.NotLoaded{}} = leaf) do
-    # Loud failure replaces a Phase 2 silent-nil: callers must preload
-    # `playable_items: :watched_files`. The pre-Phase-3.2 silent path
-    # masked missing-preload bugs (leaf rendered with `content_url:
-    # nil`) until the consumer dereferenced the missing field at render
-    # time. Raising here surfaces the bug at the test boundary instead.
-    raise ArgumentError,
-          "populate_leaf_content_url/1 called on #{inspect(leaf.__struct__)} without :playable_items preloaded. " <>
-            "Preload `playable_items: :watched_files` before calling this function."
-  end
-
-  defp populate_leaf_content_url(leaf), do: leaf
-
-  @doc """
   Returns an Ecto subquery selecting `file_path` from every linked
   WatchedFile. Exposed so cross-context queries (Watcher's
   `rescan_unlinked`) can compose against linked-file state without
@@ -1098,7 +861,7 @@ defmodule MediaCentaur.Library do
     from(m in Movie, where: m.movie_series_id == ^owner_id)
     |> Repo.all()
     |> Repo.preload(full_preloads)
-    |> Enum.map(&populate_content_urls/1)
+    |> Enum.map(&ContentUrls.populate/1)
   end
 
   @doc """
@@ -1622,103 +1385,6 @@ defmodule MediaCentaur.Library do
   end
 
   # ---------------------------------------------------------------------------
-  # Movie
-  # ---------------------------------------------------------------------------
-
-  def list_movies, do: Repo.all(Movie)
-
-  def fetch_movie(id) do
-    case Repo.get(Movie, id) do
-      nil ->
-        {:error, :not_found}
-
-      movie ->
-        # Populate the virtual `content_url` from `playable_items.watched_files`
-        # (Library Schema v2 Phase 2 Task I) so callers that read
-        # `movie.content_url` post-fetch see the on-disk path. The
-        # column-less Movie row alone can't materialise it.
-        {:ok, movie |> Repo.preload(@leaf_file_path_preload) |> populate_content_urls()}
-    end
-  end
-
-  def create_movie(attrs) do
-    Repo.insert(Movie.create_changeset(attrs))
-  end
-
-  def create_movie!(attrs), do: Repo.bang!(create_movie(attrs))
-
-  def destroy_movie(movie), do: Repo.delete(movie)
-  def destroy_movie!(movie), do: destroy_bang!(movie)
-
-  def fetch_movie_with_associations(id) do
-    case Repo.get(Movie, id) do
-      nil ->
-        {:error, :not_found}
-
-      movie ->
-        {:ok, movie |> Repo.preload(@movie_full_preloads) |> populate_content_urls()}
-    end
-  end
-
-  def get_movie_with_associations!(id) do
-    Movie
-    |> Repo.get!(id)
-    |> Repo.preload(@movie_full_preloads)
-    |> populate_content_urls()
-  end
-
-  @doc """
-  Finds the child movie of a `MovieSeries` whose TMDB ExternalId matches
-  the supplied `:tmdb_id`, or creates one. The TMDB id is written as a
-  separate ExternalId row on success — the Movie row itself no longer
-  carries the id column.
-
-  Used by `Library.Inbound` when ingesting a collection event with a
-  child-movie payload.
-  """
-  def find_or_create_movie_for_series(attrs) do
-    movie_series_id = lookup_attr(attrs, :movie_series_id)
-    tmdb_id = lookup_attr(attrs, :tmdb_id)
-    imdb_id = lookup_attr(attrs, :imdb_id)
-
-    case find_child_movie_by_tmdb_id(movie_series_id, tmdb_id) do
-      %Movie{} = movie ->
-        {:ok, movie}
-
-      nil ->
-        attrs_without_id = Map.drop(attrs, [:tmdb_id, "tmdb_id", :imdb_id, "imdb_id"])
-
-        with {:ok, movie} <- create_movie(attrs_without_id),
-             {:ok, _} <- maybe_put_external_id(movie, :tmdb, tmdb_id),
-             {:ok, _} <- maybe_put_external_id(movie, :imdb, imdb_id) do
-          {:ok, movie}
-        end
-    end
-  end
-
-  defp find_child_movie_by_tmdb_id(_movie_series_id, nil), do: nil
-
-  defp find_child_movie_by_tmdb_id(movie_series_id, tmdb_id)
-       when is_binary(movie_series_id) and is_binary(tmdb_id) do
-    Repo.one(
-      from(m in Movie,
-        join: e in ExternalId,
-        on: e.owner_id == m.id and e.owner_type == :movie,
-        where:
-          m.movie_series_id == ^movie_series_id and
-            e.source == "tmdb" and e.external_id == ^tmdb_id,
-        limit: 1
-      )
-    )
-  end
-
-  defp maybe_put_external_id(_movie, _source, nil), do: {:ok, :no_id}
-
-  defp maybe_put_external_id(movie, source, external_id) when is_binary(external_id) do
-    ExternalIds.put(source, movie, external_id)
-  end
-
-  # ---------------------------------------------------------------------------
   # Extra
   # ---------------------------------------------------------------------------
 
@@ -1739,12 +1405,12 @@ defmodule MediaCentaur.Library do
   same bonus feature on every Watcher event.
   """
   def find_or_create_extra_by_owner(attrs) do
-    find_or_insert_by(
+    Writes.find_or_insert_by(
       Extra,
       [
-        owner_type: lookup_attr(attrs, :owner_type),
-        owner_id: lookup_attr(attrs, :owner_id),
-        content_url: lookup_attr(attrs, :content_url)
+        owner_type: Writes.attr(attrs, :owner_type),
+        owner_id: Writes.attr(attrs, :owner_id),
+        content_url: Writes.attr(attrs, :content_url)
       ],
       attrs
     )
@@ -1799,8 +1465,8 @@ defmodule MediaCentaur.Library do
   """
   @spec create_extra_file(map()) :: {:ok, ExtraFile.t()} | {:error, Ecto.Changeset.t()}
   def create_extra_file(attrs) do
-    file_path = lookup_attr(attrs, :file_path)
-    media_dir = lookup_attr(attrs, :media_dir)
+    file_path = Writes.attr(attrs, :file_path)
+    media_dir = Writes.attr(attrs, :media_dir)
     attrs = ensure_file_presence_id(attrs, file_path, media_dir)
 
     case Repo.get_by(ExtraFile, file_path: file_path) do
@@ -1894,14 +1560,14 @@ defmodule MediaCentaur.Library do
   def create_season!(attrs), do: Repo.bang!(create_season(attrs))
 
   def destroy_season(season), do: Repo.delete(season)
-  def destroy_season!(season), do: destroy_bang!(season)
+  def destroy_season!(season), do: Writes.destroy!(season)
 
   def find_or_create_season_for_tv_series(attrs) do
-    find_or_insert_by(
+    Writes.find_or_insert_by(
       Season,
       [
-        tv_series_id: lookup_attr(attrs, :tv_series_id),
-        season_number: lookup_attr(attrs, :season_number)
+        tv_series_id: Writes.attr(attrs, :tv_series_id),
+        season_number: Writes.attr(attrs, :season_number)
       ],
       attrs
     )
@@ -1928,7 +1594,7 @@ defmodule MediaCentaur.Library do
     from(e in Episode, where: e.season_id == ^season_id)
     |> Repo.all()
     |> Repo.preload(full_preloads)
-    |> Enum.map(&populate_content_urls/1)
+    |> Enum.map(&ContentUrls.populate/1)
   end
 
   def fetch_episode(id) do
@@ -1940,14 +1606,14 @@ defmodule MediaCentaur.Library do
         # Populate the virtual `content_url` so consumers (`Resolver`,
         # detail panel) that read `episode.content_url` post-fetch see
         # the on-disk path (Library Schema v2 Phase 2 Task I).
-        {:ok, episode |> Repo.preload(@leaf_file_path_preload) |> populate_content_urls()}
+        {:ok, episode |> Repo.preload(@leaf_file_path_preload) |> ContentUrls.populate()}
     end
   end
 
   def find_or_create_episode(attrs) do
-    find_or_insert_by(
+    Writes.find_or_insert_by(
       Episode,
-      [season_id: lookup_attr(attrs, :season_id), episode_number: lookup_attr(attrs, :episode_number)],
+      [season_id: Writes.attr(attrs, :season_id), episode_number: Writes.attr(attrs, :episode_number)],
       attrs
     )
   end
@@ -2060,7 +1726,7 @@ defmodule MediaCentaur.Library do
   def mark_watch_incomplete!(progress), do: Repo.bang!(mark_watch_incomplete(progress))
 
   def destroy_watch_progress(progress), do: Repo.delete(progress)
-  def destroy_watch_progress!(progress), do: destroy_bang!(progress)
+  def destroy_watch_progress!(progress), do: Writes.destroy!(progress)
 
   @doc """
   Fetches a watch progress record by the legacy FK key/value pair, resolving
@@ -2104,7 +1770,7 @@ defmodule MediaCentaur.Library do
   the movie's `position`) and writes `:playable_item_id`.
   """
   def find_or_create_watch_progress_for_movie(attrs) do
-    movie_id = lookup_attr(attrs, :movie_id)
+    movie_id = Writes.attr(attrs, :movie_id)
 
     position =
       case Repo.get(Movie, movie_id) do
@@ -2122,7 +1788,7 @@ defmodule MediaCentaur.Library do
   Task B convention.
   """
   def find_or_create_watch_progress_for_episode(attrs) do
-    episode_id = lookup_attr(attrs, :episode_id)
+    episode_id = Writes.attr(attrs, :episode_id)
 
     position =
       case Repo.get(Episode, episode_id) do
@@ -2138,7 +1804,7 @@ defmodule MediaCentaur.Library do
   is 1 (VideoObjects don't carry multi-cut variants in current schema).
   """
   def find_or_create_watch_progress_for_video_object(attrs) do
-    vo_id = lookup_attr(attrs, :video_object_id)
+    vo_id = Writes.attr(attrs, :video_object_id)
     find_or_create_watch_progress_for_container(:video_object, vo_id, 1, attrs)
   end
 
@@ -2151,7 +1817,7 @@ defmodule MediaCentaur.Library do
         |> Map.drop([:movie_id, :episode_id, :video_object_id])
         |> Map.put(:playable_item_id, playable_item.id)
 
-      upsert_by(WatchProgress, [playable_item_id: playable_item.id], cleaned_attrs)
+      Writes.upsert_by(WatchProgress, [playable_item_id: playable_item.id], cleaned_attrs)
     end
   end
 
@@ -2170,7 +1836,7 @@ defmodule MediaCentaur.Library do
   @spec upsert_watch_progress_by_playable_item_id!(map()) :: WatchProgress.t()
   def upsert_watch_progress_by_playable_item_id!(%{playable_item_id: playable_item_id} = attrs)
       when is_binary(playable_item_id) do
-    case upsert_by(WatchProgress, [playable_item_id: playable_item_id], attrs) do
+    case Writes.upsert_by(WatchProgress, [playable_item_id: playable_item_id], attrs) do
       {:ok, record} -> record
       {:error, changeset} -> raise "WatchProgress flush failed: #{inspect(changeset)}"
     end
@@ -2189,7 +1855,7 @@ defmodule MediaCentaur.Library do
       when is_binary(playable_item_id) do
     case Repo.get_by(WatchProgress, playable_item_id: playable_item_id) do
       nil ->
-        upsert_by(WatchProgress, [playable_item_id: playable_item_id], %{
+        Writes.upsert_by(WatchProgress, [playable_item_id: playable_item_id], %{
           playable_item_id: playable_item_id
         })
 
@@ -2207,7 +1873,7 @@ defmodule MediaCentaur.Library do
   end
 
   def find_or_create_extra_progress(attrs) do
-    upsert_by(ExtraProgress, [extra_id: lookup_attr(attrs, :extra_id)], attrs)
+    Writes.upsert_by(ExtraProgress, [extra_id: Writes.attr(attrs, :extra_id)], attrs)
   end
 
   def find_or_create_extra_progress!(attrs), do: Repo.bang!(find_or_create_extra_progress(attrs))
@@ -2691,76 +2357,6 @@ defmodule MediaCentaur.Library do
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------
-
-  # Deletion bangs return `:ok`, not the deleted struct — the caller asked
-  # for the row to be gone, not handed back. (This is deliberately asymmetric
-  # with the create/update bangs, which return the record.)
-  defp destroy_bang!(record) do
-    Repo.bang!(Repo.delete(record))
-    :ok
-  end
-
-  # Find an existing record by `lookup` (a keyword list of field/value pairs)
-  # or insert a new one from `attrs` via `schema.create_changeset/1`. Returns
-  # the existing record unchanged on hit.
-  #
-  # Read-then-write is inherently racy: two callers can both miss on the
-  # `existing_by/2` read and both reach the insert. When the schema has a
-  # unique index (Season, Episode) the loser's insert comes back as a
-  # unique-constraint `{:error, changeset}` — we recover by re-reading the
-  # winner's row, so concurrent ingest of the same season/episode returns
-  # `{:ok, record}` for everyone instead of stranding the loser or (worse,
-  # absent the index) creating a duplicate.
-  defp find_or_insert_by(schema, lookup, attrs) do
-    case existing_by(schema, lookup) do
-      nil ->
-        case Repo.insert(schema.create_changeset(attrs)) do
-          {:ok, record} ->
-            {:ok, record}
-
-          {:error, changeset} = error ->
-            if unique_constraint_error?(changeset) do
-              case existing_by(schema, lookup) do
-                nil -> error
-                existing -> {:ok, existing}
-              end
-            else
-              error
-            end
-        end
-
-      existing ->
-        {:ok, existing}
-    end
-  end
-
-  defp unique_constraint_error?(%Ecto.Changeset{errors: errors}) do
-    Enum.any?(errors, fn {_field, {_message, opts}} -> opts[:constraint] == :unique end)
-  end
-
-  # Find an existing record by `lookup` (a keyword list of field/value pairs)
-  # or insert a new one from `attrs`. Updates the existing record via
-  # `schema.update_changeset/2` on hit. Used for progress upserts.
-  defp upsert_by(schema, lookup, attrs) do
-    case existing_by(schema, lookup) do
-      nil -> Repo.insert(schema.create_changeset(attrs))
-      existing -> Repo.update(schema.update_changeset(existing, attrs))
-    end
-  end
-
-  # `Repo.get_by(Schema, key: nil)` matches the first row whose key is NULL,
-  # silently corrupting partial-input requests. Treat any nil lookup value as
-  # "no match" and fall through to insert; the changeset will validate
-  # required fields.
-  defp existing_by(schema, lookup) do
-    if !Enum.any?(lookup, fn {_key, value} -> is_nil(value) end) do
-      Repo.get_by(schema, lookup)
-    end
-  end
-
-  defp lookup_attr(attrs, key) when is_atom(key) do
-    attrs[key] || attrs[Atom.to_string(key)]
-  end
 
   # Stamps Library.FilePresence for the given path so the upcoming
   # WatchedFile/ExtraFile insert satisfies its NOT-NULL changeset

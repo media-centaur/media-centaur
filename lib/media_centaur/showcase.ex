@@ -141,7 +141,7 @@ defmodule MediaCentaur.Showcase do
     with {:ok, tmdb_id} <- search_movie(title, year, client),
          {:ok, movie_data} <- TMDB.Client.get_movie(tmdb_id, client) do
       movie =
-        Library.create_movie!(%{
+        Library.Containers.create!(:movie, %{
           name: movie_data["title"] || title,
           description: movie_data["overview"],
           date_published: TMDB.Mapper.parse_date(movie_data["release_date"]),
@@ -196,7 +196,7 @@ defmodule MediaCentaur.Showcase do
     with {:ok, tmdb_id} <- search_tv(title, year, client),
          {:ok, tv_data} <- TMDB.Client.get_tv(tmdb_id, client) do
       series =
-        Library.create_tv_series!(%{
+        Library.Containers.create!(:tv_series, %{
           name: tv_data["name"] || title,
           description: tv_data["overview"],
           date_published: TMDB.Mapper.parse_date(tv_data["first_air_date"]),
@@ -314,7 +314,7 @@ defmodule MediaCentaur.Showcase do
     # use Format.year/1, not Format.iso_date/1, so the synthetic month/day
     # never surfaces.
     video_object =
-      Library.create_video_object!(%{
+      Library.Containers.create!(:video_object, %{
         name: title,
         description: entry[:description],
         date_published: entry[:year] && Date.new!(entry[:year], 1, 1),
