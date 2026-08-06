@@ -616,7 +616,37 @@ defmodule MediaCentaur.TMDB.MapperTest do
       assert result.name == nil
       assert result.description == nil
       assert result.duration_seconds == nil
+      assert result.date_published == nil
       refute Map.has_key?(result, :content_url)
+    end
+
+    test "carries the episode air date as date_published" do
+      season_data = %{
+        "episodes" => [
+          %{
+            "episode_number" => 1,
+            "name" => "Pilot",
+            "overview" => "The beginning.",
+            "runtime" => 58,
+            "air_date" => "2008-01-20"
+          }
+        ]
+      }
+
+      result = Mapper.episode_attrs("season-uuid", season_data, 1, "/media/S01E01.mkv")
+
+      assert result.date_published == ~D[2008-01-20]
+    end
+
+    test "an unaired episode has a blank air_date and maps to nil" do
+      # TMDB returns "" rather than omitting the key for unaired episodes.
+      season_data = %{
+        "episodes" => [%{"episode_number" => 1, "name" => "Pilot", "air_date" => ""}]
+      }
+
+      result = Mapper.episode_attrs("season-uuid", season_data, 1, "/media/S01E01.mkv")
+
+      assert result.date_published == nil
     end
   end
 

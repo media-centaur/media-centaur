@@ -1095,116 +1095,138 @@ defmodule MediaCentaur.Library.Views.Detail do
   end
 
   defp build_seasons_for_tv_series(tv_series_id) do
-    # Load every Season under the series, plus its episodes and each
-    # episode's PlayableItem id + presence flag. One query each for
-    # seasons, episodes, presence — bounded, scales linearly with the
-    # series.
-    seasons =
+    case load_seasons(tv_series_id) do
+      [] -> []
+      seasons -> shape_seasons(seasons, load_season_graph(seasons))
+    end
+  end
+
+  defp load_seasons(tv_series_id) do
+    Repo.all(
+      from(s in Season,
+        where: s.tv_series_id == ^tv_series_id,
+        order_by: [asc: s.season_number]
+      )
+    )
+  end
+
+  # Every lookup the shaping pass needs, gathered in a fixed number of
+  # queries — three down the season → episode → playable-item chain, then
+  # one each for extras and episode stills. Bounded: the query count does
+  # not grow with the size of the series, only the row count does.
+  defp load_season_graph(seasons) do
+    season_ids = Enum.map(seasons, & &1.id)
+
+    episodes =
       Repo.all(
-        from(s in Season,
-          where: s.tv_series_id == ^tv_series_id,
-          order_by: [asc: s.season_number]
+        from(e in Episode,
+          where: e.season_id in ^season_ids,
+          order_by: [asc: e.episode_number]
         )
       )
 
-    if seasons == [] do
-      []
-    else
-      season_ids = Enum.map(seasons, & &1.id)
+    episode_ids = Enum.map(episodes, & &1.id)
 
+    playable_items =
+      Repo.all(
+        from(p in PlayableItem,
+          where: p.container_type == :episode and p.container_id in ^episode_ids
+        )
+      )
+
+    %{
+      episodes_by_season_id: Enum.group_by(episodes, & &1.season_id),
+      playable_item_by_episode_id: Map.new(playable_items, &{&1.container_id, &1}),
+      watched_files_by_playable_item_id: group_watched_files(Enum.map(playable_items, & &1.id)),
+      extras_by_season_id: group_season_extras(season_ids),
+      images_by_episode_id: group_episode_images(episode_ids)
+    }
+  end
+
+  defp group_watched_files([]), do: %{}
+
+  defp group_watched_files(playable_item_ids) do
+    from(w in WatchedFile,
+      where: w.playable_item_id in ^playable_item_ids,
+      order_by: [asc: w.inserted_at, asc: w.id]
+    )
+    |> Repo.all()
+    |> Enum.group_by(& &1.playable_item_id)
+  end
+
+  defp group_season_extras([]), do: %{}
+
+  defp group_season_extras(season_ids) do
+    from(extra in MediaCentaur.Library.Extra,
+      where: extra.owner_type == :season and extra.owner_id in ^season_ids
+    )
+    |> Repo.all()
+    |> Enum.group_by(& &1.owner_id)
+  end
+
+  defp group_episode_images([]), do: %{}
+
+  defp group_episode_images(episode_ids) do
+    from(image in Image,
+      where: image.owner_type == :episode and image.owner_id in ^episode_ids
+    )
+    |> Repo.all()
+    |> Enum.group_by(& &1.owner_id)
+  end
+
+  defp shape_seasons(seasons, graph) do
+    Enum.map(seasons, fn season ->
       episodes =
-        Repo.all(
-          from(e in Episode,
-            where: e.season_id in ^season_ids,
-            order_by: [asc: e.episode_number]
-          )
-        )
+        graph.episodes_by_season_id
+        |> Map.get(season.id, [])
+        |> Enum.map(&shape_episode(&1, season.season_number, graph))
 
-      episode_ids = Enum.map(episodes, & &1.id)
+      %DetailItem.Season{
+        season_number: season.season_number,
+        name: season.name,
+        number_of_episodes: season.number_of_episodes,
+        episodes: episodes,
+        extras: Map.get(graph.extras_by_season_id, season.id, [])
+      }
+    end)
+  end
 
-      playable_items =
-        Repo.all(
-          from(p in PlayableItem,
-            where: p.container_type == :episode and p.container_id in ^episode_ids
-          )
-        )
+  defp shape_episode(episode, season_number, graph) do
+    playable_item = Map.get(graph.playable_item_by_episode_id, episode.id)
+    files = watched_files_for(graph, playable_item)
 
-      pi_by_episode_id = Map.new(playable_items, fn pi -> {pi.container_id, pi} end)
-      pi_ids = Enum.map(playable_items, & &1.id)
+    %DetailItem.Episode{
+      episode_id: episode.id,
+      playable_item_id: playable_item_id(playable_item),
+      season_number: season_number,
+      episode_number: episode.episode_number,
+      name: episode.name,
+      description: episode.description,
+      date_published: episode.date_published,
+      duration_seconds: episode.duration_seconds,
+      present?: files != [],
+      content_url: files |> List.first() |> file_path(),
+      images: Map.get(graph.images_by_episode_id, episode.id, [])
+    }
+  end
 
-      watched_files_by_pi_id =
-        if pi_ids == [] do
-          %{}
-        else
-          Enum.group_by(
-            Repo.all(
-              from(w in WatchedFile,
-                where: w.playable_item_id in ^pi_ids,
-                order_by: [asc: w.inserted_at, asc: w.id]
-              )
-            ),
-            & &1.playable_item_id
-          )
-        end
+  # An episode with no PlayableItem has never been linked to a file — an
+  # ordinary state for a series scraped ahead of the download.
+  defp watched_files_for(_graph, nil), do: []
 
-      extras_by_season_id =
-        Enum.group_by(
-          Repo.all(
-            from(x in MediaCentaur.Library.Extra,
-              where: x.owner_type == :season and x.owner_id in ^season_ids
-            )
-          ),
-          & &1.owner_id
-        )
+  defp watched_files_for(graph, playable_item) do
+    Map.get(graph.watched_files_by_playable_item_id, playable_item.id, [])
+  end
 
-      episode_images_by_episode_id =
-        if episode_ids == [] do
-          %{}
-        else
-          Enum.group_by(
-            Repo.all(
-              from(i in Image,
-                where: i.owner_type == :episode and i.owner_id in ^episode_ids
-              )
-            ),
-            & &1.owner_id
-          )
-        end
+  defp playable_item_id(nil), do: nil
+  defp playable_item_id(%PlayableItem{id: id}), do: id
 
-      episodes_by_season_id = Enum.group_by(episodes, & &1.season_id)
+  defp group_movie_watched_files([]), do: %{}
 
-      Enum.map(seasons, fn season ->
-        season_episodes =
-          episodes_by_season_id
-          |> Map.get(season.id, [])
-          |> Enum.map(fn episode ->
-            pi = Map.get(pi_by_episode_id, episode.id)
-            files = (pi && Map.get(watched_files_by_pi_id, pi.id, [])) || []
-
-            %DetailItem.Episode{
-              episode_id: episode.id,
-              playable_item_id: pi && pi.id,
-              season_number: season.season_number,
-              episode_number: episode.episode_number,
-              name: episode.name,
-              description: episode.description,
-              date_published: nil,
-              duration_seconds: episode.duration_seconds,
-              present?: files != [],
-              content_url: files |> List.first() |> file_path(),
-              images: Map.get(episode_images_by_episode_id, episode.id, [])
-            }
-          end)
-
-        %DetailItem.Season{
-          season_number: season.season_number,
-          name: season.name,
-          number_of_episodes: season.number_of_episodes,
-          episodes: season_episodes,
-          extras: Map.get(extras_by_season_id, season.id, [])
-        }
-      end)
-    end
+  defp group_movie_watched_files(playable_item_ids) do
+    from(w in WatchedFile, where: w.playable_item_id in ^playable_item_ids)
+    |> Repo.all()
+    |> Enum.group_by(& &1.playable_item_id)
   end
 
   defp file_path(nil), do: nil
@@ -1231,27 +1253,26 @@ defmodule MediaCentaur.Library.Views.Detail do
           )
         )
 
-      pi_by_movie_id = Map.new(playable_items, fn pi -> {pi.container_id, pi} end)
-      pi_ids = Enum.map(playable_items, & &1.id)
+      playable_item_by_movie_id =
+        Map.new(playable_items, &{&1.container_id, &1})
 
-      watched_files_by_pi_id =
-        if pi_ids == [] do
-          %{}
-        else
-          Enum.group_by(
-            Repo.all(from(w in WatchedFile, where: w.playable_item_id in ^pi_ids)),
-            & &1.playable_item_id
-          )
-        end
+      watched_files_by_playable_item_id =
+        group_movie_watched_files(Enum.map(playable_items, & &1.id))
 
       Enum.map(movies, fn movie ->
-        pi = Map.get(pi_by_movie_id, movie.id)
-        files = (pi && Map.get(watched_files_by_pi_id, pi.id, [])) || []
+        playable_item = Map.get(playable_item_by_movie_id, movie.id)
+
+        files =
+          case playable_item do
+            nil -> []
+            item -> Map.get(watched_files_by_playable_item_id, item.id, [])
+          end
+
         first_file = List.first(files)
 
         %DetailItem.MovieEntry{
           movie_id: movie.id,
-          playable_item_id: pi && pi.id,
+          playable_item_id: playable_item_id(playable_item),
           name: movie.name,
           date_published: movie.date_published,
           collection_position: movie.position,

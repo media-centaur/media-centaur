@@ -276,13 +276,7 @@ defmodule MediaCentaur.Pipeline.Stages.FetchMetadata do
       if parsed.episode do
         tmdb_episode = Enum.find(episodes, &(&1["episode_number"] == parsed.episode))
 
-        episode_attrs = %{
-          episode_number: parsed.episode,
-          name: tmdb_episode && tmdb_episode["name"],
-          description: tmdb_episode && tmdb_episode["overview"],
-          duration_seconds: tmdb_episode && Mapper.minutes_to_seconds(tmdb_episode["runtime"])
-        }
-
+        episode_attrs = Mapper.episode_attrs(season_data, parsed.episode)
         episode_images = build_episode_images(tmdb_episode)
 
         %{attrs: episode_attrs, images: episode_images}
