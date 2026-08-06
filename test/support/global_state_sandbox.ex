@@ -46,10 +46,22 @@ defmodule MediaCentaur.GlobalStateSandbox do
   tree grows a child that isn't there. A new stateful singleton is caught
   rather than remembered.
 
-  Note the implication for `:reset`: resetting a shared process is only
-  sound because every test that writes global state is `async: false`.
-  An `async: true` test that wrote one would have it cleared underneath
-  it by a concurrent test's setup.
+  ## Only a test that owns the machine may reset it
+
+  `restore!/1` is a **no-op for `async: true` tests**, and that is not a
+  gap — it is the only correct behaviour. Async tests run concurrently, so
+  clearing shared state in one test's setup clears it underneath its peers.
+  This was measured the expensive way: an unconditional reset erased the
+  stubbed TMDB client that `fetch_metadata_test.exs` (`async: true`) had
+  installed for itself, and the stage fell through to the real API and came
+  back with a 401.
+
+  The same condition already governs the SQL sandbox one line below
+  (`shared: not tags[:async]`), for the same reason. Async tests share the
+  machine and so must not touch anything shared — which is exactly why the
+  writers this module exists to contain are all `async: false`. ExUnit runs
+  every async module before the first sync one, so a sync test's reset can
+  never race an async test.
   """
 
   alias MediaCentaur.Console.Buffer
@@ -117,11 +129,18 @@ defmodule MediaCentaur.GlobalStateSandbox do
 
   @doc """
   Restores the captured baseline and clears the shared singletons a test
-  can perturb. Called from `MediaCentaur.DataCase.setup_sandbox/1`, before
-  the test's own `setup` blocks run.
+  can perturb, for a test that owns the machine.
+
+  Called from `MediaCentaur.DataCase.setup_sandbox/1` with the test's tags,
+  before the test's own `setup` blocks run. `async: true` tests are skipped
+  — see the moduledoc; resetting shared state from one of several
+  concurrently running tests corrupts the others.
   """
-  @spec restore!() :: :ok
-  def restore! do
+  @spec restore!(map()) :: :ok
+  def restore!(tags \\ %{})
+  def restore!(%{async: true}), do: :ok
+
+  def restore!(_tags) do
     pristine = :persistent_term.get(@snapshot_key)
     current = owned_terms()
 
