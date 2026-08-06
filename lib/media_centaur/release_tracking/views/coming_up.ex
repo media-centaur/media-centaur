@@ -53,7 +53,7 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUp do
 
   @impl MediaCentaur.Cache
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.release_tracking_updates())
+    Topics.subscribe(Topics.release_tracking_updates())
     :ok
   end
 
@@ -84,8 +84,7 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUp do
     :ets.delete_all_objects(@table)
     :ets.insert(@table, rows)
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.release_tracking_views(),
       {:release_tracking_view_updated, :coming_up}
     )

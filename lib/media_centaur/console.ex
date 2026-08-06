@@ -42,7 +42,7 @@ defmodule MediaCentaur.Console do
   @doc "Subscribe the caller to console log events."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.console_logs())
+    Topics.subscribe(Topics.console_logs())
   end
 
   # --- Systemd journal source ---

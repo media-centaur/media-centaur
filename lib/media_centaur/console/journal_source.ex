@@ -66,7 +66,7 @@ defmodule MediaCentaur.Console.JournalSource do
     # success, subscribe the caller to the broadcast topic.
     case GenServer.call(server, {:subscribe, self()}) do
       {:ok, snapshot} ->
-        :ok = Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.service_journal())
+        :ok = Topics.subscribe(Topics.service_journal())
         {:ok, snapshot}
 
       {:error, _} = error ->
@@ -77,7 +77,7 @@ defmodule MediaCentaur.Console.JournalSource do
   @doc "Unsubscribes the caller. Port closes after a 5-second debounce when refcount hits zero."
   @spec unsubscribe(atom() | pid()) :: :ok
   def unsubscribe(server \\ __MODULE__) do
-    _ = Phoenix.PubSub.unsubscribe(MediaCentaur.PubSub, Topics.service_journal())
+    _ = Topics.unsubscribe(Topics.service_journal())
     GenServer.call(server, {:unsubscribe, self()})
   end
 
@@ -306,7 +306,7 @@ defmodule MediaCentaur.Console.JournalSource do
   end
 
   defp broadcast(message) do
-    Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.service_journal(), message)
+    Topics.publish(Topics.service_journal(), message)
   end
 
   defp default_unit_fetcher, do: SelfUpdate.detected_unit()

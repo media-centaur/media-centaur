@@ -346,8 +346,7 @@ defmodule MediaCentaur.SelfUpdate.Updater do
   end
 
   defp broadcast(message) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.self_update_progress(),
       message
     )

@@ -191,7 +191,7 @@ defmodule MediaCentaur.Acquisition do
   @doc "Subscribes the caller to target lifecycle events."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.acquisition_updates())
+    Topics.subscribe(Topics.acquisition_updates())
   end
 
   @doc """
@@ -203,7 +203,7 @@ defmodule MediaCentaur.Acquisition do
   """
   @spec subscribe_queue() :: :ok
   def subscribe_queue do
-    :ok = Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.acquisition_queue())
+    :ok = Topics.subscribe(Topics.acquisition_queue())
     MediaCentaur.Downloads.QueueMonitor.register_subscriber(self())
   end
 
@@ -684,8 +684,7 @@ defmodule MediaCentaur.Acquisition do
   """
   @spec broadcast_update(term()) :: :ok | {:error, term()}
   def broadcast_update(message) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.acquisition_updates(),
       message
     )

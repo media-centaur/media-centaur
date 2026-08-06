@@ -101,13 +101,12 @@ defmodule MediaCentaur.Reconciliation do
   @doc "Subscribes the caller to awaiting-queue changes (the review surface)."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.reconciliation_updates())
+    Topics.subscribe(Topics.reconciliation_updates())
   end
 
   defp broadcast(result) do
     with {:ok, _} <- result do
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
+      Topics.publish(
         Topics.reconciliation_updates(),
         {:reconciliation_updated}
       )

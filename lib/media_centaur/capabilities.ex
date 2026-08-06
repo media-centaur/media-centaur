@@ -64,8 +64,8 @@ defmodule MediaCentaur.Capabilities do
   @impl MediaCentaur.Cache
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    :ok = Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.capabilities_updates())
-    :ok = Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.config_updates())
+    :ok = Topics.subscribe(Topics.capabilities_updates())
+    :ok = Topics.subscribe(Topics.config_updates())
     :ok
   end
 
@@ -82,7 +82,7 @@ defmodule MediaCentaur.Capabilities do
   """
   @spec subscribe_changes() :: :ok | {:error, term()}
   def subscribe_changes do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.capabilities_updates())
+    Topics.subscribe(Topics.capabilities_updates())
   end
 
   @doc "Filters PubSub messages relevant to this cache."
@@ -252,6 +252,6 @@ defmodule MediaCentaur.Capabilities do
   end
 
   defp broadcast_changed do
-    Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.capabilities_updates(), :capabilities_changed)
+    Topics.publish(Topics.capabilities_updates(), :capabilities_changed)
   end
 end

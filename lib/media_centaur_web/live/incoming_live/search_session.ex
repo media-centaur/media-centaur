@@ -67,7 +67,7 @@ defmodule MediaCentaurWeb.IncomingLive.SearchSession do
   @doc "Subscribes the caller to `{:search_session, t()}` broadcasts."
   @spec subscribe() :: :ok
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.acquisition_search())
+    Topics.subscribe(Topics.acquisition_search())
   end
 
   @doc "Returns the current session struct."
@@ -423,8 +423,7 @@ defmodule MediaCentaurWeb.IncomingLive.SearchSession do
   end
 
   defp broadcast(%__MODULE__{} = session) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.acquisition_search(),
       {:search_session, session}
     )

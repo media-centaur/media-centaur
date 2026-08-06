@@ -392,8 +392,7 @@ defmodule MediaCentaur.Downloads.QueueMonitor do
   defp store_and_broadcast(%QueueState{} = queue) do
     :persistent_term.put(@cache_key, queue)
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.acquisition_queue(),
       {:queue_state, queue}
     )

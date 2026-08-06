@@ -268,7 +268,19 @@
           # `has_element?/2` parses the document and can't match the wrong
           # element. Asserting on user-visible copy with `=~` stays fine.
           # See campaigns/audit-remediation-2026-08.md Stage 4.
-          {MediaCentaur.Credo.Checks.NoMarkupSubstringAssertion, []}
+          {MediaCentaur.Credo.Checks.NoMarkupSubstringAssertion, []},
+          # MC0025 keeps the PubSub server name inside `MediaCentaur.Topics`.
+          # Before ADR-060 it was hand-copied into 73 files as pure transport
+          # plumbing. This is the transport rule only — MC0003 still steers
+          # LiveViews to a context's `subscribe/0`, and MC0012/13/26 still
+          # require the typed `Events.broadcast/1` chokepoint for the topics
+          # that have one. See campaigns/audit-remediation-2026-08.md Stage 5.
+          {MediaCentaur.Credo.Checks.PubSubTransport, []},
+          # MC0026 pins the `review:updates` chokepoint, the ADR-060 worked
+          # example: every message on the topic goes through
+          # `MediaCentaur.Review.Events.broadcast/1` so its four payloads keep
+          # their `@enforce_keys` guarantee. Same shape as MC0012/MC0013.
+          {MediaCentaur.Credo.Checks.ReviewUpdatesContract, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the

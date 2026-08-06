@@ -39,7 +39,7 @@ defmodule MediaCentaur.Library.Views.RecentlyAdded do
 
   @impl MediaCentaur.Cache
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_updates())
+    Topics.subscribe(Topics.library_updates())
     Availability.subscribe()
     :ok
   end

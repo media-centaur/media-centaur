@@ -56,8 +56,7 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
     # state); a sync that changed nothing stays silent so the 15-minute
     # sweep doesn't churn LiveViews.
     if opened + satisfied > 0 do
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
+      MediaCentaur.Topics.publish(
         MediaCentaur.Topics.release_tracking_updates(),
         {:releases_updated, [item.id]}
       )

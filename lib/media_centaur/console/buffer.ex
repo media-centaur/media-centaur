@@ -286,7 +286,7 @@ defmodule MediaCentaur.Console.Buffer do
   end
 
   defp broadcast(message) do
-    Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.console_logs(), message)
+    Topics.publish(Topics.console_logs(), message)
   end
 
   defp load_settings do

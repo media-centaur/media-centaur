@@ -167,8 +167,7 @@ defmodule MediaCentaur.ErrorReports.Buckets do
   # --- Internals ---
 
   defp broadcast(cache) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.error_reports(),
       {:buckets_changed, BucketCache.to_list(cache)}
     )

@@ -27,7 +27,7 @@ defmodule MediaCentaur.Status.Views do
   @doc "Subscribe the caller to projection-refreshed events."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.status_views())
+    Topics.subscribe(Topics.status_views())
   end
 
   @doc """

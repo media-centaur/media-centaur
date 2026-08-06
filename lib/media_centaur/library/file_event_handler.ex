@@ -141,7 +141,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
 
   @impl true
   def init(_) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_file_events())
+    MediaCentaur.Topics.subscribe(MediaCentaur.Topics.library_file_events())
     {:ok, %{}}
   end
 

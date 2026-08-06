@@ -115,8 +115,7 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
       end)
 
     Enum.each(broadcasts, fn {entity_id, media_dir} ->
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
+      Topics.publish(
         Topics.pipeline_images(),
         {:images_pending, %{entity_id: entity_id, media_dir: media_dir}}
       )

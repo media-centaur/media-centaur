@@ -136,8 +136,7 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
       # FileEventHandler, which idempotently re-processes; future
       # subscribers might be metrics aggregators) see the same event
       # shape regardless of trigger.
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
+      MediaCentaur.Topics.publish(
         MediaCentaur.Topics.library_file_events(),
         {:files_removed, expired_paths}
       )
@@ -154,7 +153,7 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
 
   @impl true
   def init(_) do
-    :ok = Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.dir_state())
+    :ok = MediaCentaur.Topics.subscribe(MediaCentaur.Topics.dir_state())
     schedule_ttl_check()
     {:ok, %{}, {:continue, :initial_ttl_check}}
   end

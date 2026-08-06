@@ -15,6 +15,10 @@ defmodule MediaCentaurWeb.ReviewLive do
   alias MediaCentaur.DeleteTargets
   alias MediaCentaur.Library.FileEventHandler
   alias MediaCentaur.Review
+  alias MediaCentaur.Review.Events.FileAdded
+  alias MediaCentaur.Review.Events.FileReviewed
+  alias MediaCentaur.Review.Events.GroupApproved
+  alias MediaCentaur.Review.Events.GroupError
   alias MediaCentaurWeb.LiveHelpers
 
   @impl true
@@ -312,7 +316,7 @@ defmodule MediaCentaurWeb.ReviewLive do
   end
 
   @impl true
-  def handle_info({:file_added, _pending_file_id}, socket) do
+  def handle_info({:file_added, %FileAdded{}}, socket) do
     {:noreply, debounce(socket, :reload_timer, :reload_groups, 500)}
   end
 
@@ -328,7 +332,7 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> ensure_selection()}
   end
 
-  def handle_info({:file_reviewed, file_id}, socket) do
+  def handle_info({:file_reviewed, %FileReviewed{pending_file_id: file_id}}, socket) do
     {groups, groups_by_key} =
       Enum.reduce(
         socket.assigns.groups,
@@ -361,14 +365,14 @@ defmodule MediaCentaurWeb.ReviewLive do
      |> advance_selection(socket.assigns.selected_key)}
   end
 
-  def handle_info({:group_error, group_key, message}, socket) do
+  def handle_info({:group_error, %GroupError{group_key: group_key, message: message}}, socket) do
     {:noreply,
      socket
      |> assign(processing: MapSet.delete(socket.assigns.processing, group_key))
      |> put_flash(:error, message)}
   end
 
-  def handle_info({:group_approved, group_key, _count}, socket) do
+  def handle_info({:group_approved, %GroupApproved{group_key: group_key}}, socket) do
     groups = Enum.reject(socket.assigns.groups, &(&1.key == group_key))
 
     {:noreply,

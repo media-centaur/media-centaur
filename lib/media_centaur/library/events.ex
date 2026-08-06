@@ -64,14 +64,13 @@ defmodule MediaCentaur.Library.Events do
   def broadcast(%ContainersDeleted{container_ids: []}), do: :ok
 
   def broadcast(%ContainersDeleted{} = event) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.library_deletions(),
       {:containers_deleted, event}
     )
   end
 
   defp do_broadcast(message) do
-    Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.library_updates(), message)
+    Topics.publish(Topics.library_updates(), message)
   end
 end

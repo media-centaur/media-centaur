@@ -504,7 +504,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
           %PlanEvents.SearchActivity{plan_id: plan.id, term: term, outcome: :error}
       end
 
-    Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.acquisition_updates(), activity)
+    Topics.publish(Topics.acquisition_updates(), activity)
 
     case outcome do
       {:ok, results} ->
@@ -541,7 +541,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       stages: walked_stages ++ List.wrap(active) ++ pending
     }
 
-    Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.acquisition_updates(), status)
+    Topics.publish(Topics.acquisition_updates(), status)
   end
 
   defp prefs(plan) do

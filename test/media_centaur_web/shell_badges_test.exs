@@ -4,6 +4,9 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaur.Topics
+  alias MediaCentaur.Review.Events.FileAdded
+  alias MediaCentaur.Review.Events.FileReviewed
+  alias MediaCentaur.Review.Events.GroupApproved
   alias MediaCentaurWeb.ShellBadges
 
   setup do
@@ -52,9 +55,9 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
     end
 
     test "relevant?/1 accepts the source events feeding the three counts" do
-      assert ShellBadges.relevant?({:file_added, "id"})
-      assert ShellBadges.relevant?({:file_reviewed, "id"})
-      assert ShellBadges.relevant?({:group_approved, "key", 2})
+      assert ShellBadges.relevant?({:file_added, %FileAdded{pending_file_id: "id"}})
+      assert ShellBadges.relevant?({:file_reviewed, %FileReviewed{pending_file_id: "id"}})
+      assert ShellBadges.relevant?({:group_approved, %GroupApproved{group_key: "key", count: 2}})
       assert ShellBadges.relevant?({:reconciliation_updated})
       assert ShellBadges.relevant?({:buckets_changed, []})
       assert ShellBadges.relevant?({:setting_changed, "diagnostics_seen_at", %{}})

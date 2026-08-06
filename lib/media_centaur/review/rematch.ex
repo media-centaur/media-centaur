@@ -12,8 +12,7 @@ defmodule MediaCentaur.Review.Rematch do
 
   @spec rematch_entity(String.t()) :: :ok
   def rematch_entity(entity_id) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.library_commands(),
       {:rematch_requested, entity_id}
     )

@@ -4,6 +4,11 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
+  alias MediaCentaur.Review.Events.FileAdded
+  alias MediaCentaur.Review.Events.FileReviewed
+  alias MediaCentaur.Review.Events.GroupApproved
+  alias MediaCentaur.Review.Events.GroupError
+
   # `ReviewLive.ensure_loaded/1` defers `Review.fetch_pending_groups/0`
   # to an owned `start_async(:review_load, …)` (ADR-049). `render_async/1`
   # awaits it deterministically — no wall-clock sleep.
@@ -220,7 +225,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
           parsed_type: "movie"
         })
 
-      send(view.pid, {:file_added, Ecto.UUID.generate()})
+      send(view.pid, {:file_added, %FileAdded{pending_file_id: Ecto.UUID.generate()}})
 
       # The new file appears only after the 500ms reload_groups debounce fires.
       assert render_until(view, "Newly Arrived File") =~ "Newly Arrived File"
@@ -237,7 +242,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       {:ok, view, _html} = live_async!(conn, "/review")
       assert render_after_async_load(view) =~ "Single Review File"
 
-      send(view.pid, {:file_reviewed, file.id})
+      send(view.pid, {:file_reviewed, %FileReviewed{pending_file_id: file.id}})
 
       refute render(view) =~ "Single Review File"
     end
@@ -264,7 +269,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       assert render_after_async_load(view) =~ "Approved Show"
 
       group_key = {file_a.media_directory, "Approved Show"}
-      send(view.pid, {:group_approved, group_key, 2})
+      send(view.pid, {:group_approved, %GroupApproved{group_key: group_key, count: 2}})
 
       refute render(view) =~ "Approved Show"
     end
@@ -280,7 +285,7 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       {:ok, view, _html} = live_async!(conn, "/review")
 
       group_key = {file.media_directory, "Errored Group File"}
-      send(view.pid, {:group_error, group_key, "boom"})
+      send(view.pid, {:group_error, %GroupError{group_key: group_key, message: "boom"}})
 
       html = render(view)
       assert html =~ "boom"

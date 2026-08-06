@@ -28,7 +28,7 @@ defmodule MediaCentaur.Controls do
   @doc "Subscribe to controls change broadcasts."
   @impl MediaCentaur.Cache
   @spec subscribe() :: :ok | {:error, term()}
-  def subscribe, do: Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.controls_updates())
+  def subscribe, do: Topics.subscribe(Topics.controls_updates())
 
   @doc "Filters PubSub messages relevant to this cache."
   @impl MediaCentaur.Cache
@@ -190,8 +190,7 @@ defmodule MediaCentaur.Controls do
   end
 
   defp broadcast do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.controls_updates(),
       {:controls_changed, get()}
     )

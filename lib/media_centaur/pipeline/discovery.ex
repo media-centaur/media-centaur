@@ -101,8 +101,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
     Enum.each(matched, fn message ->
       payload = message.data
 
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
+      MediaCentaur.Topics.publish(
         MediaCentaur.Topics.pipeline_matched(),
         {:file_matched,
          %{
@@ -167,8 +166,7 @@ defmodule MediaCentaur.Pipeline.Discovery do
 
     attrs = build_review_attrs(payload)
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    MediaCentaur.Topics.publish(
       MediaCentaur.Topics.review_intake(),
       {:needs_review, attrs}
     )

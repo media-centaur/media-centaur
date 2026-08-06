@@ -145,7 +145,7 @@ defmodule MediaCentaur.Library.Availability do
   messages broadcast whenever a media dir's availability changes.
   """
   @spec subscribe() :: :ok | {:error, term()}
-  def subscribe, do: Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_availability())
+  def subscribe, do: Topics.subscribe(Topics.library_availability())
 
   @doc false
   # Public test-only helpers (hidden from docs). They exist so tests
@@ -173,7 +173,7 @@ defmodule MediaCentaur.Library.Availability do
     # wraps `Watcher.Supervisor.statuses/0` — it exists specifically so
     # Library can consult Watcher state without a Boundary cycle (Watcher
     # already depends on Library).
-    :ok = Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.dir_state())
+    :ok = Topics.subscribe(Topics.dir_state())
 
     # Watcher.statuses/0 surfaces internal vocabulary (`:watching` /
     # `:initializing`); broadcasts emit `:available` / `:unavailable`.
@@ -198,8 +198,7 @@ defmodule MediaCentaur.Library.Availability do
     updated = Map.put(state, dir, new_state)
     :persistent_term.put({__MODULE__, :state}, updated)
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.library_availability(),
       {:availability_changed, dir, new_state}
     )

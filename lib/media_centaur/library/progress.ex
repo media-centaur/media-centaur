@@ -20,7 +20,8 @@ defmodule MediaCentaur.Library.Progress do
 
   ## PubSub contract
 
-  All broadcasts go through `MediaCentaur.PubSub`:
+  All broadcasts go through `MediaCentaur.Library.Progress.Events`, and
+  from there the `MediaCentaur.Topics` transport (ADR-060):
 
     * `{:progress_ticked, %ProgressTicked{}}` on `library:progress`
       for every `record/3`. No prod subscriber today — the live

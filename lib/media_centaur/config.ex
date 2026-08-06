@@ -35,6 +35,7 @@ defmodule MediaCentaur.Config do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Secret
+  alias MediaCentaur.Topics
 
   # Compile-time per-env default. `config/dev.exs` points at the dev
   # TOML so `iex -S mix phx.server` doesn't accidentally read the
@@ -209,9 +210,8 @@ defmodule MediaCentaur.Config do
     :persistent_term.put({__MODULE__, :config}, updated)
 
     Enum.each(overlaid, fn {key, value} ->
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
-        MediaCentaur.Topics.config_updates(),
+      Topics.publish(
+        Topics.config_updates(),
         {:config_updated, key, value}
       )
     end)
@@ -239,9 +239,8 @@ defmodule MediaCentaur.Config do
       value: %{"value" => value}
     })
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
-      MediaCentaur.Topics.config_updates(),
+    Topics.publish(
+      Topics.config_updates(),
       {:config_updated, key, value}
     )
 
@@ -274,9 +273,8 @@ defmodule MediaCentaur.Config do
 
     refresh_media_dirs_persistent_term(entries)
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
-      MediaCentaur.Topics.config_updates(),
+    Topics.publish(
+      Topics.config_updates(),
       {:config_updated, :media_dirs, entries}
     )
 
@@ -286,7 +284,7 @@ defmodule MediaCentaur.Config do
   @doc "Subscribe the calling process to runtime config change broadcasts."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.config_updates())
+    Topics.subscribe(Topics.config_updates())
   end
 
   @doc """

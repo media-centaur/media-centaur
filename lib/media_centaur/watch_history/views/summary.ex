@@ -38,7 +38,7 @@ defmodule MediaCentaur.WatchHistory.Views.Summary do
 
   @impl MediaCentaur.Cache
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.watch_history_events())
+    Topics.subscribe(Topics.watch_history_events())
   end
 
   @impl MediaCentaur.Cache
@@ -50,8 +50,7 @@ defmodule MediaCentaur.WatchHistory.Views.Summary do
   def refresh_cache do
     :persistent_term.put(@cache_key, compute())
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.watch_history_views(),
       {:watch_history_view_updated, :summary}
     )

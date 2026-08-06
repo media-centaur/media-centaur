@@ -132,7 +132,7 @@ defmodule MediaCentaur.IntegrationHealth do
 
   @doc "Subscribes the caller to `Topics.integration_health()` broadcasts."
   @spec subscribe() :: :ok | {:error, term()}
-  def subscribe, do: Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.integration_health())
+  def subscribe, do: Topics.subscribe(Topics.integration_health())
 
   # ---------------------------------------------------------------------------
   # GenServer
@@ -283,8 +283,7 @@ defmodule MediaCentaur.IntegrationHealth do
         :ok
 
       %Status{} = status ->
-        Phoenix.PubSub.broadcast(
-          MediaCentaur.PubSub,
+        Topics.publish(
           Topics.integration_health(),
           {:integration_health_changed, status}
         )

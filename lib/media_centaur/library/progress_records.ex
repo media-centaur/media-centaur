@@ -70,8 +70,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
 
     with {:ok, updated} <- Repo.update(WatchProgress.mark_completed_changeset(progress)) do
       if transitioning? do
-        Phoenix.PubSub.broadcast(
-          MediaCentaur.PubSub,
+        Topics.publish(
           Topics.library_watch_completed(),
           {:entity_watch_completed, updated}
         )

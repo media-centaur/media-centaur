@@ -51,7 +51,7 @@ defmodule MediaCentaur.ReleaseTracking do
   @doc "Subscribe the caller to release tracking update events."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.release_tracking_updates())
+    Topics.subscribe(Topics.release_tracking_updates())
   end
 
   # --- Items ---
@@ -200,8 +200,7 @@ defmodule MediaCentaur.ReleaseTracking do
   end
 
   defp broadcast_item_removed(tmdb_id, tmdb_type) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       MediaCentaur.Topics.release_tracking_updates(),
       {:item_removed, tmdb_id, tmdb_type}
     )
@@ -236,8 +235,7 @@ defmodule MediaCentaur.ReleaseTracking do
 
   @doc "Broadcasts a `{:releases_updated, item_ids}` event to subscribers."
   def broadcast_releases_updated(item_ids) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       MediaCentaur.Topics.release_tracking_updates(),
       {:releases_updated, item_ids}
     )

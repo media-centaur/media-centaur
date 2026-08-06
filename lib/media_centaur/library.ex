@@ -109,7 +109,7 @@ defmodule MediaCentaur.Library do
   @doc "Subscribe the caller to library entity change events."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_updates())
+    Topics.subscribe(Topics.library_updates())
   end
 
   @doc """

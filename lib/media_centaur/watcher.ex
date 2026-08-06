@@ -410,8 +410,7 @@ defmodule MediaCentaur.Watcher do
       # `Library.FileEventHandler` which runs the entity-cleanup cascade
       # and deletes the `Library.FilePresence` rows (FK cascade-deletes
       # the dependent `WatchedFile` / `ExtraFile`).
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
+      MediaCentaur.Topics.publish(
         MediaCentaur.Topics.library_file_events(),
         {:files_removed, paths}
       )
@@ -536,8 +535,7 @@ defmodule MediaCentaur.Watcher do
     # MoveMatcher.
     FilePresence.stamp(path, media_dir, DateTime.utc_now(), size: size)
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    MediaCentaur.Topics.publish(
       MediaCentaur.Topics.pipeline_input(),
       {:file_detected, %{path: path, media_dir: media_dir}}
     )
@@ -619,8 +617,7 @@ defmodule MediaCentaur.Watcher do
   defp broadcast_state(dir, internal_state) do
     state = if internal_state == :watching, do: :available, else: :unavailable
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    MediaCentaur.Topics.publish(
       MediaCentaur.Topics.dir_state(),
       {:dir_state_changed, dir, :media_dir, state}
     )

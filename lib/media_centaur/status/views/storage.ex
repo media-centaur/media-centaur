@@ -41,8 +41,8 @@ defmodule MediaCentaur.Status.Views.Storage do
   @impl MediaCentaur.Cache
   def subscribe do
     Availability.subscribe()
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.dir_state())
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.config_updates())
+    Topics.subscribe(Topics.dir_state())
+    Topics.subscribe(Topics.config_updates())
     :ok
   end
 
@@ -58,8 +58,7 @@ defmodule MediaCentaur.Status.Views.Storage do
 
     :ets.insert(@table, {:snapshot, measure()})
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.status_views(),
       {:status_view_updated, :storage}
     )

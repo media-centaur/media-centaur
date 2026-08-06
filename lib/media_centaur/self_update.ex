@@ -61,7 +61,7 @@ defmodule MediaCentaur.SelfUpdate do
   """
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.self_update_status())
+    Topics.subscribe(Topics.self_update_status())
   end
 
   @doc """
@@ -133,7 +133,7 @@ defmodule MediaCentaur.SelfUpdate do
   end
 
   defp broadcast(message) do
-    Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.self_update_status(), message)
+    Topics.publish(Topics.self_update_status(), message)
   end
 
   @doc """
@@ -183,7 +183,7 @@ defmodule MediaCentaur.SelfUpdate do
   """
   @spec subscribe_progress() :: :ok | {:error, term()}
   def subscribe_progress do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.self_update_progress())
+    Topics.subscribe(Topics.self_update_progress())
   end
 
   @doc """

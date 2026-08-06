@@ -61,8 +61,7 @@ defmodule MediaCentaur.Watcher.DirMonitor do
   end
 
   defp broadcast_state(dir, new_state) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    MediaCentaur.Topics.publish(
       MediaCentaur.Topics.dir_state(),
       {:dir_state_changed, dir, :image_dir, new_state}
     )

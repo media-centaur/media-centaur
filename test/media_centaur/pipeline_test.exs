@@ -238,7 +238,7 @@ defmodule MediaCentaur.PipelineTest do
       assert result.entity_id == nil
 
       # Wait for Intake GenServer to process the PubSub event
-      assert_receive {:file_added, _id}, 1000
+      assert_receive {:file_added, %MediaCentaur.Review.Events.FileAdded{}}, 1000
 
       # PendingFile created
       pending_files = Review.list_pending_files_for_review()

@@ -18,7 +18,7 @@ defmodule MediaCentaur.Pipeline.Image.Producer do
 
   @impl true
   def init(_opts) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_images())
+    MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_images())
     {:producer, %{queue: :queue.new(), demand: 0}}
   end
 
