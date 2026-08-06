@@ -34,8 +34,8 @@ defmodule MediaCentaur.Credo.Checks.NativeConfirmDialog do
       To extend `@exempt_files`, add the file with a one-line comment saying
       why that surface is genuinely outside the convention.
 
-      Source: the audit-remediation campaign, Stage 8
-      (`campaigns/audit-remediation-2026-08.md`).
+      Source: the 2026-08 audit-remediation campaign, Stage 8 (campaign
+      retired; see git history).
       """
     ]
 

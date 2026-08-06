@@ -51,7 +51,8 @@ defmodule MediaCentaur.Credo.Checks.LookupNamingContract do
       Public functions in `lib/` only — private helpers and test support are
       not part of the contract.
 
-      Source: `campaigns/audit-remediation-2026-08.md` Stage 4.
+      Source: the 2026-08 audit-remediation campaign, Stage 4 (campaign
+      retired; see git history).
       """
     ]
 

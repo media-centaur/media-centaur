@@ -61,15 +61,15 @@ defmodule MediaCentaur.DataCase do
   # `MediaCentaur.TaskSupervisor` at teardown, so it can't hit the DB
   # after the sandbox owner is released (`DBConnection.OwnershipError`,
   # which Console.Handler then forwards into unrelated tests'
-  # `refute_receive` checks — see `campaigns/test-isolation-hardening.md`
-  # Category B).
+  # `refute_receive` checks — the test-isolation-hardening campaign's
+  # Category B; that campaign is retired, see git history).
   #
   # Each orphan gets a short grace window to finish its (fast, sub-ms on
   # sqlite) DB work cleanly; one that overruns is blocked on something
   # slow and non-DB — e.g. an HTTP retry backoff in a fire-and-forget
   # search — and is killed rather than waited on. (Waiting the full
   # second per orphan is what once turned the suite into an effective
-  # hang — see `campaigns/test-suite-performance.md`.)
+  # hang — the test-suite-performance campaign, likewise retired.)
   #
   # This is the permanent teardown safety net, not a temporary bridge.
   # The web layer no longer spawns fire-and-forget tasks (ADR-049 /
