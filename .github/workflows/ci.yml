@@ -133,5 +133,8 @@ jobs:
       - name: Boundaries
         run: mix boundaries
 
+      # The whole tree, matching `mix test.all` in mix.exs. CI and precommit
+      # ran different subsets until 2026-08-06, so "green locally" and "green
+      # in CI" were not the same claim.
       - name: JS tests
-        run: mix cmd bun test --dots assets/js/input/
+        run: mix cmd bun test --dots assets/js/

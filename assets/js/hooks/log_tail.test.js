@@ -1,39 +1,16 @@
 import { describe, expect, test, beforeEach } from "bun:test"
 import { LogTail } from "./log_tail"
+import {
+  installWindow,
+  installMutationObserver,
+  installSyncAnimationFrame,
+} from "../test_support/dom_stubs"
 
-// MutationObserver polyfill — instances register in `stubObservers` so
-// tests can fire the callback imperatively via `.fire()`.
-const stubObservers = []
-
-class StubMutationObserver {
-  constructor(callback) {
-    this._callback = callback
-    stubObservers.push(this)
-  }
-  observe(_target, _options) {}
-  disconnect() {}
-  fire() {
-    this._callback([])
-  }
-}
-
-if (typeof MutationObserver === "undefined") {
-  globalThis.MutationObserver = StubMutationObserver
-}
-
-// rAF runs callback synchronously so pin-on-mount is observable in tests.
-if (typeof requestAnimationFrame === "undefined") {
-  globalThis.requestAnimationFrame = (callback) => callback(0)
-}
-
-// Stub `window` so the hook's mc:log-tail:repin listener registers in tests.
-// The dedicated repin test below replaces this with a recording stub.
-if (typeof globalThis.window === "undefined") {
-  globalThis.window = {
-    addEventListener() {},
-    removeEventListener() {},
-  }
-}
+// Browser globals, installed fresh before every test — see
+// `test_support/dom_stubs.js` for why they must not be installed
+// conditionally. `stubObservers` is rebound each time so `[0]` is always the
+// observer the hook under test constructed.
+let stubObservers = []
 
 function buildContainer({ scrollTop = 0, scrollHeight = 1000, clientHeight = 200, pinTo } = {}) {
   const listeners = {}
@@ -63,7 +40,9 @@ function mountedOn(container) {
 }
 
 beforeEach(() => {
-  stubObservers.length = 0
+  installWindow()
+  stubObservers = installMutationObserver()
+  installSyncAnimationFrame()
 })
 
 describe("LogTail — top mode (default)", () => {
@@ -218,19 +197,6 @@ describe("LogTail — updated() re-pin", () => {
 
 describe("LogTail — repin window event", () => {
   test("forces follow-and-pin on mc:log-tail:repin", () => {
-    const events = {}
-    const originalAdd = globalThis.window?.addEventListener
-    const originalRemove = globalThis.window?.removeEventListener
-    globalThis.window = {
-      ...(globalThis.window || {}),
-      addEventListener(type, handler) {
-        events[type] = handler
-      },
-      removeEventListener(type, handler) {
-        if (events[type] === handler) delete events[type]
-      },
-    }
-
     const container = buildContainer({
       pinTo: "bottom",
       scrollTop: 0,
@@ -243,16 +209,14 @@ describe("LogTail — repin window event", () => {
     container._fireScroll()
     expect(hook._followTail).toBe(false)
 
-    // Drawer opens → repin event fires.
-    events["mc:log-tail:repin"]?.()
+    // Drawer opens → repin event fires. Dispatched the way the Console hook
+    // dispatches it, rather than by calling the handler directly.
+    window.dispatchEvent(new CustomEvent("mc:log-tail:repin"))
     expect(hook._followTail).toBe(true)
     expect(container.scrollTop).toBe(1000)
 
     hook.destroyed()
-    expect(events["mc:log-tail:repin"]).toBeUndefined()
-
-    if (originalAdd) globalThis.window.addEventListener = originalAdd
-    if (originalRemove) globalThis.window.removeEventListener = originalRemove
+    expect(window.listenerCount("mc:log-tail:repin")).toBe(0)
   })
 })
 

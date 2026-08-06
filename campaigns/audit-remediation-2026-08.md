@@ -30,31 +30,27 @@ decide unilaterally. The loop per stage is:
 
 Stages are independent. Order below is recommended, not required.
 
-**Resuming into Stage 7 (2026-08-06) — start here.**
+**Resuming into Stage 8 (2026-08-06) — start here.**
 
-Stages 1, 2, 4, 5 and 6 are **done**; Stage 3 was **declined**. The
+Stages 1, 2, 4, 5, 6 and 7 are **done**; Stage 3 was **declined**. The
 `/reconcile` defect this campaign found is **fixed** (and was three defects,
 not one — see its section).
 
-The original six stages are all settled. **Stage 6 spawned two new ones**,
-because two of its findings were bigger than the polish list they surfaced
-in, and the stage's rule is to record and drop rather than grow:
+**Only Stage 8 is left, and it must not be started before its open questions
+are answered.** Five native `data-confirm` dialogs, and the repo already has
+two themed, d-pad-reachable idioms to choose between — so the remedy is an
+idiom decision, not an edit. The three questions are in the stage.
 
-* **Stage 7 — the JS tests nobody runs.** `assets/js/hooks/` is in no test
-  run and has been failing for three months. **No open questions; this is
-  the one to do first.**
-* **Stage 8 — one confirmation idiom.** Five native `data-confirm` dialogs,
-  and the repo already has two themed idioms to choose between. **Has open
-  questions — bring them to the owner before writing code.**
+Stage 7 is done, and it changed what "precommit green" means: the JS runner
+now covers `assets/js/` whole rather than a hand-listed pair of directories,
+so `mix precommit` and CI run the same 620 tests across 29 files instead of
+564 across 24. Its diagnosis was also **half wrong when written** — see error
+9 in the ledger below before trusting any single-cause claim in this file.
 
-Do Stage 7 first: it needs no decision, it is the smaller of the two, and it
-is a live false-green in the suite everything else in this campaign was
-verified against.
-
-**Both stages' facts were verified on 2026-08-06 while writing them**, not
-inherited from the audit. Every figure below carries the command that
-produced it — including one that shrank a stage: "8 failing tests" is **one**
-root cause, not eight.
+**Every stage's facts were verified on 2026-08-06 when it was written**, not
+inherited from the audit. Every figure carries the command that produced it —
+including one that shrank a stage: "8 failing tests" is **one** root cause,
+not eight. Which was true, and still not the whole story.
 
 **Stage 3 was declined, not deferred** — the console stays out of the input
 system deliberately (backtick already opens it; the input system would take
@@ -113,6 +109,7 @@ sequence is the campaign's most durable output, so it is stated in full:
 | 6 | 5 | MC0012 and MC0013 had **never been able to fire** — verified 0 issues against a real violation |
 | 7 | 6 | The `/reconcile` nav defect was **three** defects. The missing config was one; `data-nav-default-zone` also named a context instead of the layout key, and the shared ReviewTabs strip was dead on `/review` too |
 | 8 | 6 | `clear_database`'s native confirm: the bullet said **1** site, the stage's own correction said **2**, the repo has **5** |
+| 9 | 7 | "One root cause" was right and the cause named was wrong. The stub did not lack `dispatchEvent`; `console.test.js` did not own its `window` at all. Run alone it passed **17/17** — the 8 failures appear only when `log_tail.test.js` loads first and leaves its own `window` on `globalThis` |
 
 The lesson accreted in three passes:
 
@@ -166,6 +163,19 @@ fourth clause:
    second puts a second copy of the card markup in JavaScript. In both
    cases the number was right and the sentence after it was not.
 
+Stage 7 then added the fifth, and it is the sharpest of them:
+
+5. **Reproduce the failure before naming its cause.** Stage 7's diagnosis was
+   written from reading a stack trace: eight identical `TypeError`s pointing
+   at `console.js:66`, therefore the stub is missing `dispatchEvent`.
+   Plausible, specific, wrong. Running `console.test.js` **by itself** — one
+   command, never run — gives **17 pass, 0 fail**. The stub was never the
+   variable; the file simply does not own its `window`, and inherits whichever
+   one the previously loaded test file left on `globalThis`. Same trap as
+   error 5, one level down: a correct observation about what is *broken* said
+   nothing about *why*, and reading the trace felt enough like reproducing to
+   skip actually doing it.
+
 And one thing that went the other way, worth recording because it is the
 cheap move that keeps paying: **measure before you decide whether to
 care.** The cast-grid bullet read like nitpicking until it was rendered —
@@ -175,9 +185,10 @@ minutes and inverted the decision.
 
 ## Status
 
-**Stages 1, 2, 4, 5 and 6 done; Stage 3 declined** (all 2026-08-06).
-**Stages 7 and 8 open**, both spawned by Stage 6's findings. Stage 7 needs
-no decision; Stage 8 does. `mix precommit` green after each stage.
+**Stages 1, 2, 4, 5, 6 and 7 done; Stage 3 declined** (all 2026-08-06).
+**Stage 8 is the only one open**, and it needs the owner's answers before any
+code. `mix precommit` green after each stage — and since Stage 7, that phrase
+covers the JS tree.
 
 * **Stage 1** — `library.ex` 2779 → 127 lines across six commits
   (`5b2d3510`…`f91f61ce`); 18 modules; the 21 `# ---` dividers are gone.
@@ -198,8 +209,10 @@ no decision; Stage 8 does. `mix precommit` green after each stage.
 * **`/reconcile`** — fixed (`2e4aa4d7`), along with two further defects
   reading the page turned up. Not a stage; it was found here and finished
   here.
-* **Stage 7** — not started. `assets/js/hooks/` is in no test run; 8 tests
-  failing there since 2026-04-29 on one root cause. No open questions.
+* **Stage 7** — both runners widened to `assets/js/`; the shared-global test
+  harness that made the hook tests order-dependent replaced. 564 tests across
+  24 files → **620 across 29**, 0 failures, and CI now runs what precommit
+  runs.
 * **Stage 8** — not started. Five native `data-confirm` dialogs, two
   existing themed idioms to choose between. Open questions for the owner.
 
@@ -213,8 +226,9 @@ Neither belonged to Stage 6 and neither held it open. Both are real, both
 have their own stage below, and both had their facts re-verified when those
 stages were written:
 
-* **`assets/js/hooks/` is in no test run** → **Stage 7**. Failing since
-  2026-04-29 and invisible the whole time.
+* **`assets/js/hooks/` is in no test run** → **Stage 7**, ✅ done. Failing
+  since 2026-04-29 and invisible the whole time — and failing for a different
+  reason than the one first written down.
 * **Five `data-confirm` sites, not two** → **Stage 8**. The count went
   1 → 2 → 5, and the remedy is an idiom choice, not an edit.
 
@@ -508,6 +522,34 @@ defect. Nothing to pick up.
   on a test stub that never followed `358bab78` (2026-04-29). The stage got
   smaller for being checked, which is the opposite of the direction this
   campaign's numbers usually moved, and worth recording for that reason.
+
+* `2026-08-06` — **Stage 7 done. The JS runners cover a tree, not a list.**
+  `mix test.all` and CI both run `bun test assets/js/` — 620 tests across 29
+  files, up from 564 across 24, and the two now make the same claim. A path
+  list is a thing to maintain; a tree is not, and the maintenance is exactly
+  what failed here.
+
+* `2026-08-06` — **Hook tests install their browser globals unconditionally,
+  per test** (`assets/js/test_support/dom_stubs.js`). The guarded idiom —
+  `if (typeof window === "undefined") { globalThis.window = ... }` — is
+  banned by the module's header comment rather than by a check, because it is
+  a two-file problem and a check would cost more than it saves. The idiom is
+  what made the hook tests order-dependent: whichever file loads second runs
+  against the first one's stub.
+
+  **It produced a false red and a false green from the same line.** Red when
+  `log_tail.test.js` loaded first (8 `TypeError`s); green when
+  `console.test.js` ran alone, where an overridden `addEventListener` and
+  bun's native `dispatchEvent` are two registries that never meet, so the
+  repin dispatch went nowhere and 17 tests reported success. That is the
+  campaign's error-6 lesson — *an unexercised check is a false guarantee, not
+  a weak one* — arriving in test-harness form.
+
+  The stage's own written diagnosis was a casualty of the same thing: it was
+  derived from a stack trace, and the one command that would have falsified
+  it (running the file alone) was never run. Logged as error 9, and it earned
+  the ledger its fifth clause: **reproduce the failure before naming its
+  cause.**
 
 ---
 
@@ -1379,24 +1421,90 @@ section, because it was three defects rather than one.
   in Stage 5 rather than early-and-partial: 132 call sites across 71 files,
   held by MC0025. Nothing to pick up.
 
-## Stage 7 — The JS tests nobody runs  ▶ **DO THIS ONE FIRST**
+## Stage 7 — The JS tests nobody runs  ✅ **DONE 2026-08-06**
 
-**No open questions.** Nothing here needs the owner: the tests are supposed
-to run, they do not, and the ones that exist are failing. This is the
+**No open questions.** Nothing here needed the owner: the tests were supposed
+to run, they did not, and the ones that existed were failing. This is the
 campaign's own headline lesson found in the tooling that was verifying the
 campaign.
 
-**Why it matters more than its size.** Every "green" claim in Stages 1–6 was
-made against a suite that silently skips a directory. That does not
+**Why it mattered more than its size.** Every "green" claim in Stages 1–6 was
+made against a suite that silently skipped a directory. That does not
 invalidate them — nothing in those stages touched `assets/js/hooks/` — but
 it does mean the guarantee was narrower than it read.
 
-### Evidence (verified 2026-08-06)
+### What landed
+
+| Change | Where |
+|---|---|
+| `mix test.all` runs the whole JS tree | `mix.exs` — `assets/js/input/ assets/js/__tests__/` → `assets/js/` |
+| CI runs what precommit runs | `.github/workflows/ci.yml` |
+| Browser globals installed per test, unconditionally | new `assets/js/test_support/dom_stubs.js` |
+| `console.test.js` and `log_tail.test.js` own their `window` | both now call the installers from `beforeEach` |
+| The Console→LogTail repin contract has a sender-side test | `console.test.js` — 3 new tests |
+
+**564 tests across 24 files → 620 across 29, 0 failures.** That count going up
+is the observable proof the widening took effect; a green run alone would have
+proved nothing, which is the whole point of the stage.
+
+Both runners were widened to `assets/js/` rather than gaining
+`assets/js/hooks/` as a third path. Enumerating directories is what created
+the gap, so a new directory is now covered by default rather than by someone
+remembering. Verified nothing outside `assets/js/` is picked up: 29 collected
+files is exactly `find assets/js -name '*.test.js'`.
+
+### The diagnosis below was half wrong — read this first
+
+This stage was written from a stack trace, and the trace was not the cause.
+
+Eight identical `TypeError: window.dispatchEvent is not a function` at
+`console.js:66` reads unambiguously as "the stub lacks `dispatchEvent`". Run
+the file by itself and it is **17 pass, 0 fail** — no `TypeError` at all,
+because there `window` *is* `globalThis`, and bun's `globalThis` has a real
+`dispatchEvent`. The failures need `log_tail.test.js` to load first:
+
+```
+bun test assets/js/hooks/console.test.js                       # 17 pass  0 fail
+bun test assets/js/hooks/log_tail.test.js .../console.test.js  # 21 pass  8 fail
+```
+
+The actual cause is that neither file owns its globals. Both install stubs
+with the guarded idiom —
+
+```js
+if (typeof window === "undefined") { globalThis.window = ... }
+```
+
+— which by construction means *the second file to load silently runs against
+the first file's stub*. `log_tail`'s `window` has only `addEventListener` and
+`removeEventListener`, so `console.js`'s repin dispatch throws.
+
+It cuts the other way too, and that half is worse. Alone, `console.test.js`
+overrides `window.addEventListener` while leaving bun's native
+`dispatchEvent` in place — two registries that never meet. So the repin
+dispatch went nowhere, silently, and 17 tests reported success. **The same
+idiom produced a false red and a false green in the same file**, and only the
+red was visible.
+
+So the fix is not "add the missing method". It is `test_support/dom_stubs.js`:
+installers that assign unconditionally, from `beforeEach`, with one listener
+registry behind `addEventListener` / `removeEventListener` / `dispatchEvent`.
+No test can now inherit another file's globals or observe another test's
+listeners. The module's header comment carries this reasoning, because the
+guarded idiom is the one a future contributor will reach for by default.
+
+Stage 6's rule — record the finding, don't grow the stage — applies to what
+this turned up in `log_tail.test.js`: its repin test hand-swapped
+`globalThis.window` to capture the handler and called it directly. It now
+dispatches the event the way `console.js` does. That is a stronger assertion
+over the same behaviour, not a rewrite of it.
+
+### Original evidence (verified 2026-08-06, corrected above)
 
 | Fact | Command | Value |
 |---|---|---|
-| What `mix precommit` runs | `sed -n '176p' mix.exs` | `bun test --dots assets/js/input/ assets/js/__tests__/` |
-| What CI runs | `sed -n '137p' .github/workflows/ci.yml` | `bun test --dots assets/js/input/` |
+| What `mix precommit` ran | `mix.exs`, pre-stage | `bun test --dots assets/js/input/ assets/js/__tests__/` |
+| What CI ran | `.github/workflows/ci.yml`, pre-stage | `bun test --dots assets/js/input/` |
 | Tests in `assets/js/hooks/` | `bun test assets/js/hooks/` | 53 tests, 5 files — **8 failing** |
 | Distinct root causes | `bun test assets/js/hooks/ \| grep -E '^TypeError' \| sort -u` | **1** |
 | Failing since | `git log -1 -S 'mc:log-tail:repin' -- assets/js/hooks/console.js` | `358bab78`, **2026-04-29** |
@@ -1409,9 +1517,11 @@ green local run and a green CI run do not mean the same thing.
 **The count shrank the stage rather than growing it.** "8 failing tests"
 sounds like eight problems; it is one. All eight throw the same
 `TypeError: window.dispatchEvent is not a function` — `console.js:66`
-dispatches `mc:log-tail:repin` on the drawer's closed→open transition, and
+dispatches `mc:log-tail:repin` on the drawer's closed→open transition. ~~and
 the test's `window` stub in `console.test.js` never gained a `dispatchEvent`.
-The hook gained the dispatch on 2026-04-29 and the stub did not follow. The
+The hook gained the dispatch on 2026-04-29 and the stub did not follow.~~
+**Wrong — see the correction above.** The stub was not the variable; the file
+inherits `log_tail.test.js`'s `window`, and alone it passes 17/17. The
 tests have been red for three months and no run has ever reported it.
 
 This is error 6 one level up. MC0012/MC0013 reported success because they
@@ -1419,18 +1529,21 @@ could not fire; this reports success because it is never invoked. **An
 unexercised check is not a weaker guarantee than no check — it is a false
 one.**
 
-### Shape of the fix
+### Shape of the fix — as planned, all three done
 
-1. Widen both runners to the whole tree — `bun test assets/js/` — rather
+1. ✅ Widen both runners to the whole tree — `bun test assets/js/` — rather
    than adding `assets/js/hooks/` as a third path. Enumerating directories
    is what created this gap; a new directory should be covered by default,
    not by remembering. Confirm nothing outside `assets/js/` is picked up.
-2. Fix the stale `window` stub so the 8 pass. Check whether the dispatch is
+2. ✅ Fix the stale `window` stub so the 8 pass. Check whether the dispatch is
    *worth* asserting while there — a test that only stops throwing is
    weaker than one that pins the repin behaviour `358bab78` added.
-3. Re-run and read the count: 53 tests must all pass, and the totals
+   **Both halves paid off**: step 2 is where the diagnosis turned out to be
+   wrong, and the repin question turned into the 3 tests that now pin the
+   sender side of the contract.
+3. ✅ Re-run and read the count: 53 tests must all pass, and the totals
    reported by `mix precommit` must **go up**, which is the observable proof
-   the widening took effect.
+   the widening took effect. 564/24 → 620/29.
 
 Do not stop at making the suite green — the point is that it now runs.
 
@@ -1505,14 +1618,15 @@ been retiring.
   ordinary work rather than letting it hold the campaign open.
   **It was fixed anyway** (`2e4aa4d7`), along with two further defects. ✅
 * **Stages 7 and 8 each resolved or explicitly declined**, same rule as the
-  original six. Stage 7 needs no conversation; Stage 8 must not be started
+  original six. Stage 7 needed no conversation; Stage 8 must not be started
   before its open questions are answered.
-  **Status: both open.**
+  **Status: ✅ 7 resolved · 8 open — the last thing holding this campaign.**
 * `mix precommit` green after each stage, no new Credo suppressions.
-  **Note what Stage 7 does to this criterion**: until it lands, "precommit
-  green" excludes `assets/js/hooks/` entirely, and every earlier stage's
+  **Stage 7 changed what this criterion asserts**: before it, "precommit
+  green" excluded `assets/js/hooks/` entirely, and every earlier stage's
   green was that narrower claim. None of them touched that directory, so
-  none is in doubt — but the criterion means more after Stage 7 than before.
+  none is in doubt. From Stage 7 on it covers `assets/js/` whole, and CI
+  makes the same claim precommit does. ✅
 * No stage left half-applied — the audit's own headline finding was
   that this repo's defects come from refactors that start well and stop
   at 80%.

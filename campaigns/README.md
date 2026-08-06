@@ -22,9 +22,9 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`audit-remediation-2026-08.md`](audit-remediation-2026-08.md) —
-  **in progress — Stage 7 next (no open questions), then Stage 8.** Tail of
-  the 2026-08-05 four-audit sweep. Stages 1, 2, 4, 5 and 6 resolved, Stage 3
-  declined. Stage 1 split the 2779-line `Library` context into 18 modules
+  **in progress — Stage 8 is all that's left, and it needs the owner's
+  answers first.** Tail of the 2026-08-05 four-audit sweep. Stages 1, 2, 4, 5,
+  6 and 7 resolved, Stage 3 declined. Stage 1 split the 2779-line `Library` context into 18 modules
   (`library.ex` → 127 lines); Stage 2 closed the `Status` and `Diagnostics`
   Boundary hatches; Stage 4 reconciled two overreaching test policies with
   practice behind three new Credo checks (MC0022–MC0024); Stage 5 settled
@@ -35,21 +35,25 @@ Use [`template.md`](template.md) as a starter.
   `Review.Events` as the worked example; Stage 6 cleared the polish list
   (`BooleanSetting` for the four boolean flags, four raw-SQL `order_by`
   fragments replaced with Ecto, and a cast grid that shipped **1.6 MB of
-  HTML to display 24 cards** now sending 41 KB). Stage 3 was declined
-  because the console stays outside the input system deliberately. The
-  `/reconcile` dead-nav defect was fixed and turned out to be three defects.
-  **Left:** **Stage 7** — `assets/js/hooks/` is in no test run and has had 8
-  tests failing since 2026-04-29 on a single root cause; nothing needs the
-  owner, do it first. **Stage 8** — five native `data-confirm` dialogs and
-  two existing themed idioms to choose between; **has open questions, don't
-  start it before they're answered.**
-  Its durable output is a lesson in four clauses, paid for eight times: a
+  HTML to display 24 cards** now sending 41 KB); Stage 7 widened both JS test
+  runners from a hand-listed pair of directories to `assets/js/` whole — 564
+  tests across 24 files → **620 across 29**, with CI and precommit finally
+  making the same claim. Stage 3 was declined because the console stays
+  outside the input system deliberately. The `/reconcile` dead-nav defect was
+  fixed and turned out to be three defects.
+  **Left:** **Stage 8** — five native `data-confirm` dialogs and two existing
+  themed idioms to choose between; **has open questions, don't start it
+  before they're answered.**
+  Its durable output is a lesson in five clauses, paid for nine times: a
   check you can run beats a number you wrote down; a number beats nothing
   only if you checked the assumption underneath it; a check counts only if
   you ran it against a violation — MC0012 and MC0013 were found to have
-  never been able to fire; **and a count answers "how many", never "which
-  fix"** — both of Stage 6's last bullets counted right and prescribed
-  wrong. Counterweight: measure before deciding whether to care.
+  never been able to fire; a count answers "how many", never "which
+  fix" — both of Stage 6's last bullets counted right and prescribed
+  wrong; **and reproduce the failure before naming its cause** — Stage 7's
+  own diagnosis was written off a stack trace and was wrong, since the file
+  it blamed passes 17/17 when run alone. Counterweight: measure before
+  deciding whether to care.
 * [`below-floor-releases.md`](below-floor-releases.md) —
   **planning — design not started.** When every findable release of a
   title is below the user's quality floor, the plan board says a bare
