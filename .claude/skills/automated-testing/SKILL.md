@@ -1,451 +1,167 @@
 ---
 name: automated-testing
-description: "Use this skill at the START of ANY implementation task — new features, bug fixes, refactors, or any code change, not just when writing tests. This repo is strictly test-first: the test is written before the implementation, so this skill must load before you touch code, not after. Also use before writing standalone tests — Elixir, JavaScript, or Playwright E2E. Covers the test-first-for-bugfixes sequence (red → fix → green), factory patterns, stub strategies, E2E parameterization, and all project testing policies."
+description: "Use at the START of any implementation task — new feature, bug fix, or refactor — before touching code, because this repo is strictly test-first. Also use before writing any Elixir, JavaScript, or Playwright test."
 ---
 
 ## Core Policies
 
-**Test-first.** Write tests before implementation. The test is the executable specification — if you can't write the test, the requirements aren't clear enough. Stop and clarify.
+**Test-first — bug fixes included.** The test is the executable specification. If
+you can't write it, the requirements aren't clear enough: stop and clarify.
 
-**Test-first applies to bug fixes too — especially bug fixes.** The sequence is non-negotiable:
+For a bug fix the sequence is non-negotiable:
 
-1. **Reproduce the bug in a failing test** against the unmodified buggy code. Run it and confirm it fails with the same error the user reported (same exception, same stack frame). If the failure mode differs from production, the test isn't reproducing the bug — fix the test before touching the code.
-2. **Apply the fix.**
-3. **Run the test and confirm it passes.** Green after red is how you *know* the fix works. Without the red step, you only know the code compiles and the test is consistent with the new code — you do not know the bug is fixed.
+1. **Red** — reproduce the bug in a failing test against unmodified code. It must
+   fail with the *same* error the user reported (same exception, same stack frame).
+   A different failure mode means the test isn't reproducing the bug.
+2. **Fix.**
+3. **Green** — confirm the test now passes.
 
-Never apply a fix first and write the test after. A test authored against already-fixed code can silently pass against the broken code too (wrong assertion, wrong setup, wrong path exercised) — you lose the proof that the test actually catches the regression. If you already applied a fix before remembering this rule, revert it, write the failing test, re-apply the fix, and verify red → green. The extra minute is the cost of the guarantee.
+A test authored against already-fixed code can silently pass against the broken
+code too, so without the red step you have no proof it catches the regression. If
+you fixed it before remembering this, revert, write the failing test, re-apply.
 
-**Zero tolerance for flaky tests.** Every test must pass deterministically, every time. A flaky test is a bug. Diagnose the root cause. Never skip, retry, or mark as expected failure.
+**Zero tolerance for flaky tests.** A flaky test is a bug — diagnose the root
+cause. Never skip, retry, or mark as expected failure.
 
-**Zero warnings.** Tests must compile and run with zero warnings — unused variables, unused aliases, log output indicating misconfiguration. `mix precommit` enforces `--warnings-as-errors`.
+**Zero warnings.** `mix precommit` runs `--warnings-as-errors`.
 
-**Regression tests are append-only** ([ADR-027]). Parser and pipeline tests may only be added, never removed or weakened. Assertions must not be loosened (exact match → substring, tightening bounds). If a test fails after a code change, fix the code.
+**Regression tests are append-only** ([ADR-027]). Parser and pipeline tests may
+only be added — never removed, never weakened (no exact-match → substring, no
+loosened bounds). If a test fails after a code change, fix the code.
 
-**Test through the public interface** ([ADR-026]). Never promote `defp` to `def` for testability. Never use `:sys.get_state`, `GenServer.call/cast` from outside the owning module, or assert on `render_component` HTML output. Extract testable logic into pure function modules.
+**Test through the public interface** ([ADR-026]). Never promote `defp` to `def`
+for testability; never use `:sys.get_state` or `GenServer.call/cast` from outside
+the owning module (MC0004). Extract testable logic into pure function modules.
 
-**Variable naming applies in tests.** Never abbreviate — `file` not `wf`, `movie` not `e`, `result` not `res`.
-
-## LiveView Logic Extraction (Mandatory)
-
-All non-trivial logic in LiveViews and function components must be extracted into public pure functions and unit tested ([ADR-030]). LiveViews are thin wiring — mount, event dispatch, template rendering. Any `if`, `case`, `cond`, or `Enum` pipeline on domain data belongs in an extracted function.
-
-- **Extract into** the same module (1–3 small helpers) or a dedicated helper module (larger clusters).
-- **Test with** `async: true` and `build_*` factory helpers — no database, no rendering.
-- **Examples:** `file_absent?(file_info)`, `episode_status(episode, progress)`, `progress_label(progress)`, `icon_for_state(state)`, `group_episodes_by_season(episodes)`.
-
-## Async Ownership & Suite Performance ([ADR-049])
-
-A well-managed suite is *fast because it is correct*, not fast because
-it cuts corners. Three rules, all enforced or load-bearing:
-
-**Async work is owned, never orphaned.** In the web layer, never spawn
-`Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, …)` — that
-task is owned by nobody, leaks past navigation, and orphans under the
-global supervisor in tests. Use `start_async/3` / `assign_async/3` for
-view loads (cancelled with the LiveView, awaitable in tests); use an
-Oban job or supervised service for work that must outlive the LiveView.
-Enforced by **MC0019** (`credo_checks/owned_async_in_web.ex`); its
-grandfather list is the rollout backlog.
-
-**Tests drive async to completion.** A test that mounts an async
-LiveView **awaits the result** before asserting — `render_async(view)`,
-or `assert_receive`, or a poll-with-deadline (`wait_until`). Never rely
-on `on_exit`/teardown to settle in-flight work, and never
-`Process.sleep` to "let it settle" (a poll-with-deadline on a
-deterministic predicate is fine; a fixed sleep is not).
-
-**Teardown is O(1).** `DataCase` terminates orphaned supervised tasks
-after a short grace rather than waiting on them. A 1000ms-per-orphan
-teardown drain once turned the whole suite into a multi-minute hang
-(see `campaigns/test-suite-performance.md`). If teardown is slow, the
-cause is unowned async — fix the seam, don't extend the wait.
-
-> **Why this matters:** flakiness and slowness in this codebase live
-> almost entirely in the LiveView layer (async + render timing). Pure
-> tests and synchronous DataCase tests are deterministic. When a test
-> flakes, suspect an un-awaited async assign first.
+**No abbreviations, tests included** — `file` not `wf`, `movie` not `e` (MC0002).
 
 ## What We Never Test
 
-- **GenServer internals** — no `:sys.get_state`, no direct `call/cast`. Test public API only. Thin wrappers around external systems (MpvSession, Watcher) are not worth mocking.
-- **Rendered HTML** — never assert on HTML output (`render_component`, `=~` on markup). LiveView integration tests (mount, patch, event handling) are fine — they test data flow, not DOM.
-- **External API calls** in normal runs — tag `@tag :external`, excluded from default `mix test`.
+- **GenServer internals** — public API only. Thin wrappers around external systems
+  (MpvSession, Watcher) aren't worth mocking.
+- **Rendered HTML** — never assert on markup (`render_component`, `=~` on HTML).
+  LiveView integration tests (mount, patch, events) are fine; they test data flow.
+- **External APIs** in normal runs — tag `@tag :external`, excluded by default.
 
-### `render_click` does not simulate the browser — verify real interactions in a real browser
+**`render_click` is not a browser click.** It reads `phx-value-*` off the rendered
+DOM and never runs LiveView's client JS — e.g. it misses the native `value` merge
+on `<button>` that clobbers `phx-value-value` to `""` (the interface-scale picker:
+green test, dead control, now MC0021). A passing LiveView test only proves the
+handler is right *given the params it was handed*. When correctness depends on what
+the browser actually sends, the regression layer is a Playwright E2E or a manual
+`chromium-probe` click — and "verified" means you ran one.
 
-`render_click/3` reads `phx-value-*` attributes straight off the rendered DOM
-and builds the payload from them. It does **not** run LiveView's client JS, so
-it never reproduces browser-runtime click behaviour — e.g. the native `value`
-merge on `<button>`/`<input>` that silently clobbers `phx-value-value` to `""`
-(the interface-scale picker regression: green `render_click` test, dead control
-in the browser). A passing LiveView test means *the handler does the right
-thing with the params it was handed* — not that a real click hands it those
-params. For any control whose correctness depends on what the browser actually
-sends or renders, the real regression layer is a **Playwright E2E** (or a quick
-manual `chromium-probe` click against the dev server) — and "verified" means you
-ran one, not that the unit test is green. Author-time footguns of this class get
-a Credo check (e.g. MC0021 `NoPhxValueValue`).
+## LiveView Logic Extraction (Mandatory)
 
-## Page Smoke Tests (Mandatory for Every Route + Zone)
+LiveViews are thin wiring — mount, event dispatch, rendering. Any
+`if`/`case`/`cond`/`Enum` pipeline on domain data must be extracted into a public
+pure function and unit tested ([ADR-030]): same module for 1–3 small helpers, a
+dedicated helper module for larger clusters. Test with `async: true` and `build_*`
+factories — no database, no rendering. Examples: `file_absent?/1`,
+`episode_status/2`, `group_episodes_by_season/1`.
 
-`test/media_centaur_web/page_smoke_test.exs` mounts every top-level
-LiveView route and asserts it renders without crashing. This is the
-cheapest possible safety net for the class of bug that pure-helper unit
-tests can't catch — a render-path crash (`KeyError`, `BadBooleanError`,
-`FunctionClauseError`) that only fires when the template actually
-renders with realistic data.
+## Async Ownership ([ADR-049])
 
-**Rules:**
+Flakiness in this codebase lives almost entirely in the LiveView layer (async +
+render timing). Pure and synchronous DataCase tests are deterministic. **When a
+test flakes, suspect an un-awaited async assign first.**
 
-- **Every new route gets a smoke test entry** added in the same change
-  that introduces the route. Same for every zone of a multi-zone
-  LiveView (the library page has `?zone=watching`, `?zone=library`,
-  `?zone=upcoming` — each needs its own smoke).
-- **Seed enough fixture data to exercise the non-trivial render
-  branches.** An empty-state-only smoke catches a different (smaller)
-  class of bug than one that actually renders cards / rows / overlays.
-  When you ship a new template branch (e.g. a theatrical-movie variant,
-  a paused-download variant), extend the smoke fixture so the branch
-  renders during the test.
-- **Per-page setup lives in `page_smoke_test.exs`**, not in per-page
-  test files. The smoke is intentionally isolated from feature tests
-  so the safety net stays uniform.
-- **The smoke is not the primary test** — feature tests still cover
-  behaviour. The smoke just guarantees "this route mounts and renders
-  for a representative dataset" so render-path regressions surface
-  immediately instead of in a user's browser.
+- **Async work is owned, never orphaned.** In the web layer never
+  `Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, …)` — it leaks past
+  navigation and orphans under the global supervisor in tests. Use `start_async/3`
+  / `assign_async/3` for view loads (cancelled with the LiveView, awaitable in
+  tests), or an Oban job for work that must outlive it. Enforced by MC0019.
+- **Tests drive async to completion.** Await before asserting —
+  `render_async(view)`, `assert_receive`, or a poll-with-deadline on a
+  deterministic predicate. Never lean on teardown to settle in-flight work, and
+  never `Process.sleep` to "let it settle".
+- **Teardown is O(1).** `DataCase` terminates orphaned tasks after a short grace.
+  Slow teardown means unowned async — fix the seam, don't extend the wait.
 
-If you change a template in a way that adds a new code path, ask
-yourself: would the existing smoke fixture exercise this path? If not,
-extend the fixture. The bar is "would a reasonable user see this state
-in production?"
+## Page Smoke Tests (Mandatory per Route + Zone)
 
-## Running Tests
+`test/media_centaur_web/page_smoke_test.exs` mounts every top-level route and
+asserts it renders — the cheapest net for render-path crashes (`KeyError`,
+`FunctionClauseError`) that pure-helper tests can't catch.
 
-```bash
-# Elixir
-mix test                                              # full suite (excludes :external)
-mix test test/path/to/file_test.exs                   # single file
-mix test test/path/to/file_test.exs:42                # single test by line
-mix precommit                                         # compile + format + boundaries + test
-
-# JavaScript (input system unit tests)
-bun test assets/js/input/                             # all input tests
-bun test assets/js/input/core/__tests__/              # core framework tests
-bun test assets/js/input/__tests__/                   # app-layer behavior tests
-bun test assets/js/input/__tests__/nav_graph.test.js  # single file
-
-# E2E (Playwright — requires dev server running)
-scripts/input-test                                    # all tests, both input methods
-scripts/input-test --project=keyboard                 # keyboard only
-scripts/input-test --project=gamepad                  # gamepad only
-scripts/input-test library                            # library page, both methods
-scripts/input-test --debug                            # headed browser, step through
-scripts/input-test --trace on                         # capture trace for replay
-scripts/input-test --ui                               # Playwright UI mode
-```
-
-### Diagnosing slowness & flakes
-
-```bash
-mix test --slowest 30                  # print the 30 slowest TESTS at the end
-mix test <file> --trace                # per-test wall time, serial (max_cases 1)
-mix test --repeat-until-failure 20     # flake hunt — re-run until one fails
-mix test --seed 0                      # deterministic order (reproduce a flake)
-mix test --timeout 8000 --max-failures 15   # turn hangs into fast, reported failures
-```
-
-**Per-test ms excludes `setup`/`on_exit`.** A test that reports `8ms`
-but leaves a ~1s gap before the next test is paying that second in
-**teardown** (the supervised-task drain waiting on an un-awaited async
-task) — not in the test body. `--trace` shows the per-test number; the
-gap between lines is the teardown. Chase the gap, not the number.
-
-**Gotchas that will waste your time:**
-
-- **`pkill -f 'mix test'` kills its own shell** — the command's own
-  cmdline contains the string `mix test`, so it matches and dies before
-  reaching the real command. To kill a real run, target a unique
-  substring (`pkill -f 'mix test --slowest'`) or check `fuser
-  priv/repo/media_centaur_test.db`.
-- **`mix test … | tail` shows nothing until the run ends** — `tail`
-  buffers to EOF, so you can't watch progress and a kill mid-run loses
-  all output. Redirect to a file (`> /tmp/out 2>&1`) and read that.
-- **`--trace` sets the per-test timeout to `:infinity`** — useless for
-  hunting hangs. Use a low `--timeout` *without* `--trace` so a hung
-  test fails fast with a stacktrace at the blocked line.
-- **A full run at idle CPU / load < 1 is *blocked*, not slow** — it's
-  waiting on timeouts/sleeps/IO, not computing. Look for `:timer.sleep`
-  in orphaned tasks (HTTP retry backoff is the classic), real network
-  calls that aren't stubbed for the calling process, or `refute_receive`
-  with long timeouts.
-- **Telemetry query-counting must filter by the emitting process, or it
-  flakes under parallelism.** A `count_queries`-style helper that attaches
-  a `[:repo, :query]` telemetry handler counts queries from **every**
-  process in the VM, not just the function under test. Ecto emits that
-  event synchronously in the process that ran the query, so background
-  workers (projection `Cache.Worker`s refreshing on the entity-creation
-  PubSub, etc.) firing during the measured window inflate the count —
-  passes in isolation, flakes in the full suite (`got 26 vs 15`). The fix
-  is one line: gate the handler on `self() == parent` so only the test
-  process's own queries count (`count_queries/1` in `library_test.exs`).
-  This is a no-op in isolation and deterministic under load. Any
-  telemetry-based measurement scoped to "what this code did" needs the
-  same process filter.
-
----
+- Every new route — and every zone of a multi-zone LiveView (`?zone=watching`,
+  `?zone=library`, `?zone=upcoming`) — gets an entry in the same change.
+- Seed enough fixture data to exercise non-trivial render branches. A new template
+  branch (theatrical-movie variant, paused-download variant) means extending the
+  fixture so it renders. Bar: "would a reasonable user see this in production?"
+- Per-page setup lives in `page_smoke_test.exs`, not feature test files, so the net
+  stays uniform. The smoke isn't the primary test — behaviour still needs one.
 
 ## Elixir Tests
 
-### Test Case Templates
-
 | Template | When | Async? |
-|----------|------|--------|
+|---|---|---|
 | `use ExUnit.Case, async: true` | Pure functions (Parser, Serializer, Mapper, Confidence) | Yes |
-| `use MediaCentaur.DataCase` | Ecto schema tests, pipeline stages, anything touching DB | No (SQLite) |
+| `use MediaCentaur.DataCase` | Ecto schemas, pipeline stages, anything touching DB | No (SQLite) |
 | `use MediaCentaurWeb.ConnCase` | HTTP/LiveView connection tests | No |
 
-### Factory — `MediaCentaur.TestFactory`
+**Factory — `MediaCentaur.TestFactory`** (`test/support/factory.ex`). Always use
+it; never inline `Ecto.Changeset.cast` / `Repo.insert!`. `build_*` returns pure
+structs for async tests; `create_*` persists via context modules for DataCase
+tests. Grep the module for the current helpers rather than guessing a name.
 
-All tests use the shared factory. Never inline `Ecto.Changeset.cast` / `Repo.insert!` boilerplate.
-
-- **`build_*`** — pure structs with sensible defaults, no DB. For async pure function tests.
-  - `build_movie/1`, `build_tv_series/1`, `build_movie_series/1`, `build_video_object/1`, `build_season/1`, `build_episode/1`, `build_extra/1`, `build_image/1`, `build_identifier/1`, `build_progress/1`
-- **`create_*`** — persisted via context modules, returns loaded records. For DataCase tests.
-  - `create_movie/1`, `create_tv_series/1`, `create_movie_series/1`, `create_video_object/1`, `create_season/1`, `create_episode/1`, `create_extra/1`, `create_image/1`, `create_identifier/1`, `create_linked_file/1`, `create_pending_file/1`, `create_watch_progress/1`
-
-### TMDB Stubbing — `TmdbStubs`
-
-Pipeline tests stub TMDB via `Req.Test` — never use mocking libraries.
+**TMDB — `MediaCentaur.TmdbStubs`** (`test/support/tmdb_stubs.ex`), stubbed via
+`Req.Test`; never use a mocking library. Download clients:
+`test/support/download_client_stubs.ex`.
 
 ```elixir
 setup do
-  TmdbStubs.setup_tmdb_client(self())  # installs stub client, auto-cleanup
+  TmdbStubs.setup_tmdb_client(self())   # installs stub client, auto-cleanup
 end
 
 test "searches TMDB" do
   TmdbStubs.stub_search_movie(%{title: "Sample Movie", year: 2010})
-  # ... call pipeline stage ...
 end
 ```
 
-Helpers: `stub_search_movie/1`, `stub_search_tv/1`, `stub_search_both/2`, `stub_get_movie/2`, `stub_get_tv/2`, `stub_get_season/3`, `stub_get_collection/2`, `stub_tmdb_error/2`, `stub_routes/1` (multi-endpoint).
+**Isolation** ([ADR-016]) — `config/test.exs` sets `:image_downloader` to
+`NoopImageDownloader` (no HTTP or file I/O), `:skip_user_config` (no real TOML),
+and `:media_dirs, []`. Tests needing real paths create temp dirs via
+`System.tmp_dir!()` and override `:persistent_term`.
 
-Fixtures: `movie_search_result/1`, `tv_search_result/1`, `movie_detail/1`, `tv_detail/1`, `season_detail/1`, `collection_detail/1`.
+**Pipeline (Broadway)** — test-first, mandatory. Call stage functions directly
+(`run/1`, `Pipeline.process_payload/1`), never the Broadway topology. Test
+orchestration and state transitions, not leaf functions. Append-only ([ADR-027]).
 
-### Image Downloads
+**Parser** — real observed paths only, one test per filename convention.
+Append-only ([ADR-027]).
 
-`config/test.exs` sets `:image_downloader` to `MediaCentaur.NoopImageDownloader`. No HTTP or file I/O in tests.
+**Ecto schemas** — `DataCase` + `create_*`, exercised through context-module public
+APIs against the real database. Never stub the data layer, never call `Repo`
+directly from a test. Wrap bulk operations in `Ecto.Multi` and assert on the
+transaction result.
 
-### Filesystem Isolation ([ADR-016])
+## Running Tests
 
-- `config/test.exs` sets `:skip_user_config, true` — no real TOML config loaded
-- `config/test.exs` sets `:media_dirs, []` — no real media directories
-- Tests needing filesystem paths create temp dirs via `System.tmp_dir!()` and override `:persistent_term`
-
-### Pipeline Tests (Broadway)
-
-**Mandatory test-first.** Every pipeline change needs a test written before implementation.
-
-- Call stage functions directly (`run/1`, `Pipeline.process_payload/1`) — no Broadway topology
-- Stub TMDB with `TmdbStubs` helpers
-- Images use `NoopImageDownloader`
-- Test orchestration and state transitions, not leaf functions
-- **Never delete or weaken pipeline tests** ([ADR-027])
-
-### Parser Tests
-
-- Real paths only — every test case uses a file path observed in the wild
-- One test per filename convention
-- Append-only — never delete parser tests ([ADR-027])
-
-### Ecto Schema Tests
-
-- Use `DataCase` with `create_*` factory helpers
-- Test through context-module public APIs against the real database — never
-  stub the data layer, never call `Repo` directly from tests
-- For bulk operations, wrap in `Ecto.Multi` and assert on the transaction result
-
----
-
-## JavaScript Unit Tests (Bun)
-
-Tests use `bun:test` imports (`describe`, `expect`, `test`, `beforeEach`, `mock`).
-
-### Test Patterns by Module Type
-
-**Pure modules** (`nav_graph.js`, `spatial.js`, `actions.js`, `input_method.js`):
-- Test directly, no mocks needed
-- Assert on return values
-
-**State machine** (`focus_context.js`):
-- Construct `FocusContextMachine` with config
-- Set nav graph via `setNavGraph(buildNavGraph(...))`
-- Assert on `transition(action)` return value and `machine.context`
-
-**Orchestrator** (`core/__tests__/orchestrator.test.js`):
-- Full mock injection via three factories:
-  - `createMockReader(overrides)` — controllable reader values. Override per-test: `getItemCount: (ctx) => 8`
-  - `createMockWriter()` — proxy recording all calls to `calls` array. Assert: `calls.filter(c => c.method === "focusByIndex")`
-  - `createMockGlobals()` — mock document/sessionStorage/rAF. Helpers: `_dispatchKeyDown(key, opts)`, `_dispatchMouseMove(x, y)`, `_flushRAF()`
-
-**Page behaviors** (`__tests__/*_behavior.test.js`):
-- Mock DOM interface with only needed methods
-- Test behavior method return values
-- Example: `mockDom({ filterValue: "" })` with `getFilter()` stub
-
-### Import Boundaries
-
-`core/` never imports from the app layer. Validated by dependency-cruiser via `mix boundaries` (in `mix precommit`). Config: `.dependency-cruiser.cjs`. Tests in `__tests__/` are exempt.
-
-### Mock Writer Returns
-
-The mock writer proxy returns `undefined` from all calls. The real `DomWriter.focusFirst()` and `focusByIndex()` return `boolean`, but orchestrator tests don't depend on return values.
-
----
-
-## E2E Tests (Playwright)
-
-### Architecture
-
-Every navigation test runs twice — once with keyboard, once with gamepad — via Playwright projects. Tests are input-method-agnostic through the `inputAction` fixture.
-
-**Location:** `test/e2e/`
-
-**Requires:** Dev server running (`mix phx.server` at `http://127.0.0.1:1080`)
-
-### Parameterized Input Method
-
-```javascript
-// Import from fixture (NOT from @playwright/test)
-import { test, expect } from "./fixtures/input-method.js"
-
-test("arrow down moves focus", async ({ page, inputAction, navigateTo }) => {
-  await navigateTo("/dashboard")           // auto-setups gamepad mock if needed
-  await inputAction("NAVIGATE_DOWN")       // keyboard: ArrowDown, gamepad: D-pad down
-  await expectContext(page, "sections")
-})
+```bash
+mix test                                # full suite (excludes :external)
+mix test test/path/to/file_test.exs:42  # single test by line
+mix precommit                           # compile + format + credo + boundaries + audit + test
 ```
 
-**Fixtures provided by `fixtures/input-method.js`:**
-- `inputMethod` — `"keyboard"` or `"gamepad"` (from project config)
-- `inputAction(action)` — dispatches semantic action via correct input method
-- `navigateTo(path)` — navigates with full LiveView + gamepad setup
+Front-end: `bun test assets/js/input/`, `scripts/input-test` — see
+[references/frontend-tests.md](references/frontend-tests.md).
 
-**Semantic actions:** `NAVIGATE_UP`, `NAVIGATE_DOWN`, `NAVIGATE_LEFT`, `NAVIGATE_RIGHT`, `SELECT`, `BACK`, `PLAY`, `CLEAR`, `ZONE_NEXT`, `ZONE_PREV`
+## Further Reference
 
-### Gamepad Mock Strategy
-
-The gamepad mock overrides `navigator.getGamepads()` before the LiveView hook mounts. GamepadSource's rAF polling loop reads mock state naturally — no patching of internal code.
-
-```javascript
-import { injectGamepadMock, connectGamepad, pressButton, Button } from "./helpers/gamepad.js"
-
-// Button constants
-Button.A      // 0 — Select/Cross
-Button.B      // 1 — Back/Circle
-Button.Y      // 3 — Clear/Triangle
-Button.LB     // 4 — Zone prev
-Button.RB     // 5 — Zone next
-Button.START  // 9 — Play/Menu
-Button.UP     // 12 — D-pad up
-Button.DOWN   // 13 — D-pad down
-Button.LEFT   // 14 — D-pad left
-Button.RIGHT  // 15 — D-pad right
-
-// In page.addInitScript or page.evaluate:
-await injectGamepadMock(page, { id: "Xbox Wireless Controller" })
-await connectGamepad(page)                // dispatches gamepadconnected
-await pressButton(page, Button.DOWN)      // full press-release cycle
-await holdButton(page, Button.DOWN)       // press without release (for repeat tests)
-await releaseButton(page, Button.DOWN)
-await moveAxis(page, 1, 0.8)             // analog stick (axis 1 = left Y)
-await centerAxis(page, 1)                // return to zero
-await disconnectGamepad(page)
-```
-
-### LiveView Wait Helpers
-
-```javascript
-import { waitForLiveView, waitForInputSystem, waitForGridItems, navigateAndWait } from "./helpers/liveview.js"
-
-await waitForLiveView(page)              // wait for phx-connected class
-await waitForInputSystem(page)           // wait for data-nav-context on <html>
-await waitForGridItems(page, { min: 1 }) // wait for grid items in DOM
-await waitForSections(page, { min: 1 })  // wait for section items
-await waitForSettle(page, 100)           // brief pause for LiveView settle
-await navigateAndWait(page, "/settings") // goto + waitForLiveView + waitForInputSystem
-```
-
-### Focus & Context Assertions
-
-```javascript
-import { expectContext, expectFocused, expectInputMethod, expectControllerType,
-         expectFocusInZone, getFocusedNavItem, getZoneItemCount } from "./helpers/input.js"
-
-await expectContext(page, "grid")                        // data-nav-context
-await expectFocused(page, "[data-nav-item='entity-id']") // specific element focused
-await expectInputMethod(page, "keyboard")                // data-input
-await expectControllerType(page, "xbox")                 // data-gamepad-type
-await expectFocusInZone(page, "sections")                // focus within zone
-
-const item = await getFocusedNavItem(page)               // data-nav-item of activeElement
-const count = await getZoneItemCount(page, "grid")       // items in zone
-```
-
-### Writing New E2E Tests
-
-**Pattern for parameterized tests (run in both keyboard + gamepad):**
-1. Import from `./fixtures/input-method.js`, not `@playwright/test`
-2. Use `navigateTo` fixture for page setup (handles gamepad mock injection)
-3. Use `inputAction` for all navigation — never call `page.keyboard.press` directly
-4. Use `await getZoneItemCount()` and `test.skip()` when content may be absent
-5. Assert on data attributes (`data-nav-context`, `data-input`), not DOM structure
-
-**Pattern for gamepad-only tests:**
-1. Import from `@playwright/test` directly
-2. Skip with `test.skip(testInfo.project.use.inputMethod !== "gamepad")`
-3. Use gamepad helpers directly (`pressButton`, `moveAxis`, etc.)
-4. Install mock via `page.addInitScript()` before navigation
-
-**Pattern for keyboard-only tests:**
-1. Import from `./fixtures/input-method.js`
-2. Skip with `test.skip(inputMethod === "gamepad", "keyboard-only test")`
-
-### Test Suites
-
-| Spec | Page | Key Behaviors |
-|------|------|---------------|
-| `sidebar.spec.js` | Cross-page | Page transitions, URL persistence, theme toggle, escape chains, input method persistence |
-| `dashboard.spec.js` | Dashboard | Sequential section nav, sidebar transitions |
-| `settings.spec.js` | Settings | Activate-on-focus, sections ↔ grid, escape chains |
-| `review.spec.js` | Review | Master-detail, focus memory, list ↔ detail |
-| `library.spec.js` | Library | Grid spatial nav, toolbar, zone tabs, drawer/modal, filter, empty grid |
-| `gamepad-specific.spec.js` | Dashboard | Analog stick, deadzone, edge detection, priming, controller type, repeat timing |
-
-### Debug Helpers
-
-```javascript
-await enableInputDebug(page)             // window.__inputDebug = true
-await disableInputDebug(page)            // window.__inputDebug = false
-const msgs = filterDebugMessages(logs)   // filter for [input] prefix
-```
-
----
-
-## Decision Record References
+Read [references/debugging-the-suite.md](references/debugging-the-suite.md) when
+the suite is slow, hanging, or flaking.
 
 | ADR | Policy |
-|-----|--------|
-| [ADR-016] | Test environment never reads user config or real filesystem paths |
-| [ADR-025] | Bulk operations: `return_errors?: true`, check `error_count`, `strategy: :stream` |
-| [ADR-026] | GenServer API encapsulation — test public functions, not message protocol |
+|---|---|
+| [ADR-016] | Test env never reads user config or real filesystem paths |
+| [ADR-026] | GenServer API encapsulation — test public functions, not messages |
 | [ADR-027] | Regression tests are append-only — never delete or weaken |
-| [ADR-049] | Testing principles — owned async, tests drive async, O(1) teardown, suite terminates within budget |
+| [ADR-030] | LiveView logic extraction |
+| [ADR-049] | Owned async, tests drive async, O(1) teardown |
 
-[ADR-003]: decisions/architecture/2026-02-20-003-ash-as-exclusive-data-interface.md
 [ADR-016]: decisions/architecture/2026-03-01-016-test-env-filesystem-isolation.md
-[ADR-025]: decisions/architecture/2026-03-07-025-ash-bulk-operation-safety.md
 [ADR-026]: decisions/architecture/2026-03-07-026-genserver-api-encapsulation.md
 [ADR-027]: decisions/architecture/2026-03-07-027-regression-tests-append-only.md
+[ADR-030]: decisions/architecture/2026-04-02-030-liveview-logic-extraction.md
 [ADR-049]: decisions/architecture/2026-05-22-049-testing-principles.md
