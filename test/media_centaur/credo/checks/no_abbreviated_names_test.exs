@@ -148,6 +148,115 @@ defmodule MediaCentaur.Credo.Checks.NoAbbreviatedNamesTest do
       |> refute_issues()
     end
 
+    # The check originally walked only `def`/`defp` heads and `->` clauses,
+    # so a plain `=` binding — the most common way to name an intermediate
+    # value — was never inspected. `pi = Map.get(...)` sat unflagged in the
+    # detail projection for exactly that reason.
+    test "abbreviated binding via `=` inside a function body is reported" do
+      """
+      defmodule Sample do
+        def build(episode) do
+          pi = lookup(episode)
+          pi.id
+        end
+      end
+      """
+      |> to_source_file()
+      |> run_check(NoAbbreviatedNames)
+      |> assert_issue(fn issue -> assert issue.trigger == "pi" end)
+    end
+
+    test "abbreviated `=` bindings for str and cfg are reported" do
+      """
+      defmodule Sample do
+        def render(value, options) do
+          str = to_string(value)
+          cfg = Map.new(options)
+          {str, cfg}
+        end
+      end
+      """
+      |> to_source_file()
+      |> run_check(NoAbbreviatedNames)
+      |> assert_issues(fn issues -> assert length(issues) == 2 end)
+    end
+
+    test "a destructured `=` binding reports only the abbreviated name" do
+      """
+      defmodule Sample do
+        def split(input) do
+          {pi, episode} = input
+          {pi, episode}
+        end
+      end
+      """
+      |> to_source_file()
+      |> run_check(NoAbbreviatedNames)
+      |> assert_issue(fn issue -> assert issue.trigger == "pi" end)
+    end
+
+    # A `cond` branch is a `->` clause whose LHS is a condition, not a
+    # pattern. Recursing into it reported every operand as a binding, so
+    # one `str = …` produced four issues instead of one.
+    test "operands of a cond condition are not reported as bindings" do
+      """
+      defmodule Sample do
+        def bucket(status) do
+          value = normalize(status)
+
+          cond do
+            value in @first -> :first
+            value in @second -> :second
+          end
+        end
+      end
+      """
+      |> to_source_file()
+      |> run_check(NoAbbreviatedNames)
+      |> refute_issues()
+    end
+
+    test "a pinned variable is not a binding" do
+      """
+      defmodule Sample do
+        def match(input, pi) do
+          case input do
+            ^pi -> :same
+            other -> other
+          end
+        end
+      end
+      """
+      |> to_source_file()
+      |> run_check(NoAbbreviatedNames)
+      |> assert_issue(fn issue -> assert issue.trigger == "pi" end)
+    end
+
+    test "abbreviated parameters in a guarded function head are still reported" do
+      """
+      defmodule Sample do
+        def process(wf) when is_map(wf), do: wf
+      end
+      """
+      |> to_source_file()
+      |> run_check(NoAbbreviatedNames)
+      |> assert_issue(fn issue -> assert issue.trigger == "wf" end)
+    end
+
+    test "spelled-out `=` bindings are allowed" do
+      """
+      defmodule Sample do
+        def build(episode) do
+          playable_item = lookup(episode)
+          playable_item.id
+        end
+      end
+      """
+      |> to_source_file()
+      |> run_check(NoAbbreviatedNames)
+      |> refute_issues()
+    end
+
     test "spelled-out closure bindings are allowed" do
       """
       defmodule Sample do

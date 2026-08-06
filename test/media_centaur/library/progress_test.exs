@@ -79,21 +79,21 @@ defmodule MediaCentaur.Library.ProgressTest do
 
   describe "record/3 → get/1 round trip" do
     test "first write is immediately visible via get/1 (read-after-write)" do
-      pi = seed_movie_playable_item()
-      :ok = Progress.record(pi.id, 30.0, 100.0)
+      playable_item = seed_movie_playable_item()
+      :ok = Progress.record(playable_item.id, 30.0, 100.0)
 
-      progress = Progress.get(pi.id)
+      progress = Progress.get(playable_item.id)
       assert %WatchProgress{position_seconds: 30.0, duration_seconds: 100.0} = progress
-      assert progress.playable_item_id == pi.id
+      assert progress.playable_item_id == playable_item.id
     end
 
     test "subsequent writes update position monotonically" do
-      pi = seed_movie_playable_item()
-      :ok = Progress.record(pi.id, 10.0, 100.0)
-      :ok = Progress.record(pi.id, 20.0, 100.0)
-      :ok = Progress.record(pi.id, 30.0, 100.0)
+      playable_item = seed_movie_playable_item()
+      :ok = Progress.record(playable_item.id, 10.0, 100.0)
+      :ok = Progress.record(playable_item.id, 20.0, 100.0)
+      :ok = Progress.record(playable_item.id, 30.0, 100.0)
 
-      assert %WatchProgress{position_seconds: 30.0} = Progress.get(pi.id)
+      assert %WatchProgress{position_seconds: 30.0} = Progress.get(playable_item.id)
     end
 
     test "a stale/reordered worker cast does not revert a newer synchronous write" do
@@ -103,15 +103,15 @@ defmodule MediaCentaur.Library.ProgressTest do
       # re-upserted the ETS row from the *older* cast snapshot, briefly
       # reverting `get/1` to a stale position (the Category-E flake). The
       # worker must not clobber a row the public path already owns.
-      pi = seed_movie_playable_item()
-      :ok = Progress.record(pi.id, 30.0, 100.0)
+      playable_item = seed_movie_playable_item()
+      :ok = Progress.record(playable_item.id, 30.0, 100.0)
 
       # Inject an out-of-order (older) cast directly, as the worker would
       # see one whose enqueue lagged behind a newer synchronous write.
-      :ok = GenServer.cast(Progress.Worker, {:record, pi.id, 10.0, 100.0})
+      :ok = GenServer.cast(Progress.Worker, {:record, playable_item.id, 10.0, 100.0})
       :ok = GenServer.call(Progress.Worker, :sync)
 
-      assert %WatchProgress{position_seconds: 30.0} = Progress.get(pi.id)
+      assert %WatchProgress{position_seconds: 30.0} = Progress.get(playable_item.id)
     end
 
     test "concurrent writes do not corrupt the record (any single recorded position survives)" do
@@ -122,25 +122,29 @@ defmodule MediaCentaur.Library.ProgressTest do
       # `MediaCentaur.Playback.SessionRegistry`; concurrent writers
       # to the same id are out of scope. The assertion below proves
       # only "we see a real recorded value, not a torn/garbage one".
-      pi = seed_movie_playable_item()
+      playable_item = seed_movie_playable_item()
 
       1..50
       |> Enum.map(fn position ->
-        Task.async(fn -> Progress.record(pi.id, position * 1.0, 100.0) end)
+        Task.async(fn -> Progress.record(playable_item.id, position * 1.0, 100.0) end)
       end)
       |> Enum.each(&Task.await/1)
 
-      assert %WatchProgress{position_seconds: pos, duration_seconds: 100.0} = Progress.get(pi.id)
+      assert %WatchProgress{position_seconds: pos, duration_seconds: 100.0} =
+               Progress.get(playable_item.id)
+
       assert pos >= 1.0 and pos <= 50.0
     end
 
     test "writes for unknown playable_item_id are accepted (creates row on first record/3)" do
-      pi = seed_movie_playable_item()
+      playable_item = seed_movie_playable_item()
 
-      :ok = Progress.record(pi.id, 12.5, 100.0)
+      :ok = Progress.record(playable_item.id, 12.5, 100.0)
 
-      assert %WatchProgress{playable_item_id: pi_id, position_seconds: 12.5} = Progress.get(pi.id)
-      assert pi_id == pi.id
+      assert %WatchProgress{playable_item_id: pi_id, position_seconds: 12.5} =
+               Progress.get(playable_item.id)
+
+      assert pi_id == playable_item.id
     end
   end
 
@@ -151,9 +155,9 @@ defmodule MediaCentaur.Library.ProgressTest do
     end
 
     test "flush writes pending progress to library_watch_progress within the flush window" do
-      pi = seed_movie_playable_item()
-      :ok = Progress.record(pi.id, 30.0, 100.0)
-      pi_id = pi.id
+      playable_item = seed_movie_playable_item()
+      :ok = Progress.record(playable_item.id, 30.0, 100.0)
+      pi_id = playable_item.id
 
       assert_receive {:progress_flushed, %{playable_item_id: ^pi_id}}, 1_000
 
@@ -162,11 +166,11 @@ defmodule MediaCentaur.Library.ProgressTest do
     end
 
     test "multiple writes within the window coalesce to one DB row" do
-      pi = seed_movie_playable_item()
-      :ok = Progress.record(pi.id, 10.0, 100.0)
-      :ok = Progress.record(pi.id, 20.0, 100.0)
-      :ok = Progress.record(pi.id, 30.0, 100.0)
-      pi_id = pi.id
+      playable_item = seed_movie_playable_item()
+      :ok = Progress.record(playable_item.id, 10.0, 100.0)
+      :ok = Progress.record(playable_item.id, 20.0, 100.0)
+      :ok = Progress.record(playable_item.id, 30.0, 100.0)
+      pi_id = playable_item.id
 
       assert_receive {:progress_flushed, %{playable_item_id: ^pi_id}}, 1_000
       refute_receive {:progress_flushed, %{playable_item_id: ^pi_id}}, 200
@@ -232,8 +236,8 @@ defmodule MediaCentaur.Library.ProgressTest do
     end
 
     test "graceful shutdown synchronously flushes (terminate/2 contract)" do
-      pi = seed_movie_playable_item()
-      pi_id = pi.id
+      playable_item = seed_movie_playable_item()
+      pi_id = playable_item.id
       worker_name = :"#{__MODULE__}_Shutdown_Worker"
 
       {:ok, _pid} =
@@ -268,19 +272,19 @@ defmodule MediaCentaur.Library.ProgressTest do
     end
 
     test "broadcasts %ProgressTicked{} on playback:events for each record/3" do
-      pi = seed_movie_playable_item()
-      pi_id = pi.id
+      playable_item = seed_movie_playable_item()
+      pi_id = playable_item.id
 
-      :ok = Progress.record(pi.id, 7.5, 100.0)
+      :ok = Progress.record(playable_item.id, 7.5, 100.0)
 
       assert_receive {:progress_ticked, %{playable_item_id: ^pi_id, position_seconds: 7.5}}, 500
     end
 
     test "broadcast is emitted BEFORE the flush (live UX immediate)" do
-      pi = seed_movie_playable_item()
-      pi_id = pi.id
+      playable_item = seed_movie_playable_item()
+      pi_id = playable_item.id
 
-      :ok = Progress.record(pi.id, 3.0, 100.0)
+      :ok = Progress.record(playable_item.id, 3.0, 100.0)
 
       # The progress-ticked broadcast is the live UX hook. The flush
       # broadcast follows after the debounce window. Order matters —
@@ -297,31 +301,31 @@ defmodule MediaCentaur.Library.ProgressTest do
     end
 
     test "writes completed: true progress row" do
-      pi = seed_movie_playable_item()
-      :ok = Progress.record(pi.id, 90.0, 100.0)
-      :ok = Progress.complete(pi.id)
+      playable_item = seed_movie_playable_item()
+      :ok = Progress.record(playable_item.id, 90.0, 100.0)
+      :ok = Progress.complete(playable_item.id)
 
       assert %WatchProgress{completed: true} =
-               Repo.get_by(WatchProgress, playable_item_id: pi.id)
+               Repo.get_by(WatchProgress, playable_item_id: playable_item.id)
     end
 
     test "broadcasts {:watch_completed, playable_item_id} on watch_history:events" do
-      pi = seed_movie_playable_item()
-      :ok = Progress.record(pi.id, 90.0, 100.0)
-      pi_id = pi.id
+      playable_item = seed_movie_playable_item()
+      :ok = Progress.record(playable_item.id, 90.0, 100.0)
+      pi_id = playable_item.id
 
-      :ok = Progress.complete(pi.id)
+      :ok = Progress.complete(playable_item.id)
 
       assert_receive {:watch_completed, ^pi_id}, 500
     end
 
     test "subsequent get/1 returns the completed row" do
-      pi = seed_movie_playable_item()
-      :ok = Progress.record(pi.id, 90.0, 100.0)
-      :ok = Progress.complete(pi.id)
+      playable_item = seed_movie_playable_item()
+      :ok = Progress.record(playable_item.id, 90.0, 100.0)
+      :ok = Progress.complete(playable_item.id)
 
-      assert %WatchProgress{completed: true, playable_item_id: pi_id} = Progress.get(pi.id)
-      assert pi_id == pi.id
+      assert %WatchProgress{completed: true, playable_item_id: pi_id} = Progress.get(playable_item.id)
+      assert pi_id == playable_item.id
     end
 
     test "a later record/3 tick does not clear an already-completed flag" do
@@ -334,63 +338,63 @@ defmodule MediaCentaur.Library.ProgressTest do
       # synchronous DB writes and `{:watch_completed, _}` broadcasts for
       # the rest of playback. A position tick must never downgrade
       # completion; un-completing is an explicit action on another path.
-      pi = seed_movie_playable_item()
-      :ok = Progress.record(pi.id, 90.0, 100.0)
-      :ok = Progress.complete(pi.id)
-      assert %WatchProgress{completed: true} = Progress.get(pi.id)
+      playable_item = seed_movie_playable_item()
+      :ok = Progress.record(playable_item.id, 90.0, 100.0)
+      :ok = Progress.complete(playable_item.id)
+      assert %WatchProgress{completed: true} = Progress.get(playable_item.id)
 
-      :ok = Progress.record(pi.id, 95.0, 100.0)
+      :ok = Progress.record(playable_item.id, 95.0, 100.0)
 
-      assert %WatchProgress{completed: true, position_seconds: 95.0} = Progress.get(pi.id)
+      assert %WatchProgress{completed: true, position_seconds: 95.0} = Progress.get(playable_item.id)
     end
   end
 
   describe "get/1 fallback to DB for cold rows" do
     test "returns DB row when not in memory" do
-      pi = seed_episode_playable_item()
+      playable_item = seed_episode_playable_item()
 
       # Direct DB-insert without going through the GenServer simulates
       # a cold row that was hydrated by something other than the
       # active session (factory, maintenance, prior shutdown).
-      progress = create_watch_progress(%{episode_id: pi.container_id, position_seconds: 17.0})
+      progress = create_watch_progress(%{episode_id: playable_item.container_id, position_seconds: 17.0})
 
       # Reset the in-memory state — the row is now DB-only.
       Progress.reset_for_test!()
 
-      assert %WatchProgress{position_seconds: 17.0, id: id} = Progress.get(pi.id)
+      assert %WatchProgress{position_seconds: 17.0, id: id} = Progress.get(playable_item.id)
       assert id == progress.id
     end
 
     test "returns nil when neither in memory nor DB" do
-      pi = seed_movie_playable_item()
-      assert nil == Progress.get(pi.id)
+      playable_item = seed_movie_playable_item()
+      assert nil == Progress.get(playable_item.id)
     end
 
     test "DB-fallback row is NOT pulled into memory (cold stays cold)" do
-      pi = seed_movie_playable_item()
-      _progress = create_watch_progress(%{movie_id: pi.container_id, position_seconds: 5.0})
+      playable_item = seed_movie_playable_item()
+      _progress = create_watch_progress(%{movie_id: playable_item.container_id, position_seconds: 5.0})
       Progress.reset_for_test!()
 
-      assert %WatchProgress{position_seconds: 5.0} = Progress.get(pi.id)
+      assert %WatchProgress{position_seconds: 5.0} = Progress.get(playable_item.id)
 
       # A second cold read should still hit the DB — the first one
       # didn't promote the row into memory. We assert via behaviour:
       # mutating the DB row directly and re-reading should reflect
       # the new value if memory is empty. If memory cached the first
       # read, the stale value would surface.
-      force_where(from(p in WatchProgress, where: p.playable_item_id == ^pi.id),
+      force_where(from(p in WatchProgress, where: p.playable_item_id == ^playable_item.id),
         position_seconds: 99.0
       )
 
-      assert %WatchProgress{position_seconds: 99.0} = Progress.get(pi.id)
+      assert %WatchProgress{position_seconds: 99.0} = Progress.get(playable_item.id)
     end
   end
 
   describe "boot hydration" do
     test "in-progress rows are loaded into memory on init/1" do
-      pi = seed_movie_playable_item()
-      _progress = create_watch_progress(%{movie_id: pi.container_id, position_seconds: 25.0})
-      pi_id = pi.id
+      playable_item = seed_movie_playable_item()
+      _progress = create_watch_progress(%{movie_id: playable_item.container_id, position_seconds: 25.0})
+      pi_id = playable_item.id
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_progress())
 
@@ -417,11 +421,11 @@ defmodule MediaCentaur.Library.ProgressTest do
     end
 
     test "completed rows are NOT loaded into memory on init/1" do
-      pi = seed_movie_playable_item()
+      playable_item = seed_movie_playable_item()
 
       progress =
         create_watch_progress(%{
-          movie_id: pi.container_id,
+          movie_id: playable_item.container_id,
           position_seconds: 100.0,
           duration_seconds: 100.0
         })

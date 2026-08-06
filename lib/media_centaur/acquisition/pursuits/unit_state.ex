@@ -59,12 +59,12 @@ defmodule MediaCentaur.Acquisition.Pursuits.UnitState do
 
   @spec bucket(String.t() | atom()) :: bucket()
   def bucket(state) do
-    str = normalize(state)
+    normalized = normalize(state)
 
     cond do
-      str in @in_flight_strings -> :in_flight
-      str in @terminal_success_strings -> :terminal_success
-      str in @terminal_failure_strings -> :terminal_failure
+      normalized in @in_flight_strings -> :in_flight
+      normalized in @terminal_success_strings -> :terminal_success
+      normalized in @terminal_failure_strings -> :terminal_failure
       true -> raise ArgumentError, "unknown unit state: #{inspect(state)}"
     end
   end

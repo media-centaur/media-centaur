@@ -204,8 +204,8 @@ defmodule MediaCentaur.Playback.LanguagePolicy do
 
   defp parse_languages(nil), do: @builtin_defaults.understood_languages
 
-  defp parse_languages(str) when is_binary(str) do
-    str
+  defp parse_languages(value) when is_binary(value) do
+    value
     |> String.split(",")
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))

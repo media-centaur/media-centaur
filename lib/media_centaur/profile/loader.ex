@@ -70,14 +70,14 @@ defmodule MediaCentaur.Profile.Loader do
   """
   @spec amplify!(scale()) :: %{movies: [pos_integer()], episodes: [pos_integer()]}
   def amplify!(scale) do
-    cfg = config(scale)
-    :rand.seed(:exsplus, {cfg.seed, 0, 0})
+    settings = config(scale)
+    :rand.seed(:exsplus, {settings.seed, 0, 0})
 
-    movie_ids = seed_movies(cfg.movies)
-    episode_ids = seed_series(cfg.series, cfg.episodes_per_series)
+    movie_ids = seed_movies(settings.movies)
+    episode_ids = seed_series(settings.series, settings.episodes_per_series)
 
-    seed_in_progress_for_movies(movie_ids, cfg.in_progress_movies)
-    seed_in_progress_for_episodes(episode_ids, cfg.in_progress_episodes)
+    seed_in_progress_for_movies(movie_ids, settings.in_progress_movies)
+    seed_in_progress_for_episodes(episode_ids, settings.in_progress_episodes)
 
     %{movies: movie_ids, episodes: episode_ids}
   end

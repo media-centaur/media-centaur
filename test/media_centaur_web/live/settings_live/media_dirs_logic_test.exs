@@ -30,11 +30,11 @@ defmodule MediaCentaurWeb.SettingsLive.MediaDirsLogicTest do
   end
 
   test "new_entry/0 returns a blank entry with a UUID id" do
-    e = MediaDirsLogic.new_entry()
-    assert is_binary(e["id"])
-    assert e["dir"] == ""
-    assert is_nil(e["images_dir"])
-    assert is_nil(e["name"])
+    entry = MediaDirsLogic.new_entry()
+    assert is_binary(entry["id"])
+    assert entry["dir"] == ""
+    assert is_nil(entry["images_dir"])
+    assert is_nil(entry["name"])
   end
 
   test "upsert/2 replaces an existing entry by id" do

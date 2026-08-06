@@ -506,12 +506,12 @@ defmodule MediaCentaurWeb.IncomingLive.LogicTest do
       ops = Logic.prepare_queue_for_render(items, MapSet.new([:queued]))
 
       assert length(ops) == 6
-      [a, b, c, d, e, summary] = ops
+      [a, b, c, d, entry, summary] = ops
       assert {:item, %{id: "q1"}} = a
       assert {:item, %{id: "q2"}} = b
       assert {:item, %{id: "q3"}} = c
       assert {:item, %{id: "q4"}} = d
-      assert {:item, %{id: "q5"}} = e
+      assert {:item, %{id: "q5"}} = entry
       assert {:summary, %{kind: :expanded, total: 5}} = summary
     end
 

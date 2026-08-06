@@ -2566,36 +2566,36 @@ defmodule MediaCentaurWeb.SettingsLive do
   end
 
   defp load_config do
-    cfg = Config
+    config = Config
 
     %{
       # Sensitive values are NOT placed in LV assigns — only their
       # presence flags. The templates use *_configured? to decide whether
       # to show the "✓ configured" badge and the placeholder text.
-      tmdb_api_key_configured?: MediaCentaur.Secret.present?(cfg.get(:tmdb_api_key)),
-      auto_approve_threshold: cfg.get(:auto_approve_threshold),
-      prowlarr_url: cfg.get(:prowlarr_url),
-      prowlarr_api_key_configured?: MediaCentaur.Secret.present?(cfg.get(:prowlarr_api_key)),
-      download_client_type: cfg.get(:download_client_type),
-      download_client_url: cfg.get(:download_client_url),
-      download_client_username: cfg.get(:download_client_username),
+      tmdb_api_key_configured?: MediaCentaur.Secret.present?(config.get(:tmdb_api_key)),
+      auto_approve_threshold: config.get(:auto_approve_threshold),
+      prowlarr_url: config.get(:prowlarr_url),
+      prowlarr_api_key_configured?: MediaCentaur.Secret.present?(config.get(:prowlarr_api_key)),
+      download_client_type: config.get(:download_client_type),
+      download_client_url: config.get(:download_client_url),
+      download_client_username: config.get(:download_client_username),
       download_client_password_configured?:
-        MediaCentaur.Secret.present?(cfg.get(:download_client_password)),
-      usenet_download_client_type: cfg.get(:usenet_download_client_type),
-      usenet_download_client_url: cfg.get(:usenet_download_client_url),
+        MediaCentaur.Secret.present?(config.get(:download_client_password)),
+      usenet_download_client_type: config.get(:usenet_download_client_type),
+      usenet_download_client_url: config.get(:usenet_download_client_url),
       usenet_download_client_api_key_configured?:
-        MediaCentaur.Secret.present?(cfg.get(:usenet_download_client_api_key)),
-      mpv_path: cfg.get(:mpv_path),
-      mpv_socket_dir: cfg.get(:mpv_socket_dir),
-      mpv_socket_timeout_ms: cfg.get(:mpv_socket_timeout_ms),
-      file_absence_ttl_days: cfg.get(:file_absence_ttl_days),
-      recent_changes_days: cfg.get(:recent_changes_days),
-      release_tracking_refresh_interval_hours: cfg.get(:release_tracking_refresh_interval_hours),
-      extras_dirs: cfg.get(:extras_dirs) || [],
-      skip_dirs: cfg.get(:skip_dirs) || [],
-      database_path: cfg.get(:database_path),
-      data_dir: cfg.get(:data_dir),
-      media_dirs: cfg.get(:media_dirs) || []
+        MediaCentaur.Secret.present?(config.get(:usenet_download_client_api_key)),
+      mpv_path: config.get(:mpv_path),
+      mpv_socket_dir: config.get(:mpv_socket_dir),
+      mpv_socket_timeout_ms: config.get(:mpv_socket_timeout_ms),
+      file_absence_ttl_days: config.get(:file_absence_ttl_days),
+      recent_changes_days: config.get(:recent_changes_days),
+      release_tracking_refresh_interval_hours: config.get(:release_tracking_refresh_interval_hours),
+      extras_dirs: config.get(:extras_dirs) || [],
+      skip_dirs: config.get(:skip_dirs) || [],
+      database_path: config.get(:database_path),
+      data_dir: config.get(:data_dir),
+      media_dirs: config.get(:media_dirs) || []
     }
   end
 

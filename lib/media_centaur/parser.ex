@@ -524,8 +524,8 @@ defmodule MediaCentaur.Parser do
   end
 
   # Strip year tokens (with optional surrounding parens/brackets/separators) anywhere in string
-  defp strip_year_tokens(str) do
-    String.trim(Regex.replace(~r/\s*[\[(]?(19|20)\d{2}[\])]?\s*/, str, " "))
+  defp strip_year_tokens(text) do
+    String.trim(Regex.replace(~r/\s*[\[(]?(19|20)\d{2}[\])]?\s*/, text, " "))
   end
 
   defp strip_trailing_season_marker(title) do
@@ -718,8 +718,8 @@ defmodule MediaCentaur.Parser do
 
   defp title_case(""), do: ""
 
-  defp title_case(str) do
-    str
+  defp title_case(text) do
+    text
     |> String.split(" ")
     |> Enum.map_join(" ", &capitalize_word/1)
   end

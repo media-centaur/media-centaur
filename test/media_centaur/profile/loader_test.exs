@@ -21,18 +21,21 @@ defmodule MediaCentaur.Profile.LoaderTest do
     end
 
     test "creates the configured number of movies and episodes" do
-      cfg = Loader.config(:small)
+      settings = Loader.config(:small)
 
-      assert length(Library.Containers.list(:movie)) == cfg.movies
+      assert length(Library.Containers.list(:movie)) == settings.movies
       # Episodes per series × series = total episodes seeded.
-      total_episodes = cfg.series * cfg.episodes_per_series
+      total_episodes = settings.series * settings.episodes_per_series
       assert length(Library.Episodes.list_all()) == total_episodes
     end
 
     test "produces exactly the configured number of in-progress entries" do
-      cfg = Loader.config(:small)
-      results = Library.list_in_progress(limit: cfg.movies + cfg.series * cfg.episodes_per_series)
-      assert length(results) == cfg.in_progress_movies + cfg.in_progress_episodes
+      settings = Loader.config(:small)
+
+      results =
+        Library.list_in_progress(limit: settings.movies + settings.series * settings.episodes_per_series)
+
+      assert length(results) == settings.in_progress_movies + settings.in_progress_episodes
     end
 
     test "every in-progress row has a present file" do
@@ -54,8 +57,8 @@ defmodule MediaCentaur.Profile.LoaderTest do
       # Reset DB via DataCase rollback by re-running the test setup logic.
       # We can't do that mid-test, so instead just assert that the *count*
       # is reproducible — the seed determinism test below covers identity.
-      cfg = Loader.config(:small)
-      assert length(first) == cfg.in_progress_movies + cfg.in_progress_episodes
+      settings = Loader.config(:small)
+      assert length(first) == settings.in_progress_movies + settings.in_progress_episodes
     end
   end
 end

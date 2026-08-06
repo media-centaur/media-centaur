@@ -269,7 +269,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
 
       # Seed a movie with a *stale* persisted WatchProgress at 10s.
       movie = create_standalone_movie(%{name: "Stale Read Movie"})
-      pi = create_playable_item_for_movie(movie)
+      playable_item = create_playable_item_for_movie(movie)
 
       create_watch_progress(%{
         movie_id: movie.id,
@@ -280,7 +280,7 @@ defmodule MediaCentaur.Playback.ProgressBroadcasterTest do
       # Write a *fresh* in-memory position via the Pillar-2 GenServer.
       # The flush interval is 60s, so the persisted row stays at 10s
       # for the duration of the test.
-      :ok = Progress.record(pi.id, 75.0, 100.0)
+      :ok = Progress.record(playable_item.id, 75.0, 100.0)
 
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
