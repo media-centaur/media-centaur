@@ -20,7 +20,7 @@ defmodule MediaCentaur.Status.ViewsTest do
     test "read falls back to a live build when the projection table is absent" do
       create_movie(%{name: "Sample Fallback Movie"})
 
-      live = Status.fetch_overview()
+      live = Status.load_overview()
       read = Views.overview()
 
       assert %LibraryOverview{} = read

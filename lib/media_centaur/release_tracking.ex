@@ -410,7 +410,7 @@ defmodule MediaCentaur.ReleaseTracking do
     )
   end
 
-  def delete_releases_for_item(item_id) do
+  defp delete_releases_for_item(item_id) do
     Repo.delete_all(from(r in Release, where: r.item_id == ^item_id))
   end
 

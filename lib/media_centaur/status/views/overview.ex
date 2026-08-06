@@ -1,10 +1,10 @@
 defmodule MediaCentaur.Status.Views.Overview do
   @moduledoc """
   ETS-backed projection of the Status page's library overview
-  (`MediaCentaur.Status.fetch_overview/0` — aggregate counts, total size,
+  (`MediaCentaur.Status.load_overview/0` — aggregate counts, total size,
   recent additions, pending work, completeness gaps).
 
-  `fetch_overview/0` runs a per-image disk check and several aggregate
+  `load_overview/0` runs a per-image disk check and several aggregate
   queries, so it must never run on a LiveView navigation path. This
   projection computes it in a `Cache.Worker` and serves it as a
   single-row ETS lookup.
@@ -57,7 +57,7 @@ defmodule MediaCentaur.Status.Views.Overview do
   def refresh_cache do
     ensure_table()
 
-    snapshot = Status.fetch_overview()
+    snapshot = Status.load_overview()
     :ets.insert(@table, {:snapshot, snapshot})
 
     Topics.publish(
@@ -75,7 +75,7 @@ defmodule MediaCentaur.Status.Views.Overview do
   @spec read() :: LibraryOverview.t()
   def read do
     case :ets.whereis(@table) do
-      :undefined -> Status.fetch_overview()
+      :undefined -> Status.load_overview()
       _ref -> read_from_ets()
     end
   end
@@ -83,7 +83,7 @@ defmodule MediaCentaur.Status.Views.Overview do
   defp read_from_ets do
     case :ets.lookup(@table, :snapshot) do
       [{:snapshot, snapshot}] -> snapshot
-      [] -> Status.fetch_overview()
+      [] -> Status.load_overview()
     end
   end
 

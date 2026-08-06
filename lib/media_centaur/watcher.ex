@@ -93,7 +93,6 @@ defmodule MediaCentaur.Watcher do
   end
 
   def status(pid), do: GenServer.call(pid, :status)
-  def dir(pid), do: GenServer.call(pid, :dir)
 
   @doc """
   Returns a per-dir status detail used by the Status page's watcher activity
@@ -167,7 +166,6 @@ defmodule MediaCentaur.Watcher do
 
   @impl true
   def handle_call(:status, _from, state), do: {:reply, state.state, state}
-  def handle_call(:dir, _from, state), do: {:reply, state.dir, state}
 
   def handle_call(:status_detail, _from, state) do
     detail = %{

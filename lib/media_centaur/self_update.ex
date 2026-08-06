@@ -65,15 +65,6 @@ defmodule MediaCentaur.SelfUpdate do
   end
 
   @doc """
-  Enqueues a one-off update check immediately.
-
-  Returns `{:ok, job}` or `{:error, reason}`. Deduplicates against an
-  already-scheduled job.
-  """
-  @spec check_now() :: {:ok, Oban.Job.t()} | {:error, term()}
-  def check_now, do: CheckerJob.enqueue_now()
-
-  @doc """
   UI snapshot for the Updates card: the last-known release classification and
   release map, read from the hot cache with **no side effects** — it never
   triggers a network round-trip. A `:stale` cache falls back to the last-known

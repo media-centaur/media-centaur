@@ -331,13 +331,13 @@ defmodule MediaCentaur.Review do
     end
   end
 
-  def set_tmdb_match(pending_file, %{
-        tmdb_id: tmdb_id,
-        tmdb_type: tmdb_type,
-        title: title,
-        year: year,
-        poster_path: poster_path
-      }) do
+  defp set_tmdb_match(pending_file, %{
+         tmdb_id: tmdb_id,
+         tmdb_type: tmdb_type,
+         title: title,
+         year: year,
+         poster_path: poster_path
+       }) do
     tmdb_id_int =
       case tmdb_id do
         id when is_integer(id) -> id

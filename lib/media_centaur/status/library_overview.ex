@@ -2,7 +2,7 @@ defmodule MediaCentaur.Status.LibraryOverview do
   @moduledoc """
   Typed view-model for the "Your library" overview at the top of `/status`.
 
-  Built by `MediaCentaur.Status.fetch_overview/0` (the cross-context read
+  Built by `MediaCentaur.Status.load_overview/0` (the cross-context read
   aggregator) and rendered by the library-overview components. Lives in the
   data layer because `Status` constructs it — the web layer depends on this
   struct, not the reverse (mirrors how `SubsystemView` is web-side because
