@@ -274,7 +274,7 @@ defmodule MediaCentaur.Pipeline.ImageProcessorTest do
   # HTTP stub helpers
   # ---------------------------------------------------------------------------
 
-  # Per-process overrides — see `Images.http_client/0`. These don't
+  # Per-process overrides — see `ImageFiles.http_client/0`. These don't
   # mutate `Application.env`, so async-true tests in this file and
   # siblings can stub independently without clobbering each other.
 

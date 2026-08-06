@@ -5,7 +5,7 @@ defmodule MediaCentaur.Library.Availability do
   Cross-cutting capability consumed by every surface that cares whether a
   library entity's backing file is online: image rendering (placeholders vs
   artwork), the play button (active vs "offline" pill), and any future
-  delete / move actions. Pioneered as `Images.Availability`, promoted here
+  delete / move actions. Pioneered as `ImageFiles.Availability`, promoted here
   once the same signal was needed beyond image rendering.
 
   Reads are backed by `:persistent_term` so they cost nothing at grid-render

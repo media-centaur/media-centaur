@@ -25,7 +25,7 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Config
-  alias MediaCentaur.Images
+  alias MediaCentaur.ImageFiles
   alias MediaCentaur.Library.ImageHealth
   alias MediaCentaur.Pipeline.EntityImageContext
   alias MediaCentaur.Pipeline.ImageQueue
@@ -83,7 +83,7 @@ defmodule MediaCentaur.Pipeline.ImageRepair do
     Enum.each(entries, fn %{image: image} ->
       case Config.resolve_image_path(image.content_url) do
         nil -> :ok
-        path -> Images.purge_derivatives_for(path)
+        path -> ImageFiles.purge_derivatives_for(path)
       end
     end)
   end

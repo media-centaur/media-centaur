@@ -16,7 +16,7 @@ defmodule MediaCentaur.ReleaseTracking.ImageStore do
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Config
-  alias MediaCentaur.Images
+  alias MediaCentaur.ImageFiles
 
   # TMDB serves at multiple fixed widths — `w185`/`w300` were originally
   # picked to match the now-replaced thumbnail-sized tracking UI. The
@@ -145,7 +145,7 @@ defmodule MediaCentaur.ReleaseTracking.ImageStore do
     url = url_prefix <> tmdb_path
     dest = absolute_image_path(tmdb_id, filename)
 
-    case Images.download_raw(url, dest) do
+    case ImageFiles.download_raw(url, dest) do
       {:ok, _path} ->
         Log.info(:library, "downloaded tracking #{role} for tmdb_id=#{tmdb_id}")
         {:ok, relative_image_path(tmdb_id, filename)}

@@ -107,8 +107,8 @@ The manager app uses these patterns when downloading images:
 
 All image downloads — whether driven by the Pipeline (`MediaCentaur.Pipeline.ImageProcessor`) or by `ReleaseTracking.ImageStore` — go through the shared `MediaCentaur.Images` facade:
 
-- `Images.download/3` — download + resize via libvips. Used for poster / backdrop / logo / thumb where the on-disk size must match the target role.
-- `Images.download_raw/2` — raw bytes without processing. Used where a downstream consumer needs the unmodified source.
+- `ImageFiles.download/3` — download + resize via libvips. Used for poster / backdrop / logo / thumb where the on-disk size must match the target role.
+- `ImageFiles.download_raw/2` — raw bytes without processing. Used where a downstream consumer needs the unmodified source.
 
 No caller writes an HTTP download inline. Resize targets per role are defined in `MediaCentaur.Pipeline.ImageProcessor`.
 
@@ -142,7 +142,7 @@ The backend serves images over HTTP at `/media-images/*` via `ImageServerPlug`. 
 
 The plug searches all configured media directories' image caches for the requested file and returns the first match. Returns 404 if the file is not found in any cache. Path traversal (`..`) is rejected with 400.
 
-**Width derivatives:** `GET /media-images/{uuid}/{role}.{ext}?w={px}` serves a width-constrained derivative of the master, generated on first request (libvips, via `Images.derivative/2`), cached to disk under the app data dir, and reused until the master is re-scraped. The requested width snaps up to a fixed ladder and **never upscales** — a request at or above the master width serves the master. Derivatives carry the same revalidatable `max-age` + ETag as a plain master URL (only an explicit `?v=` flips a URL to immutable). Call sites size `?w=` to their rendered box × device-pixel-ratio (`MediaCentaurWeb.LiveHelpers.sized_image_url/2`); full-bleed/hero surfaces omit `?w=` and keep the master so 4K stays sharp.
+**Width derivatives:** `GET /media-images/{uuid}/{role}.{ext}?w={px}` serves a width-constrained derivative of the master, generated on first request (libvips, via `ImageFiles.derivative/2`), cached to disk under the app data dir, and reused until the master is re-scraped. The requested width snaps up to a fixed ladder and **never upscales** — a request at or above the master width serves the master. Derivatives carry the same revalidatable `max-age` + ETag as a plain master URL (only an explicit `?v=` flips a URL to immutable). Call sites size `?w=` to their rendered box × device-pixel-ratio (`MediaCentaurWeb.LiveHelpers.sized_image_url/2`); full-bleed/hero surfaces omit `?w=` and keep the master so 4K stays sharp.
 
 ---
 

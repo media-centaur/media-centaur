@@ -118,7 +118,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
 
       # A derivative exists for the present master — it must be purged so the
       # re-downloaded (new-resolution) master regenerates a fresh one.
-      {:ok, derivative} = MediaCentaur.Images.derivative(master, 480)
+      {:ok, derivative} = MediaCentaur.ImageFiles.derivative(master, 480)
       assert File.exists?(derivative)
 
       assert {:ok, result} = ImageRepair.refetch_role("backdrop")
