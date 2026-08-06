@@ -30,57 +30,76 @@ decide unilaterally. The loop per stage is:
 
 Stages are independent. Order below is recommended, not required.
 
-**Resuming after Stages 1–2 (2026-08-06).** Stage 1 rewrote the `Library`
-context into 18 modules, so anything you remember about `library.ex`
-being one big file is stale. Before starting a stage:
+**Resuming after Stages 1, 2 and 4 (2026-08-06) — start here.**
 
-* Read `MediaCentaur.Library`'s moduledoc first — it is now a table
-  naming which module owns which concern, and it is the fastest way back
-  into the context.
-* Stage 4 is the one Stage 1 changed materially — it moved that stage's
-  targets and introduced one contract violation. Read its *Stage 1 moved
-  these targets* block before planning.
-* Stage 2 changed only Boundary declarations and moduledocs, so it moved
-  no other stage's numbers. Confirmed by re-measuring all of them after
-  it landed (see below) — nothing downstream needs re-deriving on account
-  of it.
+**Next up is Stage 3.** Its open questions are answered and its facts
+were re-verified after Stage 4 landed, so it can go straight to code. Its
+*"Implementation checklist"* names every file and line to touch, and its
+*"The stage's stated trap does not apply"* block corrects the concern
+that made the stage look risky — read that before planning, because the
+original text argues for a design you no longer need.
 
-**Numbers you can trust as of 2026-08-06, post-Stage-2.** Every figure
-below was re-run against `main` after Stage 2's commit; each stage
-records the command that produced it.
+Stale memories to drop before you start:
+
+* `library.ex` is **not** one big file. Stage 1 split it into 18 modules;
+  `MediaCentaur.Library`'s moduledoc is now a table naming which module
+  owns which concern, and it is the fastest way back in.
+* Test policy changed in Stage 4. `Repo` **writes** in tests are banned
+  (MC0023) but `Repo` **reads** are fine; `=~` on HTML *attributes* is
+  banned (MC0024) but `=~` on user-visible copy is fine and expected. Use
+  `TestFactory.force_attrs/2`, `backdate/3`, `force_state/2`,
+  `force_where/2` for setup the public API refuses to produce.
+* Lookups now follow one contract, enforced by MC0022: `fetch…` returns
+  a tuple, `get…` returns nil-able, `…!` raises.
+* Stage 4 touched no JS, no `assets/`, and no `console*` file, so nothing
+  in Stage 3 was moved by it.
+
+**Numbers you can trust as of 2026-08-06, post-Stage-4.** Every figure
+below was re-run against `main` after Stage 4's commit; each stage
+records the command that produced it. Strikethrough marks a figure this
+campaign recorded and later disproved.
 
 | Stage | Claim | Verified |
 |---|---|---|
-| 3 | `console_page_live.ex` has zero nav attributes | 0 |
-| 3 | `*_behavior.js` files / behavior tests | 11 / 9 |
-| 4 | `Repo.*` calls in `test/` | 301 — **wrong, see Stage 4** |
-| 4 | `=~` assertions in `*_live_test.exs` | 345 — **misleading, see Stage 4** |
-| 4 | `ProgressRecords.fetch_for_extra/1` still returns `nil` | yes (`progress_records.ex:271`) |
-| 5 | `MediaCentaur.PubSub` literals in `lib/` | 134 |
+| 3 | `console_page_live.ex` has zero nav attributes | 0 ✅ re-verified post-Stage-4 |
+| 3 | `/console` is the only routed page without a behavior | yes ✅ (10 behaviors, 11 pages) |
+| 3 | page behaviors missing a test | **1** (`reconcile`) — *not* the 2 implied by "11 / 9" |
+| 4 | `Repo.*` calls in `test/` | ~~301~~ → **450** (114 writes) |
+| 4 | `=~` assertions in `*_live_test.exs` | ~~345~~ → **14** structural |
+| 4 | `ProgressRecords.fetch_for_extra/1` returns `nil` | ✅ fixed — returns a tuple |
+| 5 | `MediaCentaur.PubSub` literals in `lib/` | 134 ✅ re-verified post-Stage-4 |
 
-Stage 4 (2026-08-06) found that two of its own re-measured figures were
-still wrong, in the way this file had already warned about twice. Both
-corrections are recorded in that stage. The `11 / 9` behavior-test figure
-also overstates the gap: `page_behavior.js` is the registry, not a page
-behavior, so **`reconcile` is the only page behavior missing a test**.
+**Three counting errors, one campaign.** Stage 2 corrected a hatch count
+twice before getting it right. Stage 4 then found both of *its* recorded
+figures wrong — `Repo\\.[a-z_]*(` cannot match a `!`, hiding every bang
+variant; and "345 markup assertions" was really 14, because the other 298
+assert user-visible copy that the amended policy permits. A third
+surfaced mid-stage when a new Credo check caught eight `Repo.update_all`
+sites the same grep had missed.
 
-**Two lessons from Stage 2, worth applying to the stages below.**
+The lesson has now been paid for three times, so state it plainly: **a
+check you can run beats a number you wrote down.** Where a stage's size
+depends on a count, prefer landing the check that produces the count over
+recording the count. Stage 4's three checks now hold their own rules;
+nobody has to re-grep them.
 
-* **Verify that a recorded command actually produces the recorded
-  number.** Stage 2 carried a hatch count of 26, then 31, and the truth
-  was 30 — neither earlier figure was reproducible from the command
-  written beside it (`grep -rc` prints one line per *searched* file, not
-  per match). A number with a command next to it still needs the command
-  run.
+**Two more lessons, both paid for.**
+
 * **Derive costs from the tool, not from a table.** Stage 2's real
   dependency lists came from removing each hatch and reading the
   compiler. That is what surfaced the `in:`-side cost the stage had not
   costed at all — a stage that only counts one direction will be wrong
   about its size.
+* **Read the comment beside the constant before theorising about it.**
+  Stage 4 spent four full-suite runs correctly clearing its own changes
+  of an `Exqlite` `Database busy` failure, then reasoned its way to
+  "something held a write lock for over ten seconds" — when
+  `config/test.exs` documented that exact failure mode three lines above
+  the timeout it was reasoning about.
 
-Recommended next: **Stage 3** (`/console` input wiring). Its open questions
-are already answered (see the stage), so it can start on code immediately.
-Stage 5 still needs a design conversation before anything moves.
+Recommended next: **Stage 3** (`/console` input wiring). Facts
+re-verified, open questions answered, checklist written — it can start on
+code. Stage 5 still needs a design conversation before anything moves.
 
 ## Status
 
@@ -487,51 +506,80 @@ both hatches removed. Full `mix precommit` green — 5670 Elixir tests,
 
 ## Stage 3 — `/console` keyboard and gamepad navigation
 
-**Why.** `/console` is the only routed page with no input-system
-wiring. The other ten all declare `data-page-behavior`, and nine have
-a behavior test.
+**Why.** `/console` is the only routed page with no input-system wiring.
+Every other page declares `data-page-behavior`; its source tabs, filter
+chips and action footer are unreachable without a mouse.
 
-**Evidence.** `lib/media_centaur_web/live/console_page_live.ex` renders
-`<div class="console-fullpage">` — zero `data-page-behavior`,
-`data-nav-zone`, or `data-nav-item` in the file. Its source tabs,
-filter chips, and action footer are unreachable without a mouse.
+**Evidence — re-verified 2026-08-06, after Stage 4.**
 
-Existing behaviors: `assets/js/input/{guide,home,incoming,library,
-reconcile,review,settings,setup,status,watch_history}_behavior.js`,
-registered in `page_behavior.js`, zone layouts in `config.js`.
+| Fact | Command | Value |
+|---|---|---|
+| nav attributes in `console_page_live.ex` | `grep -c 'data-page-behavior\|data-nav-zone\|data-nav-item'` | **0** |
+| routed live pages | `grep -cE '^\s+live "' router.ex` | 12 routes / 11 pages (`/guide` has 2) |
+| page behaviors | `ls assets/js/input/*_behavior.js` | 10 + the `page_behavior.js` registry |
+| behavior tests | `ls assets/js/input/__tests__/*_behavior.test.js` | 9 |
 
-**The trap.** The console components (`source_tabs`, `chip_row`,
-`action_footer` in `components/console_components.ex`) are **shared
-between the `/console` page and the global `` ` `` drawer**. Adding
-`data-nav-zone` to the components would inject console zones into every
-page's DOM. Zones must be declared by the page, or the components need
-a `nav?` attr the drawer sets false.
+`/console` is the **only** page without a behavior. `reconcile` is the
+only behavior without a test — the earlier "11 / 9" reading counted the
+registry as a page and implied two gaps where there is one of each.
 
-**Approach.** Zones `console_tabs` → `console_filters` →
-`console_actions`, each `left: ["sidebar"]`. The log stream is a
-scrolling list, not individually navigable — do not make it a zone.
-Add `console_behavior.js` + `assets/js/input/__tests__/
-console_behavior.test.js` to match the family.
+**Owner decisions (2026-08-06).**
 
-**Open questions — answered 2026-08-06, ready to implement.**
+* **Zones are declared by the page; the drawer is left alone.** It keeps
+  its mouse plus `` ` ``-shortcut model.
+* **The log stream is scroll-only.** Not a zone.
 
-* **The drawer stays as it is.** Zones are declared by `/console`'s own
-  template; the shared components (`source_tabs`, `chip_row`,
-  `action_footer`) stay nav-free, so no console zones leak into every
-  page's DOM. No `nav?` attr is needed — the trap the stage identified is
-  avoided by never putting zones in the components at all. The drawer
-  keeps its mouse plus `` ` ``-shortcut model.
-* **The log stream is scroll-only**, as the stage recommended. Not a zone.
+### The stage's stated trap does not apply — here is why
 
-Also worth knowing before starting: the "11 behaviors / 9 tests" figure
-does not mean two pages lack tests. `page_behavior.js` is the registry,
-so **`reconcile` is the only page behavior missing a test** — consider
-adding it alongside `console`'s.
+The stage warned that `source_tabs` / `chip_row` / `action_footer` are
+shared between `/console` and the global drawer, so adding nav attributes
+to them would inject console zones into every page's DOM. **That is true
+of `data-nav-zone` and false of `data-nav-item`**, because of how items
+resolve.
 
-**Verification.** `bun test assets/js/input/`; drive the page with
-`chromium-probe` per `reference-input-nav-runtime-verification`.
+`assets/js/input/core/dom_adapter.js` resolves a context's items with a
+CSS selector from `config.js`, and every existing selector is the pair
+`[data-nav-zone='X'] [data-nav-item]` — the item attribute only counts
+*inside* a matching zone ancestor. So:
 
----
+* `data-nav-zone` wrappers go in `console_page_live.ex` **only**. The
+  drawer never renders them.
+* `data-nav-item` may go on the buttons inside the shared components. In
+  the drawer those items have no matching zone ancestor, so they match
+  no selector and stay inert.
+
+No `nav?` attr is needed, and no structural selector like
+`.console-fullpage .console-chips button` — which would have worked, but
+diverges from the house convention every other page follows.
+
+**Implementation checklist.**
+
+1. `lib/media_centaur_web/live/console_page_live.ex` (50 lines) — add
+   `data-page-behavior="console"` and `data-nav-default-zone="console_tabs"`
+   to the root `<div class="console-fullpage">`, and wrap each component
+   call in a `<div data-nav-zone="…">`. Follow
+   `watch_history_live.ex:159` for the exact shape.
+2. `lib/media_centaur_web/components/console_components.ex` — add
+   `data-nav-item` to the tab buttons (`source_tabs`), the chip buttons
+   and level filter (`chip_row`, `.console-chips` / `.console-level-filter`),
+   and the footer actions (`action_footer`). Inert in the drawer, per above.
+   **Storybook stories must be updated in the same change** (MC0009).
+3. `assets/js/input/config.js` — add a `console` entry under `layouts:`
+   (line ~73) plus the three `contextSelectors`. Zones
+   `console_tabs` → `console_filters` → `console_actions`, each
+   `left: ["sidebar"]`, following the `settings` / `guide` layouts.
+4. `assets/js/input/console_behavior.js` + register it in
+   `page_behavior.js` (imports at lines 18–27).
+5. `assets/js/input/__tests__/console_behavior.test.js` — mock DOM
+   interface, assert behavior method return values, per the family.
+6. Consider `reconcile_behavior.test.js` in the same change; it is the
+   only other gap and the fixture work is shared.
+
+**Verification.** `bun test assets/js/input/`; then drive the real page
+with `chromium-probe` per `reference-input-nav-runtime-verification` —
+wait for `phx-connected` on `[data-phx-main]` before issuing keys, and
+assert on the state driving focus, not on animated properties. A green
+`bun test` is not evidence the page is navigable.
 
 ## Stage 4 — Make the stated policies true again  ✅ **DONE 2026-08-06**
 
@@ -652,6 +700,11 @@ three lines up already said what this was. Read the comment next to the
 constant before theorising about it.
 
 ### Original stage text (for reference)
+
+> ⚠️ **Superseded — kept only to show what the stage believed going in.**
+> Every number below is wrong or misleading; the corrections are in
+> *"The evidence was wrong in both directions"* above. Do not quote from
+> here.
 
 **Why.** Two written policies now describe a codebase that does not
 exist. That erodes the credibility of the policies that *are* followed
@@ -830,6 +883,14 @@ anything.
   that this repo's defects come from refactors that start well and stop
   at 80%.
 * Stage 6 items are droppable; do not let them hold the campaign open.
+* **MC0023's grandfather list does not hold this campaign open**, but it
+  must not be forgotten either. 23 test files still build state with an
+  inline `Repo` write because their schema has no `TestFactory` builder
+  yet. The check makes the debt visible and stops it growing; shrinking
+  it is ordinary work for whoever next touches one of those files —
+  add the builder, convert the file, remove the entry. The list may only
+  shrink. If it is still 23 entries in a few months, that is the signal
+  it needed its own stage rather than a backlog.
 
 ## Pointers
 
@@ -841,5 +902,8 @@ anything.
 * [ADR-041](../decisions/architecture/2026-05-10-041-in-memory-projection-architecture.md) — projection architecture (context for the Detail work already done)
 * [ADR-042](../decisions/architecture/2026-05-10-042-multi-session-campaigns.md) — campaign conventions, amended 2026-08-06
 * [UIDR-012](../decisions/user-interface/2026-05-20-012-desktop-app-rendering-defaults.md) — desktop rendering defaults (cited as ADR-012 for months; see *Decisions made*)
-* `.claude/skills/coding-guidelines/SKILL.md` — modular-cohesion rule quoted in Stage 1
+* `.claude/skills/coding-guidelines/SKILL.md` — modular-cohesion rule quoted in Stage 1; *Lookup Naming Contract* added by Stage 4
+* `credo_checks/{lookup_naming_contract,no_repo_setup_in_tests,no_markup_substring_assertion}.ex` — Stage 4's three checks; each moduledoc is the rule's spec, and `.credo.exs` carries the one-paragraph why beside each registration
+* `test/support/factory.ex` — Stage 4's forced-setup helpers (`force_attrs/2`, `backdate/3`, `force_state/2`, `force_where/2`)
+* `assets/js/input/core/dom_adapter.js` + `assets/js/input/config.js` — how nav items resolve (Stage 3; explains why the shared-component trap dissolves)
 * `docs/architecture.md` — bounded contexts (Stage 2); PubSub taxonomy now lives in the `MediaCentaur.Topics` moduledoc (Stage 5)
