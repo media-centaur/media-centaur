@@ -22,10 +22,15 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`audit-remediation-2026-08.md`](audit-remediation-2026-08.md) —
-  **complete 2026-08-06 — removable per ADR-042.** Tail of the 2026-08-05
-  four-audit sweep. Stages 1, 2, 4, 5, 6, 7 and 8 resolved, Stage 3 declined.
-  It was retired once prematurely and reverted; this time every completion
-  criterion is met. Stage 1 split the 2779-line `Library` context into 18 modules
+  **in progress — Stage 9 next, diagnosis already measured.** Tail of the
+  2026-08-05 four-audit sweep. Stages 1, 2, 4, 5, 6, 7 and 8 resolved, Stage 3
+  declined. **Stage 9** is a proven test-isolation leak that Stage 8's own
+  verification run surfaced: `Downloads.QueueMonitor` is a global GenServer no
+  test resets, so three stale queue items render as orphans and an Incoming
+  empty-state assertion fails. Reproduces on untouched `main` by adding five
+  inert async tests and running `--seed 508425 --max-cases 24`. Same class as
+  Stage 7 — state outside the isolation mechanism. No open questions on the
+  cause; the decision is how wide the fix goes. Stage 1 split the 2779-line `Library` context into 18 modules
   (`library.ex` → 127 lines); Stage 2 closed the `Status` and `Diagnostics`
   Boundary hatches; Stage 4 reconciled two overreaching test policies with
   practice behind three new Credo checks (MC0022–MC0024); Stage 5 settled
@@ -45,7 +50,7 @@ Use [`template.md`](template.md) as a starter.
   makes `data-confirm` a violation. Stage 3 was declined because the console
   stays outside the input system deliberately. The `/reconcile` dead-nav
   defect was fixed and turned out to be three defects.
-  Its durable output is a lesson in six clauses, paid for ten times: a
+  Its durable output is a lesson in seven clauses, paid for twelve times: a
   check you can run beats a number you wrote down; a number beats nothing
   only if you checked the assumption underneath it; a check counts only if
   you ran it against a violation — MC0012 and MC0013 were found to have
@@ -55,8 +60,10 @@ Use [`template.md`](template.md) as a starter.
   own diagnosis was written off a stack trace and was wrong, since the file
   it blamed passes 17/17 when run alone; **and check the question before you
   answer it** — every option Stage 8 tabled was a kind of dialog, and the
-  answer was that two of the five sites need none. Counterweight: measure
-  before deciding whether to care.
+  answer was that two of the five sites need none; **and a control group needs
+  the same shape, not just the same code** — "it passes on main" was not
+  evidence until main was padded to the same test count, at which point it
+  failed there too. Counterweight: measure before deciding whether to care.
 * [`below-floor-releases.md`](below-floor-releases.md) —
   **planning — design not started.** When every findable release of a
   title is below the user's quality floor, the plan board says a bare

@@ -1,5 +1,5 @@
 ---
-status: complete
+status: in-progress
 started: 2026-08-05
 last_updated: 2026-08-06
 ---
@@ -30,12 +30,25 @@ decide unilaterally. The loop per stage is:
 
 Stages are independent. Order below is recommended, not required.
 
-**All eight stages are settled (2026-08-06). Nothing here is waiting on
-anyone.**
+**Resuming into Stage 9 (2026-08-06) — start here.**
 
 Stages 1, 2, 4, 5, 6, 7 and 8 are **done**; Stage 3 was **declined**. The
 `/reconcile` defect this campaign found is **fixed** (and was three defects,
-not one — see its section). Every completion criterion below is met.
+not one — see its section). The original completion criteria are all met.
+
+**Stage 9 is open and is the only thing left.** Stage 8's final verification
+run failed a test in a file it never touched, and chasing that produced a
+**proven** defect: `Downloads.QueueMonitor` is a global GenServer that no test
+resets, so a queue snapshot one test leaves behind renders as three orphan
+rows in the next test's Incoming page. **No open questions on the diagnosis** —
+it was measured, not reasoned. There is one real decision about scope, and it
+is in the stage.
+
+This is the same pattern that produced Stages 7 and 8: the campaign's own
+verification keeps finding that the things verifying it are lying. Stage 9 is
+that a third time, and it is the same bug class as Stage 7 one layer over —
+**state outside the isolation mechanism**. There it was `globalThis`; here it
+is a GenServer that the Ecto sandbox has no reach into.
 
 Two things changed under the whole campaign near its end, and both are worth
 knowing before you trust an older sentence in this file:
@@ -112,6 +125,8 @@ sequence is the campaign's most durable output, so it is stated in full:
 | 8 | 6 | `clear_database`'s native confirm: the bullet said **1** site, the stage's own correction said **2**, the repo has **5** |
 | 9 | 7 | "One root cause" was right and the cause named was wrong. The stub did not lack `dispatchEvent`; `console.test.js` did not own its `window` at all. Run alone it passed **17/17** — the 8 failures appear only when `log_tail.test.js` loads first and leaves its own `window` on `globalThis` |
 | 10 | 8 | Every option the stage tabled was a *kind of dialog*, because it asked "which idiom" — which silently assumed all five sites deserved one. The owner's answer was **two of them deserve none.** The count of five was right for the third time running; the question asked of it was wrong |
+| 11 | 9 | "Main passes at the same seed" read as exoneration and was not — main had 12 fewer tests, so the seed interleaves differently. Holding the count constant (five inert tests) reproduces it on untouched main |
+| 12 | 9 | The named cause was wrong again, and again a probe caught it: `activity_empty?` is gated on a `:persistent_term` capability cache, which is a perfect suspect and **innocent** (`download_client_ready=true`, key `:__unset`). The leak is a GenServer nobody resets |
 
 The lesson accreted in three passes:
 
@@ -191,6 +206,17 @@ Stage 8 supplied the sixth, and it is the one that generalises furthest:
    stated. Ask what the options have in common; that is where the assumption
    is hiding.
 
+Stage 9 then paid clause 5 twice more in one sitting, which is worth naming
+as a seventh:
+
+7. **A control group needs the same shape, not just the same code.** "It
+   fails on my branch, it passes on main" is only evidence if everything else
+   is held constant. It was not: the branch had 12 more tests, and test count
+   changes the interleaving as surely as a code change would. Padding main to
+   the same count reproduced the failure on untouched code. The general form:
+   **when you compare two runs, list what differs besides the thing you are
+   testing** — and if the answer is "nothing, except…", that is the variable.
+
 And one thing that went the other way, worth recording because it is the
 cheap move that keeps paying: **measure before you decide whether to
 care.** The cast-grid bullet read like nitpicking until it was rendered —
@@ -201,9 +227,10 @@ minutes and inverted the decision.
 ## Status
 
 **Stages 1, 2, 4, 5, 6, 7 and 8 done; Stage 3 declined** (all 2026-08-06).
-**Nothing is open.** `mix precommit` green after each stage — and since Stage
-7, that phrase covers the JS tree. Final run: **5780 tests, 0 failures** plus
-**620 JS across 29 files**.
+**Stage 9 open** — a proven test-isolation leak Stage 8's verification run
+turned up. `mix precommit` green after each stage — and since Stage 7, that
+phrase covers the JS tree. Last run: **5780 tests, 0 failures** plus **620 JS
+across 29 files** — on most seeds, which is exactly Stage 9's point.
 
 * **Stage 1** — `library.ex` 2779 → 127 lines across six commits
   (`5b2d3510`…`f91f61ce`); 18 modules; the 21 `# ---` dividers are gone.
@@ -231,6 +258,11 @@ minutes and inverted the decision.
 * **Stage 8** — confirmations graded by consequence: two sites dropped theirs,
   one arms in place, `clear_database` gets a persistent modal. MC0027 makes
   `data-confirm` a violation, with the console exempted on the record.
+  (commit `7cb11a61`)
+* **Stage 9** — not started. `Downloads.QueueMonitor` keeps its state across
+  tests, so three stale queue items render as orphans and an empty-state
+  assertion fails. Mechanism measured; the open decision is how wide the fix
+  goes.
 
 The 2026-08-05 sweep's Critical and Moderate-with-user-impact findings were
 fixed and pushed before the stages began (see *Decisions made*); this
@@ -597,12 +629,11 @@ defect. Nothing to pick up.
   main with **five inert `assert 1 == 1` async tests** reproduces the failure
   at seed 508425 every time.
 
-  Five tests that assert nothing cannot break anything, so the defect is a
-  pre-existing order-dependent leak of in-flight state across the sandbox —
-  now with a deterministic repro, which it never had while it was filed as a
-  rate-based flake. Not this campaign's to fix; recorded in
-  `project-suite-residual-concurrency-flakes` rather than reopening a stage
-  for it.
+  Five tests that assert nothing cannot break anything, so the defect is
+  pre-existing. **It became Stage 9** rather than a backlog note, once
+  chasing it produced a measured mechanism: `Downloads.QueueMonitor` holds
+  its state across tests and three stale queue items render as orphans. Same
+  class as Stage 7 — state outside the isolation mechanism.
 
 * `2026-08-06` — **A wait predicate that unrelated copy can satisfy is a
   false green.** Stage 8's modal copy contains "video files"; two media-dir
@@ -1750,6 +1781,104 @@ shared is the *rule*, and MC0027 is where it lives.
 "All five sites in the same change" survived, in the form the answers left it:
 four converted, the fifth exempted on the record.
 
+## Stage 9 — The GenServer the sandbox can't reach  ▶ **OPEN — do this one**
+
+Found by Stage 8's final verification run, which failed a test in a file it
+does not touch. **The diagnosis is measured, not argued** — see the probe
+output below. The only thing needing a decision is how wide to go.
+
+### Why it belongs to this campaign
+
+Same class as Stage 7, one layer over. Stage 7: JS tests inherited another
+file's `globalThis.window`, so results depended on load order. Stage 9: Elixir
+tests inherit another test's GenServer state, so results depend on
+*interleaving*. Both are **state living outside the isolation mechanism**, and
+both report success until the order changes. The `DataCase` sandbox is
+airtight for rows and has no opinion at all about process state.
+
+### Evidence (measured 2026-08-06)
+
+**Deterministic reproduction.** Not a rate-based flake — a function of seed ×
+test-count × `max_cases`. On clean `main`, add five inert tests and run one
+seed:
+
+```elixir
+# test/media_centaur/zz_ordering_probe_test.exs
+defmodule MediaCentaur.ZzOrderingProbeTest do
+  use ExUnit.Case, async: true
+  test "a", do: assert(1 == 1)   # ×5
+end
+```
+
+```bash
+mix test --seed 508425 --max-cases 24     # → 1 failure, every time
+```
+
+Five tests that assert **nothing** trigger it. That is the proof it is
+ordering and not anyone's change.
+
+**The failure.** `incoming_live_test.exs` *"empty Activity and History tabs
+say so instead of rendering a void"*:
+
+```elixir
+assert has_element?(view, "[data-component='zone-empty']", "Nothing in flight")
+```
+
+**The mechanism**, from instrumenting the assertion and re-running the repro:
+
+```
+PROBE download_client_ready=true      # capability is fine
+PROBE queue_monitor_items=3           # ← three leftover queue items
+PROBE pursuit_rows_in_db=0            # ← the DB is clean; the sandbox worked
+PROBE has_orphan_zone=true
+```
+
+`Downloads.QueueMonitor` is a GenServer holding the live download-client
+queue. Its state survives every test boundary. `IncomingLive` renders
+`QueueMatcher.match(view.in_flight, active_queue)` — with `in_flight == []`
+(DB correctly empty) and three stale queue items, all three become **orphans**,
+so `activity_empty?` is false and the empty-state line never renders
+(`incoming_live.ex:750`, `:804`).
+
+**The first hypothesis was wrong, and measuring is what caught it.**
+`activity_empty?` is gated on `download_client_ready`, which reads a
+`:persistent_term` cache (`capabilities.ex:33`) — global state outside the
+sandbox, an irresistible culprit. The probe says `download_client_ready=true`
+and the cache key is `:__unset`, i.e. computed from the DB every call and
+correctly sandboxed. **Capabilities are innocent.** This is the campaign's
+clause 5 collecting a fifth scalp inside the session that wrote it.
+
+### The decision this needs
+
+The narrow fix is one line — reset `QueueMonitor` in `DataCase` setup. The
+question is whether to stop there:
+
+1. **Just `QueueMonitor`.** Smallest change, kills the known failure. Leaves
+   every other stateful process in the tree with the same hole.
+2. **Every global process a test can perturb.** Find them, reset them all in
+   one place. Larger, and the list has to be derived from the supervision
+   tree rather than guessed — Stage 2's lesson: *derive costs from the tool,
+   not from a table.*
+3. **Make the hole impossible.** A `DataCase` that resets registered
+   stateful processes by default, so a new GenServer is covered without
+   anyone remembering. This is Stage 7's move (cover the tree, not a list),
+   and it is the one consistent with everything else this campaign chose.
+
+**A count is not a fix** (clause 4), so do not let "how many GenServers"
+decide it. The prior question is whether per-test process reset is even the
+right shape, or whether the honest fix is that these tests should not depend
+on process state at all.
+
+### Verification bar
+
+The stage is done when the repro command **passes**, and when a *new* stale
+GenServer would be caught rather than remembered. Re-run the exact repro
+above — a green full suite proves nothing here, since the suite was green on
+most seeds throughout.
+
+**Do not weaken the assertion.** The test is right: an empty Activity tab
+should say so. The leak is the defect.
+
 ## Completion criteria
 
 * Stages 1–5 each either **resolved** or **explicitly declined** with
@@ -1766,18 +1895,27 @@ four converted, the fifth exempted on the record.
   original six. Stage 7 needed no conversation; Stage 8 was not started
   before its open questions were answered.
   **Status: ✅ both resolved.**
+* **Stage 9 resolved or explicitly declined**, same rule. Its diagnosis needs
+  no conversation — it was measured — but its *scope* is a decision, and the
+  stage says not to let a GenServer count make it.
+  **Status: ▶ open.**
 * `mix precommit` green after each stage, no new Credo suppressions.
   **Stage 7 changed what this criterion asserts**: before it, "precommit
   green" excluded `assets/js/hooks/` entirely, and every earlier stage's
   green was that narrower claim. None of them touched that directory, so
   none is in doubt. From Stage 7 on it covers `assets/js/` whole, and CI
   makes the same claim precommit does. ✅
+  **And Stage 9 narrows what it is worth**: a green run is a green *seed*.
+  The suite passed on nearly every seed while carrying a reproducible
+  order-dependent failure the whole time, so from here "precommit green"
+  means "no failure on this ordering" — not "no failure".
 * No stage left half-applied — the audit's own headline finding was
   that this repo's defects come from refactors that start well and stop
-  at 80%. **✅ The last chance to do it was Stage 8**, where converting the
-  two loud sites and leaving the three quiet ones would have looked finished.
-  All five are settled: four changed, one exempted with its reason recorded
-  next to the exemption.
+  at 80%. Stage 8 was the clearest chance to do it, where converting the two
+  loud sites and leaving the three quiet ones would have looked finished; all
+  five are settled, four changed and one exempted on the record. **Stage 9 is
+  the next chance**, and option 1 in it (reset the one GenServer we caught) is
+  precisely the shape of an 80% stop.
 * Stage 6 items are droppable; do not let them hold the campaign open.
   **Neither did** — both became stages and both are done.
 * **MC0023's grandfather list does not hold this campaign open**, but it
@@ -1804,3 +1942,6 @@ four converted, the fifth exempted on the record.
 * `test/support/factory.ex` — Stage 4's forced-setup helpers (`force_attrs/2`, `backdate/3`, `force_state/2`, `force_where/2`)
 * `assets/js/input/core/dom_adapter.js` + `assets/js/input/config.js` — how nav items and layout keys resolve; read together with `Layouts.app/1` / `Layouts.input_system_root/1`, which mount the `#input-system` hook a page needs before any of it applies (Stage 3, declined; also where the `/reconcile` defect lives)
 * `docs/architecture.md` — bounded contexts (Stage 2); PubSub taxonomy now lives in the `MediaCentaur.Topics` moduledoc (Stage 5)
+* `credo_checks/native_confirm_dialog.ex` — Stage 8's MC0027; its moduledoc carries the three-way confirmation rule and the console exemption
+* Stage 9's map: `lib/media_centaur/downloads/queue_monitor.ex` (the leaking GenServer), `lib/media_centaur_web/live/incoming_live.ex:750` + `:804` (where orphans defeat `activity_empty?`), `test/support/data_case.ex` (where a reset would go), `lib/media_centaur/capabilities.ex:33` (the `:persistent_term` cache that looked guilty and is not)
+* [ADR-049](../decisions/architecture/2026-05-22-049-testing-principles.md) — owned async / testing principles, the nearest existing statement of what Stage 9 is really about
