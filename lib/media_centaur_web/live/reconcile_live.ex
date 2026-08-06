@@ -148,7 +148,7 @@ defmodule MediaCentaurWeb.ReconcileLive do
       <div
         class="flex flex-col h-full gap-4"
         data-page-behavior="reconcile"
-        data-nav-default-zone="reconcile-list"
+        data-nav-default-zone="reconcile"
       >
         <h1 class="text-2xl font-bold">Review</h1>
 

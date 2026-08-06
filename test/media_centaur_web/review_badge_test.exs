@@ -93,11 +93,11 @@ defmodule MediaCentaurWeb.ReviewBadgeTest do
 
       {:ok, review_view, _html} = live(conn, ~p"/review")
 
-      assert has_element?(review_view, ~s{[data-nav-zone="review-tabs"] a[href="/reconcile"]}, "1")
+      assert has_element?(review_view, ~s{[data-nav-zone="zone-tabs"] a[href="/reconcile"]}, "1")
 
       {:ok, reconcile_view, _html} = live(conn, ~p"/reconcile")
 
-      assert has_element?(reconcile_view, ~s{[data-nav-zone="review-tabs"] a[href="/review"]}, "1")
+      assert has_element?(reconcile_view, ~s{[data-nav-zone="zone-tabs"] a[href="/review"]}, "1")
     end
   end
 end
