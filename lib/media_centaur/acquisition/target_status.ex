@@ -72,6 +72,13 @@ defmodule MediaCentaur.Acquisition.TargetStatus do
   @spec in_flight() :: [String.t()]
   def in_flight, do: @in_flight_strings
 
+  @doc """
+  Statuses where the search half of the worker's job is done — Prowlarr
+  accepted a release (`acquired`) or the file has landed (`succeeded`).
+  """
+  @spec terminal_success() :: [String.t()]
+  def terminal_success, do: @terminal_success_strings
+
   @doc "Statuses with no active job and no completed acquisition."
   @spec terminal_failure() :: [String.t()]
   def terminal_failure, do: @terminal_failure_strings
@@ -99,6 +106,12 @@ defmodule MediaCentaur.Acquisition.TargetStatus do
   @spec terminal?(String.t() | atom()) :: boolean()
   def terminal?(status), do: normalize(status) in @terminal_strings
 
+  @spec terminal_success?(String.t() | atom()) :: boolean()
+  def terminal_success?(status), do: normalize(status) in @terminal_success_strings
+
+  @spec terminal_failure?(String.t() | atom()) :: boolean()
+  def terminal_failure?(status), do: normalize(status) in @terminal_failure_strings
+
   @doc """
   True for rows that `Acquisition.rearm_target/1` will revive — every
   terminal status except `succeeded` (the file is here; nothing to
@@ -108,18 +121,25 @@ defmodule MediaCentaur.Acquisition.TargetStatus do
   def rearmable?(status), do: normalize(status) in @rearmable_strings
 
   @doc """
+  True for rows a cancel command can still flip to `cancelled` — see
+  `cancellable/0` for why this is wider than `in_flight?/1`.
+  """
+  @spec cancellable?(String.t() | atom()) :: boolean()
+  def cancellable?(status), do: normalize(status) in @cancellable_strings
+
+  @doc """
   Returns the bucket the status belongs to. Raises on unknown — by
   design: an unknown status is a bug, not a runtime condition to
   handle.
   """
   @spec bucket(String.t() | atom()) :: bucket()
   def bucket(status) do
-    str = normalize(status)
+    normalized = normalize(status)
 
     cond do
-      str in @in_flight_strings -> :in_flight
-      str in @terminal_success_strings -> :terminal_success
-      str in @terminal_failure_strings -> :terminal_failure
+      normalized in @in_flight_strings -> :in_flight
+      normalized in @terminal_success_strings -> :terminal_success
+      normalized in @terminal_failure_strings -> :terminal_failure
       true -> raise ArgumentError, "unknown target status: #{inspect(status)}"
     end
   end
