@@ -10,7 +10,10 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
   use MediaCentaurWeb, :html
 
   import MediaCentaurWeb.StatusHelpers
-  import MediaCentaurWeb.LiveHelpers, only: [time_ago: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [time_ago: 1, sized_image_url: 2]
+
+  # A `w-10` thumbnail — 40 CSS px, doubled on a 4K panel. It was serving the
+  # 1120px poster master.
 
   @doc "Playback subsystem Activity widget: active sessions with now-playing + progress."
   attr :playback, :map,
@@ -137,7 +140,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Playback do
         >
           <img
             :if={entry.poster_url}
-            src={entry.poster_url}
+            src={sized_image_url(entry.poster_url, 160)}
             alt=""
             loading="eager"
             decoding="sync"

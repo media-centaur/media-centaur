@@ -436,9 +436,12 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=activity")
 
+      # Prefix-matched: the assertion is "this row wears the cached artwork",
+      # not "at this display width" — the `?w=` hint is a rendering decision
+      # the banner is free to retune (MC0028).
       assert has_element?(
                view,
-               "#plan-draft-#{plan.id} img[src='/media-images/tracking/backdrop-777.jpg']"
+               "#plan-draft-#{plan.id} img[src^='/media-images/tracking/backdrop-777.jpg']"
              )
     end
 

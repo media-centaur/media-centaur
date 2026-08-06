@@ -10,6 +10,23 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   import MediaCentaurWeb.LibraryProgress, only: [compute_progress_fraction: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
+  # Grid cards are 12 across at the widest breakpoint inside a 1920 CSS px
+  # composition, so ~150 CSS px each — 320 device px on a 4K panel. The grid
+  # asks for more than that because the same derivative backs the larger
+  # cards at narrower breakpoints, and one cached width beats five.
+  @poster_width 640
+
+  @doc """
+  The `src` a library grid poster card renders for `poster_url`.
+
+  Public because `ArtworkWarmup` prefetches this exact URL — a warmup hint
+  that differs by so much as a query parameter is a cache miss and dead
+  weight. One function means the two cannot drift; two copies of `640` meant
+  they could.
+  """
+  @spec poster_src(String.t() | nil) :: String.t() | nil
+  def poster_src(poster_url), do: sized_image_url(poster_url, @poster_width)
+
   # --- Poster Card ---
 
   attr :id, :string, required: true
@@ -52,7 +69,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
       <div class="aspect-[2/3] glass-inset relative">
         <img
           :if={@entry.poster_url && @available}
-          src={sized_image_url(@entry.poster_url, 640)}
+          src={poster_src(@entry.poster_url)}
           class="w-full h-full object-cover"
           loading="eager"
           decoding="sync"

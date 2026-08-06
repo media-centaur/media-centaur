@@ -14,6 +14,11 @@ defmodule MediaCentaurWeb.Components.Detail.TitleLayer do
 
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
+
+  # Height-capped at `max-h-20` and bounded to 70% of the identity frame, so a
+  # wide logo lands near 480 CSS px — doubled for a 4K panel.
+
   attr :title, :string, required: true
   attr :logo_url, :string, default: nil, doc: "logo image URL; nil falls back to the title text."
   attr :tagline, :string, default: nil, doc: "italic line under the title; blank/nil drops it."
@@ -56,7 +61,7 @@ defmodule MediaCentaurWeb.Components.Detail.TitleLayer do
     <div class="space-y-1.5">
       <img
         :if={@logo_url}
-        src={@logo_url}
+        src={sized_image_url(@logo_url, 960)}
         alt={@title}
         title={@title}
         class="max-h-20 max-w-[70%] object-contain text-on-image-lg"

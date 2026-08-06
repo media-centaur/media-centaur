@@ -12,23 +12,37 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
 
   Two rules keep this honest:
 
-    * **URLs must be byte-identical to what the pages request** — the
-      poster list goes through the same `sized_image_url/2` the library
-      grid uses, and backdrops are the raw `backdrop_url` the
-      hero-candidate pool hands to the library/incoming pages. Any
-      mismatch is a cache miss and the hint is dead weight.
+    * **URLs must be byte-identical to what the pages request.** Any
+      mismatch is a cache miss and the hint is dead weight. This is
+      structural, not a promise: posters go through
+      `LibraryCards.poster_src/1` — the same function the grid renders —
+      and backdrops through `Logic.select_page_hero/3`, the same pick the
+      pages make, rendered `:full_bleed` on both sides so the URL is
+      untouched. **Never re-derive a URL here.** A new warmed surface
+      exposes the function it renders with and this module calls it.
     * **Reads are projection-only** (`Library.Views` ETS) — the root
       layout renders on the initial HTTP request, and this must add
       nothing to that path.
+
+  ## Adding a surface
+
+  What this module covers is a judgment call — "first screen" is not
+  something a compiler can infer — so adding a page here is deliberate:
+
+    1. Give the surface a public function returning the `src` it renders
+       (`poster_src/1` is the worked example) and render through it.
+    2. Call that function here.
+    3. Assert the two agree in `artwork_warmup_test.exs`.
+
+  MC0028 guarantees every artwork `<img>` declares a display width; it
+  cannot know which surfaces are worth warming. That part is on you.
   """
 
-  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
-
   alias MediaCentaur.Library
+  alias MediaCentaurWeb.Components.LibraryCards
   alias MediaCentaurWeb.HomeLive.Logic
 
   @poster_limit 30
-  @poster_width 640
 
   @doc """
   Deduplicated first-screen artwork URLs: up to #{@poster_limit} library
@@ -47,7 +61,7 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
     |> Enum.map(& &1.poster_url)
     |> Enum.reject(&is_nil/1)
     |> Enum.take(@poster_limit)
-    |> Enum.map(&sized_image_url(&1, @poster_width))
+    |> Enum.map(&LibraryCards.poster_src/1)
   end
 
   # Only the candidates the backdrop-bearing pages are showing right now.

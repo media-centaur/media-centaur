@@ -180,7 +180,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           <img
             :if={@block_backdrop_url}
             class="orientation-backing-image"
-            src={@block_backdrop_url}
+            src={sized_image_url(@block_backdrop_url, :full_bleed)}
             alt=""
             loading="eager"
             decoding="sync"

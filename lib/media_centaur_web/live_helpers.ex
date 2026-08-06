@@ -142,29 +142,58 @@ defmodule MediaCentaurWeb.LiveHelpers do
     end
   end
 
-  @doc """
-  Appends a `?w=<width>` hint to a local `/media-images/...` URL so
-  `ImageServer` serves a width-constrained derivative instead of the
-  full-resolution master.
+  @typedoc """
+  How wide the surface will actually paint a piece of artwork.
 
-  Use for artwork shown in a small box (calendar tiles, grid thumbnails,
-  poster rows) where decoding the full master would needlessly block paint.
-  Size the width to the rendered box × the target device-pixel-ratio (≈2×)
-  so the source stays crisp on high-DPI / 4K displays. **Omit it entirely**
-  for full-bleed / hero / detail-modal backdrops — those must keep the master
-  to render sharply at full-viewport scale.
+  A positive integer is a device-pixel width; `:full_bleed` means the
+  surface spans the viewport and wants the untouched master.
+  """
+  @type display_width :: pos_integer() | :full_bleed
+
+  @doc """
+  Renders a local artwork URL at the width the surface will paint it.
+
+  **Every `<img>` pointing at `/media-images/...` goes through this**, and the
+  width is part of the request rather than an afterthought — MC0028 enforces
+  it. Omitting a width used to mean "serve the master", which read identically
+  to having forgotten one, so full-bleed backdrops and 40px poster thumbnails
+  were written the same way and the thumbnails quietly decoded 3840px masters.
+
+  Two forms:
+
+    * a **positive integer** — appends `?w=<width>` so `ImageServer` serves a
+      width-constrained derivative. Size it to the rendered box × the target
+      device-pixel-ratio (≈2× — this app composes at 1920 CSS px and runs on
+      4K panels), then let the server snap up to its width ladder. Over-asking
+      is cheap: `ImageFiles.derivative/2` never upscales, so a width at or
+      above the master's own returns the master.
+    * `:full_bleed` — returns the URL **byte-identical**, for surfaces that
+      span the viewport (the home hero backdrop, the detail modal's cinematic
+      backdrop and its pinned replica, the library/incoming atmosphere bands).
+      Byte-identity is load-bearing twice over: `ArtworkWarmup` prefetches the
+      bare `backdrop_url` for each hero page, and the detail modal's
+      orientation backing replicates the cinematic backdrop exactly (see
+      `.orientation-backing` in app.css). Any decoration here breaks both.
 
   Only local `/media-images/...` URLs are tagged — ImageServer can't resize a
   remote TMDB URL, so any other value (remote URL, `nil`) passes through
   unchanged, making this safe to apply at any call site. Preserves an existing
   query string (e.g. a `?v=` cache-buster).
+
+  Anything outside the width vocabulary raises: a silently ignored width is
+  the exact failure this function exists to prevent.
   """
+  @spec sized_image_url(String.t() | nil, display_width()) :: String.t() | nil
   def sized_image_url("/media-images/" <> _ = url, width) when is_integer(width) and width > 0 do
     separator = if String.contains?(url, "?"), do: "&", else: "?"
     "#{url}#{separator}w=#{width}"
   end
 
-  def sized_image_url(url, _width), do: url
+  def sized_image_url("/media-images/" <> _ = url, :full_bleed), do: url
+
+  def sized_image_url(url, width)
+      when (is_nil(url) or is_binary(url)) and
+             ((is_integer(width) and width > 0) or width == :full_bleed), do: url
 
   # The artwork file is rewritten in place on a TMDB re-scrape (same
   # `<owner_id>/<role>.<ext>` path), so a bare URL would let the browser

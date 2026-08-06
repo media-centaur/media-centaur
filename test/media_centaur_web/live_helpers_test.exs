@@ -36,6 +36,46 @@ defmodule MediaCentaurWeb.LiveHelpersTest do
       remote = "https://image.tmdb.org/t/p/w92/abc.jpg"
       assert sized_image_url(remote, 240) == remote
     end
+
+    # `:full_bleed` is how a surface says "I paint this at viewport scale, the
+    # master is the right source" — as opposed to saying nothing, which used to
+    # mean the same thing and was indistinguishable from forgetting. The URL
+    # must come back byte-identical: ArtworkWarmup prefetches the bare
+    # `backdrop_url` for each hero page, and any decoration here is a cache miss.
+    test ":full_bleed returns the URL unchanged, so warmup hints still match" do
+      url = "/media-images/abc/backdrop.jpg"
+      assert sized_image_url(url, :full_bleed) == url
+    end
+
+    test ":full_bleed preserves an existing ?v= cache-buster verbatim" do
+      url = "/media-images/abc/backdrop.jpg?v=123"
+      assert sized_image_url(url, :full_bleed) == url
+    end
+
+    test ":full_bleed passes nil and remote URLs through like any other width" do
+      remote = "https://image.tmdb.org/t/p/original/abc.jpg"
+
+      assert sized_image_url(nil, :full_bleed) == nil
+      assert sized_image_url(remote, :full_bleed) == remote
+    end
+
+    # The width vocabulary is closed — a positive integer or `:full_bleed`.
+    # A value outside it used to fall through to the pass-through clause and
+    # quietly serve the full-resolution master, which is the exact failure the
+    # width hint exists to prevent and is invisible in review. Fail loudly.
+    test "raises on a width outside the vocabulary instead of serving the master" do
+      assert_raise FunctionClauseError, fn ->
+        sized_image_url("/media-images/abc/backdrop.jpg", "960")
+      end
+
+      assert_raise FunctionClauseError, fn ->
+        sized_image_url("/media-images/abc/backdrop.jpg", nil)
+      end
+
+      assert_raise FunctionClauseError, fn ->
+        sized_image_url("/media-images/abc/backdrop.jpg", 0)
+      end
+    end
   end
 
   describe "image_url/2" do

@@ -21,8 +21,6 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   in-pursuit shelf cards during that same render pass.
   """
 
-  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
-
   alias MediaCentaur.Acquisition.ViewModels.PursuitRow
   alias MediaCentaur.ReleaseTracking.UpcomingFeed
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
@@ -30,7 +28,6 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   alias MediaCentaurWeb.IncomingLive.View
 
   @shelf_cap 6
-  @shelf_art_width 342
 
   defstruct shelf: nil, in_flight: [], drafts: [], feed: %UpcomingFeed{}
 
@@ -179,6 +176,8 @@ defmodule MediaCentaurWeb.IncomingLive.View do
   defp art_url(%Event{backdrop_path: nil}), do: nil
   defp art_url(%Event{backdrop_path: path}), do: backdrop_art_url(path)
 
-  defp backdrop_art_url(path),
-    do: sized_image_url(MediaCentaur.Library.Image.web_path(path), @shelf_art_width)
+  # The bare artwork path — `Shelf` declares the width it paints at, next to
+  # the box that decides it. A display width set here drifts from the markup
+  # it is meant to match: this one said 342 for a `w-8` thumbnail.
+  defp backdrop_art_url(path), do: MediaCentaur.Library.Image.web_path(path)
 end

@@ -24,6 +24,12 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
 
   use Phoenix.Component
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
+
+  # Painted widths for the two tile shapes, at 4K device pixels: the grid is
+  # `1.7fr 1fr` inside a 1920 CSS px composition that scales 2× on a UHD
+  # panel. Backdrops fill their tile; logos are height-capped
+  # (`max-h-24` / `max-h-9`) so their width follows the logo's aspect.
 
   defmodule Item do
     @moduledoc """
@@ -128,7 +134,7 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
     >
       <img
         :if={@item.backdrop_url}
-        src={@item.backdrop_url}
+        src={sized_image_url(@item.backdrop_url, 1920)}
         alt=""
         class="absolute inset-0 w-full h-full object-cover object-top"
         loading="eager"
@@ -141,7 +147,7 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
         </div>
         <img
           :if={@item.logo_url}
-          src={@item.logo_url}
+          src={sized_image_url(@item.logo_url, 960)}
           alt={@item.name}
           class="max-h-24 max-w-full object-contain object-left mb-3 text-on-image-lg"
         />
@@ -184,7 +190,7 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
     >
       <img
         :if={@item.backdrop_url}
-        src={@item.backdrop_url}
+        src={sized_image_url(@item.backdrop_url, 1280)}
         alt=""
         class="absolute inset-0 w-full h-full object-cover object-top"
         loading="eager"
@@ -210,7 +216,7 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
         </div>
         <img
           :if={@item.logo_url}
-          src={@item.logo_url}
+          src={sized_image_url(@item.logo_url, 480)}
           alt={@item.name}
           class="max-h-9 max-w-full object-contain object-left text-on-image-lg"
         />

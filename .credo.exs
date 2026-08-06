@@ -204,6 +204,11 @@
           # UIDR-012. Lazy is allowed only in reveal-bounded surfaces named
           # in the check's `@exempt_files` list.
           {MediaCentaur.Credo.Checks.ImgAttributeDefaults, []},
+          # MC0028 is MC0016's other half: eager + sync decode makes every
+          # image block paint, so every local artwork `<img>` must also say
+          # how wide it paints — `sized_image_url(url, px | :full_bleed)`.
+          # Omitting it silently served the 4K master to 40px thumbnails.
+          {MediaCentaur.Credo.Checks.ArtworkWidthDeclared, []},
           # MC0015 catches `execute("UPDATE …")` / `execute("DELETE …")` in
           # priv/repo/migrations/ — bulk row mutations belong in a data
           # migration per ADR-040, not in a schema migration where a dev

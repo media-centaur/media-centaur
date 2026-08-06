@@ -19,6 +19,10 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
+  # Cards sit in a `.row-scroll-backdrop` track — 9 across at the widest
+  # breakpoint, so roughly 180 CSS px each, doubled on a 4K panel. The logo is
+  # height-capped (`max-h-20`) and bounded to 80% of the card.
+
   defmodule Item do
     @moduledoc "View-model for a single Continue Watching card."
     @enforce_keys [:id, :entity_id, :name, :progress_pct, :backdrop_url]
@@ -78,7 +82,7 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
         <div class="absolute bottom-4 left-4 right-4">
           <img
             :if={item.logo_url}
-            src={item.logo_url}
+            src={sized_image_url(item.logo_url, 320)}
             alt={item.name}
             class="max-h-20 max-w-[80%] object-contain object-left text-on-image-lg"
           />
