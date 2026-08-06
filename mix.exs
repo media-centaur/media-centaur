@@ -173,7 +173,9 @@ defmodule MediaCentaur.MixProject do
       ],
       "test.all": [
         "test",
-        "cmd bun test --dots assets/js/input/ assets/js/__tests__/"
+        # The whole tree, not a list of directories: enumerating them is how
+        # assets/js/hooks/ stayed out of every test run for three months.
+        "cmd bun test --dots assets/js/"
       ]
     ]
   end

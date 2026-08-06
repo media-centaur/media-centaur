@@ -1,77 +1,21 @@
 import { describe, expect, test, beforeEach, mock } from "bun:test"
 import { Console } from "./console"
+import {
+  installWindow,
+  installMutationObserver,
+  installSyncAnimationFrame,
+} from "../test_support/dom_stubs"
 
 // ---------------------------------------------------------------------------
 // Global environment setup
 //
-// Bun 1.3.11 has no built-in DOM environment, so we polyfill the minimal
-// browser globals the hook uses. This follows the same plain-object mock
-// pattern as the existing input system tests in this project.
+// Bun ships no DOM, so the browser globals the hook uses are installed fresh
+// before every test — see `test_support/dom_stubs.js` for why they must not be
+// installed conditionally.
 // ---------------------------------------------------------------------------
-
-// Make `window` available as globalThis.
-if (typeof window === "undefined") {
-  globalThis.window = globalThis
-}
-
-// Minimal MutationObserver stub.
-// Instances register themselves in `stubObservers` so tests can fire the
-// callback imperatively via `instance.fire()`.
-const stubObservers = []
-
-class StubMutationObserver {
-  constructor(callback) {
-    this._callback = callback
-    this._observing = false
-    stubObservers.push(this)
-  }
-  observe(_target, _options) {
-    this._observing = true
-  }
-  disconnect() {
-    this._observing = false
-  }
-  fire() {
-    this._callback([])
-  }
-}
-if (typeof MutationObserver === "undefined") {
-  globalThis.MutationObserver = StubMutationObserver
-}
-
-// requestAnimationFrame shim — calls synchronously for test determinism.
-if (typeof requestAnimationFrame === "undefined") {
-  globalThis.requestAnimationFrame = (callback) => callback(0)
-}
-
-// Minimal document.activeElement — returns null by default.
-if (typeof document === "undefined") {
-  globalThis.document = { activeElement: null }
-}
-
-// ---------------------------------------------------------------------------
-// Event-listener tracking
-//
-// We replace window.addEventListener/removeEventListener so tests can
-// dispatch events imperatively.
-// ---------------------------------------------------------------------------
-
-const windowListeners = {}
-
-window.addEventListener = (event, handler, _opts) => {
-  if (!windowListeners[event]) windowListeners[event] = []
-  windowListeners[event].push(handler)
-}
-
-window.removeEventListener = (event, handler) => {
-  if (windowListeners[event]) {
-    windowListeners[event] = windowListeners[event].filter((h) => h !== handler)
-  }
-}
 
 function dispatchWindowEvent(eventName) {
-  const handlers = windowListeners[eventName] || []
-  handlers.forEach((handler) => handler({ type: eventName }))
+  window.dispatchEvent(new CustomEvent(eventName))
 }
 
 // ---------------------------------------------------------------------------
@@ -221,12 +165,12 @@ function simulateServerStateTransition(hook, root, newState) {
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
-  // Clear window event listeners between tests.
-  Object.keys(windowListeners).forEach((key) => delete windowListeners[key])
-  // Reset document.activeElement.
-  document.activeElement = null
-  // Clear the stub observer registry.
-  stubObservers.length = 0
+  installWindow()
+  installMutationObserver()
+  installSyncAnimationFrame()
+  // The hook reads `document.activeElement` to decide whether `/` should steal
+  // focus; the search-input stub writes to it on focus().
+  globalThis.document = { activeElement: null }
 })
 
 describe("Console hook — _applyClientSearch", () => {
@@ -328,6 +272,51 @@ describe("Console hook — _pushToggle", () => {
 
     expect(searchInput._focused).toBe(false)
     expect(searchInput._blurred).toBe(false)
+  })
+})
+
+describe("Console hook — log-tail repin", () => {
+  // The drawer is hidden behind a translateY(-100%) while closed, so the
+  // LogTail container inside it may have laid out away from the live edge.
+  // Opening is the user's signal that they want the tail, so the hook asks
+  // every LogTail to re-pin. LogTail's side of this contract is covered in
+  // log_tail.test.js; this is the sender's.
+  test("opening the drawer asks log containers to re-pin", () => {
+    const root = buildRoot(buildPanel(), buildSearchInput(""), buildEntriesContainer())
+    const hook = instantiateHook(root)
+
+    const repins = []
+    window.addEventListener("mc:log-tail:repin", (event) => repins.push(event))
+
+    simulateServerStateTransition(hook, root, "open")
+
+    expect(repins.length).toBe(1)
+  })
+
+  test("closing the drawer does not re-pin", () => {
+    const root = buildRoot(buildPanel(), buildSearchInput(""), buildEntriesContainer())
+    const hook = instantiateHook(root)
+
+    simulateServerStateTransition(hook, root, "open")
+
+    const repins = []
+    window.addEventListener("mc:log-tail:repin", (event) => repins.push(event))
+    simulateServerStateTransition(hook, root, "closed")
+
+    expect(repins.length).toBe(0)
+  })
+
+  test("a re-render that does not change state does not re-pin", () => {
+    const root = buildRoot(buildPanel(), buildSearchInput(""), buildEntriesContainer())
+    const hook = instantiateHook(root)
+
+    simulateServerStateTransition(hook, root, "open")
+
+    const repins = []
+    window.addEventListener("mc:log-tail:repin", (event) => repins.push(event))
+    hook.updated()
+
+    expect(repins.length).toBe(0)
   })
 })
 
@@ -442,7 +431,7 @@ describe("Console hook — destroyed()", () => {
     const hook = instantiateHook(root)
 
     // Verify listeners are registered
-    expect(windowListeners["mc:console:toggle"]?.length).toBe(1)
+    expect(window.listenerCount("mc:console:toggle")).toBe(1)
     expect(root._eventListeners["keydown"]?.length).toBe(1)
     expect(root._eventListeners["click"]?.length).toBe(1)
     expect(searchInput._listeners["input"]).toBeDefined()
@@ -450,7 +439,7 @@ describe("Console hook — destroyed()", () => {
     hook.destroyed()
 
     // All listeners removed
-    expect(windowListeners["mc:console:toggle"]?.length ?? 0).toBe(0)
+    expect(window.listenerCount("mc:console:toggle")).toBe(0)
     expect(root._eventListeners["keydown"]?.length ?? 0).toBe(0)
     expect(root._eventListeners["click"]?.length ?? 0).toBe(0)
     expect(searchInput._listeners["input"]).toBeUndefined()
