@@ -272,7 +272,7 @@ defmodule MediaCentaur.Console.BufferTest do
       Buffer.snapshot(name)
 
       # Now verify the settings row exists.
-      {:ok, settings_entry} = MediaCentaur.Settings.get_by_key("console_filter")
+      settings_entry = MediaCentaur.Settings.get_by_key("console_filter")
       assert settings_entry != nil
       assert is_map(settings_entry.value)
       assert Map.get(settings_entry.value, "level") == "debug"

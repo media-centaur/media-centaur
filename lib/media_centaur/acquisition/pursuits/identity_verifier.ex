@@ -53,7 +53,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.IdentityVerifier do
   end
 
   defp load_active_pursuit(pursuit_id) do
-    case Pursuits.get(pursuit_id) do
+    case Pursuits.fetch(pursuit_id) do
       {:ok, %Pursuit{state: state} = pursuit} ->
         if State.terminal?(state), do: :skip, else: {:ok, pursuit}
 

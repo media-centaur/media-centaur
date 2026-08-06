@@ -39,8 +39,15 @@ the owning module (MC0004). Extract testable logic into pure function modules.
 
 - **GenServer internals** — public API only. Thin wrappers around external systems
   (MpvSession, Watcher) aren't worth mocking.
-- **Rendered HTML** — never assert on markup (`render_component`, `=~` on HTML).
+- **Rendered HTML** — never assert on markup via `render_component`.
   LiveView integration tests (mount, patch, events) are fine; they test data flow.
+- **HTML attributes via `=~`** — `assert html =~ "phx-click=\"go\""` matches
+  anywhere in the document, so it passes when the attribute lands on the wrong
+  element, and it breaks on attribute reordering. Use
+  `has_element?(view, "[phx-click='go']")`, which parses the document.
+  Enforced by **MC0024** on `data-`/`phx-`/`class=`/`id=` literals.
+  **Asserting on user-visible copy with `=~` is fine** — `assert html =~
+  "Connect a download client"` is a real assertion about what the user reads.
 - **External APIs** in normal runs — tag `@tag :external`, excluded by default.
 
 **`render_click` is not a browser click.** It reads `phx-value-*` off the rendered
@@ -132,9 +139,27 @@ orchestration and state transitions, not leaf functions. Append-only ([ADR-027])
 Append-only ([ADR-027]).
 
 **Ecto schemas** — `DataCase` + `create_*`, exercised through context-module public
-APIs against the real database. Never stub the data layer, never call `Repo`
-directly from a test. Wrap bulk operations in `Ecto.Multi` and assert on the
-transaction result.
+APIs against the real database. Never stub the data layer. Wrap bulk operations in
+`Ecto.Multi` and assert on the transaction result.
+
+**`Repo` in tests — writes are setup, reads are assertions.** Never build state
+with `Repo.insert/update/delete`: it skips the changeset, so the test can assert
+against a row the app could never produce, and each site becomes a private
+factory that drifts from the real one. Use `TestFactory` — `create_*` to insert,
+and for a state the public API deliberately refuses to produce:
+
+| Helper | For |
+|---|---|
+| `force_attrs(record, attrs)` | forcing fields on one record |
+| `backdate(record, field, datetime)` | ageing a timestamp |
+| `force_state(record, state)` | skipping a state machine |
+| `force_where(queryable, set)` | the same, in bulk by query |
+
+`Repo` **reads** stay welcome — `Repo.get!/2`, `Repo.all/1`, `Repo.aggregate/3`
+to confirm what actually landed is exactly what an integration assertion is for.
+Enforced by **MC0023**, whose grandfather list is the rollout backlog: the files
+on it still insert inline because their schema has no factory builder yet. Add
+the builder, convert the file, shrink the list.
 
 ## Running Tests
 

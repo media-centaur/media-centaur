@@ -277,8 +277,8 @@ defmodule MediaCentaur.Application do
     key = "services:#{env}:#{service}"
 
     case MediaCentaur.Settings.get_by_key(key) do
-      {:ok, %{value: %{"enabled" => true}}} -> true
-      {:ok, %{value: %{"enabled" => false}}} -> false
+      %{value: %{"enabled" => true}} -> true
+      %{value: %{"enabled" => false}} -> false
       _ -> config_default
     end
   end

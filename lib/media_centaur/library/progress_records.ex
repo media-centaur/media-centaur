@@ -266,9 +266,14 @@ defmodule MediaCentaur.Library.ProgressRecords do
 
   # ---- ExtraProgress -------------------------------------------------------
 
-  @doc "The progress row for an Extra, or `nil`."
-  @spec fetch_for_extra(Ecto.UUID.t()) :: ExtraProgress.t() | nil
-  def fetch_for_extra(extra_id), do: Repo.get_by(ExtraProgress, extra_id: extra_id)
+  @doc "Fetches the progress row for an Extra."
+  @spec fetch_for_extra(Ecto.UUID.t()) :: {:ok, ExtraProgress.t()} | {:error, :not_found}
+  def fetch_for_extra(extra_id) do
+    case Repo.get_by(ExtraProgress, extra_id: extra_id) do
+      nil -> {:error, :not_found}
+      record -> {:ok, record}
+    end
+  end
 
   @doc "Upserts the progress row for an Extra."
   @spec find_or_create_for_extra(map()) ::

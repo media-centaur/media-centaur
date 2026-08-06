@@ -12,12 +12,12 @@ defmodule MediaCentaur.SettingsTest do
       assert entry.key == "test_key"
       assert entry.value == %{"enabled" => true}
 
-      assert {:ok, found} = Settings.get_by_key("test_key")
+      found = Settings.get_by_key("test_key")
       assert found.id == entry.id
     end
 
     test "get_by_key returns nil for missing key" do
-      assert {:ok, nil} = Settings.get_by_key("nonexistent")
+      assert Settings.get_by_key("nonexistent") == nil
     end
 
     test "list_entries returns all entries" do
@@ -64,7 +64,7 @@ defmodule MediaCentaur.SettingsTest do
     test "removes the entry" do
       {:ok, entry} = Settings.create_entry(%{key: "doomed", value: %{}})
       assert :ok = Settings.destroy_entry!(entry)
-      assert {:ok, nil} = Settings.get_by_key("doomed")
+      assert Settings.get_by_key("doomed") == nil
     end
   end
 
@@ -148,7 +148,7 @@ defmodule MediaCentaur.SettingsTest do
       assert :ok = Settings.refresh_cache()
       assert :ok = Settings.refresh_cache()
 
-      assert {:ok, %{key: "cache_target", value: %{"v" => 1}}} =
+      assert %{key: "cache_target", value: %{"v" => 1}} =
                Settings.get_by_key("cache_target")
     end
   end

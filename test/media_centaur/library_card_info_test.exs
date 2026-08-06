@@ -6,7 +6,7 @@ defmodule MediaCentaur.LibraryCardInfoTest do
 
   describe "enabled?/0" do
     test "returns true when no setting entry exists (default-on)" do
-      assert {:ok, nil} = Settings.get_by_key(LibraryCardInfo.setting_key())
+      assert Settings.get_by_key(LibraryCardInfo.setting_key()) == nil
       assert LibraryCardInfo.enabled?() == true
     end
 

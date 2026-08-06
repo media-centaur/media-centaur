@@ -189,9 +189,7 @@ defmodule MediaCentaur.AcquisitionTest do
     test "flips a cancelled target back to seeking, broadcasts" do
       target = create_target(%{tmdb_id: "rearm-1", title: "Comeback"})
 
-      target
-      |> Ecto.Changeset.change(status: "cancelled", cancelled_reason: "user_disabled")
-      |> Repo.update!()
+      force_attrs(target, status: "cancelled", cancelled_reason: "user_disabled")
 
       assert {:ok, rearmed} = Acquisition.rearm_target(target.id)
 

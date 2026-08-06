@@ -441,7 +441,7 @@ defmodule MediaCentaur.ReleaseTracking.RefresherTest do
     test "persists last_swept_at in Settings as a parseable ISO8601 timestamp" do
       Refresher.sweep_now()
 
-      {:ok, entry} = MediaCentaur.Settings.get_by_key("release_tracking:last_swept_at")
+      entry = MediaCentaur.Settings.get_by_key("release_tracking:last_swept_at")
       assert %{value: %{"timestamp" => timestamp_string}} = entry
       assert {:ok, %DateTime{}, 0} = DateTime.from_iso8601(timestamp_string)
     end

@@ -102,7 +102,7 @@ defmodule MediaCentaur.UIScaleTest do
 
   describe "scale/0 and set/1" do
     test "defaults to 1.0 when unset" do
-      assert {:ok, nil} = Settings.get_by_key(UIScale.setting_key())
+      assert Settings.get_by_key(UIScale.setting_key()) == nil
       assert UIScale.scale() == UIScale.default()
     end
 

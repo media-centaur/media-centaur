@@ -198,18 +198,18 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     end
 
     test "renders the incoming page when Prowlarr is configured", %{conn: conn} do
-      {:ok, _view, html} = live_async!(conn, ~p"/incoming")
+      {:ok, view, html} = live_async!(conn, ~p"/incoming")
 
       assert html =~ "Incoming"
       # No prompt line above the input — the placeholder is the page's ask,
       # and the add-or-plan framing lives in the mode hint.
       assert html =~ "What do you want to watch?"
       assert html =~ "to add or plan"
-      assert html =~ "data-page-behavior=\"incoming\""
+      assert has_element?(view, "[data-page-behavior='incoming']")
       # The default-zone value is the LAYOUT KEY in input config.js, not a
       # context within it — `"pursuits"` here once left the page's nav graph
       # empty and keyboard/gamepad navigation dead.
-      assert html =~ "data-nav-default-zone=\"incoming\""
+      assert has_element?(view, "[data-nav-default-zone='incoming']")
     end
 
     test "first paint (disconnected render) reflects loaded capability, not the unloaded default",
@@ -620,7 +620,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       _ = render(view)
 
       # Approval hands off to the pursuit modal — the board became the pursuit.
-      {:ok, plan} = Plans.get(draft.id)
+      {:ok, plan} = Plans.fetch(draft.id)
       assert plan.status == "committed"
       assert_patch(view, "/incoming?selected=#{plan.pursuit_id}&zone=activity")
 
@@ -939,7 +939,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       _ = render(view)
       assert_patch(view, "/incoming?zone=activity")
 
-      {:ok, discarded} = Plans.get(plan.id)
+      {:ok, discarded} = Plans.fetch(plan.id)
       assert discarded.status == "discarded"
       refute has_element?(view, "#plan-draft-#{plan.id}")
     end
@@ -965,7 +965,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         |> render_click()
 
       assert html =~ "Discard plan?"
-      {:ok, untouched} = Plans.get(plan.id)
+      {:ok, untouched} = Plans.fetch(plan.id)
       refute untouched.status == "discarded"
 
       # Keep — the confirmation closes, the draft survives.
@@ -975,7 +975,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         |> render_click()
 
       refute html =~ "Discard plan?"
-      {:ok, kept} = Plans.get(plan.id)
+      {:ok, kept} = Plans.fetch(plan.id)
       refute kept.status == "discarded"
     end
 
@@ -1445,9 +1445,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
           title: "Tabbed Landed Movie"
         })
 
-      exhausted_pursuit
-      |> Ecto.Changeset.change(state: "exhausted")
-      |> MediaCentaur.Repo.update!()
+      MediaCentaur.TestFactory.force_state(exhausted_pursuit, "exhausted")
 
       :ok
     end
@@ -1558,12 +1556,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
             title: "Windowed Movie #{index}"
           })
 
-        pursuit
-        |> Ecto.Changeset.change(
+        MediaCentaur.TestFactory.force_attrs(pursuit,
           state: "satisfied",
           updated_at: DateTime.add(DateTime.utc_now(:second), -index, :hour)
         )
-        |> MediaCentaur.Repo.update!()
       end
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
@@ -1592,12 +1588,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         {pursuit, _target} =
           MediaCentaur.TestFactory.create_pursuit_with_target(%{media_type: :movie, title: title})
 
-        pursuit
-        |> Ecto.Changeset.change(
+        MediaCentaur.TestFactory.force_attrs(pursuit,
           state: "satisfied",
           updated_at: DateTime.add(DateTime.utc_now(:second), -days_ago, :day)
         )
-        |> MediaCentaur.Repo.update!()
       end
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
@@ -1621,12 +1615,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         {pursuit, _target} =
           MediaCentaur.TestFactory.create_pursuit_with_target(%{media_type: :movie, title: title})
 
-        pursuit
-        |> Ecto.Changeset.change(
+        MediaCentaur.TestFactory.force_attrs(pursuit,
           state: "satisfied",
           updated_at: DateTime.add(DateTime.utc_now(:second), -days_ago, :day)
         )
-        |> MediaCentaur.Repo.update!()
       end
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
@@ -1651,12 +1643,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         {pursuit, _target} =
           MediaCentaur.TestFactory.create_pursuit_with_target(%{media_type: :movie, title: title})
 
-        pursuit
-        |> Ecto.Changeset.change(
+        MediaCentaur.TestFactory.force_attrs(pursuit,
           state: "satisfied",
           updated_at: DateTime.add(DateTime.utc_now(:second), -days_ago, :day)
         )
-        |> MediaCentaur.Repo.update!()
       end
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?zone=history")
@@ -1950,7 +1940,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       html = render(view)
       assert html =~ "Movie.Test.2024"
-      assert html =~ "phx-click=\"cancel_download_prompt\""
+      assert has_element?(view, "[phx-click='cancel_download_prompt']")
 
       # Open the confirmation modal.
       html =
@@ -1967,7 +1957,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         |> render_click()
 
       assert :counters.get(delete_counter, 1) == 1
-      refute html =~ "phx-value-id=\"aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111\""
+      refute has_element?(view, "[phx-value-id='aaaa1111aaaa1111aaaa1111aaaa1111aaaa1111']")
       refute html =~ "Cancel download?"
     end
 
@@ -2007,7 +1997,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       }
 
       send(view.pid, {:queue_state, %MediaCentaur.Downloads.QueueState{items: [stale_item]}})
-      assert render(view) =~ "phx-value-id=\"abcd1234abcd1234abcd1234abcd1234abcd1234\""
+      assert has_element?(view, "[phx-value-id='abcd1234abcd1234abcd1234abcd1234abcd1234']")
 
       view |> element("button[phx-click='cancel_download_prompt']") |> render_click()
       view |> element("button[phx-click='cancel_download_confirm']") |> render_click()
@@ -2019,7 +2009,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       # Use the row's phx-value-id rather than the title — the title also
       # appears in the post-cancel flash, which would mask a real failure.
-      refute render(view) =~ "phx-value-id=\"abcd1234abcd1234abcd1234abcd1234abcd1234\""
+      refute has_element?(view, "[phx-value-id='abcd1234abcd1234abcd1234abcd1234abcd1234']")
     end
 
     test "dismissing the modal does not call qBittorrent delete", %{conn: conn} do
@@ -2164,10 +2154,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> form("form[phx-change='query_change']", query: "Movie A")
       |> render_submit()
 
-      html = render_until(view, "Prowlarr timed out")
+      render_until(view, "Prowlarr timed out")
       # Retry affordance is present alongside the timeout message
-      assert html =~ "phx-click=\"retry_search\""
-      assert html =~ "phx-value-term=\"Movie A\""
+      assert has_element?(view, "[phx-click='retry_search']")
+      assert has_element?(view, "[phx-value-term='Movie A']")
 
       # Now succeed on retry
       Req.Test.stub(:prowlarr, fn conn ->
@@ -2212,8 +2202,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> form("form[phx-change='query_change']", query: "Sample Show S01E{01,02}")
       |> render_submit()
 
-      html = render_until(view, "Retry 2 timeouts")
-      assert html =~ "phx-click=\"retry_all_timeouts\""
+      render_until(view, "Retry 2 timeouts")
+      assert has_element?(view, "[phx-click='retry_all_timeouts']")
 
       # Switch the stub to succeed, then bulk-retry
       Req.Test.stub(:prowlarr, fn conn ->

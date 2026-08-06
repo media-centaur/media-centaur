@@ -938,18 +938,16 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   @doc false
   def toggle_extra_watched(entity_id, extra_id) do
-    progress = Library.ProgressRecords.fetch_for_extra(extra_id)
-
-    case progress do
-      %{completed: true} ->
+    case Library.ProgressRecords.fetch_for_extra(extra_id) do
+      {:ok, %{completed: true} = progress} ->
         Log.info(:library, "extra toggled incomplete")
         Library.ProgressRecords.mark_incomplete!(progress)
 
-      %{completed: false} ->
+      {:ok, progress} ->
         Log.info(:library, "extra toggled completed")
         Library.ProgressRecords.mark_completed!(progress)
 
-      nil ->
+      {:error, :not_found} ->
         Log.info(:library, "extra toggled completed — no prior progress, created fresh record")
 
         {:ok, record} =

@@ -66,7 +66,7 @@ defmodule MediaCentaur.SelfUpdate.Health do
 
   defp streak do
     case Settings.get_by_key(@streak_key) do
-      {:ok, %{value: %{"count" => count}}} when is_integer(count) and count >= 0 -> count
+      %{value: %{"count" => count}} when is_integer(count) and count >= 0 -> count
       _ -> 0
     end
   end
@@ -83,7 +83,7 @@ defmodule MediaCentaur.SelfUpdate.Health do
 
   defp last_apply_failure do
     case Settings.get_by_key(@apply_key) do
-      {:ok, %{value: %{"result" => "failed", "reason" => reason, "at" => at}}} ->
+      %{value: %{"result" => "failed", "reason" => reason, "at" => at}} ->
         %{reason: reason, at: decode_at(at)}
 
       _ ->

@@ -49,10 +49,7 @@ defmodule MediaCentaur.Acquisition.TrackingHandoffsTest do
         )
       )
 
-    {:ok, plan} =
-      plan
-      |> Ecto.Changeset.change(status: "committed", pursuit_id: pursuit.id)
-      |> Repo.update()
+    plan = force_attrs(plan, status: "committed", pursuit_id: pursuit.id)
 
     plan
   end

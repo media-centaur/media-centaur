@@ -247,7 +247,7 @@ defmodule MediaCentaur.Review.IntakeTest do
       assert_receive {:file_reviewed, id}
       assert id == pending_file.id
 
-      assert {:error, :not_found} = MediaCentaur.Review.get_pending_file(pending_file.id)
+      assert {:error, :not_found} = MediaCentaur.Review.fetch_pending_file(pending_file.id)
     end
 
     test "handles already-removed PendingFile gracefully" do

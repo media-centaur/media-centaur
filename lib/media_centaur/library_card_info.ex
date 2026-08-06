@@ -32,7 +32,7 @@ defmodule MediaCentaur.LibraryCardInfo do
   @spec enabled?() :: boolean()
   def enabled? do
     case Settings.get_by_key(@setting_key) do
-      {:ok, %{value: value}} -> enabled?(value)
+      %{value: value} -> enabled?(value)
       _ -> true
     end
   end

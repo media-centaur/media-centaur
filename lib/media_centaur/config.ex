@@ -254,7 +254,7 @@ defmodule MediaCentaur.Config do
   @spec media_dirs_entries() :: [map()]
   def media_dirs_entries do
     case MediaCentaur.Settings.get_by_key(@media_dirs_settings_key) do
-      {:ok, %{value: %{"entries" => entries}}} when is_list(entries) -> entries
+      %{value: %{"entries" => entries}} when is_list(entries) -> entries
       _ -> []
     end
   end
@@ -296,7 +296,7 @@ defmodule MediaCentaur.Config do
   @spec migrate_media_dirs_from_toml([map() | String.t()]) :: :ok
   def migrate_media_dirs_from_toml(toml_entries) when is_list(toml_entries) do
     case MediaCentaur.Settings.get_by_key(@media_dirs_settings_key) do
-      {:ok, %MediaCentaur.Settings.Entry{}} ->
+      %MediaCentaur.Settings.Entry{} ->
         :ok
 
       _ ->

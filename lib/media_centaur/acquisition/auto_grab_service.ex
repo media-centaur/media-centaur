@@ -19,7 +19,7 @@ defmodule MediaCentaur.Acquisition.AutoGrabService do
   @spec running?() :: boolean()
   def running? do
     case Settings.get_by_key(service_flag_key()) do
-      {:ok, %{value: %{"enabled" => false}}} -> false
+      %{value: %{"enabled" => false}} -> false
       _ -> true
     end
   end

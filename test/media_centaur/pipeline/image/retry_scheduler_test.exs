@@ -57,9 +57,9 @@ defmodule MediaCentaur.Pipeline.Image.RetrySchedulerTest do
       assert failed_entry.retry_count == 1
 
       # Backdate updated_at to ensure backoff has elapsed
-      MediaCentaur.Repo.update_all(
+      force_where(
         MediaCentaur.Pipeline.ImageQueueEntry,
-        set: [updated_at: ~U[2020-01-01 00:00:00Z]]
+        updated_at: ~U[2020-01-01 00:00:00Z]
       )
 
       {:ok, pid} = RetryScheduler.start_link(name: :test_scheduler_retry)

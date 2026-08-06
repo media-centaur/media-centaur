@@ -1181,6 +1181,61 @@ defmodule MediaCentaur.TestFactory do
   end
 
   # ---------------------------------------------------------------------------
+  # Forced setup — states the public API deliberately refuses to produce
+  # ---------------------------------------------------------------------------
+
+  @doc """
+  Writes `attrs` straight onto a persisted record, bypassing its changeset.
+
+  Some setups need a starting state no public function will hand you: a
+  pursuit already mid-flight, a row inserted a year ago, a unit pointing at
+  a target it would normally reach only through a command. Forcing it is
+  legitimate — but it is still *setup*, so it belongs in the factory rather
+  than as a raw `Repo` write in a test file (see MC0023).
+
+  Reach for `backdate/3` or `force_state/2` when they fit; they say why.
+  """
+  @spec force_attrs(struct(), keyword() | map()) :: struct()
+  def force_attrs(record, attrs) do
+    record
+    |> Ecto.Changeset.change(Map.new(attrs))
+    |> MediaCentaur.Repo.update!()
+  end
+
+  @doc """
+  Forces `set` onto every row matching `queryable`, returning how many rows
+  were written.
+
+  The bulk sibling of `force_attrs/2`, for setup that is naturally a query
+  rather than a record: ageing every row in a table past a retention
+  window, or planting a sentinel value the application would never write.
+  """
+  @spec force_where(Ecto.Queryable.t(), keyword()) :: non_neg_integer()
+  def force_where(queryable, set) do
+    {count, _returned} = MediaCentaur.Repo.update_all(queryable, set: set)
+    count
+  end
+
+  @doc """
+  Moves a timestamp field into the past.
+
+  For tests about age — retention sweeps, staleness windows, "older than"
+  queries — where the record has to predate its own insertion.
+  """
+  @spec backdate(struct(), atom(), DateTime.t()) :: struct()
+  def backdate(record, field, %DateTime{} = datetime), do: force_attrs(record, [{field, datetime}])
+
+  @doc """
+  Forces a record's `state`, skipping the state machine that guards it.
+
+  Pursuits, units and plans only advance through commands; a test that
+  needs to *start* from a late state would otherwise have to replay the
+  whole ladder to get there.
+  """
+  @spec force_state(struct(), String.t() | atom()) :: struct()
+  def force_state(record, state), do: force_attrs(record, state: state)
+
+  # ---------------------------------------------------------------------------
   # Polymorphic owner translation (Library Schema v2 Phase 2 Tasks D, E, F)
   # ---------------------------------------------------------------------------
 

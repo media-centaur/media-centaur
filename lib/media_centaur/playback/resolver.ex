@@ -317,9 +317,8 @@ defmodule MediaCentaur.Playback.Resolver do
 
   defp extra_resume_position(extra_id) do
     case Library.ProgressRecords.fetch_for_extra(extra_id) do
-      nil -> 0.0
-      %{completed: true} -> 0.0
-      %{position_seconds: pos} when is_number(pos) -> pos
+      {:ok, %{completed: true}} -> 0.0
+      {:ok, %{position_seconds: pos}} when is_number(pos) -> pos
       _ -> 0.0
     end
   end

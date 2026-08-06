@@ -7,7 +7,6 @@ defmodule MediaCentaur.Library.Views.RecentlyAddedTest do
   alias MediaCentaur.Library.Views
   alias MediaCentaur.Library.Views.RecentlyAdded
   alias MediaCentaur.Library.Views.RecentlyAddedItem
-  alias MediaCentaur.Repo
   alias MediaCentaur.Topics
 
   @table :library_view_recently_added
@@ -17,9 +16,7 @@ defmodule MediaCentaur.Library.Views.RecentlyAddedTest do
     record_present(create_linked_file(%{movie_id: movie.id}))
 
     if inserted_at do
-      movie
-      |> Ecto.Changeset.change(inserted_at: inserted_at)
-      |> Repo.update!()
+      backdate(movie, :inserted_at, inserted_at)
     else
       movie
     end

@@ -68,11 +68,17 @@ defmodule MediaCentaur.Settings do
     end
   end
 
-  @spec get_by_key(String.t()) :: {:ok, Entry.t() | nil}
+  @doc """
+  Reads an `Entry` by key, consulting the cache first and falling back to
+  the database on a cold cache. Returns `nil` when the key is unset — the
+  absence of a setting is the normal case, not an error, so callers default
+  rather than branch on `{:error, _}`.
+  """
+  @spec get_by_key(String.t()) :: Entry.t() | nil
   def get_by_key(key) do
     case :persistent_term.get(@cache_key, :__unset) do
-      :__unset -> {:ok, Repo.get_by(Entry, key: key)}
-      entries -> {:ok, Map.get(entries, key)}
+      :__unset -> Repo.get_by(Entry, key: key)
+      entries -> Map.get(entries, key)
     end
   end
 

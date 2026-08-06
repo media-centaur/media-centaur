@@ -106,7 +106,7 @@ defmodule MediaCentaur.UIScale do
   @spec scale() :: float()
   def scale do
     case Settings.get_by_key(@setting_key) do
-      {:ok, %{value: value}} -> parse(value)
+      %{value: value} -> parse(value)
       _ -> @default
     end
   end

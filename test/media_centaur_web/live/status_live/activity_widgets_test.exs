@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.StatusLive.ActivityWidgetsTest do
 
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
 
-  def stub_widget(assigns), do: Phoenix.HTML.raw("<div data-stub>#{assigns.label}</div>")
+  def stub_widget(assigns), do: Phoenix.HTML.raw("<div>STUB-RENDERED #{assigns.label}</div>")
 
   @registry %{watcher: {__MODULE__, :stub_widget}}
 
@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.StatusLive.ActivityWidgetsTest do
   describe "render/3" do
     test "renders the registered widget with the given assigns" do
       out = ActivityWidgets.render(:watcher, %{label: "hi"}, @registry)
-      assert Phoenix.HTML.safe_to_string(out) =~ "data-stub"
+      assert Phoenix.HTML.safe_to_string(out) =~ "STUB-RENDERED"
       assert Phoenix.HTML.safe_to_string(out) =~ "hi"
     end
 

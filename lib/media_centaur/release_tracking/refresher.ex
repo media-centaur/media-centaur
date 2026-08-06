@@ -291,7 +291,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
   defp last_swept_at do
     case Settings.get_by_key(@last_swept_at_key) do
-      {:ok, %{value: %{"timestamp" => iso}}} when is_binary(iso) ->
+      %{value: %{"timestamp" => iso}} when is_binary(iso) ->
         case DateTime.from_iso8601(iso) do
           {:ok, dt, _offset} -> dt
           _ -> nil

@@ -448,7 +448,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 1962})
 
-      {:ok, reloaded} = Plans.get(plan.id)
+      {:ok, reloaded} = Plans.fetch(plan.id)
       assert reloaded.status == "ready"
       assert reloaded.error =~ "planning crashed"
     end
@@ -467,7 +467,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
       log =
         ExUnit.CaptureLog.capture_log(fn ->
           {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 1962})
-          {:ok, reloaded} = Plans.get(plan.id)
+          {:ok, reloaded} = Plans.fetch(plan.id)
           assert reloaded.status == "discarded"
         end)
 

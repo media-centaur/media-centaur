@@ -35,7 +35,7 @@ defmodule MediaCentaur.Review do
 
   def list_pending_files, do: Repo.all(PendingFile)
 
-  def get_pending_file(id) do
+  def fetch_pending_file(id) do
     case Repo.get(PendingFile, id) do
       nil -> {:error, :not_found}
       file -> {:ok, file}

@@ -285,7 +285,7 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
       Handlers.tracking_sweep_completed()
 
       assert Plans.list_drafts() == []
-      {:ok, discarded} = Plans.get(parked.id)
+      {:ok, discarded} = Plans.fetch(parked.id)
       assert discarded.status == "discarded"
 
       # Mode off ≠ stop wanting — media search remains the expected
@@ -442,15 +442,9 @@ defmodule MediaCentaur.Acquisition.DropPlannerTest do
 
       [unit] = Units.for_pursuit(pursuit.id)
 
-      {:ok, _} =
-        unit
-        |> Ecto.Changeset.change(state: "exhausted", tried_release_guids: ["dead-1"])
-        |> Repo.update()
+      _ = force_attrs(unit, state: "exhausted", tried_release_guids: ["dead-1"])
 
-      {:ok, _} =
-        Repo.get!(Pursuit, pursuit.id)
-        |> Ecto.Changeset.change(state: "exhausted")
-        |> Repo.update()
+      _ = force_state(Repo.get!(Pursuit, pursuit.id), "exhausted")
 
       # The indexer still only offers the dead release.
       stub_results(%{

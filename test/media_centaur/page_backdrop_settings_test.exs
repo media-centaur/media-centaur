@@ -19,7 +19,7 @@ defmodule MediaCentaur.PageBackdropSettingsTest do
       ] do
     describe "#{inspect(module)}.enabled?/0" do
       test "returns false when no setting entry exists (default-off)" do
-        assert {:ok, nil} = Settings.get_by_key(unquote(module).setting_key())
+        assert Settings.get_by_key(unquote(module).setting_key()) == nil
         assert unquote(module).enabled?() == false
       end
 

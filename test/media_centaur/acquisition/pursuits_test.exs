@@ -10,9 +10,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
   defp insert_pursuit(overrides \\ %{}), do: create_pursuit(overrides)
 
   defp set_state(pursuit, new_state) do
-    pursuit
-    |> Ecto.Changeset.change(state: new_state)
-    |> Repo.update!()
+    force_state(pursuit, new_state)
   end
 
   defp insert_event(pursuit, kind, occurred_at) do
@@ -58,8 +56,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
   defp set_awaiting(pursuit) do
     pursuit.id
     |> MediaCentaur.Acquisition.Pursuits.Units.single!()
-    |> Ecto.Changeset.change(awaiting_decision_at: DateTime.utc_now(:second))
-    |> Repo.update!()
+    |> force_attrs(awaiting_decision_at: DateTime.utc_now(:second))
 
     pursuit
   end
@@ -67,12 +64,12 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
   describe "get/1" do
     test "returns the pursuit by id" do
       pursuit = insert_pursuit()
-      assert {:ok, fetched} = Pursuits.get(pursuit.id)
+      assert {:ok, fetched} = Pursuits.fetch(pursuit.id)
       assert fetched.id == pursuit.id
     end
 
     test "returns :not_found when missing" do
-      assert {:error, :not_found} = Pursuits.get(Ecto.UUID.generate())
+      assert {:error, :not_found} = Pursuits.fetch(Ecto.UUID.generate())
     end
   end
 
@@ -130,9 +127,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
       pursuit = insert_pursuit()
       old = insert_target_for(pursuit)
 
-      old
-      |> Ecto.Changeset.change(inserted_at: ~U[2026-01-01 00:00:00Z])
-      |> Repo.update!()
+      backdate(old, :inserted_at, ~U[2026-01-01 00:00:00Z])
 
       newer = insert_target_for(pursuit, %{title: "Newer attempt"})
 
@@ -456,8 +451,7 @@ defmodule MediaCentaur.Acquisition.PursuitsTest do
         for {title, tmdb_id, updated_at} <- titles_by_age do
           %{title: title, tmdb_id: tmdb_id}
           |> insert_pursuit()
-          |> Ecto.Changeset.change(state: "satisfied", updated_at: updated_at)
-          |> Repo.update!()
+          |> force_attrs(state: "satisfied", updated_at: updated_at)
         end
 
       _nonmatch = set_state(insert_pursuit(%{title: "Other", tmdb_id: "2071"}), "satisfied")

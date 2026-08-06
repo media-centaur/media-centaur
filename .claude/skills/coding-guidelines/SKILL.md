@@ -40,6 +40,23 @@ When in doubt: write the moduledoc you'd want to see for the new code
 *first*. If you can't fit it in one short sentence, the work belongs
 in (or as) a separate module.
 
+## Lookup Naming Contract
+
+A lookup's name announces what it returns, so a call site can be written
+without opening the module:
+
+| Name | Returns |
+|---|---|
+| `fetch…` | `{:ok, record} \| {:error, :not_found}` |
+| `get…` | the record, or `nil` |
+| `…!` | the record, or raises |
+
+Enforced by **MC0022**, which only opines where the return shape is
+statically determinable — a tail call to `Repo.get/get_by/one`, `Map.get`
+or `Enum.find`, or a `case` with both `{:ok, _}` and `{:error, _}` branches.
+HTTP clients, GenServer readers, and cache-then-database reads named `get_*`
+are deliberately left alone; the contract is about repository-style lookups.
+
 ## Test Patterns by Domain
 
 ### Ecto Schemas (Movie, TVSeries, MovieSeries, VideoObject, WatchedFile, WatchProgress, Image)
@@ -49,7 +66,15 @@ in (or as) a separate module.
   (`MediaCentaur.Library`, `MediaCentaur.Review`, `MediaCentaur.ReleaseTracking`,
   `MediaCentaur.Settings`).
 - Test through the context's public API against the real database — never stub
-  the data layer, never call `Repo` directly from tests.
+  the data layer.
+- **Never build state with a `Repo` write.** `Repo.insert/update/delete` in a
+  test is setup, and inline setup skips the changeset, so the test can assert
+  against a row the app could never produce. Use `TestFactory`: `create_*` to
+  insert, `force_attrs/2` / `backdate/3` / `force_state/2` / `force_where/2`
+  when you deliberately need a state the public API refuses to produce.
+  **`Repo` *reads* are fine** — `Repo.get!/2`, `Repo.all/1`, `Repo.aggregate/3`
+  to confirm a row landed is exactly what an integration assertion should do.
+  Enforced by **MC0023**; its grandfather list is the rollout backlog.
 - For bulk operations, wrap in `Ecto.Multi` and assert on the transaction result.
 
 ### Pipeline Stages (Parse, Search, FetchMetadata, DownloadImages, Ingest)
@@ -72,7 +97,10 @@ Extract all non-trivial LiveView/component logic into public pure functions and 
 ### What NOT to Test
 
 - GenServer internals (Watcher, Config, MpvSession).
-- Rendered HTML — no `render_component`, no `=~` on markup. Integration tests (mount, patch, events) are fine.
+- Rendered HTML — no `render_component`. Integration tests (mount, patch, events) are fine.
+- HTML **attributes** via `=~` — use `has_element?(view, selector)` instead; it
+  parses the document, so it can't match the wrong element (**MC0024**).
+  Asserting on user-visible copy with `=~` is fine and expected.
 - External API calls in normal runs — tag `@tag :external` and exclude.
 
 ## Factory

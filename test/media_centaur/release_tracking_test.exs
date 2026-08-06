@@ -324,10 +324,10 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       # sleep needed to make the timestamps distinguishable.
       sentinel = ~U[2000-01-01 00:00:00Z]
 
-      {1, _} =
-        MediaCentaur.Repo.update_all(
+      1 =
+        force_where(
           from(r in MediaCentaur.ReleaseTracking.Release, where: r.id == ^release.id),
-          set: [in_library_at: sentinel]
+          in_library_at: sentinel
         )
 
       ReleaseTracking.mark_in_library_releases(item)
@@ -442,9 +442,10 @@ defmodule MediaCentaur.ReleaseTrackingTest do
         })
 
       # Mark it in_library directly with a recent timestamp.
-      MediaCentaur.Repo.update_all(
+      force_where(
         from(r in MediaCentaur.ReleaseTracking.Release, where: r.id == ^release.id),
-        set: [in_library: true, in_library_at: twelve_hours_ago]
+        in_library: true,
+        in_library_at: twelve_hours_ago
       )
 
       %{released: released} = ReleaseTracking.list_releases()
@@ -466,9 +467,10 @@ defmodule MediaCentaur.ReleaseTrackingTest do
           released: true
         })
 
-      MediaCentaur.Repo.update_all(
+      force_where(
         from(r in MediaCentaur.ReleaseTracking.Release, where: r.id == ^release.id),
-        set: [in_library: true, in_library_at: two_days_ago]
+        in_library: true,
+        in_library_at: two_days_ago
       )
 
       %{released: released, upcoming: upcoming} = ReleaseTracking.list_releases()

@@ -173,7 +173,7 @@ defmodule MediaCentaur.Capabilities do
   @spec load_test_result(subject()) :: info() | nil
   def load_test_result(subject) do
     case Settings.get_by_key(storage_key(subject)) do
-      {:ok, %{value: value}} when is_map(value) -> parse(value)
+      %{value: value} when is_map(value) -> parse(value)
       _ -> nil
     end
   end
@@ -194,10 +194,10 @@ defmodule MediaCentaur.Capabilities do
   @spec clear_test_result(subject()) :: :ok
   def clear_test_result(subject) do
     case Settings.get_by_key(storage_key(subject)) do
-      {:ok, nil} ->
+      nil ->
         :ok
 
-      {:ok, entry} ->
+      entry ->
         Settings.destroy_entry(entry)
         broadcast_changed()
         :ok

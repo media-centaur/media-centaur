@@ -253,12 +253,11 @@ defmodule MediaCentaurWeb.PageSmokeTest do
       # expand season 1 to exercise the upcoming-row render path.
       # Without the typed `seasons_view` flowing through, no upcoming
       # row would render at all.
-      html =
-        view
-        |> element(~s|button[phx-click="toggle_season"][phx-value-season="1"]|)
-        |> render_click()
+      view
+      |> element(~s|button[phx-click="toggle_season"][phx-value-season="1"]|)
+      |> render_click()
 
-      assert html =~ "data-role=\"upcoming-episode-row\""
+      assert has_element?(view, "[data-role='upcoming-episode-row']")
     end
   end
 
@@ -535,9 +534,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           status: "failed"
         })
 
-      exhausted_pursuit
-      |> Ecto.Changeset.change(state: "exhausted")
-      |> MediaCentaur.Repo.update!()
+      MediaCentaur.TestFactory.force_state(exhausted_pursuit, "exhausted")
 
       # Seed a SECOND exhausted pursuit with the same title and state so
       # the smoke exercises the new `PursuitGroup` render branch (count
@@ -555,9 +552,7 @@ defmodule MediaCentaurWeb.PageSmokeTest do
           status: "failed"
         })
 
-      grouped_pursuit
-      |> Ecto.Changeset.change(state: "exhausted")
-      |> MediaCentaur.Repo.update!()
+      MediaCentaur.TestFactory.force_state(grouped_pursuit, "exhausted")
 
       on_exit(fn ->
         MediaCentaur.Capabilities.clear_test_result(:prowlarr)
