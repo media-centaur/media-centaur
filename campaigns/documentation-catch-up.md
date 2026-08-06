@@ -28,7 +28,13 @@ surface inventory before editing anything.
   `docs/` pointer stubs, First-Run, README).
 * **Repo documentation** — README, `docs/` contributor docs accuracy.
 * **Showcase** — the demo instance / marketing screenshots
-  (`screenshot-showcase` skill covers the regeneration chain).
+  (`screenshot-showcase` skill covers the regeneration chain). This surface
+  inherited the screenshot debt of every retired campaign: the sections
+  overhauled since the last regeneration are **Upcoming** (a timeline rail
+  now, not a calendar — the `upcoming-calendar` shot is of a UI that no
+  longer exists), **Incoming**, and **media search**. Treat "which shots are
+  of dead UI" as part of the inventory rather than assuming the list is
+  those three.
 * **Webpage** — `docs-site/index.html` (media-centaur.net) content updates.
 
 ## Decisions made
@@ -38,6 +44,10 @@ Append-only log.
 * `2026-07-10` — Campaign created at the owner's direction as the follow-up
   to the usenet/multi-client work. Not started; planned as its own
   initiative rather than folded into feature ships.
+* `2026-08-06` — Inherited the marketing-screenshot regeneration from the
+  campaigns retired that day (`upcoming-overhaul` shipped v0.94.x and left
+  its shot of the old calendar behind). Screenshot regen is a documentation
+  surface, not a tail on each feature campaign — this is where it lives now.
 
 ## Next steps
 

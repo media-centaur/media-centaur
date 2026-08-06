@@ -40,7 +40,8 @@ defmodule MediaCentaur.Credo.Checks.NoRepoSetupInTests do
       the schema in question has no factory builder yet. Add the builder,
       convert the file, remove it from the list. Do not add new entries.
 
-      Source: `campaigns/audit-remediation-2026-08.md` Stage 4.
+      Source: the 2026-08 audit-remediation campaign, Stage 4 (campaign
+      retired; see git history).
       """
     ]
 

@@ -32,7 +32,8 @@ defmodule MediaCentaur.Credo.Checks.NoMarkupSubstringAssertion do
 
       Test files only.
 
-      Source: `campaigns/audit-remediation-2026-08.md` Stage 4.
+      Source: the 2026-08 audit-remediation campaign, Stage 4 (campaign
+      retired; see git history).
       """
     ]
 

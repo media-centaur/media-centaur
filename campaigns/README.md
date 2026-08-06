@@ -21,58 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`audit-remediation-2026-08.md`](audit-remediation-2026-08.md) —
-  **complete 2026-08-06 — all nine stages resolved or declined; kept, not
-  retired, because it has been retired and un-retired once already.** Tail of
-  the 2026-08-05 four-audit sweep. Stages 1, 2, 4, 5, 6, 7, 8 and 9 resolved,
-  Stage 3 declined. **Stage 9** closed the test-isolation leak Stage 8's own
-  verification run surfaced — and corrected it twice on the way: the
-  documented seed-lottery repro produces **0 failures** on the tree it was
-  measured on, and `Downloads.QueueMonitor` is **not started under `:test`**,
-  so what survived the sandbox was its `:persistent_term` cache, not a
-  GenServer's state. `MediaCentaur.GlobalStateSandbox` now restores every
-  app-owned term from a namespace-derived baseline before each
-  `DataCase`/`ConnCase` test, resets the Console buffer and the search-session
-  singleton, and fails a test when the supervision tree grows a child nobody
-  has classified; six files lost their hand-rolled versions of the same idea.
-  Same class as Stage 7 — state outside the isolation mechanism.
-  Stage 1 split the 2779-line `Library` context into 18 modules
-  (`library.ex` → 127 lines); Stage 2 closed the `Status` and `Diagnostics`
-  Boundary hatches; Stage 4 reconciled two overreaching test policies with
-  practice behind three new Credo checks (MC0022–MC0024); Stage 5 settled
-  the event-publication idiom
-  ([ADR-060](../decisions/architecture/2026-08-06-060-event-publication-idiom.md))
-  — typed structs in the one-file `Library`/`Playback` shape, a `Topics`
-  transport that removed 132 hand-written PubSub server references, and
-  `Review.Events` as the worked example; Stage 6 cleared the polish list
-  (`BooleanSetting` for the four boolean flags, four raw-SQL `order_by`
-  fragments replaced with Ecto, and a cast grid that shipped **1.6 MB of
-  HTML to display 24 cards** now sending 41 KB); Stage 7 widened both JS test
-  runners from a hand-listed pair of directories to `assets/js/` whole — 564
-  tests across 24 files → **620 across 29**, with CI and precommit finally
-  making the same claim; Stage 8 graded confirmations by consequence —
-  nothing for the two trivially reversible ones, arm-in-place for the image
-  cache, a persistent modal for `clear_database` — behind **MC0027**, which
-  makes `data-confirm` a violation. Stage 3 was declined because the console
-  stays outside the input system deliberately. The `/reconcile` dead-nav
-  defect was fixed and turned out to be three defects.
-  Its durable output is a lesson in eight clauses, paid for fourteen times: a
-  check you can run beats a number you wrote down; a number beats nothing
-  only if you checked the assumption underneath it; a check counts only if
-  you ran it against a violation — MC0012 and MC0013 were found to have
-  never been able to fire; a count answers "how many", never "which
-  fix" — both of Stage 6's last bullets counted right and prescribed
-  wrong; reproduce the failure before naming its cause — Stage 7's
-  own diagnosis was written off a stack trace and was wrong, since the file
-  it blamed passes 17/17 when run alone; **and check the question before you
-  answer it** — every option Stage 8 tabled was a kind of dialog, and the
-  answer was that two of the five sites need none; **and a control group needs
-  the same shape, not just the same code** — "it passes on main" was not
-  evidence until main was padded to the same test count, at which point it
-  failed there too; **and a measurement is a number and a label, and only the
-  number is measured** — Stage 9's probe printed `queue_monitor_items=3` and
-  everything written after it rested on the word *QueueMonitor*, a module that
-  was never running. Counterweight: measure before deciding whether to care.
 * [`below-floor-releases.md`](below-floor-releases.md) —
   **planning — design not started.** When every findable release of a
   title is below the user's quality floor, the plan board says a bare
@@ -96,20 +44,6 @@ Use [`template.md`](template.md) as a starter.
   headless A/B ruled out the proposed fix as a main-thread lever but can't
   measure the GPU blur pass (SwiftShader). **Blocked on a hardware GPU profile**
   — checklist in the file; prime suspect is the `.modal-backdrop` blur.
-
-* [`cour-aware-acquisition.md`](cour-aware-acquisition.md) —
-  **shipped v0.99.6.** TV pursuits silently never completed when a show's
-  TMDB "season" spans multiple broadcast runs (cours) the release world
-  packages separately — Frieren's E29–38 cour matched a 2023-2024 "Season
-  01 COMPLETE" pack that can't contain them, wedging the pursuit. Shipped:
-  a **coverage guard** (a release can't be credited with episodes that
-  aired after it was published → `unfound`) and **cour-aware search**
-  (absolute/ordinal queries for a later run, candidates surfaced as
-  offers). The broader reconciliation engine it foreshadowed shipped for
-  ingest and was completed/removed 2026-06-25 (see the
-  `MediaCentaur.Reconciliation` moduledoc); the acquisition **vocabulary**
-  convergence was deferred there, so this stays the shipped hand-built
-  instance — removable per ADR-042.
 * [`fit-aware-acquisition.md`](fit-aware-acquisition.md) —
   **built; uncommitted/unpushed, awaiting owner review.** Picking one
   episode no longer grabs the whole series. The planner gates pack grabs
@@ -149,15 +83,6 @@ Use [`template.md`](template.md) as a starter.
   capabilities). Portable markdown rendered to HEEx via Earmark; text-first; voice from the
   `writing-copy` skill. Full precommit green. Deferred: title filter, screenshots,
   full-text search, and the wiki exporter (separate campaign).
-* [`upcoming-overhaul.md`](upcoming-overhaul.md) —
-  **built; shipped to `main` (unpushed), pending release tag.** Overhauled
-  `/upcoming` per the section-overhaul house style into a time-first forecast: an
-  **editorial timeline rail with a quiet sticky mini-month companion** (mockup #6)
-  — proximity-scaled hero cards, honest auto-grab status, "under pursuit →
-  Downloads" deep-link, per-title detail slide-over, demoted management. All six
-  phases done (`UpcomingFeed` view-model → components+stories → `UpcomingLive`
-  rewrite → full input treatment), full `mix precommit` green, wiki updated.
-  Remaining: live nav spot-check, release tag, wiki push, screenshot regen.
 * [`pursuit-identity-and-lifecycle.md`](pursuit-identity-and-lifecycle.md) —
   **planning.** Composite pursuits die on their first landing:
   `IdentityVerifier` fuzzy-matches the filename against the *lead* unit
@@ -266,7 +191,3 @@ Use [`template.md`](template.md) as a starter.
   **phase 1 complete.** One search idiom across Library, Incoming, and
   the media-search front door (UIDR-014), so a title is looked up the
   same way regardless of which page the user starts from.
-* [`unit-season-episode-ordering.md`](unit-season-episode-ordering.md) —
-  **complete.** Season/episode ordering for acquisition units. Kept
-  pending the next reconciliation pass; per the removal rule above it
-  should be deleted once nothing in flight still refers to it.

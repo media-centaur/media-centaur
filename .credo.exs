@@ -260,28 +260,28 @@
           # `fetch…` yields a tuple, `get…` yields the record or nil, `…!`
           # raises. It only opines where the shape is statically
           # determinable, so HTTP clients and GenServer readers named `get_*`
-          # are left alone. See campaigns/audit-remediation-2026-08.md
-          # Stage 4.
+          # are left alone. Added by the 2026-08 audit-remediation
+          # campaign; the moduledoc is the rule's spec.
           {MediaCentaur.Credo.Checks.LookupNamingContract, []},
           # MC0023 keeps test *setup* out of raw `Repo` writes — those skip
           # the changeset and act as private, drifting factories. Repo
           # *reads* stay allowed: reaching past the context to confirm a row
           # landed is a legitimate assertion. Its @grandfathered list is the
-          # rollout backlog. See campaigns/audit-remediation-2026-08.md
-          # Stage 4.
+          # rollout backlog. Added by the 2026-08 audit-remediation
+          # campaign; the moduledoc is the rule's spec.
           {MediaCentaur.Credo.Checks.NoRepoSetupInTests, []},
           # MC0024 scopes the old blanket "no `=~` on markup" rule to what
           # it always meant: don't substring-match HTML *attributes* —
           # `has_element?/2` parses the document and can't match the wrong
           # element. Asserting on user-visible copy with `=~` stays fine.
-          # See campaigns/audit-remediation-2026-08.md Stage 4.
+          # Added by the 2026-08 audit-remediation campaign.
           {MediaCentaur.Credo.Checks.NoMarkupSubstringAssertion, []},
           # MC0025 keeps the PubSub server name inside `MediaCentaur.Topics`.
           # Before ADR-060 it was hand-copied into 73 files as pure transport
           # plumbing. This is the transport rule only — MC0003 still steers
           # LiveViews to a context's `subscribe/0`, and MC0012/13/26 still
           # require the typed `Events.broadcast/1` chokepoint for the topics
-          # that have one. See campaigns/audit-remediation-2026-08.md Stage 5.
+          # that have one. Added by the 2026-08 audit-remediation campaign.
           {MediaCentaur.Credo.Checks.PubSubTransport, []},
           # MC0026 pins the `review:updates` chokepoint, the ADR-060 worked
           # example: every message on the topic goes through
