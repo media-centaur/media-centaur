@@ -8,17 +8,32 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfo.CastGrid do
 
   ## Visible-card cap
 
-  At most `@max_cast_cards` cards are visible at once. TMDB
-  `aggregate_credits.cast` for long-running TV series (e.g. The
-  Simpsons) returns hundreds of entries; the first 24 by billing
-  `order` covers the show's regulars + main recurring cast.
+  At most `@max_cast_cards` cards render at once. TMDB
+  `aggregate_credits.cast` for long-running TV series returns hundreds of
+  entries; the first 24 by billing `order` covers the show's regulars +
+  main recurring cast.
 
-  When the cast exceeds the cap, the grid surfaces a real-time filter
-  input above it. The cap is enforced **even after filtering** — only
-  the first N matches render. The whole list is rendered server-side
-  (cards past the cap have `display: none` inline) so the JS hook in
-  `assets/js/hooks/cast_grid_filter.js` can toggle visibility on each
-  keystroke without a server round-trip.
+  When the cast exceeds the cap, the grid surfaces a filter input above it.
+  The cap is enforced **after filtering** — only the first N matches render.
+  Filtering searches the whole cast, not the visible window: the point is to
+  find someone billed 300th.
+
+  ## Why the filter is a server round-trip
+
+  It used to be client-side. Every cast member was rendered, everything past
+  the cap carrying `display: none`, so a JS hook could toggle visibility on
+  each keystroke. The cost of that convenience was the full cast in the DOM
+  and in the LiveView diff on every render — measured at **1.6 MB of HTML
+  for one 899-member series**, to show 24 cards.
+
+  Selecting the cast is now a `phx-change` away, so the server sends the 24
+  cards it wants displayed and nothing else. This is a local desktop app
+  talking over a local WebSocket; the round-trip it buys back is not one the
+  user can perceive, and `phx-debounce` keeps it to one query per pause
+  rather than one per keystroke.
+
+  `visible_cast/3` is the whole selection rule, kept public and pure so it
+  is tested directly rather than through rendered markup.
 
   Cast entries are `MediaCentaur.Library.Person` structs from the
   `embeds_many :cast` field on `Movie` and `TVSeries`.
@@ -26,25 +41,48 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfo.CastGrid do
 
   use MediaCentaurWeb, :html
 
-  # Maximum number of cast cards visible at once on the More info grid.
-  # See @moduledoc for rationale. Tune here if the visible count needs
-  # to change; an inline expander/search can be layered on top later
-  # without touching the data layer.
+  # Maximum number of cast cards rendered at once on the More info grid.
+  # See @moduledoc for rationale.
   @max_cast_cards 24
+
+  @doc """
+  The cast members to render for `query`, capped at `max`.
+
+  An empty or nil query selects the first `max` entries. Otherwise, entries
+  whose name or character contains `query` (case-insensitive, matched
+  literally) are selected, in billing order, up to `max`.
+  """
+  @spec visible_cast([map()], String.t() | nil, non_neg_integer()) :: [map()]
+  def visible_cast(cast, query, max) do
+    case String.trim(query || "") do
+      "" -> Enum.take(cast, max)
+      trimmed -> cast |> Enum.filter(&matches?(&1, String.downcase(trimmed))) |> Enum.take(max)
+    end
+  end
+
+  defp matches?(person, query) do
+    String.contains?(searchable(person.name), query) or
+      String.contains?(searchable(person.character), query)
+  end
+
+  defp searchable(value) when is_binary(value), do: String.downcase(value)
+  defp searchable(_value), do: ""
 
   attr :cast, :list,
     required: true,
     doc:
       "list of `MediaCentaur.Library.Person` structs (`name`, `character`, `tmdb_person_id`, `profile_path`, `order`)."
 
-  def cast_grid(assigns) do
-    show_filter = length(assigns.cast) > @max_cast_cards
+  attr :filter, :string,
+    default: "",
+    doc:
+      "current cast filter query. Owned by the host LiveView (`EntityModal`), which resets it when the modal switches entities."
 
+  def cast_grid(assigns) do
     assigns =
       assigns
-      |> assign(:show_filter, show_filter)
-      |> assign(:max_cast_cards, @max_cast_cards)
-      |> assign(:indexed_cast, Enum.with_index(assigns.cast))
+      |> assign(:show_filter, length(assigns.cast) > @max_cast_cards)
+      |> assign(:visible_cast, visible_cast(assigns.cast, assigns[:filter], @max_cast_cards))
 
     ~H"""
     <div :if={@cast != []} id="cast-grid-section">
@@ -52,16 +90,7 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfo.CastGrid do
         Cast
       </h3>
 
-      <div
-        :if={@show_filter}
-        id="cast-grid-filter"
-        phx-hook="CastGridFilter"
-        phx-update="ignore"
-        data-grid-id="cast-grid-grid"
-        data-max-visible={@max_cast_cards}
-        data-empty-state-id="cast-grid-empty"
-        class="mb-3"
-      >
+      <form :if={@show_filter} phx-change="filter_cast" class="mb-3">
         <div class="relative w-64 max-w-full">
           <.icon
             name="hero-magnifying-glass-mini"
@@ -69,30 +98,24 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfo.CastGrid do
           />
           <input
             type="search"
+            name="cast_filter"
+            value={@filter}
+            phx-debounce="150"
             class="library-filter w-full pl-9 bg-base-content/5"
             placeholder="Filter cast"
             aria-label="Filter cast members"
           />
         </div>
-      </div>
+      </form>
 
       <div
         id="cast-grid-grid"
         class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3"
       >
-        <.card
-          :for={{person, i} <- @indexed_cast}
-          person={person}
-          hidden={i >= @max_cast_cards}
-        />
+        <.card :for={person <- @visible_cast} person={person} />
       </div>
 
-      <p
-        :if={@show_filter}
-        id="cast-grid-empty"
-        hidden
-        class="text-sm text-base-content/60 mt-3"
-      >
+      <p :if={@visible_cast == []} class="text-sm text-base-content/60 mt-3">
         No cast members match your filter.
       </p>
     </div>
@@ -104,19 +127,9 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfo.CastGrid do
     doc:
       "single `MediaCentaur.Library.Person` struct (`name`, `character`, `tmdb_person_id`, `profile_path`, `order`)."
 
-  attr :hidden, :boolean,
-    default: false,
-    doc:
-      "render the card with `display: none` initially. Used for cards past the visible cap so they're already hidden before the JS filter hook mounts (no flash of full grid)."
-
   defp card(assigns) do
     ~H"""
-    <div
-      data-cast-card
-      data-cast-name={searchable(@person.name)}
-      data-cast-character={searchable(@person.character)}
-      style={if @hidden, do: "display: none", else: nil}
-    >
+    <div>
       <.card_inner person={@person} />
     </div>
     """
@@ -185,12 +198,4 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfo.CastGrid do
     </div>
     """
   end
-
-  # Pre-lowercase name/character for the JS filter hook so it can do
-  # cheap case-insensitive substring matching without re-lowercasing
-  # every card on every keystroke.
-  defp searchable(nil), do: ""
-  defp searchable(""), do: ""
-  defp searchable(value) when is_binary(value), do: String.downcase(value)
-  defp searchable(_), do: ""
 end

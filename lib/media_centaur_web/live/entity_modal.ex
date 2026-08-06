@@ -113,14 +113,14 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         end
       end
 
-      def handle_event("toggle_detail_view", _params, socket) do
-        new_view = if socket.assigns.detail_view == :info, do: :main, else: :info
-        {:noreply, push_patch(socket, to: build_modal_path(socket, %{view: new_view}))}
+      def handle_event(event, _params, socket)
+          when event in ["toggle_detail_view", "toggle_credits_view"] do
+        view = EntityModal.toggled_view(event, socket.assigns.detail_view)
+        {:noreply, push_patch(socket, to: build_modal_path(socket, %{view: view}))}
       end
 
-      def handle_event("toggle_credits_view", _params, socket) do
-        new_view = if socket.assigns.detail_view == :credits, do: :main, else: :credits
-        {:noreply, push_patch(socket, to: build_modal_path(socket, %{view: new_view}))}
+      def handle_event("filter_cast", params, socket) do
+        EntityModal.handle_filter_cast(params, socket)
       end
 
       def handle_event("toggle_season", params, socket) do
@@ -550,6 +550,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       detail_presentation: nil,
       detail_view: :main,
       detail_files: [],
+      cast_filter: "",
       expanded_seasons: MapSet.new(),
       expanded_episode_details: MapSet.new(),
       all_episode_details_open: false,
@@ -640,25 +641,39 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     end
 
     socket =
-      Phoenix.Component.assign(socket,
+      socket
+      |> Phoenix.Component.assign(
         selected_entity_id: selected_id,
         selected_entry: selected_entry,
         detail_presentation: if(selected_id, do: :modal),
         detail_view: detail_view,
         detail_files: detail_files,
         expanded_seasons: expanded_seasons,
-        expanded_episode_details:
-          if(selection_changed,
-            do: MapSet.new(),
-            else: socket.assigns.expanded_episode_details
-          ),
-        all_episode_details_open:
-          if(selection_changed, do: false, else: socket.assigns.all_episode_details_open),
         tracking_status: tracking_status
       )
+      |> Phoenix.Component.assign(per_selection_assigns(socket.assigns, selection_changed))
 
     if should_load_files?, do: start_async_files_load(socket, selected_id), else: socket
   end
+
+  # State the user built up against the entity that was open, which means
+  # nothing against the next one: which episode disclosures they opened, and
+  # what they typed into the cast filter. Carried across re-params of the
+  # same selection, dropped when the selection changes — a stale cast query
+  # would render the new entity's cast as "no matches".
+  #
+  # Grouped rather than reset inline so adding the next one is a line here
+  # instead of another branch in `apply_modal_params/2`.
+  @per_selection_defaults %{
+    expanded_episode_details: MapSet.new(),
+    all_episode_details_open: false,
+    cast_filter: ""
+  }
+
+  defp per_selection_assigns(_assigns, true = _selection_changed), do: @per_selection_defaults
+
+  defp per_selection_assigns(assigns, false = _selection_changed),
+    do: Map.take(assigns, Map.keys(@per_selection_defaults))
 
   # Only TV carries a season accordion; movie / movie-series entries load
   # as plain maps and open with nothing expanded.
@@ -723,6 +738,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   attr :detail_view, :atom, required: true
   attr :detail_files, :list, required: true, doc: "list of file-info maps for the Files sub-view."
 
+  attr :cast_filter, :string,
+    required: true,
+    doc: "current More-info cast filter query. Reset when the modal switches entities."
+
   attr :expanded_seasons, MapSet, required: true
 
   attr :expanded_episode_details, MapSet,
@@ -771,6 +790,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       rematch_confirm={@rematch_confirm == @selected_entity_id}
       detail_view={@detail_view}
       detail_files={@detail_files}
+      cast_filter={@cast_filter}
       delete_confirm={@delete_confirm}
       deleting={@deleting}
       spoiler_free={@spoiler_free}
@@ -855,6 +875,29 @@ defmodule MediaCentaurWeb.Live.EntityModal do
        :all_episode_details_open,
        !socket.assigns[:all_episode_details_open]
      )}
+  end
+
+  @doc """
+  The `detail_view` a sub-view toggle should land on: the sub-view itself,
+  or back to `:main` when it is already open.
+
+  Both toggles differed only in which atom they named, so they share one
+  `handle_event` clause and this decides the target.
+  """
+  @spec toggled_view(String.t(), atom()) :: atom()
+  def toggled_view("toggle_detail_view", current_view), do: toggle_to(current_view, :info)
+  def toggled_view("toggle_credits_view", current_view), do: toggle_to(current_view, :credits)
+
+  defp toggle_to(current_view, target), do: if(current_view == target, do: :main, else: target)
+
+  @doc """
+  Applies the More-info cast filter query. Plain assign, no URL round-trip:
+  a half-typed actor name is not a place worth restoring someone to.
+  """
+  @spec handle_filter_cast(map(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_filter_cast(%{"cast_filter" => query}, socket) do
+    {:noreply, Phoenix.Component.assign(socket, :cast_filter, query)}
   end
 
   @doc """

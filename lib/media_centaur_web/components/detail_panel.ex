@@ -69,6 +69,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :on_close, :string, default: "close"
   attr :rematch_confirm, :boolean, default: false
   attr :detail_view, :atom, default: :main
+
+  attr :cast_filter, :string,
+    default: "",
+    doc: "current More-info cast filter query; forwarded to the cast grid."
+
   attr :detail_files, :list, default: [], doc: @doc_detail_files
   attr :delete_confirm, :any, default: nil, doc: @doc_delete_confirm
   attr :deleting, :any, default: nil, doc: @doc_deleting
@@ -288,7 +293,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       >
         <%= case @detail_view do %>
           <% :credits -> %>
-            <MoreInfoPanel.more_info_panel entity={@entity} />
+            <MoreInfoPanel.more_info_panel entity={@entity} cast_filter={@cast_filter} />
           <% :info -> %>
             <.info_view
               entity={@entity}

@@ -46,6 +46,10 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfoPanel do
     doc:
       "entity-map produced by `MediaCentaur.Library.Views.DetailItem.to_entity_map/1` (Phase 3.2 Task D). Loose-typed because it spans multiple container kinds; the shell reads `:type` to dispatch and forwards the map to per-type sub-components. Typed-attr migration is a Phase 3.3 follow-up."
 
+  attr :cast_filter, :string,
+    default: "",
+    doc: "current cast filter query, owned by the host LiveView and forwarded to `CastGrid`."
+
   def more_info_panel(assigns) do
     subtitle_languages = subtitle_languages_for(assigns.entity)
 
@@ -77,7 +81,7 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfoPanel do
           />
         </div>
       </div>
-      <CastGrid.cast_grid cast={@entity[:cast] || []} />
+      <CastGrid.cast_grid cast={@entity[:cast] || []} filter={@cast_filter} />
       <.meta_for_type entity={@entity} />
       <.track_override_badge entity={@entity} />
       <ExternalLinks.external_links tmdb_url={@entity[:url]} imdb_id={@entity[:imdb_id]} />
