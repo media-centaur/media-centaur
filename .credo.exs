@@ -190,6 +190,13 @@
           {MediaCentaur.Credo.Checks.RawButtonClass, []},
           {MediaCentaur.Credo.Checks.NoPhxValueValue, []},
           {MediaCentaur.Credo.Checks.RawBadgeClass, []},
+          # MC0027 bans `data-confirm` — the native browser dialog is unthemed
+          # and not d-pad reachable, which is disqualifying for a couch app.
+          # The check's moduledoc carries the three-way rule that replaced it
+          # (nothing / arm-in-place / persistent modal, by consequence).
+          # `@exempt_files` holds the console, which is deliberately outside
+          # the input system that motivates the rule.
+          {MediaCentaur.Credo.Checks.NativeConfirmDialog, []},
           {MediaCentaur.Credo.Checks.StorybookCoverage, []},
           {MediaCentaur.Credo.Checks.TypedComponentAttrs, []},
           {MediaCentaur.Credo.Checks.DestructiveFileQuery, []},

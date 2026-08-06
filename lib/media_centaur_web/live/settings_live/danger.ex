@@ -15,6 +15,11 @@ defmodule MediaCentaurWeb.SettingsLive.Danger do
     doc: "summary string/map of entities missing artwork."
 
   attr :clearing_database, :boolean, required: true
+
+  attr :confirming_image_refresh, :boolean,
+    required: true,
+    doc: "true once the Refresh button is armed and awaiting its second click."
+
   attr :rederiving_extra_names, :boolean, required: true
   attr :refetching_backdrops, :boolean, required: true
   attr :refreshing_credits, :boolean, required: true
@@ -205,13 +210,15 @@ defmodule MediaCentaurWeb.SettingsLive.Danger do
                 Permanently deletes all entities, files, images, and progress.
               </p>
             </div>
+            <%!-- Irreversible and unbounded, so it earns the heaviest
+                  confirmation we have: a persistent modal, rendered at the
+                  SettingsLive root. MC0027 has the full rule. --%>
             <.button
               variant="danger"
               size="sm"
               class="shrink-0"
-              phx-click="clear_database"
+              phx-click="clear_database_prompt"
               disabled={@clearing_database}
-              data-confirm="This will permanently delete ALL entities, files, images, and progress. This cannot be undone. Continue?"
               data-nav-item
               tabindex="0"
             >
@@ -226,23 +233,43 @@ defmodule MediaCentaurWeb.SettingsLive.Danger do
                 Deletes all cached artwork and re-downloads from TMDB. May take a while.
               </p>
             </div>
-            <.button
-              variant="risky"
-              size="sm"
-              class="shrink-0"
-              phx-click="refresh_image_cache"
-              disabled={@refreshing_images}
-              data-confirm={
-                if @refreshing_images,
-                  do: nil,
-                  else:
-                    "This will delete all cached artwork and re-download from TMDB. This may take a while. Continue?"
-              }
-              data-nav-item
-              tabindex="0"
-            >
-              {if @refreshing_images, do: "Refreshing…", else: "Refresh"}
-            </.button>
+            <%!-- Recoverable — the artwork comes back, it just takes a while
+                  — so it arms in place rather than raising a modal. Same
+                  Confirm/Cancel swap the media-directory rows use, so the
+                  page has one in-place idiom. MC0027 has the full rule. --%>
+            <div class="flex items-center gap-2 shrink-0">
+              <%= if @confirming_image_refresh and not @refreshing_images do %>
+                <.button
+                  variant="risky"
+                  size="sm"
+                  phx-click="refresh_image_cache"
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Confirm
+                </.button>
+                <.button
+                  variant="dismiss"
+                  size="sm"
+                  phx-click="refresh_image_cache_cancel"
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Cancel
+                </.button>
+              <% else %>
+                <.button
+                  variant="risky"
+                  size="sm"
+                  phx-click="refresh_image_cache_confirm"
+                  disabled={@refreshing_images}
+                  data-nav-item
+                  tabindex="0"
+                >
+                  {if @refreshing_images, do: "Refreshing…", else: "Refresh"}
+                </.button>
+              <% end %>
+            </div>
           </div>
         </div>
       </div>
