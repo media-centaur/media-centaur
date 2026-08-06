@@ -75,6 +75,22 @@ defmodule MediaCentaur.GlobalStateSandboxTest do
     end
   end
 
+  describe "restore!/1 — only for a test that owns the machine" do
+    test "an async test resets nothing" do
+      # Async tests run concurrently, so a reset in one of them clears state
+      # its peers installed for themselves. An unconditional reset erased the
+      # stubbed TMDB client an async test had put in place and sent the stage
+      # to the real API.
+      key = {MediaCentaur.SomeCacheAddedTomorrow, :state}
+      :persistent_term.put(key, :installed_by_a_peer)
+      on_exit(fn -> :persistent_term.erase(key) end)
+
+      GlobalStateSandbox.restore!(%{async: true})
+
+      assert :persistent_term.get(key, :__unset) == :installed_by_a_peer
+    end
+  end
+
   describe "the supervision tree's inventory" do
     test "every long-lived child is classified" do
       unclassified =

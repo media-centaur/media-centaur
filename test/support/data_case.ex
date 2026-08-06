@@ -43,9 +43,13 @@ defmodule MediaCentaur.DataCase do
   test can perturb. See `MediaCentaur.GlobalStateSandbox`; without it a
   previous test's `Config.update/2` or `QueueMonitor` poll is still there
   when the next test reads it.
+
+  Both mechanisms are gated on the same condition, for the same reason:
+  an `async: true` test shares the machine, so it neither takes the
+  sandbox's shared mode nor resets anything global.
   """
   def setup_sandbox(tags) do
-    MediaCentaur.GlobalStateSandbox.restore!()
+    MediaCentaur.GlobalStateSandbox.restore!(Map.new(tags))
     pid = Ecto.Adapters.SQL.Sandbox.start_owner!(MediaCentaur.Repo, shared: not tags[:async])
 
     # ExUnit on_exit callbacks run LIFO — the wait-for-tasks below
