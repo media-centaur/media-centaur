@@ -46,16 +46,19 @@ being one big file is stale. Before starting a stage:
   targets and introduced one contract violation. Read its *Stage 1 moved
   these targets* block before planning.
 
-Recommended next: **Stage 2**. It is the smallest remaining stage, its
-first two-thirds (`Status`, `Diagnostics`) are mechanical, and Stage 1
-made its `exports:` picture worse in a way worth looking at while it is
-fresh.
+Recommended next: **Stage 3** (`/console` input wiring) or **Stage 4**
+(policy reconciliation). Stage 4 carries a known contract regression that
+Stage 1 introduced (`ProgressRecords.fetch_for_extra/1`), so it has a
+concrete defect to anchor on; Stage 3 is self-contained and touches no
+Elixir.
 
 ## Status
 
-**Stage 1 done** (2026-08-06, six commits `5b2d3510`…`f91f61ce`).
-`library.ex` went 2779 → 127 lines; the 21 `# ---` section dividers are
-gone. Stages 2–5 not started. The 2026-08-05 audit sweep's Critical and
+**Stages 1 and 2 done** (both 2026-08-06). Stage 1 took `library.ex` from
+2779 → 127 lines across six commits (`5b2d3510`…`f91f61ce`); the 21 `# ---`
+section dividers are gone. Stage 2 closed two of the three Boundary
+hatches and documented the third as a permanent, decided exception.
+Stages 3–5 not started. The 2026-08-05 audit sweep's Critical and
 Moderate-with-user-impact findings are already fixed and pushed to
 `main` (see *Decisions made*); this campaign is the tail.
 
@@ -133,6 +136,34 @@ Moderate-with-user-impact findings are already fixed and pushed to
   now owns the translation and could own those too, but changing an
   `Ecto.Enum` values list is a schema-level change with migration
   implications and belongs in its own commit.
+
+* `2026-08-06` — **Stage 2 complete.** Two of the three Boundary hatches
+  closed (`Status`, `Diagnostics`); the third (`Showcase`) kept and
+  documented as a decided permanent exception.
+
+  **Owner decision — `Showcase` stays hatched.** Seeding is the one job
+  that legitimately reaches past every facade: 45 cross-context
+  references over eleven contexts, four `Acquisition` schema structs the
+  context deliberately does not export, and six direct `Repo` writes that
+  exist to force states (a mid-flight pursuit, a backdated watch event)
+  the public APIs correctly refuse to produce. Closing it would mean
+  `Acquisition` exposing a seeding API whose only caller is the demo
+  instance — a real widening of the production surface to satisfy a
+  declaration on a module nothing in production loads. The second open
+  question (`Acquisition` proper vs a dev-only `Acquisition.Seeds`) is
+  moot as a result. `WatcherStatus` already set the precedent for a
+  documented hatch.
+
+  **Owner decision — the 62-name `Library` `exports:` list is deferred.**
+  Recorded as a question for later rather than folded into this stage;
+  Stage 2 added only the two names it actually needed.
+
+  Corrections to the recorded evidence: the hatch count is **30**, and
+  neither 26 nor 31 was ever produced by the command the file recorded
+  (`grep -rc` prints one line per searched file). The stage also
+  under-scoped itself — it costed out-refs only, but re-enabling `in:`
+  required `Status` to gain an `exports:` list and `MediaCentaurWeb` to
+  declare a `MediaCentaur.Status` dep it had never needed.
 
 ---
 
@@ -297,60 +328,77 @@ each new module names *one* thing.
 
 ---
 
-## Stage 2 — Close the Boundary escape hatches
+## Stage 2 — Close the Boundary escape hatches  ✅ **DONE 2026-08-06**
 
 **Why.** [ADR-029](../decisions/architecture/2026-03-26-029-data-decoupling.md)
 makes `use Boundary, deps: [...]` the canonical inter-context
 dependency list. Where checking is off, that list is fiction.
 
-**Evidence** (re-measured 2026-08-06 after Stage 1). **31** of 65
-boundaries declare `check: [in: false, out: false]` — the stage
-originally said 26, which was wrong when written; the count was 31 both
-before and after Stage 1, which added no `use Boundary` declarations.
+**Evidence** (re-measured 2026-08-06, at the start of the stage).
+**30** files declare `check: [in: false, out: false]` — not 26 (the
+original text) and not 31 (the first reconciliation pass). Both earlier
+figures came from `grep -rc`, which prints one line per *searched* file
+including non-matches, so it never produced either number. The command
+that does:
 
-    grep -rc "check: \[in: false, out: false\]" lib/ --include='*.ex'
+    grep -rl "check: \[in: false, out: false\]" lib/ --include='*.ex' | wc -l
 
 Most are legitimate leaf utilities (`Format`, `DateUtil`, `Iso8601`,
-`Log`, `Topics`, `Secret`, `Version`, `Repo`). Three are not:
+`Log`, `Topics`, `Secret`, `Version`, `Repo`) or documented exceptions
+(`WatcherStatus`, which exists to break a Boundary cycle and says so).
+Three were not — and the real cost was derived by removing each hatch
+and reading the compiler, not from the original table:
 
-| Module | Reaches |
-|---|---|
-| `lib/media_centaur/status.ex:2` | `Acquisition.Pursuits`, `Library`, `Library.Completeness`, `Library.FilePresence`, `Maintenance`, `Review` |
-| `lib/media_centaur/showcase.ex:2` | `Repo` **directly**, plus `Acquisition.Pursuits.{Pursuit, TargetUnit, Unit}` schema structs, `Library`, `ReleaseTracking`, `Review`, `TMDB`, `WatchHistory` |
-| `lib/media_centaur/diagnostics.ex:2` | `ErrorReports.Bucket` / `ErrorReports.Incident` internals |
+| Module | Out-refs | Contexts reached |
+|---|---|---|
+| `diagnostics.ex` | 18 | 2 — `ErrorReports` (+`Bucket`, `Incident`), `Playback` (+`Sessions`, `SessionRegistry`) |
+| `status.ex` | 11 | 4 — `Acquisition`, `Library` (+`Completeness`, `ChangeLog`, `FilePresence`, `Stats`, `AbsenceSweeper`, `Availability`), `Maintenance`, `Review` |
+| `showcase.ex` | 45 | 11, incl. 4 unexported `Acquisition` schema structs and 6 direct `Repo` writes across 1351 lines |
 
-`Status`'s own moduledoc already flags its hatch as a stale holdover
-and scopes the fix: export `Library.Completeness`, list the six deps.
+**What the original stage text missed.** It scoped the work as out-refs
+only. Turning `in:` back on has its own cost: 10 references reach *into*
+`Status` from the web layer, so `Status` needed its own `exports:` list
+**and** `MediaCentaurWeb` needed `MediaCentaur.Status` added to its
+`deps:` — that dep had simply never been declared, because `in: false`
+made it unnecessary. Any future hatch closure should budget for both
+directions.
 
-**Approach.** `Status` first — it is genuinely composition-only now and
-the work is one `deps:` list plus one `exports:` addition. `Diagnostics`
-next. `Showcase` last and hardest: it writes through `Repo` into another
-context's schemas, so it needs `Acquisition` to expose a seeding API
-rather than surrendering its structs.
+**Resolved.**
 
-**What Stage 1 changed here.** `Library`'s `exports:` list grew from 46
-names to 62 — every extracted module that call sites reach directly had
-to be exported. Two consequences for this stage:
+* `Status` — hatch replaced with
+  `deps: [Acquisition, Library, Maintenance, Review]` and
+  `exports: [LibraryOverview, Views]`. Its moduledoc carried a
+  "Boundary follow-up" note calling the hatch a stale holdover; the note
+  is gone because the follow-up is done.
+* `Diagnostics` — hatch replaced with
+  `deps: [ErrorReports, Playback]`. Nothing references into it, so it
+  needs no `exports:`. `ErrorReports` already exported `Bucket` and
+  `Incident`; `Playback` exported `Sessions` but not `SessionRegistry`,
+  now added.
+* `Library` — `ChangeLog` and `Completeness` added to `exports:`. The
+  original text named only `Completeness`.
+* `Showcase` — **hatch kept, documented as permanent** (owner decision,
+  see *Decisions made*). Its moduledoc now carries a *"Why the Boundary
+  check is off, permanently"* section with the numbers and the reasoning,
+  cross-referencing `WatcherStatus` as the existing precedent for a
+  documented exception.
 
-* The three modules above reach *more* Library names than the table
-  records, because functions they called on the facade are now on
-  sub-modules (`Library.Containers`, `Library.ProgressRecords`, …).
-  Re-derive each module's actual dependency list from a compile with the
-  hatch removed rather than from the table.
-* A 62-name `exports:` list is itself worth a look while you are in
-  here. Most entries are schemas that callers only need in order to
-  pattern-match a struct. If that turns out to be the bulk of it, the
-  honest fix may be a narrower public surface rather than a longer list
-  — but that is a separate decision, not a prerequisite.
+**Deliberately not done.** `Library`'s 62-name `exports:` list. It is
+worth a look — most entries are schemas that callers need only to
+pattern-match a struct, and the honest fix may be a narrower public
+surface rather than a longer list — but it is a separate decision and
+was explicitly deferred rather than folded into this stage.
 
-**Open questions for the owner**
-* Is `Showcase` worth the work at all? It is dev/demo-only. A defensible
-  alternative is to leave the hatch and add a comment saying *why* it is
-  permanent — a documented exception beats an undocumented one.
-* Should a seeding API live on `Acquisition` proper, or in an
-  `Acquisition.Seeds` module compiled only in dev?
+**Observed, not acted on.** `lib/media_centaur/library/continue_watching_progress.ex:16`
+declares `top_level?: true, check: [in: false, out: false]` — a
+`Library.*` module that escapes the `Library` boundary. It is a pure
+helper with no dependencies, so the hatch costs nothing today, but the
+`top_level?: true` is unexplained and it is the only `Library.*` module
+that does this.
 
-**Verification.** `mix boundaries` with the hatches removed.
+**Verification.** `mix compile --force` reports **zero** warnings with
+both hatches removed. Full `mix precommit` green — 5670 Elixir tests,
+557 JS tests, credo clean, dependency-cruiser clean, sobelow clean.
 
 ---
 

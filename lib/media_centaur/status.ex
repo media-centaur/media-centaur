@@ -1,5 +1,13 @@
 defmodule MediaCentaur.Status do
-  use Boundary, top_level?: true, check: [in: false, out: false]
+  use Boundary,
+    top_level?: true,
+    deps: [
+      MediaCentaur.Acquisition,
+      MediaCentaur.Library,
+      MediaCentaur.Maintenance,
+      MediaCentaur.Review
+    ],
+    exports: [LibraryOverview, Views]
 
   @moduledoc """
   Read-side aggregator for the operational Status page.
@@ -8,11 +16,6 @@ defmodule MediaCentaur.Status do
   needs — library counts, pending review, and the recent changes feed. All
   persistence stays behind those facades; this module owns no queries of its
   own.
-
-  > Boundary follow-up: `check: false` is a holdover from when this module ran
-  > raw schema queries. Now that it only composes facades it can declare
-  > `deps: [...]` and re-enable the check — deferred because that also requires
-  > exporting `Library.Completeness` and listing the composed contexts.
   """
 
   alias MediaCentaur.Acquisition.Pursuits

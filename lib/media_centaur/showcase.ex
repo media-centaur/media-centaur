@@ -12,6 +12,26 @@ defmodule MediaCentaur.Showcase do
   `mix seed.showcase` is a thin wrapper around it that additionally refuses
   to run against the default profile as a safety rail.
 
+  ## Why the Boundary check is off, permanently
+
+  `check: [in: false, out: false]` here is a **decided exception**, not a
+  holdover. Seeding is the one job that legitimately reaches past every
+  facade: this module writes 45 cross-context references spanning eleven
+  contexts, including `Acquisition` schema structs (`Pursuits.Pursuit`,
+  `Pursuits.Unit`, `Pursuits.TargetUnit`, `Target`) that the context
+  deliberately does not export, and six direct `Repo` writes that exist to
+  force states — a mid-flight pursuit, a backdated watch event — that the
+  public APIs correctly refuse to produce.
+
+  Closing the hatch would mean `Acquisition` (and several others) exposing a
+  seeding API whose only caller is the demo instance. That trades a real
+  widening of the production surface for a declaration that would then have
+  to be maintained against a module nothing in production loads. The
+  exception is cheaper and honest.
+
+  `MediaCentaur.WatcherStatus` documents its hatch the same way, for a
+  different reason (breaking a Boundary cycle).
+
   ## Content policy: PD or CC only, every string
 
   **Every title string surfaced by the showcase must be public-domain or

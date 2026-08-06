@@ -27,11 +27,12 @@ Use [`template.md`](template.md) as a starter.
   findings shipped — the Detail projection went 219 MB → 5 MB, an
   unguarded watch-history delete was gated, Continue Watching stopped
   rendering empty, `ex_code_view` stopped breaking `mix setup` for
-  external contributors. What's left is structural debt in six
-  independent stages: split the 2779-line `Library` context, close
-  three Boundary escape hatches, wire `/console` for keyboard and
-  gamepad, reconcile two written test policies with 457/410
-  violations, pick one event-publication idiom, plus droppable polish.
+  external contributors. Stage 1 split the 2779-line `Library` context
+  into 18 modules (`library.ex` 2779 → 127 lines); Stage 2 closed the
+  `Status` and `Diagnostics` Boundary hatches and documented `Showcase`'s
+  as a permanent exception. What's left: wire `/console` for keyboard and
+  gamepad, reconcile two written test policies with the code, pick one
+  event-publication idiom, plus droppable polish.
   **Each stage is discussed with the owner before it is resolved** —
   the open questions are the point, not the code.
 * [`below-floor-releases.md`](below-floor-releases.md) —
