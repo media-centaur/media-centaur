@@ -30,20 +30,42 @@ decide unilaterally. The loop per stage is:
 
 Stages are independent. Order below is recommended, not required.
 
-**Resuming after Stages 1, 2, 3 and 4 (2026-08-06) — start here.**
+**Resuming after Stages 1–4 (2026-08-06) — start here.**
 
-**Stage 5 is the only stage left**, and it still needs a design
-conversation before anything moves — it is a convention decision (one
-event-publication idiom) that wants an ADR first. Stage 6 is droppable
-polish. Everything else is resolved: 1, 2 and 4 done; **3 declined**.
+**Stage 5 is the last stage, and it is the only one that starts with a
+conversation rather than code.** It is a convention decision — which
+event-publication idiom the repo standardises on — and the campaign's own
+rule is that it gets an ADR before anything moves. Its two open questions
+are *unanswered*; they are for the owner, not for you to settle. Do not
+open an editor on `lib/` until they are.
+
+Read *Stage 5* in full, then put its two questions to the owner:
+
+1. Is the typed-struct idiom the **target**, or an experiment to **roll
+   back** to plain tuples? Twenty files for `Pursuits` events alone is a lot
+   of ceremony, and "expand it" is not the obvious answer.
+2. Does `Topics.publish/2` + `Topics.subscribe/1` land **independently** of
+   that answer? (The stage recommends yes — it is mechanical and
+   idiom-agnostic. This one is cheap to agree and unblocks real work even if
+   question 1 stays open.)
+
+Its facts were re-verified against `main` on 2026-08-06 after Stage 3 —
+see the table below and the stage's own evidence block, which now carries
+the command beside every figure.
 
 **Stage 3 was declined, not deferred** — the console stays out of the input
-system deliberately. Don't re-open it as unfinished work. Its stage section
-now records two things that outlive the decision: `/console` mounts no
-`#input-system` hook at all (which is *why* the exclusion holds), and a
-separate live defect it uncovered — **`/reconcile`'s navigation is dead**,
-declared in the template but entirely absent from `config.js`. That one is
-an ordinary bug wanting a three-line fix, and it is unclaimed.
+system deliberately (backtick already opens it; the input system would take
+the arrow keys and Escape on a log-reading surface). Don't re-open it as
+unfinished work, and don't read `/console`'s missing nav config as a gap.
+
+**One unclaimed bug, from Stage 3's wreckage.** `/reconcile`'s navigation is
+dead — the template declares a behavior, two zones and `data-nav-item` on
+every row, but `config.js` has no `reconcile` entries at all, so
+`buildNavGraph` returns `{}` and arrow keys do nothing. Unlike the console
+this is *not* deliberate: the page mounts the input system via `Layouts.app`
+and is meant to be navigable. It is structurally identical to `review`, so
+the fix is a three-line layout block plus selectors and `instanceTypes`.
+Not a Stage 5 obligation — pick it up only if you want a warm-up.
 
 Stale memories to drop before you start:
 
@@ -57,13 +79,18 @@ Stale memories to drop before you start:
   `force_where/2` for setup the public API refuses to produce.
 * Lookups now follow one contract, enforced by MC0022: `fetch…` returns
   a tuple, `get…` returns nil-able, `…!` raises.
-* Stage 4 touched no JS, no `assets/`, and no `console*` file, so nothing
-  in Stage 3 was moved by it.
+* Stage 3 left **no code on `main`** — it was built to working code to prove
+  the design, then reverted in full. `git log` shows only its docs commit.
+  Don't go looking for half-applied console nav.
+* `Topics` centralises topic **names** only — 36 of them, every `def` in the
+  module. It has no `publish/2` or `subscribe/1`; adding that pair is
+  precisely what Stage 5 proposes, and it is the cheap half of the stage.
 
-**Numbers you can trust as of 2026-08-06, post-Stage-4.** Every figure
-below was re-run against `main` after Stage 4's commit; each stage
-records the command that produced it. Strikethrough marks a figure this
-campaign recorded and later disproved.
+**Numbers you can trust as of 2026-08-06.** Stage 4's figures were re-run
+after its own commit; **Stage 5's were re-run after Stage 3**, so they are
+the freshest in the file. Each stage records the command that produced its
+numbers. Strikethrough marks a figure this campaign recorded and later
+disproved.
 
 | Stage | Claim | Verified |
 |---|---|---|
@@ -74,7 +101,9 @@ campaign recorded and later disproved.
 | 4 | `Repo.*` calls in `test/` | ~~301~~ → **450** (114 writes) |
 | 4 | `=~` assertions in `*_live_test.exs` | ~~345~~ → **14** structural |
 | 4 | `ProgressRecords.fetch_for_extra/1` returns `nil` | ✅ fixed — returns a tuple |
-| 5 | `MediaCentaur.PubSub` literals in `lib/` | 134 ✅ re-verified post-Stage-4 |
+| 5 | `MediaCentaur.PubSub` literals in `lib/` | **134**, across **73 files** ✅ re-verified post-Stage-3 |
+| 5 | `Phoenix.PubSub.broadcast` call sites in `lib/` | **69**, across **52 modules** ✅ |
+| 5 | modules using the typed-struct idiom | **4** `events.ex` + **18** `Pursuits` event structs + `define.ex` + `event_behaviour.ex` ✅ |
 
 **Three counting errors, one campaign.** Stage 2 corrected a hatch count
 twice before getting it right. Stage 4 then found both of *its* recorded
@@ -111,6 +140,14 @@ is *missing* from a page says nothing about whether the thing it plugs into
 is *present*. The generalisation of the campaign's own lesson: a check you
 can run beats a number you wrote down, **and a number you wrote down beats
 nothing only if you also checked the assumption underneath it.**
+
+**And a fifth, committed while writing the fourth.** The Stage 5 evidence
+table below first recorded `Topics` as having "~29" topic functions — a
+figure eyeballed off a truncated `head -30`, when the command beside it
+returns **36**. Caught before commit only because the command was written
+down next to the number and then actually run. Five errors, one campaign,
+every one of them a number nobody re-ran: **write the command beside the
+figure, then run it — including the one you just typed.**
 
 Recommended next: **Stage 5** (event-publication idiom) — needs a design
 conversation and an ADR before any code moves. Unclaimed alongside it:
@@ -896,24 +933,38 @@ deliberately-wrong function before it went green.
 **Why.** Two idioms coexist repo-wide. This is a convention decision,
 not a refactor — it needs an ADR before any code moves.
 
-**Evidence.**
+**Evidence — re-verified 2026-08-06, after Stage 3.** Every figure carries
+the command that produced it, per this campaign's most expensive lesson.
+
+| Fact | Command | Value |
+|---|---|---|
+| `MediaCentaur.PubSub` as a literal in `lib/` | `grep -rho 'MediaCentaur\.PubSub' lib/ --include='*.ex' \| wc -l` | **134** |
+| …spread across | `grep -rl 'MediaCentaur\.PubSub' lib/ --include='*.ex' \| wc -l` | **73 files** |
+| `Phoenix.PubSub.broadcast` call sites | `grep -rn 'Phoenix.PubSub.broadcast' lib/ --include='*.ex' \| wc -l` | **69** |
+| …spread across | `grep -rl 'Phoenix.PubSub.broadcast' lib/ --include='*.ex' \| wc -l` | **52 modules** |
+| `Events` modules (typed-struct idiom) | `find lib -name 'events.ex'` | **4** |
+| `Pursuits` event structs | `ls lib/media_centaur/acquisition/pursuits/events/` | **18** + `define.ex` + `event_behaviour.ex` |
+| `Topics` topic-name functions | `grep -c '^  def ' lib/media_centaur/topics.ex` | **36** — all of them topic names, **none** publish/subscribe |
+
 * **Typed structs behind an `Events` module** — `library/events.ex`,
   `library/progress/events.ex`, `playback/events.ex`,
-  `acquisition/pursuits/events.ex` (+20 event modules, an
-  `event_behaviour.ex`, and a `define.ex` macro).
-* **Bare inline tuples** — ~50 modules broadcast directly, roughly 30
-  distinct message shapes with no struct, no `@type`, and no single
-  place to discover the contract. `Review`, `Settings`,
-  `ReleaseTracking`, `Watcher`, `Reconciliation`, `Capabilities`,
-  `Controls`, `IntegrationHealth`, `WatchHistory`, `ErrorReports`.
+  `acquisition/pursuits/events.ex`. `Pursuits` carries the weight of the
+  idiom on its own: 18 one-struct modules plus a `define.ex` macro and an
+  `event_behaviour.ex`, i.e. **20 files** in one directory.
+* **Bare inline tuples** — the other 48-ish modules broadcast directly,
+  with no struct, no `@type`, and no single place to discover the contract.
+  `Review`, `Settings`, `ReleaseTracking`, `Watcher`, `Reconciliation`,
+  `Capabilities`, `Controls`, `IntegrationHealth`, `WatchHistory`,
+  `ErrorReports`.
+
+Note the ratio before deciding: **4 contexts** use the ceremony, **~48**
+don't. Whichever way question 1 goes, one of those two numbers is the
+migration cost — and the stage's *approach* (convert on next touch, never
+in a sweep) is what keeps it from being paid all at once.
 
 Related but separable: `Topics` centralises topic *names* but not
-publication — `MediaCentaur.PubSub` appears as a literal at **134**
-sites (re-measured 2026-08-06; was 132). A `Topics.publish/2` +
-`Topics.subscribe/1` pair removes all of them and is worth doing
-regardless of which idiom wins.
-
-    grep -rho 'MediaCentaur\.PubSub' lib/ --include='*.ex' | wc -l
+publication. A `Topics.publish/2` + `Topics.subscribe/1` pair removes all
+134 literals and is worth doing regardless of which idiom wins.
 
 Stage 1 touched this lightly: the `{:entity_watch_completed, record}`
 broadcast moved with `mark_completed/1` into
@@ -922,18 +973,26 @@ module with a moduledoc, rather than one buried in a 2779-line context.
 The idiom question is unchanged.
 
 **Approach.** Write the ADR first; convert per-context on next touch,
-not in a sweep.
+not in a sweep. A sweep across 52 broadcasting modules is exactly the kind
+of refactor the originating audit said this repo starts and abandons at 80%.
 
-**Open questions for the owner**
-* Is the typed-struct idiom the target, or was it an experiment that
-  should be *rolled back* to plain tuples? Twenty event modules for
-  `Pursuits` is a lot of ceremony; the answer is not obviously "expand
-  it."
-* Does `Topics.publish/2` land independently of that decision?
-  (Recommendation: yes — it is mechanical and idiom-agnostic.)
+**Open questions for the owner — BOTH STILL UNANSWERED (2026-08-06).**
+This is the one stage that must not start on code. Put these to the owner
+before planning anything:
+
+1. **Is the typed-struct idiom the target, or should it be rolled back to
+   plain tuples?** 4 contexts use it; ~48 don't. `Pursuits` alone spends 20
+   files on it. "Expand it" is not obviously right, and neither is "delete
+   it" — the answer decides whether the migration cost is 4 modules or 48.
+2. **Does `Topics.publish/2` + `Topics.subscribe/1` land independently?**
+   Recommendation: **yes.** It is mechanical, idiom-agnostic, and removes
+   all 134 `MediaCentaur.PubSub` literals whichever way question 1 goes.
+   Agreeing this one unblocks useful work even if question 1 stays open.
 
 **Verification.** ADR merged; one context converted as the worked
-example.
+example. If question 2 lands alone, `grep -rho 'MediaCentaur\.PubSub' lib/
+--include='*.ex' | wc -l` should read **0** — a check you can run, which
+this campaign has learned to prefer over a number written down.
 
 ---
 
@@ -988,6 +1047,11 @@ anything.
 * Stages 1–5 each either **resolved** or **explicitly declined** with
   the reason recorded in *Decisions made*. A declined stage is a valid
   outcome; an undiscussed one is not.
+  **Status: 1, 2, 4 resolved · 3 declined · 5 outstanding.** Stage 5 is
+  the only thing between this campaign and closed.
+* **Closing the campaign does not require `/reconcile` to be fixed.** That
+  defect was found here but belongs to no stage; carry it forward as
+  ordinary work rather than letting it hold the campaign open.
 * `mix precommit` green after each stage, no new Credo suppressions.
 * No stage left half-applied — the audit's own headline finding was
   that this repo's defects come from refactors that start well and stop
