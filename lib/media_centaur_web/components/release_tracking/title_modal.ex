@@ -18,6 +18,7 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
   use Phoenix.Component
 
   import MediaCentaurWeb.Components.ReleaseTracking.EventCard, only: [event_card: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
   import MediaCentaurWeb.Components.Modal, only: [modal: 1]
   import MediaCentaurWeb.CoreComponents
 
@@ -51,7 +52,12 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
                 no-artwork state. --%>
           <img
             :if={@detail.backdrop_path}
-            src={MediaCentaur.Library.Image.web_path(@detail.backdrop_path)}
+            src={
+              sized_image_url(
+                MediaCentaur.Library.Image.web_path(@detail.backdrop_path),
+                1280
+              )
+            }
             alt=""
             aria-hidden="true"
             class="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40"

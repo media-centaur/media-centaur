@@ -4,7 +4,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
   use Phoenix.Component
 
   import MediaCentaurWeb.CoreComponents, only: [badge: 1]
-  import MediaCentaurWeb.LiveHelpers, only: [banner_hue: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [banner_hue: 1, sized_image_url: 2]
+
+  # Height-capped at `max-h-16` and bounded to 55% of the header, so a wide
+  # logo lands near 380 CSS px — doubled for a 4K panel.
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitHeader
   alias MediaCentaurWeb.Components.Acquisition.PursuitStyle
@@ -41,7 +44,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
           <div class="flex items-end justify-between gap-3">
             <img
               :if={@vm.logo_url}
-              src={@vm.logo_url}
+              src={sized_image_url(@vm.logo_url, 960)}
               alt={@display_title}
               title={@display_title}
               class="text-on-image-lg max-h-16 max-w-[55%] object-contain object-left"

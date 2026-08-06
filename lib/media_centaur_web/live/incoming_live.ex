@@ -879,7 +879,12 @@ defmodule MediaCentaurWeb.IncomingLive do
           class="page-atmosphere page-atmosphere-deep"
           aria-hidden="true"
         >
-          <img src={@page_backdrop} alt="" loading="eager" decoding="sync" />
+          <img
+            src={sized_image_url(@page_backdrop, :full_bleed)}
+            alt=""
+            loading="eager"
+            decoding="sync"
+          />
         </div>
         <%!-- The dark side/bottom scrim is unconditional — a pure gradient,
               no image needed, and it keeps the page's depth either way. --%>
@@ -995,7 +1000,7 @@ defmodule MediaCentaurWeb.IncomingLive do
                       background so the title stays legible. --%>
                 <img
                   :if={draft.backdrop_url}
-                  src={draft.backdrop_url}
+                  src={sized_image_url(draft.backdrop_url, 1920)}
                   alt=""
                   aria-hidden="true"
                   class="absolute inset-0 h-full w-full object-cover pointer-events-none"

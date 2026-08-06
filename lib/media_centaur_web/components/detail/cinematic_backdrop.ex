@@ -23,6 +23,8 @@ defmodule MediaCentaurWeb.Components.Detail.CinematicBackdrop do
 
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
+
   attr :backdrop_url, :string,
     default: nil,
     doc:
@@ -70,7 +72,16 @@ defmodule MediaCentaurWeb.Components.Detail.CinematicBackdrop do
       class={["modal-page-backdrop", @early_fade && "modal-page-backdrop--early-fade"]}
       aria-hidden="true"
     >
-      <img src={@backdrop_url} alt="" loading="eager" decoding="sync" fetchpriority="high" />
+      <%!-- `:full_bleed` is load-bearing: `.orientation-backing-image` in
+            `DetailPanel` replicates this exact URL, and the pinned-block
+            illusion breaks the moment the two requests differ. --%>
+      <img
+        src={sized_image_url(@backdrop_url, :full_bleed)}
+        alt=""
+        loading="eager"
+        decoding="sync"
+        fetchpriority="high"
+      />
     </div>
     """
   end

@@ -108,7 +108,7 @@ defmodule MediaCentaurWeb.HomeLive do
               Both escape main's `px-6 py-6` padding and scroll with the page. --%>
         <div :if={@hero && @hero.backdrop_url} class="page-backdrop" aria-hidden="true">
           <img
-            src={@hero.backdrop_url}
+            src={sized_image_url(@hero.backdrop_url, :full_bleed)}
             alt=""
             loading="eager"
             decoding="sync"

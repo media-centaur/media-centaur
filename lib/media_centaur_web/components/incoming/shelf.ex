@@ -29,6 +29,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
   use Phoenix.Component
 
   import MediaCentaurWeb.Components.Incoming.StatusPill, only: [status_pill: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
   defmodule Card do
@@ -175,7 +176,7 @@ defmodule MediaCentaurWeb.Components.Incoming.Shelf do
       <div class="glass-inset relative h-12 w-8 shrink-0 overflow-hidden rounded-md border border-base-content/10">
         <img
           :if={@card.art_url}
-          src={@card.art_url}
+          src={sized_image_url(@card.art_url, 160)}
           alt=""
           class="h-full w-full object-cover"
           loading="eager"

@@ -10,6 +10,10 @@ defmodule MediaCentaurWeb.Components.HeroCard do
 
   use Phoenix.Component
   import MediaCentaurWeb.CoreComponents, only: [button: 1, icon: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
+
+  # The lockup logo is capped at `max-w-md` (448 CSS px), which doubles on a
+  # 4K panel. The card's backdrop is painted by the page, not here.
 
   defmodule Item do
     @moduledoc "View-model for the HeroCard."
@@ -74,7 +78,7 @@ defmodule MediaCentaurWeb.Components.HeroCard do
               logos don't push past the hero's text column. --%>
         <img
           :if={@item.logo_url}
-          src={@item.logo_url}
+          src={sized_image_url(@item.logo_url, 960)}
           alt={@item.name}
           class="max-h-44 max-w-md object-contain object-left text-on-image-lg"
         />
