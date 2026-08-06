@@ -34,9 +34,13 @@ Use [`template.md`](template.md) as a starter.
   policies with practice and put three Credo checks behind them
   (MC0022–MC0024) — after discovering both of its own headline counts
   were wrong, and that the "345 markup assertions" were really 14.
-  What's left: wire `/console` for keyboard and gamepad (open questions
-  already answered), pick one event-publication idiom, plus droppable
-  polish.
+  Stage 3 was **declined** — the console stays out of the input system
+  deliberately (backtick already opens it, and the input system would take
+  the arrow keys and Escape on a log-reading surface); the attempt did
+  surface that `/reconcile`'s navigation is dead, declared in the template
+  but absent from `config.js`. What's left: pick one event-publication
+  idiom (needs an ADR first), plus droppable polish and that unclaimed
+  `/reconcile` fix.
   **Each stage is discussed with the owner before it is resolved** —
   the open questions are the point, not the code.
 * [`below-floor-releases.md`](below-floor-releases.md) —

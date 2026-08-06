@@ -30,14 +30,20 @@ decide unilaterally. The loop per stage is:
 
 Stages are independent. Order below is recommended, not required.
 
-**Resuming after Stages 1, 2 and 4 (2026-08-06) — start here.**
+**Resuming after Stages 1, 2, 3 and 4 (2026-08-06) — start here.**
 
-**Next up is Stage 3.** Its open questions are answered and its facts
-were re-verified after Stage 4 landed, so it can go straight to code. Its
-*"Implementation checklist"* names every file and line to touch, and its
-*"The stage's stated trap does not apply"* block corrects the concern
-that made the stage look risky — read that before planning, because the
-original text argues for a design you no longer need.
+**Stage 5 is the only stage left**, and it still needs a design
+conversation before anything moves — it is a convention decision (one
+event-publication idiom) that wants an ADR first. Stage 6 is droppable
+polish. Everything else is resolved: 1, 2 and 4 done; **3 declined**.
+
+**Stage 3 was declined, not deferred** — the console stays out of the input
+system deliberately. Don't re-open it as unfinished work. Its stage section
+now records two things that outlive the decision: `/console` mounts no
+`#input-system` hook at all (which is *why* the exclusion holds), and a
+separate live defect it uncovered — **`/reconcile`'s navigation is dead**,
+declared in the template but entirely absent from `config.js`. That one is
+an ordinary bug wanting a three-line fix, and it is unclaimed.
 
 Stale memories to drop before you start:
 
@@ -61,9 +67,10 @@ campaign recorded and later disproved.
 
 | Stage | Claim | Verified |
 |---|---|---|
-| 3 | `console_page_live.ex` has zero nav attributes | 0 ✅ re-verified post-Stage-4 |
-| 3 | `/console` is the only routed page without a behavior | yes ✅ (10 behaviors, 11 pages) |
-| 3 | page behaviors missing a test | **1** (`reconcile`) — *not* the 2 implied by "11 / 9" |
+| 3 | `console_page_live.ex` has zero nav attributes | 0 ✅ — and correctly so; stage declined |
+| 3 | `/console` is the only routed page without a behavior | yes, but ~~this implies it is the only unnavigable one~~ → `/reconcile` has a behavior and is equally dead |
+| 3 | `/console` runs the input system and just lacks zones | ~~assumed~~ → **false**: it mounts no `#input-system` hook at all |
+| 3 | page behaviors missing a test | **1** (`reconcile`) — but the test was never the gap; its *config* is missing |
 | 4 | `Repo.*` calls in `test/` | ~~301~~ → **450** (114 writes) |
 | 4 | `=~` assertions in `*_live_test.exs` | ~~345~~ → **14** structural |
 | 4 | `ProgressRecords.fetch_for_extra/1` returns `nil` | ✅ fixed — returns a tuple |
@@ -97,21 +104,32 @@ nobody has to re-grep them.
   `config/test.exs` documented that exact failure mode three lines above
   the timeout it was reasoning about.
 
-Recommended next: **Stage 3** (`/console` input wiring). Facts
-re-verified, open questions answered, checklist written — it can start on
-code. Stage 5 still needs a design conversation before anything moves.
+**A fourth counting error, of a different kind.** Stage 3's numbers were
+all correct — and the stage was still built on a false premise, because
+nobody checked whether the page ran the input system at all. Counting what
+is *missing* from a page says nothing about whether the thing it plugs into
+is *present*. The generalisation of the campaign's own lesson: a check you
+can run beats a number you wrote down, **and a number you wrote down beats
+nothing only if you also checked the assumption underneath it.**
+
+Recommended next: **Stage 5** (event-publication idiom) — needs a design
+conversation and an ADR before any code moves. Unclaimed alongside it:
+the `/reconcile` config defect recorded in Stage 3, and Stage 6's
+droppable polish.
 
 ## Status
 
-**Stages 1, 2 and 4 done** (all 2026-08-06). Stage 1 took `library.ex` from
+**Stages 1, 2 and 4 done; Stage 3 declined** (all 2026-08-06). Stage 1 took `library.ex` from
 2779 → 127 lines across six commits (`5b2d3510`…`f91f61ce`); the 21 `# ---`
 section dividers are gone. Stage 2 closed two of the three Boundary
 hatches and documented the third as a permanent, decided exception.
 Stage 4 reconciled the two overreaching policies with practice and put
 **three new Credo checks** behind them (MC0022–MC0024), fixing five
 lookup-contract violations and converting 40 test-setup sites.
-Stages 3 and 5 not started, but **Stage 3's open questions are answered**
-(see the stage). The 2026-08-05 audit sweep's Critical and
+Stage 3 was declined by the owner — the console is deliberately outside the
+input system — after being implemented far enough to prove the design, then
+reverted in full. **Stage 5 is the only stage left**, and it needs an ADR
+before code. The 2026-08-05 audit sweep's Critical and
 Moderate-with-user-impact findings are already fixed and pushed to
 `main` (see *Decisions made*); this campaign is the tail.
 
@@ -222,6 +240,29 @@ diagnosis was reached first.
   under-scoped itself — it costed out-refs only, but re-enabling `in:`
   required `Status` to gain an `exports:` list and `MediaCentaurWeb` to
   declare a `MediaCentaur.Status` dep it had never needed.
+
+* `2026-08-06` — **Stage 3 declined.** The console stays out of the input
+  system on purpose. It already has a keyboard route in (backtick opens the
+  drawer anywhere), and on a log-reading surface the input system would take
+  ownership of the arrow keys, Escape and BACK — the keys you want left alone
+  while reading and selecting log text. The stage's framing ("unreachable
+  without a mouse") treated a deliberate design as an omission.
+
+  The attempt was carried to working code first, then reverted in full;
+  nothing is on `main`. It surfaced two durable facts. First, **`/console`
+  mounts no `#input-system` hook at all** — the hook lives on `Layouts.app/1`
+  / `Layouts.input_system_root/1` and `ConsolePageLive` uses neither, so
+  arrow keys never leave `<body>`. That absence is now the enforcing
+  mechanism for this decision, not a bug. Second, the checklist's
+  `data-nav-default-zone="console_tabs"` was wrong — that attribute names the
+  **layout key**, not a zone.
+
+  **Unrelated defect found on the way:** `/reconcile`'s navigation is dead.
+  It declares a behavior, two zones and `data-nav-item` on every row, but
+  `config.js` has no `reconcile` entries of any kind, so `buildNavGraph`
+  returns `{}`. Unlike the console this is not deliberate — the page is
+  structurally identical to `review` and wants the same three-line layout.
+  Recorded in Stage 3 for whoever picks it up; it is not a Stage 3 obligation.
 
 * `2026-08-06` — **Stage 4 complete.** Owner chose *amend the policies
   **and** enforce them*, and *fix the naming sites **and** add a check* —
@@ -504,7 +545,76 @@ both hatches removed. Full `mix precommit` green — 5670 Elixir tests,
 
 ---
 
-## Stage 3 — `/console` keyboard and gamepad navigation
+## Stage 3 — `/console` keyboard and gamepad navigation  ❌ **DECLINED 2026-08-06**
+
+**Owner decision: the console stays out of the input system, deliberately.**
+The console is reached by keyboard already — backtick opens the drawer from
+any page — and the input system would be actively *undesirable* on a
+log-reading surface: it owns the arrow keys, Escape and BACK, which is
+exactly what you want left alone while reading, selecting and scrolling
+through log text. "Unreachable without a mouse" was the wrong frame; the
+console is a mouse-and-backtick diagnostic surface by design, not a page
+that was missed.
+
+A declined stage is a valid outcome (see *Completion criteria*). The stage
+was implemented far enough to prove the design before it was declined, and
+then reverted in full — nothing from it is on `main`.
+
+### What the attempt found before it was declined
+
+Two facts worth keeping, because both outlive the decision:
+
+* **`/console` never mounts the input system at all.** The `#input-system`
+  hook lives on `Layouts.app/1` (and on `Layouts.input_system_root/1` for
+  sidebar-less pages). `ConsolePageLive.render/1` uses neither — it returns a
+  bare `<div class="console-fullpage">`, styled `position: fixed; inset: 0`.
+  Probed live: `inputSystemRoot: false`, `sidebar: false`, no console drawer,
+  and arrow keys leave `document.activeElement` on `<body>` through every
+  press. So the stage's checklist could never have worked as written: zones,
+  config and a behavior on a page with no orchestrator are inert. **This is
+  now the mechanism that keeps the console out of the input system** — it is
+  not an oversight to fix.
+
+* **The checklist's `data-nav-default-zone` value was wrong.** It said
+  `"console_tabs"`. That attribute names the **layout key** in `config.js`,
+  not a zone — see `dom_adapter.js:175` and the comment at
+  `incoming_live.ex:870`. Anyone applying a similar checklist to another page
+  should read the layout key, not a zone name.
+
+### ⚠️ Separate defect found from this stage's premise: `/reconcile` nav is dead
+
+Not part of the declined decision — the console's exclusion is deliberate,
+`/reconcile`'s is not. `/reconcile` *looks* fully wired and is not:
+
+| Declared in `reconcile_live.ex` | Present in `config.js` |
+|---|---|
+| `data-page-behavior="reconcile"` (+ registered behavior) | ✅ |
+| `data-nav-default-zone="reconcile-list"` | ❌ no layout under that key |
+| `data-nav-zone="reconcile-list"` / `"reconcile-detail"` | ❌ no `contextSelectors` entries |
+| `data-nav-item tabindex="0"` on every row | ❌ no `instanceTypes` entries |
+| — | ❌ no `cursorStartPriority` entry |
+
+`buildNavGraph("reconcile-list", …)` returns `{}` and `resolveCursorStart`
+returns `null`, so arrow keys do nothing. The page is structurally identical
+to `review`, whose layout is three lines — the fix is a mechanical config
+block, not a design question.
+
+This also corrects the stage's own evidence table. "Page behaviors missing a
+test: 1 (`reconcile`)" implied reconcile was otherwise healthy, and
+checklist item 6 proposed a `reconcile_behavior.test.js`. That test would
+assert `{onAttach, onDetach}` on an object literal and prove nothing — the
+gap is config, not coverage. **A behavior test is not evidence a page is
+navigable.** The check that would have caught this is a config-integrity
+one: every `data-nav-default-zone` in a template must name a real layout,
+and every `data-nav-zone` a real selector. `index.test.js:100` already
+asserts the neighbouring invariant (cursor-start contexts have selectors)
+but cannot catch a page absent from the config entirely.
+
+### Original stage text (for reference)
+
+> ⚠️ **Superseded — kept only to show what the stage believed going in.**
+> The premise is declined and the checklist's central assumption (that the
+> page runs the input system) is false. Do not implement from here.
 
 **Why.** `/console` is the only routed page with no input-system wiring.
 Every other page declares `data-page-behavior`; its source tabs, filter
@@ -905,5 +1015,5 @@ anything.
 * `.claude/skills/coding-guidelines/SKILL.md` — modular-cohesion rule quoted in Stage 1; *Lookup Naming Contract* added by Stage 4
 * `credo_checks/{lookup_naming_contract,no_repo_setup_in_tests,no_markup_substring_assertion}.ex` — Stage 4's three checks; each moduledoc is the rule's spec, and `.credo.exs` carries the one-paragraph why beside each registration
 * `test/support/factory.ex` — Stage 4's forced-setup helpers (`force_attrs/2`, `backdate/3`, `force_state/2`, `force_where/2`)
-* `assets/js/input/core/dom_adapter.js` + `assets/js/input/config.js` — how nav items resolve (Stage 3; explains why the shared-component trap dissolves)
+* `assets/js/input/core/dom_adapter.js` + `assets/js/input/config.js` — how nav items and layout keys resolve; read together with `Layouts.app/1` / `Layouts.input_system_root/1`, which mount the `#input-system` hook a page needs before any of it applies (Stage 3, declined; also where the `/reconcile` defect lives)
 * `docs/architecture.md` — bounded contexts (Stage 2); PubSub taxonomy now lives in the `MediaCentaur.Topics` moduledoc (Stage 5)
