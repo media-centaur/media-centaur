@@ -53,10 +53,16 @@ records the command that produced it.
 |---|---|---|
 | 3 | `console_page_live.ex` has zero nav attributes | 0 |
 | 3 | `*_behavior.js` files / behavior tests | 11 / 9 |
-| 4 | `Repo.*` calls in `test/` | 301 |
-| 4 | `=~` assertions in `*_live_test.exs` | 345 |
+| 4 | `Repo.*` calls in `test/` | 301 — **wrong, see Stage 4** |
+| 4 | `=~` assertions in `*_live_test.exs` | 345 — **misleading, see Stage 4** |
 | 4 | `ProgressRecords.fetch_for_extra/1` still returns `nil` | yes (`progress_records.ex:271`) |
 | 5 | `MediaCentaur.PubSub` literals in `lib/` | 134 |
+
+Stage 4 (2026-08-06) found that two of its own re-measured figures were
+still wrong, in the way this file had already warned about twice. Both
+corrections are recorded in that stage. The `11 / 9` behavior-test figure
+also overstates the gap: `page_behavior.js` is the registry, not a page
+behavior, so **`reconcile` is the only page behavior missing a test**.
 
 **Two lessons from Stage 2, worth applying to the stages below.**
 
@@ -72,21 +78,28 @@ records the command that produced it.
   costed at all — a stage that only counts one direction will be wrong
   about its size.
 
-Recommended next: **Stage 3** (`/console` input wiring) or **Stage 4**
-(policy reconciliation). Stage 4 carries a known contract regression that
-Stage 1 introduced (`ProgressRecords.fetch_for_extra/1`), so it has a
-concrete defect to anchor on; Stage 3 is self-contained and touches no
-Elixir. Both have open questions that need answering before code.
+Recommended next: **Stage 3** (`/console` input wiring). Its open questions
+are already answered (see the stage), so it can start on code immediately.
+Stage 5 still needs a design conversation before anything moves.
 
 ## Status
 
-**Stages 1 and 2 done** (both 2026-08-06). Stage 1 took `library.ex` from
+**Stages 1, 2 and 4 done** (all 2026-08-06). Stage 1 took `library.ex` from
 2779 → 127 lines across six commits (`5b2d3510`…`f91f61ce`); the 21 `# ---`
 section dividers are gone. Stage 2 closed two of the three Boundary
 hatches and documented the third as a permanent, decided exception.
-Stages 3–5 not started. The 2026-08-05 audit sweep's Critical and
+Stage 4 reconciled the two overreaching policies with practice and put
+**three new Credo checks** behind them (MC0022–MC0024), fixing five
+lookup-contract violations and converting 40 test-setup sites.
+Stages 3 and 5 not started, but **Stage 3's open questions are answered**
+(see the stage). The 2026-08-05 audit sweep's Critical and
 Moderate-with-user-impact findings are already fixed and pushed to
 `main` (see *Decisions made*); this campaign is the tail.
+
+Stage 4 also chased an intermittent `(Exqlite.Error) Database busy` that
+turned out to be a second `mix test` running against the same SQLite file,
+not a defect. Nothing to pick up — see *Stage 4* for why the wrong
+diagnosis was reached first.
 
 ## Decisions made
 
@@ -190,6 +203,50 @@ Moderate-with-user-impact findings are already fixed and pushed to
   under-scoped itself — it costed out-refs only, but re-enabling `in:`
   required `Status` to gain an `exports:` list and `MediaCentaurWeb` to
   declare a `MediaCentaur.Status` dep it had never needed.
+
+* `2026-08-06` — **Stage 4 complete.** Owner chose *amend the policies
+  **and** enforce them*, and *fix the naming sites **and** add a check* —
+  so all three amended rules now have code behind them (MC0022, MC0023,
+  MC0024) rather than prose in a skill file.
+
+  **Both of the stage's headline numbers were wrong.** `Repo.*` in
+  `test/` was 450, not 301 (the recorded command can't match a `!`, so
+  every bang variant was invisible); 114 of those are writes. The `=~`
+  figure was worse than wrong, it was misleading: of 312 assertions with
+  a literal right-hand side, only **14** were structural markup — the
+  rest assert user-visible copy, which the amended policy permits. There
+  was never a 345-site problem. A third miscount surfaced mid-stage when
+  MC0023 caught eight `Repo.update_all` sites the stage's grep had also
+  missed. Three counting errors in one stage, in a file that already
+  carried the "run the command" lesson twice: the lesson is not that
+  greps need care, it is that **a check you can run beats a number you
+  wrote down**.
+
+  **Contract:** five violations fixed, three of which the campaign never
+  named — MC0022 found `Acquisition.Pursuits.get/1`, `Pursuits.Units.get/1`
+  and `Plans.get/1` all returning tuples. `Settings.get_by_key/1` was
+  reshaped to `Entry.t() | nil` across ~32 sites: it returned `{:ok, _}`
+  in every branch, so the tuple could not fail and carried no
+  information. Grandfathering it would have exempted the biggest
+  violator on day one.
+
+  **Scope deliberately widened twice** rather than accept a grandfather
+  entry: the `Settings` reshape, and `TestFactory.force_where/2` (added
+  so eight bulk-`update_all` setup sites had somewhere to go instead of
+  putting six more files on MC0023's backlog). MC0022 and MC0024 ship
+  with **zero** exemptions; MC0023 carries 23 files whose schemas have no
+  factory builder yet — that list is the rollout backlog and may only
+  shrink.
+
+  **A `Database busy` scare, resolved as a non-issue.** Two runs failed
+  on `settings_entries` inserts. Bisecting cleared the stage (`main` 4/4
+  clean, and none of the four new test files reproduced it), but the
+  follow-up diagnosis — "a writer held a lock past the 10 s
+  `busy_timeout`, something is stuck" — was wrong. `config/test.exs`
+  documents this exact mode at the line setting that timeout, and both
+  failures fall inside the window of two commits made on `main` during
+  the session: a second `mix test` against the same SQLite file. Read the
+  comment beside the constant before theorising about it.
 
 ---
 
@@ -456,19 +513,145 @@ scrolling list, not individually navigable — do not make it a zone.
 Add `console_behavior.js` + `assets/js/input/__tests__/
 console_behavior.test.js` to match the family.
 
-**Open questions for the owner**
-* Should the drawer be navigable too, or is it deliberately
-  mouse/keyboard-shortcut only? That decides whether zones live on the
-  page or in the shared components.
-* Is the log stream ever a navigation target (e.g. to select an entry
-  and copy it), or is scroll-only correct?
+**Open questions — answered 2026-08-06, ready to implement.**
+
+* **The drawer stays as it is.** Zones are declared by `/console`'s own
+  template; the shared components (`source_tabs`, `chip_row`,
+  `action_footer`) stay nav-free, so no console zones leak into every
+  page's DOM. No `nav?` attr is needed — the trap the stage identified is
+  avoided by never putting zones in the components at all. The drawer
+  keeps its mouse plus `` ` ``-shortcut model.
+* **The log stream is scroll-only**, as the stage recommended. Not a zone.
+
+Also worth knowing before starting: the "11 behaviors / 9 tests" figure
+does not mean two pages lack tests. `page_behavior.js` is the registry,
+so **`reconcile` is the only page behavior missing a test** — consider
+adding it alongside `console`'s.
 
 **Verification.** `bun test assets/js/input/`; drive the page with
 `chromium-probe` per `reference-input-nav-runtime-verification`.
 
 ---
 
-## Stage 4 — Make the stated policies true again
+## Stage 4 — Make the stated policies true again  ✅ **DONE 2026-08-06**
+
+**Owner decisions.** Amend the policies to match practice **and enforce
+each with a Credo check**; fix the naming-contract sites **and add a check**.
+Both went further than "reword": every amended rule now has code behind it.
+
+### The evidence was wrong in both directions
+
+The stage was scoped from two counts. Both were misleading, and this file
+had already recorded the lesson — *"a number with a command next to it
+still needs the command run"* — twice.
+
+| Recorded | Actual | Why |
+|---|---|---|
+| 301 `Repo.*` in `test/` | **450** | `Repo\.[a-z_]*(` can't match a `!`, so every `Repo.get!` / `update!` / `insert!` was invisible. Of the 450, **114 were writes**; the rest were reads. |
+| 345 `=~` in live tests | **14** structural | Of 312 with a string-literal RHS, all but 14 assert **user-visible copy** — which the amended policy explicitly permits. The "violation" was ~95% phantom. |
+
+The second correction reframed the stage: there was never a 345-site
+markup problem. The real work was 14 sites (17 under the final rule) and
+a policy that had been overclaiming for months.
+
+### What landed
+
+**Three Credo checks**, each red on a deliberately-wrong function first,
+and each verified against the real codebase — not just its unit tests.
+MC0022 was additionally proven live by reintroducing the exact
+`fetch_for_extra/1` regression and watching `mix credo` flag it.
+
+| ID | Rule | Grandfathered |
+|---|---|---|
+| **MC0022** `LookupNamingContract` | `fetch…` → tuple, `get…` → nil-able, `…!` raises | none |
+| **MC0023** `NoRepoSetupInTests` | `Repo` **writes** are setup (banned); **reads** are assertions (allowed) | 23 files |
+| **MC0024** `NoMarkupSubstringAssertion` | no `=~` on HTML *attributes*; use `has_element?/2` | none |
+
+MC0022 and MC0024 only fire where they can be *sure*. MC0022 reads the
+return shape (a tail call to `Repo.get`/`get_by`/`one`, `Map.get`,
+`Enum.find`, or a `case` with both `{:ok, _}` and `{:error, _}` branches)
+and stays silent otherwise, so `TMDB.Client.get_movie/2`,
+`Console.Buffer.get_filter/1` and `Settings.get_by_key/1` are not
+second-guessed. MC0024 matches attribute-*shaped* literals only, so
+`<path>` redaction placeholders, `rid=7`, and `metadata-activity` don't
+trip it. Neither needed a single grandfather entry — the alternative was
+a check that cried wolf and got ignored.
+
+**Five contract fixes, not the two the stage named.** MC0022 found three
+the campaign never knew about:
+
+| Was | Now | Sites |
+|---|---|---|
+| `ProgressRecords.fetch_for_extra/1` → `nil` | → `{:ok, _} \| {:error, :not_found}` | 3 lib, 5 test |
+| `Review.get_pending_file/1` → tuple | `Review.fetch_pending_file/1` | 1 lib, 3 test |
+| `Settings.get_by_key/1` → `{:ok, Entry \| nil}` | → `Entry \| nil` | ~32 sites |
+| `Acquisition.Pursuits.get/1` → tuple | `…fetch/1` | 7 |
+| `Pursuits.Units.get/1`, `Plans.get/1` → tuple | `…fetch/1` | 33 |
+
+`Settings.get_by_key/1` was the interesting one. It returned `{:ok, _}`
+in **every** branch — it could not fail — so the tuple carried no
+information and every caller paid a `case` for it. It is now the honest
+sibling of the `get_cached/1` that already sat directly beneath it.
+Grandfathering it would have meant exempting the largest violator on the
+check's first day.
+
+**Factory affordances**, so forced setup has somewhere legitimate to go:
+
+| Helper | For |
+|---|---|
+| `force_attrs(record, attrs)` | forcing fields on one record |
+| `backdate(record, field, datetime)` | ageing a timestamp |
+| `force_state(record, state)` | skipping a state machine |
+| `force_where(queryable, set)` | the same, in bulk by query |
+
+`force_where/2` was not planned. It appeared because MC0023 caught eight
+`Repo.update_all` sites that the stage's own grep had missed (`update_all`
+doesn't match `Repo\.update!?\(`) — the *third* instance of the counting
+lesson in one stage. Adding the bulk sibling beat grandfathering six more
+files. **40 setup sites converted** (32 changeset pipelines + 8 bulk).
+
+**Policies reworded** in `coding-guidelines/SKILL.md` and
+`automated-testing/SKILL.md`, each now naming the check that enforces it,
+plus a new *Lookup Naming Contract* section pointing at MC0022.
+
+### A `Database busy` scare, and what it actually was
+
+Two full-suite runs failed with `(Exqlite.Error) Database busy` on
+`INSERT INTO settings_entries`, from `DiagnosticsBadge.mark_seen/0` in
+`StatusLive.mount` and `Capabilities.save_test_result/2` in a setup block.
+Recorded because the false trail is instructive.
+
+Bisecting cleared the stage's own changes: without the new test files
+2/2 clean, with only the Credo tests 2/2 clean, with all four 3/3 clean,
+and `main` 4/4 clean. The `Settings` reshape is read-path only. So the
+first conclusion was "a writer held a lock for over ten seconds
+(`busy_timeout` is 10 000 ms) — something is stuck." **That was wrong on
+both counts.**
+
+* `config/test.exs` already documents this failure mode, at the line that
+  sets the timeout: *"occasionally raised `Exqlite.Error: Database busy`
+  from `Settings.put_*` writes under load"* — with a pointer to
+  `flaky-tests.md (#1)`. It is a **known load-contention mode**, already
+  mitigated once by raising the timeout from 2 000 ms. Not novel, and not
+  a stuck writer.
+* Both failures land inside the window of two commits made on `main`
+  during the session (`b4de2c65` 15:02, `89523da4` 15:09) — i.e. someone
+  else was working, almost certainly running the suite. All eight runs
+  outside that window are clean. **Two `mix test` runs against the same
+  SQLite file** is exactly what produces a cross-connection write-lock
+  timeout.
+
+Nothing to fix here, and nothing for the next session to chase — but the
+timeout has now been *observed* to be insufficient under a concurrent
+suite, which is worth knowing before anyone raises it a second time.
+
+**Method note.** The bisect was worth doing and the diagnosis was not.
+Four full-suite runs proved the change was innocent; the "stuck writer"
+theory came from reading `busy_timeout` and reasoning, when the same file
+three lines up already said what this was. Read the comment next to the
+constant before theorising about it.
+
+### Original stage text (for reference)
 
 **Why.** Two written policies now describe a codebase that does not
 exist. That erodes the credibility of the policies that *are* followed
@@ -533,16 +716,15 @@ This is also evidence for the second open question below: an
 arity+prefix Credo check would have caught the rename at the moment it
 happened.
 
-**Open questions for the owner**
-* Amend the policies to match practice, or hold the line and fix the
-  457/410? (Recommendation: amend — the practice is defensible and the
-  policies over-reached.)
-* Is a Credo check for the naming contract worth it, given this repo's
-  code-as-spec preference? It would need to know each function's return
-  type, so probably arity+prefix heuristics only.
+**Open questions — both answered 2026-08-06.** Amend *and* enforce; fix
+the sites *and* add a check. The stage's own guess that a naming check
+could only manage "arity+prefix heuristics" turned out to be too
+pessimistic — reading the return shape off the AST is both feasible and
+what makes the check safe enough to ship with zero exemptions.
 
-**Verification.** `mix precommit`. If a Credo check lands, it must go
-red on a deliberately-wrong function first.
+**Verification.** `mix precommit` green — credo clean (109 checks), 5710
+Elixir tests, 557 JS tests, zero warnings. Each check went red on a
+deliberately-wrong function before it went green.
 
 ---
 

@@ -30,9 +30,13 @@ Use [`template.md`](template.md) as a starter.
   external contributors. Stage 1 split the 2779-line `Library` context
   into 18 modules (`library.ex` 2779 → 127 lines); Stage 2 closed the
   `Status` and `Diagnostics` Boundary hatches and documented `Showcase`'s
-  as a permanent exception. What's left: wire `/console` for keyboard and
-  gamepad, reconcile two written test policies with the code, pick one
-  event-publication idiom, plus droppable polish.
+  as a permanent exception. Stage 4 reconciled two overreaching test
+  policies with practice and put three Credo checks behind them
+  (MC0022–MC0024) — after discovering both of its own headline counts
+  were wrong, and that the "345 markup assertions" were really 14.
+  What's left: wire `/console` for keyboard and gamepad (open questions
+  already answered), pick one event-publication idiom, plus droppable
+  polish.
   **Each stage is discussed with the owner before it is resolved** —
   the open questions are the point, not the code.
 * [`below-floor-releases.md`](below-floor-releases.md) —
