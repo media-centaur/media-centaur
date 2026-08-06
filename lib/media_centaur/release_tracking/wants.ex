@@ -459,7 +459,7 @@ defmodule MediaCentaur.ReleaseTracking.Wants do
       )
 
     with id when is_binary(id) <- playable_item_id,
-         path when is_binary(path) <- Library.playable_file_path(id),
+         path when is_binary(path) <- Library.Files.playable_file_path(id),
          quality when not is_nil(quality) <- Quality.parse(Path.basename(path)) do
       Atom.to_string(quality)
     else

@@ -23,7 +23,7 @@ defmodule MediaCentaur.Library.Movie do
   `playable_items.watched_files.file_path` by
   `MediaCentaur.Library.ContentUrls.populate/1` — the read-side seam the
   detail panel, resume pipeline, and playback resolvers consume. Writes
-  must go through `Library.link_file/1` against a `PlayableItem` — not
+  must go through `Library.Files.link/1` against a `PlayableItem` — not
   through this schema.
   """
   use Ecto.Schema

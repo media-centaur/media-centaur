@@ -142,13 +142,13 @@ defmodule MediaCentaur.Watcher do
   `video_object_id`).
 
   After campaign Phase 7 there is no longer a parallel `watcher_files`
-  row to coordinate with — `Library.link_file/1` auto-stamps a
+  row to coordinate with — `Library.Files.link/1` auto-stamps a
   `Library.FilePresence` row via the Phase-3 FK so the transaction
   wrapper is no longer load-bearing for cross-table consistency.
   """
   @spec record_seen(map()) :: {:ok, %WatchedFile{}} | {:error, term()}
   def record_seen(%{file_path: _file_path, media_dir: _media_dir} = attrs) do
-    Library.link_file(attrs)
+    Library.Files.link(attrs)
   end
 
   @impl true
@@ -463,7 +463,7 @@ defmodule MediaCentaur.Watcher do
     # the new location instead of re-imported; only the genuinely-new files
     # flow on to the pipeline.
     %{relinked: relinked, still_new: still_new} =
-      Library.relink_moved_files(new_files_with_size, dir)
+      Library.Relink.moved_files(new_files_with_size, dir)
 
     if relinked != [] do
       Log.info(:watcher, "relinked #{length(relinked)} moved file(s) — #{dir}")
@@ -492,7 +492,7 @@ defmodule MediaCentaur.Watcher do
     # On recovery from :unavailable, re-push ALL entities for this media dir
     # so the channel re-serializes with now-available image paths.
     if Keyword.get(opts, :recovery, false) do
-      all_entity_ids = unique_entity_ids(Library.list_files_by_media_dir(dir))
+      all_entity_ids = unique_entity_ids(Library.Files.list_by_media_dir(dir))
 
       if all_entity_ids != [] do
         Log.info(
@@ -628,7 +628,7 @@ defmodule MediaCentaur.Watcher do
 
   defp unique_entity_ids(records) do
     records
-    |> Enum.map(&MediaCentaur.Library.top_level_entity_id_for_watched_file/1)
+    |> Enum.map(&MediaCentaur.Library.Files.top_level_entity_id/1)
     |> Enum.reject(&is_nil/1)
     |> Enum.uniq()
   end

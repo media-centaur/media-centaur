@@ -56,7 +56,7 @@ defmodule MediaCentaur.Watcher.RescanUnlinkedTest do
       stranded_path = write_stranded_file!(media_dir, "stranded.mkv")
       linked_path = Path.join(media_dir, "linked.mkv")
       # `linked_path` will get its presence stamped via `create_linked_file`
-      # → `Library.link_file/1` → auto-stamp; no need for a separate stamp.
+      # → `Library.Files.link/1` → auto-stamp; no need for a separate stamp.
 
       movie = create_movie(%{name: "Sample Movie"})
       create_linked_file(%{file_path: linked_path, media_dir: media_dir, movie_id: movie.id})

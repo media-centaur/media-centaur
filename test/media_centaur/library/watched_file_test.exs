@@ -5,13 +5,13 @@ defmodule MediaCentaur.Library.WatchedFileTest do
   alias MediaCentaur.Library.{FilePresence, WatchedFile}
   alias MediaCentaur.Repo
 
-  describe "Library.link_file/1 (WatchedFile via PlayableItem)" do
+  describe "Library.Files.link/1 (WatchedFile via PlayableItem)" do
     test "creates record keyed by playable_item_id" do
       movie = create_entity(%{type: :movie, name: "Test Movie"})
       playable_item = create_playable_item_for_movie(movie)
 
       assert {:ok, file} =
-               Library.link_file(%{
+               Library.Files.link(%{
                  file_path: "/media/test/linked.mkv",
                  media_dir: "/media/test",
                  playable_item_id: playable_item.id
@@ -29,14 +29,14 @@ defmodule MediaCentaur.Library.WatchedFileTest do
       item_two = create_playable_item_for_movie(movie_two)
 
       {:ok, first} =
-        Library.link_file(%{
+        Library.Files.link(%{
           file_path: "/media/test/same.mkv",
           media_dir: "/media/test",
           playable_item_id: item_one.id
         })
 
       {:ok, second} =
-        Library.link_file(%{
+        Library.Files.link(%{
           file_path: "/media/test/same.mkv",
           media_dir: "/media/test",
           playable_item_id: item_two.id
@@ -46,7 +46,7 @@ defmodule MediaCentaur.Library.WatchedFileTest do
       assert second.playable_item_id == item_two.id
 
       # Only one record exists for the upserted file_path.
-      all = Library.list_watched_files()
+      all = Library.Files.list_all()
       assert length(all) == 1
     end
 
@@ -65,7 +65,7 @@ defmodule MediaCentaur.Library.WatchedFileTest do
       playable_item = create_playable_item_for_movie(movie)
 
       assert {:ok, file} =
-               Library.link_file(%{
+               Library.Files.link(%{
                  file_path: "/media/test/presence-link.mkv",
                  media_dir: "/media/test",
                  playable_item_id: playable_item.id
@@ -78,13 +78,13 @@ defmodule MediaCentaur.Library.WatchedFileTest do
     end
   end
 
-  describe "Library.top_level_entity_id_for_watched_file/1" do
+  describe "Library.Files.top_level_entity_id/1" do
     test "resolves a :movie PlayableItem to the Movie id" do
       movie = create_entity(%{type: :movie, name: "Resolver Movie"})
       item = create_playable_item_for_movie(movie)
       file = create_linked_file(%{playable_item_id: item.id})
 
-      assert Library.top_level_entity_id_for_watched_file(file) == movie.id
+      assert Library.Files.top_level_entity_id(file) == movie.id
     end
 
     test "resolves a :video_object PlayableItem to the VideoObject id" do
@@ -92,7 +92,7 @@ defmodule MediaCentaur.Library.WatchedFileTest do
       item = create_playable_item_for_video_object(video_object)
       file = create_linked_file(%{playable_item_id: item.id})
 
-      assert Library.top_level_entity_id_for_watched_file(file) == video_object.id
+      assert Library.Files.top_level_entity_id(file) == video_object.id
     end
 
     test "resolves a :episode PlayableItem to the TVSeries id" do
@@ -117,7 +117,7 @@ defmodule MediaCentaur.Library.WatchedFileTest do
       item = create_playable_item_for_episode(episode)
       file = create_linked_file(%{playable_item_id: item.id})
 
-      assert Library.top_level_entity_id_for_watched_file(file) == tv_series.id
+      assert Library.Files.top_level_entity_id(file) == tv_series.id
     end
 
     test "returns nil for a dangling PlayableItem id" do
@@ -125,7 +125,7 @@ defmodule MediaCentaur.Library.WatchedFileTest do
       # only happen after Repo-level deletion of the PlayableItem;
       # simulate by inserting a struct directly.
       file = %WatchedFile{playable_item_id: Ecto.UUID.generate()}
-      assert Library.top_level_entity_id_for_watched_file(file) == nil
+      assert Library.Files.top_level_entity_id(file) == nil
     end
   end
 end

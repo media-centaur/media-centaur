@@ -37,7 +37,7 @@ defmodule MediaCentaur.Library.WatchedFile do
   Insert changeset for a new WatchedFile. Requires `:file_path`,
   `:playable_item_id`, and `:file_presence_id`. `:media_dir` is
   captured for cross-context presence lookups. Callers should go
-  through `Library.link_file/1` rather than building this changeset
+  through `Library.Files.link/1` rather than building this changeset
   directly — `link_file/1` ensures a matching FilePresence exists
   and injects its id.
   """
@@ -49,7 +49,7 @@ defmodule MediaCentaur.Library.WatchedFile do
 
   @doc """
   Update changeset for re-pointing an existing WatchedFile (used by
-  `Library.link_file/1` when a file_path is re-ingested under a
+  `Library.Files.link/1` when a file_path is re-ingested under a
   different leaf).
   """
   def update_changeset(watched_file, attrs) do

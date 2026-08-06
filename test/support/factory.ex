@@ -407,7 +407,7 @@ defmodule MediaCentaur.TestFactory do
     {:ok, playable_item} =
       Library.PlayableItems.find_or_create(container_type, record.id, position)
 
-    Library.link_file!(%{
+    Library.Files.link!(%{
       playable_item_id: playable_item.id,
       file_path: url,
       media_dir: "/media/test"
@@ -517,7 +517,7 @@ defmodule MediaCentaur.TestFactory do
     }
 
     merged = Map.merge(defaults, Map.new(attrs))
-    Library.create_extra_file!(merged)
+    Library.Files.create_extra!(merged)
   end
 
   @doc """
@@ -642,7 +642,7 @@ defmodule MediaCentaur.TestFactory do
 
     playable_item_id = resolve_playable_item_id_for_factory(merged)
 
-    Library.link_file!(%{
+    Library.Files.link!(%{
       file_path: merged.file_path,
       media_dir: merged.media_dir,
       playable_item_id: playable_item_id

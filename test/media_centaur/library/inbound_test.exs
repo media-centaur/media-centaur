@@ -859,7 +859,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert {:error, _} = Library.Containers.fetch(:movie, movie.id)
 
       # WatchedFiles destroyed
-      assert Library.list_watched_files_by_entity_id(movie.id) == []
+      assert Library.Files.list_by_entity_id(movie.id) == []
 
       # Broadcasts entities_changed (via coalescer — allow flush window).
       # Coalescer may bundle this entity's ID with IDs from concurrent tests'

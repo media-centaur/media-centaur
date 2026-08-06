@@ -587,14 +587,14 @@ defmodule MediaCentaur.Maintenance do
   ingest path wrote them (ExtraFile-unification / Schema v2 "Task G"), so they
   become "linked" and stop being re-emitted by `rescan_unlinked`. Network-free,
   idempotent. Skipped under `:test` (a boot-spawned task runs outside the
-  sandbox-owned process); `Library.backfill_extra_files/0` is tested directly.
+  sandbox-owned process); `Library.Files.backfill_extras/0` is tested directly.
   """
   @spec backfill_extra_files_on_boot(atom()) :: :skipped | :started
   def backfill_extra_files_on_boot(:test), do: :skipped
 
   def backfill_extra_files_on_boot(_env) do
     run_async(fn ->
-      %{created: created} = MediaCentaur.Library.backfill_extra_files()
+      %{created: created} = MediaCentaur.Library.Files.backfill_extras()
 
       if created > 0 do
         Log.info(:library, "boot ExtraFile backfill linked #{created} extra file(s)")
@@ -609,14 +609,14 @@ defmodule MediaCentaur.Maintenance do
   for files that have no `FileMediaInfo` row yet — pre-feature imports
   and files whose earlier probe failed. Network-free, idempotent,
   recomputable (ADR-057). Skipped under `:test`;
-  `Library.probe_missing_media_info/0` is tested directly.
+  `Library.MediaInfo.probe_missing/0` is tested directly.
   """
   @spec probe_media_info_on_boot(atom()) :: :skipped | :started
   def probe_media_info_on_boot(:test), do: :skipped
 
   def probe_media_info_on_boot(_env) do
     run_async(fn ->
-      %{probed: probed, skipped: skipped} = MediaCentaur.Library.probe_missing_media_info()
+      %{probed: probed, skipped: skipped} = MediaCentaur.Library.MediaInfo.probe_missing()
 
       if probed > 0 or skipped > 0 do
         Log.info(:library, "boot media-info probe filled #{probed} file(s), #{skipped} skipped")

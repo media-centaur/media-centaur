@@ -24,7 +24,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       entity_ids = FileEventHandler.cleanup_removed_files(["/media/movies/sample_movie.mkv"])
 
       assert entity_ids == [movie.id]
-      assert Library.list_watched_files() == []
+      assert Library.Files.list_all() == []
       assert Library.Containers.list(:movie) == []
     end
 
@@ -118,7 +118,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       assert {:ok, _} = Library.Containers.fetch(:tv_series, tv_series.id)
 
       # Only 1 WatchedFile remains
-      assert length(Library.list_watched_files()) == 1
+      assert length(Library.Files.list_all()) == 1
     end
 
     test "also deletes the removed episode's PlayableItem row" do
@@ -313,7 +313,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
 
       assert Library.list_seasons() == []
       assert Library.list_episodes() == []
-      assert Library.list_watched_files() == []
+      assert Library.Files.list_all() == []
     end
 
     test "deletes child movie from movie series, keeps series with 2+ remaining" do
@@ -409,7 +409,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       # Extra is gone, movie entity remains
       assert {:error, _} = Library.fetch_extra(extra.id)
       assert {:ok, _} = Library.Containers.fetch(:movie, movie.id)
-      assert length(Library.list_watched_files()) == 1
+      assert length(Library.Files.list_all()) == 1
     end
 
     test "handles batch deletion of multiple files" do
@@ -462,7 +462,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       assert entity_ids == [tv_series.id]
       assert Library.list_seasons() == []
       assert Library.list_episodes() == []
-      assert Library.list_watched_files() == []
+      assert Library.Files.list_all() == []
     end
 
     test "returns empty list when no matching files found" do
@@ -554,7 +554,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
 
       refute File.exists?(path_a)
       refute File.exists?(path_b)
-      assert Library.list_watched_files() == []
+      assert Library.Files.list_all() == []
       assert Library.Containers.list(:movie) == []
 
       # The whole batch lands as a single entities_changed broadcast.
@@ -572,7 +572,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
 
       assert {:ok, [entity_id]} = FileEventHandler.delete_files([absent_path])
       assert entity_id == movie.id
-      assert Library.list_watched_files() == []
+      assert Library.Files.list_all() == []
     end
 
     test "reports a real failure but still deletes and cleans the rest of the batch", %{
@@ -589,7 +589,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       refute File.exists?(good_path)
       assert File.dir?(stubborn_path)
       # The deletable file's records were cleaned despite the batch failure.
-      assert Library.list_watched_files() == []
+      assert Library.Files.list_all() == []
       assert Library.Containers.list(:movie) == []
     end
   end

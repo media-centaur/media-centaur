@@ -114,7 +114,7 @@ defmodule MediaCentaur.Playback.SessionRecovery do
   end
 
   defp build_params(entity_id, content_url, position) when is_binary(content_url) do
-    case Library.list_files_by_paths([content_url]) do
+    case Library.Files.list_by_paths([content_url]) do
       [_watched_file | _] ->
         resolve_entity(entity_id, content_url, position)
 

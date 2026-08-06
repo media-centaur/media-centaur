@@ -14,7 +14,7 @@ defmodule MediaCentaur.Library.VideoObject do
   Phase 2 Task I dropped it). It is materialised at read time from
   `playable_items.watched_files.file_path` by
   `MediaCentaur.Library.ContentUrls.populate/1`. Writes must go through
-  `Library.link_file/1` against the VideoObject's `PlayableItem`.
+  `Library.Files.link/1` against the VideoObject's `PlayableItem`.
   """
   use Ecto.Schema
   import Ecto.Changeset

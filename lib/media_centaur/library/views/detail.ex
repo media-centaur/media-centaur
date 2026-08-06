@@ -590,7 +590,7 @@ defmodule MediaCentaur.Library.Views.Detail do
     |> Map.values()
     |> List.flatten()
     |> Enum.map(& &1.file_path)
-    |> Library.file_media_info_by_paths()
+    |> Library.MediaInfo.by_paths()
   end
 
   defp grouping_key(%PlayableItem{id: id}, context), do: Map.fetch!(context.grouping, id)

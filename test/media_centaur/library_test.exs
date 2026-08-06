@@ -941,14 +941,14 @@ defmodule MediaCentaur.LibraryTest do
 
       record_present(file)
 
-      assert Library.playable_file_path(playable_item.id) == "/media/sample-movie.mkv"
+      assert Library.Files.playable_file_path(playable_item.id) == "/media/sample-movie.mkv"
     end
 
     test "returns nil when the PlayableItem has no WatchedFile" do
       movie = create_standalone_movie(%{name: "No File"})
       playable_item = create_playable_item_for_movie(movie)
 
-      assert Library.playable_file_path(playable_item.id) == nil
+      assert Library.Files.playable_file_path(playable_item.id) == nil
     end
 
     test "returns nil when the WatchedFile has been removed" do
@@ -968,11 +968,11 @@ defmodule MediaCentaur.LibraryTest do
       MediaCentaur.Library.FileEventHandler.cleanup_removed_files([file.file_path])
       MediaCentaur.Library.FilePresence.delete_paths([file.file_path])
 
-      assert Library.playable_file_path(playable_item.id) == nil
+      assert Library.Files.playable_file_path(playable_item.id) == nil
     end
 
     test "returns nil for an unknown PlayableItem id" do
-      assert Library.playable_file_path(Ecto.UUID.generate()) == nil
+      assert Library.Files.playable_file_path(Ecto.UUID.generate()) == nil
     end
   end
 
@@ -1164,7 +1164,7 @@ defmodule MediaCentaur.LibraryTest do
         media_dir: "/media/movies"
       })
 
-      assert Library.watched_file_paths_under("/media/movies/Some Release") == [
+      assert Library.Files.paths_under("/media/movies/Some Release") == [
                "/media/movies/Some Release/movie.mkv"
              ]
     end
@@ -1178,11 +1178,11 @@ defmodule MediaCentaur.LibraryTest do
         media_dir: "/media/movies"
       })
 
-      assert Library.watched_file_paths_under("/media/movies/Some Release") == []
+      assert Library.Files.paths_under("/media/movies/Some Release") == []
     end
 
     test "returns an empty list when nothing lives under the directory" do
-      assert Library.watched_file_paths_under("/media/movies/Nothing Here") == []
+      assert Library.Files.paths_under("/media/movies/Nothing Here") == []
     end
   end
 

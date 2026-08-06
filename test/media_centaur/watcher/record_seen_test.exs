@@ -39,7 +39,7 @@ defmodule MediaCentaur.Watcher.RecordSeenTest do
       assert {:ok, _} = Watcher.record_seen(attrs)
       assert {:ok, _} = Watcher.record_seen(attrs)
 
-      assert length(Library.list_watched_files()) == 1
+      assert length(Library.Files.list_all()) == 1
       assert Repo.aggregate(FilePresence, :count) == 1
     end
 
@@ -53,7 +53,7 @@ defmodule MediaCentaur.Watcher.RecordSeenTest do
 
       assert {:error, _} = Watcher.record_seen(attrs)
 
-      assert Library.list_watched_files() == []
+      assert Library.Files.list_all() == []
       assert Repo.aggregate(FilePresence, :count) == 0
     end
   end

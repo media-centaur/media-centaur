@@ -35,7 +35,7 @@ defmodule MediaCentaur.Library.ExtraFile do
   `Library.Inbound` writes an ExtraFile alongside every bonus-feature Extra it
   ingests (`link_extra_file/2`), so extras are "linked" the same way playable
   items are via `WatchedFile`. Extras imported before that path existed are
-  backfilled by `Library.backfill_extra_files/0`, run on boot
+  backfilled by `Library.Files.backfill_extras/0`, run on boot
   (`Maintenance.backfill_extra_files_on_boot/1`).
   """
   use Ecto.Schema
@@ -69,7 +69,7 @@ defmodule MediaCentaur.Library.ExtraFile do
   Insert / update changeset for an ExtraFile. Requires `:file_path`,
   `:extra_id`, and `:file_presence_id`; `:media_dir` is captured for
   cross-context presence lookups (mirrors WatchedFile). Callers
-  should go through `Library.create_extra_file/1` rather than
+  should go through `Library.Files.create_extra/1` rather than
   building this changeset directly — that wrapper ensures a matching
   FilePresence exists and injects its id.
   """

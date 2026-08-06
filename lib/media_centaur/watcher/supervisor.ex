@@ -363,7 +363,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
   """
   @spec rescan_unlinked() :: {:ok, non_neg_integer()}
   def rescan_unlinked do
-    linked_paths = Library.linked_file_paths_subquery()
+    linked_paths = Library.Files.linked_paths_subquery()
 
     rows =
       Enum.filter(

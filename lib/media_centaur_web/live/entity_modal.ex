@@ -1000,7 +1000,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # the bottleneck is filesystem latency, not CPU.
   def load_entity_files(entity_id) do
     entity_id
-    |> Library.list_watched_files_by_entity_id()
+    |> Library.Files.list_by_entity_id()
     |> Task.async_stream(
       fn file ->
         size =
@@ -1141,7 +1141,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
     case result do
       {:ok, _entity_ids} ->
-        if MediaCentaur.Library.list_watched_files_by_entity_id(entity_id) == [] do
+        if MediaCentaur.Library.Files.list_by_entity_id(entity_id) == [] do
           Phoenix.LiveView.push_patch(socket,
             to: socket.view.build_modal_path(socket, %{selected: nil, view: :main})
           )

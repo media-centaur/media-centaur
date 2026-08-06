@@ -281,7 +281,7 @@ defmodule MediaCentaur.Reconciliation do
     with {:ok, episode} <- ensure_episode(tv_series_id, season, episode_number, title),
          {:ok, playable_item_id} <- ensure_episode_playable_item(episode),
          {:ok, _watched} <-
-           Library.link_file(%{
+           Library.Files.link(%{
              file_path: file.file_path,
              media_dir: file.media_dir,
              playable_item_id: playable_item_id

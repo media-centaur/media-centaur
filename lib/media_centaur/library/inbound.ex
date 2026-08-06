@@ -176,7 +176,7 @@ defmodule MediaCentaur.Library.Inbound do
   """
   @spec handle_rematch(String.t()) :: :ok
   def handle_rematch(entity_id) do
-    files = Library.list_watched_files_by_entity_id(entity_id)
+    files = Library.Files.list_by_entity_id(entity_id)
 
     if files == [] do
       Log.warning(
@@ -723,7 +723,7 @@ defmodule MediaCentaur.Library.Inbound do
   defp link_extra_file(%Library.Extra{content_url: nil}, _media_dir), do: :ok
 
   defp link_extra_file(%Library.Extra{} = extra, media_dir) do
-    case Library.create_extra_file(%{
+    case Library.Files.create_extra(%{
            file_path: extra.content_url,
            media_dir: media_dir,
            extra_id: extra.id
@@ -781,7 +781,7 @@ defmodule MediaCentaur.Library.Inbound do
           playable_item_id: playable_item_id
         }
 
-        watched_file = Library.link_file!(attrs)
+        watched_file = Library.Files.link!(attrs)
 
         # Persist detected subtitle tracks against the freshly-linked
         # file. The Subtitles context owns its own table; we hand it
