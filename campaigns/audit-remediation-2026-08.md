@@ -30,27 +30,53 @@ decide unilaterally. The loop per stage is:
 
 Stages are independent. Order below is recommended, not required.
 
-**Resuming after Stage 1 (2026-08-06).** Stage 1 rewrote the `Library`
+**Resuming after Stages 1–2 (2026-08-06).** Stage 1 rewrote the `Library`
 context into 18 modules, so anything you remember about `library.ex`
 being one big file is stale. Before starting a stage:
 
 * Read `MediaCentaur.Library`'s moduledoc first — it is now a table
   naming which module owns which concern, and it is the fastest way back
   into the context.
-* Every stage below has been re-measured against post-Stage-1 `main` and
-  the numbers corrected in place, with the measuring command recorded.
-  Several figures in the original text were wrong when written; where
-  that is the case it is stated. Trust the marked-as-re-measured
-  numbers, re-derive anything else.
 * Stage 4 is the one Stage 1 changed materially — it moved that stage's
   targets and introduced one contract violation. Read its *Stage 1 moved
   these targets* block before planning.
+* Stage 2 changed only Boundary declarations and moduledocs, so it moved
+  no other stage's numbers. Confirmed by re-measuring all of them after
+  it landed (see below) — nothing downstream needs re-deriving on account
+  of it.
+
+**Numbers you can trust as of 2026-08-06, post-Stage-2.** Every figure
+below was re-run against `main` after Stage 2's commit; each stage
+records the command that produced it.
+
+| Stage | Claim | Verified |
+|---|---|---|
+| 3 | `console_page_live.ex` has zero nav attributes | 0 |
+| 3 | `*_behavior.js` files / behavior tests | 11 / 9 |
+| 4 | `Repo.*` calls in `test/` | 301 |
+| 4 | `=~` assertions in `*_live_test.exs` | 345 |
+| 4 | `ProgressRecords.fetch_for_extra/1` still returns `nil` | yes (`progress_records.ex:271`) |
+| 5 | `MediaCentaur.PubSub` literals in `lib/` | 134 |
+
+**Two lessons from Stage 2, worth applying to the stages below.**
+
+* **Verify that a recorded command actually produces the recorded
+  number.** Stage 2 carried a hatch count of 26, then 31, and the truth
+  was 30 — neither earlier figure was reproducible from the command
+  written beside it (`grep -rc` prints one line per *searched* file, not
+  per match). A number with a command next to it still needs the command
+  run.
+* **Derive costs from the tool, not from a table.** Stage 2's real
+  dependency lists came from removing each hatch and reading the
+  compiler. That is what surfaced the `in:`-side cost the stage had not
+  costed at all — a stage that only counts one direction will be wrong
+  about its size.
 
 Recommended next: **Stage 3** (`/console` input wiring) or **Stage 4**
 (policy reconciliation). Stage 4 carries a known contract regression that
 Stage 1 introduced (`ProgressRecords.fetch_for_extra/1`), so it has a
 concrete defect to anchor on; Stage 3 is self-contained and touches no
-Elixir.
+Elixir. Both have open questions that need answering before code.
 
 ## Status
 
@@ -328,7 +354,7 @@ each new module names *one* thing.
 
 ---
 
-## Stage 2 — Close the Boundary escape hatches  ✅ **DONE 2026-08-06**
+## Stage 2 — Close the Boundary escape hatches  ✅ **DONE 2026-08-06** (`3ff6a4ac`)
 
 **Why.** [ADR-029](../decisions/architecture/2026-03-26-029-data-decoupling.md)
 makes `use Boundary, deps: [...]` the canonical inter-context
