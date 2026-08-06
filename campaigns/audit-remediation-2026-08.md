@@ -1,5 +1,5 @@
 ---
-status: complete
+status: in-progress
 started: 2026-08-05
 last_updated: 2026-08-06
 ---
@@ -30,23 +30,39 @@ decide unilaterally. The loop per stage is:
 
 Stages are independent. Order below is recommended, not required.
 
-**The campaign is closed (2026-08-06).** Stages 1, 2, 4, 5 and 6 are
-**done**; Stage 3 was **declined**. The `/reconcile` defect this campaign
-found is **fixed**. Nothing is left to resume.
+**Resuming into Stage 7 (2026-08-06) — start here.**
 
-Two things were dropped on purpose, and both are recorded in full below:
-Stage 6's `clear_database` confirmation (it is five sites and an idiom
-choice, not polish — see the stage), and MC0023's grandfather list (ordinary
-work, tracked in *Completion criteria*).
+Stages 1, 2, 4, 5 and 6 are **done**; Stage 3 was **declined**. The
+`/reconcile` defect this campaign found is **fixed** (and was three defects,
+not one — see its section).
 
-Read the closing sections rather than this block if you are picking
-something up: **Stage 6** for what shipped and what did not, and **Two
-findings this stage turned up** for the loose threads worth someone's time.
+The original six stages are all settled. **Stage 6 spawned two new ones**,
+because two of its findings were bigger than the polish list they surfaced
+in, and the stage's rule is to record and drop rather than grow:
+
+* **Stage 7 — the JS tests nobody runs.** `assets/js/hooks/` is in no test
+  run and has been failing for three months. **No open questions; this is
+  the one to do first.**
+* **Stage 8 — one confirmation idiom.** Five native `data-confirm` dialogs,
+  and the repo already has two themed idioms to choose between. **Has open
+  questions — bring them to the owner before writing code.**
+
+Do Stage 7 first: it needs no decision, it is the smaller of the two, and it
+is a live false-green in the suite everything else in this campaign was
+verified against.
+
+**Both stages' facts were verified on 2026-08-06 while writing them**, not
+inherited from the audit. Every figure below carries the command that
+produced it — including one that shrank a stage: "8 failing tests" is **one**
+root cause, not eight.
 
 **Stage 3 was declined, not deferred** — the console stays out of the input
 system deliberately (backtick already opens it; the input system would take
 the arrow keys and Escape on a log-reading surface). Don't re-open it as
 unfinished work, and don't read `/console`'s missing nav config as a gap.
+Note that Stage 7 *does* touch console JS — its hook tests. That is not a
+re-opening of Stage 3; the console's exclusion from the **input system** is
+unrelated to whether its **hook** has working tests.
 
 Stale memories to drop before you start:
 
@@ -159,8 +175,9 @@ minutes and inverted the decision.
 
 ## Status
 
-**COMPLETE — 2026-08-06.** Stages 1, 2, 4, 5 and 6 resolved; Stage 3
-declined. `mix precommit` green after each stage.
+**Stages 1, 2, 4, 5 and 6 done; Stage 3 declined** (all 2026-08-06).
+**Stages 7 and 8 open**, both spawned by Stage 6's findings. Stage 7 needs
+no decision; Stage 8 does. `mix precommit` green after each stage.
 
 * **Stage 1** — `library.ex` 2779 → 127 lines across six commits
   (`5b2d3510`…`f91f61ce`); 18 modules; the 21 `# ---` dividers are gone.
@@ -181,25 +198,25 @@ declined. `mix precommit` green after each stage.
 * **`/reconcile`** — fixed (`2e4aa4d7`), along with two further defects
   reading the page turned up. Not a stage; it was found here and finished
   here.
+* **Stage 7** — not started. `assets/js/hooks/` is in no test run; 8 tests
+  failing there since 2026-04-29 on one root cause. No open questions.
+* **Stage 8** — not started. Five native `data-confirm` dialogs, two
+  existing themed idioms to choose between. Open questions for the owner.
 
 The 2026-08-05 sweep's Critical and Moderate-with-user-impact findings were
 fixed and pushed before the stages began (see *Decisions made*); this
 campaign is the tail.
 
-## Two findings this stage turned up
+## Two findings Stage 6 turned up — now Stages 7 and 8
 
-Neither belongs to a stage and neither held the campaign open. Both are real.
+Neither belonged to Stage 6 and neither held it open. Both are real, both
+have their own stage below, and both had their facts re-verified when those
+stages were written:
 
-* **`assets/js/hooks/` is not in any test run.** `mix precommit` runs
-  `bun test assets/js/input/ assets/js/__tests__/` (`mix.exs:176`) and CI
-  runs `assets/js/input/` alone (`.github/workflows/ci.yml:137`). Neither
-  covers `assets/js/hooks/`, where **8 Console-hook tests are currently
-  failing** — confirmed on a clean tree, so they pre-date this campaign and
-  nobody has seen them fail. This is error 6's shape again one level up: the
-  suite reports success because the failing tests are never run. Fix is a
-  path in two files, then whatever the 8 failures turn out to be.
-* **Five `data-confirm` sites, not two.** See Stage 6's `clear_database`
-  item — the count went 1 → 2 → 5, and the remedy is an idiom choice.
+* **`assets/js/hooks/` is in no test run** → **Stage 7**. Failing since
+  2026-04-29 and invisible the whole time.
+* **Five `data-confirm` sites, not two** → **Stage 8**. The count went
+  1 → 2 → 5, and the remedy is an idiom choice, not an edit.
 
 Stage 4 also chased an intermittent `(Exqlite.Error) Database busy` that
 turned out to be a second `mix test` against the same SQLite file, not a
@@ -475,8 +492,22 @@ defect. Nothing to pick up.
   Console-hook tests fail today — confirmed on a clean tree, so they
   pre-date this campaign and have never been seen to fail. Error 6's shape
   one level up: the suite reports success because the failing tests are
-  never run. Left as ordinary work; recorded in *Two findings this stage
-  turned up*.
+  never run. → **Stage 7.**
+
+* `2026-08-06` — **The campaign reopens on two stages rather than closing.**
+  It was briefly marked complete and its file retired per the
+  removed-when-complete convention (`4235948b` records it, `41319528`
+  removed it, reverted in `af3f9dcf`). That was wrong: Stage 6's two
+  findings are not loose ends to file away, they are work with owners and
+  shapes, and a memory note is a worse home for them than the campaign that
+  found them. They are now Stages 7 and 8.
+
+  Their facts were verified when the stages were written, not carried over
+  from the finding. That paid immediately: **"8 failing tests" is one root
+  cause**, not eight — every failure is the same missing `window.dispatchEvent`
+  on a test stub that never followed `358bab78` (2026-04-29). The stage got
+  smaller for being checked, which is the opposite of the direction this
+  campaign's numbers usually moved, and worth recording for that reason.
 
 ---
 
@@ -1292,6 +1323,9 @@ section, because it was three defects rather than one.
   and a Credo check making `data-confirm` the violation — the shape Stage 4
   used to make a policy true instead of merely stated.
 
+  → **That stage now exists: Stage 8**, with the five sites tabulated and
+  the idiom choice written up as open questions.
+
 * **`home_feed.ex` raw-SQL fragments** — the `fetch_in_progress_*` functions
   each embed a raw-SQL `fragment` (lines **246, 343, 439, 537**) that
   re-expresses in string SQL the join the Ecto `exists` clause already
@@ -1345,6 +1379,119 @@ section, because it was three defects rather than one.
   in Stage 5 rather than early-and-partial: 132 call sites across 71 files,
   held by MC0025. Nothing to pick up.
 
+## Stage 7 — The JS tests nobody runs  ▶ **DO THIS ONE FIRST**
+
+**No open questions.** Nothing here needs the owner: the tests are supposed
+to run, they do not, and the ones that exist are failing. This is the
+campaign's own headline lesson found in the tooling that was verifying the
+campaign.
+
+**Why it matters more than its size.** Every "green" claim in Stages 1–6 was
+made against a suite that silently skips a directory. That does not
+invalidate them — nothing in those stages touched `assets/js/hooks/` — but
+it does mean the guarantee was narrower than it read.
+
+### Evidence (verified 2026-08-06)
+
+| Fact | Command | Value |
+|---|---|---|
+| What `mix precommit` runs | `sed -n '176p' mix.exs` | `bun test --dots assets/js/input/ assets/js/__tests__/` |
+| What CI runs | `sed -n '137p' .github/workflows/ci.yml` | `bun test --dots assets/js/input/` |
+| Tests in `assets/js/hooks/` | `bun test assets/js/hooks/` | 53 tests, 5 files — **8 failing** |
+| Distinct root causes | `bun test assets/js/hooks/ \| grep -E '^TypeError' \| sort -u` | **1** |
+| Failing since | `git log -1 -S 'mc:log-tail:repin' -- assets/js/hooks/console.js` | `358bab78`, **2026-04-29** |
+
+**Two gaps, not one.** `assets/js/hooks/` (5 test files) is run by *neither*
+precommit nor CI. `assets/js/__tests__/` (1 file,
+`reconnect_on_visible.test.js`) is run by precommit but **not** by CI — so a
+green local run and a green CI run do not mean the same thing.
+
+**The count shrank the stage rather than growing it.** "8 failing tests"
+sounds like eight problems; it is one. All eight throw the same
+`TypeError: window.dispatchEvent is not a function` — `console.js:66`
+dispatches `mc:log-tail:repin` on the drawer's closed→open transition, and
+the test's `window` stub in `console.test.js` never gained a `dispatchEvent`.
+The hook gained the dispatch on 2026-04-29 and the stub did not follow. The
+tests have been red for three months and no run has ever reported it.
+
+This is error 6 one level up. MC0012/MC0013 reported success because they
+could not fire; this reports success because it is never invoked. **An
+unexercised check is not a weaker guarantee than no check — it is a false
+one.**
+
+### Shape of the fix
+
+1. Widen both runners to the whole tree — `bun test assets/js/` — rather
+   than adding `assets/js/hooks/` as a third path. Enumerating directories
+   is what created this gap; a new directory should be covered by default,
+   not by remembering. Confirm nothing outside `assets/js/` is picked up.
+2. Fix the stale `window` stub so the 8 pass. Check whether the dispatch is
+   *worth* asserting while there — a test that only stops throwing is
+   weaker than one that pins the repin behaviour `358bab78` added.
+3. Re-run and read the count: 53 tests must all pass, and the totals
+   reported by `mix precommit` must **go up**, which is the observable proof
+   the widening took effect.
+
+Do not stop at making the suite green — the point is that it now runs.
+
+## Stage 8 — One confirmation idiom
+
+Carried out of Stage 6, which dropped it correctly: it is not polish. See
+that stage's `clear_database` bullet for the full reasoning; this is the
+work it implies.
+
+### Evidence (verified 2026-08-06)
+
+Five native browser `data-confirm` dialogs
+(`grep -rn 'data-confirm' lib/media_centaur_web/`):
+
+| Site | Action |
+|---|---|
+| `live/settings_live/danger.ex:214` | Clear database — the most destructive action in the app |
+| `live/settings_live/danger.ex:235` | Refresh image cache |
+| `components/console_components.ex:255` | Clear log buffer |
+| `live/settings_live/library.ex:197` | Remove excluded directory |
+| `live/watch_history_live.ex:314` | Remove from watch history |
+
+The native dialog ignores the theme and is not d-pad reachable, which is the
+real defect: this app is driven by a gamepad from a couch.
+
+**The repo already has two themed, d-pad-reachable idioms**, which is why
+"convert it to a modal" is a decision rather than an edit:
+
+* `MediaCentaurWeb.Components.Modal` — the single modal seam. MC0017 forbids
+  any other module using `modal-backdrop` / `modal-panel`. Takes a required
+  `dismiss:` of `:ephemeral` | `:persistent`.
+* The detail panel's **inline two-click gesture** — `delete_confirm` +
+  `delete_gesture_state/3`. The button itself flips to a confirm state. No
+  overlay, already themed, already navigable.
+
+### Open questions — for the owner, not the agent
+
+1. **Which idiom?** The inline gesture is lighter and proven, but has
+   nowhere to put a full warning sentence. A modal reads as more serious and
+   fits the copy, at the cost of an overlay for "remove this row from watch
+   history". A plausible answer is *both* — gesture for the small reversible
+   ones, modal for the destructive ones — but that is a rule someone has to
+   state, or it becomes five ad-hoc choices again.
+2. **Does "Clear database" deserve more than one more click?** It deletes
+   every entity, file, image and progress record. Options: nothing extra, a
+   typed confirmation, or a hold-to-confirm.
+3. **Is the console's "clear log buffer" even in scope?** Per the
+   `feedback-console-outside-input-system` rule the console is deliberately
+   outside the input system. It is *not* obviously outside a shared
+   confirm-dialog convention, but it is worth one sentence rather than an
+   assumption — Stage 3 was lost to exactly this kind of unchecked premise.
+
+### Shape of the fix, once decided
+
+One shared component, one idiom rule, **all five sites in the same change**,
+and a Credo check making a bare `data-confirm` in `lib/media_centaur_web/`
+the violation. That last part is what Stage 4 established: a policy that is
+merely written down drifts, and a policy with a check does not. Converting
+two sites and leaving three is precisely the 80 % stop this campaign has
+been retiring.
+
 ## Completion criteria
 
 * Stages 1–5 each either **resolved** or **explicitly declined** with
@@ -1357,7 +1504,15 @@ section, because it was three defects rather than one.
   defect was found here but belongs to no stage; carry it forward as
   ordinary work rather than letting it hold the campaign open.
   **It was fixed anyway** (`2e4aa4d7`), along with two further defects. ✅
+* **Stages 7 and 8 each resolved or explicitly declined**, same rule as the
+  original six. Stage 7 needs no conversation; Stage 8 must not be started
+  before its open questions are answered.
+  **Status: both open.**
 * `mix precommit` green after each stage, no new Credo suppressions.
+  **Note what Stage 7 does to this criterion**: until it lands, "precommit
+  green" excludes `assets/js/hooks/` entirely, and every earlier stage's
+  green was that narrower claim. None of them touched that directory, so
+  none is in doubt — but the criterion means more after Stage 7 than before.
 * No stage left half-applied — the audit's own headline finding was
   that this repo's defects come from refactors that start well and stop
   at 80%.

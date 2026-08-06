@@ -22,8 +22,8 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`audit-remediation-2026-08.md`](audit-remediation-2026-08.md) —
-  **in progress — Stage 6 (droppable polish) is all that remains.** Tail of
-  the 2026-08-05 four-audit sweep. Stages 1, 2, 4 and 5 resolved, Stage 3
+  **in progress — Stage 7 next (no open questions), then Stage 8.** Tail of
+  the 2026-08-05 four-audit sweep. Stages 1, 2, 4, 5 and 6 resolved, Stage 3
   declined. Stage 1 split the 2779-line `Library` context into 18 modules
   (`library.ex` → 127 lines); Stage 2 closed the `Status` and `Diagnostics`
   Boundary hatches; Stage 4 reconciled two overreaching test policies with
@@ -32,18 +32,24 @@ Use [`template.md`](template.md) as a starter.
   ([ADR-060](../decisions/architecture/2026-08-06-060-event-publication-idiom.md))
   — typed structs in the one-file `Library`/`Playback` shape, a `Topics`
   transport that removed 132 hand-written PubSub server references, and
-  `Review.Events` as the worked example. Stage 3 was declined because the
-  console stays outside the input system deliberately.
-  **Left:** Stage 6's six polish bullets — re-verified 2026-08-06, two of
-  which don't say what they appear to say and one already shipped — plus the
-  unclaimed `/reconcile` dead-nav defect, the only user-visible item in it.
-  No open questions remain; nothing here needs the owner.
-  Its durable output is a lesson in three clauses, paid for six times: a
+  `Review.Events` as the worked example; Stage 6 cleared the polish list
+  (`BooleanSetting` for the four boolean flags, four raw-SQL `order_by`
+  fragments replaced with Ecto, and a cast grid that shipped **1.6 MB of
+  HTML to display 24 cards** now sending 41 KB). Stage 3 was declined
+  because the console stays outside the input system deliberately. The
+  `/reconcile` dead-nav defect was fixed and turned out to be three defects.
+  **Left:** **Stage 7** — `assets/js/hooks/` is in no test run and has had 8
+  tests failing since 2026-04-29 on a single root cause; nothing needs the
+  owner, do it first. **Stage 8** — five native `data-confirm` dialogs and
+  two existing themed idioms to choose between; **has open questions, don't
+  start it before they're answered.**
+  Its durable output is a lesson in four clauses, paid for eight times: a
   check you can run beats a number you wrote down; a number beats nothing
-  only if you checked the assumption underneath it; **and a check counts
-  only if you ran it against a violation** — MC0012 and MC0013 were found to
-  have never been able to fire. With a coda from Stage 6: a correct count
-  can still recommend the wrong fix.
+  only if you checked the assumption underneath it; a check counts only if
+  you ran it against a violation — MC0012 and MC0013 were found to have
+  never been able to fire; **and a count answers "how many", never "which
+  fix"** — both of Stage 6's last bullets counted right and prescribed
+  wrong. Counterweight: measure before deciding whether to care.
 * [`below-floor-releases.md`](below-floor-releases.md) —
   **planning — design not started.** When every findable release of a
   title is below the user's quality floor, the plan board says a bare
