@@ -183,7 +183,7 @@ defmodule MediaCentaur.Showcase do
   # detail modal's "remembered tracks" badge has real state to render.
   # No-op for entries without one.
   defp maybe_seed_track_override!(movie_id, %{track_override: attrs}) when is_map(attrs) do
-    {:ok, _} = Library.upsert_media_track_override(:movie, movie_id, attrs)
+    {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie_id, attrs)
   end
 
   defp maybe_seed_track_override!(_movie_id, _entry), do: :ok
@@ -1057,7 +1057,7 @@ defmodule MediaCentaur.Showcase do
 
     case MediaCentaur.Images.download(url, dest, []) do
       {:ok, _} ->
-        Library.create_image!(%{
+        Library.Images.create!(%{
           owner_type: owner_type,
           owner_id: owner_id,
           role: to_string(role),
@@ -1116,7 +1116,7 @@ defmodule MediaCentaur.Showcase do
       File.mkdir_p!(Path.dirname(dest))
       File.cp!(fixture, dest)
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         owner_type: :episode,
         owner_id: episode.id,
         role: "thumb",

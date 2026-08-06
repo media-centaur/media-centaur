@@ -53,18 +53,18 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
 
       assert {:error, _} = Library.Containers.fetch(:tv_series, tv_series.id)
       assert Library.Seasons.list_all() == []
-      assert Library.list_all_images() == []
+      assert Library.Images.list_all() == []
     end
 
     test "cascade deletes the entity's media track override" do
       tv_series = create_entity(%{type: :tv_series, name: "Sample Show"})
 
       {:ok, _} =
-        Library.upsert_media_track_override(:tv_series, tv_series.id, %{audio_lang: "jpn"})
+        Library.MediaTrackOverrides.upsert(:tv_series, tv_series.id, %{audio_lang: "jpn"})
 
       EntityCascade.destroy!(tv_series.id)
 
-      assert Library.get_media_track_override(:tv_series, tv_series.id) == nil
+      assert Library.MediaTrackOverrides.get(:tv_series, tv_series.id) == nil
     end
 
     test "cascade deletes a movie with images and external IDs" do
@@ -87,7 +87,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
       EntityCascade.destroy!(movie.id)
 
       assert {:error, _} = Library.Containers.fetch(:movie, movie.id)
-      assert Library.list_all_images() == []
+      assert Library.Images.list_all() == []
     end
 
     test "cascade deletes PlayableItem rows for a movie" do

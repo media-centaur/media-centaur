@@ -262,7 +262,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       movie: movie
     } do
       {:ok, _} =
-        Library.upsert_media_track_override(:movie, movie.id, %{
+        Library.MediaTrackOverrides.upsert(:movie, movie.id, %{
           audio_lang: "jpn",
           subtitle_lang: "eng"
         })
@@ -283,14 +283,14 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "Reset to default clears the override and drops the badge", %{conn: conn, movie: movie} do
-      {:ok, _} = Library.upsert_media_track_override(:movie, movie.id, %{audio_lang: "jpn"})
+      {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie.id, %{audio_lang: "jpn"})
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=credits")
       assert render(view) =~ "Remembered tracks"
 
       view |> element("button[phx-click='reset_track_override']") |> render_click()
 
-      assert Library.get_media_track_override(:movie, movie.id) == nil
+      assert Library.MediaTrackOverrides.get(:movie, movie.id) == nil
       refute render(view) =~ "Remembered tracks"
     end
 
@@ -304,7 +304,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       # Simulate a mid-playback capture: the override lands in the DB and
       # the MpvSession broadcasts TrackOverrideChanged. The open modal
       # must reflect it without the user reopening.
-      {:ok, _} = Library.upsert_media_track_override(:movie, movie.id, %{audio_lang: "fra"})
+      {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie.id, %{audio_lang: "fra"})
       Events.broadcast(%TrackOverrideChanged{owner_type: :movie, owner_id: movie.id})
 
       html = render(view)

@@ -23,8 +23,10 @@ defmodule MediaCentaur.Library do
       Files,
       Image,
       ImageHealth,
+      Images,
       MediaInfo,
       MediaTrackOverride,
+      MediaTrackOverrides,
       Movie,
       MovieList,
       MovieSeries,
@@ -78,9 +80,10 @@ defmodule MediaCentaur.Library do
     ExternalId,
     HomeFeed,
     Image,
-    MediaTrackOverride,
+    MediaTrackOverrides,
     Movie,
     MovieSeries,
+    OwnerRef,
     PlayableItem,
     PresentableQueries,
     ProgressRecords,
@@ -442,7 +445,7 @@ defmodule MediaCentaur.Library do
   defp any_present?(_type, %__MODULE__.Views.DetailItem{present?: present}), do: present == true
 
   defp build_modal_entry(container_type, item, id) do
-    entity = item |> __MODULE__.Views.DetailItem.to_entity_map() |> put_track_override()
+    entity = item |> __MODULE__.Views.DetailItem.to_entity_map() |> MediaTrackOverrides.put_on_entity()
     progress_records = ProgressRecords.list_for_container(container_type, id)
     progress = MediaCentaur.Library.ProgressSummary.compute(entity, progress_records)
 
@@ -450,80 +453,6 @@ defmodule MediaCentaur.Library do
   end
 
   # ---------------------------------------------------------------------------
-  # Image
-  # ---------------------------------------------------------------------------
-
-  def list_all_images, do: Repo.all(Image)
-
-  def create_image(attrs) do
-    Repo.insert(Image.create_changeset(translate_image_owner(attrs)))
-  end
-
-  def create_image!(attrs), do: Repo.bang!(create_image(attrs))
-
-  def upsert_image(attrs, conflict_target) do
-    attrs = translate_image_owner(attrs)
-    delete_replaced_image_file(attrs, conflict_target)
-
-    Repo.insert(Image.create_changeset(attrs),
-      on_conflict: {:replace, [:content_url, :extension, :updated_at]},
-      conflict_target: conflict_target
-    )
-  end
-
-  # Image paths are deterministic (`{owner_id}/{role}.{extension}`), so a
-  # re-download normally overwrites in place — but when the extension
-  # changes (poster.jpg → poster.png) the upsert re-points `content_url`
-  # and the old file would linger on disk forever. Remove it before the
-  # row is replaced, while we can still see the old path.
-  defp delete_replaced_image_file(attrs, conflict_target) when is_list(conflict_target) do
-    lookup = Enum.map(conflict_target, fn key -> {key, Map.get(attrs, key)} end)
-
-    with false <- Enum.any?(lookup, fn {_key, value} -> is_nil(value) end),
-         %Image{content_url: old_url} when is_binary(old_url) <- Repo.get_by(Image, lookup),
-         new_url when new_url != old_url <- Map.get(attrs, :content_url),
-         old_path when is_binary(old_path) <- MediaCentaur.Config.resolve_image_path(old_url) do
-      File.rm(old_path)
-    else
-      _no_replaced_file -> :ok
-    end
-  end
-
-  # Legacy per-type FK shape kept for callers and tests written before
-  # Phase 2 Task D — translate at the context boundary so the call sites
-  # don't need to change all at once. New code should pass `owner_type`
-  # + `owner_id` directly.
-  @image_owner_legacy_keys [
-    movie_id: :movie,
-    episode_id: :episode,
-    tv_series_id: :tv_series,
-    movie_series_id: :movie_series,
-    video_object_id: :video_object
-  ]
-  defp translate_image_owner(attrs) when is_map(attrs),
-    do: translate_legacy_owner(attrs, @image_owner_legacy_keys)
-
-  @external_id_owner_legacy_keys [
-    movie_id: :movie,
-    tv_series_id: :tv_series,
-    movie_series_id: :movie_series,
-    video_object_id: :video_object
-  ]
-  defp translate_external_id_owner(attrs) when is_map(attrs),
-    do: translate_legacy_owner(attrs, @external_id_owner_legacy_keys)
-
-  defp translate_legacy_owner(attrs, legacy_keys) do
-    case Enum.find(legacy_keys, fn {key, _} -> not is_nil(Map.get(attrs, key)) end) do
-      nil ->
-        attrs
-
-      {legacy_key, owner_type} ->
-        attrs
-        |> Map.drop(Keyword.keys(legacy_keys))
-        |> Map.put_new(:owner_type, owner_type)
-        |> Map.put_new(:owner_id, Map.get(attrs, legacy_key))
-    end
-  end
 
   @doc """
   Lists the `Library.Image` rows owned by `(owner_type, owner_id)`.
@@ -577,7 +506,7 @@ defmodule MediaCentaur.Library do
   # ---------------------------------------------------------------------------
 
   def create_external_id(attrs) do
-    Repo.insert(ExternalId.create_changeset(translate_external_id_owner(attrs)))
+    Repo.insert(ExternalId.create_changeset(OwnerRef.normalise(attrs, :external_id)))
   end
 
   def create_external_id!(attrs), do: Repo.bang!(create_external_id(attrs))
@@ -888,88 +817,6 @@ defmodule MediaCentaur.Library do
   defp count_rows(schema), do: Repo.one(from(record in schema, select: count(record.id)))
 
   # ---------------------------------------------------------------------------
-  # Media track overrides (per-entity audio/subtitle preferences)
-  # ---------------------------------------------------------------------------
-
-  @doc """
-  Fetch the override for an entity, or `nil` if none has been recorded.
-  """
-  @spec get_media_track_override(MediaTrackOverride.owner_type(), Ecto.UUID.t()) ::
-          MediaTrackOverride.t() | nil
-  def get_media_track_override(owner_type, owner_id) when is_atom(owner_type) and is_binary(owner_id) do
-    Repo.get_by(MediaTrackOverride, owner_type: owner_type, owner_id: owner_id)
-  end
-
-  @doc """
-  Insert a new override row for an entity, or update the existing one in
-  place. Returns `{:ok, override}` or `{:error, changeset}`.
-
-  The override row stores the user's full diverges-from-policy state for
-  the entity: any of the four override fields may be `nil` (audio/subs
-  follow policy) or set (override that aspect to this language). Callers
-  are responsible for computing the diff against the policy choice
-  before invoking — this function just persists what it's given.
-  """
-  @spec upsert_media_track_override(MediaTrackOverride.owner_type(), Ecto.UUID.t(), map()) ::
-          {:ok, MediaTrackOverride.t()} | {:error, Ecto.Changeset.t()}
-  def upsert_media_track_override(owner_type, owner_id, attrs)
-      when is_atom(owner_type) and is_binary(owner_id) and is_map(attrs) do
-    attrs =
-      attrs
-      |> Map.put(:owner_type, owner_type)
-      |> Map.put(:owner_id, owner_id)
-
-    # Guard against unknown owner_types reaching the Repo — Ecto.Enum
-    # would raise an `Ecto.Query.CastError` from the existence check
-    # before the changeset has a chance to surface a clean validation
-    # error to the caller.
-    if owner_type in MediaTrackOverride.owner_types() do
-      case get_media_track_override(owner_type, owner_id) do
-        nil -> Repo.insert(MediaTrackOverride.changeset(%MediaTrackOverride{}, attrs))
-        existing -> Repo.update(MediaTrackOverride.changeset(existing, attrs))
-      end
-    else
-      {:error, MediaTrackOverride.changeset(%MediaTrackOverride{}, attrs)}
-    end
-  end
-
-  @doc """
-  Delete the override row for an entity. Returns `:ok` whether or not
-  an override existed — callers don't need to check first.
-  """
-  @spec clear_media_track_override(MediaTrackOverride.owner_type(), Ecto.UUID.t()) :: :ok
-  def clear_media_track_override(owner_type, owner_id)
-      when is_atom(owner_type) and is_binary(owner_id) do
-    case get_media_track_override(owner_type, owner_id) do
-      nil ->
-        :ok
-
-      override ->
-        {:ok, _} = Repo.delete(override)
-        :ok
-    end
-  end
-
-  @doc """
-  Decorate a modal entity-map with its per-entity track override under
-  the `:track_override` key. Only movies and TV series can own an
-  override; every other container kind (`:movie_series`, `:video_object`)
-  — and any map missing `:id`/`:type` — gets `nil`.
-
-  Called by the modal-entry builders right after
-  `Views.DetailItem.to_entity_map/1`, so both construction paths
-  (`load_modal_entry/1` for movies + refreshes, `SeriesDetail.compose/1`
-  for TV-series initial opens) carry the override without the detail UI
-  issuing a second context round-trip.
-  """
-  @spec put_track_override(map()) :: map()
-  def put_track_override(%{id: id, type: type} = entity)
-      when type in [:movie, :tv_series] and is_binary(id) do
-    Map.put(entity, :track_override, get_media_track_override(type, id))
-  end
-
-  def put_track_override(entity) when is_map(entity), do: Map.put(entity, :track_override, nil)
-
   # ---------------------------------------------------------------------------
   # Helpers
   # ---------------------------------------------------------------------------

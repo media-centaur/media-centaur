@@ -7,9 +7,12 @@ defmodule MediaCentaur.Library.MediaTrackOverride do
   rewatch of a movie) honours it.
 
   The owner is identified by the discriminator pair `(owner_type,
-  owner_id)`. `owner_type` is one of `:tv_series`, `:movie`. Unique
-  within `(owner_type, owner_id)` — one override row per entity, updated
-  in place via upsert.
+  owner_id)`. `owner_type` is one of `:tv_series`, `:movie`,
+  `:video_object` — every container that is watched as a unit and can
+  therefore be re-watched with the same track choice. `:movie_series` is
+  absent because a collection is never played directly; its child movies
+  carry their own overrides. Unique within `(owner_type, owner_id)` —
+  one override row per entity, updated in place via upsert.
 
   Overrides are **partial**: any of the four override fields may be
   unset, in which case that aspect falls back to the policy.
@@ -30,9 +33,9 @@ defmodule MediaCentaur.Library.MediaTrackOverride do
   @foreign_key_type Ecto.UUID
   @timestamps_opts [type: :utc_datetime]
 
-  @owner_types [:tv_series, :movie]
+  @owner_types [:tv_series, :movie, :video_object]
 
-  @type owner_type :: :tv_series | :movie
+  @type owner_type :: :tv_series | :movie | :video_object
   @type t :: %__MODULE__{
           id: Ecto.UUID.t() | nil,
           owner_type: owner_type() | nil,

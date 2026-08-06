@@ -40,7 +40,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
     test "counts image rows whose files are absent" do
       movie = create_entity(%{type: :movie, name: "Absent"})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         owner_type: :movie,
         owner_id: movie.id,
         role: "poster",
@@ -55,7 +55,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
       movie = create_entity(%{type: :movie, name: "Partial"})
       put_image_with_file(movie.id, :movie, "poster", "jpg", images_dir)
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         owner_type: :movie,
         owner_id: movie.id,
         role: "backdrop",
@@ -69,7 +69,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
     test "excludes rows with nil content_url (mid-refresh)" do
       movie = create_entity(%{type: :movie, name: "Refreshing"})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         owner_type: :movie,
         owner_id: movie.id,
         role: "poster",
@@ -92,7 +92,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
 
       other = create_entity(%{type: :movie, name: "C"})
       # Backdrop row whose file is absent on disk — included all the same.
-      Library.create_image!(%{
+      Library.Images.create!(%{
         owner_type: :movie,
         owner_id: other.id,
         role: "backdrop",
@@ -110,7 +110,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
     test "excludes rows with a nil content_url (mid-refresh)" do
       movie = create_entity(%{type: :movie, name: "Refreshing"})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         owner_type: :movie,
         owner_id: movie.id,
         role: "backdrop",
@@ -127,7 +127,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
       movie = create_entity(%{type: :movie, name: "M"})
 
       image =
-        Library.create_image!(%{
+        Library.Images.create!(%{
           owner_type: :movie,
           owner_id: movie.id,
           role: "poster",
@@ -144,7 +144,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
     test "resolves entity_type for each top-level owner_type" do
       movie = create_entity(%{type: :movie, name: "M"})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         owner_type: :movie,
         owner_id: movie.id,
         role: "poster",
@@ -154,7 +154,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
 
       tv_series = create_tv_series()
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         owner_type: :tv_series,
         owner_id: tv_series.id,
         role: "poster",
@@ -164,7 +164,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
 
       movie_series = create_movie_series()
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         owner_type: :movie_series,
         owner_id: movie_series.id,
         role: "poster",
@@ -174,7 +174,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
 
       video_object = create_video_object()
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         owner_type: :video_object,
         owner_id: video_object.id,
         role: "poster",
@@ -191,7 +191,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
       season = create_season(%{tv_series_id: tv_series.id, season_number: 1, number_of_episodes: 1})
       episode = create_episode(%{season_id: season.id, episode_number: 1, name: "Pilot"})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         owner_type: :episode,
         owner_id: episode.id,
         role: "thumb",
@@ -215,7 +215,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
 
       put_image_with_file(movie.id, :movie, "poster", "jpg", images_dir)
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         owner_type: :movie,
         owner_id: movie.id,
         role: "backdrop",
@@ -223,7 +223,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
         extension: "jpg"
       })
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         owner_type: :movie,
         owner_id: movie.id,
         role: "logo",
@@ -241,7 +241,7 @@ defmodule MediaCentaur.Library.ImageHealthTest do
     File.mkdir_p!(entity_dir)
     File.write!(Path.join(entity_dir, "#{role}.#{extension}"), "fake image bytes")
 
-    Library.create_image!(%{
+    Library.Images.create!(%{
       owner_type: owner_type,
       owner_id: entity_id,
       role: role,

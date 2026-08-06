@@ -268,7 +268,7 @@ defmodule MediaCentaur.Playback.LanguageContextTest do
       movie = create_movie(%{name: "Sample Movie", original_language: "jpn"})
 
       {:ok, _} =
-        Library.upsert_media_track_override(:movie, movie.id, %{audio_lang: "eng"})
+        Library.MediaTrackOverrides.upsert(:movie, movie.id, %{audio_lang: "eng"})
 
       context = LanguageContext.init(%{entity_id: movie.id, movie_id: movie.id})
 

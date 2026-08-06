@@ -501,7 +501,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     test "renders enabled with badge when images are missing", %{conn: conn} do
       movie = Library.Containers.create!(:movie, %{name: "Lost Posters", position: 0})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         movie_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",

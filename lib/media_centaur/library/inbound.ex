@@ -148,7 +148,7 @@ defmodule MediaCentaur.Library.Inbound do
       owner_id: owner_id
     }
 
-    case Library.upsert_image(image_attrs, [:owner_type, :owner_id, :role]) do
+    case Library.Images.upsert(image_attrs, [:owner_type, :owner_id, :role]) do
       {:ok, _image} ->
         Log.info(:library, "image ready — #{role} for #{owner_id}")
 
@@ -576,7 +576,7 @@ defmodule MediaCentaur.Library.Inbound do
   defp backfill_collection_images(entity, %{images: images}) when is_list(images) do
     existing_roles =
       :movie_series
-      |> Library.list_images(entity.id)
+      |> Library.Images.list_for_owner(entity.id)
       |> MapSet.new(& &1.role)
 
     images

@@ -42,7 +42,7 @@ defmodule MediaCentaur.Playback.LanguageContext do
     {owner_type, owner_id, original_language} = resolve_owner(params)
 
     policy = LanguagePolicy.load()
-    override = if owner_type, do: Library.get_media_track_override(owner_type, owner_id)
+    override = if owner_type, do: Library.MediaTrackOverrides.get(owner_type, owner_id)
     priority_args = TrackResolver.priority_args(policy, override, original_language)
 
     %{

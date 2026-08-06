@@ -170,7 +170,7 @@ defmodule MediaCentaurWeb.LiveHelpers do
   # `<owner_id>/<role>.<ext>` path), so a bare URL would let the browser
   # serve stale bytes for up to an hour (ImageServer's unversioned
   # `max-age=3600`). Appending the image's `updated_at` — bumped by
-  # `Library.upsert_image/2` on every replace — flips ImageServer to its
+  # `Library.Images.upsert/2` on every replace — flips ImageServer to its
   # immutable/versioned branch and guarantees a refetch the moment the
   # detail view reloads after `entities_changed`.
   defp cache_bust(image) do

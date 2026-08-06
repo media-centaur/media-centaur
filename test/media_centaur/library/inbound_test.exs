@@ -280,7 +280,7 @@ defmodule MediaCentaur.Library.InboundTest do
       series =
         create_entity(%{type: :movie_series, name: "Sample Movie Collection", tmdb_id: "263"})
 
-      assert [] = Library.list_images(:movie_series, series.id)
+      assert [] = Library.Images.list_for_owner(:movie_series, series.id)
 
       # The next movie of the same collection arrives. Its event carries the
       # freshly-fetched collection artwork (poster + backdrop). The link path

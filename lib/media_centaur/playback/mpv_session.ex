@@ -629,7 +629,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   defp persist_track_override(%{owner_type: owner_type, owner_id: owner_id}, attrs) do
-    case Library.upsert_media_track_override(owner_type, owner_id, attrs) do
+    case Library.MediaTrackOverrides.upsert(owner_type, owner_id, attrs) do
       {:ok, _override} ->
         Log.info(
           :playback,

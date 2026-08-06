@@ -53,7 +53,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
     test "reuses an existing queue entry and resets it to pending", %{tmp: tmp} do
       movie = create_movie_with_watched_file(tmp)
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         movie_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
@@ -98,7 +98,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       {:ok, img} = Image.new(1200, 675, color: :red)
       {:ok, _} = Image.write(img, master, suffix: ".jpg", quality: 90)
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         movie_id: movie.id,
         role: "backdrop",
         content_url: "#{movie.id}/backdrop.jpg",
@@ -143,7 +143,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
     test "creates a new queue row for a movie with a direct tmdb_id", %{tmp: tmp} do
       movie = create_movie_with_watched_file(tmp, %{tmdb_id: "550"})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         movie_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
@@ -168,7 +168,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
     test "creates a new queue row for a tv_series via tmdb_id", %{tmp: tmp} do
       tv = create_tv_series_with_watched_file(tmp, %{tmdb_id: "1396"})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         tv_series_id: tv.id,
         role: "backdrop",
         content_url: "#{tv.id}/backdrop.jpg",
@@ -189,7 +189,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
     test "creates a new queue row for a movie_series via tmdb_id", %{tmp: tmp} do
       movie_series = create_movie_series_with_watched_file(tmp, %{tmdb_id: "263"})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         movie_series_id: movie_series.id,
         role: "poster",
         content_url: "#{movie_series.id}/poster.jpg",
@@ -209,7 +209,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
     test "skips when TMDB returns no path for the requested role", %{tmp: tmp} do
       movie = create_movie_with_watched_file(tmp, %{tmdb_id: "550"})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         movie_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
@@ -229,7 +229,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
     test "skips when TMDB returns an error", %{tmp: tmp} do
       movie = create_movie_with_watched_file(tmp, %{tmdb_id: "550"})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         movie_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
@@ -246,7 +246,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
     test "skips when entity has no tmdb_id and no external_ids", %{tmp: tmp} do
       tv = create_tv_series_with_watched_file(tmp)
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         tv_series_id: tv.id,
         role: "poster",
         content_url: "#{tv.id}/poster.jpg",
@@ -260,7 +260,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
     test "skips entity with no watched_files (cannot determine media_dir)", %{tmp: _tmp} do
       movie = create_standalone_movie(%{name: "Orphan", position: 0, tmdb_id: "550"})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         movie_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
@@ -276,14 +276,14 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
     test "broadcasts once per entity even with multiple missing roles", %{tmp: tmp} do
       movie = create_movie_with_watched_file(tmp, %{tmdb_id: "550"})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         movie_id: movie.id,
         role: "poster",
         content_url: "#{movie.id}/poster.jpg",
         extension: "jpg"
       })
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         movie_id: movie.id,
         role: "backdrop",
         content_url: "#{movie.id}/backdrop.jpg",
@@ -311,7 +311,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
       episode =
         create_episode(%{season_id: season.id, episode_number: 3, name: "Sample Episode 3"})
 
-      Library.create_image!(%{
+      Library.Images.create!(%{
         episode_id: episode.id,
         role: "thumb",
         content_url: "#{episode.id}/thumb.jpg",

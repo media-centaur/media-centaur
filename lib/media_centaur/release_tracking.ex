@@ -615,7 +615,7 @@ defmodule MediaCentaur.ReleaseTracking do
   shows not yet imported); returns `nil` if neither is available.
 
   `library_logos` is the map returned by
-  `MediaCentaur.Library.logo_urls_for_entities/1`, batched by the caller so
+  `MediaCentaur.Library.Images.logo_urls_for_entities/1`, batched by the caller so
   a single query covers many items.
 
   Single source of truth for "what logo should this card show?" — both
@@ -674,7 +674,7 @@ defmodule MediaCentaur.ReleaseTracking do
           do: [{r.item.media_type, r.item.library_container_id}],
           else: []
       end)
-      |> MediaCentaur.Library.logo_urls_for_entities()
+      |> MediaCentaur.Library.Images.logo_urls_for_entities()
 
     Enum.map(releases, fn release ->
       backdrop_url =

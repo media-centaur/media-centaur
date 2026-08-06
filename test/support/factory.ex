@@ -418,7 +418,7 @@ defmodule MediaCentaur.TestFactory do
   end
 
   def create_image(attrs) do
-    attrs |> Map.new() |> OwnerRef.normalise(:image) |> Library.create_image!()
+    attrs |> Map.new() |> OwnerRef.normalise(:image) |> Library.Images.create!()
   end
 
   def create_external_id(attrs) do
