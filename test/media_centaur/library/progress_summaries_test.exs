@@ -168,7 +168,7 @@ defmodule MediaCentaur.Library.ProgressSummariesTest do
   describe "list_progress_summaries/1 — mixed batch" do
     test "returns summaries for movies and TV series in one call" do
       movie = seed_present_movie("Mixed Movie")
-      %{series: series, episode: ep} = seed_present_tv_series_with_episode("Mixed Show")
+      %{series: series, episode: episode} = seed_present_tv_series_with_episode("Mixed Show")
 
       _ =
         create_watch_progress(%{
@@ -181,7 +181,7 @@ defmodule MediaCentaur.Library.ProgressSummariesTest do
 
       _ =
         create_watch_progress(%{
-          episode_id: ep.id,
+          episode_id: episode.id,
           completed: true,
           position_seconds: 60.0,
           duration_seconds: 60.0,

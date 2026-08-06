@@ -146,9 +146,11 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
 
     test "a future episode in an armed context is :armed" do
       item = tv_item()
-      ep = release(item, %{title: "armed-ep", air_date: days(3), season_number: 1, episode_number: 1})
 
-      feed = UpcomingFeed.build([ep], armed_context())
+      episode =
+        release(item, %{title: "armed-ep", air_date: days(3), season_number: 1, episode_number: 1})
+
+      feed = UpcomingFeed.build([episode], armed_context())
 
       assert find_event(feed, "armed-ep").status == :armed
     end
@@ -156,7 +158,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     test "an active pursuit links the event — :under_pursuit carrying the pursuit id" do
       item = tv_item()
 
-      ep =
+      episode =
         release(item, %{
           title: "grabbing",
           air_date: days(0),
@@ -169,10 +171,10 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
 
       context =
         armed_context(%{
-          grab_status_by_key: %{UpcomingFeed.release_key(ep) => %{pursuit_id: pursuit_id}}
+          grab_status_by_key: %{UpcomingFeed.release_key(episode) => %{pursuit_id: pursuit_id}}
         })
 
-      feed = UpcomingFeed.build([ep], context)
+      feed = UpcomingFeed.build([episode], context)
 
       event = find_event(feed, "grabbing")
       assert event.status == :under_pursuit
@@ -305,45 +307,45 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
   describe "armed honesty (only show auto-grabbing when it will actually fire)" do
     test "acquisition not ready → neutral :upcoming, never :armed" do
       item = tv_item()
-      ep = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
+      episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
-      feed = UpcomingFeed.build([ep], armed_context(%{acquisition_ready?: false}))
+      feed = UpcomingFeed.build([episode], armed_context(%{acquisition_ready?: false}))
 
       assert find_event(feed, "ep").status == :upcoming
     end
 
     test "item opted out of auto-grab (mode \"off\") → neutral :upcoming" do
       item = tv_item(%{auto_grab_mode: "off"})
-      ep = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
+      episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
-      feed = UpcomingFeed.build([ep], armed_context())
+      feed = UpcomingFeed.build([episode], armed_context())
 
       assert find_event(feed, "ep").status == :upcoming
     end
 
     test ~s(global default "off" + item "global" → neutral :upcoming) do
       item = tv_item(%{auto_grab_mode: "global"})
-      ep = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
+      episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
-      feed = UpcomingFeed.build([ep], armed_context(%{auto_grab_default_mode: "off"}))
+      feed = UpcomingFeed.build([episode], armed_context(%{auto_grab_default_mode: "off"}))
 
       assert find_event(feed, "ep").status == :upcoming
     end
 
     test ~s(item "global" inherits an "all_releases" default → :armed) do
       item = tv_item(%{auto_grab_mode: "global"})
-      ep = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
+      episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
-      feed = UpcomingFeed.build([ep], armed_context(%{auto_grab_default_mode: "all_releases"}))
+      feed = UpcomingFeed.build([episode], armed_context(%{auto_grab_default_mode: "all_releases"}))
 
       assert find_event(feed, "ep").status == :armed
     end
 
     test "\"ask\" mode is not full-auto → neutral :upcoming" do
       item = tv_item(%{auto_grab_mode: "ask"})
-      ep = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
+      episode = release(item, %{title: "ep", air_date: days(3), season_number: 1, episode_number: 1})
 
-      feed = UpcomingFeed.build([ep], armed_context())
+      feed = UpcomingFeed.build([episode], armed_context())
 
       assert find_event(feed, "ep").status == :upcoming
     end
@@ -355,8 +357,13 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       drop = days(8)
 
       releases =
-        for ep <- 1..8 do
-          release(item, %{title: "S2E#{ep}", air_date: drop, season_number: 2, episode_number: ep})
+        for episode <- 1..8 do
+          release(item, %{
+            title: "S2E#{episode}",
+            air_date: drop,
+            season_number: 2,
+            episode_number: episode
+          })
         end
 
       feed = UpcomingFeed.build(releases, armed_context())
@@ -470,7 +477,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
     test "a past release under an active pursuit is kept" do
       item = tv_item()
 
-      ep =
+      episode =
         release(item, %{
           title: "grabbing",
           air_date: days(-2),
@@ -481,10 +488,10 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
 
       context =
         armed_context(%{
-          grab_status_by_key: %{UpcomingFeed.release_key(ep) => %{pursuit_id: Ecto.UUID.generate()}}
+          grab_status_by_key: %{UpcomingFeed.release_key(episode) => %{pursuit_id: Ecto.UUID.generate()}}
         })
 
-      feed = UpcomingFeed.build([ep], context)
+      feed = UpcomingFeed.build([episode], context)
 
       assert find_event(feed, "grabbing").status == :under_pursuit
     end
@@ -616,8 +623,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
 
     test "an episode airing today reads Tonight" do
       item = tv_item()
-      ep = release(item, %{title: "t", air_date: days(0), season_number: 1, episode_number: 1})
-      event = shelf_event(UpcomingFeed.build([ep], armed_context()))
+      episode = release(item, %{title: "t", air_date: days(0), season_number: 1, episode_number: 1})
+      event = shelf_event(UpcomingFeed.build([episode], armed_context()))
 
       assert UpcomingFeed.shelf_date_label(event, @today) == "Tonight"
     end
@@ -638,24 +645,24 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
 
     test "within a week reads as a bare weekday" do
       item = tv_item()
-      ep = release(item, %{title: "t", air_date: days(2), season_number: 1, episode_number: 1})
-      event = shelf_event(UpcomingFeed.build([ep], armed_context()))
+      episode = release(item, %{title: "t", air_date: days(2), season_number: 1, episode_number: 1})
+      event = shelf_event(UpcomingFeed.build([episode], armed_context()))
 
       assert UpcomingFeed.shelf_date_label(event, @today) == "Tue"
     end
 
     test "within a month reads as weekday plus date" do
       item = tv_item()
-      ep = release(item, %{title: "t", air_date: days(10), season_number: 1, episode_number: 1})
-      event = shelf_event(UpcomingFeed.build([ep], armed_context()))
+      episode = release(item, %{title: "t", air_date: days(10), season_number: 1, episode_number: 1})
+      event = shelf_event(UpcomingFeed.build([episode], armed_context()))
 
       assert UpcomingFeed.shelf_date_label(event, @today) == "Wed Jun 24"
     end
 
     test "beyond a month drops the weekday" do
       item = tv_item()
-      ep = release(item, %{title: "t", air_date: days(40), season_number: 1, episode_number: 1})
-      event = shelf_event(UpcomingFeed.build([ep], armed_context()))
+      episode = release(item, %{title: "t", air_date: days(40), season_number: 1, episode_number: 1})
+      event = shelf_event(UpcomingFeed.build([episode], armed_context()))
 
       assert UpcomingFeed.shelf_date_label(event, @today) == "Jul 24"
     end

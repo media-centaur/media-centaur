@@ -14,8 +14,9 @@ defmodule MediaCentaur.Credo.Checks.NoAbbreviatedNames do
       also exempt.
 
       The check covers `def`/`defp` parameters, `fn` closure bindings,
-      `case`/`cond`/`with`/`rescue` pattern clauses, and destructured map /
-      tuple patterns inside any of the above.
+      `case`/`cond`/`with`/`rescue` pattern clauses, plain `=` bindings in
+      a function body, and destructured map / tuple patterns inside any of
+      the above.
 
           # preferred
           def process(file, movie, episode), do: ...
@@ -29,12 +30,19 @@ defmodule MediaCentaur.Credo.Checks.NoAbbreviatedNames do
       """
     ]
 
-  @denylist ~w(wf e ep s res wp ent)
+  @denylist ~w(wf e ep s res wp ent pi str cfg)
 
   @impl true
   def run(%SourceFile{} = source_file, params) do
     issue_meta = IssueMeta.for(source_file, params)
     Credo.Code.prewalk(source_file, &traverse(&1, &2, issue_meta))
+  end
+
+  # def / defp function heads with a guard — the params live inside the
+  # `when` node, and the guard itself binds nothing.
+  defp traverse({op, _meta, [{:when, _, [head | _guards]} | _]} = ast, issues, issue_meta)
+       when op in [:def, :defp] do
+    {ast, collect_issues(head_params(head), issue_meta) ++ issues}
   end
 
   # def / defp function heads.
@@ -47,6 +55,13 @@ defmodule MediaCentaur.Credo.Checks.NoAbbreviatedNames do
   # their LHS is always a list of patterns that may bind abbreviated names.
   defp traverse({:->, _meta, [patterns, _body]} = ast, issues, issue_meta) when is_list(patterns) do
     {ast, collect_issues(patterns, issue_meta) ++ issues}
+  end
+
+  # Plain `lhs = rhs` bindings in a function body. Naming an intermediate
+  # value is the most common way an abbreviation enters the codebase, and
+  # it is not a `def` head or a `->` clause, so it needs its own clause.
+  defp traverse({:=, _meta, [lhs, _rhs]} = ast, issues, issue_meta) do
+    {ast, collect_issues([lhs], issue_meta) ++ issues}
   end
 
   defp traverse(ast, issues, _issue_meta), do: {ast, issues}
@@ -81,8 +96,17 @@ defmodule MediaCentaur.Credo.Checks.NoAbbreviatedNames do
     extract_var_names(left) ++ extract_var_names(right)
   end
 
-  # Map / struct / tuple / list patterns — recurse into children.
-  defp extract_var_names({_op, _meta, args}) when is_list(args) do
+  # A pinned variable matches against an existing value — it binds nothing.
+  defp extract_var_names({:^, _meta, _args}), do: []
+
+  # Map / struct / tuple / cons patterns — recurse into children.
+  #
+  # Only these constructors can bind a name. Recursing into *any* call
+  # instead reported operands of ordinary expressions as bindings: a
+  # `cond` branch arrives here as a `->` clause whose "pattern" is really
+  # a condition, so `str in @in_flight_strings` was reported as three
+  # separate `str` bindings.
+  defp extract_var_names({op, _meta, args}) when op in [:{}, :%{}, :%, :|, :<>, :\\] and is_list(args) do
     Enum.flat_map(args, &extract_var_names/1)
   end
 
@@ -95,6 +119,9 @@ defmodule MediaCentaur.Credo.Checks.NoAbbreviatedNames do
   end
 
   defp extract_var_names(_), do: []
+
+  defp head_params({_name, _meta, args}) when is_list(args), do: args
+  defp head_params(_), do: []
 
   defp issue_for(issue_meta, name, line_no) do
     format_issue(

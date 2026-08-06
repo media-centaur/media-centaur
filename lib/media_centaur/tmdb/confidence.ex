@@ -63,8 +63,8 @@ defmodule MediaCentaur.TMDB.Confidence do
     MediaCentaur.Config.get(:auto_approve_threshold) || 0.85
   end
 
-  defp normalize(str) do
-    str
+  defp normalize(text) do
+    text
     |> String.downcase()
     |> String.replace(~r/[^a-z0-9 ]/, "")
     |> String.replace(~r/\s+/, " ")
