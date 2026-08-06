@@ -152,7 +152,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert reloaded.content_url == "/media/Sample.Movie.1999.mkv"
 
       # tmdb_id stored on a polymorphic ExternalId row
-      assert Library.find_by_external_id(:movie, "550").id == movie.id
+      assert Library.ExternalIds.find_by_external_id(:movie, "550").id == movie.id
 
       # WatchedFile linked to a PlayableItem(:movie, movie.id).
       [file] = MediaCentaur.Repo.all(WatchedFile)
@@ -203,7 +203,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert reloaded.name == "Sample Movie Collection"
 
       # tmdb_id stored on a polymorphic ExternalId row
-      assert Library.find_by_external_id(:movie_series, "263").id == series.id
+      assert Library.ExternalIds.find_by_external_id(:movie_series, "263").id == series.id
 
       # Child movie with movie_series_id FK
       series = MediaCentaur.Repo.preload(series, [:movies])
@@ -317,7 +317,7 @@ defmodule MediaCentaur.Library.InboundTest do
       assert tv_series.number_of_seasons == 5
 
       # tmdb_id stored directly on TVSeries
-      assert Library.find_by_external_id(:tv_series, "1396").id == tv_series.id
+      assert Library.ExternalIds.find_by_external_id(:tv_series, "1396").id == tv_series.id
 
       # Season + Episode (via tv_series preload)
       tv_series = MediaCentaur.Repo.preload(tv_series, seasons: :episodes)
@@ -352,7 +352,7 @@ defmodule MediaCentaur.Library.InboundTest do
       # The headline reconciliation guarantee: no fabricated season node and
       # no file link — the diverted file is parked elsewhere (the queue).
       assert Library.Seasons.list_for_tv_series(tv_series.id) == []
-      assert Library.find_present_episode("1396", 2, 1) == :not_found
+      assert Library.ExternalIds.find_present_episode("1396", 2, 1) == :not_found
     end
 
     test "existing TV series — adds new episode to existing season" do

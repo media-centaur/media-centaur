@@ -270,7 +270,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetailTest do
       # `compose/1` no longer differentiates "exists but wrong type"
       # from "doesn't exist at all" — both return `:not_found` and the
       # caller (`EntityModal.load_entry_and_expand/1`) falls through to
-      # `Library.load_modal_entry/1` which handles non-TV opens. The
+      # `Library.ModalEntry.load/1` which handles non-TV opens. The
       # previous `{:error, :wrong_type}` branch existed only because
       # the older path went through `TypeResolver.resolve_container/2`
       # (4 `Repo.get` probes) — that probe was waste; callers acted

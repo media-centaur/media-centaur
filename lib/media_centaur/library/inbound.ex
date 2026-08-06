@@ -288,7 +288,7 @@ defmodule MediaCentaur.Library.Inbound do
   end
 
   defp find_existing_entity(%{source: "tmdb_collection", external_id: value}) do
-    case Library.find_by_external_id(:movie_series, value) do
+    case Library.ExternalIds.find_by_external_id(:movie_series, value) do
       nil -> :not_found
       entity -> {:ok, entity}
     end
@@ -296,9 +296,9 @@ defmodule MediaCentaur.Library.Inbound do
 
   defp find_existing_entity(%{source: _source, external_id: value}) do
     cond do
-      tv = Library.find_by_external_id(:tv_series, value) -> {:ok, tv}
-      movie = Library.find_by_external_id(:movie, value) -> {:ok, movie}
-      vo = Library.find_by_external_id(:video_object, value) -> {:ok, vo}
+      tv = Library.ExternalIds.find_by_external_id(:tv_series, value) -> {:ok, tv}
+      movie = Library.ExternalIds.find_by_external_id(:movie, value) -> {:ok, movie}
+      vo = Library.ExternalIds.find_by_external_id(:video_object, value) -> {:ok, vo}
       true -> :not_found
     end
   end
@@ -438,7 +438,7 @@ defmodule MediaCentaur.Library.Inbound do
   end
 
   defp find_winner(type, value) when type in [:tv_series, :movie_series, :movie, :video_object],
-    do: Library.find_by_external_id(type, value)
+    do: Library.ExternalIds.find_by_external_id(type, value)
 
   defp tmdb_source_for(:movie_series), do: :tmdb_collection
   defp tmdb_source_for(_), do: :tmdb
@@ -837,7 +837,7 @@ defmodule MediaCentaur.Library.Inbound do
          child_movie: %{attrs: %{tmdb_id: child_tmdb_id}}
        })
        when is_binary(child_tmdb_id) do
-    %{id: id, position: position} = Library.find_by_external_id(:movie, child_tmdb_id)
+    %{id: id, position: position} = Library.ExternalIds.find_by_external_id(:movie, child_tmdb_id)
     {:movie, id, position || 1}
   end
 

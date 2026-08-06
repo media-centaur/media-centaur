@@ -566,7 +566,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   loads the selected entry on demand, and assigns the modal slice on
   the socket. Returns the updated socket.
 
-  - `selected` UUID → loads via `Library.load_modal_entry/1`. If the
+  - `selected` UUID → loads via `Library.ModalEntry.load/1`. If the
     entity doesn't exist or has no present file, the modal stays closed
     (selected_entry: nil).
   - `view=info` → opens the file/info pane inside the modal.
@@ -1199,10 +1199,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
       # `SeriesDetail.compose/1` returns `:not_found` for any id that isn't
       # a TV series, including ids that ARE existing movies / video_objects
-      # / movie_series. Falling through to `Library.load_modal_entry/1`
+      # / movie_series. Falling through to `Library.ModalEntry.load/1`
       # opens those modals; a truly orphan id returns `:not_found` there too.
       :not_found ->
-        case Library.load_modal_entry(id) do
+        case Library.ModalEntry.load(id) do
           {:ok, entry} -> {:ok, put_resume_target(entry)}
           :not_found -> :not_found
         end

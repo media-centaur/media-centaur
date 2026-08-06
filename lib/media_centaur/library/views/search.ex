@@ -10,12 +10,12 @@ defmodule MediaCentaur.Library.Views.Search do
 
   ## What gets indexed
 
-  One row per top-level entity from `Library.list_all_entities_for_search/0`,
+  One row per top-level entity from `Library.SearchIndex.list_all_entities/0`,
   which is **presence-agnostic** — entities are indexed regardless of
   whether their backing files are currently reachable. The
   `:present_only` read option then does real work, filtering against
   the honest `present?` flag computed at refresh time
-  (`Library.presentable_entity_ids/0`).
+  (`Library.SearchIndex.presentable_entity_ids/0`).
 
   Indexed kinds:
 
@@ -61,7 +61,7 @@ defmodule MediaCentaur.Library.Views.Search do
       (coalesced upstream by `Library.BroadcastCoalescer`).
     * `library:availability` — drive-mount / drive-unmount events.
       The source query is presence-agnostic, but `present?` per row is
-      recomputed at refresh time from `Library.presentable_entity_ids/0`,
+      recomputed at refresh time from `Library.SearchIndex.presentable_entity_ids/0`,
       so a presence flip changes which rows pass `:present_only`.
 
   ## Broadcast contract
@@ -163,18 +163,18 @@ defmodule MediaCentaur.Library.Views.Search do
   end
 
   defp build_rows do
-    entities = Library.list_all_entities_for_search()
+    entities = Library.SearchIndex.list_all_entities()
 
     # Bulk-resolve representative PlayableItem ids per (container_type,
     # container_id). One query per distinct container kind, regardless of
     # entity count.
     leaf_pairs = leaf_container_pairs(entities)
-    leaf_pi_ids = Library.representative_playable_item_ids_by_container(leaf_pairs)
+    leaf_pi_ids = Library.SearchIndex.representative_playable_item_ids_by_container(leaf_pairs)
 
     # Bulk-resolve presence at the leaf level. The set holds
     # `{container_type, container_id}` pairs for which at least one
     # WatchedFile is currently present.
-    presence_set = Library.presentable_entity_ids()
+    presence_set = Library.SearchIndex.presentable_entity_ids()
 
     Enum.flat_map(entities, fn entity ->
       case canonical_leaf_pair(entity, leaf_pi_ids) do

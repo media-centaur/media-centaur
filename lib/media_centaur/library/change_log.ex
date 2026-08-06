@@ -42,7 +42,7 @@ defmodule MediaCentaur.Library.ChangeLog do
   Deletes entries beyond the most recent #{@max_entries}.
   """
   def prune do
-    all_entries = Library.list_recent_changes(@max_entries + 50, nil)
+    all_entries = Library.ChangeLog.list_recent_changes(@max_entries + 50, nil)
     overflow = Enum.drop(all_entries, @max_entries)
 
     if overflow != [] do
@@ -53,12 +53,35 @@ defmodule MediaCentaur.Library.ChangeLog do
     :ok
   end
 
+  def create_change_entry(attrs) do
+    Repo.insert(ChangeEntry.create_changeset(attrs))
+  end
+
+  def create_change_entry!(attrs), do: Repo.bang!(create_change_entry(attrs))
+
+  def list_recent_changes(limit, since) do
+    query =
+      from(c in ChangeEntry,
+        order_by: [{:desc, c.inserted_at}, {:desc, fragment("rowid")}],
+        limit: ^limit
+      )
+
+    query =
+      if since do
+        from(c in query, where: c.inserted_at >= ^since)
+      else
+        query
+      end
+
+    Repo.all(query)
+  end
+
   defp create_entry(entity, kind) do
     create_entry_with_type(entity, entity.type, kind)
   end
 
   defp create_entry_with_type(record, entity_type, kind) do
-    Library.create_change_entry!(%{
+    create_change_entry!(%{
       entity_id: record.id,
       entity_name: record.name,
       entity_type: entity_type,

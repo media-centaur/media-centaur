@@ -64,7 +64,7 @@ defmodule MediaCentaur.Reconciliation.ConfirmTest do
     # The previously-missing E3 now exists with its canonical title and a file.
     episode = Library.Episodes.find_by_season_episode(series.id, 1, 3)
     assert episode.name == "Gamma"
-    assert {:ok, "/media/s/S02E01.mkv"} = Library.find_present_episode("42", 1, 3)
+    assert {:ok, "/media/s/S02E01.mkv"} = Library.ExternalIds.find_present_episode("42", 1, 3)
 
     # The awaiting record is resolved and off the pending queue.
     assert Reconciliation.list_awaiting() == []
@@ -100,7 +100,7 @@ defmodule MediaCentaur.Reconciliation.ConfirmTest do
     assert {:ok, summary} = Reconciliation.confirm(review, %{a.id => {1, 3}})
     assert summary.linked == 1
 
-    assert {:ok, _} = Library.find_present_episode("42", 1, 3)
+    assert {:ok, _} = Library.ExternalIds.find_present_episode("42", 1, 3)
     # B remains pending.
     assert Enum.map(Reconciliation.list_awaiting(), & &1.claimed_episode) == [2]
   end

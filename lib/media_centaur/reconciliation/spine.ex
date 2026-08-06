@@ -8,7 +8,7 @@ defmodule MediaCentaur.Reconciliation.Spine do
   `assemble/2` fetches the show's season list, then each season's episodes,
   and marks each node `present?` from a caller-supplied present-set (the
   `{season, episode}` pairs the library already has linked — see
-  `Library.present_episode_keys/1`). It **degrades to an empty spine** on a
+  `Library.ExternalIds.present_episode_keys/1`). It **degrades to an empty spine** on a
   show-fetch error and **skips** any individual season that fails to fetch,
   mirroring `Acquisition.Cours.runs_for_season/2` — a missing spine yields
   no proposals rather than a crash.

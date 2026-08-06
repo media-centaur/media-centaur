@@ -87,7 +87,7 @@ defmodule MediaCentaurWeb.ReconcileLiveTest do
     html = view |> element("button", "Confirm matches") |> render_click()
 
     assert html =~ "Linked 1 file(s)"
-    assert {:ok, "/media/s/S02E01.mkv"} = Library.find_present_episode("42", 1, 3)
+    assert {:ok, "/media/s/S02E01.mkv"} = Library.ExternalIds.find_present_episode("42", 1, 3)
     assert Reconciliation.list_awaiting() == []
   end
 
@@ -104,8 +104,8 @@ defmodule MediaCentaurWeb.ReconcileLiveTest do
 
     view |> element("button", "Confirm matches") |> render_click()
 
-    assert {:ok, _} = Library.find_present_episode("42", 1, 4)
-    assert Library.find_present_episode("42", 1, 3) == :not_found
+    assert {:ok, _} = Library.ExternalIds.find_present_episode("42", 1, 4)
+    assert Library.ExternalIds.find_present_episode("42", 1, 3) == :not_found
   end
 
   test "dismiss all clears the queue without linking", %{conn: conn} do
@@ -118,6 +118,6 @@ defmodule MediaCentaurWeb.ReconcileLiveTest do
 
     assert html =~ "Dismissed 1 file(s)"
     assert Reconciliation.list_awaiting() == []
-    assert Library.find_present_episode("42", 1, 3) == :not_found
+    assert Library.ExternalIds.find_present_episode("42", 1, 3) == :not_found
   end
 end

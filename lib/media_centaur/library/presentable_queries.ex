@@ -132,7 +132,7 @@ defmodule MediaCentaur.Library.PresentableQueries do
   The hoist rule reads the length of the result: an empty list means the
   collection isn't presentable at all; one id means present the movie
   directly (in place of a collection container); two or more means
-  present the collection. `MediaCentaur.Library.resolve_presentable/1`
+  present the collection. `MediaCentaur.Library.Presentable.resolve/1`
   consumes this — the single authority every browse surface agrees with.
   """
   @spec present_movie_ids(Ecto.UUID.t()) :: Ecto.Query.t()
