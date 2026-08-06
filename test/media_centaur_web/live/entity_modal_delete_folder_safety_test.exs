@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.Live.EntityModalDeleteFolderSafetyTest do
                })
 
       refute File.exists?(folder)
-      assert Library.list_watched_files_by_entity_id(movie.id) == []
+      assert Library.Files.list_by_entity_id(movie.id) == []
     end
 
     test "refuses to wipe a folder that also holds a different already-imported entity's file",
@@ -109,7 +109,7 @@ defmodule MediaCentaurWeb.Live.EntityModalDeleteFolderSafetyTest do
 
       refute File.exists?(path)
       assert File.exists?(other_path), "the shared folder itself must not be wiped"
-      assert Library.list_watched_files_by_entity_id(movie.id) == []
+      assert Library.Files.list_by_entity_id(movie.id) == []
     end
   end
 end

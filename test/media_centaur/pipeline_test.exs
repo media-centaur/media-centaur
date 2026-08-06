@@ -111,10 +111,10 @@ defmodule MediaCentaur.PipelineTest do
 
       # WatchedFile created by Inbound.ingest, linked via PlayableItem
       # (Library Schema v2 Phase 2 Task B).
-      files = Library.list_watched_files()
+      files = Library.Files.list_all()
       assert length(files) == 1
       file = hd(files)
-      assert Library.top_level_entity_id_for_watched_file(file) == entity.id
+      assert Library.Files.top_level_entity_id(file) == entity.id
       assert file.file_path == "/media/pipeline/Sample.Movie.1999.BluRay.mkv"
     end
 
@@ -248,7 +248,7 @@ defmodule MediaCentaur.PipelineTest do
       assert pending.status == :pending
 
       # No WatchedFile created
-      assert Library.list_watched_files() == []
+      assert Library.Files.list_all() == []
     end
   end
 
@@ -268,7 +268,7 @@ defmodule MediaCentaur.PipelineTest do
       assert {:error, _reason} = Discovery.process(payload)
 
       # No WatchedFile or PendingFile created
-      assert Library.list_watched_files() == []
+      assert Library.Files.list_all() == []
       assert Review.list_pending_files() == []
     end
   end
@@ -295,7 +295,7 @@ defmodule MediaCentaur.PipelineTest do
       assert :skipped = Discovery.process(payload)
 
       # Still only one WatchedFile
-      assert length(Library.list_watched_files()) == 1
+      assert length(Library.Files.list_all()) == 1
     end
   end
 
@@ -339,9 +339,9 @@ defmodule MediaCentaur.PipelineTest do
       assert entity.name == "Sample Movie"
 
       # WatchedFile created by Inbound.ingest, linked via PlayableItem.
-      files = Library.list_watched_files()
+      files = Library.Files.list_all()
       assert length(files) == 1
-      assert Library.top_level_entity_id_for_watched_file(hd(files)) == entity.id
+      assert Library.Files.top_level_entity_id(hd(files)) == entity.id
 
       # PendingFile destroyed by Import pipeline
       assert Review.list_pending_files() == []

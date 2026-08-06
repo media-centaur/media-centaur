@@ -11,7 +11,7 @@ defmodule MediaCentaur.Library.FileMediaInfo do
 
   Derived data per ADR-057: recomputable from the file at any time.
   Written at link time and backfilled by the boot sweep
-  (`Library.probe_missing_media_info/0`); a probe failure simply leaves
+  (`Library.MediaInfo.probe_missing/0`); a probe failure simply leaves
   no row.
   """
 

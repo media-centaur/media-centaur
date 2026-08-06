@@ -99,7 +99,7 @@ defmodule MediaCentaur.Profile.Loader do
           position: 1
         })
 
-      Library.link_file!(%{
+      Library.Files.link!(%{
         playable_item_id: playable_item.id,
         file_path: file_path,
         media_dir: "priv/profile/media"
@@ -146,7 +146,7 @@ defmodule MediaCentaur.Profile.Loader do
             position: episode_number
           })
 
-        Library.link_file!(%{
+        Library.Files.link!(%{
           playable_item_id: playable_item.id,
           file_path: file_path,
           media_dir: "priv/profile/media"

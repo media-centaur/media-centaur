@@ -121,7 +121,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
   def cleanup_removed_files([]), do: []
 
   def cleanup_removed_files(file_paths) do
-    watched_files = Library.list_files_by_paths(file_paths)
+    watched_files = Library.Files.list_by_paths(file_paths)
 
     entity_ids =
       if watched_files == [] do
@@ -167,7 +167,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
     file_path_set = MapSet.new(file_paths)
 
     watched_files
-    |> Enum.group_by(&Library.top_level_entity_id_for_watched_file/1)
+    |> Enum.group_by(&Library.Files.top_level_entity_id/1)
     |> Enum.reject(fn {entity_id, _files} -> is_nil(entity_id) end)
     |> Enum.flat_map(fn {entity_id, files} ->
       cleanup_entity_files(entity_id, files, file_path_set)
@@ -201,7 +201,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
     end
 
     # Check if entity is now orphaned (no remaining WatchedFiles)
-    remaining_files = Library.list_watched_files_by_entity_id(entity_id)
+    remaining_files = Library.Files.list_by_entity_id(entity_id)
 
     if remaining_files == [] do
       delete_entity_cascade(entity_id)
@@ -271,7 +271,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
   end
 
   defp delete_entity_cascade(entity_id) do
-    if Library.list_watched_files_by_entity_id(entity_id) == [] do
+    if Library.Files.list_by_entity_id(entity_id) == [] do
       EntityCascade.destroy!(entity_id)
     else
       Log.info(

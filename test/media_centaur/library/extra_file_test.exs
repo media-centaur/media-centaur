@@ -5,7 +5,7 @@ defmodule MediaCentaur.Library.ExtraFileTest do
   alias MediaCentaur.Library.{ExtraFile, FilePresence}
   alias MediaCentaur.Repo
 
-  describe "Library.create_extra_file/1" do
+  describe "Library.Files.create_extra/1" do
     test "links a file path to an Extra" do
       movie = create_entity(%{type: :movie, name: "Container Movie"})
 
@@ -18,7 +18,7 @@ defmodule MediaCentaur.Library.ExtraFileTest do
         })
 
       assert {:ok, file} =
-               Library.create_extra_file(%{
+               Library.Files.create_extra(%{
                  file_path: "/media/test/extras/bts.mkv",
                  media_dir: "/media/test",
                  extra_id: extra.id
@@ -40,14 +40,14 @@ defmodule MediaCentaur.Library.ExtraFileTest do
         create_extra(%{movie_id: movie_b.id, name: "Extra B", content_url: "/x.mkv", position: 1})
 
       {:ok, first} =
-        Library.create_extra_file(%{
+        Library.Files.create_extra(%{
           file_path: "/media/test/same-extra.mkv",
           media_dir: "/media/test",
           extra_id: extra_a.id
         })
 
       {:ok, second} =
-        Library.create_extra_file(%{
+        Library.Files.create_extra(%{
           file_path: "/media/test/same-extra.mkv",
           media_dir: "/media/test",
           extra_id: extra_b.id
@@ -99,7 +99,7 @@ defmodule MediaCentaur.Library.ExtraFileTest do
         })
 
       assert {:ok, file} =
-               Library.create_extra_file(%{
+               Library.Files.create_extra(%{
                  file_path: "/media/test/extras/presence-link.mkv",
                  media_dir: "/media/test",
                  extra_id: extra.id
@@ -112,7 +112,7 @@ defmodule MediaCentaur.Library.ExtraFileTest do
     end
   end
 
-  describe "Library.list_extra_files_for/1" do
+  describe "Library.Files.list_for_extra/1" do
     test "lists ExtraFile rows for an Extra" do
       movie = create_entity(%{type: :movie, name: "Lister Movie"})
 
@@ -125,14 +125,14 @@ defmodule MediaCentaur.Library.ExtraFileTest do
         })
 
       {:ok, _} =
-        Library.create_extra_file(%{
+        Library.Files.create_extra(%{
           file_path: "/media/test/extras/bts.mkv",
           media_dir: "/media/test",
           extra_id: extra.id
         })
 
       assert [%ExtraFile{file_path: "/media/test/extras/bts.mkv"}] =
-               Library.list_extra_files_for(extra.id)
+               Library.Files.list_for_extra(extra.id)
     end
 
     test "returns empty list for an extra with no files" do
@@ -146,11 +146,11 @@ defmodule MediaCentaur.Library.ExtraFileTest do
           position: 1
         })
 
-      assert Library.list_extra_files_for(extra.id) == []
+      assert Library.Files.list_for_extra(extra.id) == []
     end
   end
 
-  describe "Library.destroy_extra_file/1" do
+  describe "Library.Files.destroy_extra/1" do
     test "deletes the row" do
       movie = create_entity(%{type: :movie, name: "Destroy Movie"})
 
@@ -163,14 +163,14 @@ defmodule MediaCentaur.Library.ExtraFileTest do
         })
 
       {:ok, file} =
-        Library.create_extra_file(%{
+        Library.Files.create_extra(%{
           file_path: "/media/test/extras/destroy.mkv",
           media_dir: "/media/test",
           extra_id: extra.id
         })
 
-      assert {:ok, _} = Library.destroy_extra_file(file)
-      assert Library.list_extra_files_for(extra.id) == []
+      assert {:ok, _} = Library.Files.destroy_extra(file)
+      assert Library.Files.list_for_extra(extra.id) == []
     end
   end
 end

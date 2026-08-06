@@ -655,7 +655,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     } do
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
 
-      assert Library.list_watched_files_by_entity_id(movie.id) != [],
+      assert Library.Files.list_by_entity_id(movie.id) != [],
              "fixture must start with files on disk"
 
       # First click arms the inline confirm gesture.
@@ -673,7 +673,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       _ = render_async(view, 2_000)
 
-      assert Library.list_watched_files_by_entity_id(movie.id) == [],
+      assert Library.Files.list_by_entity_id(movie.id) == [],
              "async delete must remove the watched-file records"
 
       patched_to = assert_patch(view)

@@ -79,7 +79,7 @@ defmodule MediaCentaur.Library.EntityTest do
         Library.PlayableItems.find_or_create(:movie, movie.id, movie.position || 1)
 
       _file =
-        Library.link_file!(%{
+        Library.Files.link!(%{
           playable_item_id: playable_item.id,
           file_path: "/media/movies/test.mkv",
           media_dir: "/media/movies"

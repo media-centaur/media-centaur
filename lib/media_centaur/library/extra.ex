@@ -15,7 +15,7 @@ defmodule MediaCentaur.Library.Extra do
   playable path; ExtraFile rows record which media directory the file
   was seen in. `Library.Inbound` writes the ExtraFile alongside the Extra
   on ingest; pre-existing extras are backfilled by
-  `Library.backfill_extra_files/0` on boot.
+  `Library.Files.backfill_extras/0` on boot.
   """
   use Ecto.Schema
   import Ecto.Changeset

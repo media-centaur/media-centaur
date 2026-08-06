@@ -21,7 +21,7 @@ defmodule MediaCentaur.Library.ExtraFileBackfillTest do
 
     FilePresence.stamp("/media/extras/clip.mkv", "/media")
 
-    assert %{created: 1} = Library.backfill_extra_files()
+    assert %{created: 1} = Library.Files.backfill_extras()
 
     extra = Repo.preload(extra, :files)
     assert [extra_file] = extra.files
@@ -33,7 +33,7 @@ defmodule MediaCentaur.Library.ExtraFileBackfillTest do
     extra =
       create_extra(%{movie_id: movie.id, name: "Orphan", content_url: "/media/extras/orphan.mkv"})
 
-    assert %{created: 0} = Library.backfill_extra_files()
+    assert %{created: 0} = Library.Files.backfill_extras()
     assert Repo.preload(extra, :files).files == []
   end
 
@@ -41,8 +41,8 @@ defmodule MediaCentaur.Library.ExtraFileBackfillTest do
     create_extra(%{movie_id: movie.id, name: "Clip", content_url: "/media/extras/clip.mkv"})
     FilePresence.stamp("/media/extras/clip.mkv", "/media")
 
-    assert %{created: 1} = Library.backfill_extra_files()
-    assert %{created: 0} = Library.backfill_extra_files()
+    assert %{created: 1} = Library.Files.backfill_extras()
+    assert %{created: 0} = Library.Files.backfill_extras()
 
     assert Repo.aggregate(ExtraFile, :count) == 1
   end
@@ -50,6 +50,6 @@ defmodule MediaCentaur.Library.ExtraFileBackfillTest do
   test "ignores extras with no content_url", %{movie: movie} do
     create_extra(%{movie_id: movie.id, name: "No file", content_url: nil})
 
-    assert %{created: 0} = Library.backfill_extra_files()
+    assert %{created: 0} = Library.Files.backfill_extras()
   end
 end

@@ -37,7 +37,7 @@ defmodule MediaCentaur.DeleteTargets do
     media_dirs = MediaCentaur.Config.get(:media_dirs) || []
 
     dir not in media_dirs and
-      Library.watched_file_paths_under(dir) -- file_paths == []
+      Library.Files.paths_under(dir) -- file_paths == []
   end
 
   @doc """

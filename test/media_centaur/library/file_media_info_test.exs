@@ -46,10 +46,10 @@ defmodule MediaCentaur.Library.FileMediaInfoTest do
       with_stub_runner()
       file = create_linked_file(%{movie_id: create_movie(%{name: "Sample Movie"}).id})
 
-      assert :ok = Library.refresh_file_media_info(file.file_presence_id, file.file_path)
-      assert :ok = Library.refresh_file_media_info(file.file_presence_id, file.file_path)
+      assert :ok = Library.MediaInfo.refresh(file.file_presence_id, file.file_path)
+      assert :ok = Library.MediaInfo.refresh(file.file_presence_id, file.file_path)
 
-      infos = Library.file_media_info_by_paths([file.file_path])
+      infos = Library.MediaInfo.by_paths([file.file_path])
       assert info = infos[file.file_path]
 
       assert info.container_title == "Sample.Movie.2024.2160p-GRP"
@@ -61,8 +61,8 @@ defmodule MediaCentaur.Library.FileMediaInfoTest do
     test "a failed probe is :skipped and stores nothing" do
       file = create_linked_file(%{movie_id: create_movie(%{name: "Sample Movie"}).id})
 
-      assert :skipped = Library.refresh_file_media_info(file.file_presence_id, file.file_path)
-      assert Library.file_media_info_by_paths([file.file_path]) == %{}
+      assert :skipped = Library.MediaInfo.refresh(file.file_presence_id, file.file_path)
+      assert Library.MediaInfo.by_paths([file.file_path]) == %{}
     end
   end
 
@@ -71,7 +71,7 @@ defmodule MediaCentaur.Library.FileMediaInfoTest do
       with_stub_runner()
       file = create_linked_file(%{movie_id: create_movie(%{name: "Sample Movie"}).id})
 
-      assert %{} = infos = Library.file_media_info_by_paths([file.file_path])
+      assert %{} = infos = Library.MediaInfo.by_paths([file.file_path])
       assert infos[file.file_path].video_codec == "HEVC"
     end
   end
@@ -86,11 +86,11 @@ defmodule MediaCentaur.Library.FileMediaInfoTest do
       with_stub_runner()
       :ok = Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
 
-      assert %{probed: 1} = Library.probe_missing_media_info()
+      assert %{probed: 1} = Library.MediaInfo.probe_missing()
       assert_receive {:entities_changed, _ids}, 500
 
       # An all-caught-up sweep stays silent — no rebuild churn at boot.
-      assert %{probed: 0} = Library.probe_missing_media_info()
+      assert %{probed: 0} = Library.MediaInfo.probe_missing()
       refute_receive {:entities_changed, _ids}, 100
     end
 
@@ -99,11 +99,11 @@ defmodule MediaCentaur.Library.FileMediaInfoTest do
       second = create_linked_file(%{movie_id: create_movie(%{name: "Sample Movie"}).id})
 
       with_stub_runner()
-      assert :ok = Library.refresh_file_media_info(first.file_presence_id, first.file_path)
+      assert :ok = Library.MediaInfo.refresh(first.file_presence_id, first.file_path)
 
-      assert %{probed: 1, skipped: 0} = Library.probe_missing_media_info()
+      assert %{probed: 1, skipped: 0} = Library.MediaInfo.probe_missing()
 
-      infos = Library.file_media_info_by_paths([first.file_path, second.file_path])
+      infos = Library.MediaInfo.by_paths([first.file_path, second.file_path])
       assert map_size(infos) == 2
     end
   end

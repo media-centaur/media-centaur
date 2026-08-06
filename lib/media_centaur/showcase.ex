@@ -1178,7 +1178,7 @@ defmodule MediaCentaur.Showcase do
   # user drops a real file at that path later, mpv plays it; if not, the
   # stub at least makes the detail screenshots look like a populated
   # library.  `Watcher.record_seen/1` is idempotent (delegates to
-  # `Library.link_file/1` which upserts and auto-stamps a FilePresence);
+  # `Library.Files.link/1` which upserts and auto-stamps a FilePresence);
   # `File.touch!` is a no-op on existing files.
   #
   # The leaf for `:tv_series` containers is resolved by finding the
