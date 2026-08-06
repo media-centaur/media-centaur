@@ -31,6 +31,30 @@ defmodule MediaCentaur.Library.Episodes do
   def list_all, do: Repo.all(Episode)
 
   @doc """
+  How many episodes each of the given series has, as `%{tv_series_id =>
+  count}`, in one query. Series with no episodes are absent from the map
+  rather than present with `0`.
+
+  For callers that need the number and not the episodes — a progress
+  denominator, a completeness check. Loading the episode list to call
+  `length/1` on it is the thing this exists to avoid.
+  """
+  @spec count_by_tv_series([Ecto.UUID.t()]) :: %{Ecto.UUID.t() => non_neg_integer()}
+  def count_by_tv_series([]), do: %{}
+
+  def count_by_tv_series(tv_series_ids) when is_list(tv_series_ids) do
+    from(episode in Episode,
+      join: season in Season,
+      on: season.id == episode.season_id,
+      where: season.tv_series_id in ^tv_series_ids,
+      group_by: season.tv_series_id,
+      select: {season.tv_series_id, count(episode.id)}
+    )
+    |> Repo.all()
+    |> Map.new()
+  end
+
+  @doc """
   Episodes of a season, with `:content_url` materialised. Extra preloads
   may be passed as `load:`.
   """

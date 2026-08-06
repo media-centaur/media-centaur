@@ -31,6 +31,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
 
   alias MediaCentaur.Library.{
     Episode,
+    Episodes,
     ExtraProgress,
     Movie,
     PlayableItem,
@@ -371,7 +372,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
         )
       )
 
-    summarise(rows, &episode_totals_by_tv_series/1)
+    summarise(rows, &Episodes.count_by_tv_series/1)
   end
 
   # Movie series: total counts child movies; completed counts child
@@ -428,18 +429,6 @@ defmodule MediaCentaur.Library.ProgressRecords do
          last_watched_at: most_recent && most_recent.last_watched_at
        }}
     end)
-  end
-
-  defp episode_totals_by_tv_series(series_ids) do
-    from(e in Episode,
-      join: s in Season,
-      on: s.id == e.season_id,
-      where: s.tv_series_id in ^series_ids,
-      group_by: s.tv_series_id,
-      select: {s.tv_series_id, count(e.id)}
-    )
-    |> Repo.all()
-    |> Map.new()
   end
 
   defp movie_totals_by_movie_series(series_ids) do
