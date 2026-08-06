@@ -32,9 +32,9 @@ Stages are independent. Order below is recommended, not required.
 
 ## Status
 
-Stage 1 discussed and its approach agreed (2026-08-06) — see the stage
-for the reconciled evidence and module map; implementation not started.
-Stages 2–5 not started. The 2026-08-05 audit sweep's Critical and
+**Stage 1 done** (2026-08-06, six commits `5b2d3510`…`f91f61ce`).
+`library.ex` went 2779 → 127 lines; the 21 `# ---` section dividers are
+gone. Stages 2–5 not started. The 2026-08-05 audit sweep's Critical and
 Moderate-with-user-impact findings are already fixed and pushed to
 `main` (see *Decisions made*); this campaign is the tail.
 
@@ -73,9 +73,49 @@ Moderate-with-user-impact findings are already fixed and pushed to
   "in progress" now run in SQL. `Playback.SessionRecovery` (boot path,
   zero prior test references) covered. (commit `914e94c9`)
 
+* `2026-08-06` — **Stage 1 complete.** `library.ex` 2779 → 127 lines
+  across six commits; 18 new modules plus merges into five that already
+  existed. The remaining facade is `subscribe/0`, the change broadcast,
+  three HomeFeed delegators, and a moduledoc table naming where each
+  concern lives.
+
+  The facade policy landed *more* aggressively than agreed: the plan was
+  to keep delegators for functions with 3+ call sites, but the
+  `Containers` collapse changed the shape of nearly every remaining
+  function (`create_tv_series!/1` → `Containers.create!(:tv_series, …)`),
+  so a delegator would have preserved the old name and defeated the
+  collapse. Call sites moved instead — ~93 for containers, ~27 for
+  progress, ~35 files for the file domain.
+
+  Defects found and fixed during the move, beyond the planned ones:
+  - `list_seasons_by_owner_id/1` and `list_seasons_for_tv_series/1` were
+    byte-identical bodies — two public functions, one query.
+  - `list_images/2` and `logo_urls_for_entities/1` survived in
+    `library.ex` after the Image extraction, leaving two implementations
+    each with only one reachable.
+  - `find_by_external_id/2`'s spec named
+    `ExternalIds.owner_type()`, a type that never existed; it compiled
+    only because Elixir doesn't resolve remote types eagerly.
+  - `MovieSeries.update_changeset/2` and `VideoObject.update_changeset/2`
+    had zero callers, unreachable behind missing per-type wrappers. The
+    dispatched `Containers.update/2` makes them reachable.
+  - The owner-key translation had **four** implementations (three in
+    `library.ex`, one independently written in the test factory); all
+    now route through `Library.OwnerRef`.
+  - `link_file/1` and `create_extra_file/1` were the same function apart
+    from the schema; now one `upsert_by_path/2`.
+  - The two progress-summary builders differed only in grouping key;
+    their shared tail is now one `summarise/2`.
+
+  Deliberately **not** done: the `@owner_types` lists on the sidecar
+  schemas still each declare their own `Ecto.Enum` values. `OwnerRef`
+  now owns the translation and could own those too, but changing an
+  `Ecto.Enum` values list is a schema-level change with migration
+  implications and belongs in its own commit.
+
 ---
 
-## Stage 1 — Split the `Library` context
+## Stage 1 — Split the `Library` context  ✅ **DONE 2026-08-06**
 
 **Why first.** Every other Library-touching finding is downstream of
 this file being too large to hold in one head. It is where 27 of the
@@ -208,6 +248,13 @@ the ExtraFile unification shipped in v0.95.4 and left this deliberately.
 parallels sit in one file each — the duplication becomes visible and
 pressurised instead of filed apart. Convergence point: the next change
 that touches Extra playback.
+
+*Realised.* Grouping paid immediately on the file side: `link_file/1`
+and `create_extra_file/1` turned out to be the same function apart from
+the schema and collapsed to one `upsert_by_path/2`. On the progress
+side it collapsed the public surface (`mark_completed/1` and
+`mark_incomplete/1` now dispatch on the struct) but not the storage —
+that still waits on Extra becoming a PlayableItem.
 
 **(e) `ReleaseTracking.Item.@container_types` duplicates the container
 universe across a context boundary — deferred to Stage 2**, which is
