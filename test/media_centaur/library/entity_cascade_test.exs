@@ -52,7 +52,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
       EntityCascade.destroy!(tv_series.id)
 
       assert {:error, _} = Library.Containers.fetch(:tv_series, tv_series.id)
-      assert Library.list_seasons() == []
+      assert Library.Seasons.list_all() == []
       assert Library.list_all_images() == []
     end
 

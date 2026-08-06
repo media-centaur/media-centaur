@@ -103,7 +103,7 @@ defmodule MediaCentaur.Library.EntityCascade do
       Enum.each(season.episodes || [], &destroy_leaf!(&1, :episode))
       bulk_destroy(season.episodes || [], Library.Episode)
       delete_polymorphic(Extra, :season, season.id)
-      Library.destroy_season!(season)
+      Library.Seasons.destroy!(season)
     end)
 
     destroy_supporting_rows!(record, :tv_series)

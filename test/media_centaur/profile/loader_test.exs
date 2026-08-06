@@ -26,7 +26,7 @@ defmodule MediaCentaur.Profile.LoaderTest do
       assert length(Library.Containers.list(:movie)) == cfg.movies
       # Episodes per series × series = total episodes seeded.
       total_episodes = cfg.series * cfg.episodes_per_series
-      assert length(Library.list_episodes()) == total_episodes
+      assert length(Library.Episodes.list_all()) == total_episodes
     end
 
     test "produces exactly the configured number of in-progress entries" do

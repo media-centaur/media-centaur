@@ -295,14 +295,14 @@ defmodule MediaCentaur.Reconciliation do
 
   defp ensure_episode(tv_series_id, season_number, episode_number, title) do
     with {:ok, season} <-
-           Library.find_or_create_season_for_tv_series(%{
+           Library.Seasons.find_or_create(%{
              tv_series_id: tv_series_id,
              season_number: season_number,
              name: "Season #{season_number}"
            }) do
-      case Library.find_episode_by_season_episode(tv_series_id, season_number, episode_number) do
+      case Library.Episodes.find_by_season_episode(tv_series_id, season_number, episode_number) do
         nil ->
-          Library.create_episode(%{
+          Library.Episodes.create(%{
             season_id: season.id,
             episode_number: episode_number,
             name: title

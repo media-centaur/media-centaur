@@ -34,7 +34,7 @@ defmodule MediaCentaur.Pipeline.ExtraRederive do
     extras_dirs = Parse.extras_dirs_from_config()
 
     summary =
-      Enum.reduce(Library.list_rederivable_extras(), %{scanned: 0, updated: 0, skipped: 0}, fn extra,
+      Enum.reduce(Library.Extras.list_rederivable(), %{scanned: 0, updated: 0, skipped: 0}, fn extra,
                                                                                                acc ->
         rederive_one(extra, extras_dirs, %{acc | scanned: acc.scanned + 1})
       end)
@@ -50,7 +50,7 @@ defmodule MediaCentaur.Pipeline.ExtraRederive do
   defp rederive_one(extra, extras_dirs, acc) do
     case derive_name(extra.content_url, extras_dirs) do
       {:ok, name} when name != extra.name ->
-        case Library.update_extra_name(extra, name) do
+        case Library.Extras.rename(extra, name) do
           {:ok, _} ->
             %{acc | updated: acc.updated + 1}
 

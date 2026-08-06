@@ -62,7 +62,7 @@ defmodule MediaCentaur.Reconciliation.ConfirmTest do
     assert summary.failed == 0
 
     # The previously-missing E3 now exists with its canonical title and a file.
-    episode = Library.find_episode_by_season_episode(series.id, 1, 3)
+    episode = Library.Episodes.find_by_season_episode(series.id, 1, 3)
     assert episode.name == "Gamma"
     assert {:ok, "/media/s/S02E01.mkv"} = Library.find_present_episode("42", 1, 3)
 

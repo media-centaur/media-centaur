@@ -107,14 +107,14 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       assert entity_ids == [tv_series.id]
 
       # Episode 1 is gone
-      assert {:error, _} = Library.fetch_episode(ep1.id)
+      assert {:error, _} = Library.Episodes.fetch(ep1.id)
 
       # Episode 2, season, and TV series remain
-      remaining_episodes = Library.list_episodes()
+      remaining_episodes = Library.Episodes.list_all()
       assert length(remaining_episodes) == 1
       assert hd(remaining_episodes).episode_number == 2
 
-      assert {:ok, _} = Library.fetch_season(season.id)
+      assert {:ok, _} = Library.Seasons.fetch(season.id)
       assert {:ok, _} = Library.Containers.fetch(:tv_series, tv_series.id)
 
       # Only 1 WatchedFile remains
@@ -157,7 +157,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
 
       FileEventHandler.cleanup_removed_files(["/media/tv/leak/s01e01.mkv"])
 
-      assert {:error, _} = Library.fetch_episode(ep1.id)
+      assert {:error, _} = Library.Episodes.fetch(ep1.id)
       assert Repo.get(PlayableItem, playable_item_id) == nil
     end
 
@@ -220,7 +220,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         FileEventHandler.cleanup_removed_files(["/media/tv/pluribus/s01e01.mkv"])
 
       assert entity_ids == [tv_series.id]
-      assert {:error, _} = Library.fetch_episode(ep1.id)
+      assert {:error, _} = Library.Episodes.fetch(ep1.id)
       assert {:error, :not_found} = Library.ProgressRecords.fetch_for_container(:episode, ep1.id)
       assert {:ok, _} = Library.Containers.fetch(:tv_series, tv_series.id)
     end
@@ -278,8 +278,8 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       FileEventHandler.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
 
       # Season 1 should be gone (empty), season 2 should remain
-      assert {:error, _} = Library.fetch_season(season.id)
-      assert {:ok, _} = Library.fetch_season(season2.id)
+      assert {:error, _} = Library.Seasons.fetch(season.id)
+      assert {:ok, _} = Library.Seasons.fetch(season2.id)
       assert {:ok, _} = Library.Containers.fetch(:tv_series, tv_series.id)
     end
 
@@ -311,8 +311,8 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
 
       FileEventHandler.cleanup_removed_files(["/media/tv/bb/s01e01.mkv"])
 
-      assert Library.list_seasons() == []
-      assert Library.list_episodes() == []
+      assert Library.Seasons.list_all() == []
+      assert Library.Episodes.list_all() == []
       assert Library.Files.list_all() == []
     end
 
@@ -407,7 +407,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
       FileEventHandler.cleanup_removed_files(["/media/movies/Extras/bts.mkv"])
 
       # Extra is gone, movie entity remains
-      assert {:error, _} = Library.fetch_extra(extra.id)
+      assert {:error, _} = Library.Extras.fetch(extra.id)
       assert {:ok, _} = Library.Containers.fetch(:movie, movie.id)
       assert length(Library.Files.list_all()) == 1
     end
@@ -460,8 +460,8 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
         ])
 
       assert entity_ids == [tv_series.id]
-      assert Library.list_seasons() == []
-      assert Library.list_episodes() == []
+      assert Library.Seasons.list_all() == []
+      assert Library.Episodes.list_all() == []
       assert Library.Files.list_all() == []
     end
 

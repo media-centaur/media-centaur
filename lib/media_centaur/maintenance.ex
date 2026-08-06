@@ -554,7 +554,7 @@ defmodule MediaCentaur.Maintenance do
   """
   @spec blank_extra_names_count() :: non_neg_integer()
   def blank_extra_names_count do
-    MediaCentaur.Library.count_blank_extra_names()
+    MediaCentaur.Library.Extras.count_blank_names()
   end
 
   @doc """
