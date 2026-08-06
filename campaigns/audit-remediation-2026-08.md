@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: complete
 started: 2026-08-05
 last_updated: 2026-08-06
 ---
@@ -30,47 +30,18 @@ decide unilaterally. The loop per stage is:
 
 Stages are independent. Order below is recommended, not required.
 
-**Resuming into Stage 6 (2026-08-06) — start here.**
+**The campaign is closed (2026-08-06).** Stages 1, 2, 4, 5 and 6 are
+**done**; Stage 3 was **declined**. The `/reconcile` defect this campaign
+found is **fixed**. Nothing is left to resume.
 
-Stages 1, 2, 4 and 5 are **done**; Stage 3 was **declined**. What is left is
-**Stage 6**, the opportunistic-polish list, plus one unclaimed defect. Both
-are ordinary work: no open questions, nothing to put to the owner, no ADR.
-This is the one stage the working agreement lets you simply do.
+Two things were dropped on purpose, and both are recorded in full below:
+Stage 6's `clear_database` confirmation (it is five sites and an idiom
+choice, not polish — see the stage), and MC0023's grandfather list (ordinary
+work, tracked in *Completion criteria*).
 
-**Stage 6 was written as droppable, and it stays droppable.** Nothing here
-gates the campaign. If an item turns out bigger than its bullet suggests,
-the right move is to record why and drop it, not to grow the stage.
-
-Its facts were **re-verified against `main` on 2026-08-06** after Stage 5 —
-see the stage's own evidence table, which now carries a command beside every
-figure and marks the two claims that were wrong. Read that table before
-picking an item; two of the six bullets do not say what they appear to say,
-and one is already shipped.
-
-**Order suggestion.** `/reconcile` first — it is self-contained, it is a
-real user-facing bug rather than polish, and it is the only item here that
-someone would notice. Then `home_feed`'s raw-SQL duplication, which is the
-largest genuine cleanup left. The rest are small.
-
-**The unclaimed defect: `/reconcile`'s navigation is dead.** Verified still
-present 2026-08-06. `reconcile_live.ex` declares
-`data-page-behavior="reconcile"` (line 150), two zones — `reconcile-list`
-(168, 178) and `reconcile-detail` (197) — and `data-nav-item` on every row
-and button (185, 239, 242, 265, 303). `assets/js/input/config.js` has **no
-`reconcile` entries at all** (`grep -n reconcile assets/js/input/config.js`
-→ nothing), so `buildNavGraph` returns `{}` and the arrow keys do nothing.
-
-Unlike `/console` this is *not* deliberate: the page mounts the input system
-via `Layouts.app` and is meant to be navigable. It is structurally identical
-to `review`, so the fix is a layout block plus selectors and `instanceTypes`
-in `config.js`. It also wants the page-behavior test that Stage 3 found
-missing — the config was always the real gap, but the test is what stops it
-regressing.
-
-Stage 3's premise-failure applies directly here, so do not repeat it: before
-assuming the fix works, check that the thing it plugs into is actually
-present on the page. Verify in a real browser, not just a passing test —
-`chromium-probe` after `mix assets.build` (the dev asset watchers are off).
+Read the closing sections rather than this block if you are picking
+something up: **Stage 6** for what shipped and what did not, and **Two
+findings this stage turned up** for the loose threads worth someone's time.
 
 **Stage 3 was declined, not deferred** — the console stays out of the input
 system deliberately (backtick already opens it; the input system would take
@@ -124,6 +95,8 @@ sequence is the campaign's most durable output, so it is stated in full:
 | 4 | 4 | A new Credo check caught eight `Repo.update_all` sites the same grep had missed |
 | 5 | 3 | Every number **correct**, the stage still built on a false premise — nobody checked whether `/console` ran the input system at all |
 | 6 | 5 | MC0012 and MC0013 had **never been able to fire** — verified 0 issues against a real violation |
+| 7 | 6 | The `/reconcile` nav defect was **three** defects. The missing config was one; `data-nav-default-zone` also named a context instead of the layout key, and the shared ReviewTabs strip was dead on `/review` too |
+| 8 | 6 | `clear_database`'s native confirm: the bullet said **1** site, the stage's own correction said **2**, the repo has **5** |
 
 The lesson accreted in three passes:
 
@@ -164,11 +137,30 @@ That last one is the pattern worth naming: **a correct count can still
 recommend the wrong fix.** Stage 6's line count survived verification and
 its conclusion did not.
 
+Stage 6 then produced the sharpest version of it twice more, so it earns a
+fourth clause:
+
+4. **A count answers "how many", never "which fix".** Both of Stage 6's
+   remaining bullets were counted correctly and prescribed wrongly.
+   `clear_database` proposed converting a native confirm to `ModalShell` —
+   but the repo already has *two* confirmation idioms and *five* native
+   holdouts, so the change is a decision, not an edit. The cast grid
+   proposed "cap the rendered window, or pass the list as a `data-`
+   attribute" — the first silently breaks the filter's only purpose, the
+   second puts a second copy of the card markup in JavaScript. In both
+   cases the number was right and the sentence after it was not.
+
+And one thing that went the other way, worth recording because it is the
+cheap move that keeps paying: **measure before you decide whether to
+care.** The cast-grid bullet read like nitpicking until it was rendered —
+1.6 MB of HTML for one series. That number is what turned a droppable
+polish item into the stage's most valuable change. The measurement took two
+minutes and inverted the decision.
+
 ## Status
 
-**Stages 1, 2, 4 and 5 done; Stage 3 declined** (all 2026-08-06).
-**Stage 6 — opportunistic polish — is the only stage left, and it is
-explicitly droppable.** `mix precommit` green after each stage.
+**COMPLETE — 2026-08-06.** Stages 1, 2, 4, 5 and 6 resolved; Stage 3
+declined. `mix precommit` green after each stage.
 
 * **Stage 1** — `library.ex` 2779 → 127 lines across six commits
   (`5b2d3510`…`f91f61ce`); 18 modules; the 21 `# ---` dividers are gone.
@@ -183,13 +175,31 @@ explicitly droppable.** `mix precommit` green after each stage.
   `Review.Events` as the worked example; MC0025 and MC0026 added, and
   MC0012/MC0013 repaired after being found vacuous since birth.
   (commit `5328226f`)
-* **Stage 6** — not started. Six bullets, two of which do not say what they
-  appear to say and one of which Stage 5 already shipped; all re-verified
-  2026-08-06. Plus the unclaimed `/reconcile` nav defect.
+* **Stage 6** — four of six items shipped, one was already shipped by Stage
+  5, one dropped as an idiom decision the owner should make. Commits
+  `d4178d76`, `3ceac88f`, `81a26c64`.
+* **`/reconcile`** — fixed (`2e4aa4d7`), along with two further defects
+  reading the page turned up. Not a stage; it was found here and finished
+  here.
 
 The 2026-08-05 sweep's Critical and Moderate-with-user-impact findings were
 fixed and pushed before the stages began (see *Decisions made*); this
 campaign is the tail.
+
+## Two findings this stage turned up
+
+Neither belongs to a stage and neither held the campaign open. Both are real.
+
+* **`assets/js/hooks/` is not in any test run.** `mix precommit` runs
+  `bun test assets/js/input/ assets/js/__tests__/` (`mix.exs:176`) and CI
+  runs `assets/js/input/` alone (`.github/workflows/ci.yml:137`). Neither
+  covers `assets/js/hooks/`, where **8 Console-hook tests are currently
+  failing** — confirmed on a clean tree, so they pre-date this campaign and
+  nobody has seen them fail. This is error 6's shape again one level up: the
+  suite reports success because the failing tests are never run. Fix is a
+  path in two files, then whatever the 8 failures turn out to be.
+* **Five `data-confirm` sites, not two.** See Stage 6's `clear_database`
+  item — the count went 1 → 2 → 5, and the remedy is an idiom choice.
 
 Stage 4 also chased an intermittent `(Exqlite.Error) Database busy` that
 turned out to be a second `mix test` against the same SQLite file, not a
@@ -427,6 +437,46 @@ defect. Nothing to pick up.
   (`credo_checks/event_chokepoint.ex`) covering 2-tuple and 3+-tuple
   payloads and both call spellings, with 16 cases pinning it. MC0026
   reuses it for `review:updates` rather than hand-rolling a third copy.
+
+* `2026-08-06` — **Stage 6 complete, and the campaign closed.** Four items
+  shipped (`d4178d76`, `3ceac88f`, `81a26c64`), one was already shipped by
+  Stage 5, and one — the `clear_database` confirmation — was **dropped** as
+  the stage's rules allow. It is five native `data-confirm` sites rather
+  than the one the bullet named or the two the stage's own correction found,
+  and the repo already has two themed confirmation idioms, so "use
+  ModalShell" is a decision rather than an edit. That belongs to the owner
+  and to its own stage, not to a list headed *no discussion needed*.
+
+* `2026-08-06` — **The `/reconcile` defect was three defects** (`2e4aa4d7`).
+  Beyond the missing config: `data-nav-default-zone` named a context instead
+  of the layout key — the precise trap Stage 3 had already written down —
+  and the shared `ReviewTabs` strip was unreachable by keyboard on `/review`
+  as well, which nobody had noticed because the rest of that page works.
+  Held by `config_coverage.test.js`, which derives its expectations from the
+  templates rather than listing pages by hand, because a hand-written list
+  (`index.test.js`, five layouts of twelve) is what let this through.
+
+* `2026-08-06` — **Two more counting errors, and the fourth clause of the
+  lesson.** Both of Stage 6's remaining bullets counted correctly and
+  prescribed wrongly: `clear_database` (1 → 2 → 5 sites, wrong remedy) and
+  the cast grid, whose two suggested fixes would have silently broken the
+  filter or duplicated the card markup in JavaScript. **A count answers "how
+  many", never "which fix".**
+
+  The counterweight is cheap and kept paying: **measure before deciding
+  whether to care.** The cast-grid bullet read like nitpicking until it was
+  rendered — 1.6 MB of HTML for one series, to display 24 cards. Two
+  minutes of measurement turned the stage's most droppable item into its
+  most valuable one.
+
+* `2026-08-06` — **Found, not fixed: `assets/js/hooks/` is in no test run.**
+  `mix precommit` runs `assets/js/input/` + `assets/js/__tests__/`; CI runs
+  `assets/js/input/` alone. Neither covers `assets/js/hooks/`, where 8
+  Console-hook tests fail today — confirmed on a clean tree, so they
+  pre-date this campaign and have never been seen to fail. Error 6's shape
+  one level up: the suite reports success because the failing tests are
+  never run. Left as ordinary work; recorded in *Two findings this stage
+  turned up*.
 
 ---
 
@@ -701,7 +751,50 @@ Two facts worth keeping, because both outlive the decision:
   `incoming_live.ex:870`. Anyone applying a similar checklist to another page
   should read the layout key, not a zone name.
 
-### ⚠️ Separate defect found from this stage's premise: `/reconcile` nav is dead
+### ✅ Separate defect found from this stage's premise: `/reconcile` nav is dead — **FIXED 2026-08-06** (`2e4aa4d7`)
+
+**It was three defects, not one.** The missing config was the one this
+campaign found; reading the page to fix it turned up two more, and fixing
+only the known one would have left the page just as dead:
+
+1. **No `reconcile` entries in `config.js`** — as recorded below.
+2. **`data-nav-default-zone="reconcile-list"` named a context, not the
+   layout key.** Every other page names its layout key (`review`, `status`,
+   `incoming`); `getZone()` hands that literal to `layouts[]`, so adding the
+   config under a `reconcile` key would *still* have resolved to `{}`. Stage
+   3 recorded this exact trap — "that attribute names the **layout key**" —
+   and the defect was sitting in the page the stage was pointing at.
+3. **The shared `ReviewTabs` strip was dead on `/review` too.** It declared
+   `data-nav-zone="review-tabs"` with `data-nav-item` on both links, and
+   nothing in the config answered that name — no selector, no instance type,
+   no layout edge. So Identity ↔ Episode mapping was mouse-only on *both*
+   review surfaces, which nobody had noticed because the rest of `/review`
+   works. It is a zone tab strip already using the `zone-tab` classes, so it
+   now names the existing `zone-tabs` zone and inherits `ZONE_TABS` rather
+   than inventing a context.
+
+**The test is deliberately not `reconcile_behavior.test.js`.** The stage
+already worked out why that would prove nothing, and it was right. The check
+that catches this class of defect is the config-integrity one the stage
+specified: `assets/js/input/__tests__/config_coverage.test.js` reads the
+templates and asserts the config answers what they declare — every
+`data-nav-default-zone` names a real layout and has a cursor start, every
+`data-page-behavior` resolves, every `data-nav-zone` has a selector. It
+fails on all three defects before the fix.
+
+It derives its expectations instead of listing them, because a hand-written
+list is exactly what let this through: `index.test.js`'s "has layouts for
+all zones" named five of the twelve. The next page that forgets its config
+fails without anyone remembering to add it.
+
+**Verified in a real browser, per the warning below.** Two awaiting files
+seeded, then arrow keys driven through `chromium-probe`: list → detail → tab
+strip → sidebar and back all move focus, and `/review` → up → right → Enter
+lands on `/reconcile` by keyboard alone. Seeded rows removed afterwards.
+
+---
+
+*Original finding, kept for the record:*
 
 Not part of the declined decision — the console's exclusion is deliberate,
 `/reconcile`'s is not. `/reconcile` *looks* fully wired and is not:
@@ -1067,24 +1160,36 @@ pre-existing concurrency-flake family, not this change — the campaign's
 rule is to confirm on `main` before blaming your own work, and the
 varying identity of the failing test is the signature.
 
-## Stage 6 — Opportunistic polish (no discussion needed)
+## Stage 6 — Opportunistic polish  ✅ **DONE 2026-08-06**
 
 Small, independent, each safely done in a spare slot. **Not gating
 anything** — an item that turns out bigger than its bullet gets dropped with
-a note, not grown.
+a note, not grown. One item took that exit; the note is below and it is the
+useful part of this stage.
 
-**All six re-verified 2026-08-06, after Stage 5.** Two claims were wrong and
-are struck below; one is already shipped. Per this campaign's most expensive
-lesson, every figure carries the command that produced it.
+**All six re-verified 2026-08-06, after Stage 5**, then resolved the same
+day. Every figure carries the command that produced it.
 
-| # | Item | Command | Status |
-|---|---|---|---|
-| 1 | Boolean-setting boilerplate | `wc -l` on the 8 modules | **285 lines confirmed** — but the remedy is half-built already |
-| 2 | Cast grid renders all, hides past 24 | `grep -n max_cast_cards …/cast_grid.ex` | ✅ stands — `@max_cast_cards 24` at :33, `hidden={i >= …}` at :86 |
-| 3 | `clear_database` native confirm | `grep -n data-confirm …/danger.ex` | ✅ stands at :214 — **and a second at :235** the bullet never mentioned |
-| 4 | `home_feed` raw-SQL fragments | `grep -n 'fragment(' …/home_feed.ex` | ✅ stands — 246, 343, 439, 537 (189 is an unrelated `TRIM`) |
-| 5 | Preload volume | `grep -n 'seasons: \[:episodes\]' …/home_feed.ex` | ✅ stands at :358 |
-| 6 | `Topics.publish/2` / `subscribe/1` | — | ~~pending~~ → **SHIPPED in Stage 5** (commit `5328226f`) |
+| # | Item | Outcome |
+|---|---|---|
+| 1 | Boolean-setting boilerplate | ✅ `MediaCentaur.BooleanSetting`; 175 → 60 lines across the four modules (`3ceac88f`) |
+| 2 | Cast grid renders all, hides past 24 | ✅ server-side selection; **1.6 MB → 41 KB** of HTML (`81a26c64`) |
+| 3 | `clear_database` native confirm | ⛔ **DROPPED** — 5 sites, 2 competing idioms, an owner decision |
+| 4 | `home_feed` raw-SQL fragments | ✅ three Ecto builders replace four fragments (`d4178d76`) |
+| 5 | Preload volume | ✅ aggregates instead of `seasons: [:episodes]` (`d4178d76`) |
+| 6 | `Topics.publish/2` / `subscribe/1` | ~~pending~~ → **SHIPPED in Stage 5** (`5328226f`) |
+
+Plus the unclaimed `/reconcile` defect, fixed in `2e4aa4d7` — see its own
+section, because it was three defects rather than one.
+
+**What each item cost, measured rather than estimated:**
+
+| Item | Claim | What it actually was |
+|---|---|---|
+| 1 | "285 lines for 4 flags" | Count right, remedy covered 175. Repo is 36 lines lighter, not 115 — the win is 4 copies of one decision becoming 1 |
+| 2 | "a 900-member series emits 900 cards" | Understated. 899 cards = **1 665 644 bytes** of HTML to show 24 |
+| 4 | "re-expresses the join the `exists` already states" | Exactly right, all four sites |
+| 5 | "loading every episode to compute two integers" | Exactly right |
 
 ---
 
@@ -1114,28 +1219,78 @@ lesson, every figure carries the command that produced it.
   Realistic saving: ~175 lines → one macro plus four `use` lines. The traits
   stay.
 
-* **Cast grid** — `components/detail/more_info/cast_grid.ex:33` renders
-  *every* cast member and hides all past `@max_cast_cards 24` with
-  `display:none` (`hidden={i >= @max_cast_cards}` at :86, the style at
-  :118), so a 900-member series emits 900 cards into the DOM and the
-  LiveView diff. The moduledoc justifies it — client-side filter with no
-  round-trip — but priced it for a cast of ~40. Cap the rendered window, or
-  pass the list as a `data-` attribute.
+  ✅ **Done** (`3ceac88f`). The polarity warning was the useful part, and it
+  turned out to need no branching at all: both polarities collapse into
+  `enabled?(%{"enabled" => enabled}) when is_boolean(enabled)` falling back
+  to `default:`. Where the macro *does* pay for the warning is refusing to
+  compile on a non-boolean `default:` — the failure mode is silent
+  inversion of a user's setting, so it fails the build instead, and that
+  guard is tested against an actual bad default.
 
-  Note the constraint before changing it: the cards are pre-hidden
-  server-side specifically so there is no flash of the full grid before the
-  JS filter hook mounts. Any fix has to preserve that, and it interacts with
-  UIDR-012's eager/sync rendering.
+  Honest numbers: the four modules go 175 → 60 lines and the generator is
+  79 (mostly moduledoc), so the repo is **36 lines lighter, not 115**. The
+  line count was never the point; four copies of one decision became one.
+  `SpoilerFree` was the only one of the four with no unit test pinning its
+  polarity, so it has one now.
 
-* **`clear_database` confirmation** — `live/settings_live/danger.ex:214`
-  uses the native browser `data-confirm` for the single most destructive
-  action in the app, while five other flows use the themed,
-  gamepad-navigable `ModalShell`. The native dialog ignores the theme and is
-  not d-pad reachable.
+* ✅ **Cast grid** — the stage's most valuable change, and it read like its
+  least. Rendered *every* cast member, hiding all past `@max_cast_cards 24`
+  with `display: none`, so a JS hook could filter without a round-trip.
+  **Measured: 1 665 644 bytes of HTML for one 899-member series, to display
+  24 cards.** Now 41 KB.
 
-  ⚠️ There is a **second** `data-confirm` in the same file at :235 that the
-  original bullet did not mention. Decide both together — converting one and
-  leaving the other is precisely the 80% stop this campaign keeps finding.
+  **Both proposed remedies were wrong**, which is why measuring first
+  mattered. *Capping the rendered window* breaks the filter's only purpose —
+  you filter to find someone billed 300th, and a capped window answers "no
+  matches", which is worse than a slow grid. *Passing the list as a `data-`
+  attribute* puts a second copy of the card markup in JavaScript.
+
+  The fix was to stop treating it as a rendering problem. Selecting cast for
+  a query is a *data* question and the data is on the server, so the filter
+  became a `phx-change` and `CastGrid.visible_cast/3` became the whole rule —
+  pure, public, unit-tested, where the old rule was a DOM-driven hook. The
+  hook and its tests are deleted: 271 lines out, 161 in. Filter state lives
+  in `EntityModal` with the rest of the modal's state and resets on entity
+  switch.
+
+  The no-flash constraint dissolved rather than being satisfied: nothing
+  beyond the 24 is ever rendered, so there is no full grid to flash. The
+  "no round-trip" justification in the old moduledoc did not survive
+  contact with the fact that this is a desktop app talking to localhost.
+
+  Verified in a browser, not just green: typing `tina` against the 899-member
+  cast returns Tina Fey **and** Christina Gausas — the second billed far past
+  the 24-card window, which is exactly the case a capped window would have
+  broken silently.
+
+* ⛔ **`clear_database` confirmation — DROPPED**, and this is the item worth
+  reading. The bullet is right that a native `data-confirm` on the app's most
+  destructive action ignores the theme and is not d-pad reachable. Its
+  remedy is not a small change, for two reasons the count kept hiding.
+
+  **It is five sites, not one or two** (`grep -rn data-confirm
+  lib/media_centaur_web/`): `settings_live/danger.ex:214` (clear database)
+  and `:235` (refresh image cache), `console_components.ex:255` (clear log
+  buffer), `settings_live/library.ex:197` (remove excluded dir),
+  `watch_history_live.ex:314` (remove from history). Converting the two in
+  `danger.ex` and leaving three elsewhere is the same 80 % stop the stage
+  warned about, one level up.
+
+  **And "use ModalShell" is not the obvious answer**, because the repo
+  already has two confirmation idioms and neither is ModalShell:
+  `MediaCentaurWeb.Components.Modal` is the single modal seam (MC0017 —
+  nothing else may use `modal-backdrop`/`modal-panel`), and the detail
+  panel's delete flow uses an **inline two-click gesture**
+  (`delete_confirm` + `delete_gesture_state/3`) that is already themed and
+  already d-pad reachable. Picking between them across five sites — and
+  deciding whether "delete everything" deserves something stronger than one
+  more click — is a design decision, which the working agreement puts with
+  the owner, not with the agent.
+
+  So it does not belong in a stage described as *no discussion needed*. It
+  wants its own: one shared confirm component, one idiom, all five sites,
+  and a Credo check making `data-confirm` the violation — the shape Stage 4
+  used to make a policy true instead of merely stated.
 
 * **`home_feed.ex` raw-SQL fragments** — the `fetch_in_progress_*` functions
   each embed a raw-SQL `fragment` (lines **246, 343, 439, 537**) that
@@ -1148,6 +1303,24 @@ lesson, every figure carries the command that produced it.
 
   This is the largest genuine cleanup left in the stage.
 
+  ✅ **Done** (`d4178d76`). The four fragments answer one question in two
+  shapes — containers whose playable items point straight at them, and
+  containers watched through children — so three Ecto builders cover all
+  four sites. The joins are inner, which is safe *because* every fetcher
+  already requires a progress row via its first `exists`; that was checked
+  per fetcher, not assumed. `max/1` also replaced two `LIMIT 1`s that took
+  an arbitrary progress row from titles with more than one playable item.
+  The string table names in the surrounding `exists` clauses went with them.
+
+  **The test needed for this was not the obvious one.** Final row order is
+  decided in Elixir (`Enum.sort_by` in `list_in_progress/1`), so a
+  sortedness test passes with the `order_by` deleted entirely. What these
+  fragments actually decide is *which rows survive each per-type `limit`*.
+  Four tests, one per container shape, seed more in-progress titles than the
+  limit and assert the most recently watched survive — and inverting the
+  four `order_by` directions was run first, failing all four, before the
+  rewrite touched anything.
+
 * **Preload volume in `fetch_in_progress_tv_series/1`** —
   `home_feed.ex:358` does `Repo.preload([:images, seasons: [:episodes]])`,
   loading every episode of every returned series to compute two integers.
@@ -1159,6 +1332,15 @@ lesson, every figure carries the command that produced it.
   that is directly reusable **before** writing a third version — pairs
   naturally with the `home_feed` item above.
 
+  ✅ **Done** (`d4178d76`), and the instruction to check first was worth
+  following: `episode_totals_by_tv_series/1` was **private**, so neither
+  reusing nor copying it was available. Counting a series' episodes is an
+  `Episodes` concern rather than a progress one, so it moved to
+  `Episodes.count_by_tv_series/1` and `ProgressRecords` now calls that —
+  one implementation instead of the two a third version would have made.
+  The preload is gone; both numbers are aggregates now, asked for as
+  aggregates.
+
 * ~~**`Topics.publish/2` / `Topics.subscribe/1`**~~ — **done.** Landed whole
   in Stage 5 rather than early-and-partial: 132 call sites across 71 files,
   held by MC0025. Nothing to pick up.
@@ -1168,12 +1350,13 @@ lesson, every figure carries the command that produced it.
 * Stages 1–5 each either **resolved** or **explicitly declined** with
   the reason recorded in *Decisions made*. A declined stage is a valid
   outcome; an undiscussed one is not.
-  **Status: 1, 2, 4, 5 resolved · 3 declined.** The stages that needed a
-  conversation are all settled; only Stage 6's droppable polish remains,
-  so the campaign closes whenever that list is done or dropped.
+  **Status: ✅ 1, 2, 4, 5 resolved · 3 declined.**
+* **Stage 6 resolved** — four items shipped, one already shipped by Stage 5,
+  one dropped with its reason recorded in the stage. ✅
 * **Closing the campaign does not require `/reconcile` to be fixed.** That
   defect was found here but belongs to no stage; carry it forward as
   ordinary work rather than letting it hold the campaign open.
+  **It was fixed anyway** (`2e4aa4d7`), along with two further defects. ✅
 * `mix precommit` green after each stage, no new Credo suppressions.
 * No stage left half-applied — the audit's own headline finding was
   that this repo's defects come from refactors that start well and stop
