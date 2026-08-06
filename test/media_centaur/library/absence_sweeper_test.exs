@@ -111,10 +111,10 @@ defmodule MediaCentaur.Library.AbsenceSweeperTest do
   defp backdate_last_seen(file_path, days_ago: days) do
     at = DateTime.add(DateTime.utc_now(), -days, :day)
 
-    {1, _} =
-      Repo.update_all(
+    1 =
+      force_where(
         from(p in FilePresence, where: p.file_path == ^file_path),
-        set: [last_seen_at: at]
+        last_seen_at: at
       )
   end
 

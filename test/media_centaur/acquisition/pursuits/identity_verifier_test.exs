@@ -66,17 +66,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.IdentityVerifierTest do
           episode_number: 1
         })
 
-      {:ok, pursuit} =
-        pursuit
-        |> Ecto.Changeset.change(season_number: nil, episode_number: nil)
-        |> Repo.update()
+      pursuit = force_attrs(pursuit, season_number: nil, episode_number: nil)
 
       [lead_unit] = Units.for_pursuit(pursuit.id)
 
-      {:ok, _lead_unit} =
-        lead_unit
-        |> Ecto.Changeset.change(season_number: 2, episode_number: 1)
-        |> Repo.update()
+      _lead_unit = force_attrs(lead_unit, season_number: 2, episode_number: 1)
 
       e307 = create_pursuit_unit(pursuit, %{season_number: 3, episode_number: 7})
       _e308 = create_pursuit_unit(pursuit, %{season_number: 3, episode_number: 8})
@@ -255,9 +249,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.IdentityVerifierTest do
     test "skips silently when the pursuit is already terminal" do
       {pursuit, _target} = create_pursuit_with_target()
 
-      pursuit
-      |> Ecto.Changeset.change(state: "satisfied")
-      |> Repo.update!()
+      force_state(pursuit, "satisfied")
 
       assert :ok = IdentityVerifier.perform(job(pursuit, "/anything.mkv"))
 

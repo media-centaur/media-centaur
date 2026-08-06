@@ -203,7 +203,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       stub_below_floor_movie()
 
       {:ok, created} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
-      {:ok, plan} = Plans.get(created.id)
+      {:ok, plan} = Plans.fetch(created.id)
       assert plan.status == "ready"
 
       assert [unit] = Plans.units_for(plan.id)
@@ -244,7 +244,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       assert grabbed.assigned_guid == "bf-720p"
       assert grabbed.assigned_quality == "720p"
 
-      {:ok, reloaded} = Plans.get(created.id)
+      {:ok, reloaded} = Plans.fetch(created.id)
       assert Plans.board_for(reloaded).below_floor == []
     end
   end
@@ -260,7 +260,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
                  [{1, 1}, {1, 2}, {1, 3}, {2, 1}]
                )
 
-      {:ok, plan} = Plans.get(plan.id)
+      {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
 
       units = Plans.units_for(plan.id)
@@ -285,7 +285,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       [first_s1 | _] = s1_units
       assert {:ok, _plan} = Plans.exclude_release(first_s1.id, "pack-s1")
 
-      {:ok, plan} = Plans.get(plan.id)
+      {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
 
       units = Plans.units_for(plan.id)
@@ -359,7 +359,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       # 2 of season 1's 3 aired episodes — fit 0.67 < 0.75, so the only
       # cover (the season pack) is set aside as an offer, not grabbed.
       {:ok, created} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
-      {:ok, plan} = Plans.get(created.id)
+      {:ok, plan} = Plans.fetch(created.id)
       assert plan.status == "ready"
 
       units = Plans.units_for(plan.id)
@@ -434,7 +434,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       end)
 
       {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}, {1, 3}])
-      {:ok, plan} = Plans.get(plan.id)
+      {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
 
       units = Plans.units_for(plan.id)
@@ -482,7 +482,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       # The narrowing choice created containment overlap: the pack still
       # physically contains E01. The board flags it, CTA aimed at the pack.
-      {:ok, plan} = Plans.get(plan.id)
+      {:ok, plan} = Plans.fetch(plan.id)
       board = Plans.board_for(plan)
       assert [overlap] = board.overlaps
       assert overlap.exclude_guid == "pack-s1"
@@ -500,7 +500,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
 
       assert {:ok, _plan} = Plans.exclude_release(overlap.exclude_unit_id, overlap.exclude_guid)
 
-      {:ok, plan} = Plans.get(plan.id)
+      {:ok, plan} = Plans.fetch(plan.id)
       assert Plans.board_for(plan).overlaps == []
 
       units = Plans.units_for(plan.id)
@@ -545,7 +545,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       end)
 
       {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
-      {:ok, plan} = Plans.get(plan.id)
+      {:ok, plan} = Plans.fetch(plan.id)
 
       unit = Enum.find(Plans.units_for(plan.id), &(&1.assigned_guid == "e1-uhd"))
       assert unit.assigned_indexer_id == 7
@@ -564,11 +564,11 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       stub_ladder_results()
 
       {:ok, first_plan} = Plans.create_series_plan(selection(), [{1, 1}])
-      {:ok, first_plan} = Plans.get(first_plan.id)
+      {:ok, first_plan} = Plans.fetch(first_plan.id)
       {:ok, _committed} = Plans.approve(first_plan)
 
       {:ok, second_plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}])
-      {:ok, second_plan} = Plans.get(second_plan.id)
+      {:ok, second_plan} = Plans.fetch(second_plan.id)
 
       assert {:error, {:overlap, [{1, 1}]}} = Plans.approve(second_plan)
     end
@@ -589,7 +589,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
         })
 
       {:ok, plan} = Plans.create_series_plan(selection(), [{1, 1}])
-      {:ok, plan} = Plans.get(plan.id)
+      {:ok, plan} = Plans.fetch(plan.id)
 
       assert {:error, {:overlap, [{1, 1}]}} = Plans.approve(plan)
     end
@@ -597,7 +597,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     test "a plan with nothing found cannot be approved; discard closes it out" do
       # Default stub returns no results anywhere.
       {:ok, plan} = Plans.create_series_plan(selection(), [{2, 1}])
-      {:ok, plan} = Plans.get(plan.id)
+      {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
 
       assert {:error, :nothing_to_grab} = Plans.approve(plan)
@@ -629,7 +629,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       end)
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie", year: 2010})
-      {:ok, plan} = Plans.get(plan.id)
+      {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
 
       assert [unit] = Plans.units_for(plan.id)
@@ -673,7 +673,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       })
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "778", title: "Sample Movie", year: 2000})
-      {:ok, plan} = Plans.get(plan.id)
+      {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
 
       assert [unit] = Plans.units_for(plan.id)
@@ -690,7 +690,7 @@ defmodule MediaCentaur.Acquisition.PlansTest do
       })
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "779", title: "Sample's Movie", year: 2010})
-      {:ok, plan} = Plans.get(plan.id)
+      {:ok, plan} = Plans.fetch(plan.id)
       assert plan.status == "ready"
 
       assert [unit] = Plans.units_for(plan.id)

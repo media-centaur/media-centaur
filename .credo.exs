@@ -248,7 +248,27 @@
           # Oban job for must-outlive work. The check's grandfather list is the
           # owned-async rollout backlog. See ADR-049 /
           # campaigns/test-suite-performance.md.
-          {MediaCentaur.Credo.Checks.OwnedAsyncInWeb, []}
+          {MediaCentaur.Credo.Checks.OwnedAsyncInWeb, []},
+          # MC0022 keeps a lookup's name honest about its return shape:
+          # `fetch…` yields a tuple, `get…` yields the record or nil, `…!`
+          # raises. It only opines where the shape is statically
+          # determinable, so HTTP clients and GenServer readers named `get_*`
+          # are left alone. See campaigns/audit-remediation-2026-08.md
+          # Stage 4.
+          {MediaCentaur.Credo.Checks.LookupNamingContract, []},
+          # MC0023 keeps test *setup* out of raw `Repo` writes — those skip
+          # the changeset and act as private, drifting factories. Repo
+          # *reads* stay allowed: reaching past the context to confirm a row
+          # landed is a legitimate assertion. Its @grandfathered list is the
+          # rollout backlog. See campaigns/audit-remediation-2026-08.md
+          # Stage 4.
+          {MediaCentaur.Credo.Checks.NoRepoSetupInTests, []},
+          # MC0024 scopes the old blanket "no `=~` on markup" rule to what
+          # it always meant: don't substring-match HTML *attributes* —
+          # `has_element?/2` parses the document and can't match the wrong
+          # element. Asserting on user-visible copy with `=~` stays fine.
+          # See campaigns/audit-remediation-2026-08.md Stage 4.
+          {MediaCentaur.Credo.Checks.NoMarkupSubstringAssertion, []}
         ],
         disabled: [
           # `Readability.AliasAs` would forbid `alias Foo, as: Bar`, but the

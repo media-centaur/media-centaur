@@ -439,13 +439,13 @@ defmodule MediaCentaur.Acquisition do
   @spec pick_alternative(Ecto.UUID.t(), SearchResult.t() | String.t(), String.t()) ::
           {:ok, Pursuit.t()} | {:error, term()}
   def pick_alternative(pursuit_id, %SearchResult{} = result, label) when is_binary(label) do
-    with {:ok, %Pursuit{} = pursuit} <- PursuitsContext.get(pursuit_id) do
+    with {:ok, %Pursuit{} = pursuit} <- PursuitsContext.fetch(pursuit_id) do
       do_pick_alternative(pursuit, result, label)
     end
   end
 
   def pick_alternative(pursuit_id, guid, label) when is_binary(guid) and is_binary(label) do
-    with {:ok, %Pursuit{} = pursuit} <- PursuitsContext.get(pursuit_id),
+    with {:ok, %Pursuit{} = pursuit} <- PursuitsContext.fetch(pursuit_id),
          {:ok, result} <- find_alternative(pursuit, guid) do
       do_pick_alternative(pursuit, result, label)
     end

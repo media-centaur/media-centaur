@@ -7,7 +7,6 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
   alias MediaCentaur.Library.Views
   alias MediaCentaur.Library.Views.ContinueWatching
   alias MediaCentaur.Library.Views.ContinueWatchingItem
-  alias MediaCentaur.Repo
   alias MediaCentaur.Topics
 
   @table :library_view_continue_watching
@@ -24,9 +23,7 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
       })
 
     if last_watched_at do
-      progress
-      |> Ecto.Changeset.change(last_watched_at: last_watched_at)
-      |> Repo.update!()
+      backdate(progress, :last_watched_at, last_watched_at)
     end
 
     movie

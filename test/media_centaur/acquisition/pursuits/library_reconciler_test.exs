@@ -68,10 +68,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconcilerTest do
         })
 
       # CommitPlan-created pursuits carry identity only on units.
-      {:ok, _pursuit} =
-        pursuit
-        |> Ecto.Changeset.change(season_number: nil, episode_number: nil)
-        |> Repo.update()
+      _pursuit = force_attrs(pursuit, season_number: nil, episode_number: nil)
 
       assert :ok = LibraryReconciler.reconcile_active()
 
@@ -470,9 +467,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconcilerTest do
           title: "Sample Movie"
         })
 
-      pursuit
-      |> Ecto.Changeset.change(state: "cancelled")
-      |> Repo.update!()
+      force_state(pursuit, "cancelled")
 
       assert :ok = LibraryReconciler.reconcile_active()
       assert Repo.get!(Pursuit, pursuit.id).state == "cancelled"

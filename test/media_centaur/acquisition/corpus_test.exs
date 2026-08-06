@@ -229,14 +229,14 @@ defmodule MediaCentaur.Acquisition.CorpusTest do
     past = DateTime.add(DateTime.utc_now(:second), -seconds, :second)
     key = Corpus.search_key(term, opts)
 
-    Repo.update_all(
+    force_where(
       from(s in Corpus.SearchRecord, where: s.search_key == ^key),
-      set: [last_searched_at: past]
+      last_searched_at: past
     )
 
-    Repo.update_all(
+    force_where(
       from(c in Corpus.Candidate, where: c.search_key == ^key),
-      set: [last_seen_at: past]
+      last_seen_at: past
     )
   end
 end

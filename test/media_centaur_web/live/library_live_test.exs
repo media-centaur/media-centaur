@@ -10,17 +10,17 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
   describe "zone tabs removed" do
     test "library page has no zone tabs", %{conn: conn} do
-      {:ok, _view, html} = live_async!(conn, "/library")
+      {:ok, view, html} = live_async!(conn, "/library")
 
-      refute html =~ "data-nav-zone=\"zone-tabs\""
-      refute html =~ "data-zone-tab"
+      refute has_element?(view, "[data-nav-zone='zone-tabs']")
+      refute has_element?(view, "[data-zone-tab]")
       refute html =~ "Continue Watching"
     end
 
     test "library page renders the catalog grid section", %{conn: conn} do
-      {:ok, _view, html} = live_async!(conn, "/library")
+      {:ok, view, _html} = live_async!(conn, "/library")
 
-      assert html =~ "id=\"browse\""
+      assert has_element?(view, "#browse")
     end
 
     test "catalog grid populates with entities on initial mount", %{conn: conn} do
@@ -166,12 +166,11 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     test "the search box exposes a clear control once it holds text", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, "/library")
 
-      html =
-        view
-        |> element("form[phx-change='filter']")
-        |> render_change(%{filter_text: "Findable"})
+      view
+      |> element("form[phx-change='filter']")
+      |> render_change(%{filter_text: "Findable"})
 
-      assert html =~ "phx-click=\"clear_filter\"",
+      assert has_element?(view, "[phx-click='clear_filter']"),
              "a non-empty filter must offer an inline clear (×) affordance"
     end
 
@@ -585,7 +584,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "footer text renders by default (no Settings entry)", %{conn: conn, movie: movie} do
-      assert {:ok, nil} = Settings.get_by_key(LibraryCardInfo.setting_key())
+      assert Settings.get_by_key(LibraryCardInfo.setting_key()) == nil
 
       {:ok, _view, html} = live_async!(conn, "/library")
 

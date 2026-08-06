@@ -49,7 +49,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
   @spec execute(%{pursuit_id: Ecto.UUID.t()}) ::
           {:ok, Pursuit.t()} | {:error, :not_found | :not_eligible | term()}
   def execute(%{pursuit_id: id} = args) when is_binary(id) do
-    with {:ok, %Pursuit{state: state} = _pursuit} <- Pursuits.get(id),
+    with {:ok, %Pursuit{state: state} = _pursuit} <- Pursuits.fetch(id),
          true <- state in State.in_flight() do
       do_execute(id, args)
     else
@@ -100,7 +100,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
   end
 
   defp resolve_unit(_pursuit, %{unit_id: unit_id}) when is_binary(unit_id) do
-    {:ok, unit} = Units.get(unit_id)
+    {:ok, unit} = Units.fetch(unit_id)
     unit
   end
 

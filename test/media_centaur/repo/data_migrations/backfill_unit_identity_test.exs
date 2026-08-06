@@ -2,7 +2,6 @@ defmodule MediaCentaur.Repo.DataMigrations.BackfillUnitIdentityTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Acquisition.Pursuits.Units
-  alias MediaCentaur.Repo
   alias MediaCentaur.Repo.DataMigrations.BackfillUnitIdentity
 
   # Pre-backfill shape: an auto pursuit carrying season/episode on the
@@ -20,10 +19,7 @@ defmodule MediaCentaur.Repo.DataMigrations.BackfillUnitIdentityTest do
 
     unit = Units.single!(pursuit.id)
 
-    {:ok, legacy_unit} =
-      unit
-      |> Ecto.Changeset.change(season_number: nil, episode_number: nil)
-      |> Repo.update()
+    legacy_unit = force_attrs(unit, season_number: nil, episode_number: nil)
 
     {pursuit, legacy_unit}
   end
@@ -51,10 +47,7 @@ defmodule MediaCentaur.Repo.DataMigrations.BackfillUnitIdentityTest do
 
       unit = Units.single!(pursuit.id)
 
-      {:ok, _divergent} =
-        unit
-        |> Ecto.Changeset.change(season_number: 4, episode_number: 1)
-        |> Repo.update()
+      _divergent = force_attrs(unit, season_number: 4, episode_number: 1)
 
       assert :ok = BackfillUnitIdentity.backfill(Repo)
 

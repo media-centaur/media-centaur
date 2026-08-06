@@ -169,8 +169,8 @@ defmodule MediaCentaur.Acquisition.Plans do
   # Reads
   # ---------------------------------------------------------------------------
 
-  @spec get(Ecto.UUID.t()) :: {:ok, Plan.t()} | {:error, :not_found}
-  def get(id) do
+  @spec fetch(Ecto.UUID.t()) :: {:ok, Plan.t()} | {:error, :not_found}
+  def fetch(id) do
     case Repo.get(Plan, id) do
       nil -> {:error, :not_found}
       %Plan{} = plan -> {:ok, plan}
@@ -347,7 +347,7 @@ defmodule MediaCentaur.Acquisition.Plans do
           {:ok, [PlanBoard.Alternative.t()]} | {:error, :not_found}
   def alternatives_for(plan_unit_id) do
     with {:ok, unit} <- get_unit(plan_unit_id),
-         {:ok, plan} <- get(unit.plan_id) do
+         {:ok, plan} <- fetch(unit.plan_id) do
       excluded = MapSet.new(unit.excluded_release_guids)
 
       alternatives =
@@ -387,7 +387,7 @@ defmodule MediaCentaur.Acquisition.Plans do
           {:ok, [PlanBoard.Alternative.t()]} | {:error, :not_found}
   def search_alternatives(plan_unit_id) do
     with {:ok, unit} <- get_unit(plan_unit_id),
-         {:ok, plan} <- get(unit.plan_id) do
+         {:ok, plan} <- fetch(unit.plan_id) do
       plan
       |> LadderTerms.for_unit(unit)
       |> Enum.each(fn {term, opts} ->
@@ -407,7 +407,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   @spec choose_release(Ecto.UUID.t(), String.t()) :: {:ok, Plan.t()} | {:error, term()}
   def choose_release(plan_unit_id, guid) when is_binary(guid) do
     with {:ok, unit} <- get_unit(plan_unit_id),
-         {:ok, %Plan{status: "ready"} = plan} <- get(unit.plan_id),
+         {:ok, %Plan{status: "ready"} = plan} <- fetch(unit.plan_id),
          {:ok, {result, scope, term}} <- find_candidate(plan, unit, guid) do
       covered_units =
         plan.id
@@ -537,7 +537,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   @spec exclude_release(Ecto.UUID.t(), String.t()) :: {:ok, Plan.t()} | {:error, term()}
   def exclude_release(plan_unit_id, guid) do
     with {:ok, unit} <- get_unit(plan_unit_id),
-         {:ok, plan} <- get(unit.plan_id),
+         {:ok, plan} <- fetch(unit.plan_id),
          {:ok, _unit} <- Repo.update(PlanUnit.exclude_release_changeset(unit, guid)) do
       replan(plan)
     end
@@ -547,7 +547,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   @spec exclude_unit(Ecto.UUID.t()) :: {:ok, Plan.t()} | {:error, term()}
   def exclude_unit(plan_unit_id) do
     with {:ok, unit} <- get_unit(plan_unit_id),
-         {:ok, plan} <- get(unit.plan_id),
+         {:ok, plan} <- fetch(unit.plan_id),
          {:ok, _unit} <- Repo.update(PlanUnit.exclude_unit_changeset(unit)) do
       replan(plan)
     end

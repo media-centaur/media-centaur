@@ -30,7 +30,7 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
       )
       |> render_click()
 
-      assert render(view) =~ "data-listening=\"true\""
+      assert has_element?(view, "[data-listening='true']")
     end
 
     test "controls:bind event persists and broadcasts", %{conn: conn} do
@@ -52,7 +52,7 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
       |> render_click()
 
       render_hook(view, "controls:cancel", %{})
-      refute render(view) =~ "data-listening=\"true\""
+      refute has_element?(view, "[data-listening='true']")
     end
   end
 

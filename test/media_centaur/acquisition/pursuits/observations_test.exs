@@ -15,15 +15,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.ObservationsTest do
   end
 
   defp set_unit(unit, attrs) do
-    unit
-    |> Ecto.Changeset.change(attrs)
-    |> Repo.update!()
+    force_attrs(unit, attrs)
   end
 
   defp set_pursuit(pursuit, attrs) do
-    pursuit
-    |> Ecto.Changeset.change(attrs)
-    |> Repo.update!()
+    force_attrs(pursuit, attrs)
   end
 
   defp events_for(pursuit_id) do

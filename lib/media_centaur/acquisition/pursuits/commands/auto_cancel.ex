@@ -104,7 +104,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
   end
 
   defp resolve_unit(_pursuit, %{unit_id: unit_id}) when is_binary(unit_id) do
-    {:ok, unit} = Units.get(unit_id)
+    {:ok, unit} = Units.fetch(unit_id)
     unit
   end
 

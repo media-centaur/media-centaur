@@ -31,8 +31,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
 
     pursuit.id
     |> Units.single!()
-    |> Ecto.Changeset.change(unit_overrides)
-    |> Repo.update!()
+    |> force_attrs(unit_overrides)
 
     pursuit
   end
@@ -54,9 +53,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
       |> Ecto.Changeset.change(target_id: target.id, unit_id: unit.id)
       |> Repo.insert!()
 
-      unit
-      |> Ecto.Changeset.change(current_target_id: target.id)
-      |> Repo.update!()
+      force_attrs(unit, current_target_id: target.id)
     end)
   end
 
@@ -113,9 +110,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
     test "skips terminal-state pursuits entirely" do
       pursuit = insert_pursuit(%{attempt_count: 4})
 
-      pursuit
-      |> Ecto.Changeset.change(state: "satisfied")
-      |> Repo.update!()
+      force_state(pursuit, "satisfied")
 
       assert :ok = Watcher.perform(%Oban.Job{args: %{}})
 

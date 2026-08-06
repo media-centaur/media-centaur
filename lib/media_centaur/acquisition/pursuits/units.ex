@@ -22,8 +22,8 @@ defmodule MediaCentaur.Acquisition.Pursuits.Units do
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Repo
 
-  @spec get(Ecto.UUID.t()) :: {:ok, Unit.t()} | {:error, :not_found}
-  def get(id) do
+  @spec fetch(Ecto.UUID.t()) :: {:ok, Unit.t()} | {:error, :not_found}
+  def fetch(id) do
     case Repo.get(Unit, id) do
       nil -> {:error, :not_found}
       %Unit{} = unit -> {:ok, unit}

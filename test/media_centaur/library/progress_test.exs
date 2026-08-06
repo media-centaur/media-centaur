@@ -378,8 +378,8 @@ defmodule MediaCentaur.Library.ProgressTest do
       # mutating the DB row directly and re-reading should reflect
       # the new value if memory is empty. If memory cached the first
       # read, the stale value would surface.
-      Repo.update_all(from(p in WatchProgress, where: p.playable_item_id == ^pi.id),
-        set: [position_seconds: 99.0]
+      force_where(from(p in WatchProgress, where: p.playable_item_id == ^pi.id),
+        position_seconds: 99.0
       )
 
       assert %WatchProgress{position_seconds: 99.0} = Progress.get(pi.id)

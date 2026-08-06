@@ -52,7 +52,7 @@ defmodule MediaCentaur.Acquisition.Reactor.Handlers do
   """
   @spec plan_changed(PlanEvents.Changed.t()) :: :ok
   def plan_changed(%PlanEvents.Changed{status: "ready", plan_id: plan_id}) do
-    case Plans.get(plan_id) do
+    case Plans.fetch(plan_id) do
       {:ok, %Plan{origin: "tracking", status: "ready"} = plan} -> gate_tracking_plan(plan)
       _other -> :ok
     end

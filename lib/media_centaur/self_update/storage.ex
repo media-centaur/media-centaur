@@ -59,7 +59,7 @@ defmodule MediaCentaur.SelfUpdate.Storage do
           | :none
   def get_latest_known do
     case Settings.get_by_key(@latest_known_key) do
-      {:ok, %{value: value}} when is_map(value) -> {:ok, decode_latest_known(value)}
+      %{value: value} when is_map(value) -> {:ok, decode_latest_known(value)}
       _ -> :none
     end
   end
@@ -110,7 +110,7 @@ defmodule MediaCentaur.SelfUpdate.Storage do
   @spec get_last_check_at() :: {:ok, DateTime.t()} | :none
   def get_last_check_at do
     case Settings.get_by_key(@last_check_key) do
-      {:ok, %{value: %{"at" => iso}}} when is_binary(iso) ->
+      %{value: %{"at" => iso}} when is_binary(iso) ->
         case MediaCentaur.Iso8601.parse(iso) do
           nil -> :none
           at -> {:ok, at}

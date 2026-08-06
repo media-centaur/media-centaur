@@ -1384,7 +1384,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   def handle_event("plan_search_again", _params, socket) do
     with %{plan_id: plan_id} <- socket.assigns.plan_board,
-         {:ok, plan} <- Plans.get(plan_id),
+         {:ok, plan} <- Plans.fetch(plan_id),
          {:ok, _plan} <- Plans.replan(plan, force_search: true) do
       {:noreply, socket}
     else
@@ -1422,7 +1422,7 @@ defmodule MediaCentaurWeb.IncomingLive do
        socket
        |> assign(plan_approving?: true)
        |> start_async(:plan_approve, fn ->
-         with {:ok, plan} <- Plans.get(plan_id), do: Plans.approve(plan)
+         with {:ok, plan} <- Plans.fetch(plan_id), do: Plans.approve(plan)
        end)}
     else
       _ -> {:noreply, socket}
@@ -1445,7 +1445,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     socket = assign(socket, plan_discard_confirm?: false)
 
     with %{plan_id: plan_id} <- socket.assigns.plan_board,
-         {:ok, plan} <- Plans.get(plan_id),
+         {:ok, plan} <- Plans.fetch(plan_id),
          {:ok, _discarded} <- Plans.discard(plan) do
       {:noreply,
        socket
@@ -1928,7 +1928,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
         socket =
           start_async(socket, {:alternatives_refresh, pursuit_id}, fn ->
-            case Pursuits.get(pursuit_id) do
+            case Pursuits.fetch(pursuit_id) do
               {:ok, pursuit} ->
                 header = Pursuits.header_from(pursuit)
 
@@ -2362,7 +2362,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   defp load_pursuit_detail(%{assigns: %{selected_pursuit_id: id}} = socket) do
-    case Pursuits.get(id) do
+    case Pursuits.fetch(id) do
       {:ok, %Pursuit{} = pursuit} ->
         # One DB read for the pursuit; reuse the struct for the header
         # and status assemblers (was previously three separate Repo.gets
@@ -2459,7 +2459,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   # if the user has closed the modal or selected a different pursuit.
   defp start_async_alternatives_fetch(socket, pursuit_id) do
     start_async(socket, {:alternatives_fetch, pursuit_id}, fn ->
-      case Pursuits.get(pursuit_id) do
+      case Pursuits.fetch(pursuit_id) do
         {:ok, pursuit} ->
           header = Pursuits.header_from(pursuit)
           build_decision(pursuit, header.awaiting_decision?, header.search_queries, nil)
@@ -2611,7 +2611,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   end
 
   defp open_plan_board(socket, plan_id) do
-    case Plans.get(plan_id) do
+    case Plans.fetch(plan_id) do
       {:ok, plan} ->
         board = Plans.board_for(plan)
         socket = maybe_load_plan_artwork(socket, plan_id, plan)

@@ -22,7 +22,7 @@ defmodule MediaCentaurWeb.DiagnosticsBadge do
   @spec seen_at() :: DateTime.t()
   def seen_at do
     case Settings.get_by_key(@key) do
-      {:ok, %Entry{value: %{"at" => iso}}} ->
+      %Entry{value: %{"at" => iso}} ->
         case DateTime.from_iso8601(iso) do
           {:ok, datetime, _offset} -> datetime
           _ -> @epoch

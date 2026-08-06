@@ -106,14 +106,12 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       # default), season 2 containing an exhausted unit (expands by
       # default).
       season_one_unit =
-        Units.single!(pursuit.id)
-        |> Ecto.Changeset.change(
+        MediaCentaur.TestFactory.force_attrs(Units.single!(pursuit.id),
           season_number: 1,
           episode_number: 1,
           label: "Sample Show S01E01",
           state: "satisfied"
         )
-        |> Repo.update!()
 
       create_pursuit_unit(pursuit, %{
         season_number: 1,
@@ -230,11 +228,9 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
       {pursuit, _target} =
         create_pursuit_with_target(%{state: "active", title: "Sample Show", status: "seeking"})
 
-      {:ok, _} =
-        pursuit.id
-        |> Units.single!()
-        |> Ecto.Changeset.change(awaiting_decision_at: DateTime.utc_now(:second))
-        |> Repo.update()
+      pursuit.id
+      |> Units.single!()
+      |> MediaCentaur.TestFactory.force_attrs(awaiting_decision_at: DateTime.utc_now(:second))
 
       # The 800 ms delay applies to the search fetch this test pins; the
       # IndexerHealth snapshot endpoints (UIDR-016, mount async) answer

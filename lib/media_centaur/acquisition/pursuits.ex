@@ -29,8 +29,8 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   alias MediaCentaur.Repo
   alias MediaCentaur.Review
 
-  @spec get(Ecto.UUID.t()) :: {:ok, Pursuit.t()} | {:error, :not_found}
-  def get(id) do
+  @spec fetch(Ecto.UUID.t()) :: {:ok, Pursuit.t()} | {:error, :not_found}
+  def fetch(id) do
     case Repo.get(Pursuit, id) do
       nil -> {:error, :not_found}
       %Pursuit{} = pursuit -> {:ok, pursuit}
@@ -306,7 +306,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   @doc "Returns a `PursuitHeader` view-model for the detail page."
   @spec header_for(Ecto.UUID.t()) :: {:ok, PursuitHeader.t()} | {:error, :not_found}
   def header_for(id) do
-    case get(id) do
+    case fetch(id) do
       {:ok, pursuit} -> {:ok, header_from(pursuit)}
       {:error, :not_found} = error -> error
     end
@@ -326,7 +326,7 @@ defmodule MediaCentaur.Acquisition.Pursuits do
   """
   @spec status_for(Ecto.UUID.t()) :: {:ok, PursuitStatus.t()} | {:error, :not_found}
   def status_for(id) do
-    case get(id) do
+    case fetch(id) do
       {:error, :not_found} = error -> error
       {:ok, pursuit} -> {:ok, status_from(pursuit)}
     end

@@ -22,9 +22,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.InboundListenerTest do
   end
 
   defp set_state(pursuit, new_state) do
-    pursuit
-    |> Ecto.Changeset.change(state: new_state)
-    |> Repo.update!()
+    force_state(pursuit, new_state)
   end
 
   defp enqueued_jobs do

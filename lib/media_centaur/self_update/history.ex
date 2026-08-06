@@ -57,7 +57,7 @@ defmodule MediaCentaur.SelfUpdate.History do
 
   defp read_entries do
     case Settings.get_by_key(@key) do
-      {:ok, %{value: %{"entries" => entries}}} when is_list(entries) -> entries
+      %{value: %{"entries" => entries}} when is_list(entries) -> entries
       _ -> []
     end
   end

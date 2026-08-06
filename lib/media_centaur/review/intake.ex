@@ -56,7 +56,7 @@ defmodule MediaCentaur.Review.Intake do
   """
   @spec complete_review(Ecto.UUID.t()) :: :ok
   def complete_review(pending_file_id) do
-    case Review.get_pending_file(pending_file_id) do
+    case Review.fetch_pending_file(pending_file_id) do
       {:ok, pending_file} ->
         Review.destroy_pending_file!(pending_file)
 

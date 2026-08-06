@@ -16,7 +16,7 @@ defmodule MediaCentaur.Repo.DataMigrations.RenameWatchDirsSettingsKeyTest do
 
   defp value_for(key) do
     case Settings.get_by_key(key) do
-      {:ok, %{value: value}} -> value
+      %{value: value} -> value
       _ -> nil
     end
   end

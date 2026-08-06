@@ -103,7 +103,7 @@ defmodule MediaCentaur.Playback.LanguagePolicy do
   @spec load() :: t()
   def load do
     case Settings.get_by_key(@settings_key) do
-      {:ok, %{value: value}} when is_map(value) -> from_map(value)
+      %{value: value} when is_map(value) -> from_map(value)
       _ -> defaults()
     end
   end

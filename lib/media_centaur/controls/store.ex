@@ -29,7 +29,7 @@ defmodule MediaCentaur.Controls.Store do
   @spec read_glyph_style() :: String.t()
   def read_glyph_style do
     case Settings.get_by_key(@glyph_key) do
-      {:ok, %{value: %{"style" => style}}} when style in ["xbox", "playstation"] -> style
+      %{value: %{"style" => style}} when style in ["xbox", "playstation"] -> style
       _ -> @default_glyph
     end
   end
@@ -48,7 +48,7 @@ defmodule MediaCentaur.Controls.Store do
 
   defp read_map(key) do
     case Settings.get_by_key(key) do
-      {:ok, %{value: value}} when is_map(value) -> value
+      %{value: value} when is_map(value) -> value
       _ -> %{}
     end
   end

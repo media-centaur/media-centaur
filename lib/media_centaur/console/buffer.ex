@@ -292,7 +292,7 @@ defmodule MediaCentaur.Console.Buffer do
   defp load_settings do
     cap =
       case Settings.get_by_key("console_buffer_size") do
-        {:ok, %{value: %{"value" => value}}} when is_integer(value) ->
+        %{value: %{"value" => value}} when is_integer(value) ->
           if value in @min_cap..@max_cap, do: value, else: @default_cap
 
         _ ->
@@ -301,7 +301,7 @@ defmodule MediaCentaur.Console.Buffer do
 
     filter =
       case Settings.get_by_key("console_filter") do
-        {:ok, %{value: value}} when is_map(value) ->
+        %{value: value} when is_map(value) ->
           Filter.from_persistable(value)
 
         _ ->

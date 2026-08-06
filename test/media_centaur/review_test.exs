@@ -29,7 +29,7 @@ defmodule MediaCentaur.ReviewTest do
 
       refute File.exists?(path)
       refute MapSet.member?(FilePresence.list_paths_for_media_dir(media_dir), path)
-      assert Review.get_pending_file(pending_file.id) == {:error, :not_found}
+      assert Review.fetch_pending_file(pending_file.id) == {:error, :not_found}
     end
 
     test "treats an already-missing file as success — the DB cleanup still runs", %{
@@ -41,7 +41,7 @@ defmodule MediaCentaur.ReviewTest do
         create_pending_file(%{file_path: path, media_directory: media_dir, parsed_title: "Gone"})
 
       assert {:ok, _} = Review.delete_pending_file(pending_file)
-      assert Review.get_pending_file(pending_file.id) == {:error, :not_found}
+      assert Review.fetch_pending_file(pending_file.id) == {:error, :not_found}
     end
   end
 

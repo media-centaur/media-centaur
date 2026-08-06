@@ -69,7 +69,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   def perform(%Oban.Job{args: %{"plan_id" => plan_id} = args}) do
     force? = Map.get(args, "force", false)
 
-    case Plans.get(plan_id) do
+    case Plans.fetch(plan_id) do
       {:ok, %Plan{status: "planning"} = plan} ->
         run(plan, force?)
 
