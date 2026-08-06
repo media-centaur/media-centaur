@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.Components.ReviewTabs do
 
   def review_tabs(assigns) do
     ~H"""
-    <div data-nav-zone="review-tabs" class="flex items-baseline gap-5">
+    <div data-nav-zone="zone-tabs" class="flex items-baseline gap-5">
       <.link
         navigate="/review"
         class={["zone-tab", @active == :identity && "zone-tab-active"]}
