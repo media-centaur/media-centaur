@@ -16,7 +16,7 @@ defmodule MediaCentaur.Library.PresentEpisodeKeysTest do
       playable_item = create_playable_item_for_episode(linked)
       create_linked_file(%{playable_item_id: playable_item.id, file_path: "/media/sample/E01.mkv"})
 
-      assert Library.present_episode_keys(series.id) == MapSet.new([{1, 1}])
+      assert Library.ExternalIds.present_episode_keys(series.id) == MapSet.new([{1, 1}])
     end
 
     test "returns an empty set when the series has no linked files" do
@@ -24,7 +24,7 @@ defmodule MediaCentaur.Library.PresentEpisodeKeysTest do
       season = create_season(%{tv_series_id: series.id, season_number: 1, name: "Season 1"})
       create_episode(%{season_id: season.id, episode_number: 1, name: "Alpha"})
 
-      assert Library.present_episode_keys(series.id) == MapSet.new()
+      assert Library.ExternalIds.present_episode_keys(series.id) == MapSet.new()
     end
   end
 end

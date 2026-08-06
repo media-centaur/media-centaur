@@ -83,7 +83,7 @@ defmodule MediaCentaur.LibraryTest do
 
       record_present(create_linked_file(%{movie_id: child.id}))
 
-      assert {:ok, %{entity: entity}} = Library.load_modal_entry(child.id)
+      assert {:ok, %{entity: entity}} = Library.ModalEntry.load(child.id)
       assert entity.type == :movie
       assert entity.id == child.id
       assert entity.name == "Only Child"
@@ -96,7 +96,7 @@ defmodule MediaCentaur.LibraryTest do
       child = create_movie(%{movie_series_id: ms.id, name: "Only Child", position: 0})
       record_present(create_linked_file(%{movie_id: child.id}))
 
-      assert {:ok, %{entity: entity}} = Library.load_modal_entry(ms.id)
+      assert {:ok, %{entity: entity}} = Library.ModalEntry.load(ms.id)
       assert entity.type == :movie
       assert entity.id == child.id
     end
@@ -108,7 +108,7 @@ defmodule MediaCentaur.LibraryTest do
       record_present(create_linked_file(%{movie_id: part1.id}))
       record_present(create_linked_file(%{movie_id: part2.id}))
 
-      assert {:ok, %{entity: entity}} = Library.load_modal_entry(ms.id)
+      assert {:ok, %{entity: entity}} = Library.ModalEntry.load(ms.id)
       assert entity.type == :movie_series
       assert entity.id == ms.id
     end
@@ -795,7 +795,7 @@ defmodule MediaCentaur.LibraryTest do
 
       create_extra(%{movie_id: movie.id, name: "Behind the Scenes", kind: :featurette})
 
-      assert {:ok, entry} = Library.load_modal_entry(movie.id)
+      assert {:ok, entry} = Library.ModalEntry.load(movie.id)
       assert entry.entity.id == movie.id
       assert entry.entity.type == :movie
       assert Enum.map(entry.entity.extras, & &1.name) == ["Behind the Scenes"]
@@ -831,7 +831,7 @@ defmodule MediaCentaur.LibraryTest do
       create_extra(%{tv_series_id: series.id, name: "Series Trailer", kind: :trailer})
       create_extra(%{season_id: season.id, name: "Season Recap", kind: :featurette})
 
-      assert {:ok, entry} = Library.load_modal_entry(series.id)
+      assert {:ok, entry} = Library.ModalEntry.load(series.id)
       assert entry.entity.id == series.id
       assert entry.entity.type == :tv_series
       assert Enum.map(entry.entity.extras, & &1.name) == ["Series Trailer"]
@@ -860,7 +860,7 @@ defmodule MediaCentaur.LibraryTest do
       record_present(create_linked_file(%{movie_id: part1.id}))
       record_present(create_linked_file(%{movie_id: part2.id}))
 
-      assert {:ok, entry} = Library.load_modal_entry(series.id)
+      assert {:ok, entry} = Library.ModalEntry.load(series.id)
       assert entry.entity.id == series.id
     end
 
@@ -868,18 +868,18 @@ defmodule MediaCentaur.LibraryTest do
       video = create_video_object(%{name: "Sample Clip"})
       record_present(create_linked_file(%{video_object_id: video.id}))
 
-      assert {:ok, entry} = Library.load_modal_entry(video.id)
+      assert {:ok, entry} = Library.ModalEntry.load(video.id)
       assert entry.entity.id == video.id
       assert entry.entity.type == :video_object
     end
 
     test "returns :not_found for a missing UUID" do
-      assert Library.load_modal_entry(Ecto.UUID.generate()) == :not_found
+      assert Library.ModalEntry.load(Ecto.UUID.generate()) == :not_found
     end
 
     test "returns :not_found when no file is present for the entity" do
       orphan = create_standalone_movie(%{name: "Orphan"})
-      assert Library.load_modal_entry(orphan.id) == :not_found
+      assert Library.ModalEntry.load(orphan.id) == :not_found
     end
 
     test "issues a bounded number of queries (no N+1 regression)" do
@@ -917,7 +917,7 @@ defmodule MediaCentaur.LibraryTest do
         end
       end)
 
-      query_count = count_queries(fn -> Library.load_modal_entry(series.id) end)
+      query_count = count_queries(fn -> Library.ModalEntry.load(series.id) end)
 
       # Projection-warm path: ETS lookup (0 queries) + 1 progress query.
       # Bound at 5 to leave room for incidental queries; cap is well
@@ -1135,7 +1135,7 @@ defmodule MediaCentaur.LibraryTest do
         extension: "jpg"
       })
 
-      stats = Library.stats()
+      stats = Library.Stats.all()
 
       assert stats.by_type == %{movie: 1, tv_series: 1, movie_series: 1, video_object: 1}
       assert stats.episodes == 2
@@ -1147,7 +1147,7 @@ defmodule MediaCentaur.LibraryTest do
       collection = create_movie_series(%{name: "Trilogy"})
       create_movie(%{name: "Part One", movie_series_id: collection.id})
 
-      stats = Library.stats()
+      stats = Library.Stats.all()
 
       assert stats.by_type.movie == 0
       assert stats.by_type.movie_series == 1

@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   which is pure and unit-tested without a database.
 
   Movie / movie_series entities are not handled here — they go through
-  `Library.load_modal_entry/1` directly, since their detail pages don't
+  `Library.ModalEntry.load/1` directly, since their detail pages don't
   surface release-tracking data.
   """
 
@@ -60,7 +60,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   @doc """
   Loads + composes the view model for a TV series. Returns `:not_found`
   if no `:tv_series` projection row matches `entity_id` — the caller
-  is expected to try its non-TV path (`Library.load_modal_entry/1`) on
+  is expected to try its non-TV path (`Library.ModalEntry.load/1`) on
   `:not_found`, which will succeed for movies / movie_series /
   video_objects or itself return `:not_found` for truly orphan ids.
 

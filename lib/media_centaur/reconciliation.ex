@@ -191,8 +191,8 @@ defmodule MediaCentaur.Reconciliation do
   @spec resolve_show(integer(), keyword()) :: ShowReview.t()
   def resolve_show(tmdb_id, opts \\ []) do
     awaiting = awaiting_for_tmdb(tmdb_id)
-    series = Library.find_by_external_id(:tv_series, to_string(tmdb_id))
-    present_keys = if series, do: Library.present_episode_keys(series.id), else: MapSet.new()
+    series = Library.ExternalIds.find_by_external_id(:tv_series, to_string(tmdb_id))
+    present_keys = if series, do: Library.ExternalIds.present_episode_keys(series.id), else: MapSet.new()
 
     spine = Spine.assemble(tmdb_id, present_keys)
     artifacts = Enum.map(awaiting, &to_artifact/1)

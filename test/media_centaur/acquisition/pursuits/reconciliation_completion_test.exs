@@ -96,13 +96,13 @@ defmodule MediaCentaur.Acquisition.Pursuits.ReconciliationCompletionTest do
     assert Repo.get!(Pursuit, pursuit.id).state == "active",
            "an unmapped cour file must not complete the pursuit"
 
-    assert Library.find_present_episode("42", 1, 3) == :not_found
+    assert Library.ExternalIds.find_present_episode("42", 1, 3) == :not_found
 
     # The user confirms the mapping in /reconcile: the file links to
     # canonical E3, which now exists and is present on the spine.
     review = Reconciliation.resolve_show(42)
     assert {:ok, %{linked: 1, failed: 0}} = Reconciliation.confirm_recommended(review)
-    assert {:ok, "/media/s/S02E01.mkv"} = Library.find_present_episode("42", 1, 3)
+    assert {:ok, "/media/s/S02E01.mkv"} = Library.ExternalIds.find_present_episode("42", 1, 3)
 
     # Now completion fires by canonical presence.
     assert :ok = LibraryReconciler.reconcile_active()

@@ -222,7 +222,7 @@ defmodule MediaCentaur.Acquisition.Targeting do
   defp aired?(%Date{} = air_date, today), do: Date.compare(air_date, today) != :gt
 
   defp in_library?(tmdb_id, season_number, episode_number) do
-    case Library.find_present_episode(tmdb_id, season_number, episode_number) do
+    case Library.ExternalIds.find_present_episode(tmdb_id, season_number, episode_number) do
       {:ok, _path} -> true
       :not_found -> false
     end

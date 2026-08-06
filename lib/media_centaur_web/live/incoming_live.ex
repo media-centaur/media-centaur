@@ -2598,7 +2598,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     case MediaCentaur.TMDB.Client.get_movie(tmdb_id) do
       {:ok, movie} ->
         in_library? =
-          case MediaCentaur.Library.find_present_movie(to_string(tmdb_id)) do
+          case MediaCentaur.Library.ExternalIds.find_present_movie(to_string(tmdb_id)) do
             {:ok, _path} -> true
             :not_found -> false
           end

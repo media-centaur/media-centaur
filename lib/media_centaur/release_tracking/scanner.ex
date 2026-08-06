@@ -12,7 +12,7 @@ defmodule MediaCentaur.ReleaseTracking.Scanner do
   alias MediaCentaur.TMDB.Client
 
   def scan do
-    candidates = Library.list_tmdb_entities()
+    candidates = Library.ExternalIds.list_tmdb_entities()
     Log.info(:library, "release tracking scan: #{length(candidates)} TMDB IDs found")
 
     results =

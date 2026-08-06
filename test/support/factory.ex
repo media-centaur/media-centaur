@@ -422,7 +422,7 @@ defmodule MediaCentaur.TestFactory do
   end
 
   def create_external_id(attrs) do
-    attrs |> Map.new() |> OwnerRef.normalise(:external_id) |> Library.create_external_id!()
+    attrs |> Map.new() |> OwnerRef.normalise(:external_id) |> Library.ExternalIds.create!()
   end
 
   def create_season(attrs) do

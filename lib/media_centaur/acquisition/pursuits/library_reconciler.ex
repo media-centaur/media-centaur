@@ -59,7 +59,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
   @spec reconcile_active() :: :ok
   def reconcile_active do
     triples = Pursuits.list_active_units_with_context()
-    present_paths = Library.list_present_file_paths()
+    present_paths = Library.ExternalIds.list_present_file_paths()
     present_set = MapSet.new(present_paths)
     segment_index = segment_index(present_paths)
 
@@ -139,11 +139,11 @@ defmodule MediaCentaur.Acquisition.Pursuits.LibraryReconciler do
          episode_number: episode
        })
        when is_binary(tmdb_id) and is_integer(season) and is_integer(episode) do
-    Library.find_present_episode(tmdb_id, season, episode)
+    Library.ExternalIds.find_present_episode(tmdb_id, season, episode)
   end
 
   defp tmdb_match(%Pursuit{tmdb_type: "movie", tmdb_id: tmdb_id}, _unit) when is_binary(tmdb_id) do
-    Library.find_present_movie(tmdb_id)
+    Library.ExternalIds.find_present_movie(tmdb_id)
   end
 
   defp tmdb_match(_pursuit, _unit), do: :not_found

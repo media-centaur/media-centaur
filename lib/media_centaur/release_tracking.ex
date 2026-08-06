@@ -163,7 +163,7 @@ defmodule MediaCentaur.ReleaseTracking do
   def complete_movie_tracking_for(entity_ids) when is_list(entity_ids) do
     tmdb_ids =
       entity_ids
-      |> MediaCentaur.Library.tmdb_ids_for_movies()
+      |> MediaCentaur.Library.ExternalIds.tmdb_ids_for_movies()
       |> Enum.flat_map(fn {_movie_id, tmdb_id_str} ->
         case Integer.parse(tmdb_id_str) do
           {int, ""} -> [int]

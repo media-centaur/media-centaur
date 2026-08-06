@@ -330,7 +330,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   end
 
   defp link_unlinked_items(entity_ids) do
-    tmdb_mappings = Library.tmdb_ids_for_tv_series(entity_ids)
+    tmdb_mappings = Library.ExternalIds.tmdb_ids_for_tv_series(entity_ids)
 
     Enum.each(tmdb_mappings, fn {tv_series_id, tmdb_id_str} ->
       with {:ok, tmdb_id} <- Helpers.parse_tmdb_id(tmdb_id_str) do
