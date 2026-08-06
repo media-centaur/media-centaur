@@ -14,10 +14,13 @@ defmodule MediaCentaur.Library.HomeFeed do
 
   alias MediaCentaur.Library.{
     ContinueWatchingProgress,
+    Episode,
+    Episodes,
     Image,
     Movie,
     PlayableItem,
     PresentableQueries,
+    Season,
     TVSeries,
     VideoObject,
     WatchProgress
@@ -204,6 +207,85 @@ defmodule MediaCentaur.Library.HomeFeed do
     )
   end
 
+  # "When did the user last watch anything inside this title?" — the sort key
+  # every Continue Watching fetcher orders by. It is a question about the
+  # title's playable items, not the title itself, so each variant below
+  # answers it for one container shape and returns the one shape the callers
+  # join against: `%{container_id, last_watched_at}`.
+  #
+  # These were four hand-written SQL fragments naming five tables as string
+  # literals, which a schema rename would have broken silently — the query
+  # would still run and simply stop sorting. Expressed in Ecto, the same
+  # rename is a compile error.
+  #
+  # Callers inner-join these: every fetcher already requires an existing
+  # progress record via its first `exists`, so there is no row to preserve
+  # with a left join. `max/1` also replaces two `LIMIT 1`s that took an
+  # arbitrary progress row for titles with more than one playable item.
+
+  # Every WatchProgress row beneath a set of series, grouped by series, in
+  # one query. Replaces a per-episode lookup that first needed every episode
+  # id in memory to ask the question.
+  defp progress_records_by_tv_series([]), do: %{}
+
+  defp progress_records_by_tv_series(series_ids) do
+    from(wp in WatchProgress,
+      join: pi in PlayableItem,
+      on: pi.id == wp.playable_item_id,
+      join: episode in Episode,
+      on: episode.id == pi.container_id,
+      join: season in Season,
+      on: season.id == episode.season_id,
+      where: pi.container_type == ^:episode and season.tv_series_id in ^series_ids,
+      select: {season.tv_series_id, wp}
+    )
+    |> Repo.all()
+    |> Enum.group_by(fn {series_id, _progress} -> series_id end, fn {_id, progress} -> progress end)
+  end
+
+  # Containers whose playable items point straight at them (movies, video
+  # objects).
+  defp last_watched_by_container(container_type) do
+    from(wp in WatchProgress,
+      join: pi in PlayableItem,
+      on: pi.id == wp.playable_item_id,
+      where: pi.container_type == ^container_type,
+      group_by: pi.container_id,
+      select: %{container_id: pi.container_id, last_watched_at: max(wp.last_watched_at)}
+    )
+  end
+
+  # A series is watched through its episodes, so the progress rolls up two
+  # levels: episode -> season -> series.
+  defp last_watched_by_tv_series do
+    from(wp in WatchProgress,
+      join: pi in PlayableItem,
+      on: pi.id == wp.playable_item_id,
+      join: episode in Episode,
+      on: episode.id == pi.container_id,
+      join: season in Season,
+      on: season.id == episode.season_id,
+      where: pi.container_type == ^:episode,
+      group_by: season.tv_series_id,
+      select: %{container_id: season.tv_series_id, last_watched_at: max(wp.last_watched_at)}
+    )
+  end
+
+  # A collection is watched through its child movies. Standalone movies carry
+  # a nil `movie_series_id`; excluding them keeps the grouping keyed on a real
+  # collection id.
+  defp last_watched_by_movie_series do
+    from(wp in WatchProgress,
+      join: pi in PlayableItem,
+      on: pi.id == wp.playable_item_id,
+      join: movie in Movie,
+      on: movie.id == pi.container_id,
+      where: pi.container_type == ^:movie and not is_nil(movie.movie_series_id),
+      group_by: movie.movie_series_id,
+      select: %{container_id: movie.movie_series_id, last_watched_at: max(wp.last_watched_at)}
+    )
+  end
+
   defp fetch_in_progress_movies(limit) do
     fetch_in_progress_movie_records(
       PresentableQueries.standalone_movies_by_record_count(),
@@ -241,19 +323,9 @@ defmodule MediaCentaur.Library.HomeFeed do
             select: 1
           )
         ),
-      order_by: [
-        desc:
-          fragment(
-            """
-            (SELECT wp.last_watched_at
-               FROM library_watch_progress wp
-               JOIN library_playable_items pi ON pi.id = wp.playable_item_id
-              WHERE pi.container_type = 'movie' AND pi.container_id = ?
-              LIMIT 1)
-            """,
-            m.id
-          )
-      ],
+      join: last_watched in subquery(last_watched_by_container(:movie)),
+      on: last_watched.container_id == m.id,
+      order_by: [desc: last_watched.last_watched_at],
       limit: ^limit
     )
     |> Repo.all()
@@ -308,9 +380,9 @@ defmodule MediaCentaur.Library.HomeFeed do
             from(wp in WatchProgress,
               join: pi in PlayableItem,
               on: pi.id == wp.playable_item_id,
-              join: ep in "library_episodes",
+              join: ep in Episode,
               on: ep.id == pi.container_id and pi.container_type == ^:episode,
-              join: s in "library_seasons",
+              join: s in Season,
               on: s.id == ep.season_id,
               where: s.tv_series_id == parent_as(:series).id,
               select: 1
@@ -318,9 +390,9 @@ defmodule MediaCentaur.Library.HomeFeed do
           ),
         where:
           exists(
-            from(ep in "library_episodes",
+            from(ep in Episode,
               as: :episode,
-              join: s in "library_seasons",
+              join: s in Season,
               on: s.id == ep.season_id,
               where: s.tv_series_id == parent_as(:series).id,
               where:
@@ -338,56 +410,27 @@ defmodule MediaCentaur.Library.HomeFeed do
               select: 1
             )
           ),
-        order_by: [
-          desc:
-            fragment(
-              """
-              (SELECT wp.last_watched_at FROM library_watch_progress wp
-               JOIN library_playable_items pi ON pi.id = wp.playable_item_id
-               JOIN library_episodes ep ON ep.id = pi.container_id AND pi.container_type = 'episode'
-               JOIN library_seasons s ON s.id = ep.season_id
-               WHERE s.tv_series_id = ?
-               ORDER BY wp.last_watched_at DESC LIMIT 1)
-              """,
-              t.id
-            )
-        ],
+        join: last_watched in subquery(last_watched_by_tv_series()),
+        on: last_watched.container_id == t.id,
+        order_by: [desc: last_watched.last_watched_at],
         limit: ^limit
       )
       |> Repo.all()
-      |> Repo.preload([:images, seasons: [:episodes]])
+      |> Repo.preload([:images])
 
-    all_episode_ids =
-      for series <- series_list,
-          season <- series.seasons || [],
-          episode <- season.episodes || [],
-          do: episode.id
-
-    progress_by_episode_id =
-      if all_episode_ids == [] do
-        %{}
-      else
-        from(progress in WatchProgress,
-          join: pi in PlayableItem,
-          on: pi.id == progress.playable_item_id,
-          where: pi.container_type == ^:episode and pi.container_id in ^all_episode_ids,
-          select: {pi.container_id, progress}
-        )
-        |> Repo.all()
-        |> Map.new()
-      end
+    # The two numbers this row needs from the episode list — how many
+    # episodes there are, and which of them have progress — are both
+    # aggregates, so they are asked for as aggregates. Preloading
+    # `seasons: [:episodes]` to compute them loaded every episode of every
+    # returned series into memory to produce two integers apiece.
+    series_ids = Enum.map(series_list, & &1.id)
+    progress_by_series = progress_records_by_tv_series(series_ids)
+    episode_counts = Episodes.count_by_tv_series(series_ids)
 
     Enum.reject(
       Enum.map(series_list, fn series ->
-        episode_ids =
-          for season <- series.seasons || [], episode <- season.episodes || [], do: episode.id
-
-        progress_records =
-          episode_ids
-          |> Enum.map(&Map.get(progress_by_episode_id, &1))
-          |> Enum.reject(&is_nil/1)
-
-        episodes_total = length(episode_ids)
+        progress_records = Map.get(progress_by_series, series.id, [])
+        episodes_total = Map.get(episode_counts, series.id, 0)
         episodes_completed = Enum.count(progress_records, & &1.completed)
 
         # Include series when the user has touched it (any progress) AND
@@ -434,19 +477,9 @@ defmodule MediaCentaur.Library.HomeFeed do
               select: 1
             )
           ),
-        order_by: [
-          desc:
-            fragment(
-              """
-              (SELECT wp.last_watched_at
-                 FROM library_watch_progress wp
-                 JOIN library_playable_items pi ON pi.id = wp.playable_item_id
-                WHERE pi.container_type = 'video_object' AND pi.container_id = ?
-                LIMIT 1)
-              """,
-              v.id
-            )
-        ],
+        join: last_watched in subquery(last_watched_by_container(:video_object)),
+        on: last_watched.container_id == v.id,
+        order_by: [desc: last_watched.last_watched_at],
         limit: ^limit
       )
       |> Repo.all()
@@ -532,19 +565,9 @@ defmodule MediaCentaur.Library.HomeFeed do
               select: 1
             )
           ),
-        order_by: [
-          desc:
-            fragment(
-              """
-              (SELECT wp.last_watched_at FROM library_watch_progress wp
-               JOIN library_playable_items pi ON pi.id = wp.playable_item_id
-               JOIN library_movies m ON m.id = pi.container_id AND pi.container_type = 'movie'
-               WHERE m.movie_series_id = ?
-               ORDER BY wp.last_watched_at DESC LIMIT 1)
-              """,
-              ms.id
-            )
-        ],
+        join: last_watched in subquery(last_watched_by_movie_series()),
+        on: last_watched.container_id == ms.id,
+        order_by: [desc: last_watched.last_watched_at],
         limit: ^limit
       )
       |> Repo.all()

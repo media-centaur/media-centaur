@@ -353,6 +353,121 @@ defmodule MediaCentaur.LibraryTest do
     end
   end
 
+  describe "list_in_progress/1 keeps the most recently watched within the limit" do
+    # The final row order is decided in Elixir, so a test that only checks
+    # sortedness passes even with the SQL `order_by` deleted. What the
+    # order_by actually decides is *which* rows survive each per-type
+    # `limit` — so each test here seeds more in-progress titles of one
+    # container shape than the limit allows and asserts the survivors are
+    # the most recently watched. One test per shape, because each shape
+    # orders through its own query.
+
+    test "movies" do
+      movies =
+        for index <- 1..4 do
+          movie = create_standalone_movie(%{name: "Movie #{index}"})
+
+          progress =
+            create_watch_progress(%{
+              movie_id: movie.id,
+              position_seconds: 30.0,
+              duration_seconds: 100.0
+            })
+
+          backdate(progress, :last_watched_at, hours_ago(index))
+          {index, movie.id}
+        end
+
+      assert surviving_ids(limit: 2) == recent_ids(movies, 2)
+    end
+
+    test "video objects" do
+      videos =
+        for index <- 1..4 do
+          video = create_video_object(%{name: "Clip #{index}", content_url: "/media/clip#{index}.mkv"})
+
+          progress =
+            create_watch_progress(%{
+              video_object_id: video.id,
+              position_seconds: 30.0,
+              duration_seconds: 100.0
+            })
+
+          backdate(progress, :last_watched_at, hours_ago(index))
+          {index, video.id}
+        end
+
+      assert surviving_ids(limit: 2) == recent_ids(videos, 2)
+    end
+
+    test "tv series" do
+      series =
+        for index <- 1..4 do
+          series = create_tv_series(%{name: "Series #{index}"})
+          season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
+
+          # Two episodes, one watched and one not, so the series counts as
+          # started-but-unfinished.
+          watched = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
+          create_episode(%{season_id: season.id, episode_number: 2, name: "S1E2"})
+
+          progress =
+            create_watch_progress(%{
+              episode_id: watched.id,
+              position_seconds: 30.0,
+              duration_seconds: 100.0
+            })
+
+          backdate(progress, :last_watched_at, hours_ago(index))
+          {index, series.id}
+        end
+
+      assert surviving_ids(limit: 2) == recent_ids(series, 2)
+    end
+
+    test "movie collections" do
+      collections =
+        for index <- 1..4 do
+          collection = create_movie_series(%{name: "Collection #{index}"})
+
+          watched =
+            create_movie(%{movie_series_id: collection.id, name: "Part 1 of #{index}", position: 0})
+
+          create_movie(%{movie_series_id: collection.id, name: "Part 2 of #{index}", position: 1})
+
+          progress =
+            create_watch_progress(%{
+              movie_id: watched.id,
+              position_seconds: 30.0,
+              duration_seconds: 100.0
+            })
+
+          backdate(progress, :last_watched_at, hours_ago(index))
+          {index, collection.id}
+        end
+
+      assert surviving_ids(limit: 2) == recent_ids(collections, 2)
+    end
+  end
+
+  # Seeded index 1 is the most recent, so the `count` most recently watched
+  # are the lowest indexes.
+  defp recent_ids(seeded, count) do
+    seeded
+    |> Enum.sort_by(fn {index, _id} -> index end)
+    |> Enum.take(count)
+    |> Enum.map(fn {_index, id} -> id end)
+    |> Enum.sort()
+  end
+
+  defp surviving_ids(opts) do
+    opts |> Library.list_in_progress() |> Enum.map(& &1.entity_id) |> Enum.sort()
+  end
+
+  defp hours_ago(hours) do
+    DateTime.add(DateTime.utc_now(:second), -hours * 3600, :second)
+  end
+
   describe "list_recently_added/1" do
     test "returns empty list when no entities exist" do
       assert Library.list_recently_added() == []
