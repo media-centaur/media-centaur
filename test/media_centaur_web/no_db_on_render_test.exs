@@ -93,11 +93,17 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
   end
 
   defp mount_and_assert(conn, path, budget, why) do
+    # The LiveView mounts in its own process, so every mount query is emitted
+    # there, not here — `:from` scopes counting to it. Without a scope this
+    # would count every query in the VM and flake on background workers.
     {{:ok, _view, html}, queries} =
-      QueryCounter.count(fn ->
-        {:ok, view, html} = live(conn, path)
-        {:ok, view, html}
-      end)
+      QueryCounter.count(
+        fn ->
+          {:ok, view, html} = live(conn, path)
+          {:ok, view, html}
+        end,
+        from: fn {:ok, view, _html} -> [view.pid] end
+      )
 
     assert is_binary(html)
 
