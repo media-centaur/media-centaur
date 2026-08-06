@@ -988,7 +988,7 @@ defmodule MediaCentaur.LibraryTest do
 
     test "returns [] for a series with no episodes" do
       tv = create_tv_series(%{name: "Empty Series"})
-      assert Library.list_progress_records_for_tv_series(tv.id) == []
+      assert Library.ProgressRecords.list_for_tv_series(tv.id) == []
     end
 
     test "returns [] for episodes without WatchProgress" do
@@ -997,7 +997,7 @@ defmodule MediaCentaur.LibraryTest do
       episode = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
       _playable_item = create_playable_item_for_episode(episode)
 
-      assert Library.list_progress_records_for_tv_series(tv.id) == []
+      assert Library.ProgressRecords.list_for_tv_series(tv.id) == []
     end
 
     test "returns one record per episode with progress, keyed via :playable_item.container_id" do
@@ -1012,7 +1012,7 @@ defmodule MediaCentaur.LibraryTest do
       create_watch_progress(%{episode_id: episode1.id, completed: true})
       create_watch_progress(%{episode_id: episode2.id, position_seconds: 120.0})
 
-      records = Library.list_progress_records_for_tv_series(tv.id)
+      records = Library.ProgressRecords.list_for_tv_series(tv.id)
 
       assert length(records) == 2
 
@@ -1038,14 +1038,14 @@ defmodule MediaCentaur.LibraryTest do
       create_watch_progress(%{episode_id: episode_a.id, completed: true})
       create_watch_progress(%{episode_id: episode_b.id, completed: true})
 
-      records = Library.list_progress_records_for_tv_series(tv_a.id)
+      records = Library.ProgressRecords.list_for_tv_series(tv_a.id)
 
       assert [record] = records
       assert EpisodeList.progress_container_id(record) == episode_a.id
     end
 
     test "returns [] for an unknown TVSeries id" do
-      assert Library.list_progress_records_for_tv_series(Ecto.UUID.generate()) == []
+      assert Library.ProgressRecords.list_for_tv_series(Ecto.UUID.generate()) == []
     end
   end
 

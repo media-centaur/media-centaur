@@ -13,7 +13,9 @@ defmodule MediaCentaur.Library.Views.SearchTest do
 
   import MediaCentaur.TestFactory
 
+  alias MediaCentaur.Library.Containers
   alias MediaCentaur.Library.Events.EntitiesChanged
+  alias MediaCentaur.Library.PlayableItems
   alias MediaCentaur.Library.Views
   alias MediaCentaur.Library.Views.{Search, SearchItem}
   alias MediaCentaur.Topics
@@ -296,7 +298,7 @@ defmodule MediaCentaur.Library.Views.SearchTest do
       # no WatchedFile, which after Phase 4 is the canonical "absent"
       # state. The :present_only filter must hide this entity.
       absent = create_standalone_movie(%{name: "Absent Movie"})
-      {:ok, _pi} = MediaCentaur.Library.find_or_create_playable_item(:movie, absent.id, 1)
+      {:ok, _pi} = PlayableItems.find_or_create(:movie, absent.id, 1)
 
       assert :ok = Search.refresh_cache()
 
@@ -323,7 +325,7 @@ defmodule MediaCentaur.Library.Views.SearchTest do
       # Post-Phase-4 (library-presence-unification): absent = has a
       # PlayableItem (so Search indexes it) but no WatchedFile.
       absent = create_standalone_movie(%{name: "Absent Movie"})
-      {:ok, _pi} = MediaCentaur.Library.find_or_create_playable_item(:movie, absent.id, 1)
+      {:ok, _pi} = PlayableItems.find_or_create(:movie, absent.id, 1)
 
       assert :ok = Search.refresh_cache()
 
@@ -409,7 +411,7 @@ defmodule MediaCentaur.Library.Views.SearchTest do
 
       assert [%SearchItem{name: "Old Name"}] = Views.search("Old Name")
 
-      {:ok, _updated} = MediaCentaur.Library.Containers.update(series, %{name: "New Name"})
+      {:ok, _updated} = Containers.update(series, %{name: "New Name"})
       :ok = Search.refresh_cache()
 
       assert Views.search("Old Name") == []
@@ -461,7 +463,7 @@ defmodule MediaCentaur.Library.Views.SearchTest do
       # PlayableItem but no WatchedFile so Search indexes the entity
       # with present? = false. Stamping a WatchedFile flips it to true.
       movie = create_standalone_movie(%{name: "Late Arrival"})
-      {:ok, _pi} = MediaCentaur.Library.find_or_create_playable_item(:movie, movie.id, 1)
+      {:ok, _pi} = PlayableItems.find_or_create(:movie, movie.id, 1)
 
       :ok = Search.refresh_cache()
 

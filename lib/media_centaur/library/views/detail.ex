@@ -159,7 +159,7 @@ defmodule MediaCentaur.Library.Views.Detail do
   def handle_message({:entities_changed, %{entity_ids: ids}}) when is_list(ids) do
     ensure_table()
 
-    case Library.playable_item_ids_for_entities(ids) do
+    case Library.PlayableItems.ids_for_entities(ids) do
       [] ->
         # The entity may have been deleted — its PlayableItems are gone.
         # Sweep any stale rows from the table that point at these

@@ -1,6 +1,7 @@
 defmodule MediaCentaur.Library.TypeResolverTest do
   use MediaCentaur.DataCase, async: false
 
+  alias MediaCentaur.Library.PlayableItems
   alias MediaCentaur.Library.TypeResolver
 
   describe "resolve_container/2 — type dispatch" do
@@ -114,7 +115,7 @@ defmodule MediaCentaur.Library.TypeResolverTest do
       movie = create_standalone_movie(%{name: "PI Movie"})
 
       {:ok, item} =
-        MediaCentaur.Library.create_playable_item(%{
+        PlayableItems.create(%{
           container_type: :movie,
           container_id: movie.id,
           position: 1
@@ -134,7 +135,7 @@ defmodule MediaCentaur.Library.TypeResolverTest do
       episode = create_episode(%{season_id: season.id, episode_number: 1, name: "E1"})
 
       {:ok, item} =
-        MediaCentaur.Library.create_playable_item(%{
+        PlayableItems.create(%{
           container_type: :episode,
           container_id: episode.id,
           position: 1
@@ -151,7 +152,7 @@ defmodule MediaCentaur.Library.TypeResolverTest do
       video = create_video_object(%{name: "Sample Video"})
 
       {:ok, item} =
-        MediaCentaur.Library.create_playable_item(%{
+        PlayableItems.create(%{
           container_type: :video_object,
           container_id: video.id,
           position: 1
@@ -174,7 +175,7 @@ defmodule MediaCentaur.Library.TypeResolverTest do
       movie = create_standalone_movie(%{name: "About to delete"})
 
       {:ok, item} =
-        MediaCentaur.Library.create_playable_item(%{
+        PlayableItems.create(%{
           container_type: :movie,
           container_id: movie.id,
           position: 1

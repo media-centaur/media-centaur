@@ -221,7 +221,7 @@ defmodule MediaCentaur.Library.FileEventHandlerTest do
 
       assert entity_ids == [tv_series.id]
       assert {:error, _} = Library.fetch_episode(ep1.id)
-      assert {:error, :not_found} = Library.fetch_watch_progress_by_fk(:episode_id, ep1.id)
+      assert {:error, :not_found} = Library.ProgressRecords.fetch_for_container(:episode, ep1.id)
       assert {:ok, _} = Library.Containers.fetch(:tv_series, tv_series.id)
     end
 

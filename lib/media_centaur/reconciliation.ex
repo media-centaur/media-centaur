@@ -315,7 +315,7 @@ defmodule MediaCentaur.Reconciliation do
   end
 
   defp ensure_episode_playable_item(episode) do
-    case Library.create_playable_item(%{
+    case Library.PlayableItems.create(%{
            container_type: :episode,
            container_id: episode.id,
            position: episode.episode_number || 1
@@ -324,7 +324,7 @@ defmodule MediaCentaur.Reconciliation do
         {:ok, item.id}
 
       {:error, %Ecto.Changeset{}} ->
-        case Library.list_playable_items_for(:episode, episode.id) do
+        case Library.PlayableItems.list_for(:episode, episode.id) do
           [item | _] -> {:ok, item.id}
           [] -> :error
         end

@@ -16,7 +16,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
       })
 
       {:ok, found} =
-        Library.fetch_watch_progress_by_fk(:movie_id, movie.id)
+        Library.ProgressRecords.fetch_for_container(:movie, movie.id)
 
       found = MediaCentaur.Repo.preload(found, :playable_item)
 
@@ -61,8 +61,8 @@ defmodule MediaCentaur.Library.WatchProgressTest do
       })
 
       # Mark completed via dedicated action
-      {:ok, record} = Library.fetch_watch_progress_by_fk(:episode_id, episode.id)
-      {:ok, _} = Library.mark_watch_completed(record)
+      {:ok, record} = Library.ProgressRecords.fetch_for_container(:episode, episode.id)
+      {:ok, _} = Library.ProgressRecords.mark_completed(record)
 
       # Now upsert with a lower position (re-watching from earlier)
       create_watch_progress(%{
@@ -71,7 +71,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 7200.0
       })
 
-      {:ok, updated} = Library.fetch_watch_progress_by_fk(:episode_id, episode.id)
+      {:ok, updated} = Library.ProgressRecords.fetch_for_container(:episode, episode.id)
 
       # completed stays true — never regresses
       assert updated.completed == true
@@ -101,7 +101,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 2400.0
       })
 
-      records = Library.list_watch_progress()
+      records = Library.ProgressRecords.list_all()
 
       assert length(records) == 1
       assert hd(records).position_seconds == 1200.0
@@ -122,7 +122,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 7200.0
       })
 
-      records = Library.list_watch_progress()
+      records = Library.ProgressRecords.list_all()
 
       assert length(records) == 1
       assert hd(records).position_seconds == 3930.0
@@ -152,7 +152,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 2400.0
       })
 
-      {:ok, updated} = Library.fetch_watch_progress_by_fk(:episode_id, episode.id)
+      {:ok, updated} = Library.ProgressRecords.fetch_for_container(:episode, episode.id)
 
       assert DateTime.compare(updated.last_watched_at, first.last_watched_at) in [:gt, :eq]
       assert updated.position_seconds == 300.0
@@ -180,7 +180,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
         duration_seconds: 2400.0
       })
 
-      records = Library.list_watch_progress()
+      records = Library.ProgressRecords.list_all()
 
       assert length(records) == 2
     end
@@ -199,7 +199,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
 
       assert progress.completed == false
 
-      {:ok, updated} = Library.mark_watch_completed(progress)
+      {:ok, updated} = Library.ProgressRecords.mark_completed(progress)
       assert updated.completed == true
     end
 
@@ -213,7 +213,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
           duration_seconds: 7200.0
         })
 
-      {:ok, updated} = Library.mark_watch_completed(progress)
+      {:ok, updated} = Library.ProgressRecords.mark_completed(progress)
       assert DateTime.compare(updated.last_watched_at, progress.last_watched_at) in [:gt, :eq]
     end
   end
@@ -233,10 +233,10 @@ defmodule MediaCentaur.Library.WatchProgressTest do
           duration_seconds: 2400.0
         })
 
-      {:ok, completed} = Library.mark_watch_completed(progress)
+      {:ok, completed} = Library.ProgressRecords.mark_completed(progress)
       assert completed.completed == true
 
-      {:ok, incomplete} = Library.mark_watch_incomplete(completed)
+      {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
       assert incomplete.completed == false
       assert incomplete.last_watched_at != nil
     end
@@ -251,9 +251,9 @@ defmodule MediaCentaur.Library.WatchProgressTest do
           duration_seconds: 7200.0
         })
 
-      {:ok, completed} = Library.mark_watch_completed(progress)
+      {:ok, completed} = Library.ProgressRecords.mark_completed(progress)
 
-      {:ok, incomplete} = Library.mark_watch_incomplete(completed)
+      {:ok, incomplete} = Library.ProgressRecords.mark_incomplete(completed)
       assert DateTime.compare(incomplete.last_watched_at, completed.last_watched_at) in [:gt, :eq]
     end
   end
@@ -267,7 +267,7 @@ defmodule MediaCentaur.Library.WatchProgressTest do
       movie = create_entity(%{type: :movie, name: "Unique Constraint Movie"})
 
       {:ok, playable_item} =
-        Library.find_or_create_playable_item(:movie, movie.id, 1)
+        Library.PlayableItems.find_or_create(:movie, movie.id, 1)
 
       assert {:ok, _first} =
                Repo.insert(

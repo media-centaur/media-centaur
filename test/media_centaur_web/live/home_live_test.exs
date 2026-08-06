@@ -291,13 +291,12 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       refute html =~ "Watch again"
 
       {:ok, progress} =
-        Library.find_or_create_watch_progress_for_movie(%{
-          movie_id: movie.id,
+        Library.ProgressRecords.find_or_create_for_container(:movie, movie.id, %{
           position_seconds: 100.0,
           duration_seconds: 100.0
         })
 
-      Library.mark_watch_completed!(progress)
+      Library.ProgressRecords.mark_completed!(progress)
       ProgressBroadcaster.broadcast(movie.id, nil)
 
       assert render(view) =~ "Watch again"

@@ -88,7 +88,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
           duration_seconds: 1000.0
         })
 
-      Library.mark_watch_completed!(progress)
+      Library.ProgressRecords.mark_completed!(progress)
 
       # Movie the user has never touched
       untouched_movie = create_standalone_movie(%{name: "Untouched Movie"})

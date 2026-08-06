@@ -467,49 +467,49 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
   # --- resolve_progress_fk/4 ---
 
   describe "resolve_progress_fk/4 — tv_series" do
-    test "returns {:episode_id, id} when season + episode exist" do
+    test "returns {:episode, id} when season + episode exist" do
       episode = build_episode(%{id: "ep-42", episode_number: 3, content_url: "/s1e3.mkv"})
       season = build_season(%{season_number: 2, episodes: [episode]})
       entity = %{type: :tv_series, seasons: [season]}
       entries = %{"entity-1" => %{entity: entity}}
 
       assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 2, 3) ==
-               {:episode_id, "ep-42"}
+               {:episode, "ep-42"}
     end
 
-    test "returns {:episode_id, nil} when season missing" do
+    test "returns {:episode, nil} when season missing" do
       entity = %{type: :tv_series, seasons: [build_season(%{season_number: 1, episodes: []})]}
       entries = %{"entity-1" => %{entity: entity}}
 
-      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 9, 1) == {:episode_id, nil}
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 9, 1) == {:episode, nil}
     end
 
-    test "returns {:episode_id, nil} when episode missing from season" do
+    test "returns {:episode, nil} when episode missing from season" do
       episode = build_episode(%{episode_number: 1, content_url: "/s1e1.mkv"})
       season = build_season(%{season_number: 1, episodes: [episode]})
       entity = %{type: :tv_series, seasons: [season]}
       entries = %{"entity-1" => %{entity: entity}}
 
-      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 1, 99) == {:episode_id, nil}
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 1, 99) == {:episode, nil}
     end
 
-    test "returns {:episode_id, nil} when entity not in cache" do
-      assert LibraryProgress.resolve_progress_fk(%{}, "missing", 1, 1) == {:episode_id, nil}
+    test "returns {:episode, nil} when entity not in cache" do
+      assert LibraryProgress.resolve_progress_fk(%{}, "missing", 1, 1) == {:episode, nil}
     end
   end
 
   describe "resolve_progress_fk/4 — movie_series (season == 0)" do
-    test "returns {:movie_id, id} for movies with content_url at given ordinal" do
+    test "returns {:movie, id} for movies with content_url at given ordinal" do
       movie1 = build_movie(%{id: "m-1", content_url: "/a.mkv"})
       movie2 = build_movie(%{id: "m-2", content_url: "/b.mkv"})
       entity = %{type: :movie_series, movies: [movie1, movie2]}
       entries = %{"entity-1" => %{entity: entity}}
 
       assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 1) ==
-               {:movie_id, "m-1"}
+               {:movie, "m-1"}
 
       assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 2) ==
-               {:movie_id, "m-2"}
+               {:movie, "m-2"}
     end
 
     test "skips movies without content_url when numbering ordinals" do
@@ -519,31 +519,31 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
       entries = %{"entity-1" => %{entity: entity}}
 
       assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 1) ==
-               {:movie_id, "present"}
+               {:movie, "present"}
     end
 
-    test "returns {:movie_id, nil} when ordinal out of range" do
+    test "returns {:movie, nil} when ordinal out of range" do
       movie = build_movie(%{id: "m-1", content_url: "/a.mkv"})
       entity = %{type: :movie_series, movies: [movie]}
       entries = %{"entity-1" => %{entity: entity}}
 
-      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 99) == {:movie_id, nil}
+      assert LibraryProgress.resolve_progress_fk(entries, "entity-1", 0, 99) == {:movie, nil}
     end
   end
 
   describe "resolve_progress_fk/4 — standalone movie (season == 0)" do
-    test "returns {:movie_id, entity_id} for type :movie" do
+    test "returns {:movie, entity_id} for type :movie" do
       entity = %{type: :movie, id: "entity-42"}
       entries = %{"entity-42" => %{entity: entity}}
 
       assert LibraryProgress.resolve_progress_fk(entries, "entity-42", 0, 1) ==
-               {:movie_id, "entity-42"}
+               {:movie, "entity-42"}
     end
   end
 
   describe "resolve_progress_fk/4 — fallback" do
-    test "returns {:movie_id, entity_id} when entity missing from cache (season 0)" do
-      assert LibraryProgress.resolve_progress_fk(%{}, "unknown", 0, 1) == {:movie_id, "unknown"}
+    test "returns {:movie, entity_id} when entity missing from cache (season 0)" do
+      assert LibraryProgress.resolve_progress_fk(%{}, "unknown", 0, 1) == {:movie, "unknown"}
     end
   end
 

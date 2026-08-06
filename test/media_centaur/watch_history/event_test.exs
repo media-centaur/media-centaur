@@ -77,7 +77,7 @@ defmodule MediaCentaur.WatchHistory.EventTest do
 
       MediaCentaur.WatchHistory.delete_event!(event)
 
-      {:ok, progress} = MediaCentaur.Library.fetch_watch_progress_by_fk(:movie_id, movie.id)
+      {:ok, progress} = MediaCentaur.Library.ProgressRecords.fetch_for_container(:movie, movie.id)
       assert progress.completed == true
     end
 
@@ -145,7 +145,7 @@ defmodule MediaCentaur.WatchHistory.EventTest do
 
       MediaCentaur.WatchHistory.delete_event!(event, reset_progress: true)
 
-      {:ok, reloaded} = MediaCentaur.Library.fetch_watch_progress_by_fk(:movie_id, movie.id)
+      {:ok, reloaded} = MediaCentaur.Library.ProgressRecords.fetch_for_container(:movie, movie.id)
       assert reloaded.completed == false
     end
 

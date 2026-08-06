@@ -31,7 +31,7 @@ defmodule MediaCentaur.Library.Progress.Worker do
       already pending.
     * `handle_info(:flush, state)` wraps the batched upsert in a
       single `Repo.transaction/1` via `persist_rows/1` —
-      `Library.upsert_watch_progress_by_playable_item_id!/1` is
+      `Library.ProgressRecords.upsert_by_playable_item!/1` is
       called per row inside the transaction so a mid-flush failure
       rolls back the whole batch. On success, the dirty set is
       cleared and `{:progress_flushed, %ProgressFlushed{playable_item_id: id}}`
@@ -139,7 +139,7 @@ defmodule MediaCentaur.Library.Progress.Worker do
   def handle_call({:complete, playable_item_id}, _from, state) do
     now = DateTime.utc_now(:second)
 
-    case Library.find_or_create_watch_progress_by_playable_item_id(playable_item_id) do
+    case Library.ProgressRecords.find_or_create_by_playable_item(playable_item_id) do
       {:ok, record} ->
         # Flush any pending dirty position for this PI first so we
         # mark-completed against the latest known position, not a
@@ -161,7 +161,7 @@ defmodule MediaCentaur.Library.Progress.Worker do
               updated
           end
 
-        {:ok, _completed} = Library.mark_watch_completed(record)
+        {:ok, _completed} = Library.ProgressRecords.mark_completed(record)
 
         upsert_in_memory(
           state.table,
@@ -355,7 +355,7 @@ defmodule MediaCentaur.Library.Progress.Worker do
     # desync from the in-memory ETS state and silently drop the
     # un-persisted dirty entries.
     case Repo.transaction(fn ->
-           Enum.each(rows, &Library.upsert_watch_progress_by_playable_item_id!/1)
+           Enum.each(rows, &Library.ProgressRecords.upsert_by_playable_item!/1)
          end) do
       {:ok, _} -> :ok
       {:error, reason} -> {:error, reason}

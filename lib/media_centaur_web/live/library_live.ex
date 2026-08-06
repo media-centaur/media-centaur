@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   (ADR-041) — pre-shaped `BrowseItem` structs in recent-first
   (`inserted_at desc`) order. Progress and availability live in
   separate per-id maps populated via the bulk context functions
-  `Library.list_progress_summaries/1` and
+  `Library.ProgressRecords.summaries/1` and
   `Library.Availability.available_for_ids/1`. The mount issues a
   bounded number of queries that does not scale with catalog size.
 
@@ -230,7 +230,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     # The EntityModal hook keeps `:selected_entry`'s progress fresh on
     # its own. Here we refresh just the affected card's progress
     # summary so the bar / completion overlay reflects the change.
-    updated_summaries = Library.list_progress_summaries([entity_id])
+    updated_summaries = Library.ProgressRecords.summaries([entity_id])
 
     progress_by_id =
       case Map.get(updated_summaries, entity_id) do
@@ -513,7 +513,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp load_library(socket) do
     entries = Library.Views.browse()
     ids = Enum.map(entries, & &1.id)
-    progress_by_id = Library.list_progress_summaries(ids)
+    progress_by_id = Library.ProgressRecords.summaries(ids)
     availability_map = Availability.available_for_ids(ids)
 
     assign(socket,

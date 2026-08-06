@@ -102,7 +102,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
       EntityCascade.destroy!(movie.id)
 
       assert {:error, _} = Library.Containers.fetch(:movie, movie.id)
-      assert Library.list_playable_items_for(:movie, movie.id) == []
+      assert Library.PlayableItems.list_for(:movie, movie.id) == []
     end
 
     test "cascade deletes PlayableItem rows for a video object" do
@@ -112,7 +112,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
       EntityCascade.destroy!(video_object.id)
 
       assert {:error, _} = Library.Containers.fetch(:video_object, video_object.id)
-      assert Library.list_playable_items_for(:video_object, video_object.id) == []
+      assert Library.PlayableItems.list_for(:video_object, video_object.id) == []
     end
 
     test "cascade deletes PlayableItem rows for every episode of a TV series" do
@@ -127,8 +127,8 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
       EntityCascade.destroy!(tv_series.id)
 
       assert {:error, _} = Library.Containers.fetch(:tv_series, tv_series.id)
-      assert Library.list_playable_items_for(:episode, episode1.id) == []
-      assert Library.list_playable_items_for(:episode, episode2.id) == []
+      assert Library.PlayableItems.list_for(:episode, episode1.id) == []
+      assert Library.PlayableItems.list_for(:episode, episode2.id) == []
     end
 
     test "cascade deletes PlayableItem rows for every child movie of a MovieSeries" do
@@ -148,7 +148,7 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
 
       assert {:error, _} = Library.Containers.fetch(:movie_series, series.id)
       assert {:error, _} = Library.Containers.fetch(:movie, child.id)
-      assert Library.list_playable_items_for(:movie, child.id) == []
+      assert Library.PlayableItems.list_for(:movie, child.id) == []
     end
 
     test "leaves PlayableItems for unrelated containers untouched" do
@@ -160,8 +160,8 @@ defmodule MediaCentaur.Library.EntityCascadeTest do
 
       EntityCascade.destroy!(target.id)
 
-      assert Library.list_playable_items_for(:movie, target.id) == []
-      assert length(Library.list_playable_items_for(:movie, untouched.id)) == 1
+      assert Library.PlayableItems.list_for(:movie, target.id) == []
+      assert length(Library.PlayableItems.list_for(:movie, untouched.id)) == 1
       assert MediaCentaur.Repo.aggregate(PlayableItem, :count, :id) == 1
     end
   end

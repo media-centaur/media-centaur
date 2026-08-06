@@ -689,7 +689,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     extra_id = state.extra_id
 
     Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-      case MediaCentaur.Library.find_or_create_extra_progress(params) do
+      case MediaCentaur.Library.ProgressRecords.find_or_create_for_extra(params) do
         {:ok, record} ->
           Log.info(
             :playback,
@@ -766,7 +766,7 @@ defmodule MediaCentaur.Playback.MpvSession do
         _ -> 1
       end
 
-    case Library.find_or_create_playable_item(:movie, movie_id, position) do
+    case Library.PlayableItems.find_or_create(:movie, movie_id, position) do
       {:ok, %{id: id}} -> {:ok, id}
       other -> other
     end
@@ -779,14 +779,14 @@ defmodule MediaCentaur.Playback.MpvSession do
         _ -> 1
       end
 
-    case Library.find_or_create_playable_item(:episode, episode_id, position) do
+    case Library.PlayableItems.find_or_create(:episode, episode_id, position) do
       {:ok, %{id: id}} -> {:ok, id}
       other -> other
     end
   end
 
   defp resolve_or_create_playable_item_id(%{video_object_id: vo_id}) when not is_nil(vo_id) do
-    case Library.find_or_create_playable_item(:video_object, vo_id, 1) do
+    case Library.PlayableItems.find_or_create(:video_object, vo_id, 1) do
       {:ok, %{id: id}} -> {:ok, id}
       other -> other
     end
@@ -846,7 +846,7 @@ defmodule MediaCentaur.Playback.MpvSession do
         "extra marked completed — #{Float.round(position / duration * 100, 0)}%"
       )
 
-      case MediaCentaur.Library.mark_extra_completed(record) do
+      case MediaCentaur.Library.ProgressRecords.mark_completed(record) do
         {:ok, _} ->
           :ok
 

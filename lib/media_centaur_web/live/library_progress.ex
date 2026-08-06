@@ -151,9 +151,9 @@ defmodule MediaCentaurWeb.LibraryProgress do
   # --- Progress FK resolution ---
 
   @doc """
-  Resolves `{fk_key, fk_id}` for a watch-progress lookup from the cached
-  `entries_by_id` map. Called from LibraryLive before dispatching progress
-  updates — pure, no DB access.
+  Resolves `{container_type, container_id}` for a watch-progress lookup
+  from the cached `entries_by_id` map. Called from LibraryLive before
+  dispatching progress updates — pure, no DB access.
 
   `season_number == 0` selects a movie (standalone or an entry within a
   movie series, indexed by `ordinal`). Any non-zero `season_number`
@@ -164,7 +164,7 @@ defmodule MediaCentaurWeb.LibraryProgress do
   directly to skip the `Map.get`.
   """
   @spec resolve_progress_fk(map(), String.t(), non_neg_integer(), non_neg_integer()) ::
-          {:movie_id, String.t() | nil} | {:episode_id, String.t() | nil}
+          {:movie, String.t() | nil} | {:episode, String.t() | nil}
   def resolve_progress_fk(entries_by_id, entity_id, season_number, episode_number) do
     resolve_progress_fk_from_entry(
       Map.get(entries_by_id, entity_id),
@@ -175,7 +175,7 @@ defmodule MediaCentaurWeb.LibraryProgress do
   end
 
   @doc """
-  Resolves `{fk_key, fk_id}` from a single loaded entry (the
+  Resolves `{container_type, container_id}` from a single loaded entry (the
   `%{entity: ...}` shape used by both `LibraryLive`'s cache values and
   `EntityModal`'s `:selected_entry`). Same semantics as
   `resolve_progress_fk/4`, but skips the cache lookup.
@@ -185,29 +185,29 @@ defmodule MediaCentaurWeb.LibraryProgress do
           String.t(),
           non_neg_integer(),
           non_neg_integer()
-        ) :: {:movie_id, String.t() | nil} | {:episode_id, String.t() | nil}
+        ) :: {:movie, String.t() | nil} | {:episode, String.t() | nil}
   def resolve_progress_fk_from_entry(entry, entity_id, 0, ordinal) do
     case entry do
       %{entity: %{type: :movie_series, movies: movies}} when is_list(movies) ->
-        {:movie_id, find_movie_in_series(movies, ordinal)}
+        {:movie, find_movie_in_series(movies, ordinal)}
 
       %{entity: %{type: :movie, id: id}} ->
-        {:movie_id, id}
+        {:movie, id}
 
       _ ->
         # Standalone movie selection — entity_id is already the movie row.
         # Extras inside any container also flow through season=0.
-        {:movie_id, entity_id}
+        {:movie, entity_id}
     end
   end
 
   def resolve_progress_fk_from_entry(entry, _entity_id, season_number, episode_number) do
     case entry do
       %{entity: %{type: :tv_series, seasons: seasons}} when is_list(seasons) ->
-        {:episode_id, find_episode_in_seasons(seasons, season_number, episode_number)}
+        {:episode, find_episode_in_seasons(seasons, season_number, episode_number)}
 
       _ ->
-        {:episode_id, nil}
+        {:episode, nil}
     end
   end
 

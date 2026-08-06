@@ -7,7 +7,7 @@ defmodule MediaCentaur.Playback.ResolverTest do
   alias MediaCentaur.Playback.Resolver
 
   defp mark_completed(progress) do
-    Library.mark_watch_completed!(progress)
+    Library.ProgressRecords.mark_completed!(progress)
   end
 
   describe "resolve/1 with Entity UUID" do
