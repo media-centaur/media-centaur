@@ -359,7 +359,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             data-nav-item
             tabindex="0"
           >
-            Plan {@chosen_count} {if @chosen_count == 1, do: "episode", else: "episodes"}
+            Download {@chosen_count} {if @chosen_count == 1, do: "episode", else: "episodes"}
           </.button>
         </div>
       </div>
@@ -536,8 +536,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
       </div>
 
       <div class="border-t border-base-content/10 px-6 py-4 flex items-center justify-end gap-2">
+        <%!-- Only a movie that isn't out yet has a release to watch for;
+              for one already out, tracking would promise nothing. --%>
         <.button
-          :if={!@movie.in_library?}
+          :if={!@movie.in_library? && @movie.upcoming?}
           variant="neutral"
           size="sm"
           phx-click="plan_track_only"
@@ -559,7 +561,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           data-nav-item
           tabindex="0"
         >
-          Plan it
+          Download
         </.button>
       </div>
     </div>
@@ -890,11 +892,10 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
             data-nav-item
             tabindex="0"
           >
+            <%!-- The release count and total size sit in the footer summary
+                  to the left; the button names the act, not the tally. --%>
             <span :if={@approving} class="loading loading-spinner loading-xs"></span>
-            {if @approving,
-              do: "Approving…",
-              else:
-                "Approve & grab #{length(@board.releases)} #{if length(@board.releases) == 1, do: "release", else: "releases"}"}
+            {if @approving, do: "Approving…", else: "Approve plan"}
           </.button>
         </div>
       </div>

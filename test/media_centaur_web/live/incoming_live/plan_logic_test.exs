@@ -234,6 +234,51 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
     assert "2025" in preview.metadata_items
   end
 
+  test "movie_preview marks a movie whose earliest typed release is still ahead as upcoming" do
+    tmdb_movie = %{
+      "id" => 1_422_011,
+      "title" => "Sample Movie",
+      "release_date" => "2027-03-05",
+      "release_dates" => %{
+        "results" => [
+          %{
+            "iso_3166_1" => "US",
+            "release_dates" => [%{"type" => 3, "release_date" => "2027-03-05T00:00:00.000Z"}]
+          }
+        ]
+      }
+    }
+
+    assert PlanLogic.movie_preview(tmdb_movie, false, ~D[2026-08-06]).upcoming?
+  end
+
+  test "movie_preview marks a released movie as not upcoming" do
+    tmdb_movie = %{
+      "id" => 550,
+      "title" => "Sample Movie",
+      "release_date" => "2016-03-18",
+      "release_dates" => %{
+        "results" => [
+          %{
+            "iso_3166_1" => "US",
+            "release_dates" => [%{"type" => 3, "release_date" => "2016-03-18T00:00:00.000Z"}]
+          }
+        ]
+      }
+    }
+
+    refute PlanLogic.movie_preview(tmdb_movie, false, ~D[2026-08-06]).upcoming?
+
+    # Out today counts as out.
+    refute PlanLogic.movie_preview(tmdb_movie, false, ~D[2016-03-18]).upcoming?
+  end
+
+  test "movie_preview treats an undated movie as upcoming" do
+    tmdb_movie = %{"id" => 550, "title" => "Sample Movie"}
+
+    assert PlanLogic.movie_preview(tmdb_movie, false, ~D[2026-08-06]).upcoming?
+  end
+
   test "movie_preview tolerates a sparse TMDB payload" do
     tmdb_movie = %{"id" => 550, "title" => "Sample Movie", "overview" => ""}
 

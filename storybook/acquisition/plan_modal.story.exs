@@ -96,8 +96,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
             "that movie: hero (backdrop + logo, both rendered live from TMDB in the app — nil " <>
             "here pins the title fallback + film-icon frame), metadata row, overview, the same " <>
             "facet strip the owned detail panel shows (director, rating, language, studio, " <>
-            "genres), and a top-cast strip. The footer: Cancel · Track release (follow the " <>
-            "movie's release without grabbing — the retired Track modal's verb) · Plan it.",
+            "genres), and a top-cast strip. The movie is out, so the footer carries the two " <>
+            "verbs that mean something: Cancel · Download.",
         attributes: %{
           open: true,
           stage: :movie_confirm,
@@ -127,6 +127,28 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
               %Person{name: "Actor Four", character: "Diner Owner", order: 3}
             ],
             in_library?: false
+          }
+        }
+      },
+      %Variation{
+        id: :movie_confirm_upcoming,
+        description:
+          "A movie that isn't out yet — the footer adds Track release (release tracking " <>
+            "watches for it, nothing is grabbed now). This is the only state that verb " <>
+            "appears in; once the movie is out there is no future release to wait for.",
+        attributes: %{
+          open: true,
+          stage: :movie_confirm,
+          backdrop_url: @sample_backdrop,
+          movie: %MoviePreview{
+            tmdb_id: "779",
+            title: "Sample Movie",
+            tagline: "Coming next year.",
+            overview: "Announced, dated, and not yet released — nothing to grab, only to watch for.",
+            metadata_items: ["2027", "PG-13", "US"],
+            facets: [Facet.text("Director", "Jane Director")],
+            in_library?: false,
+            upcoming?: true
           }
         }
       },

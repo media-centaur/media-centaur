@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
   @moduledoc """
   The flat media-search answer sheet — TMDB results as page content
   below the omnibox (no floating overlay). Rows carry poster thumb,
-  identity line, overview, and the one verb (Plan download / Track);
+  identity line, overview, and the one verb (Download / Track release);
   the header row holds the search status and the Clear search reset.
   """
 

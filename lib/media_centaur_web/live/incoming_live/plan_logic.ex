@@ -198,9 +198,14 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   Facets are assembled by the same `Detail.Logic.facets_for/2` the owned
   movie detail panel uses; cast becomes `Library.Person` structs capped
   to the top billing. Absent/blank fields collapse to `nil`/empty.
+
+  `upcoming?` compares the canonical release date against `today`: a
+  missing or future date means the movie isn't out yet, and the stage
+  offers *Track release* instead of assuming there is something to
+  download. Out today counts as out.
   """
-  @spec movie_preview(map(), boolean()) :: MoviePreview.t()
-  def movie_preview(tmdb_movie, in_library?) do
+  @spec movie_preview(map(), boolean(), Date.t()) :: MoviePreview.t()
+  def movie_preview(tmdb_movie, in_library?, today \\ Date.utc_today()) do
     tmdb_id = tmdb_movie["id"]
     attrs = Mapper.movie_attrs(tmdb_id, tmdb_movie, nil)
     images = Map.new(Mapper.image_list(tmdb_movie), &{&1.role, &1.url})
@@ -217,9 +222,13 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
       metadata_items: movie_metadata_items(attrs),
       facets: DetailLogic.facets_for(:movie, attrs),
       cast: movie_cast(attrs.cast),
-      in_library?: in_library?
+      in_library?: in_library?,
+      upcoming?: upcoming?(attrs.date_published, today)
     }
   end
+
+  defp upcoming?(nil, _today), do: true
+  defp upcoming?(%Date{} = release_date, today), do: Date.after?(release_date, today)
 
   # Non-facet row items: year and runtime plus certification and country,
   # mirroring the owned detail panel's metadata row. Rating, director,

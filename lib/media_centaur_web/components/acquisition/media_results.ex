@@ -11,10 +11,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   `grid` nav zone this reuses (the two modes are exclusive, so only
   one grid exists at a time).
 
-  Each row is one verb: clicking plans the download (or tracks, when
-  no indexer is configured) — the same `omnibox_pick` contract the
-  popup rows carried. Pure rendering; events bubble to the parent
-  LiveView (`omnibox_pick`, `omnibox_clear`).
+  Each row is one verb: clicking downloads the title — opening the plan
+  flow, which is a step toward it, not the goal — or tracks it when no
+  indexer is configured. Same `omnibox_pick` contract the popup rows
+  carried. Pure rendering; events bubble to the parent LiveView
+  (`omnibox_pick`, `omnibox_clear`).
   """
 
   use Phoenix.Component
@@ -32,7 +33,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
 
   attr :release_mode_available, :boolean,
     required: true,
-    doc: "Whether an indexer is configured — flips the row verb between plan and track."
+    doc: "Whether an indexer is configured — flips the row verb between download and track."
 
   attr :scope, :atom,
     default: :all,
@@ -221,14 +222,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   end
 
   # The row's one verb, honest per release status: a released title can
-  # be planned (or tracked without an indexer); an unreleased one can
+  # be downloaded (or tracked without an indexer); an unreleased one can
   # only be tracked — the host's `omnibox_pick` performs exactly this
-  # split. An already-tracked upcoming row affords nothing further, so
-  # the verb slot stays empty (the identity line carries the Tracked
-  # marker).
+  # split. The verb names the goal, not the planning step it opens with.
+  # An already-tracked upcoming row affords nothing further, so the verb
+  # slot stays empty (the identity line carries the Tracked marker).
   defp verb(%TitleResult{tracked?: true}, :upcoming, _release_mode_available), do: nil
   defp verb(%TitleResult{}, :upcoming, _release_mode_available), do: "Track release"
-  defp verb(%TitleResult{}, :released, true), do: "Plan download"
+  defp verb(%TitleResult{}, :released, true), do: "Download"
   defp verb(%TitleResult{}, :released, false), do: "Track"
 
   @doc """
