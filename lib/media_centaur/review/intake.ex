@@ -14,6 +14,9 @@ defmodule MediaCentaur.Review.Intake do
 
   alias MediaCentaur.Parser
   alias MediaCentaur.Review
+  alias MediaCentaur.Review.Events
+  alias MediaCentaur.Review.Events.FileAdded
+  alias MediaCentaur.Review.Events.FileReviewed
   alias MediaCentaur.Topics
 
   def start_link(_opts) do
@@ -22,7 +25,7 @@ defmodule MediaCentaur.Review.Intake do
 
   @impl true
   def init(_) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_intake())
+    Topics.subscribe(Topics.review_intake())
     {:ok, %{}}
   end
 
@@ -34,24 +37,20 @@ defmodule MediaCentaur.Review.Intake do
   Creates a PendingFile from a plain map of pre-normalized attributes.
 
   Uses find_or_create for idempotency — a second call with the same file_path
-  returns the existing record. Broadcasts `{:file_added, id}` to
+  returns the existing record. Broadcasts a `FileAdded` event on
   `"review:updates"` on success.
   """
   @spec create_pending_file(map()) :: {:ok, struct()} | {:error, term()}
   def create_pending_file(attrs) do
     with {:ok, pending_file} <- Review.find_or_create_pending_file(attrs) do
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
-        Topics.review_updates(),
-        {:file_added, pending_file.id}
-      )
+      Events.broadcast(%FileAdded{pending_file_id: pending_file.id})
 
       {:ok, pending_file}
     end
   end
 
   @doc """
-  Destroys a PendingFile by ID and broadcasts `{:file_reviewed, id}` to
+  Destroys a PendingFile by ID and broadcasts a `FileReviewed` event on
   `"review:updates"`. Returns `:ok` even if the record was already removed.
   """
   @spec complete_review(Ecto.UUID.t()) :: :ok
@@ -60,11 +59,7 @@ defmodule MediaCentaur.Review.Intake do
       {:ok, pending_file} ->
         Review.destroy_pending_file!(pending_file)
 
-        Phoenix.PubSub.broadcast(
-          MediaCentaur.PubSub,
-          Topics.review_updates(),
-          {:file_reviewed, pending_file_id}
-        )
+        Events.broadcast(%FileReviewed{pending_file_id: pending_file_id})
 
       {:error, :not_found} ->
         :ok

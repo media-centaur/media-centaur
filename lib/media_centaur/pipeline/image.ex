@@ -98,8 +98,7 @@ defmodule MediaCentaur.Pipeline.Image do
         entity_id: entity_id
       } = message.data
 
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
+      Topics.publish(
         Topics.pipeline_publish(),
         {:image_ready,
          %{

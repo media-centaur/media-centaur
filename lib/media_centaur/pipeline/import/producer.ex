@@ -16,7 +16,7 @@ defmodule MediaCentaur.Pipeline.Import.Producer do
 
   @impl true
   def init(_opts) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_matched())
+    MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_matched())
     {:producer, %{queue: :queue.new(), demand: 0}}
   end
 

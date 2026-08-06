@@ -41,56 +41,32 @@ defmodule MediaCentaur.Credo.Checks.PlaybackEventsContract do
     :playback_state_changed,
     :playback_failed
   ]
+  @chokepoint "lib/media_centaur/playback/events.ex"
+
+  alias MediaCentaur.Credo.Checks.EventChokepoint
 
   @impl true
   def run(%SourceFile{filename: filename} = source_file, params) do
-    cond do
-      String.contains?(filename, "lib/media_centaur/playback/events.ex") ->
-        []
+    if EventChokepoint.exempt?(filename, @chokepoint) do
+      []
+    else
+      issue_meta = IssueMeta.for(source_file, params)
 
-      String.starts_with?(filename, "test/") or String.contains?(filename, "/test/") ->
-        []
-
-      true ->
-        issue_meta = IssueMeta.for(source_file, params)
-        Credo.Code.prewalk(source_file, &traverse(&1, &2, issue_meta))
+      source_file
+      |> EventChokepoint.publications(@forbidden_tags)
+      |> Enum.map(fn {tag, line} -> issue_for(issue_meta, tag, line) end)
     end
   end
 
-  # Phoenix.PubSub.broadcast(_, _, {:tag, ...})
-  defp traverse(
-         {{:., _, [{:__aliases__, _, [:Phoenix, :PubSub]}, :broadcast]}, _,
-          [_pubsub, _topic, {tag, _, _} = payload]} = ast,
-         issues,
-         issue_meta
-       )
-       when tag in @forbidden_tags do
-    line = elem(payload, 1)[:line]
-    {ast, [issue_for(issue_meta, "Phoenix.PubSub.broadcast({:#{tag}, …})", line) | issues]}
-  end
-
-  # Match the literal 2-tuple form `{:tag, payload}` (the typical shape)
-  defp traverse(
-         {{:., _, [{:__aliases__, _, [:Phoenix, :PubSub]}, :broadcast]}, meta,
-          [_pubsub, _topic, {:{}, _, [tag | _]}]} = ast,
-         issues,
-         issue_meta
-       )
-       when tag in @forbidden_tags do
-    {ast, [issue_for(issue_meta, "Phoenix.PubSub.broadcast({:#{tag}, …})", meta[:line]) | issues]}
-  end
-
-  defp traverse(ast, issues, _issue_meta), do: {ast, issues}
-
-  defp issue_for(issue_meta, trigger, line_no) do
+  defp issue_for(issue_meta, tag, line_no) do
     format_issue(
       issue_meta,
       message:
-        "Direct `Phoenix.PubSub.broadcast` of a playback:events payload bypasses the " <>
-          "typed `MediaCentaur.Playback.Events` chokepoint. Use `Events.broadcast/1` with " <>
-          "the matching struct so @enforce_keys catches missing fields at compile time.",
-      trigger: trigger,
-      line_no: line_no || 0
+        "Publishing `{:#{tag}, …}` directly bypasses the typed " <>
+          "`MediaCentaur.Playback.Events` chokepoint. Use `Events.broadcast/1` with the " <>
+          "matching struct so @enforce_keys catches missing fields at compile time.",
+      trigger: "{:#{tag}, …}",
+      line_no: line_no
     )
   end
 end

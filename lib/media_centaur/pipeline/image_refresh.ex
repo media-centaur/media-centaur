@@ -81,8 +81,7 @@ defmodule MediaCentaur.Pipeline.ImageRefresh do
         }
       end)
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.pipeline_images(),
       {:enqueue_images, %{entity_id: entity_id, media_dir: media_dir, images: pending}}
     )

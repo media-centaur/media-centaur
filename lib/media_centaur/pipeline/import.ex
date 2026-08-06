@@ -107,8 +107,7 @@ defmodule MediaCentaur.Pipeline.Import do
 
   defp handle_complete(payload) do
     if payload.pending_file_id do
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
+      MediaCentaur.Topics.publish(
         MediaCentaur.Topics.review_intake(),
         {:review_completed, payload.pending_file_id}
       )

@@ -102,8 +102,7 @@ defmodule MediaCentaur.Pipeline.Image.RetryScheduler do
         ready
         |> Enum.uniq_by(fn entry -> entry.entity_id end)
         |> Enum.each(fn entry ->
-          Phoenix.PubSub.broadcast(
-            MediaCentaur.PubSub,
+          MediaCentaur.Topics.publish(
             MediaCentaur.Topics.pipeline_images(),
             {:images_pending, %{entity_id: entry.entity_id, media_dir: entry.media_dir}}
           )

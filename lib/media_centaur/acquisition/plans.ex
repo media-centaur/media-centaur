@@ -610,8 +610,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   @doc "Broadcasts `PlanEvents.Changed` for the plan on `acquisition:updates`."
   @spec broadcast_changed(Plan.t()) :: :ok
   def broadcast_changed(%Plan{} = plan) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.acquisition_updates(),
       %PlanEvents.Changed{plan_id: plan.id, status: plan.status}
     )

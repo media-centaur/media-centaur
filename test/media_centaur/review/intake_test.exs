@@ -2,6 +2,8 @@ defmodule MediaCentaur.Review.IntakeTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Review.Intake
+  alias MediaCentaur.Review.Events.FileAdded
+  alias MediaCentaur.Review.Events.FileReviewed
   alias MediaCentaur.TestFactory
   alias MediaCentaur.Topics
 
@@ -131,13 +133,13 @@ defmodule MediaCentaur.Review.IntakeTest do
       assert first.id == second.id
     end
 
-    test "broadcasts {:file_added, id} to review:updates" do
+    test "broadcasts a FileAdded event to review:updates" do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
 
       attrs = build_attrs()
       assert {:ok, pending_file} = Intake.create_pending_file(attrs)
 
-      assert_receive {:file_added, id}
+      assert_receive {:file_added, %FileAdded{pending_file_id: id}}
       assert id == pending_file.id
     end
 
@@ -196,7 +198,7 @@ defmodule MediaCentaur.Review.IntakeTest do
       assert pending.parsed_year == 2049
       assert pending.parsed_type == "movie"
 
-      assert_received {:file_added, _}
+      assert_received {:file_added, %FileAdded{}}
     end
 
     test "handles multiple files from a TV series rematch" do
@@ -220,8 +222,8 @@ defmodule MediaCentaur.Review.IntakeTest do
         assert file.season_number == 1
       end)
 
-      assert_received {:file_added, _}
-      assert_received {:file_added, _}
+      assert_received {:file_added, %FileAdded{}}
+      assert_received {:file_added, %FileAdded{}}
     end
 
     test "idempotent — same file path returns same record" do
@@ -238,13 +240,13 @@ defmodule MediaCentaur.Review.IntakeTest do
   end
 
   describe "complete_review/1" do
-    test "destroys PendingFile and broadcasts {:file_reviewed, id}" do
+    test "destroys PendingFile and broadcasts a FileReviewed event" do
       pending_file = TestFactory.create_pending_file()
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
 
       assert :ok = Intake.complete_review(pending_file.id)
 
-      assert_receive {:file_reviewed, id}
+      assert_receive {:file_reviewed, %FileReviewed{pending_file_id: id}}
       assert id == pending_file.id
 
       assert {:error, :not_found} = MediaCentaur.Review.fetch_pending_file(pending_file.id)

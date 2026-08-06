@@ -72,9 +72,9 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
 
   @impl MediaCentaur.Cache
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_updates())
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.watch_history_events())
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.playback_events())
+    Topics.subscribe(Topics.library_updates())
+    Topics.subscribe(Topics.watch_history_events())
+    Topics.subscribe(Topics.playback_events())
     Availability.subscribe()
     :ok
   end

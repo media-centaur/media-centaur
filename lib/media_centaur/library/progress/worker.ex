@@ -172,8 +172,7 @@ defmodule MediaCentaur.Library.Progress.Worker do
           true
         )
 
-        Phoenix.PubSub.broadcast(
-          MediaCentaur.PubSub,
+        Topics.publish(
           Topics.watch_history_events(),
           {:watch_completed, playable_item_id}
         )

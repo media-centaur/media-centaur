@@ -32,7 +32,7 @@ defmodule MediaCentaur.Pipeline.Discovery.Producer do
 
   @impl true
   def init(_opts) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_input())
+    MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_input())
     send(self(), {:reconcile, 0})
     {:producer, %{queue: :queue.new(), demand: 0}}
   end

@@ -1,7 +1,28 @@
 defmodule MediaCentaur.Topics do
   @moduledoc """
-  PubSub topic constants. Centralises all topic strings so typos
-  become compile-time failures instead of silent subscription misses.
+  PubSub topic constants and the transport that carries them. Centralises
+  all topic strings so typos become compile-time failures instead of
+  silent subscription misses.
+
+  ## Transport (ADR-060)
+
+  `publish/2`, `subscribe/1` and `unsubscribe/1` wrap `Phoenix.PubSub` so
+  this is the only module that names the `MediaCentaur.PubSub` server.
+  Enforced by the `MC0025 PubSubTransport` Credo check.
+
+      Topics.subscribe(Topics.review_updates())
+      Topics.publish(Topics.review_updates(), message)
+
+  Topic names stay zero-arity functions rather than atoms on purpose: a
+  misspelt `Topics.review_updates()` fails to compile, which is the whole
+  point of the module, while a misspelt `:review_updates` would be a
+  silently missed subscription.
+
+  **Prefer a context's own seams over calling these directly.** A topic
+  with a closed message set has an `Events.broadcast/1` chokepoint that
+  owns its typed payloads, and most contexts expose a `subscribe/0`
+  facade (MC0003). Reach for `publish/2` only from inside the owning
+  context.
 
   ## Taxonomy (ADR-041)
 
@@ -34,7 +55,8 @@ defmodule MediaCentaur.Topics do
   | `capabilities:updates` | `Capabilities` | service-readiness flips |
   | `controls:updates` | `Controls` | global control changes |
   | `watcher:state` | `Watcher` | dir-watch state transitions |
-  | `review:intake`, `review:updates` | `Review` | review-queue events |
+  | `review:intake` | `Review` | inbound files awaiting review |
+  | `review:updates` | `Review.Events` | `{:file_added, _}`, `{:file_reviewed, _}`, `{:group_approved, _}`, `{:group_error, _}` — typed structs, ADR-060's worked example |
   | `pipeline:input`, `:matched`, `:images`, `:publish` | `Pipeline` | per-stage progress |
   | `console:logs` | `Console` | log stream for the in-app drawer |
   | `service:journal` | `Service` | systemd-journal mirror |
@@ -71,6 +93,13 @@ defmodule MediaCentaur.Topics do
   * Topic strings live here, not inline in modules. Typos surface as
     compile errors when `Topics.foo()` is misspelt; inline strings
     silently fail to deliver.
+  * A topic with a closed message set gets an `Events` module in its
+    owning context — one file, a struct per message with
+    `@enforce_keys`, one `broadcast/1` (ADR-060). `Library.Events`,
+    `Playback.Events` and `Review.Events` are the worked examples;
+    MC0013, MC0012 and MC0026 pin them. New topics start this way;
+    existing bare-tuple topics convert when someone is already changing
+    the context, never in a sweep.
   * Source events name the *fact* (`:entity_progress_updated`),
     derived events name the *view* (`:library_view_updated`). The
     discriminator is the second tuple element.
@@ -80,6 +109,37 @@ defmodule MediaCentaur.Topics do
     `MediaCentaur.Cache` moduledoc for the projection pattern.
   """
   use Boundary, top_level?: true, check: [in: false, out: false]
+
+  @pubsub MediaCentaur.PubSub
+
+  @doc """
+  Broadcast `message` to every subscriber of `topic`.
+
+  The transport seam from ADR-060: this module owns the PubSub server
+  name, so no caller has to know it. Pair the topic accessor with the
+  publish call — `Topics.publish(Topics.review_updates(), msg)`.
+
+  Prefer publishing through the owning context's `Events.broadcast/1`
+  rather than calling this directly; that is where the typed payload
+  and its `@enforce_keys` guarantee live. This function is the layer
+  underneath it.
+  """
+  @spec publish(String.t(), term()) :: :ok | {:error, term()}
+  def publish(topic, message) when is_binary(topic) do
+    Phoenix.PubSub.broadcast(@pubsub, topic, message)
+  end
+
+  @doc "Subscribe the calling process to `topic`."
+  @spec subscribe(String.t()) :: :ok | {:error, term()}
+  def subscribe(topic) when is_binary(topic) do
+    Phoenix.PubSub.subscribe(@pubsub, topic)
+  end
+
+  @doc "Unsubscribe the calling process from `topic`."
+  @spec unsubscribe(String.t()) :: :ok
+  def unsubscribe(topic) when is_binary(topic) do
+    Phoenix.PubSub.unsubscribe(@pubsub, topic)
+  end
 
   def library_updates, do: "library:updates"
   def library_deletions, do: "library:deletions"

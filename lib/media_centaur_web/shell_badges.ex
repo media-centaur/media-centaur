@@ -41,6 +41,9 @@ defmodule MediaCentaurWeb.ShellBadges do
 
   alias MediaCentaur.Reconciliation
   alias MediaCentaur.Review
+  alias MediaCentaur.Review.Events.FileAdded
+  alias MediaCentaur.Review.Events.FileReviewed
+  alias MediaCentaur.Review.Events.GroupApproved
   alias MediaCentaur.Topics
   alias MediaCentaurWeb.DiagnosticsBadge
 
@@ -50,17 +53,17 @@ defmodule MediaCentaurWeb.ShellBadges do
 
   @impl MediaCentaur.Cache
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.reconciliation_updates())
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.error_reports())
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.settings_updates())
+    Topics.subscribe(Topics.review_updates())
+    Topics.subscribe(Topics.reconciliation_updates())
+    Topics.subscribe(Topics.error_reports())
+    Topics.subscribe(Topics.settings_updates())
     :ok
   end
 
   @impl MediaCentaur.Cache
-  def relevant?({:file_added, _id}), do: true
-  def relevant?({:file_reviewed, _id}), do: true
-  def relevant?({:group_approved, _key, _count}), do: true
+  def relevant?({:file_added, %FileAdded{}}), do: true
+  def relevant?({:file_reviewed, %FileReviewed{}}), do: true
+  def relevant?({:group_approved, %GroupApproved{}}), do: true
   def relevant?({:reconciliation_updated}), do: true
   def relevant?({:buckets_changed, _buckets}), do: true
   # `mark_seen/0` advances the seen-marker via a Settings write.
@@ -71,8 +74,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   def refresh_cache do
     :persistent_term.put(@counts_key, compute_counts())
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.shell_badges(),
       {:shell_badges_updated}
     )
@@ -115,9 +117,9 @@ defmodule MediaCentaurWeb.ShellBadges do
 
   def on_mount(:default, _params, _session, socket) do
     if connected?(socket) do
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.reconciliation_updates())
-      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.shell_badges())
+      Topics.subscribe(Topics.review_updates())
+      Topics.subscribe(Topics.reconciliation_updates())
+      Topics.subscribe(Topics.shell_badges())
     end
 
     socket =
@@ -140,9 +142,9 @@ defmodule MediaCentaurWeb.ShellBadges do
   # Source events re-read immediately (test mode computes live; in prod
   # the cached value may trail until the Worker's derived broadcast
   # below lands and corrects it).
-  defp refresh({:file_added, _id}, socket), do: {:cont, assign_counts(socket)}
-  defp refresh({:file_reviewed, _id}, socket), do: {:cont, assign_counts(socket)}
-  defp refresh({:group_approved, _key, _count}, socket), do: {:cont, assign_counts(socket)}
+  defp refresh({:file_added, %FileAdded{}}, socket), do: {:cont, assign_counts(socket)}
+  defp refresh({:file_reviewed, %FileReviewed{}}, socket), do: {:cont, assign_counts(socket)}
+  defp refresh({:group_approved, %GroupApproved{}}, socket), do: {:cont, assign_counts(socket)}
   defp refresh({:reconciliation_updated}, socket), do: {:cont, assign_counts(socket)}
   defp refresh({:shell_badges_updated}, socket), do: {:cont, assign_counts(socket)}
   defp refresh(_msg, socket), do: {:cont, socket}

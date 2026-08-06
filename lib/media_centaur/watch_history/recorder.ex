@@ -22,7 +22,7 @@ defmodule MediaCentaur.WatchHistory.Recorder do
 
   @impl true
   def init(_opts) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_watch_completed())
+    Topics.subscribe(Topics.library_watch_completed())
     {:ok, %{}}
   end
 
@@ -48,8 +48,7 @@ defmodule MediaCentaur.WatchHistory.Recorder do
       {:ok, attrs} ->
         case WatchHistory.create_event(attrs) do
           {:ok, event} ->
-            Phoenix.PubSub.broadcast(
-              MediaCentaur.PubSub,
+            Topics.publish(
               Topics.watch_history_events(),
               {:watch_event_created, event}
             )

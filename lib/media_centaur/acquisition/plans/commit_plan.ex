@@ -239,8 +239,7 @@ defmodule MediaCentaur.Acquisition.Plans.CommitPlan do
   end
 
   defp broadcast(plan) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.acquisition_updates(),
       %PlanEvents.Changed{plan_id: plan.id, status: plan.status}
     )

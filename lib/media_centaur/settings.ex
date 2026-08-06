@@ -39,7 +39,7 @@ defmodule MediaCentaur.Settings do
   @impl MediaCentaur.Cache
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.settings_updates())
+    Topics.subscribe(Topics.settings_updates())
   end
 
   @doc "Filters PubSub messages relevant to this cache."
@@ -191,8 +191,7 @@ defmodule MediaCentaur.Settings do
   end
 
   defp broadcast(key, value) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.settings_updates(),
       {:setting_changed, key, value}
     )

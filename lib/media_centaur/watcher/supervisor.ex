@@ -136,7 +136,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
   @doc "Subscribe the caller to watcher directory state change events."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.dir_state())
+    Topics.subscribe(MediaCentaur.Topics.dir_state())
   end
 
   @doc """
@@ -376,8 +376,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
       )
 
     Enum.each(rows, fn row ->
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
+      Topics.publish(
         Topics.pipeline_input(),
         {:file_detected, %{path: row.path, media_dir: row.media_dir}}
       )

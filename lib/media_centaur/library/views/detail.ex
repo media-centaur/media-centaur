@@ -115,7 +115,7 @@ defmodule MediaCentaur.Library.Views.Detail do
 
   @impl MediaCentaur.Cache
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_updates())
+    Topics.subscribe(Topics.library_updates())
     Availability.subscribe()
     :ok
   end
@@ -941,8 +941,7 @@ defmodule MediaCentaur.Library.Views.Detail do
   # `playable_item_id` is a row UUID for partial refreshes, or `:all` when
   # the whole table was rebuilt.
   defp broadcast_row(playable_item_id) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.library_views(),
       {:library_view_updated, :detail, playable_item_id}
     )

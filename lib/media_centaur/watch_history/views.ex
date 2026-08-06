@@ -21,7 +21,7 @@ defmodule MediaCentaur.WatchHistory.Views do
   @doc "Subscribe the caller to WatchHistory projection-refreshed events."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.watch_history_views())
+    Topics.subscribe(Topics.watch_history_views())
   end
 
   @doc """

@@ -26,7 +26,7 @@ defmodule MediaCentaur.Playback do
   @doc "Subscribe the caller to playback state and progress events."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.playback_events())
+    Topics.subscribe(Topics.playback_events())
   end
 
   @doc """

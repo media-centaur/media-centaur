@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: complete
 started: 2026-08-05
 last_updated: 2026-08-06
 ---
@@ -30,150 +30,115 @@ decide unilaterally. The loop per stage is:
 
 Stages are independent. Order below is recommended, not required.
 
-**Resuming after Stages 1–4 (2026-08-06) — start here.**
+**All five stages are resolved (2026-08-06). This campaign is closed** —
+Stages 1, 2, 4 and 5 done, Stage 3 declined with its reason recorded. Per
+ADR-042 the file is removable; git history is the archive. What follows is
+the record, not a work queue.
 
-**Stage 5 is the last stage, and it is the only one that starts with a
-conversation rather than code.** It is a convention decision — which
-event-publication idiom the repo standardises on — and the campaign's own
-rule is that it gets an ADR before anything moves. Its two open questions
-are *unanswered*; they are for the owner, not for you to settle. Do not
-open an editor on `lib/` until they are.
+**Two things outlive it, and neither holds it open:**
 
-Read *Stage 5* in full, then put its two questions to the owner:
+* **`/reconcile`'s navigation is dead.** Found in Stage 3's wreckage, owned
+  by no stage. The template declares a behavior, two zones and
+  `data-nav-item` on every row, but `config.js` has no `reconcile` entries,
+  so `buildNavGraph` returns `{}` and arrow keys do nothing. Structurally
+  identical to `review`: a three-line layout block plus selectors and
+  `instanceTypes`. Ordinary work for whoever next touches input config.
+* **MC0023's grandfather list** — 23 test files still building state with an
+  inline `Repo` write because their schema has no `TestFactory` builder. The
+  check makes the debt visible and stops it growing. The list may only
+  shrink; if it is still 23 in a few months, that is the signal it needed a
+  stage of its own.
 
-1. Is the typed-struct idiom the **target**, or an experiment to **roll
-   back** to plain tuples? Twenty files for `Pursuits` events alone is a lot
-   of ceremony, and "expand it" is not the obvious answer.
-2. Does `Topics.publish/2` + `Topics.subscribe/1` land **independently** of
-   that answer? (The stage recommends yes — it is mechanical and
-   idiom-agnostic. This one is cheap to agree and unblocks real work even if
-   question 1 stays open.)
-
-Its facts were re-verified against `main` on 2026-08-06 after Stage 3 —
-see the table below and the stage's own evidence block, which now carries
-the command beside every figure.
+Also unclaimed: **Stage 6's polish**, explicitly droppable.
 
 **Stage 3 was declined, not deferred** — the console stays out of the input
 system deliberately (backtick already opens it; the input system would take
 the arrow keys and Escape on a log-reading surface). Don't re-open it as
 unfinished work, and don't read `/console`'s missing nav config as a gap.
 
-**One unclaimed bug, from Stage 3's wreckage.** `/reconcile`'s navigation is
-dead — the template declares a behavior, two zones and `data-nav-item` on
-every row, but `config.js` has no `reconcile` entries at all, so
-`buildNavGraph` returns `{}` and arrow keys do nothing. Unlike the console
-this is *not* deliberate: the page mounts the input system via `Layouts.app`
-and is meant to be navigable. It is structurally identical to `review`, so
-the fix is a three-line layout block plus selectors and `instanceTypes`.
-Not a Stage 5 obligation — pick it up only if you want a warm-up.
-
-Stale memories to drop before you start:
+Stale memories to drop:
 
 * `library.ex` is **not** one big file. Stage 1 split it into 18 modules;
-  `MediaCentaur.Library`'s moduledoc is now a table naming which module
-  owns which concern, and it is the fastest way back in.
+  `MediaCentaur.Library`'s moduledoc is a table naming which module owns
+  which concern, and it is the fastest way back in.
 * Test policy changed in Stage 4. `Repo` **writes** in tests are banned
   (MC0023) but `Repo` **reads** are fine; `=~` on HTML *attributes* is
   banned (MC0024) but `=~` on user-visible copy is fine and expected. Use
   `TestFactory.force_attrs/2`, `backdate/3`, `force_state/2`,
   `force_where/2` for setup the public API refuses to produce.
-* Lookups now follow one contract, enforced by MC0022: `fetch…` returns
-  a tuple, `get…` returns nil-able, `…!` raises.
-* Stage 3 left **no code on `main`** — it was built to working code to prove
-  the design, then reverted in full. `git log` shows only its docs commit.
-  Don't go looking for half-applied console nav.
-* `Topics` centralises topic **names** only — 36 of them, every `def` in the
-  module. It has no `publish/2` or `subscribe/1`; adding that pair is
-  precisely what Stage 5 proposes, and it is the cheap half of the stage.
+* Lookups follow one contract, enforced by MC0022: `fetch…` returns a
+  tuple, `get…` returns nil-able, `…!` raises.
+* Stage 3 left **no code on `main`** — built to working code to prove the
+  design, then reverted in full. Don't go looking for half-applied console nav.
+* **`Topics` is no longer names-only.** Stage 5 gave it `publish/2`,
+  `subscribe/1`, `unsubscribe/1`; it is now the only module naming
+  `MediaCentaur.PubSub` (MC0025). Publishing goes through the owning
+  context's `Events.broadcast/1` where the topic has one.
 
-**Numbers you can trust as of 2026-08-06.** Stage 4's figures were re-run
-after its own commit; **Stage 5's were re-run after Stage 3**, so they are
-the freshest in the file. Each stage records the command that produced its
-numbers. Strikethrough marks a figure this campaign recorded and later
-disproved.
+## Six counting errors, one campaign — and what they cost
 
-| Stage | Claim | Verified |
+Every stage but one recorded at least one figure it later disproved. The
+sequence is the campaign's most durable output, so it is stated in full:
+
+| # | Stage | The error |
 |---|---|---|
-| 3 | `console_page_live.ex` has zero nav attributes | 0 ✅ — and correctly so; stage declined |
-| 3 | `/console` is the only routed page without a behavior | yes, but ~~this implies it is the only unnavigable one~~ → `/reconcile` has a behavior and is equally dead |
-| 3 | `/console` runs the input system and just lacks zones | ~~assumed~~ → **false**: it mounts no `#input-system` hook at all |
-| 3 | page behaviors missing a test | **1** (`reconcile`) — but the test was never the gap; its *config* is missing |
-| 4 | `Repo.*` calls in `test/` | ~~301~~ → **450** (114 writes) |
-| 4 | `=~` assertions in `*_live_test.exs` | ~~345~~ → **14** structural |
-| 4 | `ProgressRecords.fetch_for_extra/1` returns `nil` | ✅ fixed — returns a tuple |
-| 5 | `MediaCentaur.PubSub` literals in `lib/` | **134**, across **73 files** ✅ re-verified post-Stage-3 |
-| 5 | `Phoenix.PubSub.broadcast` call sites in `lib/` | **69**, across **52 modules** ✅ |
-| 5 | modules using the typed-struct idiom | **4** `events.ex` + **18** `Pursuits` event structs + `define.ex` + `event_behaviour.ex` ✅ |
+| 1–2 | 2 | A hatch count corrected twice before it was right |
+| 3 | 4 | `Repo\.[a-z_]*(` cannot match a `!`, hiding every bang variant: ~~301~~ → **450**; and "345 markup assertions" was really **14**, the other 298 asserting user-visible copy the amended policy permits |
+| 4 | 4 | A new Credo check caught eight `Repo.update_all` sites the same grep had missed |
+| 5 | 3 | Every number **correct**, the stage still built on a false premise — nobody checked whether `/console` ran the input system at all |
+| 6 | 5 | MC0012 and MC0013 had **never been able to fire** — verified 0 issues against a real violation |
 
-**Three counting errors, one campaign.** Stage 2 corrected a hatch count
-twice before getting it right. Stage 4 then found both of *its* recorded
-figures wrong — `Repo\\.[a-z_]*(` cannot match a `!`, hiding every bang
-variant; and "345 markup assertions" was really 14, because the other 298
-assert user-visible copy that the amended policy permits. A third
-surfaced mid-stage when a new Credo check caught eight `Repo.update_all`
-sites the same grep had missed.
+The lesson accreted in three passes:
 
-The lesson has now been paid for three times, so state it plainly: **a
-check you can run beats a number you wrote down.** Where a stage's size
-depends on a count, prefer landing the check that produces the count over
-recording the count. Stage 4's three checks now hold their own rules;
-nobody has to re-grep them.
+1. **A check you can run beats a number you wrote down.** (Errors 1–4.)
+2. **A number beats nothing only if you also checked the assumption
+   underneath it.** (Error 5 — counting what is *missing* from a page says
+   nothing about whether the thing it plugs into is *present*.)
+3. **A check counts only if you ran it against a violation.** (Error 6 — an
+   unexercised check is not a weaker guarantee than a counted number, it is
+   a *false* one, because it reports success. Neither check had a test.)
 
-**Two more lessons, both paid for.**
+Two more, both paid for:
 
 * **Derive costs from the tool, not from a table.** Stage 2's real
-  dependency lists came from removing each hatch and reading the
-  compiler. That is what surfaced the `in:`-side cost the stage had not
-  costed at all — a stage that only counts one direction will be wrong
-  about its size.
+  dependency lists came from removing each hatch and reading the compiler —
+  that is what surfaced the `in:`-side cost the stage had not costed at all.
 * **Read the comment beside the constant before theorising about it.**
-  Stage 4 spent four full-suite runs correctly clearing its own changes
-  of an `Exqlite` `Database busy` failure, then reasoned its way to
-  "something held a write lock for over ten seconds" — when
-  `config/test.exs` documented that exact failure mode three lines above
-  the timeout it was reasoning about.
+  Stage 4 reasoned its way to "something held a write lock for over ten
+  seconds" when `config/test.exs` documented that exact failure mode three
+  lines above the timeout it was reasoning about.
 
-**A fourth counting error, of a different kind.** Stage 3's numbers were
-all correct — and the stage was still built on a false premise, because
-nobody checked whether the page ran the input system at all. Counting what
-is *missing* from a page says nothing about whether the thing it plugs into
-is *present*. The generalisation of the campaign's own lesson: a check you
-can run beats a number you wrote down, **and a number you wrote down beats
-nothing only if you also checked the assumption underneath it.**
-
-**And a fifth, committed while writing the fourth.** The Stage 5 evidence
-table below first recorded `Topics` as having "~29" topic functions — a
-figure eyeballed off a truncated `head -30`, when the command beside it
-returns **36**. Caught before commit only because the command was written
-down next to the number and then actually run. Five errors, one campaign,
-every one of them a number nobody re-ran: **write the command beside the
-figure, then run it — including the one you just typed.**
-
-Recommended next: **Stage 5** (event-publication idiom) — needs a design
-conversation and an ADR before any code moves. Unclaimed alongside it:
-the `/reconcile` config defect recorded in Stage 3, and Stage 6's
-droppable polish.
+And a seventh error was *avoided* the same way: Stage 5's stated
+verification criterion ("the literal grep should read 0") is impossible —
+`application.ex` must name the PubSub server to start it. Caught because
+the command was run while the criterion was being written.
 
 ## Status
 
-**Stages 1, 2 and 4 done; Stage 3 declined** (all 2026-08-06). Stage 1 took `library.ex` from
-2779 → 127 lines across six commits (`5b2d3510`…`f91f61ce`); the 21 `# ---`
-section dividers are gone. Stage 2 closed two of the three Boundary
-hatches and documented the third as a permanent, decided exception.
-Stage 4 reconciled the two overreaching policies with practice and put
-**three new Credo checks** behind them (MC0022–MC0024), fixing five
-lookup-contract violations and converting 40 test-setup sites.
-Stage 3 was declined by the owner — the console is deliberately outside the
-input system — after being implemented far enough to prove the design, then
-reverted in full. **Stage 5 is the only stage left**, and it needs an ADR
-before code. The 2026-08-05 audit sweep's Critical and
-Moderate-with-user-impact findings are already fixed and pushed to
-`main` (see *Decisions made*); this campaign is the tail.
+**Closed 2026-08-06.** Stages 1, 2, 4 and 5 resolved; Stage 3 declined by
+the owner with its reason recorded. `mix precommit` green end-to-end, plus
+five clean full-suite runs.
+
+* **Stage 1** — `library.ex` 2779 → 127 lines across six commits
+  (`5b2d3510`…`f91f61ce`); 18 modules; the 21 `# ---` dividers are gone.
+* **Stage 2** — two of three Boundary hatches closed, the third documented
+  as a permanent, decided exception.
+* **Stage 3** — declined. The console is deliberately outside the input
+  system. Implemented far enough to prove the design, then reverted in full.
+* **Stage 4** — two overreaching policies reconciled with practice, behind
+  **three** new Credo checks (MC0022–MC0024); five lookup-contract
+  violations fixed, 40 test-setup sites converted.
+* **Stage 5** — ADR-060; the `Topics` transport (132 sites, 71 files);
+  `Review.Events` as the worked example; MC0025 and MC0026 added, and
+  MC0012/MC0013 repaired after being found vacuous since birth.
+
+The 2026-08-05 sweep's Critical and Moderate-with-user-impact findings were
+fixed and pushed before the stages began (see *Decisions made*); this
+campaign was the tail.
 
 Stage 4 also chased an intermittent `(Exqlite.Error) Database busy` that
-turned out to be a second `mix test` running against the same SQLite file,
-not a defect. Nothing to pick up — see *Stage 4* for why the wrong
-diagnosis was reached first.
+turned out to be a second `mix test` against the same SQLite file, not a
+defect. Nothing to pick up.
 
 ## Decisions made
 
@@ -344,6 +309,69 @@ diagnosis was reached first.
   failures fall inside the window of two commits made on `main` during
   the session: a second `mix test` against the same SQLite file. Read the
   comment beside the constant before theorising about it.
+
+* `2026-08-06` — **Stage 5 complete, and the campaign with it.**
+  [ADR-060](../decisions/architecture/2026-08-06-060-event-publication-idiom.md)
+  settles both open questions the way the owner chose: typed structs are
+  the target **in the `Library`/`Playback` shape**, and the `Topics`
+  transport landed alongside it.
+
+  The stage's framing had the cost wrong, and correcting it is what made
+  question 1 answerable. `Pursuits`' 20 files are not what the idiom
+  costs — they buy **persistence** (`define.ex` generates
+  `to_payload/from_payload` for a JSONB column so a pursuit replays cold
+  from the DB). The idiom as `Library` and `Playback` practise it is *one
+  file per topic*: nested structs in a single `events.ex` with a
+  `broadcast/1` whose heads enumerate the message set. The migration unit
+  is one file, not twenty — so "expand it" stopped being the expensive
+  answer it looked like.
+
+  **The transport landed whole**, not on-next-touch: 132 call sites in 71
+  files, mechanical and idiom-agnostic. `Topics.publish/2`,
+  `subscribe/1`, `unsubscribe/1` are now the only place naming the PubSub
+  server. Topic names stayed zero-arity functions rather than atoms — a
+  misspelt `Topics.review_updates()` fails to compile, which is the whole
+  reason the module exists.
+
+  **`Review` is the worked example**: four typed payloads, one
+  chokepoint, subscribers converted in the same commit. Two of its four
+  messages were positional 3-tuples (`{:group_error, key, message}`) —
+  the exact shape where a publisher can swap two same-typed arguments and
+  no subscriber can tell.
+
+  Two things the stage did not anticipate:
+
+  - **Boundary caught a real consequence.** Typed payloads turn an
+    implicit runtime coupling into a declared compile-time one:
+    `Status.Views.Overview` and `ShellBadges` name `Review`'s structs, so
+    `Review`'s boundary had to export them. Bare tuples had hidden that
+    dependency completely. Same precedent as `Library`, which already
+    exports `Events.EntitiesChanged`.
+  - **The migration nearly stopped at 80% — on itself.** MC0012 and
+    MC0013 match `Phoenix.PubSub.broadcast` AST. Converting every call
+    site to `Topics.publish` would have left both checks unable to fire,
+    silently. They now match both spellings.
+
+* `2026-08-06` — **A sixth counting error, and a new kind: MC0012 and
+  MC0013 never worked.** Not stale — *never able to fire*, from the day
+  each was written.
+
+  Both matched a payload of `{tag, _, _}`, a **three**-element AST node.
+  A two-element tuple literal like `{:entities_changed, event}` quotes to
+  the plain 2-tuple `{:entities_changed, {:event, _, nil}}` and matches
+  neither clause. `:entities_changed` is the *only* tag MC0013 guards,
+  and every current playback payload is likewise a 2-tuple. Verified by
+  running each check against a hand-written violation: **0 issues**,
+  both. Neither had a test.
+
+  So the campaign's own lesson needed one more clause. "A check you can
+  run beats a number you wrote down" — **but only if you ran the check
+  against a violation.** An unexercised check is not a weaker guarantee
+  than a counted number; it is a *false* one, because it reports success.
+  Both checks now share one tested matcher
+  (`credo_checks/event_chokepoint.ex`) covering 2-tuple and 3+-tuple
+  payloads and both call spellings, with 16 cases pinning it. MC0026
+  reuses it for `review:updates` rather than hand-rolling a third copy.
 
 ---
 
@@ -928,73 +956,61 @@ deliberately-wrong function before it went green.
 
 ---
 
-## Stage 5 — Pick one event-publication idiom
+## Stage 5 — Pick one event-publication idiom  ✅ **DONE 2026-08-06**
 
-**Why.** Two idioms coexist repo-wide. This is a convention decision,
-not a refactor — it needs an ADR before any code moves.
+**Outcome.** Both open questions answered by the owner; ADR-060 written
+first, then the transport, then `Review` as the worked example.
 
-**Evidence — re-verified 2026-08-06, after Stage 3.** Every figure carries
-the command that produced it, per this campaign's most expensive lesson.
+1. *Typed structs — target or roll back?* → **Target**, in the
+   `Library`/`Playback` shape. Not the `Pursuits` shape, which is
+   persistence ceremony and does not spread.
+2. *Does the `Topics` pair land independently?* → **Yes**, and it landed
+   whole rather than on-next-touch, because it is mechanical.
 
-| Fact | Command | Value |
-|---|---|---|
-| `MediaCentaur.PubSub` as a literal in `lib/` | `grep -rho 'MediaCentaur\.PubSub' lib/ --include='*.ex' \| wc -l` | **134** |
-| …spread across | `grep -rl 'MediaCentaur\.PubSub' lib/ --include='*.ex' \| wc -l` | **73 files** |
-| `Phoenix.PubSub.broadcast` call sites | `grep -rn 'Phoenix.PubSub.broadcast' lib/ --include='*.ex' \| wc -l` | **69** |
-| …spread across | `grep -rl 'Phoenix.PubSub.broadcast' lib/ --include='*.ex' \| wc -l` | **52 modules** |
-| `Events` modules (typed-struct idiom) | `find lib -name 'events.ex'` | **4** |
-| `Pursuits` event structs | `ls lib/media_centaur/acquisition/pursuits/events/` | **18** + `define.ex` + `event_behaviour.ex` |
-| `Topics` topic-name functions | `grep -c '^  def ' lib/media_centaur/topics.ex` | **36** — all of them topic names, **none** publish/subscribe |
+**What shipped.**
 
-* **Typed structs behind an `Events` module** — `library/events.ex`,
-  `library/progress/events.ex`, `playback/events.ex`,
-  `acquisition/pursuits/events.ex`. `Pursuits` carries the weight of the
-  idiom on its own: 18 one-struct modules plus a `define.ex` macro and an
-  `event_behaviour.ex`, i.e. **20 files** in one directory.
-* **Bare inline tuples** — the other 48-ish modules broadcast directly,
-  with no struct, no `@type`, and no single place to discover the contract.
-  `Review`, `Settings`, `ReleaseTracking`, `Watcher`, `Reconciliation`,
-  `Capabilities`, `Controls`, `IntegrationHealth`, `WatchHistory`,
-  `ErrorReports`.
+* **ADR-060** — one `events.ex` per topic with a closed message set;
+  nested structs with `@enforce_keys`; one `broadcast/1`. Migration is
+  per-context **on next touch, never a sweep** — the originating audit's
+  headline finding was that this repo's defects come from refactors that
+  stop at 80%, and a single pass over 52 modules is that defect.
+* **`Topics.publish/2` / `subscribe/1` / `unsubscribe/1`** — 132 call
+  sites across 71 files converted. Topic names stay zero-arity functions,
+  not atoms: a misspelt `Topics.review_updates()` fails to compile.
+* **`Review.Events`** — the worked example. `FileAdded`, `FileReviewed`,
+  `GroupApproved`, `GroupError`; subscribers (`ReviewLive`,
+  `ShellBadges`, `Status.Views.Overview`) converted in the same commit.
+* **Three Credo checks**: MC0025 (transport), MC0026 (`review:updates`
+  chokepoint), and a **repair of MC0012/MC0013**, which had never been
+  able to fire — see *Decisions made*.
 
-Note the ratio before deciding: **4 contexts** use the ceremony, **~48**
-don't. Whichever way question 1 goes, one of those two numbers is the
-migration cost — and the stage's *approach* (convert on next touch, never
-in a sweep) is what keeps it from being paid all at once.
+**Numbers after, each with its command.**
 
-Related but separable: `Topics` centralises topic *names* but not
-publication. A `Topics.publish/2` + `Topics.subscribe/1` pair removes all
-134 literals and is worth doing regardless of which idiom wins.
+| Fact | Command | Before | After |
+|---|---|---|---|
+| `MediaCentaur.PubSub` literals in `lib/` | `grep -rho 'MediaCentaur\.PubSub' lib/ --include='*.ex' \| wc -l` | 134 | **4** |
+| …of which are call sites | `grep -rn 'Phoenix\.PubSub\.\(broadcast\|subscribe\|unsubscribe\)(' lib/ --include='*.ex' \| grep -v topics.ex \| wc -l` | 136 | **0** |
+| `Topics` defs (36 topic names + 3 transport) | `grep -c '^  def ' lib/media_centaur/topics.ex` | 36 | **39** |
+| Credo checks registered | `mix credo --strict` header | 109 | **111** |
+| Contexts with an `Events` chokepoint | `find lib -name 'events.ex'` | 4 | **5** |
 
-Stage 1 touched this lightly: the `{:entity_watch_completed, record}`
-broadcast moved with `mark_completed/1` into
-`Library.ProgressRecords`, so it is now one bare-tuple publisher in a
-module with a moduledoc, rather than one buried in a 2779-line context.
-The idiom question is unchanged.
+**The stage's own verification criterion was wrong, and was corrected
+before it was written down.** It said the literal grep "should read 0".
+It cannot: `application.ex` must name `MediaCentaur.PubSub` to start the
+server. The honest check is MC0025, which matches *call sites* and so
+ignores the child spec entirely. The four survivors are the seam's own
+`@pubsub`, the child spec, and two moduledoc mentions. This would have
+been the campaign's sixth recorded-then-disproved number; it was caught
+by running the command while writing the criterion.
 
-**Approach.** Write the ADR first; convert per-context on next touch,
-not in a sweep. A sweep across 52 broadcasting modules is exactly the kind
-of refactor the originating audit said this repo starts and abandons at 80%.
-
-**Open questions for the owner — BOTH STILL UNANSWERED (2026-08-06).**
-This is the one stage that must not start on code. Put these to the owner
-before planning anything:
-
-1. **Is the typed-struct idiom the target, or should it be rolled back to
-   plain tuples?** 4 contexts use it; ~48 don't. `Pursuits` alone spends 20
-   files on it. "Expand it" is not obviously right, and neither is "delete
-   it" — the answer decides whether the migration cost is 4 modules or 48.
-2. **Does `Topics.publish/2` + `Topics.subscribe/1` land independently?**
-   Recommendation: **yes.** It is mechanical, idiom-agnostic, and removes
-   all 134 `MediaCentaur.PubSub` literals whichever way question 1 goes.
-   Agreeing this one unblocks useful work even if question 1 stays open.
-
-**Verification.** ADR merged; one context converted as the worked
-example. If question 2 lands alone, `grep -rho 'MediaCentaur\.PubSub' lib/
---include='*.ex' | wc -l` should read **0** — a check you can run, which
-this campaign has learned to prefer over a number written down.
-
----
+**Suite verified against the known flake family.** The first full run
+failed one test (`Library.Views.DetailTest`, an ETS teardown race); the
+next failed a *different* one (`Downloads.QueueMonitorTest`); the seed
+that produced the second then passed twice. Five clean full runs on this
+tree, plus `mix precommit` green end-to-end. Both failures are the
+pre-existing concurrency-flake family, not this change — the campaign's
+rule is to confirm on `main` before blaming your own work, and the
+varying identity of the failing test is the signature.
 
 ## Stage 6 — Opportunistic polish (no discussion needed)
 
@@ -1047,8 +1063,8 @@ anything.
 * Stages 1–5 each either **resolved** or **explicitly declined** with
   the reason recorded in *Decisions made*. A declined stage is a valid
   outcome; an undiscussed one is not.
-  **Status: 1, 2, 4 resolved · 3 declined · 5 outstanding.** Stage 5 is
-  the only thing between this campaign and closed.
+  **Status: 1, 2, 4, 5 resolved · 3 declined. Campaign closed
+  2026-08-06.**
 * **Closing the campaign does not require `/reconcile` to be fixed.** That
   defect was found here but belongs to no stage; carry it forward as
   ordinary work rather than letting it hold the campaign open.

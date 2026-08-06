@@ -83,7 +83,7 @@ defmodule MediaCentaur.Library.Views.Search do
 
   @impl MediaCentaur.Cache
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_updates())
+    Topics.subscribe(Topics.library_updates())
     Availability.subscribe()
     :ok
   end
@@ -102,8 +102,7 @@ defmodule MediaCentaur.Library.Views.Search do
     :ets.delete_all_objects(@table)
     :ets.insert(@table, rows)
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.library_views(),
       {:library_view_updated, :search}
     )

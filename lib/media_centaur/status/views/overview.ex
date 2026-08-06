@@ -30,6 +30,9 @@ defmodule MediaCentaur.Status.Views.Overview do
   """
   @behaviour MediaCentaur.Cache
 
+  alias MediaCentaur.Review.Events.FileAdded
+  alias MediaCentaur.Review.Events.FileReviewed
+  alias MediaCentaur.Review.Events.GroupApproved
   alias MediaCentaur.Status
   alias MediaCentaur.Status.LibraryOverview
   alias MediaCentaur.Topics
@@ -38,16 +41,16 @@ defmodule MediaCentaur.Status.Views.Overview do
 
   @impl MediaCentaur.Cache
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.library_updates())
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
+    Topics.subscribe(Topics.library_updates())
+    Topics.subscribe(Topics.review_updates())
     :ok
   end
 
   @impl MediaCentaur.Cache
   def relevant?({:entities_changed, _payload}), do: true
-  def relevant?({:file_added, _id}), do: true
-  def relevant?({:file_reviewed, _id}), do: true
-  def relevant?({:group_approved, _key, _count}), do: true
+  def relevant?({:file_added, %FileAdded{}}), do: true
+  def relevant?({:file_reviewed, %FileReviewed{}}), do: true
+  def relevant?({:group_approved, %GroupApproved{}}), do: true
   def relevant?(_message), do: false
 
   @impl MediaCentaur.Cache
@@ -57,8 +60,7 @@ defmodule MediaCentaur.Status.Views.Overview do
     snapshot = Status.fetch_overview()
     :ets.insert(@table, {:snapshot, snapshot})
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.status_views(),
       {:status_view_updated, :overview}
     )

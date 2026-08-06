@@ -137,6 +137,6 @@ defmodule MediaCentaur.Playback.Events do
   def broadcast(%TrackOverrideChanged{} = event), do: do_broadcast({:track_override_changed, event})
 
   defp do_broadcast(message) do
-    Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.playback_events(), message)
+    Topics.publish(Topics.playback_events(), message)
   end
 end

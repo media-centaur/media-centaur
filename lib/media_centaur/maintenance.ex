@@ -174,8 +174,7 @@ defmodule MediaCentaur.Maintenance do
 
     Enum.each(entities, fn entity ->
       if media_dir = first_media_dir(entity) do
-        Phoenix.PubSub.broadcast(
-          MediaCentaur.PubSub,
+        MediaCentaur.Topics.publish(
           MediaCentaur.Topics.pipeline_images(),
           {:images_pending, %{entity_id: entity.id, media_dir: media_dir}}
         )

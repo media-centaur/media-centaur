@@ -33,8 +33,8 @@ defmodule MediaCentaur.Acquisition.Reactor do
 
   @impl GenServer
   def init(_opts) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.release_tracking_updates())
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.acquisition_updates())
+    Topics.subscribe(Topics.release_tracking_updates())
+    Topics.subscribe(Topics.acquisition_updates())
     {:ok, %{}}
   end
 

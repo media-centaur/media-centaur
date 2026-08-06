@@ -20,7 +20,7 @@ defmodule MediaCentaur.ReleaseTracking.Views do
   @doc "Subscribe the caller to ReleaseTracking projection-refreshed events."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.release_tracking_views())
+    Topics.subscribe(Topics.release_tracking_views())
   end
 
   @doc """

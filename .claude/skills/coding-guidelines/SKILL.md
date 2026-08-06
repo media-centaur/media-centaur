@@ -57,6 +57,36 @@ or `Enum.find`, or a `case` with both `{:ok, _}` and `{:error, _}` branches.
 HTTP clients, GenServer readers, and cache-then-database reads named `get_*`
 are deliberately left alone; the contract is about repository-style lookups.
 
+## Event Publication (ADR-060)
+
+Two seams, and the inner one is usually the right target:
+
+| Reach for | When |
+|---|---|
+| `Context.Events.broadcast/1` | the topic has a chokepoint — always prefer this |
+| `Topics.publish/2` | inside the owning context, for a topic with no chokepoint yet |
+| `Topics.subscribe/1` | subscribing where no `subscribe/0` facade exists |
+| `Phoenix.PubSub.*` | never — **MC0025** flags it outside `topics.ex` |
+
+**A topic with a closed message set gets an `Events` module** in its owning
+context: one `events.ex`, a nested struct per message with `@enforce_keys`,
+and one `broadcast/1` whose heads enumerate the set. `Library.Events`,
+`Playback.Events` and `Review.Events` are the worked examples — pinned by
+MC0013, MC0012 and MC0026.
+
+This is **not** the `Acquisition.Pursuits.Events` shape. Its 20 files buy
+database persistence and cold replay, not payload typing; don't generalise
+`Define` to events that are only broadcast.
+
+New topics start typed. Existing bare-tuple topics convert **when you are
+already changing the context** — never in a sweep. Convert positional
+tuples first: `{:group_error, key, message}` lets a publisher swap two
+same-typed arguments with nothing to catch it.
+
+Exporting matters: subscribers pattern-match the structs, so the owning
+context's `use Boundary` must `exports:` them — a typed payload turns an
+implicit runtime coupling into a declared one.
+
 ## Test Patterns by Domain
 
 ### Ecto Schemas (Movie, TVSeries, MovieSeries, VideoObject, WatchedFile, WatchProgress, Image)

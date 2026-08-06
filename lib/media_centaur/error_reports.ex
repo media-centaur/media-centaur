@@ -137,5 +137,5 @@ defmodule MediaCentaur.ErrorReports do
   end
 
   @spec subscribe() :: :ok | {:error, term()}
-  def subscribe, do: Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.error_reports())
+  def subscribe, do: Topics.subscribe(Topics.error_reports())
 end

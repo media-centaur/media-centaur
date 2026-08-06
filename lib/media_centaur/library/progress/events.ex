@@ -80,6 +80,6 @@ defmodule MediaCentaur.Library.Progress.Events do
   def broadcast(%ProgressHydrated{} = event), do: do_broadcast({:progress_hydrated, event})
 
   defp do_broadcast(message) do
-    Phoenix.PubSub.broadcast(MediaCentaur.PubSub, Topics.library_progress(), message)
+    Topics.publish(Topics.library_progress(), message)
   end
 end

@@ -280,8 +280,8 @@ All non-trivial logic in LiveViews and function components must be extracted int
 
 All LiveViews stay current via PubSub — no manual page refreshes.
 
-1. **Subscribe in `mount/3`** (inside `if connected?(socket)`) using context facade helpers: `Library.subscribe()`, `Playback.subscribe()`, etc. Direct `Phoenix.PubSub.subscribe/2` is flagged by the `ContextSubscribeFacade` Credo check.
-2. **Handle PubSub messages in `handle_info/2`** with pattern-matched clauses. Every LiveView ends with a catch-all `def handle_info(_msg, socket)`.
+1. **Subscribe in `mount/3`** (inside `if connected?(socket)`) using context facade helpers: `Library.subscribe()`, `Playback.subscribe()`, etc. Direct `Phoenix.PubSub.subscribe/2` is flagged by the `ContextSubscribeFacade` Credo check (MC0003), and by `PubSubTransport` (MC0025) everywhere in `lib/` — `MediaCentaur.Topics` owns the transport (ADR-060).
+2. **Handle PubSub messages in `handle_info/2`** with pattern-matched clauses. Every LiveView ends with a catch-all `def handle_info(_msg, socket)`. Topics with a typed chokepoint deliver a struct as the second element (`{:file_added, %Review.Events.FileAdded{}}`) — match the struct, not a positional tuple.
 3. **Debounce rapid changes** with `debounce(socket, timer_assign, message, delay_ms)` from `LiveHelpers`. Callers that accumulate data (e.g. LibraryLive's pending entity IDs) do so before calling debounce — the utility only manages the timer lifecycle.
 4. **Update streams surgically** — `touch_stream_entries` for in-place changes, full `reset_stream` only when sort position may change.
 

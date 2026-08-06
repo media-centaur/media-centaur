@@ -55,8 +55,7 @@ defmodule MediaCentaur.Library.Views.RankedProjection do
     :ets.delete_all_objects(table)
     :ets.insert(table, rows)
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.library_views(),
       {:library_view_updated, view_tag}
     )

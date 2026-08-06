@@ -48,7 +48,7 @@ defmodule MediaCentaur.SelfUpdate.AutoApply do
     # Subscribe to the playback topic directly via the shared Topics registry
     # rather than the Playback facade — keeps SelfUpdate decoupled from the
     # Playback context (no compile-time edge), per the Boundary contract.
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.playback_events())
+    Topics.subscribe(Topics.playback_events())
 
     state = %{
       deferred?: false,

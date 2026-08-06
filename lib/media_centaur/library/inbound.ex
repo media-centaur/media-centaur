@@ -56,8 +56,8 @@ defmodule MediaCentaur.Library.Inbound do
 
   @impl true
   def init(_) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_publish())
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_commands())
+    MediaCentaur.Topics.subscribe(MediaCentaur.Topics.pipeline_publish())
+    MediaCentaur.Topics.subscribe(MediaCentaur.Topics.library_commands())
     {:ok, %{}}
   end
 
@@ -191,8 +191,7 @@ defmodule MediaCentaur.Library.Inbound do
 
       Helpers.broadcast_entities_changed([entity_id])
 
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
+      MediaCentaur.Topics.publish(
         MediaCentaur.Topics.review_intake(),
         {:files_for_review, file_list}
       )
@@ -868,8 +867,7 @@ defmodule MediaCentaur.Library.Inbound do
   defp queue_images(_entity, [], _event), do: :ok
 
   defp queue_images(entity, pending_images, event) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    MediaCentaur.Topics.publish(
       MediaCentaur.Topics.pipeline_images(),
       {:enqueue_images, %{entity_id: entity.id, media_dir: event.media_dir, images: pending_images}}
     )

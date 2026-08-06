@@ -20,6 +20,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.InboundListener do
 
   alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Acquisition.Pursuits.IdentityVerifier
+  alias MediaCentaur.Topics
 
   def start_link(_opts) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
@@ -27,7 +28,7 @@ defmodule MediaCentaur.Acquisition.Pursuits.InboundListener do
 
   @impl true
   def init(_) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.pipeline_publish())
+    Topics.subscribe(Topics.pipeline_publish())
     {:ok, %{}}
   end
 

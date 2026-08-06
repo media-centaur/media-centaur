@@ -5,6 +5,8 @@ defmodule MediaCentaurWeb.ReviewBadgeTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Reconciliation
+  alias MediaCentaur.Review.Events.FileAdded
+  alias MediaCentaur.Review.Events.FileReviewed
 
   @sidebar_review ~s{aside a[data-tip="Review"]}
 
@@ -64,12 +66,12 @@ defmodule MediaCentaurWeb.ReviewBadgeTest do
       refute has_element?(view, @sidebar_review)
 
       pending_file = create_pending_file()
-      send(view.pid, {:file_added, pending_file.id})
+      send(view.pid, {:file_added, %FileAdded{pending_file_id: pending_file.id}})
 
       assert has_element?(view, @sidebar_review <> ~s{[href="/review"]})
 
       MediaCentaur.Review.destroy_pending_file!(pending_file)
-      send(view.pid, {:file_reviewed, pending_file.id})
+      send(view.pid, {:file_reviewed, %FileReviewed{pending_file_id: pending_file.id}})
 
       refute has_element?(view, @sidebar_review)
     end

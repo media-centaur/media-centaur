@@ -57,8 +57,8 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
   @impl true
   def init(_opts) do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_updates())
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.library_deletions())
+    MediaCentaur.Topics.subscribe(MediaCentaur.Topics.library_updates())
+    MediaCentaur.Topics.subscribe(MediaCentaur.Topics.library_deletions())
     schedule_sweep(RefreshSchedule.next_delay_ms(last_swept_at(), sweep_interval_ms()))
     schedule_refresh(RefreshSchedule.next_delay_ms(last_refresh_completed_at(), refresh_interval_ms()))
     {:ok, %{}}
@@ -142,8 +142,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
     changed_ids = Enum.map(items, & &1.id)
 
     if changed_ids != [] do
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
+      MediaCentaur.Topics.publish(
         MediaCentaur.Topics.release_tracking_updates(),
         {:releases_updated, changed_ids}
       )
@@ -279,8 +278,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
 
     # The drop planner's clock (ADR-056 Q2): the Reactor runs a tick
     # after every completed sweep, once the ledger sync is in.
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    MediaCentaur.Topics.publish(
       MediaCentaur.Topics.release_tracking_updates(),
       {:tracking_sweep_completed}
     )
@@ -535,8 +533,7 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   # full role set idempotently.
 
   defp broadcast_tracking_update(item_ids) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    MediaCentaur.Topics.publish(
       MediaCentaur.Topics.release_tracking_updates(),
       {:releases_updated, item_ids}
     )

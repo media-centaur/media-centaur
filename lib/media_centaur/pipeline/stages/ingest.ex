@@ -29,8 +29,7 @@ defmodule MediaCentaur.Pipeline.Stages.Ingest do
       media_dir: payload.media_directory
     }
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    MediaCentaur.Topics.publish(
       MediaCentaur.Topics.pipeline_publish(),
       {:entity_published, event}
     )

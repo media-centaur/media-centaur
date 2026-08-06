@@ -17,7 +17,7 @@ defmodule MediaCentaur.WatchHistory do
 
   @doc "Subscribe to watch_history:events PubSub topic."
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.watch_history_events())
+    Topics.subscribe(Topics.watch_history_events())
   end
 
   @doc "Insert a new WatchEvent. Called by Recorder."
@@ -182,8 +182,7 @@ defmodule MediaCentaur.WatchHistory do
   def delete_event!(%Event{} = event, opts \\ []) do
     Repo.delete!(event)
 
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
+    Topics.publish(
       Topics.watch_history_events(),
       {:watch_event_deleted, event}
     )

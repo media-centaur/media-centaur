@@ -22,27 +22,25 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`audit-remediation-2026-08.md`](audit-remediation-2026-08.md) —
-  **in progress.** Tail of the 2026-08-05 four-audit sweep
-  (engineering / performance / documentation / design). The Critical
-  findings shipped — the Detail projection went 219 MB → 5 MB, an
-  unguarded watch-history delete was gated, Continue Watching stopped
-  rendering empty, `ex_code_view` stopped breaking `mix setup` for
-  external contributors. Stage 1 split the 2779-line `Library` context
-  into 18 modules (`library.ex` 2779 → 127 lines); Stage 2 closed the
-  `Status` and `Diagnostics` Boundary hatches and documented `Showcase`'s
-  as a permanent exception. Stage 4 reconciled two overreaching test
-  policies with practice and put three Credo checks behind them
-  (MC0022–MC0024) — after discovering both of its own headline counts
-  were wrong, and that the "345 markup assertions" were really 14.
-  Stage 3 was **declined** — the console stays out of the input system
-  deliberately (backtick already opens it, and the input system would take
-  the arrow keys and Escape on a log-reading surface); the attempt did
-  surface that `/reconcile`'s navigation is dead, declared in the template
-  but absent from `config.js`. What's left: pick one event-publication
-  idiom (needs an ADR first), plus droppable polish and that unclaimed
-  `/reconcile` fix.
-  **Each stage is discussed with the owner before it is resolved** —
-  the open questions are the point, not the code.
+  **complete 2026-08-06; removable.** Tail of the 2026-08-05 four-audit
+  sweep. Stages 1, 2, 4 and 5 resolved, Stage 3 declined. Stage 1 split the
+  2779-line `Library` context into 18 modules (`library.ex` → 127 lines);
+  Stage 2 closed the `Status` and `Diagnostics` Boundary hatches; Stage 4
+  reconciled two overreaching test policies with practice behind three new
+  Credo checks (MC0022–MC0024); Stage 5 settled the event-publication idiom
+  ([ADR-060](../decisions/architecture/2026-08-06-060-event-publication-idiom.md))
+  — typed structs in the one-file `Library`/`Playback` shape, a `Topics`
+  transport that removed 132 hand-written PubSub server references, and
+  `Review.Events` as the worked example. Stage 3 was declined because the
+  console stays outside the input system deliberately.
+  Its durable output is a lesson in three clauses, paid for six times: a
+  check you can run beats a number you wrote down; a number beats nothing
+  only if you checked the assumption underneath it; **and a check counts
+  only if you ran it against a violation** — MC0012 and MC0013 were found
+  to have never been able to fire.
+  Carried forward as ordinary work, holding nothing open: `/reconcile`'s
+  dead nav config, MC0023's 23-file grandfather list, and Stage 6's
+  droppable polish.
 * [`below-floor-releases.md`](below-floor-releases.md) —
   **planning — design not started.** When every findable release of a
   title is below the user's quality floor, the plan board says a bare

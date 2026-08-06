@@ -1,5 +1,17 @@
 defmodule MediaCentaur.Review do
-  use Boundary, deps: [MediaCentaur.Library, MediaCentaur.TMDB], exports: [Rematch]
+  use Boundary,
+    deps: [MediaCentaur.Library, MediaCentaur.TMDB],
+    exports: [
+      Rematch,
+      # Subscribers to `review:updates` pattern-match these payloads, so
+      # they are part of the context's published surface (ADR-060). Same
+      # precedent as `Library.Events` / `Events.EntitiesChanged`.
+      Events,
+      Events.FileAdded,
+      Events.FileReviewed,
+      Events.GroupApproved,
+      Events.GroupError
+    ]
 
   @moduledoc """
   The review domain — files requiring human review before library ingestion.
@@ -19,6 +31,10 @@ defmodule MediaCentaur.Review do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Review.Events
+  alias MediaCentaur.Review.Events.FileReviewed
+  alias MediaCentaur.Review.Events.GroupApproved
+  alias MediaCentaur.Review.Events.GroupError
   alias MediaCentaur.Topics
   alias MediaCentaur.TMDB.Client
   alias MediaCentaur.DateUtil
@@ -26,7 +42,7 @@ defmodule MediaCentaur.Review do
   @doc "Subscribe the caller to review process events."
   @spec subscribe() :: :ok | {:error, term()}
   def subscribe do
-    Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.review_updates())
+    Topics.subscribe(Topics.review_updates())
   end
 
   # ---------------------------------------------------------------------------
@@ -175,19 +191,14 @@ defmodule MediaCentaur.Review do
       {approved, errors} = approve_group(files)
 
       if errors > 0 do
-        Phoenix.PubSub.broadcast(
-          MediaCentaur.PubSub,
-          Topics.review_updates(),
-          {:group_error, group_key, "#{errors} file(s) failed to approve"}
-        )
+        Events.broadcast(%GroupError{
+          group_key: group_key,
+          message: "#{errors} file(s) failed to approve"
+        })
       end
 
       if approved > 0 do
-        Phoenix.PubSub.broadcast(
-          MediaCentaur.PubSub,
-          Topics.review_updates(),
-          {:group_approved, group_key, approved}
-        )
+        Events.broadcast(%GroupApproved{group_key: group_key, count: approved})
       end
     end)
 
@@ -258,8 +269,7 @@ defmodule MediaCentaur.Review do
     )
 
     with {:ok, pending_file} <- approve_pending_file(pending_file) do
-      Phoenix.PubSub.broadcast(
-        MediaCentaur.PubSub,
+      Topics.publish(
         MediaCentaur.Topics.pipeline_matched(),
         {:file_matched,
          %{
@@ -383,10 +393,6 @@ defmodule MediaCentaur.Review do
   end
 
   defp broadcast_reviewed(file_id) do
-    Phoenix.PubSub.broadcast(
-      MediaCentaur.PubSub,
-      MediaCentaur.Topics.review_updates(),
-      {:file_reviewed, file_id}
-    )
+    Events.broadcast(%FileReviewed{pending_file_id: file_id})
   end
 end
