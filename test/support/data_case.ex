@@ -38,14 +38,14 @@ defmodule MediaCentaur.DataCase do
   @doc """
   Sets up the sandbox based on the test tags.
 
-  Also restores the `MediaCentaur.Config` `:persistent_term` cache to
-  its post-helper pristine state. Without this, a previous test's
-  `Config.update/2` call leaks into the next test's view of `Config.get/1`
-  — the global cache survives sandbox rollback. See
-  `campaigns/test-isolation-hardening.md` (Category E).
+  Also resets the global state the SQL sandbox cannot roll back — every
+  `:persistent_term` cache this app owns, plus the shared singletons a
+  test can perturb. See `MediaCentaur.GlobalStateSandbox`; without it a
+  previous test's `Config.update/2` or `QueueMonitor` poll is still there
+  when the next test reads it.
   """
   def setup_sandbox(tags) do
-    restore_config_cache()
+    MediaCentaur.GlobalStateSandbox.restore!()
     pid = Ecto.Adapters.SQL.Sandbox.start_owner!(MediaCentaur.Repo, shared: not tags[:async])
 
     # ExUnit on_exit callbacks run LIFO — the wait-for-tasks below
@@ -55,11 +55,6 @@ defmodule MediaCentaur.DataCase do
     # safe here.
     on_exit(fn -> Ecto.Adapters.SQL.Sandbox.stop_owner(pid) end)
     on_exit(&drain_supervised_tasks/0)
-  end
-
-  defp restore_config_cache do
-    snapshot = :persistent_term.get({MediaCentaur.Config, :test_pristine_snapshot})
-    :persistent_term.put({MediaCentaur.Config, :config}, snapshot)
   end
 
   # Terminates any `Task.Supervisor` child still running under

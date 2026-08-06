@@ -175,17 +175,6 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
          %{conn: conn} do
       Capabilities.clear_test_result(:download_client)
 
-      # The mount reads QueueMonitor's `:persistent_term` snapshot, which is
-      # GLOBAL — a queue left by an earlier test in the run would render the
-      # other-downloads zone here (order-dependent). Same hermetic reset as
-      # the pursuit-modal suite.
-      queue_cache_key = {MediaCentaur.Downloads.QueueMonitor, :state}
-      :persistent_term.put(queue_cache_key, %MediaCentaur.Downloads.QueueState{items: []})
-
-      on_exit(fn ->
-        :persistent_term.put(queue_cache_key, %MediaCentaur.Downloads.QueueState{items: []})
-      end)
-
       {:ok, view, html} = live_async!(conn, ~p"/incoming?zone=activity")
 
       # Scoped to the live-activity zones — a whole-page `=~ "Downloading"`

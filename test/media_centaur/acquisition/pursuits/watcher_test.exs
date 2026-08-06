@@ -65,10 +65,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.WatcherTest do
         last_successful_poll_at: DateTime.utc_now()
       }
     )
-
-    on_exit(fn ->
-      :persistent_term.erase({MediaCentaur.Downloads.QueueMonitor, :state})
-    end)
   end
 
   defp queue_item(title, opts) do

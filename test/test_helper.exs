@@ -37,13 +37,9 @@ Ecto.Adapters.SQL.Sandbox.mode(MediaCentaur.Repo, :manual)
 # call `UpdateChecker.clear_cache/0` in their own setup.
 MediaCentaur.SelfUpdate.UpdateChecker.cache_result({:error, :disabled_in_tests})
 
-# Snapshot the post-helper Config cache so DataCase can restore it
-# before every test, defending against Config.update calls in one test
-# leaking into the next via global :persistent_term state. The snapshot
-# captures the in-memory cache *after* the wizard-dismissed patch above
-# and after any other test_helper mutations — that's the pristine state
-# every test should start from.
-:persistent_term.put(
-  {MediaCentaur.Config, :test_pristine_snapshot},
-  :persistent_term.get({MediaCentaur.Config, :config})
-)
+# Snapshot every app-owned :persistent_term key so DataCase can restore
+# the lot before each test — the global caches the SQL sandbox cannot roll
+# back. Must be the last thing this file does: the baseline is whatever
+# state the priming above leaves behind, and that is what every test
+# should start from. See `MediaCentaur.GlobalStateSandbox`.
+MediaCentaur.GlobalStateSandbox.capture_pristine!()

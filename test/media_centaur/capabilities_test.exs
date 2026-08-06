@@ -6,15 +6,6 @@ defmodule MediaCentaur.CapabilitiesTest do
   alias MediaCentaur.Topics
 
   setup do
-    original = :persistent_term.get({Config, :config})
-
-    on_exit(fn ->
-      :persistent_term.put({Config, :config}, original)
-      :persistent_term.erase({Capabilities, :ready_flags})
-    end)
-
-    :persistent_term.erase({Capabilities, :ready_flags})
-
     Config.update(:tmdb_api_key, "")
     Config.update(:prowlarr_url, "")
     Config.update(:prowlarr_api_key, "")

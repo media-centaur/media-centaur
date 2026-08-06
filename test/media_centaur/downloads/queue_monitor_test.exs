@@ -47,11 +47,10 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
       on_exit(fn -> Req.Test.set_req_test_to_private() end)
 
       # Force the readiness flag without the settings DB — same cache key
-      # Capabilities itself maintains (and capabilities_test resets).
-      flags_key = {Capabilities, :ready_flags}
-      previous_flags = :persistent_term.get(flags_key, :__unset)
-
-      :persistent_term.put(flags_key, %{
+      # Capabilities itself maintains. No cleanup here: every DataCase /
+      # ConnCase test restores the whole term store before it runs
+      # (`MediaCentaur.GlobalStateSandbox`).
+      :persistent_term.put({Capabilities, :ready_flags}, %{
         tmdb: false,
         prowlarr: false,
         torrent_client: true,
@@ -59,13 +58,6 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
         download_client: true,
         acquisition: false
       })
-
-      on_exit(fn ->
-        case previous_flags do
-          :__unset -> :persistent_term.erase(flags_key)
-          flags -> :persistent_term.put(flags_key, flags)
-        end
-      end)
 
       stub_sync_success()
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.acquisition_queue())
@@ -152,10 +144,10 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
       Req.Test.set_req_test_to_shared()
       on_exit(fn -> Req.Test.set_req_test_to_private() end)
 
-      flags_key = {Capabilities, :ready_flags}
-      previous_flags = :persistent_term.get(flags_key, :__unset)
-
-      :persistent_term.put(flags_key, %{
+      # Force the readiness flag without the settings DB — same cache key
+      # Capabilities itself maintains. Cleanup is the global-state
+      # sandbox's job (`MediaCentaur.GlobalStateSandbox`), not this file's.
+      :persistent_term.put({Capabilities, :ready_flags}, %{
         tmdb: false,
         prowlarr: false,
         torrent_client: true,
@@ -163,13 +155,6 @@ defmodule MediaCentaur.Downloads.QueueMonitorTest do
         download_client: true,
         acquisition: false
       })
-
-      on_exit(fn ->
-        case previous_flags do
-          :__unset -> :persistent_term.erase(flags_key)
-          flags -> :persistent_term.put(flags_key, flags)
-        end
-      end)
 
       stub_qbit_with_torrent()
       stub_sab_with_download()

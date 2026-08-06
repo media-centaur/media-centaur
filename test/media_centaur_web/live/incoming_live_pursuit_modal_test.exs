@@ -21,13 +21,10 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
   alias MediaCentaur.Search.Prowlarr
   alias MediaCentaur.Acquisition.Pursuits.Event
   alias MediaCentaur.Capabilities
-  alias MediaCentaur.Downloads.QueueState
   alias MediaCentaur.Repo
   alias MediaCentaur.Secret
   alias MediaCentaur.Acquisition.Pursuits.Units
   alias MediaCentaur.Acquisition.Target
-
-  @queue_cache_key {MediaCentaur.Downloads.QueueMonitor, :state}
 
   setup do
     # Inline Oban runs PursueTarget synchronously after ChangeTarget. Stub
@@ -48,15 +45,6 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
     )
 
     Capabilities.save_test_result(:prowlarr, :ok)
-
-    on_exit(fn ->
-      :persistent_term.put(@queue_cache_key, %QueueState{items: []})
-      :persistent_term.erase({Prowlarr, :client})
-      :persistent_term.put({MediaCentaur.Config, :config}, config)
-      Capabilities.clear_test_result(:prowlarr)
-    end)
-
-    :persistent_term.put(@queue_cache_key, %QueueState{items: []})
     :ok
   end
 

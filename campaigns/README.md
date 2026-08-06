@@ -22,15 +22,21 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`audit-remediation-2026-08.md`](audit-remediation-2026-08.md) —
-  **in progress — Stage 9 next, diagnosis already measured.** Tail of the
-  2026-08-05 four-audit sweep. Stages 1, 2, 4, 5, 6, 7 and 8 resolved, Stage 3
-  declined. **Stage 9** is a proven test-isolation leak that Stage 8's own
-  verification run surfaced: `Downloads.QueueMonitor` is a global GenServer no
-  test resets, so three stale queue items render as orphans and an Incoming
-  empty-state assertion fails. Reproduces on untouched `main` by adding five
-  inert async tests and running `--seed 508425 --max-cases 24`. Same class as
-  Stage 7 — state outside the isolation mechanism. No open questions on the
-  cause; the decision is how wide the fix goes. Stage 1 split the 2779-line `Library` context into 18 modules
+  **complete 2026-08-06 — all nine stages resolved or declined; kept, not
+  retired, because it has been retired and un-retired once already.** Tail of
+  the 2026-08-05 four-audit sweep. Stages 1, 2, 4, 5, 6, 7, 8 and 9 resolved,
+  Stage 3 declined. **Stage 9** closed the test-isolation leak Stage 8's own
+  verification run surfaced — and corrected it twice on the way: the
+  documented seed-lottery repro produces **0 failures** on the tree it was
+  measured on, and `Downloads.QueueMonitor` is **not started under `:test`**,
+  so what survived the sandbox was its `:persistent_term` cache, not a
+  GenServer's state. `MediaCentaur.GlobalStateSandbox` now restores every
+  app-owned term from a namespace-derived baseline before each
+  `DataCase`/`ConnCase` test, resets the Console buffer and the search-session
+  singleton, and fails a test when the supervision tree grows a child nobody
+  has classified; six files lost their hand-rolled versions of the same idea.
+  Same class as Stage 7 — state outside the isolation mechanism.
+  Stage 1 split the 2779-line `Library` context into 18 modules
   (`library.ex` → 127 lines); Stage 2 closed the `Status` and `Diagnostics`
   Boundary hatches; Stage 4 reconciled two overreaching test policies with
   practice behind three new Credo checks (MC0022–MC0024); Stage 5 settled
@@ -50,7 +56,7 @@ Use [`template.md`](template.md) as a starter.
   makes `data-confirm` a violation. Stage 3 was declined because the console
   stays outside the input system deliberately. The `/reconcile` dead-nav
   defect was fixed and turned out to be three defects.
-  Its durable output is a lesson in seven clauses, paid for twelve times: a
+  Its durable output is a lesson in eight clauses, paid for fourteen times: a
   check you can run beats a number you wrote down; a number beats nothing
   only if you checked the assumption underneath it; a check counts only if
   you ran it against a violation — MC0012 and MC0013 were found to have
@@ -63,7 +69,10 @@ Use [`template.md`](template.md) as a starter.
   answer was that two of the five sites need none; **and a control group needs
   the same shape, not just the same code** — "it passes on main" was not
   evidence until main was padded to the same test count, at which point it
-  failed there too. Counterweight: measure before deciding whether to care.
+  failed there too; **and a measurement is a number and a label, and only the
+  number is measured** — Stage 9's probe printed `queue_monitor_items=3` and
+  everything written after it rested on the word *QueueMonitor*, a module that
+  was never running. Counterweight: measure before deciding whether to care.
 * [`below-floor-releases.md`](below-floor-releases.md) —
   **planning — design not started.** When every findable release of a
   title is below the user's quality floor, the plan board says a bare

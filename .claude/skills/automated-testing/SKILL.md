@@ -131,6 +131,18 @@ end
 and `:media_dirs, []`. Tests needing real paths create temp dirs via
 `System.tmp_dir!()` and override `:persistent_term`.
 
+**Global state is reset for you — do not hand-roll it.** The SQL sandbox rolls
+back rows and nothing else. `MediaCentaur.GlobalStateSandbox`, called from
+`DataCase.setup_sandbox/1`, restores every `:persistent_term` key this app owns
+to its post-`test_helper` baseline before each `DataCase`/`ConnCase` test, and
+clears `Console.Buffer` and `IncomingLive.SearchSession`. So: **write** what
+your test needs (`:persistent_term.put`, `Config.update/2`, a stubbed client)
+and **do not** save-and-restore it in `on_exit` — that's the harness's job, and
+a private copy of it drifts. Two consequences worth knowing: a test that writes
+global state must be `async: false`, or a concurrent test's setup will clear it
+underneath it; and a new stateful child of `MediaCentaur.Supervisor` fails
+`global_state_sandbox_test.exs` until it is classified in `dispositions/0`.
+
 **Pipeline (Broadway)** — test-first, mandatory. Call stage functions directly
 (`run/1`, `Pipeline.process_payload/1`), never the Broadway topology. Test
 orchestration and state transitions, not leaf functions. Append-only ([ADR-027]).
