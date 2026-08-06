@@ -38,8 +38,8 @@ defmodule MediaCentaur.Status do
   (`Maintenance.missing_images_summary/0`), so callers must invoke it off
   the LiveView mount path (e.g. via `start_async/3`), never inside `mount`.
   """
-  @spec fetch_overview() :: LibraryOverview.t()
-  def fetch_overview do
+  @spec load_overview() :: LibraryOverview.t()
+  def load_overview do
     stats = fetch_library_stats()
 
     %LibraryOverview{

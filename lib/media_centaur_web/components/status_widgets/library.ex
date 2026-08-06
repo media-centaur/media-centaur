@@ -23,7 +23,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Library do
   """
   attr :overview, LibraryOverview,
     default: nil,
-    doc: "Status.fetch_overview/0 result, or nil while the async load is in flight"
+    doc: "Status.load_overview/0 result, or nil while the async load is in flight"
 
   attr :storage_drives, :list,
     required: true,

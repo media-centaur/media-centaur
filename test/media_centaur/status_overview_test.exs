@@ -6,9 +6,9 @@ defmodule MediaCentaur.StatusOverviewTest do
   alias MediaCentaur.Status
   alias MediaCentaur.Status.LibraryOverview
 
-  describe "fetch_overview/0" do
+  describe "load_overview/0" do
     test "returns a zeroed overview for an empty library" do
-      overview = Status.fetch_overview()
+      overview = Status.load_overview()
 
       assert %LibraryOverview{} = overview
       assert overview.movie_count == 0
@@ -34,7 +34,7 @@ defmodule MediaCentaur.StatusOverviewTest do
       season = create_season(%{season_number: 1, tv_series_id: series.id})
       create_episode(%{episode_number: 1, season_id: season.id})
 
-      overview = Status.fetch_overview()
+      overview = Status.load_overview()
 
       assert overview.movie_count == 1
       assert overview.show_count == 1
@@ -47,7 +47,7 @@ defmodule MediaCentaur.StatusOverviewTest do
       create_pending_file(%{file_path: "/media/incoming/mystery.mkv"})
       create_movie(%{name: "Unmatched Movie"})
 
-      overview = Status.fetch_overview()
+      overview = Status.load_overview()
 
       assert overview.pending_review_count == 1
       assert overview.missing_metadata_count == 1

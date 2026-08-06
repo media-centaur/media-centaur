@@ -51,6 +51,16 @@ defmodule MediaCentaur.Credo.Checks.LookupNamingContract do
       Public functions in `lib/` only — private helpers and test support are
       not part of the contract.
 
+      **Plural `fetch_*` readers are out of scope by design.**
+      `fetch_pending_groups/0`, `fetch_all_typed_entries/1`, and
+      `fetch_recent_changes/0` return collections, not lookups: "none found"
+      is `[]`, not `{:error, :not_found}`, so there is no tuple for the
+      caller to match and nothing for the name to lie about. The contract
+      governs *singular* record lookups. A singular `fetch_*` that returns a
+      struct or a collection is the real smell — name it `load_*` or
+      `build_*` — but that shape is not statically distinguishable from a
+      plural reader here, so it stays a review concern rather than a check.
+
       Source: the 2026-08 audit-remediation campaign, Stage 4 (campaign
       retired; see git history).
       """
