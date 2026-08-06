@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: complete
 started: 2026-08-05
 last_updated: 2026-08-06
 ---
@@ -30,22 +30,23 @@ decide unilaterally. The loop per stage is:
 
 Stages are independent. Order below is recommended, not required.
 
-**Resuming into Stage 8 (2026-08-06) — start here.**
+**All eight stages are settled (2026-08-06). Nothing here is waiting on
+anyone.**
 
-Stages 1, 2, 4, 5, 6 and 7 are **done**; Stage 3 was **declined**. The
+Stages 1, 2, 4, 5, 6, 7 and 8 are **done**; Stage 3 was **declined**. The
 `/reconcile` defect this campaign found is **fixed** (and was three defects,
-not one — see its section).
+not one — see its section). Every completion criterion below is met.
 
-**Only Stage 8 is left, and it must not be started before its open questions
-are answered.** Five native `data-confirm` dialogs, and the repo already has
-two themed, d-pad-reachable idioms to choose between — so the remedy is an
-idiom decision, not an edit. The three questions are in the stage.
+Two things changed under the whole campaign near its end, and both are worth
+knowing before you trust an older sentence in this file:
 
-Stage 7 is done, and it changed what "precommit green" means: the JS runner
-now covers `assets/js/` whole rather than a hand-listed pair of directories,
-so `mix precommit` and CI run the same 620 tests across 29 files instead of
-564 across 24. Its diagnosis was also **half wrong when written** — see error
-9 in the ledger below before trusting any single-cause claim in this file.
+* **Stage 7 changed what "precommit green" means.** The JS runner now covers
+  `assets/js/` whole rather than a hand-listed pair of directories, so
+  `mix precommit` and CI run the same 620 tests across 29 files instead of
+  564 across 24. Stages 1–6 were verified against the narrower claim.
+* **Stage 7's own diagnosis was half wrong when written**, and Stage 8's
+  planned shape was wrong in a different way. See errors 9 and 10 in the
+  ledger — the two sharpest entries in it.
 
 **Every stage's facts were verified on 2026-08-06 when it was written**, not
 inherited from the audit. Every figure carries the command that produced it —
@@ -110,6 +111,7 @@ sequence is the campaign's most durable output, so it is stated in full:
 | 7 | 6 | The `/reconcile` nav defect was **three** defects. The missing config was one; `data-nav-default-zone` also named a context instead of the layout key, and the shared ReviewTabs strip was dead on `/review` too |
 | 8 | 6 | `clear_database`'s native confirm: the bullet said **1** site, the stage's own correction said **2**, the repo has **5** |
 | 9 | 7 | "One root cause" was right and the cause named was wrong. The stub did not lack `dispatchEvent`; `console.test.js` did not own its `window` at all. Run alone it passed **17/17** — the 8 failures appear only when `log_tail.test.js` loads first and leaves its own `window` on `globalThis` |
+| 10 | 8 | Every option the stage tabled was a *kind of dialog*, because it asked "which idiom" — which silently assumed all five sites deserved one. The owner's answer was **two of them deserve none.** The count of five was right for the third time running; the question asked of it was wrong |
 
 The lesson accreted in three passes:
 
@@ -176,6 +178,19 @@ Stage 7 then added the fifth, and it is the sharpest of them:
    nothing about *why*, and reading the trace felt enough like reproducing to
    skip actually doing it.
 
+Stage 8 supplied the sixth, and it is the one that generalises furthest:
+
+6. **Check the question before you answer it.** Stage 8 tabulated five sites,
+   counted them correctly for the third time, and offered three options —
+   every one of them a *kind of dialog*. The word "idiom" in the question had
+   quietly encoded the assumption that each site needed one. The owner picked
+   none of the three: *"remove excluded dir and history row require no
+   confirmation."* Clause 4 says a count never tells you which fix. This is
+   one level up again — **a well-posed question can still be the wrong
+   question**, and the tell is that every option shares a premise nobody
+   stated. Ask what the options have in common; that is where the assumption
+   is hiding.
+
 And one thing that went the other way, worth recording because it is the
 cheap move that keeps paying: **measure before you decide whether to
 care.** The cast-grid bullet read like nitpicking until it was rendered —
@@ -185,10 +200,10 @@ minutes and inverted the decision.
 
 ## Status
 
-**Stages 1, 2, 4, 5, 6 and 7 done; Stage 3 declined** (all 2026-08-06).
-**Stage 8 is the only one open**, and it needs the owner's answers before any
-code. `mix precommit` green after each stage — and since Stage 7, that phrase
-covers the JS tree.
+**Stages 1, 2, 4, 5, 6, 7 and 8 done; Stage 3 declined** (all 2026-08-06).
+**Nothing is open.** `mix precommit` green after each stage — and since Stage
+7, that phrase covers the JS tree. Final run: **5780 tests, 0 failures** plus
+**620 JS across 29 files**.
 
 * **Stage 1** — `library.ex` 2779 → 127 lines across six commits
   (`5b2d3510`…`f91f61ce`); 18 modules; the 21 `# ---` dividers are gone.
@@ -213,8 +228,9 @@ covers the JS tree.
   harness that made the hook tests order-dependent replaced. 564 tests across
   24 files → **620 across 29**, 0 failures, and CI now runs what precommit
   runs.
-* **Stage 8** — not started. Five native `data-confirm` dialogs, two
-  existing themed idioms to choose between. Open questions for the owner.
+* **Stage 8** — confirmations graded by consequence: two sites dropped theirs,
+  one arms in place, `clear_database` gets a persistent modal. MC0027 makes
+  `data-confirm` a violation, with the console exempted on the record.
 
 The 2026-08-05 sweep's Critical and Moderate-with-user-impact findings were
 fixed and pushed before the stages began (see *Decisions made*); this
@@ -229,8 +245,9 @@ stages were written:
 * **`assets/js/hooks/` is in no test run** → **Stage 7**, ✅ done. Failing
   since 2026-04-29 and invisible the whole time — and failing for a different
   reason than the one first written down.
-* **Five `data-confirm` sites, not two** → **Stage 8**. The count went
-  1 → 2 → 5, and the remedy is an idiom choice, not an edit.
+* **Five `data-confirm` sites, not two** → **Stage 8**, ✅ done. The count went
+  1 → 2 → 5, and the remedy turned out not to be an idiom choice at all — two
+  of the five needed no confirmation.
 
 Stage 4 also chased an intermittent `(Exqlite.Error) Database busy` that
 turned out to be a second `mix test` against the same SQLite file, not a
@@ -550,6 +567,52 @@ defect. Nothing to pick up.
   it (running the file alone) was never run. Logged as error 9, and it earned
   the ledger its fifth clause: **reproduce the failure before naming its
   cause.**
+
+* `2026-08-06` — **Stage 8 done. Confirmations are graded by consequence, not
+  chosen per site.** Trivially reversible → nothing; costly but recoverable →
+  arm the control in place; irreversible *and* unbounded → a persistent
+  `<.modal>`. Today that is: nothing for removing an excluded directory or a
+  watch-history row, Confirm/Cancel for refreshing the image cache, and a
+  modal for `clear_database`. **MC0027** makes `data-confirm` the violation,
+  since a written-down policy drifts and a checked one does not (Stage 4).
+
+  The owner's answer refused the question as posed. All three options offered
+  were kinds of dialog; the reply was that two sites need none. Recorded as
+  error 10 and clause 6 — **check the question before you answer it**, and
+  look for the premise every option shares.
+
+  Two judgement calls inside it, both made by reading the page rather than
+  the plan: the in-place idiom copies the media-directory rows three rows up
+  (Confirm/Cancel), *not* the detail panel's label-flip, because two
+  arm-in-place shapes on one screen is the drift the stage exists to remove;
+  and the planned "one shared component" was dropped once the modal had a
+  single caller. What is shared is the rule, and MC0027 is where it lives.
+
+* `2026-08-06` — **"Confirm it on main" is not a valid exoneration if your
+  branch changed the test count.** Stage 8's final run failed one
+  `incoming_live_test.exs` empty-state assertion — a file it does not touch.
+  Main passed at the same seed, which looked like exculpation and was not:
+  main had 12 fewer tests, so the same seed produces a different
+  interleaving. The honest check holds the count constant. Padding clean
+  main with **five inert `assert 1 == 1` async tests** reproduces the failure
+  at seed 508425 every time.
+
+  Five tests that assert nothing cannot break anything, so the defect is a
+  pre-existing order-dependent leak of in-flight state across the sandbox —
+  now with a deterministic repro, which it never had while it was filed as a
+  rate-based flake. Not this campaign's to fix; recorded in
+  `project-suite-residual-concurrency-flakes` rather than reopening a stage
+  for it.
+
+* `2026-08-06` — **A wait predicate that unrelated copy can satisfy is a
+  false green.** Stage 8's modal copy contains "video files"; two media-dir
+  tests waited via `render_until(view, "video files")` for a debounced
+  validation. The modal is always in the DOM, so the wait became a no-op and
+  a form submitted before its debounce landed — failing in a test that
+  touches nothing the change touched. The preview now has
+  `id="media-dir-preview"` and both tests wait on the element. MC0024's
+  principle (parse the document, don't substring the markup) applies to
+  **waiting**, not only to asserting.
 
 ---
 
@@ -1547,13 +1610,86 @@ one.**
 
 Do not stop at making the suite green — the point is that it now runs.
 
-## Stage 8 — One confirmation idiom
+## Stage 8 — One confirmation idiom  ✅ **DONE 2026-08-06**
 
 Carried out of Stage 6, which dropped it correctly: it is not polish. See
 that stage's `clear_database` bullet for the full reasoning; this is the
 work it implies.
 
-### Evidence (verified 2026-08-06)
+### The owner's answers, and the rule they produced
+
+The three open questions went to the owner. The first answer was **none of
+the options offered** — and it is the one that made the stage right:
+
+> *remove excluded dir and history row require no confirmation.*
+
+Both had been framed as "which dialog?" when the correct treatment was **no
+dialog**. Two of the four in-scope sites simply lost their confirmation.
+"Clear database" got *"probably whatever is our largest confirmation"* — the
+persistent modal, this repo having no typed-confirm or hold-to-confirm to be
+larger. The console was ruled out of scope.
+
+The rule that fell out, now enforced by **MC0027**:
+
+| Consequence | Treatment | Sites |
+|---|---|---|
+| Trivially reversible | **Nothing** | Remove excluded directory · Remove watch-history row |
+| Costly but recoverable | **Arm in place** (Confirm / Cancel) | Refresh image cache |
+| Irreversible **and** unbounded | **Persistent `<.modal>`** | Clear database |
+
+Grading by consequence rather than by surface is what stopped this becoming
+five ad-hoc choices. Note the shape of the correction: every option on the
+table was a *kind of dialog*, because the question was "which idiom", and
+that framing quietly assumed each site deserved one. Two did not.
+
+### What landed
+
+| Change | Where |
+|---|---|
+| Clear database raises a persistent modal; `clear_database` is reachable only from inside it | `settings_live.ex` — new `clear_database_modal/1`, `clear_database_prompt` / `cancel_clear_database` |
+| Refresh image cache arms to Confirm / Cancel | `settings_live/danger.ex` |
+| Excluded directory + watch-history row delete outright | `settings_live/library.ex`, `watch_history_live.ex` |
+| `data-confirm` is now a Credo violation | `credo_checks/native_confirm_dialog.ex` (MC0027) + test |
+| Wiki caught up | `Settings-Reference.md`, `Watch-History.md` |
+
+**The in-place idiom came from the page, not from the detail panel.** Settings
+already arms the media-directory rows into an explicit **Confirm** / **Cancel**
+pair; the detail panel flips a single button's label to "Click again to
+confirm". Both are fine, but Refresh sits three rows from the media-directory
+list, so it copies its neighbour. An earlier draft used the label-flip and was
+replaced on reading the page — that would have put two arm-in-place shapes on
+one screen, which is the exact drift the stage exists to remove.
+
+**MC0027 exempts the console** (`@exempt_files`), the owner's answer to
+question 3, with the reason written where the exemption lives rather than in
+a campaign nobody will read again.
+
+**Verified in a real browser** (`chromium-probe` against the dev server, per
+the green-`render_click`-is-not-a-click rule): the modal opens on prompt,
+**Escape and backdrop clicks do not dismiss it**, Cancel closes it, Refresh
+arms and disarms, and the only `data-confirm` left anywhere is the console's.
+
+### The bug this stage caused, and what it says about waiting
+
+Adding the modal broke two `settings_live_media_dirs_test.exs` tests that
+touch nothing it changed. They wait for a debounced validation with
+
+```elixir
+render_until(view, "video files")
+```
+
+and the modal's copy says "Your **video files** remain untouched". The modal
+is always in the DOM, so the wait was satisfied instantly, the form submitted
+before the debounce landed, and the save persisted an empty directory.
+
+**A wait predicate that unrelated copy can satisfy is a false green with a
+delay fuse.** It does not fail when it stops working — it stops waiting, and
+something downstream fails later, somewhere else. The preview now carries
+`id="media-dir-preview"` and both tests wait on the element. That is MC0024's
+principle (parse the document, don't substring the markup) applied to waiting
+rather than asserting.
+
+### Original evidence (verified 2026-08-06)
 
 Five native browser `data-confirm` dialogs
 (`grep -rn 'data-confirm' lib/media_centaur_web/`):
@@ -1579,7 +1715,7 @@ real defect: this app is driven by a gamepad from a couch.
   `delete_gesture_state/3`. The button itself flips to a confirm state. No
   overlay, already themed, already navigable.
 
-### Open questions — for the owner, not the agent
+### Open questions — answered 2026-08-06, kept for the shape of the answers
 
 1. **Which idiom?** The inline gesture is lighter and proven, but has
    nowhere to put a full warning sentence. A modal reads as more serious and
@@ -1596,14 +1732,23 @@ real defect: this app is driven by a gamepad from a couch.
    confirm-dialog convention, but it is worth one sentence rather than an
    assumption — Stage 3 was lost to exactly this kind of unchecked premise.
 
-### Shape of the fix, once decided
+### Shape of the fix, as planned — and where it was wrong
 
-One shared component, one idiom rule, **all five sites in the same change**,
-and a Credo check making a bare `data-confirm` in `lib/media_centaur_web/`
-the violation. That last part is what Stage 4 established: a policy that is
-merely written down drifts, and a policy with a check does not. Converting
-two sites and leaving three is precisely the 80 % stop this campaign has
-been retiring.
+> One shared component, one idiom rule, **all five sites in the same change**,
+> and a Credo check making a bare `data-confirm` in `lib/media_centaur_web/`
+> the violation. That last part is what Stage 4 established: a policy that is
+> merely written down drifts, and a policy with a check does not. Converting
+> two sites and leaving three is precisely the 80 % stop this campaign has
+> been retiring.
+
+The rule and the check were right; **"one shared component" was not.** Once
+two sites dropped their confirmation and one took the existing media-directory
+Confirm/Cancel shape, the modal had exactly one caller — and a shared
+component with one caller is speculative abstraction, not sharing. What is
+shared is the *rule*, and MC0027 is where it lives.
+
+"All five sites in the same change" survived, in the form the answers left it:
+four converted, the fifth exempted on the record.
 
 ## Completion criteria
 
@@ -1618,9 +1763,9 @@ been retiring.
   ordinary work rather than letting it hold the campaign open.
   **It was fixed anyway** (`2e4aa4d7`), along with two further defects. ✅
 * **Stages 7 and 8 each resolved or explicitly declined**, same rule as the
-  original six. Stage 7 needed no conversation; Stage 8 must not be started
-  before its open questions are answered.
-  **Status: ✅ 7 resolved · 8 open — the last thing holding this campaign.**
+  original six. Stage 7 needed no conversation; Stage 8 was not started
+  before its open questions were answered.
+  **Status: ✅ both resolved.**
 * `mix precommit` green after each stage, no new Credo suppressions.
   **Stage 7 changed what this criterion asserts**: before it, "precommit
   green" excluded `assets/js/hooks/` entirely, and every earlier stage's
@@ -1629,8 +1774,12 @@ been retiring.
   makes the same claim precommit does. ✅
 * No stage left half-applied — the audit's own headline finding was
   that this repo's defects come from refactors that start well and stop
-  at 80%.
+  at 80%. **✅ The last chance to do it was Stage 8**, where converting the
+  two loud sites and leaving the three quiet ones would have looked finished.
+  All five are settled: four changed, one exempted with its reason recorded
+  next to the exemption.
 * Stage 6 items are droppable; do not let them hold the campaign open.
+  **Neither did** — both became stages and both are done.
 * **MC0023's grandfather list does not hold this campaign open**, but it
   must not be forgotten either. 23 test files still build state with an
   inline `Repo` write because their schema has no `TestFactory` builder

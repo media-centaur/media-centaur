@@ -22,9 +22,10 @@ Use [`template.md`](template.md) as a starter.
 ## Active
 
 * [`audit-remediation-2026-08.md`](audit-remediation-2026-08.md) —
-  **in progress — Stage 8 is all that's left, and it needs the owner's
-  answers first.** Tail of the 2026-08-05 four-audit sweep. Stages 1, 2, 4, 5,
-  6 and 7 resolved, Stage 3 declined. Stage 1 split the 2779-line `Library` context into 18 modules
+  **complete 2026-08-06 — removable per ADR-042.** Tail of the 2026-08-05
+  four-audit sweep. Stages 1, 2, 4, 5, 6, 7 and 8 resolved, Stage 3 declined.
+  It was retired once prematurely and reverted; this time every completion
+  criterion is met. Stage 1 split the 2779-line `Library` context into 18 modules
   (`library.ex` → 127 lines); Stage 2 closed the `Status` and `Diagnostics`
   Boundary hatches; Stage 4 reconciled two overreaching test policies with
   practice behind three new Credo checks (MC0022–MC0024); Stage 5 settled
@@ -38,22 +39,24 @@ Use [`template.md`](template.md) as a starter.
   HTML to display 24 cards** now sending 41 KB); Stage 7 widened both JS test
   runners from a hand-listed pair of directories to `assets/js/` whole — 564
   tests across 24 files → **620 across 29**, with CI and precommit finally
-  making the same claim. Stage 3 was declined because the console stays
-  outside the input system deliberately. The `/reconcile` dead-nav defect was
-  fixed and turned out to be three defects.
-  **Left:** **Stage 8** — five native `data-confirm` dialogs and two existing
-  themed idioms to choose between; **has open questions, don't start it
-  before they're answered.**
-  Its durable output is a lesson in five clauses, paid for nine times: a
+  making the same claim; Stage 8 graded confirmations by consequence —
+  nothing for the two trivially reversible ones, arm-in-place for the image
+  cache, a persistent modal for `clear_database` — behind **MC0027**, which
+  makes `data-confirm` a violation. Stage 3 was declined because the console
+  stays outside the input system deliberately. The `/reconcile` dead-nav
+  defect was fixed and turned out to be three defects.
+  Its durable output is a lesson in six clauses, paid for ten times: a
   check you can run beats a number you wrote down; a number beats nothing
   only if you checked the assumption underneath it; a check counts only if
   you ran it against a violation — MC0012 and MC0013 were found to have
   never been able to fire; a count answers "how many", never "which
   fix" — both of Stage 6's last bullets counted right and prescribed
-  wrong; **and reproduce the failure before naming its cause** — Stage 7's
+  wrong; reproduce the failure before naming its cause — Stage 7's
   own diagnosis was written off a stack trace and was wrong, since the file
-  it blamed passes 17/17 when run alone. Counterweight: measure before
-  deciding whether to care.
+  it blamed passes 17/17 when run alone; **and check the question before you
+  answer it** — every option Stage 8 tabled was a kind of dialog, and the
+  answer was that two of the five sites need none. Counterweight: measure
+  before deciding whether to care.
 * [`below-floor-releases.md`](below-floor-releases.md) —
   **planning — design not started.** When every findable release of a
   title is below the user's quality floor, the plan board says a bare

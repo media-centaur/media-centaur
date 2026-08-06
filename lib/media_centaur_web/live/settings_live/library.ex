@@ -194,7 +194,6 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
               class="shrink-0"
               phx-click="exclude_dir:delete"
               phx-value-path={path}
-              data-confirm={"Remove #{path} from excluded directories?"}
               aria-label="Remove excluded directory"
               data-nav-item
               tabindex="0"

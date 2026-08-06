@@ -42,8 +42,10 @@ defmodule MediaCentaurWeb.SettingsLiveMediaDirsTest do
 
     # `media_dir:save` reads dialog.entry/validation, which only the
     # 500ms-debounced validate handler populates. Poll until the preview
-    # ("Found N video files…") proves the debounce fired before submitting.
-    render_until(view, "video files")
+    # element exists, which proves the debounce fired before submitting.
+    # Waiting on its copy instead is not safe -- any other page text
+    # containing the same words satisfies the wait instantly.
+    render_until(view, fn _html -> has_element?(view, "#media-dir-preview") end)
 
     view
     |> form("form[phx-submit='media_dir:save']", entry: %{dir: tmp, name: "Movies", images_dir: ""})
@@ -74,7 +76,7 @@ defmodule MediaCentaurWeb.SettingsLiveMediaDirsTest do
 
     # Poll for the debounced validation (see "save persists" above) before
     # submitting — the save handler reads the validated dialog entry.
-    render_until(view, "video files")
+    render_until(view, fn _html -> has_element?(view, "#media-dir-preview") end)
 
     view
     |> form("form[phx-submit='media_dir:save']", entry: %{dir: tmp, name: "", images_dir: ""})

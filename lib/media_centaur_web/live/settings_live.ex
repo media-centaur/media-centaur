@@ -132,6 +132,8 @@ defmodule MediaCentaurWeb.SettingsLive do
        scanning: false,
        scan_task: nil,
        clearing_database: false,
+       clear_database_prompt: false,
+       confirming_image_refresh: false,
        refreshing_images: false,
        repairing_images: false,
        rederiving_extra_names: false,
@@ -579,14 +581,35 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
   end
 
+  # Clearing the database is irreversible and unbounded, so the button only
+  # raises the confirmation; `clear_database` below is reachable solely from
+  # inside the modal. See Credo MC0027 for why neither uses `data-confirm`.
+  def handle_event("clear_database_prompt", _params, socket) do
+    {:noreply, assign(socket, clear_database_prompt: true)}
+  end
+
+  def handle_event("cancel_clear_database", _params, socket) do
+    {:noreply, assign(socket, clear_database_prompt: false)}
+  end
+
   def handle_event("clear_database", _params, socket) do
     Maintenance.clear_database_async(self())
-    {:noreply, assign(socket, clearing_database: true)}
+    {:noreply, assign(socket, clearing_database: true, clear_database_prompt: false)}
+  end
+
+  # Refreshing the image cache is recoverable — it costs a long re-download,
+  # not data — so it arms in place instead of raising a modal.
+  def handle_event("refresh_image_cache_confirm", _params, socket) do
+    {:noreply, assign(socket, confirming_image_refresh: true)}
+  end
+
+  def handle_event("refresh_image_cache_cancel", _params, socket) do
+    {:noreply, assign(socket, confirming_image_refresh: false)}
   end
 
   def handle_event("refresh_image_cache", _params, socket) do
     Maintenance.refresh_image_cache_async(self())
-    {:noreply, assign(socket, refreshing_images: true)}
+    {:noreply, assign(socket, refreshing_images: true, confirming_image_refresh: false)}
   end
 
   def handle_event("refresh_movie_credits", _params, socket) do
@@ -1609,6 +1632,8 @@ defmodule MediaCentaurWeb.SettingsLive do
 
         <.service_action_modal action={@service_action_confirm} />
 
+        <.clear_database_modal open={@clear_database_prompt} />
+
         <%!--
           Media-dir dialog — always in DOM so backdrop-filter compositing
           layer is kept warm.
@@ -1674,6 +1699,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 scanning={@scanning}
                 config={@config}
                 clearing_database={@clearing_database}
+                confirming_image_refresh={@confirming_image_refresh}
                 refreshing_images={@refreshing_images}
                 repairing_images={@repairing_images}
                 rederiving_extra_names={@rederiving_extra_names}
@@ -1925,6 +1951,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       blank_extra_names_count={@blank_extra_names_count}
       missing_images_summary={@missing_images_summary}
       clearing_database={@clearing_database}
+      confirming_image_refresh={@confirming_image_refresh}
       rederiving_extra_names={@rederiving_extra_names}
       refetching_backdrops={@refetching_backdrops}
       refreshing_credits={@refreshing_credits}
@@ -2255,6 +2282,59 @@ defmodule MediaCentaurWeb.SettingsLive do
     """
   end
 
+  attr :open, :boolean, required: true
+
+  # `:persistent` on purpose: this is the one action in the app that is both
+  # irreversible and unbounded, so a stray backdrop click or an Escape meant
+  # for something else must not be able to answer it. Every other
+  # confirmation in Settings is lighter — see Credo MC0027 for the rule.
+  defp clear_database_modal(assigns) do
+    ~H"""
+    <.modal
+      id="clear-database-modal"
+      open={@open}
+      dismiss={:persistent}
+      size={:sm}
+      panel_class="p-6 space-y-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="clear-database-title"
+    >
+      <div class="space-y-1">
+        <h3 id="clear-database-title" class="text-lg font-semibold text-error">
+          Clear the database?
+        </h3>
+        <p class="text-sm text-base-content/70">
+          Deletes every entry, watch record, and cached image. Your video files remain
+          untouched, and a rescan re-imports them — but your watch history and any
+          matches you corrected by hand are gone for good.
+        </p>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <.button
+          variant="dismiss"
+          size="sm"
+          phx-click="cancel_clear_database"
+          data-nav-item
+          tabindex="0"
+        >
+          Cancel
+        </.button>
+        <.button
+          variant="danger"
+          size="sm"
+          phx-click="clear_database"
+          data-nav-item
+          tabindex="0"
+        >
+          Clear database
+        </.button>
+      </div>
+    </.modal>
+    """
+  end
+
   attr :media_dir_dialog, :any,
     default: nil,
     doc:
@@ -2351,8 +2431,13 @@ defmodule MediaCentaurWeb.SettingsLive do
           </div>
         </details>
 
+        <%!-- The id is the deterministic signal that the debounced validate
+              has landed. Tests waited on the copy ("video files") until an
+              unrelated string elsewhere on the page satisfied the wait
+              instantly and the race came back. --%>
         <div
           :if={@media_dir_dialog.validation.preview}
+          id="media-dir-preview"
           class="glass-inset rounded-lg p-3 text-sm text-base-content/70"
         >
           Found {@media_dir_dialog.validation.preview.video_count} video files, {@media_dir_dialog.validation.preview.subdir_count} subdirectories.

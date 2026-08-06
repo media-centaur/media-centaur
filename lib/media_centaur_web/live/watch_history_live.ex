@@ -311,7 +311,6 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
               class="text-base-content/30 hover:text-error opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
               phx-click="remove_event"
               phx-value-id={event.id}
-              data-confirm="Remove this from your watch history?"
               tabindex="0"
               aria-label="Remove from history"
             >
