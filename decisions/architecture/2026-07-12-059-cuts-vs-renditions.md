@@ -64,4 +64,4 @@ file probe, never hand-maintained.
   schema this builds on.
 * [ADR-057](2026-06-14-057-derived-data-is-recomputable.md) — rendition
   metadata as a deriver.
-* Campaign: [`campaigns/playable-item-versions.md`](../../campaigns/playable-item-versions.md).
+* Campaign: `campaigns/playable-item-versions.md` (removed on completion — see git history).

@@ -112,4 +112,4 @@ proves to need it.
 * Relates to [ADR-035](2026-04-15-035-acquisition-prowlarr-integration.md),
   [ADR-037](2026-04-16-037-acquisition-integration-scope.md),
   [ADR-043](2026-05-10-043-acquisition-split.md). Rollout tracked in
-  [`campaigns/download-stack-control-plane.md`](../../campaigns/download-stack-control-plane.md).
+  `campaigns/download-stack-control-plane.md` (removed on completion — see git history).
