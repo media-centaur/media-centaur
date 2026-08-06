@@ -1,10 +1,10 @@
-defmodule MediaCentaur.ImagesTest do
+defmodule MediaCentaur.ImageFilesTest do
   @moduledoc """
   Tests for the shared image download service.
   """
   use ExUnit.Case, async: true
 
-  alias MediaCentaur.Images
+  alias MediaCentaur.ImageFiles
 
   @moduletag :tmp_dir
 
@@ -28,7 +28,7 @@ defmodule MediaCentaur.ImagesTest do
       dest = Path.join(tmp_dir, "test/backdrop.jpg")
 
       assert {:ok, ^dest} =
-               Images.download("https://example.com/img.jpg", dest, resize: {:fit, 1920, 1080})
+               ImageFiles.download("https://example.com/img.jpg", dest, resize: {:fit, 1920, 1080})
 
       assert File.exists?(dest)
       {:ok, result} = Image.open(dest)
@@ -42,7 +42,7 @@ defmodule MediaCentaur.ImagesTest do
       dest = Path.join(tmp_dir, "test/poster.jpg")
 
       assert {:ok, ^dest} =
-               Images.download("https://example.com/img.jpg", dest, resize: {:fit, 1120, 1680})
+               ImageFiles.download("https://example.com/img.jpg", dest, resize: {:fit, 1120, 1680})
 
       {:ok, result} = Image.open(dest)
       {width, height, _} = Image.shape(result)
@@ -55,7 +55,7 @@ defmodule MediaCentaur.ImagesTest do
       dest = Path.join(tmp_dir, "test/logo.jpg")
 
       assert {:ok, ^dest} =
-               Images.download("https://example.com/img.jpg", dest, resize: {:longest_edge, 1440})
+               ImageFiles.download("https://example.com/img.jpg", dest, resize: {:longest_edge, 1440})
 
       {:ok, result} = Image.open(dest)
       {width, height, _} = Image.shape(result)
@@ -66,7 +66,7 @@ defmodule MediaCentaur.ImagesTest do
       stub_http_success(jpeg)
       dest = Path.join([tmp_dir, "deep", "nested", "img.jpg"])
 
-      assert {:ok, ^dest} = Images.download("https://example.com/img.jpg", dest)
+      assert {:ok, ^dest} = ImageFiles.download("https://example.com/img.jpg", dest)
       assert File.exists?(dest)
     end
   end
@@ -82,7 +82,7 @@ defmodule MediaCentaur.ImagesTest do
       stub_http_success(jpeg)
       dest = Path.join(tmp_dir, "test/raw.jpg")
 
-      assert {:ok, ^dest} = Images.download("https://example.com/img.jpg", dest)
+      assert {:ok, ^dest} = ImageFiles.download("https://example.com/img.jpg", dest)
 
       {:ok, result} = Image.open(dest)
       {width, height, _} = Image.shape(result)
@@ -97,7 +97,7 @@ defmodule MediaCentaur.ImagesTest do
       stub_http_success(body)
       dest = Path.join(tmp_dir, "test/poster.jpg")
 
-      assert {:ok, ^dest} = Images.download_raw("https://example.com/img.jpg", dest)
+      assert {:ok, ^dest} = ImageFiles.download_raw("https://example.com/img.jpg", dest)
       assert File.read!(dest) == body
     end
 
@@ -106,7 +106,7 @@ defmodule MediaCentaur.ImagesTest do
       dest = Path.join(tmp_dir, "test/poster.jpg")
 
       assert {:error, :permanent, {:body_too_small, _url, 0}} =
-               Images.download_raw("https://example.com/img.jpg", dest)
+               ImageFiles.download_raw("https://example.com/img.jpg", dest)
 
       refute File.exists?(dest)
     end
@@ -117,7 +117,7 @@ defmodule MediaCentaur.ImagesTest do
       dest = Path.join(tmp_dir, "test/poster.jpg")
 
       assert {:error, :permanent, {:body_too_small, _url, 200}} =
-               Images.download_raw("https://example.com/img.jpg", dest)
+               ImageFiles.download_raw("https://example.com/img.jpg", dest)
 
       refute File.exists?(dest)
     end
@@ -127,7 +127,7 @@ defmodule MediaCentaur.ImagesTest do
       stub_http_success(body)
       dest = Path.join(tmp_dir, "test/poster.jpg")
 
-      assert {:ok, ^dest} = Images.download_raw("https://example.com/img.jpg", dest)
+      assert {:ok, ^dest} = ImageFiles.download_raw("https://example.com/img.jpg", dest)
       assert File.read!(dest) == body
     end
 
@@ -135,7 +135,7 @@ defmodule MediaCentaur.ImagesTest do
       stub_http_success(:binary.copy("d", 1500))
       dest = Path.join([tmp_dir, "new", "dir", "img.jpg"])
 
-      assert {:ok, ^dest} = Images.download_raw("https://example.com/img.jpg", dest)
+      assert {:ok, ^dest} = ImageFiles.download_raw("https://example.com/img.jpg", dest)
       assert File.exists?(dest)
     end
   end
@@ -146,7 +146,7 @@ defmodule MediaCentaur.ImagesTest do
       dest = Path.join(tmp_dir, "test/img.jpg")
 
       assert {:error, :permanent, {:http_error, 404, _}} =
-               Images.download("https://example.com/img.jpg", dest)
+               ImageFiles.download("https://example.com/img.jpg", dest)
     end
 
     test "HTTP 500 is transient", %{tmp_dir: tmp_dir} do
@@ -154,7 +154,7 @@ defmodule MediaCentaur.ImagesTest do
       dest = Path.join(tmp_dir, "test/img.jpg")
 
       assert {:error, :transient, {:http_error, 500, _}} =
-               Images.download("https://example.com/img.jpg", dest)
+               ImageFiles.download("https://example.com/img.jpg", dest)
     end
 
     test "connection failure is transient", %{tmp_dir: tmp_dir} do
@@ -162,7 +162,7 @@ defmodule MediaCentaur.ImagesTest do
       dest = Path.join(tmp_dir, "test/img.jpg")
 
       assert {:error, :transient, {:download_failed, _, :timeout}} =
-               Images.download("https://example.com/img.jpg", dest)
+               ImageFiles.download("https://example.com/img.jpg", dest)
     end
 
     test "corrupt image data is permanent for download/3", %{tmp_dir: tmp_dir} do
@@ -170,7 +170,7 @@ defmodule MediaCentaur.ImagesTest do
       dest = Path.join(tmp_dir, "test/img.jpg")
 
       assert {:error, :permanent, {:image_open_failed, _}} =
-               Images.download("https://example.com/img.jpg", dest)
+               ImageFiles.download("https://example.com/img.jpg", dest)
     end
 
     test "download_raw passes through HTTP errors", %{tmp_dir: tmp_dir} do
@@ -178,7 +178,7 @@ defmodule MediaCentaur.ImagesTest do
       dest = Path.join(tmp_dir, "test/img.jpg")
 
       assert {:error, :permanent, {:http_error, 403, _}} =
-               Images.download_raw("https://example.com/img.jpg", dest)
+               ImageFiles.download_raw("https://example.com/img.jpg", dest)
     end
   end
 
@@ -203,7 +203,7 @@ defmodule MediaCentaur.ImagesTest do
     end
 
     test "builds a downscaled JPEG derivative at the requested width", %{master: master} do
-      assert {:ok, derivative} = Images.derivative(master, 480)
+      assert {:ok, derivative} = ImageFiles.derivative(master, 480)
       assert derivative != master
 
       {:ok, image} = Image.open(derivative)
@@ -214,8 +214,8 @@ defmodule MediaCentaur.ImagesTest do
     test "snaps an off-ladder width UP to the next tier", %{master: master} do
       # 400 → 480; 500 → 640. Snapping bounds the number of cached variants
       # per image while still covering DPR-driven srcset requests.
-      assert {:ok, d400} = Images.derivative(master, 400)
-      assert {:ok, d500} = Images.derivative(master, 500)
+      assert {:ok, d400} = ImageFiles.derivative(master, 400)
+      assert {:ok, d500} = ImageFiles.derivative(master, 500)
 
       assert Image.open!(d400) |> Image.shape() |> elem(0) == 480
       assert Image.open!(d500) |> Image.shape() |> elem(0) == 640
@@ -227,23 +227,23 @@ defmodule MediaCentaur.ImagesTest do
 
       # 300 snaps up to 320, but the master is only 300 wide — upscaling would
       # blur it, so the master is served unchanged.
-      assert {:ok, ^small} = Images.derivative(small, 300)
+      assert {:ok, ^small} = ImageFiles.derivative(small, 300)
     end
 
     test "returns the master when the requested width exceeds the ladder ceiling",
          %{master: master} do
-      assert {:ok, ^master} = Images.derivative(master, 5000)
+      assert {:ok, ^master} = ImageFiles.derivative(master, 5000)
     end
 
     test "regenerates the derivative when the master is newer than the cache",
          %{master: master} do
-      assert {:ok, derivative} = Images.derivative(master, 480)
+      assert {:ok, derivative} = ImageFiles.derivative(master, 480)
 
       # Force the cache to look stale relative to its master.
       File.touch!(derivative, {{2000, 1, 1}, {0, 0, 0}})
       File.touch!(master, {{2030, 1, 1}, {0, 0, 0}})
 
-      assert {:ok, ^derivative} = Images.derivative(master, 480)
+      assert {:ok, ^derivative} = ImageFiles.derivative(master, 480)
 
       {:ok, %{mtime: mtime}} = File.stat(derivative)
       # A rebuild stamps the file ~now; the forced-stale 2000 mtime is gone.
@@ -253,7 +253,7 @@ defmodule MediaCentaur.ImagesTest do
     test "preserves PNG format so transparent logos keep their alpha", %{tmp_dir: tmp_dir} do
       logo = master_with(tmp_dir, "logo.png", 1000, 250, color: :blue, suffix: ".png")
 
-      assert {:ok, derivative} = Images.derivative(logo, 480)
+      assert {:ok, derivative} = ImageFiles.derivative(logo, 480)
       assert Path.extname(derivative) == ".png"
     end
   end
@@ -269,23 +269,23 @@ defmodule MediaCentaur.ImagesTest do
 
     test "deletes every cached derivative of a master and returns the count",
          %{master: master} do
-      {:ok, d320} = Images.derivative(master, 320)
-      {:ok, d480} = Images.derivative(master, 480)
+      {:ok, d320} = ImageFiles.derivative(master, 320)
+      {:ok, d480} = ImageFiles.derivative(master, 480)
       assert File.exists?(d320) and File.exists?(d480)
 
-      assert Images.purge_derivatives_for(master) >= 2
+      assert ImageFiles.purge_derivatives_for(master) >= 2
       refute File.exists?(d320)
       refute File.exists?(d480)
     end
 
     test "is a no-op (count 0) when the master has no derivatives", %{master: master} do
-      assert Images.purge_derivatives_for(master) == 0
+      assert ImageFiles.purge_derivatives_for(master) == 0
     end
   end
 
   # --- HTTP stub helpers ---
 
-  # Per-process overrides — see `Images.http_client/0`. These don't
+  # Per-process overrides — see `ImageFiles.http_client/0`. These don't
   # mutate `Application.env`, so async-true tests in this file and
   # siblings can stub independently without clobbering each other.
 

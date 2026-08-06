@@ -1,4 +1,4 @@
-defmodule MediaCentaur.Images do
+defmodule MediaCentaur.ImageFiles do
   use Boundary, top_level?: true, check: [in: false, out: false]
 
   @moduledoc """

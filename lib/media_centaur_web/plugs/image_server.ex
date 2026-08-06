@@ -66,7 +66,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
         send_file_response(conn, master_path)
 
       width ->
-        case MediaCentaur.Images.derivative(master_path, width) do
+        case MediaCentaur.ImageFiles.derivative(master_path, width) do
           {:ok, served_path} -> send_file_response(conn, served_path)
           {:error, _reason} -> send_file_response(conn, master_path)
         end

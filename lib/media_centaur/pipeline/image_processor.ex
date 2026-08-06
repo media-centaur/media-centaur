@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Pipeline.ImageProcessor do
   @moduledoc """
-  Thin wrapper around `MediaCentaur.Images` for the pipeline's image roles.
+  Thin wrapper around `MediaCentaur.ImageFiles` for the pipeline's image roles.
 
   Maps role names to resize dimensions and output formats, then delegates
   to the shared image service. No GenServer, no state.
@@ -24,7 +24,7 @@ defmodule MediaCentaur.Pipeline.ImageProcessor do
   Images at or below target size are written as-is — never upscaled.
   """
 
-  alias MediaCentaur.{Config, Images}
+  alias MediaCentaur.{Config, ImageFiles}
 
   @role_config %{
     "poster" => [resize: {:fit, 1120, 1680}, format: :jpg],
@@ -48,7 +48,7 @@ defmodule MediaCentaur.Pipeline.ImageProcessor do
   @spec download_and_resize(String.t(), String.t(), String.t()) ::
           :ok | {:error, :permanent | :transient, term()}
   def download_and_resize(url, role, dest_path) do
-    case Images.download(url, dest_path, role_opts(role)) do
+    case ImageFiles.download(url, dest_path, role_opts(role)) do
       {:ok, _path} -> :ok
       {:error, category, reason} -> {:error, category, reason}
     end

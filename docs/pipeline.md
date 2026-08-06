@@ -118,7 +118,7 @@ Downloads and processes artwork asynchronously after entity creation.
 
 **Processing flow:**
 1. Producer pulls pending entries from `pipeline_image_queue` on `{:images_pending, ...}` events
-2. Processor downloads and resizes in one step via `Pipeline.ImageProcessor.download_and_resize/3` (target dimensions per role: poster, backdrop, logo, thumb). The download itself is delegated to `MediaCentaur.Images`, the shared download+resize facade — see [`specs/IMAGE-CACHING.md`](../specs/IMAGE-CACHING.md).
+2. Processor downloads and resizes in one step via `Pipeline.ImageProcessor.download_and_resize/3` (target dimensions per role: poster, backdrop, logo, thumb). The download itself is delegated to `MediaCentaur.ImageFiles`, the shared download+resize facade — see [`specs/IMAGE-CACHING.md`](../specs/IMAGE-CACHING.md).
 3. Writes the resized image to disk under the entity's image directory
 4. Batcher marks queue entries `:complete`, broadcasts `{:image_ready, attrs}` to `"pipeline:publish"` (→ `Library.Inbound` creates/updates `Library.Image` records), and calls `Library.broadcast_entities_changed/1` so LiveViews see the new artwork
 

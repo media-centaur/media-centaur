@@ -193,7 +193,7 @@ Protocol specifications live in [`specs/`](../specs/):
 | Spec | Governs |
 |------|---------|
 | [DATA-FORMAT.md](../specs/DATA-FORMAT.md) | Entity types, library entry shape, and pointer to the canonical Ecto schemas |
-| [IMAGE-CACHING.md](../specs/IMAGE-CACHING.md) | Image storage conventions and the shared `MediaCentaur.Images` facade |
+| [IMAGE-CACHING.md](../specs/IMAGE-CACHING.md) | Image storage conventions and the shared `MediaCentaur.ImageFiles` facade |
 
 ## Module Reference
 
@@ -204,7 +204,7 @@ Protocol specifications live in [`specs/`](../specs/):
 | `MediaCentaur.Topics` | Single source of truth for PubSub topic strings | `lib/media_centaur/topics.ex` |
 | `MediaCentaur.Capabilities` | Predicates gating features on Test Connection results | `lib/media_centaur/capabilities.ex` |
 | `MediaCentaur.Controls` | Keybinding catalog + persisted overrides | `lib/media_centaur/controls.ex` |
-| `MediaCentaur.Images` | Shared image download + libvips resize service | `lib/media_centaur/images.ex` |
+| `MediaCentaur.ImageFiles` | Shared image download + libvips resize service | `lib/media_centaur/image_files.ex` |
 | `MediaCentaur.Log` | Component-tagged thinking-log macros | `lib/media_centaur/log.ex` |
 | `MediaCentaur.Storage` | Disk usage measurement | `lib/media_centaur/storage.ex` |
 | `MediaCentaur.Maintenance` | Operator-driven destructive operations (clear DB, refresh image cache, repair missing images) | `lib/media_centaur/maintenance.ex` |

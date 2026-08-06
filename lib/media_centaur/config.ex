@@ -158,7 +158,7 @@ defmodule MediaCentaur.Config do
   unrecognised stored value, so a bad value can never break image downloads.
 
   The `:image_resolution_override` process-dict key takes precedence — the
-  async-test injection seam, mirroring `Images.http_client/0`.
+  async-test injection seam, mirroring `ImageFiles.http_client/0`.
   """
   @spec image_resolution() :: String.t()
   def image_resolution do
