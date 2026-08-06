@@ -1,5 +1,5 @@
 ---
-status: complete
+status: in-progress
 started: 2026-08-05
 last_updated: 2026-08-06
 ---
@@ -30,33 +30,54 @@ decide unilaterally. The loop per stage is:
 
 Stages are independent. Order below is recommended, not required.
 
-**All five stages are resolved (2026-08-06). This campaign is closed** —
-Stages 1, 2, 4 and 5 done, Stage 3 declined with its reason recorded. Per
-ADR-042 the file is removable; git history is the archive. What follows is
-the record, not a work queue.
+**Resuming into Stage 6 (2026-08-06) — start here.**
 
-**Two things outlive it, and neither holds it open:**
+Stages 1, 2, 4 and 5 are **done**; Stage 3 was **declined**. What is left is
+**Stage 6**, the opportunistic-polish list, plus one unclaimed defect. Both
+are ordinary work: no open questions, nothing to put to the owner, no ADR.
+This is the one stage the working agreement lets you simply do.
 
-* **`/reconcile`'s navigation is dead.** Found in Stage 3's wreckage, owned
-  by no stage. The template declares a behavior, two zones and
-  `data-nav-item` on every row, but `config.js` has no `reconcile` entries,
-  so `buildNavGraph` returns `{}` and arrow keys do nothing. Structurally
-  identical to `review`: a three-line layout block plus selectors and
-  `instanceTypes`. Ordinary work for whoever next touches input config.
-* **MC0023's grandfather list** — 23 test files still building state with an
-  inline `Repo` write because their schema has no `TestFactory` builder. The
-  check makes the debt visible and stops it growing. The list may only
-  shrink; if it is still 23 in a few months, that is the signal it needed a
-  stage of its own.
+**Stage 6 was written as droppable, and it stays droppable.** Nothing here
+gates the campaign. If an item turns out bigger than its bullet suggests,
+the right move is to record why and drop it, not to grow the stage.
 
-Also unclaimed: **Stage 6's polish**, explicitly droppable.
+Its facts were **re-verified against `main` on 2026-08-06** after Stage 5 —
+see the stage's own evidence table, which now carries a command beside every
+figure and marks the two claims that were wrong. Read that table before
+picking an item; two of the six bullets do not say what they appear to say,
+and one is already shipped.
+
+**Order suggestion.** `/reconcile` first — it is self-contained, it is a
+real user-facing bug rather than polish, and it is the only item here that
+someone would notice. Then `home_feed`'s raw-SQL duplication, which is the
+largest genuine cleanup left. The rest are small.
+
+**The unclaimed defect: `/reconcile`'s navigation is dead.** Verified still
+present 2026-08-06. `reconcile_live.ex` declares
+`data-page-behavior="reconcile"` (line 150), two zones — `reconcile-list`
+(168, 178) and `reconcile-detail` (197) — and `data-nav-item` on every row
+and button (185, 239, 242, 265, 303). `assets/js/input/config.js` has **no
+`reconcile` entries at all** (`grep -n reconcile assets/js/input/config.js`
+→ nothing), so `buildNavGraph` returns `{}` and the arrow keys do nothing.
+
+Unlike `/console` this is *not* deliberate: the page mounts the input system
+via `Layouts.app` and is meant to be navigable. It is structurally identical
+to `review`, so the fix is a layout block plus selectors and `instanceTypes`
+in `config.js`. It also wants the page-behavior test that Stage 3 found
+missing — the config was always the real gap, but the test is what stops it
+regressing.
+
+Stage 3's premise-failure applies directly here, so do not repeat it: before
+assuming the fix works, check that the thing it plugs into is actually
+present on the page. Verify in a real browser, not just a passing test —
+`chromium-probe` after `mix assets.build` (the dev asset watchers are off).
 
 **Stage 3 was declined, not deferred** — the console stays out of the input
 system deliberately (backtick already opens it; the input system would take
 the arrow keys and Escape on a log-reading surface). Don't re-open it as
 unfinished work, and don't read `/console`'s missing nav config as a gap.
 
-Stale memories to drop:
+Stale memories to drop before you start:
 
 * `library.ex` is **not** one big file. Stage 1 split it into 18 modules;
   `MediaCentaur.Library`'s moduledoc is a table naming which module owns
@@ -71,9 +92,25 @@ Stale memories to drop:
 * Stage 3 left **no code on `main`** — built to working code to prove the
   design, then reverted in full. Don't go looking for half-applied console nav.
 * **`Topics` is no longer names-only.** Stage 5 gave it `publish/2`,
-  `subscribe/1`, `unsubscribe/1`; it is now the only module naming
+  `subscribe/1`, `unsubscribe/1`, and it is now the only module naming
   `MediaCentaur.PubSub` (MC0025). Publishing goes through the owning
-  context's `Events.broadcast/1` where the topic has one.
+  context's `Events.broadcast/1` where the topic has one — `Library`,
+  `Playback`, `Review`, and `Library.Progress`. **Do not add a
+  `Phoenix.PubSub` call**; Credo will reject it.
+* **`SettingAware` already exists.** Stage 6's boolean-setting bullet reads
+  as though nothing is shared. The web-side mechanics were extracted long
+  ago; see that bullet's correction before costing the item.
+
+**Two things carried forward that do not belong to Stage 6**, and do not
+hold the campaign open either:
+
+* **MC0023's grandfather list** — 23 test files still building state with an
+  inline `Repo` write because their schema has no `TestFactory` builder. The
+  check makes the debt visible and stops it growing. Add the builder,
+  convert the file, remove the entry; the list may only shrink. If it is
+  still 23 in a few months, that is the signal it needed a stage of its own.
+* **Per-context event conversion** (ADR-060) — on next touch, never a sweep.
+  `Review` is the worked example to copy.
 
 ## Six counting errors, one campaign — and what they cost
 
@@ -108,16 +145,30 @@ Two more, both paid for:
   seconds" when `config/test.exs` documented that exact failure mode three
   lines above the timeout it was reasoning about.
 
-And a seventh error was *avoided* the same way: Stage 5's stated
-verification criterion ("the literal grep should read 0") is impossible —
-`application.ex` must name the PubSub server to start it. Caught because
-the command was run while the criterion was being written.
+And two more were *avoided* the same way, both by running commands the
+document had merely asserted:
+
+* Stage 5's stated verification criterion ("the literal grep should read 0")
+  is impossible — `application.ex` must name the PubSub server to start it.
+  Caught while writing the criterion, by running it.
+* Stage 6's boolean-setting bullet reads as though nothing is shared across
+  the eight modules. `MediaCentaurWeb.Live.SettingAware` has been the shared
+  abstraction for the web half all along, and the four traits cannot fully
+  collapse because each needs a unique literal atom by design. Its *285
+  lines* figure is right; its *remedy* covers 175 of them. Reading the code
+  the bullet describes is what surfaced it — and, separately, that one of
+  the four flags has the opposite polarity, which a naive macro would have
+  silently flipped.
+
+That last one is the pattern worth naming: **a correct count can still
+recommend the wrong fix.** Stage 6's line count survived verification and
+its conclusion did not.
 
 ## Status
 
-**Closed 2026-08-06.** Stages 1, 2, 4 and 5 resolved; Stage 3 declined by
-the owner with its reason recorded. `mix precommit` green end-to-end, plus
-five clean full-suite runs.
+**Stages 1, 2, 4 and 5 done; Stage 3 declined** (all 2026-08-06).
+**Stage 6 — opportunistic polish — is the only stage left, and it is
+explicitly droppable.** `mix precommit` green after each stage.
 
 * **Stage 1** — `library.ex` 2779 → 127 lines across six commits
   (`5b2d3510`…`f91f61ce`); 18 modules; the 21 `# ---` dividers are gone.
@@ -131,10 +182,14 @@ five clean full-suite runs.
 * **Stage 5** — ADR-060; the `Topics` transport (132 sites, 71 files);
   `Review.Events` as the worked example; MC0025 and MC0026 added, and
   MC0012/MC0013 repaired after being found vacuous since birth.
+  (commit `5328226f`)
+* **Stage 6** — not started. Six bullets, two of which do not say what they
+  appear to say and one of which Stage 5 already shipped; all re-verified
+  2026-08-06. Plus the unclaimed `/reconcile` nav defect.
 
 The 2026-08-05 sweep's Critical and Moderate-with-user-impact findings were
 fixed and pushed before the stages began (see *Decisions made*); this
-campaign was the tail.
+campaign is the tail.
 
 Stage 4 also chased an intermittent `(Exqlite.Error) Database busy` that
 turned out to be a second `mix test` against the same SQLite file, not a
@@ -1014,57 +1069,108 @@ varying identity of the failing test is the signature.
 
 ## Stage 6 — Opportunistic polish (no discussion needed)
 
-Small, independent, each safely done in a spare slot. Not gating
-anything.
+Small, independent, each safely done in a spare slot. **Not gating
+anything** — an item that turns out bigger than its bullet gets dropped with
+a note, not grown.
 
-* **Boolean-setting boilerplate** — `lib/media_centaur/{spoiler_free,
-  library_backdrop,library_card_info,incoming_backdrop}.ex` plus their
-  four `*_aware.ex` mixins: **8 modules, 285 lines, for 4 flags**.
-  `library_backdrop.ex` and `incoming_backdrop.ex` have byte-identical
-  bodies apart from the key string. A `use MediaCentaur.BooleanSetting,
-  key: "…", default: false` macro collapses them.
-* **Cast grid** — `components/detail/more_info/cast_grid.ex:33`
-  renders *every* cast member and hides all past `@max_cast_cards 24`
-  with `display:none`, so a 900-member series emits 900 cards into the
-  DOM and the LiveView diff. The moduledoc justifies it (client-side
-  filter with no round-trip) but priced it for a cast of ~40. Cap the
-  rendered window, or pass the list as a `data-` attribute.
-* **`clear_database` confirmation** —
-  `live/settings_live/danger.ex:214` uses the native browser
-  `data-confirm` for the single most destructive action in the app,
-  while five other flows use the themed, gamepad-navigable
-  `ModalShell`. The native dialog ignores the theme and is not
-  d-pad reachable.
-* **`Topics.publish/2` / `Topics.subscribe/1`** — see Stage 5; can land
-  early.
-* **`home_feed.ex` raw-SQL fragments** — `fetch_in_progress_*`
-  functions each embed a raw-SQL `fragment` that re-expresses in string
-  SQL the join the Ecto `exists` clause already states, naming five
-  tables as literals that a rename would break silently. The
-  *correctness* bug here is fixed (commit `914e94c9`); the duplication
-  is not. A shared `latest_watched_at_subquery(container_type)` built
-  with Ecto replaces them. Verified still present 2026-08-06:
-  `lib/media_centaur/library/home_feed.ex` lines 246, 343, 439, 537
-  (the fragment at 189 is an unrelated `TRIM`). Untouched by Stage 1 —
-  `HomeFeed` was already extracted.
+**All six re-verified 2026-08-06, after Stage 5.** Two claims were wrong and
+are struck below; one is already shipped. Per this campaign's most expensive
+lesson, every figure carries the command that produced it.
+
+| # | Item | Command | Status |
+|---|---|---|---|
+| 1 | Boolean-setting boilerplate | `wc -l` on the 8 modules | **285 lines confirmed** — but the remedy is half-built already |
+| 2 | Cast grid renders all, hides past 24 | `grep -n max_cast_cards …/cast_grid.ex` | ✅ stands — `@max_cast_cards 24` at :33, `hidden={i >= …}` at :86 |
+| 3 | `clear_database` native confirm | `grep -n data-confirm …/danger.ex` | ✅ stands at :214 — **and a second at :235** the bullet never mentioned |
+| 4 | `home_feed` raw-SQL fragments | `grep -n 'fragment(' …/home_feed.ex` | ✅ stands — 246, 343, 439, 537 (189 is an unrelated `TRIM`) |
+| 5 | Preload volume | `grep -n 'seasons: \[:episodes\]' …/home_feed.ex` | ✅ stands at :358 |
+| 6 | `Topics.publish/2` / `subscribe/1` | — | ~~pending~~ → **SHIPPED in Stage 5** (commit `5328226f`) |
+
+---
+
+* **Boolean-setting boilerplate** —
+  `lib/media_centaur/{spoiler_free,library_backdrop,library_card_info,incoming_backdrop}.ex`
+  plus their four `*_aware.ex` traits: **8 modules, 285 lines, for 4 flags**
+  (count verified). `library_backdrop.ex` and `incoming_backdrop.ex` are
+  identical apart from the key, the module name, and two doc sentences.
+
+  ⚠️ **The bullet overstates the opportunity, and its remedy only covers
+  half.** `MediaCentaurWeb.Live.SettingAware` **already is** the shared
+  abstraction for the web side: subscribe-once-per-host, seed the assign,
+  attach the `:handle_info` hook. The four `*_aware.ex` files (110 lines
+  total, 20–36 each) are thin registrations of it, and they **cannot fully
+  collapse** — each passes a unique *literal* atom hook name, deliberately,
+  so no atom is created at runtime.
+
+  The genuine duplication is the **four context modules, 175 lines**, which
+  differ only in key and polarity. A `use MediaCentaur.BooleanSetting,
+  key: "…", default: false` macro generating `setting_key/0`, `enabled?/0`
+  and `enabled?/1` collapses those to a `use` line each.
+
+  ⚠️ **Polarity is not uniform** — `library_card_info` is default-**on**
+  (`enabled?(%{"enabled" => false}), do: false` / `enabled?(_), do: true`);
+  the other three are default-off. The macro must take `default:` and
+  generate both polarities, or it will silently flip a user's setting.
+  Realistic saving: ~175 lines → one macro plus four `use` lines. The traits
+  stay.
+
+* **Cast grid** — `components/detail/more_info/cast_grid.ex:33` renders
+  *every* cast member and hides all past `@max_cast_cards 24` with
+  `display:none` (`hidden={i >= @max_cast_cards}` at :86, the style at
+  :118), so a 900-member series emits 900 cards into the DOM and the
+  LiveView diff. The moduledoc justifies it — client-side filter with no
+  round-trip — but priced it for a cast of ~40. Cap the rendered window, or
+  pass the list as a `data-` attribute.
+
+  Note the constraint before changing it: the cards are pre-hidden
+  server-side specifically so there is no flash of the full grid before the
+  JS filter hook mounts. Any fix has to preserve that, and it interacts with
+  UIDR-012's eager/sync rendering.
+
+* **`clear_database` confirmation** — `live/settings_live/danger.ex:214`
+  uses the native browser `data-confirm` for the single most destructive
+  action in the app, while five other flows use the themed,
+  gamepad-navigable `ModalShell`. The native dialog ignores the theme and is
+  not d-pad reachable.
+
+  ⚠️ There is a **second** `data-confirm` in the same file at :235 that the
+  original bullet did not mention. Decide both together — converting one and
+  leaving the other is precisely the 80% stop this campaign keeps finding.
+
+* **`home_feed.ex` raw-SQL fragments** — the `fetch_in_progress_*` functions
+  each embed a raw-SQL `fragment` (lines **246, 343, 439, 537**) that
+  re-expresses in string SQL the join the Ecto `exists` clause already
+  states, naming five tables as literals that a rename would break silently.
+  The *correctness* bug here is fixed (commit `914e94c9`); the duplication
+  is not. A shared `latest_watched_at_subquery(container_type)` built with
+  Ecto replaces them. Untouched by Stage 1 — `HomeFeed` was already
+  extracted. The fragment at :189 is an unrelated `TRIM` — leave it.
+
+  This is the largest genuine cleanup left in the stage.
+
 * **Preload volume in `fetch_in_progress_tv_series/1`** —
-  `Repo.preload([:images, seasons: [:episodes]])` loads every episode of
-  every returned series to compute two integers. Now that the
-  completeness test is in SQL, those can be `COUNT` aggregates. Verified
-  still present 2026-08-06 at `home_feed.ex:358`.
+  `home_feed.ex:358` does `Repo.preload([:images, seasons: [:episodes]])`,
+  loading every episode of every returned series to compute two integers.
+  Now that the completeness test is in SQL, those can be `COUNT` aggregates.
 
-  Note: `Library.ProgressRecords.summaries/1` (extracted in Stage 1)
-  already computes exactly these totals as SQL `COUNT` aggregates, in
-  `episode_totals_by_tv_series/1`. Whoever picks this up should check
-  whether that is directly reusable rather than writing a third version.
+  `Library.ProgressRecords.summaries/1` (extracted in Stage 1) already
+  computes exactly these totals as SQL `COUNT` aggregates, in
+  `episode_totals_by_tv_series/1` (`progress_records.ex:433`). Check whether
+  that is directly reusable **before** writing a third version — pairs
+  naturally with the `home_feed` item above.
+
+* ~~**`Topics.publish/2` / `Topics.subscribe/1`**~~ — **done.** Landed whole
+  in Stage 5 rather than early-and-partial: 132 call sites across 71 files,
+  held by MC0025. Nothing to pick up.
 
 ## Completion criteria
 
 * Stages 1–5 each either **resolved** or **explicitly declined** with
   the reason recorded in *Decisions made*. A declined stage is a valid
   outcome; an undiscussed one is not.
-  **Status: 1, 2, 4, 5 resolved · 3 declined. Campaign closed
-  2026-08-06.**
+  **Status: 1, 2, 4, 5 resolved · 3 declined.** The stages that needed a
+  conversation are all settled; only Stage 6's droppable polish remains,
+  so the campaign closes whenever that list is done or dropped.
 * **Closing the campaign does not require `/reconcile` to be fixed.** That
   defect was found here but belongs to no stage; carry it forward as
   ordinary work rather than letting it hold the campaign open.
