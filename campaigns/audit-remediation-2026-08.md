@@ -30,6 +30,27 @@ decide unilaterally. The loop per stage is:
 
 Stages are independent. Order below is recommended, not required.
 
+**Resuming after Stage 1 (2026-08-06).** Stage 1 rewrote the `Library`
+context into 18 modules, so anything you remember about `library.ex`
+being one big file is stale. Before starting a stage:
+
+* Read `MediaCentaur.Library`'s moduledoc first — it is now a table
+  naming which module owns which concern, and it is the fastest way back
+  into the context.
+* Every stage below has been re-measured against post-Stage-1 `main` and
+  the numbers corrected in place, with the measuring command recorded.
+  Several figures in the original text were wrong when written; where
+  that is the case it is stated. Trust the marked-as-re-measured
+  numbers, re-derive anything else.
+* Stage 4 is the one Stage 1 changed materially — it moved that stage's
+  targets and introduced one contract violation. Read its *Stage 1 moved
+  these targets* block before planning.
+
+Recommended next: **Stage 2**. It is the smallest remaining stage, its
+first two-thirds (`Status`, `Diagnostics`) are mechanical, and Stage 1
+made its `exports:` picture worse in a way worth looking at while it is
+fresh.
+
 ## Status
 
 **Stage 1 done** (2026-08-06, six commits `5b2d3510`…`f91f61ce`).
@@ -282,10 +303,15 @@ each new module names *one* thing.
 makes `use Boundary, deps: [...]` the canonical inter-context
 dependency list. Where checking is off, that list is fiction.
 
-**Evidence.** 26 of 65 boundaries declare `check: [in: false, out:
-false]`. Most are legitimate leaf utilities (`Format`, `DateUtil`,
-`Iso8601`, `Log`, `Topics`, `Secret`, `Version`, `Repo`). Three are
-not:
+**Evidence** (re-measured 2026-08-06 after Stage 1). **31** of 65
+boundaries declare `check: [in: false, out: false]` — the stage
+originally said 26, which was wrong when written; the count was 31 both
+before and after Stage 1, which added no `use Boundary` declarations.
+
+    grep -rc "check: \[in: false, out: false\]" lib/ --include='*.ex'
+
+Most are legitimate leaf utilities (`Format`, `DateUtil`, `Iso8601`,
+`Log`, `Topics`, `Secret`, `Version`, `Repo`). Three are not:
 
 | Module | Reaches |
 |---|---|
@@ -301,6 +327,21 @@ the work is one `deps:` list plus one `exports:` addition. `Diagnostics`
 next. `Showcase` last and hardest: it writes through `Repo` into another
 context's schemas, so it needs `Acquisition` to expose a seeding API
 rather than surrendering its structs.
+
+**What Stage 1 changed here.** `Library`'s `exports:` list grew from 46
+names to 62 — every extracted module that call sites reach directly had
+to be exported. Two consequences for this stage:
+
+* The three modules above reach *more* Library names than the table
+  records, because functions they called on the facade are now on
+  sub-modules (`Library.Containers`, `Library.ProgressRecords`, …).
+  Re-derive each module's actual dependency list from a compile with the
+  hatch removed rather than from the table.
+* A 62-name `exports:` list is itself worth a look while you are in
+  here. Most entries are schemas that callers only need in order to
+  pattern-match a struct. If that turns out to be the bulk of it, the
+  honest fix may be a narrower public surface rather than a longer list
+  — but that is a separate decision, not a prerequisite.
 
 **Open questions for the owner**
 * Is `Showcase` worth the work at all? It is dev/demo-only. A defensible
@@ -363,9 +404,18 @@ exist. That erodes the credibility of the policies that *are* followed
 
 | Policy | Location | Reality |
 |---|---|---|
-| "never call `Repo` directly from tests" | `.claude/skills/coding-guidelines/SKILL.md` | **457** `Repo.*` calls in `test/` |
-| "no `=~` on markup" | `.claude/skills/automated-testing/SKILL.md` | **410** `=~` assertions across ~40 `*_live_test.exs` |
+| "never call `Repo` directly from tests" | `.claude/skills/coding-guidelines/SKILL.md` | **301** `Repo.*` calls in `test/` |
+| "no `=~` on markup" | `.claude/skills/automated-testing/SKILL.md` | **345** `=~` assertions across `*_live_test.exs` |
 | naming: `fetch_*` tuple / `get_*!` raise | de-facto, `Library` | `Review.get_pending_file/1` returns a tuple; `ReleaseTracking.get_item/1` and `WatchHistory.get_event/1` return `nil` |
+
+The first two counts were re-measured 2026-08-06 and differ from the
+figures originally recorded (457 / 410). Stage 1 changed neither — its
+commits touched **zero** `Repo.` lines in `test/` — so the original
+numbers were produced by a different (unrecorded) match. Commands, so
+the next reading is comparable:
+
+    grep -rho 'Repo\.[a-z_]*(' test/ | wc -l
+    grep -rho '=~' test/**/*_live_test.exs | wc -l
 
 Most `Repo` uses in tests are legitimate — asserting a row landed, or
 forcing a state the public API deliberately won't produce (20 sites use
@@ -382,8 +432,32 @@ pursuit state).
 * Unify the lookup contract: `fetch_*` → `{:ok, _} | {:error,
   :not_found}`, `get_*!` → raises, nothing else. Rename
   `Review.get_pending_file/1`, `ReleaseTracking.get_item/1`,
-  `WatchHistory.get_event/1`, and the two `Library` stragglers
-  (`get_extra_progress_by_extra/1`, `get_media_track_override/2`).
+  `WatchHistory.get_event/1`, and the two former `Library` stragglers —
+  see below for where they went.
+
+**Stage 1 moved these targets, and made one of them worse.** The two
+`Library` stragglers this stage named no longer exist under those names:
+
+| Was | Now | Contract |
+|---|---|---|
+| `Library.get_extra_progress_by_extra/1` | `Library.ProgressRecords.fetch_for_extra/1` | returns `nil` — **violates** the `fetch_*` contract |
+| `Library.get_media_track_override/2` | `Library.MediaTrackOverrides.get/2` | returns `nil` — consistent with `get_item` / `get_event` |
+
+`fetch_for_extra/1` is a regression against the contract this stage
+proposes: it was honestly named `get_*` returning `nil`, and the
+extraction renamed it to `fetch_*` while leaving the return shape alone.
+Stage 1 was not applying this stage's contract (they were deliberately
+kept separate), so nothing was checking. Fix it here — either restore
+`get_` or make it return the tuple — and prefer the tuple, since every
+other `fetch_*` in the extracted modules (`Containers.fetch/2`,
+`Seasons.fetch/1`, `Episodes.fetch/1`, `PlayableItems.fetch/1`,
+`Extras.fetch/1`, `ProgressRecords.fetch_for_container/2`) already
+returns one. That makes `fetch_for_extra/1` the single odd one out
+rather than the start of a second convention.
+
+This is also evidence for the second open question below: an
+arity+prefix Credo check would have caught the rename at the moment it
+happened.
 
 **Open questions for the owner**
 * Amend the policies to match practice, or hold the line and fix the
@@ -415,9 +489,18 @@ not a refactor — it needs an ADR before any code moves.
   `Controls`, `IntegrationHealth`, `WatchHistory`, `ErrorReports`.
 
 Related but separable: `Topics` centralises topic *names* but not
-publication — `MediaCentaur.PubSub` appears as a literal at **132**
-sites. A `Topics.publish/2` + `Topics.subscribe/1` pair removes all of
-them and is worth doing regardless of which idiom wins.
+publication — `MediaCentaur.PubSub` appears as a literal at **134**
+sites (re-measured 2026-08-06; was 132). A `Topics.publish/2` +
+`Topics.subscribe/1` pair removes all of them and is worth doing
+regardless of which idiom wins.
+
+    grep -rho 'MediaCentaur\.PubSub' lib/ --include='*.ex' | wc -l
+
+Stage 1 touched this lightly: the `{:entity_watch_completed, record}`
+broadcast moved with `mark_completed/1` into
+`Library.ProgressRecords`, so it is now one bare-tuple publisher in a
+module with a moduledoc, rather than one buried in a 2779-line context.
+The idiom question is unchanged.
 
 **Approach.** Write the ADR first; convert per-context on next touch,
 not in a sweep.
@@ -460,17 +543,26 @@ anything.
   d-pad reachable.
 * **`Topics.publish/2` / `Topics.subscribe/1`** — see Stage 5; can land
   early.
-* **`home_feed.ex` raw-SQL fragments** — three `fetch_in_progress_*`
+* **`home_feed.ex` raw-SQL fragments** — `fetch_in_progress_*`
   functions each embed a raw-SQL `fragment` that re-expresses in string
   SQL the join the Ecto `exists` clause already states, naming five
   tables as literals that a rename would break silently. The
   *correctness* bug here is fixed (commit `914e94c9`); the duplication
   is not. A shared `latest_watched_at_subquery(container_type)` built
-  with Ecto replaces all three.
+  with Ecto replaces them. Verified still present 2026-08-06:
+  `lib/media_centaur/library/home_feed.ex` lines 246, 343, 439, 537
+  (the fragment at 189 is an unrelated `TRIM`). Untouched by Stage 1 —
+  `HomeFeed` was already extracted.
 * **Preload volume in `fetch_in_progress_tv_series/1`** —
   `Repo.preload([:images, seasons: [:episodes]])` loads every episode of
   every returned series to compute two integers. Now that the
-  completeness test is in SQL, those can be `COUNT` aggregates.
+  completeness test is in SQL, those can be `COUNT` aggregates. Verified
+  still present 2026-08-06 at `home_feed.ex:358`.
+
+  Note: `Library.ProgressRecords.summaries/1` (extracted in Stage 1)
+  already computes exactly these totals as SQL `COUNT` aggregates, in
+  `episode_totals_by_tv_series/1`. Whoever picks this up should check
+  whether that is directly reusable rather than writing a third version.
 
 ## Completion criteria
 
