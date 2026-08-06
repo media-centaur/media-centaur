@@ -98,7 +98,7 @@ defmodule MediaCentaurWeb.Components.Detail.MoreInfoPanel do
 
   # Per-entity remembered audio/subtitle track selection. Rendered only
   # when an override exists (movies + TV series carry it via
-  # `Library.put_track_override/1`); other container kinds and
+  # `Library.MediaTrackOverrides.put_on_entity/1`); other container kinds and
   # all-policy overrides render nothing. The Reset button clears the
   # override via the EntityModal-injected `reset_track_override` event.
   defp track_override_badge(%{entity: %{track_override: %MediaTrackOverride{} = override}} = assigns) do

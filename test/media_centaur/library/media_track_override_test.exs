@@ -8,19 +8,19 @@ defmodule MediaCentaur.Library.MediaTrackOverrideTest do
   describe "get_media_track_override/2" do
     test "returns nil when no override exists" do
       tv_series = create_tv_series()
-      assert Library.get_media_track_override(:tv_series, tv_series.id) == nil
+      assert Library.MediaTrackOverrides.get(:tv_series, tv_series.id) == nil
     end
 
     test "returns the override when it exists" do
       tv_series = create_tv_series()
 
       {:ok, _override} =
-        Library.upsert_media_track_override(:tv_series, tv_series.id, %{
+        Library.MediaTrackOverrides.upsert(:tv_series, tv_series.id, %{
           audio_lang: "jpn",
           subtitle_lang: "eng"
         })
 
-      override = Library.get_media_track_override(:tv_series, tv_series.id)
+      override = Library.MediaTrackOverrides.get(:tv_series, tv_series.id)
       assert %MediaTrackOverride{audio_lang: "jpn", subtitle_lang: "eng"} = override
     end
 
@@ -29,16 +29,16 @@ defmodule MediaCentaur.Library.MediaTrackOverrideTest do
       movie = create_movie(%{name: "Test Movie", id: tv_series.id})
 
       {:ok, _} =
-        Library.upsert_media_track_override(:tv_series, tv_series.id, %{audio_lang: "jpn"})
+        Library.MediaTrackOverrides.upsert(:tv_series, tv_series.id, %{audio_lang: "jpn"})
 
       {:ok, _} =
-        Library.upsert_media_track_override(:movie, movie.id, %{audio_lang: "fra"})
+        Library.MediaTrackOverrides.upsert(:movie, movie.id, %{audio_lang: "fra"})
 
       assert %MediaTrackOverride{audio_lang: "jpn"} =
-               Library.get_media_track_override(:tv_series, tv_series.id)
+               Library.MediaTrackOverrides.get(:tv_series, tv_series.id)
 
       assert %MediaTrackOverride{audio_lang: "fra"} =
-               Library.get_media_track_override(:movie, movie.id)
+               Library.MediaTrackOverrides.get(:movie, movie.id)
     end
   end
 
@@ -47,7 +47,7 @@ defmodule MediaCentaur.Library.MediaTrackOverrideTest do
       tv_series = create_tv_series()
 
       {:ok, override} =
-        Library.upsert_media_track_override(:tv_series, tv_series.id, %{
+        Library.MediaTrackOverrides.upsert(:tv_series, tv_series.id, %{
           audio_lang: "jpn",
           subtitle_lang: "eng"
         })
@@ -64,7 +64,7 @@ defmodule MediaCentaur.Library.MediaTrackOverrideTest do
       movie = create_movie(%{name: "Test Movie"})
 
       {:ok, override} =
-        Library.upsert_media_track_override(:movie, movie.id, %{
+        Library.MediaTrackOverrides.upsert(:movie, movie.id, %{
           audio_lang: "fra",
           subtitle_lang: "eng",
           subtitle_forced: true
@@ -80,10 +80,10 @@ defmodule MediaCentaur.Library.MediaTrackOverrideTest do
       tv_series = create_tv_series()
 
       {:ok, _first} =
-        Library.upsert_media_track_override(:tv_series, tv_series.id, %{audio_lang: "jpn"})
+        Library.MediaTrackOverrides.upsert(:tv_series, tv_series.id, %{audio_lang: "jpn"})
 
       {:ok, second} =
-        Library.upsert_media_track_override(:tv_series, tv_series.id, %{
+        Library.MediaTrackOverrides.upsert(:tv_series, tv_series.id, %{
           audio_lang: "eng",
           subtitle_lang: "spa"
         })
@@ -98,7 +98,7 @@ defmodule MediaCentaur.Library.MediaTrackOverrideTest do
       tv_series = create_tv_series()
 
       {:ok, override} =
-        Library.upsert_media_track_override(:tv_series, tv_series.id, %{audio_lang: "jpn"})
+        Library.MediaTrackOverrides.upsert(:tv_series, tv_series.id, %{audio_lang: "jpn"})
 
       assert override.audio_lang == "jpn"
       assert override.subtitle_lang == nil
@@ -109,7 +109,7 @@ defmodule MediaCentaur.Library.MediaTrackOverrideTest do
       tv_series = create_tv_series()
 
       {:ok, override} =
-        Library.upsert_media_track_override(:tv_series, tv_series.id, %{subtitles_off: true})
+        Library.MediaTrackOverrides.upsert(:tv_series, tv_series.id, %{subtitles_off: true})
 
       assert override.subtitles_off == true
       assert override.subtitle_lang == nil
@@ -119,7 +119,7 @@ defmodule MediaCentaur.Library.MediaTrackOverrideTest do
       tv_series = create_tv_series()
 
       {:error, changeset} =
-        Library.upsert_media_track_override(:tv_series, tv_series.id, %{
+        Library.MediaTrackOverrides.upsert(:tv_series, tv_series.id, %{
           subtitle_lang: "eng",
           subtitles_off: true
         })
@@ -130,7 +130,7 @@ defmodule MediaCentaur.Library.MediaTrackOverrideTest do
 
     test "rejects an unknown owner_type" do
       assert {:error, changeset} =
-               Library.upsert_media_track_override(
+               Library.MediaTrackOverrides.upsert(
                  :episode,
                  Ecto.UUID.generate(),
                  %{audio_lang: "jpn"}
@@ -138,14 +138,27 @@ defmodule MediaCentaur.Library.MediaTrackOverrideTest do
 
       assert %{owner_type: ["is invalid"]} = errors_on(changeset)
     end
+
+    test "accepts a video_object owner — a standalone video remembers its tracks too" do
+      video_object = create_video_object()
+
+      assert {:ok, _override} =
+               Library.MediaTrackOverrides.upsert(:video_object, video_object.id, %{
+                 audio_lang: "jpn",
+                 subtitle_lang: "eng"
+               })
+
+      assert %MediaTrackOverride{audio_lang: "jpn", subtitle_lang: "eng"} =
+               Library.MediaTrackOverrides.get(:video_object, video_object.id)
+    end
   end
 
   describe "put_track_override/1" do
     test "attaches the override under :track_override for a movie entity" do
       movie = create_movie(%{name: "Test Movie"})
-      {:ok, _} = Library.upsert_media_track_override(:movie, movie.id, %{audio_lang: "jpn"})
+      {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie.id, %{audio_lang: "jpn"})
 
-      entity = Library.put_track_override(%{id: movie.id, type: :movie})
+      entity = Library.MediaTrackOverrides.put_on_entity(%{id: movie.id, type: :movie})
 
       assert %MediaTrackOverride{audio_lang: "jpn"} = entity.track_override
     end
@@ -153,33 +166,33 @@ defmodule MediaCentaur.Library.MediaTrackOverrideTest do
     test "attaches nil when a movie entity has no override" do
       movie = create_movie(%{name: "Test Movie"})
 
-      entity = Library.put_track_override(%{id: movie.id, type: :movie})
+      entity = Library.MediaTrackOverrides.put_on_entity(%{id: movie.id, type: :movie})
 
       assert Map.fetch!(entity, :track_override) == nil
     end
 
     test "attaches the override for a tv_series entity" do
       tv_series = create_tv_series()
-      {:ok, _} = Library.upsert_media_track_override(:tv_series, tv_series.id, %{subtitle_lang: "eng"})
+      {:ok, _} = Library.MediaTrackOverrides.upsert(:tv_series, tv_series.id, %{subtitle_lang: "eng"})
 
-      entity = Library.put_track_override(%{id: tv_series.id, type: :tv_series})
+      entity = Library.MediaTrackOverrides.put_on_entity(%{id: tv_series.id, type: :tv_series})
 
       assert %MediaTrackOverride{subtitle_lang: "eng"} = entity.track_override
     end
 
     test "attaches nil for a non-overridable type even if a row shares the id" do
       movie = create_movie(%{name: "Test Movie"})
-      {:ok, _} = Library.upsert_media_track_override(:movie, movie.id, %{audio_lang: "jpn"})
+      {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie.id, %{audio_lang: "jpn"})
 
       # movie_series is not a valid owner_type — the decorator must not
       # fetch under it, so the badge never leaks across container kinds.
-      entity = Library.put_track_override(%{id: movie.id, type: :movie_series})
+      entity = Library.MediaTrackOverrides.put_on_entity(%{id: movie.id, type: :movie_series})
 
       assert Map.fetch!(entity, :track_override) == nil
     end
 
     test "attaches nil when the entity map lacks id/type" do
-      entity = Library.put_track_override(%{name: "orphan"})
+      entity = Library.MediaTrackOverrides.put_on_entity(%{name: "orphan"})
 
       assert Map.fetch!(entity, :track_override) == nil
     end
@@ -187,7 +200,7 @@ defmodule MediaCentaur.Library.MediaTrackOverrideTest do
     test "preserves the rest of the entity map" do
       movie = create_movie(%{name: "Test Movie"})
 
-      entity = Library.put_track_override(%{id: movie.id, type: :movie, name: "Kept"})
+      entity = Library.MediaTrackOverrides.put_on_entity(%{id: movie.id, type: :movie, name: "Kept"})
 
       assert entity.name == "Kept"
       assert entity.id == movie.id
@@ -197,29 +210,29 @@ defmodule MediaCentaur.Library.MediaTrackOverrideTest do
   describe "clear_media_track_override/2" do
     test "deletes an existing override and returns :ok" do
       tv_series = create_tv_series()
-      {:ok, _} = Library.upsert_media_track_override(:tv_series, tv_series.id, %{audio_lang: "jpn"})
+      {:ok, _} = Library.MediaTrackOverrides.upsert(:tv_series, tv_series.id, %{audio_lang: "jpn"})
 
-      assert :ok = Library.clear_media_track_override(:tv_series, tv_series.id)
-      assert Library.get_media_track_override(:tv_series, tv_series.id) == nil
+      assert :ok = Library.MediaTrackOverrides.clear(:tv_series, tv_series.id)
+      assert Library.MediaTrackOverrides.get(:tv_series, tv_series.id) == nil
     end
 
     test "is a no-op when no override exists" do
       tv_series = create_tv_series()
-      assert :ok = Library.clear_media_track_override(:tv_series, tv_series.id)
+      assert :ok = Library.MediaTrackOverrides.clear(:tv_series, tv_series.id)
     end
 
     test "only deletes the row matching the owner_type" do
       tv_series = create_tv_series()
       movie = create_movie(%{name: "Test Movie"})
 
-      {:ok, _} = Library.upsert_media_track_override(:tv_series, tv_series.id, %{audio_lang: "jpn"})
-      {:ok, _} = Library.upsert_media_track_override(:movie, movie.id, %{audio_lang: "fra"})
+      {:ok, _} = Library.MediaTrackOverrides.upsert(:tv_series, tv_series.id, %{audio_lang: "jpn"})
+      {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie.id, %{audio_lang: "fra"})
 
-      assert :ok = Library.clear_media_track_override(:tv_series, tv_series.id)
-      assert Library.get_media_track_override(:tv_series, tv_series.id) == nil
+      assert :ok = Library.MediaTrackOverrides.clear(:tv_series, tv_series.id)
+      assert Library.MediaTrackOverrides.get(:tv_series, tv_series.id) == nil
 
       assert %MediaTrackOverride{audio_lang: "fra"} =
-               Library.get_media_track_override(:movie, movie.id)
+               Library.MediaTrackOverrides.get(:movie, movie.id)
     end
   end
 end

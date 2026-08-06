@@ -427,7 +427,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # struct isn't exported across the Playback boundary).
   def handle_modal_pubsub({:track_override_changed, %{owner_type: type, owner_id: id}}, socket) do
     if selected?(socket, id) do
-      {:cont, put_entry_track_override(socket, Library.get_media_track_override(type, id))}
+      {:cont, put_entry_track_override(socket, Library.MediaTrackOverrides.get(type, id))}
     else
       {:cont, socket}
     end
@@ -866,7 +866,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   @spec reset_track_override(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
   def reset_track_override(%{assigns: %{selected_entry: %{entity: %{id: id, type: type}}}} = socket)
       when type in [:movie, :tv_series] and is_binary(id) do
-    Library.clear_media_track_override(type, id)
+    Library.MediaTrackOverrides.clear(type, id)
     put_entry_track_override(socket, nil)
   end
 

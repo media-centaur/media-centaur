@@ -3,7 +3,7 @@ defmodule MediaCentaur.Playback.TrackOverrideRoundTripTest do
   End-to-end (data-layer) round-trip for per-entity track overrides:
 
       mid-playback selection  →  OverrideCapture.compute/2
-                              →  Library.upsert_media_track_override/3
+                              →  Library.MediaTrackOverrides.upsert/3
                               →  reload
                               →  TrackResolver.priority_args/3 (next play)
 
@@ -45,9 +45,9 @@ defmodule MediaCentaur.Playback.TrackOverrideRoundTripTest do
     {:override, attrs} =
       OverrideCapture.compute(state("jpn", "eng"), state("eng", "eng"))
 
-    {:ok, _} = Library.upsert_media_track_override(:movie, movie.id, attrs)
+    {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie.id, attrs)
 
-    override = Library.get_media_track_override(:movie, movie.id)
+    override = Library.MediaTrackOverrides.get(:movie, movie.id)
     assert override.audio_lang == "eng"
 
     # Next play: the override-pinned language leads the --alang priority
@@ -64,9 +64,9 @@ defmodule MediaCentaur.Playback.TrackOverrideRoundTripTest do
     {:override, attrs} =
       OverrideCapture.compute(state("eng", nil), state("eng", "spa"))
 
-    {:ok, _} = Library.upsert_media_track_override(:movie, movie.id, attrs)
+    {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie.id, attrs)
 
-    override = Library.get_media_track_override(:movie, movie.id)
+    override = Library.MediaTrackOverrides.get(:movie, movie.id)
     assert override.subtitle_lang == "spa"
     assert override.subtitles_off == false
 
@@ -85,9 +85,9 @@ defmodule MediaCentaur.Playback.TrackOverrideRoundTripTest do
     {:override, attrs} =
       OverrideCapture.compute(state("jpn", "eng"), state("jpn", nil))
 
-    {:ok, _} = Library.upsert_media_track_override(:movie, movie.id, attrs)
+    {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie.id, attrs)
 
-    override = Library.get_media_track_override(:movie, movie.id)
+    override = Library.MediaTrackOverrides.get(:movie, movie.id)
     assert override.subtitles_off == true
 
     args = TrackResolver.priority_args(@policy, override, "jpn")
@@ -121,16 +121,16 @@ defmodule MediaCentaur.Playback.TrackOverrideRoundTripTest do
     movie = create_movie(%{name: "Round Trip Movie 4"})
 
     assert OverrideCapture.compute(state("jpn", "eng"), state("jpn", "eng")) == :no_change
-    assert Library.get_media_track_override(:movie, movie.id) == nil
+    assert Library.MediaTrackOverrides.get(:movie, movie.id) == nil
   end
 
   test "clearing an override returns the entity to policy resolution" do
     movie = create_movie(%{name: "Round Trip Movie 5"})
 
-    {:ok, _} = Library.upsert_media_track_override(:movie, movie.id, %{audio_lang: "eng"})
-    assert :ok = Library.clear_media_track_override(:movie, movie.id)
+    {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie.id, %{audio_lang: "eng"})
+    assert :ok = Library.MediaTrackOverrides.clear(:movie, movie.id)
 
-    override = Library.get_media_track_override(:movie, movie.id)
+    override = Library.MediaTrackOverrides.get(:movie, movie.id)
     assert override == nil
 
     # With no override, --alang is the pure policy list: original (jpn)

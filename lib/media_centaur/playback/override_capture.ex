@@ -8,7 +8,7 @@ defmodule MediaCentaur.Playback.OverrideCapture do
 
   Used by `MpvSession` whenever an `aid` or `sid` property-change
   event settles (post-debounce). The caller persists the result via
-  `Library.upsert_media_track_override/3` only when this returns
+  `Library.MediaTrackOverrides.upsert/3` only when this returns
   `{:override, attrs}`; the `:no_change` case is a no-op (the
   override row, if it exists, is left alone — clearing it requires
   the explicit "Reset to default" UI action).

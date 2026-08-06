@@ -6,7 +6,7 @@ defmodule MediaCentaur.Pipeline.ImageRefresh do
   records whose files are missing), this reuses the **import** enqueue
   path: it derives the full artwork list straight from fresh TMDB
   metadata and broadcasts `{:enqueue_images, …}`. The image Producer
-  creates/upserts queue rows and downloads; `Library.upsert_image/2`
+  creates/upserts queue rows and downloads; `Library.Images.upsert/2`
   then replaces `content_url` on completion — so a refresh both fills a
   gap (no artwork at all) and replaces existing art.
 

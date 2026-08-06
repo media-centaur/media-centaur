@@ -28,10 +28,10 @@ defmodule MediaCentaur.Library.ImageTest do
         extension: "jpg"
       }
 
-      {:ok, _} = Library.upsert_image(image_attrs, [:owner_type, :owner_id, :role])
+      {:ok, _} = Library.Images.upsert(image_attrs, [:owner_type, :owner_id, :role])
 
       {:ok, _} =
-        Library.upsert_image(
+        Library.Images.upsert(
           %{image_attrs | content_url: "#{movie.id}/poster.png", extension: "png"},
           [:owner_type, :owner_id, :role]
         )
@@ -62,8 +62,8 @@ defmodule MediaCentaur.Library.ImageTest do
         extension: "jpg"
       }
 
-      {:ok, _} = Library.upsert_image(image_attrs, [:owner_type, :owner_id, :role])
-      {:ok, _} = Library.upsert_image(image_attrs, [:owner_type, :owner_id, :role])
+      {:ok, _} = Library.Images.upsert(image_attrs, [:owner_type, :owner_id, :role])
+      {:ok, _} = Library.Images.upsert(image_attrs, [:owner_type, :owner_id, :role])
 
       assert File.exists?(path)
     end
@@ -74,7 +74,7 @@ defmodule MediaCentaur.Library.ImageTest do
       movie = create_entity(%{type: :movie, name: "Test Movie"})
 
       image =
-        Library.create_image!(%{
+        Library.Images.create!(%{
           owner_type: :movie,
           owner_id: movie.id,
           role: "poster",
@@ -93,7 +93,7 @@ defmodule MediaCentaur.Library.ImageTest do
       movie = create_entity(%{type: :movie, name: "Test Movie"})
 
       {:ok, first} =
-        Library.upsert_image(
+        Library.Images.upsert(
           %{
             owner_type: :movie,
             owner_id: movie.id,
@@ -105,7 +105,7 @@ defmodule MediaCentaur.Library.ImageTest do
         )
 
       {:ok, second} =
-        Library.upsert_image(
+        Library.Images.upsert(
           %{
             owner_type: :movie,
             owner_id: movie.id,
@@ -118,7 +118,7 @@ defmodule MediaCentaur.Library.ImageTest do
 
       # Same image, updated content_url
       assert first.id == second.id || first.owner_id == second.owner_id
-      images = Library.list_all_images()
+      images = Library.Images.list_all()
 
       movie_images =
         Enum.filter(images, &(&1.owner_id == movie.id && &1.role == "poster"))
@@ -131,7 +131,7 @@ defmodule MediaCentaur.Library.ImageTest do
       tv = create_entity(%{type: :tv_series, name: "Sample Show"})
 
       {:ok, _} =
-        Library.upsert_image(
+        Library.Images.upsert(
           %{
             owner_type: :movie,
             owner_id: movie.id,
@@ -143,7 +143,7 @@ defmodule MediaCentaur.Library.ImageTest do
         )
 
       {:ok, _} =
-        Library.upsert_image(
+        Library.Images.upsert(
           %{
             owner_type: :tv_series,
             owner_id: tv.id,
@@ -154,7 +154,7 @@ defmodule MediaCentaur.Library.ImageTest do
           [:owner_type, :owner_id, :role]
         )
 
-      images = Library.list_all_images()
+      images = Library.Images.list_all()
       assert Enum.any?(images, &(&1.owner_type == :movie and &1.owner_id == movie.id))
       assert Enum.any?(images, &(&1.owner_type == :tv_series and &1.owner_id == tv.id))
     end
