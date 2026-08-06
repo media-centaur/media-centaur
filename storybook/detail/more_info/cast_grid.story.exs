@@ -62,11 +62,27 @@ defmodule MediaCentaurWeb.Storybook.Detail.MoreInfo.CastGrid do
       %Variation{
         id: :long_cast_with_filter,
         description:
-          "60 cast entries — exceeds the visible cap, so the inline filter input " <>
-            "appears above the grid. Type to filter in real time; the visible count " <>
-            "stays capped even after filtering. (JS hook runs in the storybook " <>
-            "iframe — try typing 'Cast Member 4' or 'Role 12'.)",
+          "60 cast entries — exceeds the 24-card cap, so the filter input appears " <>
+            "above the grid. Only the first 24 render; the rest are never sent. " <>
+            "Typing is a `phx-change` the host LiveView answers, so the input is " <>
+            "inert here in isolation — the two variations below stand in for its " <>
+            "filtered states.",
         attributes: %{cast: @long_cast}
+      },
+      %Variation{
+        id: :long_cast_filtered,
+        description:
+          "The same 60 entries with a filter applied. Selection happens server-side " <>
+            "in `visible_cast/3`, so the grid renders only the matches — still " <>
+            "capped at 24.",
+        attributes: %{cast: @long_cast, filter: "Member 1"}
+      },
+      %Variation{
+        id: :long_cast_filtered_no_matches,
+        description:
+          "A filter matching nobody. The grid renders no cards and the empty-state " <>
+            "line takes over.",
+        attributes: %{cast: @long_cast, filter: "nobody by that name"}
       }
     ]
   end

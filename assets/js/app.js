@@ -27,7 +27,6 @@ import {createInputHook} from "./input/index"
 import {Console} from "./hooks/console"
 import {LogTail} from "./hooks/log_tail"
 import {CopyButton} from "./hooks/copy_button"
-import {CastGridFilter} from "./hooks/cast_grid_filter"
 import {MouseAutofocus, shouldAutofocus} from "./hooks/mouse_autofocus"
 import {FlashAutoDismiss} from "./hooks/flash_auto_dismiss"
 import {SidebarTooltip} from "./hooks/sidebar_tooltip"
@@ -43,7 +42,6 @@ const liveSocket = new LiveSocket("/live", Socket, {
     Console,
     LogTail,
     CopyButton,
-    CastGridFilter,
     MouseAutofocus,
     FlashAutoDismiss,
     SidebarTooltip,

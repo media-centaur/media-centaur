@@ -470,6 +470,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           selected_entity_id={@selected_entity_id}
           detail_presentation={@detail_presentation}
           detail_view={@detail_view}
+          cast_filter={@cast_filter}
           detail_files={@detail_files}
           expanded_seasons={@expanded_seasons}
           expanded_episode_details={@expanded_episode_details}

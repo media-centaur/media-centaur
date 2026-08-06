@@ -54,6 +54,10 @@ defmodule MediaCentaurWeb.Components.ModalShell do
   attr :rematch_confirm, :boolean, default: false
   attr :detail_view, :atom, default: :main
 
+  attr :cast_filter, :string,
+    default: "",
+    doc: "Forwarded to `DetailPanel.detail_panel/1`. Current More-info cast filter query."
+
   attr :detail_files, :list,
     default: [],
     doc:
@@ -144,6 +148,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
               rematch_confirm={@rematch_confirm}
               detail_view={@detail_view}
               detail_files={@detail_files}
+              cast_filter={@cast_filter}
               delete_confirm={@delete_confirm}
               deleting={@deleting}
               spoiler_free={@spoiler_free}
