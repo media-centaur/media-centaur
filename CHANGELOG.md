@@ -4,6 +4,21 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.114.1 — 2026-08-06
+
+### Improved
+
+- **Pages with big casts open faster.** The More info cast list used to send the whole cast to your browser just to show the first two dozen — for a 900-person series that was 1.6 MB of hidden markup every time the panel opened. It now sends only the cards it shows and searches the full cast as you type, so filtering still finds someone billed 300th.
+- **Your library uses far less memory.** Title details were stored once per episode rather than once per show, so a large cast or season list was copied into every episode of that show. Storing it once cuts a mid-size library's page data from around 219 MB to 5 MB, and every detail page opens quicker for it.
+- **Media search names what the button does.** "Plan download", "Plan it", and "Plan 12 episodes" now all say **Download** — planning is a step on the way there, not what you asked for. Only the plan board, where there's a real proposal in front of you, keeps an approval verb.
+- **Fewer confirmations, and the remaining ones work from the couch.** Removing a media directory or a watch-history row no longer interrupts you — both are trivially redone. Refreshing the image cache asks on the button itself. Only **Clear database**, the one action you can't undo, opens a full confirmation. None of them use the browser's own dialog any more, which couldn't be answered with a remote or a gamepad.
+
+### Fixed
+
+- **Continue Watching no longer comes up empty when it shouldn't.** With several finished series sorted ahead of an unfinished one, the row could return nothing at all despite having something to continue.
+- **The Reconcile page responds to the keyboard and gamepad.** It looked navigable and wasn't — arrow keys did nothing, with no sign anything was wrong. The tab strip on the Review page had the same fault and is fixed with it.
+- **"Track release" no longer appears for films that came out years ago.** It's offered only while a movie is still unreleased, which is the only time there's a release to watch for.
+
 ## v0.114.0 — 2026-08-05
 
 ### Improved
