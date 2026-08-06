@@ -181,7 +181,7 @@
           {MediaCentaur.Credo.Checks.EntityModalContract, []},
           {MediaCentaur.Credo.Checks.PlaybackEventsContract, []},
           {MediaCentaur.Credo.Checks.LibraryUpdatesContract, []},
-          {MediaCentaur.Credo.Checks.GrabStatusContract, []},
+          {MediaCentaur.Credo.Checks.TargetStatusContract, []},
           {MediaCentaur.Credo.Checks.PursuitStateContract, []},
           {MediaCentaur.Credo.Checks.NoSysIntrospection, []},
           {MediaCentaur.Credo.Checks.LogMacroPreferred, []},

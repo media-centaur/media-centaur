@@ -57,7 +57,8 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
     Cours,
     InfoHash,
     Target,
-    TargetEvents
+    TargetEvents,
+    TargetStatus
   }
 
   alias MediaCentaur.Search.{
@@ -108,7 +109,7 @@ defmodule MediaCentaur.Acquisition.Jobs.PursueTarget do
       match?(%Unit{}, unit) and UnitState.terminal?(unit.state) ->
         {:ok, :unit_terminal}
 
-      target.status in ["acquired", "succeeded", "failed", "cancelled"] ->
+      TargetStatus.terminal?(target.status) ->
         {:ok, String.to_existing_atom(target.status)}
 
       true ->

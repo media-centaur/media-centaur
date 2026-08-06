@@ -35,7 +35,7 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Acquisition.{AutoGrabSettings, CancelReasons, Plans, Target}
+  alias MediaCentaur.Acquisition.{AutoGrabSettings, CancelReasons, Plans, Target, TargetStatus}
   alias MediaCentaur.Acquisition.Plans.Plan
   alias MediaCentaur.Acquisition.Pursuits.Commands.Cancel
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, State}
@@ -111,7 +111,10 @@ defmodule MediaCentaur.Acquisition.ModeReconciler do
   # the pursuit alone.
   defp still_seeking?(%Pursuit{} = pursuit) do
     not (Target
-         |> where([t], t.pursuit_id == ^pursuit.id and t.status in ["acquired", "succeeded"])
+         |> where(
+           [t],
+           t.pursuit_id == ^pursuit.id and t.status in ^TargetStatus.terminal_success()
+         )
          |> Repo.exists?())
   end
 
