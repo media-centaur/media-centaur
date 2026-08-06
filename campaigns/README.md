@@ -21,29 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`audit-remediation-2026-08.md`](audit-remediation-2026-08.md) —
-  **in progress — Stage 6 (droppable polish) is all that remains.** Tail of
-  the 2026-08-05 four-audit sweep. Stages 1, 2, 4 and 5 resolved, Stage 3
-  declined. Stage 1 split the 2779-line `Library` context into 18 modules
-  (`library.ex` → 127 lines); Stage 2 closed the `Status` and `Diagnostics`
-  Boundary hatches; Stage 4 reconciled two overreaching test policies with
-  practice behind three new Credo checks (MC0022–MC0024); Stage 5 settled
-  the event-publication idiom
-  ([ADR-060](../decisions/architecture/2026-08-06-060-event-publication-idiom.md))
-  — typed structs in the one-file `Library`/`Playback` shape, a `Topics`
-  transport that removed 132 hand-written PubSub server references, and
-  `Review.Events` as the worked example. Stage 3 was declined because the
-  console stays outside the input system deliberately.
-  **Left:** Stage 6's six polish bullets — re-verified 2026-08-06, two of
-  which don't say what they appear to say and one already shipped — plus the
-  unclaimed `/reconcile` dead-nav defect, the only user-visible item in it.
-  No open questions remain; nothing here needs the owner.
-  Its durable output is a lesson in three clauses, paid for six times: a
-  check you can run beats a number you wrote down; a number beats nothing
-  only if you checked the assumption underneath it; **and a check counts
-  only if you ran it against a violation** — MC0012 and MC0013 were found to
-  have never been able to fire. With a coda from Stage 6: a correct count
-  can still recommend the wrong fix.
 * [`below-floor-releases.md`](below-floor-releases.md) —
   **planning — design not started.** When every findable release of a
   title is below the user's quality floor, the plan board says a bare
