@@ -189,8 +189,7 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
   describe "episode_row_class/2" do
     test "returns primary highlight when resume target" do
-      assert DetailPanel.episode_row_class(:watched, true) ==
-               "border-l-2 border-primary bg-primary/5"
+      assert DetailPanel.episode_row_class(:watched, true) == "bg-primary/10"
     end
 
     test "returns opacity for watched" do

@@ -747,7 +747,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       tabindex="0"
     >
       <div class="flex items-center gap-3 text-sm">
-        <span class="w-6 flex-shrink-0 text-right text-base-content/50 font-mono text-xs tabular-nums">
+        <span class={[
+          "w-6 flex-shrink-0 text-right font-mono text-xs tabular-nums",
+          if(@is_resume_target, do: "text-primary font-semibold", else: "text-base-content/50")
+        ]}>
           {@episode.episode_number}
         </span>
         <span class={[
@@ -900,7 +903,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     end
   end
 
-  def episode_row_class(_state, true = _is_resume_target), do: "border-l-2 border-primary bg-primary/5"
+  def episode_row_class(_state, true = _is_resume_target), do: "bg-primary/10"
 
   def episode_row_class(:watched, _), do: "opacity-60"
   def episode_row_class(:current, _), do: "bg-info/5"
@@ -941,7 +944,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # Any caller that bypasses `watched_toggle/1` and renders this circle
   # directly must include `group/toggle` on the wrapping click target,
   # or the hover-preview check silently breaks with no test failure.
-  defp watched_circle_class(:watched), do: "bg-success group-hover/toggle:bg-success/70"
+  defp watched_circle_class(:watched), do: "bg-success/25 group-hover/toggle:bg-success/40"
 
   defp watched_circle_class(_),
     do: "border border-base-content/20 group-hover/toggle:border-base-content/50"
@@ -1004,7 +1007,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           <.icon
             :if={@state == :watched}
             name="hero-check-mini"
-            class="size-3 text-success-content"
+            class="size-3 text-success"
           />
           <.icon
             :if={@state != :watched}
