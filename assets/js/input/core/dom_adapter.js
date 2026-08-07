@@ -103,17 +103,39 @@ function revealItem(element, glider) {
   // at the bottom edge with the title and artwork above it off-screen.
   const subject = element.closest?.("[data-nav-reveal]") ?? element
 
+  // "nearest" scrolls as little as possible, which means it aligns to whichever
+  // edge you arrived from — so a row sits in a different place depending on
+  // whether you reached it going up or going down. A surface that wants ONE
+  // resting position regardless of approach declares the alignment instead.
+  const declared = element.closest?.("[data-nav-reveal-block]")?.dataset?.navRevealBlock
+
   const boxes = scrollableAncestors(element)
   const before = boxes.map(box => [box.scrollLeft, box.scrollTop])
-
-  subject.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" })
-
-  const after = boxes.map(box => [box.scrollLeft, box.scrollTop])
-  boxes.forEach((box, i) => {
+  const rewind = () => boxes.forEach((box, i) => {
     box.scrollLeft = before[i][0]
     box.scrollTop = before[i][1]
   })
+
+  subject.scrollIntoView({ block: declared ?? "nearest", inline: "nearest", behavior: "instant" })
+
+  // The declared alignment is a preference, not a promise. A shelf's reserve
+  // can outgrow the viewport at large UI scales, and honouring the alignment
+  // then pushes the focused item off the opposite edge — worse than not framing
+  // it. Keeping the item on screen wins.
+  if (declared && !isFullyInView(element)) {
+    rewind()
+    subject.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" })
+  }
+
+  const after = boxes.map(box => [box.scrollLeft, box.scrollTop])
+  rewind()
   boxes.forEach((box, i) => glider.glide(box, { left: after[i][0], top: after[i][1] }))
+}
+
+/** Whether the element's block extent lies wholly within the viewport. */
+function isFullyInView(element) {
+  const rect = element.getBoundingClientRect()
+  return rect.top >= 0 && rect.bottom <= document.documentElement.clientHeight
 }
 
 /**

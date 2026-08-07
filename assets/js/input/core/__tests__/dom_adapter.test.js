@@ -338,8 +338,9 @@ describe("reveal — a single owner for making the focused item visible", () => 
     })
   }
 
-  function stubScrollingDocument(items) {
+  function stubScrollingDocument(items, { clientHeight = 1000 } = {}) {
     stubGridDocument(items)
+    globalThis.document.documentElement = { clientHeight }
     // The one scroll container in play: no item has a parentElement, so the
     // ancestor walk finds nothing and stops at the scrolling root.
     root = {
@@ -403,6 +404,41 @@ describe("reveal — a single owner for making the focused item visible", () => 
 
     expect(globalThis.document.activeElement).toBe(item)
     expect(glided.length).toBe(1)
+  })
+
+  // A shelf has one canonical resting position, and arriving at it from above
+  // or from below must land on the same one. "nearest" cannot do that — it
+  // aligns to whichever edge you came from — so the surface declares the
+  // alignment it wants and the reveal honours it.
+  test("data-nav-reveal-block declares how the subject is aligned", () => {
+    const writer = writerWithFakeGlide()
+    const item = fakeGridItem("card")
+    const shelf = {}
+    item.closest = (selector) =>
+      selector === "[data-nav-reveal-block]" ? { dataset: { navRevealBlock: "end" } } : null
+    stubScrollingDocument([item])
+
+    writer.focusElement(item)
+
+    expect(item.scrolledWith.block).toBe("end")
+  })
+
+  // A declared alignment is a preference, not a promise. At large UI scales a
+  // shelf's reserve can exceed the viewport, and honouring "end" would then
+  // push the focused card off the TOP of the screen — worse than not framing
+  // it at all. Falling back to a minimal reveal keeps the card on screen.
+  test("a declared alignment is abandoned when it would push the item off screen", () => {
+    const writer = writerWithFakeGlide()
+    const item = fakeGridItem("card")
+    item.closest = (selector) =>
+      selector === "[data-nav-reveal-block]" ? { dataset: { navRevealBlock: "end" } } : null
+    // Reports a rect above the viewport top — what an over-tall reserve does.
+    item.getBoundingClientRect = () => ({ x: 0, y: -200, width: 10, height: 300, top: -200, left: 0, right: 10, bottom: 100 })
+    stubScrollingDocument([item])
+
+    writer.focusElement(item)
+
+    expect(item.scrolledWith.block).toBe("nearest")
   })
 
   // Some items are not the thing worth looking at. The home hero's Play button
