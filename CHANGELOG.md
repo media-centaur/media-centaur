@@ -4,6 +4,27 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.116.0 — 2026-08-07
+
+The home page's keyboard and gamepad navigation has been reworked. Rows move
+under the cursor instead of the cursor jumping between cards, and every row now
+comes to rest in a predictable place.
+
+### Improved
+
+- **Rows scroll smoothly under a held direction.** Continue Watching and Recently Added used to jump a card at a time, and holding an arrow key or the stick could leave the keyboard and gamepad cursor well ahead of the row it was supposed to be moving. The row now follows the cursor continuously, travelling faster the further it has to go.
+- **The cursor stops before the end of a row, and the row moves instead.** It used to walk to the last card on screen and stay pinned against the edge for the rest of the list, with nothing to show more titles were coming. It now stops one card short so the next title is always in view, and only reaches the edge when the row genuinely ends.
+- **Moving down to a row brings the next one into view.** Stepping from Continue Watching to Recently Added lifts the page far enough to show what is below it, rather than the smallest amount needed to get the card on screen.
+- **A row rests in the same place whichever way you reach it.** Arriving at Recently Added from above and returning to it from below used to leave the page at two different positions, so the same row looked different depending on how you got there.
+- **Coming Up follows the direction you press.** Its tiles are a mosaic rather than a list, and the arrows now move between them by where they actually sit: Right from the large tile goes to the top of the stack beside it, Down from there to the one below.
+
+### Fixed
+
+- **The cursor is visible as soon as a page loads.** After a reload the outline appeared only once you pressed a key, so nothing showed where you were until you moved.
+- **Cards are no longer left partly hidden once a row scrolls.** A scrolled row stopped about a third of a card short, cutting off the card you had just moved to along with its outline.
+- **Coming Up no longer pulls the page up as you move across it.** Going from the large tile to a smaller one beside it scrolled the page, because each tile was being framed on its own rather than as part of the section it belongs to.
+- **The last row on the home page no longer nudges the page down.** Reaching it scrolled a few pixels further for nothing, since everything below was already on screen.
+
 ## v0.115.0 — 2026-08-07
 
 ### Improved
