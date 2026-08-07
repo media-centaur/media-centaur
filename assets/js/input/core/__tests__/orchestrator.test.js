@@ -201,9 +201,9 @@ function mockCreateBehavior(name) {
   if (name === "settings" || name === "status" || name === "review") {
     return { onAttach() {}, onDetach() {} }
   }
-  // Home (and watch-history) behaviors deliberately omit onAttach/onDetach —
-  // the mock must mirror that so start() exercises the optional-hook path.
-  if (name === "home") {
+  // Some behaviors (watch-history) deliberately omit onAttach/onDetach — the
+  // mock must offer one so start() exercises the optional-hook path.
+  if (name === "hookless") {
     return { onZoneChanged() {} }
   }
   return null
@@ -1136,13 +1136,13 @@ describe("Orchestrator", () => {
   describe("home zone cursor start", () => {
     test("start does not throw when the page behavior has no onAttach hook", () => {
       // Regression: start() called this._behavior?.onAttach() (guarding only
-      // the behavior, not the method). A behavior without onAttach (home,
+      // the behavior, not the method). A behavior without onAttach (e.g.
       // watch-history) threw a TypeError that aborted start() before
       // _ensureCursorStart — leaving a grid-less page stuck in empty GRID.
       const { system } = setup({
         getZone: () => "home",
         getItemCount: (ctx) => ctx === "grid" ? 0 : 4,
-        getPageBehavior: () => "home",
+        getPageBehavior: () => "hookless",
       })
 
       expect(() => system.start({})).not.toThrow()

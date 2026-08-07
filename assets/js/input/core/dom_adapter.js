@@ -11,6 +11,7 @@
  */
 
 import { Context } from "./focus_context"
+import { createScrollGlide } from "./scroll_glide"
 
 /**
  * The element that owns the active modal overlay — the first
@@ -75,17 +76,63 @@ function queryContextItems(selectors, context) {
  * the focused element already IS the resting position. So `.row-scroll` does
  * not snap.
  *
- * Conversely the transition belongs to CSS, via `scroll-behavior` on the
- * container — NOT to `behavior: "smooth"` here. Measured on the real page:
- * repeated `scrollIntoView({behavior: "smooth"})` under fast input stops
- * retargeting and the row stalls mid-glide, stranding the cursor hundreds of
- * px outside the scrollport. The container's own `scroll-behavior` retargets
- * an in-flight animation correctly and settles on the identical offset, so a
- * held arrow or gamepad stick reads as one continuous slide.
+ * The transition is ours too, but it is a separate concern with its own module
+ * (`scroll_glide.js`) — neither of the browser's smooth-scroll routes survives
+ * held input, and that docstring records the measurements. What stays here is
+ * only the question of *where*, answered the way it always was: by asking the
+ * browser.
+ *
+ * We do that by scrolling instantly, reading where that landed, putting the
+ * offsets back, and gliding to the recorded destination. It looks roundabout,
+ * and the alternative is worse: computing the destination ourselves means
+ * reimplementing `scrollIntoView`'s "nearest" algorithm including
+ * `scroll-padding`, borders, and writing modes — a pile of geometry the engine
+ * already gets right. Nothing paints between the jump and the restore (it is
+ * all one task), so there is no flicker.
+ *
+ * Focus itself is always instantaneous: `focus()` is synchronous and the
+ * scroll animates behind it. The cursor is never where the animation is, so
+ * SELECT mid-glide activates the card the user is actually on.
  */
-function revealItem(element) {
+function revealItem(element, glider) {
   element.focus({ preventScroll: true })
-  element.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" })
+
+  // What to show is not always the item itself. A `[data-nav-reveal]` ancestor
+  // claims the reveal for a larger region — the home hero's Play button sits
+  // low in a full-bleed backdrop, so revealing the button alone would park it
+  // at the bottom edge with the title and artwork above it off-screen.
+  const subject = element.closest?.("[data-nav-reveal]") ?? element
+
+  const boxes = scrollableAncestors(element)
+  const before = boxes.map(box => [box.scrollLeft, box.scrollTop])
+
+  subject.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" })
+
+  const after = boxes.map(box => [box.scrollLeft, box.scrollTop])
+  boxes.forEach((box, i) => {
+    box.scrollLeft = before[i][0]
+    box.scrollTop = before[i][1]
+  })
+  boxes.forEach((box, i) => glider.glide(box, { left: after[i][0], top: after[i][1] }))
+}
+
+/**
+ * Every scroll container between `element` and the document that could have
+ * been moved by scrollIntoView — a media row, then the page.
+ */
+function scrollableAncestors(element) {
+  const boxes = []
+  for (let node = element.parentElement; node; node = node.parentElement) {
+    const style = getComputedStyle(node)
+    const overflow = `${style.overflowX} ${style.overflowY}`
+    if (!/auto|scroll|overlay/.test(overflow)) continue
+    if (node.scrollWidth > node.clientWidth || node.scrollHeight > node.clientHeight) {
+      boxes.push(node)
+    }
+  }
+  const root = document.scrollingElement
+  if (root) boxes.push(root)
+  return boxes
 }
 
 /**
@@ -314,10 +361,16 @@ export function createDomReader(config = {}) {
 /**
  * Create a DomWriter that modifies the DOM using the given config.
  * @param {Object} [config={}]
+ * @param {Object} [config.glider] - Scroll glide instance; defaults to a real
+ *   one driven by rAF. Injected so tests can drive frames by hand.
  * @returns {Object} DomWriter interface
  */
 export function createDomWriter(config = {}) {
   const selectors = config.contextSelectors ?? {}
+  const glider = config.glider ?? createScrollGlide({
+    requestAnimationFrame: fn => globalThis.requestAnimationFrame(fn),
+    now: () => performance.now(),
+  })
 
   return {
     /**
@@ -325,7 +378,7 @@ export function createDomWriter(config = {}) {
      */
     focusElement(element) {
       if (!element) return
-      revealItem(element)
+      revealItem(element, glider)
     },
 
     /**
@@ -335,7 +388,7 @@ export function createDomWriter(config = {}) {
     focusByIndex(context, index) {
       const target = queryContextItems(selectors, context)[index]
       if (!target) return false
-      revealItem(target)
+      revealItem(target, glider)
       return document.activeElement === target
     },
 
@@ -346,7 +399,7 @@ export function createDomWriter(config = {}) {
     focusFirst(context) {
       const first = queryContextItems(selectors, context)[0]
       if (!first) return false
-      revealItem(first)
+      revealItem(first, glider)
       return document.activeElement === first
     },
 
@@ -360,7 +413,7 @@ export function createDomWriter(config = {}) {
       const items = queryContextItems(selectors, context)
       for (const item of items) {
         if (item.dataset.entityId === entityId) {
-          revealItem(item)
+          revealItem(item, glider)
           return true
         }
       }

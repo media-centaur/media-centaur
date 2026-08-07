@@ -98,9 +98,11 @@ defmodule MediaCentaurWeb.HomeLive do
 
             Input system: the home page is a vertical stack of horizontal
             SHELF zones (hero + content rows). `data-nav-default-zone="home"`
-            selects the `home` nav-graph layout; the home page behavior maps
-            BACK → sidebar. See the `input-system` skill. --%>
-      <div class="relative" data-page-behavior="home" data-nav-default-zone="home">
+            selects the `home` nav-graph layout. There is deliberately no page
+            behavior — everything the page once needed one for (pinning the
+            hero to the page top) is now declared on the hero itself with
+            `data-nav-reveal`. See the `input-system` skill. --%>
+      <div class="relative" data-nav-default-zone="home">
         <%!-- ── Page atmosphere (z-index 0) ──
               Backdrop image fades into base-100 at the top of the page. The
               side-dim continues the hero's left-anchored darkening down the
@@ -120,12 +122,19 @@ defmodule MediaCentaurWeb.HomeLive do
         <%!-- ── Hero (z-index 1) ──
               Breaks out of main's padding to fill available width. The
               row-scroll-hero wrapper is structural setup for future multi-item
-              featured carousels; today it holds a single item. --%>
+              featured carousels; today it holds a single item.
+
+              `data-nav-reveal` makes the whole hero the thing scrolled into
+              view when its Play / More info buttons take focus. The CTAs sit
+              low in a full-bleed backdrop, so revealing a button on its own
+              parks it at the bottom of the viewport with the title and artwork
+              stranded above. --%>
         <div
           :if={@hero}
           class="relative z-[1] -mx-6 -mt-6"
           data-scroll-row="hero"
           data-nav-zone="hero"
+          data-nav-reveal
         >
           <div class="row-scroll row-scroll-hero">
             <div class="w-full" data-row-item>

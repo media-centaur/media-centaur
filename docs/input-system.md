@@ -343,6 +343,7 @@ Actions in each context:
 | `data-nav-zone-value` | Zone identifier on tab elements | `watching`, `library`, `upcoming` |
 | `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT | — |
 | `data-nav-action` | Custom event name dispatched on SELECT instead of `.click()` | event name string |
+| `data-nav-reveal` | Scroll THIS ancestor into view instead of the focused item (hero: show the whole backdrop, not just the CTA) | — |
 | `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children | — |
 | `data-nav-focus-ring` | Receive delegated focus ring when ancestor `data-nav-focus-target` item is focused | — |
 | `data-nav-context` | Current focus context for hint bar (set on `<html>`) | `grid`, `sidebar`, `modal`, etc. |
@@ -442,25 +443,51 @@ Making the focused item visible is one decision, so it has one owner:
 (`focusElement`, `focusByIndex`, `focusFirst`, `focusByEntityId`) route through
 it.
 
-**The input system owns WHERE the scroll lands; CSS owns HOW it gets there.**
-Both halves have been violated in practice, in opposite directions:
+**The input system owns the scroll — destination and motion both.** Neither
+half may be left to CSS, and each was tried:
 
-- **CSS must not touch the destination.** `.row-scroll` used to carry
+- **`scroll-snap-type` fights the destination.** `.row-scroll` used to carry
   `scroll-snap-type: x mandatory`. Snap re-snaps *after* `scrollIntoView` to
   the nearest boundary, undershooting and parking the focused card ~100px — a
   third of it — outside the scrollport, on every home-shelf card past the fold.
   Scroll snap is a pointer affordance (flick, release, settle somewhere
   sensible); with a focus cursor there is nothing to settle, because the
-  focused element already *is* the resting position. The two designs are
-  mutually exclusive. Do not add snap to a nav-driven scroll container.
-- **JS must not own the transition.** `scrollIntoView({behavior: "smooth"})`
-  stops retargeting under fast input and strands the row mid-glide (measured:
-  dead at scrollLeft 1103 with the cursor 950px outside the scrollport at a
-  220ms step rate; the identical walk at 900ms was flawless). `revealItem`
-  therefore scrolls *instantly* and the glide lives in `scroll-behavior:
-  smooth` on the container, which retargets correctly and settles on the
-  identical offset. A held arrow or gamepad stick reads as one continuous
-  slide.
+  focused element already *is* the resting position. Never put snap on a
+  nav-driven scroll container.
+- **Neither browser smooth-scroll route survives held input.**
+  `scrollIntoView({behavior: "smooth"})` stops retargeting altogether and
+  strands the row. CSS `scroll-behavior: smooth` does retarget, but restarts
+  its ease-in curve from rest each time; a held arrow repeats every ~33ms
+  against a ~450ms curve, so the row never escapes the slow opening — measured,
+  the cursor ran 3015px off-screen while `scrollLeft` stayed at 3, then the row
+  lurched the whole way on key-up.
+
+So the motion is ours: `scroll_glide.js` eases each container toward a target,
+closing a fixed fraction of the remaining gap per frame. Speed therefore
+depends only on distance remaining, so a target that keeps running away is
+chased *harder*, and retargeting is just a new number — there is no per-animation
+state to restart. Measured steady-state lag at the gamepad's 180ms repeat:
+~70px, well under a quarter card.
+
+`scroll-behavior` must stay off every nav-driven container, including `html`:
+the property intercepts direct `scrollLeft`/`scrollTop` assignment too, so it
+would launch a competing browser animation on each of the glide's per-frame
+writes.
+
+**Reveal the right subject.** `revealItem` scrolls the nearest
+`[data-nav-reveal]` ancestor when there is one, else the item itself. The home
+hero uses it: its CTAs sit low in a full-bleed backdrop, so revealing a button
+alone parks it at the viewport's bottom edge with the title and artwork
+stranded above. This replaced a page behavior that scrolled the window
+separately and raced the reveal for the same scroll box.
+
+**How the destination is computed.** `revealItem` scrolls instantly, reads
+where that landed, restores the offsets, and glides to the recorded target.
+Roundabout on purpose: computing it directly would mean reimplementing
+`scrollIntoView`'s "nearest" algorithm including `scroll-padding`, borders, and
+writing modes. Nothing paints between the jump and the restore, so there is no
+flicker.
+
 
 ## Text Input Handling
 

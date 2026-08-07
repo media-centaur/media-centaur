@@ -74,7 +74,15 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* Reserve scrollbar space so fixed-position elements don't shift when
-   content toggles between scrollable and non-scrollable pages. */
+   content toggles between scrollable and non-scrollable pages.
+
+   Deliberately NO `scroll-behavior: smooth` here, nor on any nav-driven
+   scroll container. Cursor-following motion is animated by
+   assets/js/input/core/scroll_glide.js, and `scroll-behavior` would fight it:
+   the property intercepts *direct `scrollLeft`/`scrollTop` assignment* too, so
+   each of the glide's per-frame writes would kick off its own competing
+   browser animation. The glide exists because neither browser route survives
+   held input — see that module's docstring for the measurements. */
 html { scrollbar-gutter: stable; }
 
 /* This file is for your main application CSS */
@@ -1745,12 +1753,11 @@ body:has(.modal-backdrop[data-state="open"]) {
    parked the focused card ~100px (a third of it) outside the scrollport, on
    every card past the fold.
 
-   But `scroll-behavior: smooth` here is exactly right, and is the ONLY place
-   the glide may live. It never changes the destination, only the path to it.
-   Measured: repeated `scrollIntoView({behavior: "smooth"})` under fast input
-   stops retargeting and strands the row mid-glide; the container's own
-   `scroll-behavior` retargets correctly and settles on the identical offset.
-   See `revealItem` in assets/js/input/core/dom_adapter.js.
+   And no `scroll-behavior` either — the glide toward the focused card is
+   animated in JS (assets/js/input/core/scroll_glide.js) because neither
+   browser route survives held input, and `scroll-behavior` would fight the
+   glide's per-frame scrollLeft writes. See `revealItem` in
+   assets/js/input/core/dom_adapter.js.
 
    Padding + negative margin (both axes) reserves space for `card-hover` and
    the keyboard/gamepad focus ring without visually inflating the row's
@@ -1767,7 +1774,6 @@ body:has(.modal-backdrop[data-state="open"]) {
   gap: var(--gap);
   overflow-x: auto;
   overflow-y: hidden;
-  scroll-behavior: smooth;
   scrollbar-width: none;
   -ms-overflow-style: none;
   padding-block: 0.75rem;

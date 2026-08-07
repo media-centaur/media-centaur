@@ -323,40 +323,109 @@ describe("non-focusable item filtering", () => {
 // scroll-snap container silently overrides scrollIntoView and parks the
 // focused card partly outside the scrollport).
 describe("reveal — a single owner for making the focused item visible", () => {
-  const gridWriter = createDomWriter(GRID_CONFIG)
-  // "instant" is deliberate: the glide is the container's job via CSS
-  // `scroll-behavior`. Asking scrollIntoView for smooth stops retargeting
-  // under fast input and strands the row mid-scroll — measured on the live
-  // home shelves. See revealItem's docstring and `.row-scroll` in app.css.
-  const EXPECTED = { block: "nearest", inline: "nearest", behavior: "instant" }
+  // Reveal works by scrolling instantly to learn the destination, restoring
+  // the offsets, and handing that destination to the glide. So the assertion
+  // that matters is what the glide was ASKED for, and that the page was left
+  // where it started for the animation to run from.
+  let glided
+  let root
 
-  test("focusByIndex reveals the item it focused", () => {
-    const items = [fakeGridItem("a"), fakeGridItem("b")]
+  function writerWithFakeGlide() {
+    glided = []
+    return createDomWriter({
+      ...GRID_CONFIG,
+      glider: { glide: (box, target) => glided.push({ box, target }) },
+    })
+  }
+
+  function stubScrollingDocument(items) {
     stubGridDocument(items)
-    gridWriter.focusByIndex("grid", 1)
-    expect(items[1].scrolledWith).toEqual(EXPECTED)
+    // The one scroll container in play: no item has a parentElement, so the
+    // ancestor walk finds nothing and stops at the scrolling root.
+    root = {
+      scrollLeft: 120,
+      scrollTop: 40,
+      // scrollIntoView is stubbed on the items, so nothing actually moves the
+      // root; the recorded destination is therefore its current offset. That
+      // is enough to pin the contract — measure, restore, glide.
+    }
+    globalThis.document.scrollingElement = root
+  }
+
+  test("focusByIndex glides toward where the item would have landed", () => {
+    const writer = writerWithFakeGlide()
+    const items = [fakeGridItem("a"), fakeGridItem("b")]
+    stubScrollingDocument(items)
+
+    writer.focusByIndex("grid", 1)
+
+    expect(globalThis.document.activeElement).toBe(items[1])
+    expect(glided.length).toBe(1)
+    expect(glided[0].box).toBe(root)
+    expect(glided[0].target).toEqual({ left: 120, top: 40 })
   })
 
-  test("focusFirst reveals the item it focused", () => {
-    const items = [fakeGridItem("a"), fakeGridItem("b")]
-    stubGridDocument(items)
-    gridWriter.focusFirst("grid")
-    expect(items[0].scrolledWith).toEqual(EXPECTED)
+  test("the measuring jump is instant and is undone before the glide runs", () => {
+    // "instant" here is load-bearing in the opposite direction from usual: it
+    // must NOT be smooth, because this scroll exists only to be read back and
+    // reverted. The visible motion is entirely the glide's.
+    const writer = writerWithFakeGlide()
+    const items = [fakeGridItem("a")]
+    stubScrollingDocument(items)
+
+    writer.focusFirst("grid")
+
+    expect(items[0].scrolledWith).toEqual({
+      block: "nearest", inline: "nearest", behavior: "instant",
+    })
+    expect(root.scrollLeft).toBe(120)
+    expect(root.scrollTop).toBe(40)
   })
 
   test("focusByEntityId reveals the item it focused", () => {
+    const writer = writerWithFakeGlide()
     const items = [fakeGridItem("a"), fakeGridItem("b")]
     items[1].dataset = { entityId: "e-9" }
-    stubGridDocument(items)
-    gridWriter.focusByEntityId("grid", "e-9")
-    expect(items[1].scrolledWith).toEqual(EXPECTED)
+    stubScrollingDocument(items)
+
+    writer.focusByEntityId("grid", "e-9")
+
+    expect(globalThis.document.activeElement).toBe(items[1])
+    expect(glided.length).toBe(1)
   })
 
   test("focusElement reveals the item it focused", () => {
+    const writer = writerWithFakeGlide()
     const item = fakeGridItem("a")
-    stubGridDocument([item])
-    gridWriter.focusElement(item)
-    expect(item.scrolledWith).toEqual(EXPECTED)
+    stubScrollingDocument([item])
+
+    writer.focusElement(item)
+
+    expect(globalThis.document.activeElement).toBe(item)
+    expect(glided.length).toBe(1)
+  })
+
+  // Some items are not the thing worth looking at. The home hero's Play button
+  // sits low in a full-bleed backdrop: revealing the BUTTON when arriving from
+  // below parks it at the bottom of the viewport with the title and artwork
+  // above it off-screen. `data-nav-reveal` on an ancestor says "show this
+  // instead", so the reveal is still one mechanism rather than a page behavior
+  // racing it with a second scroll of the same box.
+  test("reveal targets the nearest [data-nav-reveal] ancestor when there is one", () => {
+    const writer = writerWithFakeGlide()
+    const section = { ...fakeGridItem("hero-section"), scrolledWith: undefined }
+    const item = fakeGridItem("play")
+    item.closest = (selector) => (selector === "[data-nav-reveal]" ? section : null)
+    stubScrollingDocument([item])
+
+    writer.focusElement(item)
+
+    // Focus lands on the button; the SECTION is what gets scrolled into view.
+    expect(globalThis.document.activeElement).toBe(item)
+    expect(section.scrolledWith).toEqual({
+      block: "nearest", inline: "nearest", behavior: "instant",
+    })
+    expect(item.scrolledWith).toBeUndefined()
   })
 })
 
