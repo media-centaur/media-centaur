@@ -30,6 +30,7 @@ import {CopyButton} from "./hooks/copy_button"
 import {MouseAutofocus, shouldAutofocus} from "./hooks/mouse_autofocus"
 import {FlashAutoDismiss} from "./hooks/flash_auto_dismiss"
 import {SidebarTooltip} from "./hooks/sidebar_tooltip"
+import {pinReserve} from "./hooks/detail_scroll_geometry"
 import {installReconnectOnVisible} from "./reconnect_on_visible"
 import topbar from "../vendor/topbar"
 
@@ -120,6 +121,26 @@ const liveSocket = new LiveSocket("/live", Socket, {
         const pinInset = parseFloat(getComputedStyle(block).top) || 0
         const pinScroll = contentTop - contentMarginTop - block.offsetHeight - pinInset
         this.el.style.setProperty("--detail-pin-scroll", `${Math.max(0, pinScroll)}px`)
+
+        // Inset the region programmatic scrolls aim into, so a row scrolled to
+        // the top edge lands below the pinned block instead of behind it.
+        // Every keyboard/gamepad step through the episode list scrolls, so this
+        // has to hold for the life of the modal — which is why it lives here
+        // and not in ScrollToResume's one-shot: a season toggle patches this
+        // scroller, morphdom drops the inline style, and `updated()` above is
+        // the only thing that puts it back. Reproduced by expanding every
+        // season and then walking UP the list — the cursor went behind the
+        // header, because by then several patches had wiped the reserve.
+        const reserve = pinReserve({
+          pinInset,
+          blockHeight: block.offsetHeight,
+          portHeight: this.el.clientHeight,
+        })
+        if (reserve === null) {
+          this.el.style.removeProperty("scroll-padding-top")
+        } else {
+          this.el.style.scrollPaddingTop = `${reserve}px`
+        }
       }
     },
     ScrollToResume: {
@@ -140,38 +161,10 @@ const liveSocket = new LiveSocket("/live", Socket, {
         const target = this.el.querySelector("[data-resume-target]")
         if (target) {
           requestAnimationFrame(() => {
-            this._reserveOrientationBlock()
             target.scrollIntoView({ block: "center", behavior: "instant" })
           })
         }
       },
-      // The orientation block pins over the top of the scrollport, so the
-      // region a row can actually be seen in starts below it. Centering
-      // against the raw scrollport puts the next episode *behind* the
-      // block — measured at over half the scrollport's height on a
-      // 1920x1080 display. scroll-padding is the platform's own name for
-      // this: it insets the "optimal viewing region" that block:"center"
-      // centers within. Left set on the port so later programmatic
-      // scrolls (keyboard/gamepad nav stepping through episode rows)
-      // land clear of the block too.
-      _reserveOrientationBlock() {
-        const port = this.el.closest(".modal-detail-scroll")
-        const block = port && port.querySelector("[data-role='detail-orientation']")
-        if (!port || !block) return
-        // Layout pixels throughout — offsetHeight/clientHeight/computed
-        // `top`, never getBoundingClientRect(). The media-center UI runs
-        // under a `--ui-scale` transform, so rects come back in visual
-        // pixels and mixing the two silently doubles one side.
-        //
-        // Sticky `top` is the gap the block pins at; height is constant
-        // whether pinned or at rest, so this is safe to read pre-scroll.
-        const pinInset = parseFloat(getComputedStyle(block).top) || 0
-        const reserved = pinInset + block.offsetHeight
-        // A port too short to hold the block plus a row would push the
-        // target off the bottom — leave the default padding alone there.
-        if (reserved > port.clientHeight - 96) return
-        port.style.scrollPaddingTop = `${Math.round(reserved)}px`
-      }
     },
   },
 })
