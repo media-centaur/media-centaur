@@ -21,6 +21,19 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`input-system-1.0-pass.md`](input-system-1.0-pass.md) —
+  **in progress — Phase 1 (Home).** Page-by-page keyboard/gamepad
+  navigation pass for 1.0, fixing the *model* rather than each page's
+  symptoms. Two conflated responsibilities get one owner each:
+  **adjacency** (geometry, not index arithmetic — `findNearest()` has
+  been dead code all along) and **reveal** (the input system, never
+  CSS — `scroll-snap-type: x mandatory` was silently overriding
+  `scrollIntoView` and clipping every focused card ~100px past the
+  fold, measured and A/B-confirmed). Entering a zone lands on an item
+  touching the edge you came through, which is what makes Coming Up's
+  "never tile 3" fall out of the rule instead of a special case.
+  Owner chose the coherent path over the cheap one. Mouse wheel over a
+  scrolling row deferred.
 * [`below-floor-releases.md`](below-floor-releases.md) —
   **planning — design not started.** When every findable release of a
   title is below the user's quality floor, the plan board says a bare

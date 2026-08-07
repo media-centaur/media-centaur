@@ -92,8 +92,19 @@ function createMockReader(overrides = {}) {
     getCurrentFocusedSubItem: () => null,
     getItemAt: () => null,
     hasForeignFocus: () => false,
+    // Default geometry: one horizontal row of evenly spaced tiles. Shelf
+    // navigation is spatial, so every shelf test needs rects, and a row is the
+    // shape every shelf but the Coming Up mosaic actually has.
+    getItemRects(context) {
+      return rowRects(this.getItemCount(context))
+    },
     ...overrides,
   }
+}
+
+/** A horizontal row of `n` equally sized tiles — the default shelf shape. */
+function rowRects(n) {
+  return Array.from({ length: n }, (_, i) => ({ x: i * 100, y: 0, width: 90, height: 60 }))
 }
 
 /**
@@ -875,6 +886,221 @@ describe("Orchestrator", () => {
 
       expect(system._originEntityId).toBe("abc-123")
       expect(system._originContext).toBe("continue")
+    })
+  })
+
+  // The Coming Up marquee is a mosaic, not a row: one large tile on the left
+  // and a stacked column of secondaries on the right. Adjacency is answered by
+  // geometry; where the layout has no spatial answer the shelf falls back to
+  // its sequence (right/down = next tile), which is what makes RIGHT from the
+  // top secondary reach the one below it.
+  const MOSAIC_RECTS = [
+    { x: 0, y: 0, width: 1040, height: 360 },     // 0 — large tile, full height
+    { x: 1056, y: 0, width: 610, height: 175 },   // 1 — top secondary
+    { x: 1056, y: 185, width: 610, height: 175 }, // 2 — bottom secondary
+  ]
+
+  describe("Coming Up mosaic navigation", () => {
+    function mosaic(focusedIndex) {
+      const { system, reader, calls, globals } = setup({
+        getZone: () => "home",
+        getFocusedIndex: () => focusedIndex,
+        getItemCount: (ctx) =>
+          ctx === "coming_up" ? MOSAIC_RECTS.length : ctx === "sidebar" ? 4 : 5,
+        getItemRects: (ctx) => (ctx === "coming_up" ? MOSAIC_RECTS : rowRects(5)),
+      })
+      system.start({})
+      system.focusMachine.forceContext("coming_up")
+      calls.length = 0
+      return { system, reader, calls, globals }
+    }
+
+    /** The index the mosaic focused, or null if it focused nothing. */
+    function focusedIndexAfter(calls) {
+      const focusCalls = calls.filter(
+        c => c.method === "focusByIndex" && c.args[0] === "coming_up"
+      )
+      return focusCalls.length > 0 ? focusCalls[focusCalls.length - 1].args[1] : null
+    }
+
+    test("right from the large tile goes to the TOP secondary, not the nearest by centre", () => {
+      // The large tile spans the full height, so both secondaries are equally
+      // "in line" with it — the bottom one is even marginally closer by centre
+      // distance. Perfectly aligned candidates tie, and ties break by sequence.
+      const { system, calls } = mosaic(0)
+
+      system._handleAction(Action.NAVIGATE_RIGHT)
+
+      expect(system.focusMachine.context).toBe("coming_up")
+      expect(focusedIndexAfter(calls)).toBe(1)
+    })
+
+    test("left from the bottom secondary returns to the large tile", () => {
+      const { system, calls } = mosaic(2)
+
+      system._handleAction(Action.NAVIGATE_LEFT)
+
+      expect(system.focusMachine.context).toBe("coming_up")
+      expect(focusedIndexAfter(calls)).toBe(0)
+    })
+
+    test("up from the bottom secondary goes to the top secondary, not out of the shelf", () => {
+      const { system, calls } = mosaic(2)
+
+      system._handleAction(Action.NAVIGATE_UP)
+
+      expect(system.focusMachine.context).toBe("coming_up")
+      expect(focusedIndexAfter(calls)).toBe(1)
+    })
+
+    test("down from the top secondary goes to the bottom secondary", () => {
+      const { system, calls } = mosaic(1)
+
+      system._handleAction(Action.NAVIGATE_DOWN)
+
+      expect(system.focusMachine.context).toBe("coming_up")
+      expect(focusedIndexAfter(calls)).toBe(2)
+    })
+
+    test("right from the top secondary follows the sequence to the bottom secondary", () => {
+      // Nothing is spatially to the right, and the shelf has no right edge in
+      // the nav graph — so the sequence answers.
+      const { system, calls } = mosaic(1)
+
+      system._handleAction(Action.NAVIGATE_RIGHT)
+
+      expect(system.focusMachine.context).toBe("coming_up")
+      expect(focusedIndexAfter(calls)).toBe(2)
+    })
+
+    test("up from the large tile leaves the mosaic for the shelf above", () => {
+      const { system } = mosaic(0)
+
+      system._handleAction(Action.NAVIGATE_UP)
+
+      expect(system.focusMachine.context).toBe("recently")
+    })
+
+    test("up from the top secondary leaves the mosaic for the shelf above", () => {
+      const { system } = mosaic(1)
+
+      system._handleAction(Action.NAVIGATE_UP)
+
+      expect(system.focusMachine.context).toBe("recently")
+    })
+
+    test("left from the large tile enters the sidebar", () => {
+      const { system } = mosaic(0)
+
+      system._handleAction(Action.NAVIGATE_LEFT)
+
+      expect(system.focusMachine.context).toBe("sidebar")
+    })
+  })
+
+  describe("entering a shelf lands on the edge you crossed", () => {
+    function crossInto(fromContext, comingUpMemory) {
+      const { system, reader, calls, globals } = setup({
+        getZone: () => "home",
+        getFocusedIndex: () => 1,
+        getItemCount: (ctx) =>
+          ctx === "coming_up" ? MOSAIC_RECTS.length : ctx === "sidebar" ? 4 : 5,
+        getItemRects: (ctx) => (ctx === "coming_up" ? MOSAIC_RECTS : rowRects(5)),
+      })
+      system.start({})
+      system.focusMachine.forceContext(fromContext)
+      if (comingUpMemory != null) system._contextMemory["coming_up"] = comingUpMemory
+      calls.length = 0
+      return { system, reader, calls, globals }
+    }
+
+    test("crossing down into the mosaic never lands on the bottom secondary", () => {
+      // The bottom secondary does not touch the mosaic's top edge, so it is not
+      // a candidate when you arrive from above — no matter what memory says.
+      const { system, calls } = crossInto("recently", 2)
+
+      system._handleAction(Action.NAVIGATE_DOWN)
+
+      expect(system.focusMachine.context).toBe("coming_up")
+      const focusCalls = calls.filter(
+        c => c.method === "focusByIndex" && c.args[0] === "coming_up"
+      )
+      expect(focusCalls.length).toBeGreaterThan(0)
+      expect(focusCalls[focusCalls.length - 1].args[1]).not.toBe(2)
+    })
+
+    test("crossing down into the mosaic keeps memory that IS on the top edge", () => {
+      const { system, calls } = crossInto("recently", 1)
+
+      system._handleAction(Action.NAVIGATE_DOWN)
+
+      expect(system.focusMachine.context).toBe("coming_up")
+      const focusCalls = calls.filter(
+        c => c.method === "focusByIndex" && c.args[0] === "coming_up"
+      )
+      expect(focusCalls[focusCalls.length - 1].args[1]).toBe(1)
+    })
+
+    test("crossing down into a single-row shelf keeps memory (every tile is on the edge)", () => {
+      const { system, calls } = crossInto("continue", null)
+      system._contextMemory["recently"] = 3
+
+      system._handleAction(Action.NAVIGATE_DOWN)
+
+      expect(system.focusMachine.context).toBe("recently")
+      const focusCalls = calls.filter(
+        c => c.method === "focusByIndex" && c.args[0] === "recently"
+      )
+      expect(focusCalls[focusCalls.length - 1].args[1]).toBe(3)
+    })
+  })
+
+  describe("hero entry anchor", () => {
+    test("up from a shelf always lands on the hero's primary action", () => {
+      // The hero's whole job is "press play". Nearest-neighbour would pick
+      // More info when arriving from a right-ward card, and plain memory would
+      // pick whichever CTA was last touched — both wrong.
+      const { system, calls } = setup({
+        getZone: () => "home",
+        getFocusedIndex: () => 4,
+        getItemCount: (ctx) => (ctx === "hero" ? 2 : ctx === "sidebar" ? 4 : 5),
+      }, { entryAnchors: { hero: 0 } })
+      system.start({})
+      system.focusMachine.forceContext("continue")
+      system._contextMemory["hero"] = 1
+      calls.length = 0
+
+      system._handleAction(Action.NAVIGATE_UP)
+
+      expect(system.focusMachine.context).toBe("hero")
+      const focusCalls = calls.filter(
+        c => c.method === "focusByIndex" && c.args[0] === "hero"
+      )
+      expect(focusCalls.length).toBeGreaterThan(0)
+      expect(focusCalls[focusCalls.length - 1].args[1]).toBe(0)
+    })
+
+    test("a post-patch reconcile does not drag focus back to the anchor", () => {
+      // The anchor is an ENTRY rule. _reconcileFocus re-asserts focus after a
+      // LiveView patch, which is not an entry — yanking More info back to Play
+      // on every re-render would make the second CTA unusable.
+      const { system, calls } = setup({
+        getZone: () => "home",
+        getItemCount: (ctx) => (ctx === "hero" ? 2 : ctx === "sidebar" ? 4 : 5),
+        getCurrentFocusedItem: () => null,
+      }, { entryAnchors: { hero: 0 } })
+      system.start({})
+      system.focusMachine.forceContext("hero")
+      system._contextMemory["hero"] = 1
+      calls.length = 0
+
+      system._reconcileFocus()
+
+      const focusCalls = calls.filter(
+        c => c.method === "focusByIndex" && c.args[0] === "hero"
+      )
+      expect(focusCalls.length).toBeGreaterThan(0)
+      expect(focusCalls[focusCalls.length - 1].args[1]).toBe(1)
     })
   })
 

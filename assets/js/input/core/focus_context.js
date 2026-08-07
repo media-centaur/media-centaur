@@ -33,10 +33,10 @@ export function contextType(instance, instanceTypes = {}) {
 
 /**
  * @typedef {Object} FocusDirective
- * @property {"navigate"|"focus_context"|"focus_first"|"dismiss"|"activate"|"none"} type
- * @property {string} [direction] - For navigate directives
+ * @property {"navigate"|"focus_context"|"enter_context"|"dismiss"|"activate"|"none"} type
+ * @property {string} [direction] - For navigate and enter_context directives
  * @property {string} [target] - For focus_context directives
- * @property {string} [context] - For focus_first directives
+ * @property {string} [context] - For enter_context directives
  */
 
 const NONE = Object.freeze({ type: "none" })
@@ -51,8 +51,14 @@ function focusContext(target) {
   return { type: "focus_context", target }
 }
 
-function focusFirst(context) {
-  return { type: "focus_first", context }
+/**
+ * Cross into `context`, having travelled in `direction` to get there. The
+ * direction matters because entering a zone should land you on something
+ * adjacent to the edge you crossed — see the orchestrator's `_enterContext`.
+ * Omitted when the crossing is not spatial (exiting the sidebar).
+ */
+function enterContext(context, direction) {
+  return { type: "enter_context", context, direction }
 }
 
 function enterSubFocus() {
@@ -285,13 +291,13 @@ export class FocusContextMachine {
         const target = this._navGraph?.[this._context]?.down
         if (!target) return NONE
         this._setContext(target)
-        return focusFirst(target)
+        return enterContext(target, "down")
       }
       case Action.NAVIGATE_UP: {
         const target = this._navGraph?.[this._context]?.up
         if (!target) return NONE
         this._setContext(target)
-        return focusFirst(target)
+        return enterContext(target, "up")
       }
       case Action.SELECT:         return ACTIVATE
       case Action.BACK:           return NONE
@@ -317,7 +323,7 @@ export class FocusContextMachine {
         const target = this._navGraph?.[this._context]?.right
         if (!target) return NONE
         this._setContext(target)
-        return focusFirst(target)
+        return enterContext(target, "right")
       }
       case Action.NAVIGATE_LEFT: {
         if (isPrimaryMenu) return NONE
@@ -328,7 +334,7 @@ export class FocusContextMachine {
           return { type: "enter_sidebar" }
         }
         this._setContext(target)
-        return focusFirst(target)
+        return enterContext(target, "left")
       }
       case Action.SELECT:         return ACTIVATE
       case Action.BACK: {
@@ -340,20 +346,27 @@ export class FocusContextMachine {
   }
 
   /**
-   * Shelf: the dual of MENU. A horizontal list of media cards stacked
-   * vertically with sibling shelves (the home page's Continue Watching /
-   * Recently Added / Coming Up rows). Left/right navigate within the shelf
-   * (wall handling — including the left-wall sidebar entry — lives in the
-   * orchestrator's _linearNavigate). Up/down cross to the adjacent shelf via
-   * the nav graph. Select activates the focused card; BACK is a no-op in
-   * content — left at the left edge is the way to the sidebar.
+   * Shelf: a sequence of media tiles that happens to be laid out spatially —
+   * the home page's hero CTAs, Continue Watching, Recently Added, and the
+   * Coming Up marquee. Most shelves are a single row; the marquee is a mosaic
+   * (one large tile beside a stacked column). Both are the same thing, so
+   * there is one context type and one navigation path.
+   *
+   * All four directions return `navigate` and are resolved by the
+   * orchestrator's `_shelfNavigate`, which asks in order: the layout
+   * (geometry), then the nav graph (cross into a neighbouring zone), then the
+   * sequence. Keeping the walls out of here is what lets a mosaic and a row
+   * share one rule set — the state machine never has to know which it is.
+   *
+   * Select activates the focused card; BACK is a no-op in content — left at
+   * the left edge is the way to the sidebar.
    */
   _shelfTransition(action) {
     switch (action) {
       case Action.NAVIGATE_LEFT:  return navigate("left")
       case Action.NAVIGATE_RIGHT: return navigate("right")
-      case Action.NAVIGATE_UP:    return this.contextWall(this._context, "up")
-      case Action.NAVIGATE_DOWN:  return this.contextWall(this._context, "down")
+      case Action.NAVIGATE_UP:    return navigate("up")
+      case Action.NAVIGATE_DOWN:  return navigate("down")
       case Action.SELECT:         return ACTIVATE
       case Action.BACK:           return NONE
       case Action.PLAY:           return { type: "play" }
@@ -370,7 +383,7 @@ export class FocusContextMachine {
         const target = this._navGraph?.zone_tabs?.down
         if (!target) return NONE
         this._setContext(target)
-        return focusFirst(target)
+        return enterContext(target, "down")
       }
       case Action.NAVIGATE_UP:    return NONE
       case Action.SELECT:         return ACTIVATE
@@ -406,7 +419,7 @@ export class FocusContextMachine {
       return { type: "enter_sidebar" }
     }
     this._setContext(target)
-    return focusFirst(target)
+    return enterContext(target, direction)
   }
 
   /**

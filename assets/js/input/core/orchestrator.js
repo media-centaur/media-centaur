@@ -14,7 +14,7 @@
  */
 
 import { Action } from "./actions"
-import { gridNavigate } from "./spatial"
+import { findNearest, gridNavigate } from "./spatial"
 import { FocusContextMachine, Context, contextType } from "./focus_context"
 import { InputMethodDetector } from "./input_method"
 import { buildNavGraph, resolveCursorStart } from "./nav_graph"
@@ -579,6 +579,87 @@ export class Orchestrator {
   }
 
   /**
+   * Cross INTO a context, having travelled `direction` to get there.
+   *
+   * Distinct from `_restoreContextFocus`, which re-asserts focus the system
+   * already holds after a DOM patch. Entering is a user-driven move and obeys
+   * two rules the restore path must not:
+   *
+   * - **A declared anchor wins.** Some zones exist to be entered at one
+   *   specific item — the hero's whole job is "press play". That is a product
+   *   rule, not a nav accident, so it is declared in config rather than
+   *   emerging from geometry (which would pick More info when you arrive from
+   *   a right-ward card, and plain memory would pick whichever CTA you touched
+   *   last). It deliberately does NOT apply on reconcile: yanking More info
+   *   back to Play on every LiveView patch would make the second CTA unusable.
+   * - **Memory is constrained to the edge you crossed.** You should land on
+   *   something adjacent to where you came from, so a remembered tile that
+   *   doesn't touch that edge is not a candidate. This is the whole of "coming
+   *   down into Coming Up never lands on the bottom tile" — that tile doesn't
+   *   touch the mosaic's top edge. In a single-row shelf every tile touches
+   *   the top and bottom edges, so memory always survives and the rule is
+   *   invisible, which is exactly right.
+   *
+   * Scoped to SHELF contexts for now. The rule is not shelf-specific — a
+   * vertical MENU entered from above should land on its first item by the same
+   * logic — but the remaining pages get it as they are reviewed, one at a
+   * time. See `campaigns/input-system-1.0-pass.md`.
+   */
+  _enterContext(context, direction) {
+    const anchor = this._config.entryAnchors?.[context]
+    if (anchor != null && this.reader.getItemCount(context) > anchor) {
+      this.writer.focusByIndex(context, anchor)
+      return
+    }
+
+    const band = this._entryBand(context, direction)
+    if (!band) {
+      this._restoreContextFocus(context)
+      return
+    }
+
+    const savedIndex = this._contextMemory[context]
+    if (savedIndex != null && band.includes(savedIndex)) {
+      this.writer.focusByIndex(context, savedIndex)
+      return
+    }
+    this.writer.focusByIndex(context, band[0])
+  }
+
+  /**
+   * The indices of the items lying along the edge crossed to enter `context`
+   * travelling `direction` — the only items you may land on.
+   *
+   * Returns null when the constraint doesn't apply (no direction, not a shelf,
+   * no geometry), leaving the caller to fall back to plain restore.
+   */
+  _entryBand(context, direction) {
+    if (!direction) return null
+    if (contextType(context, this._config.instanceTypes) !== Context.SHELF) return null
+
+    const rects = this.reader.getItemRects?.(context) ?? []
+    if (rects.length === 0) return null
+
+    // Travelling down means entering through the top edge, and so on.
+    const edgeOf = {
+      down: r => r.y,
+      up: r => -(r.y + r.height),
+      right: r => r.x,
+      left: r => -(r.x + r.width),
+    }[direction]
+    if (!edgeOf) return null
+
+    // Sub-pixel layout rounding puts nominally flush tiles a hair apart.
+    const EDGE_TOLERANCE = 4
+    const nearest = Math.min(...rects.map(edgeOf))
+    const band = []
+    for (let i = 0; i < rects.length; i++) {
+      if (edgeOf(rects[i]) <= nearest + EDGE_TOLERANCE) band.push(i)
+    }
+    return band.length > 0 ? band : null
+  }
+
+  /**
    * Restore focus to the appropriate item in a context.
    * Grid: restore by entity ID memory.
    * All others: active item (DOM marker) → index memory → first item.
@@ -616,8 +697,8 @@ export class Orchestrator {
         this._executeFocusContext(directive.target)
         break
 
-      case "focus_first":
-        this._restoreContextFocus(directive.context)
+      case "enter_context":
+        this._enterContext(directive.context, directive.direction)
         break
 
       case "activate":
@@ -671,6 +752,12 @@ export class Orchestrator {
 
     const context = this.focusMachine.context
 
+    // Shelves are laid out, not listed — resolve them against their geometry.
+    if (contextType(context, this._config.instanceTypes) === Context.SHELF) {
+      this._shelfNavigate(context, direction)
+      return
+    }
+
     // For grid contexts, try fast-path grid arithmetic first
     if (context === Context.GRID) {
       const result = this._gridNavigate(direction)
@@ -713,6 +800,71 @@ export class Orchestrator {
   }
 
   /**
+   * Navigate within a shelf — a sequence of tiles laid out spatially.
+   *
+   * Three questions, asked in order, each answering what the one before it
+   * couldn't:
+   *
+   * 1. **The layout.** `findNearest` against the live rects. This is the whole
+   *    answer for anything the arrangement makes unambiguous, and it is why
+   *    the Coming Up mosaic needs no adjacency table of its own — a table
+   *    would be wrong the moment the marquee renders a fourth tile.
+   * 2. **The nav graph.** Nothing in this direction means we're at the shelf's
+   *    edge, so try crossing into a neighbouring zone (the shelf above, the
+   *    sidebar to the left).
+   * 3. **The sequence.** A shelf is still an ordered set of tiles. When the
+   *    layout offers nothing and there is nowhere to cross to, "right" means
+   *    the next tile — which is what carries you from the marquee's top
+   *    secondary down to the one below it. In a single row this only fires at
+   *    the ends, where the sequence has nothing to offer either, so it is
+   *    inert everywhere except a mosaic.
+   */
+  _shelfNavigate(context, direction) {
+    const currentIndex = this.reader.getFocusedIndex(context)
+    if (currentIndex < 0) {
+      this.writer.focusFirst(context)
+      return
+    }
+
+    const rects = this.reader.getItemRects(context)
+    const from = rects[currentIndex]
+
+    // 1. The layout. Candidates keep their document order so that tiles which
+    // tie on score — a stack facing a tall neighbour — resolve to "the next
+    // one" rather than an arbitrary pick.
+    if (from) {
+      const candidates = []
+      const indices = []
+      for (let i = 0; i < rects.length; i++) {
+        if (i === currentIndex) continue
+        candidates.push(rects[i])
+        indices.push(i)
+      }
+      const nearest = findNearest(from, direction, candidates)
+      if (nearest != null) {
+        this.writer.focusByIndex(context, indices[nearest])
+        return
+      }
+    }
+
+    // 2. The nav graph.
+    this._saveContextMemory()
+    const wallDirective = this.focusMachine.contextWall(context, direction)
+    if (wallDirective.type !== "none") {
+      if (wallDirective.type === "enter_sidebar") this._preSidebarContext = context
+      this._executeDirective(wallDirective)
+      return
+    }
+
+    // 3. The sequence.
+    const step = (direction === "right" || direction === "down") ? 1 : -1
+    const nextIndex = currentIndex + step
+    if (nextIndex >= 0 && nextIndex < rects.length) {
+      this.writer.focusByIndex(context, nextIndex)
+    }
+  }
+
+  /**
    * Navigate within a linear list (toolbar, zone tabs, sidebar, modal, drawer).
    */
   _linearNavigate(context, direction) {
@@ -740,15 +892,15 @@ export class Orchestrator {
       else if (nextIndex >= totalCount) nextIndex = 0
     } else if (nextIndex < 0 || nextIndex >= totalCount) {
       const type = contextType(context, this._config.instanceTypes)
-      // Left wall on a horizontal row (zone tabs, toolbar, or a home shelf) →
-      // follow the nav graph's left edge. For the standard top-left contexts
-      // that edge is the sidebar; for a right-side toolbar companion (the
-      // upcoming mini-month) it is the rail. Keyed by TYPE so non-"toolbar"
-      // toolbar instances are included, and routed through contextWall so the
-      // graph — not a hardcoded sidebar — decides the target.
+      // Left wall on a horizontal row (zone tabs or toolbar) → follow the nav
+      // graph's left edge. For the standard top-left contexts that edge is the
+      // sidebar; for a right-side toolbar companion (the upcoming mini-month)
+      // it is the rail. Keyed by TYPE so non-"toolbar" toolbar instances are
+      // included, and routed through contextWall so the graph — not a
+      // hardcoded sidebar — decides the target. Shelves never reach here: they
+      // resolve every direction, walls included, in _shelfNavigate.
       if (nextIndex < 0 && direction === "left" &&
-          (type === Context.ZONE_TABS || type === Context.TOOLBAR ||
-            type === Context.SHELF)) {
+          (type === Context.ZONE_TABS || type === Context.TOOLBAR)) {
         this._saveContextMemory()
         const wallDirective = this.focusMachine.contextWall(context, "left")
         if (wallDirective.type === "enter_sidebar") {
@@ -948,6 +1100,9 @@ export class Orchestrator {
     }
 
     this.focusMachine.forceContext(restoreTo)
-    this._restoreContextFocus(restoreTo)
+    // An entry, so a declared anchor applies — but the crossing is a mode
+    // change (leave the nav rail, return to content), not a spatial move, so
+    // there is no edge to constrain memory against.
+    this._enterContext(restoreTo, null)
   }
 }

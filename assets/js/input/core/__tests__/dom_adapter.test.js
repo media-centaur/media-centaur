@@ -223,7 +223,10 @@ function fakeGridItem(label, { disabled = false, hidden = false } = {}) {
     // focused). focus() is a no-op on such an element in a real browser.
     checkVisibility() { return !hidden },
     focus() { if (!hidden) globalThis.document.activeElement = this },
-    scrollIntoView() {},
+    scrollIntoView(options) { this.scrolledWith = options },
+    getBoundingClientRect() {
+      return { x: 0, y: 0, width: 10, height: 10, top: 0, left: 0, right: 10, bottom: 10 }
+    },
   }
 }
 
@@ -311,5 +314,65 @@ describe("non-focusable item filtering", () => {
     stubGridDocument(items)
     globalThis.document.activeElement = items[2]
     expect(gridReader.getFocusedIndex("grid")).toBe(1)
+  })
+})
+
+// "Make the focused item visible" is one decision, so it has one owner and one
+// implementation. Four writer entry points reach it; none may answer the
+// question differently, and none may leave the item to CSS to place (a
+// scroll-snap container silently overrides scrollIntoView and parks the
+// focused card partly outside the scrollport).
+describe("reveal — a single owner for making the focused item visible", () => {
+  const gridWriter = createDomWriter(GRID_CONFIG)
+  // "instant" is deliberate: the glide is the container's job via CSS
+  // `scroll-behavior`. Asking scrollIntoView for smooth stops retargeting
+  // under fast input and strands the row mid-scroll — measured on the live
+  // home shelves. See revealItem's docstring and `.row-scroll` in app.css.
+  const EXPECTED = { block: "nearest", inline: "nearest", behavior: "instant" }
+
+  test("focusByIndex reveals the item it focused", () => {
+    const items = [fakeGridItem("a"), fakeGridItem("b")]
+    stubGridDocument(items)
+    gridWriter.focusByIndex("grid", 1)
+    expect(items[1].scrolledWith).toEqual(EXPECTED)
+  })
+
+  test("focusFirst reveals the item it focused", () => {
+    const items = [fakeGridItem("a"), fakeGridItem("b")]
+    stubGridDocument(items)
+    gridWriter.focusFirst("grid")
+    expect(items[0].scrolledWith).toEqual(EXPECTED)
+  })
+
+  test("focusByEntityId reveals the item it focused", () => {
+    const items = [fakeGridItem("a"), fakeGridItem("b")]
+    items[1].dataset = { entityId: "e-9" }
+    stubGridDocument(items)
+    gridWriter.focusByEntityId("grid", "e-9")
+    expect(items[1].scrolledWith).toEqual(EXPECTED)
+  })
+
+  test("focusElement reveals the item it focused", () => {
+    const item = fakeGridItem("a")
+    stubGridDocument([item])
+    gridWriter.focusElement(item)
+    expect(item.scrolledWith).toEqual(EXPECTED)
+  })
+})
+
+describe("getItemRects — geometry for spatial navigation", () => {
+  const gridReader = createDomReader(GRID_CONFIG)
+
+  test("returns one rect per navigable item, in DOM order", () => {
+    const items = [fakeGridItem("a"), fakeGridItem("b", { hidden: true }), fakeGridItem("c")]
+    stubGridDocument(items)
+    const rects = gridReader.getItemRects("grid")
+    expect(rects.length).toBe(2)
+    expect(rects[0]).toMatchObject({ x: 0, y: 0, width: 10, height: 10 })
+  })
+
+  test("an unknown context yields no rects rather than throwing", () => {
+    stubGridDocument([])
+    expect(gridReader.getItemRects("nope")).toEqual([])
   })
 })

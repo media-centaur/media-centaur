@@ -190,6 +190,14 @@ export const inputConfig = {
   // Always-populated contexts (skip item count check)
   alwaysPopulated: ["sidebar", "sections", "guide_chapters"],
 
+  // Contexts that are always entered at one specific item, whatever the user
+  // last touched there. Reserved for zones that exist to be entered at a
+  // single action — the home hero is "press play", so arriving from any
+  // direction lands on Play rather than on whichever CTA was focused last.
+  // Applies on entry only; a post-patch focus reconcile leaves the cursor
+  // where it is.
+  entryAnchors: { hero: 0 },
+
   // Active item class names for focus restoration
   activeClassNames: [
     "sidebar-link-active", "tab-active",

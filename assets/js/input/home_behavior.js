@@ -29,7 +29,10 @@
 /** Default DOM implementation for production use. */
 const REAL_DOM = {
   scrollToTop() {
-    window.scrollTo({ top: 0, behavior: "instant" })
+    // Smooth, to match the reveal scroll the orchestrator issues a moment
+    // later when it focuses the hero's Play button — an instant jump followed
+    // by a glide reads as two separate movements.
+    window.scrollTo({ top: 0, behavior: "smooth" })
   },
 }
 

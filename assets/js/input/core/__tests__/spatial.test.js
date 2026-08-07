@@ -87,6 +87,34 @@ describe("findNearest", () => {
     expect(findNearest(from, "right", candidates)).toBe(0)
     expect(findNearest(from, "left", candidates)).toBe(null)
   })
+
+  // A tall origin facing a stack of short candidates — the Coming Up mosaic's
+  // large tile facing its column of secondaries. Every candidate lies wholly
+  // within the origin's vertical span, so none is more "in line" than another;
+  // centre distance would pick an arbitrary middle or bottom tile. Perfectly
+  // contained candidates must tie, leaving document order to decide.
+  describe("a candidate wholly within the origin's cross-axis span is perfectly aligned", () => {
+    const tall = { x: 0, y: 0, width: 1040, height: 360 }
+    const stackOf = n => Array.from({ length: n }, (_, i) => ({
+      x: 1056, y: i * (360 / n), width: 610, height: 360 / n - 10,
+    }))
+
+    test("two secondaries — right picks the top one, not the marginally closer bottom", () => {
+      expect(findNearest(tall, "right", stackOf(2))).toBe(0)
+    })
+
+    test("three secondaries — right still picks the top one, not the middle", () => {
+      expect(findNearest(tall, "right", stackOf(3))).toBe(0)
+    })
+
+    test("a candidate that overhangs the origin's span still loses to a contained one", () => {
+      const candidates = [
+        { x: 1056, y: -200, width: 610, height: 300 }, // overhangs above
+        { x: 1056, y: 0, width: 610, height: 175 },    // wholly contained
+      ]
+      expect(findNearest(tall, "right", candidates)).toBe(1)
+    })
+  })
 })
 
 describe("gridNavigate", () => {

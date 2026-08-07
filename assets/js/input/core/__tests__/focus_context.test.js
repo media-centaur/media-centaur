@@ -114,7 +114,7 @@ describe("FocusContextMachine", () => {
       machine.zoneChanged("watching")
       machine.setNavGraph(fullGraph("watching"))
       const directive = machine.gridWall("up")
-      expect(directive).toEqual({ type: "focus_first", context: Context.ZONE_TABS })
+      expect(directive).toEqual({ type: "enter_context", direction: "up", context: Context.ZONE_TABS })
       expect(machine.context).toBe(Context.ZONE_TABS)
     })
 
@@ -122,7 +122,7 @@ describe("FocusContextMachine", () => {
       machine.zoneChanged("library")
       machine.setNavGraph(fullGraph("library"))
       const directive = machine.gridWall("up")
-      expect(directive).toEqual({ type: "focus_first", context: Context.TOOLBAR })
+      expect(directive).toEqual({ type: "enter_context", direction: "up", context: Context.TOOLBAR })
       expect(machine.context).toBe(Context.TOOLBAR)
     })
 
@@ -238,13 +238,13 @@ describe("FocusContextMachine", () => {
 
     test("down goes to grid", () => {
       const directive = machine.transition(Action.NAVIGATE_DOWN)
-      expect(directive).toEqual({ type: "focus_first", context: Context.GRID })
+      expect(directive).toEqual({ type: "enter_context", direction: "down", context: Context.GRID })
       expect(machine.context).toBe(Context.GRID)
     })
 
     test("up goes to zone tabs", () => {
       const directive = machine.transition(Action.NAVIGATE_UP)
-      expect(directive).toEqual({ type: "focus_first", context: Context.ZONE_TABS })
+      expect(directive).toEqual({ type: "enter_context", direction: "up", context: Context.ZONE_TABS })
       expect(machine.context).toBe(Context.ZONE_TABS)
     })
 
@@ -275,13 +275,13 @@ describe("FocusContextMachine", () => {
 
     test("up consults the instance's own graph edge → actions", () => {
       const directive = machine.transition(Action.NAVIGATE_UP)
-      expect(directive).toEqual({ type: "focus_first", context: "actions" })
+      expect(directive).toEqual({ type: "enter_context", direction: "up", context: "actions" })
       expect(machine.context).toBe("actions")
     })
 
     test("down consults the instance's own graph edge → stragglers", () => {
       const directive = machine.transition(Action.NAVIGATE_DOWN)
-      expect(directive).toEqual({ type: "focus_first", context: "stragglers" })
+      expect(directive).toEqual({ type: "enter_context", direction: "down", context: "stragglers" })
       expect(machine.context).toBe("stragglers")
     })
 
@@ -344,7 +344,7 @@ describe("FocusContextMachine", () => {
       machine._context = Context.ZONE_TABS
       machine.setNavGraph(fullGraph("library"))
       const directive = machine.transition(Action.NAVIGATE_DOWN)
-      expect(directive).toEqual({ type: "focus_first", context: Context.TOOLBAR })
+      expect(directive).toEqual({ type: "enter_context", direction: "down", context: Context.TOOLBAR })
       expect(machine.context).toBe(Context.TOOLBAR)
     })
 
@@ -353,7 +353,7 @@ describe("FocusContextMachine", () => {
       machine._context = Context.ZONE_TABS
       machine.setNavGraph(fullGraph("watching"))
       const directive = machine.transition(Action.NAVIGATE_DOWN)
-      expect(directive).toEqual({ type: "focus_first", context: Context.GRID })
+      expect(directive).toEqual({ type: "enter_context", direction: "down", context: Context.GRID })
       expect(machine.context).toBe(Context.GRID)
     })
 
@@ -514,7 +514,7 @@ describe("FocusContextMachine", () => {
       machine._context = "sections"
       machine.setNavGraph({ sections: { right: "grid" } })
       const directive = machine.transition(Action.NAVIGATE_RIGHT)
-      expect(directive).toEqual({ type: "focus_first", context: "grid" })
+      expect(directive).toEqual({ type: "enter_context", direction: "right", context: "grid" })
       expect(machine.context).toBe("grid")
     })
 
@@ -572,43 +572,53 @@ describe("FocusContextMachine", () => {
       expect(machine.transition(Action.NAVIGATE_RIGHT)).toEqual({ type: "navigate", direction: "right" })
     })
 
-    test("down goes to the next shelf via nav graph", () => {
+    // A shelf may be a single row or a mosaic, and the state machine must not
+    // have to know which. So all four directions produce a plain `navigate`
+    // and the orchestrator resolves them against the live layout — geometry,
+    // then the nav graph, then the sequence. Crossing between shelves is
+    // therefore an orchestrator test (see "Coming Up mosaic navigation" and
+    // "home shelf navigation" in orchestrator.test.js); what belongs here is
+    // that the machine stays out of the way.
+    test("up/down navigate too — the shelf never resolves its own walls", () => {
       machine._context = "continue"
       machine.setNavGraph(homeGraph())
-      const directive = machine.transition(Action.NAVIGATE_DOWN)
-      expect(directive).toEqual({ type: "focus_first", context: "recently" })
+
+      expect(machine.transition(Action.NAVIGATE_UP)).toEqual({ type: "navigate", direction: "up" })
+      expect(machine.transition(Action.NAVIGATE_DOWN)).toEqual({ type: "navigate", direction: "down" })
+      expect(machine.context).toBe("continue")
+    })
+
+    test("contextWall names the direction travelled, so entry can honour it", () => {
+      machine._context = "continue"
+      machine.setNavGraph(homeGraph())
+
+      const directive = machine.contextWall("continue", "down")
+      expect(directive).toEqual({ type: "enter_context", direction: "down", context: "recently" })
       expect(machine.context).toBe("recently")
     })
 
-    test("up goes to the previous shelf via nav graph", () => {
-      machine._context = "continue"
-      machine.setNavGraph(homeGraph())
-      const directive = machine.transition(Action.NAVIGATE_UP)
-      expect(directive).toEqual({ type: "focus_first", context: "hero" })
-      expect(machine.context).toBe("hero")
-    })
-
-    test("up from the top shelf is a wall (no-op)", () => {
+    test("contextWall skips empty shelves to the next populated one", () => {
       machine._context = "hero"
-      machine.setNavGraph(homeGraph())
-      const directive = machine.transition(Action.NAVIGATE_UP)
-      expect(directive).toEqual({ type: "none" })
-      expect(machine.context).toBe("hero")
-    })
+      machine.setNavGraph(buildNavGraph("home", { hero: 2, continue: 0, recently: 0, coming_up: 4, sidebar: 4 }, GRAPH_CONFIG))
 
-    test("down from the bottom shelf is a wall (no-op)", () => {
-      machine._context = "coming_up"
-      machine.setNavGraph(homeGraph())
-      const directive = machine.transition(Action.NAVIGATE_DOWN)
-      expect(directive).toEqual({ type: "none" })
+      const directive = machine.contextWall("hero", "down")
+      expect(directive).toEqual({ type: "enter_context", direction: "down", context: "coming_up" })
       expect(machine.context).toBe("coming_up")
     })
 
-    test("down skips empty shelves to the next populated one", () => {
+    test("contextWall at the top of the stack is a wall (no-op)", () => {
       machine._context = "hero"
-      machine.setNavGraph(buildNavGraph("home", { hero: 2, continue: 0, recently: 0, coming_up: 4, sidebar: 4 }, GRAPH_CONFIG))
-      const directive = machine.transition(Action.NAVIGATE_DOWN)
-      expect(directive).toEqual({ type: "focus_first", context: "coming_up" })
+      machine.setNavGraph(homeGraph())
+
+      expect(machine.contextWall("hero", "up")).toEqual({ type: "none" })
+      expect(machine.context).toBe("hero")
+    })
+
+    test("contextWall at the bottom of the stack is a wall (no-op)", () => {
+      machine._context = "coming_up"
+      machine.setNavGraph(homeGraph())
+
+      expect(machine.contextWall("coming_up", "down")).toEqual({ type: "none" })
       expect(machine.context).toBe("coming_up")
     })
 
@@ -749,7 +759,7 @@ describe("FocusContextMachine", () => {
     test("left wall goes to non-sidebar target when nav graph points there", () => {
       machine.setNavGraph({ grid: { left: "sections" } })
       const directive = machine.gridWall("left")
-      expect(directive).toEqual({ type: "focus_first", context: "sections" })
+      expect(directive).toEqual({ type: "enter_context", direction: "left", context: "sections" })
       expect(machine.context).toBe("sections")
     })
   })
