@@ -1390,6 +1390,11 @@ body:has(.modal-backdrop[data-state="open"]) {
    scroll at the document end — a scroll-margin larger than the page's own
    end padding would silently do nothing on the last row.
 
+   `[data-nav-reveal]` is in the list because it is what actually gets scrolled
+   when present — the reveal subject, standing in for the item. Reserve the
+   ring on the item alone and a surface that declares a subject quietly loses
+   it, parking its content flush against the screen edge.
+
    Block axis only. The horizontal rows already reserve their inline ring
    space via `.row-scroll`'s `padding-inline` / `scroll-padding-inline`
    pair, and an inline scroll-margin here would additionally offset their
@@ -1402,7 +1407,8 @@ body:has(.modal-backdrop[data-state="open"]) {
 
 [data-nav-item],
 [data-nav-sub-item],
-[data-nav-focus-ring] {
+[data-nav-focus-ring],
+[data-nav-reveal] {
   scroll-margin-block: var(--nav-ring-reserve);
 }
 
@@ -1773,12 +1779,19 @@ body:has(.modal-backdrop[data-state="open"]) {
    Padding + negative margin (both axes) reserves space for `card-hover` and
    the keyboard/gamepad focus ring without visually inflating the row's
    bounding box or shifting cards off the section's content edge. The inline
-   reserve matters specifically for the FIRST item: at scroll position 0 it
-   sits flush against the scrollport edge, so its 4px focus ring (2px outline
-   + 2px offset) would fall into the clipped `overflow-x` region without the
-   0.25rem start padding. Middle/last items are already rescued by
-   `scroll-padding-inline` when scrolled into view. Scrollbar is hidden;
-   touch/wheel/programmatic scroll all work. */
+   reserve matters specifically at the two ENDS of the row: the first card at
+   scroll 0 and the last at max scroll both sit flush against the scrollport,
+   so their 4px focus ring (2px outline + 2px offset) would fall into the
+   clipped `overflow-x` region. Everything between them is rescued by
+   `scroll-padding-inline` when scrolled into view.
+
+   0.5rem, not the 4px the ring strictly needs — same reasoning as
+   `--nav-ring-reserve` on the block axis. An exact-fit reserve puts the ring's
+   outermost pixel row on the clip boundary, where it survives only as long as
+   nothing rounds against it; and this is a ten-foot interface, where a ring
+   pressed against an edge reads as a cropped card rather than a cursor.
+
+   Scrollbar is hidden; touch/wheel/programmatic scroll all work. */
 .row-scroll {
   --gap: 0.5rem;
   display: flex;
@@ -1789,10 +1802,47 @@ body:has(.modal-backdrop[data-state="open"]) {
   -ms-overflow-style: none;
   padding-block: 0.75rem;
   margin-block: -0.75rem;
-  padding-inline: 0.25rem;
-  margin-inline: -0.25rem;
-  scroll-padding-inline: 0.25rem;
+  --row-end-reserve: 0.5rem;
+  padding-inline: var(--row-end-reserve);
+  margin-inline: calc(-1 * var(--row-end-reserve));
+
+  /* See the peek note below for why this is not a flat length. */
+  scroll-padding-inline: max(
+    var(--row-end-reserve),
+    min(calc(var(--card-w) + var(--gap)), calc((100% - var(--card-w)) / 3))
+  );
 }
+
+/* The cursor stops one card short of each edge, and the row scrolls instead.
+   Reserving a card's width at both ends means "bring this card into view" can
+   no longer be satisfied by the card reaching the edge — the row keeps moving
+   until a whole neighbour fits beyond it. So the cursor walks in from the end,
+   parks a card short, and from there the row slides underneath a stationary
+   cursor. Nobody codes that hand-off; it is what the reserve makes true.
+
+   Measured before: the cursor advanced to 1px from the right edge on the 6th
+   card and stayed pinned there for the rest of the row — the user's eye had no
+   idea more content existed until it arrived.
+
+   The reserve is a whole card plus the gap, never a sliver. These rows are a
+   clean card grid, and a permanently half-sliced poster reads as a rendering
+   fault from ten feet, not as an invitation to keep going.
+
+   UI SCALE is the reason for the second term. `--card-w` is a fixed length but
+   the scrollport is not: under the root `zoom` the viewport shrinks in layout
+   px as the user scales up, so a row showing 3.5 backdrop cards at scale 1.0
+   shows fewer than 2 at scale 2.0. A flat one-card reserve at both ends would
+   there exceed the row itself and leave the focused card nowhere to sit. So
+   the reserve also yields to what is actually available: at most a third of
+   the space left over once the focused card has taken its share, which keeps
+   card + both reserves strictly inside the scrollport for any card narrower
+   than the row. Full peek when there is room, a graceful sliver when there is
+   not, and no scale at which the geometry degenerates.
+
+   The floor is `--row-end-reserve`, the same ring clearance the two ends get,
+   so the ring is never clipped even where the peek collapses to nothing.
+   `--card-w: 100%` (the hero) lands exactly there: no peek is possible beside
+   a full-bleed item, and none is wanted. */
 
 .row-scroll::-webkit-scrollbar {
   display: none;
@@ -1877,11 +1927,13 @@ body:has(.modal-backdrop[data-state="open"]) {
   --gap: 0px;
   /* hero items are full-width siblings; no buffer needed — no card-hover
      scale and the focus ring lives on the inner CTA buttons, not the
-     full-bleed wrapper. Reset both axes so the hero stays edge-to-edge. */
+     full-bleed wrapper. Reset both axes so the hero stays edge-to-edge.
+     Zeroing the inline reserve zeroes the end padding and the scroll-padding
+     floor together, which is the point: one lever, no way to reset half of
+     it and leave the hero inset by the other half. */
+  --row-end-reserve: 0px;
   padding-block: 0;
   margin-block: 0;
-  padding-inline: 0;
-  margin-inline: 0;
 }
 
 /* ── Poster grid ──

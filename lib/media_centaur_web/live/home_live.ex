@@ -180,11 +180,21 @@ defmodule MediaCentaurWeb.HomeLive do
             <PosterRow.poster_row items={@recently_added} see_all_href="/library" />
           </section>
 
+          <%!-- `data-nav-reveal` on the section, unlike the rows above: the
+                mosaic's tiles differ in HEIGHT (one tall primary, two half-height
+                secondaries), and a reveal frames whatever it is given. Framing
+                each tile individually scrolled the page up 129px on the way to a
+                secondary — its shorter bottom edge, aligned to the viewport
+                bottom, sits higher. The tiles are one composition and want one
+                resting position, so the composition is what gets revealed. The
+                rows above need no such declaration because every card in a row
+                shares the row's block extent. --%>
           <section
             :if={@coming_up_marquee.hero != nil}
             data-row="coming-up"
             data-nav-zone="coming_up"
             class="home-shelf"
+            data-nav-reveal
             data-nav-reveal-block="end"
           >
             <div class="flex items-baseline justify-between mb-3">

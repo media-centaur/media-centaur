@@ -132,6 +132,36 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       assert html =~ "Slow Mares"
       refute html =~ "Scheduled"
     end
+
+    test "the marquee declares itself the reveal subject", %{conn: conn} do
+      # The mosaic's tiles differ in height, so a reveal aimed at an individual
+      # tile frames that tile — and moving from the tall primary to a
+      # half-height secondary scrolled the page up 129px, because the shorter
+      # tile's bottom edge sits higher. `data-nav-reveal` hands the whole
+      # composition to `revealItem` instead, giving all three tiles one resting
+      # position.
+      #
+      # Asserted here because the contract spans two layers: the attribute is
+      # read by assets/js/input/core/dom_adapter.js, which no Elixir test
+      # exercises and no JS test can see this template. Delete the attribute and
+      # everything still compiles, renders, and passes — the page just silently
+      # jumps again.
+      today = Date.utc_today()
+      tmdb_id = :rand.uniform(999_999)
+      item = create_tracking_item(%{tmdb_id: tmdb_id, media_type: :tv_series, name: "Slow Mares"})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        season_number: 5,
+        episode_number: 2,
+        air_date: Date.add(today, 7),
+        released: false
+      })
+
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      assert has_element?(view, "[data-nav-zone='coming_up'][data-nav-reveal]")
+    end
   end
 
   describe "row card click opens detail modal in place" do

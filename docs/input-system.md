@@ -344,6 +344,7 @@ Actions in each context:
 | `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT | — |
 | `data-nav-action` | Custom event name dispatched on SELECT instead of `.click()` | event name string |
 | `data-nav-reveal` | Scroll THIS ancestor into view instead of the focused item (hero: show the whole backdrop, not just the CTA) | — |
+| `data-nav-reveal-block` | Block-axis alignment for the reveal, instead of "scroll the least" | `start`, `center`, `end` |
 | `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children | — |
 | `data-nav-focus-ring` | Receive delegated focus ring when ancestor `data-nav-focus-target` item is focused | — |
 | `data-nav-context` | Current focus context for hint bar (set on `<html>`) | `grid`, `sidebar`, `modal`, etc. |
@@ -480,6 +481,26 @@ hero uses it: its CTAs sit low in a full-bleed backdrop, so revealing a button
 alone parks it at the viewport's bottom edge with the title and artwork
 stranded above. This replaced a page behavior that scrolled the window
 separately and raced the reveal for the same scroll box.
+
+The default — frame the item — is right only while every item in the surface
+shares a bottom edge. Rows satisfy that by construction. A surface whose items
+differ in **height** does not, and each item will frame itself: the Coming Up
+mosaic (one tall primary beside two half-height secondaries) scrolled the page
+up 129px on the way to a secondary, whose shorter bottom edge aligned to the
+viewport bottom sits higher. Such a surface declares `data-nav-reveal` on the
+composition. A declared subject must also carry the ring reserve — it is what
+actually gets scrolled, and the CSS reserves on `[data-nav-reveal]` for exactly
+that reason.
+
+**Declare an alignment when one resting position matters.** Default
+`"nearest"` scrolls as little as possible, so a surface comes to rest in a
+different place depending on whether it was approached from above or below.
+`data-nav-reveal-block` states the alignment instead; the home shelves use
+`"end"`, which is why descending to a shelf and ascending to it land on the
+same offset. It is a preference, not a promise: if honouring it would push the
+focused item off the opposite edge — possible at large UI scales, where a
+reserve can outgrow the viewport — the reveal falls back to a minimal one,
+because keeping the item on screen beats framing it.
 
 **How the destination is computed.** `revealItem` scrolls instantly, reads
 where that landed, restores the offsets, and glides to the recorded target.

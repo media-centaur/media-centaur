@@ -260,7 +260,50 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
 4. ~~**Should vertical scrolling glide too?**~~ Owner: yes, "so the eye can
    follow it". Done — the glide animates whichever containers a reveal moves,
    so the page glides on the same mechanism as the rows, on every page.
-5. **Remaining pages**, owner-directed, one at a time — same two
+5. **Phase 2 — the cursor itself animates.** Owner-proposed, designed and
+   agreed 2026-08-07; layer 1 shipped, layer 2 outstanding.
+
+   * ~~**Layer 1 — the cursor stops short of the edge.**~~ Done.
+     `scroll-padding-inline` grew from the ring's 4px to a whole card, so the
+     cursor parks one card in and the row scrolls beneath it. Measured before:
+     pinned 1px from the edge on card 6 of 16 and stayed there. After: a
+     settled `R1.02` cards of peek from card 4 onward, symmetric on the way
+     back, and the card still reaches the edge at the true ends of the list.
+     Non-degenerate at every UI scale (1.0 → 3.0 measured, table in UIDR-018).
+   * **Layer 2 — the ring glides between items.** Not built. The agreed model
+     is one rule: **the cursor chases the focused element's live rect on the
+     same frame loop the scroll uses.** Everything the owner asked for falls
+     out of it — glide on up/down, glide on left/right, and "the cursor holds
+     still while the row slides underneath" (once the row scrolls instead of
+     the cursor, the focused card's viewport rect stops moving, so there is
+     nothing left to chase). No mode, no branch.
+
+     Constraints established during design, all of which the build must honour:
+
+     - It **replaces** the CSS ring rather than joining it, and the ring is
+       five rules today (nav item, sub-item pill radius, delegated
+       `data-nav-focus-ring`, gold subsystem tiles). The cursor must read its
+       shape from the target — radius from computed style, colour from a
+       custom property the tiles already override — or Status silently loses
+       its gold.
+     - It is **app-wide by construction**, since it tracks focus. That is the
+       coherent outcome; the remaining pages' passes become its verification.
+     - **Cross-surface moves cut, they do not fly.** Opening the detail modal
+       must not launch the cursor across the screen. Glide within a surface,
+       fade out/in when focus crosses into a modal or the sidebar.
+     - **One rAF loop, writes before reads.** The scroll glide writes
+       `scrollLeft` every frame; a cursor reading `getBoundingClientRect`
+       every frame forces a layout each time. Two independent loops thrash and
+       produce exactly the chunky feel the owner ruled out at the start.
+     - **Divide rects by `--ui-scale`.** Rects come back in visual px but the
+       overlay sits under the root `zoom`, so its own transform lengths get
+       multiplied again and the cursor drifts further off the further it
+       travels. `assets/js/hooks/sidebar_tooltip.js` is the existing idiom.
+     - Shape morph is unavoidable between shelves (453px backdrop → 170px
+       poster → hero CTA pill). Same spring; hero-button → poster is the loud
+       transition and may want a shorter duration.
+
+6. **Remaining pages**, owner-directed, one at a time — same two
    questions each (does adjacency match intent; is the focused item
    fully revealed). Library, Incoming, Settings, Status, Review /
    Reconcile, Watch History, Guide.
@@ -276,10 +319,10 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
      rendered as a GRID? Check the column count the reader derives.
    * **Status** — DOWN is inert from index 4 of 8 while items remain below.
      Likely the same column-count question.
-6. **Remove the SHELF gate on the entry-edge rule** once the pages above are
+7. **Remove the SHELF gate on the entry-edge rule** once the pages above are
    done — the named convergence point from the Decisions entry. The mechanism
    is already uniform; only `_enterContext`'s type check limits it.
-7. **Resolve the deferred mouse-wheel question** once the keyboard and
+8. **Resolve the deferred mouse-wheel question** once the keyboard and
    gamepad models are settled.
 
 ## Completion criteria
