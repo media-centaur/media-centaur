@@ -261,7 +261,7 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
    follow it". Done — the glide animates whichever containers a reveal moves,
    so the page glides on the same mechanism as the rows, on every page.
 5. **Phase 2 — the cursor itself animates.** Owner-proposed, designed and
-   agreed 2026-08-07; layer 1 shipped, layer 2 outstanding.
+   agreed 2026-08-07. Layer 1 shipped; layer 2 built and then reverted.
 
    * ~~**Layer 1 — the cursor stops short of the edge.**~~ Done.
      `scroll-padding-inline` grew from the ring's 4px to a whole card, so the
@@ -270,38 +270,51 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
      settled `R1.02` cards of peek from card 4 onward, symmetric on the way
      back, and the card still reaches the edge at the true ends of the list.
      Non-degenerate at every UI scale (1.0 → 3.0 measured, table in UIDR-018).
-   * **Layer 2 — the ring glides between items.** Not built. The agreed model
-     is one rule: **the cursor chases the focused element's live rect on the
-     same frame loop the scroll uses.** Everything the owner asked for falls
-     out of it — glide on up/down, glide on left/right, and "the cursor holds
-     still while the row slides underneath" (once the row scrolls instead of
-     the cursor, the focused card's viewport rect stops moving, so there is
-     nothing left to chase). No mode, no branch.
+   * **Layer 2 — the ring travels between items. BUILT, TRIED, REVERTED
+     2026-08-07 on owner call.** Not a defect — it worked, and measured within
+     2px of its element on every axis at four UI scales. The owner did not like
+     how it felt: *"this whole moving cursor effort is falling flat for me... I
+     liked everything we had before this."* The per-element ring is back and the
+     scroll glide (which the owner does like, both axes) is untouched.
 
-     Constraints established during design, all of which the build must honour:
+     Do not rebuild it without a fresh owner decision. If it is ever revisited,
+     these are the findings, all measured, so the work does not start from zero:
 
-     - It **replaces** the CSS ring rather than joining it, and the ring is
-       five rules today (nav item, sub-item pill radius, delegated
-       `data-nav-focus-ring`, gold subsystem tiles). The cursor must read its
-       shape from the target — radius from computed style, colour from a
-       custom property the tiles already override — or Status silently loses
-       its gold.
-     - It is **app-wide by construction**, since it tracks focus. That is the
-       coherent outcome; the remaining pages' passes become its verification.
-     - **Cross-surface moves cut, they do not fly.** Opening the detail modal
-       must not launch the cursor across the screen. Glide within a surface,
-       fade out/in when focus crosses into a modal or the sidebar.
-     - **One rAF loop, writes before reads.** The scroll glide writes
-       `scrollLeft` every frame; a cursor reading `getBoundingClientRect`
-       every frame forces a layout each time. Two independent loops thrash and
-       produce exactly the chunky feel the owner ruled out at the start.
-     - **Divide rects by `--ui-scale`.** Rects come back in visual px but the
-       overlay sits under the root `zoom`, so its own transform lengths get
-       multiplied again and the cursor drifts further off the further it
-       travels. `assets/js/hooks/sidebar_tooltip.js` is the existing idiom.
-     - Shape morph is unavoidable between shelves (453px backdrop → 170px
-       poster → hero CTA pill). Same spring; hero-button → poster is the loud
-       transition and may want a shorter duration.
+     - **Chase the SETTLED rect, never the live one.** The obvious design —
+       cursor chases the focused element's current rect each frame — wobbles at
+       exactly the wrong moment. While a row scrolls, the focused card is itself
+       in motion; with both easing on the same time constant the ring swings out
+       to A/e ≈ **37% of a card width** at t = TAU before returning. Handing it
+       the post-scroll rect makes the target stationary from the first frame, so
+       "the row slides underneath a parked ring" needs no code at all.
+       `revealItem` can supply that rect for free — it has already measured
+       every pending scroll offset.
+     - **UNITS, twice, and both invisible at scale 1.0** — i.e. invisible on the
+       machine they were written on. (a) Adding a `scrollLeft` delta (layout px)
+       to a `getBoundingClientRect` (visual px) put the ring a **constant 56px**
+       off once a row scrolled. (b) Then converting the ROOT scroller's delta
+       the same way put it a **fraction** of the travel behind —
+       `(1 - scale) / scale`, measured at 43% of every move between shelves —
+       because `document.scrollingElement` sits OUTSIDE the zoom it applies and
+       reports visual px already, while every nested scroller reports layout px.
+       This distinction is worth knowing for anything mixing the two families;
+       `hooks/sidebar_tooltip.js` documents the related rect-vs-transform half.
+     - **`scrollIntoView` is not idempotent** under `block: "nearest"`. Called
+       again from the position it just produced it moves further —
+       measured 207.62 → 210.48 → stable. So `revealItem`'s recorded destination
+       is ~3 layout px short of satisfying its own `scroll-padding`. Left as-is:
+       2 visual px, below anything worth a per-keypress extra layout. Under
+       `block: "end"` (the home shelves) it is already at its fixed point.
+     - Design constraints that all held in the build, if it matters later: adopt
+       shape and colour from the target rather than knowing about variants; cut
+       rather than fly when crossing an overlay layer; one rAF loop; no
+       per-frame DOM reads.
+
+     **Kept from the effort:** `mc-nav-trace` gained a `peek` column (room
+     beyond the focused card, in card widths — the "does the cursor stop before
+     the edge" number) and learned to separate *clipped at rest* (a finding)
+     from *still moving* (what held input looks like), so it no longer cries
+     wolf. Both are useful for every remaining page.
 
 6. **Remaining pages**, owner-directed, one at a time — same two
    questions each (does adjacency match intent; is the focused item

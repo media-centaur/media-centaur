@@ -214,11 +214,22 @@ from above" — stop needing to be stated.
   deliberately deferred until the keyboard and gamepad models had settled — which
   is what this record does. Revisit with a pointer in hand.
 
-## Open
+## Considered and rejected
 
-* **The cursor itself does not yet animate between positions.** Rules 3 and 4
-  describe the *row's* motion; the focus ring still cuts from item to item. The
-  agreed model is that the cursor chases the focused element's live rect on the
-  same frame loop, which makes "the cursor holds still while the row slides
-  underneath" (rule 7) emergent rather than coded. Tracked in
-  `campaigns/input-system-1.0-pass.md`.
+**A single focus ring that travels between items**, rather than one appearing on
+each element in turn. Rules 3 and 4 govern the *row's* motion; this would have
+extended the same treatment to the ring itself, on the theory that a ring which
+moves is easier for the eye to follow across a room than one that blinks.
+
+It was built and it worked — within 2px of its element on every axis at four UI
+scales — and it was **reverted on the owner's call** after use: the motion did
+not feel better than the cut, and it changed a ring that everyone already reads
+correctly. Ships nothing; costs an overlay, a second animator, and a
+transparent-ring override on every focus rule in the stylesheet. The scroll
+glide, which is the motion people do want, is unaffected.
+
+Recorded because the idea is an appealing one that will occur to someone again.
+The measurements — including why chasing the element's *live* rect wobbles by
+37% of a card width at exactly the wrong moment, and two unit bugs that are
+invisible at scale 1.0 — are in `campaigns/input-system-1.0-pass.md` so a future
+attempt starts from what was learned rather than from scratch.
