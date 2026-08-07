@@ -148,7 +148,12 @@ defmodule MediaCentaurWeb.HomeLive do
           "relative z-[2] space-y-10",
           @hero && "-mt-8"
         ]}>
-          <section :if={@continue_items != []} data-row="continue-watching" data-nav-zone="continue">
+          <section
+            :if={@continue_items != []}
+            data-row="continue-watching"
+            data-nav-zone="continue"
+            class="home-shelf"
+          >
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Continue Watching</h2>
               <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
@@ -158,7 +163,12 @@ defmodule MediaCentaurWeb.HomeLive do
             <ContinueWatchingRow.continue_watching_row items={@continue_items} />
           </section>
 
-          <section :if={@recently_added != []} data-row="recently-added" data-nav-zone="recently">
+          <section
+            :if={@recently_added != []}
+            data-row="recently-added"
+            data-nav-zone="recently"
+            class="home-shelf"
+          >
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Recently Added</h2>
               <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
@@ -168,7 +178,12 @@ defmodule MediaCentaurWeb.HomeLive do
             <PosterRow.poster_row items={@recently_added} see_all_href="/library" />
           </section>
 
-          <section :if={@coming_up_marquee.hero != nil} data-row="coming-up" data-nav-zone="coming_up">
+          <section
+            :if={@coming_up_marquee.hero != nil}
+            data-row="coming-up"
+            data-nav-zone="coming_up"
+            class="home-shelf"
+          >
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Coming Up</h2>
               <.link navigate="/incoming" class="text-sm text-base-content/60 hover:text-primary">

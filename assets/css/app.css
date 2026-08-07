@@ -1795,6 +1795,34 @@ body:has(.modal-backdrop[data-state="open"]) {
   flex: 0 0 var(--card-w);
 }
 
+/* Shelf framing — how much of the page moves when the cursor changes rows.
+
+   `scroll-margin` is the whole mechanism. A shelf's cards reserve empty space
+   below themselves for scrolling purposes only, so "bring this card into view"
+   can no longer be satisfied by the card merely being on screen: the row has
+   to lift far enough to expose that reserve, which is occupied by the NEXT
+   shelf. Moving down therefore raises the focused row and pulls the following
+   one into view, without anyone computing a scroll distance. The reserve is
+   declared once here rather than as a per-step pixel amount, which would drift
+   out of alignment the moment a card size or a row header changes.
+
+   The top reserve is smaller and does a different job: it keeps a row's
+   heading (and a little air) on screen when the cursor arrives from below,
+   which bare `scrollIntoView` would clip.
+
+   Tuning note: the home page is only ~365px scrollable at 1080p, so the effect
+   is necessarily subtle and the last shelf cannot rise — there is nothing
+   below it to reveal. Raising --shelf-reserve-below past the page's scroll
+   range buys nothing. */
+.home-shelf {
+  --shelf-reserve-above: 4rem;
+  --shelf-reserve-below: 28rem;
+}
+
+.home-shelf [data-nav-item] {
+  scroll-margin-block: var(--shelf-reserve-above) var(--shelf-reserve-below);
+}
+
 /* 16:9 backdrop row — Continue Watching. A slightly bigger gap keeps the
    larger cards from feeling crowded. */
 .row-scroll-backdrop-lg {
