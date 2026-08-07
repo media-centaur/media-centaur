@@ -153,6 +153,7 @@ defmodule MediaCentaurWeb.HomeLive do
             data-row="continue-watching"
             data-nav-zone="continue"
             class="home-shelf"
+            data-nav-reveal-block="end"
           >
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Continue Watching</h2>
@@ -168,6 +169,7 @@ defmodule MediaCentaurWeb.HomeLive do
             data-row="recently-added"
             data-nav-zone="recently"
             class="home-shelf"
+            data-nav-reveal-block="end"
           >
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Recently Added</h2>
@@ -183,6 +185,7 @@ defmodule MediaCentaurWeb.HomeLive do
             data-row="coming-up"
             data-nav-zone="coming_up"
             class="home-shelf"
+            data-nav-reveal-block="end"
           >
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Coming Up</h2>

@@ -233,6 +233,19 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
   the last one has none, and giving it one made it saturate against the page
   bottom and drag the page down for no gain.
 
+* `2026-08-07` — **A shelf has ONE resting position, whichever direction you
+  arrive from** (`data-nav-reveal-block="end"`). Owner's rule: going up from
+  Recently to Continue should land where you would be if you had come *down*
+  to Continue from the hero. `scrollIntoView`'s "nearest" cannot do that — it
+  aligns to whichever edge you approached from, which is why ascending
+  previously moved nothing. The surface now declares its alignment and the
+  reveal honours it. Verified identical in both directions at three scales:
+  Continue 125/377/628, Recently 359/729/1097.
+  The declared alignment is a *preference*: at large UI scales a shelf's
+  reserve can outgrow the viewport, and honouring "end" would then push the
+  focused card off the top. `revealItem` checks and falls back to a minimal
+  reveal, because keeping the card on screen beats framing it.
+
 ## Next steps
 
 1. ~~**Phase 1 — Home.**~~ Done: entry rules (edge-constrained memory + hero
@@ -241,13 +254,9 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
    (`scroll-behavior` was an intermediate step that did not survive
    measurement — see Decisions).
 2. ~~**Confirm on real hardware**~~ — owner: "it feels fine". τ stays at 110ms.
-3. **Owner call: should ascending re-frame too?** Deferred by the owner until
-   descending is settled — descending now is. Ascending does not move the page
-   at all until the hero, because with the reserves in play every row is
-   already visible on the way back up, so `scrollIntoView`'s minimal scroll is
-   a no-op. Symmetry would need a top reserve large enough to push the page
-   back down, which means it moves on *every* row change — more consistent,
-   but busier.
+3. ~~**Should ascending re-frame too?**~~ Owner: yes, and gave the rule — a
+   shelf lands where it would have landed coming down. Done via
+   `data-nav-reveal-block="end"`.
 4. ~~**Should vertical scrolling glide too?**~~ Owner: yes, "so the eye can
    follow it". Done — the glide animates whichever containers a reveal moves,
    so the page glides on the same mechanism as the rows, on every page.
