@@ -538,6 +538,20 @@ Roundabout on purpose: computing it directly would mean reimplementing
 writing modes. Nothing paints between the jump and the restore, so there is no
 flicker.
 
+**The wheel takes scroll authority.** Owning the scroll only holds while the
+cursor is driving it. A wheel event is the pointer claiming the scroll, so the
+orchestrator's `_onWheel` cancels every glide where it stands
+(`writer.cancelScrollMotion()`) and switches the input method to mouse —
+without either, an in-flight reveal overrode the user's scrolling on every
+frame until it arrived, most visibly on page load, where the mount-time reveal
+glides back to the parked cursor from whatever scroll position the browser
+restored. While the method is mouse, restores the user didn't ask for
+(post-patch reconciles, cursor-start seeding) pass `{ reveal: false }` to the
+writer's focus calls: focus is re-asserted with `preventScroll`, and the
+viewport stays where the user put it. The next keypress or gamepad input flips
+the method back before its action executes, so cursor-driven navigation
+reveals exactly as before.
+
 
 ## Text Input Handling
 
