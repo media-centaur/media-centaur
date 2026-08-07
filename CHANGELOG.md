@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.115.0 — 2026-08-07
+
+### Improved
+
+- **Posters are the same size everywhere.** A poster in Recently Added on the home page was noticeably smaller than the same poster on the Library page — and at reduced interface scales it was larger instead. Both pages now draw posters at one size, so nothing resizes when you follow **See all** from a row into the library. Home's posters get bigger as a result.
+- **Rows show that they scroll.** Continue Watching and Recently Added hold more than fits on screen, but both ended flush with the edge, which read as the end of the row. The next card is now partly visible, so it's clear there's more to the right.
+- **Quieter markers in the episode list.** The episode you're up to is marked by its number rather than a coloured bar down the side of the row, which also means it stays visible in spoiler-free mode where the number is the only thing you can read. The watched toggle is a softer green than the solid disc it replaces.
+
+### Fixed
+
+- **The focus outline no longer gets cut off at the bottom of the screen.** Moving the keyboard or gamepad cursor onto a card near the bottom of a page drew its outline right against the edge of the picture, where it was clipped — and on a TV, lost to overscan entirely. Cards now scroll far enough to leave the outline clear of the edge on every page, including inside panels and dialogs.
+
 ## v0.114.2 — 2026-08-07
 
 ### Improved
