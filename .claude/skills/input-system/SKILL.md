@@ -54,7 +54,7 @@ The `_menuTransition()` handles all MENU instances. The primaryMenu gets special
 
 SHELF covers the home page's media tiles (`hero`, `continue`, `recently`, `coming_up`). A MENU's order is semantic, so it navigates by index; a SHELF's *arrangement* carries the meaning, so it navigates by geometry. Most shelves are a single row; the Coming Up marquee is a mosaic (one large tile beside a stacked column) — same context type, same code path.
 
-`_shelfTransition()` returns a plain `navigate` for all four directions and the orchestrator's `_shelfNavigate()` resolves them by asking, in order: **the layout** (`findNearest()` on live rects), **the nav graph** (cross into a neighbouring zone; empty shelves are skipped by the candidate fallback lists), then **the sequence** (right/down = next tile — this is what carries you from the marquee's top secondary to the one below it). Keeping walls out of the state machine is what lets a row and a mosaic share one rule set.
+`_shelfTransition()` returns a plain `navigate` for all four directions and the orchestrator's `_shelfNavigate()` resolves them by asking, in order: **the layout** (`findNearest()` on live rects), **the nav graph** (cross into a neighbouring zone; empty shelves are skipped by the candidate fallback lists), then **the sequence** (left/right only — reading order, which is what carries you rightward from the marquee's top secondary to the one below it). UP and DOWN never fall through to the sequence: "the next tile" in a mosaic sits beside you, so a vertical press would move sideways. Keeping walls out of the state machine is what lets a row and a mosaic share one rule set.
 
 SELECT activates the focused card; BACK is a no-op.
 

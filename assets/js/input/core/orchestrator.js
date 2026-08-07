@@ -865,12 +865,15 @@ export class Orchestrator {
    * 2. **The nav graph.** Nothing in this direction means we're at the shelf's
    *    edge, so try crossing into a neighbouring zone (the shelf above, the
    *    sidebar to the left).
-   * 3. **The sequence.** A shelf is still an ordered set of tiles. When the
-   *    layout offers nothing and there is nowhere to cross to, "right" means
-   *    the next tile — which is what carries you from the marquee's top
-   *    secondary down to the one below it. In a single row this only fires at
-   *    the ends, where the sequence has nothing to offer either, so it is
-   *    inert everywhere except a mosaic.
+   * 3. **The sequence, on the inline axis only.** A shelf is still an ordered
+   *    set of tiles, and that order reads left to right — so when the layout
+   *    offers nothing and there is nowhere to cross to, "right" means the next
+   *    tile, which is what carries you from the marquee's top secondary to the
+   *    one below it. UP and DOWN never reach here: their answer is geometry's
+   *    or the graph's, and "the next tile" on a vertical press would move the
+   *    cursor sideways. In a single row the fallback only fires at the ends,
+   *    where the sequence has nothing to offer either, so it is inert
+   *    everywhere except a mosaic.
    */
   _shelfNavigate(context, direction) {
     const currentIndex = this.reader.getFocusedIndex(context)
@@ -909,9 +912,22 @@ export class Orchestrator {
       return
     }
 
-    // 3. The sequence.
-    const step = (direction === "right" || direction === "down") ? 1 : -1
-    const nextIndex = currentIndex + step
+    // 3. The sequence — inline axis only.
+    //
+    // A shelf is an ordered set of tiles, and that order is a *reading* order:
+    // it runs left to right. So it can answer LEFT and RIGHT when the layout
+    // and the graph both come up empty, but it must never answer UP or DOWN —
+    // "the next tile" in a mosaic is the one beside you, and moving sideways on
+    // a vertical press is precisely what adjacency-by-geometry exists to stop.
+    //
+    // Measured on the home page: DOWN on the Coming Up marquee's large tile
+    // landed on the top secondary, which sits to its right. Nothing is below
+    // that tile — it spans the mosaic's full height — so the honest answer is
+    // that nothing happens, and if a shelf is ever added underneath, step 2
+    // will find it.
+    if (direction !== "left" && direction !== "right") return
+
+    const nextIndex = currentIndex + (direction === "right" ? 1 : -1)
     if (nextIndex >= 0 && nextIndex < rects.length) {
       this.writer.focusByIndex(context, nextIndex)
     }
