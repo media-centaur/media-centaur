@@ -6,10 +6,6 @@ see the git history for the full engineering trail.
 
 ## v0.114.2 — 2026-08-07
 
-### New
-
-- **Episode air dates.** The date an episode first aired now shows on the series page. Media Centaur had been fetching it from TMDB all along but had nowhere to put it, so the line was always blank. A migration in this release adds the storage; dates fill in as each show's metadata is next refreshed, so an existing library populates gradually rather than all at once.
-
 ### Improved
 
 - **Pages load a fraction of the artwork they used to.** Every image now asks for a copy sized to the space it's drawn in. The home page was pulling 4K-sized artwork to fill thumbnails a few hundred pixels wide — 44 MB of images to paint a screen that needs under 10 MB. Because the interface waits for artwork before it draws, that weight was showing up as a visible pause on the home page's backdrop. The full-resolution copy is still used where it's actually seen full-screen.
