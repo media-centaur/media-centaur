@@ -174,6 +174,24 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
   entry-edge rule: tile 3 does not touch Coming Up's top edge, so it is
   not a candidate when entering from above.
 
+* `2026-08-07` — **Shelf framing is `scroll-margin`, not a per-step scroll
+  distance.** Owner asked that moving down a shelf lift the focused row and
+  drag the next one into view, rather than the row merely being on screen.
+  Implemented by giving each shelf's cards a reserve below them
+  (`--shelf-reserve-below`), so "bring this card into view" can no longer be
+  satisfied without the row rising far enough to expose that reserve — which
+  the next shelf occupies. A per-step pixel amount was rejected: it drifts the
+  moment a card size or row header changes, and it has no relationship to what
+  is actually below. Measured result: Play → Continue scrolls 119px with the
+  hero still 83% visible and Recently going 77% → 100%; Continue → Recently
+  scrolls to 354 and brings Coming Up 18% → 100%.
+* `2026-08-07` — **The home page has only ~365px of scroll range at 1080p**
+  (document 1445, viewport 1080), so shelf framing is necessarily subtle and
+  the last shelf cannot rise — nothing is below it to reveal. Raising the
+  reserve past the page's scroll range buys nothing. Making the travel more
+  cinematic is a *content-height* conversation (taller cards, taller hero, or
+  reserved trailing space), not a navigation one.
+
 ## Next steps
 
 1. ~~**Phase 1 — Home.**~~ Done: entry rules (edge-constrained memory + hero
@@ -181,13 +199,18 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
    scroll-snap removed, and the glide moved into `core/scroll_glide.js`
    (`scroll-behavior` was an intermediate step that did not survive
    measurement — see Decisions).
-2. **Confirm on real hardware** — gamepad stick-hold and held-arrow key repeat
-   on the media-center display. The headless trace covers focus and geometry
-   but cannot judge how the glide *feels*.
-3. ~~**Should vertical scrolling glide too?**~~ Owner: yes, "so the eye can
+2. ~~**Confirm on real hardware**~~ — owner: "it feels fine". τ stays at 110ms.
+3. **Owner call: should ascending re-frame too?** Descending is progressive
+   (0 → 119 → 354); ascending does not move the page at all until the hero,
+   because with the reserves in play every row is already visible so
+   `scrollIntoView`'s minimal scroll is a no-op. Symmetry would need a top
+   reserve large enough to force the page back down, which means the page
+   moves on *every* row change — more consistent, but busier. Not taken
+   unilaterally.
+4. ~~**Should vertical scrolling glide too?**~~ Owner: yes, "so the eye can
    follow it". Done — the glide animates whichever containers a reveal moves,
    so the page glides on the same mechanism as the rows, on every page.
-4. **Remaining pages**, owner-directed, one at a time — same two
+5. **Remaining pages**, owner-directed, one at a time — same two
    questions each (does adjacency match intent; is the focused item
    fully revealed). Library, Incoming, Settings, Status, Review /
    Reconcile, Watch History, Guide.
@@ -203,10 +226,10 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
      rendered as a GRID? Check the column count the reader derives.
    * **Status** — DOWN is inert from index 4 of 8 while items remain below.
      Likely the same column-count question.
-5. **Remove the SHELF gate on the entry-edge rule** once the pages above are
+6. **Remove the SHELF gate on the entry-edge rule** once the pages above are
    done — the named convergence point from the Decisions entry. The mechanism
    is already uniform; only `_enterContext`'s type check limits it.
-6. **Resolve the deferred mouse-wheel question** once the keyboard and
+7. **Resolve the deferred mouse-wheel question** once the keyboard and
    gamepad models are settled.
 
 ## Completion criteria
