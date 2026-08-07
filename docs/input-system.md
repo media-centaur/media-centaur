@@ -152,7 +152,17 @@ The `FocusContextMachine` tracks which navigation context is active and returns 
 
 **Instance → type mapping:** The `contextType(instance, instanceTypes)` resolver maps instance names to behavior types. Multiple instances can share the same behavior type — for example, both `"sidebar"` and `"sections"` resolve to `MENU`, and the home page's `"hero"`/`"continue"`/`"recently"`/`"coming_up"` shelves all resolve to `SHELF`. Instance names not in the map are their own type (e.g., `"grid"` → `GRID`). The map is provided via config, not hardcoded in the framework.
 
-**`SHELF` is the dual of `MENU`.** `MENU` is a *vertical* list whose left/right cross to adjacent contexts via the nav graph; `SHELF` is a *horizontal* list whose up/down cross between sibling shelves via the nav graph (left/right navigate within the shelf, left-wall enters the sidebar). The home page is a vertical stack of horizontal media shelves, so each row is a `SHELF` instance and the `home` zone layout wires up/down between them. Empty shelves (rows the page didn't render) are skipped by the graph's candidate fallback lists.
+**`SHELF` is spatial; `MENU` is a list.** A `MENU`'s order is semantic — it is a list of choices that happens to be drawn vertically — so it navigates by index. A `SHELF` is a set of media tiles whose *arrangement* carries the meaning, so it navigates by geometry. The home page is a stack of shelves: hero CTAs, Continue Watching, Recently Added, and the Coming Up marquee. Most are a single row; the marquee is a mosaic (one large tile beside a stacked column). Both are the same thing, so there is one context type and one code path.
+
+All four directions in a `SHELF` return a plain `navigate`; the orchestrator's `_shelfNavigate` resolves them by asking three questions in order:
+
+1. **The layout** — `findNearest()` against the live item rects. This answers anything the arrangement makes unambiguous, and it is why the mosaic needs no adjacency table of its own (one would be wrong the moment the marquee renders a fourth tile).
+2. **The nav graph** — nothing in that direction means we're at the shelf's edge, so try crossing into a neighbouring zone. Empty shelves are skipped by the graph's candidate fallback lists.
+3. **The sequence** — a shelf is still an ordered set. When the layout offers nothing and there is nowhere to cross to, "right" means the next tile. This is what carries you from the marquee's top secondary down to the one below it; in a single row it only fires at the ends, where the sequence has nothing to offer either.
+
+Keeping wall handling out of the state machine is what lets a row and a mosaic share one rule set — the machine never has to know which it is.
+
+**Perfect alignment ties, and ties break in document order.** A candidate whose cross-axis span lies wholly inside the origin's is *perfectly* aligned and pays no alignment penalty: there is nothing to be more in line with. A tall tile facing a stack of short ones (the marquee's large tile beside its secondaries) therefore ties on distance, and document order decides — so RIGHT reaches the **top** secondary, which is what "the next one" means to a viewer. Scoring by centre distance instead silently picks the middle of the stack.
 
 **Public API:**
 
@@ -264,10 +274,10 @@ Actions in each context:
 
 | Action | GRID | TOOLBAR | ZONE_TABS | MENU (sidebar) | MENU (other) | SHELF | MODAL | DRAWER |
 |--------|------|---------|-----------|----------------|--------------|-------|-------|--------|
-| Up | navigate | nav graph up | wall | navigate | navigate (wall → graph) | nav graph up | navigate (wrap) | navigate |
-| Down | navigate | nav graph down | → TOOLBAR or GRID | navigate | navigate (wall → graph) | nav graph down | navigate (wrap) | navigate |
-| Left | navigate | navigate | navigate | wall | nav graph left | navigate (wall → sidebar) | navigate (wrap) | → GRID (row edge) |
-| Right | navigate | navigate | navigate | exit sidebar | nav graph right | navigate | sub-focus / navigate | wall |
+| Up | navigate | nav graph up | wall | navigate | navigate (wall → graph) | navigate (spatial) | navigate (wrap) | navigate |
+| Down | navigate | nav graph down | → TOOLBAR or GRID | navigate | navigate (wall → graph) | navigate (spatial) | navigate (wrap) | navigate |
+| Left | navigate | navigate | navigate | wall | nav graph left | navigate (spatial) | navigate (wrap) | → GRID (row edge) |
+| Right | navigate | navigate | navigate | exit sidebar | nav graph right | navigate (spatial) | sub-focus / navigate | wall |
 | Select | activate | activate | activate | exit sidebar* | click + nav right | activate | activate | activate |
 | Back | no-op | no-op | no-op | exit sidebar | no-op | no-op | dismiss | dismiss |
 | Clear | onClear | onClear | onClear | — | — | onClear | — | — |
@@ -290,8 +300,8 @@ Actions in each context:
 - Grid right → DRAWER (if open)
 - MENU up/down → nav graph target for that direction (if defined)
 - TOOLBAR up/down → nav graph target for that instance (the standard toolbar reaches zone_tabs/grid; the upcoming mini-month reaches actions/stragglers)
-- SHELF up/down → adjacent shelf via nav graph (skips empty rows)
-- Zone tabs / toolbar / shelf left at index 0 → nav graph left edge (SIDEBAR for the standard top-left contexts; the rail for the upcoming mini-month)
+- SHELF, any direction with no spatial neighbour → nav graph, then the sequence (see the SHELF section above); left at the left edge therefore reaches the sidebar
+- Zone tabs / toolbar left at index 0 → nav graph left edge (SIDEBAR for the standard top-left contexts; the rail for the upcoming mini-month)
 - Drawer left → GRID (rightmost column, same row)
 
 ## Directive Reference
@@ -300,7 +310,7 @@ Actions in each context:
 |-----------|------|-----------------|
 | `navigate` | `direction` | Spatial (grid) or linear (other) nav within context |
 | `focus_context` | `target` | Restore focus memory in target context |
-| `focus_first` | `context` | Restore focus memory (or first item) in context |
+| `enter_context` | `context`, `direction` | Cross into a context — declared anchor, else memory constrained to the edge crossed |
 | `grid_row_edge` | `side` | Focus leftmost/rightmost item in same grid row |
 | `activate` | — | Click the focused element |
 | `dismiss` | — | Push dismiss event to LiveView (`data-dismiss-event` or `close_detail`) |
@@ -374,8 +384,37 @@ Page behaviors extract page-specific concerns from the global orchestrator. The 
 
 ## Focus Memory Model
 
+Two operations, deliberately distinct. **Entering** a context is a user-driven
+crossing (`_enterContext`); **restoring** it re-asserts focus the system already
+holds after a DOM patch (`_restoreContextFocus`). Only entry obeys the anchor
+and edge rules below — applying them on reconcile would drag the cursor around
+on every re-render.
+
 - **Grid:** Remembers by entity ID (stable across stream DOM reorders)
 - **All other contexts:** Active item (DOM marker) → saved index memory → first item
+
+### Entry rules
+
+**A declared anchor wins.** Some zones exist to be entered at one specific
+item. `config.entryAnchors` names them (`{ hero: 0 }`): the home hero's whole
+job is "press play", so arriving from any direction lands on Play rather than
+on whichever CTA was focused last. This is a product rule, so it is declared
+rather than inferred — geometry would pick *More info* when you arrive from a
+right-ward Continue Watching card, and plain memory would pick whatever you
+touched last. Anchors do **not** apply on reconcile.
+
+**Otherwise memory is constrained to the edge you crossed.** You should land on
+something adjacent to where you came from, so a remembered item that doesn't
+touch the entry edge is not a candidate; the first item that does wins instead.
+This is the whole of "coming down into the Coming Up marquee never lands on the
+bottom tile" — that tile doesn't touch the mosaic's top edge. In a single-row
+shelf every tile touches the top and bottom edges, so memory always survives
+and the rule is invisible, which is exactly right.
+
+The constraint is currently gated to `SHELF` contexts. The mechanism is
+uniform — every `enter_context` directive carries its direction — and the gate
+comes off page by page as each is reviewed. See
+[`campaigns/input-system-1.0-pass.md`](../campaigns/input-system-1.0-pass.md).
 - **Zone change:** Clears grid + toolbar memory (content is new)
 - **Sort change:** Clears grid memory (order changed, positions meaningless)
 - **Modal/drawer dismiss:** Restores to the originating card via `_originEntityId`
@@ -395,6 +434,33 @@ Two hooks keep focus stable across patches:
 Drawer focus on open and origin-card restore on overlay close are transition-driven (handled in the presentation block of `_syncState`); empty contexts are left to `_ensureCursorStart`.
 
 **Reconcile only the focus the system owns ([ADR-053](../decisions/architecture/2026-06-06-053-focus-ownership-boundary.md)).** `getCurrentFocusedItem() === null` is ambiguous: it means *either* a patch dropped focus to `<body>` (the system owns this — restore) *or* focus moved to an element outside every managed nav region (the system does not own this — cede). Both `_reconcileFocus` and `_ensureCursorStart` guard on `reader.hasForeignFocus()` and return early when focus is foreign — a live element outside `[data-nav-item]`/`[data-nav-zone]`, or one that captures its own keys. This is what keeps an *unmanaged* overlay (a plain `data-state` modal like the Track-new-release dialog, invisible to the input system) usable while the page behind it re-renders: without the guard, every patch re-asserts the page context's focus and yanks the cursor out of the overlay. A managed filter input inside a nav zone is *not* foreign — it still navigates by arrow keys (see Text Input Handling).
+
+## Scroll Reveal
+
+Making the focused item visible is one decision, so it has one owner:
+`revealItem()` in `dom_adapter.js`. All four writer entry points
+(`focusElement`, `focusByIndex`, `focusFirst`, `focusByEntityId`) route through
+it.
+
+**The input system owns WHERE the scroll lands; CSS owns HOW it gets there.**
+Both halves have been violated in practice, in opposite directions:
+
+- **CSS must not touch the destination.** `.row-scroll` used to carry
+  `scroll-snap-type: x mandatory`. Snap re-snaps *after* `scrollIntoView` to
+  the nearest boundary, undershooting and parking the focused card ~100px — a
+  third of it — outside the scrollport, on every home-shelf card past the fold.
+  Scroll snap is a pointer affordance (flick, release, settle somewhere
+  sensible); with a focus cursor there is nothing to settle, because the
+  focused element already *is* the resting position. The two designs are
+  mutually exclusive. Do not add snap to a nav-driven scroll container.
+- **JS must not own the transition.** `scrollIntoView({behavior: "smooth"})`
+  stops retargeting under fast input and strands the row mid-glide (measured:
+  dead at scrollLeft 1103 with the cursor 950px outside the scrollport at a
+  220ms step rate; the identical walk at 900ms was flawless). `revealItem`
+  therefore scrolls *instantly* and the glide lives in `scroll-behavior:
+  smooth` on the container, which retargets correctly and settles on the
+  identical offset. A held arrow or gamepad stick reads as one continuous
+  slide.
 
 ## Text Input Handling
 
