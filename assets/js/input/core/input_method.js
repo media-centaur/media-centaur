@@ -49,6 +49,7 @@ export class InputMethodDetector {
       case "mousemove":
       case "mousedown":
       case "click":
+      case "wheel":
         next = InputMethod.MOUSE
         break
 

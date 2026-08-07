@@ -71,6 +71,11 @@ export function createScrollGlide({ requestAnimationFrame, now, tau = DEFAULT_TA
     targets.delete(box)
   }
 
+  /** Stop every glide where it stands — the user has taken the scroll. */
+  function cancelAll() {
+    targets.clear()
+  }
+
   function isGliding(box) {
     return targets.has(box)
   }
@@ -125,5 +130,5 @@ export function createScrollGlide({ requestAnimationFrame, now, tau = DEFAULT_TA
     }
   }
 
-  return { glide, cancel, isGliding }
+  return { glide, cancel, cancelAll, isGliding }
 }

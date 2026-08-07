@@ -105,4 +105,12 @@ describe("InputMethodDetector", () => {
     expect(detector.observe("keydown")).toBe(null)
     expect(detector.observe("keyup")).toBe(null)
   })
+
+  // The wheel is mouse hardware: a user scrolling with it has taken the
+  // pointer, exactly like moving it. Without this, wheel input left the
+  // system in keyboard mode and reveal glides fought the user's scrolling.
+  test("wheel switches to mouse", () => {
+    expect(detector.observe("wheel")).toBe(InputMethod.MOUSE)
+    expect(detector.current).toBe(InputMethod.MOUSE)
+  })
 })

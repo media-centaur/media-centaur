@@ -520,3 +520,121 @@ describe("getItemRects — geometry for spatial navigation", () => {
     expect(gridReader.getItemRects("nope")).toEqual([])
   })
 })
+
+// ---------------------------------------------------------------------------
+// Reveal suppression — a focus call with { reveal: false } re-asserts focus
+// without moving any scroll container. Used for patch-driven restores while
+// the pointer owns the scroll (mouse mode): the cursor must survive the
+// patch, but yanking the viewport to it would fight the user's wheel.
+// ---------------------------------------------------------------------------
+
+describe("writer reveal suppression", () => {
+  const REVEAL_CONFIG = { contextSelectors: { grid: "[data-nav-zone='grid'] [data-nav-item]" } }
+
+  function scrollableItem() {
+    const box = {
+      scrollLeft: 0, scrollTop: 400,
+      scrollWidth: 100, clientWidth: 100,
+      scrollHeight: 2000, clientHeight: 500,
+      parentElement: null,
+    }
+    const scrollIntoViewCalls = []
+    const item = {
+      dataset: {},
+      hasAttribute: () => false,
+      checkVisibility: () => true,
+      closest: () => null,
+      parentElement: box,
+      focusOpts: null,
+      focus(opts) {
+        this.focusOpts = opts
+        globalThis.document.activeElement = this
+      },
+      scrollIntoView(...args) { scrollIntoViewCalls.push(args) },
+    }
+    return { item, box, scrollIntoViewCalls }
+  }
+
+  function stubScrollableDocument(item) {
+    const realDocument = globalThis.document
+    const realGetComputedStyle = globalThis.getComputedStyle
+    globalThis.document = {
+      activeElement: null,
+      body: {},
+      documentElement: {},
+      scrollingElement: null,
+      querySelectorAll: (selector) =>
+        selector === REVEAL_CONFIG.contextSelectors.grid ? [item] : [],
+      querySelector: () => null,
+    }
+    globalThis.getComputedStyle = () =>
+      ({ position: "static", overflowX: "auto", overflowY: "auto" })
+    restore = () => {
+      globalThis.document = realDocument
+      globalThis.getComputedStyle = realGetComputedStyle
+    }
+  }
+
+  function glideSpy() {
+    const glideCalls = []
+    return {
+      glideCalls,
+      glide(...args) { glideCalls.push(args) },
+      cancel() {},
+      cancelAll() { glideCalls.push("cancelAll") },
+      isGliding: () => false,
+    }
+  }
+
+  test("focusFirst reveals by default", () => {
+    const { item, scrollIntoViewCalls } = scrollableItem()
+    stubScrollableDocument(item)
+    const glider = glideSpy()
+    const writer = createDomWriter({ ...REVEAL_CONFIG, glider })
+
+    expect(writer.focusFirst("grid")).toBe(true)
+
+    expect(scrollIntoViewCalls.length).toBe(1)
+    expect(glider.glideCalls.length).toBe(1)
+  })
+
+  test("focusFirst with { reveal: false } focuses without touching scroll", () => {
+    const { item, box, scrollIntoViewCalls } = scrollableItem()
+    stubScrollableDocument(item)
+    const glider = glideSpy()
+    const writer = createDomWriter({ ...REVEAL_CONFIG, glider })
+
+    expect(writer.focusFirst("grid", { reveal: false })).toBe(true)
+
+    expect(globalThis.document.activeElement).toBe(item)
+    expect(item.focusOpts).toEqual({ preventScroll: true })
+    expect(scrollIntoViewCalls.length).toBe(0)
+    expect(glider.glideCalls.length).toBe(0)
+    expect(box.scrollTop).toBe(400)
+  })
+
+  test("focusByIndex and focusByEntityId honor { reveal: false }", () => {
+    const { item, scrollIntoViewCalls } = scrollableItem()
+    item.dataset.entityId = "movie-1"
+    stubScrollableDocument(item)
+    const glider = glideSpy()
+    const writer = createDomWriter({ ...REVEAL_CONFIG, glider })
+
+    expect(writer.focusByIndex("grid", 0, { reveal: false })).toBe(true)
+    expect(writer.focusByEntityId("grid", "movie-1", { reveal: false })).toBe(true)
+
+    expect(scrollIntoViewCalls.length).toBe(0)
+    expect(glider.glideCalls.length).toBe(0)
+  })
+
+  test("cancelScrollMotion stops every glide in flight", () => {
+    const { item } = scrollableItem()
+    stubScrollableDocument(item)
+    const glider = glideSpy()
+    const writer = createDomWriter({ ...REVEAL_CONFIG, glider })
+
+    writer.cancelScrollMotion()
+
+    expect(glider.glideCalls).toEqual(["cancelAll"])
+  })
+})
