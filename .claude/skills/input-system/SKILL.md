@@ -113,7 +113,8 @@ All config changes go in `config.js`:
 | `data-captures-keys` | Element handles own keyboard events |
 | `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT |
 | `data-nav-action` | Custom event name dispatched on SELECT instead of `.click()` |
-| `data-nav-reveal` | Scroll THIS ancestor into view instead of the focused item |
+| `data-nav-reveal` | Scroll THIS ancestor into view instead of the focused item — required when a surface's items differ in height, or each frames itself |
+| `data-nav-reveal-block` | Block-axis alignment for the reveal (`start`/`center`/`end`), so a surface rests in one place whichever way it was approached |
 | `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children |
 | `data-nav-focus-ring` | Receive delegated focus ring when ancestor `data-nav-focus-target` item is focused |
 | `data-input` | Current input method on `<html>` (`mouse`, `keyboard`, `gamepad`) |

@@ -89,3 +89,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 015 | 2026-07-11 | [Merge Upcoming and Downloads into one "Incoming" page](user-interface/2026-07-11-015-incoming-page.md) | accepted |
 | 016 | 2026-08-01 | [Needs attention — one problem-only section for acquisition capability faults](user-interface/2026-08-01-016-needs-attention-section.md) | accepted |
 | 017 | 2026-08-03 | [Coming Up depth is the house modal, and unscheduled titles are rows](user-interface/2026-08-03-017-coming-up-title-depth.md) | accepted |
+| 018 | 2026-08-07 | [Focus cursor and scroll behaviour](user-interface/2026-08-07-018-focus-cursor-and-scroll.md) | accepted |
