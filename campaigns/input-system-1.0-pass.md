@@ -177,8 +177,10 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
 ## Next steps
 
 1. ~~**Phase 1 — Home.**~~ Done: entry rules (edge-constrained memory + hero
-   anchor), Coming Up as a geometric mosaic, single `revealItem` owner, CSS
-   scroll-snap removed, glide moved to `scroll-behavior`.
+   anchor), Coming Up as a geometric mosaic, single `revealItem` owner,
+   scroll-snap removed, and the glide moved into `core/scroll_glide.js`
+   (`scroll-behavior` was an intermediate step that did not survive
+   measurement — see Decisions).
 2. **Confirm on real hardware** — gamepad stick-hold and held-arrow key repeat
    on the media-center display. The headless trace covers focus and geometry
    but cannot judge how the glide *feels*.
@@ -189,7 +191,22 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
    questions each (does adjacency match intent; is the focused item
    fully revealed). Library, Incoming, Settings, Status, Review /
    Reconcile, Watch History, Guide.
-5. **Resolve the deferred mouse-wheel question** once the keyboard and
+
+   Regression smoke after Phase 1 (`mc-nav-trace`, 2026-08-07): every page
+   still navigates, no clipping anywhere — the shared reveal/glide change
+   broke nothing. Leads it turned up, for those pages' own turns:
+
+   * **Incoming** — on load `data-nav-context` reads `coming_up_list` while
+     focus is actually in `omnibox`. Cursor start and the projected context
+     disagree; suspect `cursorStartPriority` vs. where focus really lands.
+   * **History** — RIGHT is inert in a 51-item grid. Single-column list
+     rendered as a GRID? Check the column count the reader derives.
+   * **Status** — DOWN is inert from index 4 of 8 while items remain below.
+     Likely the same column-count question.
+5. **Remove the SHELF gate on the entry-edge rule** once the pages above are
+   done — the named convergence point from the Decisions entry. The mechanism
+   is already uniform; only `_enterContext`'s type check limits it.
+6. **Resolve the deferred mouse-wheel question** once the keyboard and
    gamepad models are settled.
 
 ## Completion criteria
