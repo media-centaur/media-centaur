@@ -527,4 +527,113 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
       assert Logic.playback_props(vo, hint, progress) == {"Resume", "vo-uuid"}
     end
   end
+
+  describe "main_body?/1 — is there anything inside this title to list?" do
+    # The body tab only earns a place when there is a body. This is the
+    # predicate `scrollable_content?/2` was already asking inline; hoisted
+    # because the tab strip and the view resolver both need the same answer.
+
+    test "series always have a body" do
+      assert Logic.main_body?(%{type: :tv_series})
+      assert Logic.main_body?(%{type: :movie_series})
+    end
+
+    test "a bare movie has none" do
+      refute Logic.main_body?(%{type: :movie, extras: []})
+    end
+
+    test "a movie with its own extras has one" do
+      assert Logic.main_body?(%{type: :movie, extras: [build_extra(%{owner_type: :movie})]})
+    end
+
+    test "season-owned extras belong to their season, not the title" do
+      refute Logic.main_body?(%{type: :movie, extras: [build_extra(%{owner_type: :season})]})
+    end
+  end
+
+  describe "credits_tab?/1" do
+    test "movies and series have a More info view" do
+      assert Logic.credits_tab?(%{type: :movie})
+      assert Logic.credits_tab?(%{type: :tv_series})
+    end
+
+    test "collections do not — there is no collection-level credit to show" do
+      refute Logic.credits_tab?(%{type: :movie_series})
+    end
+  end
+
+  describe "resolve_view/2" do
+    # A tab that cannot render must never be the selected one, whether it
+    # was asked for by URL or landed on by default.
+
+    test "keeps a view the entity can actually render" do
+      assert Logic.resolve_view(%{type: :tv_series}, :main) == :main
+      assert Logic.resolve_view(%{type: :tv_series}, :credits) == :credits
+      assert Logic.resolve_view(%{type: :tv_series}, :info) == :info
+    end
+
+    test "a movie with no extras opens on More info instead of an empty body" do
+      # The improvement tabs buy for free: before this, such a movie opened
+      # on a body that rendered nothing at all.
+      assert Logic.resolve_view(%{type: :movie, extras: []}, :main) == :credits
+    end
+
+    test "a collection asked for More info falls back to its movie list" do
+      assert Logic.resolve_view(%{type: :movie_series}, :credits) == :main
+    end
+
+    test "Manage is always available, whatever the entity" do
+      assert Logic.resolve_view(%{type: :movie, extras: []}, :info) == :info
+      assert Logic.resolve_view(%{type: :movie_series}, :info) == :info
+    end
+  end
+
+  describe "body_label/1" do
+    # The name of what the title contains. Type-dependent because the body is
+    # a different kind of thing per type, and there is no honest generic word
+    # covering episodes, member movies and extras at once.
+
+    test "names what the body actually holds" do
+      assert Logic.body_label(%{type: :tv_series}) == "Episodes"
+      assert Logic.body_label(%{type: :movie_series}) == "Movies"
+      assert Logic.body_label(%{type: :movie, extras: [%{owner_type: :movie}]}) == "Extras"
+    end
+
+    test "no name when there is no body" do
+      assert Logic.body_label(%{type: :movie, extras: []}) == nil
+    end
+  end
+
+  describe "secondary_view/2 — the one control beside Play" do
+    # The modal's only view control, and it names its destination rather than
+    # saying "Back". "Episodes" tells you where you are going; "Back" only
+    # tells you it is not here.
+
+    test "on the root view it offers the other view worth seeing" do
+      assert Logic.secondary_view(%{type: :tv_series}, :main) == :credits
+
+      assert Logic.secondary_view(%{type: :movie, extras: [%{owner_type: :movie}]}, :main) ==
+               :credits
+    end
+
+    test "off the root view it returns there, whichever view you are on" do
+      assert Logic.secondary_view(%{type: :tv_series}, :credits) == :main
+      assert Logic.secondary_view(%{type: :tv_series}, :info) == :main
+    end
+
+    test "a movie with no episode list returns to More info, not to a body" do
+      # Its root *is* More info, so that is where Manage goes back to — and the
+      # control has to be labelled for that, not for a list it does not have.
+      assert Logic.secondary_view(%{type: :movie, extras: []}, :info) == :credits
+    end
+
+    test "no control when the root view is the only content view" do
+      assert Logic.secondary_view(%{type: :movie, extras: []}, :credits) == nil
+      assert Logic.secondary_view(%{type: :movie_series}, :main) == nil
+    end
+
+    test "a collection still gets back to its movie list from Manage" do
+      assert Logic.secondary_view(%{type: :movie_series}, :info) == :main
+    end
+  end
 end

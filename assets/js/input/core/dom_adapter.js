@@ -15,7 +15,7 @@ import { createScrollGlide } from "./scroll_glide"
 
 /**
  * The element that owns the active modal overlay — the first
- * `[data-detail-mode='modal']` match in DOM order. detailView, dismissEvent,
+ * `[data-detail-mode='modal']` match in DOM order. detailNested, dismissEvent,
  * and item queries all derive from this one element so a stacked overlay
  * (a confirm dialog rendered before — and over — a detail modal) owns
  * navigation and BACK together. Pages that stack modals must render the
@@ -318,11 +318,16 @@ export function createDomReader(config = {}) {
     },
 
     /**
-     * Get the current detail view within an open modal.
-     * Returns "main" or "info", or null if no modal is open.
+     * Whether the open detail modal is showing something other than its root
+     * view, so BACK returns within the overlay instead of dismissing it.
+     *
+     * The server decides this, not us: the root view is not always the same
+     * one. A title with no contents of its own (a movie with no extras) has
+     * no body tab and opens on More info, which *is* its root. Comparing a
+     * view name against "main" here got that case wrong in both directions.
      */
-    getDetailView() {
-      return activeModalElement()?.dataset?.detailView ?? null
+    isDetailNested() {
+      return activeModalElement()?.dataset?.detailNested === "true"
     },
 
     /**
