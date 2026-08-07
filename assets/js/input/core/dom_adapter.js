@@ -305,6 +305,15 @@ export function createDomReader(config = {}) {
     },
 
     /**
+     * The name of the open overlay's navigation model, or null when the overlay
+     * doesn't declare one and is therefore a flat list of items. Names an entry
+     * in `config.overlays` — which regions it has and how they relate.
+     */
+    getOverlayName() {
+      return activeModalElement()?.dataset?.navOverlay ?? null
+    },
+
+    /**
      * Get the custom dismiss event name for the current modal, or null if not specified.
      * The orchestrator falls back to "close_detail" when null.
      */
@@ -319,6 +328,16 @@ export function createDomReader(config = {}) {
       if (this.isModalOpen()) return "modal"
       if (this.isDrawerOpen()) return "drawer"
       return null
+    },
+
+    /**
+     * The index of the first nav item in a context matching a CSS selector,
+     * or -1. Lets config name a context's opening position declaratively —
+     * the detail body's `[data-resume-target]` — instead of the orchestrator
+     * knowing what a resume target is.
+     */
+    getMatchingIndex(context, selector) {
+      return queryContextItems(selectors, context).findIndex(el => el.matches?.(selector))
     },
 
     /**

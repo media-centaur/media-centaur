@@ -249,6 +249,95 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
+  describe "detail modal navigation contract (UIDR-019)" do
+    # The modal navigates as two regions — an action row over the body of the
+    # title — and the whole model rests on attributes this template writes and
+    # `assets/js/input/` reads. Neither side can check the other: no JS test can
+    # see the template, and no Elixir test runs the input system. These
+    # assertions are the seam between them, so a rename on either side fails
+    # here rather than silently in the user's hands.
+
+    setup do
+      tv_series = create_tv_series(%{name: "Nav Contract Show"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      _episode =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Pilot",
+          content_url: "/tv/nav-contract/s01e01.mkv"
+        })
+
+      {:ok, tv_series: tv_series}
+    end
+
+    test "the modal declares its navigation model", %{conn: conn, tv_series: tv_series} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      assert has_element?(view, "#detail-modal[data-nav-overlay='detail']")
+    end
+
+    test "the action row and the body are separate nav zones", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      # Both regions must exist and be populated: entry resolves to the first
+      # populated one, so an unmarked action row would silently drop the cursor
+      # into the episode list instead of onto Play.
+      assert has_element?(view, "[data-nav-zone='detail_actions'] [data-nav-item]")
+      assert has_element?(view, "[data-nav-zone='detail_list'] [data-nav-item]")
+    end
+
+    test "a season is a disclosure group with its state on the header", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      # LEFT from an episode walks up to `[data-nav-group]` and collapses the
+      # `[aria-expanded='true']` head it finds there.
+      assert has_element?(view, "[data-nav-zone='detail_list'] [data-nav-group]")
+
+      assert has_element?(
+               view,
+               "[data-nav-group] [data-nav-item][aria-expanded='true'][phx-click='toggle_season']"
+             )
+    end
+
+    test "collapsing a season flips the header's expanded state", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      view |> element("[data-nav-group] [aria-expanded='true']") |> render_click()
+
+      assert has_element?(view, "[data-nav-group] [data-nav-item][aria-expanded='false']")
+    end
+
+    test "the body opens on the episode Play would play", %{conn: conn, tv_series: tv_series} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      # `[data-resume-target]` is what the cursor seeds from when the list has
+      # no remembered position — config names the selector, so it has to be on
+      # a focusable row rather than an inner element.
+      assert has_element?(view, "[data-nav-zone='detail_list'] [data-nav-item][data-resume-target]")
+    end
+
+    test "the list-wide details toggle is deliberately not on the keyboard path", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      assert has_element?(view, "[data-role='episode-details-toggle']")
+      refute has_element?(view, "[data-role='episode-details-toggle'][data-nav-item]")
+    end
+  end
+
   describe "track override badge + reset" do
     setup do
       movie = create_standalone_movie(%{name: "Track Override Movie"})

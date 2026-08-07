@@ -283,11 +283,18 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           </div>
         </div>
       </div>
+      <%!-- The modal's second nav region — the body of the title, whichever
+            sub-view is showing. DOWN from the action row lands here, BACK
+            climbs back to it, and LEFT/RIGHT are depth rather than lateral
+            movement (collapse a season, step into an episode's controls).
+            The zone wraps the sheet rather than the season list specifically
+            so Manage and More info navigate the same way. See UIDR-019. --%>
       <div
         :if={@has_scrollable_content}
         id="detail-content"
         class="detail-content-sheet px-4 pb-5"
         phx-hook="ScrollToResume"
+        data-nav-zone="detail_list"
         data-entity-id={@entity.id}
         data-scroll-to-resume={@autoscroll_resume? || nil}
       >
@@ -506,14 +513,16 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
     ~H"""
     <div :if={@season_views != []} class="pt-3 space-y-3">
+      <%!-- Deliberately not a nav item: it belongs with the other list-wide
+            controls in Manage rather than sitting in the middle of the
+            keyboard path between the action row and the first season. Mouse
+            only until it moves there. --%>
       <div class="flex justify-end">
         <button
           type="button"
           phx-click="toggle_all_episode_details"
           data-role="episode-details-toggle"
           aria-pressed={to_string(@all_episode_details_open)}
-          data-nav-item
-          tabindex="0"
           class={[
             "flex items-center gap-1.5 text-xs cursor-pointer rounded-md px-2 py-1 -my-1 transition-colors hover:bg-base-content/10",
             if(@all_episode_details_open,
@@ -610,10 +619,18 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   defp season_section(assigns) do
     ~H"""
-    <div>
+    <%!-- `data-nav-group` marks the disclosure: LEFT anywhere inside collapses
+          the season by finding this group's expanded head, which is also where
+          the cursor lands (the rows it was standing on are about to go away).
+          `aria-expanded` is the state — correct markup for a disclosure and the
+          only signal the input system reads, so there is no parallel attribute
+          saying the same thing. The id keeps morphdom from rebuilding the
+          header across that patch, which would drop focus. --%>
+    <div data-nav-group id={"season-#{@entity_id}-#{@season.season_number}"}>
       <button
         phx-click="toggle_season"
         phx-value-season={@season.season_number}
+        aria-expanded={to_string(@expanded)}
         class="flex items-baseline gap-2 w-full text-sm font-medium text-base-content/70 hover:text-base-content cursor-pointer"
         data-nav-item
         tabindex="0"

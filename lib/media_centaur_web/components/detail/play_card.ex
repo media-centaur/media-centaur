@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.Components.Detail.PlayCard do
   attr :show_more_info, :boolean,
     default: false,
     doc:
-      "renders the More info button between Play and Manage. Movies-only for v1; TV/collection detail panels pass `false`."
+      "renders the More info button between Play and Manage. Movies and TV series pass `true`; collections have no credits sub-view and pass `false`."
 
   def play_card(assigns) do
     has_progress = assigns.percent > 0
@@ -53,7 +53,10 @@ defmodule MediaCentaurWeb.Components.Detail.PlayCard do
           </span>
         </div>
       </div>
-      <div class="flex items-center gap-2">
+      <%!-- The modal's action row is its own nav region: LEFT/RIGHT move between
+            these three, DOWN crosses into the body below, and BACK closes the
+            modal because there is no region above this one. See UIDR-019. --%>
+      <div class="flex items-center gap-2" data-nav-zone="detail_actions">
         <.button
           :if={@available}
           variant="primary"

@@ -83,6 +83,8 @@ export class Orchestrator {
     // sub-item. Stored as an index (not a DOM ref) so morphdom patches don't
     // create stale references — every DOM access re-queries from the index.
     this._subFocusIndex = null
+    // Which of the focused item's controls the cursor is on, when in sub-focus.
+    this._subItemIndex = null
     // Active page behavior (detected from data-page-behavior attribute)
     this._behavior = null
     this._behaviorName = null
@@ -313,28 +315,44 @@ export class Orchestrator {
 
     // When the orchestrator has initiated a presentation transition (e.g. dismiss),
     // skip DOM-based detection until the DOM confirms the expected state.
+    // Counts are needed before the presentation block: which region of an
+    // overlay takes the cursor is resolved against them, the same way a page's
+    // cursor start is.
+    this._counts = this._buildCounts()
+    const overlay = this._config.overlays?.[this.reader.getOverlayName?.()] ?? null
+
     if (this._expectedPresentation !== undefined) {
       if (presentation === this._expectedPresentation) {
         this._expectedPresentation = undefined
       }
-    } else if (presentation === "modal" && this.focusMachine.context !== Context.MODAL) {
-      this.focusMachine.presentationChanged("modal")
-      this._globals.requestAnimationFrame(() => this.writer.focusFirst(Context.MODAL))
+    } else if (presentation === "modal" && !this.focusMachine.inOverlay) {
+      const entry = this._overlayEntry(overlay)
+      // An overlay is entered fresh every time. Its regions' position memory is
+      // scoped to one opening, so reopening a title re-seeds the episode list
+      // from the resume target rather than restoring wherever the last title
+      // was browsed to.
+      for (const region of Object.keys(overlay?.layout ?? {})) {
+        delete this._contextMemory[region]
+      }
+      this.focusMachine.presentationChanged("modal", entry)
+      this._globals.requestAnimationFrame(() => this.writer.focusFirst(entry))
     } else if (presentation === "drawer" && this.focusMachine.context !== Context.DRAWER) {
       this.focusMachine.presentationChanged("drawer")
       this._globals.requestAnimationFrame(() => this.writer.focusFirst(Context.DRAWER))
-    } else if (!presentation && (this.focusMachine.context === Context.MODAL || this.focusMachine.context === Context.DRAWER)) {
+    } else if (!presentation && this.focusMachine.inOverlay) {
       this.focusMachine.presentationChanged(null)
       // Restore focus to the originating card after modal/drawer closes
       this._restoreOriginFocus()
     }
 
-    // Build navigation graph from current DOM state
-    this._counts = this._buildCounts()
+    // Build navigation graph from current DOM state. An open overlay merges its
+    // own fixed topology over the page's — the regions inside a modal relate to
+    // each other the same way whatever page it was opened from.
     const navGraph = buildNavGraph(this.reader.getZone(), this._counts, {
       drawerOpen: this.reader.isDrawerOpen(),
       layouts: this._config.layouts,
       alwaysPopulated: this._config.alwaysPopulated,
+      overlayLayout: presentation === "modal" ? overlay?.layout : null,
     })
     this.focusMachine.setNavGraph(navGraph)
 
@@ -375,7 +393,7 @@ export class Orchestrator {
     // morphdom may have replaced (e.g. a watched-state class toggle).
     if (this.focusMachine.subFocus && this._subFocusIndex != null) {
       const parent = this.reader.getItemAt?.(this.focusMachine.context, this._subFocusIndex)
-      const subItem = parent?.querySelector?.("[data-nav-sub-item]")
+      const subItem = this._subItemsOf(parent)[this._subItemIndex ?? 0]
       if (subItem) {
         subItem.focus({ preventScroll: true })
       } else {
@@ -389,9 +407,11 @@ export class Orchestrator {
     // Modal sub-view transition (info → main): the focused element was removed.
     // Refocus the first modal item — overlay focus has its own semantics and is
     // not routed through the generic content/menu restore below.
-    if (this._pendingModalRefocus && this.focusMachine.context === Context.MODAL) {
+    if (this._pendingModalRefocus && this.focusMachine.inOverlay) {
       this._pendingModalRefocus = false
-      this.writer.focusFirst(Context.MODAL)
+      const entry = this._overlayEntry(this._config.overlays?.[this.reader.getOverlayName?.()])
+      this.focusMachine.forceContext(entry)
+      this.writer.focusFirst(entry)
       return
     }
 
@@ -406,6 +426,16 @@ export class Orchestrator {
     if (this.reader.getItemCount(context) > 0 && !this.reader.getCurrentFocusedItem()) {
       this._restoreContextFocus(context)
     }
+  }
+
+  /**
+   * The region of an overlay that takes the cursor when it opens — the first
+   * populated entry in its priority list, exactly as a page resolves its cursor
+   * start. An overlay that declares no regions is a flat list and gets MODAL.
+   */
+  _overlayEntry(overlay) {
+    const entry = overlay?.entry ?? []
+    return entry.find(region => (this._counts[region] ?? 0) > 0) ?? Context.MODAL
   }
 
   _buildCounts() {
@@ -453,6 +483,11 @@ export class Orchestrator {
     this._originEntityId = null
     this._originContext = null
     this._globals.requestAnimationFrame(() => {
+      // An overlay may have opened again in the meantime — closing one detail
+      // modal and opening another lands both transitions before this frame
+      // runs. Restoring the origin card would then yank the cursor out of the
+      // overlay the user is now in.
+      if (this.focusMachine.inOverlay) return
       this.focusMachine.forceContext(context)
       if (entityId && this.writer.focusByEntityId(context, entityId)) return
       this._restoreContextFocus(context)
@@ -606,6 +641,8 @@ export class Orchestrator {
    * time. See `campaigns/input-system-1.0-pass.md`.
    */
   _enterContext(context, direction) {
+    this._subFocusIndex = null
+    this._subItemIndex = null
     const anchor = this._config.entryAnchors?.[context]
     if (anchor != null && this.reader.getItemCount(context) > anchor) {
       this.writer.focusByIndex(context, anchor)
@@ -662,7 +699,7 @@ export class Orchestrator {
   /**
    * Restore focus to the appropriate item in a context.
    * Grid: restore by entity ID memory.
-   * All others: active item (DOM marker) → index memory → first item.
+   * All others: active item (DOM marker) → index memory → declared default → first item.
    */
   _restoreContextFocus(context) {
     if (context === Context.GRID) {
@@ -681,9 +718,17 @@ export class Orchestrator {
       const savedIndex = this._contextMemory[context]
       if (savedIndex != null && savedIndex < this.reader.getItemCount(context)) {
         this.writer.focusByIndex(context, savedIndex)
-      } else {
-        this.writer.focusFirst(context)
+        return
       }
+      // Nothing remembered — some contexts open somewhere other than the top.
+      // The detail body opens on the episode Play would play, so arriving there
+      // for the first time and pressing Play do the same thing.
+      const seed = this._config.entryDefaults?.[context]
+      if (seed && this.reader.getMatchingIndex?.(context, seed) >= 0) {
+        this.writer.focusByIndex(context, this.reader.getMatchingIndex(context, seed))
+        return
+      }
+      this.writer.focusFirst(context)
     }
   }
 
@@ -735,6 +780,14 @@ export class Orchestrator {
 
       case "exit_sub_focus":
         this._executeExitSubFocus()
+        break
+
+      case "tree_in":
+        this._executeTreeIn()
+        break
+
+      case "tree_out":
+        this._executeTreeOut()
         break
 
       case "none":
@@ -1026,15 +1079,111 @@ export class Orchestrator {
     const parent = this.reader.getCurrentFocusedItem()
     if (!parent) return
 
-    const subItem = parent.querySelector?.("[data-nav-sub-item]")
-    if (subItem) {
-      this._subFocusIndex = this.reader.getFocusedIndex(context)
-      subItem.focus({ preventScroll: true })
-    } else {
+    if (!this._enterSubItem(parent)) {
       // No sub-item — fall back to linear navigation (e.g. horizontal button row)
       this.focusMachine.clearSubFocus()
       this._linearNavigate(context, "right")
     }
+  }
+
+  /**
+   * Move focus into the controls carried by a nav item, remembering the item's
+   * index so exiting can come back to it. Returns false when the item has none.
+   */
+  _enterSubItem(parent) {
+    const subItems = this._subItemsOf(parent)
+    if (subItems.length === 0) return false
+    this._subFocusIndex = this.reader.getFocusedIndex(this.focusMachine.context)
+    this._subItemIndex = 0
+    subItems[0].focus({ preventScroll: true })
+    return true
+  }
+
+  /**
+   * The controls carried by a nav item, in DOM order. An episode row has two —
+   * the synopsis disclosure and the watched toggle — so "the item's controls"
+   * is a list, not a single element.
+   */
+  _subItemsOf(parent) {
+    return Array.from(parent?.querySelectorAll?.("[data-nav-sub-item]") ?? [])
+  }
+
+  /** Focus the nth control of the item at the saved parent index. */
+  _focusSubItemAt(index) {
+    const parent = this.reader.getItemAt?.(this.focusMachine.context, this._subFocusIndex)
+    const subItems = this._subItemsOf(parent)
+    if (!subItems[index]) return false
+    this._subItemIndex = index
+    subItems[index].focus({ preventScroll: true })
+    return true
+  }
+
+  /**
+   * RIGHT in a TREE: go one level deeper into whatever the cursor is on.
+   *
+   * A collapsed branch opens — that IS going deeper, and there is nothing
+   * further in until it has. Anything else steps into the item's own controls
+   * (an episode's synopsis disclosure and watched toggle), and where there are
+   * none, RIGHT does nothing: a leaf has no inside. Unlike a flat overlay list,
+   * it deliberately does not fall through to "move to the next item" — in a
+   * vertical list that would be lateral movement dressed up as depth.
+   *
+   * `aria-expanded` is the disclosure signal because it is already the correct
+   * markup for one; no parallel `data-` attribute states the same fact twice.
+   */
+  _executeTreeIn() {
+    // Already among an item's controls — go along to the next one, and stop at
+    // the last rather than wrapping or falling out sideways.
+    if (this.focusMachine.subFocus) {
+      this._focusSubItemAt(this._subItemIndex + 1)
+      return
+    }
+
+    const focused = this.reader.getCurrentFocusedItem()
+    if (!focused) return
+
+    if (focused.getAttribute?.("aria-expanded") === "false") {
+      focused.click()
+      return
+    }
+
+    if (this._enterSubItem(focused)) this.focusMachine.beginSubFocus()
+  }
+
+  /**
+   * LEFT in a TREE: come back out one level.
+   *
+   * On an open branch that means closing it. On anything inside an open branch
+   * it means closing the branch you are in — so LEFT from episode 7 collapses
+   * its season and lands you on the season header, which is both where the
+   * content you were looking at went and where you would want to continue from.
+   * Focus moves to the header *before* the click, because collapsing destroys
+   * the row the cursor is standing on.
+   *
+   * Sub-focus is peeled by the state machine before this runs, so the cursor is
+   * always on a nav item here.
+   */
+  _executeTreeOut() {
+    // Among an item's controls: back along them, then out to the item itself.
+    if (this.focusMachine.subFocus) {
+      if (this._subItemIndex > 0 && this._focusSubItemAt(this._subItemIndex - 1)) return
+      this.focusMachine.clearSubFocus()
+      this._executeExitSubFocus()
+      return
+    }
+
+    const focused = this.reader.getCurrentFocusedItem()
+    if (!focused) return
+
+    if (focused.getAttribute?.("aria-expanded") === "true") {
+      focused.click()
+      return
+    }
+
+    const head = focused.closest?.("[data-nav-group]")?.querySelector?.("[aria-expanded='true']")
+    if (!head || head === focused) return
+    this.writer.focusElement(head)
+    head.click()
   }
 
   _executeExitSubFocus() {
