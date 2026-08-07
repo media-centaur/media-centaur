@@ -8,7 +8,17 @@ describe("InputMethodDetector", () => {
     detector = new InputMethodDetector()
   })
 
-  test("defaults to MOUSE", () => {
+  // Media Centaur is driven from a couch, not a desk: the cursor is already
+  // parked on a page's primary action at load, and it has to LOOK parked
+  // there. Defaulting to MOUSE meant the focus ring stayed invisible until the
+  // user pressed a key — so a fresh load looked like nothing was selected. A
+  // real mouse user is switched back by their first movement.
+  test("defaults to KEYBOARD so the focus ring is painted from first render", () => {
+    expect(detector.current).toBe(InputMethod.KEYBOARD)
+  })
+
+  test("a mouse user is switched over as soon as the pointer actually moves", () => {
+    expect(detector.observe("mousemove")).toBe(InputMethod.MOUSE)
     expect(detector.current).toBe(InputMethod.MOUSE)
   })
 
@@ -17,16 +27,19 @@ describe("InputMethodDetector", () => {
     expect(d.current).toBe(InputMethod.KEYBOARD)
   })
 
+  // These state the method they start from rather than leaning on the
+  // constructor default, so a change to that default cannot quietly turn a
+  // transition test into a no-op assertion.
   test("keydown switches to KEYBOARD", () => {
-    const result = detector.observe("keydown")
-    expect(result).toBe(InputMethod.KEYBOARD)
-    expect(detector.current).toBe(InputMethod.KEYBOARD)
+    const fromMouse = new InputMethodDetector(InputMethod.MOUSE)
+    expect(fromMouse.observe("keydown")).toBe(InputMethod.KEYBOARD)
+    expect(fromMouse.current).toBe(InputMethod.KEYBOARD)
   })
 
   test("keyup switches to KEYBOARD", () => {
-    const result = detector.observe("keyup")
-    expect(result).toBe(InputMethod.KEYBOARD)
-    expect(detector.current).toBe(InputMethod.KEYBOARD)
+    const fromMouse = new InputMethodDetector(InputMethod.MOUSE)
+    expect(fromMouse.observe("keyup")).toBe(InputMethod.KEYBOARD)
+    expect(fromMouse.current).toBe(InputMethod.KEYBOARD)
   })
 
   test("mousemove switches to MOUSE", () => {
@@ -61,10 +74,10 @@ describe("InputMethodDetector", () => {
   })
 
   test("returns null when method unchanged", () => {
-    // Already MOUSE, mousemove should return null
-    expect(detector.observe("mousemove")).toBe(null)
-    expect(detector.observe("mousedown")).toBe(null)
-    expect(detector.observe("click")).toBe(null)
+    const fromMouse = new InputMethodDetector(InputMethod.MOUSE)
+    expect(fromMouse.observe("mousemove")).toBe(null)
+    expect(fromMouse.observe("mousedown")).toBe(null)
+    expect(fromMouse.observe("click")).toBe(null)
   })
 
   test("returns null for unknown event types", () => {
@@ -74,6 +87,7 @@ describe("InputMethodDetector", () => {
   })
 
   test("transitions: mouse → keyboard → gamepad → mouse", () => {
+    const detector = new InputMethodDetector(InputMethod.MOUSE)
     expect(detector.current).toBe(InputMethod.MOUSE)
 
     expect(detector.observe("keydown")).toBe(InputMethod.KEYBOARD)

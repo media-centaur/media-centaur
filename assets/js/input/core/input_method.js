@@ -12,7 +12,17 @@ export const InputMethod = Object.freeze({
 })
 
 export class InputMethodDetector {
-  constructor(initial = InputMethod.MOUSE) {
+  /**
+   * Starts in KEYBOARD, not MOUSE. This is a ten-foot appliance: the cursor is
+   * already parked on a page's primary action at load (the home hero's Play
+   * button), and it has to look parked there. Defaulting to MOUSE left the
+   * focus ring unpainted until the first keypress, so a fresh load — or a hard
+   * reload — read as "nothing is selected". A genuine mouse user is switched
+   * over by their first pointer movement, which costs them one frame of an
+   * extra ring. `root.html.heex` carries the matching static `data-input` so
+   * the very first paint agrees, before this ever runs.
+   */
+  constructor(initial = InputMethod.KEYBOARD) {
     this._current = initial
   }
 

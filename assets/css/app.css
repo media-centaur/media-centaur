@@ -1394,10 +1394,16 @@ body:has(.modal-backdrop[data-state="open"]) {
    space via `.row-scroll`'s `padding-inline` / `scroll-padding-inline`
    pair, and an inline scroll-margin here would additionally offset their
    snap positions. */
+:root {
+  /* Named because the home shelves have to add it to their own reserve — see
+     --shelf-reserve-below. Two consumers, one number. */
+  --nav-ring-reserve: 1rem;
+}
+
 [data-nav-item],
 [data-nav-sub-item],
 [data-nav-focus-ring] {
-  scroll-margin-block: 1rem;
+  scroll-margin-block: var(--nav-ring-reserve);
 }
 
 /* Pre-set the ring color on UNfocused items too. Tailwind v4's
@@ -1814,9 +1820,13 @@ body:has(.modal-backdrop[data-state="open"]) {
    occupies it. Nobody computes a distance; the reveal falls out of geometry.
 
    The reserve is therefore sized as *one whole shelf* — the tallest one, the
-   marquee — plus the row heading above it (~2.5rem) and the gap between
-   sections (`space-y-10`, 2.5rem). Sizing it from `--marquee-h` rather than a
-   round number is what keeps it true when the marquee is resized.
+   marquee — plus the row heading above it and the gap between sections
+   (measured: 28px + 12px + 40px = 5rem), plus `--nav-ring-reserve`. That last
+   term is what makes the descent land cleanly: without it the next shelf is
+   revealed flush to the scrollport edge, so focusing it immediately scrolls
+   again by the ring reserve above. Including it up front means arriving at a
+   shelf costs no further movement. Sizing all of this from the tokens rather
+   than a round number is what keeps it true when the marquee is resized.
 
    The top reserve is smaller and does a different job: it keeps a row's
    heading (and a little air) on screen when the cursor arrives from below,
@@ -1830,11 +1840,22 @@ body:has(.modal-backdrop[data-state="open"]) {
    reserve balloon relative to its shelf as the user scales up. */
 .home-shelf {
   --shelf-reserve-above: 4rem;
-  --shelf-reserve-below: calc(var(--marquee-h) + 5rem);
+  --shelf-reserve-below: calc(var(--marquee-h) + 5rem + var(--nav-ring-reserve));
 }
 
 .home-shelf [data-nav-item] {
-  scroll-margin-block: var(--shelf-reserve-above) var(--shelf-reserve-below);
+  scroll-margin-top: var(--shelf-reserve-above);
+}
+
+/* Only a shelf that HAS a shelf beneath it reserves room — the reserve is
+   room for the next shelf, and the last one has no next shelf. Given it one
+   anyway and it still demands the space, finds none, and saturates against
+   the page bottom: descending onto the final shelf dragged the page down the
+   last few pixels of its padding for no gain, since everything below was
+   already on screen. `:has(~ .home-shelf)` states the condition directly and
+   keeps holding when a shelf renders empty and drops out. */
+.home-shelf:has(~ .home-shelf) [data-nav-item] {
+  scroll-margin-bottom: var(--shelf-reserve-below);
 }
 
 /* 16:9 backdrop row — Continue Watching. A slightly bigger gap keeps the

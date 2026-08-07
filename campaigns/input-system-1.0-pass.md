@@ -210,6 +210,29 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
   cinematic is a *content-height* conversation (taller cards, taller hero, or
   reserved trailing space), not a navigation one.
 
+* `2026-08-07` — **The input method starts as KEYBOARD, not MOUSE.** Focus was
+  always parked on the hero's Play button at load, but the ring is gated on
+  `data-input`, which started at `mouse` — so a fresh load (or a hard reload)
+  looked like nothing was selected. Changed in both places that decide it:
+  `InputMethodDetector`'s default and the static `data-input` on
+  `root.html.heex`, so the very first paint agrees before JS runs. This is a
+  ten-foot appliance; a genuine mouse user is switched back by their first
+  pointer movement. The gamepad hint bar is gated on `gamepad` specifically,
+  so nothing else surfaces.
+* `2026-08-07` — **The shelf reserve includes `--nav-ring-reserve`.** Owner
+  reported that descending onto the last shelf still nudged the page. Cause was
+  not the shelf framing but the pre-existing 1rem ring reserve every nav item
+  carries (so a focused ring is not eaten by TV overscan at the scrollport
+  edge): arriving at a shelf revealed it flush to the edge, and focusing it
+  then scrolled again by that 1rem. Fixed by composing the two — descending now
+  reveals the next shelf *including the room its ring will need*, so arriving
+  costs no further movement. `1rem` became `--nav-ring-reserve` so the global
+  rule and the shelf reserve share one number.
+* `2026-08-07` — **Only a shelf with a shelf beneath it reserves room**
+  (`.home-shelf:has(~ .home-shelf)`). The reserve is room for the *next* shelf;
+  the last one has none, and giving it one made it saturate against the page
+  bottom and drag the page down for no gain.
+
 ## Next steps
 
 1. ~~**Phase 1 — Home.**~~ Done: entry rules (edge-constrained memory + hero
