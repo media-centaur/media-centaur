@@ -1362,6 +1362,36 @@ body:has(.modal-backdrop[data-state="open"]) {
   border-radius: var(--radius-box, 0.5rem);
 }
 
+/* Keep the ring inside the scrollport it was scrolled into.
+   The ring is drawn OUTSIDE the border box (2px outline + 2px offset), but
+   `scrollIntoView({block: "nearest"})` — every focus move in
+   `core/dom_adapter.js` — aligns the BORDER BOX to the scrollport edge. So
+   an item that lands against an edge always has its ring clipped by exactly
+   the 4px it sticks out; the taller the card, the more obviously the cut
+   bottom reads as the card itself being cropped.
+
+   `scroll-margin` is the item-side counterpart of `scroll-padding` and
+   applies in whatever scroller the item is scrolled within — page, modal,
+   drawer — so one rule covers every surface.
+
+   1rem, not the 4px the ring strictly needs: this is a 10-foot interface on
+   a TV, where overscan eats the outer edge of the picture and a ring a few
+   pixels from the boundary is simply gone. The reserve has to be visible
+   from the couch, not merely present in the layout. It stays inside
+   `<main>`'s existing `py-6` (24px), so the page already has somewhere to
+   scroll at the document end — a scroll-margin larger than the page's own
+   end padding would silently do nothing on the last row.
+
+   Block axis only. The horizontal rows already reserve their inline ring
+   space via `.row-scroll`'s `padding-inline` / `scroll-padding-inline`
+   pair, and an inline scroll-margin here would additionally offset their
+   snap positions. */
+[data-nav-item],
+[data-nav-sub-item],
+[data-nav-focus-ring] {
+  scroll-margin-block: 1rem;
+}
+
 /* Pre-set the ring color on UNfocused items too. Tailwind v4's
    `transition-colors` includes outline-color, so any nav item carrying it
    (e.g. the Incoming rows' hover-bg transition) would otherwise fade the
