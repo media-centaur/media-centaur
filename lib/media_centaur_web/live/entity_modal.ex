@@ -62,6 +62,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaur.{Format, Library, Playback, ReleaseTracking}
   alias MediaCentaur.Library.FileEventHandler
   alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
+  alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.ModalShell
   alias MediaCentaurWeb.ViewModel.Orientation
   alias MediaCentaurWeb.ViewModel.SeriesDetail
@@ -103,20 +104,14 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       end
 
       def handle_event("close_detail", _params, socket) do
-        if socket.assigns.detail_view in [:info, :credits] do
-          {:noreply, push_patch(socket, to: build_modal_path(socket, %{view: :main}))}
-        else
-          {:noreply,
-           socket
-           |> assign(rematch_confirm: nil)
-           |> push_patch(to: build_modal_path(socket, %{selected: nil, view: :main}))}
-        end
+        {action, overrides} = EntityModal.close_detail_target(socket.assigns)
+        socket = if action == :close, do: assign(socket, rematch_confirm: nil), else: socket
+        {:noreply, push_patch(socket, to: build_modal_path(socket, overrides))}
       end
 
-      def handle_event(event, _params, socket)
-          when event in ["toggle_detail_view", "toggle_credits_view"] do
-        view = EntityModal.toggled_view(event, socket.assigns.detail_view)
-        {:noreply, push_patch(socket, to: build_modal_path(socket, %{view: view}))}
+      def handle_event("select_detail_view", %{"view" => view}, socket) do
+        {:noreply,
+         push_patch(socket, to: build_modal_path(socket, %{view: EntityModal.parse_view(view)}))}
       end
 
       def handle_event("filter_cast", params, socket) do
@@ -605,19 +600,32 @@ defmodule MediaCentaurWeb.Live.EntityModal do
           {socket.assigns.selected_entry, socket.assigns.expanded_seasons}
       end
 
+    # A tab that cannot render must never be the selected one, whether it
+    # was asked for by URL, carried over from the previous entity, or
+    # arrived at by default. `Logic.resolve_view/2` is the single place that
+    # decides, shared with the strip that draws the tabs.
+    detail_view = resolve_view(selected_entry, detail_view)
+
     # Files are loaded asynchronously so the modal can render immediately.
     # `load_entity_files/1` issues a `File.stat/1` per file; on a network
     # mount or sleeping disk this stalls handle_params. Per ADR-049, defer
     # it to an owned start_async (kicked off below, after assign) whose
     # result lands in `handle_async({:detail_files, id}, …)`.
-    should_load_files? =
-      detail_view == :info and selected_id != nil and
-        (selection_changed or socket.assigns.detail_files == [])
+    #
+    # Kicked off when the modal *opens*, not when Manage is opened. Deferring
+    # it that far made the first press of the cog render an empty sheet with
+    # the files arriving as a second patch, which reads as a flash: nothing in
+    # the sheet means nothing to scroll, so the scrollport collapses to the top
+    # and snaps back once the content lands. Paying for the stats on open — for
+    # a title the user may never manage — is the cheaper trade, and it is the
+    # same one UIDR-012 makes everywhere else.
+    #
+    # Exactly once per selection. `apply_detail_files/3` drops a result whose
+    # entity is no longer the selected one, so browsing quickly through titles
+    # cannot land a stale list.
+    should_load_files? = selected_id != nil and selection_changed
 
-    detail_files =
-      if selection_changed or should_load_files?,
-        do: [],
-        else: socket.assigns.detail_files
+    detail_files = if selection_changed, do: [], else: socket.assigns.detail_files
 
     tracking_status =
       cond do
@@ -878,17 +886,50 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   @doc """
-  The `detail_view` a sub-view toggle should land on: the sub-view itself,
-  or back to `:main` when it is already open.
+  The view a requested one resolves to for the open entry, given which tabs
+  that entry actually has. `nil` entry passes the request through — there is
+  no entity to resolve against yet.
 
-  Both toggles differed only in which atom they named, so they share one
-  `handle_event` clause and this decides the target.
+  Delegates to `Detail.Logic.resolve_view/2`, which the tab strip also uses,
+  so the URL and the strip can never disagree about what is selected.
   """
-  @spec toggled_view(String.t(), atom()) :: atom()
-  def toggled_view("toggle_detail_view", current_view), do: toggle_to(current_view, :info)
-  def toggled_view("toggle_credits_view", current_view), do: toggle_to(current_view, :credits)
+  @spec resolve_view(map() | nil, atom()) :: atom()
+  def resolve_view(nil, requested_view), do: requested_view
+  def resolve_view(entry, requested_view), do: Logic.resolve_view(entry.entity, requested_view)
 
-  defp toggle_to(current_view, target), do: if(current_view == target, do: :main, else: target)
+  @doc """
+  The tab an entry opens on, and the one BACK closes the modal from.
+
+  Usually the body tab; a title with no contents of its own (a movie with no
+  extras) has no body tab, so its default is More info.
+  """
+  @spec default_view(map() | nil) :: atom()
+  def default_view(entry), do: resolve_view(entry, :main)
+
+  @doc """
+  What BACK (or a backdrop click, or Escape) should do from the current
+  view: `{:close, overrides}` or `{:return, overrides}`, with the modal-path
+  overrides for either.
+
+  BACK peels one level of containment. From a tab other than the entity's
+  root, it returns to that root; from the root there is nothing above, so
+  the modal closes. Comparing against the *resolved* root is what makes this
+  correct for a movie with no extras — its root is More info, so BACK there
+  must close rather than land on a body that renders nothing.
+
+  `:close` additionally clears any pending rematch confirmation, which is
+  why the caller needs the tag and not just the overrides.
+  """
+  @spec close_detail_target(map()) :: {:close | :return, map()}
+  def close_detail_target(assigns) do
+    root_view = default_view(assigns.selected_entry)
+
+    if assigns.detail_view == root_view do
+      {:close, %{selected: nil, view: root_view}}
+    else
+      {:return, %{view: root_view}}
+    end
+  end
 
   @doc """
   Applies the More-info cast filter query. Plain assign, no URL round-trip:
@@ -1211,9 +1252,15 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   # --- Private helpers ---
 
-  defp parse_view("info"), do: :info
-  defp parse_view("credits"), do: :credits
-  defp parse_view(_), do: :main
+  @doc """
+  The `detail_view` atom a `?view=` URL value names. Anything unrecognised
+  falls to `:main`, which `resolve_view/2` then narrows to something the
+  entity can actually render.
+  """
+  @spec parse_view(String.t() | nil) :: atom()
+  def parse_view("info"), do: :info
+  def parse_view("credits"), do: :credits
+  def parse_view(_), do: :main
 
   defp load_entry_or_nil(id) do
     case load_entry(id) do

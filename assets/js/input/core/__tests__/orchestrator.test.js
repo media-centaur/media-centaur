@@ -92,6 +92,7 @@ function createMockReader(overrides = {}) {
     getCurrentFocusedSubItem: () => null,
     getItemAt: () => null,
     hasForeignFocus: () => false,
+    isDetailNested: () => false,
     // Default geometry: one horizontal row of evenly spaced tiles. Shelf
     // navigation is spatial, so every shelf test needs rects, and a row is the
     // shape every shelf but the Coming Up mosaic actually has.
@@ -1423,6 +1424,58 @@ describe("Orchestrator", () => {
 
       // Should dismiss the modal
       expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
+    })
+
+    test("BACK on a nested detail view returns without leaving the overlay", () => {
+      let onActionCallback = null
+      const hookEl = { pushEvent: mock(() => {}) }
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({
+        getPresentation: () => "modal",
+        isDetailNested: () => true,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start(hookEl)
+
+      onActionCallback(Action.BACK)
+
+      expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
+      // Focus stays in the overlay; _syncState refocuses after the patch.
+      expect(system.focusMachine.inOverlay).toBe(true)
+    })
+
+    test("BACK on the detail modal's root view dismisses, whichever view that is", () => {
+      // The root view is not always "main": a movie with no extras has no
+      // body tab, so it opens on More info and BACK there must close the
+      // modal. The server owns which view is root — the client reading the
+      // view *name* and comparing it to "main" got this wrong, leaving focus
+      // trapped in an overlay the server had already dismissed.
+      let onActionCallback = null
+      const hookEl = { pushEvent: mock(() => {}) }
+      const mockSource = { start() {}, stop() {} }
+      const { system } = setup({
+        getPresentation: () => "modal",
+        isDetailNested: () => false,
+      }, {
+        sources: [
+          (callbacks) => {
+            onActionCallback = callbacks.onAction
+            return mockSource
+          },
+        ],
+      })
+      system.start(hookEl)
+
+      onActionCallback(Action.BACK)
+
+      expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
+      expect(system.focusMachine.inOverlay).toBe(false)
     })
 
     test("BACK in modal uses custom dismiss event when getDismissEvent is set", () => {

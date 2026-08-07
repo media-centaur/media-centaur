@@ -355,7 +355,7 @@ layer out.
 | `data-nav-grid` | CSS grid container (column count detection) | — |
 | `data-entity-id` | Stable entity identifier on cards | UUID |
 | `data-detail-mode` | Presentation shell type | `modal`, `drawer` |
-| `data-detail-view` | Sub-view within modal (read by orchestrator for layered BACK) | `main`, `info` |
+| `data-detail-nested` | Modal is below its root view, so BACK returns instead of dismissing (read by orchestrator for layered BACK) | `true`, `false` |
 | `data-nav-overlay` | Overlay navigates as regions per `config.overlays[name]` | `detail` |
 | `data-nav-group` | Extent of a disclosure — LEFT inside it collapses via its `[aria-expanded]` head | (bare) |
 | `aria-expanded` | Disclosure state on a nav item. Standard markup, read directly rather than mirrored into a `data-` attribute | `true`, `false` |
@@ -381,7 +381,7 @@ layer out.
 
 **Nav zone containers must not nest.** Descendant selectors cross-contaminate. Exception: a zone whose selector uses a direct-child combinator (`> [data-nav-item]`) can contain a nested zone without double-counting items, should a future layout need it.
 
-**One element owns the modal overlay.** The adapter resolves the *active modal* as the first `[data-detail-mode='modal']` match in DOM order, and derives everything from that one element: `data-detail-view`, `data-dismiss-event`, and — unlike other contexts, which use flat config selectors — the MODAL context's nav items (`activeModalElement().querySelectorAll("[data-nav-item]")`). This keeps navigation and BACK pointed at the same overlay when modals stack (a confirm dialog over a detail modal, as on the Incoming page). Pages that stack modals must render the topmost overlay *first* among their `[data-detail-mode]` elements — on `/incoming`, the confirm dialogs render at the top of `:overlays`, before the plan and pursuit modals.
+**One element owns the modal overlay.** The adapter resolves the *active modal* as the first `[data-detail-mode='modal']` match in DOM order, and derives everything from that one element: `data-detail-nested`, `data-dismiss-event`, and — unlike other contexts, which use flat config selectors — the MODAL context's nav items (`activeModalElement().querySelectorAll("[data-nav-item]")`). This keeps navigation and BACK pointed at the same overlay when modals stack (a confirm dialog over a detail modal, as on the Incoming page). Pages that stack modals must render the topmost overlay *first* among their `[data-detail-mode]` elements — on `/incoming`, the confirm dialogs render at the top of `:overlays`, before the plan and pursuit modals.
 
 ## Page Behavior System
 
@@ -449,7 +449,7 @@ comes off page by page as each is reviewed. See
 - **Zone change:** Clears grid + toolbar memory (content is new)
 - **Sort change:** Clears grid memory (order changed, positions meaningless)
 - **Modal/drawer dismiss:** Restores to the originating card via `_originEntityId`
-- **Modal sub-view transition:** When BACK fires in a modal with `data-detail-view != "main"`, the orchestrator pushes `close_detail` without dismissing focus context. Sets `_pendingModalRefocus = true`, and `_syncState` refocuses the overlay's entry region after LiveView patches the DOM. This prevents focus from falling to the grid when morphdom removes the sub-view's focused element.
+- **Modal sub-view transition:** When BACK fires in a modal carrying `data-detail-nested="true"`, the orchestrator pushes `close_detail` without dismissing focus context. The server owns that flag rather than the client comparing a view name to `"main"` — the detail modal's root view is entity-dependent (a movie with no extras has no body tab and opens on More info, which *is* its root). Sets `_pendingModalRefocus = true`, and `_syncState` refocuses the overlay's entry region after LiveView patches the DOM. This prevents focus from falling to the grid when morphdom removes the sub-view's focused element.
 
 **Active item detection:** `reader.getActiveItemIndex(context)` finds the first item in a context with any "active" marker class from `config.activeClassNames`. When adding a new context with an active-item visual, add the class to the `activeClassNames` array in `config.js`.
 

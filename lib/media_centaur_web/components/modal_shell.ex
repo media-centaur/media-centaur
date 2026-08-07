@@ -12,6 +12,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
   import MediaCentaurWeb.LiveHelpers, only: [image_url: 2]
 
   alias MediaCentaurWeb.Components.Detail.CinematicBackdrop
+  alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.DetailPanel
 
   # ModalShell is a thin wrapper around DetailPanel — these attrs forward
@@ -100,7 +101,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
           do: "modal-panel--full"
       }
       data-detail-mode={@open && "modal"}
-      data-detail-view={@open && to_string(@detail_view)}
+      data-detail-nested={@open && to_string(nested_view?(@entity, @detail_view))}
       data-nav-overlay={@open && "detail"}
     >
       <%!-- No close-X — backdrop click and Escape both close, and the
@@ -163,4 +164,22 @@ defmodule MediaCentaurWeb.Components.ModalShell do
     </.modal>
     """
   end
+
+  @doc """
+  Whether the panel is showing something other than the entity's root view,
+  which is what tells the input system that BACK returns *within* the modal
+  rather than dismissing it.
+
+  Answered here rather than in JS because the root view is entity-dependent:
+  a title with no contents of its own (a movie with no extras) has no body
+  tab and opens on More info, which is its root. The client used to infer
+  this by comparing the view name to `"main"`, which got that case wrong in
+  both directions — BACK left focus trapped in an overlay the server had
+  already dismissed.
+
+  A closed modal (`entity: nil`) is never nested.
+  """
+  @spec nested_view?(map() | nil, atom()) :: boolean()
+  def nested_view?(nil, _detail_view), do: false
+  def nested_view?(entity, detail_view), do: detail_view != Logic.resolve_view(entity, :main)
 end

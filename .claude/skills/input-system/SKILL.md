@@ -119,7 +119,7 @@ All config changes go in `config.js`:
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation |
 | `data-entity-id` | Stable entity identifier on cards |
 | `data-detail-mode` | Presentation shell type (`modal`, `drawer`) |
-| `data-detail-view` | Sub-view within modal (`main`, `info`) — read by orchestrator for layered BACK |
+| `data-detail-nested` | Modal is below its root view (`true`/`false`) — read by orchestrator for layered BACK. Server-owned: the root view is entity-dependent |
 | `data-captures-keys` | Element handles own keyboard events |
 | `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT |
 | `data-nav-action` | Custom event name dispatched on SELECT instead of `.click()` |
@@ -184,5 +184,5 @@ evaluate_script: () => { window.__inputDebug = false; return "disabled" }
 - **Page state lives in the URL.** Use `handle_params` + `live_patch`. Don't duplicate in sessionStorage.
 - **DOM access confined to `core/dom_adapter.js`.** Orchestrator and behaviors never call `document.*` directly.
 - **Single-owner DOM projection.** Each `data-*` attribute on `<html>` has one state owner and one sync path (state change → callback → DOM write). Never piggyback DOM syncs on unrelated events. See "Single-Owner DOM Projection" in `docs/input-system.md`.
-- **Modal sub-views use deferred refocus.** When a modal has sub-views (e.g. info → main), `_executeDismiss` reads `data-detail-view` via `reader.getDetailView()`. If the view is not "main", it pushes `close_detail` without changing focus context and sets `_pendingModalRefocus = true`. `_syncState` (which fires after the LiveView DOM patch) checks this flag and calls `focusFirst(MODAL)`. Never use `requestAnimationFrame` for post-patch focus — the LiveView round-trip takes longer than a single frame.
+- **Modal sub-views use deferred refocus.** When a modal is below its root view, `_executeDismiss` reads `data-detail-nested` via `reader.isDetailNested()` and pushes `close_detail` without changing focus context, setting `_pendingModalRefocus = true`. Never re-derive "am I nested" on the client by comparing the view name to `"main"` — which view is root depends on the entity. `_syncState` (which fires after the LiveView DOM patch) checks this flag and calls `focusFirst(MODAL)`. Never use `requestAnimationFrame` for post-patch focus — the LiveView round-trip takes longer than a single frame.
 - **Dependency directionality.** Core never imports from app layer. App imports from `core/index.js`.

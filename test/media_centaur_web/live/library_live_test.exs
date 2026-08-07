@@ -232,20 +232,176 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "#detail-modal[data-state='open']")
       refute has_element?(view, "#detail-modal [phx-click-away]")
     end
+  end
 
-    test "More info button opens the credits view via ?view=credits URL", %{
+  describe "detail modal view controls" do
+    # The modal's view controls are a soft button and a Manage cog on Play's
+    # own line. There is exactly ONE text control, in ONE slot: it offers
+    # More info from the root view and reads Back from anywhere else.
+    #
+    # That is what keeps "Back" in a fixed position. Until 2026-08-07 there
+    # were two buttons, each relabelling itself to "Back" when its own view
+    # was open, so the word moved between the second and third slot
+    # depending on which sub-view was showing.
+    #
+    # A tab strip was tried in between and reverted — it spans the panel and
+    # lands a band of chrome on the seam the eye crosses going from Play to
+    # the episode list.
+
+    setup do
+      tv_series = create_tv_series(%{name: "View Control Show"})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      _episode =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Pilot",
+          content_url: "/tv/view-control/s01e01.mkv"
+        })
+
+      movie = create_standalone_movie(%{name: "View Control Movie"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      # Two parts: a singleton collection is presented as the movie itself,
+      # so a one-part fixture would silently test the movie path.
+      collection = create_movie_series(%{name: "View Control Collection"})
+
+      for {name, position} <- [{"Part 1", 0}, {"Part 2", 1}] do
+        part = create_movie(%{movie_series_id: collection.id, name: name, position: position})
+        create_linked_file(%{movie_id: part.id})
+      end
+
+      {:ok, tv_series: tv_series, movie: movie, collection: collection}
+    end
+
+    test "no tab strip — the seam below Play stays clear", %{conn: conn, tv_series: tv_series} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      refute has_element?(view, "#detail-modal [role='tablist']")
+      refute has_element?(view, "#detail-modal [role='tab']")
+    end
+
+    test "on the root view the control offers More info", %{conn: conn, tv_series: tv_series} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      assert has_element?(view, "[data-role='view-control']", "More info")
+      refute has_element?(view, "[data-role='manage-toggle'][aria-pressed='true']")
+    end
+
+    test "off the root view the same slot names the way back", %{conn: conn, tv_series: tv_series} do
+      # "Episodes", not "Back" — the label says where you are going. "Back"
+      # only says it is not here, and what it means changes per view.
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=credits")
+
+      assert has_element?(view, "[data-role='view-control']", "Episodes")
+      refute has_element?(view, "[data-role='view-control']", "More info")
+    end
+
+    test "the way back is named for its destination, not for the body", %{
       conn: conn,
       movie: movie
     } do
-      # Regression: build_modal_path/2 must encode `view=credits` into
-      # the URL, not just `view=info`. Without this the toggle handler
-      # round-trips through `parse_view` and lands on `:main`, making
-      # the More info button look broken.
+      # A movie with no extras opens on More info, so that is where Manage
+      # returns to — labelling it "Episodes" would be a lie, and it has no
+      # episode list to name anyway.
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+
+      assert has_element?(view, "[data-role='view-control']", "More info")
+    end
+
+    test "Manage shows its open state without changing any label", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+
+      assert has_element?(view, "[data-role='manage-toggle'][aria-pressed='true']")
+      assert has_element?(view, "[data-role='manage-toggle'][aria-label='Manage']")
+      # The same slot is the way out of Manage too — one control, one meaning.
+      assert has_element?(view, "[data-role='view-control']", "Episodes")
+    end
+
+    test "More info encodes itself into the URL", %{conn: conn, tv_series: tv_series} do
+      # Regression: build_modal_path/2 must encode `view=credits`, not just
+      # `view=info`. Without it the selection round-trips through
+      # `parse_view` and lands back on the body, making the control look dead.
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      view |> element("[data-role='view-control']") |> render_click()
+
+      assert_patched(view, ~p"/library?selected=#{tv_series.id}&view=credits")
+    end
+
+    test "the control returns to the root view rather than closing", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+
+      view |> element("[data-role='view-control']") |> render_click()
+
+      assert_patched(view, ~p"/library?selected=#{tv_series.id}")
+      assert has_element?(view, "[data-role='view-control']", "More info")
+    end
+
+    test "a movie with no extras has nowhere else to offer", %{conn: conn, movie: movie} do
+      # It opens on More info — that *is* its root — so the slot is empty and
+      # the row is just Play and the cog.
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
 
-      view |> element("button[phx-click='toggle_credits_view']") |> render_click()
+      refute has_element?(view, "[data-role='view-control']")
+      assert has_element?(view, "[data-role='manage-toggle']")
+    end
 
-      assert_patched(view, ~p"/library?selected=#{movie.id}&view=credits")
+    test "a collection has no More info to offer", %{conn: conn, collection: collection} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+
+      refute has_element?(view, "[data-role='view-control']")
+    end
+
+    test "a collection names its own body on the way back", %{conn: conn, collection: collection} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}&view=info")
+
+      assert has_element?(view, "[data-role='view-control']", "Movies")
+    end
+
+    test "Manage has its files on the first open, not one patch later", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      # The file load used to be deferred until Manage was actually opened, so
+      # the first press rendered an empty sheet and the files arrived as a
+      # second patch. That reads as a flash: the sheet has nothing in it, so
+      # the scrollport collapses to the top and snaps back once the content
+      # lands. Loading with the modal costs a stat per file on open and buys a
+      # Manage view that is right on its first frame.
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      html = view |> element("[data-role='manage-toggle']") |> render_click()
+
+      assert html =~ "s01e01.mkv",
+             "Manage must render its file list in the same patch that opens it"
+    end
+
+    test "the controls share Play's nav row, so DOWN still enters the body", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      # UIDR-019 rule 2: DOWN from the action row lands on the episode you
+      # would resume. The controls are items of that row, reached by
+      # LEFT/RIGHT.
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='detail_actions'] [data-role='view-control'][data-nav-item][tabindex='0']"
+             )
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='detail_actions'] [data-role='manage-toggle'][data-nav-item][tabindex='0']"
+             )
     end
   end
 

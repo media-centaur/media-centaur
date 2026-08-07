@@ -68,7 +68,7 @@ describe("hasForeignFocus — focus ownership by containment", () => {
 // A confirm dialog can render *over* a detail modal (downloads: the
 // cancel-download confirm stacks on the pursuit modal). The adapter already
 // resolves the *active* modal as the first [data-detail-mode='modal'] match
-// for detailView and dismissEvent; item queries must use the same owner, or
+// for detailNested and dismissEvent; item queries must use the same owner, or
 // MODAL navigation would walk the union of both overlays' items — including
 // ones hidden behind the topmost backdrop.
 // ---------------------------------------------------------------------------

@@ -1,22 +1,22 @@
 defmodule MediaCentaurWeb.Components.Detail.PlayCard do
   @moduledoc """
-  Playback action row — Play/Resume button + thin progress bar + remaining
-  text + a "Manage" toggle that flips the panel between `:main` (watch)
-  and `:info` (manage) views.
+  The detail modal's play control — a thin progress bar with optional
+  "remaining" text, over the Play/Resume button.
 
-  Mirrors the home hero CTA pair: the play button is always the primary
-  variant (solid blue), the "Manage" toggle is always the secondary
-  variant (soft blue). The play label ("Play", "Resume Episode 5", "Watch
-  again", …) comes from `Detail.Logic.playback_props/3`. When `available`
-  is false (storage offline), the play button is replaced with a disabled
-  "Offline" pill.
+  Play is the **only button in the modal**. Switching what the body shows
+  is a view change, not an action, and lives in `Detail.ViewTabs` below;
+  this component carries the one thing a user actually *does* here.
 
-  Naming distinction (UIDR-003): the home hero uses "More info" to *open*
-  the modal. Inside the modal, "More info" reveals the credits sub-view
-  (director / writers / cast grid + studio/country/links) — same label
-  reused intentionally so users see the same word for "tell me more
-  about this title". The "Manage" toggle is a separate concern (files,
-  external ids, rematch).
+  The label ("Play", "Resume Episode 5", "Watch again", …) comes from
+  `Detail.Logic.playback_props/3` — no decisions are made at render time.
+  When `available` is false (storage offline) the button is replaced with a
+  disabled "Offline" pill.
+
+  The row *is* the `detail_actions` nav zone (UIDR-019): LEFT/RIGHT walks
+  Play → the link → Manage, DOWN enters the body at the resume target.
+
+  For TV series the progress row is suppressed by the caller (percent 0) —
+  series progress lives in the hero orientation block instead.
   """
 
   use MediaCentaurWeb, :html
@@ -27,12 +27,8 @@ defmodule MediaCentaurWeb.Components.Detail.PlayCard do
   attr :percent, :integer, default: 0
   attr :remaining_text, :string, default: nil
   attr :available, :boolean, default: true
-  attr :detail_view, :atom, default: :main
 
-  attr :show_more_info, :boolean,
-    default: false,
-    doc:
-      "renders the More info button between Play and Manage. Movies and TV series pass `true`; collections have no credits sub-view and pass `false`."
+  slot :controls, doc: "view controls rendered on Play's line — see `Detail.ViewControls`."
 
   def play_card(assigns) do
     has_progress = assigns.percent > 0
@@ -53,9 +49,6 @@ defmodule MediaCentaurWeb.Components.Detail.PlayCard do
           </span>
         </div>
       </div>
-      <%!-- The modal's action row is its own nav region: LEFT/RIGHT move between
-            these three, DOWN crosses into the body below, and BACK closes the
-            modal because there is no region above this one. See UIDR-019. --%>
       <div class="flex items-center gap-2" data-nav-zone="detail_actions">
         <.button
           :if={@available}
@@ -78,37 +71,7 @@ defmodule MediaCentaurWeb.Components.Detail.PlayCard do
         >
           <.icon name="hero-cloud-arrow-down-mini" class="size-4 opacity-60" /> Offline
         </.button>
-        <.button
-          :if={@show_more_info}
-          variant="secondary"
-          size="sm"
-          phx-click="toggle_credits_view"
-          data-nav-item
-          tabindex="0"
-        >
-          <.icon
-            name={
-              if @detail_view == :credits,
-                do: "hero-arrow-left-mini",
-                else: "hero-information-circle-mini"
-            }
-            class="size-4"
-          />
-          {if @detail_view == :credits, do: "Back", else: "More info"}
-        </.button>
-        <.button
-          variant="secondary"
-          size="sm"
-          phx-click="toggle_detail_view"
-          data-nav-item
-          tabindex="0"
-        >
-          <.icon
-            name={if @detail_view == :info, do: "hero-arrow-left-mini", else: "hero-cog-6-tooth-mini"}
-            class="size-4"
-          />
-          {if @detail_view == :info, do: "Back", else: "Manage"}
-        </.button>
+        {render_slot(@controls)}
       </div>
     </div>
     """

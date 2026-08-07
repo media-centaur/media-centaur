@@ -1,11 +1,15 @@
 defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
   @moduledoc """
-  Playback action row in the entity detail panel — Play/Resume button,
-  thin progress bar with optional "remaining" text, and a "Manage"
-  toggle.
+  The detail modal's play control — a thin progress bar with optional
+  "remaining" text, over the Play/Resume button.
 
-  The component is pure presentation: callers pre-compute `label`,
-  `percent`, `remaining_text`, and `available` (typically via
+  Play is the only primary button in the modal. The view controls that share
+  its line arrive through the `controls` slot (`Detail.ViewControls`), which
+  has its own story — so this component has exactly one job and no sub-view
+  state to render.
+
+  Pure presentation: callers pre-compute `label`, `percent`,
+  `remaining_text`, and `available` (typically via
   `Detail.Logic.playback_props/3`) and pass them in. No context lookups
   happen at render time, which is why the variations below can be flat
   literal data with no fakes or stubs.
@@ -17,9 +21,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
     * At 100% the bar fills the full track and switches from `bg-info`
       (blue) to `bg-success` (green) — see `:completed`.
     * When `available: false` the play button is replaced with a disabled
-      "Offline" pill — see `:offline`.
-    * When `detail_view == :info` the secondary toggle reads "Back"
-      instead of "Manage" — see `:info_view_open`.
+      "Offline" pill carrying the explanatory tooltip — see `:offline`.
   """
 
   use PhoenixStorybook.Story, :component
@@ -49,8 +51,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
           label: "Play",
           percent: 0,
           remaining_text: nil,
-          available: true,
-          detail_view: :main
+          available: true
         }
       },
       %Variation{
@@ -64,8 +65,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
           label: "Resume",
           percent: 8,
           remaining_text: "1h 55m left",
-          available: true,
-          detail_view: :main
+          available: true
         }
       },
       %Variation{
@@ -79,8 +79,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
           label: "Resume Episode 5",
           percent: 50,
           remaining_text: "24m left",
-          available: true,
-          detail_view: :main
+          available: true
         }
       },
       %Variation{
@@ -94,8 +93,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
           label: "Resume",
           percent: 95,
           remaining_text: "6m left",
-          available: true,
-          detail_view: :main
+          available: true
         }
       },
       %Variation{
@@ -110,8 +108,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
           label: "Watch again",
           percent: 100,
           remaining_text: nil,
-          available: true,
-          detail_view: :main
+          available: true
         }
       },
       %Variation{
@@ -125,8 +122,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
           label: "Resume",
           percent: 35,
           remaining_text: nil,
-          available: true,
-          detail_view: :main
+          available: true
         }
       },
       %Variation{
@@ -134,15 +130,14 @@ defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
         description:
           "Storage offline (`available: false`) — the primary play button " <>
             "is replaced with a disabled \"Offline\" pill carrying the " <>
-            "explanatory tooltip. The \"Manage\" toggle still works.",
+            "explanatory tooltip.",
         attributes: %{
           on_play: "play",
           target_id: "entity-7",
           label: "Play",
           percent: 0,
           remaining_text: nil,
-          available: false,
-          detail_view: :main
+          available: false
         }
       },
       %Variation{
@@ -157,23 +152,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
           label: "Resume",
           percent: 42,
           remaining_text: "1h 12m left",
-          available: false,
-          detail_view: :main
-        }
-      },
-      %Variation{
-        id: :info_view_open,
-        description:
-          "`detail_view: :info` — the secondary toggle's label flips from " <>
-            ~s("Manage" to "Back" so users can return to the main view.),
-        attributes: %{
-          on_play: "play",
-          target_id: "entity-9",
-          label: "Resume",
-          percent: 33,
-          remaining_text: "1h 28m left",
-          available: true,
-          detail_view: :info
+          available: false
         }
       }
     ]

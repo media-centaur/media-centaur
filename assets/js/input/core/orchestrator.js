@@ -1067,14 +1067,13 @@ export class Orchestrator {
   _executeDismiss() {
     if (!this._hookEl) return
 
-    // If the modal has a sub-view (e.g. info), BACK returns to the main view
-    // without dismissing. Push the event and let LiveView handle it — keep
-    // focus context in the modal so the user stays in the overlay.
-    const detailView = this.reader.getDetailView?.()
-    if (detailView && detailView !== "main") {
+    // Below the modal's root view, BACK returns to that root rather than
+    // dismissing. Push the event and let LiveView handle it — keep focus
+    // context in the modal so the user stays in the overlay.
+    if (this.reader.isDetailNested?.()) {
       this._hookEl.pushEvent("close_detail", {})
-      // The LiveView patch (info → main) will remove the focused element.
-      // Flag _syncState to refocus the modal after the DOM updates.
+      // The LiveView patch back to the root view will remove the focused
+      // element. Flag _syncState to refocus the modal after the DOM updates.
       this._pendingModalRefocus = true
       return
     }

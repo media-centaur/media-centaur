@@ -23,6 +23,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.MoreInfoPanel
   alias MediaCentaurWeb.Components.Detail.PlayCard
   alias MediaCentaurWeb.Components.Detail.TitleLayer
+  alias MediaCentaurWeb.Components.Detail.ViewControls
   alias MediaCentaurWeb.ViewModel.EpisodeListItem
   alias MediaCentaurWeb.ViewModel.Orientation
 
@@ -255,9 +256,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 percent={@playback.percent}
                 remaining_text={@playback.remaining_text}
                 available={@available}
-                detail_view={@detail_view}
-                show_more_info={@entity.type in [:movie, :tv_series]}
-              />
+              >
+                <:controls>
+                  <ViewControls.view_controls entity={@entity} detail_view={@detail_view} />
+                </:controls>
+              </PlayCard.play_card>
               <p
                 :if={@entity.description && !@description_right?}
                 class="text-sm text-base-content/70 line-clamp-8 xl:max-w-[50ch]"
