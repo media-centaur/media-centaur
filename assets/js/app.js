@@ -31,6 +31,7 @@ import {MouseAutofocus, shouldAutofocus} from "./hooks/mouse_autofocus"
 import {FlashAutoDismiss} from "./hooks/flash_auto_dismiss"
 import {SidebarTooltip} from "./hooks/sidebar_tooltip"
 import {pinReserve} from "./hooks/detail_scroll_geometry"
+import {DetailBodyScroll} from "./hooks/detail_body_scroll"
 import {installReconnectOnVisible} from "./reconnect_on_visible"
 import topbar from "../vendor/topbar"
 
@@ -126,7 +127,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
         // the top edge lands below the pinned block instead of behind it.
         // Every keyboard/gamepad step through the episode list scrolls, so this
         // has to hold for the life of the modal — which is why it lives here
-        // and not in ScrollToResume's one-shot: a season toggle patches this
+        // and not in DetailBodyScroll's entry rule: a season toggle patches this
         // scroller, morphdom drops the inline style, and `updated()` above is
         // the only thing that puts it back. Reproduced by expanding every
         // season and then walking UP the list — the cursor went behind the
@@ -143,29 +144,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
         }
       }
     },
-    ScrollToResume: {
-      mounted() { this._scrollToTarget() },
-      updated() {
-        if (this.el.dataset.entityId !== this._lastEntityId) {
-          this._scrollToTarget()
-        }
-      },
-      _scrollToTarget() {
-        this._lastEntityId = this.el.dataset.entityId
-        // `data-scroll-to-resume` is the only signal for whether to
-        // scroll — the server decides (DetailPanel.autoscroll_resume?/1).
-        // A target row can exist without being somewhere to return to:
-        // an unstarted series highlights its first episode but opens on
-        // the hero.
-        if (this.el.dataset.scrollToResume === undefined) return
-        const target = this.el.querySelector("[data-resume-target]")
-        if (target) {
-          requestAnimationFrame(() => {
-            target.scrollIntoView({ block: "center", behavior: "instant" })
-          })
-        }
-      },
-    },
+    DetailBodyScroll,
   },
 })
 
