@@ -15,8 +15,9 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
     * **URLs must be byte-identical to what the pages request.** Any
       mismatch is a cache miss and the hint is dead weight. This is
       structural, not a promise: posters go through
-      `LibraryCards.poster_src/1` — the same function the grid renders —
-      and backdrops through `Logic.select_page_hero/3`, the same pick the
+      `LiveHelpers.poster_src/1` — the same function every 2:3 poster
+      surface renders — and backdrops through `Logic.select_page_hero/3`,
+      the same pick the
       pages make, rendered `:full_bleed` on both sides so the URL is
       untouched. **Never re-derive a URL here.** A new warmed surface
       exposes the function it renders with and this module calls it.
@@ -39,8 +40,8 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
   """
 
   alias MediaCentaur.Library
-  alias MediaCentaurWeb.Components.LibraryCards
   alias MediaCentaurWeb.HomeLive.Logic
+  alias MediaCentaurWeb.LiveHelpers
 
   @poster_limit 30
 
@@ -61,7 +62,7 @@ defmodule MediaCentaurWeb.ArtworkWarmup do
     |> Enum.map(& &1.poster_url)
     |> Enum.reject(&is_nil/1)
     |> Enum.take(@poster_limit)
-    |> Enum.map(&LibraryCards.poster_src/1)
+    |> Enum.map(&LiveHelpers.poster_src/1)
   end
 
   # Only the candidates the backdrop-bearing pages are showing right now.

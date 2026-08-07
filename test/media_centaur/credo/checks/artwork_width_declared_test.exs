@@ -70,7 +70,7 @@ defmodule MediaCentaur.Credo.Checks.ArtworkWidthDeclaredTest do
     end
 
     # A surface may own its `src` builder so `ArtworkWarmup` can call the same
-    # function — `LibraryCards.poster_src/1` is the worked example. The width
+    # function — `LiveHelpers.poster_src/1` is the worked example. The width
     # is declared inside that function, where the check still sees it.
     test "allows a named src builder that ends in _src" do
       ~S|      <img src={poster_src(@entry.poster_url)} />|

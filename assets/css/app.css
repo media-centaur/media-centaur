@@ -1665,19 +1665,43 @@ body:has(.modal-backdrop[data-state="open"]) {
   z-index: 2;
 }
 
+/* ── Card size tokens ──
+   A card's size belongs to the card, not to whichever container it lands
+   in. These are the two shapes the library surfaces paint, in CSS px —
+   which is the design unit: `--auto-scale` normalizes every panel to a
+   1920 CSS px composition, so 170 here is 170 design px on a laptop and
+   340 device px on a 4K panel.
+
+   Both the horizontally-scrolling rows and the library grid read these, so
+   a poster is the same size wherever it appears. They used to disagree:
+   the row authored a column COUNT (12 at the widest breakpoint) while the
+   grid authored a minimum WIDTH (155px), which are different functions of
+   viewport width. They crossed near 90% interface scale — the library
+   poster was 19% larger at 100% and 29% SMALLER at 70% — and nothing in
+   either file could have told you that.
+
+   Poster height (2:3 → 255px) and backdrop height (16:9 → 255px) match on
+   purpose: Continue Watching sits directly above Recently Added on Home,
+   and equal card heights give the two rows one vertical module.
+
+   `LiveHelpers.poster_src/1` picks the image derivative that serves
+   `--card-poster-w`. Change the token by much and revisit that width. */
+:root {
+  --card-poster-w: 170px;
+  --card-backdrop-w: 453px;
+}
+
 /* ── Horizontally scrolling rows ──
    Netflix-pattern row that scrolls horizontally instead of clamping to a
-   fixed grid. Each card occupies ((100% - gap × (cols - 1)) / cols) of the
-   visible row width — so `--cols` is the number of cards VISIBLE AT REST,
-   and any extras overflow to the right and become accessible via horizontal
-   scroll.
+   fixed grid. Each card is exactly `--card-w`; how many fit is whatever
+   the row width allows, and the remainder shows as a partial card at the
+   trailing edge. That cut-off card IS the affordance — it's what says the
+   row scrolls. Sizing by width rather than by column count is also why
+   there are no breakpoints here: the count falls out of the arithmetic at
+   every viewport, which is what it always was conceptually.
 
-   Two row shapes are defined: `.row-scroll-backdrop` (16:9 cards, 3-9 cols
-   across breakpoints) and `.row-scroll-poster` (2:3 cards, 4-12 cols). The
-   col counts are hard-coded via media queries here rather than via Tailwind
-   arbitrary properties because the v4 arbitrary-property scanner did not
-   reliably generate the per-breakpoint `[--cols:N]` utilities for this
-   pattern. Plain CSS is more predictable and the row shapes are stable.
+   Do not give the trailing card room to grow flush. A flush edge on a
+   scrollable row looks like the end of the content.
 
    Each row scrolls independently — that's the structural setup for future
    keyboard/gamepad nav (one nav-zone per row). No nav wiring yet.
@@ -1692,7 +1716,6 @@ body:has(.modal-backdrop[data-state="open"]) {
    `scroll-padding-inline` when scrolled into view. Scrollbar is hidden;
    touch/wheel/programmatic scroll all work. */
 .row-scroll {
-  --cols: 1;
   --gap: 0.5rem;
   display: flex;
   gap: var(--gap);
@@ -1712,41 +1735,31 @@ body:has(.modal-backdrop[data-state="open"]) {
   display: none;
 }
 
+/* Every variant sets `--card-w`. There is deliberately no default: an
+   undefined var makes the whole shorthand invalid at computed-value time,
+   so a variant that forgets one collapses to content width — visibly
+   wrong, which beats silently inheriting somebody else's size. */
 .row-scroll > * {
   scroll-snap-align: start;
-  flex: 0 0 calc((100% - (var(--cols) - 1) * var(--gap)) / var(--cols));
+  flex: 0 0 var(--card-w);
 }
 
-/* 16:9 backdrop rows — Coming Up (and any other backdrop row that wants
-   the standard density). */
-.row-scroll-backdrop { --cols: 3; }
-@media (min-width: 640px)  { .row-scroll-backdrop { --cols: 4; } }
-@media (min-width: 768px)  { .row-scroll-backdrop { --cols: 5; } }
-@media (min-width: 1024px) { .row-scroll-backdrop { --cols: 6; } }
-@media (min-width: 1280px) { .row-scroll-backdrop { --cols: 7; } }
-@media (min-width: 1536px) { .row-scroll-backdrop { --cols: 9; } }
-
-/* Larger 16:9 variant for the Continue Watching row — cards land
-   between the standard backdrop density and a hero-sized card.
-   A slightly bigger gap keeps the larger cards from feeling crowded. */
+/* 16:9 backdrop row — Continue Watching. A slightly bigger gap keeps the
+   larger cards from feeling crowded. */
 .row-scroll-backdrop-lg {
-  --cols: 2;
+  --card-w: var(--card-backdrop-w);
   --gap: 0.625rem;
 }
-@media (min-width: 1280px) { .row-scroll-backdrop-lg { --cols: 4; } }
 
-/* 2:3 poster rows — Recently Added. Denser column counts because
-   portrait posters are narrower than backdrop cards. */
-.row-scroll-poster { --cols: 4; }
-@media (min-width: 640px)  { .row-scroll-poster { --cols: 6; } }
-@media (min-width: 768px)  { .row-scroll-poster { --cols: 7; } }
-@media (min-width: 1024px) { .row-scroll-poster { --cols: 8; } }
-@media (min-width: 1280px) { .row-scroll-poster { --cols: 10; } }
-@media (min-width: 1536px) { .row-scroll-poster { --cols: 12; } }
+/* 2:3 poster row — Recently Added. Same card as the library grid; the
+   row's "See all" navigates there. */
+.row-scroll-poster {
+  --card-w: var(--card-poster-w);
+}
 
 /* Hero row variant — single item per "page", no inter-card gap */
 .row-scroll-hero {
-  --cols: 1;
+  --card-w: 100%;
   --gap: 0px;
   /* hero items are full-width siblings; no buffer needed — no card-hover
      scale and the focus ring lives on the inner CTA buttons, not the
@@ -1755,6 +1768,22 @@ body:has(.modal-backdrop[data-state="open"]) {
   margin-block: 0;
   padding-inline: 0;
   margin-inline: 0;
+}
+
+/* ── Poster grid ──
+   The library's wall of posters. Unlike a row, this one DOES let cards
+   absorb the leftover space (`1fr`), because a grid you scan top-to-bottom
+   wants a flush right edge — a ragged one reads as broken. The card
+   therefore floats between `--card-poster-w` and about +11% of it before a
+   column is added; that wobble is invisible within a page, and it is the
+   one place the two containers are allowed to differ.
+
+   A class rather than a Tailwind arbitrary value so the grid, its
+   storybook template, and the token stay one definition. */
+.poster-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(var(--card-poster-w), 1fr));
 }
 
 /* 4. Empty state fade-in */
