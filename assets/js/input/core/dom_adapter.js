@@ -110,6 +110,11 @@ function revealItem(element, glider) {
   const declared = element.closest?.("[data-nav-reveal-block]")?.dataset?.navRevealBlock
 
   const boxes = scrollableAncestors(element)
+  // Nothing can move this element relative to the viewport — it is pinned. Skip
+  // the measuring jump too: it would scroll boxes we have not recorded and so
+  // cannot put back.
+  if (boxes.length === 0) return
+
   const before = boxes.map(box => [box.scrollLeft, box.scrollTop])
   const rewind = () => boxes.forEach((box, i) => {
     box.scrollLeft = before[i][0]
@@ -141,11 +146,27 @@ function isFullyInView(element) {
 /**
  * Every scroll container between `element` and the document that could have
  * been moved by scrollIntoView — a media row, then the page.
+ *
+ * The walk stops at a **pinned** ancestor (`position: sticky` or `fixed`),
+ * because scrollers outside one cannot reveal anything inside it: scrolling
+ * them moves the ancestor by the same amount, so the element never arrives.
+ * `scrollIntoView` does not detect this and does not converge — asked again
+ * from the position it just produced, it asks for a little more.
+ *
+ * Measured in the detail modal, whose action row sits in a sticky orientation
+ * block: walking left/right along Play / More info / Manage ratcheted the panel
+ * 123 → 325 → 527 → 729px, in *both* directions, never coming back. There was
+ * nothing to reveal — a pinned row is visible by construction, which is the
+ * entire point of pinning it.
+ *
+ * Scrollers *inside* the pinned ancestor are still collected: they move
+ * relative to it, so they can still reveal.
  */
 function scrollableAncestors(element) {
   const boxes = []
   for (let node = element.parentElement; node; node = node.parentElement) {
     const style = getComputedStyle(node)
+    if (style.position === "sticky" || style.position === "fixed") return boxes
     const overflow = `${style.overflowX} ${style.overflowY}`
     if (!/auto|scroll|overlay/.test(overflow)) continue
     if (node.scrollWidth > node.clientWidth || node.scrollHeight > node.clientHeight) {
