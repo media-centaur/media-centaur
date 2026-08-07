@@ -2329,6 +2329,9 @@ describe("Orchestrator", () => {
         querySelector(sel) {
           return sel === "[data-nav-sub-item]" ? subItem : null
         },
+        querySelectorAll(sel) {
+          return sel === "[data-nav-sub-item]" ? [subItem] : []
+        },
       }
 
       const { system, globals } = setup({
@@ -2350,6 +2353,7 @@ describe("Orchestrator", () => {
         hasAttribute(attr) { return attr === "data-nav-item" },
         dataset: {},
         querySelector() { return null },
+        querySelectorAll() { return [] },
       }
 
       const { system, globals } = setup({
@@ -2377,6 +2381,9 @@ describe("Orchestrator", () => {
         dataset: {},
         querySelector(sel) {
           return sel === "[data-nav-sub-item]" ? subItem : null
+        },
+        querySelectorAll(sel) {
+          return sel === "[data-nav-sub-item]" ? [subItem] : []
         },
       }
 
@@ -2412,6 +2419,9 @@ describe("Orchestrator", () => {
         dataset: {},
         querySelector(sel) {
           return sel === "[data-nav-sub-item]" ? subItem : null
+        },
+        querySelectorAll(sel) {
+          return sel === "[data-nav-sub-item]" ? [subItem] : []
         },
       }
 
@@ -2453,6 +2463,9 @@ describe("Orchestrator", () => {
         querySelector(sel) {
           return sel === "[data-nav-sub-item]" ? subItem : null
         },
+        querySelectorAll(sel) {
+          return sel === "[data-nav-sub-item]" ? [subItem] : []
+        },
       }
 
       // After entering sub-focus, getCurrentFocusedItem returns null
@@ -2488,6 +2501,9 @@ describe("Orchestrator", () => {
         querySelector(sel) {
           return sel === "[data-nav-sub-item]" ? subItem : null
         },
+        querySelectorAll(sel) {
+          return sel === "[data-nav-sub-item]" ? [subItem] : []
+        },
       }
 
       // After morphdom, getItemAt returns a fresh row with a fresh sub-item
@@ -2501,6 +2517,9 @@ describe("Orchestrator", () => {
         dataset: {},
         querySelector(sel) {
           return sel === "[data-nav-sub-item]" ? freshSubItem : null
+        },
+        querySelectorAll(sel) {
+          return sel === "[data-nav-sub-item]" ? [freshSubItem] : []
         },
       }
 
@@ -2885,6 +2904,256 @@ describe("Orchestrator", () => {
       )
       expect(restore.length).toBe(1)
       expect(restore[0].args[1]).toBe("entity-4")
+    })
+  })
+
+  // The detail modal is two regions rather than one flat list: an action row
+  // (Play / More info / Manage) over the body of the title. See UIDR-019.
+  describe("detail overlay", () => {
+    const OVERLAY_CONFIG = {
+      contextSelectors: {
+        ...TEST_CONFIG.contextSelectors,
+        detail_actions: "[data-nav-zone='detail_actions'] [data-nav-item]",
+        detail_list: "[data-nav-zone='detail_list'] [data-nav-item]",
+      },
+      instanceTypes: { ...TEST_CONFIG.instanceTypes, detail_actions: "toolbar", detail_list: "tree" },
+      overlays: {
+        detail: {
+          entry: ["detail_actions", "detail_list"],
+          layout: {
+            detail_actions: { down: ["detail_list"] },
+            detail_list: { back: ["detail_actions"] },
+          },
+        },
+      },
+      entryDefaults: { detail_list: "[data-resume-target]" },
+    }
+
+    /** A modal that is open, with `actions` buttons over `list` body rows. */
+    function openModal({ actions = 3, list = 20, resumeIndex = -1, ...readerOverrides } = {}) {
+      return setup({
+        getPresentation: () => "modal",
+        getOverlayName: () => "detail",
+        isModalOpen: () => true,
+        getItemCount: context =>
+          ({ detail_actions: actions, detail_list: list })[context] ?? 8,
+        getMatchingIndex: (context, selector) =>
+          context === "detail_list" && selector === "[data-resume-target]" ? resumeIndex : -1,
+        ...readerOverrides,
+      }, OVERLAY_CONFIG)
+    }
+
+    test("opens on the action row, not the first item in the overlay", () => {
+      const { system, calls, globals } = openModal()
+      system.start({})
+      calls.length = 0
+      system.onViewChanged()
+      globals._flushRAF()
+
+      const focused = calls.filter(c => c.method === "focusFirst").map(c => c.args[0])
+      expect(focused.length).toBeGreaterThan(0)
+      expect(new Set(focused)).toEqual(new Set(["detail_actions"]))
+      expect(system.focusMachine.context).toBe("detail_actions")
+    })
+
+    test("down enters the body on the episode Play would play", () => {
+      const { system, calls, globals } = openModal({ resumeIndex: 7 })
+      system.start({})
+      system.onViewChanged()
+      globals._flushRAF()
+      calls.length = 0
+
+      globals._dispatchKeyDown("ArrowDown")
+
+      expect(system.focusMachine.context).toBe("detail_list")
+      expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 7] })
+    })
+
+    test("down returns to where the cursor was left, not the resume target", () => {
+      const { system, reader, calls, globals } = openModal({ resumeIndex: 7 })
+      system.start({})
+      system.onViewChanged()
+      globals._flushRAF()
+
+      globals._dispatchKeyDown("ArrowDown")
+      reader.getFocusedIndex = context => (context === "detail_list" ? 12 : 0)
+      globals._dispatchKeyDown("Escape")
+      calls.length = 0
+      globals._dispatchKeyDown("ArrowDown")
+
+      expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 12] })
+    })
+
+    test("reopening re-seeds the body — memory is scoped to one opening", () => {
+      const { system, reader, calls, globals } = openModal({ resumeIndex: 7 })
+      system.start({})
+      system.onViewChanged()
+      globals._flushRAF()
+      globals._dispatchKeyDown("ArrowDown")
+      reader.getFocusedIndex = context => (context === "detail_list" ? 12 : 0)
+      globals._dispatchKeyDown("Escape")
+
+      // Close, then open again on another title.
+      reader.getPresentation = () => null
+      reader.isModalOpen = () => false
+      system.onViewChanged()
+      reader.getPresentation = () => "modal"
+      reader.isModalOpen = () => true
+      reader.getFocusedIndex = () => 0
+      system.onViewChanged()
+      globals._flushRAF()
+      calls.length = 0
+
+      globals._dispatchKeyDown("ArrowDown")
+      expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 7] })
+    })
+
+    test("back climbs to the action row, then closes the modal", () => {
+      const hookEl = { pushEvent: mock(() => {}) }
+      const { system, globals } = openModal({ resumeIndex: 0 })
+      system.start(hookEl)
+      system.onViewChanged()
+      globals._flushRAF()
+
+      globals._dispatchKeyDown("ArrowDown")
+      expect(system.focusMachine.context).toBe("detail_list")
+
+      globals._dispatchKeyDown("Escape")
+      expect(system.focusMachine.context).toBe("detail_actions")
+      expect(hookEl.pushEvent).not.toHaveBeenCalled()
+
+      globals._dispatchKeyDown("Escape")
+      expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
+    })
+
+    // LEFT and RIGHT in the body are depth. What that means depends on what the
+    // cursor is on, so these drive the real DOM predicates through fakes.
+    describe("depth", () => {
+      // An episode row carries two controls: the synopsis disclosure and the
+      // watched toggle. `controls` is how many this row has.
+      function fakeRow({ expanded = null, controls = 0, head = null } = {}) {
+        const subItems = Array.from({ length: controls }, (_, i) => ({
+          name: `control-${i}`,
+          focus: mock(() => {}),
+          hasAttribute: attr => attr === "data-nav-sub-item",
+        }))
+        return {
+          subItems,
+          click: mock(() => {}),
+          focus: mock(() => {}),
+          hasAttribute: attr => attr === "data-nav-item",
+          getAttribute: name => (name === "aria-expanded" && expanded !== null ? expanded : null),
+          querySelectorAll: sel => (sel === "[data-nav-sub-item]" ? subItems : []),
+          querySelector: sel => (sel === "[data-nav-sub-item]" ? subItems[0] ?? null : null),
+          closest: sel => (sel === "[data-nav-group]" ? { querySelector: () => head } : null),
+        }
+      }
+
+      function inBody(focused) {
+        const ctx = openModal({
+          resumeIndex: 0,
+          getCurrentFocusedItem: () => focused,
+          getItemAt: () => focused,
+        })
+        ctx.system.start({})
+        ctx.system.onViewChanged()
+        ctx.globals._flushRAF()
+        ctx.globals._dispatchKeyDown("ArrowDown")
+        ctx.calls.length = 0
+        return ctx
+      }
+
+      test("right expands a collapsed season", () => {
+        const row = fakeRow({ expanded: "false" })
+        const { globals } = inBody(row)
+        globals._dispatchKeyDown("ArrowRight")
+        expect(row.click).toHaveBeenCalled()
+      })
+
+      test("right steps into an episode's controls", () => {
+        const row = fakeRow({ controls: 2 })
+        const { system, globals } = inBody(row)
+        globals._dispatchKeyDown("ArrowRight")
+        expect(system.focusMachine.subFocus).toBe(true)
+        expect(row.subItems[0].focus).toHaveBeenCalled()
+      })
+
+      // A row carries more than one control, so RIGHT keeps meaning "deeper"
+      // along them — otherwise the watched toggle, always second, is
+      // unreachable without a mouse.
+      test("right walks along the controls and stops at the last", () => {
+        const row = fakeRow({ controls: 2 })
+        const { system, globals } = inBody(row)
+        globals._dispatchKeyDown("ArrowRight")
+        globals._dispatchKeyDown("ArrowRight")
+        expect(row.subItems[1].focus).toHaveBeenCalled()
+
+        row.subItems[1].focus.mockClear()
+        globals._dispatchKeyDown("ArrowRight")
+        expect(system.focusMachine.subFocus).toBe(true)
+        expect(row.subItems[1].focus).not.toHaveBeenCalled()
+      })
+
+      test("left walks back along the controls before leaving the row", () => {
+        const row = fakeRow({ controls: 2 })
+        const { system, calls, globals } = inBody(row)
+        globals._dispatchKeyDown("ArrowRight")
+        globals._dispatchKeyDown("ArrowRight")
+        row.subItems[0].focus.mockClear()
+        calls.length = 0
+
+        globals._dispatchKeyDown("ArrowLeft")
+        expect(row.subItems[0].focus).toHaveBeenCalled()
+        expect(system.focusMachine.subFocus).toBe(true)
+
+        globals._dispatchKeyDown("ArrowLeft")
+        expect(system.focusMachine.subFocus).toBe(false)
+        expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 0] })
+      })
+
+      test("back leaves the list from inside a row's controls", () => {
+        const row = fakeRow({ controls: 2 })
+        const { system, globals } = inBody(row)
+        globals._dispatchKeyDown("ArrowRight")
+        expect(system.focusMachine.subFocus).toBe(true)
+
+        globals._dispatchKeyDown("Escape")
+        expect(system.focusMachine.context).toBe("detail_actions")
+        expect(system.focusMachine.subFocus).toBe(false)
+      })
+
+      test("right on a row with no controls does nothing — a leaf has no inside", () => {
+        const row = fakeRow()
+        const { system, calls, globals } = inBody(row)
+        globals._dispatchKeyDown("ArrowRight")
+        expect(system.focusMachine.subFocus).toBe(false)
+        expect(calls.filter(c => c.method === "focusByIndex")).toEqual([])
+      })
+
+      test("left collapses an expanded season", () => {
+        const row = fakeRow({ expanded: "true" })
+        const { globals } = inBody(row)
+        globals._dispatchKeyDown("ArrowLeft")
+        expect(row.click).toHaveBeenCalled()
+      })
+
+      test("left from an episode collapses its season and lands on the header", () => {
+        const head = { click: mock(() => {}) }
+        const row = fakeRow({ head })
+        const { calls, globals } = inBody(row)
+        globals._dispatchKeyDown("ArrowLeft")
+
+        expect(calls).toContainEqual({ method: "focusElement", args: [head] })
+        expect(head.click).toHaveBeenCalled()
+      })
+
+      test("left on an already-collapsed season does nothing", () => {
+        const row = fakeRow({ expanded: "false" })
+        const { calls, globals } = inBody(row)
+        globals._dispatchKeyDown("ArrowLeft")
+        expect(row.click).not.toHaveBeenCalled()
+        expect(calls).toEqual([])
+      })
     })
   })
 })

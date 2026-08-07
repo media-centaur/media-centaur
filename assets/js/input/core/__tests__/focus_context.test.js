@@ -763,4 +763,123 @@ describe("FocusContextMachine", () => {
       expect(machine.context).toBe("sections")
     })
   })
+
+  // BACK peels one containment layer at a time. It used to be answered
+  // independently inside each context's transition, which is why the rule was
+  // stated in prose and duplicated in eight switches; it is now one function,
+  // and an overlay with two regions falls out of it rather than needing a case.
+  describe("BACK peels layers", () => {
+    test("dismisses from a single-region overlay", () => {
+      machine.presentationChanged("modal")
+      expect(machine.transition(Action.BACK)).toEqual({ type: "dismiss" })
+    })
+
+    test("exits sub-focus before dismissing an overlay that has no inner regions", () => {
+      machine.presentationChanged("modal")
+      machine.transition(Action.NAVIGATE_RIGHT)
+      expect(machine.subFocus).toBe(true)
+
+      expect(machine.transition(Action.BACK)).toEqual({ type: "exit_sub_focus" })
+      expect(machine.subFocus).toBe(false)
+      expect(machine.transition(Action.BACK)).toEqual({ type: "dismiss" })
+    })
+
+    test("a back edge outranks dismissal — the inner region peels first", () => {
+      machine.presentationChanged("modal", "detail_list")
+      machine.setNavGraph({ detail_list: { back: "detail_actions" } })
+
+      expect(machine.transition(Action.BACK)).toEqual({
+        type: "enter_context", context: "detail_actions", direction: "back",
+      })
+      expect(machine.context).toBe("detail_actions")
+    })
+
+    test("the outermost region of an overlay dismisses it", () => {
+      machine.presentationChanged("modal", "detail_actions")
+      machine.setNavGraph({ detail_list: { back: "detail_actions" } })
+      expect(machine.transition(Action.BACK)).toEqual({ type: "dismiss" })
+    })
+
+    test("exits the primary menu", () => {
+      machine.forceContext("sidebar")
+      expect(machine.transition(Action.BACK)).toEqual({ type: "exit_sidebar" })
+    })
+
+    // Content is not a layer — LEFT at the left edge is the way to the sidebar.
+    test.each([
+      ["grid", Context.GRID],
+      ["a shelf", "continue"],
+      ["zone tabs", Context.ZONE_TABS],
+      ["a non-primary menu", "sections"],
+      ["a toolbar outside an overlay", Context.TOOLBAR],
+    ])("is a no-op in %s", (_label, context) => {
+      machine.forceContext(context)
+      expect(machine.transition(Action.BACK)).toEqual({ type: "none" })
+    })
+  })
+
+  // The detail modal's body: a two-level list of seasons and episodes. LEFT and
+  // RIGHT are depth, not lateral movement — the state machine says which way and
+  // the orchestrator resolves what that means against the DOM.
+  describe("TREE context", () => {
+    function tree(overrides = {}) {
+      const m = createMachine({
+        instanceTypes: { ...TEST_INSTANCE_TYPES, detail_list: Context.TREE },
+        ...overrides,
+      })
+      m.presentationChanged("modal", "detail_list")
+      m.setNavGraph({ detail_list: { back: "detail_actions" } })
+      return m
+    }
+
+    test("up and down walk the list", () => {
+      const m = tree()
+      expect(m.transition(Action.NAVIGATE_UP)).toEqual({ type: "navigate", direction: "up" })
+      expect(m.transition(Action.NAVIGATE_DOWN)).toEqual({ type: "navigate", direction: "down" })
+    })
+
+    test("right goes deeper, left comes back out", () => {
+      const m = tree()
+      expect(m.transition(Action.NAVIGATE_RIGHT)).toEqual({ type: "tree_in" })
+      expect(m.transition(Action.NAVIGATE_LEFT)).toEqual({ type: "tree_out" })
+    })
+
+    test("select activates", () => {
+      expect(tree().transition(Action.SELECT)).toEqual({ type: "activate" })
+    })
+
+    test("back leaves for the region above in one press, however deep the cursor is", () => {
+      const m = tree()
+      m.beginSubFocus()
+      expect(m.transition(Action.BACK)).toEqual({
+        type: "enter_context", context: "detail_actions", direction: "back",
+      })
+      expect(m.subFocus).toBe(false)
+    })
+
+    describe("in sub-focus", () => {
+      // Depth in both directions — how far LEFT actually comes out (one control,
+      // or the whole row) is a DOM question the orchestrator answers.
+      test("left and right stay depth, walking the item's controls", () => {
+        const m = tree()
+        m.beginSubFocus()
+        expect(m.transition(Action.NAVIGATE_LEFT)).toEqual({ type: "tree_out" })
+        expect(m.transition(Action.NAVIGATE_RIGHT)).toEqual({ type: "tree_in" })
+      })
+
+      test("up and down leave sub-focus and walk the list", () => {
+        const m = tree()
+        m.beginSubFocus()
+        expect(m.transition(Action.NAVIGATE_DOWN)).toEqual({ type: "navigate", direction: "down" })
+        expect(m.subFocus).toBe(false)
+      })
+
+      test("select activates the sub-item", () => {
+        const m = tree()
+        m.beginSubFocus()
+        expect(m.transition(Action.SELECT)).toEqual({ type: "activate" })
+        expect(m.subFocus).toBe(true)
+      })
+    })
+  })
 })

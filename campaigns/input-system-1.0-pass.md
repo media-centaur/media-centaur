@@ -17,11 +17,14 @@ The pass is owner-driven, one page at a time, starting with Home.
 
 ## Status
 
-Phase 1 (Home) implemented and verified against the live app — every clause of
-the owner's spec traces correctly, `mc-nav-trace` reports zero clipped steps
-across all four shelves, and cursor-following motion glides in both axes via
-`core/scroll_glide.js`. Open: confirm the feel (and the τ constant) on the real
-media-center display, where the headless frame cadence stops being a limit.
+Phase 1 (Home) shipped in v0.116.0 — every clause of the owner's spec traces
+correctly, `mc-nav-trace` reports zero clipped steps across all four shelves,
+and cursor-following motion glides in both axes via `core/scroll_glide.js`.
+
+Phase 3 (the detail modal) implemented 2026-08-07 and verified by driving real
+keydown through the live input system in a browser. Unshipped as of writing.
+
+Next: the remaining pages, one at a time, owner-directed.
 
 ## The model
 
@@ -316,7 +319,55 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
      from *still moving* (what held input looks like), so it no longer cries
      wolf. Both are useful for every remaining page.
 
-6. **Remaining pages**, owner-directed, one at a time — same two
+6. ~~**Phase 3 — the detail modal.**~~ Done 2026-08-07, owner-specified,
+   verified in a real browser (`chromium-probe`, driving real keydown through
+   the live input system on the dev server, not `render_click`). Recorded as
+   [UIDR-019](../decisions/user-interface/2026-08-07-019-detail-modal-two-regions.md).
+
+   The modal was one flat list of every focusable element in DOM order: getting
+   from Play to an episode meant walking past the buttons, and BACK closed the
+   whole modal from anywhere inside it. It is now two zones — `detail_actions`
+   (TOOLBAR) over `detail_list` (a new TREE context) — and applies to every
+   detail type, not just TV: a movie simply has no second region, so DOWN is
+   inert and BACK closes, with no conditional model.
+
+   What generalized rather than being special-cased:
+
+   * **BACK moved out of the type dispatch.** It was a `case Action.BACK` in
+     eight transition functions with the ordering between them implicit.
+     `_backTransition()` now answers it once by walking containment. "BACK
+     anywhere in the episode list goes to Play, BACK from Play closes the
+     modal" is one rule, not two cases.
+   * **Overlays can declare regions** (`data-nav-overlay` → `config.overlays`),
+     with their topology merged over the page graph while open. Anything
+     without the attribute stays flat MODAL.
+   * **`entryDefaults`** lets a context name where it opens when it has no
+     remembered position — `detail_list` uses `[data-resume-target]`, so the
+     body opens on the episode Play would play. Position memory then takes over
+     and is scoped to one opening of the overlay.
+
+   Two things found while verifying, both fixed rather than reported:
+
+   * **The watched toggle was unreachable by keyboard** and had been all along.
+     Sub-focus entered only the *first* `[data-nav-sub-item]`, and every episode
+     row with a synopsis carries the disclosure chevron first. RIGHT now walks
+     along an item's controls.
+   * **A deferred origin-focus restore could fire into a reopened overlay.**
+     `_restoreOriginFocus` queues a rAF; closing one detail modal and opening
+     another lands both transitions before that frame runs, and the restore
+     would then yank the cursor out onto the page grid. Guarded on `inOverlay`.
+     Surfaced by a unit test, not by use.
+
+   Deliberately dropped: the list-wide "Show details" toggle is no longer a nav
+   item. It sat between the action row and the first season, interrupting the
+   one path users walk; owner's call is that it belongs in Manage. Mouse-only
+   until it moves there.
+
+   Open question left in the record: UP at the top of the body does not climb
+   to the action row. BACK is the documented way out; revisit if it reads as a
+   dead end in use.
+
+7. **Remaining pages**, owner-directed, one at a time — same two
    questions each (does adjacency match intent; is the focused item
    fully revealed). Library, Incoming, Settings, Status, Review /
    Reconcile, Watch History, Guide.
@@ -332,10 +383,10 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
      rendered as a GRID? Check the column count the reader derives.
    * **Status** — DOWN is inert from index 4 of 8 while items remain below.
      Likely the same column-count question.
-7. **Remove the SHELF gate on the entry-edge rule** once the pages above are
+8. **Remove the SHELF gate on the entry-edge rule** once the pages above are
    done — the named convergence point from the Decisions entry. The mechanism
    is already uniform; only `_enterContext`'s type check limits it.
-8. **Resolve the deferred mouse-wheel question** once the keyboard and
+9. **Resolve the deferred mouse-wheel question** once the keyboard and
    gamepad models are settled.
 
 ## Completion criteria

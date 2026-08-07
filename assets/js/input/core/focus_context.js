@@ -18,6 +18,7 @@ export const Context = Object.freeze({
   TOOLBAR: "toolbar",
   MENU: "menu",
   SHELF: "shelf",
+  TREE: "tree",
   ZONE_TABS: "zone_tabs",
 })
 
@@ -85,6 +86,11 @@ export class FocusContextMachine {
     this._onContextChanged = config.onContextChanged ?? null
     this._drawerOpen = false
     this._subFocus = false
+    // Whether an overlay currently contains the cursor. Tracked separately from
+    // the context because an overlay may hold several regions (the detail
+    // modal's action row and episode list), so "am I in an overlay" can no
+    // longer be answered by comparing the context to MODAL.
+    this._overlay = false
     this._zone = "watching"
     this._navGraph = null
   }
@@ -112,6 +118,11 @@ export class FocusContextMachine {
    * @returns {FocusDirective}
    */
   transition(action) {
+    // BACK is answered before the context type, because what it does is not a
+    // property of the region you are in — it is a property of what contains
+    // that region. See `_backTransition`.
+    if (action === Action.BACK) return this._backTransition()
+
     const type = contextType(this._context, this._config.instanceTypes)
     switch (type) {
       case Context.MODAL:    return this._modalTransition(action)
@@ -120,9 +131,49 @@ export class FocusContextMachine {
       case Context.TOOLBAR:  return this._toolbarTransition(action)
       case Context.MENU:     return this._menuTransition(action)
       case Context.SHELF:    return this._shelfTransition(action)
+      case Context.TREE:     return this._treeTransition(action)
       case Context.ZONE_TABS: return this._zoneTabsTransition(action)
       default: return NONE
     }
+  }
+
+  /**
+   * BACK leaves the region you are in, whatever depth you reached inside it:
+   *
+   * 1. **A region within an overlay** — declared as a `back` edge in the nav
+   *    graph. The detail modal's episode list leaves for its action row from
+   *    anywhere: a season header, an episode, or an episode's own controls.
+   *    Stepping back out one level at a time is what LEFT is for.
+   * 2. **Sub-focus**, where the region itself has nowhere to go — the flat
+   *    overlays, whose items have controls but no region above them.
+   * 3. **The overlay itself** — dismiss.
+   * 4. **The primary menu** — back to whatever the sidebar was opened over.
+   * 5. **Content** — nothing. Reaching the sidebar from a grid, shelf, toolbar
+   *    or zone-tab strip is LEFT's job, not BACK's, and every layout gives its
+   *    left-edge context an edge that gets there.
+   *
+   * Ordering is the whole design: an overlay region leaves for its sibling
+   * before the overlay dismisses itself, which is what makes "BACK anywhere in
+   * the episode list goes to Play, BACK from Play closes the modal" one rule
+   * instead of two special cases. Each of these used to be a `case Action.BACK`
+   * in a different transition function, where the ordering was implicit.
+   */
+  _backTransition() {
+    const target = this._navGraph?.[this._context]?.back
+    if (target) {
+      this._subFocus = false
+      this._setContext(target)
+      return enterContext(target, "back")
+    }
+
+    if (this._subFocus) {
+      this._subFocus = false
+      return exitSubFocus()
+    }
+
+    if (this._overlay) return DISMISS
+    if (this._context === this._config.primaryMenu) return { type: "exit_sidebar" }
+    return NONE
   }
 
   /**
@@ -174,6 +225,24 @@ export class FocusContextMachine {
   }
 
   /**
+   * Whether an overlay currently contains the cursor.
+   */
+  get inOverlay() {
+    return this._overlay
+  }
+
+  /**
+   * Enter sub-focus without emitting a directive. The counterpart to
+   * `clearSubFocus`, for the paths where the orchestrator has already confirmed
+   * against the DOM that the focused item has a sub-item to enter — a TREE's
+   * RIGHT means "expand" or "go deeper" depending on what is under the cursor,
+   * so only the orchestrator can say which happened.
+   */
+  beginSubFocus() {
+    this._subFocus = true
+  }
+
+  /**
    * Clear sub-focus without emitting a directive.
    * Called by the orchestrator when the focused item has no sub-item.
    */
@@ -193,20 +262,28 @@ export class FocusContextMachine {
 
   /**
    * Notify that a modal/drawer has opened or closed.
+   *
    * @param {"modal"|"drawer"|null} presentation
+   * @param {string} [entryContext] - Which region of the overlay takes the
+   *   cursor. Overlays that are a single flat list omit it and get MODAL; the
+   *   detail modal names its action row, because "the first item in the
+   *   overlay" and "the region you should land in" stopped being the same thing
+   *   once the overlay had more than one region.
    */
-  presentationChanged(presentation) {
+  presentationChanged(presentation, entryContext = null) {
     this._subFocus = false
     if (presentation === "modal") {
-      this._setContext(Context.MODAL)
+      this._overlay = true
+      this._setContext(entryContext ?? Context.MODAL)
     } else if (presentation === "drawer") {
+      this._overlay = true
       this._drawerOpen = true
       this._setContext(Context.DRAWER)
     } else {
+      const wasOverlay = this._overlay
+      this._overlay = false
       this._drawerOpen = false
-      if (this._context === Context.MODAL || this._context === Context.DRAWER) {
-        this._setContext(Context.GRID)
-      }
+      if (wasOverlay) this._setContext(Context.GRID)
     }
   }
 
@@ -222,7 +299,6 @@ export class FocusContextMachine {
         case Action.SELECT:         return ACTIVATE
         case Action.NAVIGATE_UP:    this._subFocus = false; return navigate("up")
         case Action.NAVIGATE_DOWN:  this._subFocus = false; return navigate("down")
-        case Action.BACK:           this._subFocus = false; return exitSubFocus()
         case Action.PLAY:           return { type: "play" }
         default: return NONE
       }
@@ -234,7 +310,6 @@ export class FocusContextMachine {
       case Action.NAVIGATE_LEFT:  return navigate("left")
       case Action.NAVIGATE_RIGHT: this._subFocus = true; return enterSubFocus()
       case Action.SELECT:         return ACTIVATE
-      case Action.BACK:           return DISMISS
       case Action.PLAY:           return { type: "play" }
       case Action.ZONE_NEXT:      return NONE
       case Action.ZONE_PREV:      return NONE
@@ -255,7 +330,6 @@ export class FocusContextMachine {
       }
       case Action.NAVIGATE_RIGHT: return NONE
       case Action.SELECT:         return ACTIVATE
-      case Action.BACK:           return DISMISS
       case Action.PLAY:           return { type: "play" }
       case Action.ZONE_NEXT:      return { type: "zone_cycle", direction: "next" }
       case Action.ZONE_PREV:      return { type: "zone_cycle", direction: "prev" }
@@ -271,7 +345,6 @@ export class FocusContextMachine {
       case Action.NAVIGATE_LEFT:  return navigate("left")
       case Action.NAVIGATE_RIGHT: return navigate("right")
       case Action.SELECT:         return ACTIVATE
-      case Action.BACK:           return NONE
       case Action.PLAY:           return { type: "play" }
       case Action.ZONE_NEXT:      return { type: "zone_cycle", direction: "next" }
       case Action.ZONE_PREV:      return { type: "zone_cycle", direction: "prev" }
@@ -300,7 +373,6 @@ export class FocusContextMachine {
         return enterContext(target, "up")
       }
       case Action.SELECT:         return ACTIVATE
-      case Action.BACK:           return NONE
       case Action.ZONE_NEXT:      return { type: "zone_cycle", direction: "next" }
       case Action.ZONE_PREV:      return { type: "zone_cycle", direction: "prev" }
       default: return NONE
@@ -337,10 +409,6 @@ export class FocusContextMachine {
         return enterContext(target, "left")
       }
       case Action.SELECT:         return ACTIVATE
-      case Action.BACK: {
-        if (isPrimaryMenu) return { type: "exit_sidebar" }
-        return NONE
-      }
       default: return NONE
     }
   }
@@ -368,7 +436,54 @@ export class FocusContextMachine {
       case Action.NAVIGATE_UP:    return navigate("up")
       case Action.NAVIGATE_DOWN:  return navigate("down")
       case Action.SELECT:         return ACTIVATE
-      case Action.BACK:           return NONE
+      case Action.PLAY:           return { type: "play" }
+      default: return NONE
+    }
+  }
+
+  /**
+   * Tree: a vertical list whose items nest — the detail modal's body, where
+   * seasons contain episodes and an episode contains its own controls (the
+   * synopsis disclosure, the watched toggle).
+   *
+   * The dual of SHELF's insight, one axis over. UP and DOWN walk the list as
+   * rendered, so a collapsed season is one line and an expanded one is many;
+   * LEFT and RIGHT are *depth* rather than lateral movement. That is the one
+   * idiom the surface needs: RIGHT goes in (expand a collapsed season, or step
+   * into an episode's controls), LEFT comes back out (leave the controls, then
+   * collapse the season you are inside, landing on its header).
+   *
+   * Which of those RIGHT and LEFT mean depends on what the cursor is actually
+   * on, which is a DOM question — so the machine says only the direction of
+   * travel and the orchestrator's `_executeTreeIn` / `_executeTreeOut` resolve
+   * it. Keeping the DOM out of here is what lets the same context serve a
+   * season list, a movie-series list, and a bare extras list without knowing
+   * which it has.
+   *
+   * BACK is not handled here: it leaves the region entirely, which is
+   * `_backTransition`'s job.
+   */
+  _treeTransition(action) {
+    if (this._subFocus) {
+      switch (action) {
+        // Still depth, one level further in: an episode carries more than one
+        // control, so RIGHT walks along them and LEFT walks back and then out.
+        case Action.NAVIGATE_RIGHT: return { type: "tree_in" }
+        case Action.NAVIGATE_LEFT:  return { type: "tree_out" }
+        case Action.NAVIGATE_UP:    this._subFocus = false; return navigate("up")
+        case Action.NAVIGATE_DOWN:  this._subFocus = false; return navigate("down")
+        case Action.SELECT:         return ACTIVATE
+        case Action.PLAY:           return { type: "play" }
+        default: return NONE
+      }
+    }
+
+    switch (action) {
+      case Action.NAVIGATE_UP:    return navigate("up")
+      case Action.NAVIGATE_DOWN:  return navigate("down")
+      case Action.NAVIGATE_RIGHT: return { type: "tree_in" }
+      case Action.NAVIGATE_LEFT:  return { type: "tree_out" }
+      case Action.SELECT:         return ACTIVATE
       case Action.PLAY:           return { type: "play" }
       default: return NONE
     }
@@ -387,7 +502,6 @@ export class FocusContextMachine {
       }
       case Action.NAVIGATE_UP:    return NONE
       case Action.SELECT:         return ACTIVATE
-      case Action.BACK:           return NONE
       case Action.ZONE_NEXT:      return { type: "zone_cycle", direction: "next" }
       case Action.ZONE_PREV:      return { type: "zone_cycle", direction: "prev" }
       default: return NONE

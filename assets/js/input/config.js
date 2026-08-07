@@ -15,6 +15,11 @@ export const inputConfig = {
     [Context.GRID]: "[data-nav-zone='grid'] [data-nav-item]",
     [Context.DRAWER]: "[data-detail-mode='drawer'] [data-nav-item]",
     [Context.MODAL]: "[data-detail-mode='modal'] [data-nav-item]",
+    // The detail modal's two regions. A closed modal is `visibility: hidden`
+    // and its items fail `checkVisibility()`, so these count zero until it
+    // opens — no modal scoping needed on the selectors.
+    detail_actions: "[data-nav-zone='detail_actions'] [data-nav-item]",
+    detail_list: "[data-nav-zone='detail_list'] [data-nav-item]",
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
@@ -72,7 +77,33 @@ export const inputConfig = {
     other_downloads: Context.MENU,
     guide_chapters: Context.MENU,
     guide_outline: Context.MENU,
+    // The detail modal: a horizontal command row over a nesting list.
+    detail_actions: Context.TOOLBAR,
+    detail_list: Context.TREE,
   },
+
+  // Overlays that navigate as several regions rather than one flat list.
+  // Named by `data-nav-overlay` on the overlay element; anything without one
+  // stays a flat MODAL, which is right for a confirm or a small form.
+  //
+  // The detail modal is Play / More info / Manage above the body of the title —
+  // seasons and episodes for a series, the film list for a collection, extras
+  // for anything. `entry` lands the cursor on Play; `back` is what makes BACK
+  // climb from the body to the buttons before it closes the modal.
+  overlays: {
+    detail: {
+      entry: ["detail_actions", "detail_list"],
+      layout: {
+        detail_actions: { down: ["detail_list"] },
+        detail_list: { back: ["detail_actions"] },
+      },
+    },
+  },
+
+  // Contexts entered at a declared item when there is no position to return to.
+  // The detail body opens on the episode Play would play — the same row the
+  // panel scrolls to and marks as next up, so the cursor agrees with both.
+  entryDefaults: { detail_list: "[data-resume-target]" },
 
   // Zone layouts for nav graph
   layouts: {

@@ -101,6 +101,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
       }
       data-detail-mode={@open && "modal"}
       data-detail-view={@open && to_string(@detail_view)}
+      data-nav-overlay={@open && "detail"}
     >
       <%!-- No close-X — backdrop click and Escape both close, and the
             URL preserves history so browser-back also works. --%>

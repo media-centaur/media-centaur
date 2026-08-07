@@ -69,9 +69,19 @@ Two things that bite when adding a page:
 
 Verify both with `~/scripts/agents/mc-nav-trace '<keys>'`, which reports the focused context/zone/index per step plus how many px of the focused card fall outside its scrollport. Any non-zero settled clip is a bug.
 
+### TREE Behavior (nesting vertical list)
+
+`_treeTransition()` handles the detail modal's body — a vertical list whose items nest (seasons contain episodes; an episode contains its own controls). UP/DOWN walk it as rendered. LEFT and RIGHT are **depth**, not lateral movement, and the machine emits only `tree_in` / `tree_out` because what they mean depends on what the cursor is on: RIGHT expands a collapsed `[aria-expanded]` head, else steps along the item's `[data-nav-sub-item]` controls; LEFT walks back out of those, then collapses the enclosing `[data-nav-group]`'s expanded head, landing on it. Read `aria-expanded` — never mirror disclosure state into a parallel `data-` attribute.
+
+### Overlays With Regions
+
+An overlay carrying `data-nav-overlay="<name>"` navigates as several zones per `config.overlays[name]` (`entry` = cursor-start priority among its regions, `layout` = its internal edges, merged over the page graph while open). The detail modal declares `detail`: a `detail_actions` TOOLBAR over a `detail_list` TREE. Overlays without the attribute stay flat MODAL — right for confirms and small forms. See [UIDR-019](../../../decisions/user-interface/2026-08-07-019-detail-modal-two-regions.md).
+
 ### BACK and CLEAR Semantics
 
-BACK only peels layers: overlays (modal, drawer) dismiss, sub-focus exits, and the primary menu (sidebar) exits back to the pre-sidebar context. In content contexts (grid, toolbar, zone_tabs, shelf) and non-primary menus (sections, the download zones) BACK is deliberately a **no-op** — reaching the main nav is LEFT's job. Every zone layout gives its left-edge context a `left: ["sidebar"]` edge (or a chain that reaches it), so left-at-the-left-edge is the one idiom for getting to the sidebar. There is no `onEscape` behavior hook.
+BACK is answered by `_backTransition()` **before** the context-type dispatch — one function, not a `case Action.BACK` in each. It peels containment in order: an overlay region with a nav-graph `back` edge leaves for that region (one press, however deep — stepping out a level at a time is LEFT's job) → sub-focus exits → an overlay dismisses → the primary menu exits to the pre-sidebar context → content does nothing. In content contexts (grid, toolbar, zone_tabs, shelf) and non-primary menus (sections, the download zones) BACK is therefore a **no-op** — reaching the main nav is LEFT's job. Every zone layout gives its left-edge context a `left: ["sidebar"]` edge (or a chain that reaches it), so left-at-the-left-edge is the one idiom for getting to the sidebar. There is no `onEscape` behavior hook.
+
+Adding a BACK case to a transition function is a smell: express it as containment instead.
 
 CLEAR delegates to page behavior `onClear()` in any context. Library implements it (clears the filter, follows focus into the grid); download implements it (clears the omnibox query, falling through to the history search). If no `onClear` exists, the action is silently dropped.
 
@@ -117,6 +127,9 @@ All config changes go in `config.js`:
 | `data-nav-reveal-block` | Block-axis alignment for the reveal (`start`/`center`/`end`), so a surface rests in one place whichever way it was approached |
 | `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children |
 | `data-nav-focus-ring` | Receive delegated focus ring when ancestor `data-nav-focus-target` item is focused |
+| `data-nav-overlay` | Overlay navigates as regions per `config.overlays[name]` (`detail`) |
+| `data-nav-group` | Extent of a disclosure — LEFT inside it collapses via its `[aria-expanded]` head |
+| `aria-expanded` | Disclosure state on a nav item, read directly by TREE navigation |
 | `data-input` | Current input method on `<html>` (`mouse`, `keyboard`, `gamepad`) |
 | `data-nav-context` | Current focus context for hint bar on `<html>` |
 | `data-gamepad-type` | Controller type for hint bar labels on `<html>` (`xbox`, `playstation`, `generic`) |

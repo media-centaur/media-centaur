@@ -22,6 +22,9 @@
  * @param {Object} [config.layouts] - Spatial layouts per zone
  * @param {string[]} [config.alwaysPopulated] - Contexts that skip item count check
  * @param {boolean} [config.drawerOpen=false]
+ * @param {Object} [config.overlayLayout] - Edges contributed by an open overlay,
+ *   merged over the page's. An overlay's regions relate to each other the same
+ *   way whatever page it was opened from, so its topology is not per-zone.
  * @returns {Object} Adjacency map
  */
 export function buildNavGraph(zone, counts, config = {}) {
@@ -29,8 +32,8 @@ export function buildNavGraph(zone, counts, config = {}) {
   const alwaysPopulated = config.alwaysPopulated ?? []
   const drawerOpen = config.drawerOpen ?? false
 
-  const layout = layouts[zone]
-  if (!layout) return {}
+  const layout = { ...layouts[zone], ...config.overlayLayout }
+  if (Object.keys(layout).length === 0) return {}
 
   const graph = {}
 

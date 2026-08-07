@@ -148,7 +148,7 @@ Defines the `Action` enum and maps keyboard keys / gamepad buttons to semantic a
 
 The `FocusContextMachine` tracks which navigation context is active and returns `FocusDirective` data objects. Never touches DOM.
 
-**Context types:** `GRID` · `TOOLBAR` · `ZONE_TABS` · `MENU` · `SHELF` · `MODAL` · `DRAWER`
+**Context types:** `GRID` · `TOOLBAR` · `ZONE_TABS` · `MENU` · `SHELF` · `TREE` · `MODAL` · `DRAWER`
 
 **Instance → type mapping:** The `contextType(instance, instanceTypes)` resolver maps instance names to behavior types. Multiple instances can share the same behavior type — for example, both `"sidebar"` and `"sections"` resolve to `MENU`, and the home page's `"hero"`/`"continue"`/`"recently"`/`"coming_up"` shelves all resolve to `SHELF`. Instance names not in the map are their own type (e.g., `"grid"` → `GRID`). The map is provided via config, not hardcoded in the framework.
 
@@ -250,7 +250,15 @@ Source-agnostic action router. Receives full config object including `reader`, `
 
 **CLEAR routing.** The `CLEAR` action (Y / Backspace) is routed to the page behavior's `onClear()` hook before any other handling. If the behavior has no `onClear`, the action is a no-op. This separates "reset page state" (clear filter) from "go back" (navigate toward sidebar).
 
-**BACK only peels layers.** BACK dismisses overlays (modal, drawer), exits sub-focus, and exits the primary menu (sidebar) back to content. Everywhere else — content contexts (grid, toolbar, zone_tabs, shelf) and non-primary menus (sections, the download zones) — BACK is deliberately a no-op. Lateral movement toward the sidebar belongs to LEFT: every zone layout gives its left-edge context a `left: ["sidebar"]` edge (or a chain that reaches it), so left-at-the-left-edge is the one idiom for reaching the main nav.
+**BACK peels containment, and is answered once.** `transition()` routes BACK to `_backTransition()` *before* dispatching on context type, so the rule lives in one place instead of a `case Action.BACK` in every transition function. In order:
+
+1. **An overlay region** with a `back` edge in the nav graph → leave for that region. One press, however deep the cursor is inside the region (see [UIDR-019](../decisions/user-interface/2026-08-07-019-detail-modal-two-regions.md)) — stepping out one level at a time is LEFT's job.
+2. **Sub-focus** → back out to the item. Reached only in overlays with no inner regions, i.e. the flat ones.
+3. **An overlay** → dismiss.
+4. **The primary menu** → exit to the pre-sidebar context.
+5. **Content** → nothing.
+
+Lateral movement toward the sidebar belongs to LEFT: every zone layout gives its left-edge context a `left: ["sidebar"]` edge (or a chain that reaches it), so left-at-the-left-edge is the one idiom for reaching the main nav.
 
 **Activate on focus.** The `primaryMenu` (sidebar) always clicks items on focus during up/down navigation, triggering page navigation. Page behaviors can declare `activateOnFocus: ["sections"]` to add the same behavior for other menu contexts on that page only. This is page-scoped to avoid unintended navigation — e.g., the dashboard and settings pages both use a `sections` zone, but only settings should auto-navigate between sub-pages.
 
@@ -272,27 +280,45 @@ Extracts library-specific concerns from the orchestrator. Receives a `dom` inter
 
 Actions in each context:
 
-| Action | GRID | TOOLBAR | ZONE_TABS | MENU (sidebar) | MENU (other) | SHELF | MODAL | DRAWER |
-|--------|------|---------|-----------|----------------|--------------|-------|-------|--------|
-| Up | navigate | nav graph up | wall | navigate | navigate (wall → graph) | navigate (spatial) | navigate (wrap) | navigate |
-| Down | navigate | nav graph down | → TOOLBAR or GRID | navigate | navigate (wall → graph) | navigate (spatial) | navigate (wrap) | navigate |
-| Left | navigate | navigate | navigate | wall | nav graph left | navigate (spatial) | navigate (wrap) | → GRID (row edge) |
-| Right | navigate | navigate | navigate | exit sidebar | nav graph right | navigate (spatial) | sub-focus / navigate | wall |
-| Select | activate | activate | activate | exit sidebar* | click + nav right | activate | activate | activate |
-| Back | no-op | no-op | no-op | exit sidebar | no-op | no-op | dismiss | dismiss |
-| Clear | onClear | onClear | onClear | — | — | onClear | — | — |
-| Play | play | — | — | — | — | play | play | play |
+| Action | GRID | TOOLBAR | ZONE_TABS | MENU (sidebar) | MENU (other) | SHELF | TREE | MODAL | DRAWER |
+|--------|------|---------|-----------|----------------|--------------|-------|------|-------|--------|
+| Up | navigate | nav graph up | wall | navigate | navigate (wall → graph) | navigate (spatial) | navigate | navigate (wrap) | navigate |
+| Down | navigate | nav graph down | → TOOLBAR or GRID | navigate | navigate (wall → graph) | navigate (spatial) | navigate | navigate (wrap) | navigate |
+| Left | navigate | navigate | navigate | wall | nav graph left | navigate (spatial) | `tree_out` | navigate (wrap) | → GRID (row edge) |
+| Right | navigate | navigate | navigate | exit sidebar | nav graph right | navigate (spatial) | `tree_in` | sub-focus / navigate | wall |
+| Select | activate | activate | activate | exit sidebar* | click + nav right | activate | activate | activate | activate |
+| Back | no-op | no-op | no-op | exit sidebar | no-op | no-op | graph `back` | dismiss | dismiss |
+| Clear | onClear | onClear | onClear | — | — | onClear | — | — | — |
+| Play | play | — | — | — | — | play | play | play | play |
+
+A TOOLBAR *inside an overlay* (the detail modal's action row) reads the same as
+the column above except for BACK, which the containment order resolves to
+`dismiss` — the region has no `back` edge, so the overlay itself is the next
+layer out.
 | Zone± | zone_cycle | zone_cycle | zone_cycle | — | — | — | — | zone_cycle |
 
 \* Primary menu items are already activated on focus — SELECT just exits without clicking.
 
-**BACK behavior:** BACK only peels layers. In modal/drawer it dismisses; in the primary menu (sidebar) it exits back to the pre-sidebar context. In content contexts (grid/toolbar/zone_tabs/shelf) and non-primary menus it is a no-op — reaching the sidebar is LEFT's job (every left-edge context has a nav-graph `left` edge toward it).
+**BACK behavior:** answered by `_backTransition()` before the type dispatch — see the containment order above. The table's BACK column is what that order resolves to per context.
 
 **CLEAR behavior:** In any context, CLEAR delegates to the page behavior's `onClear()` hook. Currently only the library behavior implements this (clears the filter input). If no `onClear` exists, the action is silently dropped.
 
 **MENU behavior:** The sidebar instance has hardcoded exit_sidebar on right/back and wall on left. Other MENU instances (like `"sections"`, `"rail"`) use the navigation graph for left/right — if the graph points to `"sidebar"`, it produces `enter_sidebar`; BACK is a no-op there. Non-primary menus also support wall-to-graph fallback on up/down: hitting the top or bottom of the list consults the nav graph for that direction (e.g., up from the first `rail` item transitions to `actions`).
 
 **Modal navigation:** UP/DOWN/LEFT navigate linearly with wrapping. RIGHT tries sub-focus first (entering a sub-item within the focused element); if no `[data-nav-sub-item]` exists, falls back to linear navigation. This makes both vertical item lists and horizontal button rows work without per-modal configuration.
+
+**Overlays with regions.** An overlay carrying `data-nav-overlay="<name>"` navigates as several zones instead of one flat list, per `config.overlays[name]`: `entry` is the cursor-start priority among its regions, `layout` its internal edges (merged over the page's graph while it is open). The detail modal declares `detail` — a `detail_actions` TOOLBAR over a `detail_list` TREE, with `detail_list: { back: ["detail_actions"] }` giving BACK its first rung. Overlays without the attribute stay flat MODAL, which is right for a confirm or a small form.
+
+**TREE navigation:** a vertical list whose items nest. UP/DOWN walk it as rendered; LEFT and RIGHT are *depth*. The state machine emits only `tree_in` / `tree_out` — what they mean depends on what the cursor is on, which is a DOM question the orchestrator answers:
+
+| Cursor on | `tree_in` (RIGHT) | `tree_out` (LEFT) |
+|---|---|---|
+| `[aria-expanded='false']` | click it (expand) | — |
+| `[aria-expanded='true']` | step into its controls | click it (collapse) |
+| A row inside a `[data-nav-group]` | step into its controls | focus the group's expanded head, then click it |
+| A row's controls | next control | previous control, then out to the row |
+
+**Contexts can open somewhere other than the top.** `config.entryDefaults[context]` names a CSS selector used when a context has no remembered position — `detail_list` uses `[data-resume-target]` so the body opens on the episode Play would play.
 
 **Wall transitions** (when navigation reaches the edge):
 - Grid up → TOOLBAR (library zone) or ZONE_TABS (watching zone)
@@ -330,6 +356,9 @@ Actions in each context:
 | `data-entity-id` | Stable entity identifier on cards | UUID |
 | `data-detail-mode` | Presentation shell type | `modal`, `drawer` |
 | `data-detail-view` | Sub-view within modal (read by orchestrator for layered BACK) | `main`, `info` |
+| `data-nav-overlay` | Overlay navigates as regions per `config.overlays[name]` | `detail` |
+| `data-nav-group` | Extent of a disclosure — LEFT inside it collapses via its `[aria-expanded]` head | (bare) |
+| `aria-expanded` | Disclosure state on a nav item. Standard markup, read directly rather than mirrored into a `data-` attribute | `true`, `false` |
 | `data-dismiss-event` | Custom event pushed on modal dismiss instead of `close_detail` | event name string |
 | `data-section-type` | Section identifier for page behavior `onAction` dispatch | `calendar`, `tracking`, `scan`, etc. |
 | `data-captures-keys` | Element handles own keyboard events | — |
@@ -420,7 +449,7 @@ comes off page by page as each is reviewed. See
 - **Zone change:** Clears grid + toolbar memory (content is new)
 - **Sort change:** Clears grid memory (order changed, positions meaningless)
 - **Modal/drawer dismiss:** Restores to the originating card via `_originEntityId`
-- **Modal sub-view transition:** When BACK fires in a modal with `data-detail-view != "main"`, the orchestrator pushes `close_detail` without dismissing focus context. Sets `_pendingModalRefocus = true`, and `_syncState` refocuses the first modal item after LiveView patches the DOM. This prevents focus from falling to the grid when morphdom removes the sub-view's focused element.
+- **Modal sub-view transition:** When BACK fires in a modal with `data-detail-view != "main"`, the orchestrator pushes `close_detail` without dismissing focus context. Sets `_pendingModalRefocus = true`, and `_syncState` refocuses the overlay's entry region after LiveView patches the DOM. This prevents focus from falling to the grid when morphdom removes the sub-view's focused element.
 
 **Active item detection:** `reader.getActiveItemIndex(context)` finds the first item in a context with any "active" marker class from `config.activeClassNames`. When adding a new context with an active-item visual, add the class to the `activeClassNames` array in `config.js`.
 
