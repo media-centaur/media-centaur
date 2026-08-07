@@ -22,7 +22,6 @@ import { createReconcileBehavior } from "./reconcile_behavior"
 import { createSettingsBehavior } from "./settings_behavior"
 import { createIncomingBehavior, incomingDom } from "./incoming_behavior"
 import { createWatchHistoryBehavior } from "./watch_history_behavior"
-import { createHomeBehavior, homeDom } from "./home_behavior"
 import { createSetupBehavior } from "./setup_behavior"
 import { createGuideBehavior } from "./guide_behavior"
 import { withWipNotice } from "./wip_notice"
@@ -32,7 +31,6 @@ import { withWipNotice } from "./wip_notice"
 // single source of truth for which pages show it; unwrap an entry once its
 // in-page navigation is finished.
 const BEHAVIOR_REGISTRY = {
-  home: () => createHomeBehavior(homeDom),
   status: () => createStatusBehavior(),
   library: () => createLibraryBehavior(libraryDom),
   review: () => createReviewBehavior(),

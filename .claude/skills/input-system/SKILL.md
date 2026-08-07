@@ -65,7 +65,7 @@ SELECT activates the focused card; BACK is a no-op.
 Two things that bite when adding a page:
 
 - **Entering a context ≠ restoring it.** `_enterContext(context, direction)` handles user-driven crossings and honours a declared `config.entryAnchors` index (the hero always enters at Play) and then memory *constrained to the edge you crossed*. `_restoreContextFocus()` re-asserts focus after a DOM patch and obeys neither — applying entry rules on reconcile drags the cursor on every re-render. The edge constraint is currently gated to SHELF; the gate comes off page by page.
-- **`revealItem()` in `dom_adapter.js` is the single owner of "make it visible."** The input system owns *where* the scroll lands; CSS owns *how* it gets there. Never put `scroll-snap-type` on a nav-driven scroll container (it overrides `scrollIntoView` and clips the focused card), and never ask `scrollIntoView` for `behavior: "smooth"` (it stops retargeting under fast input and strands the row) — put `scroll-behavior: smooth` on the container instead.
+- **`revealItem()` in `dom_adapter.js` is the single owner of "make it visible."** The input system owns the scroll outright — destination *and* motion. Never put `scroll-snap-type` on a nav-driven container (it overrides `scrollIntoView` and clips the focused card) and never put `scroll-behavior` on one either (it hijacks the glide's per-frame `scrollLeft` writes). Motion lives in `scroll_glide.js`, which chases a moving target instead of restarting an easing curve — both browser smooth-scroll routes collapse under held input. Use `data-nav-reveal` on an ancestor when the item is not the thing worth showing; don't add a page behavior that scrolls the window separately.
 
 Verify both with `~/scripts/agents/mc-nav-trace '<keys>'`, which reports the focused context/zone/index per step plus how many px of the focused card fall outside its scrollport. Any non-zero settled clip is a bug.
 
@@ -113,6 +113,7 @@ All config changes go in `config.js`:
 | `data-captures-keys` | Element handles own keyboard events |
 | `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT |
 | `data-nav-action` | Custom event name dispatched on SELECT instead of `.click()` |
+| `data-nav-reveal` | Scroll THIS ancestor into view instead of the focused item |
 | `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children |
 | `data-nav-focus-ring` | Receive delegated focus ring when ancestor `data-nav-focus-target` item is focused |
 | `data-input` | Current input method on `<html>` (`mouse`, `keyboard`, `gamepad`) |

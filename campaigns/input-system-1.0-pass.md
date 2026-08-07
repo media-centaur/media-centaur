@@ -18,10 +18,10 @@ The pass is owner-driven, one page at a time, starting with Home.
 ## Status
 
 Phase 1 (Home) implemented and verified against the live app — every clause of
-the owner's spec traces correctly and `mc-nav-trace` reports zero clipped steps
-across all four shelves at both fast and slow input rates. Open: gamepad
-confirmation on real hardware, and whether vertical (shelf-to-shelf) scrolling
-should glide the way the rows now do.
+the owner's spec traces correctly, `mc-nav-trace` reports zero clipped steps
+across all four shelves, and cursor-following motion glides in both axes via
+`core/scroll_glide.js`. Open: confirm the feel (and the τ constant) on the real
+media-center display, where the headless frame cadence stops being a limit.
 
 ## The model
 
@@ -108,8 +108,9 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
 * `2026-08-07` — **Scroll-snap and focus-driven scrolling are mutually
   exclusive.** Remove `scroll-snap-type` from `.row-scroll` rather than
   trying to make `scrollIntoView` cooperate with it.
-* `2026-08-07` — **The glide belongs to CSS `scroll-behavior` on the
-  container, never to `scrollIntoView({behavior: "smooth"})`.** Measured, and
+* `2026-08-07` — **SUPERSEDED the same day (see the next entry): the glide
+  belongs to CSS `scroll-behavior`, not `scrollIntoView({behavior:
+  "smooth"})`.** Measured, and
   it reversed the plan: `scrollIntoView` with smooth **stops retargeting under
   fast input** and strands the row mid-glide — stalled dead at scrollLeft 1103
   with the cursor 300–950px outside the scrollport at a 220ms step rate, while
@@ -120,6 +121,37 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
   it gets there** — snap violated the first, `scroll-behavior` only touches the
   second. No rAF glide or damped spring was needed; that idea is dropped, not
   deferred.
+* `2026-08-07` — **Neither browser smooth-scroll route works; the glide is
+  ours (`core/scroll_glide.js`).** The CSS decision above was measured only at
+  a 220ms step rate. At real key-repeat (~33ms) `scroll-behavior: smooth`
+  fails just as badly as the `scrollIntoView` variant, for a different reason:
+  it *does* retarget, but restarts its ease-in curve from rest every time, so
+  the row never escapes the slow opening — the cursor ran **3015px off-screen
+  while `scrollLeft` sat at 3**, then lurched the whole distance on key-up.
+  Owner had independently proposed the right model: cursor moves instantly,
+  the row chases, and **a further target scrolls faster**. That is an
+  exponential approach — each frame closes a fixed fraction of the remaining
+  gap — so speed depends only on distance and retargeting is just a new number
+  with no easing to restart. Measured steady-state lag: **~70px at the
+  gamepad's 180ms repeat**, ~200px at 100ms. `scroll-behavior` is now banned
+  from every nav-driven container *including `html`*, because it also
+  intercepts direct `scrollLeft`/`scrollTop` assignment and would fight the
+  glide's per-frame writes.
+* `2026-08-07` — **`data-nav-reveal` replaces the home page behavior.** Owner
+  reported the page "JERKS suddenly" entering the hero from below. Cause: the
+  home behavior scrolled the window to the top on `onZoneChanged` — a second
+  scroll of the same box, racing the reveal, and necessarily instant because a
+  smooth one would be rewound by the reveal's measure-and-restore. Fixed at
+  the seam instead: an ancestor may carry `data-nav-reveal` to declare itself
+  the thing worth showing, so the hero reveals its whole backdrop rather than
+  just the CTA. `home_behavior.js` and `data-page-behavior="home"` are deleted
+  — the page needs no behavior at all now.
+* `2026-08-07` — **Time constant τ = 110ms, pending real hardware.** Tested
+  70/110/150 at 33ms and 180ms repeat. The 180ms column is clean and monotonic
+  (23 / 73 / 132px lag); the 33ms column is not trustworthy headless, because
+  under SwiftShader the input rate approaches the rAF cadence and the
+  comparison measures frame starvation rather than the algorithm. τ is a
+  one-line constant — retune on the media-center display if the feel is off.
 * `2026-08-07` — **Shelves are spatial everywhere, not just the mosaic.** Hero,
   Continue Watching, Recently Added and Coming Up stay one context type with
   one navigation path (`_shelfNavigate`): geometry → nav graph → sequence. A
@@ -150,11 +182,9 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
 2. **Confirm on real hardware** — gamepad stick-hold and held-arrow key repeat
    on the media-center display. The headless trace covers focus and geometry
    but cannot judge how the glide *feels*.
-3. **Owner call: should vertical scrolling glide too?** Shelf-to-shelf movement
-   still jumps, because `scroll-behavior` was added to `.row-scroll` only.
-   Making the page glide means `scroll-behavior` on the scroll root, which
-   affects every page — a cross-page design decision, deliberately not taken
-   unilaterally inside a home-page phase.
+3. ~~**Should vertical scrolling glide too?**~~ Owner: yes, "so the eye can
+   follow it". Done — the glide animates whichever containers a reveal moves,
+   so the page glides on the same mechanism as the rows, on every page.
 4. **Remaining pages**, owner-directed, one at a time — same two
    questions each (does adjacency match intent; is the focused item
    fully revealed). Library, Incoming, Settings, Status, Review /
