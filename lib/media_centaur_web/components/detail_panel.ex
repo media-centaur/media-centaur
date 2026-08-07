@@ -293,9 +293,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         :if={@has_scrollable_content}
         id="detail-content"
         class="detail-content-sheet px-4 pb-5"
-        phx-hook="ScrollToResume"
+        phx-hook="DetailBodyScroll"
         data-nav-zone="detail_list"
         data-entity-id={@entity.id}
+        data-view={@detail_view}
         data-scroll-to-resume={@autoscroll_resume? || nil}
       >
         <%= case @detail_view do %>
@@ -331,7 +332,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   # Whether the detail document opens scrolled to its resume target —
-  # the sole signal the `ScrollToResume` hook reads.
+  # the sole signal the `DetailBodyScroll` hook reads.
   #
   # TV asks `Orientation`: an unstarted series expands season 1 but has
   # no position to return to, so it must not scroll even though its E1
