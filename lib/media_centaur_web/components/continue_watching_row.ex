@@ -19,9 +19,10 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
-  # Cards sit in a `.row-scroll-backdrop` track — 9 across at the widest
-  # breakpoint, so roughly 180 CSS px each, doubled on a 4K panel. The logo is
-  # height-capped (`max-h-20`) and bounded to 80% of the card.
+  # Cards sit in a `.row-scroll-backdrop-lg` track, so each is
+  # `--card-backdrop-w` (453 CSS px, app.css) — 906 device px on a 4K panel,
+  # which `960` covers. The logo is height-capped (`max-h-20`) and bounded to
+  # 80% of the card.
 
   defmodule Item do
     @moduledoc "View-model for a single Continue Watching card."

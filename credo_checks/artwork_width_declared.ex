@@ -28,7 +28,7 @@ defmodule MediaCentaur.Credo.Checks.ArtworkWidthDeclared do
           <img src={sized_image_url(@hero.backdrop_url, :full_bleed)} />
 
           # preferred — the surface owns its builder so ArtworkWarmup can
-          # prefetch the identical URL (see LibraryCards.poster_src/1)
+          # prefetch the identical URL (see LiveHelpers.poster_src/1)
           <img src={poster_src(@entry.poster_url)} />
 
           # flagged — serves the full-resolution master by omission

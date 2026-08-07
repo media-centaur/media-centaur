@@ -1,6 +1,12 @@
 defmodule MediaCentaurWeb.Components.PosterRow do
   @moduledoc """
-  Horizontal poster row (8-up). Used on Home for the "Recently Added" row.
+  Horizontal poster row. Used on Home for the "Recently Added" row.
+
+  Cards are the shared 2:3 poster (`--card-poster-w`), so they are the same
+  size as the library grid's — the row's "See all" lands on `/library`, and
+  posters that resized across that step would read as two different objects.
+  How many fit is left to `.row-scroll-poster`; the last one is deliberately
+  cut off, which is what says the row scrolls.
 
   Each item is an `Item` struct (see below). `year` may be a string like
   "2023" or "S2 · 2026".
@@ -11,7 +17,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
 
   use Phoenix.Component
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
-  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
+  import MediaCentaurWeb.LiveHelpers, only: [poster_src: 1]
 
   defmodule Item do
     @moduledoc "View-model for a single PosterRow card."
@@ -55,7 +61,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
       >
         <img
           :if={item.poster_url}
-          src={sized_image_url(item.poster_url, 480)}
+          src={poster_src(item.poster_url)}
           alt={item.name}
           class="absolute inset-0 w-full h-full object-cover"
           loading="eager"

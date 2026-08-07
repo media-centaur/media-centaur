@@ -195,6 +195,29 @@ defmodule MediaCentaurWeb.LiveHelpers do
       when (is_nil(url) or is_binary(url)) and
              ((is_integer(width) and width > 0) or width == :full_bleed), do: url
 
+  # A 2:3 poster paints at `--card-poster-w` (170 CSS px, app.css), which is
+  # 340 device px on a 4K panel — the app composes at 1920 CSS px and scales
+  # 2×. 640 clears that with room for the grid's `1fr` growth, which can
+  # stretch a card ~11% past the token before a column is added.
+  @poster_width 640
+
+  @doc """
+  The `src` every 2:3 poster renders, at any size the poster token produces.
+
+  One size means one derivative: the library grid and Home's Recently Added
+  row paint the same box (`--card-poster-w`), so they must request the same
+  bytes. They used to name their own widths — 640 and 480 — which put two
+  copies of every poster on disk and guaranteed the Home row missed the
+  cache, because `ArtworkWarmup` prefetches this function's output and only
+  ever knew about one of them.
+
+  Public because that warmup calls it. A hint that differs by so much as a
+  query parameter is a cache miss and dead weight, so the surfaces and the
+  prefetch share one definition rather than three copies of a number.
+  """
+  @spec poster_src(String.t() | nil) :: String.t() | nil
+  def poster_src(poster_url), do: sized_image_url(poster_url, @poster_width)
+
   # The artwork file is rewritten in place on a TMDB re-scrape (same
   # `<owner_id>/<role>.<ext>` path), so a bare URL would let the browser
   # serve stale bytes for up to an hour (ImageServer's unversioned

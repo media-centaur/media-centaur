@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
   import MediaCentaur.TestFactory
 
   alias MediaCentaurWeb.ArtworkWarmup
-  alias MediaCentaurWeb.Components.LibraryCards
+  alias MediaCentaurWeb.LiveHelpers
   alias MediaCentaurWeb.HomeLive.Logic, as: HomeLogic
 
   describe "urls/0" do
@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
       # miss and the warmup is dead weight. Both sides call `poster_src/1`,
       # so this asserts the shared function is actually the one in use rather
       # than re-stating a width the test would have to keep in sync too.
-      assert LibraryCards.poster_src("/media-images/#{movie.id}/poster.jpg") in urls
+      assert LiveHelpers.poster_src("/media-images/#{movie.id}/poster.jpg") in urls
     end
 
     test "skips entities without artwork and never returns nil or duplicates" do
@@ -40,7 +40,7 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
       end
 
       poster_marker =
-        LibraryCards.poster_src("/media-images/x/poster.jpg") |> String.split("?") |> List.last()
+        LiveHelpers.poster_src("/media-images/x/poster.jpg") |> String.split("?") |> List.last()
 
       poster_urls = Enum.filter(ArtworkWarmup.urls(), &String.contains?(&1, poster_marker))
 
@@ -108,7 +108,7 @@ defmodule MediaCentaurWeb.ArtworkWarmupTest do
       html = conn |> get("/history") |> html_response(200)
 
       assert html =~ ~s(rel="prefetch")
-      assert html =~ LibraryCards.poster_src("/media-images/#{movie.id}/poster.jpg")
+      assert html =~ LiveHelpers.poster_src("/media-images/#{movie.id}/poster.jpg")
     end
   end
 end

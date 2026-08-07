@@ -205,6 +205,30 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       assert render(view) =~ ~s|data-state="open"|
     end
 
+    test "the Recently Added row requests the library grid's poster derivative", %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      create_image(%{movie_id: movie.id, role: "poster", content_url: "#{movie.id}/poster.jpg"})
+
+      # Both surfaces paint a poster at the same size, so they must request
+      # the same derivative — one file on disk, and the one URL
+      # `ArtworkWarmup` prefetches. A row that names its own width is a
+      # guaranteed cache miss. Derived from `poster_src/1` rather than
+      # restating the width, so the width has exactly one owner.
+      width_marker =
+        "/media-images/x/poster.jpg"
+        |> MediaCentaurWeb.LiveHelpers.poster_src()
+        |> String.split("?")
+        |> List.last()
+
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      assert has_element?(
+               view,
+               ~s|[data-component="poster-row"] img[src*="#{width_marker}"]|
+             )
+    end
+
     test "navigating directly to /?selected=UUID mounts modal open", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       _ = create_linked_file(%{movie_id: movie.id})

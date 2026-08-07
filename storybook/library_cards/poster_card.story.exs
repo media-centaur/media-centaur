@@ -34,12 +34,13 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
   def function, do: &MediaCentaurWeb.Components.LibraryCards.poster_card/1
   def render_source, do: :function
 
-  # The card's natural width is the grid's `minmax(155px, 1fr)`. The
-  # template constrains the preview to that range so the previews
-  # render at production size rather than stretched to column width.
+  # The card's natural width is `--card-poster-w` (app.css). Previewing in
+  # the real `.poster-grid` rather than a copy of its column template means
+  # the story cannot drift from the page when the token moves; the width cap
+  # just holds the preview to a couple of columns.
   def template do
     """
-    <div class="grid grid-cols-[repeat(auto-fill,minmax(155px,1fr))] gap-3 max-w-[640px]">
+    <div class="poster-grid max-w-[640px]">
       <.psb-variation/>
     </div>
     """

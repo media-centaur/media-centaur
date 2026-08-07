@@ -451,7 +451,7 @@ defmodule MediaCentaurWeb.LibraryLive do
               <div
                 id="library-grid"
                 phx-update="stream"
-                class="grid grid-cols-[repeat(auto-fill,minmax(155px,1fr))] gap-3"
+                class="poster-grid"
                 data-nav-grid
               >
                 <LibraryCards.poster_card
