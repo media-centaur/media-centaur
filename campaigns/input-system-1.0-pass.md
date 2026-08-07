@@ -174,6 +174,24 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
   entry-edge rule: tile 3 does not touch Coming Up's top edge, so it is
   not a candidate when entering from above.
 
+* `2026-08-07` — **The shelf-framing rule is "descending fully reveals the
+  shelf below", and the reserve is sized from that shelf — not a round
+  number.** `--shelf-reserve-below` is `calc(var(--marquee-h) + 5rem)`: one
+  whole marquee (the tallest shelf) plus its heading and the inter-section
+  gap. `--marquee-h` moved out of the component into `:root` so the height and
+  the reserve sized to reveal it are one number with two consumers. Owner's
+  framing — "we can just move far enough down that coming up is fully
+  visible" — is what settled this; a consistent per-row anchor was the
+  alternative and would have needed ~310px of reserved trailing space, which
+  is now NOT wanted.
+* `2026-08-07` — **UI-scale compatibility: express the reserve in `rem`/`px`,
+  never `vh`.** The shell scales with `zoom`, which multiplies every rendered
+  length, so the reserve and the shelf it is sized to reveal grow together and
+  the rule survives untouched. A bare `Nvh` renders at `N × scale` under zoom
+  (the trap `--pvh` exists for) and would make the reserve balloon relative to
+  its shelf as the user scales up. Verified at four scales (effective 0.49 /
+  0.70 / 1.05 / 1.40): the next shelf is 100% visible at every one, and at the
+  smallest the page does not scroll at all because nothing needs to.
 * `2026-08-07` — **Shelf framing is `scroll-margin`, not a per-step scroll
   distance.** Owner asked that moving down a shelf lift the focused row and
   drag the next one into view, rather than the row merely being on screen.
@@ -200,13 +218,13 @@ Against the live dev service on `:2160` with `mc-nav-trace`:
    (`scroll-behavior` was an intermediate step that did not survive
    measurement — see Decisions).
 2. ~~**Confirm on real hardware**~~ — owner: "it feels fine". τ stays at 110ms.
-3. **Owner call: should ascending re-frame too?** Descending is progressive
-   (0 → 119 → 354); ascending does not move the page at all until the hero,
-   because with the reserves in play every row is already visible so
-   `scrollIntoView`'s minimal scroll is a no-op. Symmetry would need a top
-   reserve large enough to force the page back down, which means the page
-   moves on *every* row change — more consistent, but busier. Not taken
-   unilaterally.
+3. **Owner call: should ascending re-frame too?** Deferred by the owner until
+   descending is settled — descending now is. Ascending does not move the page
+   at all until the hero, because with the reserves in play every row is
+   already visible on the way back up, so `scrollIntoView`'s minimal scroll is
+   a no-op. Symmetry would need a top reserve large enough to push the page
+   back down, which means it moves on *every* row change — more consistent,
+   but busier.
 4. ~~**Should vertical scrolling glide too?**~~ Owner: yes, "so the eye can
    follow it". Done — the glide animates whichever containers a reveal moves,
    so the page glides on the same mechanism as the rows, on every page.
