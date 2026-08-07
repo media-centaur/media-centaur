@@ -158,7 +158,7 @@ All four directions in a `SHELF` return a plain `navigate`; the orchestrator's `
 
 1. **The layout** — `findNearest()` against the live item rects. This answers anything the arrangement makes unambiguous, and it is why the mosaic needs no adjacency table of its own (one would be wrong the moment the marquee renders a fourth tile).
 2. **The nav graph** — nothing in that direction means we're at the shelf's edge, so try crossing into a neighbouring zone. Empty shelves are skipped by the graph's candidate fallback lists.
-3. **The sequence** — a shelf is still an ordered set. When the layout offers nothing and there is nowhere to cross to, "right" means the next tile. This is what carries you from the marquee's top secondary down to the one below it; in a single row it only fires at the ends, where the sequence has nothing to offer either.
+3. **The sequence, inline axis only** — a shelf is still an ordered set, and that order reads left to right. When the layout offers nothing and there is nowhere to cross to, "right" means the next tile: this is what carries you from the marquee's top secondary *rightward* to the one below it. UP and DOWN deliberately never reach here — "the next tile" in a mosaic is the one beside you, so a vertical press would move the cursor sideways (measured: DOWN on the marquee's large tile landed on the top secondary, up and to its right). In a single row the fallback only fires at the ends, where the sequence has nothing to offer either.
 
 Keeping wall handling out of the state machine is what lets a row and a mosaic share one rule set — the machine never has to know which it is.
 
@@ -326,7 +326,7 @@ layer out.
 - Grid right → DRAWER (if open)
 - MENU up/down → nav graph target for that direction (if defined)
 - TOOLBAR up/down → nav graph target for that instance (the standard toolbar reaches zone_tabs/grid; the upcoming mini-month reaches actions/stragglers)
-- SHELF, any direction with no spatial neighbour → nav graph, then the sequence (see the SHELF section above); left at the left edge therefore reaches the sidebar
+- SHELF, any direction with no spatial neighbour → nav graph, then (left/right only) the sequence — see the SHELF section above; left at the left edge therefore reaches the sidebar, and up/down with no neighbour and no graph edge is inert
 - Zone tabs / toolbar left at index 0 → nav graph left edge (SIDEBAR for the standard top-left contexts; the rail for the upcoming mini-month)
 - Drawer left → GRID (rightmost column, same row)
 

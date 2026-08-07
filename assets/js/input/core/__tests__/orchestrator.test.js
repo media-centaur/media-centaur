@@ -973,6 +973,19 @@ describe("Orchestrator", () => {
       expect(focusedIndexAfter(calls)).toBe(2)
     })
 
+    // The sequence fallback is reading order, and reading order is horizontal.
+    // Applied to DOWN it moved the cursor from the large tile to the top
+    // secondary — up and to the RIGHT of where it started, which is the exact
+    // thing adjacency-is-geometry exists to prevent.
+    test("down from the large tile does not slide sideways into the stack", () => {
+      const { system, calls } = mosaic(0)
+
+      system._handleAction(Action.NAVIGATE_DOWN)
+
+      expect(system.focusMachine.context).toBe("coming_up")
+      expect(focusedIndexAfter(calls)).toBeNull()
+    })
+
     test("up from the large tile leaves the mosaic for the shelf above", () => {
       const { system } = mosaic(0)
 
