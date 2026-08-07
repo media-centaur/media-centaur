@@ -16,7 +16,7 @@
 import { Action } from "./actions"
 import { findNearest, gridNavigate } from "./spatial"
 import { FocusContextMachine, Context, contextType } from "./focus_context"
-import { InputMethodDetector } from "./input_method"
+import { InputMethod, InputMethodDetector } from "./input_method"
 import { buildNavGraph, resolveCursorStart } from "./nav_graph"
 import { debug } from "./debug"
 
@@ -97,6 +97,7 @@ export class Orchestrator {
     // LiveView round-trip after _executeDismiss().
     this._expectedPresentation = undefined
     this._onMouseMove = this._onMouseMove.bind(this)
+    this._onWheel = this._onWheel.bind(this)
     this._onVisibilityChange = this._onVisibilityChange.bind(this)
   }
 
@@ -127,6 +128,7 @@ export class Orchestrator {
     })
 
     this._globals.document.addEventListener("mousemove", this._onMouseMove)
+    this._globals.document.addEventListener("wheel", this._onWheel, { passive: true })
     this._globals.document.addEventListener("visibilitychange", this._onVisibilityChange)
 
     // Sync initial state (also detects and attaches page behavior)
@@ -183,7 +185,7 @@ export class Orchestrator {
     })
     if (target) {
       this.focusMachine.forceContext(target)
-      this._restoreContextFocus(target)
+      this._restoreContextFocus(target, this._restoreOpts())
     }
   }
 
@@ -210,6 +212,7 @@ export class Orchestrator {
     this._sources = []
 
     this._globals.document.removeEventListener("mousemove", this._onMouseMove)
+    this._globals.document.removeEventListener("wheel", this._onWheel)
     this._globals.document.removeEventListener("visibilitychange", this._onVisibilityChange)
     this._detachBehavior()
     this._hookEl = null
@@ -424,7 +427,7 @@ export class Orchestrator {
     const context = this.focusMachine.context
     if (context === Context.MODAL || context === Context.DRAWER) return
     if (this.reader.getItemCount(context) > 0 && !this.reader.getCurrentFocusedItem()) {
-      this._restoreContextFocus(context)
+      this._restoreContextFocus(context, this._restoreOpts())
     }
   }
 
@@ -531,6 +534,23 @@ export class Orchestrator {
 
     debug("mousemove delta:", dx, dy, "method:", this.inputDetector.current)
     const methodChange = this.inputDetector.observe("mousemove")
+    if (methodChange) {
+      this.writer.setInputMethod(methodChange)
+    }
+  }
+
+  /**
+   * A wheel scroll is the pointer claiming scroll authority. Stop every glide
+   * where it stands — otherwise an in-flight reveal (e.g. the mount-time glide
+   * back to the parked cursor after the browser restores a previous scroll
+   * position) overrides the user's scrolling every frame until it arrives —
+   * and switch to mouse mode, which also suppresses reveal on patch-driven
+   * focus restores (see `_reconcileFocus`).
+   */
+  _onWheel() {
+    debug("wheel, method:", this.inputDetector.current)
+    this.writer.cancelScrollMotion?.()
+    const methodChange = this.inputDetector.observe("wheel")
     if (methodChange) {
       this.writer.setInputMethod(methodChange)
     }
@@ -700,24 +720,28 @@ export class Orchestrator {
    * Restore focus to the appropriate item in a context.
    * Grid: restore by entity ID memory.
    * All others: active item (DOM marker) → index memory → declared default → first item.
+   *
+   * `opts` is threaded to the writer's focus calls. Patch-driven restores pass
+   * `_restoreOpts()` so a mouse user's viewport is never moved; action-driven
+   * callers keep the revealing default (a key just flipped the method anyway).
    */
-  _restoreContextFocus(context) {
+  _restoreContextFocus(context, opts = { reveal: true }) {
     if (context === Context.GRID) {
       if (this._lastGridEntityId) {
-        if (this.writer.focusByEntityId(Context.GRID, this._lastGridEntityId)) return
+        if (this.writer.focusByEntityId(Context.GRID, this._lastGridEntityId, opts)) return
       }
-      this.writer.focusFirst(Context.GRID)
+      this.writer.focusFirst(Context.GRID, opts)
     } else {
       // Try DOM-marked active item first (tab-active, menu-item-active, etc.)
       const activeIndex = this.reader.getActiveItemIndex(context)
       if (activeIndex >= 0) {
-        this.writer.focusByIndex(context, activeIndex)
+        this.writer.focusByIndex(context, activeIndex, opts)
         return
       }
       // Fall back to saved memory position
       const savedIndex = this._contextMemory[context]
       if (savedIndex != null && savedIndex < this.reader.getItemCount(context)) {
-        this.writer.focusByIndex(context, savedIndex)
+        this.writer.focusByIndex(context, savedIndex, opts)
         return
       }
       // Nothing remembered — some contexts open somewhere other than the top.
@@ -725,11 +749,22 @@ export class Orchestrator {
       // for the first time and pressing Play do the same thing.
       const seed = this._config.entryDefaults?.[context]
       if (seed && this.reader.getMatchingIndex?.(context, seed) >= 0) {
-        this.writer.focusByIndex(context, this.reader.getMatchingIndex(context, seed))
+        this.writer.focusByIndex(context, this.reader.getMatchingIndex(context, seed), opts)
         return
       }
-      this.writer.focusFirst(context)
+      this.writer.focusFirst(context, opts)
     }
+  }
+
+  /**
+   * Writer focus opts for restores the user didn't ask for (post-patch
+   * reconciles, cursor-start seeding). While the pointer owns the scroll,
+   * re-assert focus without revealing it — moving the viewport would fight
+   * the mouse. Cursor-driven methods keep the reveal: their focus must stay
+   * visible across patches.
+   */
+  _restoreOpts() {
+    return { reveal: this.inputDetector.current !== InputMethod.MOUSE }
   }
 
   _executeDirective(directive) {

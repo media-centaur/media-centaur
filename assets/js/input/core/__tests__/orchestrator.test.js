@@ -181,6 +181,13 @@ function createMockGlobals() {
       }
       return event
     },
+    _dispatchWheel() {
+      const event = { deltaY: 120 }
+      for (const fn of (listeners.wheel || [])) {
+        fn(event)
+      }
+      return event
+    },
     _dispatchVisibilityChange() {
       for (const fn of (listeners.visibilitychange || [])) {
         fn()
@@ -1733,7 +1740,7 @@ describe("Orchestrator", () => {
       // Should attempt to focus the grid
       const focusCalls = calls.filter(c => c.method === "focusFirst")
       expect(focusCalls.length).toBe(1)
-      expect(focusCalls[0].args).toEqual(["GRID"])
+      expect(focusCalls[0].args).toEqual(["GRID", { reveal: true }])
     })
 
     test("onAction is not called when behavior has no onAction", () => {
@@ -2198,6 +2205,80 @@ describe("Orchestrator", () => {
       globals._dispatchKeyDown("F5", { stopPropagation })
 
       expect(stopPropagation).not.toHaveBeenCalled()
+    })
+  })
+
+  // A wheel scroll is the pointer claiming scroll authority. Reproduces the
+  // load-time fight: the mount-time reveal glides the page back to the parked
+  // cursor (e.g. after Chrome restores a previous scroll position) and, with
+  // nothing observing wheel events, kept overriding the user's scrolling
+  // every frame until the glide arrived.
+  describe("wheel scrolling", () => {
+    test("wheel input switches to mouse and cancels in-flight scroll motion", () => {
+      const { system, calls, globals } = setup()
+      system.start({})
+      calls.length = 0
+
+      globals._dispatchWheel()
+
+      expect(calls.map(c => c.method)).toContain("cancelScrollMotion")
+      const methodCalls = calls.filter(c => c.method === "setInputMethod")
+      expect(methodCalls.length).toBe(1)
+      expect(methodCalls[0].args).toEqual(["mouse"])
+    })
+
+    test("repeated wheel input cancels motion without re-setting the method", () => {
+      const { system, calls, globals } = setup()
+      system.start({})
+      globals._dispatchWheel()
+      calls.length = 0
+
+      globals._dispatchWheel()
+
+      expect(calls.map(c => c.method)).toContain("cancelScrollMotion")
+      expect(calls.filter(c => c.method === "setInputMethod").length).toBe(0)
+    })
+
+    test("patch-driven focus restore does not scroll in mouse mode", () => {
+      const { system, calls, globals } = setup({ getCurrentFocusedItem: () => null })
+      system.start({})
+      globals._dispatchWheel()
+      calls.length = 0
+
+      system.onViewChanged()
+
+      const focusCalls = calls.filter(c =>
+        ["focusFirst", "focusByIndex", "focusByEntityId", "focusElement"].includes(c.method))
+      expect(focusCalls.length).toBeGreaterThan(0)
+      for (const call of focusCalls) {
+        expect(call.args.at(-1)).toEqual({ reveal: false })
+      }
+    })
+
+    test("patch-driven focus restore still reveals in keyboard mode", () => {
+      const { system, calls } = setup({ getCurrentFocusedItem: () => null })
+      system.start({})
+      calls.length = 0
+
+      system.onViewChanged()
+
+      const focusCalls = calls.filter(c =>
+        ["focusFirst", "focusByIndex", "focusByEntityId", "focusElement"].includes(c.method))
+      expect(focusCalls.length).toBeGreaterThan(0)
+      for (const call of focusCalls) {
+        expect(call.args.at(-1)).toEqual({ reveal: true })
+      }
+    })
+
+    test("wheel listener is removed on destroy", () => {
+      const { system, calls, globals } = setup()
+      system.start({})
+      system.destroy()
+      calls.length = 0
+
+      globals._dispatchWheel()
+
+      expect(calls.length).toBe(0)
     })
   })
 
@@ -3032,7 +3113,7 @@ describe("Orchestrator", () => {
       globals._dispatchKeyDown("ArrowDown")
 
       expect(system.focusMachine.context).toBe("detail_list")
-      expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 7] })
+      expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 7, { reveal: true }] })
     })
 
     test("down returns to where the cursor was left, not the resume target", () => {
@@ -3047,7 +3128,7 @@ describe("Orchestrator", () => {
       calls.length = 0
       globals._dispatchKeyDown("ArrowDown")
 
-      expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 12] })
+      expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 12, { reveal: true }] })
     })
 
     test("reopening re-seeds the body — memory is scoped to one opening", () => {
@@ -3071,7 +3152,7 @@ describe("Orchestrator", () => {
       calls.length = 0
 
       globals._dispatchKeyDown("ArrowDown")
-      expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 7] })
+      expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 7, { reveal: true }] })
     })
 
     test("back climbs to the action row, then closes the modal", () => {

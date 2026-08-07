@@ -439,23 +439,35 @@ export function createDomWriter(config = {}) {
     now: () => performance.now(),
   })
 
+  // Focus an element, revealing it unless the caller opted out. A restore
+  // while the pointer owns the scroll (mouse mode) passes { reveal: false }:
+  // the cursor must survive the patch, but moving the viewport to it would
+  // fight the user's wheel.
+  function applyFocus(element, { reveal = true } = {}) {
+    if (reveal) {
+      revealItem(element, glider)
+    } else {
+      element.focus({ preventScroll: true })
+    }
+  }
+
   return {
     /**
      * Focus a specific element.
      */
-    focusElement(element) {
+    focusElement(element, opts) {
       if (!element) return
-      revealItem(element, glider)
+      applyFocus(element, opts)
     },
 
     /**
      * Focus the item at a given index within a context.
      * Returns true if the element was found and focused, false otherwise.
      */
-    focusByIndex(context, index) {
+    focusByIndex(context, index, opts) {
       const target = queryContextItems(selectors, context)[index]
       if (!target) return false
-      revealItem(target, glider)
+      applyFocus(target, opts)
       return document.activeElement === target
     },
 
@@ -463,10 +475,10 @@ export function createDomWriter(config = {}) {
      * Focus the first focusable item in a context.
      * Returns true if the element was found and focused, false otherwise.
      */
-    focusFirst(context) {
+    focusFirst(context, opts) {
       const first = queryContextItems(selectors, context)[0]
       if (!first) return false
-      revealItem(first, glider)
+      applyFocus(first, opts)
       return document.activeElement === first
     },
 
@@ -474,17 +486,25 @@ export function createDomWriter(config = {}) {
      * Focus a nav item by its entity ID within a context.
      * Returns true if found and focused, false otherwise.
      */
-    focusByEntityId(context, entityId) {
+    focusByEntityId(context, entityId, opts) {
       if (!entityId) return false
 
       const items = queryContextItems(selectors, context)
       for (const item of items) {
         if (item.dataset.entityId === entityId) {
-          revealItem(item, glider)
+          applyFocus(item, opts)
           return true
         }
       }
       return false
+    },
+
+    /**
+     * Stop every scroll glide where it stands. Called when the user takes
+     * scroll authority with the mouse wheel.
+     */
+    cancelScrollMotion() {
+      glider.cancelAll()
     },
 
     /**

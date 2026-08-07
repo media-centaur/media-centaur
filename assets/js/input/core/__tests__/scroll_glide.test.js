@@ -160,4 +160,27 @@ describe("createScrollGlide", () => {
     expect(row.scrollLeft).toBe(800)
     expect(page.scrollTop).toBe(400)
   })
+
+  // A wheel scroll hands scroll authority to the pointer: every glide, on
+  // every box, must stop where it stands instead of fighting the user.
+  test("cancelAll stops every glide in flight", () => {
+    const h = harness()
+    const row = fakeBox()
+    const page = fakeBox()
+
+    h.glide.glide(row, { left: 800 })
+    h.glide.glide(page, { top: 400 })
+    h.frame(16)
+    const rowStopped = row.scrollLeft
+    const pageStopped = page.scrollTop
+
+    h.glide.cancelAll()
+    h.frame(16)
+
+    expect(row.scrollLeft).toBe(rowStopped)
+    expect(page.scrollTop).toBe(pageStopped)
+    expect(h.glide.isGliding(row)).toBe(false)
+    expect(h.glide.isGliding(page)).toBe(false)
+    expect(h.idle).toBe(true)
+  })
 })
