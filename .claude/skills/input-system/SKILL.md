@@ -50,9 +50,24 @@ Keyboard and gamepad are decoupled peers behind a duck-typed contract: `start()`
 
 The `_menuTransition()` handles all MENU instances. The primaryMenu gets special treatment (exit_sidebar on right/back, wall on left). Non-primary MENU instances use the nav graph for left/right transitions; BACK is a no-op there (lateral movement, including reaching the sidebar, belongs to LEFT). SELECT on any MENU exits the menu into the content area (primary menu skips the click since items are already activated on focus; non-primary menus click after transitioning).
 
-### SHELF Behavior (dual of MENU)
+### SHELF Behavior (spatial, unlike MENU)
 
-The `_shelfTransition()` handles all SHELF instances — the home page's horizontal media rows (`hero`, `continue`, `recently`, `coming_up`). SHELF is the dual of MENU: a *horizontal* list whose up/down cross between sibling shelves via the nav graph (`contextWall`), while left/right navigate within the row and the left-wall (handled in the orchestrator's `_linearNavigate`) enters the sidebar. SELECT activates the focused card (opens the detail modal); BACK is a no-op. Empty shelves are skipped by the graph's candidate fallback lists, so a page that renders only some rows still navigates cleanly.
+SHELF covers the home page's media tiles (`hero`, `continue`, `recently`, `coming_up`). A MENU's order is semantic, so it navigates by index; a SHELF's *arrangement* carries the meaning, so it navigates by geometry. Most shelves are a single row; the Coming Up marquee is a mosaic (one large tile beside a stacked column) — same context type, same code path.
+
+`_shelfTransition()` returns a plain `navigate` for all four directions and the orchestrator's `_shelfNavigate()` resolves them by asking, in order: **the layout** (`findNearest()` on live rects), **the nav graph** (cross into a neighbouring zone; empty shelves are skipped by the candidate fallback lists), then **the sequence** (right/down = next tile — this is what carries you from the marquee's top secondary to the one below it). Keeping walls out of the state machine is what lets a row and a mosaic share one rule set.
+
+SELECT activates the focused card; BACK is a no-op.
+
+**Don't add an adjacency table for a new mosaic** — geometry already handles it, and a table goes stale the moment the layout renders a different number of tiles.
+
+### Entry Rules and Scroll Reveal
+
+Two things that bite when adding a page:
+
+- **Entering a context ≠ restoring it.** `_enterContext(context, direction)` handles user-driven crossings and honours a declared `config.entryAnchors` index (the hero always enters at Play) and then memory *constrained to the edge you crossed*. `_restoreContextFocus()` re-asserts focus after a DOM patch and obeys neither — applying entry rules on reconcile drags the cursor on every re-render. The edge constraint is currently gated to SHELF; the gate comes off page by page.
+- **`revealItem()` in `dom_adapter.js` is the single owner of "make it visible."** The input system owns *where* the scroll lands; CSS owns *how* it gets there. Never put `scroll-snap-type` on a nav-driven scroll container (it overrides `scrollIntoView` and clips the focused card), and never ask `scrollIntoView` for `behavior: "smooth"` (it stops retargeting under fast input and strands the row) — put `scroll-behavior: smooth` on the container instead.
+
+Verify both with `~/scripts/agents/mc-nav-trace '<keys>'`, which reports the focused context/zone/index per step plus how many px of the focused card fall outside its scrollport. Any non-zero settled clip is a bug.
 
 ### BACK and CLEAR Semantics
 
