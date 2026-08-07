@@ -1727,6 +1727,11 @@ body:has(.modal-backdrop[data-state="open"]) {
 :root {
   --card-poster-w: 170px;
   --card-backdrop-w: 453px;
+  /* Coming Up marquee height. Lives here rather than inline in the component
+     because the shelf framing below has to know it: the reserve under a shelf
+     is sized to fully reveal the shelf beneath it, and the marquee is the
+     tallest one. One number, two consumers. */
+  --marquee-h: 360px;
 }
 
 /* ── Horizontally scrolling rows ──
@@ -1797,26 +1802,35 @@ body:has(.modal-backdrop[data-state="open"]) {
 
 /* Shelf framing — how much of the page moves when the cursor changes rows.
 
-   `scroll-margin` is the whole mechanism. A shelf's cards reserve empty space
-   below themselves for scrolling purposes only, so "bring this card into view"
-   can no longer be satisfied by the card merely being on screen: the row has
-   to lift far enough to expose that reserve, which is occupied by the NEXT
-   shelf. Moving down therefore raises the focused row and pulls the following
-   one into view, without anyone computing a scroll distance. The reserve is
-   declared once here rather than as a per-step pixel amount, which would drift
-   out of alignment the moment a card size or a row header changes.
+   The rule: **descending to a shelf scrolls far enough to fully reveal the
+   shelf below it.** Not a per-step pixel amount — that would drift out of
+   alignment the moment a card size or row header changed, and it has no
+   relationship to what is actually down there.
+
+   `scroll-margin` states the rule directly. A shelf's cards reserve space
+   beneath themselves for scrolling purposes only, so "bring this card into
+   view" can no longer be satisfied by the card merely being on screen: the row
+   must lift far enough to expose the reserve, and the next shelf is what
+   occupies it. Nobody computes a distance; the reveal falls out of geometry.
+
+   The reserve is therefore sized as *one whole shelf* — the tallest one, the
+   marquee — plus the row heading above it (~2.5rem) and the gap between
+   sections (`space-y-10`, 2.5rem). Sizing it from `--marquee-h` rather than a
+   round number is what keeps it true when the marquee is resized.
 
    The top reserve is smaller and does a different job: it keeps a row's
    heading (and a little air) on screen when the cursor arrives from below,
    which bare `scrollIntoView` would clip.
 
-   Tuning note: the home page is only ~365px scrollable at 1080p, so the effect
-   is necessarily subtle and the last shelf cannot rise — there is nothing
-   below it to reveal. Raising --shelf-reserve-below past the page's scroll
-   range buys nothing. */
+   UI SCALE: these are `rem`/`px` lengths on purpose. The shell scales with
+   `zoom` (see --ui-scale), which multiplies every rendered length — so the
+   reserve and the shelf it is sized to reveal grow together and the rule holds
+   at every scale. Never express this in `vh`: under `zoom` a bare `Nvh`
+   renders at N × scale (the trap `--pvh` exists for), which would make the
+   reserve balloon relative to its shelf as the user scales up. */
 .home-shelf {
   --shelf-reserve-above: 4rem;
-  --shelf-reserve-below: 28rem;
+  --shelf-reserve-below: calc(var(--marquee-h) + 5rem);
 }
 
 .home-shelf [data-nav-item] {

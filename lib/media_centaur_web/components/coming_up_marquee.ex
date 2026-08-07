@@ -89,7 +89,7 @@ defmodule MediaCentaurWeb.Components.ComingUpMarquee do
     <div
       :if={@marquee.hero != nil}
       data-component="coming-up-marquee"
-      class="grid gap-4 grid-cols-[1.7fr_1fr] h-[360px]"
+      class="grid gap-4 grid-cols-[1.7fr_1fr] h-[var(--marquee-h)]"
     >
       <.hero_card item={@marquee.hero} />
       <div :if={@marquee.secondaries != []} class="flex flex-col gap-2.5 min-h-0">
