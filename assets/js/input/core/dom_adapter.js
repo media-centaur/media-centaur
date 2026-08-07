@@ -58,6 +58,37 @@ function queryContextItems(selectors, context) {
 }
 
 /**
+ * Focus an element and bring it into view — the single owner of "make the
+ * focused item visible". Every writer entry point routes through here, so the
+ * question is answered once.
+ *
+ * The split with CSS: **the input system owns where the scroll lands; CSS owns
+ * how it gets there.** Those are genuinely different concerns, and each side
+ * must stay out of the other's.
+ *
+ * CSS must not touch the destination. A `scroll-snap-type: … mandatory`
+ * container re-snaps after `scrollIntoView` to the nearest snap boundary,
+ * which undershoots and parks the focused card partly outside the scrollport —
+ * measured at ~100px, a third of a card, on every home-shelf card past the
+ * fold. Scroll snap is a *pointer* affordance (flick, release, settle
+ * somewhere sensible); with a focus cursor there is nothing to settle, because
+ * the focused element already IS the resting position. So `.row-scroll` does
+ * not snap.
+ *
+ * Conversely the transition belongs to CSS, via `scroll-behavior` on the
+ * container — NOT to `behavior: "smooth"` here. Measured on the real page:
+ * repeated `scrollIntoView({behavior: "smooth"})` under fast input stops
+ * retargeting and the row stalls mid-glide, stranding the cursor hundreds of
+ * px outside the scrollport. The container's own `scroll-behavior` retargets
+ * an in-flight animation correctly and settles on the identical offset, so a
+ * held arrow or gamepad stick reads as one continuous slide.
+ */
+function revealItem(element) {
+  element.focus({ preventScroll: true })
+  element.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" })
+}
+
+/**
  * Create a DomReader that queries the DOM using the given config.
  * @param {Object} [config={}]
  * @returns {Object} DomReader interface
@@ -148,6 +179,22 @@ export function createDomReader(config = {}) {
      */
     getItemCount(context) {
       return queryContextItems(selectors, context).length
+    },
+
+    /**
+     * Get the on-screen rect of every navigable item in a context, in DOM
+     * order — the geometry spatial navigation reasons over.
+     *
+     * Rects are viewport coordinates, so they are post-UI-scale and post-scroll
+     * and every candidate is measured in the same frame. That makes them
+     * internally consistent, which is all `findNearest` needs; they must never
+     * be mixed with the layout-px `scrollLeft`/`offsetLeft` family.
+     */
+    getItemRects(context) {
+      return queryContextItems(selectors, context).map(el => {
+        const r = el.getBoundingClientRect()
+        return { x: r.x, y: r.y, width: r.width, height: r.height }
+      })
     },
 
     /**
@@ -278,8 +325,7 @@ export function createDomWriter(config = {}) {
      */
     focusElement(element) {
       if (!element) return
-      element.focus({ preventScroll: true })
-      element.scrollIntoView({ block: "nearest", behavior: "instant" })
+      revealItem(element)
     },
 
     /**
@@ -289,8 +335,7 @@ export function createDomWriter(config = {}) {
     focusByIndex(context, index) {
       const target = queryContextItems(selectors, context)[index]
       if (!target) return false
-      target.focus({ preventScroll: true })
-      target.scrollIntoView({ block: "nearest", behavior: "instant" })
+      revealItem(target)
       return document.activeElement === target
     },
 
@@ -301,8 +346,7 @@ export function createDomWriter(config = {}) {
     focusFirst(context) {
       const first = queryContextItems(selectors, context)[0]
       if (!first) return false
-      first.focus({ preventScroll: true })
-      first.scrollIntoView({ block: "nearest", behavior: "instant" })
+      revealItem(first)
       return document.activeElement === first
     },
 
@@ -316,8 +360,7 @@ export function createDomWriter(config = {}) {
       const items = queryContextItems(selectors, context)
       for (const item of items) {
         if (item.dataset.entityId === entityId) {
-          item.focus({ preventScroll: true })
-          item.scrollIntoView({ block: "nearest", behavior: "instant" })
+          revealItem(item)
           return true
         }
       }

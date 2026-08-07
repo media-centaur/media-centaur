@@ -1733,8 +1733,24 @@ body:has(.modal-backdrop[data-state="open"]) {
    Do not give the trailing card room to grow flush. A flush edge on a
    scrollable row looks like the end of the content.
 
-   Each row scrolls independently — that's the structural setup for future
-   keyboard/gamepad nav (one nav-zone per row). No nav wiring yet.
+   Each row scrolls independently — one nav-zone per row.
+
+   The input system owns WHERE this row scrolls to; CSS owns HOW it gets there.
+
+   So: no scroll-snap. Snap is a pointer affordance — flick, release, settle
+   somewhere sensible. These rows are driven by a focus cursor, where the
+   focused card already IS the resting position, so the two designs are
+   mutually exclusive and shipping both means snap wins. It did:
+   `scroll-snap-type: x mandatory` re-snapped after every `scrollIntoView` and
+   parked the focused card ~100px (a third of it) outside the scrollport, on
+   every card past the fold.
+
+   But `scroll-behavior: smooth` here is exactly right, and is the ONLY place
+   the glide may live. It never changes the destination, only the path to it.
+   Measured: repeated `scrollIntoView({behavior: "smooth"})` under fast input
+   stops retargeting and strands the row mid-glide; the container's own
+   `scroll-behavior` retargets correctly and settles on the identical offset.
+   See `revealItem` in assets/js/input/core/dom_adapter.js.
 
    Padding + negative margin (both axes) reserves space for `card-hover` and
    the keyboard/gamepad focus ring without visually inflating the row's
@@ -1751,7 +1767,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   gap: var(--gap);
   overflow-x: auto;
   overflow-y: hidden;
-  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
   scrollbar-width: none;
   -ms-overflow-style: none;
   padding-block: 0.75rem;
@@ -1770,7 +1786,6 @@ body:has(.modal-backdrop[data-state="open"]) {
    so a variant that forgets one collapses to content width — visibly
    wrong, which beats silently inheriting somebody else's size. */
 .row-scroll > * {
-  scroll-snap-align: start;
   flex: 0 0 var(--card-w);
 }
 

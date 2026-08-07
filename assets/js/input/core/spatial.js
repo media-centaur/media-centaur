@@ -32,7 +32,7 @@ export function findNearest(fromRect, direction, candidates) {
     if (!isInDirection(fromRect, candidateCenter, direction)) continue
 
     // Score: primary axis distance + alignment penalty
-    const score = computeScore(fromCenter, candidateCenter, direction)
+    const score = computeScore(fromRect, candidate, direction)
 
     if (score < bestScore) {
       bestScore = score
@@ -109,8 +109,18 @@ function isInDirection(fromRect, point, direction) {
 /**
  * Score a candidate: lower is better.
  * Primary axis distance + weighted perpendicular alignment penalty.
+ *
+ * A candidate whose cross-axis span lies wholly inside the origin's is
+ * *perfectly* aligned and pays no penalty at all — there is nothing to be more
+ * in line with. This is what a tall tile facing a stack of short ones looks
+ * like (the Coming Up marquee's large tile beside its column of secondaries):
+ * every secondary is equally in line, so they tie on distance and the caller's
+ * document order breaks the tie, which reads as "the next one". Scoring by
+ * centre distance instead would silently pick the middle of the stack.
  */
-function computeScore(fromCenter, toCenter, direction) {
+function computeScore(fromRect, toRect, direction) {
+  const fromCenter = rectCenter(fromRect)
+  const toCenter = rectCenter(toRect)
   const dx = Math.abs(toCenter.x - fromCenter.x)
   const dy = Math.abs(toCenter.y - fromCenter.y)
 
@@ -119,16 +129,25 @@ function computeScore(fromCenter, toCenter, direction) {
 
   switch (direction) {
     case "up":
-    case "down":
+    case "down": {
       // Primary: vertical distance. Alignment: horizontal offset.
-      return dy + dx * ALIGNMENT_WEIGHT
+      const aligned = spansWithin(toRect.x, toRect.width, fromRect.x, fromRect.width)
+      return dy + (aligned ? 0 : dx * ALIGNMENT_WEIGHT)
+    }
 
     case "left":
-    case "right":
+    case "right": {
       // Primary: horizontal distance. Alignment: vertical offset.
-      return dx + dy * ALIGNMENT_WEIGHT
+      const aligned = spansWithin(toRect.y, toRect.height, fromRect.y, fromRect.height)
+      return dx + (aligned ? 0 : dy * ALIGNMENT_WEIGHT)
+    }
 
     default:
       return Infinity
   }
+}
+
+/** True when [start, start+size] lies wholly inside [outerStart, outerStart+outerSize]. */
+function spansWithin(start, size, outerStart, outerSize) {
+  return start >= outerStart && start + size <= outerStart + outerSize
 }
