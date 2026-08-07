@@ -1,4 +1,4 @@
-import { describe, test, expect, afterEach } from "bun:test"
+import { describe, test, expect, afterEach, beforeEach } from "bun:test"
 import { createDomReader } from "../dom_adapter.js"
 
 const reader = createDomReader()
@@ -352,6 +352,45 @@ describe("reveal — a single owner for making the focused item visible", () => 
     }
     globalThis.document.scrollingElement = root
   }
+
+  // A pinned ancestor (position: sticky/fixed) decouples the item from every
+  // scroller outside it — scrolling one moves the item too, so scrollIntoView
+  // has no fixed point to reach and each call asks for a little more. Measured
+  // in the detail modal, whose action row lives in a sticky block: walking
+  // left/right along Play / More info / Manage ratcheted the panel
+  // 123 -> 325 -> 527 -> 729px, in BOTH directions, never coming back.
+  describe("items pinned by a sticky or fixed ancestor", () => {
+    function pinnedItem(position) {
+      const item = fakeGridItem("pinned")
+      const box = { scrollLeft: 0, scrollTop: 300, scrollHeight: 2000, clientHeight: 500 }
+      const pin = { parentElement: box, __style: { position, overflowX: "visible", overflowY: "visible" } }
+      box.__style = { position: "relative", overflowX: "hidden", overflowY: "auto" }
+      box.parentElement = null
+      item.parentElement = pin
+      return { item, box }
+    }
+
+    let realComputed
+    beforeEach(() => {
+      realComputed = globalThis.getComputedStyle
+      globalThis.getComputedStyle = node => node.__style ?? { position: "static", overflowX: "visible", overflowY: "visible" }
+    })
+    afterEach(() => { globalThis.getComputedStyle = realComputed })
+
+    test.each([["sticky"], ["fixed"]])("a %s ancestor means there is nothing to reveal", (position) => {
+      const writer = writerWithFakeGlide()
+      const { item, box } = pinnedItem(position)
+      stubScrollingDocument([item])
+
+      writer.focusFirst("grid")
+
+      // Focus still moves instantly — only the scroll is skipped.
+      expect(globalThis.document.activeElement).toBe(item)
+      expect(item.scrolledWith).toBeUndefined()
+      expect(glided).toEqual([])
+      expect(box.scrollTop).toBe(300)
+    })
+  })
 
   test("focusByIndex glides toward where the item would have landed", () => {
     const writer = writerWithFakeGlide()
