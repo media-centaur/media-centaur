@@ -276,4 +276,14 @@ describe("Detail overlay Manage tools region (real config)", () => {
     const graph = openDetail({ detail_actions: 3, manage_tools: 0, detail_list: 20, detail_cast: 0, grid: 12, sidebar: 7 })
     expect(graph.detail_actions.down).toBe("detail_list")
   })
+
+  // UP from the tree's top row climbs to whatever sits spatially above it:
+  // the Manage toolbar card when Manage is showing, the action row otherwise.
+  test("up from the tree top climbs to the toolbar card, or the action row without one", () => {
+    const manage = openDetail({ detail_actions: 3, manage_tools: 5, detail_list: 12, detail_cast: 0, grid: 12, sidebar: 7 })
+    expect(manage.detail_list.up).toBe("manage_tools")
+
+    const episodes = openDetail({ detail_actions: 3, manage_tools: 0, detail_list: 20, detail_cast: 0, grid: 12, sidebar: 7 })
+    expect(episodes.detail_list.up).toBe("detail_actions")
+  })
 })

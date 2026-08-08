@@ -3173,6 +3173,62 @@ describe("Orchestrator", () => {
       expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
     })
 
+    // UP at the tree's top row follows the graph's `up` edge when the layout
+    // declares one (the Manage toolbar card sits spatially above the folder
+    // ledger — stopping dead under it read as a dead end; UIDR-019 amended).
+    // Mid-tree UP still walks rows; the graph is consulted only at the wall.
+    const UP_EDGE_CONFIG = {
+      ...OVERLAY_CONFIG,
+      overlays: {
+        detail: {
+          entry: ["detail_actions", "detail_list"],
+          layout: {
+            detail_actions: { down: ["detail_list"] },
+            detail_list: { up: ["detail_actions"], back: ["detail_actions"] },
+          },
+        },
+      },
+    }
+
+    function openModalWithUpEdge() {
+      return setup({
+        getPresentation: () => "modal",
+        getOverlayName: () => "detail",
+        isModalOpen: () => true,
+        getItemCount: context => ({ detail_actions: 3, detail_list: 20 })[context] ?? 8,
+        getMatchingIndex: () => -1,
+      }, UP_EDGE_CONFIG)
+    }
+
+    test("up at the top of the tree climbs the nav graph's up edge", () => {
+      const { system, reader, globals } = openModalWithUpEdge()
+      system.start({})
+      system.onViewChanged()
+      globals._flushRAF()
+
+      globals._dispatchKeyDown("ArrowDown")
+      expect(system.focusMachine.context).toBe("detail_list")
+
+      reader.getFocusedIndex = context => (context === "detail_list" ? 0 : 0)
+      globals._dispatchKeyDown("ArrowUp")
+      expect(system.focusMachine.context).toBe("detail_actions")
+    })
+
+    test("up mid-tree walks rows without consulting the graph", () => {
+      const { system, reader, calls, globals } = openModalWithUpEdge()
+      system.start({})
+      system.onViewChanged()
+      globals._flushRAF()
+
+      globals._dispatchKeyDown("ArrowDown")
+      reader.getFocusedIndex = context => (context === "detail_list" ? 5 : 0)
+      calls.length = 0
+      globals._dispatchKeyDown("ArrowUp")
+
+      expect(system.focusMachine.context).toBe("detail_list")
+      expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 4] })
+    })
+
     // LEFT and RIGHT in the body are depth. What that means depends on what the
     // cursor is on, so these drive the real DOM predicates through fakes.
     describe("depth", () => {
