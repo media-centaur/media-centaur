@@ -49,7 +49,9 @@ defmodule MediaCentaurWeb.Components.Detail.PlayCard do
           </span>
         </div>
       </div>
-      <div class="flex items-center gap-2" data-nav-zone="detail_actions">
+      <%!-- data-nav-enter-scroll-top: arrowing up out of the body list glides
+            the modal back to the hero; BACK lands here without moving it. --%>
+      <div class="flex items-center gap-2" data-nav-zone="detail_actions" data-nav-enter-scroll-top>
         <.button
           :if={@available}
           variant="primary"

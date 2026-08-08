@@ -3229,6 +3229,41 @@ describe("Orchestrator", () => {
       expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 4] })
     })
 
+    // Climbing out of the body is a departure, not just a focus move: the zone
+    // entered gets the chance to rest its scroller (the action row declares
+    // data-nav-enter-scroll-top, so the modal glides back to the hero). BACK
+    // lands on the same row but is an escape hatch, not travel — the viewport
+    // stays where the user left it. The declaration itself is the writer's
+    // business; the orchestrator only distinguishes travelling from escaping.
+    test("climbing up out of the tree offers the entered zone its resting scroll", () => {
+      const { system, reader, calls, globals } = openModalWithUpEdge()
+      system.start({})
+      system.onViewChanged()
+      globals._flushRAF()
+
+      globals._dispatchKeyDown("ArrowDown")
+      reader.getFocusedIndex = context => (context === "detail_list" ? 0 : 0)
+      calls.length = 0
+      globals._dispatchKeyDown("ArrowUp")
+
+      expect(system.focusMachine.context).toBe("detail_actions")
+      expect(calls).toContainEqual({ method: "scrollZoneToTop", args: ["detail_actions"] })
+    })
+
+    test("BACK to the action row leaves the scroll where it is", () => {
+      const { system, calls, globals } = openModalWithUpEdge()
+      system.start({})
+      system.onViewChanged()
+      globals._flushRAF()
+
+      globals._dispatchKeyDown("ArrowDown")
+      calls.length = 0
+      globals._dispatchKeyDown("Escape")
+
+      expect(system.focusMachine.context).toBe("detail_actions")
+      expect(calls.some(call => call.method === "scrollZoneToTop")).toBe(false)
+    })
+
     // LEFT and RIGHT in the body are depth. What that means depends on what the
     // cursor is on, so these drive the real DOM predicates through fakes.
     describe("depth", () => {

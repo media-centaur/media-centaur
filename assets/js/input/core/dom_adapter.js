@@ -500,6 +500,38 @@ export function createDomWriter(config = {}) {
     },
 
     /**
+     * Rest a zone's enclosing scroller at its top, if the zone asks for it via
+     * `data-nav-enter-scroll-top` on its container. Zones without the
+     * declaration are left alone.
+     *
+     * This exists for pinned zones, where revealItem is rightly a no-op: a
+     * sticky row is visible at every scroll offset, so there is nothing to
+     * reveal — but the row's HOME is the top of its surface, and a cursor that
+     * *travelled* there has left the body behind. The detail modal's action
+     * row declares this so climbing out of the episode list brings the hero
+     * back instead of leaving the modal parked deep in a season.
+     *
+     * The ancestor walk deliberately ignores revealItem's sticky stop: that
+     * stop exists because outer scrollers cannot reveal a pinned element, and
+     * here the point is the opposite — reset the scroller the pin rides in.
+     * Only the nearest scrollable element ancestor is touched; the inline
+     * offset is kept (this is a block-axis homecoming, not a full reset).
+     */
+    scrollZoneToTop(context) {
+      const item = queryContextItems(selectors, context)[0]
+      const zone = item?.closest?.("[data-nav-zone]")
+      if (!zone?.hasAttribute("data-nav-enter-scroll-top")) return
+      for (let node = zone.parentElement; node; node = node.parentElement) {
+        const style = getComputedStyle(node)
+        if (!/auto|scroll|overlay/.test(`${style.overflowX} ${style.overflowY}`)) continue
+        if (node.scrollHeight > node.clientHeight) {
+          glider.glide(node, { left: node.scrollLeft, top: 0 })
+          return
+        }
+      }
+    },
+
+    /**
      * Stop every scroll glide where it stands. Called when the user takes
      * scroll authority with the mouse wheel.
      */
