@@ -14,8 +14,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   import MediaCentaurWeb.LibraryFormatters,
     only: [format_type: 1, extract_year: 1, format_human_duration: 1]
 
-  alias MediaCentaur.Library.EpisodeList
-  alias MediaCentaur.Library.MovieList
   alias MediaCentaurWeb.Components.Detail.FacetStrip
   alias MediaCentaurWeb.Components.Detail.Hero
   alias MediaCentaurWeb.Components.Detail.Logic
@@ -27,6 +25,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaurWeb.Components.Detail.ViewControls
   alias MediaCentaurWeb.ViewModel.EpisodeListItem
+  alias MediaCentaurWeb.ViewModel.MovieListItem
   alias MediaCentaurWeb.ViewModel.Orientation
 
   # --- Public API ---
@@ -39,12 +38,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   @doc_progress "`MediaCentaur.Library.ProgressSummary.t() | nil` — composed at `Library.ModalEntry.load/1` from `list_progress_records_for_container/2` (Phase 3.2)."
   @doc_progress_records "list of `MediaCentaur.Library.WatchProgress.t()` rows for the entity's leaves; each carries a synthesised `:playable_item` `(container_type, container_id)` so `EpisodeList.progress_container_id/1` resolves to the leaf UUID."
   @doc_resume "resume target map `%{kind, season, episode, ...} | nil` — see `LibraryProgress.resume_target_for/1`."
-  @doc_resume_episode_key "`{season_number, episode_number}` tuple | `nil` — derived from `:resume`."
   @doc_extra_progress_by_id "`%{Ecto.UUID.t() => WatchProgress.t()}` keyed by extra id."
   @doc_detail_files "list of file-info maps (`%{file: KnownFile.t(), entity_id, role, ...}`) built by `LibraryLive.list_files_for_entity/2`."
   @doc_delete_confirm "pending inline-confirm target: `nil` | `:all` | `{:file, path}` | `{:folder, path}`. The host's `delete_*_prompt` handlers compare against this to decide whether the click is the first (set pending) or second (execute). `:any` is intentional — it's a sum type, not a single shape."
   @doc_deleting "in-flight delete target (same sum type as `delete_confirm`): `nil` | `:all` | `{:file, path}` | `{:folder, path}`. Set while the async deletion runs so the matching button shows \"Deleting…\" and all delete buttons disable. Distinct from `delete_confirm` (armed-but-not-yet-running) — see `delete_gesture_state/3`."
-  @doc_movie "A movie row inside a `MovieSeries` content list. Either a `MediaCentaur.Library.Movie.t()` or the lean projection map from `DetailItem.movie_entry_to_map/1`. Required keys: `:id`, `:name`, `:date_published`. Optional (read via `Map.get`): `:images`, `:description`, `:duration_seconds`."
   @doc_extra "`MediaCentaur.Library.Extra.t()` (Ecto schema) — TV bonus content."
 
   # --- Main Component ---
@@ -102,6 +99,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         "tagged `EpisodeListItem.{Library, Missing, Upcoming}` items the renderer " <>
         "pattern-matches on — no tuple ADTs, no shape-guessing inside the component."
 
+  attr :movies_view, :list,
+    default: nil,
+    doc:
+      "`[%MediaCentaurWeb.ViewModel.MovieListItem{}]` typed view-model for the " <>
+        "movie-collection content list. Required when `entity.type == :movie_series`. " <>
+        "Built by `MediaCentaurWeb.ViewModel.CollectionDetail.compose/1`. Tagged " <>
+        "`MovieListItem.{Library, Upcoming}` items the renderer pattern-matches on — " <>
+        "the collection counterpart of `:seasons_view`."
+
   def detail_panel(assigns) do
     # Which seasons render open is the host modal's call — it seeds the
     # set from `Orientation.initial_expanded_seasons/1` on selection and
@@ -112,8 +118,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       if assigns.entity.type == :tv_series and is_list(assigns.seasons_view) do
         Orientation.build(assigns.seasons_view, assigns.resume)
       end
-
-    progress_by_key = EpisodeList.index_progress_by_key(assigns.progress_records)
 
     resume_episode_key =
       resume_episode_key(assigns.resume) || progress_episode_key(assigns.progress)
@@ -148,7 +152,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         assigns.detail_view == :cast && description_right? &&
           CastSelection.show_filter?(assigns.entity[:cast] || [])
       )
-      |> assign(:progress_by_key, progress_by_key)
       |> assign(:resume_episode_key, resume_episode_key)
       |> assign(:extra_progress_by_id, extra_progress_by_id)
       |> assign(:has_scrollable_content, has_scrollable_content)
@@ -362,11 +365,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               <.content_list
                 entity={@entity}
                 seasons_view={@seasons_view}
+                movies_view={@movies_view}
                 expanded_seasons={@expanded_seasons}
                 expanded_episode_details={@expanded_episode_details}
                 all_episode_details_open={@all_episode_details_open}
-                progress_by_key={@progress_by_key}
-                resume_episode_key={@resume_episode_key}
                 extra_progress_by_id={@extra_progress_by_id}
                 on_play={@on_play}
                 spoiler_free={@spoiler_free}
@@ -606,23 +608,14 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   defp content_list(%{entity: %{type: :movie_series}} = assigns) do
-    movies_with_ordinals =
-      (assigns.entity.movies || [])
-      |> MovieList.sort_movies()
-      |> Enum.filter(& &1.content_url)
-      |> Enum.with_index(1)
-
-    assigns = assign(assigns, :movies_with_ordinals, movies_with_ordinals)
+    assigns = assign(assigns, :movie_items, assigns.movies_view || [])
 
     ~H"""
     <div class="pt-3">
-      <div :if={@movies_with_ordinals != []}>
-        <.movie_row
-          :for={{movie, ordinal} <- @movies_with_ordinals}
-          movie={movie}
-          ordinal={ordinal}
-          progress={Map.get(@progress_by_key, movie.id)}
-          resume_episode_key={@resume_episode_key}
+      <div :if={@movie_items != []}>
+        <.collection_item
+          :for={item <- @movie_items}
+          item={item}
           entity_id={@entity.id}
           on_play={@on_play}
           spoiler_free={@spoiler_free}
@@ -1047,8 +1040,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   attr :rest, :global,
     doc:
-      "`phx-value-*` attributes that identify the toggle target (entity/season/episode for `toggle_watched`, entity/extra for `toggle_extra_watched`).",
-    include: ~w(phx-value-entity-id phx-value-season phx-value-episode phx-value-extra-id)
+      "`phx-value-*` attributes that identify the toggle target (entity + leaf container " <>
+        "for `toggle_watched` — movie rows send container-type/container-id, episode rows " <>
+        "still send season/episode until the leaf-id convergence lands — entity/extra for " <>
+        "`toggle_extra_watched`).",
+    include:
+      ~w(phx-value-entity-id phx-value-season phx-value-episode phx-value-extra-id phx-value-container-type phx-value-container-id)
 
   defp watched_toggle(assigns) do
     ~H"""
@@ -1093,42 +1090,64 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   def progress_percent(_), do: 0
 
-  # --- Movie Row ---
+  # --- Collection item dispatch ---
+  #
+  # Pattern-matches on the `MovieListItem` struct type, mirroring
+  # `season_item/1` — the typed contract IS the dispatch criterion.
 
-  attr :movie, :map, required: true, doc: @doc_movie
-  attr :ordinal, :integer, required: true
-
-  attr :progress, :map,
-    default: nil,
-    doc: "`MediaCentaur.Library.WatchProgress.t() | nil` for this movie."
-
-  attr :available, :boolean, default: true
-  attr :resume_episode_key, :any, default: nil, doc: @doc_resume_episode_key
+  attr :item, :map, required: true, doc: "%MovieListItem.{Library | Upcoming}{}"
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
+  attr :available, :boolean, default: true
+
+  defp collection_item(%{item: %MovieListItem.Library{}} = assigns) do
+    ~H"""
+    <.movie_row
+      item={@item}
+      entity_id={@entity_id}
+      on_play={@on_play}
+      spoiler_free={@spoiler_free}
+      available={@available}
+    />
+    """
+  end
+
+  defp collection_item(%{item: %MovieListItem.Upcoming{}} = assigns) do
+    ~H"""
+    <.upcoming_movie_row item={@item} />
+    """
+  end
+
+  # --- Movie Row ---
+
+  attr :item, :map,
+    required: true,
+    doc: "`%MediaCentaurWeb.ViewModel.MovieListItem.Library{}` — typed member movie."
+
+  attr :entity_id, :string, required: true
+  attr :on_play, :string, required: true
+  attr :spoiler_free, :boolean, default: false
+  attr :available, :boolean, default: true
 
   defp movie_row(assigns) do
-    state = episode_state(assigns.progress)
-
-    is_resume_target =
-      assigns.resume_episode_key != nil and
-        assigns.resume_episode_key == {0, assigns.ordinal}
-
     assigns =
       assigns
-      |> assign(:state, state)
-      |> assign(:is_resume_target, is_resume_target)
-      |> assign(:thumbnail, image_url(assigns.movie, "poster"))
+      |> assign(:movie, assigns.item.movie)
+      |> assign(:state, assigns.item.state)
+      |> assign(:progress, assigns.item.progress)
+      |> assign(:is_resume_target, assigns.item.is_resume_target)
+      |> assign(:thumbnail, image_url(assigns.item.movie, "poster"))
       # `description` / `duration_seconds` are optional display fields. The
       # movie_series projection map (`DetailItem.movie_entry_to_map/1`)
       # omits them, so read via `Map.get` — a bare dot-access raises
       # `KeyError` on the missing key and crashes the whole panel render.
-      |> assign(:description, Map.get(assigns.movie, :description))
-      |> assign(:duration_seconds, Map.get(assigns.movie, :duration_seconds))
+      |> assign(:description, Map.get(assigns.item.movie, :description))
+      |> assign(:duration_seconds, Map.get(assigns.item.movie, :duration_seconds))
 
     ~H"""
     <div
+      id={"movie-row-#{@movie.id}"}
       class={[
         "p-2 rounded cursor-pointer hover:bg-base-content/5",
         episode_row_class(@state, @is_resume_target)
@@ -1175,8 +1194,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           progress={@progress}
           duration_seconds={@duration_seconds}
           phx-value-entity-id={@entity_id}
-          phx-value-season="0"
-          phx-value-episode={@ordinal}
+          phx-value-container-type="movie"
+          phx-value-container-id={@movie.id}
         />
       </div>
       <div
@@ -1187,6 +1206,42 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           class="h-full bg-info rounded-full"
           style={"width: #{progress_percent(@progress)}%"}
         />
+      </div>
+    </div>
+    """
+  end
+
+  # --- Upcoming Movie Row ---
+  #
+  # An announced collection part (release-tracking overlay). Same visual
+  # contract as the upcoming episode row: muted, no thumbnail, no watched
+  # toggle, no `phx-click` (not actionable), right-side date pill. Not
+  # focusable until it becomes clickable.
+
+  attr :item, :map,
+    required: true,
+    doc: "`%MediaCentaurWeb.ViewModel.MovieListItem.Upcoming{}`"
+
+  defp upcoming_movie_row(assigns) do
+    ~H"""
+    <div
+      id={"upcoming-movie-#{@item.part_tmdb_id}"}
+      class="p-2 rounded opacity-60"
+      data-role="upcoming-movie-row"
+    >
+      <div class="flex items-center gap-3 text-sm">
+        <div class="w-12 flex-shrink-0 flex justify-center">
+          <.icon name="hero-film-mini" class="size-4 text-base-content/30" />
+        </div>
+        <span class="flex-1 min-w-0 truncate text-base-content/70">
+          {@item.title || "—"}
+        </span>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          <.badge variant="ghost" size="sm" class="gap-1">
+            <.icon name="hero-calendar-mini" class="size-3" />
+            {upcoming_pill_copy(@item)}
+          </.badge>
+        </div>
       </div>
     </div>
     """

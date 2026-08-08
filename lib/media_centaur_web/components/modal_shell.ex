@@ -88,6 +88,10 @@ defmodule MediaCentaurWeb.Components.ModalShell do
   attr :available, :boolean, default: true
   attr :tmdb_ready, :boolean, default: true
 
+  attr :movies_view, :list,
+    default: nil,
+    doc: "Forwarded to `DetailPanel.detail_panel/1`. See its `:movies_view` attr."
+
   attr :seasons_view, :list,
     default: nil,
     doc: "Forwarded to `DetailPanel.detail_panel/1`. See its `:seasons_view` attr."
@@ -152,6 +156,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
               resume={@resume}
               progress_records={@progress_records}
               seasons_view={@seasons_view}
+              movies_view={@movies_view}
               expanded_seasons={@expanded_seasons}
               expanded_episode_details={@expanded_episode_details}
               all_episode_details_open={@all_episode_details_open}
