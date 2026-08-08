@@ -8,8 +8,14 @@ defmodule MediaCentaur.Library.Person do
   `profile_path`.
 
   Data originates in the TMDB mapper (`MediaCentaur.TMDB.Mapper`) and
-  is read by the More info detail panel — `tmdb_person_id` is kept
+  is read by the Cast detail panel — `tmdb_person_id` is kept
   alongside `name` so the panel can link to the TMDB person page.
+
+  `total_episode_count` is TMDB's per-person appearance count from
+  `aggregate_credits` — series cast entries only (nil for movies and
+  crew). It orders the Cast view by who actually carried the show, and
+  its absence marks pre-count embeds for the *Refresh series credits*
+  backfill.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -21,7 +27,8 @@ defmodule MediaCentaur.Library.Person do
           job: String.t() | nil,
           department: String.t() | nil,
           profile_path: String.t() | nil,
-          tmdb_person_id: integer() | nil
+          tmdb_person_id: integer() | nil,
+          total_episode_count: integer() | nil
         }
 
   @primary_key false
@@ -33,9 +40,10 @@ defmodule MediaCentaur.Library.Person do
     field :department, :string
     field :profile_path, :string
     field :tmdb_person_id, :integer
+    field :total_episode_count, :integer
   end
 
-  @cast_fields [:name, :character, :order, :profile_path, :tmdb_person_id]
+  @cast_fields [:name, :character, :order, :profile_path, :tmdb_person_id, :total_episode_count]
   @crew_fields [:name, :job, :department, :profile_path, :tmdb_person_id]
 
   def cast_member_changeset(person \\ %__MODULE__{}, attrs) do

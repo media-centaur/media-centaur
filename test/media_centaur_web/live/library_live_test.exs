@@ -676,6 +676,45 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       refute has_element?(view, "[phx-click='show_more_cast']")
     end
 
+    test "the play-target episode's cast leads; the rest page under Other episodes", %{
+      conn: conn
+    } do
+      cast =
+        for i <- 1..30 do
+          %{
+            name: "Counted Member #{i}",
+            character: "Sample Role #{i}",
+            order: i - 1,
+            tmdb_person_id: 5000 + i,
+            total_episode_count: 100 - i
+          }
+        end
+
+      series = create_tv_series(%{name: "Partitioned Cast Show", cast: cast})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      _episode =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Pilot",
+          content_url: "/tv/partitioned/s01e01.mkv",
+          cast_person_ids: [5001, 5003, 5030]
+        })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{series.id}&view=cast")
+
+      html = render(view)
+      # Lead section renders in full, including the low-billed guest.
+      assert has_element?(view, "#cast-grid-lead")
+      assert html =~ "Counted Member 30"
+      assert html =~ "Other episodes"
+      # 27 non-members: 24 visible, 3 behind the disclosure.
+      assert has_element?(view, "[phx-click='show_more_cast']", "Show more (3 more)")
+      # Appearance counts render on the cards.
+      assert html =~ "99 episodes"
+    end
+
     test "paging resets when the modal switches entities", %{conn: conn, tv_series: tv_series} do
       other_cast =
         for i <- 1..30 do

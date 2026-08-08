@@ -123,8 +123,32 @@ defmodule MediaCentaur.TMDB.Mapper do
       name: tmdb_episode && tmdb_episode["name"],
       description: tmdb_episode && tmdb_episode["overview"],
       duration_seconds: tmdb_episode && minutes_to_seconds(tmdb_episode["runtime"]),
-      date_published: tmdb_episode && parse_date(tmdb_episode["air_date"])
+      date_published: tmdb_episode && parse_date(tmdb_episode["air_date"]),
+      cast_person_ids: episode_cast_person_ids(season_data, tmdb_episode)
     }
+  end
+
+  # TMDB models episode cast as "the season's billed regulars, plus this
+  # episode's guest stars" — that is exactly what its own episode pages
+  # show. Membership is stored as TMDB person ids referencing the series'
+  # aggregate cast embeds (one representation of a person, per series);
+  # a guest star already billed as a regular is not duplicated. Requires
+  # `Client.get_season/2`'s `append_to_response=credits`; season payloads
+  # fetched without it yield only guest stars.
+  defp episode_cast_person_ids(season_data, tmdb_episode) do
+    regular_ids =
+      get_in(season_data, ["credits", "cast"])
+      |> List.wrap()
+      |> Enum.sort_by(& &1["order"])
+      |> Enum.map(& &1["id"])
+
+    guest_ids =
+      (tmdb_episode || %{})
+      |> Map.get("guest_stars")
+      |> List.wrap()
+      |> Enum.map(& &1["id"])
+
+    Enum.uniq(Enum.reject(regular_ids ++ guest_ids, &is_nil/1))
   end
 
   @doc """
@@ -252,7 +276,10 @@ defmodule MediaCentaur.TMDB.Mapper do
         "character" => extract_cast_character(person),
         "tmdb_person_id" => person["id"],
         "profile_path" => person["profile_path"],
-        "order" => person["order"]
+        "order" => person["order"],
+        # Present on `aggregate_credits` cast entries only — plain movie
+        # `credits` carry no episode notion, so movies store nil.
+        "total_episode_count" => person["total_episode_count"]
       }
     end)
   end

@@ -1206,7 +1206,8 @@ defmodule MediaCentaur.Library.Views.Detail do
       duration_seconds: episode.duration_seconds,
       present?: files != [],
       content_url: files |> List.first() |> file_path(),
-      images: Map.get(graph.images_by_episode_id, episode.id, [])
+      images: Map.get(graph.images_by_episode_id, episode.id, []),
+      cast_person_ids: episode.cast_person_ids || []
     }
   end
 

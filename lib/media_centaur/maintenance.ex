@@ -242,8 +242,42 @@ defmodule MediaCentaur.Maintenance do
       label: "series",
       schema: TVSeries,
       fetcher: &Client.get_tv/1,
-      attrs_builder: &build_series_credits_attrs/1
+      attrs_builder: &build_series_credits_attrs/1,
+      refreshed?: &series_credits_refreshed?/1,
+      post_update: &backfill_episode_cast_membership/2
     })
+  end
+
+  # Cast embeds written before `total_episode_count` existed carry nil
+  # counts across the board — present, but stale for the Cast view's
+  # appearance ordering, so they earn a refetch.
+  defp series_credits_refreshed?(%TVSeries{cast: cast, crew: crew}) do
+    cast != [] and crew != [] and Enum.any?(cast, & &1.total_episode_count)
+  end
+
+  # One season fetch per season (rate-limited inside the client), then a
+  # narrow membership update per episode. A failed season fetch skips
+  # that season's episodes and leaves the rest of the series intact —
+  # membership stays [] there and the Cast view degrades to the single
+  # aggregate list for affected play targets.
+  defp backfill_episode_cast_membership(%TVSeries{} = series, tmdb_id) do
+    for season <- Library.Seasons.list_for_tv_series(series.id) do
+      case Client.get_season(tmdb_id, season.season_number) do
+        {:ok, season_data} ->
+          for episode <- Library.Episodes.list_for_season(season.id) do
+            membership = Mapper.episode_attrs(season_data, episode.episode_number)
+            _ = Library.Episodes.update_cast_membership(episode, membership.cast_person_ids)
+          end
+
+        {:error, reason} ->
+          Log.warning(
+            :library,
+            "episode cast backfill failed for series #{series.id} S#{season.season_number}: #{inspect(reason)}"
+          )
+      end
+    end
+
+    :ok
   end
 
   @doc """
@@ -330,17 +364,28 @@ defmodule MediaCentaur.Maintenance do
     )
   end
 
-  defp process_credits_refresh(%{cast: cast, crew: crew}, _tmdb_id, acc, _config)
-       when cast != [] and crew != [] do
-    Map.update!(acc, :skipped, &(&1 + 1))
+  defp process_credits_refresh(record, tmdb_id, acc, config) do
+    if credits_refreshed?(record, config) do
+      Map.update!(acc, :skipped, &(&1 + 1))
+    else
+      fetch_and_update_credits(record, tmdb_id, acc, config)
+    end
   end
 
-  defp process_credits_refresh(record, tmdb_id, acc, %{
-         label: label,
-         schema: schema,
-         fetcher: fetcher,
-         attrs_builder: attrs_builder
-       }) do
+  # A record is skipped when the config's `refreshed?` predicate says its
+  # credits are already current. The default — non-empty cast AND crew —
+  # is the original contract; series override it because pre-count cast
+  # embeds (nil `total_episode_count` throughout) are present but stale.
+  defp credits_refreshed?(record, %{refreshed?: refreshed?}), do: refreshed?.(record)
+
+  defp credits_refreshed?(%{cast: cast, crew: crew}, _config), do: cast != [] and crew != []
+
+  defp fetch_and_update_credits(
+         record,
+         tmdb_id,
+         acc,
+         %{label: label, schema: schema, fetcher: fetcher, attrs_builder: attrs_builder} = config
+       ) do
     case fetcher.(tmdb_id) do
       {:ok, body} ->
         {credits_attrs, imdb_id} = attrs_builder.(body)
@@ -351,6 +396,7 @@ defmodule MediaCentaur.Maintenance do
         |> case do
           {:ok, updated_record} ->
             _ = ExternalIds.put(:imdb, updated_record, imdb_id)
+            run_post_update(config, updated_record, tmdb_id)
 
             acc
             |> Map.update!(:updated, &(&1 + 1))
@@ -369,6 +415,10 @@ defmodule MediaCentaur.Maintenance do
         Map.update!(acc, :failed, &(&1 + 1))
     end
   end
+
+  defp run_post_update(%{post_update: post_update}, record, tmdb_id), do: post_update.(record, tmdb_id)
+
+  defp run_post_update(_config, _record, _tmdb_id), do: :ok
 
   # Beyond cast/crew, restores the scalar columns the pre-fix
   # collection-child import path never wrote (its hand-built attrs map

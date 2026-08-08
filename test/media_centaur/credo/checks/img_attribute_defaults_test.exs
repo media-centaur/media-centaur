@@ -47,19 +47,19 @@ defmodule MediaCentaur.Credo.Checks.ImgAttributeDefaultsTest do
       |> refute_issues()
     end
 
-    test "lazy is allowed inside the cast grid (reveal-bounded surface)" do
+    test "lazy is allowed inside the cast panel (reveal-bounded surface)" do
       ~S'''
-      defmodule MediaCentaurWeb.Components.Detail.CastGrid do
+      defmodule MediaCentaurWeb.Components.Detail.CastPanel do
         use Phoenix.Component
 
-        def cast_grid(assigns) do
+        def cast_panel(assigns) do
           ~H"""
           <img src={@headshot} loading="lazy" />
           """
         end
       end
       '''
-      |> to_source_file("lib/media_centaur_web/components/detail/cast_grid.ex")
+      |> to_source_file("lib/media_centaur_web/components/detail/cast_panel.ex")
       |> run_check(ImgAttributeDefaults)
       |> refute_issues()
     end

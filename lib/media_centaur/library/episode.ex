@@ -32,6 +32,12 @@ defmodule MediaCentaur.Library.Episode do
     # TMDB `air_date`. Nil for episodes scraped before the column existed
     # and for episodes TMDB has not dated yet (unaired).
     field :date_published, :date
+    # Cast membership as TMDB person ids referencing the parent series'
+    # aggregate-cast embeds — season regulars + this episode's guest
+    # stars (`TMDB.Mapper.episode_attrs/2`). Empty for episodes scraped
+    # before the column existed; backfilled by the *Refresh series
+    # credits* maintenance task.
+    field :cast_person_ids, {:array, :integer}, default: []
     # Virtual: populated from `playable_items.watched_files.file_path` by
     # `MediaCentaur.Library.ContentUrls.populate/1` (Library Schema v2
     # Phase 2 Task I). The persisted column was dropped; `WatchedFile` is
@@ -77,6 +83,7 @@ defmodule MediaCentaur.Library.Episode do
       :description,
       :duration_seconds,
       :date_published,
+      :cast_person_ids,
       :season_id
     ])
     |> validate_required([:season_id, :episode_number])
@@ -86,5 +93,15 @@ defmodule MediaCentaur.Library.Episode do
     # normalised to the Ecto default in
     # 20260523210000_restore_season_unique_index.
     |> unique_constraint([:season_id, :episode_number])
+  end
+
+  @doc """
+  Changeset for refreshing an existing episode's cast membership alone —
+  the *Refresh series credits* backfill path. Deliberately narrow so a
+  membership refresh can never disturb episode metadata.
+  """
+  def cast_membership_changeset(%__MODULE__{} = episode, cast_person_ids)
+      when is_list(cast_person_ids) do
+    cast(episode, %{cast_person_ids: cast_person_ids}, [:cast_person_ids])
   end
 end

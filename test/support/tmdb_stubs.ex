@@ -80,6 +80,28 @@ defmodule MediaCentaur.TmdbStubs do
     stub_endpoint("/tv/#{tmdb_id}/season/#{season_number}", data)
   end
 
+  @doc """
+  Stubs `/tv/{id}` and its `/tv/{id}/season/{n}` endpoints together.
+  Each `stub_*` call replaces the whole `:tmdb` stub, so flows that
+  fetch the series and then its seasons in one run (the *Refresh series
+  credits* backfill) need both behind a single stub. `seasons` maps
+  season number → season payload; unknown paths 404.
+  """
+  def stub_get_tv_with_seasons(tmdb_id, tv_data, seasons) when is_map(seasons) do
+    Req.Test.stub(:tmdb, fn conn ->
+      season =
+        Enum.find(seasons, fn {number, _data} ->
+          String.contains?(conn.request_path, "/tv/#{tmdb_id}/season/#{number}")
+        end)
+
+      cond do
+        season != nil -> json_resp(conn, 200, elem(season, 1))
+        String.contains?(conn.request_path, "/tv/#{tmdb_id}") -> json_resp(conn, 200, tv_data)
+        true -> json_resp(conn, 404, %{"status_message" => "Not Found"})
+      end
+    end)
+  end
+
   def stub_get_collection(collection_id, data) do
     stub_endpoint("/collection/#{collection_id}", data)
   end
