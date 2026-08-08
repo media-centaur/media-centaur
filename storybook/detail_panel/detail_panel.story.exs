@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   metadata row, play card, orientation marquee (TV), and the
   type-specific content list (movie / TV seasons + episodes / movie
   series; the facet strip renders for movie series only — movies and
-  TV carry catalog facts in the More info view). The Manage
+  TV dropped their catalog facts with the Cast view). The Manage
   sub-view (`detail_view: :info`) layers files (grouped by directory,
   with quality badges + an "added on" date), External IDs, the
   Rematch action, and a quiet UUID footer. Delete confirmations are
@@ -422,13 +422,12 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         }
       },
       %Variation{
-        id: :tv_series_credits_view,
+        id: :tv_series_cast_view,
         description:
-          "`detail_view: :credits` on a TV series — opens the More info panel " <>
-            "with **Created by** at the top, an aggregate-cast grid, a " <>
-            "network/first-aired/status meta block, and TMDB + IMDb external " <>
-            "links. Series-shaped counterpart to the movie credits view.",
-        attributes: Map.put(tv_series_attrs(), :detail_view, :credits)
+          "`detail_view: :cast` on a TV series — opens the Cast panel: " <>
+            "the aggregate-cast grid alone. The movie counterpart adds a " <>
+            "Directed by / Written by headline above the grid.",
+        attributes: Map.put(tv_series_attrs(), :detail_view, :cast)
       },
       %Variation{
         id: :offline,

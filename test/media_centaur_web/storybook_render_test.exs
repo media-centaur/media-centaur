@@ -27,7 +27,7 @@ defmodule MediaCentaurWeb.StorybookRenderTest do
   end
 
   # Derive the URL from a story file path.
-  # `storybook/detail/more_info/cast_grid.story.exs` → `/storybook/detail/more_info/cast_grid`
+  # `storybook/detail/cast_grid.story.exs` → `/storybook/detail/cast_grid`
   defp story_url(path) do
     path
     |> String.replace_prefix("storybook/", "/storybook/")

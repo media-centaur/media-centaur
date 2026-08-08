@@ -476,6 +476,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           detail_presentation={@detail_presentation}
           detail_view={@detail_view}
           cast_filter={@cast_filter}
+          cast_limit={@cast_limit}
           detail_files={@detail_files}
           expanded_seasons={@expanded_seasons}
           expanded_episode_details={@expanded_episode_details}
@@ -683,7 +684,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     params = if filter == "", do: params, else: Map.put(params, :filter, filter)
     params = if in_progress, do: Map.put(params, :in_progress, 1), else: params
     params = if selected, do: Map.put(params, :selected, selected), else: params
-    params = if selected && view in [:info, :credits], do: Map.put(params, :view, view), else: params
+    params = if selected && view in [:info, :cast], do: Map.put(params, :view, view), else: params
 
     if params == %{}, do: ~p"/library", else: ~p"/library?#{params}"
   end

@@ -57,7 +57,12 @@ defmodule MediaCentaurWeb.Components.ModalShell do
 
   attr :cast_filter, :string,
     default: "",
-    doc: "Forwarded to `DetailPanel.detail_panel/1`. Current More-info cast filter query."
+    doc: "Forwarded to `DetailPanel.detail_panel/1`. Current Cast-view filter query."
+
+  attr :cast_limit, :integer,
+    default: nil,
+    doc:
+      "Forwarded to `DetailPanel.detail_panel/1`. How many cast matches the Cast view renders; `nil` falls back to one page."
 
   attr :detail_files, :list,
     default: [],
@@ -151,6 +156,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
               detail_view={@detail_view}
               detail_files={@detail_files}
               cast_filter={@cast_filter}
+              cast_limit={@cast_limit}
               delete_confirm={@delete_confirm}
               deleting={@deleting}
               spoiler_free={@spoiler_free}

@@ -1,9 +1,9 @@
-defmodule MediaCentaurWeb.Storybook.Detail.MoreInfo.CastGrid do
+defmodule MediaCentaurWeb.Storybook.Detail.CastGrid do
   use PhoenixStorybook.Story, :component
 
   alias MediaCentaur.Library.Person
 
-  def function, do: &MediaCentaurWeb.Components.Detail.MoreInfo.CastGrid.cast_grid/1
+  def function, do: &MediaCentaurWeb.Components.Detail.CastGrid.cast_grid/1
 
   @populated Enum.map(0..7, fn i ->
                %Person{
@@ -62,12 +62,26 @@ defmodule MediaCentaurWeb.Storybook.Detail.MoreInfo.CastGrid do
       %Variation{
         id: :long_cast_with_filter,
         description:
-          "60 cast entries — exceeds the 24-card cap, so the filter input appears " <>
-            "above the grid. Only the first 24 render; the rest are never sent. " <>
-            "Typing is a `phx-change` the host LiveView answers, so the input is " <>
-            "inert here in isolation — the two variations below stand in for its " <>
-            "filtered states.",
+          "60 cast entries — exceeds one page, so the filter input appears " <>
+            "above the grid and a Show more disclosure follows it. Only the " <>
+            "first 24 render; the rest are never sent. Typing and Show more " <>
+            "are events the host LiveView answers, so both are inert here in " <>
+            "isolation — the variations below stand in for their states.",
         attributes: %{cast: @long_cast}
+      },
+      %Variation{
+        id: :long_cast_paged,
+        description:
+          "The same 60 entries after one Show more click (`limit: 48`) — " <>
+            "48 cards render and the disclosure counts the remaining 12.",
+        attributes: %{cast: @long_cast, limit: 48}
+      },
+      %Variation{
+        id: :long_cast_fully_paged,
+        description:
+          "Limit at or past the cast size — every card renders and the " <>
+            "Show more disclosure disappears.",
+        attributes: %{cast: @long_cast, limit: 60}
       },
       %Variation{
         id: :long_cast_filtered,

@@ -300,7 +300,7 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   # --- Modal views ---
   #
   # The detail modal shows one of three readings of a title: what is inside
-  # it, More info, and Manage. These answer which of them exist for a given
+  # it, Cast, and Manage. These answer which of them exist for a given
   # entity, which one a requested view resolves to, and what the single
   # control beside Play should offer — so the control and the URL can never
   # disagree about what is renderable.
@@ -309,7 +309,7 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   Whether the entity has content of its own to list — episodes, member
   movies, or entity-level extras.
 
-  False for a bare movie, which is why such a movie opens on More info
+  False for a bare movie, which is why such a movie opens on Cast
   instead of on a panel that renders nothing.
   """
   @spec main_body?(map()) :: boolean()
@@ -327,11 +327,11 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   def entity_extras(_entity), do: []
 
   @doc """
-  Whether the entity has a More info view. Collections do not — there is no
-  collection-level cast or credit to show.
+  Whether the entity has a Cast view. Collections do not — there is no
+  collection-level cast to show.
   """
-  @spec credits_tab?(map()) :: boolean()
-  def credits_tab?(%{type: type}), do: type in [:movie, :tv_series]
+  @spec cast_tab?(map()) :: boolean()
+  def cast_tab?(%{type: type}), do: type in [:movie, :tv_series]
 
   @doc """
   The view that a requested one resolves to for this entity.
@@ -341,8 +341,8 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   """
   @spec resolve_view(map(), atom()) :: atom()
   def resolve_view(_entity, :info), do: :info
-  def resolve_view(entity, :credits), do: if(credits_tab?(entity), do: :credits, else: :main)
-  def resolve_view(entity, _main), do: if(main_body?(entity), do: :main, else: :credits)
+  def resolve_view(entity, :cast), do: if(cast_tab?(entity), do: :cast, else: :main)
+  def resolve_view(entity, _main), do: if(main_body?(entity), do: :main, else: :cast)
 
   @doc """
   The name of what the title contains — the label for the control that
@@ -362,25 +362,25 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   is nowhere else to offer.
 
   The modal has one view control, in one slot, and it is labelled for its
-  *destination* — "Episodes", "Movies", "More info" — never "Back". Naming
+  *destination* — "Episodes", "Movies", "Cast" — never "Back". Naming
   the destination says where you are going; "Back" only says it is not here,
   and it changes meaning depending on which view you happen to be in.
 
   On the entity's root view the control offers the other view worth seeing;
   anywhere else it returns to the root. Note that the root is not always the
-  body: a movie with no extras opens *on* More info, so Manage returns there
-  and the control reads "More info".
+  body: a movie with no extras opens *on* Cast, so Manage returns there
+  and the control reads "Cast".
 
   `nil` covers the two entities with only one content view: a collection has
-  no More info, and a movie with no extras has no body.
+  no Cast view, and a movie with no extras has no body.
   """
-  @spec secondary_view(map(), atom()) :: :main | :credits | nil
+  @spec secondary_view(map(), atom()) :: :main | :cast | nil
   def secondary_view(entity, detail_view) do
     root_view = resolve_view(entity, :main)
 
     cond do
       detail_view != root_view -> root_view
-      credits_tab?(entity) and root_view != :credits -> :credits
+      cast_tab?(entity) and root_view != :cast -> :cast
       true -> nil
     end
   end

@@ -237,7 +237,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
   describe "detail modal view controls" do
     # The modal's view controls are a soft button and a Manage cog on Play's
     # own line. There is exactly ONE text control, in ONE slot: it offers
-    # More info from the root view and reads Back from anywhere else.
+    # Cast from the root view and reads Back from anywhere else.
     #
     # That is what keeps "Back" in a fixed position. Until 2026-08-07 there
     # were two buttons, each relabelling itself to "Back" when its own view
@@ -282,32 +282,32 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       refute has_element?(view, "#detail-modal [role='tab']")
     end
 
-    test "on the root view the control offers More info", %{conn: conn, tv_series: tv_series} do
+    test "on the root view the control offers Cast", %{conn: conn, tv_series: tv_series} do
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
 
-      assert has_element?(view, "[data-role='view-control']", "More info")
+      assert has_element?(view, "[data-role='view-control']", "Cast")
       refute has_element?(view, "[data-role='manage-toggle'][aria-pressed='true']")
     end
 
     test "off the root view the same slot names the way back", %{conn: conn, tv_series: tv_series} do
       # "Episodes", not "Back" — the label says where you are going. "Back"
       # only says it is not here, and what it means changes per view.
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=credits")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
 
       assert has_element?(view, "[data-role='view-control']", "Episodes")
-      refute has_element?(view, "[data-role='view-control']", "More info")
+      refute has_element?(view, "[data-role='view-control']", "Cast")
     end
 
     test "the way back is named for its destination, not for the body", %{
       conn: conn,
       movie: movie
     } do
-      # A movie with no extras opens on More info, so that is where Manage
+      # A movie with no extras opens on Cast, so that is where Manage
       # returns to — labelling it "Episodes" would be a lie, and it has no
       # episode list to name anyway.
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
 
-      assert has_element?(view, "[data-role='view-control']", "More info")
+      assert has_element?(view, "[data-role='view-control']", "Cast")
     end
 
     test "Manage shows its open state without changing any label", %{
@@ -322,15 +322,15 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "[data-role='view-control']", "Episodes")
     end
 
-    test "More info encodes itself into the URL", %{conn: conn, tv_series: tv_series} do
-      # Regression: build_modal_path/2 must encode `view=credits`, not just
+    test "Cast encodes itself into the URL", %{conn: conn, tv_series: tv_series} do
+      # Regression: build_modal_path/2 must encode `view=cast`, not just
       # `view=info`. Without it the selection round-trips through
       # `parse_view` and lands back on the body, making the control look dead.
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
 
       view |> element("[data-role='view-control']") |> render_click()
 
-      assert_patched(view, ~p"/library?selected=#{tv_series.id}&view=credits")
+      assert_patched(view, ~p"/library?selected=#{tv_series.id}&view=cast")
     end
 
     test "the control returns to the root view rather than closing", %{
@@ -342,11 +342,11 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       view |> element("[data-role='view-control']") |> render_click()
 
       assert_patched(view, ~p"/library?selected=#{tv_series.id}")
-      assert has_element?(view, "[data-role='view-control']", "More info")
+      assert has_element?(view, "[data-role='view-control']", "Cast")
     end
 
     test "a movie with no extras has nowhere else to offer", %{conn: conn, movie: movie} do
-      # It opens on More info — that *is* its root — so the slot is empty and
+      # It opens on Cast — that *is* its root — so the slot is empty and
       # the row is just Play and the cog.
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
 
@@ -354,7 +354,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "[data-role='manage-toggle']")
     end
 
-    test "a collection has no More info to offer", %{conn: conn, collection: collection} do
+    test "a collection has no Cast view to offer", %{conn: conn, collection: collection} do
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
 
       refute has_element?(view, "[data-role='view-control']")
@@ -501,7 +501,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       {:ok, movie: movie}
     end
 
-    test "credits view shows the remembered-tracks badge when an override exists", %{
+    test "Manage view shows the remembered-tracks badge when an override exists", %{
       conn: conn,
       movie: movie
     } do
@@ -511,7 +511,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
           subtitle_lang: "eng"
         })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=credits")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
 
       html = render(view)
       assert html =~ "Remembered tracks"
@@ -521,7 +521,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "no badge when the entity has no override", %{conn: conn, movie: movie} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=credits")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
 
       refute render(view) =~ "Remembered tracks"
     end
@@ -529,7 +529,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     test "Reset to default clears the override and drops the badge", %{conn: conn, movie: movie} do
       {:ok, _} = Library.MediaTrackOverrides.upsert(:movie, movie.id, %{audio_lang: "jpn"})
 
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=credits")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
       assert render(view) =~ "Remembered tracks"
 
       view |> element("button[phx-click='reset_track_override']") |> render_click()
@@ -542,7 +542,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       movie: movie
     } do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=credits")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
       refute render(view) =~ "Remembered tracks"
 
       # Simulate a mid-playback capture: the override lands in the DB and
@@ -557,7 +557,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
 
     test "TrackOverrideChanged for a different entity is ignored", %{conn: conn, movie: movie} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=credits")
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
 
       Events.broadcast(%TrackOverrideChanged{
         owner_type: :movie,
@@ -565,6 +565,151 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       })
 
       refute render(view) =~ "Remembered tracks"
+    end
+  end
+
+  describe "Manage view file facts" do
+    # Canned ffprobe output — probing "succeeds" for every path. Same
+    # shape as `FileMediaInfoTest.StubRunner`; local because each test
+    # module owns its stubs.
+    defmodule StubProbeRunner do
+      def run(_executable, _args) do
+        json =
+          Jason.encode!(%{
+            "streams" => [
+              %{
+                "codec_type" => "video",
+                "codec_name" => "hevc",
+                "width" => 3840,
+                "height" => 2160,
+                "disposition" => %{"attached_pic" => 0}
+              },
+              %{
+                "codec_type" => "audio",
+                "codec_name" => "truehd",
+                "channels" => 8,
+                "channel_layout" => "7.1"
+              }
+            ],
+            "format" => %{
+              "duration" => "6073.6",
+              "tags" => %{"title" => "Sample.Movie.2024.2160p-GRP"}
+            }
+          })
+
+        {json, 0}
+      end
+    end
+
+    setup do
+      # Application env is not covered by GlobalStateSandbox, so the stub
+      # is restored by hand.
+      previous = Application.get_env(:media_centaur, :media_probe_runner)
+      Application.put_env(:media_centaur, :media_probe_runner, StubProbeRunner)
+      on_exit(fn -> Application.put_env(:media_centaur, :media_probe_runner, previous) end)
+
+      movie = create_standalone_movie(%{name: "Probed Movie"})
+      file = create_linked_file(%{movie_id: movie.id})
+      :ok = Library.MediaInfo.refresh(file.file_presence_id, file.file_path)
+
+      {:ok, movie: movie}
+    end
+
+    test "file rows carry the probed container title and tech line", %{
+      conn: conn,
+      movie: movie
+    } do
+      # The file's own claims sit on its Manage row, next to the
+      # filename-parsed badges — a renamed fake release stays visible.
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+
+      html = render(view)
+      assert html =~ "Container title"
+      assert html =~ "Sample.Movie.2024.2160p-GRP"
+      assert html =~ "1h 41m · HEVC · 3840×2160 · TrueHD 7.1"
+    end
+  end
+
+  describe "cast view paging" do
+    setup do
+      cast =
+        for i <- 1..30 do
+          %{name: "Cast Member #{i}", character: "Sample Role #{i}", order: i - 1}
+        end
+
+      tv_series = create_tv_series(%{name: "Big Cast Show", cast: cast})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      _episode =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Pilot",
+          content_url: "/tv/big-cast/s01e01.mkv"
+        })
+
+      {:ok, tv_series: tv_series}
+    end
+
+    test "one page of cast renders with a Show more disclosure counting the rest", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
+
+      html = render(view)
+      assert html =~ "Cast Member 24"
+      refute html =~ "Cast Member 25"
+      assert has_element?(view, "[phx-click='show_more_cast']", "Show more (6 more)")
+    end
+
+    test "Show more pages in the rest and the disclosure disappears", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
+
+      view |> element("[phx-click='show_more_cast']") |> render_click()
+
+      html = render(view)
+      assert html =~ "Cast Member 30"
+      refute has_element?(view, "[phx-click='show_more_cast']")
+    end
+
+    test "paging resets when the modal switches entities", %{conn: conn, tv_series: tv_series} do
+      other_cast =
+        for i <- 1..30 do
+          %{name: "Other Member #{i}", character: "Sample Role #{i}", order: i - 1}
+        end
+
+      other = create_tv_series(%{name: "Other Big Cast Show", cast: other_cast})
+      other_season = create_season(%{tv_series_id: other.id, season_number: 1})
+
+      _other_episode =
+        create_episode(%{
+          season_id: other_season.id,
+          episode_number: 1,
+          name: "Pilot",
+          content_url: "/tv/other-big-cast/s01e01.mkv"
+        })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
+      view |> element("[phx-click='show_more_cast']") |> render_click()
+      refute has_element?(view, "[phx-click='show_more_cast']")
+
+      # Same mounted LiveView, different selection — the per-selection
+      # reset in apply_modal_params/2 is what's under test, not a remount.
+      # An entity switch always lands on the main view (entity_switched in
+      # apply_modal_params), so the Cast view is re-entered via its control.
+      render_patch(view, ~p"/library?selected=#{other.id}")
+      render_async(view)
+
+      view |> element("[data-role='view-control']", "Cast") |> render_click()
+
+      html = render_async(view)
+      assert html =~ "Other Member 24"
+      refute html =~ "Other Member 25"
+      assert has_element?(view, "[phx-click='show_more_cast']", "Show more (6 more)")
     end
   end
 
