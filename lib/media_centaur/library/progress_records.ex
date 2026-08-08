@@ -36,6 +36,7 @@ defmodule MediaCentaur.Library.ProgressRecords do
     Movie,
     PlayableItem,
     PlayableItems,
+    PresentableQueries,
     Season,
     WatchProgress,
     Writes
@@ -349,8 +350,9 @@ defmodule MediaCentaur.Library.ProgressRecords do
     end)
   end
 
-  # TV series: episodes_total counts episodes under any season of the
-  # series; episodes_completed counts completed progress rows beneath it.
+  # TV series: episodes_total counts *present* episodes (those with a
+  # WatchedFile) under any season of the series; episodes_completed
+  # counts completed progress rows beneath it.
   defp tv_series_summaries(ids) do
     rows =
       Repo.all(
@@ -372,11 +374,12 @@ defmodule MediaCentaur.Library.ProgressRecords do
         )
       )
 
-    summarise(rows, &Episodes.count_by_tv_series/1)
+    summarise(rows, &Episodes.count_available_by_tv_series/1)
   end
 
-  # Movie series: total counts child movies; completed counts child
-  # movies carrying a completed WatchProgress.
+  # Movie series: total counts *present* child movies (those with a
+  # WatchedFile); completed counts child movies carrying a completed
+  # WatchProgress.
   defp movie_series_summaries(ids) do
     rows =
       Repo.all(
@@ -432,11 +435,8 @@ defmodule MediaCentaur.Library.ProgressRecords do
   end
 
   defp movie_totals_by_movie_series(series_ids) do
-    from(m in Movie,
-      where: m.movie_series_id in ^series_ids,
-      group_by: m.movie_series_id,
-      select: {m.movie_series_id, count(m.id)}
-    )
+    series_ids
+    |> PresentableQueries.present_movie_counts()
     |> Repo.all()
     |> Map.new()
   end

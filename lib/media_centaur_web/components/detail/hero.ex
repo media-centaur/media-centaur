@@ -7,7 +7,7 @@ defmodule MediaCentaurWeb.Components.Detail.Hero do
 
   Carries only the top-right `actions` overlay (tracking bell) and the
   quiet placeholder frame when artwork is missing or storage is
-  unmounted. The identity lockup, tagline, and season hairline live in
+  unmounted. The identity lockup, tagline, and progress hairline live in
   the orientation block below (`DetailPanel`), which overlaps this frame
   at rest and pins to the top of the scrollport on scroll — this window
   scrolls away, the orientation block does not.

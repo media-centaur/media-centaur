@@ -8,19 +8,7 @@ defmodule MediaCentaurWeb.LibraryProgress do
 
   alias MediaCentaur.Library.{EpisodeList, MovieList}
 
-  # --- Progress fraction + completion ---
-
-  def compute_progress_fraction(nil), do: 0
-
-  def compute_progress_fraction(%{
-        episode_position_seconds: position,
-        episode_duration_seconds: duration
-      })
-      when duration > 0 do
-    Float.round(position / duration * 100, 1)
-  end
-
-  def compute_progress_fraction(_), do: 0
+  # --- Completion percentage ---
 
   @doc """
   Formats the completion percentage of a progress record for display.

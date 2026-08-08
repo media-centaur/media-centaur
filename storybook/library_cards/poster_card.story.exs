@@ -275,9 +275,9 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
   end
 
   # Builds a ProgressSummary-shaped map at the given completion percentage.
-  # The component reads only `:episode_position_seconds` and
-  # `:episode_duration_seconds`; the other fields are included for
-  # shape-realism.
+  # The component computes the bar via
+  # `ContinueWatchingProgress.compute_pct/1` — with a single-item summary
+  # (`episodes_total: 1`) the position/duration ratio IS the percentage.
   defp progress(percent) do
     duration = 1800.0
     position = duration * percent / 100.0

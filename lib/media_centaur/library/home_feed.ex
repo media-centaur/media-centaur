@@ -419,13 +419,13 @@ defmodule MediaCentaur.Library.HomeFeed do
       |> Repo.preload([:images])
 
     # The two numbers this row needs from the episode list — how many
-    # episodes there are, and which of them have progress — are both
-    # aggregates, so they are asked for as aggregates. Preloading
+    # present episodes there are, and which of them have progress — are
+    # both aggregates, so they are asked for as aggregates. Preloading
     # `seasons: [:episodes]` to compute them loaded every episode of every
     # returned series into memory to produce two integers apiece.
     series_ids = Enum.map(series_list, & &1.id)
     progress_by_series = progress_records_by_tv_series(series_ids)
-    episode_counts = Episodes.count_by_tv_series(series_ids)
+    episode_counts = Episodes.count_available_by_tv_series(series_ids)
 
     Enum.reject(
       Enum.map(series_list, fn series ->
@@ -573,6 +573,12 @@ defmodule MediaCentaur.Library.HomeFeed do
       |> Repo.all()
       |> Repo.preload([:images, movies: [:watch_progress]])
 
+    # Same aggregate discipline as the TV fetcher: the denominator is
+    # the count of *present* child movies (those with a WatchedFile) —
+    # a child record with no file is not watchable and must not dilute
+    # the progress fraction.
+    present_counts = present_movie_counts(Enum.map(series_list, & &1.id))
+
     Enum.reject(
       Enum.map(series_list, fn series ->
         progress_records =
@@ -581,7 +587,7 @@ defmodule MediaCentaur.Library.HomeFeed do
               not is_nil(progress),
               do: progress
 
-        movies_total = length(series.movies || [])
+        movies_total = Map.get(present_counts, series.id, 0)
         movies_completed = Enum.count(progress_records, & &1.completed)
 
         # Include movie series when the user has touched it AND hasn't
@@ -608,6 +614,15 @@ defmodule MediaCentaur.Library.HomeFeed do
       end),
       &is_nil/1
     )
+  end
+
+  defp present_movie_counts([]), do: %{}
+
+  defp present_movie_counts(series_ids) do
+    series_ids
+    |> PresentableQueries.present_movie_counts()
+    |> Repo.all()
+    |> Map.new()
   end
 
   defp entry_last_watched_at(%{progress_records: records}) do

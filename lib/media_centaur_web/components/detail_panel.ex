@@ -246,7 +246,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         >
           <div class="orientation-hairline-fill" style={"width: #{@hairline_fraction * 100}%"} />
         </div>
-        <%!-- pt-6 (vs the p-4 sides): the season hairline sits flush on
+        <%!-- pt-6 (vs the p-4 sides): the progress hairline sits flush on
               the hero window's bottom edge, so the block below needs
               extra clearance to read as separate from the progress
               track. --%>
@@ -413,7 +413,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # The hairline names what its fraction spans — the current season for
   # TV, the whole collection for a movie series.
   defp hairline_label(%{type: :movie_series}), do: "Collection progress"
-  defp hairline_label(_entity), do: "Season progress"
+  defp hairline_label(_entity), do: "Series progress"
 
   # --- Header content builders (used in detail_panel/1) ---
 

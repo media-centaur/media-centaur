@@ -165,6 +165,53 @@ defmodule MediaCentaur.Library.ProgressSummariesTest do
     end
   end
 
+  describe "list_progress_summaries/1 — availability" do
+    test "episodes without files are excluded from episodes_total" do
+      %{series: series, season: season, episode: ep1} =
+        seed_present_tv_series_with_episode("Partial Show")
+
+      # Episode record with no WatchedFile — not watchable, so it must
+      # not count toward the denominator.
+      _fileless =
+        create_episode(%{season_id: season.id, episode_number: 2, name: "S1E2"})
+
+      _ =
+        create_watch_progress(%{
+          episode_id: ep1.id,
+          position_seconds: 60.0,
+          duration_seconds: 60.0,
+          completed: true
+        })
+
+      result = Library.ProgressRecords.summaries([series.id])
+
+      assert result[series.id].episodes_completed == 1
+      assert result[series.id].episodes_total == 1
+    end
+
+    test "absent child movies are excluded from a collection's episodes_total" do
+      ms = create_movie_series(%{name: "Partial Collection"})
+      part1 = create_movie(%{movie_series_id: ms.id, name: "Part 1", position: 0})
+      part2 = create_movie(%{movie_series_id: ms.id, name: "Part 2", position: 1})
+      _part3 = create_movie(%{movie_series_id: ms.id, name: "Part 3", position: 2})
+      record_present(create_linked_file(%{movie_id: part1.id}))
+      record_present(create_linked_file(%{movie_id: part2.id}))
+
+      _ =
+        create_watch_progress(%{
+          movie_id: part1.id,
+          position_seconds: 100.0,
+          duration_seconds: 100.0,
+          completed: true
+        })
+
+      result = Library.ProgressRecords.summaries([ms.id])
+
+      assert result[ms.id].episodes_completed == 1
+      assert result[ms.id].episodes_total == 2
+    end
+  end
+
   describe "list_progress_summaries/1 — mixed batch" do
     test "returns summaries for movies and TV series in one call" do
       movie = seed_present_movie("Mixed Movie")
