@@ -49,7 +49,11 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
        `tracking_status: nil`. Confirms the bell-icon affordance is
        absent and no upcoming/future-season content renders.
     9. `:movie_series` — `:movie_series` with three child movies, one
-       partially watched. Hits the chronological movie row.
+       partially watched. Dense chronological rows from the typed
+       `movies_view`; movie 1's synopsis/poster disclosure open.
+    9b. `:movie_series_with_upcoming` — a tracked collection's announced
+       fourth part renders as a muted `MovieListItem.Upcoming` row with
+       the air-date pill.
     10. `:info_view_with_files` — `detail_view: :info` with a small
        (≤ 6 files) inventory: the folder ledger auto-expands, showing
        file rows (quality badges, "added Xd ago", per-file delete)
@@ -74,7 +78,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     15. `:tv_series_all_episode_details_open` — `all_episode_details_open: true`
        opens every episode row's synopsis/thumbnail block at once
        (the list-level "Show details" toggle above the seasons,
-       ORed with per-row `expanded_episode_details`).
+       ORed with per-row `expanded_item_details`).
 
   ## Fudged data
 
@@ -92,13 +96,13 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
 
   Recorded as input for `~/src/media-centaur/component-contract-plan.md`:
 
-    * **TV-series episode-list path migrated** to
+    * **Both content-list paths are typed** —
       `MediaCentaurWeb.ViewModel.{SeriesDetail, SeasonView,
-      EpisodeListItem.{Library, Missing, Upcoming}}` — `seasons_view`
-      attr is the typed contract `season_section/1`,
-      `episode_row/1`, `missing_episode_row/1`, and the new
-      `upcoming_episode_row/1` consume. Movie / movie_series paths
-      remain map-based; their migration is separate work.
+      EpisodeListItem.{Library, Missing, Upcoming}}` for TV
+      (`seasons_view`) and `MediaCentaurWeb.ViewModel.{CollectionDetail,
+      MovieListItem.{Library, Upcoming}}` for collections
+      (`movies_view`). `Detail.SeasonList` / `Detail.CollectionList`
+      consume them exclusively.
     * `entity: :map` — still the biggest remaining smell on the
       top-level component. Movie and movie_series renders dispatch on
       `entity.type` with `Map.get/3` field access. Same `Entity` ADT
@@ -244,10 +248,15 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         id: :tv_series_episode_details_open,
         description:
           "Same shape, with episode 3's disclosure open " <>
-            "(`expanded_episode_details: MapSet.new([{1, 3}])`) — the dense row " <>
+            "(`expanded_item_details` carrying its episode id) — the dense row " <>
             "grows an inline synopsis + thumbnail block beneath it. The chevron " <>
             "flips to point up and `aria-expanded` is true.",
-        attributes: Map.put(tv_series_attrs(), :expanded_episode_details, MapSet.new([{1, 3}]))
+        attributes:
+          Map.put(
+            tv_series_attrs(),
+            :expanded_item_details,
+            MapSet.new(["33333333-3333-3333-3333-3333000s01e03"])
+          )
       },
       %Variation{
         id: :tv_series_all_episode_details_open,
@@ -965,7 +974,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       resume: nil,
       progress_records: progress_records,
       movies_view: [m1_item, m2_item, m3_item],
-      expanded_movie_details: MapSet.new([m1_item.movie.id]),
+      expanded_item_details: MapSet.new([m1_item.movie.id]),
       available: true,
       tmdb_ready: true,
       expanded_seasons: MapSet.new()

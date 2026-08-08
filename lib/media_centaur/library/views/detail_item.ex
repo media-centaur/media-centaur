@@ -358,7 +358,7 @@ defmodule MediaCentaur.Library.Views.DetailItem do
   `MediaCentaurWeb.Components.DetailPanel`,
   `MediaCentaur.Playback.ResumeTarget.compute/2`,
   `MediaCentaurWeb.Live.EntityModal.find_tmdb_id/1`,
-  `MediaCentaurWeb.Live.EntityModal.resolve_progress_fk/4`) consume.
+  the detail modal's leaf-id watched toggles) consume.
 
   Dispatches on `(parent_container_type, container_type)` to produce
   the right shape for each modal kind:

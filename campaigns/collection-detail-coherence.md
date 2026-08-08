@@ -1,5 +1,5 @@
 ---
-status: in-progress
+status: complete
 started: 2026-08-08
 last_updated: 2026-08-08
 ---
@@ -70,7 +70,29 @@ modal is coherent with how it would be designed greenfield.
 
 ## Status
 
-Stage 1 in progress (2026-08-08).
+✅ All five stages implemented and committed 2026-08-08 (unpushed).
+Real-browser verification: collection disclosure + container-id toggle,
+TV episode disclosure + container-id toggle, all real-clicked against
+the dev server. Full precommit green per stage.
+
+Landed beyond the plan: the leaf-id convergence also unified the
+disclosure key space (`expanded_item_details`, one `toggle_item_details`
+event) and retired `LibraryProgress.resolve_progress_fk/4` + 
+`MovieList.find_movie_by_ordinal/2` outright.
+
+Deferred / observations:
+- `all_episode_details_open` keeps its TV-specific name; collections
+  have no list-level Show-details toggle yet. Wire + generalize the
+  name if/when collections get the toggle.
+- `MovieListItem.Missing` variant: blocked on a collection-parts
+  completeness data source (Library stores member movies only once a
+  file imports).
+- Observed (pre-existing, not introduced here): toggling a title back
+  to unwatched leaves a `WatchProgress` row whose `last_watched_at`
+  surfaces the title in Continue Watching at 0%. Worth a product
+  decision.
+- Wiki follow-up on ship: library page — collection modal shows
+  announced parts of tracked collections.
 
 ## Relationship to other campaigns
 

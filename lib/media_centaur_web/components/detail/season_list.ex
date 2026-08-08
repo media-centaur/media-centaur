@@ -38,13 +38,13 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
   attr :entity_id, :string, required: true
   attr :expanded_seasons, MapSet, required: true
 
-  attr :expanded_episode_details, MapSet,
+  attr :expanded_item_details, MapSet,
     default: nil,
-    doc: "`{season_number, episode_number}` keys with open synopsis disclosures."
+    doc: "leaf (episode) ids with open synopsis disclosures."
 
   attr :all_episode_details_open, :boolean,
     default: false,
-    doc: "list-level episode-details toggle — ORed with `expanded_episode_details` per row."
+    doc: "list-level episode-details toggle — ORed with `expanded_item_details` per row."
 
   attr :extras, :list,
     default: [],
@@ -87,7 +87,7 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
         :for={season_view <- @seasons}
         season={season_view}
         expanded={MapSet.member?(@expanded_seasons, season_view.season_number)}
-        expanded_episode_details={@expanded_episode_details}
+        expanded_item_details={@expanded_item_details}
         all_episode_details_open={@all_episode_details_open}
         extra_progress_by_id={@extra_progress_by_id}
         entity_id={@entity_id}
@@ -113,9 +113,9 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
 
   attr :expanded, :boolean, required: true
 
-  attr :expanded_episode_details, MapSet,
+  attr :expanded_item_details, MapSet,
     default: nil,
-    doc: "`{season_number, episode_number}` keys with open synopsis disclosures."
+    doc: "leaf (episode) ids with open synopsis disclosures."
 
   attr :all_episode_details_open, :boolean, default: false
 
@@ -174,10 +174,8 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
           item={item}
           details_open={
             @all_episode_details_open ||
-              MapSet.member?(
-                @expanded_episode_details || MapSet.new(),
-                {@season.season_number, item_episode_number(item)}
-              )
+              (match?(%EpisodeListItem.Library{}, item) &&
+                 MapSet.member?(@expanded_item_details || MapSet.new(), item.episode.id))
           }
           entity_id={@entity_id}
           on_play={@on_play}
@@ -291,9 +289,8 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
         <button
           :if={@episode.description || @thumbnail}
           type="button"
-          phx-click="toggle_episode_details"
-          phx-value-season={@season_number}
-          phx-value-episode={@episode.episode_number}
+          phx-click="toggle_item_details"
+          phx-value-item-id={@episode.id}
           data-nav-sub-item
           class="flex-shrink-0 p-1.5 -m-1 rounded-md cursor-pointer text-base-content/30 hover:text-base-content/70 hover:bg-base-content/10 transition-colors"
           aria-expanded={to_string(@details_open)}
@@ -310,8 +307,8 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
           progress={@progress}
           duration_seconds={@episode.duration_seconds}
           phx-value-entity-id={@entity_id}
-          phx-value-season={@season_number}
-          phx-value-episode={@episode.episode_number}
+          phx-value-container-type="episode"
+          phx-value-container-id={@episode.id}
         />
       </div>
       <div :if={@details_open} class="mt-2 ml-9 mb-1 flex items-start gap-3">
@@ -405,10 +402,4 @@ defmodule MediaCentaurWeb.Components.Detail.SeasonList do
     do: watched == total and (total || 0) > 0
 
   defp season_progress_label(watched, total), do: "#{total - watched} remaining"
-
-  # Episode number across the EpisodeListItem variants — Library nests it
-  # on the episode struct; Missing/Upcoming carry it directly.
-  defp item_episode_number(%EpisodeListItem.Library{episode: episode}), do: episode.episode_number
-
-  defp item_episode_number(%{episode_number: episode_number}), do: episode_number
 end

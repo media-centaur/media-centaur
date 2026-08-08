@@ -1094,7 +1094,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       refute html =~ "Mark unwatched"
 
       view
-      |> element(~s|button[phx-click="toggle_watched"][phx-value-episode="#{episode.episode_number}"]|)
+      |> element(~s|button[phx-click="toggle_watched"][phx-value-container-id="#{episode.id}"]|)
       |> render_click()
 
       # The handler dispatches the DB write to a Task; wait for the
@@ -1132,7 +1132,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert html =~ "Mark unwatched"
 
       view
-      |> element(~s|button[phx-click="toggle_watched"][phx-value-episode="#{episode.episode_number}"]|)
+      |> element(~s|button[phx-click="toggle_watched"][phx-value-container-id="#{episode.id}"]|)
       |> render_click()
 
       assert_receive {:entity_progress_updated, _payload}, 1000
@@ -1234,7 +1234,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       refute html =~ "into the hills"
 
       view
-      |> element(~s|button[phx-click="toggle_movie_details"][phx-value-movie-id="#{part_1.id}"]|)
+      |> element(~s|button[phx-click="toggle_item_details"][phx-value-item-id="#{part_1.id}"]|)
       |> render_click()
 
       html = render(view)
@@ -1243,7 +1243,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       # Clicking again closes it.
       view
-      |> element(~s|button[phx-click="toggle_movie_details"][phx-value-movie-id="#{part_1.id}"]|)
+      |> element(~s|button[phx-click="toggle_item_details"][phx-value-item-id="#{part_1.id}"]|)
       |> render_click()
 
       refute render(view) =~ "into the hills"
