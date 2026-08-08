@@ -302,12 +302,12 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       conn: conn,
       movie: movie
     } do
-      # A movie with no extras opens on Cast, so that is where Manage
-      # returns to — labelling it "Episodes" would be a lie, and it has no
+      # A bare movie's main view is its hero page, so Manage returns to
+      # "Overview" — labelling it "Episodes" would be a lie, and it has no
       # episode list to name anyway.
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
 
-      assert has_element?(view, "[data-role='view-control']", "Cast")
+      assert has_element?(view, "[data-role='view-control']", "Overview")
     end
 
     test "Manage shows its open state without changing any label", %{
@@ -345,12 +345,10 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "[data-role='view-control']", "Cast")
     end
 
-    test "a movie with no extras has nowhere else to offer", %{conn: conn, movie: movie} do
-      # It opens on Cast — that *is* its root — so the slot is empty and
-      # the row is just Play and the cog.
+    test "a movie with no extras offers Cast from its hero page", %{conn: conn, movie: movie} do
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
 
-      refute has_element?(view, "[data-role='view-control']")
+      assert has_element?(view, "[data-role='view-control']", "Cast")
       assert has_element?(view, "[data-role='manage-toggle']")
     end
 
@@ -954,6 +952,31 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "[phx-click='show_more_cast']", "Show more (3 more)")
       # Appearance counts render on the cards.
       assert html =~ "99 episodes"
+    end
+
+    test "a movie opens on its hero page; the Cast control leads to the grid", %{conn: conn} do
+      cast =
+        for i <- 1..10 do
+          %{name: "Movie Cast Member #{i}", character: "Sample Role #{i}", order: i - 1}
+        end
+
+      movie = create_standalone_movie(%{name: "Casted Movie", cast: cast})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+
+      # The main view is the orientation block alone — no cast grid.
+      refute has_element?(view, "[data-nav-zone='detail_cast']")
+      refute render(view) =~ "Movie Cast Member 1"
+
+      view |> element("[data-role='view-control']", "Cast") |> render_click()
+
+      html = render_async(view)
+      assert html =~ "Movie Cast Member 10"
+      assert has_element?(view, "[data-nav-zone='detail_cast']")
+
+      # And the control now leads back to the hero page.
+      assert has_element?(view, "[data-role='view-control']", "Overview")
     end
 
     test "paging resets when the modal switches entities", %{conn: conn, tv_series: tv_series} do

@@ -333,8 +333,9 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   Whether the entity has content of its own to list — episodes, member
   movies, or entity-level extras.
 
-  False for a bare movie, which is why such a movie opens on Cast
-  instead of on a panel that renders nothing.
+  False for a bare movie: its main view is the orientation block alone
+  (title, Play, synopsis — a page that fits without scrolling), and the
+  body region below renders nothing.
   """
   @spec main_body?(map()) :: boolean()
   def main_body?(%{type: type}) when type in [:tv_series, :movie_series], do: true
@@ -366,45 +367,42 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   @spec resolve_view(map(), atom()) :: atom()
   def resolve_view(_entity, :info), do: :info
   def resolve_view(entity, :cast), do: if(cast_tab?(entity), do: :cast, else: :main)
-  def resolve_view(entity, _main), do: if(main_body?(entity), do: :main, else: :cast)
+  def resolve_view(_entity, _main), do: :main
 
   @doc """
-  The name of what the title contains — the label for the control that
-  returns to the body.
+  The name of the entity's main view — the label for the control that
+  returns there.
 
-  Type-dependent because the body is a different kind of thing per type, and
-  there is no honest generic word covering episodes, member movies and
-  extras at once. `nil` when the title has no contents of its own.
+  Type-dependent because the main view is a different kind of thing per
+  type, and there is no honest generic word covering episodes, member
+  movies and extras at once. A title with no contents of its own reads
+  "Overview": its main view is the hero page alone.
   """
-  @spec body_label(map()) :: String.t() | nil
+  @spec body_label(map()) :: String.t()
   def body_label(%{type: :tv_series}), do: "Episodes"
   def body_label(%{type: :movie_series}), do: "Movies"
-  def body_label(entity), do: if(main_body?(entity), do: "Extras")
+  def body_label(entity), do: if(main_body?(entity), do: "Extras", else: "Overview")
 
   @doc """
   The view the single control beside Play should go to, or `nil` when there
   is nowhere else to offer.
 
   The modal has one view control, in one slot, and it is labelled for its
-  *destination* — "Episodes", "Movies", "Cast" — never "Back". Naming
-  the destination says where you are going; "Back" only says it is not here,
-  and it changes meaning depending on which view you happen to be in.
+  *destination* — "Episodes", "Movies", "Cast", "Overview" — never
+  "Back". Naming the destination says where you are going; "Back" only
+  says it is not here, and it changes meaning depending on which view you
+  happen to be in.
 
-  On the entity's root view the control offers the other view worth seeing;
-  anywhere else it returns to the root. Note that the root is not always the
-  body: a movie with no extras opens *on* Cast, so Manage returns there
-  and the control reads "Cast".
-
-  `nil` covers the two entities with only one content view: a collection has
-  no Cast view, and a movie with no extras has no body.
+  On the main view the control offers Cast where one exists; anywhere
+  else it returns to the main view. `nil` covers the collection, the one
+  entity with no Cast view — on its movie list there is nowhere else to
+  offer.
   """
   @spec secondary_view(map(), atom()) :: :main | :cast | nil
   def secondary_view(entity, detail_view) do
-    root_view = resolve_view(entity, :main)
-
     cond do
-      detail_view != root_view -> root_view
-      cast_tab?(entity) and root_view != :cast -> :cast
+      detail_view != :main -> :main
+      cast_tab?(entity) -> :cast
       true -> nil
     end
   end
