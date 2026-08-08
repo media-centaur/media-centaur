@@ -1779,6 +1779,11 @@ body:has(.modal-backdrop[data-state="open"]) {
    poster was 19% larger at 100% and 29% SMALLER at 70% — and nothing in
    either file could have told you that.
 
+   One deliberate exception: the library wall overrides the token via
+   `.poster-grid-dense` (see the poster-grid section) to run a notch
+   denser than the rows. Unlike the historical drift above, that delta is
+   a constant factor authored in one place.
+
    Poster height (2:3 → 255px) and backdrop height (16:9 → 255px) match on
    purpose: Continue Watching sits directly above Recently Added on Home,
    and equal card heights give the two rows one vertical module.
@@ -1999,6 +2004,16 @@ body:has(.modal-backdrop[data-state="open"]) {
   display: grid;
   gap: 0.75rem;
   grid-template-columns: repeat(auto-fill, minmax(var(--card-poster-w), 1fr));
+}
+
+/* The library wall runs denser than the shared token: it is the one
+   surface whose job is scanning many titles at once, so it trades ~12%
+   of poster size for roughly one extra column at every UI scale. Scoped
+   to the grid element so nothing else on the page (or the Home rows)
+   picks it up. */
+.poster-grid-dense {
+  --card-poster-w: 150px;
+  gap: 0.625rem;
 }
 
 /* 4. Empty state fade-in */
