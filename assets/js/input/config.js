@@ -20,6 +20,7 @@ export const inputConfig = {
     // opens — no modal scoping needed on the selectors.
     detail_actions: "[data-nav-zone='detail_actions'] [data-nav-item]",
     detail_list: "[data-nav-zone='detail_list'] [data-nav-item]",
+    detail_cast: "[data-nav-zone='detail_cast'] [data-nav-item]",
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
     sidebar: "[data-nav-zone='sidebar'] [data-nav-item]",
     sections: "[data-nav-zone='sections'] [data-nav-item]",
@@ -77,9 +78,14 @@ export const inputConfig = {
     other_downloads: Context.MENU,
     guide_chapters: Context.MENU,
     guide_outline: Context.MENU,
-    // The detail modal: a horizontal command row over a nesting list.
+    // The detail modal: a horizontal command row over a nesting list. The
+    // Cast sub-view swaps the list for a photo grid, whose arrangement
+    // carries the meaning — SHELF resolves it by geometry, which is what
+    // walks the two grid sections and the Show more button without an
+    // adjacency table.
     detail_actions: Context.TOOLBAR,
     detail_list: Context.TREE,
+    detail_cast: Context.SHELF,
   },
 
   // Overlays that navigate as several regions rather than one flat list.
@@ -90,12 +96,20 @@ export const inputConfig = {
   // seasons and episodes for a series, the film list for a collection, extras
   // for anything. `entry` lands the cursor on Play; `back` is what makes BACK
   // climb from the body to the buttons before it closes the modal.
+  // Only one body zone is in the DOM at a time (the sub-views swap it), so
+  // the candidate list on `down` routes to whichever body is populated.
+  //
+  // The tree deliberately has no `up` edge — up at its top stays put and BACK
+  // is the way out (UIDR-019). The cast grid does have one: a spatial region
+  // has a geometric "above", and stopping dead under the action row reads as
+  // a dead end.
   overlays: {
     detail: {
-      entry: ["detail_actions", "detail_list"],
+      entry: ["detail_actions", "detail_list", "detail_cast"],
       layout: {
-        detail_actions: { down: ["detail_list"] },
+        detail_actions: { down: ["detail_list", "detail_cast"] },
         detail_list: { back: ["detail_actions"] },
+        detail_cast: { up: ["detail_actions"], back: ["detail_actions"] },
       },
     },
   },

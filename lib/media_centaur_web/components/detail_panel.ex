@@ -310,53 +310,60 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         </div>
       </div>
       <%!-- The modal's second nav region — the body of the title, whichever
-            sub-view is showing. DOWN from the action row lands here, BACK
-            climbs back to it, and LEFT/RIGHT are depth rather than lateral
-            movement (collapse a season, step into an episode's controls).
-            The zone wraps the sheet rather than the season list specifically
-            so Manage and Cast navigate the same way. See UIDR-019. --%>
+            sub-view is showing. DOWN from the action row lands here and BACK
+            climbs back to it. The zone follows the sub-view: the season /
+            film / extras lists and Manage are a `detail_list` tree (LEFT and
+            RIGHT are depth — collapse a season, step into an episode's
+            controls), while Cast is a `detail_cast` photo grid navigated by
+            geometry. One body zone at a time — nav zones must never nest.
+            See UIDR-019. --%>
       <div
         :if={@has_scrollable_content}
         id="detail-content"
         class="detail-content-sheet px-4 pb-5"
         phx-hook="DetailBodyScroll"
-        data-nav-zone="detail_list"
         data-entity-id={@entity.id}
         data-view={@detail_view}
         data-scroll-to-resume={@autoscroll_resume? || nil}
       >
         <%= case @detail_view do %>
           <% :cast -> %>
-            <CastPanel.cast_panel
-              entity={@entity}
-              cast_filter={@cast_filter}
-              cast_limit={@cast_limit}
-              resume_episode_key={@resume_episode_key}
-              filter_in_header?={@cast_filter_in_header?}
-            />
+            <div data-nav-zone="detail_cast">
+              <CastPanel.cast_panel
+                entity={@entity}
+                cast_filter={@cast_filter}
+                cast_limit={@cast_limit}
+                resume_episode_key={@resume_episode_key}
+                filter_in_header?={@cast_filter_in_header?}
+              />
+            </div>
           <% :info -> %>
-            <.info_view
-              entity={@entity}
-              files={@detail_files}
-              rematch_confirm={@rematch_confirm}
-              delete_confirm={@delete_confirm}
-              deleting={@deleting}
-              tmdb_ready={@tmdb_ready}
-            />
+            <div data-nav-zone="detail_list">
+              <.info_view
+                entity={@entity}
+                files={@detail_files}
+                rematch_confirm={@rematch_confirm}
+                delete_confirm={@delete_confirm}
+                deleting={@deleting}
+                tmdb_ready={@tmdb_ready}
+              />
+            </div>
           <% _ -> %>
-            <.content_list
-              entity={@entity}
-              seasons_view={@seasons_view}
-              expanded_seasons={@expanded_seasons}
-              expanded_episode_details={@expanded_episode_details}
-              all_episode_details_open={@all_episode_details_open}
-              progress_by_key={@progress_by_key}
-              resume_episode_key={@resume_episode_key}
-              extra_progress_by_id={@extra_progress_by_id}
-              on_play={@on_play}
-              spoiler_free={@spoiler_free}
-              available={@available}
-            />
+            <div data-nav-zone="detail_list">
+              <.content_list
+                entity={@entity}
+                seasons_view={@seasons_view}
+                expanded_seasons={@expanded_seasons}
+                expanded_episode_details={@expanded_episode_details}
+                all_episode_details_open={@all_episode_details_open}
+                progress_by_key={@progress_by_key}
+                resume_episode_key={@resume_episode_key}
+                extra_progress_by_id={@extra_progress_by_id}
+                on_play={@on_play}
+                spoiler_free={@spoiler_free}
+                available={@available}
+              />
+            </div>
         <% end %>
       </div>
     </div>
