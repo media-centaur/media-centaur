@@ -956,6 +956,32 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert html =~ "99 episodes"
     end
 
+    test "a movie's cast opens at one grid row with the rest behind Show more", %{conn: conn} do
+      # A movie with no extras opens *on* Cast — the grid is the modal's
+      # opening view, so it starts at a single row (6 cards) instead of a
+      # full page.
+      cast =
+        for i <- 1..10 do
+          %{name: "Movie Cast Member #{i}", character: "Sample Role #{i}", order: i - 1}
+        end
+
+      movie = create_standalone_movie(%{name: "Casted Movie", cast: cast})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+
+      html = render(view)
+      assert html =~ "Movie Cast Member 6"
+      refute html =~ "Movie Cast Member 7"
+      assert has_element?(view, "[phx-click='show_more_cast']", "Show more (4 more)")
+
+      view |> element("[phx-click='show_more_cast']") |> render_click()
+
+      html = render(view)
+      assert html =~ "Movie Cast Member 10"
+      refute has_element?(view, "[phx-click='show_more_cast']")
+    end
+
     test "paging resets when the modal switches entities", %{conn: conn, tv_series: tv_series} do
       other_cast =
         for i <- 1..30 do

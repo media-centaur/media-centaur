@@ -84,13 +84,16 @@ defmodule MediaCentaurWeb.Storybook.Detail.CastPanel do
     [
       %Variation{
         id: :movie,
-        description: "Movie — Directed by / Written by headline above one billing-ordered grid.",
-        attributes: %{entity: @movie}
+        description:
+          "Movie — Directed by / Written by headline above one billing-ordered " <>
+            "grid. Opens at a single grid row (`CastSelection.initial_limit(:movie)`) " <>
+            "with the rest behind Show more, since the cast is the movie's opening view.",
+        attributes: %{entity: @movie, cast_limit: 6}
       },
       %Variation{
         id: :movie_no_crew,
         description: "Movie without crew credits — the headline collapses, grid alone.",
-        attributes: %{entity: %{@movie | crew: []}}
+        attributes: %{entity: %{@movie | crew: []}, cast_limit: 6}
       },
       %Variation{
         id: :tv_partitioned,
