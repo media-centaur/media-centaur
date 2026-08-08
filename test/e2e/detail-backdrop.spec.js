@@ -151,10 +151,16 @@ test.describe("detail pinned-backdrop geometry", () => {
 
     // The illusion's invariant: the replica's top edge must coincide with
     // the real sheet's top edge (= #detail-content's top, whose
-    // background IS the sheet) at every pinned depth — one conceptual
-    // sheet, split across the backing boundary. Constant-free: compares
-    // two live rects.
-    for (const depth of [150, 500]) {
+    // background IS the sheet) — one conceptual sheet, split across the
+    // backing boundary — until the rise cap freezes the replica with its
+    // top at the block's top edge, past which it must STAY there while
+    // the content keeps moving (the block keeps the partial darkening
+    // ramp, never the full plateau). Both regimes collapse to one
+    // constant-free expectation: replica top == max(content top, block
+    // top). Depth 150 exercises the tracking regime; 1500 is deeper
+    // than any plausible cap (blockHeight − reach), so it exercises the
+    // frozen regime.
+    for (const depth of [150, 1500]) {
       const delta = await page.evaluate(async ({ pinScroll, depth }) => {
         const scroller = document.querySelector("#detail-scrollport")
         scroller.scrollTop = pinScroll + depth
@@ -163,10 +169,21 @@ test.describe("detail pinned-backdrop geometry", () => {
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
         const sheet = document.querySelector(".orientation-backing-sheet")
         const content = document.querySelector("#detail-content")
-        if (!sheet || !content) return { missing: true }
-        return { dt: sheet.getBoundingClientRect().top - content.getBoundingClientRect().top }
+        const block = document.querySelector(".detail-orientation")
+        if (!sheet || !content || !block) return { missing: true }
+        const expected = Math.max(
+          content.getBoundingClientRect().top,
+          block.getBoundingClientRect().top
+        )
+        return {
+          dt: sheet.getBoundingClientRect().top - expected,
+          maxRisePublished: getComputedStyle(scroller)
+            .getPropertyValue("--detail-sheet-max-rise")
+            .trim(),
+        }
       }, { pinScroll, depth })
       expect(delta.missing).toBeFalsy()
+      expect(delta.maxRisePublished).toMatch(/^\d+px$/)
       expect(Math.abs(delta.dt)).toBeLessThan(1)
     }
   })

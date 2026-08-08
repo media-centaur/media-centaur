@@ -38,3 +38,24 @@ export function pinReserve({ pinInset, blockHeight, portHeight, minRoom = 96 }) 
   if (reserved > portHeight - minRoom) return null
   return Math.round(reserved)
 }
+
+/**
+ * How far the backing's sheet replica may rise behind the pinned block before
+ * freezing, in layout pixels.
+ *
+ * The replica's gradient zero-point rests `blockHeight − reach` below the
+ * block's top edge (backing box bottom − 2rem − reach; see
+ * `.orientation-backing-sheet`). Rising exactly that far brings the zero-point
+ * to the block's top: the block then carries the gradient's partial ramp —
+ * enough darkening to keep the lockup readable — and deeper scrolling never
+ * advances it to the full plateau.
+ *
+ * @param {Object} m
+ * @param {number} m.blockHeight - the orientation block's height
+ * @param {number} m.reach - --detail-sheet-reach, how far the sheet's box
+ *   extends up behind the block at rest
+ * @returns {number}
+ */
+export function sheetMaxRise({ blockHeight, reach }) {
+  return Math.max(0, Math.round(blockHeight - reach))
+}

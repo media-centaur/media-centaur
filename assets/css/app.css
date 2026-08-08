@@ -887,19 +887,26 @@ body:has(.modal-backdrop[data-state="open"]) {
      instant-flip invariant holds untouched.
    - Post-pin, the content moves while the block doesn't: required
      translation is exactly −(scrollTop − pinScroll). The keyframes run
-     translateY 0 → −2000px over an animation-range of the same length,
-     which makes the rate exactly 1:1 by construction; the phase
-     (`--detail-pin-scroll`) is measured layout, published by the
-     DetailScrollGeometry hook. The 999999px fallback keeps the replica
-     parked (no darkening behind the block) if the hook hasn't
+     translateY 0 → −(--detail-sheet-max-rise) over an animation-range
+     of the same length, which makes the rate exactly 1:1 by
+     construction; both vars (`--detail-pin-scroll`, the phase, and
+     `--detail-sheet-max-rise`, the cap) are measured layout, published
+     by the DetailScrollGeometry hook. The 999999px fallback keeps the
+     replica parked (no darkening behind the block) if the hook hasn't
      published.
-   - The 2000px clamp is invisible: after ~(box height + ramp) of
-     post-pin travel the plateau covers the whole clip window, and a
-     frozen plateau equals a moving one. Element height covers the
-     deepest translate plus the box.
+   - The rise is CAPPED, not open-ended: it ends when the gradient's
+     zero-point reaches the block's top edge (blockHeight − reach of
+     travel — the zero-point's resting distance below the block top).
+     Past the range end `animation-fill-mode: both` holds that frame,
+     so the pinned lockup keeps the partial ramp — darkened enough to
+     read, never the full plateau. The freeze desynchronizes replica
+     and content sheet, which is invisible at the only place they meet
+     (the bottom feather): by freeze depth both are in the gradient's
+     flat plateau there whenever blockHeight ≥ the 20rem ramp. Element
+     height covers the deepest translate plus the box.
 
    Verified by `detail-backdrop.spec.js` (replica top edge ==
-   #detail-content top edge while pinned). */
+   max(#detail-content top edge, block top edge) while pinned). */
 .orientation-backing-sheet {
   position: absolute;
   top: calc(100% - 2rem - var(--detail-sheet-reach));
@@ -912,7 +919,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   animation-fill-mode: both;
   animation-timeline: --detail-scroll;
   animation-range: var(--detail-pin-scroll, 999999px)
-    calc(var(--detail-pin-scroll, 999999px) + 2000px);
+    calc(var(--detail-pin-scroll, 999999px) + var(--detail-sheet-max-rise, 0px));
 }
 
 @keyframes orientation-sheet-rise {
@@ -921,7 +928,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   }
 
   to {
-    transform: translateY(-2000px);
+    transform: translateY(calc(-1 * var(--detail-sheet-max-rise, 0px)));
   }
 }
 

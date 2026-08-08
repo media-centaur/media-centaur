@@ -30,7 +30,7 @@ import {CopyButton} from "./hooks/copy_button"
 import {MouseAutofocus, shouldAutofocus} from "./hooks/mouse_autofocus"
 import {FlashAutoDismiss} from "./hooks/flash_auto_dismiss"
 import {SidebarTooltip} from "./hooks/sidebar_tooltip"
-import {pinReserve} from "./hooks/detail_scroll_geometry"
+import {pinReserve, sheetMaxRise} from "./hooks/detail_scroll_geometry"
 import {DetailBodyScroll} from "./hooks/detail_body_scroll"
 import {installReconnectOnVisible} from "./reconnect_on_visible"
 import topbar from "../vendor/topbar"
@@ -122,6 +122,17 @@ const liveSocket = new LiveSocket("/live", Socket, {
         const pinInset = parseFloat(getComputedStyle(block).top) || 0
         const pinScroll = contentTop - contentMarginTop - block.offsetHeight - pinInset
         this.el.style.setProperty("--detail-pin-scroll", `${Math.max(0, pinScroll)}px`)
+
+        // --detail-sheet-max-rise: cap on the sheet replica's post-pin rise.
+        // The replica freezes once its gradient zero-point reaches the block's
+        // top edge, so the pinned lockup keeps a partial darkening ramp
+        // instead of sinking to the sheet's full plateau. The content margin
+        // is the sheet reach, negated (margin-top: calc(-1 * reach)).
+        const maxRise = sheetMaxRise({
+          blockHeight: block.offsetHeight,
+          reach: -contentMarginTop,
+        })
+        this.el.style.setProperty("--detail-sheet-max-rise", `${maxRise}px`)
 
         // Inset the region programmatic scrolls aim into, so a row scrolled to
         // the top edge lands below the pinned block instead of behind it.
