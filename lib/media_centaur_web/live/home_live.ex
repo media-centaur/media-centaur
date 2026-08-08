@@ -102,7 +102,11 @@ defmodule MediaCentaurWeb.HomeLive do
             behavior — everything the page once needed one for (pinning the
             hero to the page top) is now declared on the hero itself with
             `data-nav-reveal`. See the `input-system` skill. --%>
-      <div class="relative" data-nav-default-zone="home">
+      <div
+        class="relative"
+        data-nav-default-zone="home"
+        data-nav-transient-params="selected,view,autoplay"
+      >
         <%!-- ── Page atmosphere (z-index 0) ──
               Backdrop image fades into base-100 at the top of the page. The
               side-dim continues the hero's left-anchored darkening down the

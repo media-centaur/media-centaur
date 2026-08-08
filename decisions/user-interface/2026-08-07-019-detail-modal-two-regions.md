@@ -138,3 +138,13 @@ opened from.
   body is a `detail_cast` photo grid (SHELF, geometry-resolved) rather than
   the tree. A spatial grid has a geometric "above", so its top row climbs to
   the action row on UP. The tree keeps the original rule.
+* Neutral, because "two regions" became "two regions, except Manage has
+  three". *Amended 2026-08-08 (Manage sheet overhaul):* the Manage sub-view's
+  toolbar card — Delete all, Rematch, Refresh artwork, the ID links on one
+  horizontal strip — walked wrong as tree items: DOWN stepped sideways
+  through it. It is now its own `manage_tools` TOOLBAR region between the
+  action row and the `detail_list` ledger: LEFT/RIGHT move along the card,
+  DOWN drops past it, UP climbs to the action row (it is spatial, like the
+  cast grid). The region is empty outside Manage, so the `down` candidate
+  lists route through it only when it exists — the containment model is
+  unchanged, the overlay just has one more rung where Manage is showing.

@@ -239,3 +239,41 @@ describe("Detail overlay cast region (real config)", () => {
     expect(graph.detail_actions.down).toBe("detail_list")
   })
 })
+
+// The Manage sub-view's toolbar card is a horizontal strip (Delete all,
+// Rematch, Refresh artwork, the ID links) — walking it vertically as tree
+// items made DOWN step sideways. It is its own TOOLBAR-typed region: LEFT/
+// RIGHT move along the card, DOWN drops past it into the folder ledger, UP
+// climbs back to the action row (a toolbar is spatial — it has an "above").
+// The region only exists while Manage is showing; empty, the candidate lists
+// route DOWN straight to whichever body is populated, as before.
+describe("Detail overlay Manage tools region (real config)", () => {
+  const openDetail = counts =>
+    buildNavGraph("library", counts, {
+      ...inputConfig,
+      overlayLayout: inputConfig.overlays.detail.layout,
+    })
+
+  test("the manage toolbar is a toolbar-typed region of the detail overlay", () => {
+    expect(inputConfig.instanceTypes.manage_tools).toBe(Context.TOOLBAR)
+    expect(inputConfig.contextSelectors.manage_tools).toBe("[data-nav-zone='manage_tools'] [data-nav-item]")
+    expect(inputConfig.overlays.detail.entry).toContain("manage_tools")
+  })
+
+  test("manage showing: down from the action row lands on the toolbar, then the ledger", () => {
+    const graph = openDetail({ detail_actions: 3, manage_tools: 5, detail_list: 12, detail_cast: 0, grid: 12, sidebar: 7 })
+    expect(graph.detail_actions.down).toBe("manage_tools")
+    expect(graph.manage_tools.down).toBe("detail_list")
+  })
+
+  test("manage showing: up and BACK climb from the toolbar to the action row", () => {
+    const graph = openDetail({ detail_actions: 3, manage_tools: 5, detail_list: 12, detail_cast: 0, grid: 12, sidebar: 7 })
+    expect(graph.manage_tools.up).toBe("detail_actions")
+    expect(graph.manage_tools.back).toBe("detail_actions")
+  })
+
+  test("other sub-views: with no toolbar, down falls through to the body", () => {
+    const graph = openDetail({ detail_actions: 3, manage_tools: 0, detail_list: 20, detail_cast: 0, grid: 12, sidebar: 7 })
+    expect(graph.detail_actions.down).toBe("detail_list")
+  })
+})

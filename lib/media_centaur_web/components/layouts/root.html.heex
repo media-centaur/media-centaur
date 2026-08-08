@@ -61,8 +61,22 @@
         document.addEventListener("click", (e) => {
           const navLink = e.target.closest("[data-nav-item]");
           if (!navLink) return;
-          // Save current page's URL before navigating away
-          sessionStorage.setItem("nav:" + location.pathname, location.pathname + location.search);
+          // Save current page's URL before navigating away — minus any
+          // params the page declares transient via
+          // data-nav-transient-params (open modals/overlays, one-shot
+          // triggers). Leaving a section closes its modals; the
+          // remembered URL must not reopen them on return.
+          const url = new URL(location.href);
+          const transient = document.querySelector("[data-nav-transient-params]")
+            ?.dataset.navTransientParams;
+          if (transient) {
+            transient.split(",").forEach((p) => url.searchParams.delete(p.trim()));
+          }
+          const query = url.searchParams.toString();
+          sessionStorage.setItem(
+            "nav:" + location.pathname,
+            url.pathname + (query ? "?" + query : "")
+          );
           // Restore stored URL for links that opt in
           if (navLink.hasAttribute("data-nav-remember")) {
             const basePath = new URL(navLink.href, location.origin).pathname;

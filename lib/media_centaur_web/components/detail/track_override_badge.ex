@@ -24,9 +24,12 @@ defmodule MediaCentaurWeb.Components.Detail.TrackOverrideBadge do
     assigns = assign(assigns, :segments, track_override_summary(override))
 
     ~H"""
+    <%!-- inline-flex: the card hugs its content so Reset sits right beside
+          the summary it clears — stretched full-width, the two ended up at
+          opposite edges of the sheet with no visible connection. --%>
     <div
       :if={@segments != []}
-      class="glass-inset rounded-lg px-3 py-2.5 flex items-center justify-between gap-3"
+      class="glass-inset rounded-lg px-3 py-2.5 inline-flex items-center gap-4"
     >
       <div class="flex items-center gap-2 min-w-0">
         <.icon name="hero-language-mini" class="size-4 text-base-content/50 shrink-0" />

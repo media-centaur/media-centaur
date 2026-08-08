@@ -315,9 +315,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       <%!-- The modal's second nav region — the body of the title, whichever
             sub-view is showing. DOWN from the action row lands here and BACK
             climbs back to it. The zone follows the sub-view: the season /
-            film / extras lists and Manage are a `detail_list` tree (LEFT and
-            RIGHT are depth — collapse a season, step into an episode's
-            controls), while Cast is a `detail_cast` photo grid navigated by
+            film / extras lists and the Manage ledger are a `detail_list`
+            tree (LEFT and RIGHT are depth — collapse a season, step into an
+            episode's controls; Manage also interposes its `manage_tools`
+            toolbar zone, declared inside ManagePanel), while Cast is a
+            `detail_cast` photo grid navigated by
             geometry. One body zone at a time — nav zones must never nest.
             See UIDR-019. --%>
       <div
@@ -341,17 +343,18 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               />
             </div>
           <% :info -> %>
-            <div data-nav-zone="detail_list">
-              <ManagePanel.manage_panel
-                entity={@entity}
-                files={@detail_files}
-                rematch_confirm={@rematch_confirm}
-                delete_confirm={@delete_confirm}
-                deleting={@deleting}
-                tmdb_ready={@tmdb_ready}
-                expanded_groups={@expanded_file_groups}
-              />
-            </div>
+            <%!-- ManagePanel declares its own nav zones — the toolbar card
+                  is a `manage_tools` TOOLBAR beside a `detail_list` tree for
+                  the ledger (sibling zones; see its moduledoc). --%>
+            <ManagePanel.manage_panel
+              entity={@entity}
+              files={@detail_files}
+              rematch_confirm={@rematch_confirm}
+              delete_confirm={@delete_confirm}
+              deleting={@deleting}
+              tmdb_ready={@tmdb_ready}
+              expanded_groups={@expanded_file_groups}
+            />
           <% _ -> %>
             <div data-nav-zone="detail_list">
               <.content_list
