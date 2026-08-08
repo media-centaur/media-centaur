@@ -1162,7 +1162,8 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
               movie_series_id: collection.id,
               name: name,
               position: position,
-              date_published: date
+              date_published: date,
+              description: "#{name} synopsis: a rumour leads three siblings into the hills."
             })
 
           create_linked_file(%{movie_id: part.id})
@@ -1224,6 +1225,28 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       assert has_element?(view, "[aria-label='Collection progress'][aria-valuenow='0']")
       refute has_element?(view, "#detail-content[data-scroll-to-resume]")
+    end
+
+    test "movie synopsis lives behind a per-row disclosure — the list is an index",
+         %{conn: conn, collection: collection, part_1: part_1} do
+      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+
+      refute html =~ "into the hills"
+
+      view
+      |> element(~s|button[phx-click="toggle_movie_details"][phx-value-movie-id="#{part_1.id}"]|)
+      |> render_click()
+
+      html = render(view)
+      assert html =~ "Coherent Part 1 synopsis"
+      refute html =~ "Coherent Part 2 synopsis"
+
+      # Clicking again closes it.
+      view
+      |> element(~s|button[phx-click="toggle_movie_details"][phx-value-movie-id="#{part_1.id}"]|)
+      |> render_click()
+
+      refute render(view) =~ "into the hills"
     end
 
     test "a tracked collection lists its announced next part",

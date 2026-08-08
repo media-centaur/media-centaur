@@ -62,6 +62,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     doc:
       "list-level episode-details toggle — opens every episode row's synopsis/thumbnail block at once. ORed with `expanded_episode_details`, so per-row disclosures survive turning it off. Owned by the host modal (`toggle_all_episode_details`)."
 
+  attr :expanded_movie_details, MapSet,
+    default: nil,
+    doc:
+      "movie ids of collection rows whose synopsis/poster disclosure is open. Owned by the host modal (`toggle_movie_details`)."
+
   attr :available, :boolean, default: true
   attr :on_play, :string, default: "play"
   attr :on_close, :string, default: "close"
@@ -379,6 +384,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 movies_view={@movies_view}
                 expanded_seasons={@expanded_seasons}
                 expanded_episode_details={@expanded_episode_details}
+                expanded_movie_details={@expanded_movie_details}
                 all_episode_details_open={@all_episode_details_open}
                 extra_progress_by_id={@extra_progress_by_id}
                 on_play={@on_play}
@@ -603,7 +609,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   defp content_list(%{entity: %{type: :movie_series}} = assigns) do
-    assigns = assign(assigns, :movie_items, assigns.movies_view || [])
+    assigns =
+      assigns
+      |> assign(:movie_items, assigns.movies_view || [])
+      |> assign(:expanded_movie_details, assigns.expanded_movie_details || MapSet.new())
 
     ~H"""
     <div class="pt-3">
@@ -611,6 +620,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <.collection_item
           :for={item <- @movie_items}
           item={item}
+          details_open={
+            match?(%MovieListItem.Library{}, item) &&
+              MapSet.member?(@expanded_movie_details, item.movie.id)
+          }
           entity_id={@entity.id}
           on_play={@on_play}
           spoiler_free={@spoiler_free}
@@ -1091,6 +1104,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # `season_item/1` — the typed contract IS the dispatch criterion.
 
   attr :item, :map, required: true, doc: "%MovieListItem.{Library | Upcoming}{}"
+  attr :details_open, :boolean, default: false
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
@@ -1100,6 +1114,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     ~H"""
     <.movie_row
       item={@item}
+      details_open={@details_open}
       entity_id={@entity_id}
       on_play={@on_play}
       spoiler_free={@spoiler_free}
@@ -1120,11 +1135,19 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     required: true,
     doc: "`%MediaCentaurWeb.ViewModel.MovieListItem.Library{}` — typed member movie."
 
+  attr :details_open, :boolean,
+    default: false,
+    doc: "whether the synopsis/poster disclosure below the dense row is open."
+
   attr :entity_id, :string, required: true
   attr :on_play, :string, required: true
   attr :spoiler_free, :boolean, default: false
   attr :available, :boolean, default: true
 
+  # Dense one-line row in the episode-row idiom: title · year · runtime ·
+  # disclosure chevron · watched toggle. Poster and synopsis render only
+  # behind the per-row disclosure — the list is an index, not a reading
+  # surface.
   defp movie_row(assigns) do
     assigns =
       assigns
@@ -1133,10 +1156,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:progress, assigns.item.progress)
       |> assign(:is_resume_target, assigns.item.is_resume_target)
       |> assign(:thumbnail, image_url(assigns.item.movie, "poster"))
-      # `description` / `duration_seconds` are optional display fields. The
-      # movie_series projection map (`DetailItem.movie_entry_to_map/1`)
-      # omits them, so read via `Map.get` — a bare dot-access raises
-      # `KeyError` on the missing key and crashes the whole panel render.
+      # `description` / `duration_seconds` are optional display fields —
+      # read via `Map.get` so a Movie struct and the projection map both
+      # work without a `KeyError` crashing the whole panel render.
       |> assign(:description, Map.get(assigns.item.movie, :description))
       |> assign(:duration_seconds, Map.get(assigns.item.movie, :duration_seconds))
 
@@ -1144,7 +1166,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     <div
       id={"movie-row-#{@movie.id}"}
       class={[
-        "p-2 rounded cursor-pointer hover:bg-base-content/5",
+        "px-2 py-1.5 rounded cursor-pointer hover:bg-base-content/5",
         episode_row_class(@state, @is_resume_target)
       ]}
       data-role="movie-row"
@@ -1154,35 +1176,28 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       data-nav-item
       tabindex="0"
     >
-      <div class="flex items-start gap-3 text-sm">
-        <div class="w-12 flex-shrink-0">
-          <img
-            :if={@thumbnail && @available}
-            src={sized_image_url(@thumbnail, 160)}
-            class="w-12 aspect-[2/3] rounded object-cover"
-          />
-          <div
-            :if={(@thumbnail && !@available) || !@thumbnail}
-            class="w-12 aspect-[2/3] rounded bg-base-300/30"
-          />
-        </div>
-        <div class="flex-1 min-w-0">
-          <span class="truncate block text-base-content/90">
-            {@movie.name || "—"}
-            <span :if={@movie.date_published} class="text-base-content/50 ml-1">
-              ({extract_year(@movie.date_published)})
-            </span>
+      <div class="flex items-center gap-3 text-sm">
+        <span class="flex-1 min-w-0 truncate text-base-content/90">
+          {@movie.name || "—"}
+          <span :if={@movie.date_published} class="text-base-content/50 ml-1">
+            ({extract_year(@movie.date_published)})
           </span>
-          <p
-            :if={@description}
-            class={[
-              "line-clamp-2 text-xs text-base-content/50",
-              blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
-            ]}
-          >
-            {@description}
-          </p>
-        </div>
+        </span>
+        <button
+          :if={@description || @thumbnail}
+          type="button"
+          phx-click="toggle_movie_details"
+          phx-value-movie-id={@movie.id}
+          data-nav-sub-item
+          class="flex-shrink-0 p-1.5 -m-1 rounded-md cursor-pointer text-base-content/30 hover:text-base-content/70 hover:bg-base-content/10 transition-colors"
+          aria-expanded={to_string(@details_open)}
+          aria-label={if @details_open, do: "Hide movie details", else: "Show movie details"}
+        >
+          <.icon
+            name={if @details_open, do: "hero-chevron-up-mini", else: "hero-chevron-down-mini"}
+            class="size-4"
+          />
+        </button>
         <.watched_toggle
           event="toggle_watched"
           state={@state}
@@ -1193,9 +1208,25 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           phx-value-container-id={@movie.id}
         />
       </div>
+      <div :if={@details_open} class="mt-2 mb-1 flex items-start gap-3">
+        <img
+          :if={@thumbnail && @available}
+          src={sized_image_url(@thumbnail, 160)}
+          class="w-16 aspect-[2/3] rounded object-cover flex-shrink-0"
+        />
+        <p
+          :if={@description}
+          class={[
+            "text-xs text-base-content/50 leading-relaxed",
+            blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
+          ]}
+        >
+          {@description}
+        </p>
+      </div>
       <div
         :if={@state == :current}
-        class="mt-1 ml-[calc(3rem+0.75rem)] h-0.5 rounded-full bg-base-content/10 overflow-hidden"
+        class="mt-1 h-0.5 rounded-full bg-base-content/10 overflow-hidden"
       >
         <div
           class="h-full bg-info rounded-full"

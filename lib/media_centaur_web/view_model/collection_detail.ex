@@ -134,12 +134,18 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
         }
       end)
 
+    library_tmdb_ids =
+      library_items
+      |> Enum.map(&Map.get(&1.movie, :tmdb_id))
+      |> Enum.reject(&is_nil/1)
+      |> MapSet.new()
+
     %__MODULE__{
       entity: entry.entity,
       progress: entry.progress,
       progress_records: entry.progress_records,
       tracking_status: tracking_status,
-      movies: library_items ++ upcoming_items(releases),
+      movies: library_items ++ upcoming_items(releases, library_tmdb_ids),
       extras: entry.entity.extras || [],
       resume_target: resume_target,
       releases: releases
@@ -170,9 +176,13 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
 
   # One row per announced part: group the release rows by part_tmdb_id,
   # keep the best-dated one (dated beats undated, earliest date wins),
-  # then order the parts by air date with undated parts last.
-  defp upcoming_items(releases) do
+  # then order the parts by air date with undated parts last. Parts
+  # matching a library movie's tmdb id are dropped — the release query
+  # already excludes marked-in-library rows, this covers the window
+  # before the tracking refresh marks a freshly-imported part.
+  defp upcoming_items(releases, library_tmdb_ids) do
     releases
+    |> Enum.reject(&MapSet.member?(library_tmdb_ids, &1.part_tmdb_id))
     |> Enum.group_by(& &1.part_tmdb_id)
     |> Enum.map(fn {_part_tmdb_id, rows} -> Enum.min_by(rows, &air_date_sort_key/1) end)
     |> Enum.sort_by(&air_date_sort_key/1)
