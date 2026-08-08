@@ -114,9 +114,19 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     # then owns it through toggle_season (2026-08-05 auto-orient design).
     expanded_seasons = assigns.expanded_seasons || MapSet.new()
 
+    # Containers with an ordered playable set get an orientation (hairline
+    # + autoscroll); leaves build none and keep the PlayCard's own
+    # percent/remaining row instead.
     orientation =
-      if assigns.entity.type == :tv_series and is_list(assigns.seasons_view) do
-        Orientation.build(assigns.seasons_view, assigns.resume)
+      cond do
+        assigns.entity.type == :tv_series and is_list(assigns.seasons_view) ->
+          Orientation.for_series(assigns.seasons_view, assigns.resume)
+
+        assigns.entity.type == :movie_series and is_list(assigns.movies_view) ->
+          Orientation.for_collection(assigns.movies_view)
+
+        true ->
+          nil
       end
 
     resume_episode_key =
@@ -126,7 +136,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
     has_scrollable_content = scrollable_content?(assigns.entity, assigns.detail_view)
 
-    playback = build_playback(assigns)
+    playback = build_playback(assigns, orientation)
     facets = build_facets(assigns.entity)
     metadata_items = build_metadata_items(assigns.entity)
     tagline = tagline_for(assigns.entity)
@@ -139,7 +149,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:expanded_seasons, expanded_seasons)
       |> assign(:expanded_episode_details, assigns.expanded_episode_details || MapSet.new())
       |> assign(:orientation, orientation)
-      |> assign(:season_fraction, orientation && Orientation.season_fraction(orientation))
+      |> assign(:hairline_fraction, orientation && orientation.fraction)
+      |> assign(:hairline_label, hairline_label(assigns.entity))
       |> assign(:autoscroll_resume?, autoscroll_resume?(orientation))
       |> assign(
         :block_backdrop_url,
@@ -221,15 +232,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           />
         </div>
         <div
-          :if={@season_fraction}
-          class="season-hairline mt-4"
+          :if={@hairline_fraction}
+          class="orientation-hairline mt-4"
           role="progressbar"
-          aria-valuenow={round(@season_fraction * 100)}
+          aria-valuenow={round(@hairline_fraction * 100)}
           aria-valuemin="0"
           aria-valuemax="100"
-          aria-label="Season progress"
+          aria-label={@hairline_label}
         >
-          <div class="season-hairline-fill" style={"width: #{@season_fraction * 100}%"} />
+          <div class="orientation-hairline-fill" style={"width: #{@hairline_fraction * 100}%"} />
         </div>
         <%!-- pt-6 (vs the p-4 sides): the season hairline sits flush on
               the hero window's bottom edge, so the block below needs
@@ -384,31 +395,33 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   # Whether the detail document opens scrolled to its resume target —
   # the sole signal the `DetailBodyScroll` hook reads.
   #
-  # TV asks `Orientation`: an unstarted series expands season 1 but has
-  # no position to return to, so it must not scroll even though its E1
-  # row still carries `data-resume-target` (that attribute drives the
-  # next-up highlight, so it can't double as the scroll signal).
+  # Containers ask their `Orientation`: an unstarted title has a *first*
+  # item, not a next one — no position to return to — so it must not
+  # scroll even though its first row still carries `data-resume-target`
+  # (that attribute drives the next-up highlight, so it can't double as
+  # the scroll signal).
   #
-  # Everything else answers true, matching the behaviour that was
-  # implicit before this flag existed — a movie-series with nothing
-  # watched renders no target row, so the hook finds nothing to scroll
-  # to. The default lives here rather than in a view model because
-  # movie-series has no `SeriesDetail` equivalent yet; when it gets one
-  # (playable-item-versions campaign), this derivation moves there.
-  defp autoscroll_resume?(%Orientation{} = orientation), do: Orientation.autoscroll?(orientation)
+  # Leaves (no orientation) answer true — a bare movie renders no target
+  # row, so the hook finds nothing to scroll to anyway.
+  defp autoscroll_resume?(%Orientation{autoscroll?: autoscroll?}), do: autoscroll?
   defp autoscroll_resume?(nil), do: true
+
+  # The hairline names what its fraction spans — the current season for
+  # TV, the whole collection for a movie series.
+  defp hairline_label(%{type: :movie_series}), do: "Collection progress"
+  defp hairline_label(_entity), do: "Season progress"
 
   # --- Header content builders (used in detail_panel/1) ---
 
-  defp build_playback(assigns) do
+  defp build_playback(assigns, orientation) do
     {label, target_id} =
       Logic.playback_props(assigns.entity, assigns.resume, assigns.progress)
 
-    # TV series carry their progress in the hero orientation block
-    # (hairline + subline), so the PlayCard's percent/remaining row is
-    # suppressed (percent 0 hides it). Other types keep the card row.
+    # Titles with an orientation carry their progress in the hero block
+    # (hairline), so the PlayCard's percent/remaining row is suppressed
+    # (percent 0 hides it). Leaves keep the card row.
     {percent, remaining} =
-      if assigns.entity.type == :tv_series do
+      if orientation do
         {0, nil}
       else
         {
@@ -509,15 +522,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp tracking_title(:ignored), do: "Ignoring new releases — click to track"
   defp tracking_title(_), do: "Not tracking"
 
+  # Leaf-only (movie / video_object): containers carry their progress in
+  # the hero orientation hairline, so `build_playback/2` never asks for
+  # a container's card-row percent or remaining copy.
   def overall_progress_percent(nil, _entity), do: 0
-
-  def overall_progress_percent(progress, %{type: type}) when type in [:tv_series, :movie_series] do
-    if progress.episodes_total > 0 do
-      min(round(progress.episodes_completed / progress.episodes_total * 100), 100)
-    else
-      0
-    end
-  end
 
   def overall_progress_percent(progress, _entity) do
     if progress.episode_duration_seconds > 0 do
@@ -528,19 +536,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   def progress_remaining_text(nil, _entity), do: nil
-
-  # No :tv_series clause — TV progress lives in the hero orientation
-  # block (`ViewModel.Orientation`), not on the PlayCard (2026-08-04).
-
-  def progress_remaining_text(progress, %{type: :movie_series}) do
-    remaining = progress.episodes_total - progress.episodes_completed
-
-    cond do
-      remaining <= 0 -> "Watched"
-      remaining == 1 -> "1 movie left"
-      true -> "#{remaining} movies left"
-    end
-  end
 
   def progress_remaining_text(progress, _entity) do
     cond do

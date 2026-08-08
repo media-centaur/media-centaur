@@ -60,31 +60,15 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
   # answers "where am I".
 
   # --- overall_progress_percent/2 ---
+  #
+  # Leaf-only: containers (tv_series / movie_series) carry their
+  # progress in the hero orientation hairline, so the card-row percent
+  # and remaining copy are never computed for them (Stage 2 of the
+  # collection-detail-coherence campaign).
 
   describe "overall_progress_percent/2" do
     test "returns 0 for nil progress" do
       assert DetailPanel.overall_progress_percent(nil, build_entity()) == 0
-    end
-
-    test "computes episode-based percentage for tv_series" do
-      progress = %{episodes_completed: 3, episodes_total: 10}
-      entity = build_entity(%{type: :tv_series})
-
-      assert DetailPanel.overall_progress_percent(progress, entity) == 30
-    end
-
-    test "computes episode-based percentage for movie_series" do
-      progress = %{episodes_completed: 2, episodes_total: 3}
-      entity = build_entity(%{type: :movie_series})
-
-      assert DetailPanel.overall_progress_percent(progress, entity) == 67
-    end
-
-    test "returns 0 when episodes_total is 0 for series" do
-      progress = %{episodes_completed: 0, episodes_total: 0}
-      entity = build_entity(%{type: :tv_series})
-
-      assert DetailPanel.overall_progress_percent(progress, entity) == 0
     end
 
     test "computes position-based percentage for standalone movie" do
@@ -112,8 +96,13 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
     end
 
     test "caps at 100" do
-      progress = %{episodes_completed: 11, episodes_total: 10}
-      entity = build_entity(%{type: :tv_series})
+      progress = %{
+        episode_position_seconds: 4000.0,
+        episode_duration_seconds: 3600.0,
+        episodes_completed: 0
+      }
+
+      entity = build_entity(%{type: :movie})
 
       assert DetailPanel.overall_progress_percent(progress, entity) == 100
     end
@@ -126,16 +115,9 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
       assert DetailPanel.progress_remaining_text(nil, build_entity()) == nil
     end
 
-    # No tv_series cases: TV remaining-text moved to the hero subline
-    # (`MediaCentaurWeb.ViewModel.Orientation`) in the 2026-08-04
-    # orientation design; the PlayCard row no longer renders for TV.
-
-    test "returns movie count for movie_series" do
-      progress = %{episodes_total: 3, episodes_completed: 1}
-      entity = build_entity(%{type: :movie_series})
-
-      assert DetailPanel.progress_remaining_text(progress, entity) == "2 movies left"
-    end
+    # No container cases: TV and collection remaining-text moved to the
+    # hero orientation hairline (`MediaCentaurWeb.ViewModel.Orientation`);
+    # the PlayCard row renders only for leaves.
 
     test "returns Watched for completed standalone movie" do
       progress = %{
