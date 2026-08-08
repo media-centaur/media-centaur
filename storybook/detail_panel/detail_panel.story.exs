@@ -5,10 +5,12 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   type-specific content list (movie / TV seasons + episodes / movie
   series; the facet strip renders for movie series only — movies and
   TV dropped their catalog facts with the Cast view). The Manage
-  sub-view (`detail_view: :info`) layers files (grouped by directory,
-  with quality badges + an "added on" date), External IDs, the
-  Rematch action, and a quiet UUID footer. Delete confirmations are
-  *inline* — there is no secondary modal.
+  sub-view (`detail_view: :info`) delegates to
+  `Detail.ManagePanel.manage_panel/1` — a toolbar card (Delete all,
+  Rematch, Refresh artwork, external IDs + UUID) over a collapsed
+  folder ledger; its state matrix lives in the ManagePanel story, the
+  variations here pin the view swap and attr forwarding. Delete
+  confirmations are *inline* — there is no secondary modal.
 
   ## Variations covered
 
@@ -48,12 +50,12 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
        absent and no upcoming/future-season content renders.
     9. `:movie_series` — `:movie_series` with three child movies, one
        partially watched. Hits the chronological movie row.
-    10. `:info_view_with_files` — `detail_view: :info` with grouped
-       files. Renders the prominent "Delete this/all files" danger
-       button at the top, always-visible per-folder + per-file delete
-       affordances, quality badges parsed from filenames (4K / HDR /
-       WEB / H265 …), an "added Xd ago" stamp per file, the External
-       IDs section, the Rematch action, and the muted UUID footer.
+    10. `:info_view_with_files` — `detail_view: :info` with a small
+       (≤ 6 files) inventory: the folder ledger auto-expands, showing
+       file rows (quality badges, "added Xd ago", per-file delete)
+       under the toolbar card.
+    10b. `:info_view_collapsed_ledger` — a large inventory rests as
+       collapsed folder summary rows; zero file rows at rest.
     11. `:rematch_confirm` — `rematch_confirm: true` flips the Rematch
        action to its confirm state ("Confirm?" copy, `btn-error`
        styling). Captures the confirmation toggle.
@@ -318,14 +320,12 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       %Variation{
         id: :info_view_with_files,
         description:
-          "`detail_view: :info` swaps the content list for the Manage drawer. " <>
-            "Top: prominent **Delete this/all files (size)** danger button, always " <>
-            "visible. Per-folder + per-file delete affordances also always visible " <>
-            "(not hover-gated). Each file row carries a quality-badge strip parsed " <>
-            "from its filename (4K / HDR / WEB / H265 …) plus an `added Xd ago` " <>
-            "stamp on the right. Below the file list: External IDs (one row per " <>
-            "source, linked when known), the Rematch action, and a muted UUID " <>
-            "footer chip. Files use `detail_files: " <>
+          "`detail_view: :info` swaps the content list for the Manage sheet " <>
+            "(`Detail.ManagePanel`): toolbar card (Delete all / Rematch / " <>
+            "Refresh artwork, external IDs + UUID as its quiet lower edge) over " <>
+            "the folder ledger. Three files ≤ the auto-expand threshold, so " <>
+            "every group opens and the file rows (quality badges, `added Xd " <>
+            "ago`, per-file delete) are visible. Files use `detail_files: " <>
             "[%{file: %WatchedFile{}, size: bytes}]`.",
         attributes: %{
           entity: sample_movie_entity(),
@@ -340,11 +340,31 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         }
       },
       %Variation{
+        id: :info_view_collapsed_ledger,
+        description:
+          "A large inventory (8 files, two folders — above the auto-expand " <>
+            "threshold) rests as collapsed folder summary rows: name, count, " <>
+            "size, and a quiet Delete per row. Zero file rows at rest — the " <>
+            "wall of rows is the thing this layout killed. " <>
+            "`expanded_file_groups: nil` is the automatic default.",
+        attributes: %{
+          entity: sample_movie_entity(),
+          progress: nil,
+          resume: nil,
+          progress_records: [],
+          available: true,
+          tmdb_ready: true,
+          detail_view: :info,
+          detail_files: sample_season_detail_files(),
+          expanded_seasons: MapSet.new()
+        }
+      },
+      %Variation{
         id: :rematch_confirm,
         description:
-          "`rematch_confirm: true` in the info view — the **Rematch** action " <>
-            "flips to a confirm prompt (button copy and `btn-error` styling " <>
-            "change). Captures the rematch-confirmation toggle state.",
+          "`rematch_confirm: true` — the **Rematch** action in the toolbar " <>
+            "card flips to a confirm prompt (button copy and `btn-error` " <>
+            "styling change). Captures the rematch-confirmation toggle state.",
         attributes: %{
           entity: sample_movie_entity(),
           progress: nil,
@@ -1032,6 +1052,22 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         size: nil
       }
     ]
+  end
+
+  # Eight files across two season folders — above the ledger's ≤6
+  # auto-expand threshold, so the Manage sheet rests collapsed.
+  defp sample_season_detail_files do
+    for season <- 1..2, episode <- 1..4 do
+      %{
+        file: %WatchedFile{
+          id: "ffffffff-ffff-ffff-ffff-fffffffff#{season}0#{episode}",
+          file_path:
+            "/media/tv/Sample Show/Season #{season}/Sample.Show.S0#{season}E0#{episode}.1080p.WEB-DL.mkv",
+          media_dir: "/media/tv"
+        },
+        size: 183_500_800
+      }
+    end
   end
 
   # --- Plain-map child builders ----------------------------------------

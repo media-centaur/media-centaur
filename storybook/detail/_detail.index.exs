@@ -11,6 +11,8 @@ defmodule MediaCentaurWeb.Storybook.Detail do
   def entry("cast_filter_form"), do: [icon: {:fa, "magnifying-glass", :thin}, name: "Cast filter form"]
   def entry("people"), do: [icon: {:fa, "users", :thin}, name: "People (linked names)"]
 
+  def entry("manage_panel"), do: [icon: {:fa, "gear", :thin}, name: "Manage panel"]
+
   def entry("track_override_badge"), do: [icon: {:fa, "language", :thin}, name: "Track override badge"]
   def entry("metadata_row"), do: [icon: {:fa, "list", :thin}, name: "Metadata row"]
 

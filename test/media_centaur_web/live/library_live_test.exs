@@ -630,6 +630,153 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
+  describe "Manage ledger (collapsed folder groups)" do
+    # Eight files across two folders — above the ≤6 auto-expand
+    # threshold, so the ledger must open collapsed.
+    setup do
+      # TMDB capability on, so the toolbar renders Rematch/Refresh
+      # artwork rather than the Settings hint. GlobalStateSandbox
+      # restores the key — no hand-rolled backup (ADR-049 harness rule).
+      :persistent_term.put({MediaCentaur.Capabilities, :ready_flags}, %{
+        tmdb: true,
+        prowlarr: false,
+        download_client: false,
+        acquisition: false
+      })
+
+      tv_series = create_tv_series(%{name: "Ledger Show"})
+
+      for season <- 1..2, episode <- 1..4 do
+        _ =
+          create_linked_file(%{
+            tv_series_id: tv_series.id,
+            file_path: "/tv/ledger-show/Season #{season}/Sample.Show.S0#{season}E0#{episode}.mkv",
+            media_dir: "/tv"
+          })
+      end
+
+      {:ok, tv_series: tv_series}
+    end
+
+    test "a large inventory rests collapsed — group heads, no file rows", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+
+      assert has_element?(view, "[data-role='file-group-head'][aria-expanded='false']")
+      refute has_element?(view, "[data-role='manage-file-row']")
+    end
+
+    test "group heads are disclosure nav items inside a nav group", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+
+      # Same TREE contract as the season accordion: LEFT/RIGHT read
+      # `aria-expanded` on a `data-nav-item` head inside `data-nav-group`.
+      assert has_element?(
+               view,
+               "[data-nav-zone='detail_list'] [data-nav-group] [data-nav-item][data-role='file-group-head'][phx-click='toggle_file_group']"
+             )
+    end
+
+    test "expanding a group reveals its file rows sorted by filename", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+
+      view
+      |> element("[data-role='file-group-head'][phx-click='toggle_file_group']", "Season 1")
+      |> render_click()
+
+      assert has_element?(view, "[data-role='file-group-head'][aria-expanded='true']")
+      assert has_element?(view, "[data-role='manage-file-row']")
+
+      # Only the expanded group's rows render — season 2 stays a summary.
+      html = render(view)
+      assert html =~ "Sample.Show.S01E01.mkv"
+      refute html =~ "Sample.Show.S02E01.mkv"
+    end
+
+    test "collapsing an expanded group hides its rows again", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+
+      view
+      |> element("[data-role='file-group-head']", "Season 1")
+      |> render_click()
+
+      assert has_element?(view, "[data-role='manage-file-row']")
+
+      view
+      |> element("[data-role='file-group-head'][aria-expanded='true']", "Season 1")
+      |> render_click()
+
+      refute has_element?(view, "[data-role='manage-file-row']")
+    end
+
+    test "a group head summarises its contents without expanding", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+
+      # Count and size are on the collapsed row — scoped cleanup needs
+      # neither expansion nor arithmetic.
+      assert has_element?(view, "[data-role='file-group-head']", "4 files")
+    end
+
+    test "folder delete is reachable on the collapsed row", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+
+      assert has_element?(
+               view,
+               "[data-role='file-group-head'] [data-nav-sub-item][phx-click='delete_folder_prompt']"
+             )
+    end
+
+    test "the toolbar card carries tools and identity above the ledger", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+
+      assert has_element?(view, "[data-role='manage-toolbar'] button[phx-click='delete_all_prompt']")
+      assert has_element?(view, "[data-role='manage-toolbar'] button[phx-click='rematch']")
+
+      assert has_element?(
+               view,
+               "[data-role='manage-toolbar'] button[phx-click='refresh_artwork']"
+             )
+    end
+  end
+
+  describe "Manage ledger auto-expand for small inventories" do
+    setup do
+      movie = create_standalone_movie(%{name: "Small Inventory Movie"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      {:ok, movie: movie}
+    end
+
+    test "a movie's single file is visible at rest, not hidden behind a chevron", %{
+      conn: conn,
+      movie: movie
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+
+      assert has_element?(view, "[data-role='file-group-head'][aria-expanded='true']")
+      assert has_element?(view, "[data-role='manage-file-row']")
+    end
+  end
+
   describe "cast view navigation contract" do
     setup do
       # Mixed cast: one unlinked member (no TMDB page) among linked ones —
