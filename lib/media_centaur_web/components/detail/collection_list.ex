@@ -38,9 +38,9 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionList do
     required: true,
     doc: "`[%MediaCentaurWeb.ViewModel.MovieListItem{}]` from `CollectionDetail.compose/1`."
 
-  attr :expanded_movie_details, MapSet,
+  attr :expanded_item_details, MapSet,
     default: nil,
-    doc: "movie ids of rows whose synopsis/poster disclosure is open."
+    doc: "leaf (movie) ids with open synopsis/poster disclosures."
 
   attr :entity_id, :string, required: true
 
@@ -58,7 +58,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionList do
 
   def collection_list(assigns) do
     assigns =
-      assign(assigns, :expanded_movie_details, assigns.expanded_movie_details || MapSet.new())
+      assign(assigns, :expanded_item_details, assigns.expanded_item_details || MapSet.new())
 
     ~H"""
     <div class="pt-3">
@@ -68,7 +68,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionList do
           item={item}
           details_open={
             match?(%MovieListItem.Library{}, item) &&
-              MapSet.member?(@expanded_movie_details, item.movie.id)
+              MapSet.member?(@expanded_item_details, item.movie.id)
           }
           entity_id={@entity_id}
           on_play={@on_play}
@@ -175,8 +175,8 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionList do
         <button
           :if={@description || @thumbnail}
           type="button"
-          phx-click="toggle_movie_details"
-          phx-value-movie-id={@movie.id}
+          phx-click="toggle_item_details"
+          phx-value-item-id={@movie.id}
           data-nav-sub-item
           class="flex-shrink-0 p-1.5 -m-1 rounded-md cursor-pointer text-base-content/30 hover:text-base-content/70 hover:bg-base-content/10 transition-colors"
           aria-expanded={to_string(@details_open)}

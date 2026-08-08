@@ -3,8 +3,10 @@ defmodule MediaCentaur.Library.MovieList do
   Shared helpers for walking a MovieSeries entity's child movies.
   Parallel to EpisodeList but for MovieSeries.
 
-  Uses 1-based ordinals as the storage key in WatchProgress:
-  `season_number: 0, episode_number: ordinal`.
+  Ordinals here are 1-based *walk positions* used by the playback
+  resume chain and its display hints ("Play Movie 2") — they are not a
+  storage key. `WatchProgress` is keyed by `playable_item_id`, and the
+  UI addresses movies by their container UUID.
   """
 
   @doc "Sorts movies chronologically by date_published, then position as tiebreaker."
@@ -52,22 +54,6 @@ defmodule MediaCentaur.Library.MovieList do
         {ordinal, movie_id, movie && movie.name}
       end
     end)
-  end
-
-  @doc """
-  Finds `{movie_id, movie_name}` for a given ordinal.
-
-  Returns the tuple or `nil`.
-  """
-  def find_movie_by_ordinal(entity, ordinal) do
-    case Enum.find(list_available(entity), fn {ord, _id, _url} -> ord == ordinal end) do
-      {_ordinal, movie_id, _url} ->
-        movie = Enum.find(entity.movies || [], &(&1.id == movie_id))
-        {movie_id, movie && movie.name}
-
-      nil ->
-        nil
-    end
   end
 
   @doc """

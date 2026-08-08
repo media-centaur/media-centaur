@@ -110,23 +110,8 @@ defmodule MediaCentaur.Library.MovieListTest do
     end
   end
 
-  describe "find_movie_by_ordinal/2" do
-    test "returns {movie_id, movie_name} for valid ordinal" do
-      movie_a = build_movie(%{name: "First", content_url: "/m1.mkv", position: 0})
-      movie_b = build_movie(%{name: "Second", content_url: "/m2.mkv", position: 1})
-      entity = build_entity(%{type: :movie_series, movies: [movie_a, movie_b]})
-
-      assert {movie_a.id, "First"} == MovieList.find_movie_by_ordinal(entity, 1)
-      assert {movie_b.id, "Second"} == MovieList.find_movie_by_ordinal(entity, 2)
-    end
-
-    test "returns nil for out-of-range ordinal" do
-      movie = build_movie(%{name: "Only", content_url: "/m1.mkv", position: 0})
-      entity = build_entity(%{type: :movie_series, movies: [movie]})
-
-      assert MovieList.find_movie_by_ordinal(entity, 99) == nil
-    end
-  end
+  # `find_movie_by_ordinal/2` removed with the leaf-id addressing
+  # convergence — no caller mapped ordinals back to movies anymore.
 
   describe "total_available/1" do
     test "counts movies with content_url" do

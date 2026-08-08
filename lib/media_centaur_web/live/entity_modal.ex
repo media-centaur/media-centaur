@@ -133,12 +133,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         EntityModal.handle_toggle_file_group(params, socket)
       end
 
-      def handle_event("toggle_episode_details", params, socket) do
-        EntityModal.handle_toggle_episode_details(params, socket)
-      end
-
-      def handle_event("toggle_movie_details", params, socket) do
-        EntityModal.handle_toggle_movie_details(params, socket)
+      def handle_event("toggle_item_details", params, socket) do
+        EntityModal.handle_toggle_item_details(params, socket)
       end
 
       def handle_event("toggle_all_episode_details", _params, socket) do
@@ -551,8 +547,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       cast_filter: "",
       cast_limit: CastSelection.page_size(),
       expanded_seasons: MapSet.new(),
-      expanded_episode_details: MapSet.new(),
-      expanded_movie_details: MapSet.new(),
+      expanded_item_details: MapSet.new(),
       all_episode_details_open: false,
       rematch_confirm: nil,
       delete_confirm: nil,
@@ -681,8 +676,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # Grouped rather than reset inline so adding the next one is a line here
   # instead of another branch in `apply_modal_params/2`.
   @per_selection_defaults %{
-    expanded_episode_details: MapSet.new(),
-    expanded_movie_details: MapSet.new(),
+    expanded_item_details: MapSet.new(),
     all_episode_details_open: false,
     cast_filter: "",
     cast_limit: CastSelection.page_size(),
@@ -773,15 +767,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   attr :expanded_seasons, MapSet, required: true
 
-  attr :expanded_episode_details, MapSet,
+  attr :expanded_item_details, MapSet,
     required: true,
     doc:
-      "`{season_number, episode_number}` keys of episode rows whose synopsis/thumbnail disclosure is open. Reset on selection change."
-
-  attr :expanded_movie_details, MapSet,
-    required: true,
-    doc:
-      "movie ids of collection rows whose synopsis/poster disclosure is open. Reset on selection change."
+      "leaf container ids of content rows whose synopsis disclosure is open — one key space for episodes and collection movies alike. Reset on selection change."
 
   attr :all_episode_details_open, :boolean,
     required: true,
@@ -820,8 +809,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       seasons_view={MediaCentaurWeb.Live.EntityModal.seasons_view_from_entry(@selected_entry)}
       movies_view={MediaCentaurWeb.Live.EntityModal.movies_view_from_entry(@selected_entry)}
       expanded_seasons={@expanded_seasons}
-      expanded_episode_details={@expanded_episode_details}
-      expanded_movie_details={@expanded_movie_details}
+      expanded_item_details={@expanded_item_details}
       all_episode_details_open={@all_episode_details_open}
       rematch_confirm={@rematch_confirm == @selected_entity_id}
       detail_view={@detail_view}
@@ -869,16 +857,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   def playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
 
   @doc """
-  Flips a row's watched state. Two addressings, dispatched on the params:
-
-    * Leaf-id — the row names its own container outright
-      (`container-type` + `container-id`), no ordinal / season-episode
-      round-trip through the entry. Collection movie rows send this
-      today; TV episode rows converge onto it in the
-      collection-detail-coherence campaign's final stage, at which
-      point the season/episode form retires.
-    * Season/episode — resolved to the container through the loaded
-      entry (`resolve_progress_fk/4`).
+  Flips a row's watched state. Every row names its own leaf container
+  outright (`container-type` + `container-id`) — no ordinal or
+  season-episode round-trip through the loaded entry.
 
   Local DB upsert + PubSub broadcast — fast, runs synchronously
   (ADR-044/049). The UI updates via the broadcast, not a return.
@@ -890,22 +871,6 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         socket
       ) do
     toggle_watch_progress(entity_id, parse_container_type(container_type), container_id)
-    {:noreply, socket}
-  end
-
-  def handle_toggle_watched(
-        %{"entity-id" => entity_id, "season" => season_str, "episode" => episode_str},
-        socket
-      ) do
-    {fk_key, fk_id} =
-      resolve_progress_fk(
-        socket.assigns.selected_entry,
-        entity_id,
-        String.to_integer(season_str),
-        String.to_integer(episode_str)
-      )
-
-    toggle_watch_progress(entity_id, fk_key, fk_id)
     {:noreply, socket}
   end
 
@@ -959,42 +924,22 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   @doc """
-  Toggles the synopsis/thumbnail disclosure for one episode row.
-  `expanded_episode_details` holds `{season_number, episode_number}`
-  keys; the set resets on selection change (`apply_modal_params/2`).
+  Toggles the synopsis disclosure for one content row — episode or
+  collection movie alike. `expanded_item_details` holds leaf container
+  ids (one key space for every row family); the set resets on selection
+  change (`apply_modal_params/2`).
   """
-  @spec handle_toggle_episode_details(map(), Phoenix.LiveView.Socket.t()) ::
+  @spec handle_toggle_item_details(map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
-  def handle_toggle_episode_details(%{"season" => season_str, "episode" => episode_str}, socket) do
-    episode_key = {String.to_integer(season_str), String.to_integer(episode_str)}
-    expanded = socket.assigns[:expanded_episode_details] || MapSet.new()
+  def handle_toggle_item_details(%{"item-id" => item_id}, socket) do
+    expanded = socket.assigns[:expanded_item_details] || MapSet.new()
 
     expanded =
-      if MapSet.member?(expanded, episode_key),
-        do: MapSet.delete(expanded, episode_key),
-        else: MapSet.put(expanded, episode_key)
+      if MapSet.member?(expanded, item_id),
+        do: MapSet.delete(expanded, item_id),
+        else: MapSet.put(expanded, item_id)
 
-    {:noreply, Phoenix.Component.assign(socket, expanded_episode_details: expanded)}
-  end
-
-  @doc """
-  Toggles the synopsis/poster disclosure for one collection movie row.
-  `expanded_movie_details` holds movie ids (leaf-id key space, unlike
-  TV's `{season, episode}` tuples — those converge onto leaf ids in the
-  campaign's final stage); the set resets on selection change
-  (`apply_modal_params/2`).
-  """
-  @spec handle_toggle_movie_details(map(), Phoenix.LiveView.Socket.t()) ::
-          {:noreply, Phoenix.LiveView.Socket.t()}
-  def handle_toggle_movie_details(%{"movie-id" => movie_id}, socket) do
-    expanded = socket.assigns[:expanded_movie_details] || MapSet.new()
-
-    expanded =
-      if MapSet.member?(expanded, movie_id),
-        do: MapSet.delete(expanded, movie_id),
-        else: MapSet.put(expanded, movie_id)
-
-    {:noreply, Phoenix.Component.assign(socket, expanded_movie_details: expanded)}
+    {:noreply, Phoenix.Component.assign(socket, expanded_item_details: expanded)}
   end
 
   @doc """
@@ -1109,11 +1054,6 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   defp put_entry_track_override(socket, _override), do: socket
-
-  @doc false
-  defdelegate resolve_progress_fk(entry, entity_id, season_number, episode_number),
-    to: MediaCentaurWeb.LibraryProgress,
-    as: :resolve_progress_fk_from_entry
 
   @doc false
   def toggle_watch_progress(entity_id, container_type, container_id) do

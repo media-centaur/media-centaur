@@ -48,7 +48,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
     # stamps `last_watched_at` itself at second granularity — two
     # same-second watched records would tie and make "most recent" (and
     # therefore this whole test) ambiguous.
-    [first_episode | _rest] = episodes
+    [first_episode, season_two_episode_one | _rest] = episodes
 
     create_watch_progress(%{
       episode_id: first_episode.id,
@@ -57,7 +57,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
       completed: true
     })
 
-    {:ok, tv_series: tv_series}
+    {:ok, tv_series: tv_series, s2e1: season_two_episode_one}
   end
 
   describe "TV detail orientation" do
@@ -117,21 +117,17 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
     end
 
     test "the episode-details disclosure reveals the synopsis inline",
-         %{conn: conn, tv_series: tv_series} do
+         %{conn: conn, tv_series: tv_series, s2e1: s2e1} do
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
 
       view
-      |> element(
-        ~s|button[phx-click="toggle_episode_details"][phx-value-season="2"][phx-value-episode="1"]|
-      )
+      |> element(~s|button[phx-click="toggle_item_details"][phx-value-item-id="#{s2e1.id}"]|)
       |> render_click()
 
       assert render(view) =~ "Synopsis for S2E1"
 
       view
-      |> element(
-        ~s|button[phx-click="toggle_episode_details"][phx-value-season="2"][phx-value-episode="1"]|
-      )
+      |> element(~s|button[phx-click="toggle_item_details"][phx-value-item-id="#{s2e1.id}"]|)
       |> render_click()
 
       refute render(view) =~ "Synopsis for S2E1"
@@ -160,13 +156,11 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
     end
 
     test "turning the episode-details toggle off keeps per-row disclosures open",
-         %{conn: conn, tv_series: tv_series} do
+         %{conn: conn, tv_series: tv_series, s2e1: s2e1} do
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
 
       view
-      |> element(
-        ~s|button[phx-click="toggle_episode_details"][phx-value-season="2"][phx-value-episode="1"]|
-      )
+      |> element(~s|button[phx-click="toggle_item_details"][phx-value-item-id="#{s2e1.id}"]|)
       |> render_click()
 
       view |> element(~s|button[phx-click="toggle_all_episode_details"]|) |> render_click()

@@ -56,20 +56,15 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :progress_records, :list, default: [], doc: @doc_progress_records
   attr :expanded_seasons, MapSet, default: nil
 
-  attr :expanded_episode_details, MapSet,
+  attr :expanded_item_details, MapSet,
     default: nil,
     doc:
-      "`{season_number, episode_number}` keys of episode rows whose synopsis/thumbnail disclosure is open. Owned by the host modal (`toggle_episode_details`)."
+      "leaf container ids of content rows whose synopsis disclosure is open — one key space for episodes and collection movies alike. Owned by the host modal (`toggle_item_details`)."
 
   attr :all_episode_details_open, :boolean,
     default: false,
     doc:
-      "list-level episode-details toggle — opens every episode row's synopsis/thumbnail block at once. ORed with `expanded_episode_details`, so per-row disclosures survive turning it off. Owned by the host modal (`toggle_all_episode_details`)."
-
-  attr :expanded_movie_details, MapSet,
-    default: nil,
-    doc:
-      "movie ids of collection rows whose synopsis/poster disclosure is open. Owned by the host modal (`toggle_movie_details`)."
+      "list-level episode-details toggle — opens every episode row's synopsis/thumbnail block at once. ORed with `expanded_item_details`, so per-row disclosures survive turning it off. Owned by the host modal (`toggle_all_episode_details`)."
 
   attr :available, :boolean, default: true
   attr :on_play, :string, default: "play"
@@ -156,7 +151,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     assigns =
       assigns
       |> assign(:expanded_seasons, expanded_seasons)
-      |> assign(:expanded_episode_details, assigns.expanded_episode_details || MapSet.new())
+      |> assign(:expanded_item_details, assigns.expanded_item_details || MapSet.new())
       |> assign(:orientation, orientation)
       |> assign(:hairline_fraction, orientation && orientation.fraction)
       |> assign(:hairline_label, hairline_label(assigns.entity))
@@ -387,8 +382,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 seasons_view={@seasons_view}
                 movies_view={@movies_view}
                 expanded_seasons={@expanded_seasons}
-                expanded_episode_details={@expanded_episode_details}
-                expanded_movie_details={@expanded_movie_details}
+                expanded_item_details={@expanded_item_details}
                 all_episode_details_open={@all_episode_details_open}
                 extra_progress_by_id={@extra_progress_by_id}
                 on_play={@on_play}
@@ -574,7 +568,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       seasons={@seasons_view || []}
       entity_id={@entity.id}
       expanded_seasons={@expanded_seasons}
-      expanded_episode_details={@expanded_episode_details}
+      expanded_item_details={@expanded_item_details}
       all_episode_details_open={@all_episode_details_open}
       extras={Logic.entity_extras(@entity)}
       extra_progress_by_id={@extra_progress_by_id}
@@ -589,7 +583,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     ~H"""
     <CollectionList.collection_list
       movie_items={@movies_view || []}
-      expanded_movie_details={@expanded_movie_details}
+      expanded_item_details={@expanded_item_details}
       entity_id={@entity.id}
       extras={Logic.entity_extras(@entity)}
       extra_progress_by_id={@extra_progress_by_id}

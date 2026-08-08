@@ -41,14 +41,10 @@ defmodule MediaCentaurWeb.Components.ModalShell do
 
   attr :expanded_seasons, MapSet, default: nil
 
-  attr :expanded_movie_details, MapSet,
-    default: nil,
-    doc: "Forwarded to `DetailPanel.detail_panel/1`. See its `:expanded_movie_details` attr."
-
-  attr :expanded_episode_details, MapSet,
+  attr :expanded_item_details, MapSet,
     default: nil,
     doc:
-      "Forwarded to `DetailPanel.detail_panel/1`. `{season_number, episode_number}` keys of episode rows whose synopsis/thumbnail disclosure is open."
+      "Forwarded to `DetailPanel.detail_panel/1`. Leaf container ids of content rows whose synopsis disclosure is open."
 
   attr :all_episode_details_open, :boolean,
     default: false,
@@ -162,8 +158,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
               seasons_view={@seasons_view}
               movies_view={@movies_view}
               expanded_seasons={@expanded_seasons}
-              expanded_episode_details={@expanded_episode_details}
-              expanded_movie_details={@expanded_movie_details}
+              expanded_item_details={@expanded_item_details}
               all_episode_details_open={@all_episode_details_open}
               on_play={@on_play}
               on_close={@on_close}
