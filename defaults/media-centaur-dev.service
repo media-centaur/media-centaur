@@ -25,7 +25,9 @@ Environment=ELIXIR_ERL_OPTIONS="-name media_centaur_dev@127.0.0.1"
 # its own database + socket directories. Without this, both instances
 # would race for port 2160 and the dev start fails on bind.
 Environment=MEDIA_CENTAUR_CONFIG_OVERRIDE=%h/.config/media-centaur/media-centaur-dev.toml
-Restart=on-failure
+# always, not on-failure: an external SIGTERM (e.g. a stray pkill) exits the BEAM
+# cleanly and must not leave the daemon dead. An explicit systemctl stop still stops.
+Restart=always
 RestartSec=5
 KillMode=mixed
 TimeoutStopSec=30
