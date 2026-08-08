@@ -456,7 +456,7 @@ defmodule MediaCentaurWeb.LibraryLive do
               <div
                 id="library-grid"
                 phx-update="stream"
-                class="poster-grid"
+                class="poster-grid poster-grid-dense"
                 data-nav-grid
               >
                 <LibraryCards.poster_card
