@@ -124,13 +124,19 @@ const liveSocket = new LiveSocket("/live", Socket, {
         this.el.style.setProperty("--detail-pin-scroll", `${Math.max(0, pinScroll)}px`)
 
         // --detail-sheet-max-rise: cap on the sheet replica's post-pin rise.
-        // The replica freezes once its gradient zero-point reaches the block's
-        // top edge, so the pinned lockup keeps a partial darkening ramp
-        // instead of sinking to the sheet's full plateau. The content margin
-        // is the sheet reach, negated (margin-top: calc(-1 * reach)).
+        // The replica freezes once its gradient zero-point climbs
+        // --detail-sheet-overshoot (the darkness dial, registered <length>
+        // so it computes to px) past the block's top edge, so the pinned
+        // lockup settles on a chosen slice of the darkening ramp instead of
+        // sinking to the sheet's full plateau. The content margin is the
+        // sheet reach, negated (margin-top: calc(-1 * reach)).
         const maxRise = sheetMaxRise({
           blockHeight: block.offsetHeight,
           reach: -contentMarginTop,
+          overshoot:
+            parseFloat(
+              getComputedStyle(this.el).getPropertyValue("--detail-sheet-overshoot")
+            ) || 0,
         })
         this.el.style.setProperty("--detail-sheet-max-rise", `${maxRise}px`)
 

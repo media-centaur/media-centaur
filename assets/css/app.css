@@ -631,6 +631,14 @@ body:has(.modal-backdrop[data-state="open"]) {
      the DetailScrollGeometry hook's pin-scroll correction — one value,
      three couplings. */
   --detail-sheet-reach: 8rem;
+  /* THE DARKNESS DIAL for the pinned block: how far past the block's
+     top edge the sheet replica's gradient zero-point climbs before
+     freezing (DetailScrollGeometry reads this into the rise cap).
+     Deeper overshoot = darker settled state behind the lockup — the
+     block's top edge lands this deep in the --detail-sheet ramp:
+     0 → 0%, 4rem → 9%, 8rem → 28%, 12rem → 50%, 16rem → 69%,
+     20rem → full plateau (78%, the uncapped pre-2026-08 behavior). */
+  --detail-sheet-overshoot: 8rem;
   border-radius: 0.75rem;
   overflow: hidden;
   background-color: var(--color-base-100);
@@ -698,6 +706,15 @@ body:has(.modal-backdrop[data-state="open"]) {
      than scroll(nearest) so an intermediate overflow box can never
      silently capture the binding. */
   scroll-timeline-name: --detail-scroll;
+}
+
+/* Registered `<length>` (same idiom as the --ui-scale trio): the
+   DetailScrollGeometry hook parseFloats this out of getComputedStyle,
+   which only resolves rem → px for registered properties. */
+@property --detail-sheet-overshoot {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
 }
 
 /* ── Detail orientation block ──
