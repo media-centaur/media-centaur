@@ -4,6 +4,29 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.117.0 — 2026-08-08
+
+The title page's second view has been rethought around the people on screen, and moving around the title page with a keyboard or gamepad is steadier.
+
+### New
+
+- **More info is now Cast.** The title page's second view drops the facts grid and puts the cast first: photos, character names, and how many episodes each person appears in. For a series it leads with the cast of the episode you'd get by pressing Play — everyone else follows under **Other episodes** — with both groups ordered by who appears most. Long casts page in with **Show more**, and the filter still searches everyone, down to a one-scene guest. Existing libraries: press **Refresh series credits** in Settings → Library Maintenance once to fill in episode counts and per-episode casts for shows imported before this release.
+- **Your files' technical details sit on the files themselves.** The Manage view's file list now shows what each file claims about itself — its embedded title, measured length, resolution, video codec, and audio format — right under the file name, next to the quality read from the name. A renamed or mislabelled release stands out at a glance. Detected subtitle languages and the **Remembered tracks** setting moved to Manage too, alongside the files they describe.
+
+### Improved
+
+- **One view button, named for where it goes.** The title page had grown a second row of controls; it now carries a single button beside Play that always names its destination — **Episodes**, **Cast**, **Movies** — plus the Manage cog. It never says "Back", so you always know where pressing it lands.
+- **The title page navigates as two parts.** With a keyboard or gamepad, the button row and the list below it are distinct regions: Down enters the list, Back climbs out, and Left/Right work within each part instead of jumping between them.
+- **The mouse wheel wins.** Scrolling a page with the wheel no longer fights the keyboard or gamepad cursor for control of the page position — whatever you scrolled to stays put until you navigate again.
+
+### Fixed
+
+- **Each view keeps your place.** Switching between Episodes, Cast, and Manage no longer loses your scroll position — each view remembers where you were, and coming back lands you there.
+- **No more jitter around the pinned title block.** Moving the cursor near the title area that stays pinned while the episode list scrolls could nudge the page for no reason, or leave it slightly misplaced after an update from the server.
+- **Down from a row goes straight down.** Moving down out of a home-page row could land the cursor a few cards sideways from where you were; it now drops to the card directly below.
+
+This release includes a database migration; it runs automatically the first time the app starts after updating.
+
 ## v0.116.0 — 2026-08-07
 
 The home page's keyboard and gamepad navigation has been reworked. Rows move
