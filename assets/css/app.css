@@ -794,6 +794,17 @@ body:has(.modal-backdrop[data-state="open"]) {
   background-color: var(--color-base-100);
 }
 
+/* Content-fit panels (no `--full`: `DetailPanel.scrollable_content?/2`
+   is false — a bare movie) can never pin the block, so the backing is
+   permanently invisible there — but its 2rem bottom feather allowance
+   still extends past the end of the document, and the scrollport
+   (`overflow-y: auto`) turns that into 2rem of phantom scroll range: a
+   scrollbar on a modal whose content fits. Clamp the inert box instead.
+   Full panels keep the feather untouched. */
+.modal-panel:not(.modal-panel--full) .orientation-backing {
+  bottom: 0;
+}
+
 /* `<img>` clone of the panel backdrop in a replica of its box — same
    width (the clip window is already panel-wide), same height (70% of
    the panel height via `--modal-panel-h`; a percentage would resolve
