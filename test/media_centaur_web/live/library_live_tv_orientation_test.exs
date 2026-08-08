@@ -94,7 +94,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
       # The up-next marquee was removed as redundant with the Play
       # button's own label — the hairline is the only orientation
       # element, and the description takes the right column.
-      assert html =~ "season-hairline"
+      assert html =~ "orientation-hairline"
       assert html =~ "Play S2E1"
       refute html =~ "Up next"
       refute html =~ "orientation-marquee"

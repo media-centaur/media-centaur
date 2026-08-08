@@ -692,7 +692,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # as plain maps and open with nothing expanded.
   defp initial_expanded_seasons(%SeriesDetail{seasons: seasons, resume_target: resume_target}) do
     seasons
-    |> Orientation.build(resume_target)
+    |> Orientation.for_series(resume_target)
     |> Orientation.initial_expanded_seasons()
   end
 

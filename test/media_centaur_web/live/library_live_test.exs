@@ -1201,6 +1201,31 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "#movie-row-#{part_1.id} button[aria-label='Mark unwatched']")
     end
 
+    test "mid-collection: the hero hairline carries progress, the PlayCard row is suppressed, and the document opens on the resume row",
+         %{conn: conn, collection: collection, part_1: part_1} do
+      _ =
+        create_watch_progress(%{
+          movie_id: part_1.id,
+          position_seconds: 0.0,
+          duration_seconds: 0.0,
+          completed: true
+        })
+
+      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+
+      assert has_element?(view, "[aria-label='Collection progress'][aria-valuenow='50']")
+      refute html =~ "movies left"
+      assert has_element?(view, "#detail-content[data-scroll-to-resume]")
+    end
+
+    test "unstarted collection opens on the hero — no autoscroll, empty hairline",
+         %{conn: conn, collection: collection} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+
+      assert has_element?(view, "[aria-label='Collection progress'][aria-valuenow='0']")
+      refute has_element?(view, "#detail-content[data-scroll-to-resume]")
+    end
+
     test "a tracked collection lists its announced next part",
          %{conn: conn, collection: collection} do
       item =

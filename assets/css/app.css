@@ -1315,18 +1315,19 @@ body:has(.modal-backdrop[data-state="open"]) {
   outline: none;
 }
 
-/* ── Season Hairline ──
-   Luminous season-progress line pinned to the detail hero's bottom edge
-   (TV orientation). Coordinated glow across track/fill/leading edge —
-   custom CSS per the multi-element-system rule. */
+/* ── Orientation Hairline ──
+   Luminous progress line pinned to the detail hero's bottom edge — the
+   current season's fraction for TV, the whole collection's for a movie
+   series. Coordinated glow across track/fill/leading edge — custom CSS
+   per the multi-element-system rule. */
 
-.season-hairline {
+.orientation-hairline {
   position: relative;
   height: 2px;
   background: oklch(from var(--color-base-content) l c h / 0.09);
 }
 
-.season-hairline-fill {
+.orientation-hairline-fill {
   position: absolute;
   inset: 0 auto 0 0;
   background: linear-gradient(
@@ -1341,7 +1342,7 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 /* The leading edge burns slightly brighter — suppressed at 0 width. */
-.season-hairline-fill:not([style*="width: 0"])::after {
+.orientation-hairline-fill:not([style*="width: 0"])::after {
   content: "";
   position: absolute;
   right: -1px;
