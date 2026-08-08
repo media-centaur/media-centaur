@@ -676,10 +676,15 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       # Same TREE contract as the season accordion: LEFT/RIGHT read
       # `aria-expanded` on a `data-nav-item` head inside `data-nav-group`.
+      # The ledger is its own `manage_list` zone — NOT `detail_list`:
+      # cursor memory is keyed by context name, so sharing the episode
+      # list's name let ledger activity clobber its remembered position.
       assert has_element?(
                view,
-               "[data-nav-zone='detail_list'] [data-nav-group] [data-nav-item][data-role='file-group-head'][phx-click='toggle_file_group']"
+               "[data-nav-zone='manage_list'] [data-nav-group] [data-nav-item][data-role='file-group-head'][phx-click='toggle_file_group']"
              )
+
+      refute has_element?(view, "[data-nav-zone='detail_list'] [data-role='file-group-head']")
     end
 
     test "expanding a group reveals its file rows sorted by filename", %{
@@ -777,12 +782,12 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       refute has_element?(
                view,
-               "[data-nav-zone='detail_list'] button[phx-click='delete_all_prompt']"
+               "[data-nav-zone='manage_list'] button[phx-click='delete_all_prompt']"
              )
 
-      # The ledger stays a detail_list tree; zones are siblings, never nested.
-      assert has_element?(view, "[data-nav-zone='detail_list'] [data-role='file-group-head']")
-      refute has_element?(view, "[data-nav-zone='detail_list'] [data-nav-zone='manage_tools']")
+      # The ledger is its own manage_list tree; zones are siblings, never nested.
+      assert has_element?(view, "[data-nav-zone='manage_list'] [data-role='file-group-head']")
+      refute has_element?(view, "[data-nav-zone='manage_list'] [data-nav-zone='manage_tools']")
     end
   end
 

@@ -260,30 +260,42 @@ describe("Detail overlay Manage tools region (real config)", () => {
     expect(inputConfig.overlays.detail.entry).toContain("manage_tools")
   })
 
+  // The ledger is its OWN tree region, not a reuse of detail_list: per-context
+  // cursor memory is keyed by context name, so sharing the name meant moving
+  // through the Manage ledger overwrote the episode list's remembered
+  // position — coming back to Episodes then entered at the ledger's index
+  // instead of the resume episode.
+  test("the manage ledger is a tree-typed region distinct from the episode list", () => {
+    expect(inputConfig.instanceTypes.manage_list).toBe(Context.TREE)
+    expect(inputConfig.contextSelectors.manage_list).toBe("[data-nav-zone='manage_list'] [data-nav-item]")
+    expect(inputConfig.overlays.detail.entry).toContain("manage_list")
+  })
+
   test("manage showing: down from the action row lands on the toolbar, then the ledger", () => {
-    const graph = openDetail({ detail_actions: 3, manage_tools: 5, detail_list: 12, detail_cast: 0, grid: 12, sidebar: 7 })
+    const graph = openDetail({ detail_actions: 3, manage_tools: 5, manage_list: 12, detail_list: 0, detail_cast: 0, grid: 12, sidebar: 7 })
     expect(graph.detail_actions.down).toBe("manage_tools")
-    expect(graph.manage_tools.down).toBe("detail_list")
+    expect(graph.manage_tools.down).toBe("manage_list")
   })
 
   test("manage showing: up and BACK climb from the toolbar to the action row", () => {
-    const graph = openDetail({ detail_actions: 3, manage_tools: 5, detail_list: 12, detail_cast: 0, grid: 12, sidebar: 7 })
+    const graph = openDetail({ detail_actions: 3, manage_tools: 5, manage_list: 12, detail_list: 0, detail_cast: 0, grid: 12, sidebar: 7 })
     expect(graph.manage_tools.up).toBe("detail_actions")
     expect(graph.manage_tools.back).toBe("detail_actions")
   })
 
   test("other sub-views: with no toolbar, down falls through to the body", () => {
-    const graph = openDetail({ detail_actions: 3, manage_tools: 0, detail_list: 20, detail_cast: 0, grid: 12, sidebar: 7 })
+    const graph = openDetail({ detail_actions: 3, manage_tools: 0, manage_list: 0, detail_list: 20, detail_cast: 0, grid: 12, sidebar: 7 })
     expect(graph.detail_actions.down).toBe("detail_list")
   })
 
-  // UP from the tree's top row climbs to whatever sits spatially above it:
-  // the Manage toolbar card when Manage is showing, the action row otherwise.
-  test("up from the tree top climbs to the toolbar card, or the action row without one", () => {
-    const manage = openDetail({ detail_actions: 3, manage_tools: 5, detail_list: 12, detail_cast: 0, grid: 12, sidebar: 7 })
-    expect(manage.detail_list.up).toBe("manage_tools")
+  // UP from a tree's top row climbs to whatever sits spatially above it:
+  // the ledger to the Manage toolbar card, the episode list to the action row.
+  test("up from a tree top climbs to what sits above it", () => {
+    const manage = openDetail({ detail_actions: 3, manage_tools: 5, manage_list: 12, detail_list: 0, detail_cast: 0, grid: 12, sidebar: 7 })
+    expect(manage.manage_list.up).toBe("manage_tools")
+    expect(manage.manage_list.back).toBe("detail_actions")
 
-    const episodes = openDetail({ detail_actions: 3, manage_tools: 0, detail_list: 20, detail_cast: 0, grid: 12, sidebar: 7 })
+    const episodes = openDetail({ detail_actions: 3, manage_tools: 0, manage_list: 0, detail_list: 20, detail_cast: 0, grid: 12, sidebar: 7 })
     expect(episodes.detail_list.up).toBe("detail_actions")
   })
 })

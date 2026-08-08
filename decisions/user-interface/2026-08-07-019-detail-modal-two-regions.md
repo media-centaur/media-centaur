@@ -144,7 +144,11 @@ opened from.
   `manage_tools` when Manage is showing, else to the action row), and the
   orchestrator consults the graph at a TREE's up/down wall the way it already
   did for MENU. BACK remains the one-press way out from any depth; UP is now
-  simply the one-row way up, everywhere.
+  simply the one-row way up, everywhere. The Manage ledger is its own
+  `manage_list` TREE rather than a reuse of `detail_list`: per-context cursor
+  memory is keyed by context name, and sharing the name let ledger activity
+  overwrite the episode list's remembered position — returning to Episodes
+  entered at the ledger's index instead of the resume episode.
 * Neutral, because "two regions" became "two regions, except Manage has
   three". *Amended 2026-08-08 (Manage sheet overhaul):* the Manage sub-view's
   toolbar card — Delete all, Rematch, Refresh artwork, the ID links on one
