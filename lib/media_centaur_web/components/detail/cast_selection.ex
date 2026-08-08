@@ -20,11 +20,12 @@ defmodule MediaCentaurWeb.Components.Detail.CastSelection do
 
   ## Paging
 
-  At most `limit` cards render at once, `page_size/0` (24) at first —
-  TMDB aggregate casts for long-running series run into the hundreds.
-  The host LiveView owns the limit (`EntityModal`'s `cast_limit`), bumps
-  it on `show_more_cast`, and resets it on entity switch alongside the
-  filter. The limit applies **after** filtering: filtering searches the
+  At most `limit` cards render at once, `initial_limit/1` at first — a
+  full page (24) for TV, whose TMDB aggregate casts run into the
+  hundreds, one grid row for movies, whose cast sits on the modal's
+  opening view. The host LiveView owns the limit (`EntityModal`'s
+  `cast_limit`), bumps it by `page_size/0` on `show_more_cast`, and
+  resets it on entity switch alongside the filter. The limit applies **after** filtering: filtering searches the
   whole cast because the point is to find someone billed 300th.
 
   ## Why the filter is a server round-trip
@@ -40,13 +41,27 @@ defmodule MediaCentaurWeb.Components.Detail.CastSelection do
   # Cast cards added per page — the initial render and each Show more click.
   @page_size 24
 
+  # One row of the cast grid at the modal's width (`lg:grid-cols-6` in
+  # `CastPanel.card_grid/1`) — the movie's initial limit.
+  @movie_row 6
+
   # Billing rank for entries without an `order` — sorts after any billed
   # entry with the same appearance count.
   @unbilled_order 1_000_000
 
-  @doc "Cast cards per page — the initial limit and the Show more increment."
+  @doc "Cast cards per page — the Show more increment."
   @spec page_size() :: pos_integer()
   def page_size, do: @page_size
+
+  @doc """
+  Cast cards the view opens with, by entity type. A movie with no extras
+  opens *on* Cast — the grid is the modal's opening view, so it starts
+  at a single grid row and defers the rest to *Show more*. Every other
+  type opens at a full page.
+  """
+  @spec initial_limit(atom()) :: pos_integer()
+  def initial_limit(:movie), do: @movie_row
+  def initial_limit(_type), do: @page_size
 
   @doc """
   The cast in display order: most appearances first

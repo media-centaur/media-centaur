@@ -30,6 +30,17 @@ defmodule MediaCentaurWeb.Components.Detail.CastSelectionTest do
               order: 0
             }
 
+  describe "initial_limit/1" do
+    test "movies open at one grid row — their cast sits on the modal's opening view" do
+      assert CastSelection.initial_limit(:movie) == 6
+    end
+
+    test "every other type opens at a full page" do
+      assert CastSelection.initial_limit(:tv_series) == CastSelection.page_size()
+      assert CastSelection.initial_limit(:video_object) == CastSelection.page_size()
+    end
+  end
+
   describe "visible_cast/3" do
     test "an empty query returns the first max entries, in billing order" do
       assert names(CastSelection.visible_cast(@cast, "", 3)) ==

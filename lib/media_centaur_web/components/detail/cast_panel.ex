@@ -19,7 +19,10 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
   list — filtering searches the whole cast, so sections would only hide
   matches. Movies are always the single list, in billing order (their
   cast carries no appearance counts), under a *Directed by / Written by*
-  headline — the only show-level credit worth a line.
+  headline — the only show-level credit worth a line. Because a movie
+  with no extras opens *on* Cast, the host seeds its limit at one grid
+  row (`CastSelection.initial_limit/1`) with the rest behind *Show
+  more*.
 
   ## The filter's two homes
 
