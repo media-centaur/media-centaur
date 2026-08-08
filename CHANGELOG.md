@@ -4,6 +4,26 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.119.0 — 2026-08-08
+
+Movies get the same title-page treatment as series, collections orient around what's next, and every progress bar now measures the same thing.
+
+### New
+
+- **A movie opens on its overview.** A movie's title page now opens on the essentials — artwork, Play, and the synopsis — and the cast is a view you visit, the same shape as a series: the button beside Play reads **Cast**, and the way back always reads **Overview**.
+- **Collections orient around what's next.** A movie collection's title page now works like a series page: it opens at the film you'd continue with, carries the thin progress line under its artwork, and lists its films as compact rows — each film's poster and synopsis open on demand.
+
+### Improved
+
+- **Every progress bar measures the same thing.** The title page's progress line, the bars on library posters, and Continue Watching all now show how much of what's actually in your library you've watched. Films and episodes you don't have no longer count against a title's progress, and a series' line spans the whole series rather than just the current season.
+- **A denser library wall.** Library posters are slightly smaller and tighter, so more titles fit on each row — and every poster in the app now shares that one size, so the library grid and the home page rows agree.
+- **The page glides instead of jumping.** Climbing with a keyboard or gamepad from the episode list, cast grid, or Manage view back to the Play row glides the title page back to its top, and entering the library's toolbar carries the page smoothly to the top instead of snapping there.
+- **The background service picks itself back up.** If something outside the app stops the Media Centaur service, it now restarts on its own instead of staying down.
+
+### Fixed
+
+- **A movie's title page no longer grows a needless scrollbar.** A movie whose page fits entirely on screen still showed a scrollbar with nothing to scroll to; the page now sits still, and the synopsis keeps proper clearance from the bottom edge.
+
 ## v0.118.0 — 2026-08-08
 
 The Manage view has been rebuilt around cleaning up, and keyboard and gamepad movement across the title page's views is steadier.
