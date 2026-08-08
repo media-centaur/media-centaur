@@ -99,6 +99,14 @@ defmodule MediaCentaurWeb.Components.Detail.CastSelection do
   @spec filtering?(String.t() | nil) :: boolean()
   def filtering?(query), do: String.trim(query || "") != ""
 
+  @doc """
+  Whether `cast` warrants a filter input — more than one page of cards.
+  Shared by `CastPanel` and `DetailPanel`, which host the same filter
+  form in different places.
+  """
+  @spec show_filter?([map()]) :: boolean()
+  def show_filter?(cast), do: length(cast) > @page_size
+
   defp matching_cast(cast, query) do
     case String.trim(query || "") do
       "" -> cast

@@ -4,15 +4,15 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
 
   ## What leads
 
-  For a TV series the view leads, unlabelled, with the cast of the
-  episode Play would start (the resume target, or the first present
-  episode) — that ordering is simply how the page is, not an announced
-  feature. Everyone else follows under *Other episodes*. Both sections
-  are ordered by total appearances (`CastSelection.order_by_appearances/1`);
-  the lead section renders in full, and the *Show more* disclosure pages
-  only the second. Membership comes from `Episode.cast_person_ids`
-  (season regulars + guest stars, TMDB person ids referencing the series'
-  aggregate-cast embeds).
+  For a TV series the view leads with the cast of the episode Play would
+  start (the resume target, or the first present episode), under a
+  heading naming that episode (*Season 2, Episode 7*). Everyone else
+  follows under *Other episodes*. Both sections are ordered by total
+  appearances (`CastSelection.order_by_appearances/1`); the lead section
+  renders in full, and the *Show more* disclosure pages only the second.
+  Membership comes from `Episode.cast_person_ids` (season regulars +
+  guest stars, TMDB person ids referencing the series' aggregate-cast
+  embeds).
 
   With no membership data (pre-backfill library, no present episodes) or
   an active filter, the view degrades to a single appearance-ordered
@@ -21,8 +21,17 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
   cast carries no appearance counts), under a *Directed by / Written by*
   headline — the only show-level credit worth a line.
 
+  ## The filter's two homes
+
+  The filter form is `cast_filter_form/1`, a public component because it
+  has two hosts: `DetailPanel` renders it in the orientation block under
+  the synopsis (the pinned header, so it stays visible while the grid
+  scrolls) whenever that column exists, and `cast_panel/1` renders it
+  inline above the grid only as the fallback (`filter_in_header?` false —
+  no description column to host it).
+
   Selection rules are pure functions in `CastSelection`; this module is
-  the markup. `lead_cast_ids/2` is public for its unit tests (ADR-030).
+  the markup. `lead_episode/2` is public for its unit tests (ADR-030).
   """
 
   use MediaCentaurWeb, :html
@@ -48,14 +57,21 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
     doc:
       "`{season_number, episode_number}` of the episode Play would start, or nil — same value the episode list highlights."
 
+  attr :filter_in_header?, :boolean,
+    default: false,
+    doc:
+      "true when the host already renders `cast_filter_form/1` in the detail header — suppresses the inline fallback form."
+
   def cast_panel(assigns) do
     cast = assigns.entity[:cast] || []
     filter = assigns[:cast_filter] || ""
     limit = assigns.cast_limit || CastSelection.page_size()
     filtering? = CastSelection.filtering?(filter)
 
-    lead_ids =
-      if filtering?, do: [], else: lead_cast_ids(assigns.entity, assigns.resume_episode_key)
+    lead_episode =
+      if !filtering?, do: lead_episode(assigns.entity, assigns.resume_episode_key)
+
+    lead_ids = (lead_episode && lead_episode.cast_person_ids) || []
 
     {lead, rest} = CastSelection.partition_by_membership(cast, lead_ids)
 
@@ -74,8 +90,12 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
       |> assign(:cast, cast)
       |> assign(:filter, filter)
       |> assign(:filtering?, filtering?)
-      |> assign(:show_filter, length(cast) > CastSelection.page_size())
+      |> assign(
+        :show_inline_filter,
+        !assigns.filter_in_header? && CastSelection.show_filter?(cast)
+      )
       |> assign(:lead, lead)
+      |> assign(:lead_episode_key, lead_episode && lead_episode.key)
       |> assign(:single_visible, single_visible)
       |> assign(:rest_visible, rest_visible)
       |> assign(:remaining, remaining)
@@ -84,13 +104,16 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
     <section class="space-y-6 pt-2 pb-4">
       <.movie_headline entity={@entity} />
       <div :if={@cast != []} id="cast-grid-section">
-        <.filter_form :if={@show_filter} filter={@filter} />
+        <.cast_filter_form :if={@show_inline_filter} filter={@filter} class="mb-3" />
         <%= if @single_visible do %>
           <.card_grid id="cast-grid-grid" cast={@single_visible} />
           <p :if={@single_visible == [] && @filtering?} class="text-sm text-base-content/60 mt-3">
             No cast members match your filter.
           </p>
         <% else %>
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-base-content/60 mb-3">
+            {episode_heading(@lead_episode_key)}
+          </h3>
           <.card_grid id="cast-grid-lead" cast={@lead} />
           <div :if={@rest_visible != []} class="mt-6">
             <h3 class="text-xs font-semibold uppercase tracking-wider text-base-content/60 mb-3">
@@ -105,16 +128,24 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
     """
   end
 
+  defp episode_heading({season_number, episode_number}) do
+    "Season #{season_number}, Episode #{episode_number}"
+  end
+
   @doc """
-  The membership ids (`Episode.cast_person_ids`) of the episode Play
-  would start: the resume-target episode when its key matches a loaded
-  episode, otherwise the first episode with a present file — the same
-  episode `Playback.play/1`'s resolver would pick for a fresh series.
-  Returns `[]` for movies, series without loaded seasons, or episodes
-  without membership data — the panel then degrades to the single list.
+  The episode Play would start, with its cast membership: the
+  resume-target episode when its key matches a loaded episode, otherwise
+  the first episode with a present file — the same episode
+  `Playback.play/1`'s resolver would pick for a fresh series. Returns
+  `%{key: {season_number, episode_number}, cast_person_ids: ids}`; the
+  key names the lead section's heading. Returns `nil` for movies and
+  series without loaded seasons or present episodes; membership ids may
+  be `[]` (pre-backfill episode) — the panel then degrades to the
+  single list.
   """
-  @spec lead_cast_ids(map(), {non_neg_integer(), non_neg_integer()} | nil) :: [integer()]
-  def lead_cast_ids(entity, resume_episode_key) do
+  @spec lead_episode(map(), {non_neg_integer(), non_neg_integer()} | nil) ::
+          %{key: {non_neg_integer(), non_neg_integer()}, cast_person_ids: [integer()]} | nil
+  def lead_episode(entity, resume_episode_key) do
     episodes =
       for season <- entity[:seasons] || [],
           episode <- season[:episodes] || [],
@@ -125,8 +156,14 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
         Enum.find(episodes, fn {_season_number, episode} -> episode[:content_url] end)
 
     case target do
-      {_season_number, episode} -> episode[:cast_person_ids] || []
-      nil -> []
+      {season_number, episode} ->
+        %{
+          key: {season_number, episode[:episode_number]},
+          cast_person_ids: episode[:cast_person_ids] || []
+        }
+
+      nil ->
+        nil
     end
   end
 
@@ -164,22 +201,30 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
 
   defp filter_crew(crew, jobs), do: Enum.filter(crew, &(&1.job in jobs))
 
-  attr :filter, :string, required: true
+  @doc """
+  The Cast view's filter input — a search pill filtering the grid by
+  name or character, debounced, handled by the host LiveView's
+  `filter_cast` event. Two hosts render it (see *The filter's two homes*
+  in the moduledoc); `class` positions it per placement.
+  """
+  attr :filter, :string, required: true, doc: "current filter query, owned by the host LiveView."
+  attr :class, :string, default: nil, doc: "placement-specific classes for the form element."
 
-  defp filter_form(assigns) do
+  def cast_filter_form(assigns) do
     ~H"""
-    <form phx-change="filter_cast" class="mb-3">
-      <div class="relative w-64 max-w-full">
-        <.icon
-          name="hero-magnifying-glass-mini"
-          class="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-base-content/40 pointer-events-none"
-        />
+    <form phx-change="filter_cast" class={@class}>
+      <%!-- Same anatomy as the library toolbar's filter: the wrap
+            shrink-wraps the input, which carries its own width, so a
+            right-pinned host (flex justify-end) keeps the idle icon pill
+            on the container's right edge and grows the field leftward. --%>
+      <div class="library-filter-wrap">
+        <.icon name="hero-magnifying-glass-mini" class="library-filter-icon" />
         <input
           type="search"
           name="cast_filter"
           value={@filter}
           phx-debounce="150"
-          class="library-filter w-full pl-9 bg-base-content/5"
+          class="library-filter w-64 bg-base-content/5"
           placeholder="Filter cast"
           aria-label="Filter cast members"
         />

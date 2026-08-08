@@ -7,6 +7,8 @@ defmodule MediaCentaurWeb.Storybook.Detail do
   def entry("cinematic_backdrop"), do: [icon: {:fa, "panorama", :thin}, name: "Cinematic backdrop"]
   def entry("facet_strip"), do: [icon: {:fa, "table-columns", :thin}, name: "Facet strip"]
   def entry("cast_panel"), do: [icon: {:fa, "users", :thin}, name: "Cast panel"]
+
+  def entry("cast_filter_form"), do: [icon: {:fa, "magnifying-glass", :thin}, name: "Cast filter form"]
   def entry("people"), do: [icon: {:fa, "users", :thin}, name: "People (linked names)"]
 
   def entry("track_override_badge"), do: [icon: {:fa, "language", :thin}, name: "Track override badge"]

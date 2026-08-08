@@ -96,7 +96,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.CastPanel do
         id: :tv_partitioned,
         description:
           "TV series with episode membership — the cast of the episode Play " <>
-            "would start leads unlabelled (episode counts under each card), " <>
+            "would start leads under its own episode heading (*Season 1, Episode 1*), " <>
             "the rest under *Other episodes* with the Show more disclosure.",
         attributes: %{entity: @tv_series, resume_episode_key: {1, 1}}
       },
