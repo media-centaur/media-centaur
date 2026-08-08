@@ -630,6 +630,68 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
+  describe "cast view navigation contract" do
+    setup do
+      # Mixed cast: one unlinked member (no TMDB page) among linked ones —
+      # both card variants must be on the keyboard path.
+      cast =
+        [%{name: "Unlinked Member", character: "Sample Role 0", order: 0}] ++
+          for i <- 1..29 do
+            %{
+              name: "Nav Cast Member #{i}",
+              character: "Sample Role #{i}",
+              order: i,
+              tmdb_person_id: 7000 + i
+            }
+          end
+
+      tv_series = create_tv_series(%{name: "Nav Cast Show", cast: cast})
+      season = create_season(%{tv_series_id: tv_series.id, season_number: 1})
+
+      _episode =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Pilot",
+          content_url: "/tv/nav-cast/s01e01.mkv"
+        })
+
+      {:ok, tv_series: tv_series}
+    end
+
+    test "the cast body replaces the tree zone with its own spatial region", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
+
+      # One body zone at a time — nav zones must never nest, so the cast
+      # region swaps in for the tree rather than wrapping inside it.
+      assert has_element?(view, "[data-nav-zone='detail_cast']")
+      refute has_element?(view, "[data-nav-zone='detail_list']")
+    end
+
+    test "every cast card is on the keyboard path", %{conn: conn, tv_series: tv_series} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
+
+      assert has_element?(view, "[data-nav-zone='detail_cast'] a[data-nav-item][tabindex='0']")
+      assert has_element?(view, "[data-nav-zone='detail_cast'] div[data-nav-item][tabindex='0']")
+      # The paging disclosure keeps its place in the same region, and
+      # activating it returns the cursor to the card it came from.
+      assert has_element?(
+               view,
+               "[data-nav-zone='detail_cast'] [data-nav-item][data-nav-return-focus][phx-click='show_more_cast']"
+             )
+    end
+
+    test "the episode list keeps the tree zone", %{conn: conn, tv_series: tv_series} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
+
+      assert has_element?(view, "[data-nav-zone='detail_list']")
+      refute has_element?(view, "[data-nav-zone='detail_cast']")
+    end
+  end
+
   describe "cast view paging" do
     setup do
       cast =

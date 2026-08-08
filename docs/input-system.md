@@ -307,7 +307,7 @@ layer out.
 
 **Modal navigation:** UP/DOWN/LEFT navigate linearly with wrapping. RIGHT tries sub-focus first (entering a sub-item within the focused element); if no `[data-nav-sub-item]` exists, falls back to linear navigation. This makes both vertical item lists and horizontal button rows work without per-modal configuration.
 
-**Overlays with regions.** An overlay carrying `data-nav-overlay="<name>"` navigates as several zones instead of one flat list, per `config.overlays[name]`: `entry` is the cursor-start priority among its regions, `layout` its internal edges (merged over the page's graph while it is open). The detail modal declares `detail` — a `detail_actions` TOOLBAR over a `detail_list` TREE, with `detail_list: { back: ["detail_actions"] }` giving BACK its first rung. Overlays without the attribute stay flat MODAL, which is right for a confirm or a small form.
+**Overlays with regions.** An overlay carrying `data-nav-overlay="<name>"` navigates as several zones instead of one flat list, per `config.overlays[name]`: `entry` is the cursor-start priority among its regions, `layout` its internal edges (merged over the page's graph while it is open). The detail modal declares `detail` — a `detail_actions` TOOLBAR over the body, whose zone follows the sub-view: the season/film/extras lists and Manage are a `detail_list` TREE, the Cast view a `detail_cast` SHELF (a photo grid, so adjacency is answered by geometry — the lead/other-episodes sections and the Show more button need no adjacency table). Only one body zone is in the DOM at a time; the candidate list on `detail_actions`'s `down` edge routes to whichever is populated, and each body's `back` edge gives BACK its first rung. The cast grid also declares `up: ["detail_actions"]` — a spatial region has a geometric "above" — while the tree deliberately does not (there, BACK is the way out; see UIDR-019). Overlays without the attribute stay flat MODAL, which is right for a confirm or a small form.
 
 **TREE navigation:** a vertical list whose items nest. UP/DOWN walk it as rendered; LEFT and RIGHT are *depth*. The state machine emits only `tree_in` / `tree_out` — what they mean depends on what the cursor is on, which is a DOM question the orchestrator answers:
 
@@ -372,6 +372,7 @@ layer out.
 | `data-nav-zone-value` | Zone identifier on tab elements | `watching`, `library`, `upcoming` |
 | `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT | — |
 | `data-nav-action` | Custom event name dispatched on SELECT instead of `.click()` | event name string |
+| `data-nav-return-focus` | On a control that grows its own list (Show more): after SELECT's patch lands, the cursor returns to the item it came from — grounding the user before the new items get walked | — |
 | `data-nav-reveal` | Scroll THIS ancestor into view instead of the focused item (hero: show the whole backdrop, not just the CTA) | — |
 | `data-nav-reveal-block` | Block-axis alignment for the reveal, instead of "scroll the least" | `start`, `center`, `end` |
 | `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children | — |

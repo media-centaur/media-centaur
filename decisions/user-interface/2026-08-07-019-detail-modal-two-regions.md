@@ -134,3 +134,7 @@ opened from.
 * Neutral, because up at the top of the body does not climb to the action row.
   BACK is the documented way out and giving up/down a second, silent one would
   blur what BACK is for. Revisit if it reads as a dead end in use.
+  *Amended 2026-08-08:* it did read as a dead end in the Cast sub-view, whose
+  body is a `detail_cast` photo grid (SHELF, geometry-resolved) rather than
+  the tree. A spatial grid has a geometric "above", so its top row climbs to
+  the action row on UP. The tree keeps the original rule.

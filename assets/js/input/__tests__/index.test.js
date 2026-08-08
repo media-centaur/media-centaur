@@ -201,3 +201,41 @@ describe("Guide page nav (real config)", () => {
     expect(resolveCursorStart("guide", counts, inputConfig)).toBe("guide_chapters")
   })
 })
+
+// The detail modal's body swaps per sub-view: the episode list is a tree, but
+// the Cast view is a photo grid, so it navigates as its own SHELF-typed region
+// (geometry answers adjacency across the grid sections and the Show more
+// button). Only one body zone is in the DOM at a time; the candidate lists in
+// the overlay layout route DOWN to whichever one is populated.
+describe("Detail overlay cast region (real config)", () => {
+  const openDetail = counts =>
+    buildNavGraph("library", counts, {
+      ...inputConfig,
+      overlayLayout: inputConfig.overlays.detail.layout,
+    })
+
+  test("the cast body is a shelf-typed region of the detail overlay", () => {
+    expect(inputConfig.instanceTypes.detail_cast).toBe(Context.SHELF)
+    expect(inputConfig.contextSelectors.detail_cast).toBe("[data-nav-zone='detail_cast'] [data-nav-item]")
+    expect(inputConfig.overlays.detail.entry).toContain("detail_cast")
+  })
+
+  test("cast view showing: down from the action row enters the cast grid, BACK climbs out", () => {
+    const graph = openDetail({ detail_actions: 3, detail_list: 0, detail_cast: 24, grid: 12, sidebar: 7 })
+    expect(graph.detail_actions.down).toBe("detail_cast")
+    expect(graph.detail_cast.back).toBe("detail_actions")
+  })
+
+  // Unlike the tree — where up at the top deliberately stays put and BACK is
+  // the way out — a spatial grid has a geometric "above": the action row. UP
+  // from the top row climbs to it.
+  test("cast view showing: up from the top row climbs to the action row", () => {
+    const graph = openDetail({ detail_actions: 3, detail_list: 0, detail_cast: 24, grid: 12, sidebar: 7 })
+    expect(graph.detail_cast.up).toBe("detail_actions")
+  })
+
+  test("episode list showing: down still enters the tree", () => {
+    const graph = openDetail({ detail_actions: 3, detail_list: 20, detail_cast: 0, grid: 12, sidebar: 7 })
+    expect(graph.detail_actions.down).toBe("detail_list")
+  })
+})

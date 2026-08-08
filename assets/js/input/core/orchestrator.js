@@ -83,6 +83,11 @@ export class Orchestrator {
     // sub-item. Stored as an index (not a DOM ref) so morphdom patches don't
     // create stale references — every DOM access re-queries from the index.
     this._subFocusIndex = null
+    // One-slot memory of the item the cursor last moved OFF, per move within
+    // a context. A data-nav-return-focus activation stashes it as the pending
+    // return target; _reconcileFocus applies it after the patch lands.
+    this._departedItem = null
+    this._pendingReturnFocus = null
     // Which of the focused item's controls the cursor is on, when in sub-focus.
     this._subItemIndex = null
     // Active page behavior (detected from data-page-behavior attribute)
@@ -405,6 +410,18 @@ export class Orchestrator {
         if (parent) parent.focus({ preventScroll: true })
       }
       return
+    }
+
+    // A data-nav-return-focus control was activated: the patch has landed, so
+    // put the cursor back on the item it came from. Item indices before the
+    // control are stable across the patch (new items pop in after them).
+    if (this._pendingReturnFocus) {
+      const { context, index } = this._pendingReturnFocus
+      this._pendingReturnFocus = null
+      if (context === this.focusMachine.context && index < this.reader.getItemCount(context)) {
+        this.writer.focusByIndex(context, index, this._restoreOpts())
+        return
+      }
     }
 
     // Modal sub-view transition (info → main): the focused element was removed.
@@ -883,6 +900,7 @@ export class Orchestrator {
     const nextIndex = gridNavigate(currentIndex, columnCount, totalCount, direction)
     if (nextIndex === null) return "wall"
 
+    this._recordDeparture(Context.GRID, currentIndex)
     this.writer.focusByIndex(Context.GRID, nextIndex)
     return "moved"
   }
@@ -933,6 +951,7 @@ export class Orchestrator {
       }
       const nearest = findNearest(from, direction, candidates)
       if (nearest != null) {
+        this._recordDeparture(context, currentIndex)
         this.writer.focusByIndex(context, indices[nearest])
         return
       }
@@ -964,8 +983,14 @@ export class Orchestrator {
 
     const nextIndex = currentIndex + (direction === "right" ? 1 : -1)
     if (nextIndex >= 0 && nextIndex < rects.length) {
+      this._recordDeparture(context, currentIndex)
       this.writer.focusByIndex(context, nextIndex)
     }
+  }
+
+  /** Record the item a within-context move departs from (see constructor). */
+  _recordDeparture(context, index) {
+    this._departedItem = { context, index }
   }
 
   /**
@@ -1025,6 +1050,7 @@ export class Orchestrator {
       return
     }
 
+    this._recordDeparture(context, currentIndex)
     this.writer.focusByIndex(context, nextIndex)
 
     // Activate on focus: click item when navigating up/down
@@ -1094,6 +1120,14 @@ export class Orchestrator {
     if (focused.dataset.entityId && (originType === Context.GRID || originType === Context.SHELF)) {
       this._originEntityId = focused.dataset.entityId
       this._originContext = this.focusMachine.context
+    }
+
+    // A control that grows its own list (Show more): after its patch lands,
+    // return the cursor to the item it came from — grounding the user on a
+    // familiar item before the viewport moves and the new items get walked.
+    if (focused.hasAttribute?.("data-nav-return-focus") &&
+        this._departedItem?.context === this.focusMachine.context) {
+      this._pendingReturnFocus = this._departedItem
     }
 
     focused.click()

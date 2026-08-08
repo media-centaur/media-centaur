@@ -249,10 +249,20 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
 
   attr :remaining, :integer, required: true
 
+  # `data-nav-return-focus`: after the next page pops in, the cursor returns
+  # to the card it came from rather than staying on the button at the new
+  # bottom of the list.
   defp show_more(assigns) do
     ~H"""
     <div class="mt-4">
-      <.button variant="neutral" size="sm" phx-click="show_more_cast" data-nav-item tabindex="0">
+      <.button
+        variant="neutral"
+        size="sm"
+        phx-click="show_more_cast"
+        data-nav-item
+        data-nav-return-focus
+        tabindex="0"
+      >
         Show more ({@remaining} more)
       </.button>
     </div>
@@ -274,15 +284,24 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
 
   attr :person, :map, required: true, doc: "same `MediaCentaur.Library.Person` struct as `card/1`."
 
+  # Both variants are nav items so the keyboard path walks every card, linked
+  # or not — SELECT follows the TMDB link where there is one and is inert on
+  # the rest. The focus ring is delegated to the photo: a ring around the
+  # whole card sits flush against the name and character text.
   defp card_inner(%{person: %{tmdb_person_id: id}} = assigns) when is_integer(id) do
     ~H"""
     <a
       href={"https://www.themoviedb.org/person/#{@person.tmdb_person_id}"}
       target="_blank"
       rel="noopener noreferrer"
-      class="group focus:outline-none focus:ring-2 focus:ring-primary rounded-md block"
+      class="group focus:outline-none rounded-md block"
+      data-nav-item
+      data-nav-focus-target
+      tabindex="0"
     >
-      <.photo person={@person} />
+      <div data-nav-focus-ring>
+        <.photo person={@person} />
+      </div>
       <p class="mt-1.5 text-xs font-semibold leading-tight text-base-content line-clamp-2 group-hover:text-primary transition-colors">
         {@person.name}
       </p>
@@ -293,8 +312,15 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
 
   defp card_inner(assigns) do
     ~H"""
-    <div>
-      <.photo person={@person} />
+    <div
+      class="focus:outline-none rounded-md"
+      data-nav-item
+      data-nav-focus-target
+      tabindex="0"
+    >
+      <div data-nav-focus-ring>
+        <.photo person={@person} />
+      </div>
       <p class="mt-1.5 text-xs font-semibold leading-tight text-base-content line-clamp-2">
         {@person.name}
       </p>

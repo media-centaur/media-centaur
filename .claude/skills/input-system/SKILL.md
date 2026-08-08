@@ -76,7 +76,7 @@ Verify both with `~/scripts/agents/mc-nav-trace '<keys>'`, which reports the foc
 
 ### Overlays With Regions
 
-An overlay carrying `data-nav-overlay="<name>"` navigates as several zones per `config.overlays[name]` (`entry` = cursor-start priority among its regions, `layout` = its internal edges, merged over the page graph while open). The detail modal declares `detail`: a `detail_actions` TOOLBAR over a `detail_list` TREE. Overlays without the attribute stay flat MODAL — right for confirms and small forms. See [UIDR-019](../../../decisions/user-interface/2026-08-07-019-detail-modal-two-regions.md).
+An overlay carrying `data-nav-overlay="<name>"` navigates as several zones per `config.overlays[name]` (`entry` = cursor-start priority among its regions, `layout` = its internal edges, merged over the page graph while open). The detail modal declares `detail`: a `detail_actions` TOOLBAR over a per-sub-view body — a `detail_list` TREE for the season/film/extras lists and Manage, a `detail_cast` SHELF (geometry-resolved photo grid) for Cast. One body zone in the DOM at a time; the `down` candidate list routes to whichever is populated. The cast grid also has an `up` edge back to the actions row (spatial regions have a geometric "above"); the tree deliberately does not. Overlays without the attribute stay flat MODAL — right for confirms and small forms. See [UIDR-019](../../../decisions/user-interface/2026-08-07-019-detail-modal-two-regions.md).
 
 ### BACK and CLEAR Semantics
 
@@ -124,6 +124,7 @@ All config changes go in `config.js`:
 | `data-captures-keys` | Element handles own keyboard events |
 | `data-nav-defer-activate` | Skip activate-on-focus — only activate on explicit SELECT |
 | `data-nav-action` | Custom event name dispatched on SELECT instead of `.click()` |
+| `data-nav-return-focus` | On a control that grows its own list (Show more): after SELECT's patch lands, the cursor returns to the item it came from |
 | `data-nav-reveal` | Scroll THIS ancestor into view instead of the focused item — required when a surface's items differ in height, or each frames itself |
 | `data-nav-reveal-block` | Block-axis alignment for the reveal (`start`/`center`/`end`), so a surface rests in one place whichever way it was approached |
 | `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children |

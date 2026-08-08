@@ -3302,5 +3302,185 @@ describe("Orchestrator", () => {
         expect(calls).toEqual([])
       })
     })
+
+    // The Cast sub-view swaps the body's tree for a photo grid. A grid's
+    // arrangement carries the meaning, so its region is SHELF-typed and
+    // resolved by geometry — the two sections (lead episode / other episodes)
+    // and the trailing Show more button need no adjacency table.
+    describe("cast body — a spatial region, not a tree", () => {
+      const CAST_CONFIG = {
+        ...OVERLAY_CONFIG,
+        contextSelectors: {
+          ...OVERLAY_CONFIG.contextSelectors,
+          detail_cast: "[data-nav-zone='detail_cast'] [data-nav-item]",
+        },
+        instanceTypes: { ...OVERLAY_CONFIG.instanceTypes, detail_cast: "shelf" },
+        overlays: {
+          detail: {
+            entry: ["detail_actions", "detail_list", "detail_cast"],
+            layout: {
+              detail_actions: { down: ["detail_list", "detail_cast"] },
+              detail_list: { back: ["detail_actions"] },
+              detail_cast: { up: ["detail_actions"], back: ["detail_actions"] },
+            },
+          },
+        },
+      }
+
+      // A 3-column cast grid: two rows of cards, Show more underneath.
+      const CAST_RECTS = [
+        { x: 0, y: 0, width: 100, height: 140 },
+        { x: 110, y: 0, width: 100, height: 140 },
+        { x: 220, y: 0, width: 100, height: 140 },
+        { x: 0, y: 150, width: 100, height: 140 },
+        { x: 110, y: 150, width: 100, height: 140 },
+        { x: 220, y: 150, width: 100, height: 140 },
+        { x: 0, y: 300, width: 120, height: 32 }, // Show more
+      ]
+
+      /** The cast view is showing: the tree zone is not in the DOM at all. */
+      function openCastModal(readerOverrides = {}) {
+        return setup({
+          getPresentation: () => "modal",
+          getOverlayName: () => "detail",
+          isModalOpen: () => true,
+          getItemCount: context =>
+            ({ detail_actions: 3, detail_list: 0, detail_cast: CAST_RECTS.length })[context] ?? 8,
+          getItemRects: context => (context === "detail_cast" ? CAST_RECTS : []),
+          getMatchingIndex: () => -1,
+          ...readerOverrides,
+        }, CAST_CONFIG)
+      }
+
+      test("down from the action row falls through the absent tree into the cast grid", () => {
+        const { system, globals } = openCastModal()
+        system.start({})
+        system.onViewChanged()
+        globals._flushRAF()
+
+        globals._dispatchKeyDown("ArrowDown")
+
+        expect(system.focusMachine.context).toBe("detail_cast")
+      })
+
+      test("down moves to the card below, not the next card in reading order", () => {
+        const { system, reader, calls, globals } = openCastModal()
+        system.start({})
+        system.onViewChanged()
+        globals._flushRAF()
+        globals._dispatchKeyDown("ArrowDown")
+        reader.getFocusedIndex = context => (context === "detail_cast" ? 1 : 0)
+        calls.length = 0
+
+        globals._dispatchKeyDown("ArrowDown")
+
+        const focusCalls = calls.filter(c => c.method === "focusByIndex" && c.args[0] === "detail_cast")
+        expect(focusCalls[focusCalls.length - 1].args[1]).toBe(4)
+      })
+
+      test("right moves along the row", () => {
+        const { system, reader, calls, globals } = openCastModal()
+        system.start({})
+        system.onViewChanged()
+        globals._flushRAF()
+        globals._dispatchKeyDown("ArrowDown")
+        reader.getFocusedIndex = context => (context === "detail_cast" ? 0 : 0)
+        calls.length = 0
+
+        globals._dispatchKeyDown("ArrowRight")
+
+        const focusCalls = calls.filter(c => c.method === "focusByIndex" && c.args[0] === "detail_cast")
+        expect(focusCalls[focusCalls.length - 1].args[1]).toBe(1)
+      })
+
+      test("up from the top row climbs to the action row", () => {
+        const { system, reader, globals } = openCastModal()
+        system.start({})
+        system.onViewChanged()
+        globals._flushRAF()
+        globals._dispatchKeyDown("ArrowDown")
+        reader.getFocusedIndex = context => (context === "detail_cast" ? 1 : 0)
+
+        globals._dispatchKeyDown("ArrowUp")
+
+        expect(system.focusMachine.context).toBe("detail_actions")
+      })
+
+      // Show more grows the list it belongs to. Activating it returns the
+      // cursor to the card it came from — grounding the user on a familiar
+      // card before the viewport moves and the new cards get navigated.
+      test("select on a data-nav-return-focus control refocuses the departed card after the patch", () => {
+        const button = {
+          click: mock(() => {}),
+          dataset: {},
+          hasAttribute: attr => attr === "data-nav-item" || attr === "data-nav-return-focus",
+        }
+        const { system, reader, calls, globals } = openCastModal()
+        system.start({})
+        system.onViewChanged()
+        globals._flushRAF()
+        globals._dispatchKeyDown("ArrowDown")
+
+        // Cursor on card 3 (last row); DOWN lands on Show more (index 6).
+        reader.getFocusedIndex = context => (context === "detail_cast" ? 3 : 0)
+        globals._dispatchKeyDown("ArrowDown")
+        reader.getFocusedIndex = context => (context === "detail_cast" ? 6 : 0)
+        reader.getCurrentFocusedItem = () => button
+
+        globals._dispatchKeyDown("Enter")
+        expect(button.click).toHaveBeenCalled()
+
+        // The LiveView patch pops the next page of cards in.
+        calls.length = 0
+        system.onViewChanged()
+        globals._flushRAF()
+
+        expect(calls).toContainEqual({
+          method: "focusByIndex",
+          args: ["detail_cast", 3, { reveal: true }],
+        })
+      })
+
+      test("activating a control without the attribute leaves the cursor alone", () => {
+        const button = {
+          click: mock(() => {}),
+          dataset: {},
+          hasAttribute: attr => attr === "data-nav-item",
+        }
+        const { system, reader, calls, globals } = openCastModal()
+        system.start({})
+        system.onViewChanged()
+        globals._flushRAF()
+        globals._dispatchKeyDown("ArrowDown")
+        reader.getFocusedIndex = context => (context === "detail_cast" ? 3 : 0)
+        globals._dispatchKeyDown("ArrowDown")
+        reader.getFocusedIndex = context => (context === "detail_cast" ? 6 : 0)
+        reader.getCurrentFocusedItem = () => button
+
+        globals._dispatchKeyDown("Enter")
+        calls.length = 0
+        system.onViewChanged()
+        globals._flushRAF()
+
+        expect(calls.filter(c => c.method === "focusByIndex" && c.args[0] === "detail_cast")).toEqual([])
+      })
+
+      test("back climbs from the cast grid to the action row, then closes", () => {
+        const hookEl = { pushEvent: mock(() => {}) }
+        const { system, globals } = openCastModal()
+        system.start(hookEl)
+        system.onViewChanged()
+        globals._flushRAF()
+        globals._dispatchKeyDown("ArrowDown")
+        expect(system.focusMachine.context).toBe("detail_cast")
+
+        globals._dispatchKeyDown("Escape")
+        expect(system.focusMachine.context).toBe("detail_actions")
+        expect(hookEl.pushEvent).not.toHaveBeenCalled()
+
+        globals._dispatchKeyDown("Escape")
+        expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
+      })
+    })
   })
 })
