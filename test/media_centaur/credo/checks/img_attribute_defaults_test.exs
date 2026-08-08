@@ -49,7 +49,7 @@ defmodule MediaCentaur.Credo.Checks.ImgAttributeDefaultsTest do
 
     test "lazy is allowed inside the cast grid (reveal-bounded surface)" do
       ~S'''
-      defmodule MediaCentaurWeb.Components.Detail.MoreInfo.CastGrid do
+      defmodule MediaCentaurWeb.Components.Detail.CastGrid do
         use Phoenix.Component
 
         def cast_grid(assigns) do
@@ -59,7 +59,7 @@ defmodule MediaCentaur.Credo.Checks.ImgAttributeDefaultsTest do
         end
       end
       '''
-      |> to_source_file("lib/media_centaur_web/components/detail/more_info/cast_grid.ex")
+      |> to_source_file("lib/media_centaur_web/components/detail/cast_grid.ex")
       |> run_check(ImgAttributeDefaults)
       |> refute_issues()
     end

@@ -198,23 +198,22 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
       refute season_two_header =~ "hero-check-mini"
     end
 
-    test "catalog facts live in More info, not on the main view",
+    test "catalog facts stay off the modal — the Cast view holds people, not facts",
          %{conn: conn, tv_series: tv_series} do
       {:ok, _view, main_html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}")
 
       # The main view carries orientation + actions only — no facet
-      # strip (network / rating / genres moved to More info).
+      # strip (network / rating / genres).
       refute main_html =~ "Genres"
       refute main_html =~ "Sample Network"
 
-      {:ok, _view, credits_html} =
-        live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=credits")
+      # The Cast view dropped the meta block with the 2026-08-08 redesign:
+      # cast is the page, catalog facts appear nowhere in the modal.
+      {:ok, _view, cast_html} =
+        live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=cast")
 
-      assert credits_html =~ "Sample Network"
-      assert credits_html =~ "Genres"
-      assert credits_html =~ "Comedy"
-      assert credits_html =~ "Rating"
-      assert credits_html =~ "7.5"
+      refute cast_html =~ "Sample Network"
+      refute cast_html =~ "Genres"
     end
 
     test "fully watched series states completion instead of a next episode",

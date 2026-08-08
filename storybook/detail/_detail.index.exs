@@ -6,7 +6,11 @@ defmodule MediaCentaurWeb.Storybook.Detail do
 
   def entry("cinematic_backdrop"), do: [icon: {:fa, "panorama", :thin}, name: "Cinematic backdrop"]
   def entry("facet_strip"), do: [icon: {:fa, "table-columns", :thin}, name: "Facet strip"]
-  def entry("more_info_panel"), do: [icon: {:fa, "users", :thin}, name: "More info panel"]
+  def entry("cast_panel"), do: [icon: {:fa, "users", :thin}, name: "Cast panel"]
+  def entry("cast_grid"), do: [icon: {:fa, "user-group", :thin}, name: "Cast grid"]
+  def entry("people"), do: [icon: {:fa, "users", :thin}, name: "People (linked names)"]
+
+  def entry("track_override_badge"), do: [icon: {:fa, "language", :thin}, name: "Track override badge"]
   def entry("metadata_row"), do: [icon: {:fa, "list", :thin}, name: "Metadata row"]
 
   def entry("play_card"), do: [icon: {:fa, "play", :thin}, name: "Play card"]

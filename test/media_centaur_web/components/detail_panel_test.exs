@@ -18,9 +18,9 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
       refute DetailPanel.scrollable_content?(%{type: :movie, extras: []}, :main)
     end
 
-    test "true for any entity on the Manage or More info sub-views" do
+    test "true for any entity on the Manage or Cast sub-views" do
       assert DetailPanel.scrollable_content?(%{type: :movie, extras: []}, :info)
-      assert DetailPanel.scrollable_content?(%{type: :movie, extras: []}, :credits)
+      assert DetailPanel.scrollable_content?(%{type: :movie, extras: []}, :cast)
     end
 
     test "true for a movie carrying entity-level extras" do
@@ -227,6 +227,54 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
   end
 
   # --- format_file_size/1 ---
+
+  describe "file_tech_line/1" do
+    defp probed_media_info(overrides) do
+      Map.merge(
+        %{
+          container_title: nil,
+          duration_seconds: 6073,
+          video_codec: "HEVC",
+          width: 3840,
+          height: 2160,
+          audio_summary: "TrueHD 7.1"
+        },
+        overrides
+      )
+    end
+
+    test "joins duration, codec, resolution, and audio with dots" do
+      assert DetailPanel.file_tech_line(probed_media_info(%{})) ==
+               "1h 41m · HEVC · 3840×2160 · TrueHD 7.1"
+    end
+
+    test "durations under an hour omit the hour segment (UIDR-004)" do
+      assert DetailPanel.file_tech_line(probed_media_info(%{duration_seconds: 2712})) =~ "45m ·"
+      refute DetailPanel.file_tech_line(probed_media_info(%{duration_seconds: 2712})) =~ "0h"
+    end
+
+    test "missing facts drop out instead of leaving separators" do
+      line =
+        DetailPanel.file_tech_line(
+          probed_media_info(%{video_codec: nil, width: nil, height: nil, audio_summary: nil})
+        )
+
+      assert line == "1h 41m"
+    end
+
+    test "nothing probed is the empty string" do
+      empty =
+        probed_media_info(%{
+          duration_seconds: nil,
+          video_codec: nil,
+          width: nil,
+          height: nil,
+          audio_summary: nil
+        })
+
+      assert DetailPanel.file_tech_line(empty) == ""
+    end
+  end
 
   describe "format_file_size/1" do
     test "formats gigabytes" do

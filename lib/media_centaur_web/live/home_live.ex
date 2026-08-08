@@ -225,6 +225,7 @@ defmodule MediaCentaurWeb.HomeLive do
           detail_presentation={@detail_presentation}
           detail_view={@detail_view}
           cast_filter={@cast_filter}
+          cast_limit={@cast_limit}
           detail_files={@detail_files}
           expanded_seasons={@expanded_seasons}
           expanded_episode_details={@expanded_episode_details}
@@ -290,7 +291,7 @@ defmodule MediaCentaurWeb.HomeLive do
 
     params = %{}
     params = if selected, do: Map.put(params, :selected, selected), else: params
-    params = if selected && view in [:info, :credits], do: Map.put(params, :view, view), else: params
+    params = if selected && view in [:info, :cast], do: Map.put(params, :view, view), else: params
     params = if selected && autoplay, do: Map.put(params, :autoplay, autoplay), else: params
 
     if params == %{}, do: ~p"/", else: ~p"/?#{params}"

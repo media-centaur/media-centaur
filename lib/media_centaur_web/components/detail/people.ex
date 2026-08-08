@@ -1,9 +1,8 @@
-defmodule MediaCentaurWeb.Components.Detail.MoreInfo.People do
+defmodule MediaCentaurWeb.Components.Detail.People do
   @moduledoc """
-  Shared person-rendering helpers for the More info panel — used by both
-  the movie credits row (Directed by / Written by) and the series
-  credits row (Created by). Renders comma-separated linked names when a
-  TMDB person id is present, plain text otherwise.
+  Shared person-rendering helpers for the detail modal — comma-separated
+  linked names when a TMDB person id is present, plain text otherwise.
+  Used by the Cast view's movie credits headline.
   """
 
   use MediaCentaurWeb, :html

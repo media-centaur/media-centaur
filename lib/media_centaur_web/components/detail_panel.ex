@@ -19,10 +19,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.FacetStrip
   alias MediaCentaurWeb.Components.Detail.Hero
   alias MediaCentaurWeb.Components.Detail.Logic
+  alias MediaCentaurWeb.Components.Detail.CastPanel
   alias MediaCentaurWeb.Components.Detail.MetadataRow
-  alias MediaCentaurWeb.Components.Detail.MoreInfoPanel
   alias MediaCentaurWeb.Components.Detail.PlayCard
+  alias MediaCentaurWeb.Components.Detail.SubtitlesRow
   alias MediaCentaurWeb.Components.Detail.TitleLayer
+  alias MediaCentaurWeb.Components.Detail.TrackOverrideBadge
   alias MediaCentaurWeb.Components.Detail.ViewControls
   alias MediaCentaurWeb.ViewModel.EpisodeListItem
   alias MediaCentaurWeb.ViewModel.Orientation
@@ -73,7 +75,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   attr :cast_filter, :string,
     default: "",
-    doc: "current More-info cast filter query; forwarded to the cast grid."
+    doc: "current Cast-view filter query; forwarded to the cast grid."
+
+  attr :cast_limit, :integer,
+    default: nil,
+    doc:
+      "how many cast matches the Cast view renders; forwarded to the cast grid. `nil` falls back to one page."
 
   attr :detail_files, :list, default: [], doc: @doc_detail_files
   attr :delete_confirm, :any, default: nil, doc: @doc_delete_confirm
@@ -223,8 +230,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 the left column — as a full-width line above the grid it
                 left the buttons alone with dead space while the synopsis
                 floated anchorless at mid-page. Catalog facts (network /
-                rating / genres / language) live in the More info view,
-                not here (2026-08-04 split): the main view is for
+                rating / genres / language) were dropped from the modal
+                with the Cast view (2026-08-08); the main view is for
                 deciding to press Play, not for reference lookup. An
                 up-next marquee block was tried in the right column and
                 removed — it duplicated the Play button's own label; the
@@ -291,7 +298,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             climbs back to it, and LEFT/RIGHT are depth rather than lateral
             movement (collapse a season, step into an episode's controls).
             The zone wraps the sheet rather than the season list specifically
-            so Manage and More info navigate the same way. See UIDR-019. --%>
+            so Manage and Cast navigate the same way. See UIDR-019. --%>
       <div
         :if={@has_scrollable_content}
         id="detail-content"
@@ -303,8 +310,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         data-scroll-to-resume={@autoscroll_resume? || nil}
       >
         <%= case @detail_view do %>
-          <% :credits -> %>
-            <MoreInfoPanel.more_info_panel entity={@entity} cast_filter={@cast_filter} />
+          <% :cast -> %>
+            <CastPanel.cast_panel
+              entity={@entity}
+              cast_filter={@cast_filter}
+              cast_limit={@cast_limit}
+            />
           <% :info -> %>
             <.info_view
               entity={@entity}
@@ -379,9 +390,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   # Only movie series still render a facet strip on the main view —
-  # movies and TV carry their catalog facts in the More info view
-  # (movie series has no More info button yet, so removing its strip
-  # would orphan the data; joins the deferred movie-series analog).
+  # for movies and TV the catalog facts were dropped from the modal
+  # with the Cast view (2026-08-08); removing the movie-series strip
+  # too would orphan the data (no series-level cast to show instead).
   defp build_facets(%{type: :movie_series, movies: movies} = ms) when is_list(movies),
     do: Logic.facets_for(:movie_series, ms, movies)
 
@@ -1217,7 +1228,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   @doc """
   Whether the detail modal's content region scrolls — TV / movie-series
-  lists, entity-level extras, or the Manage / More info sub-views.
+  lists, entity-level extras, or the Manage / Cast sub-views.
 
   Shared with `ModalShell`, which tags scrollable entries with
   `.modal-panel--full`: those panels get a constant backdrop box
@@ -1228,7 +1239,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   """
   @spec scrollable_content?(map(), atom()) :: boolean()
   def scrollable_content?(entity, detail_view) do
-    detail_view in [:info, :credits] ||
+    detail_view in [:info, :cast] ||
       entity.type in [:tv_series, :movie_series] ||
       entity_extras(entity) != []
   end
@@ -1296,12 +1307,25 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     media_dirs = MapSet.new(MediaCentaur.Config.get(:media_dirs) || [])
     file_groups = build_file_groups(assigns.files, media_dirs)
 
+    subtitle_languages = subtitle_languages_for(assigns.entity)
+
+    # Understood languages lead the subtitles row; the rest fold behind
+    # the trailing-+ reveal. Read here (prod: SettingsCache) rather than
+    # threaded through every modal host.
+    understood_languages =
+      if subtitle_languages == [],
+        do: [],
+        else: MediaCentaur.Playback.LanguagePolicy.load().understood_languages
+
     assigns =
       assigns
       |> assign(:total_size, total_size)
       |> assign(:file_count, file_count)
       |> assign(:external_ids, external_ids)
       |> assign(:file_groups, file_groups)
+      |> assign(:media_info_by_path, media_info_by_path(assigns.entity))
+      |> assign(:subtitle_languages, subtitle_languages)
+      |> assign(:understood_languages, understood_languages)
 
     ~H"""
     <div class="pt-3 space-y-5">
@@ -1406,6 +1430,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               <.file_row
                 :for={file_info <- group.files}
                 file_info={file_info}
+                media_info={@media_info_by_path[file_info.file.file_path]}
                 delete_confirm={@delete_confirm}
                 deleting={@deleting}
               />
@@ -1413,6 +1438,16 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           </div>
         </div>
       </div>
+
+      <%!-- Playback bookkeeping the files carry: detected subtitle
+            languages (movies) and the per-entity remembered track
+            override. Lives here with the files rather than on the Cast
+            view — it is administration, not show information. --%>
+      <SubtitlesRow.subtitles_row
+        languages={@subtitle_languages}
+        understood={@understood_languages}
+      />
+      <TrackOverrideBadge.track_override_badge entity={@entity} />
 
       <%!-- External IDs section. One row per known external source.
             TMDB row's URL comes from `@entity.url` (built by the mapper
@@ -1525,6 +1560,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   attr :file_info, :map, required: true, doc: @doc_file_info
 
+  attr :media_info, :any,
+    default: nil,
+    doc:
+      "probed `MediaCentaur.Library.Views.DetailItem.WatchedFile.media_info()` for this file, or `nil` when unprobed. Rendered as the file's own claims (container title + measured tech line) next to the filename-parsed quality badges."
+
   attr :delete_confirm, :any,
     default: nil,
     doc:
@@ -1540,6 +1580,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     badges = parse_quality_badges(filename)
     added_at = Map.get(file, :inserted_at)
     gesture = delete_gesture_state({:file, file.file_path}, assigns.deleting, assigns.delete_confirm)
+    tech_line = if assigns.media_info, do: file_tech_line(assigns.media_info), else: ""
 
     assigns =
       assigns
@@ -1553,6 +1594,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:is_pending, gesture == :confirm)
       |> assign(:is_deleting, gesture == :deleting)
       |> assign(:delete_in_flight, delete_in_flight?(assigns.deleting))
+      |> assign(:tech_line, tech_line)
 
     ~H"""
     <div class={[
@@ -1612,9 +1654,76 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         </.badge>
         <span :if={@added_at} class="ml-auto">added {time_ago(@added_at)}</span>
       </div>
+      <%!-- The file's own claims, probed from the container — measured
+            facts next to the filename-parsed badges above, so a renamed
+            fake release (original container title, disagreeing duration)
+            is visible right on the row. Display-only, no judgement. --%>
+      <div :if={@media_info} class="mt-1 ml-5 space-y-0.5 text-xs">
+        <div :if={@media_info.container_title} class="flex items-baseline gap-2 min-w-0">
+          <span class="uppercase tracking-wider text-base-content/40 shrink-0">
+            Container title
+          </span>
+          <span class="truncate text-base-content/60" title={@media_info.container_title}>
+            {@media_info.container_title}
+          </span>
+        </div>
+        <div :if={@tech_line != ""} class="text-base-content/50">
+          {@tech_line}
+        </div>
+      </div>
     </div>
     """
   end
+
+  @doc """
+  One compact " · "-joined line of a file's probed technical facts, e.g.
+  `"1h 41m · HEVC · 3840×2160 · DTS-HD MA 5.1"`, for the Manage view's
+  file rows. Empty string when nothing was probed. Public for unit tests
+  (ADR-030).
+  """
+  @spec file_tech_line(MediaCentaur.Library.Views.DetailItem.WatchedFile.media_info()) ::
+          String.t()
+  def file_tech_line(media_info) do
+    [
+      tech_duration(media_info.duration_seconds),
+      media_info.video_codec,
+      tech_resolution(media_info),
+      media_info.audio_summary
+    ]
+    |> Enum.reject(&is_nil/1)
+    |> Enum.join(" · ")
+  end
+
+  defp tech_duration(seconds) when is_integer(seconds), do: format_human_duration(seconds)
+  defp tech_duration(_seconds), do: nil
+
+  defp tech_resolution(%{width: width, height: height}) when is_integer(width) and is_integer(height),
+    do: "#{width}×#{height}"
+
+  defp tech_resolution(_media_info), do: nil
+
+  # Probed media_info keyed by file path, for joining the projection's
+  # `watched_files` (which carry the ffprobe result) onto the Manage
+  # view's async-stat'd file list (which carries size + presence). The
+  # two lists describe the same files from different concerns; the path
+  # is their shared identity.
+  defp media_info_by_path(entity) do
+    for %{path: path, media_info: media_info} <- entity[:watched_files] || [],
+        media_info != nil,
+        into: %{},
+        do: {path, media_info}
+  end
+
+  # Movies are the only type with detected subtitles for v1. Series'
+  # episodes each carry their own WatchedFile with its own tracks;
+  # aggregating across episodes needs a different display story
+  # (per-season? show-wide?). Skip non-movies entirely so the row
+  # never renders for them. Reads the projection's already-loaded
+  # tracks — never re-queried.
+  defp subtitle_languages_for(%{type: :movie, subtitle_tracks: tracks}) when is_list(tracks),
+    do: MediaCentaur.Subtitles.aggregate_track_languages(tracks)
+
+  defp subtitle_languages_for(_entity), do: []
 
   @doc """
   Extracts a small, ordered list of quality/format badges from a release filename.

@@ -62,6 +62,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaur.{Format, Library, Playback, ReleaseTracking}
   alias MediaCentaur.Library.FileEventHandler
   alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
+  alias MediaCentaurWeb.Components.Detail.CastGrid
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.ModalShell
   alias MediaCentaurWeb.ViewModel.Orientation
@@ -116,6 +117,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
       def handle_event("filter_cast", params, socket) do
         EntityModal.handle_filter_cast(params, socket)
+      end
+
+      def handle_event("show_more_cast", _params, socket) do
+        EntityModal.handle_show_more_cast(socket)
       end
 
       def handle_event("toggle_season", params, socket) do
@@ -546,6 +551,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       detail_view: :main,
       detail_files: [],
       cast_filter: "",
+      cast_limit: CastGrid.page_size(),
       expanded_seasons: MapSet.new(),
       expanded_episode_details: MapSet.new(),
       all_episode_details_open: false,
@@ -665,17 +671,19 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   # State the user built up against the entity that was open, which means
-  # nothing against the next one: which episode disclosures they opened, and
-  # what they typed into the cast filter. Carried across re-params of the
-  # same selection, dropped when the selection changes — a stale cast query
-  # would render the new entity's cast as "no matches".
+  # nothing against the next one: which episode disclosures they opened,
+  # what they typed into the cast filter, and how far they paged the cast
+  # grid. Carried across re-params of the same selection, dropped when the
+  # selection changes — a stale cast query would render the new entity's
+  # cast as "no matches".
   #
   # Grouped rather than reset inline so adding the next one is a line here
   # instead of another branch in `apply_modal_params/2`.
   @per_selection_defaults %{
     expanded_episode_details: MapSet.new(),
     all_episode_details_open: false,
-    cast_filter: ""
+    cast_filter: "",
+    cast_limit: CastGrid.page_size()
   }
 
   defp per_selection_assigns(_assigns, true = _selection_changed), do: @per_selection_defaults
@@ -748,7 +756,12 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   attr :cast_filter, :string,
     required: true,
-    doc: "current More-info cast filter query. Reset when the modal switches entities."
+    doc: "current Cast-view filter query. Reset when the modal switches entities."
+
+  attr :cast_limit, :integer,
+    required: true,
+    doc:
+      "how many cast matches the Cast view renders. Bumped by `show_more_cast`, reset when the modal switches entities."
 
   attr :expanded_seasons, MapSet, required: true
 
@@ -799,6 +812,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       detail_view={@detail_view}
       detail_files={@detail_files}
       cast_filter={@cast_filter}
+      cast_limit={@cast_limit}
       delete_confirm={@delete_confirm}
       deleting={@deleting}
       spoiler_free={@spoiler_free}
@@ -901,7 +915,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   The tab an entry opens on, and the one BACK closes the modal from.
 
   Usually the body tab; a title with no contents of its own (a movie with no
-  extras) has no body tab, so its default is More info.
+  extras) has no body tab, so its default is Cast.
   """
   @spec default_view(map() | nil) :: atom()
   def default_view(entry), do: resolve_view(entry, :main)
@@ -914,7 +928,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   BACK peels one level of containment. From a tab other than the entity's
   root, it returns to that root; from the root there is nothing above, so
   the modal closes. Comparing against the *resolved* root is what makes this
-  correct for a movie with no extras — its root is More info, so BACK there
+  correct for a movie with no extras — its root is Cast, so BACK there
   must close rather than land on a body that renders nothing.
 
   `:close` additionally clears any pending rematch confirmation, which is
@@ -932,13 +946,25 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   @doc """
-  Applies the More-info cast filter query. Plain assign, no URL round-trip:
+  Applies the Cast-view filter query. Plain assign, no URL round-trip:
   a half-typed actor name is not a place worth restoring someone to.
   """
   @spec handle_filter_cast(map(), Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_filter_cast(%{"cast_filter" => query}, socket) do
     {:noreply, Phoenix.Component.assign(socket, :cast_filter, query)}
+  end
+
+  @doc """
+  Pages another `CastGrid.page_size/0` cast cards into the Cast view.
+  Plain assign for the same reason as the filter: how far someone has
+  paged is not a place worth restoring them to.
+  """
+  @spec handle_show_more_cast(Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_show_more_cast(socket) do
+    limit = socket.assigns.cast_limit + CastGrid.page_size()
+    {:noreply, Phoenix.Component.assign(socket, :cast_limit, limit)}
   end
 
   @doc """
@@ -1259,7 +1285,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   """
   @spec parse_view(String.t() | nil) :: atom()
   def parse_view("info"), do: :info
-  def parse_view("credits"), do: :credits
+  def parse_view("cast"), do: :cast
   def parse_view(_), do: :main
 
   defp load_entry_or_nil(id) do

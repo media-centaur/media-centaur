@@ -33,7 +33,7 @@ defmodule MediaCentaur.Credo.Checks.ImgAttributeDefaults do
       Lazy is allowed only where the rendered set can grow into
       the dozens behind a reveal:
 
-      * `cast_grid.ex` — cast headshots inside the "More Info"
+      * `cast_grid.ex` — cast headshots inside the Cast
         pane (often 50+; user must reveal to see them)
 
       To extend the allowlist, add the file to `@exempt_files` with
@@ -47,7 +47,7 @@ defmodule MediaCentaur.Credo.Checks.ImgAttributeDefaults do
   # Surfaces that legitimately need lazy because the rendered set
   # can grow into the dozens behind an explicit reveal.
   @exempt_files [
-    "components/detail/more_info/cast_grid.ex",
+    "components/detail/cast_grid.ex",
     "credo/checks/img_attribute_defaults_test.exs"
   ]
 

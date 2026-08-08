@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.Components.CastGridTest do
   @moduledoc """
-  Cast-grid selection: which cast members the More info grid renders for a
-  given filter query.
+  Cast-grid selection: which cast members the Cast grid renders for a
+  given filter query and page limit.
 
   This used to live in `assets/js/hooks/cast_grid_filter.js`, because the
   whole cast was rendered server-side and hidden with `display: none` so a
@@ -13,7 +13,7 @@ defmodule MediaCentaurWeb.Components.CastGridTest do
   use ExUnit.Case, async: true
 
   alias MediaCentaur.Library.Person
-  alias MediaCentaurWeb.Components.Detail.MoreInfo.CastGrid
+  alias MediaCentaurWeb.Components.Detail.CastGrid
 
   @cast for {name, character} <- [
               {"Actor One", "Role Alpha"},
@@ -83,6 +83,21 @@ defmodule MediaCentaurWeb.Components.CastGridTest do
       # A user typing a regex metacharacter should get "no matches", not a
       # crash and not every card.
       assert CastGrid.visible_cast(@cast, ".*", 24) == []
+    end
+  end
+
+  describe "match_count/2" do
+    test "an empty query counts the whole cast" do
+      assert CastGrid.match_count(@cast, "") == 5
+      assert CastGrid.match_count(@cast, nil) == 5
+    end
+
+    test "a query counts every match, not just the visible page" do
+      assert CastGrid.match_count(@cast, "Actor") == 4
+    end
+
+    test "no matches counts zero" do
+      assert CastGrid.match_count(@cast, "nobody") == 0
     end
   end
 

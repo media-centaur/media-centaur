@@ -551,14 +551,14 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
     end
   end
 
-  describe "credits_tab?/1" do
-    test "movies and series have a More info view" do
-      assert Logic.credits_tab?(%{type: :movie})
-      assert Logic.credits_tab?(%{type: :tv_series})
+  describe "cast_tab?/1" do
+    test "movies and series have a Cast view" do
+      assert Logic.cast_tab?(%{type: :movie})
+      assert Logic.cast_tab?(%{type: :tv_series})
     end
 
-    test "collections do not — there is no collection-level credit to show" do
-      refute Logic.credits_tab?(%{type: :movie_series})
+    test "collections do not — there is no collection-level cast to show" do
+      refute Logic.cast_tab?(%{type: :movie_series})
     end
   end
 
@@ -568,18 +568,18 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
 
     test "keeps a view the entity can actually render" do
       assert Logic.resolve_view(%{type: :tv_series}, :main) == :main
-      assert Logic.resolve_view(%{type: :tv_series}, :credits) == :credits
+      assert Logic.resolve_view(%{type: :tv_series}, :cast) == :cast
       assert Logic.resolve_view(%{type: :tv_series}, :info) == :info
     end
 
-    test "a movie with no extras opens on More info instead of an empty body" do
+    test "a movie with no extras opens on Cast instead of an empty body" do
       # The improvement tabs buy for free: before this, such a movie opened
       # on a body that rendered nothing at all.
-      assert Logic.resolve_view(%{type: :movie, extras: []}, :main) == :credits
+      assert Logic.resolve_view(%{type: :movie, extras: []}, :main) == :cast
     end
 
-    test "a collection asked for More info falls back to its movie list" do
-      assert Logic.resolve_view(%{type: :movie_series}, :credits) == :main
+    test "a collection asked for Cast falls back to its movie list" do
+      assert Logic.resolve_view(%{type: :movie_series}, :cast) == :main
     end
 
     test "Manage is always available, whatever the entity" do
@@ -610,25 +610,25 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
     # tells you it is not here.
 
     test "on the root view it offers the other view worth seeing" do
-      assert Logic.secondary_view(%{type: :tv_series}, :main) == :credits
+      assert Logic.secondary_view(%{type: :tv_series}, :main) == :cast
 
       assert Logic.secondary_view(%{type: :movie, extras: [%{owner_type: :movie}]}, :main) ==
-               :credits
+               :cast
     end
 
     test "off the root view it returns there, whichever view you are on" do
-      assert Logic.secondary_view(%{type: :tv_series}, :credits) == :main
+      assert Logic.secondary_view(%{type: :tv_series}, :cast) == :main
       assert Logic.secondary_view(%{type: :tv_series}, :info) == :main
     end
 
-    test "a movie with no episode list returns to More info, not to a body" do
-      # Its root *is* More info, so that is where Manage goes back to — and the
+    test "a movie with no episode list returns to Cast, not to a body" do
+      # Its root *is* Cast, so that is where Manage goes back to — and the
       # control has to be labelled for that, not for a list it does not have.
-      assert Logic.secondary_view(%{type: :movie, extras: []}, :info) == :credits
+      assert Logic.secondary_view(%{type: :movie, extras: []}, :info) == :cast
     end
 
     test "no control when the root view is the only content view" do
-      assert Logic.secondary_view(%{type: :movie, extras: []}, :credits) == nil
+      assert Logic.secondary_view(%{type: :movie, extras: []}, :cast) == nil
       assert Logic.secondary_view(%{type: :movie_series}, :main) == nil
     end
 

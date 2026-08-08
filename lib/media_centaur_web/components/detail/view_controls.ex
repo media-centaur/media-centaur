@@ -11,14 +11,14 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   | destination | reads | glyph |
   |---|---|---|
   | `:main` | `Logic.body_label/1` — *Episodes*, *Movies*, *Extras* | list |
-  | `:credits` | *More info* | info |
+  | `:cast` | *Cast* | people |
   | `nil` | nothing — Play's line carries only the cog | — |
 
   It is never labelled *Back*. "Episodes" says where you are going; "Back"
   only says it is not here, and what it means depends on which view you
   happen to be in. The destination is not always the body, which is exactly
-  why the label has to follow it: a movie with no extras opens *on* More
-  info, so Manage returns there and the control reads "More info".
+  why the label has to follow it: a movie with no extras opens *on* Cast,
+  so Manage returns there and the control reads "Cast".
 
   One control, in one slot. Until 2026-08-07 there were two, each
   relabelling itself to "Back" when its own view was open, so the word moved
@@ -51,7 +51,7 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
 
   attr :detail_view, :atom,
     required: true,
-    doc: "the showing view — `:main`, `:credits` or `:info`."
+    doc: "the showing view — `:main`, `:cast` or `:info`."
 
   def view_controls(assigns) do
     assigns = assign(assigns, :destination, Logic.secondary_view(assigns.entity, assigns.detail_view))
@@ -64,8 +64,8 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
     >
       {Logic.body_label(@entity)}
     </.view_button>
-    <.view_button :if={@destination == :credits} view="credits" icon="hero-information-circle-mini">
-      More info
+    <.view_button :if={@destination == :cast} view="cast" icon="hero-user-group-mini">
+      Cast
     </.view_button>
     <.button
       variant="dismiss"
