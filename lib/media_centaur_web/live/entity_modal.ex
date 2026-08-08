@@ -64,6 +64,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
   alias MediaCentaurWeb.Components.Detail.CastSelection
   alias MediaCentaurWeb.Components.Detail.Logic
+  alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.ModalShell
   alias MediaCentaurWeb.ViewModel.Orientation
   alias MediaCentaurWeb.ViewModel.SeriesDetail
@@ -125,6 +126,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
       def handle_event("toggle_season", params, socket) do
         EntityModal.handle_toggle_season(params, socket)
+      end
+
+      def handle_event("toggle_file_group", params, socket) do
+        EntityModal.handle_toggle_file_group(params, socket)
       end
 
       def handle_event("toggle_episode_details", params, socket) do
@@ -550,6 +555,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       detail_presentation: nil,
       detail_view: :main,
       detail_files: [],
+      expanded_file_groups: nil,
       cast_filter: "",
       cast_limit: CastSelection.page_size(),
       expanded_seasons: MapSet.new(),
@@ -683,7 +689,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     expanded_episode_details: MapSet.new(),
     all_episode_details_open: false,
     cast_filter: "",
-    cast_limit: CastSelection.page_size()
+    cast_limit: CastSelection.page_size(),
+    expanded_file_groups: nil
   }
 
   defp per_selection_assigns(_assigns, true = _selection_changed), do: @per_selection_defaults
@@ -754,6 +761,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   attr :detail_view, :atom, required: true
   attr :detail_files, :list, required: true, doc: "list of file-info maps for the Files sub-view."
 
+  attr :expanded_file_groups, :any,
+    required: true,
+    doc:
+      "`MapSet.t()` of expanded Manage-ledger folder dirs, or `nil` for the automatic default. Owned here (`toggle_file_group`), reset on selection change."
+
   attr :cast_filter, :string,
     required: true,
     doc: "current Cast-view filter query. Reset when the modal switches entities."
@@ -811,6 +823,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       rematch_confirm={@rematch_confirm == @selected_entity_id}
       detail_view={@detail_view}
       detail_files={@detail_files}
+      expanded_file_groups={@expanded_file_groups}
       cast_filter={@cast_filter}
       cast_limit={@cast_limit}
       delete_confirm={@delete_confirm}
@@ -860,6 +873,31 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         else: MapSet.put(expanded, season_number)
 
     {:noreply, Phoenix.Component.assign(socket, expanded_seasons: expanded)}
+  end
+
+  @doc """
+  Toggles one folder group's disclosure in the Manage ledger.
+
+  `expanded_file_groups` starts as `nil` — "the automatic default"
+  (`ManagePanel.effective_expanded_dirs/2`: everything open for small
+  inventories, everything closed for large ones). The first toggle
+  materialises that default into a concrete set and flips the one dir,
+  so auto-expanded groups collapse exactly as a user would expect.
+  Resets to `nil` on selection change (`@per_selection_defaults`).
+  """
+  def handle_toggle_file_group(%{"dir" => dir}, socket) do
+    media_dirs = MapSet.new(MediaCentaur.Config.get(:media_dirs) || [])
+    file_groups = ManagePanel.build_file_groups(socket.assigns.detail_files, media_dirs)
+
+    expanded =
+      ManagePanel.effective_expanded_dirs(file_groups, socket.assigns[:expanded_file_groups])
+
+    expanded =
+      if MapSet.member?(expanded, dir),
+        do: MapSet.delete(expanded, dir),
+        else: MapSet.put(expanded, dir)
+
+    {:noreply, Phoenix.Component.assign(socket, expanded_file_groups: expanded)}
   end
 
   @doc """
@@ -1178,7 +1216,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
       :all ->
         payload =
-          MediaCentaurWeb.Components.DetailPanel.build_delete_all_payload(
+          ManagePanel.build_delete_all_payload(
             detail_files,
             MapSet.new(media_dirs)
           )

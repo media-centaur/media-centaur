@@ -69,6 +69,11 @@ defmodule MediaCentaurWeb.Components.ModalShell do
     doc:
       "list of file-info maps (`%{file: KnownFile.t(), entity_id, role, ...}`) built by `LibraryLive.list_files_for_entity/2` for the Files sub-view."
 
+  attr :expanded_file_groups, :any,
+    default: nil,
+    doc:
+      "Forwarded to `DetailPanel.detail_panel/1`. `MapSet.t()` of expanded Manage-ledger folder dirs, or `nil` for the automatic default."
+
   attr :delete_confirm, :any,
     default: nil,
     doc:
@@ -155,6 +160,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
               rematch_confirm={@rematch_confirm}
               detail_view={@detail_view}
               detail_files={@detail_files}
+              expanded_file_groups={@expanded_file_groups}
               cast_filter={@cast_filter}
               cast_limit={@cast_limit}
               delete_confirm={@delete_confirm}
