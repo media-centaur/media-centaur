@@ -105,6 +105,16 @@ defmodule MediaCentaur.Library.Episodes do
   end
 
   @doc """
+  Replaces an episode's cast membership (`cast_person_ids`) — the
+  *Refresh series credits* backfill path.
+  """
+  @spec update_cast_membership(Episode.t(), [integer()]) ::
+          {:ok, Episode.t()} | {:error, Ecto.Changeset.t()}
+  def update_cast_membership(%Episode{} = episode, cast_person_ids) do
+    Repo.update(Episode.cast_membership_changeset(episode, cast_person_ids))
+  end
+
+  @doc """
   The episode under `tv_series_id` linked to `file_path` via its
   `PlayableItem → WatchedFile` chain, or `nil`.
 

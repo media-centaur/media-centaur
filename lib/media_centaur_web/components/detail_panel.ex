@@ -315,6 +315,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               entity={@entity}
               cast_filter={@cast_filter}
               cast_limit={@cast_limit}
+              resume_episode_key={@resume_episode_key}
             />
           <% :info -> %>
             <.info_view

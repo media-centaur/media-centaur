@@ -62,7 +62,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaur.{Format, Library, Playback, ReleaseTracking}
   alias MediaCentaur.Library.FileEventHandler
   alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
-  alias MediaCentaurWeb.Components.Detail.CastGrid
+  alias MediaCentaurWeb.Components.Detail.CastSelection
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.ModalShell
   alias MediaCentaurWeb.ViewModel.Orientation
@@ -551,7 +551,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       detail_view: :main,
       detail_files: [],
       cast_filter: "",
-      cast_limit: CastGrid.page_size(),
+      cast_limit: CastSelection.page_size(),
       expanded_seasons: MapSet.new(),
       expanded_episode_details: MapSet.new(),
       all_episode_details_open: false,
@@ -683,7 +683,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     expanded_episode_details: MapSet.new(),
     all_episode_details_open: false,
     cast_filter: "",
-    cast_limit: CastGrid.page_size()
+    cast_limit: CastSelection.page_size()
   }
 
   defp per_selection_assigns(_assigns, true = _selection_changed), do: @per_selection_defaults
@@ -956,14 +956,14 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   @doc """
-  Pages another `CastGrid.page_size/0` cast cards into the Cast view.
+  Pages another `CastSelection.page_size/0` cast cards into the Cast view.
   Plain assign for the same reason as the filter: how far someone has
   paged is not a place worth restoring them to.
   """
   @spec handle_show_more_cast(Phoenix.LiveView.Socket.t()) ::
           {:noreply, Phoenix.LiveView.Socket.t()}
   def handle_show_more_cast(socket) do
-    limit = socket.assigns.cast_limit + CastGrid.page_size()
+    limit = socket.assigns.cast_limit + CastSelection.page_size()
     {:noreply, Phoenix.Component.assign(socket, :cast_limit, limit)}
   end
 

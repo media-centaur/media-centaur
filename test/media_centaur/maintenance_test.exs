@@ -383,14 +383,15 @@ defmodule MediaCentaur.MaintenanceTest do
              ] = reloaded.crew
     end
 
-    test "skips series that already have non-empty cast and crew" do
+    test "skips series that already have counted cast and crew" do
       existing_cast = [
         %{
           "name" => "Existing",
           "character" => "Existing",
           "tmdb_person_id" => 1,
           "profile_path" => nil,
-          "order" => 0
+          "order" => 0,
+          "total_episode_count" => 62
         }
       ]
 
@@ -441,6 +442,97 @@ defmodule MediaCentaur.MaintenanceTest do
         |> Repo.insert()
 
       assert {:ok, %{updated: 0, skipped: 0, failed: 0}} = Maintenance.refresh_series_credits()
+    end
+
+    test "refetches a series whose cast predates appearance counts" do
+      # Cast and crew are present, but every entry has a nil
+      # total_episode_count — written before the column existed. The
+      # skip predicate must treat that as stale.
+      cast = [
+        %{
+          "name" => "Existing",
+          "character" => "Existing",
+          "tmdb_person_id" => 1,
+          "profile_path" => nil,
+          "order" => 0
+        }
+      ]
+
+      crew = [
+        %{
+          "tmdb_person_id" => 2,
+          "name" => "Existing Creator",
+          "job" => "Creator",
+          "department" => "Creator",
+          "profile_path" => nil
+        }
+      ]
+
+      series = seed_tv_series_with_tmdb!(%{name: "Sample Series", cast: cast, crew: crew}, "203")
+
+      stub_get_tv("203", %{
+        "external_ids" => %{"imdb_id" => "tt0000203"},
+        "created_by" => [%{"id" => 2, "name" => "Existing Creator", "profile_path" => nil}],
+        "aggregate_credits" => %{
+          "cast" => [
+            %{
+              "id" => 1,
+              "name" => "Existing",
+              "profile_path" => nil,
+              "order" => 0,
+              "total_episode_count" => 48,
+              "roles" => [%{"character" => "Existing", "episode_count" => 48}]
+            }
+          ]
+        }
+      })
+
+      assert {:ok, %{updated: 1, skipped: 0, failed: 0}} = Maintenance.refresh_series_credits()
+
+      reloaded = reload_with_external_ids!(TVSeries, series.id)
+      assert [%Person{total_episode_count: 48}] = reloaded.cast
+    end
+
+    test "backfills per-episode cast membership from season credits" do
+      series = seed_tv_series_with_tmdb!(%{name: "Sample Series", cast: [], crew: []}, "204")
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+      episode_one = create_episode(%{season_id: season.id, episode_number: 1, name: "Pilot"})
+      episode_two = create_episode(%{season_id: season.id, episode_number: 2, name: "Second"})
+
+      stub_get_tv_with_seasons(
+        "204",
+        %{
+          "external_ids" => %{"imdb_id" => "tt0000204"},
+          "created_by" => [%{"id" => 2, "name" => "Sample Creator", "profile_path" => nil}],
+          "aggregate_credits" => %{
+            "cast" => [
+              %{
+                "id" => 10,
+                "name" => "Regular A",
+                "profile_path" => nil,
+                "order" => 0,
+                "total_episode_count" => 2,
+                "roles" => [%{"character" => "Char A", "episode_count" => 2}]
+              }
+            ]
+          }
+        },
+        %{
+          1 => %{
+            "season_number" => 1,
+            "credits" => %{"cast" => [%{"id" => 10, "name" => "Regular A", "order" => 0}]},
+            "episodes" => [
+              %{"episode_number" => 1, "guest_stars" => [%{"id" => 20, "name" => "Guest A"}]},
+              %{"episode_number" => 2, "guest_stars" => []}
+            ]
+          }
+        }
+      )
+
+      assert {:ok, %{updated: 1, skipped: 0, failed: 0}} = Maintenance.refresh_series_credits()
+
+      assert Repo.get!(MediaCentaur.Library.Episode, episode_one.id).cast_person_ids == [10, 20]
+      assert Repo.get!(MediaCentaur.Library.Episode, episode_two.id).cast_person_ids == [10]
     end
   end
 

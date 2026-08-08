@@ -142,7 +142,14 @@ defmodule MediaCentaur.TMDB.Client do
           {:ok, map()} | {:error, any()}
   def get_season(tmdb_id, season_number, client \\ default_client()) do
     Log.info(:tmdb, "fetched season tmdb:#{tmdb_id} S#{season_number}")
-    get(client, url: "/tv/#{tmdb_id}/season/#{season_number}")
+
+    # `credits` rides along for per-episode cast membership: season
+    # regulars come from the appended credits, guest stars ride on each
+    # episode object (`Mapper.episode_attrs/2`).
+    get(client,
+      url: "/tv/#{tmdb_id}/season/#{season_number}",
+      params: [append_to_response: "credits"]
+    )
   end
 
   defp get(client, opts) do

@@ -233,7 +233,8 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       :duration_seconds,
       :present?,
       :content_url,
-      images: []
+      images: [],
+      cast_person_ids: []
     ]
 
     @type t :: %__MODULE__{
@@ -247,7 +248,8 @@ defmodule MediaCentaur.Library.Views.DetailItem do
             duration_seconds: integer() | nil,
             present?: boolean() | nil,
             content_url: String.t() | nil,
-            images: [struct()]
+            images: [struct()],
+            cast_person_ids: [integer()]
           }
   end
 
@@ -557,7 +559,8 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       date_published: episode.date_published,
       duration_seconds: episode.duration_seconds,
       content_url: episode.content_url,
-      images: episode.images || []
+      images: episode.images || [],
+      cast_person_ids: episode.cast_person_ids || []
     }
   end
 

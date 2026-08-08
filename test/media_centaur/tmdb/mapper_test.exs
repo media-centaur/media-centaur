@@ -61,7 +61,8 @@ defmodule MediaCentaur.TMDB.MapperTest do
                  "character" => "Sample Role",
                  "tmdb_person_id" => 99,
                  "profile_path" => "/p.jpg",
-                 "order" => 0
+                 "order" => 0,
+                 "total_episode_count" => nil
                }
              ]
     end
@@ -487,6 +488,7 @@ defmodule MediaCentaur.TMDB.MapperTest do
               "name" => "Actor B",
               "profile_path" => "/b.jpg",
               "order" => 1,
+              "total_episode_count" => 80,
               "roles" => [%{"character" => "Char B", "episode_count" => 80}]
             },
             %{
@@ -494,6 +496,7 @@ defmodule MediaCentaur.TMDB.MapperTest do
               "name" => "Actor A",
               "profile_path" => "/a.jpg",
               "order" => 0,
+              "total_episode_count" => 105,
               "roles" => [
                 %{"character" => "Char A", "episode_count" => 100},
                 %{"character" => "Char A (older)", "episode_count" => 5}
@@ -511,14 +514,16 @@ defmodule MediaCentaur.TMDB.MapperTest do
                  "character" => "Char A",
                  "tmdb_person_id" => 1,
                  "profile_path" => "/a.jpg",
-                 "order" => 0
+                 "order" => 0,
+                 "total_episode_count" => 105
                },
                %{
                  "name" => "Actor B",
                  "character" => "Char B",
                  "tmdb_person_id" => 2,
                  "profile_path" => "/b.jpg",
-                 "order" => 1
+                 "order" => 1,
+                 "total_episode_count" => 80
                }
              ]
     end
@@ -650,6 +655,52 @@ defmodule MediaCentaur.TMDB.MapperTest do
     end
   end
 
+  describe "episode_attrs/2 cast membership" do
+    test "episode cast ids are the season regulars plus that episode's guest stars" do
+      season_data = %{
+        "credits" => %{
+          "cast" => [
+            %{"id" => 10, "name" => "Regular A", "order" => 0},
+            %{"id" => 11, "name" => "Regular B", "order" => 1}
+          ]
+        },
+        "episodes" => [
+          %{
+            "episode_number" => 1,
+            "name" => "Pilot",
+            "guest_stars" => [%{"id" => 20, "name" => "Guest A"}]
+          },
+          %{
+            "episode_number" => 2,
+            "name" => "Second",
+            "guest_stars" => [%{"id" => 21, "name" => "Guest B"}, %{"id" => 10}]
+          }
+        ]
+      }
+
+      assert Mapper.episode_attrs(season_data, 1).cast_person_ids == [10, 11, 20]
+      # A guest star already credited as a regular is not duplicated.
+      assert Mapper.episode_attrs(season_data, 2).cast_person_ids == [10, 11, 21]
+    end
+
+    test "no season credits and no guest stars yield an empty membership" do
+      season_data = %{"episodes" => [%{"episode_number" => 1, "name" => "Pilot"}]}
+
+      assert Mapper.episode_attrs(season_data, 1).cast_person_ids == []
+    end
+
+    test "an unmatched episode number still carries the season regulars" do
+      # TMDB knows nothing about the episode, but the season's billed cast
+      # is credited for every episode of the season.
+      season_data = %{
+        "credits" => %{"cast" => [%{"id" => 10, "name" => "Regular A", "order" => 0}]},
+        "episodes" => []
+      }
+
+      assert Mapper.episode_attrs(season_data, 99).cast_person_ids == [10]
+    end
+  end
+
   describe "movie_series_attrs/2" do
     test "maps collection data" do
       data = %{
@@ -762,21 +813,24 @@ defmodule MediaCentaur.TMDB.MapperTest do
                  "character" => "Char A",
                  "tmdb_person_id" => 1,
                  "profile_path" => "/a.jpg",
-                 "order" => 0
+                 "order" => 0,
+                 "total_episode_count" => nil
                },
                %{
                  "name" => "Actor B",
                  "character" => "Char B",
                  "tmdb_person_id" => 2,
                  "profile_path" => "/b.jpg",
-                 "order" => 1
+                 "order" => 1,
+                 "total_episode_count" => nil
                },
                %{
                  "name" => "Actor C",
                  "character" => "Char C",
                  "tmdb_person_id" => 3,
                  "profile_path" => nil,
-                 "order" => 2
+                 "order" => 2,
+                 "total_episode_count" => nil
                }
              ]
     end
