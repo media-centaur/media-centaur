@@ -5,8 +5,11 @@
  * - Sort order tracking → signals grid memory clear
  * - CLEAR action clears the filter input
  * - BACK navigates to the sidebar
- * - Reaching the toolbar (the topmost context) pins the page to the top so
- *   the header and tabs are fully visible
+ *
+ * Deliberately no scrolling here. The toolbar's resting place (page top,
+ * header included) is declared on its markup via `data-nav-reveal-block`
+ * plus a page-top scroll-margin, so `revealItem` glides there — an instant
+ * window scroll from a behavior fights the glide already in flight.
  *
  * All external dependencies are injected via the `dom` parameter,
  * following the same DI pattern as the orchestrator itself.
@@ -16,12 +19,9 @@
  * the URL is the single source of truth.
  */
 
-import { Context } from "./core/index.js"
-
 /**
  * @typedef {Object} LibraryDom
  * @property {function(): {value: string, clear: function}|null} getFilter
- * @property {function(): void} scrollToTop
  */
 
 /** Default DOM implementation for production use. */
@@ -37,9 +37,6 @@ const REAL_DOM = {
       },
     }
   },
-  scrollToTop() {
-    window.scrollTo({ top: 0, behavior: "instant" })
-  },
 }
 
 /**
@@ -53,18 +50,6 @@ export function createLibraryBehavior(dom) {
   return {
     onAttach() {},
     onDetach() {},
-
-    /**
-     * Reaching the toolbar means the user has navigated to the top of the
-     * library view — pin the page to the very top so the header and tabs are
-     * fully visible (scrollIntoView("nearest") stops flush with the tab,
-     * clipping the main padding above it).
-     */
-    onZoneChanged(context) {
-      if (context === Context.TOOLBAR) {
-        dom.scrollToTop()
-      }
-    },
 
     /**
      * CLEAR clears the library filter if it has content.
