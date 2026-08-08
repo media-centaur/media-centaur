@@ -32,9 +32,13 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
   `DetailPanel` adds none): the toolbar card is a `manage_tools` TOOLBAR
   — a horizontal strip navigates LEFT/RIGHT, and DOWN drops past it into
   the ledger instead of walking its buttons as vertical steps — and the
-  ledger (with the playback bookkeeping under it) is the `detail_list`
-  TREE. Region edges live in `config.js` `overlays.detail`; the zones
-  are siblings and must never nest.
+  ledger (with the playback bookkeeping under it) is the `manage_list`
+  TREE. `manage_list` is deliberately NOT the episode list's
+  `detail_list`: per-context cursor memory is keyed by context name, so
+  sharing it let ledger activity overwrite the episode list's remembered
+  position — returning to Episodes then entered at the ledger's index
+  instead of the resume episode. Region edges live in `config.js`
+  `overlays.detail`; the zones are siblings and must never nest.
 
   Small inventories (≤ #{6} files total — typical movies) auto-expand:
   a single file hidden behind a chevron is bookkeeping, not calm. The
@@ -207,7 +211,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
         </div>
       </div>
 
-      <div data-nav-zone="detail_list" class="space-y-5">
+      <div data-nav-zone="manage_list" class="space-y-5">
         <div :if={@files != []}>
           <div class="flex items-center justify-between mb-2">
             <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">

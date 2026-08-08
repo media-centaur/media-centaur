@@ -315,10 +315,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       <%!-- The modal's second nav region — the body of the title, whichever
             sub-view is showing. DOWN from the action row lands here and BACK
             climbs back to it. The zone follows the sub-view: the season /
-            film / extras lists and the Manage ledger are a `detail_list`
-            tree (LEFT and RIGHT are depth — collapse a season, step into an
-            episode's controls; Manage also interposes its `manage_tools`
-            toolbar zone, declared inside ManagePanel), while Cast is a
+            film / extras lists are a `detail_list` tree (LEFT and RIGHT are
+            depth — collapse a season, step into an episode's controls),
+            Manage brings its own pair of zones (`manage_tools` +
+            `manage_list`, declared inside ManagePanel — distinct from
+            `detail_list` so ledger activity can't clobber the episode
+            list's cursor memory), while Cast is a
             `detail_cast` photo grid navigated by
             geometry. One body zone at a time — nav zones must never nest.
             See UIDR-019. --%>
