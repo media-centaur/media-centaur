@@ -4,6 +4,26 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.118.0 — 2026-08-08
+
+The Manage view has been rebuilt around cleaning up, and keyboard and gamepad movement across the title page's views is steadier.
+
+### New
+
+- **Manage is built for cleaning up.** Everything you'd do to a title now sits in one card at the top — **Delete all files** with the space it frees, **Rematch**, **Refresh artwork**, and the title's IDs — and your files appear as one row per folder, each with its count, size, and its own **Delete**, instead of a wall of every file. Open a folder to see its files, in order, with their quality badges and technical details. Titles with only a few files open with them already showing. Deleting still confirms in place with a second click — no pop-up.
+
+### Improved
+
+- **The Manage view navigates spatially.** With a keyboard or gamepad, Down drops from the buttons through the tool card into the folder list; the tools sit to the side, reached with Left/Right. Up climbs back the same way — and that now works everywhere on the title page, including from the top of the episode list to the Play row, where Up used to stop dead.
+- **The lead cast names its episode.** The group at the top of the Cast view sits under a heading naming the episode it belongs to, and the cast filter moved up beside the title block so it stays at hand however far you scroll the grid.
+- **Leaving a page closes what was open on it.** Moving to another section — Home, Library, Incoming — closes any open title page or dialog there, so coming back shows the page itself. Your tab, sort, and filters are still remembered.
+- **Reset to default sits with the tracks it resets.** The Remembered tracks note in Manage keeps its reset button right beside the languages it clears.
+
+### Fixed
+
+- **Coming back to the episode list finds your episode again.** After visiting the Manage view, pressing Down from the button row could land on the first season header instead of the episode you're watching. Each view now keeps its own memory, so Episodes always returns to your place.
+- **Buttons no longer stay lit after the app moves focus.** A button the keyboard cursor had rested on could keep its pressed look while you were using the mouse; it now returns to normal until you actually point at it.
+
 ## v0.117.0 — 2026-08-08
 
 The title page's second view has been rethought around the people on screen, and moving around the title page with a keyboard or gamepad is steadier.
