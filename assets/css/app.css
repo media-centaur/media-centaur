@@ -1791,20 +1791,16 @@ body:has(.modal-backdrop[data-state="open"]) {
    poster was 19% larger at 100% and 29% SMALLER at 70% — and nothing in
    either file could have told you that.
 
-   One deliberate exception: the library wall overrides the token via
-   `.poster-grid-dense` (see the poster-grid section) to run a notch
-   denser than the rows. Unlike the historical drift above, that delta is
-   a constant factor authored in one place.
-
-   Poster height (2:3 → 255px) and backdrop height (16:9 → 255px) match on
+   Poster height (2:3 → 225px) and backdrop height (16:9 → 225px) match on
    purpose: Continue Watching sits directly above Recently Added on Home,
-   and equal card heights give the two rows one vertical module.
+   and equal card heights give the two rows one vertical module. Change one
+   token and the other moves with it: backdrop-w = poster-w × 1.5 × 16/9.
 
    `LiveHelpers.poster_src/1` picks the image derivative that serves
    `--card-poster-w`. Change the token by much and revisit that width. */
 :root {
-  --card-poster-w: 170px;
-  --card-backdrop-w: 453px;
+  --card-poster-w: 150px;
+  --card-backdrop-w: 400px;
   /* Coming Up marquee height. Lives here rather than inline in the component
      because the shelf framing below has to know it: the reserve under a shelf
      is sized to fully reveal the shelf beneath it, and the marquee is the
@@ -2018,13 +2014,10 @@ body:has(.modal-backdrop[data-state="open"]) {
   grid-template-columns: repeat(auto-fill, minmax(var(--card-poster-w), 1fr));
 }
 
-/* The library wall runs denser than the shared token: it is the one
-   surface whose job is scanning many titles at once, so it trades ~12%
-   of poster size for roughly one extra column at every UI scale. Scoped
-   to the grid element so nothing else on the page (or the Home rows)
-   picks it up. */
+/* The library wall packs a touch tighter than the default grid gap: it is
+   the one surface whose job is scanning many titles at once. Gap only —
+   poster SIZE is the shared token, identical to the Home rows. */
 .poster-grid-dense {
-  --card-poster-w: 150px;
   gap: 0.625rem;
 }
 
