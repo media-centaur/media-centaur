@@ -847,7 +847,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   @doc """
   Extracts the typed `[%SeasonView{}]` list from a `selected_entry`.
   Returns `nil` for non-TV entries (movie / movie_series / no entry),
-  triggering the existing fallback in `DetailPanel.content_list/1`.
+  triggering the extras-only fallback in the detail panel's content dispatch.
   """
   @spec seasons_view_from_entry(SeriesDetail.t() | map() | nil) :: list() | nil
   def seasons_view_from_entry(%SeriesDetail{seasons: seasons}), do: seasons

@@ -17,6 +17,9 @@ defmodule MediaCentaurWeb.Storybook.Detail do
   def entry("metadata_row"), do: [icon: {:fa, "list", :thin}, name: "Metadata row"]
 
   def entry("play_card"), do: [icon: {:fa, "play", :thin}, name: "Play card"]
+  def entry("watched_toggle"), do: [icon: {:fa, "circle-check", :thin}, name: "Watched toggle"]
+
+  def entry("progress_underline"), do: [icon: {:fa, "wave-pulse", :thin}, name: "Progress underline"]
   def entry("section"), do: [icon: {:fa, "square-dashed", :thin}, name: "Section"]
   def entry("hero"), do: [icon: {:fa, "image", :thin}, name: "Hero"]
 end

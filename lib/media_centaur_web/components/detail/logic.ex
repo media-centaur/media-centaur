@@ -263,6 +263,31 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   end
 
   @doc """
+  Pill copy for an upcoming episode/movie row. Past dates read
+  "aired Xd ago"; future dates read "in Xd" (or the bare formatted
+  date for further-out releases). `nil` air_date renders "TBA".
+
+  Pure: extracted for unit testing without LiveView render. Shared by
+  the season list's upcoming episode rows and the collection list's
+  upcoming part rows.
+  """
+  @spec upcoming_pill_copy(map(), Date.t()) :: String.t()
+  def upcoming_pill_copy(item, today \\ Date.utc_today())
+
+  def upcoming_pill_copy(%{air_date: nil}, _today), do: "TBA"
+
+  def upcoming_pill_copy(%{air_date: %Date{} = air_date}, today) do
+    days = Date.diff(air_date, today)
+
+    cond do
+      days == 0 -> "today"
+      days > 0 and days <= 14 -> "in #{days}d"
+      days < 0 and days >= -14 -> "aired #{abs(days)}d ago"
+      true -> Calendar.strftime(air_date, "%b %-d")
+    end
+  end
+
+  @doc """
   Renders an entity's status atom as a display string. Returns `nil` for
   `nil`, passes strings through unchanged.
   """

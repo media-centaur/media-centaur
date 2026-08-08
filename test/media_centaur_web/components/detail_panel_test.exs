@@ -3,6 +3,8 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
   import MediaCentaur.TestFactory
 
+  alias MediaCentaurWeb.Components.Detail.Logic
+  alias MediaCentaurWeb.Components.Detail.PlayableRow
   alias MediaCentaurWeb.Components.DetailPanel
 
   describe "scrollable_content?/2" do
@@ -38,16 +40,16 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
   describe "blur_spoilers?/2" do
     test "blurs a fully-unwatched episode in spoiler-free mode" do
-      assert DetailPanel.blur_spoilers?(true, :unwatched)
+      assert PlayableRow.blur_spoilers?(true, :unwatched)
     end
 
     test "never blurs a watched or in-progress episode, even in spoiler-free mode" do
-      refute DetailPanel.blur_spoilers?(true, :watched)
-      refute DetailPanel.blur_spoilers?(true, :current)
+      refute PlayableRow.blur_spoilers?(true, :watched)
+      refute PlayableRow.blur_spoilers?(true, :current)
     end
 
     test "never blurs when spoiler-free mode is off" do
-      refute DetailPanel.blur_spoilers?(false, :unwatched)
+      refute PlayableRow.blur_spoilers?(false, :unwatched)
     end
   end
 
@@ -146,44 +148,44 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
   # --- episode_state/1 ---
 
-  describe "episode_state/1" do
+  describe "state_from_progress/1" do
     test "returns :unwatched for nil" do
-      assert DetailPanel.episode_state(nil) == :unwatched
+      assert PlayableRow.state_from_progress(nil) == :unwatched
     end
 
     test "returns :watched when completed" do
       progress = %{completed: true, position_seconds: 2700.0}
-      assert DetailPanel.episode_state(progress) == :watched
+      assert PlayableRow.state_from_progress(progress) == :watched
     end
 
     test "returns :current when has position" do
       progress = %{completed: false, position_seconds: 100.0}
-      assert DetailPanel.episode_state(progress) == :current
+      assert PlayableRow.state_from_progress(progress) == :current
     end
 
     test "returns :unwatched when no position and not completed" do
       progress = %{completed: false, position_seconds: 0.0}
-      assert DetailPanel.episode_state(progress) == :unwatched
+      assert PlayableRow.state_from_progress(progress) == :unwatched
     end
   end
 
   # --- episode_row_class/2 ---
 
-  describe "episode_row_class/2" do
+  describe "row_class/2" do
     test "returns primary highlight when resume target" do
-      assert DetailPanel.episode_row_class(:watched, true) == "bg-primary/10"
+      assert PlayableRow.row_class(:watched, true) == "bg-primary/10"
     end
 
     test "returns opacity for watched" do
-      assert DetailPanel.episode_row_class(:watched, false) == "opacity-60"
+      assert PlayableRow.row_class(:watched, false) == "opacity-60"
     end
 
     test "returns info bg for current" do
-      assert DetailPanel.episode_row_class(:current, false) == "bg-info/5"
+      assert PlayableRow.row_class(:current, false) == "bg-info/5"
     end
 
     test "returns empty for unwatched" do
-      assert DetailPanel.episode_row_class(:unwatched, false) == ""
+      assert PlayableRow.row_class(:unwatched, false) == ""
     end
   end
 
@@ -191,20 +193,20 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
   describe "progress_percent/1" do
     test "computes percentage from position and duration" do
-      assert DetailPanel.progress_percent(%{position_seconds: 900, duration_seconds: 3600}) == 25
+      assert PlayableRow.progress_percent(%{position_seconds: 900, duration_seconds: 3600}) == 25
     end
 
     test "caps at 100" do
-      assert DetailPanel.progress_percent(%{position_seconds: 4000, duration_seconds: 3600}) ==
+      assert PlayableRow.progress_percent(%{position_seconds: 4000, duration_seconds: 3600}) ==
                100
     end
 
     test "returns 0 for nil" do
-      assert DetailPanel.progress_percent(nil) == 0
+      assert PlayableRow.progress_percent(nil) == 0
     end
 
     test "returns 0 when duration is 0" do
-      assert DetailPanel.progress_percent(%{position_seconds: 100, duration_seconds: 0}) == 0
+      assert PlayableRow.progress_percent(%{position_seconds: 100, duration_seconds: 0}) == 0
     end
   end
 
@@ -220,33 +222,33 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
   describe "upcoming_pill_copy/2" do
     test "future date within 14 days reads 'in Xd'" do
       today = ~D[2026-05-08]
-      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-05-15]}, today) == "in 7d"
-      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-05-09]}, today) == "in 1d"
+      assert Logic.upcoming_pill_copy(%{air_date: ~D[2026-05-15]}, today) == "in 7d"
+      assert Logic.upcoming_pill_copy(%{air_date: ~D[2026-05-09]}, today) == "in 1d"
     end
 
     test "today reads 'today'" do
       today = ~D[2026-05-08]
-      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-05-08]}, today) == "today"
+      assert Logic.upcoming_pill_copy(%{air_date: ~D[2026-05-08]}, today) == "today"
     end
 
     test "past date within 14 days reads 'aired Xd ago'" do
       today = ~D[2026-05-08]
-      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-05-05]}, today) == "aired 3d ago"
-      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-05-07]}, today) == "aired 1d ago"
+      assert Logic.upcoming_pill_copy(%{air_date: ~D[2026-05-05]}, today) == "aired 3d ago"
+      assert Logic.upcoming_pill_copy(%{air_date: ~D[2026-05-07]}, today) == "aired 1d ago"
     end
 
     test "further-out future date renders the formatted month/day" do
       today = ~D[2026-05-08]
-      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-08-15]}, today) == "Aug 15"
+      assert Logic.upcoming_pill_copy(%{air_date: ~D[2026-08-15]}, today) == "Aug 15"
     end
 
     test "further-out past date renders the formatted month/day" do
       today = ~D[2026-05-08]
-      assert DetailPanel.upcoming_pill_copy(%{air_date: ~D[2026-01-04]}, today) == "Jan 4"
+      assert Logic.upcoming_pill_copy(%{air_date: ~D[2026-01-04]}, today) == "Jan 4"
     end
 
     test "nil air_date renders 'TBA'" do
-      assert DetailPanel.upcoming_pill_copy(%{air_date: nil}, ~D[2026-05-08]) == "TBA"
+      assert Logic.upcoming_pill_copy(%{air_date: nil}, ~D[2026-05-08]) == "TBA"
     end
   end
 end

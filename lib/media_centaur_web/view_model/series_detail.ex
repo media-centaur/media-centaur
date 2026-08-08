@@ -292,7 +292,7 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
 
   # --- Helpers (extracted from DetailPanel) ---
 
-  # Both `DetailPanel.episode_state/1` and this caller delegate to the
+  # Both `Detail.PlayableRow.state_from_progress/1` and this caller delegate to the
   # same Library helper so the rendering layer and the composition
   # layer can't drift.
   defdelegate episode_state(progress),
