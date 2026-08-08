@@ -263,6 +263,11 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     A single constituent movie inside `DetailItem.movies` for a
     MovieSeries container. Static movie metadata; `WatchProgress` is
     overlaid at the consumer.
+
+    `:images` carries the movie's own `Library.Image` rows (typically a
+    `"poster"` for the collection-row disclosure). `:tmdb_id` is the
+    parsed TMDB id from the movie's external ids — the key the
+    release-tracking overlay's `part_tmdb_id` matches against.
     """
 
     @enforce_keys [:movie_id, :playable_item_id, :name]
@@ -273,7 +278,11 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       :date_published,
       :collection_position,
       :content_url,
-      :present?
+      :present?,
+      :description,
+      :duration_seconds,
+      :tmdb_id,
+      images: []
     ]
 
     @type t :: %__MODULE__{
@@ -283,7 +292,11 @@ defmodule MediaCentaur.Library.Views.DetailItem do
             date_published: Date.t() | nil,
             collection_position: integer() | nil,
             content_url: String.t() | nil,
-            present?: boolean() | nil
+            present?: boolean() | nil,
+            description: String.t() | nil,
+            duration_seconds: non_neg_integer() | nil,
+            tmdb_id: integer() | nil,
+            images: [struct()]
           }
   end
 
@@ -582,11 +595,10 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       collection_position: entry.collection_position,
       content_url: entry.content_url,
       present?: entry.present?,
-      # Keep the leaf-map contract uniform with `episode_to_map/1` (which
-      # carries `:images`) so consumers like `LiveHelpers.image_url/2` can
-      # rely on the key existing. Per-movie poster rows aren't populated
-      # by the projection yet — see follow-up — so this is `[]` for now.
-      images: []
+      description: entry.description,
+      duration_seconds: entry.duration_seconds,
+      tmdb_id: entry.tmdb_id,
+      images: entry.images || []
     }
   end
 end

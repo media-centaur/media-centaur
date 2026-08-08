@@ -41,6 +41,10 @@ defmodule MediaCentaurWeb.Components.ModalShell do
 
   attr :expanded_seasons, MapSet, default: nil
 
+  attr :expanded_movie_details, MapSet,
+    default: nil,
+    doc: "Forwarded to `DetailPanel.detail_panel/1`. See its `:expanded_movie_details` attr."
+
   attr :expanded_episode_details, MapSet,
     default: nil,
     doc:
@@ -159,6 +163,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
               movies_view={@movies_view}
               expanded_seasons={@expanded_seasons}
               expanded_episode_details={@expanded_episode_details}
+              expanded_movie_details={@expanded_movie_details}
               all_episode_details_open={@all_episode_details_open}
               on_play={@on_play}
               on_close={@on_close}

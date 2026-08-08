@@ -137,7 +137,7 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
 
       facets = Logic.facets_for(:movie_series, movie_series, movies)
 
-      assert %Facet{label: "Movies", kind: :text, value: "3"} in facets
+      refute Enum.any?(facets, &(&1.label == "Movies"))
       assert %Facet{label: "First released", kind: :text, value: "1977"} in facets
       assert %Facet{label: "Latest", kind: :text, value: "1983"} in facets
       assert %Facet{label: "Genres", kind: :chips, value: ["Sci-Fi"]} in facets
@@ -152,16 +152,15 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
 
       facets = Logic.facets_for(:movie_series, build_movie_series(), movies)
 
-      assert %Facet{label: "Movies", kind: :text, value: "2"} in facets
       assert %Facet{label: "First released", kind: :text, value: "1999"} in facets
       assert %Facet{label: "Latest", kind: :text, value: "1999"} in facets
     end
 
-    test "shows movie count even when no dates available" do
+    test "no Movies facet — the metadata row already counts them" do
       movies = [build_movie(%{date_published: nil}), build_movie(%{date_published: nil})]
       facets = Logic.facets_for(:movie_series, build_movie_series(), movies)
 
-      assert %Facet{label: "Movies", kind: :text, value: "2"} in facets
+      refute Enum.any?(facets, &(&1.label == "Movies"))
       refute Enum.any?(facets, &(&1.label == "First released"))
       refute Enum.any?(facets, &(&1.label == "Latest"))
     end

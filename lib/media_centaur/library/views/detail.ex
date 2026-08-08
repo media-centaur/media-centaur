@@ -1260,6 +1260,9 @@ defmodule MediaCentaur.Library.Views.Detail do
       watched_files_by_playable_item_id =
         group_movie_watched_files(Enum.map(playable_items, & &1.id))
 
+      images_by_movie_id = group_movie_images(movie_ids)
+      tmdb_id_by_movie_id = movie_tmdb_ids(movie_ids)
+
       Enum.map(movies, fn movie ->
         playable_item = Map.get(playable_item_by_movie_id, movie.id)
 
@@ -1278,10 +1281,42 @@ defmodule MediaCentaur.Library.Views.Detail do
           date_published: movie.date_published,
           collection_position: movie.position,
           content_url: first_file && first_file.file_path,
-          present?: files != []
+          present?: files != [],
+          description: movie.description,
+          duration_seconds: movie.duration_seconds,
+          tmdb_id: Map.get(tmdb_id_by_movie_id, movie.id),
+          images: Map.get(images_by_movie_id, movie.id, [])
         }
       end)
     end
+  end
+
+  defp group_movie_images([]), do: %{}
+
+  defp group_movie_images(movie_ids) do
+    from(image in Image,
+      where: image.owner_type == :movie and image.owner_id in ^movie_ids
+    )
+    |> Repo.all()
+    |> Enum.group_by(& &1.owner_id)
+  end
+
+  # Parsed TMDB id per constituent movie — the key the release-tracking
+  # overlay's `part_tmdb_id` matches against. Non-numeric ids are
+  # dropped rather than carried as strings.
+  defp movie_tmdb_ids([]), do: %{}
+
+  defp movie_tmdb_ids(movie_ids) do
+    from(ext in MediaCentaur.Library.ExternalId,
+      where: ext.owner_type == :movie and ext.owner_id in ^movie_ids and ext.source == "tmdb"
+    )
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn ext, acc ->
+      case Integer.parse(ext.external_id) do
+        {tmdb_id, ""} -> Map.put(acc, ext.owner_id, tmdb_id)
+        _ -> acc
+      end
+    end)
   end
 
   # Watched files for every PlayableItem in the set, one query, grouped

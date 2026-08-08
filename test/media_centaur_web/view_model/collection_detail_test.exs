@@ -122,6 +122,37 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       assert [%MovieListItem.Upcoming{part_tmdb_id: 33, air_date: ^expected_date}] = view_model.movies
     end
 
+    test "a release matching a library movie's tmdb id is not listed as upcoming" do
+      owned = %{
+        id: Ecto.UUID.generate(),
+        name: "Owned Part",
+        date_published: ~D[2020-01-01],
+        position: 1,
+        content_url: "/m/owned.mkv",
+        tmdb_id: 900_010
+      }
+
+      collection = build_movie_series(%{movies: [owned]})
+
+      releases = [
+        release_map(%{part_tmdb_id: 900_010, title: "Owned Part"}),
+        release_map(%{part_tmdb_id: 900_011, title: "Missing Part"})
+      ]
+
+      view_model =
+        CollectionDetail.build(
+          %{entity: collection, progress: nil, progress_records: []},
+          releases,
+          :watching,
+          nil
+        )
+
+      assert [
+               %MovieListItem.Library{},
+               %MovieListItem.Upcoming{part_tmdb_id: 900_011}
+             ] = view_model.movies
+    end
+
     test "aired-but-not-in-library release reads :aired_not_in_library" do
       collection = build_movie_series(%{movies: []})
 

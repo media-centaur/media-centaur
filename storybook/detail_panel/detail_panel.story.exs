@@ -314,10 +314,10 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         description:
           "`:movie_series` with three child movies (chronological). Movie 2 is " <>
             "partially watched and gets the resume target border; movie 1 is " <>
-            "completed (dimmed); movie 3 is unwatched. `playback_props/3` " <>
-            "produces **Resume Movie 2**. `movies_view` is the typed " <>
-            "`[%MovieListItem{}]` contract — the collection content list reads " <>
-            "exclusively from it.",
+            "completed (dimmed) with its synopsis disclosure open; movie 3 is " <>
+            "unwatched. `playback_props/3` produces **Resume Movie 2**. " <>
+            "`movies_view` is the typed `[%MovieListItem{}]` contract — the " <>
+            "collection content list reads exclusively from it.",
         attributes: movie_series_attrs()
       },
       %Variation{
@@ -965,6 +965,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       resume: nil,
       progress_records: progress_records,
       movies_view: [m1_item, m2_item, m3_item],
+      expanded_movie_details: MapSet.new([m1_item.movie.id]),
       available: true,
       tmdb_ready: true,
       expanded_seasons: MapSet.new()

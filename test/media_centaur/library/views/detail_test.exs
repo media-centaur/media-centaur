@@ -787,6 +787,50 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       assert length(episodes) == 2
     end
 
+    test "MovieSeries constituent rows carry display fields — description, duration, poster, tmdb id" do
+      on_exit_clear_table()
+      ms = create_movie_series(%{name: "Sample MS Display Fields"})
+
+      movie =
+        create_movie(%{
+          name: "MS Display Part 1",
+          movie_series_id: ms.id,
+          position: 1,
+          description: "A rumour leads three siblings into the hills.",
+          duration_seconds: 5400,
+          tmdb_id: "31415"
+        })
+
+      other =
+        create_movie(%{name: "MS Display Part 2", movie_series_id: ms.id, position: 2})
+
+      create_image(%{owner_type: :movie, owner_id: movie.id, role: "poster", extension: "jpg"})
+
+      for m <- [movie, other] do
+        playable_item = create_playable_item_for_movie(m)
+
+        create_linked_file(%{
+          playable_item_id: playable_item.id,
+          file_path: "/media/test/ms-display-#{m.position}.mkv"
+        })
+      end
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail_by_container(:movie_series, ms.id)
+
+      assert [entry, plain] = item.movies
+      assert entry.description == "A rumour leads three siblings into the hills."
+      assert entry.duration_seconds == 5400
+      assert entry.tmdb_id == 31_415
+      assert [%{role: "poster"}] = entry.images
+
+      # A movie with none of the display fields still shapes cleanly.
+      assert plain.description == nil
+      assert plain.duration_seconds == nil
+      assert plain.tmdb_id == nil
+      assert plain.images == []
+    end
+
     test "MovieSeries constituent movie row carries :movies" do
       on_exit_clear_table()
       ms = create_movie_series(%{name: "Sample MS Tree"})
