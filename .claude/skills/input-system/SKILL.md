@@ -76,7 +76,7 @@ Verify both with `~/scripts/agents/mc-nav-trace '<keys>'`, which reports the foc
 
 ### Overlays With Regions
 
-An overlay carrying `data-nav-overlay="<name>"` navigates as several zones per `config.overlays[name]` (`entry` = cursor-start priority among its regions, `layout` = its internal edges, merged over the page graph while open). The detail modal declares `detail`: a `detail_actions` TOOLBAR over a per-sub-view body — a `detail_list` TREE for the season/film/extras lists and Manage, a `detail_cast` SHELF (geometry-resolved photo grid) for Cast. One body zone in the DOM at a time; the `down` candidate list routes to whichever is populated. The cast grid also has an `up` edge back to the actions row (spatial regions have a geometric "above"); the tree deliberately does not. Overlays without the attribute stay flat MODAL — right for confirms and small forms. See [UIDR-019](../../../decisions/user-interface/2026-08-07-019-detail-modal-two-regions.md).
+An overlay carrying `data-nav-overlay="<name>"` navigates as several zones per `config.overlays[name]` (`entry` = cursor-start priority among its regions, `layout` = its internal edges, merged over the page graph while open). The detail modal declares `detail`: a `detail_actions` TOOLBAR over a per-sub-view body — a `detail_list` TREE for the season/film/extras lists and the Manage ledger, a `detail_cast` SHELF (geometry-resolved photo grid) for Cast. The Manage sub-view interposes `manage_tools`, a TOOLBAR region for its toolbar card (a horizontal strip navigates LEFT/RIGHT; DOWN drops past it into the ledger). One body zone in the DOM at a time (`manage_tools` is empty outside Manage); the `down` candidate lists route to whichever is populated. The cast grid and `manage_tools` have `up` edges back to the actions row (spatial regions have a geometric "above"); the tree deliberately does not. Overlays without the attribute stay flat MODAL — right for confirms and small forms. See [UIDR-019](../../../decisions/user-interface/2026-08-07-019-detail-modal-two-regions.md).
 
 ### BACK and CLEAR Semantics
 
@@ -95,6 +95,8 @@ Pages with clearable state (filters, search) should implement `onClear()`. There
 ### URL Persistence (data-nav-remember)
 
 Sidebar links with `data-nav-remember` preserve the target page's query params across navigation. Implemented in `root.html.heex`. Pages must use query params + `handle_params` for this to work.
+
+Pages declare modal/overlay params (and one-shot triggers) in `data-nav-transient-params` on their root element — the remember script strips those before saving, so leaving a section closes its modals rather than re-opening them on return. A page that adds a URL-driven modal must add its param to that list.
 
 ## Checklist: Adding Input Nav to a New Page
 
@@ -118,6 +120,7 @@ All config changes go in `config.js`:
 | `data-page-behavior` | Page behavior to activate (`dashboard`, `library`, `review`, `settings`) |
 | `data-nav-default-zone` | Default zone for pages without zone tabs |
 | `data-nav-remember` | Sidebar link preserves target page URL across navigation |
+| `data-nav-transient-params` | On a page root: params stripped from the remembered URL (modal state, one-shot triggers) |
 | `data-entity-id` | Stable entity identifier on cards |
 | `data-detail-mode` | Presentation shell type (`modal`, `drawer`) |
 | `data-detail-nested` | Modal is below its root view (`true`/`false`) — read by orchestrator for layered BACK. Server-owned: the root view is entity-dependent |

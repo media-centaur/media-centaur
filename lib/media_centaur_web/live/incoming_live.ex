@@ -870,7 +870,12 @@ defmodule MediaCentaurWeb.IncomingLive do
       <%!-- data-nav-default-zone names the LAYOUT KEY in input config.js
             (like `library`/`home`), not a context within it — the nav graph
             is built from this value. --%>
-      <div class="relative" data-page-behavior="incoming" data-nav-default-zone="incoming">
+      <div
+        class="relative"
+        data-page-behavior="incoming"
+        data-nav-default-zone="incoming"
+        data-nav-transient-params="selected,title,plan,prowlarr_search"
+      >
         <%!-- Ambient movie image behind the page, same hero-candidate pool
               as home/library. Off when the user disables the Incoming
               backdrop preference. --%>

@@ -757,6 +757,33 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
                "[data-role='manage-toolbar'] button[phx-click='refresh_artwork']"
              )
     end
+
+    test "the toolbar card is its own nav zone, beside the list — not rows of it", %{
+      conn: conn,
+      tv_series: tv_series
+    } do
+      # The card is a horizontal strip: DOWN must drop past it into the
+      # ledger, with its buttons reachable by LEFT/RIGHT. That means a
+      # TOOLBAR-typed `manage_tools` region (config.js overlays.detail),
+      # never toolbar buttons walked as detail_list tree items.
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{tv_series.id}&view=info")
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='manage_tools'] button[phx-click='delete_all_prompt']"
+             )
+
+      assert has_element?(view, "[data-nav-zone='manage_tools'] button[phx-click='rematch']")
+
+      refute has_element?(
+               view,
+               "[data-nav-zone='detail_list'] button[phx-click='delete_all_prompt']"
+             )
+
+      # The ledger stays a detail_list tree; zones are siblings, never nested.
+      assert has_element?(view, "[data-nav-zone='detail_list'] [data-role='file-group-head']")
+      refute has_element?(view, "[data-nav-zone='detail_list'] [data-nav-zone='manage_tools']")
+    end
   end
 
   describe "Manage ledger auto-expand for small inventories" do

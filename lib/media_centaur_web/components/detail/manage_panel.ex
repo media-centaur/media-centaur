@@ -26,6 +26,16 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
   folder delete as a `data-nav-sub-item` inside it — so LEFT/RIGHT mean
   the same thing here as in the episode list (UIDR-019).
 
+  ## Navigation: two sibling zones
+
+  The sheet declares its own nav zones (the `:info` branch in
+  `DetailPanel` adds none): the toolbar card is a `manage_tools` TOOLBAR
+  — a horizontal strip navigates LEFT/RIGHT, and DOWN drops past it into
+  the ledger instead of walking its buttons as vertical steps — and the
+  ledger (with the playback bookkeeping under it) is the `detail_list`
+  TREE. Region edges live in `config.js` `overlays.detail`; the zones
+  are siblings and must never nest.
+
   Small inventories (≤ #{6} files total — typical movies) auto-expand:
   a single file hidden behind a chevron is bookkeeping, not calm. The
   expanded set is host state (`expanded_file_groups` in `EntityModal`),
@@ -112,7 +122,16 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
 
     ~H"""
     <div class="pt-3 space-y-5">
-      <div class="glass-inset rounded-xl p-3 space-y-3" data-role="manage-toolbar">
+      <%!-- The card is its own TOOLBAR nav region (`manage_tools`,
+            config.js overlays.detail): a horizontal strip navigates
+            LEFT/RIGHT, and DOWN drops past it into the ledger rather
+            than walking Delete-all → Rematch → … as vertical steps.
+            Sibling of the `detail_list` zone below — never nested. --%>
+      <div
+        class="glass-inset rounded-xl p-3 space-y-3"
+        data-role="manage-toolbar"
+        data-nav-zone="manage_tools"
+      >
         <div class="flex flex-wrap items-center gap-2">
           <.button
             :if={@files != []}
@@ -188,32 +207,37 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
         </div>
       </div>
 
-      <div :if={@files != []}>
-        <div class="flex items-center justify-between mb-2">
-          <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
-            Files
-          </span>
-          <span class="text-xs text-base-content/40">
-            {file_summary(@file_count, @total_size)}
-          </span>
+      <div data-nav-zone="detail_list" class="space-y-5">
+        <div :if={@files != []}>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">
+              Files
+            </span>
+            <span class="text-xs text-base-content/40">
+              {file_summary(@file_count, @total_size)}
+            </span>
+          </div>
+          <div class="space-y-1">
+            <.file_group
+              :for={group <- @file_groups}
+              group={group}
+              expanded={MapSet.member?(@expanded_dirs, group.dir)}
+              media_info_by_path={@media_info_by_path}
+              delete_confirm={@delete_confirm}
+              deleting={@deleting}
+            />
+          </div>
         </div>
-        <div class="space-y-1">
-          <.file_group
-            :for={group <- @file_groups}
-            group={group}
-            expanded={MapSet.member?(@expanded_dirs, group.dir)}
-            media_info_by_path={@media_info_by_path}
-            delete_confirm={@delete_confirm}
-            deleting={@deleting}
-          />
-        </div>
-      </div>
 
-      <%!-- Playback bookkeeping the files carry: detected subtitle
-            languages (movies) and the per-entity remembered track
-            override. Administration, not show information. --%>
-      <SubtitlesRow.subtitles_row languages={@subtitle_languages} understood={@understood_languages} />
-      <TrackOverrideBadge.track_override_badge entity={@entity} />
+        <%!-- Playback bookkeeping the files carry: detected subtitle
+              languages (movies) and the per-entity remembered track
+              override. Administration, not show information. --%>
+        <SubtitlesRow.subtitles_row
+          languages={@subtitle_languages}
+          understood={@understood_languages}
+        />
+        <TrackOverrideBadge.track_override_badge entity={@entity} />
+      </div>
     </div>
     """
   end

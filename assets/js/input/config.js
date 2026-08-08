@@ -19,6 +19,7 @@ export const inputConfig = {
     // and its items fail `checkVisibility()`, so these count zero until it
     // opens — no modal scoping needed on the selectors.
     detail_actions: "[data-nav-zone='detail_actions'] [data-nav-item]",
+    manage_tools: "[data-nav-zone='manage_tools'] [data-nav-item]",
     detail_list: "[data-nav-zone='detail_list'] [data-nav-item]",
     detail_cast: "[data-nav-zone='detail_cast'] [data-nav-item]",
     [Context.TOOLBAR]: "[data-nav-zone='toolbar'] [data-nav-item]",
@@ -84,6 +85,7 @@ export const inputConfig = {
     // walks the two grid sections and the Show more button without an
     // adjacency table.
     detail_actions: Context.TOOLBAR,
+    manage_tools: Context.TOOLBAR,
     detail_list: Context.TREE,
     detail_cast: Context.SHELF,
   },
@@ -105,9 +107,15 @@ export const inputConfig = {
   // a dead end.
   overlays: {
     detail: {
-      entry: ["detail_actions", "detail_list", "detail_cast"],
+      entry: ["detail_actions", "manage_tools", "detail_list", "detail_cast"],
       layout: {
-        detail_actions: { down: ["detail_list", "detail_cast"] },
+        // manage_tools is the Manage sub-view's toolbar card — a horizontal
+        // strip (Delete all, Rematch, Refresh artwork, ID links) that is its
+        // own TOOLBAR region so DOWN drops past it instead of walking it.
+        // Empty in the other sub-views, where the candidate list falls
+        // through to whichever body is populated.
+        detail_actions: { down: ["manage_tools", "detail_list", "detail_cast"] },
+        manage_tools: { up: ["detail_actions"], down: ["detail_list"], back: ["detail_actions"] },
         detail_list: { back: ["detail_actions"] },
         detail_cast: { up: ["detail_actions"], back: ["detail_actions"] },
       },

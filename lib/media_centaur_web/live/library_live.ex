@@ -341,7 +341,12 @@ defmodule MediaCentaurWeb.LibraryLive do
       review_pending={assigns[:review_pending] || 0}
       mapping_pending={assigns[:mapping_pending] || 0}
     >
-      <div class="relative" data-page-behavior="library" data-nav-default-zone="library">
+      <div
+        class="relative"
+        data-page-behavior="library"
+        data-nav-default-zone="library"
+        data-nav-transient-params="selected,view,autoplay"
+      >
         <%!-- Calm backdrop band behind the header — a sense of place that
               ties the browse page to the home page's visual language without
               a full hero. Masked + dimmed by `.page-atmosphere`. Off when the
