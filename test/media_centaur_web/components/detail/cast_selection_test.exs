@@ -86,6 +86,18 @@ defmodule MediaCentaurWeb.Components.Detail.CastSelectionTest do
     end
   end
 
+  describe "show_filter?/1" do
+    test "a cast within one page needs no filter input" do
+      refute CastSelection.show_filter?(@cast)
+      refute CastSelection.show_filter?([])
+    end
+
+    test "a cast beyond one page shows the filter input" do
+      big_cast = Enum.map(1..(CastSelection.page_size() + 1), fn _index -> hd(@cast) end)
+      assert CastSelection.show_filter?(big_cast)
+    end
+  end
+
   describe "match_count/2" do
     test "an empty query counts the whole cast" do
       assert CastSelection.match_count(@cast, "") == 5

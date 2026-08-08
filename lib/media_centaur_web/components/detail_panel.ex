@@ -20,6 +20,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.Hero
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.CastPanel
+  alias MediaCentaurWeb.Components.Detail.CastSelection
   alias MediaCentaurWeb.Components.Detail.MetadataRow
   alias MediaCentaurWeb.Components.Detail.PlayCard
   alias MediaCentaurWeb.Components.Detail.SubtitlesRow
@@ -123,6 +124,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     metadata_items = build_metadata_items(assigns.entity)
     tagline = tagline_for(assigns.entity)
 
+    description_right? =
+      assigns.entity.type in [:movie, :tv_series] && assigns.entity.description not in [nil, ""]
+
     assigns =
       assigns
       |> assign(:expanded_seasons, expanded_seasons)
@@ -135,9 +139,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         assigns.available &&
           (image_url(assigns.entity, "backdrop") || image_url(assigns.entity, "poster"))
       )
+      |> assign(:description_right?, description_right?)
       |> assign(
-        :description_right?,
-        assigns.entity.type in [:movie, :tv_series] && assigns.entity.description not in [nil, ""]
+        :cast_filter_in_header?,
+        assigns.detail_view == :cast && description_right? &&
+          CastSelection.show_filter?(assigns.entity[:cast] || [])
       )
       |> assign(:progress_by_key, progress_by_key)
       |> assign(:resume_episode_key, resume_episode_key)
@@ -282,6 +288,16 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               <p class="text-[15px] leading-relaxed text-base-content/75 line-clamp-6 max-w-[72ch]">
                 {@entity.description}
               </p>
+              <%!-- Cast-view only: the filter lives here, in the pinned
+                    orientation block, rather than in the scrolling sheet —
+                    it fills the slack under the synopsis and stays reachable
+                    however deep the grid is scrolled. cast_panel renders its
+                    own inline fallback when this column doesn't exist. --%>
+              <CastPanel.cast_filter_form
+                :if={@cast_filter_in_header?}
+                filter={@cast_filter}
+                class="mt-4 flex justify-end"
+              />
             </div>
             <div
               :if={@facets != []}
@@ -316,6 +332,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               cast_filter={@cast_filter}
               cast_limit={@cast_limit}
               resume_episode_key={@resume_episode_key}
+              filter_in_header?={@cast_filter_in_header?}
             />
           <% :info -> %>
             <.info_view
