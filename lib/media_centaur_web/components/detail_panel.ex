@@ -249,8 +249,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         <%!-- pt-6 (vs the p-4 sides): the progress hairline sits flush on
               the hero window's bottom edge, so the block below needs
               extra clearance to read as separate from the progress
-              track. --%>
-        <div class="px-4 pb-4 pt-6">
+              track. Bottom padding is two different distances: against a
+              content list below (TV, collections) it is internal rhythm
+              and stays tight; on a content-fit panel (bare movie) it is
+              the clearance between the synopsis and the panel's rounded
+              bottom edge, which needs real breathing room. --%>
+        <div class={["px-4 pt-6", (@has_scrollable_content && "pb-4") || "pb-8"]}>
           <%!-- Two real columns sharing one top line: identity facts +
                 play controls on the left, prose (or the movie-series
                 facet strip) on the right. The metadata row lives INSIDE
