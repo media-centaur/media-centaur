@@ -138,6 +138,13 @@ opened from.
   body is a `detail_cast` photo grid (SHELF, geometry-resolved) rather than
   the tree. A spatial grid has a geometric "above", so its top row climbs to
   the action row on UP. The tree keeps the original rule.
+  *Amended again 2026-08-08:* the tree read as a dead end too — UP from the
+  Manage ledger's first folder row stopped dead under the toolbar card. The
+  tree's top now follows a graph `up` edge like everything else (through
+  `manage_tools` when Manage is showing, else to the action row), and the
+  orchestrator consults the graph at a TREE's up/down wall the way it already
+  did for MENU. BACK remains the one-press way out from any depth; UP is now
+  simply the one-row way up, everywhere.
 * Neutral, because "two regions" became "two regions, except Manage has
   three". *Amended 2026-08-08 (Manage sheet overhaul):* the Manage sub-view's
   toolbar card — Delete all, Rematch, Refresh artwork, the ID links on one

@@ -1037,9 +1037,13 @@ export class Orchestrator {
         }
         this._executeDirective(wallDirective)
       }
-      // Up/down wall on MENU → try nav graph neighbor
+      // Up/down wall on MENU or TREE → try nav graph neighbor. For a TREE the
+      // edge exists only where the layout declares one (the Manage toolbar
+      // card above the folder ledger — UIDR-019 amended); with no edge,
+      // contextWall returns NONE and the wall stays a wall.
       else if ((direction === "up" || direction === "down") &&
-               contextType(context, this._config.instanceTypes) === Context.MENU) {
+               (contextType(context, this._config.instanceTypes) === Context.MENU ||
+                contextType(context, this._config.instanceTypes) === Context.TREE)) {
         this._saveContextMemory()
         const wallDirective = this.focusMachine.contextWall(context, direction)
         if (wallDirective.type === "enter_sidebar") {

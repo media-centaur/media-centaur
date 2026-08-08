@@ -101,9 +101,11 @@ export const inputConfig = {
   // Only one body zone is in the DOM at a time (the sub-views swap it), so
   // the candidate list on `down` routes to whichever body is populated.
   //
-  // The tree deliberately has no `up` edge — up at its top stays put and BACK
-  // is the way out (UIDR-019). The cast grid does have one: a spatial region
-  // has a geometric "above", and stopping dead under the action row reads as
+  // Every region climbs on UP at its top — stopping dead under whatever sits
+  // above read as a dead end each time it was tried (UIDR-019, twice
+  // amended). The tree's `up` candidates route through the Manage toolbar
+  // card when it exists; a spatial region (the cast grid) has a geometric
+  // "above", and stopping dead under the action row reads as
   // a dead end.
   overlays: {
     detail: {
@@ -116,7 +118,7 @@ export const inputConfig = {
         // through to whichever body is populated.
         detail_actions: { down: ["manage_tools", "detail_list", "detail_cast"] },
         manage_tools: { up: ["detail_actions"], down: ["detail_list"], back: ["detail_actions"] },
-        detail_list: { back: ["detail_actions"] },
+        detail_list: { up: ["manage_tools", "detail_actions"], back: ["detail_actions"] },
         detail_cast: { up: ["detail_actions"], back: ["detail_actions"] },
       },
     },
