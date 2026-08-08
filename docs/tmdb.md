@@ -66,7 +66,7 @@ HTTP client using `Req` with base URL `https://api.themoviedb.org/3`. Endpoints:
 | `search_tv/3` | `GET /search/tv` | Search TV series by title + optional year |
 | `get_movie/2` | `GET /movie/{id}` | Movie details with credits, release dates, images |
 | `get_tv/2` | `GET /tv/{id}` | TV series details with images |
-| `get_season/3` | `GET /tv/{id}/season/{n}` | Season details with episode list |
+| `get_season/3` | `GET /tv/{id}/season/{n}` | Season details with episode list + appended `credits` (per-episode cast membership) |
 | `get_collection/2` | `GET /collection/{id}` | Movie collection details with images |
 
 Every request calls `RateLimiter.wait()` first and emits telemetry for wait duration and request latency.

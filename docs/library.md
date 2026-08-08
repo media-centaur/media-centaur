@@ -135,9 +135,12 @@ TV season. One per entity per season number.
 
 ### Episode
 
-TV episode within a season. Stores per-episode `content_url`.
+TV episode within a season. `content_url` is virtual — materialised from the
+WatchedFile chain at read time. `cast_person_ids` is the episode's cast
+membership (season regulars + guest stars) as TMDB person ids referencing the
+parent series' aggregate-cast embeds.
 
-**Key attributes:** `episode_number`, `name`, `description`, `duration`, `content_url`
+**Key attributes:** `episode_number`, `name`, `description`, `duration_seconds`, `date_published`, `cast_person_ids`
 
 ### Movie (child)
 

@@ -219,6 +219,11 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     `"thumb"` for the episode-row render). Defaults to `[]` so consumers
     that dot-access `:images` cannot `KeyError` on episodes without
     artwork.
+
+    `:cast_person_ids` is the episode's cast membership — TMDB person
+    ids referencing the parent series' aggregate-cast embeds (see
+    `Library.Episode`). Read by the Cast view to lead with the
+    play-target episode's cast. `[]` for pre-backfill rows.
     """
 
     @enforce_keys [:episode_id, :playable_item_id, :season_number, :episode_number, :name]

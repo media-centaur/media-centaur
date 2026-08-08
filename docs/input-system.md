@@ -430,7 +430,7 @@ on every re-render.
 item. `config.entryAnchors` names them (`{ hero: 0 }`): the home hero's whole
 job is "press play", so arriving from any direction lands on Play rather than
 on whichever CTA was focused last. This is a product rule, so it is declared
-rather than inferred — geometry would pick *More info* when you arrive from a
+rather than inferred — geometry would pick *Cast* when you arrive from a
 right-ward Continue Watching card, and plain memory would pick whatever you
 touched last. Anchors do **not** apply on reconcile.
 
@@ -449,7 +449,7 @@ comes off page by page as each is reviewed. See
 - **Zone change:** Clears grid + toolbar memory (content is new)
 - **Sort change:** Clears grid memory (order changed, positions meaningless)
 - **Modal/drawer dismiss:** Restores to the originating card via `_originEntityId`
-- **Modal sub-view transition:** When BACK fires in a modal carrying `data-detail-nested="true"`, the orchestrator pushes `close_detail` without dismissing focus context. The server owns that flag rather than the client comparing a view name to `"main"` — the detail modal's root view is entity-dependent (a movie with no extras has no body tab and opens on More info, which *is* its root). Sets `_pendingModalRefocus = true`, and `_syncState` refocuses the overlay's entry region after LiveView patches the DOM. This prevents focus from falling to the grid when morphdom removes the sub-view's focused element.
+- **Modal sub-view transition:** When BACK fires in a modal carrying `data-detail-nested="true"`, the orchestrator pushes `close_detail` without dismissing focus context. The server owns that flag rather than the client comparing a view name to `"main"` — the detail modal's root view is entity-dependent (a movie with no extras has no body tab and opens on Cast, which *is* its root). Sets `_pendingModalRefocus = true`, and `_syncState` refocuses the overlay's entry region after LiveView patches the DOM. This prevents focus from falling to the grid when morphdom removes the sub-view's focused element.
 
 **Active item detection:** `reader.getActiveItemIndex(context)` finds the first item in a context with any "active" marker class from `config.activeClassNames`. When adding a new context with an active-item visual, add the class to the `activeClassNames` array in `config.js`.
 
