@@ -25,19 +25,25 @@ describe("pinReserve — how much of the scrollport the pinned block claims", ()
 
 describe("sheetMaxRise — how far the sheet replica may rise behind the pinned block", () => {
   // The replica's gradient zero-point rests blockHeight − reach below the
-  // block's top edge; the cap brings it exactly to the top and no further,
-  // so the block keeps the partial ramp instead of the full plateau.
-  test("caps the rise at the distance from the resting anchor to the block top", () => {
-    expect(sheetMaxRise({ blockHeight: 420, reach: 128 })).toBe(292)
+  // block's top edge; the cap lets it climb to the top plus the overshoot,
+  // so the block settles on a chosen slice of the ramp, never sliding on
+  // to the full plateau.
+  test("caps the rise at the block top plus the overshoot", () => {
+    expect(sheetMaxRise({ blockHeight: 420, reach: 128, overshoot: 128 })).toBe(420)
+  })
+
+  test("zero overshoot stops the zero-point exactly at the block top", () => {
+    expect(sheetMaxRise({ blockHeight: 420, reach: 128, overshoot: 0 })).toBe(292)
   })
 
   test("rounds to whole pixels", () => {
-    expect(sheetMaxRise({ blockHeight: 420.6, reach: 128.2 })).toBe(292)
+    expect(sheetMaxRise({ blockHeight: 420.6, reach: 128.2, overshoot: 0 })).toBe(292)
   })
 
-  // A block shorter than the reach already rests with the zero-point above
-  // its top edge — any rise would darken past the cap, so the replica parks.
-  test("parks the replica when the block is shorter than the reach", () => {
-    expect(sheetMaxRise({ blockHeight: 100, reach: 128 })).toBe(0)
+  // A block shorter than reach − overshoot already rests with the
+  // zero-point above its cap — any rise would darken past it, so the
+  // replica parks.
+  test("parks the replica when the resting anchor is already past the cap", () => {
+    expect(sheetMaxRise({ blockHeight: 100, reach: 128, overshoot: 0 })).toBe(0)
   })
 })

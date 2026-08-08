@@ -152,14 +152,16 @@ test.describe("detail pinned-backdrop geometry", () => {
     // The illusion's invariant: the replica's top edge must coincide with
     // the real sheet's top edge (= #detail-content's top, whose
     // background IS the sheet) — one conceptual sheet, split across the
-    // backing boundary — until the rise cap freezes the replica with its
-    // top at the block's top edge, past which it must STAY there while
-    // the content keeps moving (the block keeps the partial darkening
-    // ramp, never the full plateau). Both regimes collapse to one
-    // constant-free expectation: replica top == max(content top, block
-    // top). Depth 150 exercises the tracking regime; 1500 is deeper
-    // than any plausible cap (blockHeight − reach), so it exercises the
-    // frozen regime.
+    // backing boundary — until the rise cap freezes the replica, past
+    // which it must STAY put while the content keeps moving (the block
+    // settles on the overshoot's slice of the darkening ramp, never the
+    // full plateau). Both regimes collapse to one constant-free
+    // expectation: replica top == max(content top, frozen top), where
+    // the frozen resting place derives from the published cap — block
+    // top + (blockHeight − reach − maxRise), layout px scaled to rect
+    // space by the root zoom. Depth 150 exercises the tracking regime;
+    // 1500 is deeper than any plausible cap, so it exercises the frozen
+    // regime.
     for (const depth of [150, 1500]) {
       const delta = await page.evaluate(async ({ pinScroll, depth }) => {
         const scroller = document.querySelector("#detail-scrollport")
@@ -171,10 +173,15 @@ test.describe("detail pinned-backdrop geometry", () => {
         const content = document.querySelector("#detail-content")
         const block = document.querySelector(".detail-orientation")
         if (!sheet || !content || !block) return { missing: true }
-        const expected = Math.max(
-          content.getBoundingClientRect().top,
-          block.getBoundingClientRect().top
+        const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1
+        const maxRise = parseFloat(
+          getComputedStyle(scroller).getPropertyValue("--detail-sheet-max-rise")
         )
+        const reach = -parseFloat(getComputedStyle(content).marginTop)
+        const frozenTop =
+          block.getBoundingClientRect().top +
+          (block.offsetHeight - reach - maxRise) * zoom
+        const expected = Math.max(content.getBoundingClientRect().top, frozenTop)
         return {
           dt: sheet.getBoundingClientRect().top - expected,
           maxRisePublished: getComputedStyle(scroller)

@@ -45,17 +45,22 @@ export function pinReserve({ pinInset, blockHeight, portHeight, minRoom = 96 }) 
  *
  * The replica's gradient zero-point rests `blockHeight − reach` below the
  * block's top edge (backing box bottom − 2rem − reach; see
- * `.orientation-backing-sheet`). Rising exactly that far brings the zero-point
- * to the block's top: the block then carries the gradient's partial ramp —
- * enough darkening to keep the lockup readable — and deeper scrolling never
- * advances it to the full plateau.
+ * `.orientation-backing-sheet`). The cap lets it climb that far plus the
+ * overshoot: at the freeze the block's top edge sits `overshoot` deep in the
+ * gradient ramp, so the overshoot IS the darkness dial
+ * (`--detail-sheet-overshoot` — each stop of the ramp it advances past adds
+ * that stop's alpha behind the lockup). Deeper scrolling never advances it
+ * further, so the block settles on that slice of the ramp, never the full
+ * plateau.
  *
  * @param {Object} m
  * @param {number} m.blockHeight - the orientation block's height
  * @param {number} m.reach - --detail-sheet-reach, how far the sheet's box
  *   extends up behind the block at rest
+ * @param {number} m.overshoot - --detail-sheet-overshoot, how far past the
+ *   block's top edge the zero-point may climb
  * @returns {number}
  */
-export function sheetMaxRise({ blockHeight, reach }) {
-  return Math.max(0, Math.round(blockHeight - reach))
+export function sheetMaxRise({ blockHeight, reach, overshoot }) {
+  return Math.max(0, Math.round(blockHeight - reach + overshoot))
 }
