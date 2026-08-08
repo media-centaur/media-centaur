@@ -661,9 +661,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         expanded_seasons: expanded_seasons,
         tracking_status: tracking_status
       )
-      |> Phoenix.Component.assign(
-        per_selection_assigns(socket.assigns, selected_entry, selection_changed)
-      )
+      |> Phoenix.Component.assign(per_selection_assigns(socket.assigns, selection_changed))
 
     if should_load_files?, do: start_async_files_load(socket, selected_id), else: socket
   end
@@ -676,9 +674,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # cast as "no matches".
   #
   # Grouped rather than reset inline so adding the next one is a line here
-  # instead of another branch in `apply_modal_params/2`. `cast_limit` is
-  # the one type-dependent seed: a movie's cast grid opens at a single
-  # row (`CastSelection.initial_limit/1`).
+  # instead of another branch in `apply_modal_params/2`.
   @per_selection_defaults %{
     expanded_item_details: MapSet.new(),
     all_episode_details_open: false,
@@ -687,16 +683,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     expanded_file_groups: nil
   }
 
-  defp per_selection_assigns(_assigns, selected_entry, true = _selection_changed),
-    do: %{@per_selection_defaults | cast_limit: CastSelection.initial_limit(entry_type(selected_entry))}
+  defp per_selection_assigns(_assigns, true = _selection_changed), do: @per_selection_defaults
 
-  defp per_selection_assigns(assigns, _selected_entry, false = _selection_changed),
+  defp per_selection_assigns(assigns, false = _selection_changed),
     do: Map.take(assigns, Map.keys(@per_selection_defaults))
-
-  defp entry_type(%SeriesDetail{}), do: :tv_series
-  defp entry_type(%CollectionDetail{}), do: :movie_series
-  defp entry_type(%{entity: %{type: type}}), do: type
-  defp entry_type(_entry), do: nil
 
   # Only TV carries a season accordion; movie / movie-series entries load
   # as plain maps and open with nothing expanded.
