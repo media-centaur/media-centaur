@@ -178,7 +178,7 @@ defmodule MediaCentaurWeb.Components.ModalShell do
 
   Answered here rather than in JS because the root view is entity-dependent:
   a title with no contents of its own (a movie with no extras) has no body
-  tab and opens on More info, which is its root. The client used to infer
+  tab and opens on Cast, which is its root. The client used to infer
   this by comparing the view name to `"main"`, which got that case wrong in
   both directions — BACK left focus trapped in an overlay the server had
   already dismissed.

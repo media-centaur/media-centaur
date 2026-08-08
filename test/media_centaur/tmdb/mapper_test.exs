@@ -290,7 +290,7 @@ defmodule MediaCentaur.TMDB.MapperTest do
       assert "Story" in jobs
       assert "Original Music Composer" in jobs
       # Below-the-line crew (Key Grip) is filtered out — we only keep
-      # roles users care about on the More info panel.
+      # roles users care about on the Cast panel.
       refute "Key Grip" in jobs
 
       director = Enum.find(result.crew, &(&1["job"] == "Director"))

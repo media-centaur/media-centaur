@@ -326,7 +326,7 @@ defmodule MediaCentaur.TMDB.Mapper do
 
   @doc """
   Extracts the structured crew list from a TMDB credits payload. Filters
-  to roles users care about on the More info panel (director, writers,
+  to roles users care about on the Cast panel (director, writers,
   composer, DP, editor, producer) and sorts by a fixed display priority
   so directors appear above writers, etc. String keys (not atoms) so the
   value round-trips through SQLite/JSON without atom conversion friction.
