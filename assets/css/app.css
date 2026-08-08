@@ -1362,6 +1362,30 @@ body:has(.modal-backdrop[data-state="open"]) {
   outline: none;
 }
 
+/* Mouse mode: keep soft/ghost nav buttons in their resting look under
+   :focus-visible. The input system re-asserts focus programmatically after
+   every LiveView patch (orchestrator _reconcileFocus), and programmatic
+   focus() matches :focus-visible in Chromium — daisyUI's btn-soft/btn-ghost
+   recipes are gated on :not(:focus-visible), so the focused control repaints
+   as a solid button while the user is just mousing (and toggles with window
+   focus under focus-follows-mouse). These rules replicate daisyUI's resting
+   recipes; :not(:hover) leaves real hover/press feedback to daisyUI. */
+[data-input=mouse] [data-nav-item].btn-soft:focus-visible:not(:hover) {
+  --btn-shadow: "";
+  --btn-fg: var(--btn-color, var(--color-base-content));
+  --btn-bg: color-mix(in oklab, var(--btn-color, var(--color-base-content)) 8%, var(--color-base-100));
+  --btn-border: color-mix(in oklab, var(--btn-color, var(--color-base-content)) 10%, var(--color-base-100));
+  --btn-noise: none;
+}
+
+[data-input=mouse] [data-nav-item].btn-ghost:focus-visible:not(:hover) {
+  --btn-shadow: "";
+  --btn-bg: #0000;
+  --btn-border: #0000;
+  --btn-fg: currentColor;
+  --btn-noise: none;
+}
+
 /* Keyboard/gamepad focus ring — primary color glow */
 [data-input=keyboard] [data-nav-item]:focus,
 [data-input=gamepad] [data-nav-item]:focus {
