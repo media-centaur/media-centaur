@@ -718,7 +718,7 @@ body:has(.modal-backdrop[data-state="open"]) {
 }
 
 /* ── Detail orientation block ──
-   Identity lockup + season hairline + metadata/controls/synopsis, pinned
+   Identity lockup + progress hairline + metadata/controls/synopsis, pinned
    as one unit (2026-08-05 sticky-orientation design). Native sticky —
    no scroll listeners, no snap points; momentum and interruption behave
    exactly like normal scrolling. The negative margin seats the block
@@ -1317,7 +1317,7 @@ body:has(.modal-backdrop[data-state="open"]) {
 
 /* ── Orientation Hairline ──
    Luminous progress line pinned to the detail hero's bottom edge — the
-   current season's fraction for TV, the whole collection's for a movie
+   series' watched fraction for TV, the whole collection's for a movie
    series. Coordinated glow across track/fill/leading edge — custom CSS
    per the multi-element-system rule. */
 

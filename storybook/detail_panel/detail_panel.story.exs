@@ -228,7 +228,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             "season from `Orientation.initial_expanded_seasons/1`); it is the " <>
             "**completed-series** state, where there is no next episode and the " <>
             "rows serve as a compact rewatch index. Play controls left, synopsis " <>
-            "right (top-aligned, no rule), season hairline on the hero's bottom " <>
+            "right (top-aligned, no rule), progress hairline on the hero's bottom " <>
             "edge. The PlayCard renders no progress row for TV.",
         attributes: Map.put(tv_series_attrs(), :expanded_seasons, MapSet.new())
       },

@@ -173,29 +173,6 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
     end
   end
 
-  # --- compute_progress_fraction/1 ---
-
-  describe "compute_progress_fraction/1" do
-    test "returns 0 for nil" do
-      assert LibraryProgress.compute_progress_fraction(nil) == 0
-    end
-
-    test "computes percentage from position and duration" do
-      progress = %{episode_position_seconds: 300.0, episode_duration_seconds: 600.0}
-      assert LibraryProgress.compute_progress_fraction(progress) == 50.0
-    end
-
-    test "returns 0 when duration is zero" do
-      progress = %{episode_position_seconds: 100.0, episode_duration_seconds: 0}
-      assert LibraryProgress.compute_progress_fraction(progress) == 0
-    end
-
-    test "rounds to one decimal place" do
-      progress = %{episode_position_seconds: 1.0, episode_duration_seconds: 3.0}
-      assert LibraryProgress.compute_progress_fraction(progress) == 33.3
-    end
-  end
-
   # --- format_human_duration/1 ---
 
   describe "format_human_duration/1" do

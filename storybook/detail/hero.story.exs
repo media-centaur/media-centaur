@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.Storybook.Detail.Hero do
   @moduledoc """
   Detail-panel hero window — the transparent 21:9 frame at the top of
   the detail document. The panel-level *fixed* backdrop shows through
-  it; the identity lockup and season hairline live in the orientation
+  it; the identity lockup and progress hairline live in the orientation
   block below (see `DetailPanel`), which overlaps this frame at rest
   and pins on scroll (2026-08-05 sticky-orientation design).
 

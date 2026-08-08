@@ -218,6 +218,56 @@ defmodule MediaCentaur.LibraryTest do
       assert row.progress_pct == 55
     end
 
+    test "tv_series progress_pct counts only present episodes in the denominator" do
+      series = create_tv_series(%{name: "Partial Files Show"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
+
+      [first_episode, _second_episode] =
+        for episode_number <- 1..2 do
+          create_episode(%{
+            season_id: season.id,
+            episode_number: episode_number,
+            name: "S1E#{episode_number}",
+            content_url: "/tv/partial/s01e#{episode_number}.mkv"
+          })
+        end
+
+      # A third episode record with no file — not watchable, so it must
+      # not dilute the bar.
+      _fileless =
+        create_episode(%{season_id: season.id, episode_number: 3, name: "S1E3"})
+
+      create_watch_progress(%{
+        episode_id: first_episode.id,
+        position_seconds: 1000.0,
+        duration_seconds: 1000.0,
+        completed: true
+      })
+
+      [row] = Library.list_in_progress()
+      assert row.progress_pct == 50
+    end
+
+    test "movie_series progress_pct counts only present child movies in the denominator" do
+      ms = create_movie_series(%{name: "Partial Trilogy"})
+      part1 = create_movie(%{movie_series_id: ms.id, name: "Part 1", position: 0})
+      part2 = create_movie(%{movie_series_id: ms.id, name: "Part 2", position: 1})
+      # Third child record has no file — it must not dilute the bar.
+      _part3 = create_movie(%{movie_series_id: ms.id, name: "Part 3", position: 2})
+      record_present(create_linked_file(%{movie_id: part1.id}))
+      record_present(create_linked_file(%{movie_id: part2.id}))
+
+      create_watch_progress(%{
+        movie_id: part1.id,
+        position_seconds: 100.0,
+        duration_seconds: 100.0,
+        completed: true
+      })
+
+      [row] = Library.list_in_progress()
+      assert row.progress_pct == 50
+    end
+
     test "does not return completed progress" do
       movie = create_standalone_movie(%{name: "Watched Movie"})
       record_present(create_linked_file(%{movie_id: movie.id}))
@@ -311,8 +361,9 @@ defmodule MediaCentaur.LibraryTest do
       watched = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
       unwatched = create_episode(%{season_id: season.id, episode_number: 2, name: "S1E2"})
       watched_item = create_playable_item_for_episode(watched)
-      _unwatched_item = create_playable_item_for_episode(unwatched)
+      unwatched_item = create_playable_item_for_episode(unwatched)
       record_present(create_linked_file(%{playable_item_id: watched_item.id}))
+      record_present(create_linked_file(%{playable_item_id: unwatched_item.id}))
 
       create_watch_progress(%{
         episode_id: watched.id,
@@ -341,7 +392,8 @@ defmodule MediaCentaur.LibraryTest do
           create_episode(%{
             season_id: season.id,
             episode_number: episode_number,
-            name: "S1E#{episode_number}"
+            name: "S1E#{episode_number}",
+            content_url: "/tv/#{name_prefix}-#{index}/s01e#{episode_number}.mkv"
           })
 
         create_watch_progress(%{
@@ -406,10 +458,22 @@ defmodule MediaCentaur.LibraryTest do
           series = create_tv_series(%{name: "Series #{index}"})
           season = create_season(%{tv_series_id: series.id, season_number: 1, name: "S1"})
 
-          # Two episodes, one watched and one not, so the series counts as
-          # started-but-unfinished.
-          watched = create_episode(%{season_id: season.id, episode_number: 1, name: "S1E1"})
-          create_episode(%{season_id: season.id, episode_number: 2, name: "S1E2"})
+          # Two present episodes, one watched and one not, so the series
+          # counts as started-but-unfinished.
+          watched =
+            create_episode(%{
+              season_id: season.id,
+              episode_number: 1,
+              name: "S1E1",
+              content_url: "/tv/series-#{index}/s01e01.mkv"
+            })
+
+          create_episode(%{
+            season_id: season.id,
+            episode_number: 2,
+            name: "S1E2",
+            content_url: "/tv/series-#{index}/s01e02.mkv"
+          })
 
           progress =
             create_watch_progress(%{
@@ -433,7 +497,11 @@ defmodule MediaCentaur.LibraryTest do
           watched =
             create_movie(%{movie_series_id: collection.id, name: "Part 1 of #{index}", position: 0})
 
-          create_movie(%{movie_series_id: collection.id, name: "Part 2 of #{index}", position: 1})
+          unwatched =
+            create_movie(%{movie_series_id: collection.id, name: "Part 2 of #{index}", position: 1})
+
+          record_present(create_linked_file(%{movie_id: watched.id}))
+          record_present(create_linked_file(%{movie_id: unwatched.id}))
 
           progress =
             create_watch_progress(%{
@@ -756,7 +824,12 @@ defmodule MediaCentaur.LibraryTest do
 
       [ep1, _ep2, _ep3] =
         for ep_num <- 1..3 do
-          create_episode(%{season_id: season.id, episode_number: ep_num, name: "S1E#{ep_num}"})
+          create_episode(%{
+            season_id: season.id,
+            episode_number: ep_num,
+            name: "S1E#{ep_num}",
+            content_url: "/media/test/half-watched-s01e#{ep_num}.mkv"
+          })
         end
 
       create_watch_progress(%{

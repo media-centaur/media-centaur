@@ -11,12 +11,12 @@ defmodule MediaCentaurWeb.ViewModel.Orientation do
   (2026-08-05).
 
   Two constructors, one struct. `for_series/2` derives from the
-  `SeasonView` list — the hairline reads the *current season*'s
+  `SeasonView` list — the hairline reads the *whole series*' watched
   fraction, and season/series counts come from the same
   `SeasonView.watched_count`/`total_count` the accordion headers render,
   so the hero and the season rows can never disagree. `for_collection/1`
   derives from the `MovieListItem` list — the hairline reads the whole
-  collection's fraction, since a collection has no intermediate unit.
+  collection's fraction, the same unit.
   Leaf titles (a bare movie) build no orientation: they are not
   positions in a set, and their PlayCard keeps the percent/remaining row
   instead. `:future` seasons and `Upcoming` parts are excluded from all
@@ -71,9 +71,9 @@ defmodule MediaCentaurWeb.ViewModel.Orientation do
   series with every library episode watched has no next episode and no
   current season.
 
-  `:fraction` is the current season's watched share — full for a
-  completed series (finished, not empty), zero when nothing identifies a
-  current season yet. `:autoscroll?` is true only mid-series: an
+  `:fraction` is the series' watched share across all library seasons —
+  full for a completed series (finished, not empty), zero when the
+  library holds no episodes yet. `:autoscroll?` is true only mid-series: an
   unstarted series has a *first* episode, not a next one — there is no
   position to return to, so it opens on the hero with season 1 expanded
   underneath; a completed series expands nothing and so has nothing to
@@ -103,7 +103,7 @@ defmodule MediaCentaurWeb.ViewModel.Orientation do
         next: next,
         season: season,
         series: series,
-        fraction: season_fraction(season),
+        fraction: series_fraction(series),
         autoscroll?: state == :in_progress and season != nil
       }
     end
@@ -166,8 +166,8 @@ defmodule MediaCentaurWeb.ViewModel.Orientation do
 
   # --- Derivation ---
 
-  defp season_fraction(%{watched: watched, total: total}) when total > 0, do: watched / total
-  defp season_fraction(_season), do: 0.0
+  defp series_fraction(%{watched: watched, total: total}) when total > 0, do: watched / total
+  defp series_fraction(_series), do: 0.0
 
   defp series_counts(library_seasons) do
     watched = library_seasons |> Enum.map(&(&1.watched_count || 0)) |> Enum.sum()

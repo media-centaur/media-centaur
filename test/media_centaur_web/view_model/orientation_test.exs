@@ -142,12 +142,24 @@ defmodule MediaCentaurWeb.ViewModel.OrientationTest do
   end
 
   describe "for_series/2 fraction" do
-    test "fraction of the current season watched" do
-      seasons = [library_season(1, 9, 22, resume_target: true)]
+    test "fraction of the whole series watched, not just the current season" do
+      seasons = [
+        library_season(1, 10, 10),
+        library_season(2, 9, 22, resume_target: true),
+        library_season(3, 0, 8)
+      ]
 
-      orientation = Orientation.for_series(seasons, resume_hint(1, 10))
+      orientation = Orientation.for_series(seasons, resume_hint(2, 10))
 
-      assert_in_delta orientation.fraction, 9 / 22, 0.0001
+      assert_in_delta orientation.fraction, 19 / 40, 0.0001
+    end
+
+    test "future seasons are excluded from the fraction" do
+      seasons = [library_season(1, 3, 10, resume_target: true), future_season(2)]
+
+      orientation = Orientation.for_series(seasons, resume_hint(1, 4))
+
+      assert_in_delta orientation.fraction, 3 / 10, 0.0001
     end
 
     test "full for a completed series — the hairline reads finished, not empty" do

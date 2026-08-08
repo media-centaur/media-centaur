@@ -7,8 +7,9 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   use MediaCentaurWeb, :html
 
   import MediaCentaurWeb.LibraryFormatters, only: [format_type: 1]
-  import MediaCentaurWeb.LibraryProgress, only: [compute_progress_fraction: 1]
   import MediaCentaurWeb.LiveHelpers, only: [poster_src: 1]
+
+  alias MediaCentaur.Library.ContinueWatchingProgress
 
   # --- Poster Card ---
 
@@ -22,7 +23,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   attr :progress, :map,
     default: nil,
     doc:
-      "Progress summary for this entry — `nil` when the entry has no `WatchProgress` row, otherwise a map with `:episode_position_seconds` / `:episode_duration_seconds` (drives the progress bar) and `:episodes_completed` / `:episodes_total` (drives the completion overlay)."
+      "Progress summary for this entry — `nil` when the entry has no `WatchProgress` row, otherwise a map with `:episodes_completed` / `:episodes_total` and `:episode_position_seconds` / `:episode_duration_seconds`. The progress bar shows the entry-wide watched share via `ContinueWatchingProgress.compute_pct/1` — same measure as the Continue Watching row and the detail hairline."
 
   attr :selected, :boolean, default: false
   attr :playing, :boolean, default: false
@@ -95,12 +96,12 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   end
 
   defp card_progress_bar(%{progress: progress} = assigns) do
-    fraction = compute_progress_fraction(progress)
-    assigns = assign(assigns, :fraction, fraction)
+    percent = ContinueWatchingProgress.compute_pct(progress)
+    assigns = assign(assigns, :percent, percent)
 
     ~H"""
-    <div :if={@fraction > 0} class="absolute bottom-0 left-0 right-0 h-[3px] bg-base-content/20">
-      <div class="h-full bg-primary progress-fill" style={"width: #{@fraction}%"} />
+    <div :if={@percent > 0} class="absolute bottom-0 left-0 right-0 h-[3px] bg-base-content/20">
+      <div class="h-full bg-primary progress-fill" style={"width: #{@percent}%"} />
     </div>
     """
   end
