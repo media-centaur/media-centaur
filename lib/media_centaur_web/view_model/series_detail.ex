@@ -11,9 +11,11 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
   `compose/2` does the cross-context fetch and delegates to `build/4`,
   which is pure and unit-tested without a database.
 
-  Movie / movie_series entities are not handled here — they go through
-  `Library.ModalEntry.load/1` directly, since their detail pages don't
-  surface release-tracking data.
+  Movie collections have their own composer with the same shape
+  (`MediaCentaurWeb.ViewModel.CollectionDetail`); leaf kinds (movie /
+  video_object) load as plain maps via `Library.ModalEntry`. The detail
+  modal's single loader (`MediaCentaurWeb.Live.EntityModal`) resolves
+  the container kind once and dispatches between the three.
   """
 
   alias MediaCentaur.Library
@@ -59,18 +61,11 @@ defmodule MediaCentaurWeb.ViewModel.SeriesDetail do
 
   @doc """
   Loads + composes the view model for a TV series. Returns `:not_found`
-  if no `:tv_series` projection row matches `entity_id` — the caller
-  is expected to try its non-TV path (`Library.ModalEntry.load/1`) on
-  `:not_found`, which will succeed for movies / movie_series /
-  video_objects or itself return `:not_found` for truly orphan ids.
-
-  Previous versions probed `TypeResolver.resolve_container/2` on a miss
-  to differentiate "exists but wrong type" from "doesn't exist at all";
-  that probe issued up to 4 sequential `Repo.get` queries on every
-  non-TV modal open just to decide which branch the caller should
-  take. The branch decision is the same either way (try the non-TV
-  path), so the probe was pure waste — collapsed to a single
-  `:not_found` return.
+  if no `:tv_series` projection row matches `entity_id`. Callers reach
+  this through the detail modal's single loader, which resolves the
+  container kind via `MediaCentaur.Library.Presentable` first — so
+  `compose/1` is only ever asked about ids already known to present as
+  `:tv_series`, and its projection read is the data fetch, not a probe.
 
   Reads the Library half from `MediaCentaur.Library.Views.Detail`
   (Pillar-2 ETS projection, microsecond reads in production; falls

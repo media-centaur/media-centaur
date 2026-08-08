@@ -1142,6 +1142,89 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
+  describe "collection modal — typed content list" do
+    # The collection modal composes through `CollectionDetail` (the
+    # movie-side counterpart of `SeriesDetail`): typed `MovieListItem`
+    # rows, leaf-id watched toggles (`phx-value-container-id`, no
+    # ordinal round-trip), and the release-tracking overlay for
+    # announced parts of a tracked collection.
+
+    setup do
+      collection = create_movie_series(%{name: "Coherent Collection", tmdb_id: "888001"})
+
+      [part_1, part_2] =
+        for {name, position, date} <- [
+              {"Coherent Part 1", 0, ~D[2010-01-01]},
+              {"Coherent Part 2", 1, ~D[2013-01-01]}
+            ] do
+          part =
+            create_movie(%{
+              movie_series_id: collection.id,
+              name: name,
+              position: position,
+              date_published: date
+            })
+
+          create_linked_file(%{movie_id: part.id})
+          part
+        end
+
+      {:ok, collection: collection, part_1: part_1, part_2: part_2}
+    end
+
+    test "member movies render as typed rows with stable ids",
+         %{conn: conn, collection: collection, part_1: part_1, part_2: part_2} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+
+      assert has_element?(view, "#movie-row-#{part_1.id}", "Coherent Part 1")
+      assert has_element?(view, "#movie-row-#{part_2.id}", "Coherent Part 2")
+    end
+
+    test "the watched toggle addresses the movie by container id and flips live",
+         %{conn: conn, collection: collection, part_1: part_1} do
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+
+      refute has_element?(view, "#movie-row-#{part_1.id} button[aria-label='Mark unwatched']")
+
+      view
+      |> element(~s|button[phx-click="toggle_watched"][phx-value-container-id="#{part_1.id}"]|)
+      |> render_click()
+
+      assert_receive {:entity_progress_updated, %{entity_id: entity_id}}, 1000
+      assert entity_id == collection.id
+
+      assert {:ok, %{completed: true}} =
+               MediaCentaur.Library.ProgressRecords.fetch_for_container(:movie, part_1.id)
+
+      assert has_element?(view, "#movie-row-#{part_1.id} button[aria-label='Mark unwatched']")
+    end
+
+    test "a tracked collection lists its announced next part",
+         %{conn: conn, collection: collection} do
+      item =
+        create_tracking_item(%{
+          tmdb_id: 888_001,
+          media_type: :movie,
+          name: "Coherent Collection",
+          library_container_type: :movie_series,
+          library_container_id: collection.id
+        })
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: Date.add(Date.utc_today(), 45),
+        title: "Coherent Part 3",
+        part_tmdb_id: 900_888
+      })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+
+      assert has_element?(view, "[data-role='upcoming-movie-row']", "Coherent Part 3")
+    end
+  end
+
   describe "live updates from availability" do
     test "availability_changed broadcast does not crash and re-renders",
          %{conn: conn} do

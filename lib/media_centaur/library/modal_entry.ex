@@ -55,11 +55,27 @@ defmodule MediaCentaur.Library.ModalEntry do
     # lands on the sole movie), then we build the view for the resolved
     # kind. `to_entity_map/1` keys off the projection's `presented_as`, so
     # the resolved kind and the built entity always agree.
-    with {kind, resolved_id} <- Presentable.resolve(id),
-         item when not is_nil(item) <- present_detail_for(kind, resolved_id) do
-      {:ok, build_modal_entry(kind, item, resolved_id)}
-    else
+    case Presentable.resolve(id) do
+      {kind, resolved_id} -> load_resolved(kind, resolved_id)
       _ -> :not_found
+    end
+  end
+
+  @doc """
+  Builds the modal entry for an id whose presentable kind the caller has
+  already resolved via `MediaCentaur.Library.Presentable.resolve/1`.
+
+  The detail modal's loader (`MediaCentaurWeb.Live.EntityModal`) resolves
+  once to dispatch between the per-kind composers, then calls this for the
+  leaf kinds — re-resolving here would repeat those queries per open.
+  """
+  @spec load_resolved(atom(), Ecto.UUID.t()) ::
+          {:ok, %{entity: map(), progress: map() | nil, progress_records: list()}}
+          | :not_found
+  def load_resolved(kind, id) do
+    case present_detail_for(kind, id) do
+      nil -> :not_found
+      item -> {:ok, build_modal_entry(kind, item, id)}
     end
   end
 

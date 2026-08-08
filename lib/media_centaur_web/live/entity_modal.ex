@@ -66,6 +66,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.ModalShell
+  alias MediaCentaurWeb.ViewModel.CollectionDetail
   alias MediaCentaurWeb.ViewModel.Orientation
   alias MediaCentaurWeb.ViewModel.SeriesDetail
   alias MediaCentaurWeb.{LibraryProgress, LiveHelpers}
@@ -160,26 +161,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
       # --- Watch progress ---
 
-      def handle_event(
-            "toggle_watched",
-            %{"entity-id" => entity_id, "season" => season_str, "episode" => episode_str},
-            socket
-          ) do
-        season_number = String.to_integer(season_str)
-        episode_number = String.to_integer(episode_str)
-
-        {fk_key, fk_id} =
-          EntityModal.resolve_progress_fk(
-            socket.assigns.selected_entry,
-            entity_id,
-            season_number,
-            episode_number
-          )
-
-        # Local DB upsert + PubSub broadcast — fast, runs synchronously
-        # (ADR-044/049). The UI updates via the broadcast, not a return.
-        EntityModal.toggle_watch_progress(entity_id, fk_key, fk_id)
-        {:noreply, socket}
+      def handle_event("toggle_watched", params, socket) do
+        EntityModal.handle_toggle_watched(params, socket)
       end
 
       def handle_event(
@@ -439,14 +422,14 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   # Release-tracking updates: refetch the open entry when the open
-  # entity is a TV series so its `seasons_view` reflects the new
-  # releases. The selectivity check is loose (we refetch on any
-  # releases_updated for any item) — release updates are infrequent
-  # compared to playback ticks, so the extra query is a fair price for
-  # not threading a library-entity-id resolver through the broadcast
-  # message.
+  # entity carries a release overlay (TV `seasons_view`, collection
+  # `movies` list) so it reflects the new releases. The selectivity
+  # check is loose (we refetch on any releases_updated for any item) —
+  # release updates are infrequent compared to playback ticks, so the
+  # extra query is a fair price for not threading a
+  # library-entity-id resolver through the broadcast message.
   def handle_modal_pubsub({:releases_updated, _item_ids}, socket) do
-    if tv_series_selected?(socket) do
+    if release_overlay_selected?(socket) do
       {:cont, refresh_selected_entry(socket)}
     else
       {:cont, socket}
@@ -454,7 +437,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   def handle_modal_pubsub({:item_removed, _tmdb_id, _tmdb_type}, socket) do
-    if tv_series_selected?(socket) do
+    if release_overlay_selected?(socket) do
       {:cont, refresh_selected_entry(socket)}
     else
       {:cont, socket}
@@ -475,9 +458,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   # matches the open selection). Re-applies only when still relevant.
   def handle_modal_pubsub(_msg, socket), do: {:cont, socket}
 
-  defp tv_series_selected?(socket) do
+  defp release_overlay_selected?(socket) do
     case socket.assigns[:selected_entry] do
-      %{entity: %{type: :tv_series}} -> true
+      %{entity: %{type: type}} when type in [:tv_series, :movie_series] -> true
       _ -> false
     end
   end
@@ -505,6 +488,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       %SeriesDetail{} = sd ->
         records = LibraryProgress.merge_progress_record(sd.progress_records, changed_record)
         updated = SeriesDetail.with_progress(sd, summary, records, resume_target)
+        Phoenix.Component.assign(socket, :selected_entry, updated)
+
+      %CollectionDetail{} = cd ->
+        records = LibraryProgress.merge_progress_record(cd.progress_records, changed_record)
+        updated = CollectionDetail.with_progress(cd, summary, records, resume_target)
         Phoenix.Component.assign(socket, :selected_entry, updated)
 
       entry ->
@@ -574,9 +562,10 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   loads the selected entry on demand, and assigns the modal slice on
   the socket. Returns the updated socket.
 
-  - `selected` UUID → loads via `Library.ModalEntry.load/1`. If the
-    entity doesn't exist or has no present file, the modal stays closed
-    (selected_entry: nil).
+  - `selected` UUID → resolved via `Library.Presentable` and composed by
+    the matching loader (`SeriesDetail` / `CollectionDetail` /
+    `Library.ModalEntry`). If the entity doesn't exist or has no present
+    file, the modal stays closed (selected_entry: nil).
   - `view=info` → opens the file/info pane inside the modal.
   - `autoplay=1` → fires `Playback.play/1` once for the loaded entity
     (used by Continue Watching cards and the Hero "Play" button).
@@ -641,7 +630,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
     tracking_status =
       cond do
-        selection_changed && match?(%SeriesDetail{}, selected_entry) ->
+        selection_changed &&
+            (match?(%SeriesDetail{}, selected_entry) || match?(%CollectionDetail{}, selected_entry)) ->
           # Composer already resolved tracking_status; trust the struct.
           selected_entry.tracking_status
 
@@ -817,6 +807,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       resume={@selected_entry && Map.get(@selected_entry, :resume_target)}
       progress_records={(@selected_entry && @selected_entry.progress_records) || []}
       seasons_view={MediaCentaurWeb.Live.EntityModal.seasons_view_from_entry(@selected_entry)}
+      movies_view={MediaCentaurWeb.Live.EntityModal.movies_view_from_entry(@selected_entry)}
       expanded_seasons={@expanded_seasons}
       expanded_episode_details={@expanded_episode_details}
       all_episode_details_open={@all_episode_details_open}
@@ -850,12 +841,67 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   def seasons_view_from_entry(%SeriesDetail{seasons: seasons}), do: seasons
   def seasons_view_from_entry(_), do: nil
 
+  @doc """
+  Extracts the typed `[%MovieListItem{}]` list from a `selected_entry`.
+  Returns `nil` for non-collection entries (TV / movie / no entry).
+  """
+  @spec movies_view_from_entry(CollectionDetail.t() | map() | nil) :: list() | nil
+  def movies_view_from_entry(%CollectionDetail{movies: movies}), do: movies
+  def movies_view_from_entry(_), do: nil
+
   # ---------------------------------------------------------------------------
   # Internals shared with the macro (callable from injected handle_event)
   # ---------------------------------------------------------------------------
 
   @doc false
   def playing?(playback, entity_id), do: Map.has_key?(playback, entity_id)
+
+  @doc """
+  Flips a row's watched state. Two addressings, dispatched on the params:
+
+    * Leaf-id — the row names its own container outright
+      (`container-type` + `container-id`), no ordinal / season-episode
+      round-trip through the entry. Collection movie rows send this
+      today; TV episode rows converge onto it in the
+      collection-detail-coherence campaign's final stage, at which
+      point the season/episode form retires.
+    * Season/episode — resolved to the container through the loaded
+      entry (`resolve_progress_fk/4`).
+
+  Local DB upsert + PubSub broadcast — fast, runs synchronously
+  (ADR-044/049). The UI updates via the broadcast, not a return.
+  """
+  @spec handle_toggle_watched(map(), Phoenix.LiveView.Socket.t()) ::
+          {:noreply, Phoenix.LiveView.Socket.t()}
+  def handle_toggle_watched(
+        %{"entity-id" => entity_id, "container-type" => container_type, "container-id" => container_id},
+        socket
+      ) do
+    toggle_watch_progress(entity_id, parse_container_type(container_type), container_id)
+    {:noreply, socket}
+  end
+
+  def handle_toggle_watched(
+        %{"entity-id" => entity_id, "season" => season_str, "episode" => episode_str},
+        socket
+      ) do
+    {fk_key, fk_id} =
+      resolve_progress_fk(
+        socket.assigns.selected_entry,
+        entity_id,
+        String.to_integer(season_str),
+        String.to_integer(episode_str)
+      )
+
+    toggle_watch_progress(entity_id, fk_key, fk_id)
+    {:noreply, socket}
+  end
+
+  # The container-type atom a row's `phx-value-container-type` names.
+  # Explicit clauses — never `String.to_atom/1` on client input.
+  defp parse_container_type("movie"), do: :movie
+  defp parse_container_type("episode"), do: :episode
+  defp parse_container_type("video_object"), do: :video_object
 
   @doc """
   Toggles one season's accordion expansion. `expanded_seasons` holds
@@ -1335,29 +1381,35 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   # The single loader both the fresh open (`load_entry_or_nil/1`) and
   # the post-mutation refresh (`refresh_selected_entry/1`) go through, so
-  # the two paths can never disagree on an entry's shape. A TV series goes
-  # through `SeriesDetail.compose/1` and becomes a `%SeriesDetail{}` struct
-  # carrying a typed `seasons` list + cached `releases`; every other type
-  # stays the `%{entity, progress, progress_records, resume_target}` map.
-  # Both shapes carry the same fields the modal renderer reads, so the
+  # the two paths can never disagree on an entry's shape. The container
+  # kind is resolved exactly once (`Library.Presentable.resolve/1` — the
+  # same hoist authority every read surface consults) and dispatched to
+  # the matching composer: TV becomes a `%SeriesDetail{}`, a collection a
+  # `%CollectionDetail{}` — typed content lists + cached `releases` — and
+  # leaf kinds (movie / video_object) stay the
+  # `%{entity, progress, progress_records, resume_target}` map from
+  # `ModalEntry.load_resolved/2` (leaves have no content list to type).
+  # All shapes carry the same fields the modal renderer reads, so the
   # template doesn't branch on entry type — but the renderer reads the
-  # episode list *only* off `%SeriesDetail{}.seasons`. When refresh loaded
-  # a series via the plain-map loader instead, that list silently dropped
+  # content lists *only* off the composed structs. When refresh loaded a
+  # series via the plain-map loader instead, that list silently dropped
   # and the modal's episode list vanished after a player close.
   defp load_entry(id) do
-    case SeriesDetail.compose(id) do
-      {:ok, %SeriesDetail{} = sd} ->
-        {:ok, sd}
+    case Library.Presentable.resolve(id) do
+      {:tv_series, resolved_id} ->
+        SeriesDetail.compose(resolved_id)
 
-      # `SeriesDetail.compose/1` returns `:not_found` for any id that isn't
-      # a TV series, including ids that ARE existing movies / video_objects
-      # / movie_series. Falling through to `Library.ModalEntry.load/1`
-      # opens those modals; a truly orphan id returns `:not_found` there too.
-      :not_found ->
-        case Library.ModalEntry.load(id) do
+      {:movie_series, resolved_id} ->
+        CollectionDetail.compose(resolved_id)
+
+      {kind, resolved_id} ->
+        case Library.ModalEntry.load_resolved(kind, resolved_id) do
           {:ok, entry} -> {:ok, put_resume_target(entry)}
           :not_found -> :not_found
         end
+
+      :not_found ->
+        :not_found
     end
   end
 

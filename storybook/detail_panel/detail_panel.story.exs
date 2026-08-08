@@ -139,6 +139,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   # exported and stays aliased.
   alias MediaCentaur.Library.{Person, WatchedFile}
   alias MediaCentaurWeb.ViewModel.EpisodeListItem
+  alias MediaCentaurWeb.ViewModel.MovieListItem
   alias MediaCentaurWeb.ViewModel.SeasonView
 
   def function, do: &MediaCentaurWeb.Components.DetailPanel.detail_panel/1
@@ -314,8 +315,19 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
           "`:movie_series` with three child movies (chronological). Movie 2 is " <>
             "partially watched and gets the resume target border; movie 1 is " <>
             "completed (dimmed); movie 3 is unwatched. `playback_props/3` " <>
-            "produces **Resume Movie 2**.",
+            "produces **Resume Movie 2**. `movies_view` is the typed " <>
+            "`[%MovieListItem{}]` contract — the collection content list reads " <>
+            "exclusively from it.",
         attributes: movie_series_attrs()
+      },
+      %Variation{
+        id: :movie_series_with_upcoming,
+        description:
+          "Tracked collection with an announced fourth part: the " <>
+            "`MovieListItem.Upcoming` row renders muted after the library " <>
+            "movies, with the air-date pill (release-tracking overlay, same " <>
+            "idiom as TV's upcoming episode rows).",
+        attributes: movie_series_with_upcoming_attrs()
       },
       %Variation{
         id: :info_view_with_files,
@@ -939,6 +951,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       }
     ]
 
+    [m1_item, m2_item, m3_item] = movie_series_items(entity, progress_records)
+
     %{
       entity: entity,
       progress: %{
@@ -950,10 +964,38 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       },
       resume: nil,
       progress_records: progress_records,
+      movies_view: [m1_item, m2_item, m3_item],
       available: true,
       tmdb_ready: true,
       expanded_seasons: MapSet.new()
     }
+  end
+
+  defp movie_series_with_upcoming_attrs do
+    base = movie_series_attrs()
+
+    upcoming = %MovieListItem.Upcoming{
+      part_tmdb_id: 900_004,
+      title: "Sample Picture IV",
+      air_date: Date.add(Date.utc_today(), 45),
+      sub_status: :unaired
+    }
+
+    %{base | movies_view: base.movies_view ++ [upcoming]}
+  end
+
+  # Typed `MovieListItem.Library` fixtures mirroring what
+  # `CollectionDetail.build/4` composes: movie 1 watched, movie 2
+  # current + resume target, movie 3 unwatched.
+  defp movie_series_items(entity, progress_records) do
+    [m1, m2, m3] = entity.movies
+    [p1, p2] = progress_records
+
+    [
+      %MovieListItem.Library{movie: m1, progress: p1, state: :watched, is_resume_target: false},
+      %MovieListItem.Library{movie: m2, progress: p2, state: :current, is_resume_target: true},
+      %MovieListItem.Library{movie: m3, progress: nil, state: :unwatched, is_resume_target: false}
+    ]
   end
 
   defp sample_movie_series_entity do
