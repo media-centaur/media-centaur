@@ -680,6 +680,14 @@ export class Orchestrator {
   _enterContext(context, direction) {
     this._subFocusIndex = null
     this._subItemIndex = null
+
+    // Travelling into a zone (a spatial crossing) lets it declare a resting
+    // scroll — the detail action row glides its modal back to the top. BACK
+    // ("back") and post-patch restores (null) are not travel: the user is
+    // escaping or the DOM is settling, and the viewport stays put. Whether a
+    // zone declares anything is the writer's business.
+    if (direction && direction !== "back") this.writer.scrollZoneToTop(context)
+
     const anchor = this._config.entryAnchors?.[context]
     if (anchor != null && this.reader.getItemCount(context) > anchor) {
       this.writer.focusByIndex(context, anchor)

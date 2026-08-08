@@ -376,6 +376,7 @@ layer out.
 | `data-nav-return-focus` | On a control that grows its own list (Show more): after SELECT's patch lands, the cursor returns to the item it came from — grounding the user before the new items get walked | — |
 | `data-nav-reveal` | Scroll THIS ancestor into view instead of the focused item (hero: show the whole backdrop, not just the CTA) | — |
 | `data-nav-reveal-block` | Block-axis alignment for the reveal, instead of "scroll the least" | `start`, `center`, `end` |
+| `data-nav-enter-scroll-top` | On a zone container: a spatial crossing into the zone glides its nearest scrollable ancestor to the top. For pinned zones, where reveal is rightly a no-op (detail action row: climbing out of the episode list brings the hero back). BACK and post-patch restores don't move the scroll | — |
 | `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children | — |
 | `data-nav-focus-ring` | Receive delegated focus ring when ancestor `data-nav-focus-target` item is focused | — |
 | `data-nav-context` | Current focus context for hint bar (set on `<html>`) | `grid`, `sidebar`, `modal`, etc. |

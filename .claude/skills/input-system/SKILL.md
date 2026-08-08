@@ -130,6 +130,7 @@ All config changes go in `config.js`:
 | `data-nav-return-focus` | On a control that grows its own list (Show more): after SELECT's patch lands, the cursor returns to the item it came from |
 | `data-nav-reveal` | Scroll THIS ancestor into view instead of the focused item — required when a surface's items differ in height, or each frames itself |
 | `data-nav-reveal-block` | Block-axis alignment for the reveal (`start`/`center`/`end`), so a surface rests in one place whichever way it was approached |
+| `data-nav-enter-scroll-top` | On a zone container: spatially crossing into the zone glides its nearest scrollable ancestor to the top — for pinned zones where reveal is a no-op (detail action row). BACK/restores don't move the scroll |
 | `data-nav-focus-target` | Suppress focus ring on this nav item — delegate to `data-nav-focus-ring` children |
 | `data-nav-focus-ring` | Receive delegated focus ring when ancestor `data-nav-focus-target` item is focused |
 | `data-nav-overlay` | Overlay navigates as regions per `config.overlays[name]` (`detail`) |

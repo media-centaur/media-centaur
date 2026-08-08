@@ -638,3 +638,113 @@ describe("writer reveal suppression", () => {
     expect(glider.glideCalls).toEqual(["cancelAll"])
   })
 })
+
+// ---------------------------------------------------------------------------
+// scrollZoneToTop — a pinned zone is visible at every scroll offset, so the
+// reveal has nothing to do when the cursor arrives there. But arriving BY
+// TRAVELLING means the user has climbed out of the body, and a zone that
+// declares `data-nav-enter-scroll-top` wants the surface reset under it: the
+// detail modal's action row lives in the sticky orientation block, and rowing
+// up out of the episode list should bring the hero back, not leave the modal
+// parked deep in season three.
+// ---------------------------------------------------------------------------
+
+describe("scrollZoneToTop — a declaring zone rests its scroller at the top", () => {
+  const ZONE_CONFIG = {
+    contextSelectors: { detail_actions: "[data-nav-zone='detail_actions'] [data-nav-item]" },
+  }
+
+  // modal body scroller > sticky orientation block > zone > item — the real
+  // shape of the detail modal's action row. The sticky block is exactly what
+  // makes revealItem a no-op here, and exactly what this walk must step
+  // through: the scroller worth resetting is OUTSIDE the pin.
+  function pinnedZone({ declares = true } = {}) {
+    const scroller = {
+      scrollLeft: 7, scrollTop: 900,
+      scrollHeight: 3000, clientHeight: 700,
+      parentElement: null,
+      __style: { position: "static", overflowX: "hidden", overflowY: "auto" },
+    }
+    const sticky = {
+      parentElement: scroller,
+      __style: { position: "sticky", overflowX: "visible", overflowY: "visible" },
+    }
+    const zone = {
+      parentElement: sticky,
+      hasAttribute: attr => declares && attr === "data-nav-enter-scroll-top",
+    }
+    const item = {
+      dataset: {},
+      hasAttribute: () => false,
+      checkVisibility: () => true,
+      closest: selector => (selector === "[data-nav-zone]" ? zone : null),
+      parentElement: zone,
+      focus() {},
+    }
+    return { item, scroller }
+  }
+
+  function stubZoneDocument(item) {
+    const realDocument = globalThis.document
+    const realGetComputedStyle = globalThis.getComputedStyle
+    globalThis.document = {
+      activeElement: null,
+      querySelectorAll: selector =>
+        item && selector === ZONE_CONFIG.contextSelectors.detail_actions ? [item] : [],
+      querySelector: () => null,
+    }
+    globalThis.getComputedStyle = node =>
+      node.__style ?? { position: "static", overflowX: "visible", overflowY: "visible" }
+    restore = () => {
+      globalThis.document = realDocument
+      globalThis.getComputedStyle = realGetComputedStyle
+    }
+  }
+
+  function glideSpy() {
+    const glideCalls = []
+    return {
+      glideCalls,
+      glide(...args) { glideCalls.push(args) },
+      cancel() {},
+      cancelAll() {},
+      isGliding: () => false,
+    }
+  }
+
+  test("glides the nearest scrollable ancestor to the top, through the pin", () => {
+    const { item, scroller } = pinnedZone()
+    stubZoneDocument(item)
+    const glider = glideSpy()
+    const writer = createDomWriter({ ...ZONE_CONFIG, glider })
+
+    writer.scrollZoneToTop("detail_actions")
+
+    expect(glider.glideCalls).toEqual([[scroller, { left: 7, top: 0 }]])
+    // The glide owns the motion — nothing jumps.
+    expect(scroller.scrollTop).toBe(900)
+  })
+
+  test("a zone without the declaration is left where it is", () => {
+    const { item, scroller } = pinnedZone({ declares: false })
+    stubZoneDocument(item)
+    const glider = glideSpy()
+    const writer = createDomWriter({ ...ZONE_CONFIG, glider })
+
+    writer.scrollZoneToTop("detail_actions")
+
+    expect(glider.glideCalls).toEqual([])
+    expect(scroller.scrollTop).toBe(900)
+  })
+
+  test("an empty or unknown zone is a no-op", () => {
+    stubZoneDocument(null)
+    const glider = glideSpy()
+    const writer = createDomWriter({ ...ZONE_CONFIG, glider })
+
+    writer.scrollZoneToTop("detail_actions")
+    writer.scrollZoneToTop("nope")
+
+    expect(glider.glideCalls).toEqual([])
+  })
+})
