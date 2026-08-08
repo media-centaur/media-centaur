@@ -59,27 +59,19 @@ describe("Library behavior", () => {
     })
   })
 
-  describe("onZoneChanged() scroll reset", () => {
-    test("scrolls the page to the very top when focus reaches the toolbar", () => {
-      const dom = mockDom()
-      const behavior = createLibraryBehavior(dom)
+  // The behavior must never scroll the window itself. An instant scrollTo(0)
+  // on zone change fights the reveal glide already in flight: the jump reads
+  // as a jerk, and the glide's surviving target then drags the page back down,
+  // scrolling the toolbar and cursor off the top. The toolbar's resting place
+  // is declared on its markup (`data-nav-reveal-block="start"` + a page-top
+  // scroll-margin) so revealItem glides there — the single scroll owner.
+  test("does not scroll the window when focus reaches the toolbar — the reveal owns the scroll", () => {
+    const dom = mockDom()
+    const behavior = createLibraryBehavior(dom)
 
-      behavior.onZoneChanged(Context.TOOLBAR)
+    behavior.onZoneChanged?.(Context.TOOLBAR)
 
-      expect(dom.scrolledToTop).toBe(true)
-    })
-
-    test("does not scroll for non-toolbar contexts", () => {
-      const dom = mockDom()
-      const behavior = createLibraryBehavior(dom)
-
-      behavior.onZoneChanged(Context.GRID)
-      behavior.onZoneChanged(Context.MODAL)
-      behavior.onZoneChanged(Context.DRAWER)
-      behavior.onZoneChanged("sidebar")
-
-      expect(dom.scrolledToTop).toBe(false)
-    })
+    expect(dom.scrolledToTop).toBe(false)
   })
 
   describe("onSyncState()", () => {

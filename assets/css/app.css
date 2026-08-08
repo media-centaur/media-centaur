@@ -1461,6 +1461,18 @@ body:has(.modal-backdrop[data-state="open"]) {
   scroll-margin-block: var(--nav-ring-reserve);
 }
 
+/* A reveal subject whose resting place is the very top of the PAGE, not its
+   own top edge — the library toolbar sits below the page header, and cursoring
+   up into it should show the header too. Pair with
+   `data-nav-reveal-block="start"`: the oversized margin makes the requested
+   scroll position negative, which the browser clamps to 0, so the reveal
+   glide lands at the document top. This is destination-by-declaration — the
+   alternative, a page behavior calling scrollTo, is an instant jump that
+   fights the reveal glide already in flight. */
+.nav-reveal-page-top {
+  scroll-margin-top: 100vh;
+}
+
 /* Pre-set the ring color on UNfocused items too. Tailwind v4's
    `transition-colors` includes outline-color, so any nav item carrying it
    (e.g. the Incoming rows' hover-bg transition) would otherwise fade the
