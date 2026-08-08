@@ -571,10 +571,11 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
       assert Logic.resolve_view(%{type: :tv_series}, :info) == :info
     end
 
-    test "a movie with no extras opens on Cast instead of an empty body" do
-      # The improvement tabs buy for free: before this, such a movie opened
-      # on a body that rendered nothing at all.
-      assert Logic.resolve_view(%{type: :movie, extras: []}, :main) == :cast
+    test "a movie with no extras opens on its own hero page — Cast is a view you visit" do
+      # The bare movie's main view is the orientation block alone (title,
+      # Play, synopsis) — it fits without scrolling, and the Cast control
+      # beside Play leads to the grid, same shape as TV.
+      assert Logic.resolve_view(%{type: :movie, extras: []}, :main) == :main
     end
 
     test "a collection asked for Cast falls back to its movie list" do
@@ -598,8 +599,8 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
       assert Logic.body_label(%{type: :movie, extras: [%{owner_type: :movie}]}) == "Extras"
     end
 
-    test "no name when there is no body" do
-      assert Logic.body_label(%{type: :movie, extras: []}) == nil
+    test "a bare movie's root is its hero page — the return control reads Overview" do
+      assert Logic.body_label(%{type: :movie, extras: []}) == "Overview"
     end
   end
 
@@ -613,21 +614,18 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
 
       assert Logic.secondary_view(%{type: :movie, extras: [%{owner_type: :movie}]}, :main) ==
                :cast
+
+      assert Logic.secondary_view(%{type: :movie, extras: []}, :main) == :cast
     end
 
     test "off the root view it returns there, whichever view you are on" do
       assert Logic.secondary_view(%{type: :tv_series}, :cast) == :main
       assert Logic.secondary_view(%{type: :tv_series}, :info) == :main
-    end
-
-    test "a movie with no episode list returns to Cast, not to a body" do
-      # Its root *is* Cast, so that is where Manage goes back to — and the
-      # control has to be labelled for that, not for a list it does not have.
-      assert Logic.secondary_view(%{type: :movie, extras: []}, :info) == :cast
+      assert Logic.secondary_view(%{type: :movie, extras: []}, :cast) == :main
+      assert Logic.secondary_view(%{type: :movie, extras: []}, :info) == :main
     end
 
     test "no control when the root view is the only content view" do
-      assert Logic.secondary_view(%{type: :movie, extras: []}, :cast) == nil
       assert Logic.secondary_view(%{type: :movie_series}, :main) == nil
     end
 

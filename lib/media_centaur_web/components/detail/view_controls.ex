@@ -10,15 +10,15 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
 
   | destination | reads | glyph |
   |---|---|---|
-  | `:main` | `Logic.body_label/1` — *Episodes*, *Movies*, *Extras* | list |
+  | `:main` | `Logic.body_label/1` — *Episodes*, *Movies*, *Extras*, *Overview* | list |
   | `:cast` | *Cast* | people |
   | `nil` | nothing — Play's line carries only the cog | — |
 
   It is never labelled *Back*. "Episodes" says where you are going; "Back"
   only says it is not here, and what it means depends on which view you
-  happen to be in. The destination is not always the body, which is exactly
-  why the label has to follow it: a movie with no extras opens *on* Cast,
-  so Manage returns there and the control reads "Cast".
+  happen to be in. Every entity opens on its main view — for a bare movie
+  that is the hero page alone, so the control returning there from Cast or
+  Manage reads "Overview".
 
   One control, in one slot. Until 2026-08-07 there were two, each
   relabelling itself to "Back" when its own view was open, so the word moved
