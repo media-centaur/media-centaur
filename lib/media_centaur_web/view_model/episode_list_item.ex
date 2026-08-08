@@ -1,7 +1,7 @@
 defmodule MediaCentaurWeb.ViewModel.EpisodeListItem do
   @moduledoc """
   Tagged-struct ADT for items in a TV-series season's episode list, as
-  consumed by `MediaCentaurWeb.Components.DetailPanel.season_section/1`.
+  consumed by `MediaCentaurWeb.Components.Detail.SeasonList`.
 
   Three variants:
 

@@ -1,10 +1,15 @@
 defmodule MediaCentaurWeb.Components.DetailPanel do
   @moduledoc """
-  Shared entity detail content component, rendered inside ModalShell.
+  Shared entity detail content component, rendered inside ModalShell —
+  the orchestrating layout of the detail modal.
 
-  Displays hero (21:9 backdrop), identity (logo/title), metadata, description,
-  playback actions (Play/Resume button + progress bar), and type-specific content
-  lists (episodes for TV, movies for movie series).
+  Owns the hero (21:9 backdrop), the pinned orientation block (identity
+  lockup, hairline, metadata, play controls, synopsis), and the
+  type-dependent dispatch of the scrolling body: `Detail.SeasonList`
+  (TV), `Detail.CollectionList` (movie series), `Detail.ExtrasSection`
+  (leaves with bonus content), plus the Cast and Manage sub-views.
+  Row-level rendering lives in those modules; shared row chrome in
+  `Detail.PlayableRow`.
   """
 
   use MediaCentaurWeb, :html
@@ -12,20 +17,21 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   import MediaCentaurWeb.LiveHelpers
 
   import MediaCentaurWeb.LibraryFormatters,
-    only: [format_type: 1, extract_year: 1, format_human_duration: 1]
+    only: [format_type: 1, format_human_duration: 1]
 
+  alias MediaCentaurWeb.Components.Detail.CastPanel
+  alias MediaCentaurWeb.Components.Detail.CastSelection
+  alias MediaCentaurWeb.Components.Detail.CollectionList
+  alias MediaCentaurWeb.Components.Detail.ExtrasSection
   alias MediaCentaurWeb.Components.Detail.FacetStrip
   alias MediaCentaurWeb.Components.Detail.Hero
   alias MediaCentaurWeb.Components.Detail.Logic
-  alias MediaCentaurWeb.Components.Detail.CastPanel
-  alias MediaCentaurWeb.Components.Detail.CastSelection
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.Detail.MetadataRow
   alias MediaCentaurWeb.Components.Detail.PlayCard
+  alias MediaCentaurWeb.Components.Detail.SeasonList
   alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaurWeb.Components.Detail.ViewControls
-  alias MediaCentaurWeb.ViewModel.EpisodeListItem
-  alias MediaCentaurWeb.ViewModel.MovieListItem
   alias MediaCentaurWeb.ViewModel.Orientation
 
   # --- Public API ---
@@ -38,11 +44,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   @doc_progress "`MediaCentaur.Library.ProgressSummary.t() | nil` — composed at `Library.ModalEntry.load/1` from `list_progress_records_for_container/2` (Phase 3.2)."
   @doc_progress_records "list of `MediaCentaur.Library.WatchProgress.t()` rows for the entity's leaves; each carries a synthesised `:playable_item` `(container_type, container_id)` so `EpisodeList.progress_container_id/1` resolves to the leaf UUID."
   @doc_resume "resume target map `%{kind, season, episode, ...} | nil` — see `LibraryProgress.resume_target_for/1`."
-  @doc_extra_progress_by_id "`%{Ecto.UUID.t() => WatchProgress.t()}` keyed by extra id."
   @doc_detail_files "list of file-info maps (`%{file: KnownFile.t(), entity_id, role, ...}`) built by `LibraryLive.list_files_for_entity/2`."
   @doc_delete_confirm "pending inline-confirm target: `nil` | `:all` | `{:file, path}` | `{:folder, path}`. The host's `delete_*_prompt` handlers compare against this to decide whether the click is the first (set pending) or second (execute). `:any` is intentional — it's a sum type, not a single shape."
   @doc_deleting "in-flight delete target (same sum type as `delete_confirm`): `nil` | `:all` | `{:file, path}` | `{:folder, path}`. Set while the async deletion runs so the matching button shows \"Deleting…\" and all delete buttons disable. Distinct from `delete_confirm` (armed-but-not-yet-running) — see `delete_gesture_state/3`."
-  @doc_extra "`MediaCentaur.Library.Extra.t()` (Ecto schema) — TV bonus content."
 
   # --- Main Component ---
 
@@ -558,786 +562,52 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   # --- Content List (type-dependent) ---
+  #
+  # Thin dispatch on entity type: each branch hands the typed view-model
+  # list to its dedicated list component. Entity-level extras are
+  # filtered here (`Logic.entity_extras/1`) so the lists never see
+  # season-owned ones.
 
   defp content_list(%{entity: %{type: :tv_series}} = assigns) do
-    season_views = assigns.seasons_view || []
-    assigns = assign(assigns, :season_views, season_views)
-
     ~H"""
-    <div :if={@season_views != []} class="pt-3 space-y-3">
-      <%!-- Deliberately not a nav item: it belongs with the other list-wide
-            controls in Manage rather than sitting in the middle of the
-            keyboard path between the action row and the first season. Mouse
-            only until it moves there. --%>
-      <div class="flex justify-end">
-        <button
-          type="button"
-          phx-click="toggle_all_episode_details"
-          data-role="episode-details-toggle"
-          aria-pressed={to_string(@all_episode_details_open)}
-          class={[
-            "flex items-center gap-1.5 text-xs cursor-pointer rounded-md px-2 py-1 -my-1 transition-colors hover:bg-base-content/10",
-            if(@all_episode_details_open,
-              do: "text-base-content/70",
-              else: "text-base-content/40 hover:text-base-content/70"
-            )
-          ]}
-        >
-          <.icon name="hero-bars-3-bottom-left-mini" class="size-3.5" />
-          {if @all_episode_details_open, do: "Hide details", else: "Show details"}
-        </button>
-      </div>
-      <.season_section
-        :for={season_view <- @season_views}
-        season={season_view}
-        expanded={MapSet.member?(@expanded_seasons, season_view.season_number)}
-        expanded_episode_details={@expanded_episode_details}
-        all_episode_details_open={@all_episode_details_open}
-        extra_progress_by_id={@extra_progress_by_id}
-        entity_id={@entity.id}
-        on_play={@on_play}
-        spoiler_free={@spoiler_free}
-        available={@available}
-      />
-      <.extras_section
-        entity={@entity}
-        extra_progress_by_id={@extra_progress_by_id}
-        on_play={@on_play}
-      />
-    </div>
+    <SeasonList.season_list
+      seasons={@seasons_view || []}
+      entity_id={@entity.id}
+      expanded_seasons={@expanded_seasons}
+      expanded_episode_details={@expanded_episode_details}
+      all_episode_details_open={@all_episode_details_open}
+      extras={Logic.entity_extras(@entity)}
+      extra_progress_by_id={@extra_progress_by_id}
+      on_play={@on_play}
+      spoiler_free={@spoiler_free}
+      available={@available}
+    />
     """
   end
 
   defp content_list(%{entity: %{type: :movie_series}} = assigns) do
-    assigns =
-      assigns
-      |> assign(:movie_items, assigns.movies_view || [])
-      |> assign(:expanded_movie_details, assigns.expanded_movie_details || MapSet.new())
-
     ~H"""
-    <div class="pt-3">
-      <div :if={@movie_items != []}>
-        <.collection_item
-          :for={item <- @movie_items}
-          item={item}
-          details_open={
-            match?(%MovieListItem.Library{}, item) &&
-              MapSet.member?(@expanded_movie_details, item.movie.id)
-          }
-          entity_id={@entity.id}
-          on_play={@on_play}
-          spoiler_free={@spoiler_free}
-          available={@available}
-        />
-      </div>
-      <.extras_section
-        entity={@entity}
-        extra_progress_by_id={@extra_progress_by_id}
-        on_play={@on_play}
-      />
-    </div>
+    <CollectionList.collection_list
+      movie_items={@movies_view || []}
+      expanded_movie_details={@expanded_movie_details}
+      entity_id={@entity.id}
+      extras={Logic.entity_extras(@entity)}
+      extra_progress_by_id={@extra_progress_by_id}
+      on_play={@on_play}
+      spoiler_free={@spoiler_free}
+      available={@available}
+    />
     """
   end
 
   defp content_list(assigns) do
     ~H"""
-    <.extras_section entity={@entity} extra_progress_by_id={@extra_progress_by_id} on_play={@on_play} />
-    """
-  end
-
-  # --- Season Section ---
-
-  attr :season, :map,
-    required: true,
-    doc: "`%MediaCentaurWeb.ViewModel.SeasonView{}` — typed season bucket."
-
-  attr :expanded, :boolean, required: true
-
-  attr :expanded_episode_details, MapSet,
-    default: nil,
-    doc: "`{season_number, episode_number}` keys with open synopsis disclosures."
-
-  attr :all_episode_details_open, :boolean,
-    default: false,
-    doc: "list-level episode-details toggle — ORed with `expanded_episode_details` per row."
-
-  attr :extra_progress_by_id, :map, default: %{}, doc: @doc_extra_progress_by_id
-  attr :entity_id, :string, required: true
-  attr :on_play, :string, required: true
-  attr :spoiler_free, :boolean, default: false
-  attr :available, :boolean, default: true
-
-  defp season_section(assigns) do
-    ~H"""
-    <%!-- `data-nav-group` marks the disclosure: LEFT anywhere inside collapses
-          the season by finding this group's expanded head, which is also where
-          the cursor lands (the rows it was standing on are about to go away).
-          `aria-expanded` is the state — correct markup for a disclosure and the
-          only signal the input system reads, so there is no parallel attribute
-          saying the same thing. The id keeps morphdom from rebuilding the
-          header across that patch, which would drop focus. --%>
-    <div data-nav-group id={"season-#{@entity_id}-#{@season.season_number}"}>
-      <button
-        phx-click="toggle_season"
-        phx-value-season={@season.season_number}
-        aria-expanded={to_string(@expanded)}
-        class="flex items-baseline gap-2 w-full text-sm font-medium text-base-content/70 hover:text-base-content cursor-pointer"
-        data-nav-item
-        tabindex="0"
-      >
-        <.icon
-          name={if @expanded, do: "hero-chevron-down-mini", else: "hero-chevron-right-mini"}
-          class="size-4 self-center"
-        />
-        <span>{@season.name || "Season #{@season.season_number}"}</span>
-        <span class="flex-1" />
-        <span
-          :if={@season.kind == :library && !season_complete?(@season)}
-          class="text-xs text-base-content/40 tabular-nums"
-        >
-          {season_progress_label(@season.watched_count, @season.total_count)}
-        </span>
-        <.icon
-          :if={@season.kind == :library && season_complete?(@season)}
-          name="hero-check-mini"
-          class="size-3.5 self-center text-success"
-        />
-        <span :if={@season.kind == :future} class="text-xs text-base-content/40">
-          upcoming
-        </span>
-      </button>
-
-      <div :if={@expanded} class="mt-1">
-        <.season_item
-          :for={item <- @season.items}
-          item={item}
-          details_open={
-            @all_episode_details_open ||
-              MapSet.member?(
-                @expanded_episode_details || MapSet.new(),
-                {@season.season_number, item_episode_number(item)}
-              )
-          }
-          entity_id={@entity_id}
-          on_play={@on_play}
-          spoiler_free={@spoiler_free}
-          available={@available}
-        />
-        <.season_extras
-          extras={@season.extras || []}
-          extra_progress_by_id={@extra_progress_by_id}
-          entity_id={@entity_id}
-          on_play={@on_play}
-        />
-      </div>
-    </div>
-    """
-  end
-
-  # --- Season item dispatch ---
-  #
-  # Pattern-matches on the `EpisodeListItem` struct type. No tuple
-  # ADTs, no shape-guessing — the typed contract IS the dispatch
-  # criterion.
-
-  attr :item, :map, required: true, doc: "%EpisodeListItem.{Library | Missing | Upcoming}{}"
-  attr :details_open, :boolean, default: false
-  attr :entity_id, :string, required: true
-  attr :on_play, :string, required: true
-  attr :spoiler_free, :boolean, default: false
-  attr :available, :boolean, default: true
-
-  defp season_item(%{item: %EpisodeListItem.Library{}} = assigns) do
-    ~H"""
-    <.episode_row
-      item={@item}
-      details_open={@details_open}
-      entity_id={@entity_id}
+    <ExtrasSection.extras_section
+      extras={Logic.entity_extras(@entity)}
+      extra_progress_by_id={@extra_progress_by_id}
+      entity_id={@entity.id}
       on_play={@on_play}
-      spoiler_free={@spoiler_free}
-      available={@available}
     />
-    """
-  end
-
-  defp season_item(%{item: %EpisodeListItem.Missing{}} = assigns) do
-    ~H"""
-    <.missing_episode_row item={@item} />
-    """
-  end
-
-  defp season_item(%{item: %EpisodeListItem.Upcoming{}} = assigns) do
-    ~H"""
-    <.upcoming_episode_row item={@item} />
-    """
-  end
-
-  # --- Episode Row ---
-
-  attr :item, :map,
-    required: true,
-    doc: "`%MediaCentaurWeb.ViewModel.EpisodeListItem.Library{}` — typed library episode."
-
-  attr :details_open, :boolean,
-    default: false,
-    doc: "whether the synopsis/thumbnail disclosure below the dense row is open."
-
-  attr :entity_id, :string, required: true
-  attr :on_play, :string, required: true
-  attr :spoiler_free, :boolean, default: false
-  attr :available, :boolean, default: true
-
-  # Dense one-line row (2026-08-04 orientation design): number · title ·
-  # runtime · watched toggle. Synopsis + thumbnail render only behind the
-  # per-row disclosure — the list is an index, not a reading surface.
-  defp episode_row(assigns) do
-    assigns =
-      assigns
-      |> assign(:episode, assigns.item.episode)
-      |> assign(:season_number, assigns.item.season_number)
-      |> assign(:progress, assigns.item.progress)
-      |> assign(:state, assigns.item.state)
-      |> assign(:is_resume_target, assigns.item.is_resume_target)
-      |> assign(:thumbnail, image_url(assigns.item.episode, "thumb"))
-
-    ~H"""
-    <div
-      class={[
-        "px-2 py-1.5 rounded cursor-pointer hover:bg-base-content/5",
-        episode_row_class(@state, @is_resume_target)
-      ]}
-      data-role="episode-row"
-      data-resume-target={@is_resume_target || nil}
-      phx-click={@on_play}
-      phx-value-id={@episode.id}
-      data-nav-item
-      tabindex="0"
-    >
-      <div class="flex items-center gap-3 text-sm">
-        <span class={[
-          "w-6 flex-shrink-0 text-right font-mono text-xs tabular-nums",
-          if(@is_resume_target, do: "text-primary font-semibold", else: "text-base-content/50")
-        ]}>
-          {@episode.episode_number}
-        </span>
-        <span class={[
-          "flex-1 min-w-0 truncate text-base-content/90",
-          blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
-        ]}>
-          {@episode.name || "—"}
-        </span>
-        <button
-          :if={@episode.description || @thumbnail}
-          type="button"
-          phx-click="toggle_episode_details"
-          phx-value-season={@season_number}
-          phx-value-episode={@episode.episode_number}
-          data-nav-sub-item
-          class="flex-shrink-0 p-1.5 -m-1 rounded-md cursor-pointer text-base-content/30 hover:text-base-content/70 hover:bg-base-content/10 transition-colors"
-          aria-expanded={to_string(@details_open)}
-          aria-label={if @details_open, do: "Hide episode details", else: "Show episode details"}
-        >
-          <.icon
-            name={if @details_open, do: "hero-chevron-up-mini", else: "hero-chevron-down-mini"}
-            class="size-4"
-          />
-        </button>
-        <.watched_toggle
-          event="toggle_watched"
-          state={@state}
-          progress={@progress}
-          duration_seconds={@episode.duration_seconds}
-          phx-value-entity-id={@entity_id}
-          phx-value-season={@season_number}
-          phx-value-episode={@episode.episode_number}
-        />
-      </div>
-      <div :if={@details_open} class="mt-2 ml-9 mb-1 flex items-start gap-3">
-        <img
-          :if={@thumbnail && @available}
-          src={sized_image_url(@thumbnail, 240)}
-          class={[
-            "w-28 aspect-video rounded object-cover object-top flex-shrink-0",
-            blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
-          ]}
-        />
-        <p
-          :if={@episode.description}
-          class={[
-            "text-xs text-base-content/50 leading-relaxed",
-            blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
-          ]}
-        >
-          {@episode.description}
-        </p>
-      </div>
-      <div
-        :if={@state == :current}
-        class="mt-1 ml-9 h-0.5 rounded-full bg-base-content/10 overflow-hidden"
-      >
-        <div
-          class="h-full bg-info rounded-full"
-          style={"width: #{progress_percent(@progress)}%"}
-        />
-      </div>
-    </div>
-    """
-  end
-
-  # --- Missing Episode Row ---
-
-  attr :item, :map,
-    required: true,
-    doc: "`%MediaCentaurWeb.ViewModel.EpisodeListItem.Missing{}`"
-
-  defp missing_episode_row(assigns) do
-    ~H"""
-    <div
-      class="p-2 rounded opacity-30"
-      data-role="missing-episode-row"
-      data-nav-item
-      tabindex="0"
-    >
-      <div class="flex items-center gap-3 text-sm">
-        <span class="w-6 flex-shrink-0 text-right text-base-content/40 font-mono text-xs tabular-nums">
-          {@item.episode_number}
-        </span>
-        <span class="flex-1 min-w-0 truncate text-base-content/70 italic">
-          Episode {@item.episode_number}
-        </span>
-      </div>
-    </div>
-    """
-  end
-
-  # --- Upcoming Episode Row ---
-  #
-  # Visual contract (per `defaults/storybook` `:tv_series_with_upcoming_inline`
-  # and siblings): muted opacity, no thumbnail, no description, no
-  # watched toggle, no `phx-click` (not actionable in v1). Right-side
-  # date pill carries the air-date copy. `data-nav-item` is omitted —
-  # the row isn't focusable until it becomes clickable.
-
-  attr :item, :map,
-    required: true,
-    doc: "`%MediaCentaurWeb.ViewModel.EpisodeListItem.Upcoming{}`"
-
-  defp upcoming_episode_row(assigns) do
-    ~H"""
-    <div class="p-2 rounded opacity-60" data-role="upcoming-episode-row">
-      <div class="flex items-center gap-3 text-sm">
-        <span class="w-6 flex-shrink-0 text-right text-base-content/40 font-mono text-xs tabular-nums">
-          {@item.episode_number}
-        </span>
-        <span class="flex-1 min-w-0 truncate text-base-content/70">
-          {@item.title || "Episode #{@item.episode_number}"}
-        </span>
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <.badge variant="ghost" size="sm" class="gap-1">
-            <.icon name="hero-calendar-mini" class="size-3" />
-            {upcoming_pill_copy(@item)}
-          </.badge>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  defdelegate episode_state(progress),
-    to: MediaCentaur.Library.EpisodeList,
-    as: :state_from_progress
-
-  @doc """
-  Pill copy for an upcoming-episode row. Past dates read
-  "aired Xd ago"; future dates read "in Xd" (or the bare formatted
-  date for further-out releases). `nil` air_date renders "TBA".
-
-  Pure: extracted for unit testing without LiveView render.
-  """
-  @spec upcoming_pill_copy(map(), Date.t()) :: String.t()
-  def upcoming_pill_copy(item, today \\ Date.utc_today())
-
-  def upcoming_pill_copy(%{air_date: nil}, _today), do: "TBA"
-
-  def upcoming_pill_copy(%{air_date: %Date{} = air_date}, today) do
-    days = Date.diff(air_date, today)
-
-    cond do
-      days == 0 -> "today"
-      days > 0 and days <= 14 -> "in #{days}d"
-      days < 0 and days >= -14 -> "aired #{abs(days)}d ago"
-      true -> Calendar.strftime(air_date, "%b %-d")
-    end
-  end
-
-  def episode_row_class(_state, true = _is_resume_target), do: "bg-primary/10"
-
-  def episode_row_class(:watched, _), do: "opacity-60"
-  def episode_row_class(:current, _), do: "bg-info/5"
-  def episode_row_class(:unwatched, _), do: ""
-
-  defp episode_duration_text(%{state: :watched} = assigns) do
-    ~H"""
-    """
-  end
-
-  defp episode_duration_text(%{state: :current, progress: progress} = assigns) do
-    remaining = trunc(max(progress.duration_seconds - progress.position_seconds, 0))
-    assigns = assign(assigns, :remaining, remaining)
-
-    ~H"""
-    <span class="text-info text-xs">
-      {format_human_duration(@remaining)} remaining
-    </span>
-    """
-  end
-
-  defp episode_duration_text(%{duration_seconds: seconds} = assigns)
-       when is_integer(seconds) and seconds > 0 do
-    ~H"""
-    <span class="text-base-content/40 text-xs">
-      {format_human_duration(@duration_seconds)}
-    </span>
-    """
-  end
-
-  defp episode_duration_text(assigns) do
-    ~H"""
-    """
-  end
-
-  # Note: the `group-hover/toggle:` classes below depend on the toggle
-  # button carrying `group/toggle` (set by `watched_toggle_button_class/0`).
-  # Any caller that bypasses `watched_toggle/1` and renders this circle
-  # directly must include `group/toggle` on the wrapping click target,
-  # or the hover-preview check silently breaks with no test failure.
-  defp watched_circle_class(:watched), do: "bg-success/25 group-hover/toggle:bg-success/40"
-
-  defp watched_circle_class(_),
-    do: "border border-base-content/20 group-hover/toggle:border-base-content/50"
-
-  # Layout + hover styling for the watched/unwatched toggle button. The
-  # button wraps ONLY the state circle — the duration/remaining text is a
-  # sibling outside it (in `watched_toggle/1`) so a click on that
-  # informational text falls through to the row's play handler rather than
-  # toggling watched state. Padding (`p-1.5`) with a cancelling negative
-  # margin keeps the circle's click/focus target comfortably larger than
-  # the 20px dot (UIDR-003) without affecting layout or reaching the text.
-  defp watched_toggle_button_class do
-    [
-      "group/toggle flex items-center flex-shrink-0 cursor-pointer",
-      "p-1.5 -m-1.5 rounded-md transition-colors",
-      "hover:bg-base-content/10"
-    ]
-  end
-
-  # Shared watched/unwatched toggle button. Used by episode, movie, and
-  # extra rows — the only per-call differences are the `phx-click`
-  # event name and the `phx-value-*` attributes (forwarded via the
-  # `:rest` global). Keeping all three call sites on one component
-  # prevents the hover/state styling from drifting between row types.
-  attr :event, :string, required: true
-  attr :state, :atom, required: true, values: [:watched, :current, :unwatched]
-
-  attr :progress, :map,
-    default: nil,
-    doc:
-      "`MediaCentaur.Library.WatchProgress.t() | nil` — passed through to `episode_duration_text/1` to render the remaining time in the `:current` state."
-
-  attr :duration_seconds, :integer, default: nil
-
-  attr :rest, :global,
-    doc:
-      "`phx-value-*` attributes that identify the toggle target (entity + leaf container " <>
-        "for `toggle_watched` — movie rows send container-type/container-id, episode rows " <>
-        "still send season/episode until the leaf-id convergence lands — entity/extra for " <>
-        "`toggle_extra_watched`).",
-    include:
-      ~w(phx-value-entity-id phx-value-season phx-value-episode phx-value-extra-id phx-value-container-type phx-value-container-id)
-
-  defp watched_toggle(assigns) do
-    ~H"""
-    <div class="flex items-center gap-2 flex-shrink-0">
-      <.episode_duration_text
-        state={@state}
-        progress={@progress}
-        duration_seconds={@duration_seconds}
-      />
-      <button
-        type="button"
-        phx-click={@event}
-        data-nav-sub-item
-        class={watched_toggle_button_class()}
-        aria-label={if @state == :watched, do: "Mark unwatched", else: "Mark watched"}
-        {@rest}
-      >
-        <span class={[
-          "size-5 rounded-full flex items-center justify-center transition-all",
-          watched_circle_class(@state)
-        ]}>
-          <.icon
-            :if={@state == :watched}
-            name="hero-check-mini"
-            class="size-3 text-success"
-          />
-          <.icon
-            :if={@state != :watched}
-            name="hero-check-mini"
-            class="size-3 opacity-0 group-hover/toggle:opacity-60 transition-opacity"
-          />
-        </span>
-      </button>
-    </div>
-    """
-  end
-
-  def progress_percent(%{position_seconds: pos, duration_seconds: dur})
-      when is_number(pos) and is_number(dur) and dur > 0 do
-    min(round(pos / dur * 100), 100)
-  end
-
-  def progress_percent(_), do: 0
-
-  # --- Collection item dispatch ---
-  #
-  # Pattern-matches on the `MovieListItem` struct type, mirroring
-  # `season_item/1` — the typed contract IS the dispatch criterion.
-
-  attr :item, :map, required: true, doc: "%MovieListItem.{Library | Upcoming}{}"
-  attr :details_open, :boolean, default: false
-  attr :entity_id, :string, required: true
-  attr :on_play, :string, required: true
-  attr :spoiler_free, :boolean, default: false
-  attr :available, :boolean, default: true
-
-  defp collection_item(%{item: %MovieListItem.Library{}} = assigns) do
-    ~H"""
-    <.movie_row
-      item={@item}
-      details_open={@details_open}
-      entity_id={@entity_id}
-      on_play={@on_play}
-      spoiler_free={@spoiler_free}
-      available={@available}
-    />
-    """
-  end
-
-  defp collection_item(%{item: %MovieListItem.Upcoming{}} = assigns) do
-    ~H"""
-    <.upcoming_movie_row item={@item} />
-    """
-  end
-
-  # --- Movie Row ---
-
-  attr :item, :map,
-    required: true,
-    doc: "`%MediaCentaurWeb.ViewModel.MovieListItem.Library{}` — typed member movie."
-
-  attr :details_open, :boolean,
-    default: false,
-    doc: "whether the synopsis/poster disclosure below the dense row is open."
-
-  attr :entity_id, :string, required: true
-  attr :on_play, :string, required: true
-  attr :spoiler_free, :boolean, default: false
-  attr :available, :boolean, default: true
-
-  # Dense one-line row in the episode-row idiom: title · year · runtime ·
-  # disclosure chevron · watched toggle. Poster and synopsis render only
-  # behind the per-row disclosure — the list is an index, not a reading
-  # surface.
-  defp movie_row(assigns) do
-    assigns =
-      assigns
-      |> assign(:movie, assigns.item.movie)
-      |> assign(:state, assigns.item.state)
-      |> assign(:progress, assigns.item.progress)
-      |> assign(:is_resume_target, assigns.item.is_resume_target)
-      |> assign(:thumbnail, image_url(assigns.item.movie, "poster"))
-      # `description` / `duration_seconds` are optional display fields —
-      # read via `Map.get` so a Movie struct and the projection map both
-      # work without a `KeyError` crashing the whole panel render.
-      |> assign(:description, Map.get(assigns.item.movie, :description))
-      |> assign(:duration_seconds, Map.get(assigns.item.movie, :duration_seconds))
-
-    ~H"""
-    <div
-      id={"movie-row-#{@movie.id}"}
-      class={[
-        "px-2 py-1.5 rounded cursor-pointer hover:bg-base-content/5",
-        episode_row_class(@state, @is_resume_target)
-      ]}
-      data-role="movie-row"
-      data-resume-target={@is_resume_target || nil}
-      phx-click={@on_play}
-      phx-value-id={@movie.id}
-      data-nav-item
-      tabindex="0"
-    >
-      <div class="flex items-center gap-3 text-sm">
-        <span class="flex-1 min-w-0 truncate text-base-content/90">
-          {@movie.name || "—"}
-          <span :if={@movie.date_published} class="text-base-content/50 ml-1">
-            ({extract_year(@movie.date_published)})
-          </span>
-        </span>
-        <button
-          :if={@description || @thumbnail}
-          type="button"
-          phx-click="toggle_movie_details"
-          phx-value-movie-id={@movie.id}
-          data-nav-sub-item
-          class="flex-shrink-0 p-1.5 -m-1 rounded-md cursor-pointer text-base-content/30 hover:text-base-content/70 hover:bg-base-content/10 transition-colors"
-          aria-expanded={to_string(@details_open)}
-          aria-label={if @details_open, do: "Hide movie details", else: "Show movie details"}
-        >
-          <.icon
-            name={if @details_open, do: "hero-chevron-up-mini", else: "hero-chevron-down-mini"}
-            class="size-4"
-          />
-        </button>
-        <.watched_toggle
-          event="toggle_watched"
-          state={@state}
-          progress={@progress}
-          duration_seconds={@duration_seconds}
-          phx-value-entity-id={@entity_id}
-          phx-value-container-type="movie"
-          phx-value-container-id={@movie.id}
-        />
-      </div>
-      <div :if={@details_open} class="mt-2 mb-1 flex items-start gap-3">
-        <img
-          :if={@thumbnail && @available}
-          src={sized_image_url(@thumbnail, 160)}
-          class="w-16 aspect-[2/3] rounded object-cover flex-shrink-0"
-        />
-        <p
-          :if={@description}
-          class={[
-            "text-xs text-base-content/50 leading-relaxed",
-            blur_spoilers?(@spoiler_free, @state) && "spoiler-blur"
-          ]}
-        >
-          {@description}
-        </p>
-      </div>
-      <div
-        :if={@state == :current}
-        class="mt-1 h-0.5 rounded-full bg-base-content/10 overflow-hidden"
-      >
-        <div
-          class="h-full bg-info rounded-full"
-          style={"width: #{progress_percent(@progress)}%"}
-        />
-      </div>
-    </div>
-    """
-  end
-
-  # --- Upcoming Movie Row ---
-  #
-  # An announced collection part (release-tracking overlay). Same visual
-  # contract as the upcoming episode row: muted, no thumbnail, no watched
-  # toggle, no `phx-click` (not actionable), right-side date pill. Not
-  # focusable until it becomes clickable.
-
-  attr :item, :map,
-    required: true,
-    doc: "`%MediaCentaurWeb.ViewModel.MovieListItem.Upcoming{}`"
-
-  defp upcoming_movie_row(assigns) do
-    ~H"""
-    <div
-      id={"upcoming-movie-#{@item.part_tmdb_id}"}
-      class="p-2 rounded opacity-60"
-      data-role="upcoming-movie-row"
-    >
-      <div class="flex items-center gap-3 text-sm">
-        <div class="w-12 flex-shrink-0 flex justify-center">
-          <.icon name="hero-film-mini" class="size-4 text-base-content/30" />
-        </div>
-        <span class="flex-1 min-w-0 truncate text-base-content/70">
-          {@item.title || "—"}
-        </span>
-        <div class="flex items-center gap-2 flex-shrink-0">
-          <.badge variant="ghost" size="sm" class="gap-1">
-            <.icon name="hero-calendar-mini" class="size-3" />
-            {upcoming_pill_copy(@item)}
-          </.badge>
-        </div>
-      </div>
-    </div>
-    """
-  end
-
-  # --- Extra Row ---
-
-  attr :extra, :map, required: true, doc: @doc_extra
-
-  attr :progress, :map,
-    default: nil,
-    doc: "`MediaCentaur.Library.WatchProgress.t() | nil` for this extra."
-
-  attr :entity_id, :string, required: true
-  attr :on_play, :string, required: true
-
-  defp extra_row(assigns) do
-    state = episode_state(assigns.progress)
-    assigns = assign(assigns, :state, state)
-
-    ~H"""
-    <div class="py-0.5 pr-3" data-role="extra-row">
-      <div
-        class={[
-          "flex items-center gap-2 text-sm cursor-pointer hover:bg-base-content/5 rounded-lg p-2 -mx-2",
-          @state == :watched && "opacity-60"
-        ]}
-        phx-click={@on_play}
-        phx-value-id={@extra.id}
-        data-nav-item
-        tabindex="0"
-      >
-        <.icon name="hero-film-mini" class="size-4 text-base-content/40 flex-shrink-0" />
-        <span class="flex-1 min-w-0 truncate text-base-content/70">{@extra.name || "—"}</span>
-        <.watched_toggle
-          event="toggle_extra_watched"
-          state={@state}
-          progress={@progress}
-          phx-value-entity-id={@entity_id}
-          phx-value-extra-id={@extra.id}
-        />
-      </div>
-      <div
-        :if={@state == :current}
-        class="mt-1 ml-6 h-0.5 rounded-full bg-base-content/10 overflow-hidden"
-      >
-        <div
-          class="h-full bg-info rounded-full"
-          style={"width: #{progress_percent(@progress)}%"}
-        />
-      </div>
-    </div>
-    """
-  end
-
-  defp extras_section(assigns) do
-    extras = entity_extras(assigns.entity)
-    assigns = assign(assigns, :extras, extras)
-
-    ~H"""
-    <div :if={@extras != []} class="pt-3">
-      <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">Extras</span>
-      <.extra_row
-        :for={extra <- @extras}
-        extra={extra}
-        progress={Map.get(@extra_progress_by_id, extra.id)}
-        entity_id={@entity.id}
-        on_play={@on_play}
-      />
-    </div>
     """
   end
 
@@ -1356,16 +626,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   def scrollable_content?(entity, detail_view) do
     detail_view in [:info, :cast] ||
       entity.type in [:tv_series, :movie_series] ||
-      entity_extras(entity) != []
+      Logic.entity_extras(entity) != []
   end
-
-  defp entity_extras(%{extras: extras}) when is_list(extras) do
-    # Surface only entity-level extras (not season-owned ones); season
-    # extras are rendered next to their season elsewhere in the panel.
-    Enum.reject(extras, &(&1.owner_type == :season))
-  end
-
-  defp entity_extras(_), do: []
 
   defp index_extra_progress(%{extra_progress: progress}) when is_list(progress) do
     Map.new(progress, fn record -> {record.extra_id, record} end)
@@ -1373,59 +635,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   defp index_extra_progress(_), do: %{}
 
-  defp season_extras(%{extras: nil} = assigns) do
-    ~H"""
-    """
-  end
-
-  defp season_extras(%{extras: []} = assigns) do
-    ~H"""
-    """
-  end
-
-  defp season_extras(%{extras: %Ecto.Association.NotLoaded{}} = assigns) do
-    ~H"""
-    """
-  end
-
-  defp season_extras(assigns) do
-    ~H"""
-    <div class="pt-2">
-      <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">Extras</span>
-      <.extra_row
-        :for={extra <- @extras}
-        extra={extra}
-        progress={Map.get(@extra_progress_by_id, extra.id)}
-        entity_id={@entity_id}
-        on_play={@on_play}
-      />
-    </div>
-    """
-  end
-
-  @doc """
-  Whether an episode's thumbnail, title and synopsis should be spoiler-blurred:
-  only when spoiler-free mode is on *and* the episode is fully unwatched. A
-  watched or in-progress episode is never blurred (the user has already started
-  it), and nothing blurs when spoiler-free mode is off.
-  """
-  @spec blur_spoilers?(boolean(), atom()) :: boolean()
-  def blur_spoilers?(spoiler_free, state), do: spoiler_free and state == :unwatched
-
-  # --- Helpers ---
-
-  # A complete season shows only the check icon — no "watched" label
-  # next to it (the label renders exclusively for incomplete seasons).
-  defp season_complete?(%{watched_count: watched, total_count: total}),
-    do: watched == total and (total || 0) > 0
-
-  defp season_progress_label(watched, total), do: "#{total - watched} remaining"
-
-  # Episode number across the EpisodeListItem variants — Library nests it
-  # on the episode struct; Missing/Upcoming carry it directly.
-  defp item_episode_number(%EpisodeListItem.Library{episode: episode}), do: episode.episode_number
-
-  defp item_episode_number(%{episode_number: episode_number}), do: episode_number
+  # --- Resume keys (Cast view) ---
 
   defp resume_episode_key(%{"seasonNumber" => season, "episodeNumber" => episode})
        when is_integer(season) and is_integer(episode) do
