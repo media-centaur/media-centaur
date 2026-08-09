@@ -210,6 +210,13 @@ export class Orchestrator {
       this.inputDetector.current
     )
 
+    // Stop all in-flight scroll glides. The scroll containers outlive this
+    // orchestrator — documentElement is the same element on the next page
+    // after a live navigation — so a surviving glide would keep writing their
+    // offsets forever (its target can lie beyond the next page's scroll
+    // range, so it never arrives) and fight the next page's own scrolling.
+    this.writer.cancelScrollMotion?.()
+
     // Stop all input sources
     for (const source of this._sources) {
       source.stop()

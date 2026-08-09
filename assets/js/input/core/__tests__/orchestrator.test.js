@@ -1219,6 +1219,20 @@ describe("Orchestrator", () => {
       expect(stopped).toBe(true)
     })
 
+    // A live navigation destroys the orchestrator but not the page's scroll
+    // containers — documentElement is the same element on the next page. A
+    // reveal glide still in flight at destroy time would keep writing that
+    // shared box's scroll offset forever (its target can lie beyond the new
+    // page's scroll range, so it never arrives), yanking the next page's
+    // scroll against every other writer. Destroy must stop all scroll motion.
+    test("destroy stops in-flight scroll motion", () => {
+      const { system, calls } = setup()
+      system.start({})
+      system.destroy()
+
+      expect(calls.some(c => c.method === "cancelScrollMotion")).toBe(true)
+    })
+
     test("multiple sources are all started and stopped", () => {
       const lifecycle = []
       const makeSource = (name) => ({
