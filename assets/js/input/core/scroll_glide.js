@@ -87,6 +87,20 @@ export function createScrollGlide({ requestAnimationFrame, now, tau = DEFAULT_TA
     requestAnimationFrame(tick)
   }
 
+  /**
+   * The target actually reachable this frame. A recorded target was valid when
+   * it was measured, but the content can shrink under an in-flight glide (a
+   * LiveView patch, or a live navigation swapping the page inside the same
+   * scroll container) — the browser then clamps every write, `remaining` never
+   * shrinks, and the loop would run forever fighting every other scroll
+   * writer. Chasing the clamped value instead means the glide always arrives.
+   * Re-read per tick, so bounds that change mid-flight are tracked.
+   */
+  function reachable(value, extent, port) {
+    if (extent == null || port == null) return value
+    return Math.min(Math.max(value, 0), Math.max(0, extent - port))
+  }
+
   function tick() {
     const time = now()
     const elapsed = time - lastTime
@@ -101,9 +115,10 @@ export function createScrollGlide({ requestAnimationFrame, now, tau = DEFAULT_TA
       let arrived = true
 
       if (target.left != null) {
-        const remaining = target.left - box.scrollLeft
+        const left = reachable(target.left, box.scrollWidth, box.clientWidth)
+        const remaining = left - box.scrollLeft
         if (Math.abs(remaining) <= EPSILON) {
-          box.scrollLeft = target.left
+          box.scrollLeft = left
         } else {
           box.scrollLeft = box.scrollLeft + remaining * fraction
           arrived = false
@@ -111,9 +126,10 @@ export function createScrollGlide({ requestAnimationFrame, now, tau = DEFAULT_TA
       }
 
       if (target.top != null) {
-        const remaining = target.top - box.scrollTop
+        const top = reachable(target.top, box.scrollHeight, box.clientHeight)
+        const remaining = top - box.scrollTop
         if (Math.abs(remaining) <= EPSILON) {
-          box.scrollTop = target.top
+          box.scrollTop = top
         } else {
           box.scrollTop = box.scrollTop + remaining * fraction
           arrived = false

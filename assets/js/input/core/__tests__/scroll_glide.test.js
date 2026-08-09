@@ -7,6 +7,27 @@ function fakeBox({ left = 0, top = 0 } = {}) {
 }
 
 /**
+ * A scroll container with real geometry: writes clamp to the scrollable range,
+ * exactly as the browser clamps a DOM element. Models the box a glide can be
+ * left holding after a LiveView patch shrinks the content under it — the
+ * recorded target now lies beyond what the box can scroll to.
+ */
+function clampedBox({ maxLeft = 0, maxTop = 0 } = {}) {
+  let left = 0
+  let top = 0
+  return {
+    scrollWidth: maxLeft + 500,
+    clientWidth: 500,
+    scrollHeight: maxTop + 500,
+    clientHeight: 500,
+    get scrollLeft() { return left },
+    set scrollLeft(value) { left = Math.min(Math.max(value, 0), maxLeft) },
+    get scrollTop() { return top },
+    set scrollTop(value) { top = Math.min(Math.max(value, 0), maxTop) },
+  }
+}
+
+/**
  * A hand-driven clock and frame pump, so tests advance time explicitly
  * instead of waiting on a real rAF.
  */
@@ -159,6 +180,35 @@ describe("createScrollGlide", () => {
 
     expect(row.scrollLeft).toBe(800)
     expect(page.scrollTop).toBe(400)
+  })
+
+  // A target beyond the box's scrollable range can never be reached — the
+  // browser clamps every write, so "remaining" never shrinks and the loop
+  // would otherwise run forever, fighting every other scroll writer (the
+  // library→home jitter: a reveal glide surviving a live navigation onto a
+  // shorter page). The glide must come to rest at the clamp and stop.
+  test("a target beyond the scrollable range rests at the clamp and stops", () => {
+    const h = harness()
+    const box = clampedBox({ maxTop: 1800 })
+
+    h.glide.glide(box, { top: 4200 })
+    for (let i = 0; i < 200 && !h.idle; i++) h.frame(16)
+
+    expect(box.scrollTop).toBe(1800)
+    expect(h.glide.isGliding(box)).toBe(false)
+    expect(h.idle).toBe(true)
+  })
+
+  test("a horizontal target beyond the range rests at the clamp and stops", () => {
+    const h = harness()
+    const box = clampedBox({ maxLeft: 300 })
+
+    h.glide.glide(box, { left: 900 })
+    for (let i = 0; i < 200 && !h.idle; i++) h.frame(16)
+
+    expect(box.scrollLeft).toBe(300)
+    expect(h.glide.isGliding(box)).toBe(false)
+    expect(h.idle).toBe(true)
   })
 
   // A wheel scroll hands scroll authority to the pointer: every glide, on
