@@ -1504,5 +1504,34 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       refute patched_to =~ "selected=",
              "modal must close (selection cleared) once no files remain"
     end
+
+    # Regression: the hosts rendered `<.entity_modal>` without passing the
+    # `deleting` assign, so the attr's nil default always won and the
+    # confirmed button snapped back to its idle label while the async
+    # delete ran — no feedback that anything was happening.
+    test "second click shows the in-flight Deleting state until the async lands", %{
+      conn: conn,
+      movie: movie
+    } do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}&view=info")
+
+      view
+      |> element("button[phx-click='delete_all_prompt']")
+      |> render_click()
+
+      # Second click arms `deleting` and hands off to start_async; this
+      # render happens before the async result message is processed.
+      deleting_html =
+        view
+        |> element("button[phx-click='delete_all_prompt']")
+        |> render_click()
+
+      assert deleting_html =~ "Deleting…"
+      assert has_element?(view, "button[phx-click='delete_all_prompt'][disabled]")
+
+      # Drain the async so teardown stays clean; modal closes on completion.
+      _ = render_async(view, 2_000)
+      _ = assert_patch(view)
+    end
   end
 end
