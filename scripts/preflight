@@ -41,6 +41,18 @@ MIX_ENV=prod MIX_OS_DEPS_COMPILE_PARTITION_COUNT=8 mix compile
 banner "Deploying assets"
 MIX_ENV=prod mix assets.deploy
 
+# Tailwind's bundled Lightning CSS minifier silently DROPS rules whose
+# syntax it can't parse — tailwind 4.1.x ate the whole
+# `@container scroll-state(stuck: top)` block, shipping releases where
+# the pinned detail block's backing never turned on. Assert the one
+# known-fragile modern-syntax rule survived minification.
+banner "Checking minified CSS for dropped rules"
+if ! grep -q "scroll-state(stuck" priv/static/assets/css/app.css; then
+  echo "FAILED: @container scroll-state rule missing from minified CSS" >&2
+  echo "(Lightning CSS in this tailwind version dropped it — see config/config.exs)" >&2
+  exit 1
+fi
+
 # Sync defaults/media-centaur.toml into the shared release overlay so the
 # bundled installer can seed it on first install. Source of truth stays in
 # defaults/; the overlay copy is gitignored.
@@ -54,3 +66,9 @@ MIX_ENV=prod mix release --overwrite
 release_path="_build/prod/rel/media_centaur"
 banner "Release built at: $(pwd)/$release_path"
 "$release_path/bin/media_centaur" version
+
+# assets.deploy above wrote minified assets into priv/static, and the dev
+# server (asset watchers off) serves whatever sits there. Rebuild the dev
+# assets so a preflight run never leaves dev serving the prod artifact.
+banner "Restoring dev asset build"
+mix assets.build >/dev/null
