@@ -158,7 +158,11 @@ config :phoenix, :json_library, Jason
 
 # Configure tailwind (the version is required)
 config :tailwind,
-  version: "4.1.7",
+  # Must stay ≥ 4.2: the bundled Lightning CSS minifier has to parse
+  # `@container scroll-state(...)` — 4.1.x dropped the whole rule under
+  # --minify, so the pinned detail block's backing never turned on in
+  # releases. scripts/preflight asserts the rule survives minification.
+  version: "4.3.3",
   media_centaur: [
     args: ~w(
       --input=assets/css/app.css
