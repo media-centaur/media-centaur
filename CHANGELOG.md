@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.119.3 — 2026-08-09
+
+### Fixed
+
+- **The pinned title block in a detail view is opaque again.** When you scroll a long episode list, the title and play controls pin to the top of the panel. Since v0.118.0 the backdrop behind that pinned block was missing — the release build silently dropped the style rule that paints it, so the list showed through the title. The rule now survives the build, and every future release is checked for it before it ships.
+
 ## v0.119.2 — 2026-08-09
 
 ### Fixed
