@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.119.2 — 2026-08-09
+
+### Fixed
+
+- **Delete buttons now show progress while files are being removed.** After you confirm a delete in an entry's Manage view, the button now reads "Deleting…" and all delete actions stay disabled until the deletion finishes. Previously the button snapped back to normal, leaving no sign that anything was happening.
+
 ## v0.119.1 — 2026-08-09
 
 ### Fixed
