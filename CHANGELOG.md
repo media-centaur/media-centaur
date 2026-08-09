@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.119.1 — 2026-08-09
+
+### Fixed
+
+- **The Home page no longer jitters after arriving from a scrolled page.** Leaving a page while it was still gliding toward the cursor — for example scrolling to the bottom of the Library and heading straight to Home — could leave that motion running against the new page, making it shake or stick to the bottom. Scroll motion now always stops when you leave a page.
+
 ## v0.119.0 — 2026-08-08
 
 Movies get the same title-page treatment as series, collections orient around what's next, and every progress bar now measures the same thing.
