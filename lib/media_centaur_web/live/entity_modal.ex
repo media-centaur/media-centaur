@@ -786,8 +786,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     doc: "transient delete-confirmation state — see `DetailPanel`'s contract."
 
   attr :deleting, :any,
-    default: nil,
-    doc: "in-flight async delete target — see `DetailPanel`'s `:deleting` contract."
+    required: true,
+    doc:
+      "in-flight async delete target — see `DetailPanel`'s `:deleting` contract. Required (no default) so a host can't silently drop it and lose the \"Deleting…\" feedback."
 
   attr :tracking_status, :atom, required: true
 

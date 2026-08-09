@@ -237,6 +237,7 @@ defmodule MediaCentaurWeb.HomeLive do
           all_episode_details_open={@all_episode_details_open}
           rematch_confirm={@rematch_confirm}
           delete_confirm={@delete_confirm}
+          deleting={@deleting}
           tracking_status={@tracking_status}
           availability_map={@availability_map}
           tmdb_ready={@tmdb_ready}
