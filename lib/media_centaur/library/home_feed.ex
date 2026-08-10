@@ -434,8 +434,7 @@ defmodule MediaCentaur.Library.HomeFeed do
         episodes_completed = Enum.count(progress_records, & &1.completed)
 
         # Include series when the user has touched it (any progress) AND
-        # hasn't finished all episodes — matches `LibraryProgress.in_progress?`
-        # used by `/library?in_progress=1`.
+        # hasn't finished all episodes.
         if progress_records != [] and episodes_completed < episodes_total do
           entity = %{
             id: series.id,
@@ -591,7 +590,7 @@ defmodule MediaCentaur.Library.HomeFeed do
         movies_completed = Enum.count(progress_records, & &1.completed)
 
         # Include movie series when the user has touched it AND hasn't
-        # finished all child movies — matches `LibraryProgress.in_progress?`.
+        # finished all child movies.
         if progress_records != [] and movies_completed < movies_total do
           entity = %{
             id: series.id,

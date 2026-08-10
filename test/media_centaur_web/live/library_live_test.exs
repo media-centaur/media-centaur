@@ -65,60 +65,6 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
-  describe "in_progress filter" do
-    setup do
-      # Movie the user has started but not finished
-      in_progress_movie = create_standalone_movie(%{name: "In Progress Movie"})
-      _ = create_linked_file(%{movie_id: in_progress_movie.id})
-
-      create_watch_progress(%{
-        movie_id: in_progress_movie.id,
-        position_seconds: 100.0,
-        duration_seconds: 1000.0
-      })
-
-      # Movie the user has fully completed
-      finished_movie = create_standalone_movie(%{name: "Finished Movie"})
-      _ = create_linked_file(%{movie_id: finished_movie.id})
-
-      progress =
-        create_watch_progress(%{
-          movie_id: finished_movie.id,
-          position_seconds: 1000.0,
-          duration_seconds: 1000.0
-        })
-
-      Library.ProgressRecords.mark_completed!(progress)
-
-      # Movie the user has never touched
-      untouched_movie = create_standalone_movie(%{name: "Untouched Movie"})
-      _ = create_linked_file(%{movie_id: untouched_movie.id})
-
-      :ok
-    end
-
-    test "?in_progress=1 only shows entities with in-progress watch progress", %{conn: conn} do
-      {:ok, _view, html} = live_async!(conn, "/library?in_progress=1")
-
-      assert html =~ "In Progress Movie"
-      refute html =~ "Finished Movie"
-      refute html =~ "Untouched Movie"
-    end
-
-    test "?in_progress=1 shows the active-filter indicator chip", %{conn: conn} do
-      {:ok, _view, html} = live_async!(conn, "/library?in_progress=1")
-      assert html =~ "In progress"
-    end
-
-    test "/library (no param) shows all entities — no in-progress filter", %{conn: conn} do
-      {:ok, _view, html} = live_async!(conn, "/library")
-
-      assert html =~ "In Progress Movie"
-      assert html =~ "Finished Movie"
-      assert html =~ "Untouched Movie"
-    end
-  end
-
   describe "sort=watched" do
     setup do
       # Creation order (Never → Yesterday → LastWeek) makes the default

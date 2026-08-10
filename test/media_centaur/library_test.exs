@@ -799,11 +799,9 @@ defmodule MediaCentaur.LibraryTest do
     end
   end
 
-  describe "list_in_progress/1 mirrors the /library?in_progress=1 surface" do
+  describe "list_in_progress/1 keeps absent-file titles in Continue Watching" do
     # Continue Watching is the user's mental list of "things I'm watching".
-    # An absent file does not erase that intent — and matching this query to
-    # the broader `/library?in_progress=1` filter (which only checks for
-    # incomplete progress) keeps the two surfaces consistent. The hoist
+    # An absent file does not erase that intent. The hoist
     # categorization is presence-agnostic on this surface (by Movie record
     # count) so transient file-presence changes don't shuffle rows in or out.
     test "includes orphan movies with watch_progress when no file is present" do

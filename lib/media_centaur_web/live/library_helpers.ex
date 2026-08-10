@@ -32,15 +32,6 @@ defmodule MediaCentaurWeb.LibraryHelpers do
     Enum.filter(entries, &(&1.kind == :tv_series))
   end
 
-  @spec filtered_by_in_progress([BrowseItem.t()], map(), boolean()) :: [BrowseItem.t()]
-  def filtered_by_in_progress(entries, _progress_by_id, false), do: entries
-
-  def filtered_by_in_progress(entries, progress_by_id, true) do
-    Enum.filter(entries, fn entry ->
-      MediaCentaurWeb.LibraryProgress.in_progress_summary?(Map.get(progress_by_id, entry.id))
-    end)
-  end
-
   @spec filtered_by_text([BrowseItem.t()], String.t()) :: [BrowseItem.t()]
   def filtered_by_text(entries, ""), do: entries
 
@@ -61,9 +52,9 @@ defmodule MediaCentaurWeb.LibraryHelpers do
     * `:none` — the grid has cards; show no empty state.
     * `:library_empty` — nothing is indexed at all; prompt the user to
       scan (or configure) their media directories.
-    * `:no_matches` — the library has entries but the active tab / text /
-      in-progress filters excluded every one; prompt the user to clear
-      the filter rather than to scan.
+    * `:no_matches` — the library has entries but the active tab / text
+      filters excluded every one; prompt the user to clear the filter
+      rather than to scan.
 
   `grid_count` is the number of cards currently shown (post-filter);
   `total_count` is the whole-library size (`tab_counts/1`'s `:all`).
@@ -77,7 +68,7 @@ defmodule MediaCentaurWeb.LibraryHelpers do
   @doc """
   The copy shown in the `:no_matches` empty state. Names the search term
   when text filtering is active; otherwise falls back to a generic line
-  (the exclusion came from the tab or in-progress filter alone).
+  (the exclusion came from the tab filter alone).
   """
   @spec no_matches_label(String.t()) :: String.t()
   def no_matches_label(""), do: "No titles match your current filters."
@@ -116,8 +107,7 @@ defmodule MediaCentaurWeb.LibraryHelpers do
 
   @doc """
   Sorts entries by most-recently-watched descending. Entries with no
-  recorded progress sort last. Backs the `:watched` sort order and the
-  `?in_progress=1` filter.
+  recorded progress sort last. Backs the `:watched` sort order.
   """
   @spec sorted_by_last_watched([BrowseItem.t()], map()) :: [BrowseItem.t()]
   def sorted_by_last_watched(entries, progress_by_id) do
@@ -156,18 +146,6 @@ defmodule MediaCentaurWeb.LibraryHelpers do
         true ->
           counts
       end
-    end)
-  end
-
-  @doc """
-  Counts how many progress summaries represent a title that is partway
-  watched (`episodes_completed < episodes_total`). Drives the
-  "N in progress" segment of the library header stat line.
-  """
-  @spec in_progress_count(map()) :: non_neg_integer()
-  def in_progress_count(progress_by_id) do
-    Enum.count(progress_by_id, fn {_id, summary} ->
-      MediaCentaurWeb.LibraryProgress.in_progress_summary?(summary)
     end)
   end
 

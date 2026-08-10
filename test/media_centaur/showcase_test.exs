@@ -144,8 +144,8 @@ defmodule MediaCentaur.ShowcaseTest do
 
   describe "Continue Watching seed shape" do
     # HomeLive's Continue Watching row needs ≥4 visible items + the See-all
-    # placeholder, and the Library `?in_progress=1` deep-link pulls from the
-    # same `Library.list_in_progress/1` query. Six non-completed rows with
+    # placeholder, fed by `Library.list_in_progress/1`. Six non-completed
+    # rows with
     # spread-out progress percentages and a mix of types make the row look
     # like a real, well-loved library — not three isolated half-watched
     # entries.

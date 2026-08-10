@@ -76,30 +76,6 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
     end
   end
 
-  # --- filtered_by_in_progress/3 ---
-
-  describe "filtered_by_in_progress/3" do
-    test "returns entries unchanged when filter is false" do
-      entries = [item(%{}), item(%{})]
-      assert LibraryHelpers.filtered_by_in_progress(entries, %{}, false) == entries
-    end
-
-    test "keeps entries with an incomplete summary, drops finished ones" do
-      a = item(%{id: "a"})
-      b = item(%{id: "b"})
-      c = item(%{id: "c"})
-
-      progress_by_id = %{
-        "a" => %{episodes_completed: 1, episodes_total: 10},
-        "b" => %{episodes_completed: 10, episodes_total: 10}
-        # "c" — no record; filtered out as not in-progress.
-      }
-
-      result = LibraryHelpers.filtered_by_in_progress([a, b, c], progress_by_id, true)
-      assert Enum.map(result, & &1.id) == ["a"]
-    end
-  end
-
   # --- sorted_by/2 ---
 
   describe "sorted_by/2" do
@@ -345,40 +321,6 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
     end
   end
 
-  # --- in_progress?/1 ---
-
-  describe "in_progress?/1 (legacy entry-shape wrapper)" do
-    test "returns false for nil progress" do
-      refute LibraryProgress.in_progress?(%{progress: nil})
-    end
-
-    test "returns true when episodes remain" do
-      assert LibraryProgress.in_progress?(%{
-               progress: %{episodes_completed: 3, episodes_total: 10}
-             })
-    end
-
-    test "returns false when all episodes completed" do
-      refute LibraryProgress.in_progress?(%{
-               progress: %{episodes_completed: 10, episodes_total: 10}
-             })
-    end
-  end
-
-  describe "in_progress_summary?/1 (Phase 3.1 BrowseItem path)" do
-    test "false for nil summary" do
-      refute LibraryProgress.in_progress_summary?(nil)
-    end
-
-    test "true when summary has remaining episodes" do
-      assert LibraryProgress.in_progress_summary?(%{episodes_completed: 3, episodes_total: 10})
-    end
-
-    test "false when all completed" do
-      refute LibraryProgress.in_progress_summary?(%{episodes_completed: 5, episodes_total: 5})
-    end
-  end
-
   # --- reload_strategy/1 ---
 
   describe "reload_strategy/1" do
@@ -601,29 +543,6 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
 
     test "falls back to a generic message when only non-text filters are active" do
       assert LibraryHelpers.no_matches_label("") == "No titles match your current filters."
-    end
-  end
-
-  # --- in_progress_count/1 ---
-
-  describe "in_progress_count/1" do
-    test "returns 0 for an empty map" do
-      assert LibraryHelpers.in_progress_count(%{}) == 0
-    end
-
-    test "counts only summaries with episodes_completed < episodes_total" do
-      progress = %{
-        "a" => %{episodes_completed: 0, episodes_total: 10},
-        "b" => %{episodes_completed: 3, episodes_total: 8},
-        "c" => %{episodes_completed: 5, episodes_total: 5}
-      }
-
-      assert LibraryHelpers.in_progress_count(progress) == 2
-    end
-
-    test "ignores nil summaries" do
-      progress = %{"a" => nil, "b" => %{episodes_completed: 1, episodes_total: 4}}
-      assert LibraryHelpers.in_progress_count(progress) == 1
     end
   end
 end
