@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   ]
 
   @labels %{
-    watcher: "Watcher",
+    watcher: "File Watcher",
     pipeline: "Import",
     tmdb: "Metadata",
     playback: "Playback",
