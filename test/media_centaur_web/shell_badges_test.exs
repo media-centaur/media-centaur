@@ -127,6 +127,16 @@ defmodule MediaCentaurWeb.ShellBadgesTest do
     end
 
     test "no dot without error-severity buckets" do
+      # Buckets is a global singleton; earlier tests that log real errors can
+      # leave error buckets live. Dismiss them so the refute reflects only
+      # this test's state.
+      leaked =
+        for %{severity: severity, fingerprint: fingerprint} <- Buckets.list_buckets(),
+            severity in [:error, :critical],
+            do: fingerprint
+
+      ErrorReports.dismiss(leaked)
+
       ingest_global(:warning, "watcher grumbled #{uniq()}")
 
       {:ok, view, _html} = live(build_conn(), ~p"/history")
