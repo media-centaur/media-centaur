@@ -266,6 +266,7 @@ All interactive elements need `data-nav-item` and `tabindex="0"` for gamepad/key
 - Grid containers: add `data-nav-grid` for column detection
 - Page behavior: `data-page-behavior="page-name"` on root
 - Focus rings: visible only in keyboard/gamepad mode (`[data-input=keyboard]`, `[data-input=gamepad]`)
+- Cursor treatment: the primary ring everywhere — including bare text — unless it would visually collide with an element of the surface itself (e.g. the zone tabs' active underline); then the tier-2 soft neutral fill, per UIDR-020. Name the concrete collision before reaching for tier 2.
 - Nav items must be **direct children** of their zone (CSS selector uses `>` for some zones like `upcoming`)
 
 ## CSS Conventions
