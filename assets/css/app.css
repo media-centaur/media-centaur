@@ -1161,6 +1161,17 @@ body:has(.modal-backdrop[data-state="open"]) {
   color: oklch(from var(--color-base-content) l c h / 0.8);
 }
 
+/* Cursor ring on a tab: the generic nav ring (2px outline + 2px offset,
+   0.5rem radius) grows the focused tab to exactly the container's height, so
+   it lands on the pill's border, and the forced radius squares off the tab's
+   own pill shape. Hug the tab instead — no offset, own radius — so the ring
+   reads as the cursor inside the segmented control. */
+[data-input=keyboard] .library-tabs .tab:focus,
+[data-input=gamepad] .library-tabs .tab:focus {
+  outline-offset: 0;
+  border-radius: 1.5rem;
+}
+
 /* Active tab — original neutral fill, lifted off the pill with a faint
    drop shadow so it reads as raised rather than a flat inset slab. */
 .library-tabs .tab-active,
