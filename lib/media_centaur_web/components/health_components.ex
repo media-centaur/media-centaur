@@ -123,7 +123,11 @@ defmodule MediaCentaurWeb.HealthComponents do
 
   def health_drill_in(assigns) do
     ~H"""
-    <section id="health-drill-in" data-nav-zone="drill-in" class="glass-surface rounded-xl p-6 lg:p-8">
+    <section
+      id="health-drill-in"
+      data-nav-zone="drill-in"
+      class="@container glass-surface rounded-xl p-6 @4xl:p-8"
+    >
       <header class="mb-8 flex items-start justify-between gap-4 border-b border-base-content/10 pb-7">
         <div class="min-w-0">
           <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-base-content/40">
@@ -140,13 +144,13 @@ defmodule MediaCentaurWeb.HealthComponents do
       </header>
 
       <div class={[
-        @activity != [] && "grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_21rem]",
+        @activity != [] && "grid items-start gap-8 @4xl:grid-cols-[minmax(0,1fr)_21rem]",
         @activity == [] && "max-w-xl"
       ]}>
         <%!-- No eyebrow here: the masthead already names the subsystem, and a
              label outside the card would break top-alignment with the rail
              (every section label lives inside its card). --%>
-        <div :if={@activity != []} class="min-w-0">
+        <div :if={@activity != []} class="@container min-w-0">
           {render_slot(@activity)}
         </div>
 
