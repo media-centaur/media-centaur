@@ -131,7 +131,14 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
 
   # --- Toolbar ---
 
-  @sort_options [{:recent, "Recently Added"}, {:alpha, "A–Z"}, {:year, "Year"}]
+  # Order must match `LibraryLive.@sort_options` — the LiveView's
+  # keyboard highlight index and this rendered menu index one list each.
+  @sort_options [
+    {:recent, "Recently Added"},
+    {:watched, "Recently Watched"},
+    {:alpha, "A–Z"},
+    {:year, "Year"}
+  ]
 
   attr :active_tab, :atom, required: true
   attr :sort_order, :atom, required: true
@@ -235,6 +242,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   end
 
   defp sort_label(:recent), do: "Recently Added"
+  defp sort_label(:watched), do: "Recently Watched"
   defp sort_label(:alpha), do: "A–Z"
   defp sort_label(:year), do: "Year"
 end

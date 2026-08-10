@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
   The toolbar's contract is fully typed with scalar attrs:
 
       attr :active_tab, :atom, required: true       # :all | :movies | :tv
-      attr :sort_order, :atom, required: true       # :recent | :alpha | :year
+      attr :sort_order, :atom, required: true       # :recent | :watched | :alpha | :year
       attr :sort_open, :boolean, required: true
       attr :sort_highlight, :integer, required: true
       attr :filter_text, :string, required: true
@@ -18,13 +18,13 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
 
     * Tab axis — `:active_tab` toggled across the three tabs.
     * Sort dropdown states — closed (showing each `sort_order` label) and
-      open (sweeping `sort_highlight` across the three items).
+      open (sweeping `sort_highlight` across the four items).
     * Filter input — collapsed (idle/empty) vs expanded (holding a term).
 
   ## Visual note
 
   The open dropdown uses `position: absolute` and overlays the next
-  variation. The template gives every variation 14rem of bottom padding
+  variation. The template gives every variation 16rem of bottom padding
   so the open menu has room to render without colliding with the next
   preview block.
   """
@@ -35,11 +35,11 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
   def render_source, do: :function
 
   # The open sort menu drops below the trigger via `position: absolute`,
-  # so without padding it lands inside the next preview block. 14rem
-  # comfortably clears the three-item menu.
+  # so without padding it lands inside the next preview block. 16rem
+  # comfortably clears the four-item menu.
   def template do
     """
-    <div class="pb-56">
+    <div class="pb-64">
       <.psb-variation/>
     </div>
     """
@@ -64,7 +64,12 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
           "Sort dropdown closed — the trigger label tracks `sort_order` " <>
             "via `sort_label/1`. `sort_highlight` is irrelevant when closed.",
         variations:
-          for {order, suffix} <- [{:recent, "recent"}, {:alpha, "alpha"}, {:year, "year"}] do
+          for {order, suffix} <- [
+                {:recent, "recent"},
+                {:watched, "watched"},
+                {:alpha, "alpha"},
+                {:year, "year"}
+              ] do
             %Variation{
               id: String.to_atom("closed_" <> suffix),
               attributes:
@@ -80,10 +85,10 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.Toolbar do
         description:
           "Sort dropdown open — `sort_order: :recent` makes the first item " <>
             "the *active* (primary-coloured) one. `sort_highlight` then sweeps " <>
-            "across indices 0/1/2 to show how keyboard highlight stacks on top " <>
+            "across indices 0/1/2/3 to show how keyboard highlight stacks on top " <>
             "of the active item (index 0) vs sits alone on a non-active item.",
         variations:
-          for highlight <- 0..2 do
+          for highlight <- 0..3 do
             %Variation{
               id: String.to_atom("open_highlight_" <> Integer.to_string(highlight)),
               attributes:

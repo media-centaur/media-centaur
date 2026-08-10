@@ -119,6 +119,72 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
+  describe "sort=watched" do
+    setup do
+      # Creation order (Never → Yesterday → LastWeek) makes the default
+      # :recent grid order differ from the watched order under either
+      # inserted_at tie-break direction, so the assertions below can only
+      # pass when the :watched sort actually applies.
+      never_watched = create_standalone_movie(%{name: "Never Watched Movie"})
+      _ = create_linked_file(%{movie_id: never_watched.id})
+
+      newest_watched = create_standalone_movie(%{name: "Watched Yesterday Movie"})
+      _ = create_linked_file(%{movie_id: newest_watched.id})
+
+      backdate(
+        create_watch_progress(%{
+          movie_id: newest_watched.id,
+          position_seconds: 100.0,
+          duration_seconds: 1000.0
+        }),
+        :last_watched_at,
+        ~U[2026-08-09 20:00:00Z]
+      )
+
+      # Completed titles still count as watched — unlike the in-progress
+      # filter, the :watched sort must include them.
+      older_watched = create_standalone_movie(%{name: "Watched Last Week Movie"})
+      _ = create_linked_file(%{movie_id: older_watched.id})
+
+      progress =
+        create_watch_progress(%{
+          movie_id: older_watched.id,
+          position_seconds: 1000.0,
+          duration_seconds: 1000.0
+        })
+
+      Library.ProgressRecords.mark_completed!(progress)
+      backdate(progress, :last_watched_at, ~U[2026-08-03 20:00:00Z])
+
+      :ok
+    end
+
+    test "?sort=watched orders by last watched descending, never-watched last", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, "/library?sort=watched")
+
+      assert dom_position(html, "Watched Yesterday Movie") <
+               dom_position(html, "Watched Last Week Movie")
+
+      assert dom_position(html, "Watched Last Week Movie") <
+               dom_position(html, "Never Watched Movie")
+    end
+
+    test "selecting Recently Watched in the sort dropdown patches to ?sort=watched",
+         %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      view
+      |> element("[phx-click='toggle_sort']")
+      |> render_click()
+
+      view
+      |> element("li[phx-value-sort='watched']")
+      |> render_click()
+
+      assert assert_patch(view) == "/library?sort=watched"
+    end
+  end
+
   describe "search excludes all results" do
     setup do
       movie = create_standalone_movie(%{name: "Findable Movie"})
@@ -1533,5 +1599,12 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       _ = render_async(view, 2_000)
       _ = assert_patch(view)
     end
+  end
+
+  # Byte offset of a card title in the rendered document — cheap way to
+  # assert relative grid order without parsing the DOM.
+  defp dom_position(html, name) do
+    {position, _length} = :binary.match(html, name)
+    position
   end
 end

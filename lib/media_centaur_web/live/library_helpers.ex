@@ -85,12 +85,15 @@ defmodule MediaCentaurWeb.LibraryHelpers do
 
   # --- Sorting ---
 
-  @spec sorted_by([BrowseItem.t()], :alpha | :year | :recent) :: [BrowseItem.t()]
-  def sorted_by(entries, :alpha) do
+  @spec sorted_by([BrowseItem.t()], :alpha | :year | :recent | :watched, map()) ::
+          [BrowseItem.t()]
+  def sorted_by(entries, sort, progress_by_id \\ %{})
+
+  def sorted_by(entries, :alpha, _progress_by_id) do
     Enum.sort_by(entries, fn entry -> String.downcase(entry.name || "") end)
   end
 
-  def sorted_by(entries, :year) do
+  def sorted_by(entries, :year, _progress_by_id) do
     # Module-aware sort: Erlang term-order on `%Date{}` is calendar →
     # day → month → year (lexicographic on internal struct fields),
     # which would silently mis-order entries from different months.
@@ -105,13 +108,16 @@ defmodule MediaCentaurWeb.LibraryHelpers do
   # The Browse projection already orders by `inserted_at desc`. `:recent`
   # is the implicit display order — return entries as-is rather than
   # re-sorting on a field BrowseItem doesn't carry.
-  def sorted_by(entries, :recent), do: entries
+  def sorted_by(entries, :recent, _progress_by_id), do: entries
+
+  def sorted_by(entries, :watched, progress_by_id), do: sorted_by_last_watched(entries, progress_by_id)
 
   @epoch ~U[2000-01-01 00:00:00Z]
 
   @doc """
   Sorts entries by most-recently-watched descending. Entries with no
-  recorded progress sort last. Used by the `?in_progress=1` filter.
+  recorded progress sort last. Backs the `:watched` sort order and the
+  `?in_progress=1` filter.
   """
   @spec sorted_by_last_watched([BrowseItem.t()], map()) :: [BrowseItem.t()]
   def sorted_by_last_watched(entries, progress_by_id) do
