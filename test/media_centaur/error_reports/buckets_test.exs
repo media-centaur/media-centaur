@@ -217,5 +217,37 @@ defmodule MediaCentaur.ErrorReports.BucketsTest do
       assert_receive {:buckets_changed, buckets}, 1_500
       assert is_list(buckets)
     end
+
+    test "announces the rebuilt state after a boot rebuild" do
+      # After a mid-session restart of Buckets alone, downstream projections
+      # (ShellBadges, mounted LiveViews) hold pre-crash state. The rebuild
+      # must broadcast so "state changed → broadcast" also covers restarts,
+      # not only ingest/dismiss.
+      message = "announce rebuild #{uniq()}"
+      fingerprint = fingerprint_of(:pipeline, message)
+
+      {:ok, _incident} =
+        Capture.persist_entry(entry(component: :pipeline, level: :warning, message: message))
+
+      Phoenix.PubSub.subscribe(MediaCentaur.PubSub, Topics.error_reports())
+
+      start_supervised!(
+        Supervisor.child_spec({Buckets, name: :buckets_rebuild_broadcast},
+          id: :buckets_rebuild_broadcast
+        )
+      )
+
+      # The app's global Buckets shares this topic; skip any broadcast that
+      # doesn't carry our seeded fingerprint instead of failing on it.
+      assert_broadcast_including(fingerprint)
+    end
+  end
+
+  defp assert_broadcast_including(fingerprint) do
+    assert_receive {:buckets_changed, buckets}, 1_500
+
+    if !Enum.any?(buckets, &(&1.fingerprint == fingerprint)) do
+      assert_broadcast_including(fingerprint)
+    end
   end
 end

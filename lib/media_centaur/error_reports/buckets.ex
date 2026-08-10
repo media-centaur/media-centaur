@@ -101,12 +101,21 @@ defmodule MediaCentaur.ErrorReports.Buckets do
     window = Keyword.get(opts, :persist_window_ms, @persist_window_ms)
     schedule_flush(window)
 
+    cache = rebuild_from_store()
+
+    # Announce the rebuilt state: after a mid-session restart of this process
+    # alone, downstream projections (ShellBadges, mounted LiveViews) hold
+    # pre-crash buckets until the next ingest/dismiss happens to broadcast.
+    # "State changed → broadcast" must also cover rebuilds. At app boot no
+    # subscriber exists yet, so this is a no-op there.
+    broadcast(cache)
+
     {:ok,
      %{
-       cache: rebuild_from_store(),
+       cache: cache,
        throttle: PersistThrottle.new(),
        persist_window_ms: window,
-       last_broadcast_at: now_ms() - @broadcast_throttle_ms,
+       last_broadcast_at: now_ms(),
        broadcast_pending: false
      }}
   end
