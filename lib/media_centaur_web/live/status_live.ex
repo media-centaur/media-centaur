@@ -519,48 +519,55 @@ defmodule MediaCentaurWeb.StatusLive do
               blur layer stays warm; inner content is guarded on the bucket. --%>
         <IssueView.issue_view bucket={@selected_incident} />
       </:overlays>
-      <div data-page-behavior="status" data-nav-default-zone="status" class="space-y-6">
-        <div data-nav-zone="toolbar" class="flex items-center gap-3">
-          <h1 class="text-2xl font-bold">Status</h1>
-          <div class="flex-1"></div>
-          <.button
-            variant="outline"
-            size="sm"
-            data-testid="report-a-problem"
-            phx-click="open_generic_report"
-            data-nav-item
-            tabindex="0"
-          >
-            Report a problem
-          </.button>
-        </div>
+      <div class="relative" data-page-behavior="status" data-nav-default-zone="status">
+        <%!-- Scrim only, same as Settings: no content entity to source a hero
+              from, so the calm dim ramp supplies the darker sense-of-place
+              without a backdrop. Fixed + behind content (z-0). --%>
+        <div class="page-side-dim page-side-dim-calm" aria-hidden="true"></div>
 
-        <div class="space-y-7">
-          <%!-- The tile board is the page's GRID context (spatial nav reads
-                the container's computed columns), so the zone name is the
-                framework's literal `grid`. --%>
-          <div
-            data-nav-zone="grid"
-            class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
-          >
-            <.subsystem_tile
-              :for={view <- @board}
-              view={view}
-              selected={view.component == @selected_subsystem}
-            />
+        <div class="relative z-[1] space-y-6">
+          <div data-nav-zone="toolbar" class="flex items-center gap-3">
+            <h1 class="text-2xl font-bold">Status</h1>
+            <div class="flex-1"></div>
+            <.button
+              variant="outline"
+              size="sm"
+              data-testid="report-a-problem"
+              phx-click="open_generic_report"
+              data-nav-item
+              tabindex="0"
+            >
+              Report a problem
+            </.button>
           </div>
 
-          <.health_drill_in
-            :if={@selected_subsystem}
-            view={drill_in_view(@board, @selected_subsystem)}
-            buckets={drill_in_buckets(@error_buckets, @selected_subsystem)}
-            retention={Map.get(@retention_by_subsystem, @selected_subsystem, [])}
-            on_select="select_incident"
-          >
-            <:activity :if={ActivityWidgets.widget_for(@selected_subsystem)}>
-              {ActivityWidgets.render(@selected_subsystem, activity_bundle(assigns))}
-            </:activity>
-          </.health_drill_in>
+          <div class="space-y-7">
+            <%!-- The tile board is the page's GRID context (spatial nav reads
+                the container's computed columns), so the zone name is the
+                framework's literal `grid`. --%>
+            <div
+              data-nav-zone="grid"
+              class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3"
+            >
+              <.subsystem_tile
+                :for={view <- @board}
+                view={view}
+                selected={view.component == @selected_subsystem}
+              />
+            </div>
+
+            <.health_drill_in
+              :if={@selected_subsystem}
+              view={drill_in_view(@board, @selected_subsystem)}
+              buckets={drill_in_buckets(@error_buckets, @selected_subsystem)}
+              retention={Map.get(@retention_by_subsystem, @selected_subsystem, [])}
+              on_select="select_incident"
+            >
+              <:activity :if={ActivityWidgets.widget_for(@selected_subsystem)}>
+                {ActivityWidgets.render(@selected_subsystem, activity_bundle(assigns))}
+              </:activity>
+            </.health_drill_in>
+          </div>
         </div>
       </div>
     </Layouts.app>

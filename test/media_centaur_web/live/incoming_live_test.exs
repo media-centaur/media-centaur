@@ -2847,4 +2847,48 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       assert render(view) =~ "Reload Show"
     end
   end
+
+  describe "page atmosphere" do
+    test "backdrop preference off (default): calm scrim, no image band", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/incoming")
+
+      assert has_element?(view, ".page-side-dim.page-side-dim-calm")
+      refute has_element?(view, ".page-atmosphere")
+    end
+
+    test "backdrop preference on with artwork: image band and high scrim", %{conn: conn} do
+      {:ok, _} =
+        MediaCentaur.Settings.find_or_create_entry(%{
+          key: "incoming_backdrop",
+          value: %{"enabled" => true}
+        })
+
+      movie = create_standalone_movie(%{name: "Sample Movie", description: "A synopsis"})
+      create_linked_file(%{movie_id: movie.id})
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "backdrop",
+        content_url: "#{movie.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      # hero_candidates reads a global ETS projection; refresh it from this
+      # test's sandboxed rows and drop it afterwards so nothing leaks.
+      MediaCentaur.Library.Views.HeroCandidates.refresh_cache()
+
+      on_exit(fn ->
+        case :ets.whereis(:library_view_hero_candidates) do
+          :undefined -> :ok
+          _ref -> :ets.delete(:library_view_hero_candidates)
+        end
+      end)
+
+      {:ok, view, _html} = live_async!(conn, "/incoming")
+
+      assert has_element?(view, ".page-atmosphere")
+      assert has_element?(view, ".page-side-dim.page-side-dim-high")
+      refute has_element?(view, ".page-side-dim-calm")
+    end
+  end
 end

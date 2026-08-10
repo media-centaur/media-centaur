@@ -892,9 +892,22 @@ defmodule MediaCentaurWeb.IncomingLive do
             decoding="sync"
           />
         </div>
-        <%!-- The dark side/bottom scrim is unconditional — a pure gradient,
-              no image needed, and it keeps the page's depth either way. --%>
-        <div class="page-side-dim page-side-dim-high" aria-hidden="true"></div>
+        <%!-- The scrim is unconditional; its ramp follows the image. With the
+              backdrop showing, the high variant starts the dim at the very
+              top so the search area sits on settled dark. Without it, the
+              calm ramp gives the bare page the same quiet depth as
+              Settings/Status. --%>
+        <div
+          class={[
+            "page-side-dim",
+            if(@page_backdrop && @incoming_backdrop,
+              do: "page-side-dim-high",
+              else: "page-side-dim-calm"
+            )
+          ]}
+          aria-hidden="true"
+        >
+        </div>
 
         <%!-- No page header: the search input IS the page's headline (its
               placeholder carries the prompt), so a title above it read as
