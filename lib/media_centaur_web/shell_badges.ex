@@ -1,6 +1,6 @@
 defmodule MediaCentaurWeb.ShellBadges do
   @moduledoc """
-  The sidebar's "pending shell work" badges — one concept, three counts:
+  The sidebar's "pending shell work" badges — one concept, four counts:
 
     * `:diagnostics_unseen` — unseen auto-detected incidents
       (`MediaCentaurWeb.DiagnosticsBadge.count/0`, which owns the
@@ -9,6 +9,13 @@ defmodule MediaCentaurWeb.ShellBadges do
       (`Review.count_pending/0`).
     * `:mapping_pending` — files awaiting an episode-mapping decision
       (`Reconciliation.count_awaiting/0`).
+    * `:status_errors` — live error/critical buckets, i.e. exactly the
+      condition that turns a Status-page tile red
+      (`HealthBoard.tile_state/1` over `ErrorReports.list_buckets/0`).
+      Drives the persistent red dot on the Status nav icon. Distinct from
+      `:diagnostics_unseen`: that is a *discovery* badge (new since last
+      visit, cleared by `mark_seen`), this is a *current-condition* dot
+      that stays until the underlying errors are resolved or dismissed.
 
   Replaces the former `DiagnosticsBadge`/`ReviewBadge` on_mount pair,
   which issued the three COUNT queries synchronously on **every**
@@ -39,6 +46,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   import Phoenix.Component, only: [assign: 3]
   import Phoenix.LiveView, only: [attach_hook: 4, connected?: 1]
 
+  alias MediaCentaur.ErrorReports
   alias MediaCentaur.Reconciliation
   alias MediaCentaur.Review
   alias MediaCentaur.Review.Events.FileAdded
@@ -46,6 +54,7 @@ defmodule MediaCentaurWeb.ShellBadges do
   alias MediaCentaur.Review.Events.GroupApproved
   alias MediaCentaur.Topics
   alias MediaCentaurWeb.DiagnosticsBadge
+  alias MediaCentaurWeb.StatusLive.HealthBoard
 
   @counts_key {__MODULE__, :counts}
 
@@ -83,13 +92,14 @@ defmodule MediaCentaurWeb.ShellBadges do
   end
 
   @doc """
-  The three badge counts. Reads the cached snapshot; falls back to the
+  The four badge counts. Reads the cached snapshot; falls back to the
   live computation when no Worker has primed it (test mode / boot).
   """
   @spec counts() :: %{
           diagnostics_unseen: non_neg_integer(),
           review_pending: non_neg_integer(),
-          mapping_pending: non_neg_integer()
+          mapping_pending: non_neg_integer(),
+          status_errors: non_neg_integer()
         }
   def counts do
     case :persistent_term.get(@counts_key, :unset) do
@@ -109,7 +119,10 @@ defmodule MediaCentaurWeb.ShellBadges do
     %{
       diagnostics_unseen: DiagnosticsBadge.count(),
       review_pending: Review.count_pending(),
-      mapping_pending: Reconciliation.count_awaiting()
+      mapping_pending: Reconciliation.count_awaiting(),
+      # HealthBoard.tile_state/1 is the canonical "tile turns red" rule —
+      # reused here so the nav dot lights iff a Status-page tile is red.
+      status_errors: HealthBoard.tile_state(ErrorReports.list_buckets()).error_count
     }
   end
 
@@ -137,6 +150,7 @@ defmodule MediaCentaurWeb.ShellBadges do
     |> assign(:diagnostics_unseen, counts.diagnostics_unseen)
     |> assign(:review_pending, counts.review_pending)
     |> assign(:mapping_pending, counts.mapping_pending)
+    |> assign(:status_errors, counts.status_errors)
   end
 
   # Source events re-read immediately (test mode computes live; in prod
