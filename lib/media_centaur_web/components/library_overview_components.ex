@@ -38,7 +38,7 @@ defmodule MediaCentaurWeb.LibraryOverviewComponents do
   def glance_card(assigns) do
     ~H"""
     <div class="glass-surface rounded-xl p-4 space-y-4" data-component="overview-glance">
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="grid grid-cols-2 @xl:grid-cols-4 gap-4">
         <.stat label="Movies" value={@overview.movie_count} />
         <.stat label="Shows" value={@overview.show_count} />
         <.stat label="Episodes" value={@overview.episode_count} />

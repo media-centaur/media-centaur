@@ -49,7 +49,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Library do
     ~H"""
     <div :if={@overview} class="space-y-3" data-testid="library-widget">
       <.glance_card overview={@overview} />
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+      <div class="grid grid-cols-1 @3xl:grid-cols-3 gap-3">
         <.pending_work_card overview={@overview} />
         <.completeness_card overview={@overview} />
         <.storage_outlook_card drives={@storage_drives} at_risk={@at_risk} />
