@@ -546,14 +546,29 @@ cursor is driving it. A wheel event is the pointer claiming the scroll, so the
 orchestrator's `_onWheel` cancels every glide where it stands
 (`writer.cancelScrollMotion()`) and switches the input method to mouse —
 without either, an in-flight reveal overrode the user's scrolling on every
-frame until it arrived, most visibly on page load, where the mount-time reveal
-glides back to the parked cursor from whatever scroll position the browser
-restored. While the method is mouse, restores the user didn't ask for
-(post-patch reconciles, cursor-start seeding) pass `{ reveal: false }` to the
-writer's focus calls: focus is re-asserted with `preventScroll`, and the
-viewport stays where the user put it. The next keypress or gamepad input flips
-the method back before its action executes, so cursor-driven navigation
+frame until it arrived. While the method is mouse, restores the user didn't
+ask for (post-patch reconciles, cursor-start seeding) pass `{ reveal: false }`
+to the writer's focus calls: focus is re-asserted with `preventScroll`, and
+the viewport stays where the user put it. The next keypress or gamepad input
+flips the method back before its action executes, so cursor-driven navigation
 reveals exactly as before.
+
+**The navigation owns mount-time scroll.** When `start()` runs — every live
+navigation and the initial load — the window still carries the *previous*
+page's scroll offset, and the navigation's own scroll write lands one frame
+later: LiveView resets to top on a redirect, restores the saved position on
+back/forward, and the browser restores on a fresh load. A reveal issued while
+seeding focus would be measured against that doomed offset, and because a
+glide chases an absolute target, it would re-assert the stale destination
+*after* LiveView's write — scroll down on home, enter the sidebar, descend to
+Library, and Library landed scrolled to wherever home had been. So the whole
+of `start()` runs with `_mounting` set and `_restoreOpts()` returns
+`{ reveal: false }` for every method, not just mouse: mount-time focus
+seeding never moves the viewport. The first user action takes scroll
+authority back and reveals as always — the same idiom as the mouse-mode
+restore above. (`destroy()` guards the other side of the same seam: it
+cancels the old page's in-flight glides, whose scroll containers —
+`documentElement` — outlive the orchestrator.)
 
 
 ## Text Input Handling

@@ -2296,6 +2296,63 @@ describe("Orchestrator", () => {
     })
   })
 
+  // At mount the window still carries the previous page's scroll offset, and
+  // LiveView writes the navigation's own scroll (reset to top on redirect,
+  // restore on back/forward) one frame later. A reveal issued during start()
+  // is therefore measured against a scroll state that is about to be
+  // overwritten — and its glide chases that stale absolute target *after*
+  // LiveView's write, parking the new page wherever the old one was scrolled
+  // (home scrolled down → sidebar → Library → Library lands scrolled down).
+  // Mount-time focus seeding must be scroll-neutral; the input system takes
+  // scroll authority back with the first user action.
+  describe("mount-time focus seeding is scroll-neutral", () => {
+    test("focus seeding during start() never reveals, even in cursor modes", () => {
+      const { system, calls } = setup({ getCurrentFocusedItem: () => null })
+
+      system.start({})
+
+      const focusCalls = calls.filter(c =>
+        ["focusFirst", "focusByIndex", "focusByEntityId", "focusElement"].includes(c.method))
+      expect(focusCalls.length).toBeGreaterThan(0)
+      for (const call of focusCalls) {
+        expect(call.args.at(-1)).toEqual({ reveal: false })
+      }
+    })
+
+    test("sidebar resume after navigation focuses without revealing", () => {
+      const { system, calls, globals } = setup({
+        getCurrentFocusedItem: () => null,
+        getActiveItemIndex: (context) => context === "sidebar" ? 1 : -1,
+      })
+      globals.sessionStorage.setItem("inputSystem:resumeSidebar", "true")
+
+      system.start({})
+
+      const sidebarFocus = calls.filter(c => c.method === "focusByIndex" && c.args[0] === "sidebar")
+      expect(sidebarFocus.length).toBeGreaterThan(0)
+      for (const call of sidebarFocus) {
+        expect(call.args.at(-1)).toEqual({ reveal: false })
+      }
+    })
+
+    test("cursor-start fallback during start() does not reveal", () => {
+      // Empty grid and zone tabs — cursor start falls through to the sidebar.
+      const { system, calls } = setup({
+        getItemCount: (context) => context === "sidebar" ? 5 : 0,
+        getCurrentFocusedItem: () => null,
+      })
+
+      system.start({})
+
+      const focusCalls = calls.filter(c =>
+        ["focusFirst", "focusByIndex"].includes(c.method))
+      expect(focusCalls.length).toBeGreaterThan(0)
+      for (const call of focusCalls) {
+        expect(call.args.at(-1)).toEqual({ reveal: false })
+      }
+    })
+  })
+
   describe("mouse position tracking", () => {
     test("first mousemove only primes position, does not switch method", () => {
       let onInputCallback = null

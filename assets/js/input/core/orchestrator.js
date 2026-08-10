@@ -101,6 +101,9 @@ export class Orchestrator {
     // Prevents _syncState() from re-entering an overlay context during the
     // LiveView round-trip after _executeDismiss().
     this._expectedPresentation = undefined
+    // True while start() seeds focus — mount-time focus writes are
+    // scroll-neutral because the navigation's scroll hasn't settled yet.
+    this._mounting = false
     this._onMouseMove = this._onMouseMove.bind(this)
     this._onWheel = this._onWheel.bind(this)
     this._onVisibilityChange = this._onVisibilityChange.bind(this)
@@ -136,6 +139,18 @@ export class Orchestrator {
     this._globals.document.addEventListener("wheel", this._onWheel, { passive: true })
     this._globals.document.addEventListener("visibilitychange", this._onVisibilityChange)
 
+    // Mount-time focus seeding is scroll-neutral. The window still carries
+    // the previous page's scroll offset here: LiveView writes the
+    // navigation's own scroll (reset to top on redirect, restore on
+    // back/forward, the browser's on a fresh load) one frame after this hook
+    // mounts. A reveal issued now would be measured against that doomed
+    // offset, and its glide would keep chasing the stale absolute target
+    // *after* LiveView's write — parking the new page wherever the old one
+    // was scrolled. So every focus write below passes { reveal: false } via
+    // _restoreOpts(); scroll authority returns to the cursor with the first
+    // user action, which reveals as always.
+    this._mounting = true
+
     // Sync initial state (also detects and attaches page behavior)
     this._syncState()
 
@@ -156,14 +171,16 @@ export class Orchestrator {
       this.focusMachine.forceContext(primaryMenu)
       const activeIndex = this.reader.getActiveItemIndex(primaryMenu)
       if (activeIndex >= 0) {
-        this.writer.focusByIndex(primaryMenu, activeIndex)
+        this.writer.focusByIndex(primaryMenu, activeIndex, this._restoreOpts())
       } else {
-        this.writer.focusFirst(primaryMenu)
+        this.writer.focusFirst(primaryMenu, this._restoreOpts())
       }
     }
 
     // If the initial context (GRID) is empty, fall back to a non-empty context
     this._ensureCursorStart()
+
+    this._mounting = false
   }
 
   /**
@@ -793,10 +810,11 @@ export class Orchestrator {
    * reconciles, cursor-start seeding). While the pointer owns the scroll,
    * re-assert focus without revealing it — moving the viewport would fight
    * the mouse. Cursor-driven methods keep the reveal: their focus must stay
-   * visible across patches.
+   * visible across patches. During start() the scroll state itself is
+   * unsettled (see the _mounting comment there), so no method reveals.
    */
   _restoreOpts() {
-    return { reveal: this.inputDetector.current !== InputMethod.MOUSE }
+    return { reveal: !this._mounting && this.inputDetector.current !== InputMethod.MOUSE }
   }
 
   _executeDirective(directive) {
