@@ -59,8 +59,8 @@ const TOUR = [
   // ─── Library ─────────────────────────────────────────────────────────
   { name: "library-grid", url: "/library", settleMs: 400 },
   {
-    name: "library-in-progress",
-    url: "/library?in_progress=1",
+    name: "library-recently-watched",
+    url: "/library?sort=watched",
     settleMs: 400,
   },
   {

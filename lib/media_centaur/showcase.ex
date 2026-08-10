@@ -351,7 +351,7 @@ defmodule MediaCentaur.Showcase do
   # ---------------------------------------------------------------------------
 
   # Drives both HomeLive's Continue Watching row (4 cards + see-all) and
-  # the Library `?in_progress=1` deep-link. Six non-completed rows with
+  # the Library's Recently Watched sort. Six non-completed rows with
   # spread-out progress percentages give the row visibly different
   # progress bars (10–90% spread). Plus a couple of completed entries so
   # the seed isn't all-paused.

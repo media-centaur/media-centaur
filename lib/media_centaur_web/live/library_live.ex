@@ -75,7 +75,6 @@ defmodule MediaCentaurWeb.LibraryLive do
        sort_open: false,
        sort_highlight: 0,
        filter_text: "",
-       in_progress_filter: false,
        counts: %{all: 0, movies: 0, tv: 0},
        grid_count: 0,
        unavailable_count: 0,
@@ -111,22 +110,19 @@ defmodule MediaCentaurWeb.LibraryLive do
     tab = parse_tab(params["tab"])
     sort = parse_sort(params["sort"])
     filter_text = params["filter"] || ""
-    in_progress_filter = params["in_progress"] == "1"
 
     grid_changed =
       just_loaded ||
         tab != socket.assigns.active_tab ||
         sort != socket.assigns.sort_order ||
-        filter_text != socket.assigns.filter_text ||
-        in_progress_filter != socket.assigns.in_progress_filter
+        filter_text != socket.assigns.filter_text
 
     socket =
       socket
       |> assign(
         active_tab: tab,
         sort_order: sort,
-        filter_text: filter_text,
-        in_progress_filter: in_progress_filter
+        filter_text: filter_text
       )
       |> then(fn socket -> if grid_changed, do: cache_visible_ids(socket), else: socket end)
       |> apply_modal_params(params)
@@ -197,10 +193,10 @@ defmodule MediaCentaurWeb.LibraryLive do
   end
 
   # "Clear filters" in the no-matches empty state — reset every filter that
-  # can hide a card (tab, text, in-progress) so the grid is guaranteed to
-  # repopulate; sort is a presentation choice, not a filter, so it stays.
+  # can hide a card (tab, text) so the grid is guaranteed to repopulate;
+  # sort is a presentation choice, not a filter, so it stays.
   def handle_event("reset_filters", _params, socket) do
-    {:noreply, push_patch(socket, to: build_path(socket, %{tab: :all, filter: "", in_progress: false}))}
+    {:noreply, push_patch(socket, to: build_path(socket, %{tab: :all, filter: ""}))}
   end
 
   # Run on a supervised Task so the socket stays responsive — a
@@ -392,19 +388,6 @@ defmodule MediaCentaurWeb.LibraryLive do
               filter_text={@filter_text}
             />
 
-            <div :if={@in_progress_filter} class="mt-3 flex items-center gap-2">
-              <.badge size="md" class="gap-1">
-                In progress
-                <.link
-                  patch={~p"/library"}
-                  class="opacity-60 hover:opacity-100"
-                  aria-label="Clear filter"
-                >
-                  ×
-                </.link>
-              </.badge>
-            </div>
-
             <%!-- Genuinely-empty library: prompt to scan or configure. --%>
             <div
               :if={empty_grid_reason(@grid_count, @counts.all) == :library_empty}
@@ -592,24 +575,17 @@ defmodule MediaCentaurWeb.LibraryLive do
   defp compute_filtered(socket) do
     assigns = socket.assigns
 
-    entries =
-      assigns.entries
-      |> filtered_by_tab(assigns.active_tab)
-      |> filtered_by_text(assigns.filter_text)
-      |> filtered_by_in_progress(assigns.progress_by_id, assigns.in_progress_filter)
-
-    if assigns.in_progress_filter do
-      sorted_by_last_watched(entries, assigns.progress_by_id)
-    else
-      sorted_by(entries, assigns.sort_order, assigns.progress_by_id)
-    end
+    assigns.entries
+    |> filtered_by_tab(assigns.active_tab)
+    |> filtered_by_text(assigns.filter_text)
+    |> sorted_by(assigns.sort_order, assigns.progress_by_id)
   end
 
   # Caches the filtered visible-ID set so subsequent
   # `touch_stream_entries` calls (one per PubSub event burst) read O(1)
   # from assigns instead of rescanning `entries`. Invalidate by calling
   # this whenever `entries` or any filter assign (active_tab,
-  # filter_text, in_progress_filter) changes.
+  # filter_text) changes.
   defp cache_visible_ids(socket) do
     assigns = socket.assigns
 
@@ -617,7 +593,6 @@ defmodule MediaCentaurWeb.LibraryLive do
       assigns.entries
       |> filtered_by_tab(assigns.active_tab)
       |> filtered_by_text(assigns.filter_text)
-      |> filtered_by_in_progress(assigns.progress_by_id, assigns.in_progress_filter)
       |> MapSet.new(& &1.id)
 
     assign(socket, visible_ids: visible_ids)
@@ -686,7 +661,6 @@ defmodule MediaCentaurWeb.LibraryLive do
     tab = Map.get(overrides, :tab, assigns.active_tab)
     sort = Map.get(overrides, :sort, assigns.sort_order)
     filter = Map.get(overrides, :filter, assigns.filter_text)
-    in_progress = Map.get(overrides, :in_progress, assigns.in_progress_filter)
     selected = Map.get(overrides, :selected, assigns.selected_entity_id)
     view = Map.get(overrides, :view, assigns.detail_view)
 
@@ -694,7 +668,6 @@ defmodule MediaCentaurWeb.LibraryLive do
     params = if tab == :all, do: params, else: Map.put(params, :tab, tab)
     params = if sort == :recent, do: params, else: Map.put(params, :sort, sort)
     params = if filter == "", do: params, else: Map.put(params, :filter, filter)
-    params = if in_progress, do: Map.put(params, :in_progress, 1), else: params
     params = if selected, do: Map.put(params, :selected, selected), else: params
     params = if selected && view in [:info, :cast], do: Map.put(params, :view, view), else: params
 

@@ -83,28 +83,6 @@ defmodule MediaCentaurWeb.LibraryProgress do
     end
   end
 
-  # --- Entry status ---
-
-  def in_progress?(%{progress: nil}), do: false
-
-  def in_progress?(%{progress: summary}) do
-    in_progress_summary?(summary)
-  end
-
-  @doc """
-  Variant for callers that already hold a `ProgressSummary`-shaped map
-  directly (rather than the rich `%{entity:, progress:}` entry shape).
-  Used by the LibraryLive grid path after Library Schema v2 Phase 3.1
-  — `progress_by_id[entry.id]` returns the summary, not a wrapped
-  entry.
-  """
-  @spec in_progress_summary?(map() | nil) :: boolean()
-  def in_progress_summary?(nil), do: false
-
-  def in_progress_summary?(summary) when is_map(summary) do
-    summary.episodes_completed < summary.episodes_total
-  end
-
   # --- Progress record merging ---
 
   def merge_progress_record(records, nil), do: records

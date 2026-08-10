@@ -42,6 +42,55 @@ defmodule MediaCentaurWeb.HomeLiveTest do
            "continue-watching media must render on the disconnected first paint"
   end
 
+  describe "See all destinations" do
+    setup do
+      # One in-progress movie populates both Continue Watching and
+      # Recently Added, so all four links render.
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      create_watch_progress(%{
+        movie_id: movie.id,
+        position_seconds: 30.0,
+        duration_seconds: 100.0
+      })
+
+      :ok
+    end
+
+    test "Continue Watching header link targets the Recently Watched sort", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      assert has_element?(
+               view,
+               ~s|section[data-row="continue-watching"] a[href="/library?sort=watched"]|
+             )
+    end
+
+    test "Continue Watching row placeholder targets the Recently Watched sort", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      assert has_element?(
+               view,
+               ~s|[data-component="continue-watching-see-all"][href="/library?sort=watched"]|
+             )
+    end
+
+    test "Recently Added header link lands on the library default (Recently Added) sort",
+         %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      assert has_element?(view, ~s|section[data-row="recently-added"] a[href="/library"]|)
+    end
+
+    test "Recently Added row placeholder lands on the library default (Recently Added) sort",
+         %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      assert has_element?(view, ~s|[data-component="poster-row-see-all"][href="/library"]|)
+    end
+  end
+
   describe "debounce on entities_changed" do
     test "five rapid broadcasts trigger only one reload after the debounce window", %{conn: conn} do
       # Regression guard: rapid :entities_changed messages must be debounced

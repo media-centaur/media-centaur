@@ -162,7 +162,10 @@ defmodule MediaCentaurWeb.HomeLive do
           >
             <div class="flex items-baseline justify-between mb-3">
               <h2 class="text-xl font-semibold tracking-tight">Continue Watching</h2>
-              <.link navigate="/library" class="text-sm text-base-content/60 hover:text-primary">
+              <.link
+                navigate="/library?sort=watched"
+                class="text-sm text-base-content/60 hover:text-primary"
+              >
                 See all →
               </.link>
             </div>

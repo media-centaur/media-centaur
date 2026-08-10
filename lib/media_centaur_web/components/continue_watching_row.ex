@@ -100,7 +100,7 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
       </button>
 
       <.link
-        navigate="/library?in_progress=1"
+        navigate="/library?sort=watched"
         class="card-hover relative aspect-[16/9] rounded-lg overflow-hidden glass-inset flex flex-col items-center justify-center gap-2 text-base-content/60 hover:text-primary hover:bg-base-content/5"
         data-component="continue-watching-see-all"
         data-row-item
