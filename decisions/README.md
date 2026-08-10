@@ -91,3 +91,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 017 | 2026-08-03 | [Coming Up depth is the house modal, and unscheduled titles are rows](user-interface/2026-08-03-017-coming-up-title-depth.md) | accepted |
 | 018 | 2026-08-07 | [Focus cursor and scroll behaviour](user-interface/2026-08-07-018-focus-cursor-and-scroll.md) | accepted |
 | 019 | 2026-08-07 | [The detail modal navigates as two regions, and BACK peels containment](user-interface/2026-08-07-019-detail-modal-two-regions.md) | accepted |
+| 020 | 2026-08-10 | [Cursor treatment tiers — ring by default, soft fill where the ring collides](user-interface/2026-08-10-020-cursor-treatment-tiers.md) | accepted |

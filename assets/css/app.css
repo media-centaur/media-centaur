@@ -1126,6 +1126,43 @@ body:has(.modal-backdrop[data-state="open"]) {
   right: 0;
 }
 
+/* Cursor on a zone tab: the standard ring collides with the surface's own
+   active underline — two primary 2px strokes in the same neighbourhood read
+   as one smeared double line, and no offset resolves it. So this is a
+   tier-2 cursor surface (UIDR-020): a flat neutral fill pooled behind the
+   focused word (negative-inset pseudo, no layout shift). Fill = cursor,
+   primary underline = active — separate channels, nothing to collide. The
+   pill sits at z -1 behind the text; the focused tab forms a stacking
+   context so it can't slip behind an ancestor surface, and the ::after
+   underline paints above it. pointer-events keeps the negative inset from
+   widening the hover/click area. */
+.zone-tab::before {
+  content: "";
+  position: absolute;
+  inset: -0.35rem -0.8rem -0.05rem;
+  border-radius: 9999px;
+  background: transparent;
+  transition: background 140ms;
+  pointer-events: none;
+  z-index: -1;
+}
+
+[data-input=keyboard] .zone-tab[data-nav-item]:focus,
+[data-input=gamepad] .zone-tab[data-nav-item]:focus {
+  outline: none;
+  z-index: 0;
+}
+
+[data-input=keyboard] .zone-tab[data-nav-item]:focus:not(.zone-tab-active),
+[data-input=gamepad] .zone-tab[data-nav-item]:focus:not(.zone-tab-active) {
+  color: oklch(from var(--color-base-content) l c h / 0.92);
+}
+
+[data-input=keyboard] .zone-tab[data-nav-item]:focus::before,
+[data-input=gamepad] .zone-tab[data-nav-item]:focus::before {
+  background: oklch(from var(--color-base-content) l c h / 0.11);
+}
+
 
 /* ── Library Filter Tabs (pill container) ──
    Glass-pill styling for type filter tabs.
