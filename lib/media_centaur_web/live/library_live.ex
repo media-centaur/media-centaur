@@ -149,7 +149,10 @@ defmodule MediaCentaurWeb.LibraryLive do
      )}
   end
 
-  @sort_options [:recent, :alpha, :year]
+  # Order must match `LibraryCards.@sort_options` — the keyboard
+  # highlight index selects from this list while the component renders
+  # the menu from its own.
+  @sort_options [:recent, :watched, :alpha, :year]
 
   def handle_event("toggle_sort", _params, socket) do
     if socket.assigns.sort_open do
@@ -598,7 +601,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     if assigns.in_progress_filter do
       sorted_by_last_watched(entries, assigns.progress_by_id)
     else
-      sorted_by(entries, assigns.sort_order)
+      sorted_by(entries, assigns.sort_order, assigns.progress_by_id)
     end
   end
 
@@ -670,6 +673,7 @@ defmodule MediaCentaurWeb.LibraryLive do
 
   defp parse_sort("alpha"), do: :alpha
   defp parse_sort("year"), do: :year
+  defp parse_sort("watched"), do: :watched
   defp parse_sort(_), do: :recent
 
   @impl true

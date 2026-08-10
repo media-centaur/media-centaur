@@ -133,6 +133,20 @@ defmodule MediaCentaurWeb.LibraryHelpersTest do
       # `:recent` is the projection's implicit order; the helper is a no-op.
       assert LibraryHelpers.sorted_by([a, b, c], :recent) == [a, b, c]
     end
+
+    test "sorts by last watched descending for :watched; entries without progress go last" do
+      a = item(%{id: "a", name: "Mid"})
+      b = item(%{id: "b", name: "Newest"})
+      c = item(%{id: "c", name: "No-progress"})
+
+      progress_by_id = %{
+        "a" => %{last_watched_at: ~U[2026-01-15 00:00:00Z]},
+        "b" => %{last_watched_at: ~U[2026-02-01 00:00:00Z]}
+      }
+
+      result = LibraryHelpers.sorted_by([a, b, c], :watched, progress_by_id)
+      assert Enum.map(result, & &1.name) == ["Newest", "Mid", "No-progress"]
+    end
   end
 
   # --- sorted_by_last_watched/2 ---
