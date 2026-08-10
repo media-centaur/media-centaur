@@ -4,6 +4,21 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.119.4 — 2026-08-10
+
+### New
+
+- **Sort the library by what you watched last.** The library's sort menu gains **Recently Watched**, which puts the titles you played most recently first. The Home page links into it: Continue Watching's **See all** now opens the library in that order, and Recently Added's opens the library's default Recently Added view. The separate "in progress" filter is retired — the sort surfaces the same titles, in a more useful order.
+- **The Status icon warns you about live problems.** When a tile on the Status page turns red, the Status icon in the sidebar carries a small red dot. It marks a current condition, not something to acknowledge — visiting the page doesn't clear it; the dot goes away when the problem does.
+
+### Fixed
+
+- **Pages open at their own scroll position again.** Scrolling down one page and then moving to another with a keyboard or gamepad could land the new page scrolled to wherever the old one had been — for example, scrolling down Home and entering the Library could open the Library part-way down. New pages now open at the top, and going back still returns you to where you were.
+- **Status drill-in panels fit narrow windows.** The card grids inside a Status drill-in sized themselves to the whole window rather than the panel they sit in, so at half-width the labels and counts overflowed. They now track the panel's actual width, including under UI scaling.
+- **Sidebar icons keep their size.** Expanding the sidebar no longer shrinks the icons in the System group.
+- **The cursor ring stays inside the library's type filter.** Moving the keyboard cursor onto the Movies/Series filter no longer draws its highlight outside the pill.
+- **The Watcher tile now reads "File Watcher."** A clearer name for the service that watches your media folders.
+
 ## v0.119.3 — 2026-08-09
 
 ### Fixed
