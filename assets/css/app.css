@@ -465,16 +465,6 @@ html:not([data-sidebar=collapsed]):is([data-input=keyboard], [data-input=gamepad
   background: oklch(from var(--color-primary) l c h / 0.10);
 }
 
-/* Expanded: demote system icons to 16px alongside the smaller font.
-   Collapsed: there are no labels, so the demotion conveys nothing and only
-   breaks the icon centering — collapsed centering relies on the icon
-   filling the padding box, which a 16px icon doesn't. Render at the full
-   icon size so they center like the rest. */
-.sidebar-link-system .size-5 {
-  width: calc(1.25rem - 0.25rem * var(--sidebar-expanded));
-  height: calc(1.25rem - 0.25rem * var(--sidebar-expanded));
-}
-
 /* Label text fades in with expansion */
 .sidebar-label {
   white-space: nowrap;
