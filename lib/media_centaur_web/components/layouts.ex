@@ -64,6 +64,19 @@ defmodule MediaCentaurWeb.Layouts do
     `reconciliation:updates` PubSub topic.
     """
 
+  attr :status_errors, :integer,
+    default: 0,
+    doc: """
+    Count of live error/critical buckets — the condition that turns a
+    Status-page tile red. Rendered as a persistent red dot on the Status
+    nav icon (visible in both the expanded and collapsed rail, unlike the
+    `ml-auto` count badge which the 52px rail clips). Seeded app-wide by
+    `MediaCentaurWeb.ShellBadges` and live-refreshed via the
+    `shell:badges` derived topic. Unlike `diagnostics_unseen` it is not
+    cleared by visiting /status — it stays until the errors are resolved
+    or dismissed.
+    """
+
   attr :full_width, :boolean, default: false, doc: "when true, removes max-w-7xl constraint"
 
   slot :inner_block, required: true
@@ -146,7 +159,15 @@ defmodule MediaCentaurWeb.Layouts do
             data-nav-item
             tabindex="0"
           >
-            <.icon name="hero-squares-2x2" class="size-5 flex-shrink-0" />
+            <span class="relative inline-flex flex-shrink-0">
+              <.icon name="hero-squares-2x2" class="size-5" />
+              <span
+                :if={@status_errors > 0}
+                id="sidebar-status-error-dot"
+                class="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-error"
+                aria-hidden="true"
+              />
+            </span>
             <span class="sidebar-label">Status</span>
             <.badge :if={@diagnostics_unseen > 0} variant="error" size="xs" class="ml-auto">
               {@diagnostics_unseen}
