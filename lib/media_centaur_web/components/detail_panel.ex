@@ -615,9 +615,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   Drives the frame's `full` attr, which tags scrollable entries with
   `.modal-panel--full`: those panels get a constant backdrop box
   (sized in `--modal-panel-h` units, not a panel percentage) and a
-  top-anchored position, so the content-fit panel can grow and shrink
-  with the season accordion without re-cropping or shifting the
-  backdrop image. See the `.modal-panel--full` comment in app.css.
+  top-anchored position, so the panel can grow and shrink with the
+  season accordion without re-cropping or shifting the backdrop
+  image. Content-fit panels (bare movies) instead center with an
+  upward optical bias. See the app.css comments on
+  `.modal-panel--full` / `.modal-panel--cinematic`.
   """
   @spec scrollable_content?(map(), atom()) :: boolean()
   def scrollable_content?(entity, detail_view) do
