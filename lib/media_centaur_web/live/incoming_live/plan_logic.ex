@@ -14,6 +14,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
 
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Targeting
+  alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaur.Library.Person
   alias MediaCentaur.ReleaseTracking.TitleResult
   alias MediaCentaur.Search.IndexerHealth
@@ -310,6 +311,51 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   @spec tmdb_backdrop_url(String.t() | nil) :: String.t() | nil
   def tmdb_backdrop_url(nil), do: nil
   def tmdb_backdrop_url(path), do: "https://image.tmdb.org/t/p/w1280#{path}"
+
+  @doc "Hotlinked TMDB logo at lockup width — nil path stays nil."
+  @spec tmdb_logo_url(String.t() | nil) :: String.t() | nil
+  def tmdb_logo_url(nil), do: nil
+  def tmdb_logo_url(path), do: "https://image.tmdb.org/t/p/w500#{path}"
+
+  @doc """
+  The pinned identity lockup per stage — what `CinematicShell`'s
+  orientation block introduces the title with: logo (hotlinked) when
+  TMDB has one, title as logotype fallback, tagline when the stage
+  knows it. `nil` when the stage has nothing to introduce (error, or
+  loading before a picked identity arrives).
+
+  Mirrors `shell_backdrop_url/2`'s source-per-stage chain so the
+  lockup and the backdrop always describe the same title. `sources`
+  carries `%{identity:, selection:, movie:, board:}`, any of them nil.
+  """
+  @spec lockup(atom(), map()) ::
+          %{title: String.t() | nil, logo_url: String.t() | nil, tagline: String.t() | nil} | nil
+  def lockup(:loading, %{identity: %TitleResult{} = identity}),
+    do: %{title: identity.name, logo_url: nil, tagline: nil}
+
+  def lockup(:targeting, %{selection: %Targeting.Selection{} = selection}),
+    do: %{title: selection.title, logo_url: tmdb_logo_url(selection.logo_path), tagline: nil}
+
+  def lockup(:targeting, %{identity: %TitleResult{} = identity}),
+    do: %{title: identity.name, logo_url: nil, tagline: nil}
+
+  def lockup(:movie_confirm, %{movie: %MoviePreview{} = movie}),
+    do: %{title: movie.title, logo_url: movie.logo_url, tagline: movie.tagline}
+
+  def lockup(:board, %{board: %PlanBoard{} = board} = sources),
+    do: %{title: board.title, logo_url: carried_logo(sources), tagline: nil}
+
+  def lockup(_stage, _sources), do: nil
+
+  # The board struct carries no artwork; the logo rides over from
+  # whichever earlier stage of this session knew it.
+  defp carried_logo(sources) do
+    case sources do
+      %{movie: %MoviePreview{logo_url: url}} when is_binary(url) -> url
+      %{selection: %Targeting.Selection{logo_path: path}} when is_binary(path) -> tmdb_logo_url(path)
+      _ -> nil
+    end
+  end
 
   defp identity_backdrop(%TitleResult{backdrop_path: path}), do: tmdb_backdrop_url(path)
   defp identity_backdrop(_absent), do: nil

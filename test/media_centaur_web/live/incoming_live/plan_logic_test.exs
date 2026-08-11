@@ -380,6 +380,91 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
     end
   end
 
+  describe "lockup/2 — the pinned identity block per stage" do
+    alias MediaCentaur.ReleaseTracking.TitleResult, as: LockupTitleResult
+
+    defp lockup_sources(overrides) do
+      Map.merge(%{identity: nil, selection: nil, movie: nil, board: nil}, overrides)
+    end
+
+    test "loading introduces the picked result by name — no logo yet" do
+      identity = struct!(LockupTitleResult, %{tmdb_id: 1, media_type: :tv_series, name: "Sample Show"})
+
+      assert PlanLogic.lockup(:loading, lockup_sources(%{identity: identity})) ==
+               %{title: "Sample Show", logo_url: nil, tagline: nil}
+    end
+
+    test "loading without an identity has nothing to introduce" do
+      assert PlanLogic.lockup(:loading, lockup_sources(%{})) == nil
+    end
+
+    test "targeting wears the series logo when TMDB has one, hotlinked" do
+      selection = %Targeting.Selection{
+        tmdb_id: "246810",
+        title: "Sample Show",
+        tracked?: false,
+        seasons: [],
+        logo_path: "/logo.png"
+      }
+
+      assert PlanLogic.lockup(:targeting, lockup_sources(%{selection: selection})) ==
+               %{
+                 title: "Sample Show",
+                 logo_url: "https://image.tmdb.org/t/p/w500/logo.png",
+                 tagline: nil
+               }
+    end
+
+    test "movie confirm carries the preview's logo and tagline" do
+      movie = %MoviePreview{
+        tmdb_id: "550",
+        in_library?: false,
+        title: "Sample Movie",
+        logo_url: "https://image.tmdb.org/t/p/original/m-logo.png",
+        tagline: "Look closer."
+      }
+
+      assert PlanLogic.lockup(:movie_confirm, lockup_sources(%{movie: movie})) ==
+               %{
+                 title: "Sample Movie",
+                 logo_url: "https://image.tmdb.org/t/p/original/m-logo.png",
+                 tagline: "Look closer."
+               }
+    end
+
+    test "board keeps the identity painted, borrowing the logo from earlier stages" do
+      board = %MediaCentaur.Acquisition.ViewModels.PlanBoard{
+        title: "Sample Show",
+        plan_id: "plan-1",
+        status: :ready,
+        wanted: 3,
+        covered: 3,
+        seasons: [],
+        releases: [],
+        gaps: []
+      }
+
+      selection = %Targeting.Selection{
+        tmdb_id: "246810",
+        title: "Sample Show",
+        tracked?: false,
+        seasons: [],
+        logo_path: "/logo.png"
+      }
+
+      assert PlanLogic.lockup(:board, lockup_sources(%{board: board, selection: selection})) ==
+               %{
+                 title: "Sample Show",
+                 logo_url: "https://image.tmdb.org/t/p/w500/logo.png",
+                 tagline: nil
+               }
+    end
+
+    test "the error stage introduces nothing" do
+      assert PlanLogic.lockup(:error, lockup_sources(%{})) == nil
+    end
+  end
+
   describe "gap_banner_line/2 (UIDR-016 degraded-search honesty)" do
     defp blind_health(state) do
       %IndexerHealth{state: state, checked_at: ~U[2026-08-01 00:00:00Z]}
