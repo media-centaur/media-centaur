@@ -24,6 +24,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.UIScale,
       MediaCentaur.Subtitles,
       MediaCentaur.TMDB,
+      MediaCentaur.TmdbArtwork,
       MediaCentaur.Controls,
       MediaCentaur.IntegrationHealth,
       MediaCentaur.Retention,

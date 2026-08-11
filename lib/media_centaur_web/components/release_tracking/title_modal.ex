@@ -1,28 +1,30 @@
 defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
   @moduledoc """
-  The per-title depth surface — a centered modal through the house
-  `<.modal>` seam (UIDR-017), replacing the app's only slide-over so
-  Incoming's two zoom-in gestures (torrent row → pursuit modal, shelf
-  row → this) share one physics.
+  The per-title depth surface (UIDR-017) — a tenant of the cinematic
+  modal frame, so a tracked title reads as the same surface as one in
+  the library: fixed backdrop, hero window, pinned identity lockup
+  (logo when the tracking cache has one, logotype fallback), with the
+  tracking depth as the scrolling body.
 
   Always in the DOM, toggled via `open`; the host LiveView drives it
   off the `?title=<item_id>` URL param (the same idiom as the pursuit
-  modal's `?selected=`). Content, top to bottom: backdrop-art identity
-  header, the featured next release (or a plain absence statement —
-  the surface never renders empty for stragglers), the auto-grab
-  toggle (hidden when acquisition isn't configured), the release
-  timeline, recent activity, and the only error-tinted control on the
-  page: Stop tracking.
+  modal's `?selected=`). Body, top to bottom: the featured next release
+  (or a plain absence statement — the surface never renders empty for
+  stragglers), the auto-grab toggle (hidden when acquisition isn't
+  configured), the release timeline, recent activity, and the only
+  error-tinted control on the page: Stop tracking. No close-X — the
+  frame's backdrop click and Escape both close, like the library detail
+  modal.
   """
 
   use Phoenix.Component
 
   import MediaCentaurWeb.Components.ReleaseTracking.EventCard, only: [event_card: 1]
-  import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
-  import MediaCentaurWeb.Components.Modal, only: [modal: 1]
   import MediaCentaurWeb.CoreComponents
 
   alias MediaCentaur.ReleaseTracking.UpcomingFeed.Event
+  alias MediaCentaurWeb.Components.CinematicShell
+  alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaurWeb.Components.ReleaseTracking.Detail
   alias MediaCentaurWeb.Components.ReleaseTracking.Present
 
@@ -35,71 +37,35 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
       assign(assigns, :next_event, assigns.detail && next_event(assigns.detail.timeline, assigns.today))
 
     ~H"""
-    <.modal
+    <CinematicShell.cinematic_shell
       id="title-modal"
       open={@open}
       dismiss={:ephemeral}
       on_close="close_detail"
-      panel_class="max-w-[680px]"
+      present={@detail != nil}
+      backdrop_url={@detail && @detail.backdrop_url}
+      scroll_key={@detail && @detail.item_id}
+      view_key={:main}
       data-detail-mode={@open && "modal"}
       data-dismiss-event="close_detail"
     >
-      <div :if={@detail} class="flex max-h-full flex-col">
-        <div class="relative shrink-0 overflow-hidden p-5 pb-4">
-          <%!-- The title's cached backdrop (tracking's own image store) as
-                the identity header — the same treatment the pursuit modal
-                and entity detail wear; the flat header remains the
-                no-artwork state. --%>
-          <img
-            :if={@detail.backdrop_path}
-            src={
-              sized_image_url(
-                MediaCentaur.Library.Image.web_path(@detail.backdrop_path),
-                1280
-              )
-            }
-            alt=""
-            aria-hidden="true"
-            class="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-40"
-            loading="eager"
-            decoding="sync"
-          />
-          <div
-            :if={@detail.backdrop_path}
-            aria-hidden="true"
-            class="pointer-events-none absolute inset-0 image-scrim-t"
-          >
-          </div>
-          <div class="relative flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <div class="flex items-center gap-2 text-xs uppercase tracking-wider text-base-content/40">
-                <.icon name={media_icon(@detail.media_type)} class="size-4" />
-                <span>{media_label(@detail.media_type)}</span>
-              </div>
-              <h2 class="mt-1 truncate text-xl font-bold leading-tight text-on-image-lg">
-                {@detail.name}
-              </h2>
-              <p
-                :if={@detail.tracking_since}
-                class="mt-0.5 text-xs text-base-content/50 text-on-image"
-              >
-                Tracking since {tracking_since_label(@detail.tracking_since)}
-              </p>
-            </div>
-            <button
-              type="button"
-              class="relative cursor-pointer rounded p-1 text-base-content/50 hover:bg-base-content/[0.06] hover:text-base-content"
-              data-nav-item
-              tabindex="0"
-              phx-click="close_detail"
-              aria-label="Close"
+      <:orientation>
+        <div :if={@detail} class="px-6">
+          <TitleLayer.lockup title={@detail.name} logo_url={@detail.logo_url} />
+          <p class="mt-3 flex items-center gap-2 pb-5 text-xs uppercase tracking-wider text-base-content/50 text-on-image">
+            <.icon name={media_icon(@detail.media_type)} class="size-4" />
+            <span>{media_label(@detail.media_type)}</span>
+            <span
+              :if={@detail.tracking_since}
+              class="normal-case tracking-normal text-base-content/40"
             >
-              <.icon name="hero-x-mark-mini" class="size-5" />
-            </button>
-          </div>
+              · Tracking since {tracking_since_label(@detail.tracking_since)}
+            </span>
+          </p>
         </div>
-
-        <div class="flex-1 space-y-6 overflow-y-auto thin-scrollbar p-5 pt-2">
+      </:orientation>
+      <:body>
+        <div :if={@detail} class="space-y-6 px-1 pt-2">
           <%!-- The question every open answers first: what's next? For a
                 straggler the same slot states the absence plainly — the
                 shape stays constant, so the surface is learnable. --%>
@@ -181,23 +147,23 @@ defmodule MediaCentaurWeb.Components.ReleaseTracking.TitleModal do
               </li>
             </ul>
           </section>
-        </div>
 
-        <div class="shrink-0 border-t border-base-content/10 p-5 py-4">
-          <button
-            type="button"
-            class="inline-flex cursor-pointer items-center gap-1.5 text-sm text-error/80 hover:text-error"
-            data-nav-item
-            tabindex="0"
-            phx-click="stop_tracking"
-            phx-value-item-id={@detail.item_id}
-          >
-            <.icon name="hero-x-circle-mini" class="size-4" />
-            <span>Stop tracking</span>
-          </button>
+          <div class="border-t border-base-content/10 py-4">
+            <button
+              type="button"
+              class="inline-flex cursor-pointer items-center gap-1.5 text-sm text-error/80 hover:text-error"
+              data-nav-item
+              tabindex="0"
+              phx-click="stop_tracking"
+              phx-value-item-id={@detail.item_id}
+            >
+              <.icon name="hero-x-circle-mini" class="size-4" />
+              <span>Stop tracking</span>
+            </button>
+          </div>
         </div>
-      </div>
-    </.modal>
+      </:body>
+    </CinematicShell.cinematic_shell>
     """
   end
 

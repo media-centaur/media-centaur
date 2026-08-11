@@ -16,6 +16,11 @@ defmodule MediaCentaurWeb.Storybook.ReleaseTracking.TitleModal do
   def render_source, do: :function
   def layout, do: :one_column
 
+  # The component renders the cinematic frame — a real `position: fixed`
+  # overlay — so variations would stack in a shared DOM. Iframing
+  # isolates them (same treatment as the detail_panel story).
+  def container, do: {:iframe, style: "min-height: 720px; width: 100%;"}
+
   @today ~D[2026-08-03]
 
   defp scheduled_detail do
@@ -23,7 +28,8 @@ defmodule MediaCentaurWeb.Storybook.ReleaseTracking.TitleModal do
       item_id: "sample-show",
       name: "Sample Show",
       media_type: :tv_series,
-      backdrop_path: nil,
+      backdrop_url: nil,
+      logo_url: nil,
       acquisition?: true,
       auto_grab: %{on?: true, label: "Auto-grabbing every release"},
       tracking_since: ~N[2026-03-14 12:00:00],
@@ -75,7 +81,8 @@ defmodule MediaCentaurWeb.Storybook.ReleaseTracking.TitleModal do
       item_id: "hiatus-show",
       name: "The Phantom Carriage",
       media_type: :tv_series,
-      backdrop_path: nil,
+      backdrop_url: nil,
+      logo_url: nil,
       acquisition?: true,
       auto_grab: %{on?: false, label: "Not auto-grabbing"},
       tracking_since: ~N[2026-05-02 12:00:00],

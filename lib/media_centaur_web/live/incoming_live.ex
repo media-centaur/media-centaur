@@ -420,11 +420,16 @@ defmodule MediaCentaurWeb.IncomingLive do
 
         feed = UpcomingFeed.build(releases, context)
 
+        # The referenced tier of the artwork ladder: a tracked item holds
+        # its TmdbArtwork cache entry, so these resolve locally.
+        artwork = MediaCentaur.TmdbArtwork.urls(item.media_type, item.tmdb_id)
+
         %Detail{
           item_id: item.id,
           name: item.name,
           media_type: item.media_type,
-          backdrop_path: item.backdrop_path,
+          backdrop_url: artwork.backdrop_url,
+          logo_url: artwork.logo_url,
           acquisition?: acquisition?,
           auto_grab: Present.auto_grab_summary(item.auto_grab_mode, default_mode, acquisition?),
           tracking_since: item.inserted_at,

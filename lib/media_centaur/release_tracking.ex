@@ -616,8 +616,8 @@ defmodule MediaCentaur.ReleaseTracking do
       item.library_container_id && Map.get(library_logos, item.library_container_id) ->
         Map.get(library_logos, item.library_container_id)
 
-      is_binary(item.logo_path) ->
-        MediaCentaur.Library.Image.web_path(item.logo_path)
+      logo = TmdbArtwork.urls(item.media_type, item.tmdb_id).logo_url ->
+        logo
 
       true ->
         nil
@@ -665,10 +665,7 @@ defmodule MediaCentaur.ReleaseTracking do
       |> MediaCentaur.Library.Images.logo_urls_for_entities()
 
     Enum.map(releases, fn release ->
-      backdrop_url =
-        if release.item.backdrop_path do
-          MediaCentaur.Library.Image.web_path(release.item.backdrop_path)
-        end
+      backdrop_url = TmdbArtwork.urls(release.item.media_type, release.item.tmdb_id).backdrop_url
 
       logo_url = logo_url_for_item(release.item, logo_urls)
 
