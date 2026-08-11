@@ -604,7 +604,7 @@ defmodule MediaCentaurWeb.ReviewLive do
       </div>
       <img
         :if={@file.match_poster_path}
-        src={"https://image.tmdb.org/t/p/w92#{@file.match_poster_path}"}
+        src={tmdb_cdn_url(@file.match_poster_path, :w92)}
         alt=""
         class="w-10 h-[60px] rounded object-cover shrink-0"
       />
@@ -829,7 +829,7 @@ defmodule MediaCentaurWeb.ReviewLive do
         <div class="flex gap-4">
           <img
             :if={@file.match_poster_path}
-            src={"https://image.tmdb.org/t/p/w342#{@file.match_poster_path}"}
+            src={tmdb_cdn_url(@file.match_poster_path, :w342)}
             alt="poster"
             class="w-[120px] rounded-lg shrink-0 self-start"
           />
@@ -937,7 +937,7 @@ defmodule MediaCentaurWeb.ReviewLive do
           <div class="flex gap-3">
             <div :if={candidate["poster_path"]} class="shrink-0">
               <img
-                src={"https://image.tmdb.org/t/p/w154#{candidate["poster_path"]}"}
+                src={tmdb_cdn_url(candidate["poster_path"], :w154)}
                 alt="poster"
                 class="w-[100px] rounded"
               />
@@ -1060,7 +1060,7 @@ defmodule MediaCentaurWeb.ReviewLive do
         >
           <div :if={result.poster_path} class="shrink-0">
             <img
-              src={"https://image.tmdb.org/t/p/w92#{result.poster_path}"}
+              src={tmdb_cdn_url(result.poster_path, :w92)}
               alt="poster"
               class="w-12 rounded"
             />

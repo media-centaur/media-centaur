@@ -15,7 +15,7 @@ This document specifies how artwork images are stored, referenced, and loaded in
 
 - **One master per role, sized for the target role.** Store a single image per role, resized at download time (via libvips in `ImageProcessor`) to the target dimensions for that role. Smaller display boxes are served on-demand **width derivatives** of this master (see [HTTP Endpoint](#http-endpoint)) — the master is never the thing a small tile decodes.
 - **Backdrop master resolution is a user preference.** Backdrops are the only artwork shown full-bleed, so their master resolution follows the `:image_resolution` setting (Settings → Pipeline): `"4k"` → 3840×2160, `"1080p"` → 1920×1080. Other roles have fixed targets. The setting applies to newly downloaded artwork; existing masters keep their size until refreshed.
-- **Remote URL + local path separation.** Each image record stores both the original remote URL and the local cached path. The backend writes `source_url` during metadata fetch and `content_url` after the file is downloaded.
+- **Remote URL + local path separation.** The remote source URL lives on the pipeline's queue row (`pipeline_image_queue.source_url`, written during metadata fetch); the image record stores only the local cached path (`content_url`, written after download). Re-downloads rebuild the source URL from TMDB rather than trusting a stale stored one.
 - **Multiple roles per entity, one row each.** The `library_images` table has many rows per entity, one per role. Adding a new role does not require a schema migration — just write a row with the new `role` value.
 - **UUID-keyed directories.** Each entity's images live under `data/images/{entity_id}/`. The entity UUID is the sole key — no name-based paths.
 
@@ -29,8 +29,9 @@ field list.
 
 Key fields for image caching:
 
-- **`source_url`** — the canonical remote source URL (written by the
-  manager, used for re-download)
+- **`source_url`** (on `pipeline_image_queue`, not `library_images`) —
+  the remote source URL for the pending download; re-downloads re-query
+  TMDB instead of reusing it
 - **`content_url`** — stored as a relative path (`{uuid}/poster.jpg`).
   Resolved to an absolute filesystem path at serve time. `nil` until
   download completes.
@@ -87,7 +88,7 @@ Each media directory has its own image cache. By default, images are stored at `
 - One subdirectory per owner (entity, child movie, or episode), named by the owner's UUID.
 - Filename is `{role}.{ext}` — extension matches the source format (`.jpg` or `.png`).
 - The database stores relative paths (`{uuid}/{role}.{ext}`). The serializer resolves to absolute filesystem paths when needed.
-- Staging directories for in-progress downloads are created at `{images_dir}/partial-downloads/` (inside the image cache, not alongside it) and cleaned up after pipeline completion and on application startup. See `MediaCentaur.Config.staging_base_for/1`.
+- Staging directories for in-progress downloads are created at `{images_dir}/partial-downloads/` (inside the image cache, not alongside it) and excluded from library scanning. See `MediaCentaur.Config.staging_base_for/1`. (No startup sweep exists today — downloads write via the `ImageFiles` facade and don't stage partial files there in practice.)
 
 ---
 

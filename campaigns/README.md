@@ -42,15 +42,6 @@ Use [`template.md`](template.md) as a starter.
   rejected). Movies have no offer path at all; TV offers cover scope,
   not quality. Campaign carries the diagnosis + open questions into an
   owner-led design session; no design decisions yet.
-* [`cinematic-modal-unification.md`](cinematic-modal-unification.md) —
-  **in progress — Phase 1 (frame extraction).** Every modal grounded in a
-  TMDB identity renders the same cinematic shell (pinned orientation block
-  over a fixed backdrop): the frame welded into ModalShell/DetailPanel is
-  extracted with `:orientation`/`:body` slots, then the plan modal and
-  Incoming title modal re-seat on it. Artwork follows a promotion ladder —
-  hotlink while browsing, temporary local `TmdbArtwork` cache once a
-  tracked item or non-terminal pursuit references the identity (swept at
-  7 days since last use AND no hold), permanent library store on import.
 * [`documentation-catch-up.md`](documentation-catch-up.md) —
   **planning.** A massive wiki / guide / documentation pass to catch
   everything up to date, probably including an updated showcase and webpage
@@ -209,7 +200,3 @@ Use [`template.md`](template.md) as a starter.
   budget locked by `test/media_centaur_web/no_db_on_render_test.exs`,
   and UIDR-012 eager/sync rendering throughout. P1–P5 shipped; the
   settings-probe pass is the remaining phase, gated on a re-measure.
-* [`unified-title-search.md`](unified-title-search.md) —
-  **phase 1 complete.** One search idiom across Library, Incoming, and
-  the media-search front door (UIDR-014), so a title is looked up the
-  same way regardless of which page the user starts from.

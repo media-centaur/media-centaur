@@ -310,12 +310,12 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   @doc "Hotlinked TMDB backdrop at modal width — nil path stays nil."
   @spec tmdb_backdrop_url(String.t() | nil) :: String.t() | nil
   def tmdb_backdrop_url(nil), do: nil
-  def tmdb_backdrop_url(path), do: "https://image.tmdb.org/t/p/w1280#{path}"
+  def tmdb_backdrop_url(path), do: MediaCentaurWeb.LiveHelpers.tmdb_cdn_url(path, :w1280)
 
   @doc "Hotlinked TMDB logo at lockup width — nil path stays nil."
   @spec tmdb_logo_url(String.t() | nil) :: String.t() | nil
   def tmdb_logo_url(nil), do: nil
-  def tmdb_logo_url(path), do: "https://image.tmdb.org/t/p/w500#{path}"
+  def tmdb_logo_url(path), do: MediaCentaurWeb.LiveHelpers.tmdb_cdn_url(path, :w500)
 
   @doc """
   The pinned identity lockup per stage — what `CinematicShell`'s

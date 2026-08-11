@@ -273,24 +273,21 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
 
     if poster_path || backdrop_path do
       Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-        attrs = %{}
+        downloaded? =
+          Enum.any?(
+            [
+              TmdbArtwork.download_poster(item.media_type, tmdb_id, poster_path),
+              TmdbArtwork.download_backdrop(item.media_type, tmdb_id, backdrop_path)
+            ],
+            fn
+              {:ok, path} when is_binary(path) -> true
+              _ -> false
+            end
+          )
 
-        attrs =
-          case TmdbArtwork.download_poster(item.media_type, tmdb_id, poster_path) do
-            {:ok, path} when is_binary(path) -> Map.put(attrs, :poster_path, path)
-            _ -> attrs
-          end
-
-        attrs =
-          case TmdbArtwork.download_backdrop(item.media_type, tmdb_id, backdrop_path) do
-            {:ok, path} when is_binary(path) -> Map.put(attrs, :backdrop_path, path)
-            _ -> attrs
-          end
-
-        if attrs != %{} do
-          ReleaseTracking.update_item(item, attrs)
-          ReleaseTracking.broadcast_releases_updated([item.id])
-        end
+        # Landed files change what the UI resolves for this identity —
+        # nudge subscribers to re-read.
+        if downloaded?, do: ReleaseTracking.broadcast_releases_updated([item.id])
       end)
     end
   end

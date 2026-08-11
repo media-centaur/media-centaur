@@ -4,7 +4,6 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
   """
 
   import Ecto.Query
-  alias MediaCentaur.ReleaseTracking
   alias MediaCentaur.ReleaseTracking.Extractor
   alias MediaCentaur.Repo
   alias MediaCentaur.TmdbArtwork
@@ -32,31 +31,29 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
   bounded concurrency rather than fanning out to N independent tasks.
   """
   def download_images_sync(item, tmdb_id, response) do
-    attrs =
-      item
-      |> pending_image_downloads(response)
-      |> Enum.reduce(%{}, fn {tmdb_path, attr_key, downloader}, acc ->
-        case downloader.(item.media_type, tmdb_id, tmdb_path) do
-          {:ok, path} when is_binary(path) -> Map.put(acc, attr_key, path)
-          _ -> acc
-        end
-      end)
+    item
+    |> pending_image_downloads(response)
+    |> Enum.each(fn {tmdb_path, downloader} ->
+      downloader.(item.media_type, tmdb_id, tmdb_path)
+    end)
 
-    if attrs != %{}, do: ReleaseTracking.update_item(item, attrs)
     :ok
   end
 
-  # Returns `[{tmdb_source_path, attr_key, downloader}]` for every image role
-  # the item still lacks AND that TMDB has a path for.
+  # Returns `[{tmdb_source_path, downloader}]` for every image role the
+  # TmdbArtwork cache still lacks AND that TMDB has a path for — disk is
+  # the download ledger, same truth the readers resolve from.
   defp pending_image_downloads(item, response) do
     [
-      {item.poster_path, Extractor.extract_poster_path(response), :poster_path,
-       &TmdbArtwork.download_poster/3},
-      {item.backdrop_path, response["backdrop_path"], :backdrop_path, &TmdbArtwork.download_backdrop/3},
-      {item.logo_path, Extractor.extract_logo_path(response), :logo_path, &TmdbArtwork.download_logo/3}
+      {:poster, Extractor.extract_poster_path(response), &TmdbArtwork.download_poster/3},
+      {:backdrop, response["backdrop_path"], &TmdbArtwork.download_backdrop/3},
+      {:logo, Extractor.extract_logo_path(response), &TmdbArtwork.download_logo/3}
     ]
-    |> Enum.filter(fn {current, tmdb_path, _, _} -> is_nil(current) and is_binary(tmdb_path) end)
-    |> Enum.map(fn {_, tmdb_path, attr_key, downloader} -> {tmdb_path, attr_key, downloader} end)
+    |> Enum.filter(fn {role, tmdb_path, _downloader} ->
+      is_binary(tmdb_path) and
+        not File.exists?(TmdbArtwork.on_disk_path(role, item.media_type, item.tmdb_id))
+    end)
+    |> Enum.map(fn {_role, tmdb_path, downloader} -> {tmdb_path, downloader} end)
   end
 
   @doc """

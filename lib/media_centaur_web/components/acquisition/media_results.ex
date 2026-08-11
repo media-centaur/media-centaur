@@ -21,6 +21,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   use Phoenix.Component
 
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [tmdb_cdn_url: 2]
 
   alias MediaCentaur.ReleaseTracking.TitleResult
 
@@ -179,7 +180,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
       <span class="flex h-[72px] w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-base-content/10">
         <img
           :if={@result.poster_path}
-          src={"https://image.tmdb.org/t/p/w92#{@result.poster_path}"}
+          src={tmdb_cdn_url(@result.poster_path, :w92)}
           alt=""
           class="h-full w-full object-cover"
           loading="eager"

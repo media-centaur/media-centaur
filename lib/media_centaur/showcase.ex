@@ -1040,7 +1040,7 @@ defmodule MediaCentaur.Showcase do
   # Maintenance → Repair button can drain it later via
   # `Pipeline.ImageRepair.repair_all/0`.
   defp download_image_role!(owner_id, owner_type, entity_id, role, path) do
-    url = "https://image.tmdb.org/t/p/original#{path}"
+    url = MediaCentaur.TMDB.Mapper.tmdb_image_url(path)
     media_dirs = MediaCentaur.Config.get(:media_dirs) || []
     primary = List.first(media_dirs)
 
