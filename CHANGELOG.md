@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.121.0 — 2026-08-11
+
+### Improved
+
+- **Download details now open like library titles.** Clicking a download on the Incoming page shows the same full-screen view the rest of the app uses — the title's backdrop with its logo pinned over it, and the download's progress, coverage, and history beneath. If the artwork isn't cached yet, it's fetched in the background and appears in place. This was the last surface still using the older header layout; every title view in the app now shares one look.
+
 ## v0.120.0 — 2026-08-11
 
 ### New
