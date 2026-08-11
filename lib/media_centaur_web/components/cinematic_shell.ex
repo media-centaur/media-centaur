@@ -3,7 +3,8 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
   The cinematic modal frame — the tenant-agnostic half of the detail-modal
   technology (2026-08-05 sticky-orientation design), extracted so every
   modal grounded in a presentable subject can wear it: the library detail
-  panel, the acquisition plan modal, the Incoming title modal.
+  panel, the acquisition plan modal, the Incoming title modal, the
+  pursuit modal.
 
   Owns the geometry machinery and nothing about the subject:
 

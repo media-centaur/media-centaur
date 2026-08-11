@@ -1,8 +1,11 @@
 defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
   @moduledoc """
-  Pursuit detail modal — opened from the Downloads index when a pursuit
-  row is clicked. Mirrors the `ModalShell` pattern for Library entities:
-  always present in the DOM, toggled via `data-state` on the backdrop.
+  Pursuit detail modal — opened from the Activity zone when a pursuit
+  row is clicked. A tenant of the cinematic modal frame
+  (`CinematicShell`), so a pursued title reads as the same surface as
+  one in the library: fixed backdrop, hero window, pinned identity
+  lockup, with the work surface (facts / unit board / activity /
+  decision card / timeline) as the scrolling body.
 
   Each variation passes `open: true|false` directly. Variations that
   start open wire `on_close` to a `psb-assign` event so closing the
@@ -30,10 +33,10 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
   def render_source, do: :function
   def layout, do: :one_column
 
-  # Each variation renders a real `position: fixed` overlay, so they
-  # would otherwise stack on top of each other in a shared DOM and
-  # only the last would be visible. Iframing isolates them.
-  def container, do: {:iframe, style: "min-height: 640px; width: 100%;"}
+  # The component renders the cinematic frame — a real `position: fixed`
+  # overlay — so variations would stack in a shared DOM. Iframing
+  # isolates them (same treatment as the detail_panel story).
+  def container, do: {:iframe, style: "min-height: 720px; width: 100%;"}
 
   def template do
     """
@@ -70,7 +73,10 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
       },
       %Variation{
         id: :open_active_pursuit,
-        description: "Open — active pursuit, downloading at 42%, no decision needed.",
+        description:
+          "Open — active pursuit, downloading at 42%, no decision needed. Cached artwork " <>
+            "dresses the frame: the backdrop paints the hero window and the logo PNG is " <>
+            "the pinned lockup (inline SVG stand-ins; real assets come from /media-images).",
         attributes: %{
           open: true,
           pursuit_id: "story-active",
@@ -146,7 +152,11 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitModal do
       title: "Public Domain Feature 1925",
       state: :active,
       recipe: %Recipe{type: :tmdb, title: "Public Domain Feature 1925", tmdb_type: :movie, year: 1925},
-      criteria_summary: "max_quality: 2160p, min_quality: 1080p"
+      criteria_summary: "max_quality: 2160p, min_quality: 1080p",
+      backdrop_url:
+        "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1280' height='720'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23355070'/><stop offset='1' stop-color='%23172033'/></linearGradient></defs><rect width='1280' height='720' fill='url(%23g)'/><circle cx='980' cy='180' r='240' fill='%236d8cb0' opacity='0.35'/></svg>",
+      logo_url:
+        "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='90'><text x='0' y='64' font-family='sans-serif' font-size='56' font-weight='800' letter-spacing='6' fill='white'>SAMPLE FEATURE</text></svg>"
     }
   end
 

@@ -1,16 +1,18 @@
 defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
   @moduledoc """
-  Modal shell for the pursuit detail view, opened from the Downloads
-  index (`/download`) when a pursuit row is clicked.
+  Modal shell for the pursuit detail view, opened from the Incoming
+  Activity zone when a pursuit row is clicked.
 
-  Always present in the DOM so the browser keeps the `backdrop-filter`
-  compositing layer warm. Toggled via `data-state="open"/"closed"` — no
-  first-frame blur jank on open. Mirrors the Library entity detail's
-  pattern; the contents are pursuit-specific
-  (header / activity / decision card / timeline).
+  A tenant of the cinematic modal frame (`CinematicShell`), so a
+  pursued title reads as the same surface as one in the library: fixed
+  backdrop, hero window, pinned identity lockup (`PursuitHeader`), with
+  the work surface — search facts, unit board, activity / decision
+  card, timeline — as the scrolling body. The frame keeps the bare
+  modal in the DOM while closed so the `backdrop-filter` compositing
+  layer stays warm.
 
   The host LiveView owns the open/closed state, drives it via the
-  `?selected=<pursuit_id>` URL param, and provides the four view-models.
+  `?selected=<pursuit_id>` URL param, and provides the view-models.
   This component is pure rendering.
   """
 
@@ -24,7 +26,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
     UnitBoard
   }
 
-  alias MediaCentaurWeb.Components.Detail.CinematicBackdrop
+  alias MediaCentaurWeb.Components.CinematicShell
 
   attr :open, :boolean, required: true
 
@@ -75,69 +77,66 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
 
   def pursuit_modal(assigns) do
     ~H"""
-    <.modal
+    <%!-- No close-X — backdrop click and Escape both close, and the
+          URL preserves history so browser-back also works. The frame
+          renders both backdrop copies from the header's backdrop_url
+          (nil — no cached artwork yet, or a query-door pursuit —
+          renders the quiet placeholder in the hero window). --%>
+    <CinematicShell.cinematic_shell
       id="pursuit-modal"
       open={@open}
       dismiss={:ephemeral}
       on_close={@on_close}
+      present={@header != nil || @not_found?}
+      backdrop_url={@header && @header.backdrop_url}
+      scroll_key={@pursuit_id}
+      view_key={:main}
       data-pursuit-modal
       data-detail-mode={@open && "modal"}
       data-dismiss-event={@on_close}
     >
-      <%!-- No close-X — backdrop click and Escape both close, and the
-            URL preserves history so browser-back also works. --%>
-      <%!-- Same cinematic shell as the library detail modal and the plan
-            modal, via the shared CinematicBackdrop (early-fade: the
-            pursuit detail is a work surface, the image is a header
-            treatment). The header renders only the overlaid identity
-            facts — or its synthetic gradient when no artwork is cached. --%>
-      <div class="flex-1 min-h-0 overflow-y-auto overflow-x-hidden relative thin-scrollbar">
+      <:orientation>
+        <PursuitHeader.pursuit_header :if={@header} vm={@header} />
+      </:orientation>
+      <:body>
         <div :if={@not_found?} class="p-8 text-center text-sm text-base-content/60">
           Pursuit not found.
         </div>
 
-        <CinematicBackdrop.cinematic_backdrop
-          :if={!@not_found? && @header}
-          backdrop_url={@header.backdrop_url}
-          early_fade
-        >
-          <div class="pb-6 space-y-4">
-            <PursuitHeader.pursuit_header vm={@header} />
+        <div :if={@header} class="space-y-4 px-1 pt-2 pb-4">
+          <PursuitHeader.pursuit_facts vm={@header} />
 
-            <div class="px-6 space-y-4">
-              <UnitBoard.unit_board
-                vm={@unit_board}
-                expanded_seasons={@board_expanded_seasons}
-                on_toggle_season={@on_toggle_season}
-                on_change_target={@on_change_target}
-              />
+          <UnitBoard.unit_board
+            vm={@unit_board}
+            expanded_seasons={@board_expanded_seasons}
+            on_toggle_season={@on_toggle_season}
+            on_change_target={@on_change_target}
+          />
 
-              <%!-- Activity hides when the pursuit is awaiting a decision
-                  (decision_card present). In that case the Decision
-                  card carries the prompt and ALL actions, so the
-                  Activity card would otherwise duplicate the heading,
-                  meta-narrate the layout ("use the decision card
-                  below…"), and float Cancel pursuit in a weird spot. --%>
-              <PursuitActivity.pursuit_activity
-                :if={@status && !@decision_card}
-                vm={@status}
-                client_url={@client_url}
-                on_cancel={@on_cancel}
-                on_request_decision={@on_request_decision}
-              />
+          <%!-- Activity hides when the pursuit is awaiting a decision
+              (decision_card present). In that case the Decision
+              card carries the prompt and ALL actions, so the
+              Activity card would otherwise duplicate the heading,
+              meta-narrate the layout ("use the decision card
+              below…"), and float Cancel pursuit in a weird spot. --%>
+          <PursuitActivity.pursuit_activity
+            :if={@status && !@decision_card}
+            vm={@status}
+            client_url={@client_url}
+            on_cancel={@on_cancel}
+            on_request_decision={@on_request_decision}
+          />
 
-              <DecisionCard.decision_card
-                :if={@decision_card}
-                vm={@decision_card}
-                on_cancel={@on_cancel}
-              />
+          <DecisionCard.decision_card
+            :if={@decision_card}
+            vm={@decision_card}
+            on_cancel={@on_cancel}
+          />
 
-              <PursuitTimeline.timeline :if={@timeline} vm={@timeline} />
-            </div>
-          </div>
-        </CinematicBackdrop.cinematic_backdrop>
-      </div>
-    </.modal>
+          <PursuitTimeline.timeline :if={@timeline} vm={@timeline} />
+        </div>
+      </:body>
+    </CinematicShell.cinematic_shell>
     """
   end
 end
