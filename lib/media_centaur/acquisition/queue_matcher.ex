@@ -163,6 +163,7 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
   def to_download(%QueueItem{state: :fetching_nzb} = qi) do
     %DownloadProgress{
       state: :fetching_nzb,
+      title: qi.title,
       progress_pct: nil,
       size_bytes: qi.size,
       size_left_bytes: qi.size_left,
@@ -175,6 +176,7 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
   def to_download(%QueueItem{} = qi) do
     %DownloadProgress{
       state: qi.state,
+      title: qi.title,
       # `QueueItem.progress` is already a 0..100 percentage
       # (`QueueItem.from_qbittorrent` scales the qBittorrent 0..1 fraction
       # by 100), so it passes straight through. Re-multiplying here was the

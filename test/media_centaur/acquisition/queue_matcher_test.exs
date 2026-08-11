@@ -68,6 +68,9 @@ defmodule MediaCentaur.Acquisition.QueueMatcherTest do
       assert download.progress_pct == 42.0
       assert download.client == "qBit"
       assert download.eta == "10m"
+      # The release name identifies the transfer — a pursuit with several
+      # downloads renders one otherwise-identical strip per transfer.
+      assert download.title == "Sample.Movie"
     end
 
     # Regression: QueueItem.progress is already 0..100, so `to_download`
