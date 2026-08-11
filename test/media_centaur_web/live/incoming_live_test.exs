@@ -986,11 +986,101 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
       html = render(view)
 
-      assert html =~ "not available right now"
+      # The adaptive verdict (UIDR-022): zero raw results, checked live —
+      # the banner says what the counts prove, with the receipts beneath.
+      assert html =~ "No indexer had anything for these episodes."
+
+      assert html =~
+               "5 searches — checked just now. Still missing: S01E01 · Episode 1, S01E02 · Episode 2."
+
       # Wired, not disabled — the click path itself (track creation +
       # gap wants) is covered synchronously in tracking_handoffs_test.
       assert has_element?(view, "button[phx-click='plan_track_gaps']", "Track these later")
       refute has_element?(view, "button[disabled]", "Track these later")
+      # TV recourse is deferred — no escape hatch on aggregate gaps.
+      refute has_element?(view, "button[phx-click='plan_show_rejected']")
+    end
+
+    test "the gap banner diagnoses rejected results and the override assigns one (UIDR-022)", %{
+      conn: conn
+    } do
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+
+            results =
+              case query do
+                "Sample Movie 1990" ->
+                  [
+                    %{
+                      "title" => "Another.Picture.1990.1080p.WEB-DL.x264",
+                      "guid" => "other-1",
+                      "indexerId" => 1,
+                      "indexer" => "indexer-a",
+                      "seeders" => 5,
+                      "size" => 2_000_000_000
+                    },
+                    %{
+                      "title" => "Sample.Movie.1990.1080p.WEB-DL.x264",
+                      "guid" => "bait-1",
+                      "indexerId" => 1,
+                      "indexer" => "indexer-a",
+                      "seeders" => 40,
+                      "size" => 1_000_000
+                    }
+                  ]
+
+                _other ->
+                  []
+              end
+
+            Req.Test.json(conn, results)
+
+          _other ->
+            Req.Test.json(conn, %{})
+        end
+      end)
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 1990})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=#{plan.id}")
+      html = render(view)
+
+      assert html =~ "2 results came back, but none looked like this movie."
+      assert html =~ "Searched “Sample Movie 1990” and “Sample Movie” — checked just now."
+
+      # The escape hatch lists the rejected results with the gate each failed.
+      html =
+        view
+        |> element("button[phx-click='plan_show_rejected']", "Show them anyway")
+        |> render_click()
+
+      assert html =~ "Another.Picture.1990.1080p.WEB-DL.x264"
+      assert html =~ "match this title"
+      assert html =~ "flagged suspicious"
+      # The rejected panel carries no corpus-refresh verb.
+      refute has_element?(view, "button[phx-click='plan_find_more_alternatives']")
+
+      # Choosing one is the deliberate identity override — it assigns.
+      view
+      |> element("button[phx-click='plan_choose_rejected'][phx-value-guid='other-1']")
+      |> render_click()
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "found"
+      assert unit.assigned_guid == "other-1"
+
+      # The gap is closed; banner and panel are gone.
+      html = render(view)
+      refute html =~ "came back, but none"
+      assert html =~ "Another.Picture.1990.1080p.WEB-DL.x264"
     end
 
     test "no pursuits renders no empty-state banner — the omnibox is the affordance", %{
@@ -1057,7 +1147,9 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert html =~ "Nothing matching your quality preference"
       assert html =~ "2 lower-quality releases available"
-      refute html =~ "not available right now"
+      # Below-floor owns the unit — no gap banner world renders.
+      refute html =~ "came back, but none"
+      refute html =~ "No indexer had anything"
 
       [unit] = Plans.units_for(plan.id)
 

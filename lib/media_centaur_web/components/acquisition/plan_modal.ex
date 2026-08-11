@@ -108,7 +108,17 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :search_health, :any,
     default: nil,
     doc:
-      "`MediaCentaur.Search.IndexerHealth.t()` | nil — when `blind?/1`, the gap banner says availability couldn't be checked instead of \"not available right now\" (UIDR-016)."
+      "`MediaCentaur.Search.IndexerHealth.t()` | nil — when `blind?/1`, the gap banner says availability couldn't be checked instead of claiming unavailability (UIDR-016)."
+
+  attr :gap_verdict, :any,
+    default: nil,
+    doc:
+      "`ViewModels.GapVerdict.t()` | nil — the gap banner's adaptive diagnosis (UIDR-022); nil while the board has no gaps."
+
+  attr :rejected, :any,
+    default: nil,
+    doc:
+      "%{unit_id, items: [PlanBoard.Alternative.t()]} | nil — the open rejected-results panel (UIDR-022, movie boards only)."
 
   attr :on_close, :string, default: "close_plan"
 
@@ -183,6 +193,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           last_activity={@last_activity}
           descent={@descent}
           search_health={@search_health}
+          gap_verdict={@gap_verdict}
+          rejected={@rejected}
           on_close={@on_close}
         />
       </:body>
@@ -577,6 +589,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     required: true,
     doc: "IndexerHealth.t() | nil — typed at the public attr."
 
+  attr :gap_verdict, :any,
+    required: true,
+    doc: "GapVerdict.t() | nil — typed at the public attr."
+
+  attr :rejected, :any,
+    required: true,
+    doc: "%{unit_id, items} | nil — typed at the public attr."
+
   attr :on_close, :string, required: true
 
   defp board_stage(assigns) do
@@ -778,33 +798,57 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           />
         </div>
 
-        <div
-          :if={@board.status == :ready && @board.gaps != []}
-          class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3"
-        >
-          <.icon name="hero-exclamation-triangle-mini" class="size-4 text-warning flex-shrink-0" />
-          <span class="min-w-0 flex-1 text-sm text-warning/90 truncate">
-            {PlanLogic.gap_banner_line(@board.gaps, @search_health)}
-          </span>
-          <.button
-            variant="neutral"
-            size="xs"
-            phx-click="plan_track_gaps"
-            title="Keep watching for these — opens gap wants on the title's tracking entry"
-            data-nav-item
-            tabindex="0"
-          >
-            Track these later
-          </.button>
-          <.button
-            variant="neutral"
-            size="xs"
-            phx-click="plan_search_again"
-            data-nav-item
-            tabindex="0"
-          >
-            Search again
-          </.button>
+        <div :if={@board.status == :ready && @board.gaps != [] && @gap_verdict} class="space-y-2">
+          <%!-- The adaptive diagnosis verdict (UIDR-022): the headline
+                states the world the counts prove; the muted line beneath
+                carries the receipts (queries, freshness). --%>
+          <div class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3">
+            <.icon name="hero-exclamation-triangle-mini" class="size-4 text-warning flex-shrink-0" />
+            <span class="min-w-0 flex-1 text-sm">
+              <span class="block text-warning/90">{@gap_verdict.headline}</span>
+              <span :if={@gap_verdict.evidence_line} class="block text-xs text-base-content/50 mt-1">
+                {@gap_verdict.evidence_line}
+              </span>
+            </span>
+            <.button
+              :if={@gap_verdict.show_rejected?}
+              variant="neutral"
+              size="xs"
+              class="flex-shrink-0"
+              phx-click={if @rejected, do: "plan_hide_rejected", else: "plan_show_rejected"}
+              data-nav-item
+              tabindex="0"
+            >
+              {if @rejected, do: "Hide", else: "Show them anyway"}
+            </.button>
+            <.button
+              variant="neutral"
+              size="xs"
+              class="flex-shrink-0"
+              phx-click="plan_track_gaps"
+              title="Keep watching for these — opens gap wants on the title's tracking entry"
+              data-nav-item
+              tabindex="0"
+            >
+              Track these later
+            </.button>
+            <.button
+              variant="neutral"
+              size="xs"
+              class="flex-shrink-0"
+              phx-click="plan_search_again"
+              data-nav-item
+              tabindex="0"
+            >
+              Search again
+            </.button>
+          </div>
+
+          <.alternatives_panel
+            :if={@rejected}
+            alternatives={%{unit_id: @rejected.unit_id, items: @rejected.items}}
+            variant={:rejected}
+          />
         </div>
 
         <p :if={@board.error} class="text-xs text-error/80">{@board.error}</p>
@@ -858,6 +902,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
     doc:
       "the currently assigned release when the picker opens from a release row (enables the exclude-and-re-solve verb); nil when it opens from a below-floor offer, which has no current assignment."
 
+  attr :variant, :atom,
+    default: :alternatives,
+    values: [:alternatives, :rejected],
+    doc:
+      ":alternatives is the swap picker (identity-verified candidates); :rejected is the gap banner's " <>
+        "escape hatch (UIDR-022) — same panel, but choosing routes through the identity override and " <>
+        "the corpus-refresh verb doesn't apply."
+
   defp alternatives_panel(assigns) do
     ~H"""
     <div class="glass-inset rounded-lg px-4 py-3 ml-4 space-y-1 border border-base-content/10">
@@ -871,11 +923,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         class="flex items-center gap-3 py-1.5"
       >
         <ReleaseFacts.release_facts entry={alternative_entry(alternative)} />
+        <span :if={alternative.reason} class="flex-shrink-0 text-xs text-base-content/40">
+          {alternative.reason}
+        </span>
         <.button
           variant="neutral"
           size="xs"
           class="flex-shrink-0"
-          phx-click="plan_choose_release"
+          phx-click={
+            if @variant == :rejected, do: "plan_choose_rejected", else: "plan_choose_release"
+          }
           phx-value-unit-id={@alternatives.unit_id}
           phx-value-guid={alternative.guid}
           data-nav-item
@@ -887,6 +944,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
       <div class="flex items-center justify-end gap-2 pt-2 border-t border-base-content/5">
         <.button
+          :if={@variant == :alternatives}
           variant="neutral"
           size="xs"
           phx-click="plan_find_more_alternatives"

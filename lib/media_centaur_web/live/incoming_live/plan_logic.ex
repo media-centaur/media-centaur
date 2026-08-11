@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
 
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Targeting
-  alias MediaCentaur.Acquisition.ViewModels.PlanBoard
+  alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaur.Library.Person
   alias MediaCentaur.ReleaseTracking.TitleResult
   alias MediaCentaur.Search.IndexerHealth
@@ -370,21 +370,46 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
   defp artwork_backdrop(_absent), do: nil
 
   @doc """
-  The gap banner's verdict (UIDR-016): "not available right now" is a
-  claim about the world, so it only renders when the search actually
-  asked someone. A blind search (`IndexerHealth.blind?/1` — every
-  enabled indexer backed off, or Prowlarr unreachable) says the check
-  couldn't happen instead.
+  The gap banner's rejected list (UIDR-022), shaped for the shared
+  alternatives panel: one `PlanBoard.Alternative` per rejected corpus
+  candidate, carrying the muted reason line for the gate the run's
+  search failed it on. Suspicious rows sink to the bottom, then most
+  seeders first — the swap picker's ordering.
   """
-  @spec gap_banner_line([String.t()], IndexerHealth.t() | nil) :: String.t()
-  def gap_banner_line(gaps, search_health) do
-    names = Enum.join(gaps, ", ")
-
-    case blind_reason(search_health) do
-      nil -> "#{length(gaps)} not available right now — #{names}"
-      reason -> "Couldn't check availability — #{reason} — #{names}"
-    end
+  @spec rejected_items(GapEvidence.t()) :: [PlanBoard.Alternative.t()]
+  def rejected_items(%GapEvidence{rejected: rejected}) do
+    rejected
+    |> Enum.map(fn candidate ->
+      %PlanBoard.Alternative{
+        guid: candidate.guid,
+        title: candidate.title,
+        quality: candidate.quality,
+        seeders: candidate.seeders,
+        size_bytes: candidate.size_bytes,
+        reason: reason_label(candidate.reason),
+        suspicious?: candidate.reason == :red_flag
+      }
+    end)
+    |> Enum.sort_by(&{&1.suspicious?, -(&1.seeders || 0)})
   end
+
+  defp reason_label(:identity), do: "didn't match this title"
+  defp reason_label(:red_flag), do: "flagged suspicious"
+  defp reason_label(:excluded), do: "you excluded this earlier"
+
+  @doc """
+  The movie board's single gap unit — the rejected pick's assignment
+  target. Nil for TV boards (the override is movie-only, UIDR-022) and
+  for boards without an unfound cell.
+  """
+  @spec movie_gap_unit_id(PlanBoard.t()) :: Ecto.UUID.t() | nil
+  def movie_gap_unit_id(%PlanBoard{movie?: true} = board) do
+    Enum.find_value(board.seasons, fn season ->
+      Enum.find_value(season.cells, &(&1.state == :unfound && &1.plan_unit_id))
+    end)
+  end
+
+  def movie_gap_unit_id(%PlanBoard{}), do: nil
 
   @doc """
   The board ticker's line for a `PlanEvents.SearchActivity` — same

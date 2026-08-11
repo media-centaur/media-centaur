@@ -3,6 +3,7 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
 
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Targeting
+  alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaur.Library.Person
   alias MediaCentaur.Search.IndexerHealth
   alias MediaCentaurWeb.IncomingLive.MoviePreview
@@ -465,32 +466,64 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
     end
   end
 
-  describe "gap_banner_line/2 (UIDR-016 degraded-search honesty)" do
-    defp blind_health(state) do
-      %IndexerHealth{state: state, checked_at: ~U[2026-08-01 00:00:00Z]}
+  describe "rejected_items/1 (UIDR-022)" do
+    defp rejected(guid, reason, seeders) do
+      %GapEvidence.Rejected{
+        guid: guid,
+        title: "Another.Picture.1990.1080p.WEB-DL.x264",
+        reason: reason,
+        quality: "1080p",
+        seeders: seeders,
+        size_bytes: 2_000_000_000
+      }
     end
 
-    test "healthy search keeps the availability verdict" do
-      assert PlanLogic.gap_banner_line(["Sample Movie"], blind_health(:ok)) ==
-               "1 not available right now — Sample Movie"
+    test "maps rejection gates to reason copy, suspicious rows last, seeders first" do
+      evidence = %GapEvidence{
+        searches: [],
+        rejected: [
+          rejected("bait", :red_flag, 40),
+          rejected("low", :identity, 2),
+          rejected("high", :excluded, 9)
+        ],
+        raw_total: 3,
+        checked_at: nil
+      }
 
-      assert PlanLogic.gap_banner_line(["S01E01", "S01E02"], nil) ==
-               "2 not available right now — S01E01, S01E02"
+      items = PlanLogic.rejected_items(evidence)
+
+      assert Enum.map(items, &{&1.guid, &1.reason, &1.suspicious?}) == [
+               {"high", "you excluded this earlier", false},
+               {"low", "didn't match this title", false},
+               {"bait", "flagged suspicious", true}
+             ]
     end
+  end
 
-    test "a blind search never claims unavailability" do
-      assert PlanLogic.gap_banner_line(["Sample Movie"], blind_health(:blind)) ==
-               "Couldn't check availability — no indexers are answering — Sample Movie"
-    end
+  describe "movie_gap_unit_id/1" do
+    test "finds the movie board's unfound cell and refuses TV boards" do
+      cell = %PlanBoard.Cell{
+        plan_unit_id: "unit-1",
+        season_number: nil,
+        episode_number: nil,
+        label: "Sample Movie",
+        state: :unfound
+      }
 
-    test "an unreachable provider never claims unavailability" do
-      assert PlanLogic.gap_banner_line(["Sample Movie"], blind_health(:unreachable)) ==
-               "Couldn't check availability — Prowlarr is unreachable — Sample Movie"
-    end
+      board = %PlanBoard{
+        plan_id: "plan-1",
+        title: "Sample Movie",
+        status: :ready,
+        wanted: 1,
+        covered: 0,
+        seasons: [%PlanBoard.SeasonRow{season_number: nil, cells: [cell]}],
+        releases: [],
+        gaps: ["Sample Movie"],
+        movie?: true
+      }
 
-    test "degraded search still ran, so the verdict stands" do
-      assert PlanLogic.gap_banner_line(["Sample Movie"], blind_health(:degraded)) ==
-               "1 not available right now — Sample Movie"
+      assert PlanLogic.movie_gap_unit_id(board) == "unit-1"
+      assert PlanLogic.movie_gap_unit_id(%{board | movie?: false}) == nil
     end
   end
 

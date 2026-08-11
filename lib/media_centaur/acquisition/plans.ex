@@ -20,7 +20,7 @@ defmodule MediaCentaur.Acquisition.Plans do
   alias MediaCentaur.Acquisition.CoverageGuard
   alias MediaCentaur.Acquisition.Plans.{CommitPlan, LadderTerms, Plan, PlanUnit}
   alias MediaCentaur.Acquisition.Targeting
-  alias MediaCentaur.Acquisition.ViewModels.PlanBoard
+  alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, PlanBoard}
   alias MediaCentaur.Search.{Criteria, Quality, ReleaseCoverage, ReleaseRedFlags, TitleMatcher}
   alias MediaCentaur.Repo
   alias MediaCentaur.Topics
@@ -396,6 +396,144 @@ defmodule MediaCentaur.Acquisition.Plans do
 
       alternatives_for(plan_unit_id)
     end
+  end
+
+  @doc """
+  The durable evidence behind the board's gap banner (UIDR-022),
+  derived from the search corpus — never the transient activity
+  ticker, so a re-opened board reads the same days later. Movie plans
+  get per-candidate rejection reasons in the run's gate order
+  (red-flag, exclusion, identity); TV plans stay aggregate. Ladder
+  terms without a corpus record (never searched, search failed, or
+  pruned past retention) are absent from `searches`.
+  """
+  @spec gap_evidence(Plan.t()) :: GapEvidence.t()
+  def gap_evidence(%Plan{} = plan) do
+    gap_units =
+      plan.id
+      |> units_for()
+      |> Enum.filter(&(&1.status == "unfound"))
+
+    terms = evidence_terms(plan, gap_units)
+
+    searches =
+      for {term, opts} <- terms,
+          record = Corpus.record_for(term, Keyword.take(opts, [:type, :year])),
+          record != nil do
+        %GapEvidence.Search{
+          term: term,
+          searched_at: record.searched_at,
+          result_count: record.result_count
+        }
+      end
+
+    raw =
+      terms
+      |> Enum.flat_map(fn {term, opts} ->
+        Corpus.candidates_for(term, Keyword.take(opts, [:type, :year]))
+      end)
+      |> Enum.uniq_by(& &1.guid)
+
+    %GapEvidence{
+      searches: searches,
+      rejected: rejected_candidates(plan, gap_units, raw),
+      raw_total: length(raw),
+      checked_at: searches |> Enum.map(& &1.searched_at) |> Enum.max(DateTime, fn -> nil end)
+    }
+  end
+
+  defp evidence_terms(%Plan{tmdb_type: "movie"} = plan, _gap_units), do: LadderTerms.for_plan(plan, [])
+
+  defp evidence_terms(%Plan{tmdb_type: "tv"} = plan, gap_units) do
+    LadderTerms.for_plan(plan, Enum.map(gap_units, &{&1.season_number, &1.episode_number}))
+  end
+
+  # Movie-only classification (TV recourse is deferred — UIDR-022): each
+  # raw candidate carries the FIRST gate it fails, mirroring the run's
+  # order. A candidate failing no gate is identity-matched below the
+  # floor — the below-floor banner's territory, never listed here.
+  defp rejected_candidates(%Plan{tmdb_type: "tv"}, _gap_units, _raw), do: []
+
+  defp rejected_candidates(%Plan{tmdb_type: "movie"} = plan, gap_units, raw) do
+    excluded = gap_units |> Enum.flat_map(& &1.excluded_release_guids) |> MapSet.new()
+    criteria = %Criteria{type: :tmdb, title: plan.title, tmdb_type: :movie, year: plan.year}
+
+    for result <- raw,
+        reason = rejection_reason(result, excluded, criteria),
+        reason != nil do
+      %GapEvidence.Rejected{
+        guid: result.guid,
+        title: result.title,
+        reason: reason,
+        quality: Quality.display_label(result.title),
+        seeders: result.seeders,
+        size_bytes: result.size_bytes
+      }
+    end
+  end
+
+  defp rejection_reason(result, excluded, criteria) do
+    cond do
+      ReleaseRedFlags.suspicious?(result.title, result.size_bytes) -> :red_flag
+      MapSet.member?(excluded, result.guid) -> :excluded
+      not TitleMatcher.matches?(result, criteria) -> :identity
+      true -> nil
+    end
+  end
+
+  @doc """
+  Deliberately assigns a corpus candidate the run rejected (UIDR-022) —
+  the user's override for a matcher false-negative. Identity
+  verification is intentionally skipped, and neither a red flag nor an
+  earlier exclusion bars the pick: choosing from the rejected list IS
+  the deliberate call. Movie plans only; only `ready` plans accept it.
+  """
+  @spec choose_rejected(Ecto.UUID.t(), String.t()) :: {:ok, Plan.t()} | {:error, term()}
+  def choose_rejected(plan_unit_id, guid) when is_binary(guid) do
+    with {:ok, unit} <- get_unit(plan_unit_id),
+         {:ok, %Plan{} = plan} <- fetch(unit.plan_id),
+         :ok <- rejected_choosable(plan) do
+      case find_raw_candidate(plan, unit, guid) do
+        nil ->
+          {:error, :alternative_unavailable}
+
+        {result, term} ->
+          {:ok, _} =
+            Repo.update(
+              PlanUnit.assign_changeset(unit, %{
+                assigned_guid: result.guid,
+                assigned_title: result.title,
+                assigned_term: term,
+                assigned_quality: Quality.display_label(result.title),
+                assigned_seeders: result.seeders,
+                assigned_indexer_id: result.indexer_id,
+                assigned_size_bytes: result.size_bytes,
+                assigned_scope: nil
+              })
+            )
+
+          broadcast_changed(plan)
+          {:ok, plan}
+      end
+    end
+  end
+
+  defp rejected_choosable(%Plan{tmdb_type: "tv"}), do: {:error, :movie_only}
+  defp rejected_choosable(%Plan{status: "ready"}), do: :ok
+  defp rejected_choosable(%Plan{}), do: {:error, :not_ready}
+
+  defp find_raw_candidate(plan, unit, guid) do
+    plan
+    |> LadderTerms.for_unit(unit)
+    |> Enum.find_value(fn {term, opts} ->
+      term
+      |> Corpus.candidates_for(Keyword.take(opts, [:type, :year]))
+      |> Enum.find(&(&1.guid == guid))
+      |> case do
+        nil -> nil
+        result -> {result, term}
+      end
+    end)
   end
 
   @doc """

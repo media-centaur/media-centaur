@@ -97,7 +97,14 @@ defmodule MediaCentaurWeb.IncomingLive do
   alias MediaCentaur.Acquisition.Pursuits.Events, as: PursuitEvents
   alias MediaCentaur.Acquisition.TargetEvents
   alias MediaCentaur.Acquisition.ViewModels
-  alias MediaCentaur.Acquisition.ViewModels.{Alternative, DescentNarrative, PursuitWithDownload}
+
+  alias MediaCentaur.Acquisition.ViewModels.{
+    Alternative,
+    DescentNarrative,
+    GapVerdict,
+    PursuitWithDownload
+  }
+
   alias MediaCentaur.Capabilities
 
   alias MediaCentaurWeb.IncomingLive.{
@@ -211,6 +218,8 @@ defmodule MediaCentaurWeb.IncomingLive do
          plan_expanded_seasons: MapSet.new(),
          plan_movie: nil,
          plan_board: nil,
+         plan_gap_verdict: nil,
+         plan_rejected: nil,
          plan_grab_future: false,
          plan_error: nil,
          plan_last_activity: nil,
@@ -858,6 +867,8 @@ defmodule MediaCentaurWeb.IncomingLive do
           alternatives={@plan_alternatives}
           approving={@plan_approving?}
           search_health={@search_health}
+          gap_verdict={@plan_gap_verdict}
+          rejected={@plan_rejected}
         />
         <PursuitModal.pursuit_modal
           open={@selected_pursuit_id != nil}
@@ -1387,6 +1398,35 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   def handle_event("plan_hide_alternatives", _params, socket) do
     {:noreply, assign(socket, plan_alternatives: nil)}
+  end
+
+  # The gap banner's escape hatch (UIDR-022): list every raw candidate
+  # the run rejected, with the gate it failed. Movie boards only —
+  # `movie_gap_unit_id/1` is nil elsewhere and the button never renders.
+  def handle_event("plan_show_rejected", _params, socket) do
+    with %{plan_id: plan_id} = board <- socket.assigns.plan_board,
+         unit_id when is_binary(unit_id) <- PlanLogic.movie_gap_unit_id(board),
+         {:ok, plan} <- Plans.fetch(plan_id) do
+      items = plan |> Plans.gap_evidence() |> PlanLogic.rejected_items()
+      {:noreply, assign(socket, plan_rejected: %{unit_id: unit_id, items: items})}
+    else
+      _no_movie_gap -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("plan_hide_rejected", _params, socket) do
+    {:noreply, assign(socket, plan_rejected: nil)}
+  end
+
+  def handle_event("plan_choose_rejected", %{"unit-id" => unit_id, "guid" => guid}, socket) do
+    case Plans.choose_rejected(unit_id, guid) do
+      {:ok, _plan} ->
+        {:noreply, assign(socket, plan_rejected: nil)}
+
+      {:error, reason} ->
+        Log.warning(:acquisition, "plan rejected-pick failed — #{inspect(reason)}")
+        {:noreply, put_flash(socket, :error, "Could not pick that release.")}
+    end
   end
 
   def handle_event("plan_choose_release", %{"unit-id" => unit_id, "guid" => guid}, socket) do
@@ -2557,6 +2597,8 @@ defmodule MediaCentaurWeb.IncomingLive do
           plan_selection: nil,
           plan_movie: nil,
           plan_board: nil,
+          plan_gap_verdict: nil,
+          plan_rejected: nil,
           plan_descent: nil,
           plan_alternatives: nil,
           plan_error: nil,
@@ -2587,6 +2629,8 @@ defmodule MediaCentaurWeb.IncomingLive do
         plan_selection: nil,
         plan_movie: nil,
         plan_board: nil,
+        plan_gap_verdict: nil,
+        plan_rejected: nil,
         plan_chosen: MapSet.new(),
         plan_expanded_seasons: MapSet.new(),
         plan_grab_future: false,
@@ -2639,6 +2683,21 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
+  # The gap banner's adaptive verdict (UIDR-022) — only a ready board
+  # with gaps has one; recomputed on every board re-read so a forced
+  # re-search refreshes the evidence's freshness.
+  defp plan_gap_verdict(plan, board, search_health) do
+    if board.status == :ready and board.gaps != [] do
+      GapVerdict.build(
+        Plans.gap_evidence(plan),
+        gaps: board.gaps,
+        movie?: board.movie?,
+        search_health: search_health,
+        now: DateTime.utc_now()
+      )
+    end
+  end
+
   defp open_plan_board(socket, plan_id) do
     case Plans.fetch(plan_id) do
       {:ok, plan} ->
@@ -2649,6 +2708,7 @@ defmodule MediaCentaurWeb.IncomingLive do
           plan_param: plan_id,
           plan_stage: :board,
           plan_board: board,
+          plan_gap_verdict: plan_gap_verdict(plan, board, socket.assigns.search_health),
           plan_descent: plan_descent_for(socket, plan_id, board),
           plan_error: nil
         )

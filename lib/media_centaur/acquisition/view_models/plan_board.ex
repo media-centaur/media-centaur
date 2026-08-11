@@ -74,10 +74,14 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
     verified, covering the unit. `suspicious?` marks bait-pattern titles
     (`Search.ReleaseRedFlags`): never auto-picked, but visible and
     deliberately choosable — the heuristic demotes, it doesn't hide.
+
+    `reason` is set only on the gap banner's rejected list (UIDR-022):
+    the muted line saying which gate the run's search failed this
+    candidate on. Nil in the swap picker.
     """
 
     @enforce_keys [:guid, :title]
-    defstruct [:guid, :title, :scope_label, :quality, :seeders, :size_bytes, suspicious?: false]
+    defstruct [:guid, :title, :scope_label, :quality, :seeders, :size_bytes, :reason, suspicious?: false]
 
     @type t :: %__MODULE__{
             guid: String.t(),
@@ -86,6 +90,7 @@ defmodule MediaCentaur.Acquisition.ViewModels.PlanBoard do
             quality: String.t() | nil,
             seeders: integer() | nil,
             size_bytes: integer() | nil,
+            reason: String.t() | nil,
             suspicious?: boolean()
           }
   end
