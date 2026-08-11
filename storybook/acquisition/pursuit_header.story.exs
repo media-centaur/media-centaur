@@ -1,5 +1,11 @@
 defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
-  @moduledoc "Identity header for the pursuit detail modal."
+  @moduledoc """
+  Pinned identity for the pursuit modal — the content of the cinematic
+  frame's `:orientation` slot: the `TitleLayer.lockup` (logo PNG when
+  the artwork cache has one, logotype fallback), the state badge, and
+  one meta line (type icon + label, scope, criteria). The frame itself
+  supplies the backdrop; the header only reads `logo_url`.
+  """
 
   use PhoenixStorybook.Story, :component
 
@@ -11,7 +17,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
 
   def template do
     """
-    <div class="max-w-2xl">
+    <div class="max-w-2xl glass-inset rounded-xl py-6">
       <.psb-variation/>
     </div>
     """
@@ -20,16 +26,15 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
   def variations do
     [
       %Variation{
-        id: :tv_with_backdrop_and_logo,
+        id: :tv_with_logo,
         description:
-          "TMDB pursuit with cached artwork — the backdrop is the panel background, the logo PNG replaces the text title, and type/state/queries sit on the scrim (UIDR-011/014). Inline SVG stand-ins; real assets come from /media-images.",
+          "TMDB pursuit with a cached logo — the PNG replaces the text title in the lockup " <>
+            "(inline SVG stand-in; real assets come from /media-images).",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-hero",
             title: "Sample Show",
             state: :active,
-            backdrop_url:
-              "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1280' height='720'><defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='%23355070'/><stop offset='1' stop-color='%23172033'/></linearGradient></defs><rect width='1280' height='720' fill='url(%23g)'/><circle cx='980' cy='180' r='240' fill='%236d8cb0' opacity='0.35'/></svg>",
             logo_url:
               "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='90'><text x='0' y='64' font-family='sans-serif' font-size='56' font-weight='800' letter-spacing='6' fill='white'>SAMPLE SHOW</text></svg>",
             recipe: %Recipe{
@@ -46,7 +51,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
       },
       %Variation{
         id: :movie_with_year,
-        description: "Movie pursuit, no cached artwork — synthetic gradient + logotype fallback",
+        description: "Movie pursuit, no cached logo — logotype fallback, year on the meta line.",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-movie",
@@ -66,7 +71,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
       },
       %Variation{
         id: :tv_episode,
-        description: "TV episode pursuit, no cached artwork — fallback hero, queries on the scrim",
+        description: "TV episode pursuit — SxxExx scope on the meta line.",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-tv",
@@ -87,7 +92,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
       },
       %Variation{
         id: :manual_query,
-        description: "Free-form Prowlarr query pursuit",
+        description:
+          "Free-form Prowlarr query pursuit — the typed query is the identity (logotype), " <>
+            "the meta line reads Prowlarr query.",
         attributes: %{
           vm: %PursuitHeader{
             id: "story-manual",
@@ -99,28 +106,6 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitHeader do
               manual_query: "Phantom of the Opera 1925"
             },
             search_queries: ["Phantom of the Opera 1925"],
-            criteria_summary: nil
-          }
-        }
-      },
-      %Variation{
-        id: :manual_query_expanded,
-        description: "Prowlarr query with brace expansion — multiple queries",
-        attributes: %{
-          vm: %PursuitHeader{
-            id: "story-manual-expanded",
-            title: "Sample Show S01E{01,02,03}",
-            state: :active,
-            recipe: %Recipe{
-              type: :prowlarr_query,
-              title: "Sample Show S01E{01,02,03}",
-              manual_query: "Sample Show S01E{01,02,03}"
-            },
-            search_queries: [
-              "Sample Show S01E01",
-              "Sample Show S01E02",
-              "Sample Show S01E03"
-            ],
             criteria_summary: nil
           }
         }

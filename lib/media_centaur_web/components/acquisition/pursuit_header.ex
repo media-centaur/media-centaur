@@ -1,168 +1,113 @@
 defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
-  @moduledoc "Identity card shown inside the pursuit detail modal — title, state, recipe, criteria."
+  @moduledoc """
+  The pursuit modal's presentation of the `PursuitHeader` view-model,
+  split across the cinematic frame's two seatings: `pursuit_header/1`
+  is the pinned identity for the `:orientation` slot (lockup, state
+  badge, meta line), `pursuit_facts/1` is the search facts atop the
+  scrolling body (release subtitle, literal indexer queries).
+  """
 
-  use Phoenix.Component
-
-  import MediaCentaurWeb.CoreComponents, only: [badge: 1]
-  import MediaCentaurWeb.LiveHelpers, only: [banner_hue: 1, sized_image_url: 2]
-
-  # Height-capped at `max-h-16` and bounded to 55% of the header, so a wide
-  # logo lands near 380 CSS px — doubled for a 4K panel.
+  use MediaCentaurWeb, :html
 
   alias MediaCentaur.Acquisition.ViewModels.PursuitHeader
   alias MediaCentaurWeb.Components.Acquisition.PursuitStyle
+  alias MediaCentaurWeb.Components.Detail.TitleLayer
 
   attr :vm, PursuitHeader, required: true
 
+  @doc """
+  Pinned identity for the cinematic frame's `:orientation` slot: the
+  shared `TitleLayer.lockup` (logo PNG when the artwork cache has one,
+  logotype fallback), the state badge, and one meta line — type icon +
+  label, scope (year / SxxExx), criteria. The frame supplies the
+  backdrop; this block only reads `logo_url`.
+  """
   def pursuit_header(assigns) do
-    assigns =
-      assigns
-      |> Phoenix.Component.assign(:display_title, display_title(assigns.vm))
-      |> Phoenix.Component.assign(:release_subtitle, release_subtitle(assigns.vm))
+    assigns = assign(assigns, :display_title, display_title(assigns.vm))
 
     ~H"""
-    <%!-- Flat section, not its own card (a nested glass-surface here
-          created card-on-card-on-card with the rows below). TMDB-door
-          pursuits get a real hero: the cached backdrop as the panel's
-          background with logo PNG (or logotype fallback) and the
-          identity facts — type, state, criteria, the literal search
-          queries — overlaid on the scrim (UIDR-011/014). The synthetic
-          gradient remains the no-artwork fallback. Query-door pursuits
-          keep the flat title row: imagery means a title you chose. --%>
-    <header>
-      <div
-        :if={@vm.recipe.type == :tmdb}
-        class="relative flex items-end"
-        style={"--banner-hue: #{banner_hue(@display_title)}; min-height: 13rem;"}
-      >
-        <%!-- With cached artwork the panel itself carries the backdrop +
-              atmosphere (pursuit_modal); this block only supplies the
-              synthetic fallback. --%>
-        <div :if={!@vm.backdrop_url} class="identity-backdrop absolute inset-0"></div>
-
-        <div class="relative z-[1] w-full space-y-2 px-6 pb-4 pt-14">
-          <div class="flex items-end justify-between gap-3">
-            <img
-              :if={@vm.logo_url}
-              src={sized_image_url(@vm.logo_url, 960)}
-              alt={@display_title}
-              title={@display_title}
-              class="text-on-image-lg max-h-16 max-w-[55%] object-contain object-left"
-              loading="eager"
-              decoding="sync"
-            />
-            <h2 :if={!@vm.logo_url} class="identity-logotype min-w-0 truncate text-2xl leading-tight">
-              {@display_title}
-            </h2>
-            <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
-          </div>
-
-          <div class="text-on-image flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            <.badge variant="type" size="xs">
-              {if @vm.recipe.tmdb_type in [:movie, "movie"], do: "Movie", else: "TV"}
-            </.badge>
-            <span :if={hero_scope(@vm.recipe)} class="text-base-content/80">
-              {hero_scope(@vm.recipe)}
-            </span>
-            <span :if={@vm.criteria_summary} class="text-base-content/70">
-              {@vm.criteria_summary}
-            </span>
-          </div>
-
-          <%!-- The literal indexer queries, compressed to one labeled line —
-                unlabeled monospace lines under the title read as duplicate
-                titles, not searches. Full list in the tooltip when truncated. --%>
-          <p
-            :if={@vm.search_queries != []}
-            class="text-on-image min-w-0 truncate text-xs text-base-content/50"
-            title={Enum.join(@vm.search_queries, "  ·  ")}
-          >
-            {search_label(@vm.search_queries)}:
-            <%= for {query, index} <- Enum.with_index(@vm.search_queries) do %>
-              <span :if={index > 0} class="text-base-content/30">·</span>
-              <span class="font-mono text-base-content/70">{query}</span>
-            <% end %>
-          </p>
+    <div class="px-6">
+      <div class="flex items-end justify-between gap-3">
+        <div class="min-w-0">
+          <TitleLayer.lockup title={@display_title} logo_url={@vm.logo_url} />
         </div>
-      </div>
-
-      <div
-        :if={@vm.recipe.type != :tmdb}
-        class="flex items-baseline justify-between gap-3 px-6 pt-6"
-      >
-        <h2 class="text-lg font-medium truncate">{@display_title}</h2>
         <PursuitStyle.state_badge state={@vm.state} awaiting_decision?={@vm.awaiting_decision?} />
       </div>
+      <p class="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 pb-5 text-xs uppercase tracking-wider text-base-content/50 text-on-image">
+        <.icon name={type_icon(@vm.recipe)} class="size-4" />
+        <span>{type_label(@vm.recipe)}</span>
+        <span :if={scope(@vm.recipe)}>· {scope(@vm.recipe)}</span>
+        <span :if={@vm.criteria_summary} class="normal-case tracking-normal text-base-content/40">
+          · {@vm.criteria_summary}
+        </span>
+      </p>
+    </div>
+    """
+  end
 
-      <div class="px-6 pt-2 space-y-2">
-        <%!-- Prowlarr-query pursuits store the picked release filename in
-            `vm.title` once an alternative is chosen, but the user-meaningful
-            identity is the query they typed. We hoist the query to the
-            heading and demote the release filename to a monospace
-            subtitle so the file is still visible but doesn't dominate. --%>
-        <div
-          :if={@release_subtitle}
-          class="text-xs font-mono text-base-content/50 truncate"
-          title={@release_subtitle}
-        >
-          {@release_subtitle}
-        </div>
+  attr :vm, PursuitHeader, required: true
 
-        <div
-          :if={@vm.recipe.type != :tmdb && recipe_summary(@vm.recipe)}
-          class="text-xs text-base-content/70"
-        >
-          {recipe_summary(@vm.recipe)}
-        </div>
+  @doc """
+  The pursuit's search facts, seated at the top of the modal body: the
+  release-filename subtitle (Prowlarr-query pursuits that already
+  picked a release, demoted to monospace so the file stays visible
+  without dominating) and the literal indexer queries — "Searching
+  Prowlarr" should never be abstract; the user can compare these
+  strings to what they'd paste into Prowlarr by hand. Renders nothing
+  when there is nothing to show.
+  """
+  def pursuit_facts(assigns) do
+    assigns = assign(assigns, :release_subtitle, release_subtitle(assigns.vm))
 
-        <div
-          :if={@vm.recipe.type != :tmdb && @vm.criteria_summary}
-          class="text-xs text-base-content/60"
-        >
-          Criteria: {@vm.criteria_summary}
-        </div>
-
-        <%!-- The literal Prowlarr query/queries this pursuit runs. Always
-            visible — "Searching Prowlarr" should never be abstract; the
-            user can compare these strings to what they'd paste into
-            Prowlarr by hand. TMDB recipes carry them on the hero above;
-            this block covers query-door pursuits (the brace-expanded
-            list, or the literal query when expansion fails). --%>
-        <div
-          :if={@vm.recipe.type != :tmdb && @vm.search_queries != []}
-          class="text-xs text-base-content/60 space-y-0.5"
-        >
-          <div class="text-base-content/50">{search_label(@vm.search_queries)}</div>
-          <ul class="space-y-0.5">
-            <li
-              :for={query <- @vm.search_queries}
-              class="font-mono text-base-content/80 truncate"
-              title={query}
-            >
-              {query}
-            </li>
-          </ul>
-        </div>
+    ~H"""
+    <div :if={@release_subtitle || @vm.search_queries != []} class="space-y-2">
+      <div
+        :if={@release_subtitle}
+        class="text-xs font-mono text-base-content/50 truncate"
+        title={@release_subtitle}
+      >
+        {@release_subtitle}
       </div>
-    </header>
+
+      <div :if={@vm.search_queries != []} class="text-xs text-base-content/60 space-y-0.5">
+        <div class="text-base-content/50">{search_label(@vm.search_queries)}</div>
+        <ul class="space-y-0.5">
+          <li
+            :for={query <- @vm.search_queries}
+            class="font-mono text-base-content/80 truncate"
+            title={query}
+          >
+            {query}
+          </li>
+        </ul>
+      </div>
+    </div>
     """
   end
 
   defp search_label([_]), do: "Search query"
   defp search_label(_), do: "Search queries"
 
-  # The hero meta row already opens with the type badge — this is only the
+  defp type_icon(%{type: :prowlarr_query}), do: "hero-magnifying-glass"
+  defp type_icon(%{tmdb_type: type}) when type in [:movie, "movie"], do: "hero-film"
+  defp type_icon(_recipe), do: "hero-tv"
+
+  defp type_label(%{type: :prowlarr_query}), do: "Prowlarr query"
+  defp type_label(%{tmdb_type: type}) when type in [:movie, "movie"], do: "Movie"
+  defp type_label(_recipe), do: "TV series"
+
+  # The meta line already opens with the type label — this is only the
   # scope beyond it (year, SxxExx), so "Movie" never reads twice.
-  defp hero_scope(%{tmdb_type: type, year: year}) when type in [:movie, "movie"],
-    do: if(year, do: "#{year}")
+  defp scope(%{type: :prowlarr_query}), do: nil
 
-  defp hero_scope(%{season_number: nil}), do: nil
-  defp hero_scope(%{season_number: season, episode_number: nil}), do: "S#{pad(season)}"
+  defp scope(%{tmdb_type: type, year: year}) when type in [:movie, "movie"], do: if(year, do: "#{year}")
 
-  defp hero_scope(%{season_number: season, episode_number: episode}),
-    do: "S#{pad(season)}E#{pad(episode)}"
+  defp scope(%{season_number: nil}), do: nil
+  defp scope(%{season_number: season, episode_number: nil}), do: "S#{pad(season)}"
 
-  defp hero_scope(_), do: nil
+  defp scope(%{season_number: season, episode_number: episode}), do: "S#{pad(season)}E#{pad(episode)}"
+
+  defp scope(_recipe), do: nil
 
   # The heading text. For a Prowlarr-query pursuit, the manual query is
   # the human-meaningful identity; for everything else, `vm.title` is
@@ -186,24 +131,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitHeader do
   end
 
   defp release_subtitle(_), do: nil
-
-  # The recipe_summary line for prowlarr_query just labels the kind —
-  # the manual_query is already shown as the heading.
-  defp recipe_summary(%{type: :prowlarr_query}), do: "Prowlarr query"
-  defp recipe_summary(%{tmdb_type: :movie, year: nil}), do: "Movie"
-  defp recipe_summary(%{tmdb_type: :movie, year: year}), do: "Movie • #{year}"
-  defp recipe_summary(%{tmdb_type: :tv, season_number: nil}), do: "TV"
-
-  defp recipe_summary(%{tmdb_type: :tv, season_number: season, episode_number: nil}),
-    do: "TV • S#{pad(season)}"
-
-  defp recipe_summary(%{tmdb_type: :tv, season_number: season, episode_number: episode}),
-    do: "TV • S#{pad(season)}E#{pad(episode)}"
-
-  defp recipe_summary(%{tmdb_type: type}) when is_atom(type) and not is_nil(type),
-    do: Atom.to_string(type)
-
-  defp recipe_summary(_), do: nil
 
   defp pad(num) when is_integer(num) and num < 10, do: "0#{num}"
   defp pad(num) when is_integer(num), do: "#{num}"

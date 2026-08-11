@@ -4,11 +4,11 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   carrying a media-search request from targeting through approval —
   no wizard step-dots.
 
-  The whole surface is a cinematic shell: every stage renders inside the
-  shared `Detail.CinematicBackdrop`, wearing the title's backdrop from
-  the moment the modal opens (the picked search result dresses the
-  loading stage) through targeting, confirm, and the board. The host
-  picks the per-stage source via `PlanLogic.shell_backdrop_url/2`.
+  The whole surface is a tenant of the cinematic modal frame
+  (`CinematicShell`), wearing the title's backdrop from the moment the
+  modal opens (the picked search result dresses the loading stage)
+  through targeting, confirm, and the board. The host picks the
+  per-stage source via `PlanLogic.shell_backdrop_url/2`.
 
   Stages, driven by the host LiveView's `?plan=` param:
 

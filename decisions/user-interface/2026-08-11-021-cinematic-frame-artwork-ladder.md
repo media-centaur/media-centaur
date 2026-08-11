@@ -20,8 +20,8 @@ scrollport, sticky orientation block with its backing replica, body sheet with
 per-view scroll memory). Tenants fill `:hero_actions` / `:orientation` /
 `:body` slots; the frame renders **both** backdrop copies from one
 `backdrop_url`, making the byte-identical-URL invariant structural. Tenants:
-library `DetailPanel`, the plan modal, the Incoming title modal. (The pursuit
-modal is scheduled convergence — the last scrolls-with-content surface.)
+library `DetailPanel`, the plan modal, the Incoming title modal, and the
+pursuit modal.
 
 **One artwork policy — a promotion ladder** keyed to how durable the app's
 relationship with the title is:

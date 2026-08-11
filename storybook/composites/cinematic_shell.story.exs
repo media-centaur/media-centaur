@@ -103,6 +103,33 @@ defmodule MediaCentaurWeb.Storybook.Composites.CinematicShell do
         ]
       },
       %Variation{
+        id: :persistent_dismiss,
+        description:
+          "Open with `dismiss: :persistent` — backdrop click and Escape are ignored; " <>
+            "only an explicit control closes (the consent-gate kind of modal).",
+        attributes: %{
+          id: "cinematic-persistent",
+          open: true,
+          dismiss: :persistent,
+          on_close: close_event(:persistent_dismiss),
+          present: true,
+          full: false
+        },
+        slots: [
+          """
+          <:orientation>
+            <div class="px-6 pt-2">
+              <h2 class="text-2xl font-bold text-white text-on-image-lg">Persistent Subject</h2>
+            </div>
+            <div class="px-4 pt-6 pb-8 text-sm text-base-content/70">
+              Clicking the backdrop or pressing Escape does nothing — close it
+              with the button that opened it.
+            </div>
+          </:orientation>
+          """
+        ]
+      },
+      %Variation{
         id: :open_content_fit,
         description:
           "Open, `full: false`, no `:body` slot — the content-fit panel a bare movie " <>
