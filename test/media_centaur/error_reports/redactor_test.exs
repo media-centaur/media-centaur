@@ -42,6 +42,21 @@ defmodule MediaCentaur.ErrorReports.RedactorTest do
       assert Redactor.normalize("retry 1 of 5 failed") =~ "retry 1 of 5"
     end
 
+    test "redacts DBConnection pool-connection labels" do
+      # DBConnection labels each pool connection "db_conn_<pool_index>", so the
+      # same fault hitting several connections must not fan out into one
+      # fingerprint per connection (2026-08-11: one lock event, three buckets).
+      disconnect = fn label ->
+        Redactor.normalize(
+          ~s{Exqlite.Connection (#PID<0.462.0> ("#{label}")) disconnected: } <>
+            "** (Exqlite.Error) database is locked BEGIN IMMEDIATE TRANSACTION"
+        )
+      end
+
+      assert disconnect.("db_conn_2") == disconnect.("db_conn_10")
+      refute disconnect.("db_conn_9") =~ "db_conn_9"
+    end
+
     test "collapses whitespace and trims" do
       assert Redactor.normalize("  foo   bar  \n baz  ") == "foo bar baz"
     end

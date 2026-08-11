@@ -20,6 +20,10 @@ defmodule MediaCentaur.ErrorReports.Redactor do
 
   @configured_url_keys [:prowlarr_url, :download_client_url]
 
+  # DBConnection labels each pool connection "db_conn_<pool_index>"
+  # (db_connection Connection.init), so one fault hitting several pool
+  # connections would otherwise mint one fingerprint per connection.
+  @db_conn_label_re ~r/\bdb_conn_\d+\b/u
   @path_re ~r|(?<![A-Za-z0-9_])/(?:[^\s/"']+/){1,}[^\s/"']*|u
   @uuid_re ~r/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/iu
   @ipv4_re ~r/\b(?:\d{1,3}\.){3}\d{1,3}\b/u
@@ -68,6 +72,7 @@ defmodule MediaCentaur.ErrorReports.Redactor do
 
   defp apply_regex_rules(text) do
     text
+    |> then(&Regex.replace(@db_conn_label_re, &1, "db_conn_<N>"))
     |> then(&Regex.replace(@uuid_re, &1, "<uuid>"))
     |> then(&Regex.replace(@path_re, &1, "<path>"))
     |> then(&Regex.replace(@email_re, &1, "<email>"))
