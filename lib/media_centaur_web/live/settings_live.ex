@@ -1679,7 +1679,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                   class={[
                     "block py-2 px-3 rounded-lg text-sm text-base-content/70 transition-[opacity,background-color] duration-150 hover:opacity-100 hover:bg-base-content/6",
                     @active_section == section.id &&
-                      "!opacity-100 text-primary bg-primary/10 font-medium"
+                      "menu-item-active !opacity-100 text-primary bg-primary/10 font-medium"
                   ]}
                 >
                   {section.label}
