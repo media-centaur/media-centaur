@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.123.0 — 2026-08-11
+
+### Improved
+
+- **You can now tell a download's transfers apart.** When a download runs several transfers at once, each queued or moving strip on the Incoming page shows the release name and its total size instead of an identical, anonymous bar.
+- **Swapping a release is one click.** The alternatives panel now lists releases as a single-select list with the currently assigned release anchored at the top, so you can see what you'd be replacing before you pick. Choosing a release swaps it immediately, and the panel has its own close button.
+- **The None quick action clears the season picker.** When choosing which seasons to grab, picking None deselects everything in one step.
+
+### Fixed
+
+- **One database hiccup no longer shows up as several identical issues.** A momentary write conflict that touched multiple database connections listed the same fault once per connection on the Status page; it now appears as a single issue.
+
 ## v0.122.0 — 2026-08-11
 
 ### New
