@@ -36,6 +36,8 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
 
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.LiveHelpers, only: [tmdb_cdn_url: 2]
+
   alias MediaCentaurWeb.Components.Detail.{CastSelection, People}
 
   attr :entity, :map,
@@ -353,7 +355,7 @@ defmodule MediaCentaurWeb.Components.Detail.CastPanel do
   defp photo(%{person: %{profile_path: path}} = assigns) when is_binary(path) do
     ~H"""
     <img
-      src={"https://image.tmdb.org/t/p/w185#{@person.profile_path}"}
+      src={tmdb_cdn_url(@person.profile_path, :w185)}
       alt={@person.name}
       loading="lazy"
       class="w-full aspect-[5/7] rounded-md object-cover bg-base-300"

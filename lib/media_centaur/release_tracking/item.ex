@@ -35,9 +35,6 @@ defmodule MediaCentaur.ReleaseTracking.Item do
     field :library_container_type, Ecto.Enum, values: @container_types
     field :library_container_id, Ecto.UUID
     field :last_refreshed_at, :utc_datetime
-    field :poster_path, :string
-    field :backdrop_path, :string
-    field :logo_path, :string
     # TMDB origin_country ISO codes (TV only) — self-heals on refresh
     # for rows created before the column existed.
     field :origin_country, {:array, :string}
@@ -78,9 +75,6 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :library_container_type,
       :library_container_id,
       :last_refreshed_at,
-      :poster_path,
-      :backdrop_path,
-      :logo_path,
       :origin_country,
       :last_library_season,
       :last_library_episode
@@ -100,9 +94,6 @@ defmodule MediaCentaur.ReleaseTracking.Item do
       :library_container_type,
       :library_container_id,
       :last_refreshed_at,
-      :poster_path,
-      :backdrop_path,
-      :logo_path,
       :origin_country,
       :last_library_season,
       :last_library_episode,

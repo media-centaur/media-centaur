@@ -7,9 +7,6 @@ defmodule MediaCentaurWeb.Storybook.Acquisition do
   def entry("media_omnibox"), do: [icon: {:fa, "magnifying-glass", :thin}, name: "Media omnibox"]
   def entry("media_results"), do: [icon: {:fa, "list", :thin}, name: "Media results"]
 
-  def entry("title_result_summary"),
-    do: [icon: {:fa, "clapperboard", :thin}, name: "Title result summary"]
-
   def entry("plan_modal"), do: [icon: {:fa, "chess-board", :thin}, name: "Plan modal"]
   def entry("pursuit_row"), do: [icon: {:fa, "list-tree", :thin}, name: "Pursuit row"]
   def entry("pursuit_group"), do: [icon: {:fa, "layer-group", :thin}, name: "Pursuit group"]

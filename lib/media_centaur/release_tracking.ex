@@ -598,9 +598,9 @@ defmodule MediaCentaur.ReleaseTracking do
   Resolves the best available logo URL for a tracking item.
 
   Prefers the paired Library entity's logo (most authoritative — it's the same
-  asset that drives the rest of the library); falls back to the tracking
-  item's own `logo_path` (fetched directly from TMDB by the refresher for
-  shows not yet imported); returns `nil` if neither is available.
+  asset that drives the rest of the library); falls back to the identity's
+  `TmdbArtwork` cache entry (fetched from TMDB by the refresher for shows not
+  yet imported); returns `nil` if neither is available.
 
   `library_logos` is the map returned by
   `MediaCentaur.Library.Images.logo_urls_for_entities/1`, batched by the caller so

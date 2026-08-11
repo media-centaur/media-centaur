@@ -31,7 +31,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
 
   use MediaCentaurWeb, :html
 
-  import MediaCentaurWeb.LiveHelpers, only: [format_size: 1]
+  import MediaCentaurWeb.LiveHelpers, only: [format_size: 1, tmdb_cdn_url: 2]
 
   alias MediaCentaurWeb.Components.Acquisition.CellVocabulary
   alias MediaCentaurWeb.Components.Acquisition.ReleaseFacts
@@ -528,7 +528,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         <div :for={person <- @cast} class="flex-shrink-0 w-16 text-center">
           <img
             :if={person.profile_path}
-            src={"https://image.tmdb.org/t/p/w185#{person.profile_path}"}
+            src={tmdb_cdn_url(person.profile_path, :w185)}
             alt={person.name}
             loading="eager"
             decoding="sync"

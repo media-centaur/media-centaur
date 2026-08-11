@@ -96,7 +96,10 @@ wall:
   the library), cards render the scrimmed-gradient + styled-logotype
   treatment — no hot-linking TMDB images from the downloads page in
   v1; real `backdrop_path`/logo plumbing for non-library titles is a
-  follow-up.
+  follow-up. *(Superseded by
+  [UIDR-021](2026-08-11-021-cinematic-frame-artwork-ladder.md): the
+  artwork promotion ladder sanctions hotlinks for browsing-tier
+  surfaces and gives referenced titles a local cache.)*
 
 Text-over-imagery follows [UIDR-011]; modal dismissal follows
 [UIDR-013]; buttons/badges per [UIDR-003]/[UIDR-002].
