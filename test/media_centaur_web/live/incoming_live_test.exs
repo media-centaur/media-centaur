@@ -374,17 +374,17 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       end)
     end
 
-    test "the TV picker header renders the series poster", %{conn: conn} do
+    test "the TV picker introduces the series in the pinned lockup", %{conn: conn} do
       stub_plan_tmdb()
 
       {:ok, view, _html} = live_async!(conn, ~p"/incoming?plan=new&tmdb_id=246810&tmdb_type=tv")
       render_async(view, 2_000)
 
-      # tv_detail fixture default poster, w154 for the larger header slot.
-      assert has_element?(
-               view,
-               "[data-plan-modal] img[src='https://image.tmdb.org/t/p/w154/ggFHVNu6YYI5L9pCfOacjizRGt.jpg']"
-             )
+      # The identity lives in the cinematic frame's orientation block —
+      # the fixture has no logo, so the logotype fallback carries the
+      # series name (the poster-thumbnail header was retired with the
+      # cinematic-shell re-seat).
+      assert has_element?(view, "[data-plan-modal] .detail-orientation h2", "Sample Show")
     end
 
     test "the TV picker dresses the modal in the series backdrop", %{conn: conn} do
@@ -401,15 +401,25 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
              )
     end
 
+    # The TmdbArtwork cache resolves from disk (not item columns), so the
+    # cached-artwork tests seed a real file under a tmp data_dir —
+    # GlobalStateSandbox restores the config term afterwards.
+    defp seed_cached_backdrop(media_type, tmdb_id) do
+      data_dir = Path.join(System.tmp_dir!(), "incoming_artwork_#{System.unique_integer([:positive])}")
+      dir = Path.join([data_dir, "images", "tmdb", "#{media_type}-#{tmdb_id}"])
+      File.mkdir_p!(dir)
+      File.write!(Path.join(dir, "backdrop.jpg"), :binary.copy("x", 60_000))
+
+      config = :persistent_term.get({MediaCentaur.Config, :config})
+      :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, :data_dir, data_dir))
+      on_exit(fn -> File.rm_rf!(data_dir) end)
+    end
+
     test "the board wears release tracking's cached artwork for the plan's title", %{conn: conn} do
       stub_plan_tmdb()
+      seed_cached_backdrop(:movie, 777)
 
-      create_tracking_item(%{
-        tmdb_id: 777,
-        media_type: :movie,
-        name: "Sample Movie",
-        backdrop_path: "tracking/backdrop-777.jpg"
-      })
+      create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
 
@@ -418,19 +428,15 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert has_element?(
                view,
-               "[data-plan-modal] .modal-page-backdrop img[src='/media-images/tracking/backdrop-777.jpg']"
+               "[data-plan-modal] .modal-page-backdrop img[src='/media-images/images/tmdb/movie-777/backdrop.jpg']"
              )
     end
 
     test "draft rows wear cached artwork instead of the synthetic gradient", %{conn: conn} do
       stub_plan_tmdb()
+      seed_cached_backdrop(:movie, 777)
 
-      create_tracking_item(%{
-        tmdb_id: 777,
-        media_type: :movie,
-        name: "Sample Movie",
-        backdrop_path: "tracking/backdrop-777.jpg"
-      })
+      create_tracking_item(%{tmdb_id: 777, media_type: :movie, name: "Sample Movie"})
 
       {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "777", title: "Sample Movie"})
 
@@ -441,7 +447,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       # the banner is free to retune (MC0028).
       assert has_element?(
                view,
-               "#plan-draft-#{plan.id} img[src^='/media-images/tracking/backdrop-777.jpg']"
+               "#plan-draft-#{plan.id} img[src^='/media-images/images/tmdb/movie-777/backdrop.jpg']"
              )
     end
 

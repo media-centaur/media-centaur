@@ -56,11 +56,12 @@ defmodule MediaCentaurWeb.Components.Detail.CinematicBackdrop do
   @doc """
   The backdrop image layer alone. `cinematic_backdrop/1` composes it
   inside the caller's scroll container (backdrop scrolls with content —
-  the plan modal's treatment); `CinematicShell` seats it directly in the
-  modal panel instead, where it stays *fixed* while the detail document
-  scrolls over it (2026-08-05 sticky-orientation design). Scheduled
-  convergence: the plan modal preview should eventually adopt the fixed
-  seating too, so both cinematic surfaces move the same way.
+  the pursuit modal's treatment); `CinematicShell` seats it directly in
+  the modal panel instead, where it stays *fixed* while the detail
+  document scrolls over it (2026-08-05 sticky-orientation design). The
+  plan modal adopted the fixed seating with the cinematic-shell re-seat;
+  scheduled convergence: the pursuit modal is the last scrolls-with-
+  content surface (see `campaigns/cinematic-modal-unification.md`).
   """
   attr :backdrop_url, :string, default: nil, doc: "see `cinematic_backdrop/1`."
   attr :early_fade, :boolean, default: false, doc: "see `cinematic_backdrop/1`."

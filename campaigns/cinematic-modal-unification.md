@@ -1,6 +1,6 @@
 # Cinematic Modal Unification
 
-**Status:** Phase 1 complete (`a055f147`, 2026-08-11) — Phase 2 (TmdbArtwork) in progress
+**Status:** Phases 1–2 complete (`a055f147`, `e42fb9ba`, 2026-08-11) — Phase 3 (plan modal) in progress
 **End state:** Every modal grounded in a TMDB identity renders the same cinematic
 shell (pinned orientation block over a fixed backdrop), fed by a single artwork
 contract with a promotion ladder from hotlink → temporary local → permanent library.
