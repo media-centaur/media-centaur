@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.122.0 — 2026-08-11
+
+### New
+
+- **When nothing can be found, the download plan now shows what the search actually established.** Instead of a generic "not available right now", the plan states what happened: releases came back but none matched the title, your indexers genuinely returned nothing, or the answer comes from an older cached search. The line beneath shows the exact queries that ran and how fresh the check is — so you can tell at a glance whether searching by hand would be worth your time. If the search couldn't reach any indexer, the plan still says availability couldn't be checked, as before.
+- **See — and pick from — releases the title matcher turned down.** When a movie's searches find releases but none pass the title check, **Show them anyway** lists every rejected release with the reason (didn't match this title, flagged suspicious, or excluded by you earlier). If the matcher got one wrong, choosing it downloads that release — your recourse when you know a release really is the right title.
+
 ## v0.121.0 — 2026-08-11
 
 ### Improved
