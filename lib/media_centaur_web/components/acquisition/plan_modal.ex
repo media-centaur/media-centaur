@@ -274,6 +274,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           >
             Latest season
           </.button>
+          <.button
+            variant="neutral"
+            size="sm"
+            phx-click="plan_preset"
+            phx-value-preset="none"
+            data-nav-item
+            tabindex="0"
+          >
+            None
+          </.button>
           <span class="ml-auto text-sm text-base-content/50 tabular-nums">
             {@chosen_count} selected
           </span>

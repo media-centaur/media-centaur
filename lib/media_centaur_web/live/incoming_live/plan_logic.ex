@@ -98,12 +98,16 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
     present episode (everything when the library has none).
   * `:latest_season` — the default units of the last season that has
     any.
+  * `:none` — the empty set, the escape from the everything-aired
+    default the picker opens with.
 
   Presets skip tracked units; the units themselves stay pickable —
   checking one is the user's explicit override.
   """
-  @spec apply_preset(Targeting.Selection.t(), :everything_aired | :continue | :latest_season) ::
-          MapSet.t()
+  @spec apply_preset(
+          Targeting.Selection.t(),
+          :everything_aired | :continue | :latest_season | :none
+        ) :: MapSet.t()
   def apply_preset(%Targeting.Selection{} = selection, :everything_aired) do
     selection |> Targeting.default_units() |> MapSet.new()
   end
@@ -141,6 +145,8 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogic do
       end
     end)
   end
+
+  def apply_preset(%Targeting.Selection{}, :none), do: MapSet.new()
 
   defp max_unit(nil, unit), do: unit
   defp max_unit(acc, unit) when unit > acc, do: unit
