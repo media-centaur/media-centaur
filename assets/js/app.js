@@ -104,7 +104,7 @@ const liveSocket = new LiveSocket("/live", Socket, {
         this.el.style.setProperty("--modal-rail-w", `${rail}px`)
 
         const block = this.el.querySelector("[data-role='detail-orientation']")
-        const content = this.el.querySelector("#detail-content")
+        const content = this.el.querySelector("[data-role='detail-content']")
         if (!block || !content) return
         // The block's in-flow position can't be read off the block itself
         // (sticky offsets shift offsetTop while stuck), but the content

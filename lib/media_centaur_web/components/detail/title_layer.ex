@@ -6,10 +6,9 @@ defmodule MediaCentaurWeb.Components.Detail.TitleLayer do
   (UIDR-011). With no backdrop behind it (`placeholder?`), the frame
   fills with the quiet film-icon placeholder instead.
 
-  Extracted from `Detail.Hero` so the plan modal's movie confirm wears
-  the *same* title layer instead of a hand-kept copy; `Hero` remains the
-  owned-entity wrapper that derives these primitives from the entity's
-  image records.
+  Extracted so the plan modal's movie confirm wears the *same* title
+  layer as the detail modal instead of a hand-kept copy; the hero window
+  itself (the transparent 21:9 frame) belongs to `CinematicShell`.
   """
 
   use MediaCentaurWeb, :html

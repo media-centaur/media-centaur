@@ -51,7 +51,7 @@ Story-first makes the catalog the gate: if the variation doesn't render the new 
 
 Full long-form: [`docs/storybook.md`](../../../docs/storybook.md). Abridged:
 
-1. **Components, not pages.** Catalog `<.button>`, `<.poster_card>`, `<.modal_shell>`. Skip full LiveViews — page smoke tests cover them.
+1. **Components, not pages.** Catalog `<.button>`, `<.poster_card>`, `<.cinematic_shell>`. Skip full LiveViews — page smoke tests cover them.
 2. **Stories follow the contract.** Variations are struct/map literals matching typed `attr`s. If you can't story without faking context, fix the contract.
 3. **Every meaningful state.** Loading / empty / error / loaded; variant × size × shape. Use `VariationGroup` for matrices.
 4. **Same unit of work, story first.** Story updates ship in the same PR as the component change. For *existing* components, the story variation is edited *before* the component (see *Storybook-first* above).

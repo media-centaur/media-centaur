@@ -1,8 +1,9 @@
 // assets/js/hooks/detail_body_scroll.js
 //
-// Where the detail modal's body sits, across sub-view swaps.
+// Where a cinematic modal's body sits, across sub-view swaps.
 //
-// The whole detail document scrolls in one port (`#detail-scrollport`), and the
+// The whole detail document scrolls in one port (the enclosing
+// `.modal-detail-scroll` — CinematicShell renders one per modal), and the
 // body sheet keeps its DOM identity when the sub-view changes — More info and
 // Manage replace the sheet's children through a push_patch, not the sheet
 // itself.
@@ -41,14 +42,15 @@
 //                            into view for a swap that only changed the body.
 //
 // Entering a *document* still resets, because nothing is being preserved — a
-// modal opening, or switching to another title.
+// modal opening, or switching to another title. `data-scroll-key` names the
+// document (the library modal keys it by entity id).
 
-const SCROLLPORT = "#detail-scrollport"
+const SCROLLPORT = ".modal-detail-scroll"
 
 export const DetailBodyScroll = {
   mounted() {
     this._offsets = {}
-    this._entityId = this.el.dataset.entityId
+    this._scrollKey = this.el.dataset.scrollKey
     this._view = this.el.dataset.view
     this._port = this.el.closest(SCROLLPORT)
     this._offsetBeforePatch = 0
@@ -70,12 +72,12 @@ export const DetailBodyScroll = {
   },
 
   updated() {
-    const { entityId, view } = this.el.dataset
+    const { scrollKey, view } = this.el.dataset
 
     // A different title is a different document — its predecessor's offsets
     // mean nothing against it.
-    if (entityId !== this._entityId) {
-      this._entityId = entityId
+    if (scrollKey !== this._scrollKey) {
+      this._scrollKey = scrollKey
       this._offsets = {}
       this._view = view
       this._enter(view)

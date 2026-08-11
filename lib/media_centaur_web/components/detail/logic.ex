@@ -370,6 +370,24 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   def resolve_view(_entity, _main), do: :main
 
   @doc """
+  Whether the panel is showing something other than the entity's root view,
+  which is what tells the input system that BACK returns *within* the modal
+  rather than dismissing it.
+
+  Answered here rather than in JS because the root view is entity-dependent:
+  a title with no contents of its own (a movie with no extras) has no body
+  tab and opens on Cast, which is its root. The client used to infer
+  this by comparing the view name to `"main"`, which got that case wrong in
+  both directions — BACK left focus trapped in an overlay the server had
+  already dismissed.
+
+  A closed modal (`entity: nil`) is never nested.
+  """
+  @spec nested_view?(map() | nil, atom()) :: boolean()
+  def nested_view?(nil, _detail_view), do: false
+  def nested_view?(entity, detail_view), do: detail_view != resolve_view(entity, :main)
+
+  @doc """
   The name of the entity's main view — the label for the control that
   returns there.
 

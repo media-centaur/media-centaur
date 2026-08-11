@@ -10,7 +10,7 @@ Eight rules. Read them before adding a story or changing a component.
 
 ### 1. Components, not pages
 
-Storybook catalogs **function components** — `<.button>`, `<.poster_card>`, `<.toolbar>`, `<.modal_shell>`, badge/header recipes. Full LiveViews stay covered by page smoke tests + the screenshot tour. They depend on PubSub, contexts, and the input system in ways that don't survive isolation; faking those dependencies turns the story into a lie.
+Storybook catalogs **function components** — `<.button>`, `<.poster_card>`, `<.toolbar>`, `<.cinematic_shell>`, badge/header recipes. Full LiveViews stay covered by page smoke tests + the screenshot tour. They depend on PubSub, contexts, and the input system in ways that don't survive isolation; faking those dependencies turns the story into a lie.
 
 ### 2. Stories follow the component contract
 
@@ -109,13 +109,12 @@ What belongs and what doesn't. Status mirrors the `@storybook_status` module att
 | `core_components.list/1` | ✅ covered | Description list |
 | `core_components.table/1` | ✅ covered | Empty/loaded/long-row states |
 | `detail.facet_strip/1` | ✅ covered | Facet row above metadata |
-| `detail.hero/1` | ✅ covered | Backdrop + title block |
+| `cinematic_shell/1` | ✅ covered | Cinematic modal frame (hero window folded in) |
 | `detail.metadata_row/1` | ✅ covered | Badge + items row |
 | `detail.play_card/1` | ✅ covered | Primary play CTA + progress |
 | `detail.section/1` | ✅ covered | Titled section wrapper |
 | `hero_card/1` | ✅ covered | Featured-item card |
-| `modal_shell/1` | ✅ covered | Open/closed (always-in-DOM pattern) |
-| `detail_panel/1` | ✅ covered | Movie / TV / movie series + modals + offline |
+| `detail_panel/1` | ✅ covered | Full library detail modal — movie / TV / movie series + sub-views + offline + open/closed (always-in-DOM) |
 | `library_cards.poster_card/1` | ✅ covered | Type matrix + selection / progress / artwork states |
 | `library_cards.storage_offline_banner/1` | ✅ covered | Single/multi-dir + long-path stress |
 | `library_cards.toolbar/1` | ✅ covered | Tabs × sort × filter axes |

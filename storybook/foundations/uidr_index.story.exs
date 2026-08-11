@@ -49,9 +49,9 @@ defmodule MediaCentaurWeb.Storybook.Foundations.UidrIndex do
      "/storybook/foundations/typography",
      "`align-items: baseline` whenever a flex row mixes text sizes — keeps glyph baselines aligned across siblings.",
      "no dedicated story — typography page demonstrates the baseline-aligned row"},
-    {9, :visual, "Modal panels must set explicit text color", nil,
+    {9, :visual, "Modal panels must set explicit text color", "/storybook/composites/cinematic_shell",
      "`.modal-panel` declares `color: var(--color-base-content)` so daisyUI tokens inherit correctly inside the always-in-DOM modal.",
-     "no story yet — see docs/storybook.md Phase 4 (`modal_shell/1`)"},
+     "cinematic shell story renders the always-in-DOM modal panel"},
     {10, :layout, "Page redistribution — Watch / System sidebar groups", nil,
      "Home / Library / Upcoming / History split out of the legacy LibraryLive zones; sidebar groups Watch vs System.",
      "no story — IA decision, surfaces in page smoke tests rather than component stories"}

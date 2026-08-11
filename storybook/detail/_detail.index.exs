@@ -21,5 +21,4 @@ defmodule MediaCentaurWeb.Storybook.Detail do
 
   def entry("progress_underline"), do: [icon: {:fa, "wave-pulse", :thin}, name: "Progress underline"]
   def entry("section"), do: [icon: {:fa, "square-dashed", :thin}, name: "Section"]
-  def entry("hero"), do: [icon: {:fa, "image", :thin}, name: "Hero"]
 end

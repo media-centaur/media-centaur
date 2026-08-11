@@ -2047,7 +2047,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   # Modal rendered at the `Layouts.app` slot root so its `position:
   # fixed` containing block is the viewport, not some nested content
-  # wrapper. Same placement pattern as `ModalShell.modal_shell` in
+  # wrapper. Same placement pattern as `DetailPanel.detail_panel` in
   # library_live — proven to render over the full viewport.
   attr :apply_phase, :atom, default: nil
 
