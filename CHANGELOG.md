@@ -4,6 +4,25 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.120.0 — 2026-08-11
+
+### New
+
+- **Search results and tracked titles now open like library titles.** Picking a title from search, and opening a tracked title from Coming up, now shows the same full-screen view your library uses — the title's backdrop with its logo pinned over it, details and actions beneath. Tracked titles also show their logo now, not just the name.
+- **Artwork for tracked and downloading titles cleans up after itself.** Media Centaur keeps artwork for titles you track or download in a small local cache, and removes each entry automatically once nothing references the title anymore and it hasn't been used for a week. Untracking a show no longer deletes its artwork immediately — re-tracking within the week finds it instantly.
+
+### Improved
+
+- **The Status and Incoming pages got the calmer page backdrop** already used elsewhere in the app.
+- **Clearer keyboard/gamepad cursor on tab rows.** Zone tabs now show a soft highlight for the focused tab instead of a ring that collided with the active-tab underline.
+
+### Fixed
+
+- **Cached artwork could collide between a movie and a TV show** that happen to share the same TMDB number — each now has its own cache entry. Existing artwork is moved to the new layout automatically at startup.
+- **Error-report state now loads in the right order at startup**, so error buckets are ready before the caches that read them.
+
+This release includes a database migration and a one-time artwork folder reorganization; both run automatically when the app starts after updating.
+
 ## v0.119.4 — 2026-08-10
 
 ### New
