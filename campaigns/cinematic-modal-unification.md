@@ -1,6 +1,17 @@
 # Cinematic Modal Unification
 
-**Status:** Phases 1–2 complete (`a055f147`, `e42fb9ba`, 2026-08-11) — Phase 3 (plan modal) in progress
+**Status:** Phases 1–4 complete (2026-08-11) — Phase 5 (ship) in progress.
+Phase 4 re-seated the title modal AND converged every artwork-column *reader*
+onto `TmdbArtwork.urls/2` (Detail view-model, UpcomingFeed Event/Straggler now
+carry `backdrop_url`/`logo_url`, `logo_url_for_item/2`, `list_releases_between/3`).
+Remaining for Phase 5, besides docs/records: drop the now write-only item columns
+(`poster_path`/`backdrop_path`/`logo_path`) — writers are `Helpers.
+pending_image_downloads` (switch the already-have guard to disk existence) and
+`ReleaseTracking.Acquisition.schedule_image_downloads` (keep its post-download
+broadcast); plus schema/changeset/migration. Visual verification: mc-ui-probe
+align/toggle green (library detail); plan modal + title modal screenshot-verified
+against the dev server (dev rebooted; boot artwork migration confirmed —
+`images/tmdb/{type}-{id}` populated, legacy root removed).
 **End state:** Every modal grounded in a TMDB identity renders the same cinematic
 shell (pinned orientation block over a fixed backdrop), fed by a single artwork
 contract with a promotion ladder from hotlink → temporary local → permanent library.

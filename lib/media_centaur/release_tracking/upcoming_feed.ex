@@ -76,8 +76,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       :pursuit_id,
       :kind,
       :episode_count,
-      :backdrop_path,
-      :logo_path
+      :backdrop_url,
+      :logo_url
     ]
 
     @type t :: %Event{}
@@ -89,7 +89,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
     (name, media type, backdrop) for the shelf to render it as a
     first-class agenda row (UIDR-017).
     """
-    defstruct [:item_id, :name, :media_type, :backdrop_path]
+    defstruct [:item_id, :name, :media_type, :backdrop_url]
 
     @type t :: %Straggler{}
   end
@@ -148,7 +148,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
         item_id: item.id,
         name: item.name,
         media_type: item.media_type,
-        backdrop_path: Map.get(item, :backdrop_path)
+        backdrop_url: MediaCentaur.TmdbArtwork.urls(item.media_type, item.tmdb_id).backdrop_url
       }
     end)
   end
@@ -233,6 +233,7 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
 
   defp event_from(%Release{item: item} = release, context) do
     status = derive_status(release, context)
+    artwork = MediaCentaur.TmdbArtwork.urls(item.media_type, item.tmdb_id)
 
     %Event{
       id: release.id,
@@ -246,8 +247,8 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeed do
       release_type: release.release_type,
       status: status,
       pursuit_id: pursuit_id_for(release, context, status),
-      backdrop_path: item.backdrop_path,
-      logo_path: item.logo_path
+      backdrop_url: artwork.backdrop_url,
+      logo_url: artwork.logo_url
     }
   end
 

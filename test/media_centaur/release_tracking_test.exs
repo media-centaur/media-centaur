@@ -1330,15 +1330,24 @@ defmodule MediaCentaur.ReleaseTrackingTest do
   end
 
   describe "logo_url_for_item/2" do
+    defp seed_cached_logo(media_type, tmdb_id) do
+      data_dir = put_tmp_data_dir()
+      dir = Path.join([data_dir, "images", "tmdb", "#{media_type}-#{tmdb_id}"])
+      File.mkdir_p!(dir)
+      File.write!(Path.join(dir, "logo.png"), "png")
+    end
+
     test "prefers the library container's logo when present" do
       container_id = Ecto.UUID.generate()
+      seed_cached_logo(:tv_series, 9001)
 
       item =
         create_tracking_item(%{
           name: "Has both",
+          tmdb_id: 9001,
+          media_type: :tv_series,
           library_container_type: :tv_series,
-          library_container_id: container_id,
-          logo_path: "images/tmdb/tv_series-9001/logo.png"
+          library_container_id: container_id
         })
 
       library_logos = %{container_id => "/media-images/library/some-other-logo.png"}
@@ -1347,26 +1356,31 @@ defmodule MediaCentaur.ReleaseTrackingTest do
                "/media-images/library/some-other-logo.png"
     end
 
-    test "falls back to the tracking item's logo_path when no library logo is available" do
+    test "falls back to the tracking item's cached logo when no library logo is available" do
+      seed_cached_logo(:tv_series, 9002)
+
       item =
         create_tracking_item(%{
           name: "Tracked but not imported",
-          logo_path: "images/tmdb/tv_series-9002/logo.png"
+          tmdb_id: 9002,
+          media_type: :tv_series
         })
 
       assert ReleaseTracking.logo_url_for_item(item, %{}) ==
                "/media-images/images/tmdb/tv_series-9002/logo.png"
     end
 
-    test "falls back to the tracking item's logo when the library container has no logo" do
+    test "falls back to the tracking item's cached logo when the library container has no logo" do
       container_id = Ecto.UUID.generate()
+      seed_cached_logo(:tv_series, 9003)
 
       item =
         create_tracking_item(%{
           name: "Imported but no library logo",
+          tmdb_id: 9003,
+          media_type: :tv_series,
           library_container_type: :tv_series,
-          library_container_id: container_id,
-          logo_path: "images/tmdb/tv_series-9003/logo.png"
+          library_container_id: container_id
         })
 
       # library_logos has no entry for this container_id

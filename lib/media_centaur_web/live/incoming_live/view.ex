@@ -147,7 +147,7 @@ defmodule MediaCentaurWeb.IncomingLive.View do
       title: straggler.name,
       subtitle: media_label(straggler.media_type),
       status: :tracked,
-      art_url: straggler.backdrop_path && backdrop_art_url(straggler.backdrop_path),
+      art_url: straggler.backdrop_url,
       kind: :title
     }
   end
@@ -173,11 +173,8 @@ defmodule MediaCentaurWeb.IncomingLive.View do
 
   defp pad(number), do: number |> to_string() |> String.pad_leading(2, "0")
 
-  defp art_url(%Event{backdrop_path: nil}), do: nil
-  defp art_url(%Event{backdrop_path: path}), do: backdrop_art_url(path)
-
-  # The bare artwork path — `Shelf` declares the width it paints at, next to
+  # The bare artwork URL — `Shelf` declares the width it paints at, next to
   # the box that decides it. A display width set here drifts from the markup
   # it is meant to match: this one said 342 for a `w-8` thumbnail.
-  defp backdrop_art_url(path), do: MediaCentaur.Library.Image.web_path(path)
+  defp art_url(%Event{backdrop_url: url}), do: url
 end

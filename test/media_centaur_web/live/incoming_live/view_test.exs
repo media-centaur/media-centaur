@@ -179,7 +179,7 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
         id: "straggler-item",
         name: "The Golem",
         media_type: :movie,
-        backdrop_path: nil,
+        tmdb_id: 424_242,
         releases: [%{air_date: nil}]
       }
 
@@ -195,7 +195,7 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
         id: "straggler-item",
         name: "The Golem",
         media_type: :movie,
-        backdrop_path: "/art/golem-backdrop.jpg",
+        tmdb_id: 424_242,
         releases: []
       }
 
@@ -213,7 +213,9 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
                } = card
              ] = view.shelf.stragglers
 
-      assert card.art_url =~ "golem-backdrop"
+      # Nothing cached in this unit env — artwork resolution is
+      # TmdbArtwork's contract, covered in tmdb_artwork_test.exs.
+      assert card.art_url == nil
     end
 
     test "a TV straggler carries the series subtitle" do
@@ -221,7 +223,7 @@ defmodule MediaCentaurWeb.IncomingLive.ViewTest do
         id: "tv-straggler",
         name: "Sample Show",
         media_type: :tv_series,
-        backdrop_path: nil,
+        tmdb_id: 424_242,
         releases: [%{air_date: nil}]
       }
 

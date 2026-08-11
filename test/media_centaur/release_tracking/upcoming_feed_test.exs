@@ -417,14 +417,16 @@ defmodule MediaCentaur.ReleaseTracking.UpcomingFeedTest do
       refute "Scheduled" in names
     end
 
-    test "carries item id, name, media type, and backdrop path" do
-      item = movie_item(%{tmdb_id: 9, name: "Awaiting", backdrop_path: "tracking/backdrop-9.jpg"})
+    test "carries item id, name, and media type; artwork resolves from the TmdbArtwork cache" do
+      item = movie_item(%{tmdb_id: 9, name: "Awaiting"})
 
       assert [straggler] = UpcomingFeed.stragglers([item])
       assert straggler.item_id == item.id
       assert straggler.name == "Awaiting"
       assert straggler.media_type == :movie
-      assert straggler.backdrop_path == "tracking/backdrop-9.jpg"
+      # Nothing cached in this unit env — URL resolution itself is
+      # TmdbArtwork's contract, covered in tmdb_artwork_test.exs.
+      assert straggler.backdrop_url == nil
     end
   end
 
