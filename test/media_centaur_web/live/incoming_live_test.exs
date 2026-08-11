@@ -709,9 +709,21 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       |> render_click()
 
       # The descent never searched episode terms — the picker starts empty.
+      # The current assignment anchors the list, marked as such.
       html = render(view)
       assert html =~ "Nothing else in the corpus yet"
       refute html =~ "Sample.Show.S01E01.2160p.WEB-DL.x265"
+      assert html =~ "Choose a release"
+      assert has_element?(view, "#plan-alternatives-current")
+      assert html =~ "Current"
+
+      # The header ✕ closes the picker; Options reopens it.
+      view |> element("#plan-alternatives-close") |> render_click()
+      refute render(view) =~ "Nothing else in the corpus yet"
+
+      view
+      |> element("button[phx-click='plan_show_alternatives'][phx-value-unit-id='#{unit.id}']")
+      |> render_click()
 
       view
       |> element("button[phx-click='plan_find_more_alternatives'][phx-value-unit-id='#{unit.id}']")
@@ -719,10 +731,14 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       html = render_async(view, 2_000)
       assert html =~ "Sample.Show.S01E01.2160p.WEB-DL.x265"
-      assert html =~ "Exclude this release"
+
+      # Exclude lives on the release row's ✕ and Search again at board
+      # level — neither belongs inside the picker anymore.
+      refute html =~ "Exclude this release"
+      refute has_element?(view, "[phx-click='plan_search_again']")
 
       view
-      |> element("button[phx-click='plan_choose_release'][phx-value-guid='ui-uhd']")
+      |> element("input[phx-click='plan_choose_release'][phx-value-guid='ui-uhd']")
       |> render_click()
 
       html = render(view)
@@ -1086,7 +1102,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       # Choosing one is the deliberate identity override — it assigns.
       view
-      |> element("button[phx-click='plan_choose_rejected'][phx-value-guid='other-1']")
+      |> element("input[phx-click='plan_choose_rejected'][phx-value-guid='other-1']")
       |> render_click()
 
       assert [unit] = Plans.units_for(plan.id)
@@ -1182,7 +1198,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute html =~ "Exclude this release"
 
       view
-      |> element("button[phx-click='plan_choose_release'][phx-value-guid='bf-720p']")
+      |> element("input[phx-click='plan_choose_release'][phx-value-guid='bf-720p']")
       |> render_click()
 
       assert [grabbed] = Plans.units_for(plan.id)
