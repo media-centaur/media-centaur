@@ -1959,6 +1959,86 @@ body:has(.modal-backdrop[data-state="open"]) {
   display: none;
 }
 
+/* Edge fade — where a row still has content beyond the scrollport, the
+   boundary card is sliced by the clip edge. A short fade at that edge turns
+   the slice from "rendering fault" into "more this way". It is a mask, not a
+   painted gradient, for the same reason as `.page-atmosphere`: the body
+   behind is a two-tone radial gradient, so there is no single color to paint
+   toward without a visible step.
+
+   The fade must exist only where there IS more content: a faded last card at
+   max scroll — or on a row too short to scroll at all — advertises content
+   that does not exist. Scroll-driven animations state that directly. Each
+   edge's fade width is a registered custom property animated over the
+   first/last `--row-fade-w` of the scroll range, so the left fade grows in as
+   soon as the row leaves scroll 0 and the right fade dies exactly as the row
+   reaches max scroll. A row with no overflow has an inactive timeline, so
+   both properties hold their 0px initial value — no fade at all. Outside
+   Chromium (`@supports`) the row keeps the plain hard cut.
+
+   Exception to "only animate opacity/transform": this is scroll-linked, not
+   time-based — the mask only changes on frames where the row is already
+   repainting for the scroll itself, and is static whenever the row is. */
+@property --row-fade-left {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --row-fade-right {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@supports (animation-timeline: scroll(self inline)) {
+  .row-scroll {
+    --row-fade-w: 2rem;
+    mask-image: linear-gradient(
+      to right,
+      transparent,
+      black var(--row-fade-left),
+      black calc(100% - var(--row-fade-right)),
+      transparent
+    );
+    animation:
+      row-fade-left linear both,
+      row-fade-right linear both;
+    /* Must stay after `animation` — the shorthand resets timeline/range. */
+    animation-timeline: scroll(self inline);
+    animation-range:
+      0px var(--row-fade-w),
+      calc(100% - var(--row-fade-w)) 100%;
+  }
+
+  /* The hero is a full-bleed single item — there is no boundary card to
+     soften, so a fade would only dim the hero's own edge. */
+  .row-scroll-hero {
+    mask-image: none;
+    animation: none;
+  }
+}
+
+@keyframes row-fade-left {
+  from {
+    --row-fade-left: 0px;
+  }
+
+  to {
+    --row-fade-left: var(--row-fade-w);
+  }
+}
+
+@keyframes row-fade-right {
+  from {
+    --row-fade-right: var(--row-fade-w);
+  }
+
+  to {
+    --row-fade-right: 0px;
+  }
+}
+
 /* Every variant sets `--card-w`. There is deliberately no default: an
    undefined var makes the whole shorthand invalid at computed-value time,
    so a variant that forgets one collapses to content width — visibly
