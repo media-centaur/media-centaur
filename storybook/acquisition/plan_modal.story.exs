@@ -311,7 +311,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       %Variation{
         id: :board_alternatives_open,
         description:
-          "The swap picker — the panel's default :alternatives variant, corpus candidates under the release row: clean candidates first, bait-pattern titles flagged ('looks fake') but choosable; exclude-and-re-solve and re-search as the escape hatches.",
+          "The swap picker — the panel's default :alternatives variant, a single-select list under the release row: the current assignment leads with its radio filled and a Current tag, corpus candidates follow (bait-pattern titles flagged but choosable); picking a radio swaps immediately, the header ✕ closes. Exclude stays on the release row's ✕, Search again at board level.",
         attributes: %{
           open: true,
           stage: :board,
@@ -415,8 +415,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         id: :board_below_floor_open,
         description:
           "The below-floor picker open — known-lower candidates badge their real resolution " <>
-            "(720p, DVD), an unlabeled release badges \"Quality unknown\"; no exclude-current " <>
-            "verb because nothing is assigned yet.",
+            "(720p, DVD), an unlabeled release badges \"Quality unknown\"; no Current row " <>
+            "because nothing is assigned yet.",
         attributes: %{
           open: true,
           stage: :board,

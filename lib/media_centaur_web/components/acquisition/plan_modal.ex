@@ -910,7 +910,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
   attr :release, PlanBoard.Release,
     default: nil,
     doc:
-      "the currently assigned release when the picker opens from a release row (enables the exclude-and-re-solve verb); nil when it opens from a below-floor offer, which has no current assignment."
+      "the currently assigned release when the picker opens from a release row — rendered as the " <>
+        "pre-selected anchor row; nil when it opens from a below-floor offer or the rejected list, " <>
+        "which have no current assignment."
 
   attr :variant, :atom,
     default: :alternatives,
@@ -920,9 +922,49 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         "escape hatch (UIDR-022) — same panel, but choosing routes through the identity override and " <>
         "the corpus-refresh verb doesn't apply."
 
+  # A single-select picker: the current assignment (when there is one)
+  # leads the list with its radio filled; picking another radio swaps
+  # immediately — the re-solve is the confirmation, so there is no
+  # staged apply step. Per-unit verbs only: exclude lives on the release
+  # row's ✕, Search again at board level.
   defp alternatives_panel(assigns) do
     ~H"""
-    <div class="glass-inset rounded-lg px-4 py-3 ml-4 space-y-1 border border-base-content/10">
+    <div
+      id={"plan-alternatives-panel-#{@alternatives.unit_id}"}
+      class="glass-inset rounded-lg px-4 py-3 ml-4 space-y-1 border border-base-content/10"
+    >
+      <div class="flex items-center justify-between gap-3 pb-1">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-base-content/50">
+          Choose a release
+        </h4>
+        <.button
+          id={if @variant == :rejected, do: "plan-rejected-close", else: "plan-alternatives-close"}
+          variant="dismiss"
+          size="xs"
+          shape="square"
+          phx-click={
+            if @variant == :rejected, do: "plan_hide_rejected", else: "plan_hide_alternatives"
+          }
+          title="Close"
+          data-nav-item
+          tabindex="0"
+        >
+          <.icon name="hero-x-mark-mini" class="size-3.5" />
+        </.button>
+      </div>
+
+      <div :if={@release} id="plan-alternatives-current" class="flex items-center gap-3 py-1.5">
+        <input
+          type="radio"
+          name={"plan-alternatives-#{@alternatives.unit_id}"}
+          class="radio radio-xs radio-primary flex-shrink-0"
+          checked
+          aria-disabled="true"
+        />
+        <ReleaseFacts.release_facts entry={release_entry(@release)} />
+        <span class="flex-shrink-0 text-xs text-base-content/40">Current</span>
+      </div>
+
       <p :if={@alternatives.items == []} class="text-xs text-base-content/40 py-1">
         Nothing else in the corpus yet — Find more runs this span's searches.
       </p>
@@ -932,29 +974,30 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         id={"plan-alternative-#{@alternatives.unit_id}-#{:erlang.phash2(alternative.guid)}"}
         class="flex items-center gap-3 py-1.5"
       >
-        <ReleaseFacts.release_facts entry={alternative_entry(alternative)} />
-        <span :if={alternative.reason} class="flex-shrink-0 text-xs text-base-content/40">
-          {alternative.reason}
-        </span>
-        <.button
-          variant="neutral"
-          size="xs"
-          class="flex-shrink-0"
+        <input
+          type="radio"
+          name={"plan-alternatives-#{@alternatives.unit_id}"}
+          class="radio radio-xs radio-primary flex-shrink-0 cursor-pointer"
           phx-click={
             if @variant == :rejected, do: "plan_choose_rejected", else: "plan_choose_release"
           }
           phx-value-unit-id={@alternatives.unit_id}
           phx-value-guid={alternative.guid}
+          title="Choose this release"
           data-nav-item
           tabindex="0"
-        >
-          Choose
-        </.button>
+        />
+        <ReleaseFacts.release_facts entry={alternative_entry(alternative)} />
+        <span :if={alternative.reason} class="flex-shrink-0 text-xs text-base-content/40">
+          {alternative.reason}
+        </span>
       </div>
 
-      <div class="flex items-center justify-end gap-2 pt-2 border-t border-base-content/5">
+      <div
+        :if={@variant == :alternatives}
+        class="flex items-center justify-end gap-2 pt-2 border-t border-base-content/5"
+      >
         <.button
-          :if={@variant == :alternatives}
           variant="neutral"
           size="xs"
           phx-click="plan_find_more_alternatives"
@@ -966,22 +1009,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
         >
           <span :if={@alternatives[:searching?]} class="loading loading-spinner loading-xs"></span>
           {if @alternatives[:searching?], do: "Searching…", else: "Find more"}
-        </.button>
-        <.button
-          :if={@release}
-          variant="dismiss"
-          size="xs"
-          phx-click="plan_swap_release"
-          phx-value-unit-id={@alternatives.unit_id}
-          phx-value-guid={@release.guid}
-          title="Exclude this release everywhere and let the planner re-solve"
-          data-nav-item
-          tabindex="0"
-        >
-          Exclude this release — re-solve
-        </.button>
-        <.button variant="dismiss" size="xs" phx-click="plan_search_again" data-nav-item tabindex="0">
-          Search again
         </.button>
       </div>
     </div>
