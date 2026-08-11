@@ -247,13 +247,24 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitRow do
         ]}>
           {Logic.state_label(@download.state)}
         </span>
+        <%!-- The release name is what tells three otherwise-identical
+              strips apart on a multi-download pursuit. --%>
+        <span :if={@download.title} class="min-w-0 truncate text-xs text-base-content/50">
+          {@download.title}
+        </span>
         <span :if={@download.progress_pct} class="text-xs text-base-content/60 tabular-nums">
           {round(@download.progress_pct)}%
         </span>
         <span :if={@download.eta} class="text-xs text-base-content/40 tabular-nums">
           ETA {@download.eta}
         </span>
-        <span :if={@download.client} class="text-xs text-base-content/40 truncate">
+        <span
+          :if={@download.size_bytes}
+          class="flex-shrink-0 text-xs text-base-content/40 tabular-nums"
+        >
+          {Format.format_size_decimal(@download.size_bytes)}
+        </span>
+        <span :if={@download.client} class="flex-shrink-0 text-xs text-base-content/40">
           {@download.client}
         </span>
         <%!-- When the download client is lagging/offline these figures are

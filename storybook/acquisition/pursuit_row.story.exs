@@ -186,6 +186,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                 ),
               download: %DownloadProgress{
                 state: :downloading,
+                title: "Sample.Movie.2010.1080p.WEB-DL",
                 progress_pct: 42.0,
                 size_bytes: 4_200_000_000,
                 size_left_bytes: 2_400_000_000,
@@ -207,6 +208,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                 ),
               download: %DownloadProgress{
                 state: :downloading,
+                title: "Sample.Movie.2010.1080p.WEB-DL",
                 progress_pct: 42.0,
                 size_bytes: 4_200_000_000,
                 size_left_bytes: 2_400_000_000,
@@ -229,7 +231,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                 ),
               download: %DownloadProgress{
                 state: :fetching_nzb,
+                title: "Sample.Movie.2010.2160p.WEB-DL",
                 progress_pct: nil,
+                size_bytes: 8_000_000_000,
                 eta: nil,
                 client: "SABnzbd"
               },
@@ -248,7 +252,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                 ),
               download: %DownloadProgress{
                 state: :stalled,
+                title: "Sample.Show.S01E03.1080p.WEB-DL",
                 progress_pct: 18.0,
+                size_bytes: 2_100_000_000,
                 eta: nil,
                 client: "qBittorrent"
               },
@@ -265,7 +271,9 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                 ),
               download: %DownloadProgress{
                 state: :queued,
+                title: "Public.Domain.Film.1923.1080p",
                 progress_pct: nil,
+                size_bytes: 1_400_000_000,
                 eta: nil,
                 client: "qBittorrent"
               },
@@ -282,6 +290,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                 ),
               download: %DownloadProgress{
                 state: :error,
+                title: "Movie.A.1080p",
                 progress_pct: 7.0,
                 eta: nil,
                 client: "qBittorrent"
@@ -367,6 +376,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                 %{
                   download: %DownloadProgress{
                     state: :downloading,
+                    title: "Sample.Show.S01.1080p.WEB-DL-GROUP",
                     progress_pct: 76.0,
                     size_bytes: 14_500_000_000,
                     size_left_bytes: 3_500_000_000,
@@ -378,6 +388,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PursuitRow do
                 %{
                   download: %DownloadProgress{
                     state: :downloading,
+                    title: "Sample.Show.S02.2160p.WEB-DL-GROUP",
                     progress_pct: 18.0,
                     size_bytes: 51_600_000_000,
                     size_left_bytes: 42_300_000_000,
