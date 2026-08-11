@@ -5,14 +5,14 @@ defmodule MediaCentaur.ReleaseTracking do
       MediaCentaur.Library,
       MediaCentaur.Retention,
       MediaCentaur.Search,
-      MediaCentaur.Settings
+      MediaCentaur.Settings,
+      MediaCentaur.TmdbArtwork
     ],
     exports: [
       Item,
       Release,
       TitleResult,
       Event,
-      ImageStore,
       Want,
       Views,
       Views.ComingUp,
@@ -40,11 +40,12 @@ defmodule MediaCentaur.ReleaseTracking do
     Acquisition,
     Event,
     Helpers,
-    ImageStore,
     Item,
     Release,
     Wants
   }
+
+  alias MediaCentaur.TmdbArtwork
 
   alias MediaCentaur.Topics
 
@@ -135,12 +136,14 @@ defmodule MediaCentaur.ReleaseTracking do
     Repo.get_by(Item, tmdb_id: tmdb_id, media_type: media_type)
   end
 
+  # Artwork is deliberately NOT removed here: untracking releases the
+  # item's hold, and the TmdbArtwork sweep ages the entry out after its
+  # TTL — re-tracking within the window finds the artwork warm.
   def delete_item(%Item{} = item) do
     item_id = item.id
     tmdb_id = to_string(item.tmdb_id)
     tmdb_type = tmdb_type_for(item.media_type)
     result = Repo.delete(item)
-    ImageStore.delete_images(item.tmdb_id)
     broadcast_releases_updated([item_id])
     broadcast_item_removed(tmdb_id, tmdb_type)
     result
@@ -483,35 +486,22 @@ defmodule MediaCentaur.ReleaseTracking do
   end
 
   @doc """
-  Removes `images/tracking/{tmdb_id}/` directories that no longer belong
-  to any tracking item. Returns the number of directories removed. Cleans
-  up artwork orphaned before `delete_item/1` learned to remove it, plus
-  anything left behind by interrupted deletes. No-ops without a
-  configured `data_dir`.
+  Boot-time one-shot: moves any legacy `images/tracking/{tmdb_id}/`
+  artwork into `TmdbArtwork`'s typed layout, using the tracked items to
+  resolve each id's media type (unmapped dirs are orphans and are
+  deleted). Idempotent and self-retiring — a no-op once the legacy root
+  is gone. Skipped under `:test` like the other boot fixups.
   """
-  @spec sweep_orphaned_artwork() :: non_neg_integer()
-  def sweep_orphaned_artwork do
-    case ImageStore.tracking_root() do
-      nil ->
-        0
+  @spec migrate_artwork_layout_on_boot(atom()) :: :ok
+  def migrate_artwork_layout_on_boot(:test), do: :ok
 
-      root ->
-        known_ids = MapSet.new(Repo.all(from(i in Item, select: i.tmdb_id)), &to_string/1)
+  def migrate_artwork_layout_on_boot(_env) do
+    mapping =
+      from(i in Item, select: {i.tmdb_id, i.media_type})
+      |> Repo.all()
+      |> Map.new(fn {id, type} -> {to_string(id), type} end)
 
-        root
-        |> list_artwork_dirs()
-        |> Enum.reject(&MapSet.member?(known_ids, &1))
-        |> Enum.count(fn orphan_id ->
-          match?({:ok, _}, File.rm_rf(Path.join(root, orphan_id)))
-        end)
-    end
-  end
-
-  defp list_artwork_dirs(root) do
-    case File.ls(root) do
-      {:ok, entries} -> Enum.filter(entries, &File.dir?(Path.join(root, &1)))
-      {:error, _} -> []
-    end
+    TmdbArtwork.migrate_legacy!(mapping)
   end
 
   # --- Bulk operations ---

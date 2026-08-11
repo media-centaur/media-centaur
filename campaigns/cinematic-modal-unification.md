@@ -1,6 +1,6 @@
 # Cinematic Modal Unification
 
-**Status:** Phase 1 in progress (started 2026-08-11)
+**Status:** Phase 1 complete (`a055f147`, 2026-08-11) — Phase 2 (TmdbArtwork) in progress
 **End state:** Every modal grounded in a TMDB identity renders the same cinematic
 shell (pinned orientation block over a fixed backdrop), fed by a single artwork
 contract with a promotion ladder from hotlink → temporary local → permanent library.
@@ -42,15 +42,33 @@ TTL has elapsed **and** nothing references the identity anymore. Pursuits refere
 TMDB identities (not releases), so the hold key equals the cache key.
 
 `TmdbArtwork` is the generalization of `ReleaseTracking.ImageStore` +
-`Acquisition.Artwork`: layout `{data_dir}/images/tmdb/{type}-{id}/{role}.{ext}`,
-downloads through the `ImageFiles` facade with the pipeline's role sizing (no more
-raw originals), served by the existing `/media-images/*` plug + `?w=` derivative
-ladder. Hold providers are config-registered (mirroring
+`Acquisition.Artwork`: layout `{data_dir}/images/tmdb/{media_type}-{id}/{role}.{ext}`
+(type in the key — TMDB's movie and TV id spaces overlap, the bare-id legacy
+layout could clobber one with the other), downloads through
+`ImageFiles.download_raw` at TMDB `original` (masters stay full-size; the `?w=`
+derivative ladder owns serving sizes, so the earlier "resize on download" idea
+was dropped as redundant), served by the existing `/media-images/*` plug. Hold
+providers are config-registered (`:tmdb_artwork_hold_providers`, mirroring
 `:retention_policy_providers`): ReleaseTracking contributes tracked-item ids,
 Acquisition contributes non-terminal pursuit ids. The sweep rides the daily
 `Retention.SweepJob`, **replaces** the `:tracking_artwork` policy (orphan rule
 becomes the degenerate case "tracked item = hold"), and purges derivatives of
-removed masters.
+removed masters. Untracking no longer deletes artwork synchronously — the hold
+is released and the TTL takes it from there.
+
+**Layout migration (shipped with Phase 2):** data migration
+`20260811120000_retype_tracking_artwork_paths` rewrites item path columns in
+SQL; `ReleaseTracking.migrate_artwork_layout_on_boot/1` (boot fixup, skipped in
+:test, self-retiring) moves `images/tracking/{id}` dirs into the typed layout
+and deletes orphans.
+
+**Scheduled convergence — item artwork columns.** `release_tracking_items`'
+`poster_path`/`backdrop_path`/`logo_path` duplicate what
+`TmdbArtwork.relative_path/3` answers deterministically (same writer, same
+layout). Readers are numerous and the column names collide with TMDB API
+fragments of the same name, so the columns stay for now. Converge by replacing
+column reads with `TmdbArtwork.urls/2` (then drop the columns) — natural point:
+Phase 4 (title modal) touches most readers.
 
 ### Explicit decisions
 

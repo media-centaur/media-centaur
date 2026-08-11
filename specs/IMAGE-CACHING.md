@@ -105,7 +105,7 @@ The manager app uses these patterns when downloading images:
 
 `{poster_path}` etc. come from the TMDB API response (e.g. `/1E5baAaEse26fej7uHcjOgEE2t2.jpg`).
 
-All image downloads — whether driven by the Pipeline (`MediaCentaur.Pipeline.ImageProcessor`) or by `ReleaseTracking.ImageStore` — go through the shared `MediaCentaur.Images` facade:
+All image downloads — whether driven by the Pipeline (`MediaCentaur.Pipeline.ImageProcessor`) or by `MediaCentaur.TmdbArtwork` — go through the shared `MediaCentaur.Images` facade:
 
 - `ImageFiles.download/3` — download + resize via libvips. Used for poster / backdrop / logo / thumb where the on-disk size must match the target role.
 - `ImageFiles.download_raw/2` — raw bytes without processing. Used where a downstream consumer needs the unmodified source.

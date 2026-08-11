@@ -15,7 +15,8 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
   import Ecto.Query
 
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, ImageStore, Item, Release, TitleResult, Wants}
+  alias MediaCentaur.ReleaseTracking.{Extractor, Helpers, Item, Release, TitleResult, Wants}
+  alias MediaCentaur.TmdbArtwork
   alias MediaCentaur.Repo
   alias MediaCentaur.TMDB.Client
 
@@ -275,13 +276,13 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
         attrs = %{}
 
         attrs =
-          case ImageStore.download_poster(tmdb_id, poster_path) do
+          case TmdbArtwork.download_poster(item.media_type, tmdb_id, poster_path) do
             {:ok, path} when is_binary(path) -> Map.put(attrs, :poster_path, path)
             _ -> attrs
           end
 
         attrs =
-          case ImageStore.download_backdrop(tmdb_id, backdrop_path) do
+          case TmdbArtwork.download_backdrop(item.media_type, tmdb_id, backdrop_path) do
             {:ok, path} when is_binary(path) -> Map.put(attrs, :backdrop_path, path)
             _ -> attrs
           end
