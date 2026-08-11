@@ -12,6 +12,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
 
   alias MediaCentaur.Acquisition.Targeting
   alias MediaCentaur.Acquisition.ViewModels.DescentNarrative
+  alias MediaCentaur.Acquisition.ViewModels.{GapEvidence, GapVerdict}
   alias MediaCentaur.Acquisition.ViewModels.PlanBoard
   alias MediaCentaur.Library.Person
   alias MediaCentaur.ReleaseTracking.TitleResult
@@ -213,6 +214,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           stage: :board,
           backdrop_url: @sample_backdrop,
           board: board(:ready),
+          gap_verdict: gap_verdict(:tv_nothing),
           last_activity: "9 searches · 6 from corpus"
         }
       },
@@ -221,13 +223,14 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
         description:
           "The gap search ran while search was blind (every enabled indexer backed off, " <>
             "UIDR-016) — the banner says availability couldn't be checked instead of " <>
-            "presenting \"not available\" as knowledge. Search again stays; Track these " <>
+            "presenting unavailability as knowledge. Search again stays; Track these " <>
             "later stops reading as an informed conclusion.",
         attributes: %{
           open: true,
           stage: :board,
           backdrop_url: @sample_backdrop,
           board: board(:blind_gap),
+          gap_verdict: gap_verdict(:blind),
           search_health: %IndexerHealth{
             state: :blind,
             checked_at: ~U[2026-08-01 00:00:00Z],
@@ -236,6 +239,62 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
             backed_off: [%{name: "Indexer A", retry_at: ~U[2026-08-01 00:25:00Z]}]
           },
           last_activity: "Searched: Sample Movie — couldn't reach any indexer"
+        }
+      },
+      %Variation{
+        id: :board_gap_rejected,
+        description:
+          "The adaptive verdict's rejected world (UIDR-022): results came back but every one " <>
+            "failed a gate, so the banner names the count with the receipts beneath and offers " <>
+            "the escape hatch — the recourse for a matcher false-negative.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          backdrop_url: @sample_backdrop,
+          board: board(:blind_gap),
+          gap_verdict: gap_verdict(:rejected)
+        }
+      },
+      %Variation{
+        id: :board_gap_rejected_open,
+        description:
+          "The escape hatch open: the shared alternatives panel in its :rejected variant — " <>
+            "each row carries the gate it failed as muted text, choosing routes through the " <>
+            "identity override, and the corpus-refresh verb doesn't apply.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          backdrop_url: @sample_backdrop,
+          board: board(:blind_gap),
+          gap_verdict: gap_verdict(:rejected),
+          rejected: %{unit_id: "story-unit-movie-gap", items: rejected_items()}
+        }
+      },
+      %Variation{
+        id: :board_gap_stale,
+        description:
+          "Zero raw results, but the knowledge is older than the corpus freshness window — " <>
+            "the headline carries the age and the evidence line points at the live remedy " <>
+            "instead of presenting cached emptiness as \"right now\".",
+        attributes: %{
+          open: true,
+          stage: :board,
+          backdrop_url: @sample_backdrop,
+          board: board(:blind_gap),
+          gap_verdict: gap_verdict(:stale)
+        }
+      },
+      %Variation{
+        id: :board_gap_no_evidence,
+        description:
+          "No ladder term has a corpus record (search failed or records aged out) — an " <>
+            "unknown, not a verdict.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          backdrop_url: @sample_backdrop,
+          board: board(:blind_gap),
+          gap_verdict: gap_verdict(:no_evidence)
         }
       },
       %Variation{
@@ -252,7 +311,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       %Variation{
         id: :board_alternatives_open,
         description:
-          "The swap picker — corpus alternatives under the release row: clean candidates first, bait-pattern titles flagged ('looks fake') but choosable; exclude-and-re-solve and re-search as the escape hatches.",
+          "The swap picker — the panel's default :alternatives variant, corpus candidates under the release row: clean candidates first, bait-pattern titles flagged ('looks fake') but choosable; exclude-and-re-solve and re-search as the escape hatches.",
         attributes: %{
           open: true,
           stage: :board,
@@ -323,6 +382,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           open: true,
           stage: :board,
           board: board(:overlap),
+          gap_verdict: gap_verdict(:tv_nothing),
           last_activity: "9 searches · 6 from corpus"
         }
       },
@@ -334,6 +394,7 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           open: true,
           stage: :board,
           board: board(:offer),
+          gap_verdict: gap_verdict(:tv_offer),
           last_activity: "11 searches · 8 from corpus"
         }
       },
@@ -625,6 +686,129 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           }
         ]
     }
+  end
+
+  # Verdicts go through the real `GapVerdict.build/2` so story copy can
+  # never drift from the shipped diagnosis vocabulary (UIDR-022).
+  @story_now ~U[2026-08-11 12:00:00Z]
+
+  defp gap_verdict(:tv_nothing) do
+    GapVerdict.build(tv_evidence(),
+      gaps: ["S02E02 · Finale"],
+      movie?: false,
+      search_health: nil,
+      now: @story_now
+    )
+  end
+
+  defp gap_verdict(:tv_offer) do
+    GapVerdict.build(tv_evidence(),
+      gaps: ["S01E03 · The Signal"],
+      movie?: false,
+      search_health: nil,
+      now: @story_now
+    )
+  end
+
+  defp gap_verdict(:blind) do
+    GapVerdict.build(nil,
+      gaps: ["Sample Movie"],
+      movie?: true,
+      search_health: %IndexerHealth{state: :blind, checked_at: @story_now},
+      now: @story_now
+    )
+  end
+
+  defp gap_verdict(:rejected) do
+    GapVerdict.build(movie_evidence(-45, 3, rejected_evidence()),
+      gaps: ["Sample Movie"],
+      movie?: true,
+      search_health: nil,
+      now: @story_now
+    )
+  end
+
+  defp gap_verdict(:stale) do
+    GapVerdict.build(movie_evidence(-6 * 3600, 0, []),
+      gaps: ["Sample Movie"],
+      movie?: true,
+      search_health: nil,
+      now: @story_now
+    )
+  end
+
+  defp gap_verdict(:no_evidence) do
+    GapVerdict.build(nil,
+      gaps: ["Sample Movie"],
+      movie?: true,
+      search_health: nil,
+      now: @story_now
+    )
+  end
+
+  defp movie_evidence(age_seconds, raw_total, rejected) do
+    searched_at = DateTime.add(@story_now, age_seconds, :second)
+
+    %GapEvidence{
+      searches: [
+        %GapEvidence.Search{
+          term: "Sample Movie 1990",
+          searched_at: searched_at,
+          result_count: raw_total
+        },
+        %GapEvidence.Search{term: "Sample Movie", searched_at: searched_at, result_count: 0}
+      ],
+      rejected: rejected,
+      raw_total: raw_total,
+      checked_at: searched_at
+    }
+  end
+
+  defp tv_evidence do
+    searched_at = DateTime.add(@story_now, -300, :second)
+
+    %GapEvidence{
+      searches:
+        for term <- ["Sample Show", "Sample Show Season 2", "Sample Show S02E02"] do
+          %GapEvidence.Search{term: term, searched_at: searched_at, result_count: 0}
+        end,
+      rejected: [],
+      raw_total: 0,
+      checked_at: searched_at
+    }
+  end
+
+  defp rejected_evidence do
+    [
+      %GapEvidence.Rejected{
+        guid: "story-other-1",
+        title: "Another.Picture.1990.1080p.WEB-DL.x264",
+        reason: :identity,
+        quality: "1080p",
+        seeders: 12,
+        size_bytes: 2_100_000_000
+      },
+      %GapEvidence.Rejected{
+        guid: "story-other-2",
+        title: "Another.Picture.1990.2160p.WEB-DL.x265",
+        reason: :excluded,
+        quality: "4K",
+        seeders: 4,
+        size_bytes: 8_400_000_000
+      },
+      %GapEvidence.Rejected{
+        guid: "story-bait",
+        title: "Sample.Movie.1990.1080p.WEB-DL.x264",
+        reason: :red_flag,
+        quality: "1080p",
+        seeders: 60,
+        size_bytes: 900_000
+      }
+    ]
+  end
+
+  defp rejected_items do
+    MediaCentaurWeb.IncomingLive.PlanLogic.rejected_items(movie_evidence(-45, 3, rejected_evidence()))
   end
 
   defp cell(season, episode, state, guid) do

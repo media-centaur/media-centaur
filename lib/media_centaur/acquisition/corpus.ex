@@ -134,6 +134,26 @@ defmodule MediaCentaur.Acquisition.Corpus do
     :ok
   end
 
+  @doc "The consult-first freshness window — also the gap verdict's live/stale boundary (UIDR-022)."
+  @spec freshness_window_minutes() :: pos_integer()
+  def freshness_window_minutes, do: @freshness_window_minutes
+
+  @doc """
+  The search record for a key — when it last ran and how many results
+  it returned — or nil when the term was never searched (or its record
+  aged past retention). The gap verdict's evidence source (UIDR-022).
+  """
+  @spec record_for(String.t(), keyword()) ::
+          %{searched_at: DateTime.t(), result_count: non_neg_integer()} | nil
+  def record_for(term, opts \\ []) do
+    key = search_key(term, opts)
+
+    SearchRecord
+    |> where([s], s.search_key == ^key)
+    |> select([s], %{searched_at: s.last_searched_at, result_count: s.result_count})
+    |> Repo.one()
+  end
+
   @doc "True when the key was searched within the freshness window."
   @spec fresh?(String.t(), keyword()) :: boolean()
   def fresh?(term, opts \\ []) do
