@@ -4,7 +4,7 @@ defmodule MediaCentaur.MixProject do
   def project do
     [
       app: :media_centaur,
-      version: "0.121.0",
+      version: "0.122.0",
       elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
