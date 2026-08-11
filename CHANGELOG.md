@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.123.1 — 2026-08-11
+
+### Improved
+
+- **Movie detail views sit better on the page.** A movie's detail view is shorter than a series', and it used to sit noticeably low as a result. It now centers slightly above the middle, in line with the other detail views.
+- **Home rows fade at the edges.** Rows that scroll sideways now fade out where they leave the screen instead of cutting off hard.
+
+### Fixed
+
+- **Settings keeps your place in the section list.** With keyboard or gamepad navigation, moving the cursor out of the Settings section list and back in now lands on the section you have open instead of jumping to the first one.
+
 ## v0.123.0 — 2026-08-11
 
 ### Improved
