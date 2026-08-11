@@ -24,7 +24,7 @@ async function measureBoxes(page) {
     const image = document.querySelector(".orientation-backing-image")
     const panelImg = document.querySelector(".modal-page-backdrop img")
     if (!image || !panelImg) return { missing: true }
-    const scroller = document.querySelector("#detail-scrollport")
+    const scroller = document.querySelector("#detail-modal-scrollport")
     const block = document.querySelector(".detail-orientation")
     const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1
     const pinInset = parseFloat(getComputedStyle(block).top) * zoom
@@ -111,7 +111,7 @@ async function openPinnableTvDetail(page) {
  * content is too short to ever pin. */
 async function pinBlock(page) {
   return page.evaluate(() => {
-    const scroller = document.querySelector("#detail-scrollport")
+    const scroller = document.querySelector("#detail-modal-scrollport")
     scroller.scrollTop = scroller.scrollHeight
     scroller.getBoundingClientRect()
     const block = document.querySelector(".detail-orientation")
@@ -144,13 +144,13 @@ test.describe("detail pinned-backdrop geometry", () => {
     // The hook publishes the scroll offset at which the block pins; the
     // sheet replica's rise is phased from it.
     const pinScroll = await page.evaluate(() => {
-      const scroller = document.querySelector("#detail-scrollport")
+      const scroller = document.querySelector("#detail-modal-scrollport")
       return parseFloat(getComputedStyle(scroller).getPropertyValue("--detail-pin-scroll"))
     })
     expect(pinScroll).toBeGreaterThan(0)
 
     // The illusion's invariant: the replica's top edge must coincide with
-    // the real sheet's top edge (= #detail-content's top, whose
+    // the real sheet's top edge (= #detail-modal-content's top, whose
     // background IS the sheet) — one conceptual sheet, split across the
     // backing boundary — until the rise cap freezes the replica, past
     // which it must STAY put while the content keeps moving (the block
@@ -164,13 +164,13 @@ test.describe("detail pinned-backdrop geometry", () => {
     // regime.
     for (const depth of [150, 1500]) {
       const delta = await page.evaluate(async ({ pinScroll, depth }) => {
-        const scroller = document.querySelector("#detail-scrollport")
+        const scroller = document.querySelector("#detail-modal-scrollport")
         scroller.scrollTop = pinScroll + depth
         // Scroll-driven animations resolve on the frame after the scroll;
         // two rAFs guarantee the transform is current before sampling.
         await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))
         const sheet = document.querySelector(".orientation-backing-sheet")
-        const content = document.querySelector("#detail-content")
+        const content = document.querySelector("#detail-modal-content")
         const block = document.querySelector(".detail-orientation")
         if (!sheet || !content || !block) return { missing: true }
         const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1

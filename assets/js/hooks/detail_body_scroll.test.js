@@ -17,7 +17,7 @@ const VIEWPORT_HEIGHT = 800
 // its own — no script writes it. A mock that lets `scrollTop` hold any value
 // cannot see that failure at all, which is how it shipped.
 function buildBody({
-  entityId = "entity-1",
+  scrollKey = "entity-1",
   view = "main",
   scrollToResume,
   resumeTarget = true,
@@ -62,13 +62,13 @@ function buildBody({
     },
   }
 
-  const dataset = { entityId, view }
+  const dataset = { scrollKey, view }
   if (scrollToResume) dataset.scrollToResume = ""
 
   const el = {
     dataset,
     closest(selector) {
-      return selector === "#detail-scrollport" ? port : null
+      return selector === ".modal-detail-scroll" ? port : null
     },
     querySelector(selector) {
       if (selector !== "[data-resume-target]" || !resumeTarget) return null
@@ -93,7 +93,7 @@ function mountedOn(el) {
 // A sub-view swap is a LiveView patch: the hook sees the element go, the sheet
 // is rebuilt, then `updated()` runs against the new content.
 function patchTo(hook, attrs, { contentHeight = null } = {}) {
-  const port = hook.el.closest("#detail-scrollport")
+  const port = hook.el.closest(".modal-detail-scroll")
   hook.beforeUpdate()
   Object.assign(hook.el.dataset, attrs)
   port._rebuildContent(contentHeight ?? port._contentHeight)
@@ -236,7 +236,7 @@ describe("DetailBodyScroll — patches that are not view swaps", () => {
     patchTo(hook, { view: "credits" })
 
     // Opening a different title, straight into the view the last one left on.
-    patchTo(hook, { entityId: "entity-2", view: "main" })
+    patchTo(hook, { scrollKey: "entity-2", view: "main" })
     expect(port.scrollTop).toBe(RESUME_OFFSET)
 
     // Still no reset on a sub-view swap — the offsets were cleared, not the

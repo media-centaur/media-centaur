@@ -5,8 +5,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.PursuitModal do
 
   Always present in the DOM so the browser keeps the `backdrop-filter`
   compositing layer warm. Toggled via `data-state="open"/"closed"` — no
-  first-frame blur jank on open. Mirrors `ModalShell`'s pattern for the
-  Library entity detail; the contents are pursuit-specific
+  first-frame blur jank on open. Mirrors the Library entity detail's
+  pattern; the contents are pursuit-specific
   (header / activity / decision card / timeline).
 
   The host LiveView owns the open/closed state, drives it via the

@@ -1,15 +1,18 @@
 defmodule MediaCentaurWeb.Components.DetailPanel do
   @moduledoc """
-  Shared entity detail content component, rendered inside ModalShell —
-  the orchestrating layout of the detail modal.
+  The library detail modal — the library tenant of
+  `MediaCentaurWeb.Components.CinematicShell`.
 
-  Owns the hero (21:9 backdrop), the pinned orientation block (identity
-  lockup, hairline, metadata, play controls, synopsis), and the
-  type-dependent dispatch of the scrolling body: `Detail.SeasonList`
-  (TV), `Detail.CollectionList` (movie series), `Detail.ExtrasSection`
-  (leaves with bonus content), plus the Cast and Manage sub-views.
-  Row-level rendering lives in those modules; shared row chrome in
-  `Detail.PlayableRow`.
+  The frame (modal shell, panel-fixed backdrop, scrollport, sticky
+  orientation wrapper + backing replica, body sheet) belongs to
+  `CinematicShell`; this module fills its slots with the library
+  subject's content: the identity lockup + hairline + metadata + play
+  controls + synopsis in the pinned block, the tracking bell in the hero
+  window, and the type-dependent dispatch of the scrolling body —
+  `Detail.SeasonList` (TV), `Detail.CollectionList` (movie series),
+  `Detail.ExtrasSection` (leaves with bonus content), plus the Cast and
+  Manage sub-views. Row-level rendering lives in those modules; shared
+  row chrome in `Detail.PlayableRow`.
   """
 
   use MediaCentaurWeb, :html
@@ -19,12 +22,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   import MediaCentaurWeb.LibraryFormatters,
     only: [format_type: 1, format_human_duration: 1]
 
+  alias MediaCentaurWeb.Components.CinematicShell
   alias MediaCentaurWeb.Components.Detail.CastPanel
   alias MediaCentaurWeb.Components.Detail.CastSelection
   alias MediaCentaurWeb.Components.Detail.CollectionList
   alias MediaCentaurWeb.Components.Detail.ExtrasSection
   alias MediaCentaurWeb.Components.Detail.FacetStrip
-  alias MediaCentaurWeb.Components.Detail.Hero
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.Detail.MetadataRow
@@ -50,7 +53,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   # --- Main Component ---
 
-  attr :entity, :map, required: true, doc: @doc_entity
+  attr :open, :boolean, default: false
+
+  attr :entity, :map,
+    default: nil,
+    doc: "#{@doc_entity} `nil` renders the closed shell (no subject loaded)."
+
   attr :progress, :map, default: nil, doc: @doc_progress
   attr :resume, :map, default: nil, doc: @doc_resume
   attr :progress_records, :list, default: [], doc: @doc_progress_records
@@ -68,7 +76,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   attr :available, :boolean, default: true
   attr :on_play, :string, default: "play"
-  attr :on_close, :string, default: "close"
+  attr :on_close, :string, default: "close_detail"
   attr :rematch_confirm, :boolean, default: false
   attr :detail_view, :atom, default: :main
 
@@ -112,6 +120,20 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
         "`MovieListItem.{Library, Upcoming}` items the renderer pattern-matches on — " <>
         "the collection counterpart of `:seasons_view`."
 
+  # No subject loaded: the bare frame stays in the DOM (closed) so the
+  # blur compositing layer keeps warm — same reason the frame itself is
+  # always-in-DOM.
+  def detail_panel(%{entity: nil} = assigns) do
+    ~H"""
+    <CinematicShell.cinematic_shell
+      id="detail-modal"
+      open={false}
+      dismiss={:ephemeral}
+      on_close={@on_close}
+    />
+    """
+  end
+
   def detail_panel(assigns) do
     # Which seasons render open is the host modal's call — it seeds the
     # set from `Orientation.initial_expanded_seasons/1` on selection and
@@ -148,6 +170,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     description_right? =
       assigns.entity.type in [:movie, :tv_series] && assigns.entity.description not in [nil, ""]
 
+    backdrop_url =
+      if assigns.available do
+        image_url(assigns.entity, "backdrop") || image_url(assigns.entity, "poster")
+      end
+
     assigns =
       assigns
       |> assign(:expanded_seasons, expanded_seasons)
@@ -156,11 +183,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:hairline_fraction, orientation && orientation.fraction)
       |> assign(:hairline_label, hairline_label(assigns.entity))
       |> assign(:autoscroll_resume?, autoscroll_resume?(orientation))
-      |> assign(
-        :block_backdrop_url,
-        assigns.available &&
-          (image_url(assigns.entity, "backdrop") || image_url(assigns.entity, "poster"))
-      )
+      |> assign(:backdrop_url, backdrop_url)
       |> assign(:description_right?, description_right?)
       |> assign(
         :cast_filter_in_header?,
@@ -176,58 +199,42 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:tagline, tagline)
 
     ~H"""
-    <div class="detail-panel">
-      <%!-- Hero window: transparent 21:9 frame the fixed panel-level
-            backdrop shows through. Scrolls away; the orientation block
-            below overlaps its lower edge at rest (negative margin, see
-            .detail-orientation) and pins to the scrollport top. --%>
-      <Hero.hero entity={@entity} available={@available}>
-        <:actions :if={@tracking_status}>
-          <.button
-            variant="dismiss"
-            size="sm"
-            shape="circle"
-            class="opacity-60 hover:opacity-100 transition-opacity"
-            phx-click="toggle_tracking"
-            title={tracking_title(@tracking_status)}
-          >
-            <.icon
-              name={tracking_icon(@tracking_status)}
-              class={"size-5 #{tracking_color(@tracking_status)}"}
-            />
-          </.button>
-        </:actions>
-      </Hero.hero>
-      <%!-- Orientation block: identity lockup + hairline + metadata +
-            play controls + synopsis, pinned as one unit once scrolled
-            to the top. Must be a direct child of .detail-panel — a
-            wrapper that ends before #detail-content would release the
-            sticky early. Same block for every entity type: movies
-            simply never scroll enough to pin it. --%>
-      <div class="detail-orientation" data-role="detail-orientation">
-        <%!-- Opaque backing while pinned: clip window + a real <img>
-              clone of the panel backdrop in an identical box, so both
-              copies go through the same object-fit rendering path and
-              cannot drift (see .orientation-backing in app.css). Fade
-              and dim layers replicate what the panel paints over the
-              backdrop so the pinned block matches its surroundings. --%>
-        <div class="orientation-backing" aria-hidden="true">
-          <img
-            :if={@block_backdrop_url}
-            class="orientation-backing-image"
-            src={sized_image_url(@block_backdrop_url, :full_bleed)}
-            alt=""
-            loading="eager"
-            decoding="sync"
+    <CinematicShell.cinematic_shell
+      id="detail-modal"
+      open={@open}
+      dismiss={:ephemeral}
+      on_close={@on_close}
+      present
+      full={@has_scrollable_content}
+      backdrop_url={@backdrop_url}
+      scroll_key={@entity.id}
+      view_key={@detail_view}
+      scroll_to_resume={@autoscroll_resume?}
+      data-detail-mode={@open && "modal"}
+      data-detail-nested={@open && to_string(Logic.nested_view?(@entity, @detail_view))}
+      data-nav-overlay={@open && "detail"}
+    >
+      <:hero_actions :if={@tracking_status}>
+        <.button
+          variant="dismiss"
+          size="sm"
+          shape="circle"
+          class="opacity-60 hover:opacity-100 transition-opacity"
+          phx-click="toggle_tracking"
+          title={tracking_title(@tracking_status)}
+        >
+          <.icon
+            name={tracking_icon(@tracking_status)}
+            class={"size-5 #{tracking_color(@tracking_status)}"}
           />
-          <div class="orientation-backing-fade"></div>
-          <div class="orientation-backing-dim"></div>
-          <%!-- Replica of the content sheet, translated with the scroll
-                so the darkening appears to slide up behind the lockup
-                while the rows vanish below — see
-                .orientation-backing-sheet in app.css. --%>
-          <div class="orientation-backing-sheet"></div>
-        </div>
+        </.button>
+      </:hero_actions>
+      <%!-- The pinned block's content: identity lockup + hairline +
+            metadata + play controls + synopsis. The sticky wrapper and
+            its backdrop backing belong to the frame (CinematicShell).
+            Same block for every entity type: movies simply never scroll
+            enough to pin it. --%>
+      <:orientation>
         <div class="px-6">
           <TitleLayer.lockup
             title={@entity.name}
@@ -333,7 +340,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             </div>
           </div>
         </div>
-      </div>
+      </:orientation>
       <%!-- The modal's second nav region — the body of the title, whichever
             sub-view is showing. DOWN from the action row lands here and BACK
             climbs back to it. The zone follows the sub-view: the season /
@@ -346,15 +353,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             `detail_cast` photo grid navigated by
             geometry. One body zone at a time — nav zones must never nest.
             See UIDR-019. --%>
-      <div
-        :if={@has_scrollable_content}
-        id="detail-content"
-        class="detail-content-sheet px-4 pb-5"
-        phx-hook="DetailBodyScroll"
-        data-entity-id={@entity.id}
-        data-view={@detail_view}
-        data-scroll-to-resume={@autoscroll_resume? || nil}
-      >
+      <:body :if={@has_scrollable_content}>
         <%= case @detail_view do %>
           <% :cast -> %>
             <div data-nav-zone="detail_cast">
@@ -395,8 +394,8 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               />
             </div>
         <% end %>
-      </div>
-    </div>
+      </:body>
+    </CinematicShell.cinematic_shell>
     """
   end
 
@@ -613,7 +612,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   Whether the detail modal's content region scrolls — TV / movie-series
   lists, entity-level extras, or the Manage / Cast sub-views.
 
-  Shared with `ModalShell`, which tags scrollable entries with
+  Drives the frame's `full` attr, which tags scrollable entries with
   `.modal-panel--full`: those panels get a constant backdrop box
   (sized in `--modal-panel-h` units, not a panel percentage) and a
   top-anchored position, so the content-fit panel can grow and shrink

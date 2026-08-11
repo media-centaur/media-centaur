@@ -1,7 +1,8 @@
 defmodule MediaCentaurWeb.Live.EntityModal do
   @moduledoc """
   Shared modal state, events, and rendering for any LiveView that displays
-  the entity detail panel — the `ModalShell` + `DetailPanel` overlay.
+  the entity detail panel — the `DetailPanel` overlay (the library tenant
+  of `CinematicShell`).
 
   Both `LibraryLive` (when an item in the catalog grid is selected) and
   `HomeLive` (when a Continue Watching / Recently Added / Hero card is
@@ -65,7 +66,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   alias MediaCentaurWeb.Components.Detail.CastSelection
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.ManagePanel
-  alias MediaCentaurWeb.Components.ModalShell
+  alias MediaCentaurWeb.Components.DetailPanel
   alias MediaCentaurWeb.ViewModel.CollectionDetail
   alias MediaCentaurWeb.ViewModel.Orientation
   alias MediaCentaurWeb.ViewModel.SeriesDetail
@@ -801,7 +802,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   def entity_modal(assigns) do
     ~H"""
-    <ModalShell.modal_shell
+    <DetailPanel.detail_panel
       open={@selected_entry != nil && @detail_presentation == :modal}
       entity={(@selected_entry && @selected_entry.entity) || nil}
       progress={@selected_entry && @selected_entry.progress}

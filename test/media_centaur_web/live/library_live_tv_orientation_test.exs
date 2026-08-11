@@ -72,7 +72,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
       assert has_element?(view, ~s|[data-role="episode-row"][data-resume-target]|)
       assert html =~ "Episode S2E1"
       refute html =~ "Episode S1E1"
-      assert has_element?(view, ~s|#detail-content[data-scroll-to-resume]|)
+      assert has_element?(view, ~s|#detail-modal-content[data-scroll-to-resume]|)
       assert has_element?(view, ~s|button[phx-click="toggle_season"][phx-value-season="1"]|)
     end
 
@@ -231,7 +231,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
       # Nothing to return to: every season collapses into a rewatch
       # index and the document opens at the top.
       refute has_element?(view, ~s|[data-role="episode-row"]|)
-      refute has_element?(view, ~s|#detail-content[data-scroll-to-resume]|)
+      refute has_element?(view, ~s|#detail-modal-content[data-scroll-to-resume]|)
     end
   end
 
@@ -262,7 +262,7 @@ defmodule MediaCentaurWeb.LibraryLiveTvOrientationTest do
       # the cinematic hero survives the open.
       assert html =~ "Episode S1E1"
       refute html =~ "Episode S2E1"
-      refute has_element?(view, ~s|#detail-content[data-scroll-to-resume]|)
+      refute has_element?(view, ~s|#detail-modal-content[data-scroll-to-resume]|)
     end
   end
 end

@@ -6,7 +6,7 @@ defmodule MediaCentaurWeb.Components.Detail.CinematicBackdrop do
   (`.modal-page-atmosphere`), with the caller's content layered on top at
   `z-[2]`.
 
-  Shared by `ModalShell` (the owned-entity detail panel) and the
+  Shared by `CinematicShell` (the cinematic modal frame) and the
   acquisition plan modal's movie-confirm preview, so a just-picked movie
   reads as the same cinematic surface as one already in the library — the
   difference being only where the backdrop URL points (local
@@ -56,7 +56,7 @@ defmodule MediaCentaurWeb.Components.Detail.CinematicBackdrop do
   @doc """
   The backdrop image layer alone. `cinematic_backdrop/1` composes it
   inside the caller's scroll container (backdrop scrolls with content —
-  the plan modal's treatment); `ModalShell` seats it directly in the
+  the plan modal's treatment); `CinematicShell` seats it directly in the
   modal panel instead, where it stays *fixed* while the detail document
   scrolls over it (2026-08-05 sticky-orientation design). Scheduled
   convergence: the plan modal preview should eventually adopt the fixed

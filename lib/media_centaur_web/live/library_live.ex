@@ -2,7 +2,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   @moduledoc """
   Library Browse page — the full entity catalog as a poster grid with
   type tabs, sort, and text filter. Selecting an entity opens a
-  ModalShell detail overlay. Mounted at `/library`.
+  DetailPanel detail overlay. Mounted at `/library`.
 
   ## Read path (Library Schema v2 Phase 3.1)
 

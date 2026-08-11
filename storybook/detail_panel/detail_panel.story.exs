@@ -1,10 +1,13 @@
 defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   @moduledoc """
-  Shared entity detail content rendered inside the entity modal — hero,
-  metadata row, play card, orientation marquee (TV), and the
-  type-specific content list (movie / TV seasons + episodes / movie
-  series; the facet strip renders for movie series only — movies and
-  TV dropped their catalog facts with the Cast view). The Manage
+  The library detail modal — `DetailPanel` is the library tenant of
+  `CinematicShell`, so each variation renders the **whole modal**: the
+  always-in-DOM `<.modal>` shell, the panel-fixed backdrop + atmosphere,
+  the scrollport, the pinned orientation block (identity lockup,
+  metadata row, play card), and the type-specific content list (movie /
+  TV seasons + episodes / movie series; the facet strip renders for
+  movie series only — movies and TV dropped their catalog facts with
+  the Cast view). The Manage
   sub-view (`detail_view: :info`) delegates to
   `Detail.ManagePanel.manage_panel/1` — a toolbar card (Delete all,
   Rematch, Refresh artwork, external IDs + UUID) over a collapsed
@@ -154,31 +157,61 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   # production layout end-to-end.
   def layout, do: :one_column
 
-  # Wrap each variation in a width-constrained, dark, scroll-bounded
-  # container so the panel renders against the same chrome it gets
-  # inside ModalShell — the panel itself is a `position: relative`
-  # element that fills its parent. Without a sized parent the play
-  # card and facet strip stretch to whatever the storybook column
-  # gives them.
-  #
-  # `transform: translateZ(0)` creates a containing block scope so any
-  # future `position: fixed` descendant (a flash, a popover) stays
-  # inside its variation card instead of escaping to overlay every
-  # variation below. Cheap insurance even without modals on screen
-  # right now — the inline-confirm pattern killed the per-variation
-  # delete-confirm modal that originally needed it.
+  # Each variation renders a real `position: fixed` overlay (the
+  # component is the modal now), so they would otherwise stack in a
+  # shared DOM and only the last would be visible. Iframing isolates
+  # them.
+  def container, do: {:iframe, style: "min-height: 720px; width: 100%;"}
+
+  # Variations that start closed pair with this trigger; open ones wire
+  # `on_close` to the same event so closing updates the variation's
+  # assigns rather than walking the modal out of the DOM.
   def template do
     """
-    <div
-      class="bg-base-100 rounded-lg overflow-hidden max-w-[860px] border border-base-content/10 relative"
-      style="transform: translateZ(0);"
-    >
+    <div>
+      <button
+        type="button"
+        class="btn btn-sm btn-primary"
+        phx-click={Phoenix.LiveView.JS.push("psb-assign", value: %{open: true})}
+        psb-code-hidden
+      >
+        Open modal
+      </button>
       <.psb-variation/>
     </div>
     """
   end
 
   def variations do
+    [closed_variation() | Enum.map(content_variations(), &open_in_modal/1)]
+  end
+
+  # Every content variation shows an open modal and closes via
+  # psb-assign, keeping the iframe's assigns in charge of visibility.
+  defp open_in_modal(%Variation{id: id, attributes: attributes} = variation) do
+    %{
+      variation
+      | attributes: Map.merge(attributes, %{open: true, on_close: close_event(id)})
+    }
+  end
+
+  defp close_event(variation_id) do
+    {:eval,
+     ~s|Phoenix.LiveView.JS.push("psb-assign", value: %{variation_id: #{inspect(variation_id)}, open: false})|}
+  end
+
+  defp closed_variation do
+    %Variation{
+      id: :closed,
+      description:
+        "Closed state — the modal shell is in the DOM but visually hidden via " <>
+          "`data-state=\"closed\"`, keeping the blur compositing layer warm. " <>
+          "Click *Open modal* above to flip the assigns.",
+      attributes: %{open: false, entity: nil}
+    }
+  end
+
+  defp content_variations do
     [
       %Variation{
         id: :movie_basic,

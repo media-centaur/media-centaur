@@ -339,9 +339,9 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | `poster_card/1` | `library_cards.ex` | 2:3 poster grid card |
 | `cw_card/1` | `library_cards.ex` | 16:9 continue-watching backdrop card |
 | `toolbar/1` | `library_cards.ex` | Type tabs + sort + filter |
-| `detail_panel/1` | `detail_panel.ex` | Entity detail (hero + metadata + content) |
+| `detail_panel/1` | `detail_panel.ex` | Library detail modal (CinematicShell tenant) |
 | `season_list/1` | `detail_panel.ex` | TV episode accordion |
-| `modal_shell/1` | `modal_shell.ex` | Centered modal with backdrop blur |
+| `cinematic_shell/1` | `cinematic_shell.ex` | Cinematic modal frame (pinned-block scroll system) |
 | `track_modal/1` | `track_modal.ex` | TMDB search + track modal |
 | `upcoming_zone/1` | `upcoming_cards.ex` | Calendar + release sections |
 | `chip_row/1` | `console_components.ex` | Console filter chips |
@@ -360,7 +360,7 @@ Components marked ✅ have a storybook story; ⏳ are pending; ⚠️ are intent
 | **Settings** | `/settings` | Services, preferences, configuration, danger zone |
 | **Console** | `/console` | Full-page log viewer (also `` ` `` drawer on every page) |
 
-**Library** is the home page. Three zones share one LiveView, switching via `push_patch` ([UIDR-006]). DetailPanel renders inside ModalShell. Hero section (21:9 backdrop) is fixed; content list scrolls independently.
+**Library** is the home page. Three zones share one LiveView, switching via `push_patch` ([UIDR-006]). DetailPanel is the library tenant of CinematicShell. Hero section (21:9 backdrop) is fixed; content list scrolls independently.
 
 **Status** is a single scrolling page: library stats, pipeline status, watcher health, TMDB rate limiter, recent errors, storage metrics, review summary, playback summary.
 

@@ -1251,7 +1251,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       assert has_element?(view, "[aria-label='Collection progress'][aria-valuenow='50']")
       refute html =~ "movies left"
-      assert has_element?(view, "#detail-content[data-scroll-to-resume]")
+      assert has_element?(view, "#detail-modal-content[data-scroll-to-resume]")
     end
 
     test "unstarted collection opens on the hero — no autoscroll, empty hairline",
@@ -1259,7 +1259,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
 
       assert has_element?(view, "[aria-label='Collection progress'][aria-valuenow='0']")
-      refute has_element?(view, "#detail-content[data-scroll-to-resume]")
+      refute has_element?(view, "#detail-modal-content[data-scroll-to-resume]")
     end
 
     test "movie synopsis lives behind a per-row disclosure — the list is an index",
