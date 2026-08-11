@@ -117,6 +117,8 @@ defmodule MediaCentaurWeb.IncomingLive.PlanLogicTest do
              MapSet.new([{1, 2}, {1, 3}, {2, 1}])
 
     assert PlanLogic.apply_preset(selection(), :latest_season) == MapSet.new([{2, 1}])
+
+    assert PlanLogic.apply_preset(selection(), :none) == MapSet.new()
   end
 
   test "chosen_in_order returns airing order regardless of set order" do

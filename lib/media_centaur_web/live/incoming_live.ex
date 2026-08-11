@@ -1287,7 +1287,7 @@ defmodule MediaCentaurWeb.IncomingLive do
   # ---------------------------------------------------------------------------
 
   def handle_event("plan_preset", %{"preset" => preset}, socket)
-      when preset in ~w(everything_aired continue latest_season) do
+      when preset in ~w(everything_aired continue latest_season none) do
     selection = socket.assigns.plan_selection
 
     {:noreply,
