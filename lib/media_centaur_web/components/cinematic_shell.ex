@@ -8,8 +8,10 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
 
   Owns the geometry machinery and nothing about the subject:
 
-    * the always-in-DOM `<.modal>` wrapper (`modal-panel--full` when the
-      tenant says the document scrolls);
+    * the always-in-DOM `<.modal>` wrapper — every shell panel carries
+      `modal-panel--cinematic` (content-fit panels center with an
+      upward optical bias), plus `modal-panel--full` (top-anchored,
+      constant backdrop box) when the tenant says the document scrolls;
     * the panel-fixed backdrop image + atmosphere scrim
       (`CinematicBackdrop.backdrop/1`, `.modal-page-atmosphere`);
     * the single scrollport (`.modal-detail-scroll` + `DetailScrollGeometry`);
@@ -70,7 +72,8 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
     default: true,
     doc:
       "whether the document scrolls (`.modal-panel--full`: constant backdrop box, " <>
-        "top-anchored panel). `false` gives the content-fit panel used by bare movies."
+        "top-anchored panel). `false` gives the content-fit panel used by bare " <>
+        "movies — centered with an upward optical bias (`.modal-panel--cinematic`)."
 
   attr :scroll_key, :string,
     default: nil,
@@ -107,7 +110,11 @@ defmodule MediaCentaurWeb.Components.CinematicShell do
       open={@open}
       dismiss={@dismiss}
       on_close={@on_close}
-      panel_class={@present && @full && "modal-panel--full"}
+      panel_class={
+        if @present && @full,
+          do: "modal-panel--cinematic modal-panel--full",
+          else: "modal-panel--cinematic"
+      }
       {@rest}
     >
       <%= if @present do %>

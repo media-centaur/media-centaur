@@ -649,30 +649,41 @@ body:has(.modal-backdrop[data-state="open"]) {
    lists, extras, the Manage/More-info sub-views —
    `DetailPanel.scrollable_content?/2`) are content-fit like everything
    else: a collapsed season list no longer reserves a full-height panel
-   of empty space. The two rules below are what make that safe — the
-   panel used to be height-pinned here because with a percentage-sized
-   backdrop, every accordion toggle re-cropped the image:
-
-   1. The backdrop box is sized in --modal-panel-h units instead of a
-      panel percentage, so it is CONSTANT regardless of the panel's
-      actual height. Growing/shrinking the panel just clips more or
-      less of the same image — identical to the pinned value whenever
-      the panel is at max height, which is the only state the pinned
-      orientation backing (same calc) can be visible in.
-   2. The panel is top-anchored instead of centered, at the exact
-      offset where the centered full-height panel's top edge sat
-      (100px physical — half the 200px gutter in --modal-panel-h).
-      Centered, a height change would move the top edge and drag the
-      top-anchored backdrop with it on every toggle. */
+   of empty space. That is safe because the backdrop box is sized in
+   --modal-panel-h units instead of a panel percentage, so it is
+   CONSTANT regardless of the panel's actual height. Growing/shrinking
+   the panel just clips more or less of the same image — identical to
+   the pinned value whenever the panel is at max height, which is the
+   only state the pinned orientation backing (same calc) can be
+   visible in. */
 .modal-panel--full .modal-page-backdrop {
   height: calc(var(--modal-panel-h, 100vh) * 0.7);
 }
 
+/* Scrollable (--full) panels are top-anchored at the exact spot where
+   a centered full-height panel's top edge sits (100px physical — half
+   the 200px gutter in --modal-panel-h). Centered, a height change
+   would move the top edge and shift the whole modal on every season-
+   accordion toggle. At max height — the common state for a scrolling
+   document — top-anchored and centered are the same position. */
 .modal-backdrop:has(.modal-panel--full) {
   align-items: flex-start;
   /* Divided by --ui-scale for the same reason as --modal-panel-h:
      rendered offset ×scale must equal 100 physical px. */
   padding-top: calc(100px / var(--ui-scale, 1));
+}
+
+/* Content-fit cinematic panels (bare movies — --cinematic without
+   --full) stay CENTERED, but with an upward optical bias: a short
+   panel at true center reads as sitting low next to the full-height
+   entries whose tops all rest at 100px. The bottom-weighted gutter
+   shifts the centered panel up by half its value (60px physical at
+   1× scale) — between true center and the --full anchor. One dial:
+   raise the padding to sit higher, lower it toward true center.
+   Small dialogs (.modal-panel-sm, confirmations) lack --cinematic and
+   keep exact centering. */
+.modal-backdrop:has(.modal-panel--cinematic:not(.modal-panel--full)) {
+  padding-bottom: calc(120px / var(--ui-scale, 1));
 }
 
 /* ── Detail-modal scroll rail ──
