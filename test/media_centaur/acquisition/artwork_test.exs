@@ -3,29 +3,45 @@ defmodule MediaCentaur.Acquisition.ArtworkTest do
 
   alias MediaCentaur.Acquisition.Artwork
 
+  # Artwork resolves from the TmdbArtwork cache on disk — point data_dir
+  # at a per-test tmp dir (GlobalStateSandbox restores the config term).
+  setup do
+    dir = Path.join(System.tmp_dir!(), "acq_artwork_test_#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+
+    config = :persistent_term.get({MediaCentaur.Config, :config})
+    :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, :data_dir, dir))
+
+    on_exit(fn -> File.rm_rf!(dir) end)
+    {:ok, data_dir: dir}
+  end
+
+  defp seed_entry(data_dir, type, id, roles) do
+    dir = Path.join([data_dir, "images", "tmdb", "#{type}-#{id}"])
+    File.mkdir_p!(dir)
+
+    Enum.each(roles, fn role ->
+      filename = if role == :logo, do: "logo.png", else: "#{role}.jpg"
+      File.write!(Path.join(dir, filename), :binary.copy("x", 60_000))
+    end)
+
+    dir
+  end
+
   describe "resolve/2 — local-first, never a hot-link" do
-    test "a tracked item's cached files win" do
-      create_tracking_item(%{
-        tmdb_id: 246_810,
-        media_type: :tv_series,
-        backdrop_path: "images/tracking/246810/backdrop.jpg",
-        logo_path: "images/tracking/246810/logo.png"
-      })
+    test "cached files win", %{data_dir: data_dir} do
+      seed_entry(data_dir, :tv_series, 246_810, [:backdrop, :logo])
 
       assert Artwork.resolve(246_810, "tv") == %{
-               backdrop_url: "/media-images/images/tracking/246810/backdrop.jpg",
-               logo_url: "/media-images/images/tracking/246810/logo.png"
+               backdrop_url: "/media-images/images/tmdb/tv_series-246810/backdrop.jpg",
+               logo_url: "/media-images/images/tmdb/tv_series-246810/logo.png"
              }
     end
 
-    test "string ids and tmdb_type spellings normalize" do
-      create_tracking_item(%{
-        tmdb_id: 777,
-        media_type: :movie,
-        backdrop_path: "images/tracking/777/backdrop.jpg"
-      })
+    test "string ids and tmdb_type spellings normalize", %{data_dir: data_dir} do
+      seed_entry(data_dir, :movie, 777, [:backdrop])
 
-      assert %{backdrop_url: "/media-images/images/tracking/777/backdrop.jpg"} =
+      assert %{backdrop_url: "/media-images/images/tmdb/movie-777/backdrop.jpg"} =
                Artwork.resolve("777", :movie)
     end
 

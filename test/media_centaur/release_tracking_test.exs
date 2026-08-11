@@ -1338,7 +1338,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
           name: "Has both",
           library_container_type: :tv_series,
           library_container_id: container_id,
-          logo_path: "images/tracking/9001/logo.png"
+          logo_path: "images/tmdb/tv_series-9001/logo.png"
         })
 
       library_logos = %{container_id => "/media-images/library/some-other-logo.png"}
@@ -1351,11 +1351,11 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       item =
         create_tracking_item(%{
           name: "Tracked but not imported",
-          logo_path: "images/tracking/9002/logo.png"
+          logo_path: "images/tmdb/tv_series-9002/logo.png"
         })
 
       assert ReleaseTracking.logo_url_for_item(item, %{}) ==
-               "/media-images/images/tracking/9002/logo.png"
+               "/media-images/images/tmdb/tv_series-9002/logo.png"
     end
 
     test "falls back to the tracking item's logo when the library container has no logo" do
@@ -1366,12 +1366,12 @@ defmodule MediaCentaur.ReleaseTrackingTest do
           name: "Imported but no library logo",
           library_container_type: :tv_series,
           library_container_id: container_id,
-          logo_path: "images/tracking/9003/logo.png"
+          logo_path: "images/tmdb/tv_series-9003/logo.png"
         })
 
       # library_logos has no entry for this container_id
       assert ReleaseTracking.logo_url_for_item(item, %{}) ==
-               "/media-images/images/tracking/9003/logo.png"
+               "/media-images/images/tmdb/tv_series-9003/logo.png"
     end
 
     test "returns nil when neither library logo nor tracking logo is available" do
@@ -1461,7 +1461,7 @@ defmodule MediaCentaur.ReleaseTrackingTest do
     end
   end
 
-  describe "tracking artwork cleanup" do
+  describe "tracking artwork lifecycle" do
     defp put_tmp_data_dir do
       data_dir =
         Path.join(System.tmp_dir!(), "rt_artwork_#{System.unique_integer([:positive])}")
@@ -1473,38 +1473,35 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       data_dir
     end
 
-    defp seed_artwork_dir(data_dir, tmdb_id) do
-      dir = Path.join([data_dir, "images", "tracking", to_string(tmdb_id)])
+    defp seed_artwork_dir(data_dir, media_type, tmdb_id) do
+      dir = Path.join([data_dir, "images", "tmdb", "#{media_type}-#{tmdb_id}"])
       File.mkdir_p!(dir)
       File.write!(Path.join(dir, "poster.jpg"), "jpg")
       dir
     end
 
-    test "delete_item/1 removes the item's artwork directory from disk" do
+    test "delete_item/1 leaves artwork in place — the TmdbArtwork sweep owns removal" do
       data_dir = put_tmp_data_dir()
-      item = create_tracking_item(%{tmdb_id: 4242})
-      artwork_dir = seed_artwork_dir(data_dir, item.tmdb_id)
+      item = create_tracking_item(%{tmdb_id: 4242, media_type: :tv_series})
+      artwork_dir = seed_artwork_dir(data_dir, item.media_type, item.tmdb_id)
 
       assert {:ok, _} = ReleaseTracking.delete_item(item)
-      refute File.dir?(artwork_dir)
+      assert File.dir?(artwork_dir)
     end
 
-    test "sweep_orphaned_artwork/0 removes directories with no tracking item and keeps the rest" do
+    test "untracked artwork ages out through the sweep; tracked artwork is held" do
       data_dir = put_tmp_data_dir()
-      item = create_tracking_item(%{tmdb_id: 5151})
-      kept_dir = seed_artwork_dir(data_dir, item.tmdb_id)
-      orphan_dir = seed_artwork_dir(data_dir, 999_999)
+      item = create_tracking_item(%{tmdb_id: 5151, media_type: :tv_series})
+      held_dir = seed_artwork_dir(data_dir, :tv_series, item.tmdb_id)
+      released_dir = seed_artwork_dir(data_dir, :tv_series, 999_999)
 
-      assert ReleaseTracking.sweep_orphaned_artwork() == 1
-      assert File.dir?(kept_dir)
-      refute File.dir?(orphan_dir)
-    end
+      aged = System.os_time(:second) - 8 * 86_400
+      File.touch!(held_dir, aged)
+      File.touch!(released_dir, aged)
 
-    test "sweep_orphaned_artwork/0 returns 0 when no data_dir is configured" do
-      config = :persistent_term.get({MediaCentaur.Config, :config})
-      :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, :data_dir, nil))
-
-      assert ReleaseTracking.sweep_orphaned_artwork() == 0
+      assert MediaCentaur.TmdbArtwork.sweep() == 1
+      assert File.dir?(held_dir)
+      refute File.dir?(released_dir)
     end
   end
 end

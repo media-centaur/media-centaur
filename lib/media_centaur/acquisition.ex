@@ -9,7 +9,8 @@ defmodule MediaCentaur.Acquisition do
       MediaCentaur.Review,
       MediaCentaur.Search,
       MediaCentaur.Settings,
-      MediaCentaur.TMDB
+      MediaCentaur.TMDB,
+      MediaCentaur.TmdbArtwork
     ],
     exports: [
       Artwork,

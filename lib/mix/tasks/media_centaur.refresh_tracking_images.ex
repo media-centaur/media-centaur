@@ -19,8 +19,9 @@ defmodule Mix.Tasks.MediaCentaur.RefreshTrackingImages do
   import Ecto.Query
 
   alias MediaCentaur.Repo
-  alias MediaCentaur.ReleaseTracking.{ImageStore, Item}
+  alias MediaCentaur.ReleaseTracking.Item
   alias MediaCentaur.TMDB.Client
+  alias MediaCentaur.TmdbArtwork
 
   @impl true
   def run(_args) do
@@ -60,8 +61,11 @@ defmodule Mix.Tasks.MediaCentaur.RefreshTrackingImages do
   end
 
   defp process_item(item, acc) do
-    backdrop_stale = ImageStore.stale_image?(ImageStore.on_disk_path(:backdrop, item.tmdb_id))
-    poster_stale = ImageStore.stale_image?(ImageStore.on_disk_path(:poster, item.tmdb_id))
+    backdrop_stale =
+      TmdbArtwork.stale_image?(TmdbArtwork.on_disk_path(:backdrop, item.media_type, item.tmdb_id))
+
+    poster_stale =
+      TmdbArtwork.stale_image?(TmdbArtwork.on_disk_path(:poster, item.media_type, item.tmdb_id))
 
     if not backdrop_stale and not poster_stale do
       Map.update!(acc, :current, &(&1 + 1))
@@ -70,12 +74,12 @@ defmodule Mix.Tasks.MediaCentaur.RefreshTrackingImages do
         {:ok, %{backdrop_path: bp, poster_path: pp}} ->
           backdrop_outcome =
             if backdrop_stale,
-              do: ImageStore.refresh_if_stale(:backdrop, item.tmdb_id, bp),
+              do: TmdbArtwork.refresh_if_stale(:backdrop, item.media_type, item.tmdb_id, bp),
               else: :current
 
           poster_outcome =
             if poster_stale,
-              do: ImageStore.refresh_if_stale(:poster, item.tmdb_id, pp),
+              do: TmdbArtwork.refresh_if_stale(:poster, item.media_type, item.tmdb_id, pp),
               else: :current
 
           Mix.shell().info(

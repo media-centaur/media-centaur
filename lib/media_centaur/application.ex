@@ -182,6 +182,12 @@ defmodule MediaCentaur.Application do
     # skipped under :test.
     MediaCentaur.Maintenance.probe_media_info_on_boot(env)
 
+    # Move legacy images/tracking/ artwork into TmdbArtwork's typed
+    # layout. Filesystem-only, idempotent, self-retiring, skipped under
+    # :test. Pairs with the release_tracking_items path-column data
+    # migration.
+    MediaCentaur.ReleaseTracking.migrate_artwork_layout_on_boot(env)
+
     if should_start?(env, :start_watchers) do
       MediaCentaur.Watcher.Supervisor.start_watchers()
       MediaCentaur.Watcher.Supervisor.start_image_dir_monitors()

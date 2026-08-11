@@ -5,8 +5,9 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
 
   import Ecto.Query
   alias MediaCentaur.ReleaseTracking
-  alias MediaCentaur.ReleaseTracking.{Extractor, ImageStore}
+  alias MediaCentaur.ReleaseTracking.Extractor
   alias MediaCentaur.Repo
+  alias MediaCentaur.TmdbArtwork
 
   @doc """
   Backfills artwork (poster / backdrop / logo) missing from `item` but
@@ -35,7 +36,7 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
       item
       |> pending_image_downloads(response)
       |> Enum.reduce(%{}, fn {tmdb_path, attr_key, downloader}, acc ->
-        case downloader.(tmdb_id, tmdb_path) do
+        case downloader.(item.media_type, tmdb_id, tmdb_path) do
           {:ok, path} when is_binary(path) -> Map.put(acc, attr_key, path)
           _ -> acc
         end
@@ -50,9 +51,9 @@ defmodule MediaCentaur.ReleaseTracking.Helpers do
   defp pending_image_downloads(item, response) do
     [
       {item.poster_path, Extractor.extract_poster_path(response), :poster_path,
-       &ImageStore.download_poster/2},
-      {item.backdrop_path, response["backdrop_path"], :backdrop_path, &ImageStore.download_backdrop/2},
-      {item.logo_path, Extractor.extract_logo_path(response), :logo_path, &ImageStore.download_logo/2}
+       &TmdbArtwork.download_poster/3},
+      {item.backdrop_path, response["backdrop_path"], :backdrop_path, &TmdbArtwork.download_backdrop/3},
+      {item.logo_path, Extractor.extract_logo_path(response), :logo_path, &TmdbArtwork.download_logo/3}
     ]
     |> Enum.filter(fn {current, tmdb_path, _, _} -> is_nil(current) and is_binary(tmdb_path) end)
     |> Enum.map(fn {_, tmdb_path, attr_key, downloader} -> {tmdb_path, attr_key, downloader} end)

@@ -68,7 +68,7 @@ graph TB
 
 ## Bounded Contexts
 
-The backend is organised into twelve bounded contexts plus a TMDB adapter, all enforced at compile time by the [Boundary](https://hex.pm/packages/boundary) library. Read the `use Boundary` declaration at the top of each context's facade module for the canonical inter-context dependency list.
+The backend is organised into the bounded contexts below plus a TMDB adapter, all enforced at compile time by the [Boundary](https://hex.pm/packages/boundary) library. Read the `use Boundary` declaration at the top of each context's facade module for the canonical inter-context dependency list.
 
 | Context | Owns | Notes |
 |---------|------|-------|
@@ -85,6 +85,7 @@ The backend is organised into twelve bounded contexts plus a TMDB adapter, all e
 | `MediaCentaur.SelfUpdate` | GitHub release polling, in-app updater | Disabled in dev. |
 | `MediaCentaur.Retention` | `retention_runs` table, policy registry, daily `SweepJob` | Data-hygiene orchestrator. Contexts declare policies in `RetentionPolicies` provider modules registered under `:retention_policy_providers` (runtime-resolved IoC, same shape as `:diagnostics_contributors`), so contexts may depend on `Retention` to record runs without cycles. Policies + observed pruning surface per subsystem on `/status`. |
 | `MediaCentaur.TMDB` | TMDB HTTP adapter + rate limiter | Cross-cutting adapter, not a bounded context owner. |
+| `MediaCentaur.TmdbArtwork` | `{data_dir}/images/tmdb/` cache — temporary artwork for TMDB identities not (yet) in the library | Referenced tier of the artwork promotion ladder: entries are held alive by registered `HoldProvider`s (`:tmdb_artwork_hold_providers` — tracked items, non-terminal pursuits) and swept 7 days after last use once unheld. |
 | `MediaCentaur.Capabilities` | Pure query layer over Settings | Predicates that gate features on a passing Test Connection. Reads `Settings`, owns no state. |
 | `MediaCentaur.Controls` | Compile-time keybinding catalog + persisted overrides | Used by Settings → Controls UI. |
 | `MediaCentaur.Downloads` | Download-client drivers (`qBittorrent`, `SABnzbd`) behind one `@behaviour`, queue monitor, client health | Two-slot model — see [docs/download-clients.md](download-clients.md). |

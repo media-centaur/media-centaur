@@ -2,8 +2,9 @@ defmodule MediaCentaur.ReleaseTracking.RetentionPolicies do
   @moduledoc """
   Retention policies owned by ReleaseTracking. Tracking events
   intentionally outlive their item (the FK nilifies on item delete), so
-  a time window is the only bound on that log. The artwork sweep removes
-  `images/tracking/` directories whose item no longer exists.
+  a time window is the only bound on that log. Tracking artwork is
+  covered by `MediaCentaur.TmdbArtwork.RetentionPolicies` — a tracked
+  item is one kind of hold on that cache.
   """
   @behaviour MediaCentaur.Retention.PolicyProvider
 
@@ -24,14 +25,6 @@ defmodule MediaCentaur.ReleaseTracking.RetentionPolicies do
         run: fn ->
           ReleaseTracking.prune_events(DateTime.add(DateTime.utc_now(), -@event_retention_days, :day))
         end
-      },
-      %Policy{
-        key: :tracking_artwork,
-        subsystem: :acquisition,
-        label: "Tracking artwork",
-        description: "Removed with its item; orphaned folders are swept daily.",
-        mode: :sweep,
-        run: &ReleaseTracking.sweep_orphaned_artwork/0
       }
     ]
   end
