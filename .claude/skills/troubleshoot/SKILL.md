@@ -226,7 +226,7 @@ Idempotent; reuses the running instance if already attached. The
 ```bash
 mc-debug-browser                      # launch (or reuse) — defaults to http://localhost:2160
 mc-debug-browser --headed             # show the window for visual inspection
-mc-debug-browser --url http://localhost:1080   # point at the dev server instead
+mc-debug-browser --url http://localhost:2160   # point at the dev server instead
 mc-debug-browser --status             # is it running?
 mc-debug-browser --kill               # tear it down
 ```
