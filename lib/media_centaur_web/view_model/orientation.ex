@@ -18,8 +18,9 @@ defmodule MediaCentaurWeb.ViewModel.Orientation do
   derives from the `MovieListItem` list — the hairline reads the whole
   collection's fraction, the same unit.
   Leaf titles (a bare movie) build no orientation: they are not
-  positions in a set, and their PlayCard keeps the percent/remaining row
-  instead. `:future` seasons and `Upcoming` parts are excluded from all
+  positions in a set — their hero hairline reads the progress summary
+  directly (UIDR-024, via `DetailPanel.overall_progress_percent/2`).
+  `:future` seasons and `Upcoming` parts are excluded from all
   counts — you can't be "through" what you can't watch.
 
   `MediaCentaur.Library.ProgressSummary` remains the progress source for

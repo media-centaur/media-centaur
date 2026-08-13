@@ -1,25 +1,28 @@
 defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
   @moduledoc """
-  The detail modal's play control — a thin progress bar with optional
-  "remaining" text, over the Play/Resume button.
+  The detail modal's play control — the Play/Resume button and the view
+  controls sharing its line.
 
   Play is the only primary button in the modal. The view controls that share
   its line arrive through the `controls` slot (`Detail.ViewControls`), which
   has its own story — so this component has exactly one job and no sub-view
   state to render.
 
-  Pure presentation: callers pre-compute `label`, `percent`,
-  `remaining_text`, and `available` (typically via
-  `Detail.Logic.playback_props/3`) and pass them in. No context lookups
-  happen at render time, which is why the variations below can be flat
-  literal data with no fakes or stubs.
+  The card carries **no progress element** (UIDR-024): every subject's
+  watched fraction lives in the hero orientation hairline
+  (`MediaCentaurWeb.Components.ProgressHairline`), and the remaining time is
+  a metadata-line item. The former percent/remaining row was retired from
+  this contract, not hidden.
+
+  Pure presentation: callers pre-compute `label` and `available` (typically
+  via `Detail.Logic.playback_props/3`) and pass them in. No context lookups
+  happen at render time, which is why the variations below are flat literal
+  data with no fakes or stubs.
 
   Visual contract pinned by the variations:
 
-    * The progress bar only renders when `percent > 0` (`:ready_to_play`
-      proves the absence; `:in_progress_low/mid/high` exercise widths).
-    * At 100% the bar fills the full track and switches from `bg-info`
-      (blue) to `bg-success` (green) — see `:completed`.
+    * The label is the only per-state text — "Play", "Resume Episode 5",
+      "Watch again".
     * When `available: false` the play button is replaced with a disabled
       "Offline" pill carrying the explanatory tooltip — see `:offline`.
   """
@@ -42,86 +45,45 @@ defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
     [
       %Variation{
         id: :ready_to_play,
-        description:
-          "Fresh content, no progress recorded. The progress bar is hidden " <>
-            "(it only renders when `percent > 0`); the primary CTA reads \"Play\".",
+        description: "Fresh content — the primary CTA reads \"Play\".",
         attributes: %{
           on_play: "play",
           target_id: "entity-1",
           label: "Play",
-          percent: 0,
-          remaining_text: nil,
           available: true
         }
       },
       %Variation{
-        id: :in_progress_low,
+        id: :resume,
         description:
-          "Small amount of progress (8%) — verifies the thin bar still " <>
-            "renders a visible sliver without collapsing to zero width.",
+          "Mid-watch — the label carries the resume state; the fraction " <>
+            "itself renders in the hero hairline, not here.",
         attributes: %{
           on_play: "play",
           target_id: "entity-2",
           label: "Resume",
-          percent: 8,
-          remaining_text: "1h 55m left",
           available: true
         }
       },
       %Variation{
-        id: :in_progress_mid,
+        id: :resume_episode,
         description:
-          "Mid-watch (~50%) — the happy-path \"continue watching\" state. " <>
-            "Bar uses `bg-info` (blue), remaining-text sits to its right.",
+          "TV resume label naming the next episode — the longest realistic " <>
+            "label the row must accommodate beside its view controls.",
         attributes: %{
           on_play: "play",
           target_id: "entity-3",
           label: "Resume Episode 5",
-          percent: 50,
-          remaining_text: "24m left",
           available: true
         }
       },
       %Variation{
-        id: :in_progress_high,
-        description:
-          "Near-end progress (95%) — pins that the filled portion never " <>
-            "overflows the track even at the high end of the range.",
+        id: :watch_again,
+        description: "Fully watched — the CTA flips to \"Watch again\".",
         attributes: %{
           on_play: "play",
           target_id: "entity-4",
-          label: "Resume",
-          percent: 95,
-          remaining_text: "6m left",
-          available: true
-        }
-      },
-      %Variation{
-        id: :completed,
-        description:
-          "Fully watched (100%). The bar fills the full track and switches " <>
-            "from `bg-info` to `bg-success` (green); the CTA flips to " <>
-            "\"Watch again\".",
-        attributes: %{
-          on_play: "play",
-          target_id: "entity-5",
           label: "Watch again",
-          percent: 100,
-          remaining_text: nil,
-          available: true
-        }
-      },
-      %Variation{
-        id: :no_remaining_text,
-        description:
-          "In-progress with `remaining_text: nil` — the bar still renders " <>
-            "but the right-hand text slot is omitted entirely.",
-        attributes: %{
-          on_play: "play",
-          target_id: "entity-6",
-          label: "Resume",
-          percent: 35,
-          remaining_text: nil,
           available: true
         }
       },
@@ -133,25 +95,8 @@ defmodule MediaCentaurWeb.Storybook.Detail.PlayCard do
             "explanatory tooltip.",
         attributes: %{
           on_play: "play",
-          target_id: "entity-7",
+          target_id: "entity-5",
           label: "Play",
-          percent: 0,
-          remaining_text: nil,
-          available: false
-        }
-      },
-      %Variation{
-        id: :offline_in_progress,
-        description:
-          "Storage offline mid-watch — the progress bar still renders " <>
-            "(playback state is independent of availability) but the CTA " <>
-            "is the disabled \"Offline\" pill.",
-        attributes: %{
-          on_play: "play",
-          target_id: "entity-8",
-          label: "Resume",
-          percent: 42,
-          remaining_text: "1h 12m left",
           available: false
         }
       }

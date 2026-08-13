@@ -656,6 +656,8 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
     end
 
     test "in-progress member resumes with percent and remaining copy" do
+      # UIDR-024: percent feeds the hero hairline; remaining_text is the
+      # metadata line's "left" item.
       movie = build_movie(%{name: "Part Two", content_url: "/m/2.mkv"})
 
       progress =
@@ -673,13 +675,13 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
         is_resume_target: true
       }
 
-      assert %{label: "Resume", percent: 50, remaining_text: "1h remaining"} =
+      assert %{label: "Resume", percent: 50, remaining_text: "1h left"} =
                Logic.member_playback(member)
 
       assert Logic.member_playback(member).target_id == movie.id
     end
 
-    test "watched member offers watch-again with no progress row" do
+    test "watched member offers watch-again with a full hairline" do
       movie = build_movie(%{name: "Part Three", content_url: "/m/3.mkv"})
       progress = build_progress(%{movie_id: movie.id, completed: true})
 
@@ -690,7 +692,9 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
         is_resume_target: false
       }
 
-      assert %{label: "Watch again", percent: 0, remaining_text: nil} =
+      # UIDR-024: a watched member's hairline fills — percent 100, like a
+      # completed series — while the remaining item stays absent.
+      assert %{label: "Watch again", percent: 100, remaining_text: nil} =
                Logic.member_playback(member)
     end
 
