@@ -62,6 +62,14 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   defp member_remaining_text(_progress), do: nil
 
   @doc """
+  Label beside the play line's watched toggle (UIDR-023): names the
+  action while there is one, the state once it's done.
+  """
+  @spec member_watched_label(:watched | :current | :unwatched) :: String.t()
+  def member_watched_label(:watched), do: "Watched"
+  def member_watched_label(_state), do: "Mark watched"
+
+  @doc """
   Returns the list of facets for an entity, ready for `Detail.FacetStrip`.
 
   Country and Status are intentionally absent — they already appear in the

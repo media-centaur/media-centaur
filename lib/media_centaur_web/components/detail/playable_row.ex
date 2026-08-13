@@ -103,6 +103,13 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
         "(their only progress display); the collection modal's play line passes false — " <>
         "the PlayCard's progress row directly above already says it (UIDR-023)."
 
+  attr :nav_item, :boolean,
+    default: false,
+    doc:
+      "render the button as a first-class `data-nav-item` instead of a `data-nav-sub-item`. " <>
+        "Rows keep the sub-item default (the row is the nav item); on the play line the " <>
+        "toggle stands alone in a TOOLBAR zone, which only walks nav items."
+
   attr :rest, :global,
     doc:
       "`phx-value-*` attributes that identify the toggle target (entity + leaf container " <>
@@ -124,7 +131,9 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
       <button
         type="button"
         phx-click={@event}
-        data-nav-sub-item
+        data-nav-sub-item={!@nav_item || nil}
+        data-nav-item={@nav_item || nil}
+        tabindex={(@nav_item && "0") || nil}
         class={watched_toggle_button_class()}
         aria-label={if @state == :watched, do: "Mark unwatched", else: "Mark watched"}
         {@rest}
