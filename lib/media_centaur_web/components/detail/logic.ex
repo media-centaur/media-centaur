@@ -62,20 +62,6 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   defp member_remaining_text(_progress), do: nil
 
   @doc """
-  The rail label line's saga-progress note — "N of M watched" over the
-  library members (upcoming parts don't count toward M; their tiles
-  already say what they are). `nil` when nothing is watched yet, so an
-  untouched collection carries no scorekeeping.
-  """
-  @spec saga_progress_note([MovieListItem.t()]) :: String.t() | nil
-  def saga_progress_note(movie_items) do
-    library_items = Enum.filter(movie_items, &match?(%MovieListItem.Library{}, &1))
-    watched = Enum.count(library_items, &(&1.state == :watched))
-
-    if watched > 0, do: "#{watched} of #{length(library_items)} watched"
-  end
-
-  @doc """
   Returns the list of facets for an entity, ready for `Detail.FacetStrip`.
 
   Country and Status are intentionally absent — they already appear in the

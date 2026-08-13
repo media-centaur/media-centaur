@@ -8,9 +8,10 @@ defmodule MediaCentaurWeb.Storybook.Detail.CollectionRail do
   no-artwork fallback: title text over the gradient — accurate to the
   "no artwork scraped yet" state.
 
-  Selection is `data-selected` + the white outline ring; the watched
-  check and the progress underline are the same state chrome the
-  library tiles carry.
+  Selection is by light, not chrome: unselected tiles sit under a
+  quiet dimming scrim and the selected film is the lit one
+  (`data-selected`). The watched check and the progress underline are
+  the same state chrome the library tiles carry.
   """
 
   use PhoenixStorybook.Story, :component
@@ -36,8 +37,8 @@ defmodule MediaCentaurWeb.Storybook.Detail.CollectionRail do
         id: :mid_saga,
         description:
           "Three members mid-saga: movie 1 watched (check badge), movie 2 " <>
-            "selected + in progress (selection ring, progress underline), " <>
-            "movie 3 unwatched. Label line carries \"1 of 3 watched\".",
+            "selected + in progress (lit tile, progress underline), " <>
+            "movie 3 unwatched (dimmed).",
         attributes: %{
           movie_items: library_items(),
           selected_id: "66666666-6666-6666-6666-666666666602",
@@ -67,9 +68,8 @@ defmodule MediaCentaurWeb.Storybook.Detail.CollectionRail do
       %Variation{
         id: :untouched,
         description:
-          "Nothing watched yet: first member selected, no state chrome, and " <>
-            "the label line carries no scorekeeping (the note only appears " <>
-            "once something is watched).",
+          "Nothing watched yet: first member selected (lit), the rest " <>
+            "dimmed, no state chrome.",
         attributes: %{
           movie_items: untouched_items(),
           selected_id: "66666666-6666-6666-6666-666666666601",

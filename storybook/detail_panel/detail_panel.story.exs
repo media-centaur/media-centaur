@@ -4,10 +4,10 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
   `CinematicShell`, so each variation renders the **whole modal**: the
   always-in-DOM `<.modal>` shell, the panel-fixed backdrop + atmosphere,
   the scrollport, the pinned orientation block (identity lockup,
-  metadata row, play card), and the type-specific content list (movie /
-  TV seasons + episodes / movie series; the facet strip renders for
-  movie series only — movies and TV dropped their catalog facts with
-  the Cast view). The Manage
+  metadata row, play card), and the type-specific content —
+  TV seasons + episodes, the collection poster rail (UIDR-023), extras
+  for leaves (no facet strip anywhere: every type dropped its catalog
+  facts with the Cast view). The Manage
   sub-view (`detail_view: :info`) delegates to
   `Detail.ManagePanel.manage_panel/1` — a toolbar card (Delete all,
   Rematch, Refresh artwork, external IDs + UUID) over a collapsed
@@ -56,7 +56,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
        standalone-movie panel — saga eyebrow, member synopsis, Resume
        with the member's own progress row — over the poster rail built
        from the typed `movies_view` (watched check on movie 1,
-       progress underline on movie 2, selection ring).
+       progress underline on the lit movie 2, unselected tiles dimmed).
     9b. `:movie_series_with_upcoming` — a tracked collection's announced
        fourth part renders as a muted, unpickable rail tile with the
        air-date pill, and widens the eyebrow's "of N".
@@ -361,8 +361,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
             "(movie 2, in progress) renders the standalone-movie panel — saga " <>
             "eyebrow (\"… · Part 2 of 3\"), member synopsis, **Resume** with the " <>
             "member's own progress row and watched toggle — over the poster " <>
-            "rail: watched check on movie 1, progress underline + selection " <>
-            "ring on movie 2, unwatched movie 3. `movies_view` is the typed " <>
+            "rail: watched check on movie 1, progress underline on the lit " <>
+            "movie 2, dimmed movie 3. `movies_view` is the typed " <>
             "`[%MovieListItem{}]` contract the rail reads exclusively.",
         attributes: movie_series_attrs()
       },
