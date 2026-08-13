@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.123.2 — 2026-08-13
+
+### Fixed
+
+- **Detail views no longer end in a pale strip.** The backdrop artwork now fades out completely at the bottom edge of the view. Short views — a movie collection with a couple of entries, and most series — stopped the fade partway and left a grey band under the last row.
+
 ## v0.123.1 — 2026-08-11
 
 ### Improved
