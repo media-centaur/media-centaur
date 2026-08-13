@@ -52,16 +52,12 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
       <h3 class="mb-2 text-sm font-medium uppercase tracking-wider text-base-content/50">
         {@saga_label}
       </h3>
-      <%!-- p-1.5/-m-1.5: the cursor ring draws OUTSIDE the tile (2px
-            outline + 2px offset) and an overflow scrollport clips it
-            wherever a tile sits flush against the container edge — the
-            same reserve `.row-scroll` keeps for the home shelves. The
-            negative margin cancels the padding visually; scroll-p keeps
-            focus-scrolls from parking a tile flush left. --%>
-      <div
-        class="flex gap-3 overflow-x-auto thin-scrollbar p-1.5 -m-1.5 scroll-p-1.5"
-        data-nav-zone="detail_rail"
-      >
+      <%!-- The home shelves' scroll system, wholesale: `.row-scroll`
+            owns the ring reserve, hidden scrollbar, cursor peek
+            (scroll-padding stops the cursor one tile short and slides
+            the row instead), and the scroll-linked edge fades. The
+            variant only sets tile width and gap. --%>
+      <div class="row-scroll row-scroll-backdrop-sm" data-nav-zone="detail_rail">
         <.rail_tile
           :for={item <- @movie_items}
           item={item}
@@ -105,7 +101,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
       data-nav-item
       tabindex="0"
       title={@movie.name}
-      class="group relative flex-shrink-0 w-48 aspect-[16/9] rounded-lg overflow-hidden glass-inset text-left cursor-pointer"
+      class="group relative aspect-[16/9] rounded-lg overflow-hidden glass-inset text-left cursor-pointer"
     >
       <img
         :if={@backdrop_url}
@@ -165,7 +161,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
       id={"rail-upcoming-#{@item.part_tmdb_id}"}
       data-role="rail-upcoming"
       title={@item.title}
-      class="relative flex-shrink-0 w-48 aspect-[16/9] rounded-lg border border-dashed border-base-content/15 opacity-55"
+      class="relative aspect-[16/9] rounded-lg border border-dashed border-base-content/15 opacity-55"
     >
       <div class="absolute inset-0 flex items-center justify-center">
         <.badge variant="ghost" size="sm" class="gap-1">
