@@ -53,13 +53,13 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
        absent and no upcoming/future-season content renders.
     9. `:movie_series` — the movie-first collection modal (UIDR-023):
        the selected member (movie 2, in progress) renders the
-       standalone-movie panel — saga eyebrow, member synopsis, Resume
-       with the member's own progress row — over the poster rail built
+       standalone-movie panel — member synopsis, Resume, the member's
+       own hairline fraction — over the poster rail built
        from the typed `movies_view` (watched check on movie 1,
        progress underline on the lit movie 2, unselected tiles dimmed).
     9b. `:movie_series_with_upcoming` — a tracked collection's announced
        fourth part renders as a muted, unpickable rail tile with the
-       air-date pill, and widens the eyebrow's "of N".
+       air-date pill.
     10. `:info_view_with_files` — `detail_view: :info` with a small
        (≤ 6 files) inventory: the folder ledger auto-expands, showing
        file rows (quality badges, "added Xd ago", per-file delete)
@@ -358,9 +358,9 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         id: :movie_series,
         description:
           "The movie-first collection modal (UIDR-023): the selected member " <>
-            "(movie 2, in progress) renders the standalone-movie panel — saga " <>
-            "eyebrow (\"… · Part 2 of 3\"), member synopsis, **Resume** with the " <>
-            "member's own progress row and watched toggle — over the poster " <>
+            "(movie 2, in progress) renders the standalone-movie panel — " <>
+            "member synopsis, **Resume** with the member's own hairline " <>
+            "fraction and watched toggle — over the poster " <>
             "rail: watched check on movie 1, progress underline on the lit " <>
             "movie 2, dimmed movie 3. `movies_view` is the typed " <>
             "`[%MovieListItem{}]` contract the rail reads exclusively.",
@@ -371,9 +371,8 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         description:
           "Tracked collection with an announced fourth part: the " <>
             "`MovieListItem.Upcoming` tile renders muted and unpickable after " <>
-            "the library members, with the air-date pill, and the eyebrow " <>
-            "widens to \"Part 2 of 4\" (release-tracking overlay, same idiom " <>
-            "as TV's upcoming episode rows).",
+            "the library members, with the air-date pill (release-tracking " <>
+            "overlay, same idiom as TV's upcoming episode rows).",
         attributes: movie_series_with_upcoming_attrs()
       },
       %Variation{
@@ -1017,8 +1016,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       # story breaks when the composition contract does.
       member_view: %{
         member: m2_item,
-        subject: MediaCentaurWeb.ViewModel.CollectionDetail.member_subject(m2_item),
-        ordinal: {2, 3}
+        subject: MediaCentaurWeb.ViewModel.CollectionDetail.member_subject(m2_item)
       },
       available: true,
       tmdb_ready: true,
@@ -1036,11 +1034,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       sub_status: :unaired
     }
 
-    %{
-      base
-      | movies_view: base.movies_view ++ [upcoming],
-        member_view: %{base.member_view | ordinal: {2, 4}}
-    }
+    %{base | movies_view: base.movies_view ++ [upcoming]}
   end
 
   # Typed `MovieListItem.Library` fixtures mirroring what

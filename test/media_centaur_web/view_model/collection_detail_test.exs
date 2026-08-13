@@ -365,18 +365,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
       assert is_list(subject.cast)
       assert is_list(subject.images)
     end
-
-    test "member_ordinal/2 numbers the member among all parts, upcoming included", %{
-      view_model: view_model,
-      movie_1: movie_1,
-      movie_3: movie_3
-    } do
-      first = CollectionDetail.select_member(view_model, movie_1.id)
-      third = CollectionDetail.select_member(view_model, movie_3.id)
-
-      assert CollectionDetail.member_ordinal(view_model, first) == {1, 4}
-      assert CollectionDetail.member_ordinal(view_model, third) == {3, 4}
-    end
   end
 
   # --- Test helpers ---

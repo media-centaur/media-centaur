@@ -62,6 +62,11 @@ fits TV; collection members are destinations, so each gets the movie treatment.
   rail-specific one.
 * **The metadata row drops the "N movies" count** — the eyebrow's
   "Part N of M" already carries the saga extent.
+* **No saga eyebrow (2026-08-13 revision).** The "‹Collection› · Part N
+  of M" line over the member title was dropped: the rail directly below
+  already names the collection, shows every part (announced ones
+  included), and lights the selected tile — the eyebrow restated all
+  three. The lockup is title-only; `member_ordinal/2` went with it.
 * **The backdrop swap is an instant cut, not a crossfade.** The
   pinned-block illusion requires the panel backdrop and its
   orientation-backing replica to render byte-identical sources; a
