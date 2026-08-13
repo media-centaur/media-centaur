@@ -45,6 +45,20 @@ defmodule MediaCentaurWeb.Storybook.Detail.WatchedToggle do
         id: :no_duration,
         description: "Extras carry no runtime — the toggle renders the bare circle.",
         attributes: %{event: "toggle_extra_watched", state: :unwatched}
+      },
+      %Variation{
+        id: :duration_suppressed,
+        description:
+          "`show_duration: false` — the bare circle even mid-watch. The " <>
+            "collection modal's play line uses this: the PlayCard's progress " <>
+            "row directly above already carries the remaining copy (UIDR-023).",
+        attributes: %{
+          event: "toggle_watched",
+          state: :current,
+          progress: %{position_seconds: 900.0, duration_seconds: 2640.0},
+          duration_seconds: 2640,
+          show_duration: false
+        }
       }
     ]
   end

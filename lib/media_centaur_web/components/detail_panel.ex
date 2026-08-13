@@ -359,6 +359,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                     state={@member_view.member.state}
                     progress={@member_view.member.progress}
                     duration_seconds={Map.get(@member_view.member.movie, :duration_seconds)}
+                    show_duration={false}
                     phx-value-entity-id={@entity.id}
                     phx-value-container-type="movie"
                     phx-value-container-id={@member_view.member.movie.id}
