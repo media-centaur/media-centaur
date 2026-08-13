@@ -96,6 +96,13 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
 
   attr :duration_seconds, :integer, default: nil
 
+  attr :show_duration, :boolean,
+    default: true,
+    doc:
+      "whether the state-aware duration text renders beside the circle. Rows keep it " <>
+        "(their only progress display); the collection modal's play line passes false — " <>
+        "the PlayCard's progress row directly above already says it (UIDR-023)."
+
   attr :rest, :global,
     doc:
       "`phx-value-*` attributes that identify the toggle target (entity + leaf container " <>
@@ -109,6 +116,7 @@ defmodule MediaCentaurWeb.Components.Detail.PlayableRow do
     ~H"""
     <div class="flex items-center gap-2 flex-shrink-0">
       <.duration_text
+        :if={@show_duration}
         state={@state}
         progress={@progress}
         duration_seconds={@duration_seconds}
