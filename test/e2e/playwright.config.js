@@ -1,7 +1,7 @@
 // @ts-check
 import { defineConfig } from "@playwright/test"
 
-const BASE_URL = process.env.BASE_URL ?? "http://127.0.0.1:1080"
+const BASE_URL = process.env.BASE_URL ?? "http://127.0.0.1:2160"
 
 export default defineConfig({
   testDir: ".",

@@ -19,8 +19,8 @@
 const { defineConfig } = require("@playwright/test")
 
 // Defaults to 4003 (showcase override), since this tour is only meant
-// to run against seeded showcase data — pointing it at dev (1080) or
-// prod (2160) would capture personal library content.
+// to run against seeded showcase data — pointing it at the dev instance
+// (2160) would capture personal library content.
 const BASE_URL = process.env.BASE_URL || "http://127.0.0.1:4003"
 
 // 1400 × (2880/1400) = 2880 — three-quarters of UHD width.

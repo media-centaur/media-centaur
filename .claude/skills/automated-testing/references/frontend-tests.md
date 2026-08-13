@@ -13,7 +13,7 @@ scripts/input-test library                  # one page, both methods
 scripts/input-test --help                   # --debug, --trace, --ui, …
 ```
 
-E2E requires the dev server at `http://127.0.0.1:1080`.
+E2E requires the dev server at `http://127.0.0.1:2160`.
 
 ---
 
