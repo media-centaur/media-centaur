@@ -57,7 +57,16 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
         </h3>
         <span :if={@progress_note} class="text-xs text-base-content/40">{@progress_note}</span>
       </div>
-      <div class="flex gap-3 overflow-x-auto thin-scrollbar pb-1" data-nav-zone="detail_rail">
+      <%!-- p-1.5/-m-1.5: the cursor ring draws OUTSIDE the tile (2px
+            outline + 2px offset) and an overflow scrollport clips it
+            wherever a tile sits flush against the container edge — the
+            same reserve `.row-scroll` keeps for the home shelves. The
+            negative margin cancels the padding visually; scroll-p keeps
+            focus-scrolls from parking a tile flush left. --%>
+      <div
+        class="flex gap-3 overflow-x-auto thin-scrollbar p-1.5 -m-1.5 scroll-p-1.5"
+        data-nav-zone="detail_rail"
+      >
         <.rail_tile
           :for={item <- @movie_items}
           item={item}
