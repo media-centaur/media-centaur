@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.125.0 — 2026-08-13
+
+### Improved
+
+- **The film strip in a collection's details now scrolls like the home page rows.** When a collection holds more films than fit across the panel, the edge now fades out to show there is more to see, and browsing the strip with a controller or keyboard slides it smoothly under the selection instead of pinning the selection against the edge.
+
 ## v0.124.0 — 2026-08-13
 
 ### New
