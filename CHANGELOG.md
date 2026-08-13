@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.124.0 — 2026-08-13
+
+### New
+
+- **Movie collections open on the movie, not a list.** Opening a collection now shows one film at full size — the one you'd continue with — exactly as if you had opened that movie on its own: its artwork, synopsis, runtime, Play button, and its own Cast view. A strip of wide artwork tiles below covers the whole collection: a check marks films you've watched, a progress line marks the one you're partway through, and an announced-but-unreleased part appears as a muted tile with its release date. Picking a tile switches the page to that film — it never starts playback; Play does that.
+- **Mark a film watched from the play line.** The film currently showing has a watched toggle on the far right of the Play button's line, so you can tick a collection entry off (or untick it) without playing it.
+
+### Improved
+
+- **A movie's progress now shows on the artwork.** A movie you're partway through carries the same glowing progress line along the bottom edge of the artwork a series does, and the facts line beneath shows the time left ("29m left") in place of the release status. The old progress bar that sat between the facts and the Play button is gone — the panel under the artwork is tidier for it.
+
 ## v0.123.2 — 2026-08-13
 
 ### Fixed
