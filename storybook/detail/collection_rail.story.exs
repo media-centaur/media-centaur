@@ -1,11 +1,12 @@
 defmodule MediaCentaurWeb.Storybook.Detail.CollectionRail do
   @moduledoc """
-  The movie-first collection modal's picker (UIDR-023) — one poster
-  tile per member, muted tiles for announced parts, saga label line
-  with the watched count. Poster URLs are intentionally absent (the
-  storybook image server can't satisfy them), so every tile renders
-  the no-artwork fallback: title text on the inset panel — accurate
-  to the "no artwork scraped yet" state.
+  The movie-first collection modal's picker (UIDR-023) — one 16:9
+  backdrop-and-logo tile per member (the continue-watching card idiom
+  in miniature), muted tiles for announced parts, saga label line with
+  the watched count. Image URLs are intentionally absent (the storybook
+  image server can't satisfy them), so every tile renders the
+  no-artwork fallback: title text over the gradient — accurate to the
+  "no artwork scraped yet" state.
 
   Selection is `data-selected` + the white outline ring; the watched
   check and the progress underline are the same state chrome the

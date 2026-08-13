@@ -1,9 +1,10 @@
 defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
   @moduledoc """
-  The movie-first collection modal's picker (UIDR-023): one 2:3 poster
-  tile per member movie, announced-but-unreleased parts as muted
-  unpickable tiles, and a saga label line carrying the collection name
-  and watched count.
+  The movie-first collection modal's picker (UIDR-023): one 16:9
+  backdrop-and-logo tile per member movie — the continue-watching card
+  idiom in miniature, previewing exactly the hero that selecting it
+  installs — announced-but-unreleased parts as muted unpickable tiles,
+  and a saga label line carrying the collection name and watched count.
 
   Picking a tile **selects** — it re-anchors the whole modal to that
   member via the host's `select_movie` event (URL patch). It never
@@ -74,11 +75,21 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
   attr :selected, :boolean, default: false
   attr :available, :boolean, default: true
 
+  # A miniature of the hero the tile would install: 16:9 backdrop with
+  # the member's logo art (title-text fallback), the continue-watching
+  # card idiom scaled to the rail. The tile previews exactly what
+  # selecting does.
   defp rail_tile(%{item: %MovieListItem.Library{}} = assigns) do
+    movie = assigns.item.movie
+
     assigns =
       assigns
-      |> assign(:movie, assigns.item.movie)
-      |> assign(:poster_url, assigns.available && image_url(assigns.item.movie, "poster"))
+      |> assign(:movie, movie)
+      |> assign(
+        :backdrop_url,
+        assigns.available && (image_url(movie, "backdrop") || image_url(movie, "poster"))
+      )
+      |> assign(:logo_url, assigns.available && image_url(movie, "logo"))
 
     ~H"""
     <button
@@ -90,52 +101,47 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
       data-nav-item
       tabindex="0"
       title={@movie.name}
-      class="group flex-shrink-0 w-24 text-left cursor-pointer"
-    >
-      <div class={[
-        "relative aspect-[2/3] rounded-lg overflow-hidden glass-inset",
-        "outline-offset-2 transition-[outline-color]",
+      class={[
+        "group relative flex-shrink-0 w-48 aspect-[16/9] rounded-lg overflow-hidden glass-inset",
+        "text-left cursor-pointer outline-offset-2 transition-[outline-color]",
         (@selected && "outline-2 outline-white/90") ||
-          "outline-2 outline-transparent group-hover:outline-white/30"
-      ]}>
+          "outline-2 outline-transparent hover:outline-white/30"
+      ]}
+    >
+      <img
+        :if={@backdrop_url}
+        src={sized_image_url(@backdrop_url, 480)}
+        alt={@movie.name}
+        class="absolute inset-0 w-full h-full object-cover object-top"
+        loading="eager"
+        decoding="sync"
+      />
+      <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
+      <div class="absolute bottom-2.5 left-3 right-3">
         <img
-          :if={@poster_url}
-          src={sized_image_url(@poster_url, 320)}
+          :if={@logo_url}
+          src={sized_image_url(@logo_url, 320)}
           alt={@movie.name}
-          class="w-full h-full object-cover"
+          class="max-h-9 max-w-[85%] object-contain object-left text-on-image-lg"
           loading="eager"
           decoding="sync"
         />
-        <div
-          :if={!@poster_url}
-          class="w-full h-full flex items-end p-1.5 bg-base-content/5"
-        >
-          <span class="text-[10px] font-semibold leading-tight text-base-content/70 line-clamp-4">
-            {@movie.name}
+        <div :if={!@logo_url} class="text-sm font-semibold text-white text-on-image-lg truncate">
+          {@movie.name}
+          <span :if={@movie.date_published} class="text-white/50 font-normal ml-0.5">
+            {extract_year(@movie.date_published)}
           </span>
         </div>
-        <span
-          :if={@item.state == :watched}
-          data-rail-state="watched"
-          class="absolute top-1 right-1 size-5 rounded-full bg-black/75 ring-1 ring-white/15 flex items-center justify-center"
-        >
-          <.icon name="hero-check-mini" class="size-3.5 text-success" />
-        </span>
-        <div
-          :if={@item.state == :current}
-          data-rail-state="current"
-          class="absolute inset-x-0 bottom-0"
-        >
-          <PlayableRow.progress_underline progress={@item.progress} class="mt-0 rounded-none" />
-        </div>
       </div>
-      <%!-- Two lines, not one-line truncation: sequels share their prefix,
-            so cutting the tail erases exactly the distinguishing part. --%>
-      <div class="mt-1.5 text-[11px] leading-tight line-clamp-2 text-base-content/60">
-        {@movie.name}
-        <span :if={@movie.date_published} class="text-base-content/30 ml-0.5">
-          {extract_year(@movie.date_published)}
-        </span>
+      <span
+        :if={@item.state == :watched}
+        data-rail-state="watched"
+        class="absolute top-1.5 right-1.5 size-5 rounded-full bg-black/75 ring-1 ring-white/15 flex items-center justify-center"
+      >
+        <.icon name="hero-check-mini" class="size-3.5 text-success" />
+      </span>
+      <div :if={@item.state == :current} data-rail-state="current" class="absolute inset-x-0 bottom-0">
+        <PlayableRow.progress_underline progress={@item.progress} class="mt-0 rounded-none" />
       </div>
     </button>
     """
@@ -150,15 +156,15 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
       id={"rail-upcoming-#{@item.part_tmdb_id}"}
       data-role="rail-upcoming"
       title={@item.title}
-      class="flex-shrink-0 w-24 opacity-55"
+      class="relative flex-shrink-0 w-48 aspect-[16/9] rounded-lg border border-dashed border-base-content/15 opacity-55"
     >
-      <div class="relative aspect-[2/3] rounded-lg border border-dashed border-base-content/15 flex flex-col items-center justify-center gap-1.5 px-1">
-        <.icon name="hero-film-mini" class="size-4 text-base-content/30" />
-        <.badge variant="ghost" size="sm" class="gap-1 text-[9px] px-1.5">
+      <div class="absolute inset-0 flex items-center justify-center">
+        <.badge variant="ghost" size="sm" class="gap-1">
+          <.icon name="hero-calendar-mini" class="size-3" />
           {Logic.upcoming_pill_copy(@item)}
         </.badge>
       </div>
-      <div class="mt-1.5 text-[11px] leading-tight line-clamp-2 text-base-content/50">
+      <div class="absolute bottom-2.5 left-3 right-3 text-sm font-semibold text-base-content/60 truncate">
         {@item.title}
       </div>
     </div>
