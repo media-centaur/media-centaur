@@ -172,6 +172,97 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
     build(entry, collection_detail.releases || [], collection_detail.tracking_status, resume_target)
   end
 
+  # --- Member selection (UIDR-023 movie-first modal) ---
+
+  @doc """
+  Resolves which library member the modal shows. An explicit `member_id`
+  wins when it names a library member; otherwise the resume target;
+  otherwise the first library member (chronological order). `nil` when
+  the collection has no playable members.
+
+  Stale ids (deleted member, an upcoming part's tmdb id, a refresh
+  race) fall through to the default rather than erroring — the URL is a
+  preference, not an invariant.
+  """
+  @spec select_member(t(), Ecto.UUID.t() | nil) :: MovieListItem.Library.t() | nil
+  def select_member(%__MODULE__{movies: movies}, member_id) do
+    library_items = Enum.filter(movies, &match?(%MovieListItem.Library{}, &1))
+
+    find_member(library_items, member_id) ||
+      Enum.find(library_items, & &1.is_resume_target) ||
+      List.first(library_items)
+  end
+
+  defp find_member(_library_items, nil), do: nil
+  defp find_member(library_items, member_id), do: Enum.find(library_items, &(&1.movie.id == member_id))
+
+  @doc """
+  Composes the selected member into the `:movie`-shaped entity map the
+  standalone-movie detail panel consumes — the mechanism that keeps the
+  collection modal on the same component family as a bare movie
+  (UIDR-023): downstream components never learn a collection is
+  involved.
+
+  Handles both member shapes (`Library.Movie` struct or the lean
+  projection map); unloaded associations read as empty lists.
+  """
+  @spec member_subject(MovieListItem.Library.t()) :: map()
+  def member_subject(%MovieListItem.Library{movie: movie}) do
+    %{
+      id: movie.id,
+      type: :movie,
+      collection: nil,
+      name: movie.name,
+      description: Map.get(movie, :description),
+      date_published: Map.get(movie, :date_published),
+      content_url: Map.get(movie, :content_url),
+      url: Map.get(movie, :url),
+      tagline: Map.get(movie, :tagline),
+      genres: Map.get(movie, :genres),
+      studio: Map.get(movie, :studio),
+      country_code: Map.get(movie, :country_code),
+      original_language: Map.get(movie, :original_language),
+      network: nil,
+      status: Map.get(movie, :status),
+      duration_seconds: Map.get(movie, :duration_seconds),
+      content_rating: Map.get(movie, :content_rating),
+      aggregate_rating_value: Map.get(movie, :aggregate_rating_value),
+      vote_count: Map.get(movie, :vote_count),
+      number_of_seasons: nil,
+      director: Map.get(movie, :director),
+      cast: loaded_list(Map.get(movie, :cast)),
+      crew: loaded_list(Map.get(movie, :crew)),
+      extras: [],
+      external_ids: [],
+      imdb_id: nil,
+      tmdb_id: Map.get(movie, :tmdb_id),
+      images: loaded_list(Map.get(movie, :images)),
+      seasons: [],
+      movies: [],
+      watched_files: [],
+      subtitle_tracks: [],
+      extra_progress: []
+    }
+  end
+
+  # Ecto.Association.NotLoaded (a Movie struct outside the projection
+  # path) reads as [] — the subject map promises lists.
+  defp loaded_list(list) when is_list(list), do: list
+  defp loaded_list(_not_loaded), do: []
+
+  @doc """
+  1-based position of the member among the library members, over the
+  total part count **including announced upcoming parts** — the "Part 2
+  of 4" eyebrow reads the saga's full known extent, not just what's on
+  disk.
+  """
+  @spec member_ordinal(t(), MovieListItem.Library.t()) :: {pos_integer(), pos_integer()}
+  def member_ordinal(%__MODULE__{movies: movies}, %MovieListItem.Library{movie: %{id: member_id}}) do
+    library_items = Enum.filter(movies, &match?(%MovieListItem.Library{}, &1))
+    index = Enum.find_index(library_items, &(&1.movie.id == member_id)) || 0
+    {index + 1, length(movies)}
+  end
+
   # --- Upcoming overlay ---
 
   # One row per announced part: group the release rows by part_tmdb_id,

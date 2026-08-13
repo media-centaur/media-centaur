@@ -1285,6 +1285,18 @@ defmodule MediaCentaur.Library.Views.Detail do
           description: movie.description,
           duration_seconds: movie.duration_seconds,
           tmdb_id: Map.get(tmdb_id_by_movie_id, movie.id),
+          tagline: movie.tagline,
+          genres: movie.genres,
+          studio: movie.studio,
+          country_code: movie.country_code,
+          original_language: movie.original_language,
+          status: movie.status,
+          content_rating: movie.content_rating,
+          aggregate_rating_value: movie.aggregate_rating_value,
+          vote_count: movie.vote_count,
+          director: movie.director,
+          cast: movie.cast || [],
+          crew: movie.crew || [],
           images: Map.get(images_by_movie_id, movie.id, [])
         }
       end)

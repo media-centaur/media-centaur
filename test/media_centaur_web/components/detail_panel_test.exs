@@ -11,9 +11,17 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
     # Entities arrive as the loose modal-entry map shape (`entity: :map`
     # on the component) — minimal maps mirror that contract.
 
-    test "true for TV series and movie series regardless of view" do
+    test "true for TV series regardless of view" do
       assert DetailPanel.scrollable_content?(%{type: :tv_series}, :main)
-      assert DetailPanel.scrollable_content?(%{type: :movie_series}, :main)
+    end
+
+    test "false for a movie series without extras on the main view — the rail lives in the pinned block (UIDR-023)" do
+      refute DetailPanel.scrollable_content?(%{type: :movie_series, extras: []}, :main)
+    end
+
+    test "true for a movie series carrying entity-level extras" do
+      extra = build_extra(%{owner_type: :movie_series})
+      assert DetailPanel.scrollable_content?(%{type: :movie_series, extras: [extra]}, :main)
     end
 
     test "false for a bare movie on the main view" do

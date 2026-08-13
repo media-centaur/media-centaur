@@ -280,7 +280,14 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       collection = create_movie_series(%{name: "View Control Collection"})
 
       for {name, position} <- [{"Part 1", 0}, {"Part 2", 1}] do
-        part = create_movie(%{movie_series_id: collection.id, name: name, position: position})
+        part =
+          create_movie(%{
+            movie_series_id: collection.id,
+            name: name,
+            position: position,
+            cast: [%{name: "#{name} Actor", character: "Lead", order: 0}]
+          })
+
         create_linked_file(%{movie_id: part.id})
       end
 
@@ -364,16 +371,20 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "[data-role='manage-toggle']")
     end
 
-    test "a collection has no Cast view to offer", %{conn: conn, collection: collection} do
+    test "a collection offers the selected member's Cast (UIDR-023)", %{
+      conn: conn,
+      collection: collection
+    } do
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
 
-      refute has_element?(view, "[data-role='view-control']")
+      assert has_element?(view, "[data-role='view-control']", "Cast")
     end
 
-    test "a collection names its own body on the way back", %{conn: conn, collection: collection} do
+    test "a collection without extras names the way back Overview — the member hero is its main view",
+         %{conn: conn, collection: collection} do
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}&view=info")
 
-      assert has_element?(view, "[data-role='view-control']", "Movies")
+      assert has_element?(view, "[data-role='view-control']", "Overview")
     end
 
     test "Manage has its files on the first open, not one patch later", %{
@@ -1177,12 +1188,12 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
-  describe "collection modal — typed content list" do
-    # The collection modal composes through `CollectionDetail` (the
-    # movie-side counterpart of `SeriesDetail`): typed `MovieListItem`
-    # rows, leaf-id watched toggles (`phx-value-container-id`, no
-    # ordinal round-trip), and the release-tracking overlay for
-    # announced parts of a tracked collection.
+  describe "collection modal — movie-first with poster rail (UIDR-023)" do
+    # The collection modal renders the *selected member's* movie panel —
+    # same component family as a standalone movie — with a poster rail
+    # as the picker. Selecting never plays; Play targets the selected
+    # member; Cast is the member's cast; the rail carries per-member
+    # state plus the release-tracking overlay.
 
     setup do
       collection = create_movie_series(%{name: "Coherent Collection", tmdb_id: "888001"})
@@ -1198,7 +1209,8 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
               name: name,
               position: position,
               date_published: date,
-              description: "#{name} synopsis: a rumour leads three siblings into the hills."
+              description: "#{name} synopsis: a rumour leads three siblings into the hills.",
+              cast: [%{name: "#{name} Lead Actor", character: "Lead", order: 0}]
             })
 
           create_linked_file(%{movie_id: part.id})
@@ -1208,21 +1220,80 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       {:ok, collection: collection, part_1: part_1, part_2: part_2}
     end
 
-    test "member movies render as typed rows with stable ids",
+    test "opens on the default member's panel with a poster rail",
+         %{conn: conn, collection: collection, part_1: part_1, part_2: part_2} do
+      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+
+      # Unstarted collection → first member is the subject.
+      assert html =~ "Coherent Part 1 synopsis"
+      assert has_element?(view, ~s|button[phx-click="play"][phx-value-id="#{part_1.id}"]|)
+
+      # The saga eyebrow orients within the collection.
+      assert html =~ "Part 1 of 2"
+
+      # Both members are rail tiles; the selected one is marked.
+      assert has_element?(view, "#rail-tile-#{part_1.id}[data-selected]")
+      assert has_element?(view, "#rail-tile-#{part_2.id}")
+      refute has_element?(view, "#rail-tile-#{part_2.id}[data-selected]")
+    end
+
+    test "selecting a poster re-anchors the panel without starting playback",
          %{conn: conn, collection: collection, part_1: part_1, part_2: part_2} do
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
 
-      assert has_element?(view, "#movie-row-#{part_1.id}", "Coherent Part 1")
-      assert has_element?(view, "#movie-row-#{part_2.id}", "Coherent Part 2")
+      view
+      |> element("#rail-tile-#{part_2.id}")
+      |> render_click()
+
+      assert_patch(view)
+      html = render(view)
+
+      assert html =~ "Coherent Part 2 synopsis"
+      refute html =~ "Coherent Part 1 synopsis"
+      assert html =~ "Part 2 of 2"
+      assert has_element?(view, ~s|button[phx-click="play"][phx-value-id="#{part_2.id}"]|)
+      assert has_element?(view, "#rail-tile-#{part_2.id}[data-selected]")
+      refute has_element?(view, "#rail-tile-#{part_1.id}[data-selected]")
+
+      # Selection is URL-reflected: a fresh mount restores it.
+      {:ok, _view, restored_html} =
+        live_async!(conn, ~p"/library?selected=#{collection.id}&movie=#{part_2.id}")
+
+      assert restored_html =~ "Coherent Part 2 synopsis"
     end
 
-    test "the watched toggle addresses the movie by container id and flips live",
+    test "a stale movie param falls back to the default member",
+         %{conn: conn, collection: collection} do
+      {:ok, _view, html} =
+        live_async!(conn, ~p"/library?selected=#{collection.id}&movie=#{Ecto.UUID.generate()}")
+
+      assert html =~ "Coherent Part 1 synopsis"
+    end
+
+    test "opens on the resume-target member mid-collection",
+         %{conn: conn, collection: collection, part_1: part_1, part_2: part_2} do
+      _ =
+        create_watch_progress(%{
+          movie_id: part_1.id,
+          position_seconds: 0.0,
+          duration_seconds: 0.0,
+          completed: true
+        })
+
+      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+
+      assert html =~ "Coherent Part 2 synopsis"
+      assert has_element?(view, ~s|button[phx-click="play"][phx-value-id="#{part_2.id}"]|)
+
+      # The watched member's tile carries its state.
+      assert has_element?(view, "#rail-tile-#{part_1.id} [data-rail-state='watched']")
+    end
+
+    test "the play-line watched toggle addresses the selected member and flips live",
          %{conn: conn, collection: collection, part_1: part_1} do
       Phoenix.PubSub.subscribe(MediaCentaur.PubSub, MediaCentaur.Topics.playback_events())
 
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
-
-      refute has_element?(view, "#movie-row-#{part_1.id} button[aria-label='Mark unwatched']")
 
       view
       |> element(~s|button[phx-click="toggle_watched"][phx-value-container-id="#{part_1.id}"]|)
@@ -1234,57 +1305,27 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert {:ok, %{completed: true}} =
                MediaCentaur.Library.ProgressRecords.fetch_for_container(:movie, part_1.id)
 
-      assert has_element?(view, "#movie-row-#{part_1.id} button[aria-label='Mark unwatched']")
+      assert has_element?(view, "#rail-tile-#{part_1.id} [data-rail-state='watched']")
     end
 
-    test "mid-collection: the hero hairline carries progress, the PlayCard row is suppressed, and the document opens on the resume row",
-         %{conn: conn, collection: collection, part_1: part_1} do
-      _ =
-        create_watch_progress(%{
-          movie_id: part_1.id,
-          position_seconds: 0.0,
-          duration_seconds: 0.0,
-          completed: true
-        })
+    test "the Cast view shows the selected member's cast and follows selection",
+         %{conn: conn, collection: collection, part_2: part_2} do
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}&view=cast")
 
-      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
-
-      assert has_element?(view, "[aria-label='Collection progress'][aria-valuenow='50']")
-      refute html =~ "movies left"
-      assert has_element?(view, "#detail-modal-content[data-scroll-to-resume]")
-    end
-
-    test "unstarted collection opens on the hero — no autoscroll, empty hairline",
-         %{conn: conn, collection: collection} do
-      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
-
-      assert has_element?(view, "[aria-label='Collection progress'][aria-valuenow='0']")
-      refute has_element?(view, "#detail-modal-content[data-scroll-to-resume]")
-    end
-
-    test "movie synopsis lives behind a per-row disclosure — the list is an index",
-         %{conn: conn, collection: collection, part_1: part_1} do
-      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
-
-      refute html =~ "into the hills"
+      html = render(view)
+      assert html =~ "Coherent Part 1 Lead Actor"
+      refute html =~ "Coherent Part 2 Lead Actor"
 
       view
-      |> element(~s|button[phx-click="toggle_item_details"][phx-value-item-id="#{part_1.id}"]|)
+      |> element("#rail-tile-#{part_2.id}")
       |> render_click()
 
       html = render(view)
-      assert html =~ "Coherent Part 1 synopsis"
-      refute html =~ "Coherent Part 2 synopsis"
-
-      # Clicking again closes it.
-      view
-      |> element(~s|button[phx-click="toggle_item_details"][phx-value-item-id="#{part_1.id}"]|)
-      |> render_click()
-
-      refute render(view) =~ "into the hills"
+      assert html =~ "Coherent Part 2 Lead Actor"
+      refute html =~ "Coherent Part 1 Lead Actor"
     end
 
-    test "a tracked collection lists its announced next part",
+    test "a tracked collection's announced part is a muted rail tile, not selectable",
          %{conn: conn, collection: collection} do
       item =
         create_tracking_item(%{
@@ -1302,9 +1343,26 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
         part_tmdb_id: 900_888
       })
 
+      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+
+      assert has_element?(view, "[data-role='rail-upcoming']", "Coherent Part 3")
+      refute has_element?(view, ~s|[data-role='rail-upcoming'][phx-click]|)
+
+      # Announced parts widen the saga extent the eyebrow reads.
+      assert html =~ "Part 1 of 3"
+    end
+
+    test "collection-level extras render in the body below the rail",
+         %{conn: conn, collection: collection} do
+      create_extra(%{
+        movie_series_id: collection.id,
+        name: "Coherent Making-Of",
+        content_url: "/media/test/coherent-extra.mkv"
+      })
+
       {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
 
-      assert has_element?(view, "[data-role='upcoming-movie-row']", "Coherent Part 3")
+      assert has_element?(view, "[data-role='extra-row']", "Coherent Making-Of")
     end
   end
 

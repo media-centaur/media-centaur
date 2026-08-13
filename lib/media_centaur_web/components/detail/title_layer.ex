@@ -55,9 +55,20 @@ defmodule MediaCentaurWeb.Components.Detail.TitleLayer do
   attr :logo_url, :string, default: nil, doc: "logo image URL; nil falls back to the title text."
   attr :tagline, :string, default: nil, doc: "italic line under the title; blank/nil drops it."
 
+  attr :eyebrow, :string,
+    default: nil,
+    doc:
+      "small-caps context line above the title — the collection eyebrow of the movie-first modal (UIDR-023), e.g. \"Sample Saga · Part 2 of 4\". Blank/nil drops it."
+
   def lockup(assigns) do
     ~H"""
     <div class="space-y-1.5">
+      <p
+        :if={@eyebrow && @eyebrow != ""}
+        class="text-[11px] uppercase tracking-[0.14em] text-white/70 text-on-image"
+      >
+        {@eyebrow}
+      </p>
       <img
         :if={@logo_url}
         src={sized_image_url(@logo_url, 960)}

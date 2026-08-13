@@ -264,10 +264,16 @@ defmodule MediaCentaur.Library.Views.DetailItem do
     MovieSeries container. Static movie metadata; `WatchProgress` is
     overlaid at the consumer.
 
+    Carries the member movie's **full detail fields** (tagline, facet
+    facts, cast, crew), because the movie-first collection modal
+    (UIDR-023) renders a selected member through the same panel a
+    standalone movie gets — the member map must be able to stand in for
+    a `:movie` entity map.
+
     `:images` carries the movie's own `Library.Image` rows (typically a
-    `"poster"` for the collection-row disclosure). `:tmdb_id` is the
-    parsed TMDB id from the movie's external ids — the key the
-    release-tracking overlay's `part_tmdb_id` matches against.
+    `"poster"` for the rail tile). `:tmdb_id` is the parsed TMDB id from
+    the movie's external ids — the key the release-tracking overlay's
+    `part_tmdb_id` matches against.
     """
 
     @enforce_keys [:movie_id, :playable_item_id, :name]
@@ -282,6 +288,18 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       :description,
       :duration_seconds,
       :tmdb_id,
+      :tagline,
+      :genres,
+      :studio,
+      :country_code,
+      :original_language,
+      :status,
+      :content_rating,
+      :aggregate_rating_value,
+      :vote_count,
+      :director,
+      cast: [],
+      crew: [],
       images: []
     ]
 
@@ -296,6 +314,18 @@ defmodule MediaCentaur.Library.Views.DetailItem do
             description: String.t() | nil,
             duration_seconds: non_neg_integer() | nil,
             tmdb_id: integer() | nil,
+            tagline: String.t() | nil,
+            genres: [String.t()] | nil,
+            studio: String.t() | nil,
+            country_code: String.t() | nil,
+            original_language: String.t() | nil,
+            status: atom() | nil,
+            content_rating: String.t() | nil,
+            aggregate_rating_value: float() | nil,
+            vote_count: integer() | nil,
+            director: String.t() | nil,
+            cast: [struct()],
+            crew: [struct()],
             images: [struct()]
           }
   end
@@ -598,6 +628,18 @@ defmodule MediaCentaur.Library.Views.DetailItem do
       description: entry.description,
       duration_seconds: entry.duration_seconds,
       tmdb_id: entry.tmdb_id,
+      tagline: entry.tagline,
+      genres: entry.genres,
+      studio: entry.studio,
+      country_code: entry.country_code,
+      original_language: entry.original_language,
+      status: entry.status,
+      content_rating: entry.content_rating,
+      aggregate_rating_value: entry.aggregate_rating_value,
+      vote_count: entry.vote_count,
+      director: entry.director,
+      cast: entry.cast || [],
+      crew: entry.crew || [],
       images: entry.images || []
     }
   end

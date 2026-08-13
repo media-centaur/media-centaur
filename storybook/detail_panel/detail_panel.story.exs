@@ -51,12 +51,15 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
     8. `:tv_series_untracked` — same library shape as 3 but
        `tracking_status: nil`. Confirms the bell-icon affordance is
        absent and no upcoming/future-season content renders.
-    9. `:movie_series` — `:movie_series` with three child movies, one
-       partially watched. Dense chronological rows from the typed
-       `movies_view`; movie 1's synopsis/poster disclosure open.
+    9. `:movie_series` — the movie-first collection modal (UIDR-023):
+       the selected member (movie 2, in progress) renders the
+       standalone-movie panel — saga eyebrow, member synopsis, Resume
+       with the member's own progress row — over the poster rail built
+       from the typed `movies_view` (watched check on movie 1,
+       progress underline on movie 2, selection ring).
     9b. `:movie_series_with_upcoming` — a tracked collection's announced
-       fourth part renders as a muted `MovieListItem.Upcoming` row with
-       the air-date pill.
+       fourth part renders as a muted, unpickable rail tile with the
+       air-date pill, and widens the eyebrow's "of N".
     10. `:info_view_with_files` — `detail_view: :info` with a small
        (≤ 6 files) inventory: the folder ledger auto-expands, showing
        file rows (quality badges, "added Xd ago", per-file delete)
@@ -104,7 +107,7 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       EpisodeListItem.{Library, Missing, Upcoming}}` for TV
       (`seasons_view`) and `MediaCentaurWeb.ViewModel.{CollectionDetail,
       MovieListItem.{Library, Upcoming}}` for collections
-      (`movies_view`). `Detail.SeasonList` / `Detail.CollectionList`
+      (`movies_view`). `Detail.SeasonList` / `Detail.CollectionRail`
       consume them exclusively.
     * `entity: :map` — still the biggest remaining smell on the
       top-level component. Movie and movie_series renders dispatch on
@@ -354,21 +357,23 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       %Variation{
         id: :movie_series,
         description:
-          "`:movie_series` with three child movies (chronological). Movie 2 is " <>
-            "partially watched and gets the resume target border; movie 1 is " <>
-            "completed (dimmed) with its synopsis disclosure open; movie 3 is " <>
-            "unwatched. `playback_props/3` produces **Resume Movie 2**. " <>
-            "`movies_view` is the typed `[%MovieListItem{}]` contract — the " <>
-            "collection content list reads exclusively from it.",
+          "The movie-first collection modal (UIDR-023): the selected member " <>
+            "(movie 2, in progress) renders the standalone-movie panel — saga " <>
+            "eyebrow (\"… · Part 2 of 3\"), member synopsis, **Resume** with the " <>
+            "member's own progress row and watched toggle — over the poster " <>
+            "rail: watched check on movie 1, progress underline + selection " <>
+            "ring on movie 2, unwatched movie 3. `movies_view` is the typed " <>
+            "`[%MovieListItem{}]` contract the rail reads exclusively.",
         attributes: movie_series_attrs()
       },
       %Variation{
         id: :movie_series_with_upcoming,
         description:
           "Tracked collection with an announced fourth part: the " <>
-            "`MovieListItem.Upcoming` row renders muted after the library " <>
-            "movies, with the air-date pill (release-tracking overlay, same " <>
-            "idiom as TV's upcoming episode rows).",
+            "`MovieListItem.Upcoming` tile renders muted and unpickable after " <>
+            "the library members, with the air-date pill, and the eyebrow " <>
+            "widens to \"Part 2 of 4\" (release-tracking overlay, same idiom " <>
+            "as TV's upcoming episode rows).",
         attributes: movie_series_with_upcoming_attrs()
       },
       %Variation{
@@ -1007,7 +1012,14 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       resume: nil,
       progress_records: progress_records,
       movies_view: [m1_item, m2_item, m3_item],
-      expanded_item_details: MapSet.new([m1_item.movie.id]),
+      # The movie-first subject (UIDR-023): movie 2 selected — composed
+      # through the same `member_subject/1` the live path uses, so the
+      # story breaks when the composition contract does.
+      member_view: %{
+        member: m2_item,
+        subject: MediaCentaurWeb.ViewModel.CollectionDetail.member_subject(m2_item),
+        ordinal: {2, 3}
+      },
       available: true,
       tmdb_ready: true,
       expanded_seasons: MapSet.new()
@@ -1024,7 +1036,11 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
       sub_status: :unaired
     }
 
-    %{base | movies_view: base.movies_view ++ [upcoming]}
+    %{
+      base
+      | movies_view: base.movies_view ++ [upcoming],
+        member_view: %{base.member_view | ordinal: {2, 4}}
+    }
   end
 
   # Typed `MovieListItem.Library` fixtures mirroring what

@@ -299,3 +299,47 @@ describe("Detail overlay Manage tools region (real config)", () => {
     expect(episodes.detail_list.up).toBe("detail_actions")
   })
 })
+
+// The collection modal's poster rail (UIDR-023) is the picker between the
+// action row and the body: a horizontal strip of member tiles, so it is a
+// TOOLBAR-typed region — LEFT/RIGHT walk it, DOWN drops past it into
+// whichever body is populated (a collection's body is its extras list), UP
+// and BACK climb to the action row. The region only exists for collections;
+// empty, every candidate list falls through past it.
+describe("Detail overlay collection rail region (real config)", () => {
+  const openDetail = counts =>
+    buildNavGraph("library", counts, {
+      ...inputConfig,
+      overlayLayout: inputConfig.overlays.detail.layout,
+    })
+
+  test("the rail is a toolbar-typed region of the detail overlay", () => {
+    expect(inputConfig.instanceTypes.detail_rail).toBe(Context.TOOLBAR)
+    expect(inputConfig.contextSelectors.detail_rail).toBe("[data-nav-zone='detail_rail'] [data-nav-item]")
+    expect(inputConfig.overlays.detail.entry).toContain("detail_rail")
+  })
+
+  test("collection showing: down from the action row lands on the rail, then the extras body", () => {
+    const graph = openDetail({ detail_actions: 4, detail_rail: 3, detail_list: 2, detail_cast: 0, manage_tools: 0, manage_list: 0, grid: 12, sidebar: 7 })
+    expect(graph.detail_actions.down).toBe("detail_rail")
+    expect(graph.detail_rail.down).toBe("detail_list")
+    expect(graph.detail_rail.up).toBe("detail_actions")
+    expect(graph.detail_rail.back).toBe("detail_actions")
+  })
+
+  test("cast view showing: up from the cast grid climbs to the rail before the action row", () => {
+    const graph = openDetail({ detail_actions: 4, detail_rail: 3, detail_list: 0, detail_cast: 24, manage_tools: 0, manage_list: 0, grid: 12, sidebar: 7 })
+    expect(graph.detail_cast.up).toBe("detail_rail")
+    expect(graph.detail_actions.down).toBe("detail_rail")
+  })
+
+  test("no rail (non-collection): every list falls through past it", () => {
+    const graph = openDetail({ detail_actions: 4, detail_rail: 0, detail_list: 20, detail_cast: 0, manage_tools: 0, manage_list: 0, grid: 12, sidebar: 7 })
+    expect(graph.detail_actions.down).toBe("detail_list")
+    expect(graph.detail_list.up).toBe("detail_actions")
+  })
+
+  test("the rail enters at the selected member's tile", () => {
+    expect(inputConfig.entryDefaults.detail_rail).toBe("[data-selected]")
+  })
+})

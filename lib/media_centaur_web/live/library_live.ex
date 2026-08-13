@@ -465,6 +465,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         <.entity_modal
           selected_entry={@selected_entry}
           selected_entity_id={@selected_entity_id}
+          selected_member_id={@selected_member_id}
           detail_presentation={@detail_presentation}
           detail_view={@detail_view}
           cast_filter={@cast_filter}
@@ -654,22 +655,21 @@ defmodule MediaCentaurWeb.LibraryLive do
   @impl true
   def build_modal_path(socket, overrides), do: build_path(socket, overrides)
 
-  # Build a URL path preserving current socket state with overrides
+  # Build a URL path preserving current socket state with overrides.
+  # Page-level params here; the modal slice comes whole from
+  # `EntityModal.modal_query_params/2` so it can't drift per host.
   defp build_path(socket, overrides) do
     assigns = socket.assigns
 
     tab = Map.get(overrides, :tab, assigns.active_tab)
     sort = Map.get(overrides, :sort, assigns.sort_order)
     filter = Map.get(overrides, :filter, assigns.filter_text)
-    selected = Map.get(overrides, :selected, assigns.selected_entity_id)
-    view = Map.get(overrides, :view, assigns.detail_view)
 
     params = %{}
     params = if tab == :all, do: params, else: Map.put(params, :tab, tab)
     params = if sort == :recent, do: params, else: Map.put(params, :sort, sort)
     params = if filter == "", do: params, else: Map.put(params, :filter, filter)
-    params = if selected, do: Map.put(params, :selected, selected), else: params
-    params = if selected && view in [:info, :cast], do: Map.put(params, :view, view), else: params
+    params = Map.merge(params, EntityModal.modal_query_params(assigns, overrides))
 
     if params == %{}, do: ~p"/library", else: ~p"/library?#{params}"
   end

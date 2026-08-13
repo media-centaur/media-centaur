@@ -911,6 +911,57 @@ defmodule MediaCentaur.Library.Views.DetailTest do
       assert m3.content_url == nil
     end
 
+    test "MovieEntry carries the member movie's full detail fields (movie-first collection modal)" do
+      # UIDR-023: a selected collection member renders the standalone-movie
+      # panel — title layer, facet fields, cast — so its MovieEntry must
+      # carry everything that panel consumes.
+      on_exit_clear_table()
+      ms = create_movie_series(%{name: "Sample MS Member Fields"})
+
+      movie1 =
+        create_movie(%{
+          name: "MS Member Part 1",
+          movie_series_id: ms.id,
+          position: 1,
+          tagline: "Every light must fall.",
+          genres: ["Adventure", "Drama"],
+          studio: "Sample Studio",
+          country_code: "US",
+          original_language: "en",
+          status: :released,
+          content_rating: "PG-13",
+          aggregate_rating_value: 7.4,
+          vote_count: 1234,
+          director: "Sample Director",
+          cast: [%{name: "Actor One", character: "Lead", order: 0}],
+          crew: [%{name: "Crew One", job: "Director", department: "Directing"}]
+        })
+
+      movie2 = create_movie(%{name: "MS Member Part 2", movie_series_id: ms.id, position: 2})
+
+      pi1 = create_playable_item_for_movie(movie1)
+      pi2 = create_playable_item_for_movie(movie2)
+      _f1 = create_linked_file(%{playable_item_id: pi1.id, file_path: "/media/test/ms-mf-1.mkv"})
+      _f2 = create_linked_file(%{playable_item_id: pi2.id, file_path: "/media/test/ms-mf-2.mkv"})
+
+      assert :ok = Detail.refresh_cache()
+      item = Views.detail_by_container(:movie_series, ms.id)
+
+      [m1, _m2] = item.movies
+      assert m1.tagline == "Every light must fall."
+      assert m1.genres == ["Adventure", "Drama"]
+      assert m1.studio == "Sample Studio"
+      assert m1.country_code == "US"
+      assert m1.original_language == "en"
+      assert m1.status == :released
+      assert m1.content_rating == "PG-13"
+      assert m1.aggregate_rating_value == 7.4
+      assert m1.vote_count == 1234
+      assert m1.director == "Sample Director"
+      assert [%{name: "Actor One", character: "Lead"}] = m1.cast
+      assert [%{name: "Crew One", job: "Director"}] = m1.crew
+    end
+
     test "detail_by_container(:movie_series, id) returns canonical leaf with movies list" do
       on_exit_clear_table()
       ms = create_movie_series(%{name: "Sample MS Canonical"})
