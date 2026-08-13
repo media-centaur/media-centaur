@@ -145,9 +145,9 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
       <span
         :if={@item.state == :watched}
         data-rail-state="watched"
-        class="absolute top-1.5 right-1.5 size-5 rounded-full bg-black/75 ring-1 ring-white/15 flex items-center justify-center"
+        class="absolute top-1.5 right-1.5 size-6 rounded-full bg-success shadow-md shadow-black/50 flex items-center justify-center"
       >
-        <.icon name="hero-check-mini" class="size-3.5 text-success" />
+        <.icon name="hero-check-mini" class="size-4 text-success-content" />
       </span>
       <div :if={@item.state == :current} data-rail-state="current" class="absolute inset-x-0 bottom-0">
         <PlayableRow.progress_underline progress={@item.progress} class="mt-0 rounded-none" />
