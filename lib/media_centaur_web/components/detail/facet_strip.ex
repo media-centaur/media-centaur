@@ -30,10 +30,15 @@ defmodule MediaCentaurWeb.Components.Detail.FacetStrip do
 
   def facet_strip(%{layout: :stacked} = assigns) do
     ~H"""
+    <%!-- No top rule here (the :row variant keeps one): stacked is the
+          sidebar-column variant, so it renders at the top of its column
+          with nothing above it to separate from. In the detail panel that
+          put a second horizontal line a few pixels under the hero's
+          progress hairline, and the two read as a mis-drawn pair. --%>
     <div
       :if={@facets != []}
       class={[
-        "grid grid-cols-2 gap-x-4 gap-y-3 py-2.5 border-t border-base-content/[0.07]",
+        "grid grid-cols-2 gap-x-4 gap-y-3 py-2.5",
         @class
       ]}
     >
