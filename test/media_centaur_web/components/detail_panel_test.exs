@@ -119,6 +119,11 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
   end
 
   # --- progress_remaining_text/2 ---
+  #
+  # UIDR-024: the remaining figure is a metadata-line item ("1h left"),
+  # not card-row copy. A completed title yields nil — the full hairline
+  # and the watched toggle carry that state; the metadata line goes back
+  # to showing the status.
 
   describe "progress_remaining_text/2" do
     test "returns nil for nil progress" do
@@ -127,9 +132,9 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
     # No container cases: TV and collection remaining-text moved to the
     # hero orientation hairline (`MediaCentaurWeb.ViewModel.Orientation`);
-    # the PlayCard row renders only for leaves.
+    # the remaining metadata item exists only for leaves.
 
-    test "returns Watched for completed standalone movie" do
+    test "returns nil for completed standalone movie" do
       progress = %{
         episodes_completed: 1,
         episode_duration_seconds: 0.0,
@@ -138,10 +143,10 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
       entity = build_entity(%{type: :movie})
 
-      assert DetailPanel.progress_remaining_text(progress, entity) == "Watched"
+      assert DetailPanel.progress_remaining_text(progress, entity) == nil
     end
 
-    test "returns time remaining for in-progress standalone movie" do
+    test "returns time left for in-progress standalone movie" do
       progress = %{
         episodes_completed: 0,
         episode_duration_seconds: 7200.0,
@@ -150,7 +155,7 @@ defmodule MediaCentaurWeb.Components.DetailPanelTest do
 
       entity = build_entity(%{type: :movie})
 
-      assert DetailPanel.progress_remaining_text(progress, entity) == "1h remaining"
+      assert DetailPanel.progress_remaining_text(progress, entity) == "1h left"
     end
   end
 

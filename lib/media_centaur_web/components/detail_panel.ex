@@ -47,6 +47,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.Detail.SeasonList
   alias MediaCentaurWeb.Components.Detail.TitleLayer
   alias MediaCentaurWeb.Components.Detail.ViewControls
+  alias MediaCentaurWeb.Components.ProgressHairline
   alias MediaCentaurWeb.ViewModel.Orientation
 
   # --- Public API ---
@@ -170,9 +171,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     member_view = if assigns.entity.type == :movie_series, do: assigns.member_view
     subject = if member_view, do: member_view.subject, else: assigns.entity
 
-    # TV keeps its orientation (hairline + autoscroll). Collections no
-    # longer build one — saga state lives on the poster rail. Leaves
-    # keep the PlayCard's own percent/remaining row.
+    # TV keeps its orientation (hairline fraction + autoscroll).
+    # Collections don't build one — saga state lives on the poster rail;
+    # the hero hairline reads the *subject's* fraction (UIDR-024).
     orientation =
       if assigns.entity.type == :tv_series and is_list(assigns.seasons_view) do
         Orientation.for_series(assigns.seasons_view, assigns.resume)
@@ -189,10 +190,18 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       if member_view do
         Logic.member_playback(member_view.member)
       else
-        build_playback(assigns, orientation)
+        build_playback(assigns)
       end
 
-    metadata_items = build_metadata_items(subject)
+    # UIDR-024: every subject carries its watched fraction in the hero
+    # hairline — TV the series', a movie or member its own — and the
+    # remaining time is a metadata-line item, not card-row copy. The
+    # remaining item displaces the status while it exists: a title you
+    # are 75% through is self-evidently released.
+    hairline_fraction = if orientation, do: orientation.fraction, else: playback.percent / 100
+    metadata_remaining = if !orientation, do: playback.remaining_text
+
+    metadata_items = build_metadata_items(subject, metadata_remaining)
     tagline = tagline_for(subject)
 
     # The view control's destination logic wants the subject's cast (the
@@ -226,8 +235,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:controls_entity, controls_entity)
       |> assign(:eyebrow, member_eyebrow(assigns.entity, member_view))
       |> assign(:orientation, orientation)
-      |> assign(:hairline_fraction, orientation && orientation.fraction)
-      |> assign(:hairline_label, "Series progress")
+      |> assign(:hairline_fraction, hairline_fraction)
+      |> assign(:hairline_label, hairline_label(subject))
+      |> assign(:metadata_remaining, metadata_remaining)
       |> assign(:autoscroll_resume?, autoscroll_resume?(orientation))
       |> assign(:backdrop_url, backdrop_url)
       |> assign(:description_right?, description_right?)
@@ -288,17 +298,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             eyebrow={@eyebrow}
           />
         </div>
-        <div
-          :if={@hairline_fraction}
-          class="orientation-hairline mt-4"
-          role="progressbar"
-          aria-valuenow={round(@hairline_fraction * 100)}
-          aria-valuemin="0"
-          aria-valuemax="100"
-          aria-label={@hairline_label}
-        >
-          <div class="orientation-hairline-fill" style={"width: #{@hairline_fraction * 100}%"} />
-        </div>
+        <ProgressHairline.progress_hairline
+          fraction={@hairline_fraction}
+          label={@hairline_label}
+          class="mt-4"
+        />
         <%!-- pt-6 (vs the p-4 sides): the progress hairline sits flush on
               the hero window's bottom edge, so the block below needs
               extra clearance to read as separate from the progress
@@ -338,13 +342,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               <MetadataRow.metadata_row
                 badge_text={format_type(@subject.type)}
                 items={@metadata_items}
+                remaining_text={@metadata_remaining}
               />
               <PlayCard.play_card
                 on_play={@on_play}
                 target_id={@playback.target_id}
                 label={@playback.label}
-                percent={@playback.percent}
-                remaining_text={@playback.remaining_text}
                 available={@available}
               >
                 <:controls>
@@ -493,41 +496,41 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
   defp member_eyebrow(_entity, nil), do: nil
 
-  defp build_playback(assigns, orientation) do
+  # Same shape as `Logic.member_playback/1`: label + target for the Play
+  # button, percent + remaining for the hero hairline and the metadata
+  # line (UIDR-024). Titles with an orientation override percent with
+  # their series fraction at the call site.
+  defp build_playback(assigns) do
     {label, target_id} =
       Logic.playback_props(assigns.entity, assigns.resume, assigns.progress)
-
-    # Titles with an orientation carry their progress in the hero block
-    # (hairline), so the PlayCard's percent/remaining row is suppressed
-    # (percent 0 hides it). Leaves keep the card row.
-    {percent, remaining} =
-      if orientation do
-        {0, nil}
-      else
-        {
-          overall_progress_percent(assigns.progress, assigns.entity),
-          progress_remaining_text(assigns.progress, assigns.entity)
-        }
-      end
 
     %{
       label: label,
       target_id: target_id,
-      percent: percent,
-      remaining_text: remaining
+      percent: overall_progress_percent(assigns.progress, assigns.entity),
+      remaining_text: progress_remaining_text(assigns.progress, assigns.entity)
     }
   end
 
-  defp build_metadata_items(entity) do
+  defp build_metadata_items(entity, remaining_text) do
     [
       year_or_nil(entity),
       season_count_or_nil(entity),
       duration_or_nil(entity),
       Map.get(entity, :content_rating),
       country_or_nil(entity),
-      status_or_nil(entity)
+      # The remaining item displaces the status while it exists
+      # (UIDR-024) — mid-watch, "Released" is noise.
+      if(is_nil(remaining_text), do: status_or_nil(entity))
     ]
   end
+
+  # The hairline names its subject (UIDR-024): the unit is always the
+  # subject's own watched fraction, so the label follows the subject's
+  # type — a member subject is a `:movie`-shaped map.
+  defp hairline_label(%{type: :tv_series}), do: "Series progress"
+  defp hairline_label(%{type: :movie}), do: "Movie progress"
+  defp hairline_label(_subject), do: "Watch progress"
 
   defp year_or_nil(%{date_published: %Date{} = date}), do: MediaCentaur.Format.year(date)
   defp year_or_nil(_), do: nil
@@ -582,9 +585,9 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp tracking_title(:ignored), do: "Ignoring new releases — click to track"
   defp tracking_title(_), do: "Not tracking"
 
-  # Leaf-only (movie / video_object): containers carry their progress in
-  # the hero orientation hairline, so `build_playback/2` never asks for
-  # a container's card-row percent or remaining copy.
+  # Leaf-only (movie / video_object): containers derive their hairline
+  # fraction from `ViewModel.Orientation`; a leaf's comes from its
+  # progress summary via this percent (UIDR-024).
   def overall_progress_percent(nil, _entity), do: 0
 
   def overall_progress_percent(progress, _entity) do
@@ -595,19 +598,16 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     end
   end
 
+  # The metadata line's remaining item (UIDR-024). Completed titles
+  # yield nil — the full hairline and the watched toggle carry that
+  # state; the metadata line goes back to showing the status.
   def progress_remaining_text(nil, _entity), do: nil
 
   def progress_remaining_text(progress, _entity) do
-    cond do
-      progress.episodes_completed > 0 ->
-        "Watched"
-
-      progress.episode_duration_seconds > 0 && progress.episode_position_seconds > 0 ->
-        remaining_seconds = progress.episode_duration_seconds - progress.episode_position_seconds
-        "#{format_human_duration(trunc(remaining_seconds))} remaining"
-
-      true ->
-        nil
+    if progress.episodes_completed == 0 && progress.episode_duration_seconds > 0 &&
+         progress.episode_position_seconds > 0 do
+      remaining_seconds = progress.episode_duration_seconds - progress.episode_position_seconds
+      "#{format_human_duration(trunc(remaining_seconds))} left"
     end
   end
 

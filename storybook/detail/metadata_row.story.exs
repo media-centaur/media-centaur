@@ -7,6 +7,11 @@ defmodule MediaCentaurWeb.Storybook.Detail.MetadataRow do
   and blank entries, so calling templates don't need to guard against
   missing metadata. The `:missing_rating` and `:missing_runtime`
   variations pin that contract.
+
+  `remaining_text` (UIDR-024) renders as the line's final item, tinted
+  toward primary — the hero hairline's caption. Callers suppress the
+  status item while a remaining figure exists; the `:mid_watch`
+  variation shows the resulting line.
   """
 
   use PhoenixStorybook.Story, :component
@@ -43,6 +48,18 @@ defmodule MediaCentaurWeb.Storybook.Detail.MetadataRow do
         attributes: %{
           badge_text: "Movie",
           items: ["2024", "2h 8m", "PG-13", "Released"]
+        }
+      },
+      %Variation{
+        id: :mid_watch,
+        description:
+          "Mid-watch leaf (UIDR-024): the remaining time is the line's final " <>
+            "item, tinted toward primary. The caller has already dropped the " <>
+            "status item — a title mid-watch is self-evidently released.",
+        attributes: %{
+          badge_text: "Movie",
+          items: ["2018", "1h 58m", "PG", "US"],
+          remaining_text: "29m left"
         }
       },
       %Variation{
