@@ -656,8 +656,24 @@ body:has(.modal-backdrop[data-state="open"]) {
    the pinned value whenever the panel is at max height, which is the
    only state the pinned orientation backing (same calc) can be
    visible in. */
+/* `min()` of the two readings, because they only agree at the cap and
+   each is wrong on the other side of it:
+
+   - The constant (--modal-panel-h × 0.7) is what the pinned orientation
+     backing rebuilds, so it must win whenever the block can pin. It can
+     only pin while the document scrolls, and a content-fit panel under a
+     max-height cap only overflows once it is AT the cap — where 70% of
+     the panel IS the constant. So the constant never loses a case it
+     owns.
+   - Below the cap the constant overshoots the panel, and the backdrop's
+     fade-to-base-100 (--detail-backdrop-fade, opaque only at 100% of
+     this box) gets clipped mid-ramp. The panel's bottom edge then lands
+     on half-dissolved artwork — a pale grey strip under the last row,
+     reported on a 2-movie collection: `movie_series` is unconditionally
+     --full but its short list leaves the panel far below the cap.
+     The percentage tracks the panel, so the fade always finishes. */
 .modal-panel--full .modal-page-backdrop {
-  height: calc(var(--modal-panel-h, 100vh) * 0.7);
+  height: min(70%, calc(var(--modal-panel-h, 100vh) * 0.7));
 }
 
 /* Scrollable (--full) panels are top-anchored at the exact spot where
