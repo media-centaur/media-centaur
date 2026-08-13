@@ -101,12 +101,19 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
       data-nav-item
       tabindex="0"
       title={@movie.name}
-      class={[
-        "group relative flex-shrink-0 w-48 aspect-[16/9] rounded-lg overflow-hidden glass-inset",
-        "text-left cursor-pointer outline-offset-2 transition-[outline-color]",
-        (@selected && "outline-2 outline-white/90") ||
-          "outline-2 outline-transparent hover:outline-white/30"
-      ]}
+      class={
+        [
+          "group relative flex-shrink-0 w-48 aspect-[16/9] rounded-lg overflow-hidden glass-inset",
+          "text-left cursor-pointer transition-shadow",
+          # Selection is an INSET ring (box-shadow), never `outline`: the
+          # input system pre-sets outline-color on every nav item in
+          # keyboard/gamepad mode (app.css), so a permanent outline-width
+          # here would paint the cursor color on unfocused tiles. The
+          # cursor keeps the outer outline channel to itself (UIDR-020).
+          (@selected && "ring-2 ring-inset ring-white/90") ||
+            "ring-2 ring-inset ring-transparent hover:ring-white/30"
+        ]
+      }
     >
       <img
         :if={@backdrop_url}
