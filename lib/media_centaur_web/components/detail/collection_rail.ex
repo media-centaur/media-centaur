@@ -101,19 +101,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
       data-nav-item
       tabindex="0"
       title={@movie.name}
-      class={
-        [
-          "group relative flex-shrink-0 w-48 aspect-[16/9] rounded-lg overflow-hidden glass-inset",
-          "text-left cursor-pointer transition-shadow",
-          # Selection is an INSET ring (box-shadow), never `outline`: the
-          # input system pre-sets outline-color on every nav item in
-          # keyboard/gamepad mode (app.css), so a permanent outline-width
-          # here would paint the cursor color on unfocused tiles. The
-          # cursor keeps the outer outline channel to itself (UIDR-020).
-          (@selected && "ring-2 ring-inset ring-white/90") ||
-            "ring-2 ring-inset ring-transparent hover:ring-white/30"
-        ]
-      }
+      class="group relative flex-shrink-0 w-48 aspect-[16/9] rounded-lg overflow-hidden glass-inset text-left cursor-pointer"
     >
       <img
         :if={@backdrop_url}
@@ -124,6 +112,18 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
         decoding="sync"
       />
       <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
+      <%!-- Selection ring as an OVERLAY, never `outline` and never a
+            box-shadow on the button itself: the input system pre-sets
+            outline-color on every nav item in keyboard/gamepad mode
+            (the cursor owns the outline channel, UIDR-020), and an
+            inset box-shadow paints BEHIND children, so the backdrop img
+            would swallow it. A topmost inset-0 div is the one place the
+            ring is both visible and out of the cursor's way. --%>
+      <div class={[
+        "absolute inset-0 rounded-lg ring-2 ring-inset pointer-events-none transition-shadow",
+        (@selected && "ring-white/90") || "ring-transparent group-hover:ring-white/30"
+      ]}>
+      </div>
       <div class="absolute bottom-2.5 left-3 right-3">
         <img
           :if={@logo_url}
