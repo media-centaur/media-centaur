@@ -250,19 +250,6 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetail do
   defp loaded_list(list) when is_list(list), do: list
   defp loaded_list(_not_loaded), do: []
 
-  @doc """
-  1-based position of the member among the library members, over the
-  total part count **including announced upcoming parts** — the "Part 2
-  of 4" eyebrow reads the saga's full known extent, not just what's on
-  disk.
-  """
-  @spec member_ordinal(t(), MovieListItem.Library.t()) :: {pos_integer(), pos_integer()}
-  def member_ordinal(%__MODULE__{movies: movies}, %MovieListItem.Library{movie: %{id: member_id}}) do
-    library_items = Enum.filter(movies, &match?(%MovieListItem.Library{}, &1))
-    index = Enum.find_index(library_items, &(&1.movie.id == member_id)) || 0
-    {index + 1, length(movies)}
-  end
-
   # --- Upcoming overlay ---
 
   # One row per announced part: group the release rows by part_tmdb_id,

@@ -1228,8 +1228,10 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert html =~ "Coherent Part 1 synopsis"
       assert has_element?(view, ~s|button[phx-click="play"][phx-value-id="#{part_1.id}"]|)
 
-      # The saga eyebrow orients within the collection.
-      assert html =~ "Part 1 of 2"
+      # No saga eyebrow over the title — the rail below already names
+      # the collection and shows the selected tile (2026-08-13 revision
+      # of UIDR-023).
+      refute html =~ "Part 1 of 2"
 
       # Both members are rail tiles; the selected one is marked.
       assert has_element?(view, "#rail-tile-#{part_1.id}[data-selected]")
@@ -1250,7 +1252,6 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       assert html =~ "Coherent Part 2 synopsis"
       refute html =~ "Coherent Part 1 synopsis"
-      assert html =~ "Part 2 of 2"
       assert has_element?(view, ~s|button[phx-click="play"][phx-value-id="#{part_2.id}"]|)
       assert has_element?(view, "#rail-tile-#{part_2.id}[data-selected]")
       refute has_element?(view, "#rail-tile-#{part_1.id}[data-selected]")
@@ -1348,8 +1349,9 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "[data-role='rail-upcoming']", "Coherent Part 3")
       refute has_element?(view, ~s|[data-role='rail-upcoming'][phx-click]|)
 
-      # Announced parts widen the saga extent the eyebrow reads.
-      assert html =~ "Part 1 of 3"
+      # The upcoming tile itself is the saga-extent signal — there is no
+      # eyebrow restating it.
+      refute html =~ "Part 1 of 3"
     end
 
     test "collection-level extras render in the body below the rail",

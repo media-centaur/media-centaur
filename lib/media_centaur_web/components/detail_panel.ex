@@ -23,8 +23,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   all render from the subject through the same components a standalone
   movie uses — one component family, no collection fork. The collection
   itself keeps the collection-scoped surfaces (Manage, extras,
-  tracking bell) and contributes the saga eyebrow plus the
-  `Detail.CollectionRail` picker.
+  tracking bell) and contributes the `Detail.CollectionRail` picker.
   """
 
   use MediaCentaurWeb, :html
@@ -136,11 +135,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :member_view, :any,
     default: nil,
     doc:
-      "`%{member, subject, ordinal}` from `MediaCentaurWeb.Live.EntityModal.member_view/2`, " <>
+      "`%{member, subject}` from `MediaCentaurWeb.Live.EntityModal.member_view/2`, " <>
         "or `nil` for non-collection entities. When present, the pinned block renders the " <>
         "member `subject` (a `:movie`-shaped map) through the same components a standalone " <>
-        "movie uses — UIDR-023's one-component-family rule — plus the saga eyebrow and the " <>
-        "poster rail."
+        "movie uses — UIDR-023's one-component-family rule — plus the poster rail."
 
   # No subject loaded: the bare frame stays in the DOM (closed) so the
   # blur compositing layer keeps warm — same reason the frame itself is
@@ -233,7 +231,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       |> assign(:member_view, member_view)
       |> assign(:subject, subject)
       |> assign(:controls_entity, controls_entity)
-      |> assign(:eyebrow, member_eyebrow(assigns.entity, member_view))
       |> assign(:orientation, orientation)
       |> assign(:hairline_fraction, hairline_fraction)
       |> assign(:hairline_label, hairline_label(subject))
@@ -295,7 +292,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
             title={@subject.name}
             logo_url={(@available && image_url(@subject, "logo")) || nil}
             tagline={@tagline}
-            eyebrow={@eyebrow}
           />
         </div>
         <ProgressHairline.progress_hairline
@@ -488,13 +484,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp autoscroll_resume?(nil), do: true
 
   # --- Header content builders (used in detail_panel/1) ---
-
-  # The saga eyebrow over the member title (UIDR-023): collection name +
-  # position over the saga's full known extent (upcoming parts included).
-  defp member_eyebrow(entity, %{ordinal: {position, total}}),
-    do: "#{entity.name} · Part #{position} of #{total}"
-
-  defp member_eyebrow(_entity, nil), do: nil
 
   # Same shape as `Logic.member_playback/1`: label + target for the Play
   # button, percent + remaining for the hero hairline and the metadata

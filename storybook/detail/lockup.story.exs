@@ -39,17 +39,6 @@ defmodule MediaCentaurWeb.Storybook.Detail.Lockup do
         attributes: %{title: "Quiet Sample Series", tagline: "Every afternoon, a different door."}
       },
       %Variation{
-        id: :with_eyebrow,
-        description:
-          "Collection eyebrow (UIDR-023) — the small-caps context line the " <>
-            "movie-first collection modal seats above a member's title.",
-        attributes: %{
-          title: "Sample Picture II",
-          tagline: "A return to the same valley, years later.",
-          eyebrow: "Sample Picture Trilogy · Part 2 of 3"
-        }
-      },
-      %Variation{
         id: :with_logo,
         description:
           "Logo URL present — the `<img>` replaces the logotype (fixture path 404s " <>

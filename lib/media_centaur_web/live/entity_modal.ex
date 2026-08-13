@@ -739,9 +739,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   Resolves the member the movie-first collection modal shows (UIDR-023):
   the URL-selected member, falling back through the resume target to the
   first member. Returns `nil` for non-collection entries or an empty
-  collection, and `%{member, subject, ordinal}` otherwise — `member` the
-  `MovieListItem.Library`, `subject` its `:movie`-shaped entity map,
-  `ordinal` the `{n, total}` pair the saga eyebrow reads.
+  collection, and `%{member, subject}` otherwise — `member` the
+  `MovieListItem.Library`, `subject` its `:movie`-shaped entity map.
 
   Derived at render time from the loaded entry, so progress merges and
   projection refreshes can never leave a stale subject behind.
@@ -755,8 +754,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       member ->
         %{
           member: member,
-          subject: CollectionDetail.member_subject(member),
-          ordinal: CollectionDetail.member_ordinal(entry, member)
+          subject: CollectionDetail.member_subject(member)
         }
     end
   end
