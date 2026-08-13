@@ -230,6 +230,7 @@ defmodule MediaCentaurWeb.HomeLive do
         <.entity_modal
           selected_entry={@selected_entry}
           selected_entity_id={@selected_entity_id}
+          selected_member_id={@selected_member_id}
           detail_presentation={@detail_presentation}
           detail_view={@detail_view}
           cast_filter={@cast_filter}
@@ -295,15 +296,7 @@ defmodule MediaCentaurWeb.HomeLive do
 
   @impl true
   def build_modal_path(socket, overrides) do
-    selected = Map.get(overrides, :selected, socket.assigns.selected_entity_id)
-    view = Map.get(overrides, :view, socket.assigns.detail_view)
-    autoplay = Map.get(overrides, :autoplay)
-
-    params = %{}
-    params = if selected, do: Map.put(params, :selected, selected), else: params
-    params = if selected && view in [:info, :cast], do: Map.put(params, :view, view), else: params
-    params = if selected && autoplay, do: Map.put(params, :autoplay, autoplay), else: params
-
+    params = EntityModal.modal_query_params(socket.assigns, overrides)
     if params == %{}, do: ~p"/", else: ~p"/?#{params}"
   end
 

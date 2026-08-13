@@ -8,7 +8,72 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
   `async: true` and `build_*` factory helpers.
   """
 
+  import MediaCentaurWeb.LibraryFormatters, only: [format_human_duration: 1]
+
   alias MediaCentaurWeb.Components.Detail.Facet
+  alias MediaCentaurWeb.ViewModel.MovieListItem
+
+  @doc """
+  Play-card props for a selected collection member (UIDR-023) — the
+  member's own state decides the label, never the collection's summary.
+
+  Returns `%{label, target_id, percent, remaining_text}`:
+
+    * `:unwatched` → `"Play"`, no progress row
+    * `:current`   → `"Resume"` with percent + "‹duration› remaining"
+    * `:watched`   → `"Watch again"`, no progress row
+
+  A zero-duration progress row (position recorded before the duration
+  probe) yields percent 0 rather than dividing by it.
+  """
+  @spec member_playback(MovieListItem.Library.t()) :: %{
+          label: String.t(),
+          target_id: Ecto.UUID.t(),
+          percent: non_neg_integer(),
+          remaining_text: String.t() | nil
+        }
+  def member_playback(%MovieListItem.Library{movie: movie, state: :watched}),
+    do: %{label: "Watch again", target_id: movie.id, percent: 0, remaining_text: nil}
+
+  def member_playback(%MovieListItem.Library{movie: movie, state: :unwatched}),
+    do: %{label: "Play", target_id: movie.id, percent: 0, remaining_text: nil}
+
+  def member_playback(%MovieListItem.Library{movie: movie, state: :current, progress: progress}) do
+    %{
+      label: "Resume",
+      target_id: movie.id,
+      percent: member_percent(progress),
+      remaining_text: member_remaining_text(progress)
+    }
+  end
+
+  defp member_percent(%{position_seconds: position, duration_seconds: duration})
+       when is_number(duration) and duration > 0 do
+    min(round((position || 0.0) / duration * 100), 100)
+  end
+
+  defp member_percent(_progress), do: 0
+
+  defp member_remaining_text(%{position_seconds: position, duration_seconds: duration})
+       when is_number(duration) and duration > 0 and is_number(position) and position > 0 do
+    "#{format_human_duration(trunc(duration - position))} remaining"
+  end
+
+  defp member_remaining_text(_progress), do: nil
+
+  @doc """
+  The rail label line's saga-progress note — "N of M watched" over the
+  library members (upcoming parts don't count toward M; their tiles
+  already say what they are). `nil` when nothing is watched yet, so an
+  untouched collection carries no scorekeeping.
+  """
+  @spec saga_progress_note([MovieListItem.t()]) :: String.t() | nil
+  def saga_progress_note(movie_items) do
+    library_items = Enum.filter(movie_items, &match?(%MovieListItem.Library{}, &1))
+    watched = Enum.count(library_items, &(&1.state == :watched))
+
+    if watched > 0, do: "#{watched} of #{length(library_items)} watched"
+  end
 
   @doc """
   Returns the list of facets for an entity, ready for `Detail.FacetStrip`.

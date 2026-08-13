@@ -19,6 +19,7 @@ export const inputConfig = {
     // and its items fail `checkVisibility()`, so these count zero until it
     // opens — no modal scoping needed on the selectors.
     detail_actions: "[data-nav-zone='detail_actions'] [data-nav-item]",
+    detail_rail: "[data-nav-zone='detail_rail'] [data-nav-item]",
     manage_tools: "[data-nav-zone='manage_tools'] [data-nav-item]",
     manage_list: "[data-nav-zone='manage_list'] [data-nav-item]",
     detail_list: "[data-nav-zone='detail_list'] [data-nav-item]",
@@ -86,6 +87,7 @@ export const inputConfig = {
     // walks the two grid sections and the Show more button without an
     // adjacency table.
     detail_actions: Context.TOOLBAR,
+    detail_rail: Context.TOOLBAR,
     manage_tools: Context.TOOLBAR,
     manage_list: Context.TREE,
     detail_list: Context.TREE,
@@ -111,7 +113,7 @@ export const inputConfig = {
   // a dead end.
   overlays: {
     detail: {
-      entry: ["detail_actions", "manage_tools", "manage_list", "detail_list", "detail_cast"],
+      entry: ["detail_actions", "detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast"],
       layout: {
         // manage_tools is the Manage sub-view's toolbar card — a horizontal
         // strip (Delete all, Rematch, Refresh artwork, ID links) that is its
@@ -122,11 +124,20 @@ export const inputConfig = {
         // ledger activity overwrite the episode list's remembered position.
         // Both are empty in the other sub-views, where the candidate lists
         // fall through to whichever body is populated.
-        detail_actions: { down: ["manage_tools", "manage_list", "detail_list", "detail_cast"] },
-        manage_tools: { up: ["detail_actions"], down: ["manage_list"], back: ["detail_actions"] },
+        // detail_rail is the collection modal's poster-rail picker
+        // (UIDR-023) — a TOOLBAR strip between the action row and the
+        // body. Present only for collections; everywhere else the
+        // candidate lists fall through past it.
+        detail_actions: { down: ["detail_rail", "manage_tools", "manage_list", "detail_list", "detail_cast"] },
+        detail_rail: {
+          up: ["detail_actions"],
+          down: ["manage_tools", "manage_list", "detail_list", "detail_cast"],
+          back: ["detail_actions"],
+        },
+        manage_tools: { up: ["detail_rail", "detail_actions"], down: ["manage_list"], back: ["detail_actions"] },
         manage_list: { up: ["manage_tools"], back: ["detail_actions"] },
-        detail_list: { up: ["detail_actions"], back: ["detail_actions"] },
-        detail_cast: { up: ["detail_actions"], back: ["detail_actions"] },
+        detail_list: { up: ["detail_rail", "detail_actions"], back: ["detail_actions"] },
+        detail_cast: { up: ["detail_rail", "detail_actions"], back: ["detail_actions"] },
       },
     },
   },
@@ -134,7 +145,9 @@ export const inputConfig = {
   // Contexts entered at a declared item when there is no position to return to.
   // The detail body opens on the episode Play would play — the same row the
   // panel scrolls to and marks as next up, so the cursor agrees with both.
-  entryDefaults: { detail_list: "[data-resume-target]" },
+  // The rail enters at the selected member's tile — the cursor agrees
+  // with the panel's subject.
+  entryDefaults: { detail_list: "[data-resume-target]", detail_rail: "[data-selected]" },
 
   // Zone layouts for nav graph
   layouts: {

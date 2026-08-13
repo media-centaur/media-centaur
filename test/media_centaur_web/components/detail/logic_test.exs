@@ -633,4 +633,86 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
       assert Logic.secondary_view(%{type: :movie_series}, :info) == :main
     end
   end
+
+  describe "member_playback/1 — selected collection member (UIDR-023)" do
+    alias MediaCentaurWeb.ViewModel.MovieListItem
+
+    test "unwatched member plays fresh" do
+      movie = build_movie(%{name: "Part One", content_url: "/m/1.mkv"})
+
+      member = %MovieListItem.Library{
+        movie: movie,
+        progress: nil,
+        state: :unwatched,
+        is_resume_target: false
+      }
+
+      assert Logic.member_playback(member) == %{
+               label: "Play",
+               target_id: movie.id,
+               percent: 0,
+               remaining_text: nil
+             }
+    end
+
+    test "in-progress member resumes with percent and remaining copy" do
+      movie = build_movie(%{name: "Part Two", content_url: "/m/2.mkv"})
+
+      progress =
+        build_progress(%{
+          movie_id: movie.id,
+          completed: false,
+          position_seconds: 3600.0,
+          duration_seconds: 7200.0
+        })
+
+      member = %MovieListItem.Library{
+        movie: movie,
+        progress: progress,
+        state: :current,
+        is_resume_target: true
+      }
+
+      assert %{label: "Resume", percent: 50, remaining_text: "1h remaining"} =
+               Logic.member_playback(member)
+
+      assert Logic.member_playback(member).target_id == movie.id
+    end
+
+    test "watched member offers watch-again with no progress row" do
+      movie = build_movie(%{name: "Part Three", content_url: "/m/3.mkv"})
+      progress = build_progress(%{movie_id: movie.id, completed: true})
+
+      member = %MovieListItem.Library{
+        movie: movie,
+        progress: progress,
+        state: :watched,
+        is_resume_target: false
+      }
+
+      assert %{label: "Watch again", percent: 0, remaining_text: nil} =
+               Logic.member_playback(member)
+    end
+
+    test "zero-duration progress row yields percent 0, never a divide crash" do
+      movie = build_movie(%{name: "Part Four", content_url: "/m/4.mkv"})
+
+      progress =
+        build_progress(%{
+          movie_id: movie.id,
+          completed: false,
+          position_seconds: 10.0,
+          duration_seconds: 0.0
+        })
+
+      member = %MovieListItem.Library{
+        movie: movie,
+        progress: progress,
+        state: :current,
+        is_resume_target: false
+      }
+
+      assert %{label: "Resume", percent: 0, remaining_text: nil} = Logic.member_playback(member)
+    end
+  end
 end

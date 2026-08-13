@@ -9,10 +9,22 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   subject's content: the identity lockup + hairline + metadata + play
   controls + synopsis in the pinned block, the tracking bell in the hero
   window, and the type-dependent dispatch of the scrolling body —
-  `Detail.SeasonList` (TV), `Detail.CollectionList` (movie series),
-  `Detail.ExtrasSection` (leaves with bonus content), plus the Cast and
-  Manage sub-views. Row-level rendering lives in those modules; shared
-  row chrome in `Detail.PlayableRow`.
+  `Detail.SeasonList` (TV), `Detail.ExtrasSection` (leaves and
+  collections with bonus content), plus the Cast and Manage sub-views.
+  Row-level rendering lives in those modules; shared row chrome in
+  `Detail.PlayableRow`.
+
+  ## The subject (UIDR-023)
+
+  For a movie collection the panel's *subject* is the selected member
+  movie, composed as a `:movie`-shaped map by
+  `MediaCentaurWeb.ViewModel.CollectionDetail.member_subject/1` and
+  handed in via `:member_view`. Identity, playback, synopsis and Cast
+  all render from the subject through the same components a standalone
+  movie uses — one component family, no collection fork. The collection
+  itself keeps the collection-scoped surfaces (Manage, extras,
+  tracking bell) and contributes the saga eyebrow plus the
+  `Detail.CollectionRail` picker.
   """
 
   use MediaCentaurWeb, :html
@@ -25,12 +37,12 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   alias MediaCentaurWeb.Components.CinematicShell
   alias MediaCentaurWeb.Components.Detail.CastPanel
   alias MediaCentaurWeb.Components.Detail.CastSelection
-  alias MediaCentaurWeb.Components.Detail.CollectionList
+  alias MediaCentaurWeb.Components.Detail.CollectionRail
   alias MediaCentaurWeb.Components.Detail.ExtrasSection
-  alias MediaCentaurWeb.Components.Detail.FacetStrip
   alias MediaCentaurWeb.Components.Detail.Logic
   alias MediaCentaurWeb.Components.Detail.ManagePanel
   alias MediaCentaurWeb.Components.Detail.MetadataRow
+  alias MediaCentaurWeb.Components.Detail.PlayableRow
   alias MediaCentaurWeb.Components.Detail.PlayCard
   alias MediaCentaurWeb.Components.Detail.SeasonList
   alias MediaCentaurWeb.Components.Detail.TitleLayer
@@ -115,10 +127,19 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     default: nil,
     doc:
       "`[%MediaCentaurWeb.ViewModel.MovieListItem{}]` typed view-model for the " <>
-        "movie-collection content list. Required when `entity.type == :movie_series`. " <>
+        "movie-collection poster rail. Required when `entity.type == :movie_series`. " <>
         "Built by `MediaCentaurWeb.ViewModel.CollectionDetail.compose/1`. Tagged " <>
-        "`MovieListItem.{Library, Upcoming}` items the renderer pattern-matches on — " <>
+        "`MovieListItem.{Library, Upcoming}` items the rail pattern-matches on — " <>
         "the collection counterpart of `:seasons_view`."
+
+  attr :member_view, :any,
+    default: nil,
+    doc:
+      "`%{member, subject, ordinal}` from `MediaCentaurWeb.Live.EntityModal.member_view/2`, " <>
+        "or `nil` for non-collection entities. When present, the pinned block renders the " <>
+        "member `subject` (a `:movie`-shaped map) through the same components a standalone " <>
+        "movie uses — UIDR-023's one-component-family rule — plus the saga eyebrow and the " <>
+        "poster rail."
 
   # No subject loaded: the bare frame stays in the DOM (closed) so the
   # blur compositing layer keeps warm — same reason the frame itself is
@@ -140,19 +161,21 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     # then owns it through toggle_season (2026-08-05 auto-orient design).
     expanded_seasons = assigns.expanded_seasons || MapSet.new()
 
-    # Containers with an ordered playable set get an orientation (hairline
-    # + autoscroll); leaves build none and keep the PlayCard's own
-    # percent/remaining row instead.
+    # The panel's subject: the entity itself, except in a collection,
+    # where it is the selected member composed as a `:movie`-shaped map
+    # (UIDR-023). Every identity/playback/cast component below reads the
+    # subject, so a member renders through exactly the components a
+    # standalone movie does. Collection-scoped concerns (Manage, extras,
+    # tracking) keep reading `@entity`.
+    member_view = if assigns.entity.type == :movie_series, do: assigns.member_view
+    subject = if member_view, do: member_view.subject, else: assigns.entity
+
+    # TV keeps its orientation (hairline + autoscroll). Collections no
+    # longer build one — saga state lives on the poster rail. Leaves
+    # keep the PlayCard's own percent/remaining row.
     orientation =
-      cond do
-        assigns.entity.type == :tv_series and is_list(assigns.seasons_view) ->
-          Orientation.for_series(assigns.seasons_view, assigns.resume)
-
-        assigns.entity.type == :movie_series and is_list(assigns.movies_view) ->
-          Orientation.for_collection(assigns.movies_view)
-
-        true ->
-          nil
+      if assigns.entity.type == :tv_series and is_list(assigns.seasons_view) do
+        Orientation.for_series(assigns.seasons_view, assigns.resume)
       end
 
     resume_episode_key =
@@ -162,39 +185,61 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
 
     has_scrollable_content = scrollable_content?(assigns.entity, assigns.detail_view)
 
-    playback = build_playback(assigns, orientation)
-    facets = build_facets(assigns.entity)
-    metadata_items = build_metadata_items(assigns.entity)
-    tagline = tagline_for(assigns.entity)
+    playback =
+      if member_view do
+        Logic.member_playback(member_view.member)
+      else
+        build_playback(assigns, orientation)
+      end
 
-    description_right? =
-      assigns.entity.type in [:movie, :tv_series] && assigns.entity.description not in [nil, ""]
+    metadata_items = build_metadata_items(subject)
+    tagline = tagline_for(subject)
+
+    # The view control's destination logic wants the subject's cast (the
+    # Cast view shows the member) but the *collection's* extras (the
+    # body below the rail shows those) — a subject that answers for the
+    # whole page structure.
+    controls_entity =
+      if member_view do
+        Map.put(subject, :extras, Logic.entity_extras(assigns.entity))
+      else
+        subject
+      end
+
+    description_right? = subject.type in [:movie, :tv_series] && subject.description not in [nil, ""]
 
     backdrop_url =
       if assigns.available do
-        image_url(assigns.entity, "backdrop") || image_url(assigns.entity, "poster")
+        # Subject art first, entity art as the ladder's next rungs
+        # (UIDR-021): a member movie rarely carries its own backdrop, so
+        # a collection usually frames its members in collection art.
+        image_url(subject, "backdrop") || image_url(assigns.entity, "backdrop") ||
+          image_url(subject, "poster") || image_url(assigns.entity, "poster")
       end
 
     assigns =
       assigns
       |> assign(:expanded_seasons, expanded_seasons)
       |> assign(:expanded_item_details, assigns.expanded_item_details || MapSet.new())
+      |> assign(:member_view, member_view)
+      |> assign(:subject, subject)
+      |> assign(:controls_entity, controls_entity)
+      |> assign(:eyebrow, member_eyebrow(assigns.entity, member_view))
       |> assign(:orientation, orientation)
       |> assign(:hairline_fraction, orientation && orientation.fraction)
-      |> assign(:hairline_label, hairline_label(assigns.entity))
+      |> assign(:hairline_label, "Series progress")
       |> assign(:autoscroll_resume?, autoscroll_resume?(orientation))
       |> assign(:backdrop_url, backdrop_url)
       |> assign(:description_right?, description_right?)
       |> assign(
         :cast_filter_in_header?,
         assigns.detail_view == :cast && description_right? &&
-          CastSelection.show_filter?(assigns.entity[:cast] || [])
+          CastSelection.show_filter?(subject[:cast] || [])
       )
       |> assign(:resume_episode_key, resume_episode_key)
       |> assign(:extra_progress_by_id, extra_progress_by_id)
       |> assign(:has_scrollable_content, has_scrollable_content)
       |> assign(:playback, playback)
-      |> assign(:facets, facets)
       |> assign(:metadata_items, metadata_items)
       |> assign(:tagline, tagline)
 
@@ -237,9 +282,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
       <:orientation>
         <div class="px-6">
           <TitleLayer.lockup
-            title={@entity.name}
-            logo_url={(@available && image_url(@entity, "logo")) || nil}
+            title={@subject.name}
+            logo_url={(@available && image_url(@subject, "logo")) || nil}
             tagline={@tagline}
+            eyebrow={@eyebrow}
           />
         </div>
         <div
@@ -286,12 +332,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 worth of content. --%>
           <div class={[
             "space-y-4",
-            (@description_right? || @facets != []) &&
-              "xl:space-y-0 xl:grid xl:grid-cols-5 xl:gap-8 xl:items-start"
+            @description_right? && "xl:space-y-0 xl:grid xl:grid-cols-5 xl:gap-8 xl:items-start"
           ]}>
             <div class="space-y-4 min-w-0 xl:col-span-2 xl:col-start-1 xl:row-start-1">
               <MetadataRow.metadata_row
-                badge_text={format_type(@entity.type)}
+                badge_text={format_type(@subject.type)}
                 items={@metadata_items}
               />
               <PlayCard.play_card
@@ -303,14 +348,29 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 available={@available}
               >
                 <:controls>
-                  <ViewControls.view_controls entity={@entity} detail_view={@detail_view} />
+                  <%!-- Member watched toggle: acting on the *selected*
+                        movie is what the movie-first modal is for, and
+                        Play's line is the one place every input method
+                        reaches (UIDR-023 — a per-tile toggle on the rail
+                        is the deferred graft). --%>
+                  <PlayableRow.watched_toggle
+                    :if={@member_view}
+                    event="toggle_watched"
+                    state={@member_view.member.state}
+                    progress={@member_view.member.progress}
+                    duration_seconds={Map.get(@member_view.member.movie, :duration_seconds)}
+                    phx-value-entity-id={@entity.id}
+                    phx-value-container-type="movie"
+                    phx-value-container-id={@member_view.member.movie.id}
+                  />
+                  <ViewControls.view_controls entity={@controls_entity} detail_view={@detail_view} />
                 </:controls>
               </PlayCard.play_card>
               <p
-                :if={@entity.description && !@description_right?}
+                :if={@subject.description && !@description_right?}
                 class="text-sm text-base-content/70 line-clamp-8 xl:max-w-[50ch]"
               >
-                {@entity.description}
+                {@subject.description}
               </p>
             </div>
             <div
@@ -318,7 +378,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
               class="min-w-0 xl:col-span-3 xl:col-start-3 xl:row-start-1"
             >
               <p class="text-[15px] leading-relaxed text-base-content/75 line-clamp-6 max-w-[72ch]">
-                {@entity.description}
+                {@subject.description}
               </p>
               <%!-- Cast-view only: the filter lives here, in the pinned
                     orientation block, rather than in the scrolling sheet —
@@ -331,15 +391,18 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 class="mt-4 flex justify-end"
               />
             </div>
-            <div
-              :if={@facets != []}
-              class="min-w-0 space-y-3 xl:col-span-3 xl:col-start-3 xl:row-start-1"
-            >
-              <FacetStrip.facet_strip facets={@facets} layout={:row} class="xl:hidden" />
-              <FacetStrip.facet_strip facets={@facets} layout={:stacked} class="hidden xl:grid" />
-            </div>
           </div>
         </div>
+        <%!-- The saga picker (UIDR-023): selection + collection state in
+              one strip, below the member's own panel content. Rendered in
+              the pinned block so the picker never scrolls away. --%>
+        <CollectionRail.collection_rail
+          :if={@member_view}
+          movie_items={@movies_view || []}
+          selected_id={@member_view.member.movie.id}
+          saga_label={@entity.name}
+          available={@available}
+        />
       </:orientation>
       <%!-- The modal's second nav region — the body of the title, whichever
             sub-view is showing. DOWN from the action row lands here and BACK
@@ -358,7 +421,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
           <% :cast -> %>
             <div data-nav-zone="detail_cast">
               <CastPanel.cast_panel
-                entity={@entity}
+                entity={@subject}
                 cast_filter={@cast_filter}
                 cast_limit={@cast_limit}
                 resume_episode_key={@resume_episode_key}
@@ -413,12 +476,14 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   defp autoscroll_resume?(%Orientation{autoscroll?: autoscroll?}), do: autoscroll?
   defp autoscroll_resume?(nil), do: true
 
-  # The hairline names what its fraction spans — the current season for
-  # TV, the whole collection for a movie series.
-  defp hairline_label(%{type: :movie_series}), do: "Collection progress"
-  defp hairline_label(_entity), do: "Series progress"
-
   # --- Header content builders (used in detail_panel/1) ---
+
+  # The saga eyebrow over the member title (UIDR-023): collection name +
+  # position over the saga's full known extent (upcoming parts included).
+  defp member_eyebrow(entity, %{ordinal: {position, total}}),
+    do: "#{entity.name} · Part #{position} of #{total}"
+
+  defp member_eyebrow(_entity, nil), do: nil
 
   defp build_playback(assigns, orientation) do
     {label, target_id} =
@@ -445,20 +510,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     }
   end
 
-  # Only movie series still render a facet strip on the main view —
-  # for movies and TV the catalog facts were dropped from the modal
-  # with the Cast view (2026-08-08); removing the movie-series strip
-  # too would orphan the data (no series-level cast to show instead).
-  defp build_facets(%{type: :movie_series, movies: movies} = ms) when is_list(movies),
-    do: Logic.facets_for(:movie_series, ms, movies)
-
-  defp build_facets(_), do: []
-
   defp build_metadata_items(entity) do
     [
       year_or_nil(entity),
       season_count_or_nil(entity),
-      movie_count_or_nil(entity),
       duration_or_nil(entity),
       Map.get(entity, :content_rating),
       country_or_nil(entity),
@@ -478,16 +533,6 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   end
 
   defp season_count_or_nil(_), do: nil
-
-  defp movie_count_or_nil(%{type: :movie_series, movies: movies}) when is_list(movies) do
-    case length(movies) do
-      0 -> nil
-      1 -> "1 movie"
-      n -> "#{n} movies"
-    end
-  end
-
-  defp movie_count_or_nil(_), do: nil
 
   defp duration_or_nil(%{duration_seconds: seconds}) when is_integer(seconds) and seconds > 0,
     do: format_human_duration(seconds)
@@ -582,21 +627,10 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     """
   end
 
-  defp content_list(%{entity: %{type: :movie_series}} = assigns) do
-    ~H"""
-    <CollectionList.collection_list
-      movie_items={@movies_view || []}
-      expanded_item_details={@expanded_item_details}
-      entity_id={@entity.id}
-      extras={Logic.entity_extras(@entity)}
-      extra_progress_by_id={@extra_progress_by_id}
-      on_play={@on_play}
-      spoiler_free={@spoiler_free}
-      available={@available}
-    />
-    """
-  end
-
+  # Collections deliberately fall through to the extras fallback: the
+  # member list is the poster rail in the pinned block (UIDR-023), so a
+  # collection's scrolling body carries only its entity-level extras —
+  # the same idiom as a bare movie with bonus content.
   defp content_list(assigns) do
     ~H"""
     <ExtrasSection.extras_section
@@ -624,7 +658,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   @spec scrollable_content?(map(), atom()) :: boolean()
   def scrollable_content?(entity, detail_view) do
     detail_view in [:info, :cast] ||
-      entity.type in [:tv_series, :movie_series] ||
+      entity.type == :tv_series ||
       Logic.entity_extras(entity) != []
   end
 

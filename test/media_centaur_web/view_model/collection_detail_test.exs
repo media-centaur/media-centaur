@@ -283,6 +283,102 @@ defmodule MediaCentaurWeb.ViewModel.CollectionDetailTest do
     end
   end
 
+  describe "member selection — movie-first modal (UIDR-023)" do
+    setup do
+      movie_1 = build_movie(%{name: "Part One", date_published: ~D[2010-01-01], content_url: "/m/1.mkv"})
+      movie_2 = build_movie(%{name: "Part Two", date_published: ~D[2012-01-01], content_url: "/m/2.mkv"})
+
+      movie_3 =
+        build_movie(%{name: "Part Three", date_published: ~D[2014-01-01], content_url: "/m/3.mkv"})
+
+      collection = build_movie_series(%{movies: [movie_1, movie_2, movie_3]})
+
+      resume_target = %{"action" => "resume", "targetId" => movie_2.id}
+
+      view_model =
+        CollectionDetail.build(
+          %{entity: collection, progress: nil, progress_records: []},
+          [
+            release_map(%{
+              part_tmdb_id: 44,
+              title: "Part Four",
+              air_date: Date.add(Date.utc_today(), 90)
+            })
+          ],
+          :watching,
+          resume_target
+        )
+
+      %{view_model: view_model, movie_1: movie_1, movie_2: movie_2, movie_3: movie_3}
+    end
+
+    test "select_member/2 returns the explicitly-selected library member", %{
+      view_model: view_model,
+      movie_3: movie_3
+    } do
+      assert %MovieListItem.Library{movie: %{name: "Part Three"}} =
+               CollectionDetail.select_member(view_model, movie_3.id)
+    end
+
+    test "select_member/2 falls back to the resume target for nil or unknown ids", %{
+      view_model: view_model
+    } do
+      assert %MovieListItem.Library{movie: %{name: "Part Two"}} =
+               CollectionDetail.select_member(view_model, nil)
+
+      assert %MovieListItem.Library{movie: %{name: "Part Two"}} =
+               CollectionDetail.select_member(view_model, Ecto.UUID.generate())
+    end
+
+    test "select_member/2 falls back to the first library member without a resume target" do
+      movie = build_movie(%{name: "Only Part", date_published: ~D[2010-01-01], content_url: "/m/1.mkv"})
+      collection = build_movie_series(%{movies: [movie]})
+
+      view_model =
+        CollectionDetail.build(%{entity: collection, progress: nil, progress_records: []}, [], nil, nil)
+
+      assert %MovieListItem.Library{movie: %{name: "Only Part"}} =
+               CollectionDetail.select_member(view_model, nil)
+    end
+
+    test "select_member/2 returns nil for a collection with no playable members" do
+      collection = build_movie_series(%{movies: []})
+
+      view_model =
+        CollectionDetail.build(%{entity: collection, progress: nil, progress_records: []}, [], nil, nil)
+
+      assert CollectionDetail.select_member(view_model, nil) == nil
+    end
+
+    test "member_subject/1 composes a :movie-shaped map from the member", %{
+      view_model: view_model,
+      movie_2: movie_2
+    } do
+      member = CollectionDetail.select_member(view_model, movie_2.id)
+      subject = CollectionDetail.member_subject(member)
+
+      assert subject.type == :movie
+      assert subject.id == movie_2.id
+      assert subject.name == "Part Two"
+      assert subject.date_published == ~D[2012-01-01]
+      assert subject.extras == []
+      assert is_list(subject.cast)
+      assert is_list(subject.images)
+    end
+
+    test "member_ordinal/2 numbers the member among all parts, upcoming included", %{
+      view_model: view_model,
+      movie_1: movie_1,
+      movie_3: movie_3
+    } do
+      first = CollectionDetail.select_member(view_model, movie_1.id)
+      third = CollectionDetail.select_member(view_model, movie_3.id)
+
+      assert CollectionDetail.member_ordinal(view_model, first) == {1, 4}
+      assert CollectionDetail.member_ordinal(view_model, third) == {3, 4}
+    end
+  end
+
   # --- Test helpers ---
 
   defp release_map(overrides) do

@@ -101,10 +101,18 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         autoplay = params["autoplay"] == "1" || params["autoplay"] == true
         new_id = if socket.assigns.selected_entity_id != id, do: id
 
-        overrides = %{selected: new_id}
+        # A member selection belongs to one collection — never carry it
+        # across to the next entity.
+        overrides = %{selected: new_id, movie: nil}
         overrides = if autoplay, do: Map.put(overrides, :autoplay, "1"), else: overrides
 
         {:noreply, push_patch(socket, to: build_modal_path(socket, overrides))}
+      end
+
+      # Poster-rail pick inside a collection modal (UIDR-023): re-anchors
+      # the panel to that member via the URL. Selecting never plays.
+      def handle_event("select_movie", %{"id" => id}, socket) do
+        {:noreply, push_patch(socket, to: build_modal_path(socket, %{movie: id}))}
       end
 
       def handle_event("close_detail", _params, socket) do
@@ -540,6 +548,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   def assign_modal_defaults(socket) do
     Phoenix.Component.assign(socket,
       selected_entity_id: nil,
+      selected_member_id: nil,
       selected_entry: nil,
       detail_presentation: nil,
       detail_view: :main,
@@ -576,6 +585,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   @spec apply_modal_params(Phoenix.LiveView.Socket.t(), map()) :: Phoenix.LiveView.Socket.t()
   def apply_modal_params(socket, params) do
     selected_id = params["selected"]
+    selected_member_id = params["movie"]
     detail_view = parse_view(params["view"])
     autoplay? = params["autoplay"] == "1"
 
@@ -655,6 +665,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       socket
       |> Phoenix.Component.assign(
         selected_entity_id: selected_id,
+        selected_member_id: selected_member_id,
         selected_entry: selected_entry,
         detail_presentation: if(selected_id, do: :modal),
         detail_view: detail_view,
@@ -700,6 +711,59 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   defp initial_expanded_seasons(_entry), do: MapSet.new()
 
   @doc """
+  The modal's own URL query params (`selected` / `view` / `movie` /
+  `autoplay`), resolved from the current assigns with `overrides`
+  applied. Hosts merge this map into their page-specific params inside
+  `build_modal_path/2` — one implementation of the modal's URL contract
+  instead of a copy per host.
+
+  Every param is guarded on `selected`: a closed modal contributes no
+  params, whatever stale assigns say.
+  """
+  @spec modal_query_params(map(), map()) :: map()
+  def modal_query_params(assigns, overrides) do
+    selected = Map.get(overrides, :selected, assigns.selected_entity_id)
+    view = Map.get(overrides, :view, assigns.detail_view)
+    movie = Map.get(overrides, :movie, assigns.selected_member_id)
+    autoplay = Map.get(overrides, :autoplay)
+
+    params = %{}
+    params = if selected, do: Map.put(params, :selected, selected), else: params
+    params = if selected && view in [:info, :cast], do: Map.put(params, :view, view), else: params
+    params = if selected && movie, do: Map.put(params, :movie, movie), else: params
+    params = if selected && autoplay, do: Map.put(params, :autoplay, autoplay), else: params
+    params
+  end
+
+  @doc """
+  Resolves the member the movie-first collection modal shows (UIDR-023):
+  the URL-selected member, falling back through the resume target to the
+  first member. Returns `nil` for non-collection entries or an empty
+  collection, and `%{member, subject, ordinal}` otherwise — `member` the
+  `MovieListItem.Library`, `subject` its `:movie`-shaped entity map,
+  `ordinal` the `{n, total}` pair the saga eyebrow reads.
+
+  Derived at render time from the loaded entry, so progress merges and
+  projection refreshes can never leave a stale subject behind.
+  """
+  @spec member_view(CollectionDetail.t() | map() | nil, Ecto.UUID.t() | nil) :: map() | nil
+  def member_view(%CollectionDetail{} = entry, member_id) do
+    case CollectionDetail.select_member(entry, member_id) do
+      nil ->
+        nil
+
+      member ->
+        %{
+          member: member,
+          subject: CollectionDetail.member_subject(member),
+          ordinal: CollectionDetail.member_ordinal(entry, member)
+        }
+    end
+  end
+
+  def member_view(_entry, _member_id), do: nil
+
+  @doc """
   Reload the currently-selected entry from the database. Call from the
   host LiveView's PubSub handlers when the selected entity may have
   changed (e.g. on `:entities_changed` containing `selected_entity_id`).
@@ -743,6 +807,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   attr :selected_entity_id, :any,
     required: true,
     doc: "the currently-selected entity id (`Ecto.UUID.t()`) or `nil`."
+
+  attr :selected_member_id, :any,
+    required: true,
+    doc:
+      "URL-selected collection member id (`Ecto.UUID.t()`) or `nil` — resolved through `member_view/2`; stale ids fall back to the default member."
 
   attr :detail_presentation, :any,
     required: true,
@@ -810,6 +879,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       progress_records={(@selected_entry && @selected_entry.progress_records) || []}
       seasons_view={MediaCentaurWeb.Live.EntityModal.seasons_view_from_entry(@selected_entry)}
       movies_view={MediaCentaurWeb.Live.EntityModal.movies_view_from_entry(@selected_entry)}
+      member_view={MediaCentaurWeb.Live.EntityModal.member_view(@selected_entry, @selected_member_id)}
       expanded_seasons={@expanded_seasons}
       expanded_item_details={@expanded_item_details}
       all_episode_details_open={@all_episode_details_open}
@@ -967,11 +1037,26 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   that entry actually has. `nil` entry passes the request through — there is
   no entity to resolve against yet.
 
-  Delegates to `Detail.Logic.resolve_view/2`, which the tab strip also uses,
-  so the URL and the strip can never disagree about what is selected.
+  Delegates to `Detail.Logic.resolve_view/2`, which the view control also
+  uses, so the URL and the control can never disagree about what is
+  selected. For a collection the *member subject* answers (UIDR-023): Cast
+  exists when the default member has cast, with the collection's extras
+  standing in for the body — the same composed shape the panel hands its
+  view control.
   """
   @spec resolve_view(map() | nil, atom()) :: atom()
   def resolve_view(nil, requested_view), do: requested_view
+
+  def resolve_view(%CollectionDetail{} = entry, requested_view) do
+    case member_view(entry, nil) do
+      nil ->
+        Logic.resolve_view(entry.entity, requested_view)
+
+      %{subject: subject} ->
+        Logic.resolve_view(Map.put(subject, :extras, entry.extras || []), requested_view)
+    end
+  end
+
   def resolve_view(entry, requested_view), do: Logic.resolve_view(entry.entity, requested_view)
 
   @doc """

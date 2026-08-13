@@ -20,5 +20,7 @@ defmodule MediaCentaurWeb.Storybook.Detail do
   def entry("watched_toggle"), do: [icon: {:fa, "circle-check", :thin}, name: "Watched toggle"]
 
   def entry("progress_underline"), do: [icon: {:fa, "wave-pulse", :thin}, name: "Progress underline"]
+
+  def entry("collection_rail"), do: [icon: {:fa, "film", :thin}, name: "Collection rail"]
   def entry("section"), do: [icon: {:fa, "square-dashed", :thin}, name: "Section"]
 end

@@ -160,34 +160,36 @@ defmodule MediaCentaurWeb.PageSmokeTest do
   end
 
   describe "/?selected=<id> with a movie collection containing downloaded movies" do
-    # Regression: the home detail panel renders `movie_row` for each
-    # present constituent movie of a movie_series. `movie_row` reads
-    # optional fields (:images, :description, :duration_seconds) that the
-    # lean `DetailItem.movie_entry_to_map/1` projection map omits — a bare
-    # dot-access raised `KeyError` and crashed HomeLive the moment a
-    # collection with downloaded movies was opened. This smoke mounts the
-    # home detail for exactly that shape and asserts a movie row renders.
+    # The home detail panel renders the movie-first collection modal
+    # (UIDR-023): the selected member's panel over the poster rail. The
+    # member subject and rail tiles read optional projection fields
+    # (:images, :description, :duration_seconds) from the lean
+    # `DetailItem.movie_entry_to_map/1` map — the historical KeyError
+    # crash class this smoke pins (the row-based ancestor of this test
+    # caught exactly that). Mounts the home detail for that shape and
+    # asserts the rail actually rendered.
     setup do
       series = create_movie_series(%{name: "Smoke Movie Collection"})
       # Two present child Movies — the hoist rule (ADR-050) presents a
       # collection AS a collection only when 2+ of its movies are owned (a
       # single owned movie is surfaced as the movie itself). Each linked
-      # file auto-creates a present constituent the collection detail's
-      # content_list/1 renders as a movie_row.
+      # file auto-creates a present constituent the collection rail
+      # renders as a tile.
       _file1 = create_linked_file(%{movie_series_id: series.id, file_path: "/media/smoke/part-1.mkv"})
       _file2 = create_linked_file(%{movie_series_id: series.id, file_path: "/media/smoke/part-2.mkv"})
 
       {:ok, series: series}
     end
 
-    test "home detail panel mounts and renders a movie row for a collection",
+    test "home detail panel mounts and renders the member panel + rail for a collection",
          %{conn: conn, series: series} do
       assert {:ok, _view, html} = live_async!(conn, ~p"/?selected=#{series.id}")
       assert is_binary(html)
-      # Proves the movie_row branch actually rendered — a false-pass guard:
-      # if the constituent movie weren't present, this smoke would silently
-      # exercise nothing.
-      assert html =~ ~s(data-role="movie-row")
+      # Proves the collection branch actually rendered — a false-pass
+      # guard: if the constituent movies weren't present, this smoke
+      # would silently exercise nothing.
+      assert html =~ ~s(data-role="collection-rail")
+      assert html =~ "rail-tile-"
     end
   end
 
