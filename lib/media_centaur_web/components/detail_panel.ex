@@ -348,23 +348,30 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 available={@available}
               >
                 <:controls>
+                  <ViewControls.view_controls entity={@controls_entity} detail_view={@detail_view} />
                   <%!-- Member watched toggle: acting on the *selected*
                         movie is what the movie-first modal is for, and
                         Play's line is the one place every input method
                         reaches (UIDR-023 — a per-tile toggle on the rail
-                        is the deferred graft). --%>
-                  <PlayableRow.watched_toggle
-                    :if={@member_view}
-                    event="toggle_watched"
-                    state={@member_view.member.state}
-                    progress={@member_view.member.progress}
-                    duration_seconds={Map.get(@member_view.member.movie, :duration_seconds)}
-                    show_duration={false}
-                    phx-value-entity-id={@entity.id}
-                    phx-value-container-type="movie"
-                    phx-value-container-id={@member_view.member.movie.id}
-                  />
-                  <ViewControls.view_controls entity={@controls_entity} detail_view={@detail_view} />
+                        is the deferred graft). Far right with its label,
+                        away from the play cluster; a first-class nav
+                        item so the toolbar walk reaches it. --%>
+                  <span :if={@member_view} class="ml-auto flex items-center gap-2">
+                    <span class="text-xs text-base-content/40">
+                      {Logic.member_watched_label(@member_view.member.state)}
+                    </span>
+                    <PlayableRow.watched_toggle
+                      event="toggle_watched"
+                      state={@member_view.member.state}
+                      progress={@member_view.member.progress}
+                      duration_seconds={Map.get(@member_view.member.movie, :duration_seconds)}
+                      show_duration={false}
+                      nav_item
+                      phx-value-entity-id={@entity.id}
+                      phx-value-container-type="movie"
+                      phx-value-container-id={@member_view.member.movie.id}
+                    />
+                  </span>
                 </:controls>
               </PlayCard.play_card>
               <p
