@@ -90,7 +90,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
       data-nav-item
       tabindex="0"
       title={@movie.name}
-      class="group flex-shrink-0 w-20 text-left cursor-pointer"
+      class="group flex-shrink-0 w-24 text-left cursor-pointer"
     >
       <div class={[
         "relative aspect-[2/3] rounded-lg overflow-hidden glass-inset",
@@ -117,7 +117,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
         <span
           :if={@item.state == :watched}
           data-rail-state="watched"
-          class="absolute top-1 right-1 size-5 rounded-full bg-black/60 flex items-center justify-center"
+          class="absolute top-1 right-1 size-5 rounded-full bg-black/75 ring-1 ring-white/15 flex items-center justify-center"
         >
           <.icon name="hero-check-mini" class="size-3.5 text-success" />
         </span>
@@ -129,7 +129,9 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
           <PlayableRow.progress_underline progress={@item.progress} class="mt-0 rounded-none" />
         </div>
       </div>
-      <div class="mt-1.5 text-[11px] leading-tight truncate text-base-content/60">
+      <%!-- Two lines, not one-line truncation: sequels share their prefix,
+            so cutting the tail erases exactly the distinguishing part. --%>
+      <div class="mt-1.5 text-[11px] leading-tight line-clamp-2 text-base-content/60">
         {@movie.name}
         <span :if={@movie.date_published} class="text-base-content/30 ml-0.5">
           {extract_year(@movie.date_published)}
@@ -148,7 +150,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
       id={"rail-upcoming-#{@item.part_tmdb_id}"}
       data-role="rail-upcoming"
       title={@item.title}
-      class="flex-shrink-0 w-20 opacity-55"
+      class="flex-shrink-0 w-24 opacity-55"
     >
       <div class="relative aspect-[2/3] rounded-lg border border-dashed border-base-content/15 flex flex-col items-center justify-center gap-1.5 px-1">
         <.icon name="hero-film-mini" class="size-4 text-base-content/30" />
@@ -156,7 +158,7 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
           {Logic.upcoming_pill_copy(@item)}
         </.badge>
       </div>
-      <div class="mt-1.5 text-[11px] leading-tight truncate text-base-content/50">
+      <div class="mt-1.5 text-[11px] leading-tight line-clamp-2 text-base-content/50">
         {@item.title}
       </div>
     </div>
