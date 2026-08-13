@@ -47,16 +47,11 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
     doc: "storage availability — poster images are dropped when the media dir is offline."
 
   def collection_rail(assigns) do
-    assigns = assign(assigns, :progress_note, Logic.saga_progress_note(assigns.movie_items))
-
     ~H"""
     <div class="px-4 pb-6" data-role="collection-rail">
-      <div class="flex items-baseline justify-between mb-2">
-        <h3 class="text-sm font-medium uppercase tracking-wider text-base-content/50">
-          {@saga_label}
-        </h3>
-        <span :if={@progress_note} class="text-xs text-base-content/40">{@progress_note}</span>
-      </div>
+      <h3 class="mb-2 text-sm font-medium uppercase tracking-wider text-base-content/50">
+        {@saga_label}
+      </h3>
       <%!-- p-1.5/-m-1.5: the cursor ring draws OUTSIDE the tile (2px
             outline + 2px offset) and an overflow scrollport clips it
             wherever a tile sits flush against the container edge — the
@@ -121,18 +116,6 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
         decoding="sync"
       />
       <div class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent"></div>
-      <%!-- Selection ring as an OVERLAY, never `outline` and never a
-            box-shadow on the button itself: the input system pre-sets
-            outline-color on every nav item in keyboard/gamepad mode
-            (the cursor owns the outline channel, UIDR-020), and an
-            inset box-shadow paints BEHIND children, so the backdrop img
-            would swallow it. A topmost inset-0 div is the one place the
-            ring is both visible and out of the cursor's way. --%>
-      <div class={[
-        "absolute inset-0 rounded-lg ring-2 ring-inset pointer-events-none transition-shadow",
-        (@selected && "ring-white/90") || "ring-transparent group-hover:ring-white/30"
-      ]}>
-      </div>
       <div class="absolute bottom-2.5 left-3 right-3">
         <img
           :if={@logo_url}
@@ -148,6 +131,16 @@ defmodule MediaCentaurWeb.Components.Detail.CollectionRail do
             {extract_year(@movie.date_published)}
           </span>
         </div>
+      </div>
+      <%!-- Selection by light, not by chrome: unselected tiles sit under
+            a quiet dimming scrim; the selected film is simply the lit
+            one. A child scrim (not a filter on the button) so the focus
+            cursor's outline keeps full strength on every tile. State
+            chrome (chip, underline) renders above it and stays crisp. --%>
+      <div
+        :if={!@selected}
+        class="absolute inset-0 rounded-lg bg-black/50 pointer-events-none transition-colors group-hover:bg-black/25"
+      >
       </div>
       <span
         :if={@item.state == :watched}
