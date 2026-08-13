@@ -53,6 +53,23 @@ The episode-style member rows (and with them the season-list symmetry for
 collections) are retired: episodes are continuations, so a series-level surface
 fits TV; collection members are destinations, so each gets the movie treatment.
 
+### Deviations settled at implementation
+
+* **No extras rail tile.** Collection-level extras render as the
+  standard `ExtrasSection` in the modal body — the same idiom as a bare
+  movie with bonus content — instead of the trailing ghost tile the
+  design sketched. One idiom for extras everywhere beats a second,
+  rail-specific one.
+* **The metadata row drops the "N movies" count** — the eyebrow's
+  "Part N of M" already carries the saga extent.
+* **The backdrop swap is an instant cut, not a crossfade.** The
+  pinned-block illusion requires the panel backdrop and its
+  orientation-backing replica to render byte-identical sources; a
+  two-layer crossfade would have to keep both copies in lockstep
+  mid-animation. The same-element src swap holds the old frame until
+  the cached new image decodes, which reads as near-atomic. Revisit
+  only if the cut feels jarring on the TV.
+
 ### Consequences
 
 * Good, because a member movie gets the full movie idiom — cast, artwork,
