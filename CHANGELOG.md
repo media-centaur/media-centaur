@@ -4,6 +4,16 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.126.3 — 2026-08-15
+
+### Improved
+
+- **Notification toasts match the rest of the app.** The pop-up messages in the top-right corner — saves, errors, reconnect notices — now appear on the same dark glass panels the app uses everywhere else, instead of solid colored boxes. Error toasts carry a red tint across the whole panel; routine notices stay quiet with just a colored icon. The close button is gone: click anywhere on a toast to dismiss it, and routine ones still dismiss themselves.
+
+### Fixed
+
+- **Coming Up now says when a date is a theater premiere.** A movie tile used to read a bare "Tonight" even when the date was a theatrical release Media Centaur will not download. Theater dates are now labeled "In theaters", movie release dates read "Today" instead of "Tonight", and a movie's extra release dates no longer inflate the "+ N more this season" count.
+
 ## v0.126.2 — 2026-08-14
 
 ### Improved
