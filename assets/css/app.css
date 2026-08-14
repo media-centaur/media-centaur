@@ -327,18 +327,21 @@ html.psb .psb-variation-block .media-centaur {
     drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
 }
 
-/* Glass navbar — more opaque, stronger blur, sticky-ready */
+/* Glass navbar — more opaque, stronger blur, sticky-ready.
+   Dark edge, not the light --glass-border hairline: these panels float over
+   the home hero backdrop, where a light 1px line reads as a whitish stripe.
+   Same rationale as .flash-toast below. */
 .glass-nav {
   background: var(--glass-nav-bg);
   @apply backdrop-blur-[20px];
-  border-bottom: 1px solid var(--glass-border);
+  border-bottom: 1px solid oklch(0% 0 0 / 0.5);
 }
 
 /* Glass sidebar — same treatment as navbar, vertical orientation */
 .glass-sidebar {
   background: var(--glass-nav-bg);
   @apply backdrop-blur-[30px];
-  border-right: 1px solid var(--glass-border);
+  border-right: 1px solid oklch(0% 0 0 / 0.5);
 }
 
 /* ── Text on imagery (UIDR-011) ──
@@ -534,7 +537,8 @@ html:not([data-sidebar=collapsed]):is([data-input=keyboard], [data-input=gamepad
   color: oklch(from var(--color-base-content) l c h / 0.95);
   background: var(--glass-nav-bg);
   @apply backdrop-blur-[12px];
-  border: 1px solid var(--glass-border);
+  /* Dark edge, not --glass-border: floats over the hero like .flash-toast. */
+  border: 1px solid oklch(0% 0 0 / 0.5);
   box-shadow: 0 4px 16px var(--glass-shadow);
   opacity: 0;
   transition: opacity 0.12s ease-out, transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
