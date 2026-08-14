@@ -63,6 +63,41 @@ describe("hasForeignFocus — focus ownership by containment", () => {
 })
 
 // ---------------------------------------------------------------------------
+// originOf — a click target resolved to the card identity the orchestrator
+// records as the overlay-restore origin: the enclosing nav item's entity id
+// plus the nav zone (context instance) it lives in.
+// ---------------------------------------------------------------------------
+
+describe("originOf — click target → card origin", () => {
+  function clickTarget({ entityId = "abc-123", zone = "continue" } = {}) {
+    const zoneEl = zone ? { dataset: { navZone: zone } } : null
+    const item = {
+      dataset: entityId ? { entityId } : {},
+      closest: (selector) => selector === "[data-nav-zone]" ? zoneEl : null,
+    }
+    return {
+      closest: (selector) => selector === "[data-nav-item]" ? item : null,
+    }
+  }
+
+  test("target inside an entity card in a nav zone → its context and entity id", () => {
+    expect(reader.originOf(clickTarget())).toEqual({ context: "continue", entityId: "abc-123" })
+  })
+
+  test("target outside any nav item → null", () => {
+    expect(reader.originOf({ closest: () => null })).toBe(null)
+  })
+
+  test("nav item without an entity id → null", () => {
+    expect(reader.originOf(clickTarget({ entityId: null }))).toBe(null)
+  })
+
+  test("nav item outside any nav zone → null", () => {
+    expect(reader.originOf(clickTarget({ zone: null }))).toBe(null)
+  })
+})
+
+// ---------------------------------------------------------------------------
 // Modal item scoping — stacked [data-detail-mode='modal'] overlays.
 //
 // A confirm dialog can render *over* a detail modal (downloads: the

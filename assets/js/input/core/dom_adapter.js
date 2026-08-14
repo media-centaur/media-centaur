@@ -249,6 +249,20 @@ export function createDomReader(config = {}) {
     },
 
     /**
+     * The card identity of a pointer target: the enclosing nav item's entity
+     * id plus the nav zone (context instance) it lives in. Null when the
+     * target is not inside an entity card in a nav zone. The orchestrator
+     * records this as the overlay-restore origin on mouse clicks — the same
+     * origin SELECT records for cursor activation.
+     */
+    originOf(target) {
+      const item = target?.closest?.("[data-nav-item]")
+      const entityId = item?.dataset?.entityId
+      const context = item?.closest?.("[data-nav-zone]")?.dataset?.navZone
+      return entityId && context ? { context, entityId } : null
+    },
+
+    /**
      * Get the nav item at a given index within a context.
      */
     getItemAt(context, index) {

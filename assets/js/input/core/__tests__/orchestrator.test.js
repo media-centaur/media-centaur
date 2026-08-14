@@ -93,6 +93,7 @@ function createMockReader(overrides = {}) {
     getItemAt: () => null,
     hasForeignFocus: () => false,
     isDetailNested: () => false,
+    originOf: () => null,
     // Default geometry: one horizontal row of evenly spaced tiles. Shelf
     // navigation is spatial, so every shelf test needs rects, and a row is the
     // shape every shelf but the Coming Up mosaic actually has.
@@ -177,6 +178,13 @@ function createMockGlobals() {
     _dispatchMouseMove(x, y) {
       const event = { clientX: x, clientY: y }
       for (const fn of (listeners.mousemove || [])) {
+        fn(event)
+      }
+      return event
+    },
+    _dispatchClick(target) {
+      const event = { target }
+      for (const fn of (listeners.click || [])) {
         fn(event)
       }
       return event
@@ -1151,6 +1159,106 @@ describe("Orchestrator", () => {
       const restoreCalls = calls.filter(c => c.method === "focusByEntityId" && c.args[0] === "recently")
       expect(restoreCalls.length).toBeGreaterThan(0)
       expect(restoreCalls[0].args[1]).toBe("poster-9")
+    })
+  })
+
+  // A mouse click that opens the modal must record the same origin SELECT
+  // records — without it, Escape's dismissal falls back to cursor-start
+  // seeding, and because Escape flips the method to keyboard, the seed
+  // reveals: the viewport yanks to the top shelf.
+  describe("mouse click records overlay-restore origin", () => {
+    function homeWithCard() {
+      const card = {}
+      const { system, reader, calls, globals } = setup({
+        getZone: () => "home",
+        getItemCount: (ctx) => ctx === "grid" ? 0 : ctx === "sidebar" ? 4 : 5,
+        originOf: (target) => target === card ? { context: "continue", entityId: "movie-7" } : null,
+      })
+      return { card, system, reader, calls, globals }
+    }
+
+    test("a click on a shelf card records the origin, exactly as SELECT does", () => {
+      const { card, system, globals } = homeWithCard()
+      system.start({})
+
+      globals._dispatchClick(card)
+
+      expect(system._originEntityId).toBe("movie-7")
+      expect(system._originContext).toBe("continue")
+    })
+
+    test("Escape after a mouse-opened modal restores the clicked card, not the page top", () => {
+      const hookEl = { pushEvent: mock(() => {}) }
+      const { card, system, reader, calls, globals } = homeWithCard()
+      system.start(hookEl)
+
+      // Real mouse session: prime the position, then move.
+      globals._dispatchMouseMove(100, 100)
+      globals._dispatchMouseMove(200, 200)
+
+      // The click opens the modal (LiveView patch flips the presentation).
+      globals._dispatchClick(card)
+      reader.getPresentation = () => "modal"
+      system.onViewChanged()
+      expect(system.focusMachine.inOverlay).toBe(true)
+      calls.length = 0
+
+      globals._dispatchKeyDown("Escape")
+      globals._flushRAF()
+
+      expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
+      expect(system.focusMachine.context).toBe("continue")
+      const restores = calls.filter(c => c.method === "focusByEntityId" && c.args[0] === "continue")
+      expect(restores.length).toBeGreaterThan(0)
+      expect(restores[0].args[1]).toBe("movie-7")
+    })
+
+    test("backdrop-click dismissal in mouse mode re-asserts the origin without revealing", () => {
+      const { card, system, reader, calls, globals } = homeWithCard()
+      system.start({})
+      globals._dispatchMouseMove(100, 100)
+      globals._dispatchMouseMove(200, 200)
+      globals._dispatchClick(card)
+      reader.getPresentation = () => "modal"
+      system.onViewChanged()
+      calls.length = 0
+
+      // Backdrop click: the patch removes the overlay. No key was pressed,
+      // so the method is still mouse and the viewport must not move.
+      reader.getPresentation = () => null
+      system.onViewChanged()
+      globals._flushRAF()
+
+      const restores = calls.filter(c => c.method === "focusByEntityId" && c.args[0] === "continue")
+      expect(restores.length).toBeGreaterThan(0)
+      expect(restores[0].args[2]).toEqual({ reveal: false })
+    })
+
+    test("a click inside an open overlay does not overwrite the origin", () => {
+      const { card, system, reader, globals } = homeWithCard()
+      system.start({})
+      globals._dispatchClick(card)
+      reader.getPresentation = () => "modal"
+      system.onViewChanged()
+
+      const castCard = {}
+      reader.originOf = (target) => target === castCard ? { context: "recently", entityId: "other-1" } : null
+      globals._dispatchClick(castCard)
+
+      expect(system._originEntityId).toBe("movie-7")
+      expect(system._originContext).toBe("continue")
+    })
+
+    test("a click on a menu item records no origin", () => {
+      const { system, reader, globals } = homeWithCard()
+      system.start({})
+
+      const menuItem = {}
+      reader.originOf = (target) => target === menuItem ? { context: "sidebar", entityId: "x-1" } : null
+      globals._dispatchClick(menuItem)
+
+      expect(system._originEntityId).toBe(null)
+      expect(system._originContext).toBe(null)
     })
   })
 
