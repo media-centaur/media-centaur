@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.126.4 — 2026-08-15
+
+### Improved
+
+- **Mixing mouse and keyboard works naturally now.** Pressing Escape to close a window, Backspace to clear a search, or typing into a field no longer switches the app into keyboard-navigation mode. Focus highlights and the shortcut hint bar only appear when you actually start navigating with the arrow keys or Enter — and the page no longer scrolls on its own while you're driving with the mouse.
+
 ## v0.126.3 — 2026-08-15
 
 ### Improved
