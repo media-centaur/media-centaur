@@ -33,6 +33,7 @@ import {SidebarTooltip} from "./hooks/sidebar_tooltip"
 import {pinReserve, sheetMaxRise} from "./hooks/detail_scroll_geometry"
 import {DetailBodyScroll} from "./hooks/detail_body_scroll"
 import {installReconnectOnVisible} from "./reconnect_on_visible"
+import {installNavReselect} from "./nav_reselect"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
@@ -250,6 +251,7 @@ window.addEventListener("input:rebindMaps", () => {
 // connect if there are any LiveViews on the page
 liveSocket.connect()
 installReconnectOnVisible(liveSocket)
+installNavReselect()
 
 // expose liveSocket on window for web console debug logs and latency simulation:
 // >> liveSocket.enableDebug()
