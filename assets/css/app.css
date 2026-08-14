@@ -287,6 +287,34 @@ html.psb .psb-variation-block .media-centaur {
   background: var(--glass-inset-bg);
 }
 
+/* Flash toasts — glass panel replacing the solid daisy alert-info/alert-error
+   fill (solid semantic fills wash out against the dark glass surfaces — same
+   rationale as UIDR-003). Uses the more opaque nav-tier background because
+   toasts float over arbitrary content, including imagery, and readability
+   comes first. A custom class because the glass background/shadow would
+   clobber the equivalent Tailwind utilities.
+
+   Info toasts stay calm neutral glass — the icon alone carries the color.
+   Error toasts get the stateful-surface treatment (tinted border + faint
+   wash over the glass), the same idiom as the selected subsystem tile. */
+.flash-toast {
+  background: var(--glass-nav-bg);
+  @apply backdrop-blur-[12px];
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 16px var(--glass-shadow);
+  color: var(--color-base-content);
+}
+
+.flash-toast[data-kind="error"] {
+  border-color: oklch(from var(--color-error) l c h / 0.35);
+  background:
+    linear-gradient(
+      oklch(from var(--color-error) l c h / 0.1),
+      oklch(from var(--color-error) l c h / 0.1)
+    ),
+    var(--glass-nav-bg);
+}
+
 /* Centaur logo — source artwork is dark navy on transparent.
    Inverted to near-white so the silhouette reads against the dark theme. */
 .centaur-logo {
