@@ -1285,6 +1285,21 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       assert results == []
     end
 
+    test "carries release_type so callers can label theatrical dates" do
+      item = create_tracking_item(%{name: "Sample Movie", media_type: :movie, tmdb_id: 88_001})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: ~D[2026-04-29],
+        release_type: "theatrical"
+      })
+
+      [row] = ReleaseTracking.list_releases_between(~D[2026-04-27], ~D[2026-05-03])
+
+      assert row.release_type == "theatrical"
+      assert row.item.media_type == :movie
+    end
+
     test "respects the limit option" do
       item = create_tracking_item(%{name: "Prolific Show"})
 

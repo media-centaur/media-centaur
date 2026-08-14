@@ -79,6 +79,25 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpTest do
       assert names == ["Soon Show", "Mid Show", "Late Show"]
     end
 
+    test "carries release_type through the ETS snapshot" do
+      on_exit_clear_table()
+
+      today = Date.utc_today()
+      item = create_tracking_item(%{name: "Sample Movie", media_type: :movie, tmdb_id: 88_002})
+
+      create_tracking_release(%{
+        item_id: item.id,
+        air_date: Date.add(today, 3),
+        release_type: "theatrical"
+      })
+
+      assert :ok = ComingUp.refresh_cache()
+
+      [row] = Views.coming_up(today, Date.add(today, 90), limit: 5)
+      assert row.release_type == "theatrical"
+      assert row.item.media_type == :movie
+    end
+
     test "broadcasts {:release_tracking_view_updated, :coming_up} after refresh" do
       on_exit_clear_table()
 

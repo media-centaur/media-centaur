@@ -24,15 +24,25 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
       item: %{
         id: Keyword.get(opts, :item_id, name),
         entity_id: Keyword.get(opts, :entity_id, "entity-" <> name),
-        name: name
+        name: name,
+        media_type: Keyword.get(opts, :media_type, :tv_series)
       },
       air_date: air_date,
       season_number: Keyword.get(opts, :season, 1),
       episode_number: Keyword.get(opts, :episode, 1),
+      release_type: Keyword.get(opts, :release_type),
       status: Keyword.get(opts, :status, :scheduled),
       backdrop_url: Keyword.get(opts, :backdrop_url, "/img/" <> name <> "/backdrop.jpg"),
       logo_url: Keyword.get(opts, :logo_url, "/img/" <> name <> "/logo.png")
     }
+  end
+
+  defp movie_release(name, air_date, opts) do
+    release(
+      name,
+      air_date,
+      Keyword.merge([media_type: :movie, season: nil, episode: nil], opts)
+    )
   end
 
   describe "coming_up_window/1" do
@@ -445,6 +455,122 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
       marquee = Logic.coming_up_marquee(releases, today)
 
       assert marquee.hero.entity_id == "library-uuid-sample-a"
+    end
+  end
+
+  describe "coming_up_marquee/2 — movie and theatrical labeling" do
+    # A bare "Tonight" on a movie tile is ambiguous: it reads as "expect
+    # the download tonight" even when the date is a theatrical premiere
+    # that will never be grabbed. The eyebrow carries the venue instead
+    # of adding any new element to the tile.
+
+    test "movie releasing today → eyebrow says 'Today', never 'Tonight'" do
+      today = ~D[2026-04-27]
+      releases = [movie_release("Sample Movie A", today, release_type: "digital")]
+
+      marquee = Logic.coming_up_marquee(releases, today)
+
+      assert marquee.hero.eyebrow == "Today"
+    end
+
+    test "theatrical date today → eyebrow 'In theaters · Today'" do
+      today = ~D[2026-04-27]
+      releases = [movie_release("Sample Movie A", today, release_type: "theatrical")]
+
+      marquee = Logic.coming_up_marquee(releases, today)
+
+      assert marquee.hero.eyebrow == "In theaters · Today"
+    end
+
+    test "theatrical date tomorrow → eyebrow 'In theaters · Tomorrow'" do
+      today = ~D[2026-04-27]
+
+      releases = [
+        movie_release("Sample Movie A", Date.add(today, 1), release_type: "theatrical")
+      ]
+
+      marquee = Logic.coming_up_marquee(releases, today)
+
+      assert marquee.hero.eyebrow == "In theaters · Tomorrow"
+    end
+
+    test "theatrical date within the week → 'In theaters · <weekday>'" do
+      today = ~D[2026-04-27]
+
+      releases = [
+        movie_release("Sample Movie A", Date.add(today, 4), release_type: "theatrical")
+      ]
+
+      marquee = Logic.coming_up_marquee(releases, today)
+
+      # Friday May 1 2026
+      assert marquee.hero.eyebrow == "In theaters · Fri"
+    end
+
+    test "theatrical date beyond a week → 'In theaters · <Mon DD>'" do
+      today = ~D[2026-04-27]
+
+      releases = [
+        movie_release("Sample Movie A", Date.add(today, 14), release_type: "theatrical")
+      ]
+
+      marquee = Logic.coming_up_marquee(releases, today)
+
+      assert marquee.hero.eyebrow == "In theaters · May 11"
+    end
+
+    test "theatrical labeling applies on secondary tiles too" do
+      today = ~D[2026-04-27]
+
+      releases = [
+        release("Sample Show A", today),
+        movie_release("Sample Movie A", Date.add(today, 2), release_type: "theatrical")
+      ]
+
+      marquee = Logic.coming_up_marquee(releases, today)
+
+      [secondary] = marquee.secondaries
+      assert secondary.eyebrow == "In theaters · Wed"
+    end
+
+    test "a movie's later second date never yields a 'more this season' rollup" do
+      today = ~D[2026-04-27]
+
+      releases = [
+        movie_release("Sample Movie A", today,
+          release_type: "theatrical",
+          item_id: "movie-a"
+        ),
+        movie_release("Sample Movie A", Date.add(today, 60),
+          release_type: "digital",
+          item_id: "movie-a"
+        )
+      ]
+
+      marquee = Logic.coming_up_marquee(releases, today)
+
+      assert marquee.hero.rollup == nil
+    end
+
+    test "a movie secondary with a later second date keeps sub nil" do
+      today = ~D[2026-04-27]
+
+      releases = [
+        release("Sample Show A", today),
+        movie_release("Sample Movie A", Date.add(today, 3),
+          release_type: "theatrical",
+          item_id: "movie-a"
+        ),
+        movie_release("Sample Movie A", Date.add(today, 60),
+          release_type: "digital",
+          item_id: "movie-a"
+        )
+      ]
+
+      marquee = Logic.coming_up_marquee(releases, today)
+
+      [secondary] = marquee.secondaries
+      assert secondary.sub == nil
     end
   end
 
