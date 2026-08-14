@@ -1271,6 +1271,29 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert html =~ "Coherent Part 1 synopsis"
     end
 
+    # UIDR-025: activity surfaces present member movies as movies. Their
+    # click contract is "open the collection modal pre-selected on this
+    # movie" — carried by the member's own id as `selected`, which the
+    # resolver routes to the collection. The pointed-at movie is the
+    # selection; the resume-target ladder applies only when the modal is
+    # entered without one.
+    test "opening by a member movie's id pre-selects that member",
+         %{conn: conn, part_2: part_2} do
+      {:ok, view, html} = live_async!(conn, ~p"/library?selected=#{part_2.id}")
+
+      assert html =~ "Coherent Part 2 synopsis"
+      assert has_element?(view, "#rail-tile-#{part_2.id}[data-selected]")
+    end
+
+    test "an explicit movie param outranks the member-id implication",
+         %{conn: conn, part_1: part_1, part_2: part_2} do
+      {:ok, view, html} =
+        live_async!(conn, ~p"/library?selected=#{part_2.id}&movie=#{part_1.id}")
+
+      assert html =~ "Coherent Part 1 synopsis"
+      assert has_element?(view, "#rail-tile-#{part_1.id}[data-selected]")
+    end
+
     test "opens on the resume-target member mid-collection",
          %{conn: conn, collection: collection, part_1: part_1, part_2: part_2} do
       _ =

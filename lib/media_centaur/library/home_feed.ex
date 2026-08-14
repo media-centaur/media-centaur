@@ -18,6 +18,7 @@ defmodule MediaCentaur.Library.HomeFeed do
     Episodes,
     Image,
     Movie,
+    MovieSeries,
     PlayableItem,
     PresentableQueries,
     Season,
@@ -35,7 +36,7 @@ defmodule MediaCentaur.Library.HomeFeed do
   most recently watched first. Used by HomeLive's Continue Watching row.
 
   Returns a list of plain maps in the shape:
-    `%{entity_id, entity_name, last_episode_label, progress_pct, backdrop_url}`
+    `%{entity_id, entity_name, progress_pct, backdrop_url}`
 
   `progress_pct` is 0..100 (integer).
 
@@ -52,13 +53,10 @@ defmodule MediaCentaur.Library.HomeFeed do
     limit = Keyword.get(opts, :limit, 12)
 
     movie_entries = fetch_in_progress_movies(limit)
-    hoisted_entries = fetch_in_progress_hoisted_movies(limit)
     tv_series_entries = fetch_in_progress_tv_series(limit)
     video_object_entries = fetch_in_progress_video_objects(limit)
-    movie_series_entries = fetch_in_progress_movie_series(limit)
 
-    (movie_entries ++
-       hoisted_entries ++ tv_series_entries ++ video_object_entries ++ movie_series_entries)
+    (movie_entries ++ tv_series_entries ++ video_object_entries)
     |> Enum.map(&overlay_in_memory_progress/1)
     |> Enum.sort_by(
       fn entry -> entry_last_watched_at(entry) || @epoch_datetime end,
@@ -104,18 +102,18 @@ defmodule MediaCentaur.Library.HomeFeed do
   def list_recently_added(opts \\ []) do
     limit = Keyword.get(opts, :limit, 16)
 
-    # One base query per presentable type; each carries its own presence
+    # One base query per content type; each carries its own presence
     # filter, and `fetch_recently_added/2` applies the uniform newest-first /
     # limit / image-preload / row-shape tail. Concatenation order is the
-    # stable tie-break for equal `inserted_at`.
+    # stable tie-break for equal `inserted_at`. Movies are one query with
+    # no collection categorization — the new thing is the movie, never its
+    # collection container (UIDR-025).
     [
-      PresentableQueries.standalone_movies(),
-      PresentableQueries.singleton_collection_movies(),
+      PresentableQueries.present_movies(),
       from(t in TVSeries,
         as: :item,
         where: exists(PresentableQueries.tv_series_present_file_subquery())
       ),
-      PresentableQueries.multi_child_movie_series(),
       from(v in VideoObject,
         as: :item,
         where: exists(PresentableQueries.video_object_present_file_subquery())
@@ -152,20 +150,19 @@ defmodule MediaCentaur.Library.HomeFeed do
   def list_hero_candidates(opts \\ []) do
     limit = Keyword.get(opts, :limit)
 
-    # One base query per presentable type, paired with the owner_type its
+    # One base query per content type, paired with the owner_type its
     # backdrop image is keyed by. Each base query carries its own presence
     # filter; `fetch_hero_candidates/3` adds the uniform eligibility
     # (non-blank description + a backdrop image), newest-first ordering, and
-    # row shaping. Results stay type-grouped (movies, hoisted, tv, …) then
-    # capped — no global re-sort.
+    # row shaping. Results stay type-grouped (movies, tv, …) then capped —
+    # no global re-sort. Collection members are candidates on their own
+    # art and synopsis; the collection entity never is (UIDR-025).
     [
-      {PresentableQueries.standalone_movies(), :movie},
-      {PresentableQueries.singleton_collection_movies(), :movie},
+      {PresentableQueries.present_movies(), :movie},
       {from(t in TVSeries,
          as: :item,
          where: exists(PresentableQueries.tv_series_present_file_subquery())
        ), :tv_series},
-      {PresentableQueries.multi_child_movie_series(), :movie_series},
       {from(v in VideoObject,
          as: :item,
          where: exists(PresentableQueries.video_object_present_file_subquery())
@@ -271,47 +268,16 @@ defmodule MediaCentaur.Library.HomeFeed do
     )
   end
 
-  # A collection is watched through its child movies. Standalone movies carry
-  # a nil `movie_series_id`; excluding them keeps the grouping keyed on a real
-  # collection id.
-  defp last_watched_by_movie_series do
-    from(wp in WatchProgress,
-      join: pi in PlayableItem,
-      on: pi.id == wp.playable_item_id,
-      join: movie in Movie,
-      on: movie.id == pi.container_id,
-      where: pi.container_type == ^:movie and not is_nil(movie.movie_series_id),
-      group_by: movie.movie_series_id,
-      select: %{container_id: movie.movie_series_id, last_watched_at: max(wp.last_watched_at)}
-    )
-  end
-
+  # Every movie with an incomplete WatchProgress, newest-watched first —
+  # standalone or collection member alike. Per UIDR-025 the collection is
+  # filing, not content: the unit of "continuing" is the member movie, so
+  # there is no movie-vs-collection categorization on this surface at all.
+  # Presence-agnostic (a transiently absent file doesn't erase the user's
+  # intent to keep watching). The parent collection's images ride along
+  # for the UIDR-021 art fallback.
   defp fetch_in_progress_movies(limit) do
-    fetch_in_progress_movie_records(
-      PresentableQueries.standalone_movies_by_record_count(),
-      [:images, :watch_progress],
-      limit
-    )
-  end
-
-  # Singleton-collection movies (the sole child Movie of their MovieSeries)
-  # with an incomplete WatchProgress — surfaced as the child movie, not the
-  # collection. Preloads :movie_series for the hoist shaping.
-  defp fetch_in_progress_hoisted_movies(limit) do
-    fetch_in_progress_movie_records(
-      PresentableQueries.singleton_collection_movies_by_record_count(),
-      [:images, :movie_series, :watch_progress],
-      limit
-    )
-  end
-
-  # Movies (standalone or hoisted) with at least one incomplete WatchProgress,
-  # ordered newest-watched first. `base_query` selects the movie set (the
-  # by-record-count variant, so a transiently absent file doesn't erase the
-  # user's intent to keep watching); `preloads` differ only by whether the
-  # parent MovieSeries is needed for hoist shaping.
-  defp fetch_in_progress_movie_records(base_query, preloads, limit) do
-    from([m] in base_query,
+    from(m in Movie,
+      as: :item,
       where:
         exists(
           from(wp in WatchProgress,
@@ -329,7 +295,7 @@ defmodule MediaCentaur.Library.HomeFeed do
       limit: ^limit
     )
     |> Repo.all()
-    |> Repo.preload(preloads)
+    |> Repo.preload([:images, :watch_progress, movie_series: :images])
     |> Enum.map(&build_in_progress_movie_entry/1)
     |> Enum.reject(&is_nil/1)
   end
@@ -347,7 +313,10 @@ defmodule MediaCentaur.Library.HomeFeed do
         type: :movie,
         name: movie.name,
         description: movie.description,
-        images: movie.images || [],
+        # Movie art first, collection art after — `image_url/2` takes the
+        # first match per role, so a member missing its own backdrop or
+        # logo inherits the collection's (UIDR-021 ladder).
+        images: (movie.images || []) ++ collection_images(movie),
         genres: movie.genres,
         duration_seconds: movie.duration_seconds
       }
@@ -365,6 +334,9 @@ defmodule MediaCentaur.Library.HomeFeed do
       %{entity: entity, progress: progress, progress_records: progress_records}
     end
   end
+
+  defp collection_images(%Movie{movie_series: %MovieSeries{images: images}}), do: images || []
+  defp collection_images(_movie), do: []
 
   # Fetches TV series the user has started but not finished.
   #
@@ -520,110 +492,6 @@ defmodule MediaCentaur.Library.HomeFeed do
     )
   end
 
-  # Fetches multi-child movie series where child movies have at least one
-  # incomplete WatchProgress record. Singleton-collection movies are surfaced
-  # via `fetch_in_progress_hoisted_movies/1` instead.
-  #
-  # Uses the by-record-count variant so a collection with 2+ children
-  # categorizes consistently regardless of how many of those children have
-  # present files right now.
-  defp fetch_in_progress_movie_series(limit) do
-    series_list =
-      from([ms] in PresentableQueries.multi_child_movie_series_by_record_count(),
-        where:
-          exists(
-            from(wp in WatchProgress,
-              join: pi in PlayableItem,
-              on: pi.id == wp.playable_item_id,
-              join: m in Movie,
-              on: m.id == pi.container_id and pi.container_type == ^:movie,
-              where: m.movie_series_id == parent_as(:item).id,
-              select: 1
-            )
-          ),
-        # Same reason as the TV fetcher: the not-finished test must run
-        # before `limit`, or a window of finished collections is fetched,
-        # rejected in Elixir, and the row comes back short (or empty).
-        where:
-          exists(
-            from(m in Movie,
-              as: :child_movie,
-              where: m.movie_series_id == parent_as(:item).id,
-              where:
-                not exists(
-                  from(wp in WatchProgress,
-                    join: pi in PlayableItem,
-                    on: pi.id == wp.playable_item_id,
-                    where:
-                      pi.container_type == ^:movie and
-                        pi.container_id == parent_as(:child_movie).id and
-                        wp.completed == true,
-                    select: 1
-                  )
-                ),
-              select: 1
-            )
-          ),
-        join: last_watched in subquery(last_watched_by_movie_series()),
-        on: last_watched.container_id == ms.id,
-        order_by: [desc: last_watched.last_watched_at],
-        limit: ^limit
-      )
-      |> Repo.all()
-      |> Repo.preload([:images, movies: [:watch_progress]])
-
-    # Same aggregate discipline as the TV fetcher: the denominator is
-    # the count of *present* child movies (those with a WatchedFile) —
-    # a child record with no file is not watchable and must not dilute
-    # the progress fraction.
-    present_counts = present_movie_counts(Enum.map(series_list, & &1.id))
-
-    Enum.reject(
-      Enum.map(series_list, fn series ->
-        progress_records =
-          for movie <- series.movies || [],
-              progress = movie.watch_progress,
-              not is_nil(progress),
-              do: progress
-
-        movies_total = Map.get(present_counts, series.id, 0)
-        movies_completed = Enum.count(progress_records, & &1.completed)
-
-        # Include movie series when the user has touched it AND hasn't
-        # finished all child movies.
-        if progress_records != [] and movies_completed < movies_total do
-          entity = %{
-            id: series.id,
-            type: :movie_series,
-            name: series.name,
-            description: series.description,
-            images: series.images || [],
-            genres: series.genres,
-            duration_seconds: nil
-          }
-
-          progress =
-            Map.merge(
-              %{episodes_completed: movies_completed, episodes_total: movies_total},
-              ContinueWatchingProgress.current_position_summary(progress_records)
-            )
-
-          %{entity: entity, progress: progress, progress_records: progress_records}
-        end
-      end),
-      &is_nil/1
-    )
-  end
-
-  defp present_movie_counts([]), do: %{}
-
-  defp present_movie_counts(series_ids) do
-    series_ids
-    |> PresentableQueries.present_movie_counts()
-    |> Repo.all()
-    |> Map.new()
-  end
-
   defp entry_last_watched_at(%{progress_records: records}) do
     records
     |> Enum.map(& &1.last_watched_at)
@@ -635,8 +503,6 @@ defmodule MediaCentaur.Library.HomeFeed do
     backdrop_url = image_url(entity.images, "backdrop")
     logo_url = image_url(entity.images, "logo")
 
-    last_episode_label = progress_episode_label(entity, summary)
-
     progress_pct = ContinueWatchingProgress.compute_pct(summary)
 
     last_watched_at = entry_last_watched_at(%{progress_records: records})
@@ -644,27 +510,12 @@ defmodule MediaCentaur.Library.HomeFeed do
     %{
       entity_id: entity.id,
       entity_name: entity.name,
-      last_episode_label: last_episode_label,
       progress_pct: progress_pct,
       backdrop_url: backdrop_url,
       logo_url: logo_url,
       last_watched_at: last_watched_at
     }
   end
-
-  defp progress_episode_label(%{type: :tv_series}, summary) when not is_nil(summary) do
-    if summary.episodes_total > 1 do
-      "#{summary.episodes_completed} / #{summary.episodes_total} episodes"
-    end
-  end
-
-  defp progress_episode_label(%{type: :movie_series}, summary) when not is_nil(summary) do
-    if summary.episodes_total > 1 do
-      "#{summary.episodes_completed} / #{summary.episodes_total} movies"
-    end
-  end
-
-  defp progress_episode_label(_entity, _summary), do: nil
 
   # Shapes a record (Movie, TVSeries, MovieSeries, VideoObject struct) into
   # the recently-added plain map. Carries `__inserted_at__` for merge-sort,

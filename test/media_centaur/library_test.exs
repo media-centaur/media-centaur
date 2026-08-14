@@ -144,7 +144,6 @@ defmodule MediaCentaur.LibraryTest do
       row = hd(results)
       assert row.entity_id == movie.id
       assert row.entity_name == "Prior Lives"
-      assert is_binary(row.last_episode_label) or is_nil(row.last_episode_label)
       assert is_integer(row.progress_pct)
       assert row.progress_pct >= 0 and row.progress_pct <= 100
       assert Map.has_key?(row, :backdrop_url)
@@ -248,12 +247,14 @@ defmodule MediaCentaur.LibraryTest do
       assert row.progress_pct == 50
     end
 
-    test "movie_series progress_pct counts only present child movies in the denominator" do
-      ms = create_movie_series(%{name: "Partial Trilogy"})
+    # UIDR-025: collections are filing, not content. The unit of
+    # "continuing" is the member movie — its own identity, its own
+    # within-movie bar. The collection entity never appears on this
+    # surface and has no completion fraction.
+    test "a paused member of a multi-child collection appears as that movie" do
+      ms = create_movie_series(%{name: "Sample Trilogy"})
       part1 = create_movie(%{movie_series_id: ms.id, name: "Part 1", position: 0})
       part2 = create_movie(%{movie_series_id: ms.id, name: "Part 2", position: 1})
-      # Third child record has no file — it must not dilute the bar.
-      _part3 = create_movie(%{movie_series_id: ms.id, name: "Part 3", position: 2})
       record_present(create_linked_file(%{movie_id: part1.id}))
       record_present(create_linked_file(%{movie_id: part2.id}))
 
@@ -264,8 +265,69 @@ defmodule MediaCentaur.LibraryTest do
         completed: true
       })
 
+      create_watch_progress(%{
+        movie_id: part2.id,
+        position_seconds: 40.0,
+        duration_seconds: 100.0
+      })
+
       [row] = Library.list_in_progress()
-      assert row.progress_pct == 50
+      assert row.entity_id == part2.id
+      assert row.entity_name == "Part 2"
+      assert row.progress_pct == 40
+    end
+
+    test "a finished member with the next member unstarted yields no row" do
+      ms = create_movie_series(%{name: "Sample Duology"})
+      part1 = create_movie(%{movie_series_id: ms.id, name: "Part 1", position: 0})
+      part2 = create_movie(%{movie_series_id: ms.id, name: "Part 2", position: 1})
+      record_present(create_linked_file(%{movie_id: part1.id}))
+      record_present(create_linked_file(%{movie_id: part2.id}))
+
+      create_watch_progress(%{
+        movie_id: part1.id,
+        position_seconds: 100.0,
+        duration_seconds: 100.0,
+        completed: true
+      })
+
+      assert Library.list_in_progress() == []
+    end
+
+    test "two paused members yield two independent rows" do
+      ms = create_movie_series(%{name: "Sample Trilogy"})
+      part1 = create_movie(%{movie_series_id: ms.id, name: "Part 1", position: 0})
+      part3 = create_movie(%{movie_series_id: ms.id, name: "Part 3", position: 2})
+      record_present(create_linked_file(%{movie_id: part1.id}))
+      record_present(create_linked_file(%{movie_id: part3.id}))
+
+      create_watch_progress(%{movie_id: part1.id, position_seconds: 20.0, duration_seconds: 100.0})
+      create_watch_progress(%{movie_id: part3.id, position_seconds: 60.0, duration_seconds: 100.0})
+
+      rows = Library.list_in_progress()
+      assert Enum.sort(Enum.map(rows, & &1.entity_id)) == Enum.sort([part1.id, part3.id])
+      refute Enum.any?(rows, &(&1.entity_id == ms.id))
+    end
+
+    test "a member movie without art falls back to collection art (UIDR-021 ladder)" do
+      ms = create_movie_series(%{name: "Sample Trilogy"})
+      part1 = create_movie(%{movie_series_id: ms.id, name: "Part 1", position: 0})
+      part2 = create_movie(%{movie_series_id: ms.id, name: "Part 2", position: 1})
+      record_present(create_linked_file(%{movie_id: part1.id}))
+      record_present(create_linked_file(%{movie_id: part2.id}))
+
+      create_image(%{
+        movie_series_id: ms.id,
+        role: "backdrop",
+        content_url: "#{ms.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      create_watch_progress(%{movie_id: part2.id, position_seconds: 40.0, duration_seconds: 100.0})
+
+      [row] = Library.list_in_progress()
+      assert row.entity_id == part2.id
+      assert row.backdrop_url =~ "backdrop.jpg"
     end
 
     test "does not return completed progress" do
@@ -489,8 +551,10 @@ defmodule MediaCentaur.LibraryTest do
       assert surviving_ids(limit: 2) == recent_ids(series, 2)
     end
 
-    test "movie collections" do
-      collections =
+    test "collection member movies" do
+      # UIDR-025: the surviving rows are the paused member movies
+      # themselves, never their collection containers.
+      members =
         for index <- 1..4 do
           collection = create_movie_series(%{name: "Collection #{index}"})
 
@@ -511,10 +575,10 @@ defmodule MediaCentaur.LibraryTest do
             })
 
           backdate(progress, :last_watched_at, hours_ago(index))
-          {index, collection.id}
+          {index, watched.id}
         end
 
-      assert surviving_ids(limit: 2) == recent_ids(collections, 2)
+      assert surviving_ids(limit: 2) == recent_ids(members, 2)
     end
   end
 
@@ -656,9 +720,19 @@ defmodule MediaCentaur.LibraryTest do
       assert row.overview == "A series synopsis"
     end
 
-    test "includes an eligible multi-child movie series" do
+    test "includes an eligible collection member movie, never the collection" do
+      # UIDR-025: the hero features movies on their own art and synopsis;
+      # the collection entity is not a candidate even when eligible.
       ms = create_movie_series(%{name: "Hero Trilogy", description: "A trilogy synopsis"})
-      part1 = create_movie(%{movie_series_id: ms.id, name: "Hero Part 1", position: 0})
+
+      part1 =
+        create_movie(%{
+          movie_series_id: ms.id,
+          name: "Hero Part 1",
+          description: "A member synopsis",
+          position: 0
+        })
+
       part2 = create_movie(%{movie_series_id: ms.id, name: "Hero Part 2", position: 1})
       create_linked_file(%{movie_id: part1.id})
       create_linked_file(%{movie_id: part2.id})
@@ -670,8 +744,20 @@ defmodule MediaCentaur.LibraryTest do
         extension: "jpg"
       })
 
-      assert Enum.any?(Library.list_hero_candidates(), &(&1.id == ms.id)),
-             "expected the eligible movie series to appear as a hero candidate"
+      create_image(%{
+        movie_id: part1.id,
+        role: "backdrop",
+        content_url: "#{part1.id}/backdrop.jpg",
+        extension: "jpg"
+      })
+
+      candidates = Library.list_hero_candidates()
+
+      assert Enum.any?(candidates, &(&1.id == part1.id)),
+             "expected the eligible member movie to appear as a hero candidate"
+
+      refute Enum.any?(candidates, &(&1.id == ms.id)),
+             "expected the collection container to be absent from hero candidates"
     end
 
     test "includes an eligible video object" do
@@ -784,7 +870,9 @@ defmodule MediaCentaur.LibraryTest do
              "expected the singleton collection container to be hidden, but it appeared"
     end
 
-    test "multi-child movie_series stays as a collection row" do
+    test "multi-child collection members appear individually; the collection never does" do
+      # UIDR-025: what was added is a movie. The collection entity is a
+      # filing surface (library view, modal rail), not an activity row.
       ms = create_movie_series(%{name: "Trilogy Collection"})
       part1 = create_movie(%{movie_series_id: ms.id, name: "Trilogy Part 1", position: 0})
       part2 = create_movie(%{movie_series_id: ms.id, name: "Trilogy Part 2", position: 1})
@@ -793,9 +881,12 @@ defmodule MediaCentaur.LibraryTest do
 
       results = Library.list_recently_added(limit: 10)
 
-      collection = Enum.find(results, fn r -> r.name == "Trilogy Collection" end)
-      assert collection, "expected the multi-child collection to appear in results"
-      assert collection.id == ms.id
+      result_ids = Enum.map(results, & &1.id)
+      assert part1.id in result_ids
+      assert part2.id in result_ids
+
+      refute Enum.any?(results, fn r -> r.id == ms.id end),
+             "expected the collection container to be absent, but it appeared"
     end
   end
 

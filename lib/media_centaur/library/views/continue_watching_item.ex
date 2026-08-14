@@ -12,7 +12,6 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingItem do
   defstruct [
     :entity_id,
     :entity_name,
-    :last_episode_label,
     :progress_pct,
     :backdrop_url,
     :logo_url,
@@ -22,7 +21,6 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingItem do
   @type t :: %__MODULE__{
           entity_id: String.t(),
           entity_name: String.t(),
-          last_episode_label: String.t() | nil,
           progress_pct: 0..100 | nil,
           backdrop_url: String.t() | nil,
           logo_url: String.t() | nil,

@@ -182,7 +182,6 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
         assert legacy_row.entity_id == cached_item.entity_id
         assert legacy_row.entity_name == cached_item.entity_name
         assert legacy_row.progress_pct == cached_item.progress_pct
-        assert legacy_row.last_episode_label == cached_item.last_episode_label
         assert legacy_row.backdrop_url == cached_item.backdrop_url
         assert legacy_row.logo_url == cached_item.logo_url
         assert legacy_row.last_watched_at == cached_item.last_watched_at
@@ -281,7 +280,6 @@ defmodule MediaCentaur.Library.Views.ContinueWatchingTest do
     test "permits nil values for the optional fields" do
       item = %ContinueWatchingItem{entity_id: "id-1", entity_name: "Name"}
 
-      assert item.last_episode_label == nil
       assert item.progress_pct == nil
       assert item.backdrop_url == nil
       assert item.logo_url == nil
