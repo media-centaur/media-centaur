@@ -356,9 +356,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                         away from the play cluster; a first-class nav
                         item so the toolbar walk reaches it. --%>
                   <span :if={@member_view} class="ml-auto flex items-center gap-2">
-                    <span class="text-xs text-base-content/40">
-                      {Logic.member_watched_label(@member_view.member.state)}
-                    </span>
+                    <span class="text-xs text-base-content/40">Watched</span>
                     <PlayableRow.watched_toggle
                       event="toggle_watched"
                       state={@member_view.member.state}
