@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.126.0 — 2026-08-14
+
+### Improved
+
+- **Home rows show the movies you're watching, not their collections.** Continue Watching, Recently Added, and the top banner now show each in-progress film from a collection as itself — its own artwork and its own progress line — instead of one combined collection card with a blended percentage. Collections still appear as a single entry on the library page and as the film strip inside their detail view.
+
+### Fixed
+
+- **Closing a detail view with Escape no longer jumps the page to the top.** Opening an entry with the mouse and closing it with the Escape key used to scroll the home page back to the banner. The page now stays where you were, with the entry you opened highlighted.
+- **The watched toggle in a collection's film strip line reads "Watched" in both states.** It previously switched to "Mark watched" for films you hadn't seen, making the line jitter as the label changed width.
+
 ## v0.125.0 — 2026-08-13
 
 ### Improved
