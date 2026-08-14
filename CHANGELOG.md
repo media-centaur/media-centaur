@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.126.2 — 2026-08-14
+
+### Improved
+
+- **Clicking the current page in the sidebar now scrolls back to the top.** If you're deep in a page and click its sidebar entry — Home on Home, Library on Library — the page glides back to the top instead of reloading in place.
+
 ## v0.126.1 — 2026-08-14
 
 ### Improved
