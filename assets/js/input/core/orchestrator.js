@@ -292,7 +292,7 @@ export class Orchestrator {
       if (typeof result === "string") {
         this._saveContextMemory()
         this.focusMachine.forceContext(result)
-        this._restoreContextFocus(result)
+        this._restoreContextFocus(result, this._restoreOpts())
       }
       return
     }
@@ -458,7 +458,7 @@ export class Orchestrator {
       this._pendingModalRefocus = false
       const entry = this._overlayEntry(this._config.overlays?.[this.reader.getOverlayName?.()])
       this.focusMachine.forceContext(entry)
-      this.writer.focusFirst(entry)
+      this.writer.focusFirst(entry, this._restoreOpts())
       return
     }
 
@@ -548,9 +548,8 @@ export class Orchestrator {
    * A mouse click that lands on an entity card records the overlay-restore
    * origin, exactly as SELECT does in _executeActivate. Without this, a
    * modal opened by pointer has no origin: Escape's dismissal would fall
-   * back to cursor-start seeding — and since the Escape keypress flips the
-   * method to keyboard, the seed reveals, yanking the viewport to the top
-   * shelf. Clicks inside an open overlay never overwrite the origin that
+   * back to cursor-start seeding instead of re-asserting the card the user
+   * came from. Clicks inside an open overlay never overwrite the origin that
    * opened it (a rail or cast card is not where the user came from).
    */
   _onClick(event) {
@@ -745,24 +744,31 @@ export class Orchestrator {
     // zone declares anything is the writer's business.
     if (direction && direction !== "back") this.writer.scrollZoneToTop(context)
 
+    // Cursor-driven crossings have flipped the method before the action ran,
+    // so _restoreOpts() reveals for them as before. The exception is BACK's
+    // containment peeling (region back edges, sidebar exit), which runs in
+    // whatever method is current — in mouse mode these writes must not move
+    // the viewport the pointer owns.
+    const opts = this._restoreOpts()
+
     const anchor = this._config.entryAnchors?.[context]
     if (anchor != null && this.reader.getItemCount(context) > anchor) {
-      this.writer.focusByIndex(context, anchor)
+      this.writer.focusByIndex(context, anchor, opts)
       return
     }
 
     const band = this._entryBand(context, direction)
     if (!band) {
-      this._restoreContextFocus(context)
+      this._restoreContextFocus(context, opts)
       return
     }
 
     const savedIndex = this._contextMemory[context]
     if (savedIndex != null && band.includes(savedIndex)) {
-      this.writer.focusByIndex(context, savedIndex)
+      this.writer.focusByIndex(context, savedIndex, opts)
       return
     }
-    this.writer.focusByIndex(context, band[0])
+    this.writer.focusByIndex(context, band[0], opts)
   }
 
   /**
@@ -803,9 +809,11 @@ export class Orchestrator {
    * Grid: restore by entity ID memory.
    * All others: active item (DOM marker) → index memory → declared default → first item.
    *
-   * `opts` is threaded to the writer's focus calls. Patch-driven restores pass
-   * `_restoreOpts()` so a mouse user's viewport is never moved; action-driven
-   * callers keep the revealing default (a key just flipped the method anyway).
+   * `opts` is threaded to the writer's focus calls, in practice always
+   * `_restoreOpts()`: cursor-driving actions flip the method before they run,
+   * so their restores reveal, while patch-driven reconciles and command
+   * actions (BACK, CLEAR) executed in mouse mode never move the viewport the
+   * pointer owns.
    */
   _restoreContextFocus(context, opts = { reveal: true }) {
     if (context === Context.GRID) {
@@ -1136,7 +1144,7 @@ export class Orchestrator {
   }
 
   _executeFocusContext(target) {
-    this._restoreContextFocus(target)
+    this._restoreContextFocus(target, this._restoreOpts())
   }
 
   /**
@@ -1335,7 +1343,7 @@ export class Orchestrator {
 
   _executeExitSubFocus() {
     if (this._subFocusIndex != null) {
-      this.writer.focusByIndex(this.focusMachine.context, this._subFocusIndex)
+      this.writer.focusByIndex(this.focusMachine.context, this._subFocusIndex, this._restoreOpts())
       this._subFocusIndex = null
     }
   }

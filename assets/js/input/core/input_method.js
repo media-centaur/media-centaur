@@ -1,6 +1,16 @@
 /**
- * Input method detection — tracks whether the user is using
- * mouse, keyboard, or gamepad.
+ * Input method detection — tracks who owns the focus cursor: the pointer
+ * (mouse) or the nav cursor (keyboard, gamepad).
+ *
+ * The method is cursor authority, not "last device touched". Mouse and
+ * keyboard are companions — a pointer user hits Escape to back out of a modal
+ * they clicked into, or types into a field, without ceding the pointer's
+ * ownership of focus and scroll. So the KeyboardSource reports a keypress
+ * here only when it produced a cursor-driving action (see isCursorDriving in
+ * actions.js); commands and typing never reach observe(). The gamepad is
+ * asymmetric on purpose: everything on a controller is navigation, so every
+ * button and axis reports. New keys default to not flipping — only
+ * cursor-driving does.
  *
  * Pure state machine. No DOM dependency.
  */

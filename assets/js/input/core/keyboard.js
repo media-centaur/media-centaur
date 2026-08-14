@@ -10,7 +10,7 @@
  *   stop()             — clean up
  */
 
-import { keyToAction, DEFAULT_KEY_MAP } from "./actions"
+import { keyToAction, isCursorDriving, DEFAULT_KEY_MAP } from "./actions"
 
 const TEXT_INPUT_ELEMENTS = new Set(["INPUT", "TEXTAREA"])
 
@@ -63,9 +63,22 @@ export class KeyboardSource {
     this._document.addEventListener("keydown", this._handleKeyDown)
   }
 
-  _handleKeyDown(event) {
-    this._onInputDetected("keydown")
+  /**
+   * Deliver an action, first reporting the keypress as input if the action is
+   * cursor-driving. Mouse and keyboard are companions, not exclusive modes: a
+   * pointer user hits Escape to back out of a modal they clicked into, or
+   * types into a field they clicked, without ceding the pointer's ownership of
+   * focus and scroll. Only cursor-driving actions (arrows, SELECT, zone
+   * cycling) claim the cursor and switch the method — commands and typing run
+   * in whatever method is current. The report precedes the action so the
+   * method has flipped by the time the action's focus writes consult it.
+   */
+  _emitAction(action) {
+    if (isCursorDriving(action)) this._onInputDetected("keydown")
+    this._onAction(action)
+  }
 
+  _handleKeyDown(event) {
     // Elements with data-captures-keys handle their own keyboard interaction
     if (event.target?.closest("[data-captures-keys]")) {
       return
@@ -138,7 +151,7 @@ export class KeyboardSource {
       const action = keyToAction(event.key, { targetIsInput: false }, this._keyMap)
       if (!action) return
       event.preventDefault()
-      this._onAction(action)
+      this._emitAction(action)
       return
     }
 
@@ -150,7 +163,7 @@ export class KeyboardSource {
     // Stop bubbling so LiveView's phx-window-keydown (on window) never fires.
     // The input system is the sole keyboard authority when active.
     event.stopPropagation()
-    this._onAction(action)
+    this._emitAction(action)
   }
 
   /**

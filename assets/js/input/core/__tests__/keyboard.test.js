@@ -105,10 +105,79 @@ describe("KeyboardSource", () => {
   })
 
   describe("onInputDetected", () => {
-    test("fires keydown on every key event", () => {
+    // Only cursor-driving keys claim the input method: the mouse is often used
+    // alongside the keyboard (click into a modal, Escape back out), so commands
+    // and typing must not flip a pointer user into keyboard mode.
+
+    test("fires for cursor-driving keys (arrows, Enter, zone brackets)", () => {
+      doc._dispatchKeyDown("ArrowUp")
       doc._dispatchKeyDown("ArrowDown")
+      doc._dispatchKeyDown("ArrowLeft")
+      doc._dispatchKeyDown("ArrowRight")
+      doc._dispatchKeyDown("Enter")
+      doc._dispatchKeyDown("]")
+      doc._dispatchKeyDown("[")
+      expect(inputDetections).toEqual(Array(7).fill("keydown"))
+    })
+
+    test("fires before the action is delivered", () => {
+      const order = []
+      const orderedSource = new KeyboardSource({
+        document: doc,
+        onAction: () => order.push("action"),
+        onInputDetected: () => order.push("detected"),
+      })
+      orderedSource.start()
+      doc._dispatchKeyDown("ArrowDown")
+      expect(order.slice(0, 2)).toEqual(["detected", "action"])
+    })
+
+    test("does not fire for command keys (Escape, Backspace, p)", () => {
+      doc._dispatchKeyDown("Escape")
+      doc._dispatchKeyDown("Backspace")
+      doc._dispatchKeyDown("p")
+      expect(actions).toEqual([Action.BACK, Action.CLEAR, Action.PLAY])
+      expect(inputDetections).toEqual([])
+    })
+
+    test("does not fire for unmapped keys", () => {
       doc._dispatchKeyDown("x")
-      expect(inputDetections).toEqual(["keydown", "keydown"])
+      doc._dispatchKeyDown("F1")
+      expect(inputDetections).toEqual([])
+    })
+
+    test("does not fire inside data-captures-keys", () => {
+      const capturer = {
+        closest: (sel) => sel === "[data-captures-keys]" ? capturer : null,
+        tagName: "DIV",
+      }
+      doc._dispatchKeyDown("ArrowDown", { target: capturer })
+      expect(inputDetections).toEqual([])
+    })
+
+    test("does not fire while typing into a text input", () => {
+      const input = {
+        tagName: "INPUT",
+        value: "",
+        closest: () => null,
+        dispatchEvent: mock(() => {}),
+      }
+      doc._dispatchKeyDown("Enter", { target: input })   // enter edit mode
+      doc._dispatchKeyDown("a", { target: input })       // type
+      doc._dispatchKeyDown("Escape", { target: input })  // exit edit mode
+      expect(inputDetections).toEqual([])
+    })
+
+    test("fires for arrow navigation from a non-editing text input", () => {
+      const input = {
+        tagName: "INPUT",
+        value: "",
+        closest: () => null,
+        dispatchEvent: mock(() => {}),
+      }
+      doc._dispatchKeyDown("ArrowDown", { target: input })
+      expect(actions).toEqual([Action.NAVIGATE_DOWN])
+      expect(inputDetections).toEqual(["keydown"])
     })
   })
 

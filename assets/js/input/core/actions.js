@@ -19,6 +19,31 @@ export const Action = Object.freeze({
   ZONE_PREV: "ZONE_PREV",
 })
 
+/**
+ * Actions that claim the focus cursor. Producing one is the signal that the
+ * user has started cursor-driving, so it switches the input method (mouse →
+ * keyboard). Commands (BACK, CLEAR, PLAY) and text entry run in whatever
+ * method is current — a mouse user pressing Escape is still a mouse user.
+ */
+const CURSOR_DRIVING_ACTIONS = new Set([
+  Action.NAVIGATE_UP,
+  Action.NAVIGATE_DOWN,
+  Action.NAVIGATE_LEFT,
+  Action.NAVIGATE_RIGHT,
+  Action.SELECT,
+  Action.ZONE_NEXT,
+  Action.ZONE_PREV,
+])
+
+/**
+ * Whether producing this action should switch the input method.
+ * @param {string} action - Action value
+ * @returns {boolean}
+ */
+export function isCursorDriving(action) {
+  return CURSOR_DRIVING_ACTIONS.has(action)
+}
+
 const ZONE_KEY_MAP = Object.freeze({
   "]": Action.ZONE_NEXT,
   "[": Action.ZONE_PREV,
