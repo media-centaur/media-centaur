@@ -4,6 +4,12 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.126.1 — 2026-08-14
+
+### Improved
+
+- **The detail view's darkening starts higher.** On a movie or show's detail view, the dark backing behind the description and episode list now begins further up the artwork, so the text sitting over bright imagery is easier to read.
+
 ## v0.126.0 — 2026-08-14
 
 ### Improved
