@@ -620,7 +620,7 @@ body:has(.modal-backdrop[data-state="open"]) {
      copies (content margin/padding pair and the replica's anchor) plus
      the DetailScrollGeometry hook's pin-scroll correction — one value,
      three couplings. */
-  --detail-sheet-reach: 8rem;
+  --detail-sheet-reach: 12rem;
   /* THE DARKNESS DIAL for the pinned block: how far past the block's
      top edge the sheet replica's gradient zero-point climbs before
      freezing (DetailScrollGeometry reads this into the rise cap).
