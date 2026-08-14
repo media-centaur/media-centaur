@@ -118,7 +118,6 @@ defmodule MediaCentaur.Library.Views.ContinueWatching do
     %ContinueWatchingItem{
       entity_id: row.entity_id,
       entity_name: row.entity_name,
-      last_episode_label: Map.get(row, :last_episode_label),
       progress_pct: Map.get(row, :progress_pct),
       backdrop_url: Map.get(row, :backdrop_url),
       logo_url: Map.get(row, :logo_url),

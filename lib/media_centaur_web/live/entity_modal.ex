@@ -585,7 +585,6 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   @spec apply_modal_params(Phoenix.LiveView.Socket.t(), map()) :: Phoenix.LiveView.Socket.t()
   def apply_modal_params(socket, params) do
     selected_id = params["selected"]
-    selected_member_id = params["movie"]
     detail_view = parse_view(params["view"])
     autoplay? = params["autoplay"] == "1"
 
@@ -617,6 +616,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     # arrived at by default. `Logic.resolve_view/2` is the single place that
     # decides, shared with the strip that draws the tabs.
     detail_view = resolve_view(selected_entry, detail_view)
+
+    selected_member_id = params["movie"] || implied_member_id(selected_entry, selected_id)
 
     # Files are loaded asynchronously so the modal can render immediately.
     # `load_entity_files/1` issues a `File.stat/1` per file; on a network
@@ -677,6 +678,17 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
     if should_load_files?, do: start_async_files_load(socket, selected_id), else: socket
   end
+
+  # A `selected` id that resolved *away* from itself — a member movie the
+  # resolver routed to its collection — carries information: the caller
+  # pointed at that specific movie, so it is the member selection
+  # (UIDR-025 click contract for activity surfaces). An explicit `movie`
+  # param outranks it; the resume-target ladder applies only when the
+  # modal is entered with no selection at all (the collection's own id).
+  defp implied_member_id(%CollectionDetail{entity: %{id: collection_id}}, selected_id)
+       when selected_id != collection_id, do: selected_id
+
+  defp implied_member_id(_selected_entry, _selected_id), do: nil
 
   # State the user built up against the entity that was open, which means
   # nothing against the next one: which episode disclosures they opened,

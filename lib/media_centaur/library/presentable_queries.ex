@@ -127,6 +127,20 @@ defmodule MediaCentaur.Library.PresentableQueries do
   end
 
   @doc """
+  Every movie with at least one present file, collection membership
+  ignored. This is the activity-surface unit (UIDR-025): Recently Added
+  and the hero banner speak in movies and never render a collection
+  container, so they need no hoist categorization at all — the partition
+  above stays for filing surfaces (the browse grid) and click routing.
+  """
+  def present_movies do
+    from(m in Movie,
+      as: :item,
+      where: exists(movie_present_files_subquery())
+    )
+  end
+
+  @doc """
   Present (possessed) movie ids in a `MovieSeries`, ordered by position.
 
   The hoist rule reads the length of the result: an empty list means the
