@@ -106,6 +106,7 @@ export class Orchestrator {
     this._mounting = false
     this._onMouseMove = this._onMouseMove.bind(this)
     this._onWheel = this._onWheel.bind(this)
+    this._onClick = this._onClick.bind(this)
     this._onVisibilityChange = this._onVisibilityChange.bind(this)
   }
 
@@ -137,6 +138,7 @@ export class Orchestrator {
 
     this._globals.document.addEventListener("mousemove", this._onMouseMove)
     this._globals.document.addEventListener("wheel", this._onWheel, { passive: true })
+    this._globals.document.addEventListener("click", this._onClick)
     this._globals.document.addEventListener("visibilitychange", this._onVisibilityChange)
 
     // Mount-time focus seeding is scroll-neutral. The window still carries
@@ -242,6 +244,7 @@ export class Orchestrator {
 
     this._globals.document.removeEventListener("mousemove", this._onMouseMove)
     this._globals.document.removeEventListener("wheel", this._onWheel)
+    this._globals.document.removeEventListener("click", this._onClick)
     this._globals.document.removeEventListener("visibilitychange", this._onVisibilityChange)
     this._detachBehavior()
     this._hookEl = null
@@ -533,9 +536,39 @@ export class Orchestrator {
       // overlay the user is now in.
       if (this.focusMachine.inOverlay) return
       this.focusMachine.forceContext(context)
-      if (entityId && this.writer.focusByEntityId(context, entityId)) return
-      this._restoreContextFocus(context)
+      // Reveal is method-gated: a key-driven dismissal glides back to the
+      // origin card, while a mouse dismissal (backdrop click) re-asserts
+      // focus without moving the viewport the pointer owns.
+      if (entityId && this.writer.focusByEntityId(context, entityId, this._restoreOpts())) return
+      this._restoreContextFocus(context, this._restoreOpts())
     })
+  }
+
+  /**
+   * A mouse click that lands on an entity card records the overlay-restore
+   * origin, exactly as SELECT does in _executeActivate. Without this, a
+   * modal opened by pointer has no origin: Escape's dismissal would fall
+   * back to cursor-start seeding — and since the Escape keypress flips the
+   * method to keyboard, the seed reveals, yanking the viewport to the top
+   * shelf. Clicks inside an open overlay never overwrite the origin that
+   * opened it (a rail or cast card is not where the user came from).
+   */
+  _onClick(event) {
+    if (this.focusMachine.inOverlay) return
+    const origin = this.reader.originOf?.(event.target)
+    if (origin) this._recordOrigin(origin.entityId, origin.context)
+  }
+
+  /**
+   * Remember which card opened the modal/drawer for focus restoration.
+   * Content-card contexts (the grid, or a home shelf) carry a stable entity
+   * ID; menu/overlay contexts don't, and must not seed a bogus origin.
+   */
+  _recordOrigin(entityId, context) {
+    const type = contextType(context, this._config.instanceTypes)
+    if (!entityId || (type !== Context.GRID && type !== Context.SHELF)) return
+    this._originEntityId = entityId
+    this._originContext = context
   }
 
   _onVisibilityChange() {
@@ -1150,14 +1183,7 @@ export class Orchestrator {
       return
     }
 
-    // Remember which card opened the modal/drawer for focus restoration.
-    // Content-card contexts (the grid, or a home shelf) carry a stable entity
-    // ID; menu/overlay contexts don't, and must not seed a bogus origin.
-    const originType = contextType(this.focusMachine.context, this._config.instanceTypes)
-    if (focused.dataset.entityId && (originType === Context.GRID || originType === Context.SHELF)) {
-      this._originEntityId = focused.dataset.entityId
-      this._originContext = this.focusMachine.context
-    }
+    this._recordOrigin(focused.dataset.entityId, this.focusMachine.context)
 
     // A control that grows its own list (Show more): after its patch lands,
     // return the cursor to the item it came from — grounding the user on a
