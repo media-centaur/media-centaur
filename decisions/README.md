@@ -96,3 +96,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 022 | 2026-08-11 | [Gap banner states the diagnosed world, with its evidence — never a bare "not available"](user-interface/2026-08-11-022-gap-banner-adaptive-verdict.md) | accepted |
 | 023 | 2026-08-13 | [Movie-first collection modal with a poster-rail picker](user-interface/2026-08-13-023-movie-first-collection-modal.md) | accepted |
 | 024 | 2026-08-13 | [Subject progress lives in the hero hairline, from one shared component](user-interface/2026-08-13-024-subject-progress-hero-hairline.md) | accepted |
+| 025 | 2026-08-14 | [Collections are filing, not content — activity surfaces speak in movies](user-interface/2026-08-14-025-collections-are-filing-not-content.md) | accepted |
