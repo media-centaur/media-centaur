@@ -297,10 +297,15 @@ html.psb .psb-variation-block .media-centaur {
    Info toasts stay calm neutral glass — the icon alone carries the color.
    Error toasts get the stateful-surface treatment (tinted border + faint
    wash over the glass), the same idiom as the selected subsystem tile. */
+/* The edge is dark, not the standard light --glass-border hairline: a light
+   1px line on this opaque panel reads as an indecisive grey outline. A dark
+   edge is invisible against dark backgrounds (effectively borderless) but
+   still separates the panel crisply when it floats over bright imagery,
+   where the shadow alone washes out. */
 .flash-toast {
   background: var(--glass-nav-bg);
   @apply backdrop-blur-[12px];
-  border: 1px solid var(--glass-border);
+  border: 1px solid oklch(0% 0 0 / 0.5);
   box-shadow: 0 4px 16px var(--glass-shadow);
   color: var(--color-base-content);
 }
