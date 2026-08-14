@@ -16,6 +16,7 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpItem do
     :air_date,
     :season_number,
     :episode_number,
+    :release_type,
     :backdrop_url,
     :logo_url,
     status: :scheduled
@@ -26,6 +27,7 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUpItem do
           air_date: Date.t(),
           season_number: integer() | nil,
           episode_number: integer() | nil,
+          release_type: String.t() | nil,
           status: atom(),
           backdrop_url: String.t() | nil,
           logo_url: String.t() | nil

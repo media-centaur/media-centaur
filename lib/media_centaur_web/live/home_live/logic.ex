@@ -159,7 +159,10 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
     * Eyebrow text is "Tonight" / "Tomorrow" / abbreviated weekday /
       absolute "Mon DD" relative to `today`. Hero eyebrows include the
       season/episode label; secondary eyebrows just carry the day part
-      and put the episode label in `sub`.
+      and put the episode label in `sub`. Movies say "Today" instead of
+      "Tonight", and a theatrical date gets an "In theaters · " prefix —
+      a bare day would falsely promise a download for a date that is
+      never grabbed.
     * An empty input returns `%Marquee{hero: nil, secondaries: []}` so
       the caller can render nothing without special-casing.
   """
@@ -246,9 +249,13 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
   # --- Private helpers ---
 
   defp build_marquee_item(release, series_count, today, role) do
-    more_count = series_count - 1
+    kind = release_kind(release)
+    # A movie's sibling releases are its other dates for the same film
+    # (theatrical → digital → physical), not additional titles — never
+    # advertise them as "+ N more".
+    more_count = if kind == :episode, do: series_count - 1, else: 0
     episode_label = season_episode_label(release)
-    day_part = day_part_for(release.air_date, today)
+    day_part = day_part_for(release.air_date, today, kind)
 
     eyebrow =
       case role do
@@ -272,11 +279,27 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
     }
   end
 
-  defp day_part_for(nil, _today), do: nil
+  # An episode's date is when it airs and gets grabbed, so "Tonight" is
+  # honest. A movie's dates are daytime availability windows ("Today"),
+  # and a theatrical date is never grabbed at all — the eyebrow carries
+  # the venue so "tonight" can't read as "expect the download tonight".
+  defp release_kind(release) do
+    cond do
+      Map.get(release.item, :media_type) != :movie -> :episode
+      Map.get(release, :release_type) == "theatrical" -> :theatrical
+      true -> :movie
+    end
+  end
 
-  defp day_part_for(%Date{} = date, today) do
+  defp day_part_for(nil, _today, _kind), do: nil
+
+  defp day_part_for(%Date{} = date, today, :theatrical),
+    do: "In theaters · " <> day_part_for(date, today, :movie)
+
+  defp day_part_for(%Date{} = date, today, kind) do
     case Date.diff(date, today) do
-      0 -> "Tonight"
+      0 when kind == :episode -> "Tonight"
+      0 -> "Today"
       1 -> "Tomorrow"
       n when n in 2..6 -> Calendar.strftime(date, "%a")
       _ -> Calendar.strftime(date, "%b %-d")

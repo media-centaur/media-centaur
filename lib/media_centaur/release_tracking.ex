@@ -680,6 +680,7 @@ defmodule MediaCentaur.ReleaseTracking do
         air_date: release.air_date,
         season_number: release.season_number,
         episode_number: release.episode_number,
+        release_type: release.release_type,
         status: :scheduled,
         backdrop_url: backdrop_url,
         logo_url: logo_url

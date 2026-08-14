@@ -138,6 +138,7 @@ defmodule MediaCentaur.ReleaseTracking.Views.ComingUp do
       air_date: row.air_date,
       season_number: Map.get(row, :season_number),
       episode_number: Map.get(row, :episode_number),
+      release_type: Map.get(row, :release_type),
       status: Map.get(row, :status, :scheduled),
       backdrop_url: Map.get(row, :backdrop_url),
       logo_url: Map.get(row, :logo_url)
