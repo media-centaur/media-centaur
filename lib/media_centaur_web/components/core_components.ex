@@ -88,16 +88,6 @@ defmodule MediaCentaurWeb.CoreComponents do
           <p :if={@title} class="font-medium">{@title}</p>
           <p class={["text-base-content/70", @title && "mt-0.5"]}>{msg}</p>
         </div>
-        <button
-          type="button"
-          class="group -m-1 cursor-pointer self-start p-1"
-          aria-label={gettext("close")}
-        >
-          <.icon
-            name="hero-x-mark"
-            class="size-4 opacity-40 transition-opacity group-hover:opacity-70"
-          />
-        </button>
       </div>
     </div>
     """
