@@ -1164,8 +1164,7 @@ describe("Orchestrator", () => {
 
   // A mouse click that opens the modal must record the same origin SELECT
   // records — without it, Escape's dismissal falls back to cursor-start
-  // seeding, and because Escape flips the method to keyboard, the seed
-  // reveals: the viewport yanks to the top shelf.
+  // seeding instead of re-asserting the card the user came from.
   describe("mouse click records overlay-restore origin", () => {
     function homeWithCard() {
       const card = {}
@@ -2730,7 +2729,7 @@ describe("Orchestrator", () => {
       globals._dispatchKeyDown("ArrowLeft")
       const focusCalls = calls.filter(c => c.method === "focusByIndex")
       expect(focusCalls.length).toBe(1)
-      expect(focusCalls[0].args).toEqual(["modal", 0])
+      expect(focusCalls[0].args).toEqual(["modal", 0, { reveal: true }])
       expect(system._subFocusIndex).toBeNull()
     })
 
@@ -3525,7 +3524,7 @@ describe("Orchestrator", () => {
 
         globals._dispatchKeyDown("ArrowLeft")
         expect(system.focusMachine.subFocus).toBe(false)
-        expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 0] })
+        expect(calls).toContainEqual({ method: "focusByIndex", args: ["detail_list", 0, { reveal: true }] })
       })
 
       test("back leaves the list from inside a row's controls", () => {
@@ -3751,6 +3750,109 @@ describe("Orchestrator", () => {
         globals._dispatchKeyDown("Escape")
         expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
       })
+    })
+  })
+
+  // The mouse is used alongside the keyboard, not instead of it: a pointer
+  // user clicks into a modal and hits Escape to back out without ceding the
+  // pointer's ownership of focus and scroll. Only cursor-driving keys (arrows,
+  // Enter, zone brackets) switch the method — command keys run their action in
+  // mouse mode, and every focus write their execution performs must therefore
+  // be reveal-suppressed so the viewport the pointer owns never moves.
+  describe("command keys do not claim the cursor", () => {
+    function mouseMode(globals) {
+      globals._dispatchMouseMove(100, 100)
+      globals._dispatchMouseMove(200, 200)
+    }
+
+    test("Escape stays in mouse mode while its BACK action still runs", () => {
+      const hookEl = { pushEvent: mock(() => {}) }
+      const { system, calls, globals } = setup({ getPresentation: () => "modal" })
+      system.start(hookEl)
+      system.onViewChanged()
+      mouseMode(globals)
+      calls.length = 0
+
+      globals._dispatchKeyDown("Escape")
+
+      expect(hookEl.pushEvent).toHaveBeenCalledWith("close_detail", {})
+      expect(system.inputDetector.current).toBe("mouse")
+      expect(calls.filter(c => c.method === "setInputMethod").length).toBe(0)
+    })
+
+    test("an arrow key switches a mouse user back to keyboard mode", () => {
+      const { system, calls, globals } = setup()
+      system.start({})
+      mouseMode(globals)
+      calls.length = 0
+
+      globals._dispatchKeyDown("ArrowDown")
+
+      const methodCalls = calls.filter(c => c.method === "setInputMethod")
+      expect(methodCalls.length).toBe(1)
+      expect(methodCalls[0].args).toEqual(["keyboard"])
+    })
+
+    test("nested-view Escape in mouse mode refocuses the modal without revealing", () => {
+      const hookEl = { pushEvent: mock(() => {}) }
+      const { system, calls, globals } = setup({
+        getPresentation: () => "modal",
+        isDetailNested: () => true,
+      })
+      system.start(hookEl)
+      system.onViewChanged()
+      mouseMode(globals)
+
+      globals._dispatchKeyDown("Escape")
+      expect(system._pendingModalRefocus).toBe(true)
+      calls.length = 0
+
+      // The LiveView patch back to the root view lands.
+      system.onViewChanged()
+
+      const focusCalls = calls.filter(c => c.method === "focusFirst")
+      expect(focusCalls.length).toBe(1)
+      expect(focusCalls[0].args).toEqual([Context.MODAL, { reveal: false }])
+    })
+
+    test("CLEAR follow-focus in mouse mode re-asserts without revealing", () => {
+      const { system, calls, globals } = setup({
+        getZone: () => "library",
+        getPageBehavior: () => "library",
+      }, {
+        createBehavior: (name) =>
+          name === "library" ? { onClear: () => "grid", onSyncState: () => ({}) } : null,
+      })
+      system.start({})
+      mouseMode(globals)
+      calls.length = 0
+
+      globals._dispatchKeyDown("Backspace")
+
+      const focusCalls = calls.filter(c =>
+        c.method === "focusFirst" || c.method === "focusByIndex" || c.method === "focusByEntityId")
+      expect(focusCalls.length).toBeGreaterThan(0)
+      for (const call of focusCalls) {
+        expect(call.args.at(-1)).toEqual({ reveal: false })
+      }
+    })
+
+    test("Escape-exit from the sidebar in mouse mode re-enters content without revealing", () => {
+      const { system, calls, globals } = setup()
+      system.start({})
+      system.focusMachine.forceContext("sidebar")
+      mouseMode(globals)
+      calls.length = 0
+
+      globals._dispatchKeyDown("Escape")
+
+      expect(system.focusMachine.context).toBe(Context.GRID)
+      const focusCalls = calls.filter(c =>
+        c.method === "focusFirst" || c.method === "focusByIndex" || c.method === "focusByEntityId")
+      expect(focusCalls.length).toBeGreaterThan(0)
+      for (const call of focusCalls) {
+        expect(call.args.at(-1)).toEqual({ reveal: false })
+      }
     })
   })
 })

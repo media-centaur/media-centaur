@@ -549,9 +549,9 @@ without either, an in-flight reveal overrode the user's scrolling on every
 frame until it arrived. While the method is mouse, restores the user didn't
 ask for (post-patch reconciles, cursor-start seeding) pass `{ reveal: false }`
 to the writer's focus calls: focus is re-asserted with `preventScroll`, and
-the viewport stays where the user put it. The next keypress or gamepad input
-flips the method back before its action executes, so cursor-driven navigation
-reveals exactly as before.
+the viewport stays where the user put it. The next cursor-driving keypress or
+gamepad input flips the method back before its action executes, so
+cursor-driven navigation reveals exactly as before.
 
 **The navigation owns mount-time scroll.** When `start()` runs — every live
 navigation and the initial load — the window still carries the *previous*
@@ -638,7 +638,9 @@ A contextual button legend fixed at the bottom center of the viewport. Shows rel
 
 ## Input Method Detection
 
-Three methods: `mouse`, `keyboard`, `gamepad`. Switched by detecting raw input events. The `InputMethodDetector` (pure state machine) tracks the current method; the orchestrator writes it to `data-input` on `<html>`.
+Three methods: `mouse`, `keyboard`, `gamepad`. The `InputMethodDetector` (pure state machine) tracks the current method; the orchestrator writes it to `data-input` on `<html>`.
+
+**The method is cursor authority, not "last device touched."** Mouse and keyboard are companions: a pointer user clicks into a modal and hits Escape to back out, or types into a field they clicked, without ceding the pointer's ownership of focus and scroll. So only **cursor-driving** keys switch to keyboard mode — arrows, Enter-as-SELECT, and the zone brackets (`isCursorDriving` in `actions.js`). Command keys (Escape, Backspace, `p`), typing into text inputs, unmapped keys, and keys inside `data-captures-keys` still perform their action but leave the method alone. Because BACK and CLEAR can now execute *in* mouse mode, every focus write their execution performs routes through `_restoreOpts()` — the viewport the pointer owns never moves. The gamepad is asymmetric on purpose: everything on a controller is navigation, so every button and axis switches to gamepad mode. New keys default to not switching.
 
 **Mouse detection uses position tracking, not event counting.** Layout shifts from LiveView patches fire synthetic `mousemove` events at the same coordinates (the OS controls cursor position, not the page). The orchestrator only switches to mouse when `clientX`/`clientY` actually change (≥1px delta). The first `mousemove` after a fresh orchestrator primes the baseline position without switching — this prevents false switches during full-page navigations where the initial position is unknown.
 
