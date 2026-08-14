@@ -70,20 +70,33 @@ defmodule MediaCentaurWeb.CoreComponents do
       class="toast toast-top toast-end z-50"
       {@rest}
     >
-      <div class={[
-        "alert w-80 sm:w-96 max-w-80 sm:max-w-96 text-wrap",
-        @kind == :info && "alert-info",
-        @kind == :error && "alert-error"
-      ]}>
-        <.icon :if={@kind == :info} name="hero-information-circle" class="size-5 shrink-0" />
-        <.icon :if={@kind == :error} name="hero-exclamation-circle" class="size-5 shrink-0" />
-        <div>
-          <p :if={@title} class="font-semibold">{@title}</p>
-          <p>{msg}</p>
+      <div
+        data-kind={@kind}
+        class="flash-toast flex w-80 max-w-80 cursor-pointer items-start gap-3 rounded-xl p-3.5 text-wrap sm:w-96 sm:max-w-96"
+      >
+        <.icon
+          :if={@kind == :info}
+          name="hero-information-circle"
+          class="mt-px size-5 shrink-0 text-info"
+        />
+        <.icon
+          :if={@kind == :error}
+          name="hero-exclamation-circle"
+          class="mt-px size-5 shrink-0 text-error"
+        />
+        <div class="min-w-0 flex-1 text-sm">
+          <p :if={@title} class="font-medium">{@title}</p>
+          <p class={["text-base-content/70", @title && "mt-0.5"]}>{msg}</p>
         </div>
-        <div class="flex-1" />
-        <button type="button" class="group self-start cursor-pointer" aria-label={gettext("close")}>
-          <.icon name="hero-x-mark" class="size-5 opacity-40 group-hover:opacity-70" />
+        <button
+          type="button"
+          class="group -m-1 cursor-pointer self-start p-1"
+          aria-label={gettext("close")}
+        >
+          <.icon
+            name="hero-x-mark"
+            class="size-4 opacity-40 transition-opacity group-hover:opacity-70"
+          />
         </button>
       </div>
     </div>
