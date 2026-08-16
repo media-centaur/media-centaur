@@ -45,7 +45,6 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.MaintenanceSection
   alias MediaCentaurWeb.SettingsLive.Playback
   alias MediaCentaurWeb.SettingsLive.Preferences
-  alias MediaCentaurWeb.SettingsLive.ReleaseTrackingSection
   alias MediaCentaurWeb.SettingsLive.Services
   alias MediaCentaurWeb.SettingsLive.Tmdb
   alias MediaCentaurWeb.SettingsLive.LanguageLogic
@@ -54,21 +53,21 @@ defmodule MediaCentaurWeb.SettingsLive do
   # adjacent items whose :group differs. Order within a group is by frequency
   # of user interaction: things you touch daily come first.
   @sections [
-    # System is its own group so it sits alone above everything else.
+    # Operational — the app itself and its background services.
     # (Update automation lives on the System section's Updates card.)
     %{id: "system", label: "System", group: :system},
-    # General — start-of-session setup
-    %{id: "services", label: "Services", group: :general},
+    %{id: "services", label: "Services", group: :system},
+    # Personal — start-of-session setup
     %{id: "preferences", label: "Preferences", group: :general},
     %{id: "controls", label: "Controls", group: :general},
-    # Media workflow — the arr stack
+    # Media workflow — the arr stack. (Release tracking's refresh interval
+    # lives on the Acquisition section — it feeds auto-grab.)
     %{id: "library", label: "Library", group: :media},
     %{id: "tmdb", label: "TMDB", group: :media},
     %{id: "acquisition", label: "Acquisition", group: :media},
     %{id: "import", label: "Media Import", group: :media},
     %{id: "playback", label: "Playback", group: :media},
     %{id: "language", label: "Language", group: :media},
-    %{id: "release_tracking", label: "Release Tracking", group: :media},
     # Infrastructure — rare-touch admin. Maintenance holds the recoverable
     # repair actions; Danger Zone is reserved for the irreversible.
     %{id: "maintenance", label: "Maintenance", group: :infra},
@@ -233,10 +232,12 @@ defmodule MediaCentaurWeb.SettingsLive do
         nil -> "system"
         # Legacy redirects — older bookmarks pointed at ?section=overview;
         # the Updates section merged into System's Updates card; the
-        # Pipeline section was renamed Media Import.
+        # Pipeline section was renamed Media Import; Release Tracking
+        # folded into Acquisition.
         "overview" -> "system"
         "updates" -> "system"
         "pipeline" -> "import"
+        "release_tracking" -> "acquisition"
         other -> other
       end
 
@@ -1825,7 +1826,6 @@ defmodule MediaCentaurWeb.SettingsLive do
       pipeline_running={@pipeline_running}
       image_pipeline_running={@image_pipeline_running}
       acquisition_running={@acquisition_running}
-      scanning={@scanning}
     />
     """
   end
@@ -1936,12 +1936,6 @@ defmodule MediaCentaurWeb.SettingsLive do
       exclude_dir_input={@exclude_dir_input}
       exclude_dir_error={@exclude_dir_error}
     />
-    """
-  end
-
-  defp section_content(%{active_section: "release_tracking"} = assigns) do
-    ~H"""
-    <ReleaseTrackingSection.render config={@config} />
     """
   end
 

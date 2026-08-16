@@ -1,5 +1,5 @@
 ---
-status: planning
+status: in-progress
 started: 2026-08-16
 last_updated: 2026-08-16
 ---
@@ -17,8 +17,11 @@ commits `85d13351` + `9a7c1271`; this campaign carries the rest.
 
 ## Status
 
-Planning — remaining items ordered below; the naming pass (item 1) needs an
-owner design conversation before implementation.
+In progress — resumed 2026-08-16. Reconciled against `git log`: the first
+slice (`85d13351`, `9a7c1271`, `445443ef`) is the only settings work on
+main; code matches the plan below. Items 2 and 3 are settled and being
+implemented; item 1 awaits the owner's name pick; item 4's design question
+is open; item 5 waits for the layout to settle.
 
 ## Decisions made
 
@@ -48,13 +51,15 @@ owner design conversation before implementation.
    widgets, guide, wiki (Settings-Reference "Services", Troubleshooting).
    Per the guide-vocabulary rule this is user copy only — module and
    process names stay.
-2. **Drop "Scan now" from Services.** It duplicates the same event on
-   Library → Media directories, where the copy gives it context. Services
-   stays pure process toggles.
-3. **Fold Release Tracking into Acquisition.** One number input
-   (refresh interval) doesn't earn a nav item; release tracking feeds
-   auto-grab. Add a legacy redirect `release_tracking` → `acquisition`,
-   update wiki Settings-Reference + Release-Tracking page.
+2. ~~**Drop "Scan now" from Services.**~~ Done 2026-08-16 — Services is
+   pure process toggles; Scan now lives only on Library → Media
+   directories. Wiki paths updated (Settings-Reference, Troubleshooting,
+   Adding-Your-Library).
+3. ~~**Fold Release Tracking into Acquisition.**~~ Done 2026-08-16 —
+   refresh-interval card renders last on Acquisition (not gated on
+   Prowlarr), `ReleaseTrackingSection` deleted, legacy redirect
+   `release_tracking` → `acquisition`, wiki Settings-Reference +
+   Release-Tracking updated.
 4. **Unify the directory-ignore story.** Three "ignore this directory"
    settings across two sections: Library → Excluded directories (absolute
    paths), Media Import → Skip directories (names, silent) and Extras
@@ -67,9 +72,9 @@ owner design conversation before implementation.
    all show the old nav (Updates section, no Maintenance) and the TMDB
    threshold field. Do once, after items 1–4 settle the layout
    (screenshot-showcase skill).
-6. *(droppable)* Move Services out of the General group next to System, so
-   the divider semantics read operational ‖ personal ‖ media ‖ infra.
-   Cosmetic; falls out naturally if item 2 touches the section anyway.
+6. ~~*(droppable)* Move Services out of the General group next to
+   System.~~ Done 2026-08-16 with item 2 — dividers now read
+   operational ‖ personal ‖ media ‖ infra.
 7. *(droppable)* Cross-link Media Import → Artwork resolution to
    Maintenance → Re-fetch backdrops. The Maintenance copy already points
    back; the auto-refetch-on-save covers the main path.

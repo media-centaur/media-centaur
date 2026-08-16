@@ -40,7 +40,6 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
         "playback",
         "language",
         "library",
-        "release_tracking",
         "danger"
       ] do
     test "section #{section} mounts without crashing", %{conn: conn} do
@@ -479,6 +478,56 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     # The LiveView should process the message without crashing
     _ = render(view)
     assert view |> element("[data-page-behavior]") |> render() =~ "settings"
+  end
+
+  describe "services section" do
+    # "Scan now" lives on Library → Media directories, where the surrounding
+    # copy gives it context. Services holds only the process toggles — the
+    # same action must not appear in two sections (settings-coherence).
+    test "holds only service toggles — no scan trigger", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=services")
+
+      refute has_element?(view, "[phx-click='scan']")
+    end
+
+    test "the scan trigger remains on the Library section", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=library")
+
+      assert has_element?(view, "[phx-click='scan']")
+    end
+  end
+
+  describe "release tracking folded into Acquisition" do
+    # One number input doesn't earn a nav item; release tracking feeds
+    # auto-grab, so its refresh interval lives on the Acquisition section
+    # (settings-coherence). The retired section id keeps a legacy redirect.
+    test "there is no Release Tracking nav entry", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings")
+
+      refute has_element?(
+               view,
+               "[data-nav-zone='sections'] a[href='/settings?section=release_tracking']"
+             )
+    end
+
+    test "the retired ?section=release_tracking address lands on Acquisition", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=release_tracking")
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='sections'] a.menu-item-active[href='/settings?section=acquisition']"
+             )
+    end
+
+    test "saving the refresh interval from Acquisition persists it", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=acquisition")
+
+      view
+      |> form("form[phx-submit=save_release_tracking]", %{"refresh_interval_hours" => "12"})
+      |> render_submit()
+
+      assert MediaCentaur.Config.get(:release_tracking_refresh_interval_hours) == 12
+    end
   end
 
   describe "save_tmdb retry hook" do

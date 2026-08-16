@@ -1,8 +1,9 @@
 defmodule MediaCentaurWeb.SettingsLive.Services do
   @moduledoc """
   The Services section of the Settings page — start/stop toggles for the
-  background services plus a manual scan trigger. `SettingsLive` delegates
-  to `render/1` and hosts the toggle / scan event handlers.
+  background services. `SettingsLive` delegates to `render/1` and hosts
+  the toggle event handlers. The manual scan trigger lives on the Library
+  section, next to the media directories it scans.
   """
 
   use MediaCentaurWeb, :html
@@ -13,7 +14,6 @@ defmodule MediaCentaurWeb.SettingsLive.Services do
   attr :pipeline_running, :boolean, required: true
   attr :image_pipeline_running, :boolean, required: true
   attr :acquisition_running, :boolean, required: true
-  attr :scanning, :boolean, required: true
 
   def render(assigns) do
     ~H"""
@@ -56,35 +56,6 @@ defmodule MediaCentaurWeb.SettingsLive.Services do
           event="toggle_acquisition"
           color="info"
         />
-      </div>
-
-      <div class="mt-4 pt-4 border-t border-base-content/10 flex items-center justify-between gap-4">
-        <p class="text-xs text-base-content/50 min-w-0">
-          Manually scan all media directories for new media files.
-        </p>
-        <div class="flex items-center gap-2 shrink-0">
-          <.button
-            :if={@scanning}
-            variant="dismiss"
-            size="sm"
-            phx-click="cancel_scan"
-            data-nav-item
-            tabindex="0"
-          >
-            Cancel
-          </.button>
-          <.button
-            variant="action"
-            size="sm"
-            phx-click="scan"
-            disabled={@scanning}
-            data-nav-item
-            tabindex="0"
-          >
-            <span :if={@scanning} class="loading loading-spinner loading-xs"></span>
-            {if @scanning, do: "Scanning…", else: "Scan now"}
-          </.button>
-        </div>
       </div>
     </div>
     """
