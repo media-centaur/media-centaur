@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
 
   describe "label/1 and glyph/1" do
     test "maps each subsystem to a friendly label and a heroicon glyph" do
-      assert HealthBoard.label(:pipeline) == "Import"
+      assert HealthBoard.label(:pipeline) == "Media import"
       assert HealthBoard.label(:tmdb) == "Metadata"
       assert HealthBoard.label(:acquisition) == "Downloads"
       assert HealthBoard.label(:self_update) == "Updates"
@@ -129,7 +129,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
       assert Enum.map(views, & &1.component) == HealthBoard.board_subsystems()
 
       import_view = Enum.find(views, &(&1.component == :pipeline))
-      assert %SubsystemView{label: "Import", state: :error, error_count: 1} = import_view
+      assert %SubsystemView{label: "Media import", state: :error, error_count: 1} = import_view
       assert "hero-" <> _ = import_view.glyph
     end
   end
@@ -140,7 +140,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardTest do
     defp view(state, error_count, warning_count) do
       %SubsystemView{
         component: :pipeline,
-        label: "Import",
+        label: "Media import",
         glyph: "hero-arrow-down-tray",
         state: state,
         error_count: error_count,

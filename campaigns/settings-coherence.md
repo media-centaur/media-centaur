@@ -39,18 +39,21 @@ is open; item 5 waits for the layout to settle.
   for now: it switches the actual background process, not the Media Import
   settings surface. Whether process names should also be task-facing is
   item 1's design question, not settled.
+* `2026-08-16` — Process names are task-facing in all user copy (owner
+  pick): Watchers → **File watching**, Pipeline → **Media import**, Image
+  Pipeline → **Artwork downloads**. The health board's short labels
+  ("File Watcher", "Import") harmonized to the same names; the Status
+  activity widget title follows ("Pipeline" → "Media import"). Module and
+  process names stay internal per the guide-vocabulary rule.
 
 ## Next steps
 
-1. **Process-name pass (design conversation first).** "Watchers",
-   "Pipeline", "Image Pipeline" appear as Services toggles, Status-page
-   health items, and in guide/wiki copy — internal architecture names in
-   user copy. Decide task-facing names with the owner (e.g. "File
-   watching" / "Import" / "Artwork downloads"), then rename every surface
-   in one change: `services.ex`, `overview.ex` health items, Status
-   widgets, guide, wiki (Settings-Reference "Services", Troubleshooting).
-   Per the guide-vocabulary rule this is user copy only — module and
-   process names stay.
+1. ~~**Process-name pass.**~~ Done 2026-08-16 — owner picked File
+   watching / Media import / Artwork downloads; renamed in `services.ex`,
+   `overview.ex`, `health_board.ex`, the Status pipeline widget, and wiki
+   (Settings-Reference, First-Run, Troubleshooting, Adding-Your-Library,
+   TMDB-API-Key, Review-Queue). Also fixed the image-cache flash that
+   said "entities"/"pipeline".
 2. ~~**Drop "Scan now" from Services.**~~ Done 2026-08-16 — Services is
    pure process toggles; Scan now lives only on Library → Media
    directories. Wiki paths updated (Settings-Reference, Troubleshooting,

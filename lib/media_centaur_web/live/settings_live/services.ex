@@ -29,22 +29,22 @@ defmodule MediaCentaurWeb.SettingsLive.Services do
 
       <div class="mt-4 space-y-0.5">
         <.settings_row
-          label="Watchers"
-          description="File system monitoring for media directories"
+          label="File watching"
+          description="Detects new files in your media directories"
           checked={@watchers_running}
           event="toggle_watchers"
           color="info"
         />
         <.settings_row
-          label="Pipeline"
-          description="Metadata search and entity ingestion"
+          label="Media import"
+          description="Identifies new files and adds them to your library"
           checked={@pipeline_running}
           event="toggle_pipeline"
           color="info"
         />
         <.settings_row
-          label="Image Pipeline"
-          description="Artwork downloading and processing"
+          label="Artwork downloads"
+          description="Fetches posters and backdrops from TMDB"
           checked={@image_pipeline_running}
           event="toggle_image_pipeline"
           color="info"

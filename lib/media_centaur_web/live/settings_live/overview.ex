@@ -89,9 +89,9 @@ defmodule MediaCentaurWeb.Live.SettingsLive.Overview do
       id: :services,
       label: "Services",
       items: [
-        service_item(:watchers, "Watchers", input.watchers_running),
-        service_item(:pipeline, "Pipeline", input.pipeline_running),
-        service_item(:image_pipeline, "Image Pipeline", input.image_pipeline_running),
+        service_item(:watchers, "File watching", input.watchers_running),
+        service_item(:pipeline, "Media import", input.pipeline_running),
+        service_item(:image_pipeline, "Artwork downloads", input.image_pipeline_running),
         service_item(:acquisition, "Auto-grab", input.acquisition_running)
       ]
     }

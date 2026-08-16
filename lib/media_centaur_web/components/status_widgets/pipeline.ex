@@ -40,7 +40,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Pipeline do
       <div class="card-body">
         <%!-- Pipeline header --%>
         <div class="flex items-center justify-between">
-          <h2 class="card-title text-lg">Pipeline</h2>
+          <h2 class="card-title text-lg">Media import</h2>
           <div class="flex items-center gap-3 text-sm">
             <span :if={@content_stats.queue_depth > 0} class="text-info text-sm">
               {@content_stats.queue_depth} queued

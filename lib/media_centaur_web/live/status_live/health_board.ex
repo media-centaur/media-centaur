@@ -17,8 +17,8 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   ]
 
   @labels %{
-    watcher: "File Watcher",
-    pipeline: "Import",
+    watcher: "File watching",
+    pipeline: "Media import",
     tmdb: "Metadata",
     playback: "Playback",
     library: "Library",
@@ -46,7 +46,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoard do
   # reader can infer from the first sentence are deliberately omitted.
   @descriptions %{
     watcher:
-      "Watches your media folders and hands new files to Import. " <>
+      "Watches your media folders and hands new files to media import. " <>
         "If it stalls, a manual scan picks up what it missed.",
     pipeline: "Turns new files into identified library entries with artwork.",
     tmdb: "Fetches metadata and artwork from The Movie Database.",
