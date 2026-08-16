@@ -39,7 +39,7 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
       <div class="space-y-3">
         <div>
           <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-            Extras directories
+            Extras folder names
           </label>
           <input
             type="text"
@@ -51,13 +51,13 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
             tabindex="0"
           />
           <p class="text-xs text-base-content/40 mt-1">
-            Comma-separated directory names treated as bonus content.
+            Comma-separated folder names found within your media — files inside import as bonus content.
           </p>
         </div>
 
         <div>
           <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-            Skip directories
+            Ignored folder names
           </label>
           <input
             type="text"
@@ -69,7 +69,8 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
             tabindex="0"
           />
           <p class="text-xs text-base-content/40 mt-1">
-            Comma-separated directory names to ignore silently.
+            Comma-separated folder names ignored wherever they appear within your media.
+            To exclude a specific path, use Library → Excluded directories.
           </p>
         </div>
 
