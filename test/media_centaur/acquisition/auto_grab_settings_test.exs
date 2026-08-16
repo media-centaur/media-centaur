@@ -14,6 +14,7 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettingsTest do
       assert settings.patience_hours == 48
       assert settings.max_attempts == 12
       assert settings.pack_min_fit == 75
+      assert settings.size_preference == "fidelity"
     end
   end
 
@@ -50,6 +51,15 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettingsTest do
       })
 
       assert %{pack_min_fit: 50} = AutoGrabSettings.load()
+    end
+
+    test "respects size-preference override" do
+      Settings.find_or_create_entry!(%{
+        key: "auto_grab.size_preference",
+        value: %{"value" => "space"}
+      })
+
+      assert %{size_preference: "space"} = AutoGrabSettings.load()
     end
   end
 

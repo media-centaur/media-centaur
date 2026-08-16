@@ -4,12 +4,15 @@ defmodule MediaCentaurWeb.Components.Acquisition.ReleaseFacts do
   release is listed — board release rows, the swap/below-floor pickers,
   the pursuit decision card, and the naked release-search zone:
 
-      [scope] QUALITY Release.Title.As.Filename… ⚠ looks fake 1.4 GB ▲ 42 indexer
+      [scope] QUALITY Source Release.Title.As.Filename… ⚠ looks fake 1.4 GB ▲ 42 indexer
 
   * **quality** — tier-colored bold label (4K healthy-green, 1080p info,
     muted otherwise, "Unknown" when the release doesn't say). Plain
     colored text, never a badge (UIDR-002 #1). Accepts the search
     ladder's atoms and the plan board's pre-labeled strings.
+  * **source** — muted label parsed from the title (`Quality.source_label/1`,
+    ADR-061): Remux / WEB-DL / BluRay / WEBRip / HDTV; absent when the
+    title carries no source token. Makes the within-tier pick legible.
   * **title** — monospace: a release name is a filename (house rule —
     monospace is for functional identifiers).
   * **size** — decimal units (`Format.format_size_decimal`), what
@@ -56,6 +59,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.ReleaseFacts do
     </.badge>
     <span class={["flex-shrink-0 text-xs font-bold", quality_color(@entry.quality)]}>
       {quality_label(@entry.quality)}
+    </span>
+    <span
+      :if={Quality.source_label(@entry.title)}
+      class="flex-shrink-0 text-xs text-base-content/50"
+    >
+      {Quality.source_label(@entry.title)}
     </span>
     <span
       class="min-w-0 flex-1 truncate font-mono text-[13px] text-base-content/60"

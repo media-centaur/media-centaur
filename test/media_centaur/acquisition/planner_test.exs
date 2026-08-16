@@ -11,7 +11,7 @@ defmodule MediaCentaur.Acquisition.PlannerTest do
       result:
         struct(
           %SearchResult{
-            title: "Sample.Show.#{guid}",
+            title: Keyword.get(attrs, :title, "Sample.Show.#{guid}"),
             guid: guid,
             indexer_id: 1,
             quality: Keyword.get(attrs, :quality, :hd_1080p),
@@ -29,6 +29,92 @@ defmodule MediaCentaur.Acquisition.PlannerTest do
     Enum.find_value(solution.assignments, fn assignment ->
       if unit in assignment.units, do: assignment.result.guid
     end)
+  end
+
+  describe "solve/3 — source ladder within a quality tier (ADR-061)" do
+    test "fidelity default — remux wins over web-dl and encode even with fewer seeders" do
+      wanted = [{1, 1}]
+
+      options = [
+        option("webdl", {:episode, 1, 1}, title: "Sample.Show.S01E01.1080p.WEB-DL.H264", seeders: 90),
+        option("encode", {:episode, 1, 1}, title: "Sample.Show.S01E01.1080p.BluRay.x265", seeders: 90),
+        option("remux", {:episode, 1, 1},
+          title: "Sample.Show.S01E01.BluRay.1080p.REMUX.VC-1",
+          seeders: 2
+        )
+      ]
+
+      assert assigned_guid_for(Planner.solve(wanted, options, @prefs), {1, 1}) == "remux"
+    end
+
+    test "space preference — the bluray encode wins and remux drops to last resort" do
+      wanted = [{1, 1}]
+      prefs = Map.put(@prefs, :size_preference, "space")
+
+      options = [
+        option("remux", {:episode, 1, 1},
+          title: "Sample.Show.S01E01.BluRay.1080p.REMUX.VC-1",
+          seeders: 90
+        ),
+        option("encode", {:episode, 1, 1}, title: "Sample.Show.S01E01.1080p.BluRay.x265", seeders: 2)
+      ]
+
+      assert assigned_guid_for(Planner.solve(wanted, options, prefs), {1, 1}) == "encode"
+    end
+
+    test "space preference — a remux-only unit is still assigned, never unfound" do
+      wanted = [{1, 1}]
+      prefs = Map.put(@prefs, :size_preference, "space")
+
+      options = [
+        option("remux", {:episode, 1, 1}, title: "Sample.Show.S01E01.BluRay.1080p.REMUX.VC-1")
+      ]
+
+      solution = Planner.solve(wanted, options, prefs)
+      assert assigned_guid_for(solution, {1, 1}) == "remux"
+      assert solution.unfound == []
+    end
+
+    test "resolution tier still dominates source — a 4K encode beats a 1080p remux" do
+      wanted = [{1, 1}]
+
+      options = [
+        option("remux-1080", {:episode, 1, 1},
+          title: "Sample.Show.S01E01.BluRay.1080p.REMUX.VC-1",
+          quality: :hd_1080p
+        ),
+        option("encode-4k", {:episode, 1, 1},
+          title: "Sample.Show.S01E01.2160p.BluRay.x265",
+          quality: :uhd_4k
+        )
+      ]
+
+      assert assigned_guid_for(Planner.solve(wanted, options, @prefs), {1, 1}) == "encode-4k"
+    end
+
+    test "seeders still break ties between equal sources" do
+      wanted = [{1, 1}]
+
+      options = [
+        option("weak", {:episode, 1, 1}, title: "Sample.Show.S01E01.1080p.WEB-DL.A", seeders: 2),
+        option("strong", {:episode, 1, 1}, title: "Sample.Show.S01E01.1080p.WEB-DL.B", seeders: 80)
+      ]
+
+      assert assigned_guid_for(Planner.solve(wanted, options, @prefs), {1, 1}) == "strong"
+    end
+
+    test "consolidation — between same-breadth packs the better source wins its span" do
+      wanted = [{1, 1}, {1, 2}]
+
+      options = [
+        option("pack-encode", {:season, 1}, title: "Sample.Show.S01.1080p.BluRay.x265", seeders: 90),
+        option("pack-remux", {:season, 1}, title: "Sample.Show.S01.BluRay.1080p.REMUX", seeders: 2)
+      ]
+
+      solution = Planner.solve(wanted, options, @prefs)
+      assert assigned_guid_for(solution, {1, 1}) == "pack-remux"
+      assert assigned_guid_for(solution, {1, 2}) == "pack-remux"
+    end
   end
 
   describe "solve/3 — singles" do

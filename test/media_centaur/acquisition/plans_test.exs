@@ -198,6 +198,64 @@ defmodule MediaCentaur.Acquisition.PlansTest do
     end)
   end
 
+  # Movie with same-tier (all 1080p) candidates across the source ladder,
+  # so ordering is decided by source fidelity alone (ADR-061).
+  defp stub_same_tier_movie do
+    Req.Test.stub(:prowlarr, fn conn ->
+      case {conn.method, conn.request_path} do
+        {"GET", "/api/v1/indexer"} ->
+          Req.Test.json(conn, [])
+
+        {"GET", "/api/v1/indexerstatus"} ->
+          Req.Test.json(conn, [])
+
+        {"GET", "/api/v1/search"} ->
+          %{"query" => query} = URI.decode_query(conn.query_string)
+
+          results =
+            if query == "Sample Movie 2005" do
+              [
+                release("Sample.Movie.2005.1080p.BluRay.x265", "src-encode", %{
+                  seeders: 90,
+                  size: 3_300_000_000
+                }),
+                release("Sample.Movie.2005.1080p.WEB-DL.DDP.5.1.H.264-GRP", "src-webdl", %{
+                  seeders: 2,
+                  size: 8_000_000_000
+                }),
+                release("Sample.Movie.2005.BluRay.1080p.REMUX.VC-1-GRP", "src-remux", %{
+                  seeders: 2,
+                  size: 28_000_000_000
+                })
+              ]
+            else
+              []
+            end
+
+          Req.Test.json(conn, results)
+
+        _other ->
+          Req.Test.json(conn, %{})
+      end
+    end)
+  end
+
+  describe "swap-picker source ladder (ADR-061)" do
+    test "alternatives sort by source fidelity within the tier" do
+      stub_same_tier_movie()
+
+      {:ok, created} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+      assert [unit] = Plans.units_for(created.id)
+
+      # The run assigns the remux (fidelity default); the remaining
+      # alternatives order by the same ladder, seeders notwithstanding.
+      assert unit.assigned_guid == "src-remux"
+
+      {:ok, alternatives} = Plans.alternatives_for(unit.id)
+      assert Enum.map(alternatives, & &1.guid) == ["src-webdl", "src-encode"]
+    end
+  end
+
   describe "below-floor movie offers on the board" do
     test "board_for surfaces the below-floor offer instead of a bare gap" do
       stub_below_floor_movie()

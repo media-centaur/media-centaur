@@ -28,7 +28,8 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
     "auto_grab.default_max_quality",
     "auto_grab.4k_patience_hours",
     "auto_grab.max_attempts",
-    "auto_grab.pack_min_fit"
+    "auto_grab.pack_min_fit",
+    "auto_grab.size_preference"
   ]
 
   @builtin_defaults %{
@@ -41,7 +42,10 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
     # episodes it lands (`wanted-in-span / span-total`). Below it, the
     # pack is a one-click offer, not an auto-grab — so picking one episode
     # never pulls the whole series. "Most of the span" default.
-    pack_min_fit: 75
+    pack_min_fit: 75,
+    # Which within-tier source ladder ranks releases (ADR-061):
+    # "fidelity" (remux first) or "space" (compact encodes first).
+    size_preference: "fidelity"
   }
 
   defstruct Map.to_list(@builtin_defaults)
@@ -54,7 +58,8 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
           default_max_quality: quality(),
           patience_hours: non_neg_integer(),
           max_attempts: pos_integer(),
-          pack_min_fit: non_neg_integer()
+          pack_min_fit: non_neg_integer(),
+          size_preference: String.t()
         }
 
   @doc "Loads global defaults from Settings, applying built-in fallbacks for missing keys."
@@ -70,7 +75,8 @@ defmodule MediaCentaur.Acquisition.AutoGrabSettings do
         read(entries, "auto_grab.default_max_quality", @builtin_defaults.default_max_quality),
       patience_hours: read(entries, "auto_grab.4k_patience_hours", @builtin_defaults.patience_hours),
       max_attempts: read(entries, "auto_grab.max_attempts", @builtin_defaults.max_attempts),
-      pack_min_fit: read(entries, "auto_grab.pack_min_fit", @builtin_defaults.pack_min_fit)
+      pack_min_fit: read(entries, "auto_grab.pack_min_fit", @builtin_defaults.pack_min_fit),
+      size_preference: read(entries, "auto_grab.size_preference", @builtin_defaults.size_preference)
     }
   end
 

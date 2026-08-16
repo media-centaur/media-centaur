@@ -319,6 +319,52 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     end
   end
 
+  describe "movie source ladder (ADR-061)" do
+    defp stub_same_tier_movie do
+      stub_recording_searches(%{
+        "Sample Movie 2005" => [
+          release("Sample.Movie.2005.1080p.WEB-DL.DDP.5.1.H.264-GRP", "src-webdl", %{
+            seeders: 90,
+            size: 8_000_000_000
+          }),
+          release("Sample.Movie.2005.1080p.BluRay.x265", "src-encode", %{
+            seeders: 90,
+            size: 3_300_000_000
+          }),
+          release("Sample.Movie.2005.BluRay.1080p.REMUX.VC-1.DTS-HD.MA.5.1-GRP", "src-remux", %{
+            seeders: 2,
+            size: 28_000_000_000
+          })
+        ]
+      })
+    end
+
+    test "equal-tier candidates pick by source fidelity, not list order or seeders" do
+      stub_same_tier_movie()
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "found"
+      assert unit.assigned_guid == "src-remux"
+    end
+
+    test "the save-space preference picks the encode instead" do
+      MediaCentaur.Settings.find_or_create_entry!(%{
+        key: "auto_grab.size_preference",
+        value: %{"value" => "space"}
+      })
+
+      stub_same_tier_movie()
+
+      {:ok, plan} = Plans.create_movie_plan(%{tmdb_id: "246813", title: "Sample Movie", year: 2005})
+
+      assert [unit] = Plans.units_for(plan.id)
+      assert unit.status == "found"
+      assert unit.assigned_guid == "src-encode"
+    end
+  end
+
   describe "movie below-floor releases" do
     # The Magician (2005) shape: genuine releases of the film exist, all
     # below the quality floor (≤720p or no resolution token). The unit
