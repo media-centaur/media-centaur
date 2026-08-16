@@ -21,6 +21,15 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
+* [`settings-coherence.md`](settings-coherence.md) —
+  **planning.** Finish the 2026-08-16 settings reorganization: the first
+  slice shipped (Maintenance/Danger Zone split, Updates merged into System,
+  threshold → Media Import, poster-titles → Preferences, Pipeline renamed
+  Media Import). Remaining: task-facing names for "Watchers"/"Pipeline" in
+  Services and Status copy (owner design conversation first), de-duplicate
+  Scan now, fold the one-field Release Tracking section into Acquisition,
+  unify the three directory-ignore settings, regenerate the stale settings
+  screenshots.
 * [`input-system-1.0-pass.md`](input-system-1.0-pass.md) —
   **in progress — Phase 1 (Home).** Page-by-page keyboard/gamepad
   navigation pass for 1.0, fixing the *model* rather than each page's
