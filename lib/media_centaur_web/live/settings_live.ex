@@ -41,13 +41,13 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.Controls, as: ControlsSection
   alias MediaCentaurWeb.SettingsLive.Language
   alias MediaCentaurWeb.SettingsLive.Library
+  alias MediaCentaurWeb.SettingsLive.MaintenanceSection
   alias MediaCentaurWeb.SettingsLive.Pipeline, as: PipelineSection
   alias MediaCentaurWeb.SettingsLive.Playback
   alias MediaCentaurWeb.SettingsLive.Preferences
   alias MediaCentaurWeb.SettingsLive.ReleaseTrackingSection
   alias MediaCentaurWeb.SettingsLive.Services
   alias MediaCentaurWeb.SettingsLive.Tmdb
-  alias MediaCentaurWeb.SettingsLive.Updates
   alias MediaCentaurWeb.SettingsLive.LanguageLogic
 
   # Sections are grouped for sidebar display — a thin divider renders between
@@ -55,8 +55,8 @@ defmodule MediaCentaurWeb.SettingsLive do
   # of user interaction: things you touch daily come first.
   @sections [
     # System is its own group so it sits alone above everything else.
+    # (Update automation lives on the System section's Updates card.)
     %{id: "system", label: "System", group: :system},
-    %{id: "updates", label: "Updates", group: :system},
     # General — start-of-session setup
     %{id: "services", label: "Services", group: :general},
     %{id: "preferences", label: "Preferences", group: :general},
@@ -69,7 +69,9 @@ defmodule MediaCentaurWeb.SettingsLive do
     %{id: "playback", label: "Playback", group: :media},
     %{id: "language", label: "Language", group: :media},
     %{id: "release_tracking", label: "Release Tracking", group: :media},
-    # Infrastructure — rare-touch admin
+    # Infrastructure — rare-touch admin. Maintenance holds the recoverable
+    # repair actions; Danger Zone is reserved for the irreversible.
+    %{id: "maintenance", label: "Maintenance", group: :infra},
     %{id: "danger", label: "Danger Zone", group: :infra}
   ]
 
@@ -229,8 +231,10 @@ defmodule MediaCentaurWeb.SettingsLive do
     section =
       case params["section"] do
         nil -> "system"
-        # Legacy redirect — older bookmarks pointed at ?section=overview.
+        # Legacy redirects — older bookmarks pointed at ?section=overview;
+        # the Updates section merged into System's Updates card.
         "overview" -> "system"
+        "updates" -> "system"
         other -> other
       end
 
@@ -791,11 +795,6 @@ defmodule MediaCentaurWeb.SettingsLive do
       MediaCentaur.Watcher.Supervisor.rescan_unlinked_async()
     end
 
-    case Float.parse(params["auto_approve_threshold"] || "") do
-      {threshold, _} -> Config.update(:auto_approve_threshold, threshold)
-      :error -> :ok
-    end
-
     socket = assign(socket, config: load_config(), tmdb_test: load_test_result(:tmdb))
 
     case params["_action"] do
@@ -949,6 +948,11 @@ defmodule MediaCentaurWeb.SettingsLive do
 
     Config.update(:extras_dirs, extras)
     Config.update(:skip_dirs, skip)
+
+    case Float.parse(params["auto_approve_threshold"] || "") do
+      {threshold, _} -> Config.update(:auto_approve_threshold, threshold)
+      :error -> :ok
+    end
 
     previous_resolution = Config.image_resolution()
 
@@ -1764,18 +1768,6 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   # --- Section router ---
 
-  defp section_content(%{active_section: "updates"} = assigns) do
-    ~H"""
-    <Updates.render
-      update_check_enabled={@update_check_enabled}
-      update_check_interval_minutes={@update_check_interval_minutes}
-      update_check_interval_floor={@update_check_interval_floor}
-      last_checked_label={@last_checked_label}
-      auto_update_enabled={@auto_update_enabled}
-    />
-    """
-  end
-
   defp section_content(%{active_section: "system"} = assigns) do
     groups =
       if assigns.config == %{} do
@@ -1815,6 +1807,11 @@ defmodule MediaCentaurWeb.SettingsLive do
       update_schedule_label={@update_schedule_label}
       update_status={@update_status}
       apply_phase={@apply_phase}
+      update_check_enabled={@update_check_enabled}
+      update_check_interval_minutes={@update_check_interval_minutes}
+      update_check_interval_floor={@update_check_interval_floor}
+      last_checked_label={@last_checked_label}
+      auto_update_enabled={@auto_update_enabled}
     />
     """
   end
@@ -1838,6 +1835,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       ui_scale={@ui_scale}
       library_backdrop={@library_backdrop}
       incoming_backdrop={@incoming_backdrop}
+      show_card_info={@show_card_info}
     />
     """
   end
@@ -1935,7 +1933,6 @@ defmodule MediaCentaurWeb.SettingsLive do
       exclude_dirs={@exclude_dirs}
       exclude_dir_input={@exclude_dir_input}
       exclude_dir_error={@exclude_dir_error}
-      show_card_info={@show_card_info}
     />
     """
   end
@@ -1946,12 +1943,11 @@ defmodule MediaCentaurWeb.SettingsLive do
     """
   end
 
-  defp section_content(%{active_section: "danger"} = assigns) do
+  defp section_content(%{active_section: "maintenance"} = assigns) do
     ~H"""
-    <Danger.render
+    <MaintenanceSection.render
       blank_extra_names_count={@blank_extra_names_count}
       missing_images_summary={@missing_images_summary}
-      clearing_database={@clearing_database}
       confirming_image_refresh={@confirming_image_refresh}
       rederiving_extra_names={@rederiving_extra_names}
       refetching_backdrops={@refetching_backdrops}
@@ -1961,6 +1957,12 @@ defmodule MediaCentaurWeb.SettingsLive do
       refreshing_series_credits={@refreshing_series_credits}
       repairing_images={@repairing_images}
     />
+    """
+  end
+
+  defp section_content(%{active_section: "danger"} = assigns) do
+    ~H"""
+    <Danger.render clearing_database={@clearing_database} />
     """
   end
 

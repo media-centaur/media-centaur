@@ -295,8 +295,7 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
 
       view
       |> form("#settings-tmdb", %{
-        "tmdb_api_key" => "tmdb-key-from-user",
-        "auto_approve_threshold" => "0.85"
+        "tmdb_api_key" => "tmdb-key-from-user"
       })
       |> render_submit(%{"_action" => "test"})
 

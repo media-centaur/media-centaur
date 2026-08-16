@@ -7,7 +7,9 @@ defmodule MediaCentaurWeb.SettingsLiveDangerTest do
   cannot be answered with a d-pad. What replaced them is graded by
   consequence: clearing the database is irreversible and unbounded, so it
   earns a persistent modal; refreshing the image cache only costs time, so
-  the button arms in place.
+  the button arms in place. The grading also decides the section each lives
+  in — Clear database stays in Danger Zone, the recoverable image-cache
+  refresh sits with the other repair actions in Maintenance.
 
   These tests deliberately stop short of firing either action. The
   regression they guard is that **one click no longer does the thing** — and
@@ -20,6 +22,12 @@ defmodule MediaCentaurWeb.SettingsLiveDangerTest do
 
   defp open_danger_section(conn) do
     {:ok, view, _html} = live(conn, "/settings?section=danger")
+    _ = render_async(view)
+    view
+  end
+
+  defp open_maintenance_section(conn) do
+    {:ok, view, _html} = live(conn, "/settings?section=maintenance")
     _ = render_async(view)
     view
   end
@@ -72,7 +80,7 @@ defmodule MediaCentaurWeb.SettingsLiveDangerTest do
 
   describe "refresh image cache — arm in place" do
     test "the first click arms the row rather than refreshing", %{conn: conn} do
-      view = open_danger_section(conn)
+      view = open_maintenance_section(conn)
 
       html =
         view
@@ -86,7 +94,7 @@ defmodule MediaCentaurWeb.SettingsLiveDangerTest do
     end
 
     test "cancelling disarms it", %{conn: conn} do
-      view = open_danger_section(conn)
+      view = open_maintenance_section(conn)
 
       view
       |> element("button[phx-click='refresh_image_cache_confirm']")

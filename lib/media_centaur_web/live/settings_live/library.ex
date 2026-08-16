@@ -1,9 +1,9 @@
 defmodule MediaCentaurWeb.SettingsLive.Library do
   @moduledoc """
   The Library section of the Settings page — data directory, media
-  directories (add/edit/remove), excluded directories, display toggle, and
-  cleanup TTLs. `SettingsLive` delegates to `render/1` and hosts the
-  media_dir / exclude_dir / save event handlers.
+  directories (add/edit/remove), excluded directories, and cleanup TTLs.
+  `SettingsLive` delegates to `render/1` and hosts the media_dir /
+  exclude_dir / save event handlers.
   """
 
   use MediaCentaurWeb, :html
@@ -26,7 +26,6 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
   attr :exclude_dirs, :list, required: true, doc: "list of excluded path strings."
   attr :exclude_dir_input, :string, required: true
   attr :exclude_dir_error, :any, required: true, doc: "validation error string or nil"
-  attr :show_card_info, :boolean, required: true
 
   def render(assigns) do
     ~H"""
@@ -239,23 +238,6 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
             {@exclude_dir_error}
           </p>
         </form>
-      </div>
-
-      <div data-nav-grid class="glass-surface rounded-xl p-5 space-y-3">
-        <.settings_card_header title="Display" />
-        <.settings_field
-          label="Show titles below posters"
-          description="Hide for a clean wall-of-posters view."
-        >
-          <input
-            type="checkbox"
-            class="toggle toggle-sm toggle-info"
-            checked={@show_card_info}
-            phx-click="toggle_show_card_info"
-            data-nav-item
-            tabindex="0"
-          />
-        </.settings_field>
       </div>
 
       <form

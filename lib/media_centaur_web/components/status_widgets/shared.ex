@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.Shared do
 
   @doc false
   # Wraps a status-page reference to a configured value so it deep-links to the
-  # Settings section that owns it (e.g. the update-automation row → ?section=updates).
+  # Settings section that owns it (e.g. the update-automation row → ?section=system).
   # Keeps the wrapped content's own colour; adds a muted cog that brightens to
   # primary on hover, signalling "this jumps to Settings".
   attr :section, :string,

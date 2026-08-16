@@ -1,8 +1,7 @@
 defmodule MediaCentaurWeb.SettingsLive.Tmdb do
   @moduledoc """
-  The TMDB section of the Settings page — API key, auto-approve threshold,
-  and connection test. `SettingsLive` delegates to `render/1` and hosts the
-  save / test handlers.
+  The TMDB section of the Settings page — API key and connection test.
+  `SettingsLive` delegates to `render/1` and hosts the save / test handlers.
   """
 
   use MediaCentaurWeb, :html
@@ -11,7 +10,7 @@ defmodule MediaCentaurWeb.SettingsLive.Tmdb do
 
   attr :config, :map,
     required: true,
-    doc: "settings config map (reads :tmdb_api_key_configured?, :auto_approve_threshold)."
+    doc: "settings config map (reads :tmdb_api_key_configured?)."
 
   attr :tmdb_test, :any, required: true, doc: "connection-test result map or nil."
   attr :tmdb_testing, :boolean, required: true
@@ -65,26 +64,6 @@ defmodule MediaCentaurWeb.SettingsLive.Tmdb do
               rel="noopener noreferrer"
               class="link link-primary"
             >themoviedb.org/settings/api</a>.
-          </p>
-        </div>
-
-        <div>
-          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
-            Auto-approve threshold
-          </label>
-          <input
-            type="number"
-            name="auto_approve_threshold"
-            step="0.01"
-            min="0"
-            max="1"
-            value={@config[:auto_approve_threshold]}
-            class="input input-bordered w-full font-mono text-sm"
-            data-nav-item
-            tabindex="0"
-          />
-          <p class="text-xs text-base-content/40 mt-1">
-            Confidence score (0.0–1.0) above which matches are approved automatically.
           </p>
         </div>
       </div>
