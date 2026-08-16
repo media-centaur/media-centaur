@@ -111,7 +111,7 @@ defmodule MediaCentaurWeb.SettingsLive.MaintenanceSection do
             <p class="text-sm font-medium">Re-fetch backdrops</p>
             <p class="text-xs text-base-content/50 mt-0.5">
               Re-downloads every backdrop at the current artwork resolution
-              (Pipeline → Artwork resolution) and clears the old cached copies to
+              (Media Import → Artwork resolution) and clears the old cached copies to
               reclaim space. Use after changing the resolution to bring existing
               artwork in line. Posters and thumbnails are unaffected.
             </p>

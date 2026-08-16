@@ -1,8 +1,9 @@
-defmodule MediaCentaurWeb.SettingsLive.Pipeline do
+defmodule MediaCentaurWeb.SettingsLive.ImportSection do
   @moduledoc """
-  The Pipeline section of the Settings page — extras/skip directories, the
-  match auto-approve threshold, and artwork resolution. `SettingsLive`
-  delegates to `render/1` and hosts the save handler.
+  The Media Import section of the Settings page — extras/skip directories,
+  the match auto-approve threshold, and artwork resolution. (Named for the
+  user-facing task; the machinery behind it is the Broadway pipeline.)
+  `SettingsLive` delegates to `render/1` and hosts the save handler.
   """
 
   use MediaCentaurWeb, :html
@@ -15,10 +16,10 @@ defmodule MediaCentaurWeb.SettingsLive.Pipeline do
 
   def render(assigns) do
     ~H"""
-    <form phx-submit="save_pipeline" class="p-5 rounded-lg glass-surface space-y-5">
+    <form phx-submit="save_import" class="p-5 rounded-lg glass-surface space-y-5">
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0">
-          <h2 class="text-lg font-semibold">Pipeline</h2>
+          <h2 class="text-lg font-semibold">Media Import</h2>
           <p class="text-sm text-base-content/50 mt-0.5">
             Controls how files are classified and matched during ingestion.
           </p>
