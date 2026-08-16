@@ -36,10 +36,12 @@ defmodule MediaCentaur.Acquisition.Planner do
   has **no** patience window), fit-gate the packs, then consolidate
   broad-first over what survives: every multi-unit option still
   covering two or more remaining wanted units claims them, in
-  `{breadth, quality, seeders}` order — so the widest acceptable
-  consolidation wins its span, a 4K pack outranks a 1080p pack, and
-  seeders break ties between equals. Remaining units get their per-unit
-  best (quality, then seeders); units nothing acceptable covers come
+  `{breadth, quality, source, seeders}` order — so the widest acceptable
+  consolidation wins its span, a 4K pack outranks a 1080p pack, the
+  source ladder (ADR-061, `prefs.size_preference`) breaks resolution
+  ties, and seeders break ties between equals. Remaining units get
+  their per-unit best (quality, source, then seeders); units nothing
+  acceptable covers come
   back as `unfound` — search results, never pursuit leaves (campaign
   hard boundary) — each carrying its best fit-gated `offer`, if any.
 
@@ -120,6 +122,7 @@ defmodule MediaCentaur.Acquisition.Planner do
   @type prefs :: %{
           :min_quality => String.t(),
           :max_quality => String.t(),
+          optional(:size_preference) => Quality.size_preference(),
           optional(:pack_min_fit) => number() | nil,
           optional(:span_sizes) => %{String.t() => pos_integer()},
           optional(:all_wanted) => [ReleaseCoverage.unit()]
@@ -141,13 +144,15 @@ defmodule MediaCentaur.Acquisition.Planner do
     {eligible, gated} = partition_by_fit(gradable, all_wanted, prefs)
     gated = gated ++ forced_offers
 
-    {assignments, remaining} = consolidate(wanted, eligible)
-    {single_assignments, unfound} = assign_singles(remaining, eligible)
+    size_preference = Map.get(prefs, :size_preference, "fidelity")
+
+    {assignments, remaining} = consolidate(wanted, eligible, size_preference)
+    {single_assignments, unfound} = assign_singles(remaining, eligible, size_preference)
 
     %Solution{
       assignments: assignments ++ single_assignments,
       unfound: unfound,
-      offers: offers_for(unfound, gated)
+      offers: offers_for(unfound, gated, size_preference)
     }
   end
 
@@ -161,10 +166,12 @@ defmodule MediaCentaur.Acquisition.Planner do
   # claims what it covers — singles fill the rest in the next pass.
   # ---------------------------------------------------------------------------
 
-  defp consolidate(wanted, options) do
+  defp consolidate(wanted, options, size_preference) do
     options
     |> Enum.filter(&multi_unit?(&1, wanted))
-    |> Enum.sort_by(&{-breadth(&1.scope), -quality_rank(&1), -seeders(&1)})
+    |> Enum.sort_by(
+      &{-breadth(&1.scope), -quality_rank(&1), -source_rank(&1, size_preference), -seeders(&1)}
+    )
     |> Enum.reduce({[], wanted}, fn option, {assignments, remaining} ->
       covered = option_covered_units(option, remaining)
 
@@ -202,13 +209,16 @@ defmodule MediaCentaur.Acquisition.Planner do
   # Singles pass — best remaining provider per unit.
   # ---------------------------------------------------------------------------
 
-  defp assign_singles(remaining, options) do
+  defp assign_singles(remaining, options, size_preference) do
     {by_option, unfound} =
       Enum.reduce(remaining, {%{}, []}, fn {season, episode} = unit, {by_option, unfound} ->
         provider =
           options
           |> Enum.filter(&option_covers?(&1, season, episode))
-          |> Enum.max_by(&{quality_rank(&1), seeders(&1)}, fn -> nil end)
+          |> Enum.max_by(
+            &{quality_rank(&1), source_rank(&1, size_preference), seeders(&1)},
+            fn -> nil end
+          )
 
         case provider do
           nil -> {by_option, [unit | unfound]}
@@ -277,13 +287,15 @@ defmodule MediaCentaur.Acquisition.Planner do
   defp season_size(span_sizes, season), do: Map.get(span_sizes, Integer.to_string(season))
 
   # Best fit-gated pack per unfound unit: narrowest scope first (least
-  # over-grab), then quality, then seeders.
-  defp offers_for(unfound, gated) do
+  # over-grab), then quality, then source, then seeders.
+  defp offers_for(unfound, gated, size_preference) do
     for {season, episode} = unit <- unfound,
         covering =
           gated
           |> Enum.filter(&option_covers?(&1, season, episode))
-          |> Enum.sort_by(&{breadth(&1.scope), -quality_rank(&1), -seeders(&1)}),
+          |> Enum.sort_by(
+            &{breadth(&1.scope), -quality_rank(&1), -source_rank(&1, size_preference), -seeders(&1)}
+          ),
         [best | _] <- [covering],
         into: %{},
         do: {unit, best}
@@ -298,6 +310,10 @@ defmodule MediaCentaur.Acquisition.Planner do
   defp breadth({:episode, _season, _episode}), do: 0
 
   defp quality_rank(%Option{result: %SearchResult{quality: quality}}), do: Quality.rank(quality)
+
+  defp source_rank(%Option{result: %SearchResult{title: title}}, size_preference) do
+    Quality.source_rank(Quality.source(title), size_preference)
+  end
 
   defp seeders(%Option{result: %SearchResult{seeders: seeders}}), do: seeders || 0
 end

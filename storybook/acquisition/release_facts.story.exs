@@ -28,8 +28,8 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.ReleaseFacts do
       %Variation{
         id: :full_row,
         description:
-          "Everything at once — scope badge, tier-colored quality, filename title, decimal " <>
-            "size, healthy seeders, indexer.",
+          "Everything at once — scope badge, tier-colored quality, source label (parsed " <>
+            "from the title, ADR-061), filename title, decimal size, healthy seeders, indexer.",
         attributes: %{
           entry: %Entry{
             title: "Sample.Show.S01.COMPLETE.1080p.WEB-DL.x264-GROUP",
@@ -79,6 +79,32 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.ReleaseFacts do
             quality: nil,
             size_bytes: 1_000_000_000,
             seeders: 4
+          }
+        }
+      },
+      %Variation{
+        id: :remux_source,
+        description:
+          "A remux title carries the \"Remux\" source label — the ladder's top pick under " <>
+            "the fidelity preference.",
+        attributes: %{
+          entry: %Entry{
+            title: "Sample.Movie.1998.BluRay.1080p.REMUX.VC-1.DTS-HD.MA.5.1-GROUP",
+            quality: "1080p",
+            size_bytes: 28_400_000_000,
+            seeders: 11
+          }
+        }
+      },
+      %Variation{
+        id: :no_source_signal,
+        description: "No source token in the title → no source label, nothing fabricated.",
+        attributes: %{
+          entry: %Entry{
+            title: "Sample.Movie.1998.1080p.x264-GROUP",
+            quality: "1080p",
+            size_bytes: 4_100_000_000,
+            seeders: 7
           }
         }
       },

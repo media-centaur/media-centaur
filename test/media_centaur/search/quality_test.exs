@@ -134,6 +134,82 @@ defmodule MediaCentaur.Search.QualityTest do
     end
   end
 
+  describe "source/1 — source classification from the release title" do
+    test "remux — including when a bluray token co-occurs" do
+      assert Quality.source("Sample.Movie.1998.BluRay.1080p.REMUX.VC-1.DTS-HD.MA.5.1-GRP") == :remux
+      assert Quality.source("Sample.Movie.2023.2160p.UHD.BluRay.Remux.HDR10-GRP") == :remux
+    end
+
+    test "web-dl variants" do
+      assert Quality.source("Sample.Movie.1998.1080p.NF.WEB-DL.DDP.5.1.H.264-GRP") == :web_dl
+      assert Quality.source("Sample.Movie.2024.1080p.AMZN.WEBDL.DDP5.1.H.264-GRP") == :web_dl
+      assert Quality.source("Sample.Movie.2024.1080p.WEB.DL.H264-GRP") == :web_dl
+    end
+
+    test "bluray encode — bluray/blu-ray/bdrip/brrip without remux" do
+      assert Quality.source("Sample.Movie.1998.1080p.BluRay.x265") == :bluray_encode
+      assert Quality.source("Sample.Movie.1998.1080p.Blu-Ray.x264-GRP") == :bluray_encode
+      assert Quality.source("Sample.Movie.1998.1080p.BDRip.x264-GRP") == :bluray_encode
+      assert Quality.source("Sample.Movie.1998.1080p.BRRip.x264-GRP") == :bluray_encode
+    end
+
+    test "webrip" do
+      assert Quality.source("Sample.Movie.2005.1080p.WEBRip.x264") == :webrip
+      assert Quality.source("Sample.Movie.2005.1080p.WEB-Rip.x264") == :webrip
+    end
+
+    test "hdtv" do
+      assert Quality.source("Sample.Show.S01E01.1080p.HDTV.x264-GRP") == :hdtv
+    end
+
+    test "unknown — no source token; bare WEB is deliberately unclassified" do
+      assert Quality.source("Sample.Movie.1998.1080p.x264-GRP") == :unknown
+      assert Quality.source("Sample.Movie.2020.1080p.WEB.H264-GRP") == :unknown
+    end
+
+    test "a title word containing 'web' does not read as a web source" do
+      assert Quality.source("Sample.Web.2006.1080p.BluRay.x264-GRP") == :bluray_encode
+    end
+  end
+
+  describe "source_rank/2 — fixed ladders selected by size preference" do
+    test "fidelity: remux > web-dl > bluray encode > webrip/hdtv > unknown" do
+      ranks =
+        for source <- [:remux, :web_dl, :bluray_encode, :webrip, :unknown],
+            do: Quality.source_rank(source, "fidelity")
+
+      assert ranks == Enum.sort(ranks, :desc)
+      assert Quality.source_rank(:hdtv, "fidelity") == Quality.source_rank(:webrip, "fidelity")
+    end
+
+    test "space: bluray encode > web-dl > webrip/hdtv > remux > unknown" do
+      ranks =
+        for source <- [:bluray_encode, :web_dl, :webrip, :remux, :unknown],
+            do: Quality.source_rank(source, "space")
+
+      assert ranks == Enum.sort(ranks, :desc)
+      assert Quality.source_rank(:hdtv, "space") == Quality.source_rank(:webrip, "space")
+    end
+
+    test "space keeps remux rankable — above unknown, never excluded" do
+      assert Quality.source_rank(:remux, "space") > Quality.source_rank(:unknown, "space")
+    end
+  end
+
+  describe "source_label/1 — presentation-only source from the release title" do
+    test "labels each classified source" do
+      assert Quality.source_label("Sample.Movie.1998.BluRay.1080p.REMUX.VC-1-GRP") == "Remux"
+      assert Quality.source_label("Sample.Movie.1998.1080p.NF.WEB-DL.DDP.5.1-GRP") == "WEB-DL"
+      assert Quality.source_label("Sample.Movie.1998.1080p.BluRay.x265") == "BluRay"
+      assert Quality.source_label("Sample.Movie.2005.1080p.WEBRip.x264") == "WEBRip"
+      assert Quality.source_label("Sample.Show.S01E01.1080p.HDTV.x264-GRP") == "HDTV"
+    end
+
+    test "returns nil when the title carries no source signal" do
+      assert Quality.source_label("Sample.Movie.1998.1080p.x264-GRP") == nil
+    end
+  end
+
   describe "label/1" do
     test "returns human-readable label for 4K" do
       assert Quality.label(:uhd_4k) == "4K"

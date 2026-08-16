@@ -65,6 +65,7 @@ System design, data model, integration patterns, and engineering standards. Thes
 | 058 | 2026-06-17 | [Canonical episode identity — one TMDB-anchored vocabulary, ambiguity only at the edges](architecture/2026-06-17-058-canonical-episode-identity.md) | superseded |
 | 059 | 2026-07-12 | [Versions split into cuts (PlayableItem) and renditions (WatchedFile)](architecture/2026-07-12-059-cuts-vs-renditions.md) | accepted |
 | 060 | 2026-08-06 | [Events publish through a per-topic `Events` chokepoint, over a `Topics` transport](architecture/2026-08-06-060-event-publication-idiom.md) | accepted |
+| 061 | 2026-08-16 | [Release quality: gates bound, ladders order, a profile chooses — size is never a signal](architecture/2026-08-16-061-source-quality-ladder.md) | accepted |
 
 ## User Interface (`user-interface/`)
 

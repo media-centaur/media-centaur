@@ -522,6 +522,29 @@ defmodule MediaCentaurWeb.SettingsLive.AcquisitionSection do
 
         <div>
           <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            Release size preference
+          </label>
+          <select
+            name="auto_grab[size_preference]"
+            class="select select-bordered w-full"
+            data-nav-item
+            tabindex="0"
+          >
+            <option value="fidelity" selected={@auto_grab.size_preference == "fidelity"}>
+              Best fidelity (remuxes first)
+            </option>
+            <option value="space" selected={@auto_grab.size_preference == "space"}>
+              Save space (compact encodes first)
+            </option>
+          </select>
+          <p class="text-xs text-base-content/40 mt-1">
+            Decides between releases of the same resolution. Save space still grabs
+            a remux when nothing smaller exists.
+          </p>
+        </div>
+
+        <div>
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
             Maximum search attempts
           </label>
           <input

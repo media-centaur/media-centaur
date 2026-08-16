@@ -14,6 +14,7 @@ defmodule MediaCentaur.Acquisition.Plans do
 
   import Ecto.Query
 
+  alias MediaCentaur.Acquisition.AutoGrabSettings
   alias MediaCentaur.Acquisition.Jobs.RunPlan
   alias MediaCentaur.Acquisition.PlanEvents
   alias MediaCentaur.Acquisition.Corpus
@@ -341,7 +342,8 @@ defmodule MediaCentaur.Acquisition.Plans do
   verified, covering the unit, minus exclusions and the current
   assignment. Suspicious (bait-pattern) titles are **flagged, not
   hidden** — never auto-picked, but a deliberate human may choose one.
-  Sorted: clean before suspicious, then quality, then seeders.
+  Sorted: clean before suspicious, then quality, then source ladder
+  (ADR-061), then seeders.
   """
   @spec alternatives_for(Ecto.UUID.t()) ::
           {:ok, [PlanBoard.Alternative.t()]} | {:error, :not_found}
@@ -349,6 +351,7 @@ defmodule MediaCentaur.Acquisition.Plans do
     with {:ok, unit} <- get_unit(plan_unit_id),
          {:ok, plan} <- fetch(unit.plan_id) do
       excluded = MapSet.new(unit.excluded_release_guids)
+      size_preference = AutoGrabSettings.load().size_preference
 
       alternatives =
         plan
@@ -367,7 +370,10 @@ defmodule MediaCentaur.Acquisition.Plans do
             suspicious?: ReleaseRedFlags.suspicious?(result.title, result.size_bytes)
           }
         end)
-        |> Enum.sort_by(&{&1.suspicious?, -quality_rank(&1.quality), -(&1.seeders || 0)})
+        |> Enum.sort_by(
+          &{&1.suspicious?, -quality_rank(&1.quality),
+           -Quality.source_rank(Quality.source(&1.title), size_preference), -(&1.seeders || 0)}
+        )
         |> Enum.take(12)
 
       {:ok, alternatives}
@@ -659,8 +665,15 @@ defmodule MediaCentaur.Acquisition.Plans do
   defp scope_display(:series), do: "Complete series"
   defp scope_display(:unknown), do: nil
 
-  defp quality_rank("4K"), do: 2
-  defp quality_rank("1080p"), do: 1
+  # Display-label ladder for picker sorting. Below-floor resolutions rank
+  # between the tiers and "no signal", so a known-720p rip never sorts
+  # under a resolution-less title on source strength alone (ADR-061).
+  defp quality_rank("4K"), do: 5
+  defp quality_rank("1080p"), do: 4
+  defp quality_rank("720p"), do: 3
+  defp quality_rank("576p"), do: 2
+  defp quality_rank("480p"), do: 1
+  defp quality_rank("DVD"), do: 1
   defp quality_rank(_quality), do: 0
 
   # ---------------------------------------------------------------------------

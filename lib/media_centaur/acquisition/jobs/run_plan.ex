@@ -446,7 +446,11 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
         pick =
           matched
           |> Enum.filter(&Quality.acceptable?(&1.quality, min_quality, plan_prefs.max_quality))
-          |> Enum.max_by(&{Quality.rank(&1.quality), &1.seeders || 0}, fn -> nil end)
+          |> Enum.max_by(
+            &{Quality.rank(&1.quality),
+             Quality.source_rank(Quality.source(&1.title), plan_prefs.size_preference), &1.seeders || 0},
+            fn -> nil end
+          )
 
         below_floor_guids =
           matched
@@ -552,6 +556,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     %{
       min_quality: Map.get(criteria, "min_quality") || settings.default_min_quality,
       max_quality: Map.get(criteria, "max_quality") || settings.default_max_quality,
+      size_preference: settings.size_preference,
       span_sizes: span_sizes,
       # Fit-gating is media-search's lever: only plans that captured the
       # span sizes (TV selections) opt in. Movies and tracking drops have
