@@ -1192,7 +1192,7 @@ defmodule MediaCentaurWeb.SettingsLive do
      |> assign(refreshing_images: false)
      |> put_flash(
        :info,
-       "Image cache cleared — #{count} #{if count == 1, do: "entity", else: "entities"} queued for re-download. New artwork will appear as the pipeline catches up."
+       "Image cache cleared — #{count} #{if count == 1, do: "entry", else: "entries"} queued for re-download. New artwork will appear as downloads catch up."
      )}
   end
 

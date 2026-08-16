@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.StatusLive.HealthBoardLiveTest do
     assert has_element?(view, "#subsystem-tile-watcher")
 
     {:ok, view, _html} = live(conn, ~p"/status?subsystem=pipeline")
-    assert has_element?(view, "#health-drill-in", "Import")
+    assert has_element?(view, "#health-drill-in", "Media import")
   end
 
   test "drilling into the watcher subsystem renders its Activity widget", %{conn: conn} do

@@ -490,6 +490,19 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       refute has_element?(view, "[phx-click='scan']")
     end
 
+    # Toggles are named for the user-facing task, not the internal process
+    # (settings-coherence item 1): Watchers → File watching, Pipeline →
+    # Media import, Image Pipeline → Artwork downloads.
+    test "toggles carry task-facing names", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, ~p"/settings?section=services")
+
+      assert html =~ "File watching"
+      assert html =~ "Media import"
+      assert html =~ "Artwork downloads"
+      refute html =~ "Watchers"
+      refute html =~ "Image Pipeline"
+    end
+
     test "the scan trigger remains on the Library section", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=library")
 
