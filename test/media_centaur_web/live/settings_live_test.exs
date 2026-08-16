@@ -202,6 +202,17 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       view |> element("div[phx-click=toggle_incoming_backdrop]") |> render_click()
       assert MediaCentaur.IncomingBackdrop.enabled?() == false
     end
+
+    # Personal display preferences live together — this toggle moved here
+    # from the Library section's one-row Display card.
+    test "toggling poster titles persists the flag from Preferences", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
+
+      assert MediaCentaur.LibraryCardInfo.enabled?() == true
+
+      view |> element("div[phx-click=toggle_show_card_info]") |> render_click()
+      assert MediaCentaur.LibraryCardInfo.enabled?() == false
+    end
   end
 
   describe "language & subtitle policy" do
@@ -396,8 +407,24 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       assert html =~ "Pipeline settings saved"
     end
 
+    test "saving persists the auto-approve threshold", %{conn: conn} do
+      MediaCentaur.Config.update(:image_resolution, "1080p")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=pipeline")
+
+      view
+      |> form("form[phx-submit=save_pipeline]", %{
+        "extras_dirs" => "",
+        "skip_dirs" => "",
+        "auto_approve_threshold" => "0.72",
+        "image_resolution" => "1080p"
+      })
+      |> render_submit()
+
+      assert MediaCentaur.Config.get(:auto_approve_threshold) == 0.72
+    end
+
     test "the completion message reports the re-queued count", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=danger")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=maintenance")
 
       send(
         view.pid,
@@ -408,7 +435,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     end
 
     test "the manual maintenance button starts a re-fetch", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=danger")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=maintenance")
 
       html = view |> element("button[phx-click=refetch_backdrops]") |> render_click()
       assert html =~ "Re-fetching backdrops"
@@ -474,8 +501,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       view
       |> form("form[phx-submit='save_tmdb']", %{
-        "tmdb_api_key" => "freshly-rotated-key-123",
-        "auto_approve_threshold" => "0.85"
+        "tmdb_api_key" => "freshly-rotated-key-123"
       })
       |> render_submit()
 
@@ -493,8 +519,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
       view
       |> form("form[phx-submit='save_tmdb']", %{
-        "tmdb_api_key" => "",
-        "auto_approve_threshold" => "0.85"
+        "tmdb_api_key" => ""
       })
       |> render_submit()
 
@@ -506,7 +531,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     alias MediaCentaur.Library
 
     test "renders disabled with no badge when nothing is missing", %{conn: conn} do
-      {:ok, _view, html} = live_async!(conn, ~p"/settings?section=danger")
+      {:ok, _view, html} = live_async!(conn, ~p"/settings?section=maintenance")
 
       assert html =~ "Repair missing images"
       assert html =~ "All image files are present on disk"
@@ -528,7 +553,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
         extension: "jpg"
       })
 
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=danger")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=maintenance")
 
       # `missing_images_summary` is fetched inside the deferred
       # `start_async_settings_load/1` task; wait for the result.
@@ -540,7 +565,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     end
 
     test "dispatch flips to 'Repairing…' and completes with a flash", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=danger")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=maintenance")
 
       # Hand the LiveView a completion message directly — we don't need the
       # background Task.Supervisor path to prove the state-transition wiring.

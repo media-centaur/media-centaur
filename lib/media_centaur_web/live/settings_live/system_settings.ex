@@ -8,6 +8,8 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
 
   use MediaCentaurWeb, :html
 
+  import MediaCentaurWeb.SettingsLive.Components
+
   alias MediaCentaur.SelfUpdate
   alias MediaCentaurWeb.Live.SettingsLive.{ReleaseNotes, SystemSection}
 
@@ -31,6 +33,11 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
   attr :update_schedule_label, :string, required: true
   attr :update_status, :any, required: true, doc: "self-update status atom/tuple."
   attr :apply_phase, :any, required: true, doc: "update apply-phase state or nil."
+  attr :update_check_enabled, :boolean, required: true
+  attr :update_check_interval_minutes, :integer, required: true
+  attr :update_check_interval_floor, :integer, required: true
+  attr :last_checked_label, :string, required: true
+  attr :auto_update_enabled, :boolean, required: true
 
   def render(assigns) do
     ~H"""
@@ -204,15 +211,69 @@ defmodule MediaCentaurWeb.SettingsLive.SystemSettings do
           </details>
         </div>
 
-        <div class="mt-4 pt-4 border-t border-base-content/10">
+        <div class="mt-4 pt-4 border-t border-base-content/10 space-y-5">
+          <%!-- Checking for updates --%>
+          <div class="space-y-2">
+            <.settings_row
+              label="Automatically check for updates"
+              description="Poll GitHub for new releases in the background. Turn off to check only when you press Check for updates."
+              checked={@update_check_enabled}
+              event="toggle_update_check"
+            />
+            <div :if={@update_check_enabled} class="glass-inset rounded-lg p-3.5 space-y-3">
+              <form phx-submit="save_update_interval" class="flex items-center gap-2.5 text-sm">
+                <label for="update-check-interval" class="text-base-content/70">Check every</label>
+                <input
+                  id="update-check-interval"
+                  type="number"
+                  name="interval_minutes"
+                  value={@update_check_interval_minutes}
+                  min={@update_check_interval_floor}
+                  step="1"
+                  class="input input-bordered input-sm w-20 font-mono text-sm"
+                  data-nav-item
+                  tabindex="0"
+                />
+                <span class="text-base-content/70">minutes</span>
+                <.button
+                  variant="neutral"
+                  size="sm"
+                  type="submit"
+                  class="ml-1"
+                  data-nav-item
+                  tabindex="0"
+                >
+                  Save
+                </.button>
+              </form>
+              <p class="text-xs text-base-content/50 leading-relaxed">
+                Media Centaur asks the GitHub Releases API whether a newer version exists. GitHub
+                allows about 60 unauthenticated requests an hour from your network, so checking more
+                often than every {@update_check_interval_floor} minutes risks temporary rate-limiting
+                with no benefit — releases are infrequent.
+              </p>
+              <p class="text-xs text-base-content/40">{@last_checked_label}</p>
+            </div>
+          </div>
+
+          <%!-- Installing updates --%>
+          <div class="space-y-2">
+            <.settings_row
+              label="Install updates automatically"
+              description="When a new version is found, download and install it without asking — the app restarts to finish."
+              checked={@auto_update_enabled}
+              event="toggle_auto_update"
+            />
+            <p class="text-xs text-base-content/50 leading-relaxed px-3.5">
+              If something is playing, the update waits until playback ends, so your session is never
+              interrupted. Leave this off to review the release and press Update now yourself.
+            </p>
+          </div>
+
           <p class="text-xs text-base-content/50 leading-relaxed">
             Updates are published on GitHub. Media Centaur downloads, verifies, and installs each
             release in place and then restarts to finish — usually under a minute, and your library
-            and settings are preserved. Choose how often it checks and whether it installs new
-            versions on its own under <.link
-              navigate={~p"/settings?section=updates"}
-              class="link link-primary"
-            >Updates</.link>.
+            and settings are preserved.
           </p>
         </div>
       </div>

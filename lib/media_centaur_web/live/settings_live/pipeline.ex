@@ -1,8 +1,8 @@
 defmodule MediaCentaurWeb.SettingsLive.Pipeline do
   @moduledoc """
-  The Pipeline section of the Settings page — extras/skip directories and
-  artwork resolution. `SettingsLive` delegates to `render/1` and hosts the
-  save handler.
+  The Pipeline section of the Settings page — extras/skip directories, the
+  match auto-approve threshold, and artwork resolution. `SettingsLive`
+  delegates to `render/1` and hosts the save handler.
   """
 
   use MediaCentaurWeb, :html
@@ -11,7 +11,7 @@ defmodule MediaCentaurWeb.SettingsLive.Pipeline do
 
   attr :config, :map,
     required: true,
-    doc: "settings config map (reads :extras_dirs, :skip_dirs)."
+    doc: "settings config map (reads :extras_dirs, :skip_dirs, :auto_approve_threshold)."
 
   def render(assigns) do
     ~H"""
@@ -20,7 +20,7 @@ defmodule MediaCentaurWeb.SettingsLive.Pipeline do
         <div class="min-w-0">
           <h2 class="text-lg font-semibold">Pipeline</h2>
           <p class="text-sm text-base-content/50 mt-0.5">
-            Controls how files are classified during ingestion.
+            Controls how files are classified and matched during ingestion.
           </p>
         </div>
         <.button
@@ -69,6 +69,27 @@ defmodule MediaCentaurWeb.SettingsLive.Pipeline do
           />
           <p class="text-xs text-base-content/40 mt-1">
             Comma-separated directory names to ignore silently.
+          </p>
+        </div>
+
+        <div>
+          <label class="text-xs font-medium uppercase tracking-wider text-base-content/50 block mb-1.5">
+            Auto-approve threshold
+          </label>
+          <input
+            type="number"
+            name="auto_approve_threshold"
+            step="0.01"
+            min="0"
+            max="1"
+            value={@config[:auto_approve_threshold]}
+            class="input input-bordered w-full font-mono text-sm"
+            data-nav-item
+            tabindex="0"
+          />
+          <p class="text-xs text-base-content/40 mt-1">
+            TMDB matches scoring above this confidence (0.0–1.0) are approved
+            automatically; the rest wait in Review.
           </p>
         </div>
 

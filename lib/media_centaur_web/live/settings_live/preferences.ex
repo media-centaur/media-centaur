@@ -15,6 +15,7 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
   attr :ui_scale, :float, required: true
   attr :library_backdrop, :boolean, required: true
   attr :incoming_backdrop, :boolean, required: true
+  attr :show_card_info, :boolean, required: true
 
   def render(assigns) do
     ~H"""
@@ -50,6 +51,14 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="Show ambient artwork behind the Incoming page"
           checked={@incoming_backdrop}
           event="toggle_incoming_backdrop"
+          color="info"
+        />
+
+        <.settings_row
+          label="Show titles below posters"
+          description="Hide for a clean wall-of-posters view"
+          checked={@show_card_info}
+          event="toggle_show_card_info"
           color="info"
         />
 

@@ -9,8 +9,8 @@ defmodule MediaCentaur.Maintenance do
     ]
 
   @moduledoc """
-  Operator-driven destructive operations — Settings → Danger Zone and the
-  library-maintenance buttons. These actions intentionally cross context
+  Operator-driven destructive operations — Settings → Maintenance and
+  Settings → Danger Zone. These actions intentionally cross context
   boundaries (purge Library schemas, clear image cache, repair missing
   images) so they are owned here rather than in `Settings`, which is
   defined as shared key/value infrastructure with no domain logic.

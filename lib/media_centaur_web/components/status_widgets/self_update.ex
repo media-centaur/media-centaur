@@ -75,7 +75,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.SelfUpdate do
         <div class="mt-3 text-xs text-base-content/50 space-y-0.5">
           <p>{SystemSection.last_checked_label(@last_check_at, @now)}</p>
           <p>
-            <.settings_link section="updates">
+            <.settings_link section="system">
               {SystemSection.update_schedule_label(
                 @check_enabled?,
                 @interval_minutes,
@@ -84,7 +84,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.SelfUpdate do
               )}
             </.settings_link>
           </p>
-          <.settings_link section="updates" class="gap-2">
+          <.settings_link section="system" class="gap-2">
             <span class="text-base-content/50">Automatic install</span>
             <span class={if @auto_install?, do: "text-success", else: "text-base-content/40"}>
               {if @auto_install?, do: "on", else: "off"}
@@ -147,7 +147,7 @@ defmodule MediaCentaurWeb.Components.StatusWidgets.SelfUpdate do
         </div>
 
         <p :if={@apply_phase == :failed} class="mt-3 text-xs text-error" data-component="apply-failed">
-          {SystemSection.apply_phase_label(:failed)} — see <.settings_link section="updates">Settings → Updates</.settings_link>.
+          {SystemSection.apply_phase_label(:failed)} — see <.settings_link section="system">Settings → System</.settings_link>.
         </p>
       </div>
     </div>
