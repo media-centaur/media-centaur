@@ -41,8 +41,8 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaurWeb.SettingsLive.Controls, as: ControlsSection
   alias MediaCentaurWeb.SettingsLive.Language
   alias MediaCentaurWeb.SettingsLive.Library
+  alias MediaCentaurWeb.SettingsLive.ImportSection
   alias MediaCentaurWeb.SettingsLive.MaintenanceSection
-  alias MediaCentaurWeb.SettingsLive.Pipeline, as: PipelineSection
   alias MediaCentaurWeb.SettingsLive.Playback
   alias MediaCentaurWeb.SettingsLive.Preferences
   alias MediaCentaurWeb.SettingsLive.ReleaseTrackingSection
@@ -65,7 +65,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     %{id: "library", label: "Library", group: :media},
     %{id: "tmdb", label: "TMDB", group: :media},
     %{id: "acquisition", label: "Acquisition", group: :media},
-    %{id: "pipeline", label: "Pipeline", group: :media},
+    %{id: "import", label: "Media Import", group: :media},
     %{id: "playback", label: "Playback", group: :media},
     %{id: "language", label: "Language", group: :media},
     %{id: "release_tracking", label: "Release Tracking", group: :media},
@@ -232,9 +232,11 @@ defmodule MediaCentaurWeb.SettingsLive do
       case params["section"] do
         nil -> "system"
         # Legacy redirects — older bookmarks pointed at ?section=overview;
-        # the Updates section merged into System's Updates card.
+        # the Updates section merged into System's Updates card; the
+        # Pipeline section was renamed Media Import.
         "overview" -> "system"
         "updates" -> "system"
+        "pipeline" -> "import"
         other -> other
       end
 
@@ -933,7 +935,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, download_client_detecting: true, download_client_detect_status: nil)}
   end
 
-  def handle_event("save_pipeline", params, socket) do
+  def handle_event("save_import", params, socket) do
     extras =
       (params["extras_dirs"] || "")
       |> String.split(",")
@@ -967,9 +969,9 @@ defmodule MediaCentaurWeb.SettingsLive do
     # the other. Both go through `refetch_backdrops_async`.
     socket =
       if Config.image_resolution() == previous_resolution do
-        put_flash(socket, :info, "Pipeline settings saved")
+        put_flash(socket, :info, "Media import settings saved")
       else
-        start_backdrop_refetch(socket, "Pipeline settings saved — ")
+        start_backdrop_refetch(socket, "Media import settings saved — ")
       end
 
     {:noreply, socket}
@@ -1901,9 +1903,9 @@ defmodule MediaCentaurWeb.SettingsLive do
     """
   end
 
-  defp section_content(%{active_section: "pipeline"} = assigns) do
+  defp section_content(%{active_section: "import"} = assigns) do
     ~H"""
-    <PipelineSection.render config={@config} />
+    <ImportSection.render config={@config} />
     """
   end
 

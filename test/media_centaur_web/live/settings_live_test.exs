@@ -36,7 +36,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
         "preferences",
         "tmdb",
         "acquisition",
-        "pipeline",
+        "import",
         "playback",
         "language",
         "library",
@@ -351,7 +351,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     end
   end
 
-  describe "pipeline — artwork resolution" do
+  describe "media import — artwork resolution" do
     setup do
       # Config.update mutates the global :persistent_term map (not rolled back
       # by the sandbox), so snapshot and restore it around each test.
@@ -360,11 +360,11 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       :ok
     end
 
-    test "saving the pipeline form persists the artwork resolution", %{conn: conn} do
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=pipeline")
+    test "saving the media-import form persists the artwork resolution", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=import")
 
       view
-      |> form("form[phx-submit=save_pipeline]", %{
+      |> form("form[phx-submit=save_import]", %{
         "extras_dirs" => "",
         "skip_dirs" => "",
         "image_resolution" => "1080p"
@@ -376,11 +376,11 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
     test "changing the resolution starts a backdrop re-fetch", %{conn: conn} do
       MediaCentaur.Config.update(:image_resolution, "4k")
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=pipeline")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=import")
 
       html =
         view
-        |> form("form[phx-submit=save_pipeline]", %{
+        |> form("form[phx-submit=save_import]", %{
           "extras_dirs" => "",
           "skip_dirs" => "",
           "image_resolution" => "1080p"
@@ -392,11 +392,11 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
     test "saving without changing the resolution does not start a re-fetch", %{conn: conn} do
       MediaCentaur.Config.update(:image_resolution, "1080p")
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=pipeline")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=import")
 
       html =
         view
-        |> form("form[phx-submit=save_pipeline]", %{
+        |> form("form[phx-submit=save_import]", %{
           "extras_dirs" => "",
           "skip_dirs" => "",
           "image_resolution" => "1080p"
@@ -404,15 +404,24 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
         |> render_submit()
 
       refute html =~ "Re-fetching backdrops"
-      assert html =~ "Pipeline settings saved"
+      assert html =~ "Media import settings saved"
+    end
+
+    test "the retired ?section=pipeline address lands on Media Import", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=pipeline")
+
+      assert has_element?(
+               view,
+               "[data-nav-zone='sections'] a.menu-item-active[href='/settings?section=import']"
+             )
     end
 
     test "saving persists the auto-approve threshold", %{conn: conn} do
       MediaCentaur.Config.update(:image_resolution, "1080p")
-      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=pipeline")
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=import")
 
       view
-      |> form("form[phx-submit=save_pipeline]", %{
+      |> form("form[phx-submit=save_import]", %{
         "extras_dirs" => "",
         "skip_dirs" => "",
         "auto_approve_threshold" => "0.72",
