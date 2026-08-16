@@ -510,6 +510,28 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     end
   end
 
+  describe "directory-ignore naming" do
+    # Excluded directories (Library) are absolute paths in your library
+    # layout; Skip/Extras (Media Import) are folder names found within
+    # incoming content. The card names carry that distinction
+    # (settings-coherence item 4): name-based cards say "folder names".
+    test "Media Import cards are named for folder names, not directories", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, ~p"/settings?section=import")
+
+      assert html =~ "Extras folder names"
+      assert html =~ "Ignored folder names"
+      refute html =~ "Extras directories"
+      refute html =~ "Skip directories"
+    end
+
+    test "the Excluded directories card cross-links name-based ignores", %{conn: conn} do
+      {:ok, _view, html} = live_async!(conn, ~p"/settings?section=library")
+
+      assert html =~ "Excluded directories"
+      assert html =~ "Ignored folder names"
+    end
+  end
+
   describe "release tracking folded into Acquisition" do
     # One number input doesn't earn a nav item; release tracking feeds
     # auto-grab, so its refresh interval lives on the Acquisition section

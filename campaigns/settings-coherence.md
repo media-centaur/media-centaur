@@ -19,9 +19,10 @@ commits `85d13351` + `9a7c1271`; this campaign carries the rest.
 
 In progress — resumed 2026-08-16. Reconciled against `git log`: the first
 slice (`85d13351`, `9a7c1271`, `445443ef`) is the only settings work on
-main; code matches the plan below. Items 2 and 3 are settled and being
-implemented; item 1 awaits the owner's name pick; item 4's design question
-is open; item 5 waits for the layout to settle.
+main; code matched the plan below. Items 1–4 and 6 are done (see below);
+item 7 dropped. Remaining: item 5 (screenshot regen) — layout has
+settled, but the owner asked to hold off for now; do it only on their
+go-ahead.
 
 ## Decisions made
 
@@ -63,13 +64,13 @@ is open; item 5 waits for the layout to settle.
    Prowlarr), `ReleaseTrackingSection` deleted, legacy redirect
    `release_tracking` → `acquisition`, wiki Settings-Reference +
    Release-Tracking updated.
-4. **Unify the directory-ignore story.** Three "ignore this directory"
-   settings across two sections: Library → Excluded directories (absolute
-   paths), Media Import → Skip directories (names, silent) and Extras
-   directories (names, bonus content). Decide whether they co-locate
-   (likely Library, next to the media dirs they modify) or stay split with
-   point-of-use copy explaining the paths-vs-names distinction. Design
-   question: are Skip and Excluded even distinct concepts to a user?
+4. ~~**Unify the directory-ignore story.**~~ Done 2026-08-16 — owner
+   ruling: Excluded (absolute paths, your library layout) and Skip/Extras
+   (folder names found within incoming content) are *distinct concepts*,
+   so no merge and no move; the current homes are correct. Instead the
+   names carry the distinction: Skip directories → **Ignored folder
+   names**, Extras directories → **Extras folder names**; the two ignore
+   cards cross-link each other. Wiki Settings-Reference updated.
 5. **Regenerate the settings screenshots.** Wiki/docs-site embed
    `settings-overview.png`, `settings-library.png`, `settings-tmdb.png` —
    all show the old nav (Updates section, no Maintenance) and the TMDB
@@ -78,9 +79,10 @@ is open; item 5 waits for the layout to settle.
 6. ~~*(droppable)* Move Services out of the General group next to
    System.~~ Done 2026-08-16 with item 2 — dividers now read
    operational ‖ personal ‖ media ‖ infra.
-7. *(droppable)* Cross-link Media Import → Artwork resolution to
-   Maintenance → Re-fetch backdrops. The Maintenance copy already points
-   back; the auto-refetch-on-save covers the main path.
+7. ~~*(droppable)* Cross-link Media Import → Artwork resolution to
+   Maintenance → Re-fetch backdrops.~~ Dropped 2026-08-16 — the
+   Maintenance copy already points back and auto-refetch-on-save covers
+   the main path; a second link adds nothing.
 
 ## Completion criteria
 

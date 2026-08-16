@@ -178,7 +178,8 @@ defmodule MediaCentaurWeb.SettingsLive.Library do
       <div class="glass-surface rounded-xl p-5 space-y-3">
         <.settings_card_header title="Excluded directories" />
         <p class="text-xs text-base-content/50 max-w-[60ch]">
-          Paths to ignore inside your media directories.
+          Specific paths inside your media directories that are never scanned.
+          To ignore folders by name wherever they appear, use Media Import → Ignored folder names.
         </p>
 
         <ul :if={@exclude_dirs != []} class="space-y-2">
