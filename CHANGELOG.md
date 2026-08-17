@@ -4,6 +4,24 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.126.5 — 2026-08-17
+
+### New
+
+- **Pick between best-quality and space-saving downloads.** A new **Release size preference** under Settings → Acquisition decides which release wins when several are available at the same resolution: *Best fidelity* grabs untouched sources first (remuxes — expect large files), while *Save space* prefers compact encodes. Nothing is ever excluded by the choice — if the only release is a remux, it's still grabbed.
+
+### Improved
+
+- **Settings is organized around what you're doing.** Sections are named for the task, not the machinery: the Pipeline section is now **Media Import**, update options live on the System section's Updates card, recoverable repair actions have their own **Maintenance** section (Danger Zone keeps only the irreversible), and Release Tracking's refresh interval now lives under **Acquisition** with the rest of the download settings. Old bookmarks and links redirect to the new places.
+- **Background services say what they do.** The Services toggles — and the matching tiles on the Status page — now read **File watching**, **Media import**, and **Artwork downloads** instead of Watchers, Pipeline, and Image Pipeline.
+- **Scan now lives with your media directories.** The manual scan button appears once, on Settings → Library next to the directories it scans, instead of also being duplicated under Services.
+- **Directory ignores explain themselves.** Settings → Media Import now has **Ignored folder names** and **Extras folder names** (folder names matched anywhere within your media, like `Sample` or `Extras`), while Library → Excluded directories takes specific paths — and each points to the other so it's clear which one you want.
+
+### Fixed
+
+- **Floating panels no longer show a dark edge over artwork.** Glass surfaces sitting on bright hero imagery had a visible dark rim along their border; they now blend cleanly.
+- **Collapsed-sidebar tooltips match the sidebar's labels.** Hovering a collapsed sidebar icon shows its name in the same size and weight as the expanded sidebar, instead of a smaller, bolder face.
+
 ## v0.126.4 — 2026-08-15
 
 ### Improved
