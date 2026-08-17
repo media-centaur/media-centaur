@@ -22,6 +22,7 @@
 # resets the demo cleanly.
 /priv/showcase/media/
 /priv/showcase/images/
+/priv/showcase/image-derivatives/
 /priv/showcase/*.db
 /priv/showcase/*.db-*
 
