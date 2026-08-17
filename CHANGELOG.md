@@ -4,6 +4,21 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.127.0 — 2026-08-17
+
+### New
+
+- **Play straight from a card.** Rest your mouse on any title on the Home or Library page and a play button appears — one click starts playback at your resume point, without opening the title's page first. Clicking anywhere else on the card still opens the title as before. Collections open their page as usual — pick the film from there.
+- **"Play button on cards" setting.** The hover play button can be turned off under Settings → Preferences if you prefer the title page as the only route to Play. It's on by default.
+
+### Improved
+
+- **Play buttons no longer detour through the title page.** The featured title's Play button now starts playback immediately; "More info" still opens the title page whenever you want the details.
+
+### Fixed
+
+- **Home page cards show a pointer cursor** when hovered with a mouse.
+
 ## v0.126.5 — 2026-08-17
 
 ### New
