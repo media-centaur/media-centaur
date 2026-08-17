@@ -3,9 +3,12 @@ defmodule MediaCentaurWeb.Components.PlayOverlay do
   Hover-revealed direct-play affordance for browse cards (UIDR-027).
 
   Renders inside a card's `relative` image region. Invisible at rest, it
-  fades in (opacity only, 120ms) while the pointer hovers the nearest
+  fades in (opacity only, 240ms, after the `--play-overlay-reveal-delay`
+  hover-intent delay) while the pointer hovers the nearest
   `.play-overlay-host` ancestor — hover is the only trigger, so the
-  affordance does not exist for keyboard/gamepad input. The button fires
+  affordance does not exist for keyboard/gamepad input. Fade-out is
+  never delayed. A soft radial halo behind the button provides glyph
+  legibility without washing the card. The button fires
   the shared `"play"` event (`MediaCentaur.Playback.play/1` in place —
   no detail modal).
 
@@ -26,16 +29,9 @@ defmodule MediaCentaurWeb.Components.PlayOverlay do
     default: :sm,
     doc: "`:sm` (52px) for poster-shaped cards, `:lg` (64px) for the wide backdrop card"
 
-  attr :scrim, :atom,
-    values: [:gradient, :dim],
-    default: :gradient,
-    doc:
-      "`:gradient` adds a bottom scrim for glyph legibility on bare posters; " <>
-        "`:dim` is a light flat wash for cards that already carry their own gradient"
-
   def play_overlay(assigns) do
     ~H"""
-    <div class={["play-overlay", @scrim == :dim && "play-overlay-dim"]}>
+    <div class="play-overlay">
       <button
         type="button"
         class={["play-overlay-btn", @size == :lg && "play-overlay-btn-lg"]}

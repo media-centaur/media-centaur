@@ -99,14 +99,7 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
             {item.name}
           </div>
         </div>
-        <%!-- :dim, not the default gradient scrim — this card already
-              carries its own permanent bottom gradient (UIDR-027). --%>
-        <PlayOverlay.play_overlay
-          :if={@show_play_button}
-          entity_id={item.entity_id}
-          size={:lg}
-          scrim={:dim}
-        />
+        <PlayOverlay.play_overlay :if={@show_play_button} entity_id={item.entity_id} size={:lg} />
 
         <div class="absolute left-0 right-0 bottom-0 h-1.5 bg-black/50">
           <div class="h-full bg-primary" style={"width: #{item.progress_pct}%"}></div>
