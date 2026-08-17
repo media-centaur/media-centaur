@@ -99,3 +99,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 024 | 2026-08-13 | [Subject progress lives in the hero hairline, from one shared component](user-interface/2026-08-13-024-subject-progress-hero-hairline.md) | accepted |
 | 025 | 2026-08-14 | [Collections are filing, not content — activity surfaces speak in movies](user-interface/2026-08-14-025-collections-are-filing-not-content.md) | accepted |
 | 026 | 2026-08-14 | [Re-selecting the current page in the main nav scrolls to the top](user-interface/2026-08-14-026-nav-reselect-scrolls-to-top.md) | accepted |
+| 027 | 2026-08-17 | [Play affordances play in place — the modal is never a waystation](user-interface/2026-08-17-027-play-in-place.md) | accepted |

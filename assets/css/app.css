@@ -1894,6 +1894,67 @@ body:has(.modal-backdrop[data-state="open"]) {
   z-index: 2;
 }
 
+/* ── Play overlay (UIDR-027) ──
+   Hover-revealed direct-play button on browse cards. Opacity-only
+   reveal — no scale, no translation, no dwell — per UIDR-012's calm.
+   The trigger is pointer hover on the card's `.play-overlay-host`
+   region, so keyboard/gamepad focus can never surface it. The wrapper
+   is pointer-transparent (card clicks pass through to select_entity);
+   only the button itself takes the pointer. */
+.play-overlay {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 150ms ease;
+  pointer-events: none;
+  /* Achromatic scrim for glyph legibility over arbitrary poster art. */
+  background: linear-gradient(
+    to top,
+    oklch(0% 0 0 / 0.55),
+    oklch(0% 0 0 / 0.15) 45%,
+    transparent 70%
+  );
+}
+
+.play-overlay-host:hover .play-overlay {
+  opacity: 1;
+}
+
+/* Cards that already carry a permanent bottom gradient (the continue-
+   watching backdrop) get a light flat wash instead of a doubled scrim. */
+.play-overlay-dim {
+  background: oklch(0% 0 0 / 0.18);
+}
+
+.play-overlay-btn {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 9999px;
+  color: white;
+  background: oklch(from var(--color-base-100) l c h / 0.75);
+  border: 1.5px solid oklch(100% 0 0 / 0.85);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background-color 100ms ease, border-color 100ms ease;
+}
+
+.play-overlay-btn:hover {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.play-overlay-btn-lg {
+  width: 64px;
+  height: 64px;
+}
+
 /* ── Card size tokens ──
    A card's size belongs to the card, not to whichever container it lands
    in. These are the two shapes the library surfaces paint, in CSS px —

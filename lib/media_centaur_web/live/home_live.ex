@@ -106,7 +106,7 @@ defmodule MediaCentaurWeb.HomeLive do
       <div
         class="relative"
         data-nav-default-zone="home"
-        data-nav-transient-params="selected,view,autoplay"
+        data-nav-transient-params="selected,view"
       >
         <%!-- ── Page atmosphere (z-index 0) ──
               Backdrop image fades into base-100 at the top of the page. The

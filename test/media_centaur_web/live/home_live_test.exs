@@ -228,13 +228,13 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       view
       |> element(
-        ~s|[data-component="continue-watching"] button[data-row-item]|,
+        ~s|[data-component="continue-watching"] [data-row-item][phx-click="select_entity"]|,
         "Sample Movie"
       )
       |> render_click()
 
-      # Modal opens; user clicks Play in the modal to resume — clicking the
-      # card itself does not auto-start playback.
+      # Modal opens; the card body still means details — direct play lives
+      # on the hover overlay's own button (UIDR-027).
       assert_patched(view, "/?selected=#{movie.id}")
       assert render(view) =~ ~s|data-state="open"|
     end
@@ -277,7 +277,10 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       {:ok, view, _html} = live_async!(conn, "/")
 
       view
-      |> element(~s|[data-component="poster-row"] button[data-row-item]|, "Sample Movie")
+      |> element(
+        ~s|[data-component="poster-row"] [data-row-item][phx-click="select_entity"]|,
+        "Sample Movie"
+      )
       |> render_click()
 
       assert_patched(view, "/?selected=#{movie.id}")
@@ -433,6 +436,72 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       {:ok, _view, html} = live_async!(conn, "/?zone=continue")
 
       assert html =~ "Continue Watching" or html =~ "Your home page will populate"
+    end
+  end
+
+  describe "play in place (UIDR-027)" do
+    setup do
+      # One in-progress movie with a backdrop and synopsis populates every
+      # surface at once: hero (description + backdrop + present file),
+      # Continue Watching, and Recently Added.
+      movie =
+        create_standalone_movie(%{
+          name: "Sample Movie",
+          description: "A sample synopsis for hero eligibility."
+        })
+
+      create_image(%{
+        movie_id: movie.id,
+        role: "backdrop",
+        content_url: "#{movie.id}/backdrop.jpg"
+      })
+
+      _ = create_linked_file(%{movie_id: movie.id})
+      create_watch_progress(%{movie_id: movie.id, position_seconds: 30.0, duration_seconds: 100.0})
+
+      %{movie: movie}
+    end
+
+    test "continue-watching card carries a direct play button", %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      assert has_element?(
+               view,
+               ~s|#continue-watching-#{movie.id} button[phx-click="play"][phx-value-id="#{movie.id}"]|
+             )
+    end
+
+    test "recently-added poster card carries a direct play button", %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      assert has_element?(
+               view,
+               ~s|#poster-row-#{movie.id} button[phx-click="play"][phx-value-id="#{movie.id}"]|
+             )
+    end
+
+    test "hero Play plays directly — no modal round-trip", %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      assert has_element?(
+               view,
+               ~s|[data-component="hero"] button[phx-click="play"][phx-value-id="#{movie.id}"]|
+             )
+
+      view
+      |> element(~s|[data-component="hero"] button[phx-click="play"]|)
+      |> render_click()
+
+      # Factory file has no bytes on disk → reaching Playback.play/1
+      # surfaces the flash; the modal must not have opened on the way.
+      assert render(view) =~ "File not available"
+      refute has_element?(view, "#detail-modal[data-state='open']")
+    end
+
+    test "no surface carries the retired autoplay param", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      refute has_element?(view, "[phx-value-autoplay]")
     end
   end
 end

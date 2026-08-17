@@ -345,7 +345,7 @@ defmodule MediaCentaurWeb.LibraryLive do
         class="relative"
         data-page-behavior="library"
         data-nav-default-zone="library"
-        data-nav-transient-params="selected,view,autoplay"
+        data-nav-transient-params="selected,view"
       >
         <%!-- Calm backdrop band behind the header — a sense of place that
               ties the browse page to the home page's visual language without
