@@ -141,9 +141,11 @@ const TOUR = [
       // MediaCentaur.Showcase.Stubs) — the stub returns fixture
       // release candidates regardless of the query string, so any
       // submission populates the results card.
-      const input = page.locator("input[name='query']")
+      // The omnibox forms are buttonless by design (see media_omnibox.ex)
+      // — Enter is the only submit path.
+      const input = page.locator("input[name='query']").first()
       await input.fill("Night of the Living Dead")
-      await page.locator("button[type='submit']").click()
+      await input.press("Enter")
       // Wait for the results card to appear. The IncomingLive
       // template only renders the results section when @groups is
       // non-empty, so a presence-check on the section heading is
@@ -177,9 +179,12 @@ const TOUR = [
     name: "settings-download-clients",
     url: "/settings?section=acquisition",
     action: async (page) => {
+      // Align the torrent-client card to the top of the viewport.
+      // scrollIntoViewIfNeeded is a no-op when the card is already
+      // visible, which made this shot identical to settings-prowlarr.
       await page
         .locator("#settings-download-client")
-        .scrollIntoViewIfNeeded({ timeout: 5_000 })
+        .evaluate((el) => el.scrollIntoView({ block: "start", behavior: "instant" }))
         .catch(() => {})
     },
     settleMs: 300,
