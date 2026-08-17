@@ -32,6 +32,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   use MediaCentaurWeb.Live.EntityModal
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LibraryCardInfoAware
+  use MediaCentaurWeb.Live.CardPlayButtonAware
   use MediaCentaurWeb.Live.LibraryBackdropAware
 
   alias MediaCentaur.{
@@ -284,11 +285,12 @@ defmodule MediaCentaurWeb.LibraryLive do
      )}
   end
 
-  # `LibraryCardInfoAware` has already updated `:show_card_info` via its
-  # `attach_hook`; we reset the grid stream so existing card items
-  # re-render with the new `show_info` attr (stream items are not part
+  # `LibraryCardInfoAware` / `CardPlayButtonAware` have already updated
+  # their assigns via `attach_hook`; we reset the grid stream so existing
+  # card items re-render with the new attr (stream items are not part
   # of subsequent diffs — they only re-render when the stream is reset).
-  def handle_info({:setting_changed, "library_show_card_info", _value}, socket) do
+  def handle_info({:setting_changed, key, _value}, socket)
+      when key in ["library_show_card_info", "card_play_button"] do
     {:noreply, stream(socket, :grid, socket.assigns.entries, reset: true)}
   end
 
@@ -455,6 +457,7 @@ defmodule MediaCentaurWeb.LibraryLive do
                   playing={playing?(@playback, entry.id)}
                   available={Map.get(@availability_map, entry.id, true)}
                   show_info={@show_card_info}
+                  show_play_button={@show_play_button}
                 />
               </div>
             </div>

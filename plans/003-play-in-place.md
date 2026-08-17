@@ -13,8 +13,9 @@ waystation before playing.
 - One click from any browse surface to playback.
 - Calm: the resting UI is pixel-identical to today; hover feedback is
   opacity-only, immediate, and motionless.
-- Purely additive for every user: card click keeps opening details, so
-  no preference toggle is needed.
+- Purely additive for every user: card click keeps opening details. A
+  default-on preference (Settings → Preferences → "Play button on
+  cards") turns the overlay off for users who don't want it.
 - Invisible to keyboard/gamepad: no new focus stops, no layout or
   scroll perturbation, no reveal on programmatic focus.
 - One play path in the system: playing happens in place; the modal is

@@ -16,6 +16,7 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
   attr :library_backdrop, :boolean, required: true
   attr :incoming_backdrop, :boolean, required: true
   attr :show_card_info, :boolean, required: true
+  attr :show_play_button, :boolean, required: true
 
   def render(assigns) do
     ~H"""
@@ -59,6 +60,14 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="Hide for a clean wall-of-posters view"
           checked={@show_card_info}
           event="toggle_show_card_info"
+          color="info"
+        />
+
+        <.settings_row
+          label="Play button on cards"
+          description="Hover a card to play it in one click"
+          checked={@show_play_button}
+          event="toggle_show_play_button"
           color="info"
         />
 

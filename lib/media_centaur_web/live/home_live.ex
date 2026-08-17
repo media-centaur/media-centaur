@@ -9,6 +9,7 @@ defmodule MediaCentaurWeb.HomeLive do
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.EntityModal
   use MediaCentaurWeb.Live.SpoilerFreeAware
+  use MediaCentaurWeb.Live.CardPlayButtonAware
 
   alias MediaCentaur.{
     Acquisition,
@@ -169,7 +170,10 @@ defmodule MediaCentaurWeb.HomeLive do
                 See all →
               </.link>
             </div>
-            <ContinueWatchingRow.continue_watching_row items={@continue_items} />
+            <ContinueWatchingRow.continue_watching_row
+              items={@continue_items}
+              show_play_button={@show_play_button}
+            />
           </section>
 
           <section
@@ -185,7 +189,11 @@ defmodule MediaCentaurWeb.HomeLive do
                 See all →
               </.link>
             </div>
-            <PosterRow.poster_row items={@recently_added} see_all_href="/library" />
+            <PosterRow.poster_row
+              items={@recently_added}
+              see_all_href="/library"
+              show_play_button={@show_play_button}
+            />
           </section>
 
           <%!-- `data-nav-reveal` on the section, unlike the rows above: the

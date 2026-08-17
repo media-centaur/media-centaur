@@ -10,6 +10,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.LibraryCardInfoAware
+  use MediaCentaurWeb.Live.CardPlayButtonAware
   use MediaCentaurWeb.Live.LibraryBackdropAware
   use MediaCentaurWeb.Live.IncomingBackdropAware
 
@@ -749,6 +750,17 @@ defmodule MediaCentaurWeb.SettingsLive do
     })
 
     {:noreply, assign(socket, show_card_info: enabled)}
+  end
+
+  def handle_event("toggle_show_play_button", _params, socket) do
+    enabled = !socket.assigns.show_play_button
+
+    Settings.find_or_create_entry!(%{
+      key: MediaCentaur.CardPlayButton.setting_key(),
+      value: %{"enabled" => enabled}
+    })
+
+    {:noreply, assign(socket, show_play_button: enabled)}
   end
 
   def handle_event("toggle_update_check", _params, socket) do
@@ -1720,6 +1732,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 spoiler_free={@spoiler_free}
                 ui_scale={@ui_scale}
                 show_card_info={@show_card_info}
+                show_play_button={@show_play_button}
                 library_backdrop={@library_backdrop}
                 incoming_backdrop={@incoming_backdrop}
                 tmdb_test={@tmdb_test}
@@ -1838,6 +1851,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       library_backdrop={@library_backdrop}
       incoming_backdrop={@incoming_backdrop}
       show_card_info={@show_card_info}
+      show_play_button={@show_play_button}
     />
     """
   end

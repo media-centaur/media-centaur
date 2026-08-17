@@ -212,6 +212,33 @@ defmodule MediaCentaurWeb.Storybook.LibraryCards.PosterCard do
         ]
       },
       %VariationGroup{
+        id: :play_button_axis,
+        description:
+          "`show_play_button` axis — the hover play overlay (UIDR-027, " <>
+            "Settings entry `card_play_button`). The overlay is invisible " <>
+            "at rest by design; hover the artwork to reveal it on the " <>
+            "enabled card. Collections and unavailable cards never get one.",
+        variations: [
+          %Variation{
+            id: :play_enabled,
+            description: "Default — `show_play_button: true`; hover the artwork to reveal.",
+            attributes: %{
+              id: "card-play-enabled",
+              entry: item(name: "Sample With Play", year: 1924, poster: true)
+            }
+          },
+          %Variation{
+            id: :play_disabled,
+            description: "`show_play_button: false` — no overlay renders, hover shows nothing.",
+            attributes: %{
+              id: "card-play-disabled",
+              entry: item(name: "Sample Without Play", year: 1924, poster: true),
+              show_play_button: false
+            }
+          }
+        ]
+      },
+      %VariationGroup{
         id: :edge_cases,
         description: "Title and metadata edge cases.",
         variations: [

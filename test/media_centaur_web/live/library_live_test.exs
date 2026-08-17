@@ -1695,4 +1695,62 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       assert has_element?(view, "#detail-modal[data-state='open']")
     end
   end
+
+  describe "card play button toggle" do
+    alias MediaCentaur.CardPlayButton
+    alias MediaCentaur.Settings
+    alias MediaCentaur.Topics
+
+    setup do
+      movie = create_standalone_movie(%{name: "Play Toggle Fixture"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      {:ok, movie: movie}
+    end
+
+    test "play button renders by default (no Settings entry)", %{conn: conn, movie: movie} do
+      assert Settings.get_by_key(CardPlayButton.setting_key()) == nil
+
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      assert has_element?(view, ~s|[data-entity-id="#{movie.id}"] button[phx-click="play"]|)
+    end
+
+    test "broadcast of `enabled: false` removes the play button on re-render",
+         %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      assert has_element?(view, ~s|[data-entity-id="#{movie.id}"] button[phx-click="play"]|)
+
+      {:ok, _} =
+        Settings.find_or_create_entry(%{
+          key: CardPlayButton.setting_key(),
+          value: %{"enabled" => false}
+        })
+
+      Phoenix.PubSub.broadcast(
+        MediaCentaur.PubSub,
+        Topics.settings_updates(),
+        {:setting_changed, CardPlayButton.setting_key(), %{"enabled" => false}}
+      )
+
+      # Drain the message; broadcast is processed synchronously by the
+      # LiveView's attached handle_info hook before the next render.
+      _ = render(view)
+
+      refute has_element?(view, ~s|[data-entity-id="#{movie.id}"] button[phx-click="play"]|)
+    end
+
+    test "entry persisted with `enabled: false` removes the play button on first render",
+         %{conn: conn, movie: movie} do
+      {:ok, _} =
+        Settings.find_or_create_entry(%{
+          key: CardPlayButton.setting_key(),
+          value: %{"enabled" => false}
+        })
+
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      refute has_element?(view, ~s|[data-entity-id="#{movie.id}"] button[phx-click="play"]|)
+    end
+  end
 end
