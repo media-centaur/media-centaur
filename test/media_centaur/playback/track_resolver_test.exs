@@ -804,8 +804,7 @@ defmodule MediaCentaur.Playback.TrackResolverTest do
   # it `default` is mislabeled — `forced` ("show only when needed") and
   # `default` ("the main track") are contradictory in intent. The resolver
   # must not surface such a track as a forced fallback, or understood-audio
-  # playback comes up with unwanted full subtitles on. See
-  # campaigns/track-selection-source-of-truth.md.
+  # playback comes up with unwanted full subtitles on.
   describe "mislabeled forced+default tracks (fill_gaps)" do
     setup do
       %{

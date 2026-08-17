@@ -231,5 +231,6 @@ glide, which is the motion people do want, is unaffected.
 Recorded because the idea is an appealing one that will occur to someone again.
 The measurements — including why chasing the element's *live* rect wobbles by
 37% of a card width at exactly the wrong moment, and two unit bugs that are
-invisible at scale 1.0 — are in `campaigns/input-system-1.0-pass.md` so a future
-attempt starts from what was learned rather than from scratch.
+invisible at scale 1.0 — were recorded in the retired input-system 1.0 campaign
+(`campaigns/input-system-1.0-pass.md`, in git history) so a future attempt
+starts from what was learned rather than from scratch.

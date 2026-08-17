@@ -388,8 +388,7 @@ defmodule MediaCentaur.Playback.TrackResolver do
   # we treat it as *not* genuinely forced: the forced-fallback paths skip
   # it and understood-audio playback stays subtitle-free. A real forced
   # track (forced, not default, sparse) is untouched. Cue-count probing
-  # would be a stronger signal but isn't available at launch — see
-  # campaigns/track-selection-source-of-truth.md.
+  # would be a stronger signal but isn't available at launch.
   defp genuinely_forced?(track), do: track.forced and not track.default
 
   defp find_sub_in_lang(tracks, lang, forced) do
