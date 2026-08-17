@@ -1905,7 +1905,7 @@ body:has(.modal-backdrop[data-state="open"]) {
   position: absolute;
   inset: 0;
   opacity: 0;
-  transition: opacity 150ms ease;
+  transition: opacity 120ms ease;
   pointer-events: none;
   /* Achromatic scrim for glyph legibility over arbitrary poster art. */
   background: linear-gradient(

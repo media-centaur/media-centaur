@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.Components.PlayOverlay do
   Hover-revealed direct-play affordance for browse cards (UIDR-027).
 
   Renders inside a card's `relative` image region. Invisible at rest, it
-  fades in (opacity only, 150ms) while the pointer hovers the nearest
+  fades in (opacity only, 120ms) while the pointer hovers the nearest
   `.play-overlay-host` ancestor — hover is the only trigger, so the
   affordance does not exist for keyboard/gamepad input. The button fires
   the shared `"play"` event (`MediaCentaur.Playback.play/1` in place —
