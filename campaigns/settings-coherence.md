@@ -1,7 +1,7 @@
 ---
-status: in-progress
+status: complete
 started: 2026-08-16
-last_updated: 2026-08-16
+last_updated: 2026-08-17
 ---
 # Settings coherence
 
@@ -17,12 +17,10 @@ commits `85d13351` + `9a7c1271`; this campaign carries the rest.
 
 ## Status
 
-In progress — resumed 2026-08-16. Reconciled against `git log`: the first
-slice (`85d13351`, `9a7c1271`, `445443ef`) is the only settings work on
-main; code matched the plan below. Items 1–4 and 6 are done (see below);
-item 7 dropped. Remaining: item 5 (screenshot regen) — layout has
-settled, but the owner asked to hold off for now; do it only on their
-go-ahead.
+Complete — 2026-08-17. Items 1–4 and 6 shipped in v0.126.5; item 5
+(screenshot regen) done after the owner's go-ahead: full tour re-run
+against the showcase instance and published to docs-site, README, wiki,
+and the assets repo. Item 7 dropped. All completion criteria below hold.
 
 ## Decisions made
 
@@ -71,11 +69,12 @@ go-ahead.
    names carry the distinction: Skip directories → **Ignored folder
    names**, Extras directories → **Extras folder names**; the two ignore
    cards cross-link each other. Wiki Settings-Reference updated.
-5. **Regenerate the settings screenshots.** Wiki/docs-site embed
-   `settings-overview.png`, `settings-library.png`, `settings-tmdb.png` —
-   all show the old nav (Updates section, no Maintenance) and the TMDB
-   threshold field. Do once, after items 1–4 settle the layout
-   (screenshot-showcase skill).
+5. ~~**Regenerate the settings screenshots.**~~ Done 2026-08-17 — full
+   tour re-run and published (docs-site + README + wiki thumbnails, 4K
+   in the assets repo). Along the way: tour fixed for the buttonless
+   omnibox and the identical prowlarr/download-clients frames; showcase
+   DB got `services:dev:start_{watchers,pipeline}` enabled so the System
+   shot reads all-green.
 6. ~~*(droppable)* Move Services out of the General group next to
    System.~~ Done 2026-08-16 with item 2 — dividers now read
    operational ‖ personal ‖ media ‖ infra.
