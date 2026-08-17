@@ -1896,34 +1896,39 @@ body:has(.modal-backdrop[data-state="open"]) {
 
 /* ── Play overlay (UIDR-027) ──
    Hover-revealed direct-play button on browse cards. Opacity-only
-   reveal — no scale, no translation, no dwell — per UIDR-012's calm.
-   The trigger is pointer hover on the card's `.play-overlay-host`
-   region, so keyboard/gamepad focus can never surface it. The wrapper
-   is pointer-transparent (card clicks pass through to select_entity);
-   only the button itself takes the pointer. */
+   reveal — no scale, no translation — per UIDR-012's calm. The reveal
+   waits for hover intent (`--play-overlay-reveal-delay`, tune freely);
+   the fade-out is never delayed, so skimming the pointer across a row
+   shows nothing. The trigger is pointer hover on the card's
+   `.play-overlay-host` region, so keyboard/gamepad focus can never
+   surface it. The wrapper is pointer-transparent (card clicks pass
+   through to select_entity); only the button itself takes the pointer. */
+:root {
+  --play-overlay-reveal-delay: 450ms;
+}
+
 .play-overlay {
   position: absolute;
   inset: 0;
   opacity: 0;
-  transition: opacity 120ms ease;
+  transition: opacity 240ms ease;
   pointer-events: none;
-  /* Achromatic scrim for glyph legibility over arbitrary poster art. */
-  background: linear-gradient(
-    to top,
-    oklch(0% 0 0 / 0.55),
-    oklch(0% 0 0 / 0.15) 45%,
-    transparent 70%
+  /* Soft achromatic halo centred on the button — darkens locally so the
+     button pops against arbitrary artwork, without washing the card
+     (the card's own hover brighten stays uncontested). `closest-side`
+     scales the halo with the card, so posters and the wide backdrop
+     card get the same proportional treatment. */
+  background: radial-gradient(
+    circle closest-side at center,
+    oklch(0% 0 0 / 0.5),
+    oklch(0% 0 0 / 0.28) 40%,
+    transparent 75%
   );
 }
 
 .play-overlay-host:hover .play-overlay {
   opacity: 1;
-}
-
-/* Cards that already carry a permanent bottom gradient (the continue-
-   watching backdrop) get a light flat wash instead of a doubled scrim. */
-.play-overlay-dim {
-  background: oklch(0% 0 0 / 0.18);
+  transition-delay: var(--play-overlay-reveal-delay);
 }
 
 .play-overlay-btn {

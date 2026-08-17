@@ -25,15 +25,17 @@ waystation before playing.
 
 - Hovering a playable card — library grid (with or without card info),
   Recently Added, Continue Watching — fades in a centered circular play
-  button (~120ms, opacity only). Moving the pointer away fades it out.
+  button after a short hover-intent delay (opacity only, tunable in
+  CSS). Moving the pointer away fades it out with no delay.
 - Clicking the button starts playback immediately. No modal opens; on
   leaving playback the page is exactly as the user left it.
 - Clicking anywhere else on the card opens the detail modal, unchanged.
 - The button fills with the primary color when the pointer is over the
   button itself.
-- Poster-shaped cards show a ~52px button over a soft bottom scrim; the
-  large continue-watching backdrop shows a ~64px button over a light
-  flat dim (its own permanent gradient is not doubled).
+- Poster-shaped cards show a ~52px button, the large continue-watching
+  backdrop a ~64px one; both sit on a soft radial halo behind the
+  button (never a card-wide scrim, which fought the card's hover
+  brighten).
 - The hero's Play button now also plays directly — no modal. "More
   info" still opens the modal.
 - Cards whose entity has nothing playable show no play button.
@@ -46,8 +48,9 @@ waystation before playing.
 
 - [ ] At rest, every card renders identical to today — zero new chrome
       without hover.
-- [ ] Hover reveals the button via opacity fade only — no scale,
-      translation, or dwell delay.
+- [ ] Hover reveals the button via opacity fade only — no scale or
+      translation — after a hover-intent delay that never applies to
+      the fade-out.
 - [ ] One click on the button starts playback from all three surfaces,
       including wall-of-posters mode.
 - [ ] No detail modal opens before, during, or after button-initiated
@@ -65,12 +68,13 @@ waystation before playing.
 - [ ] Progress hairline, now-playing pulse, and selected/focus ring
       render unchanged and don't collide with the button.
 - [ ] The overlay is one shared component with one state matrix across
-      all three surfaces (size tier + scrim variant only).
+      all three surfaces (size tier only).
 
 ## Anti-patterns
 
-- **Dwell pop-out**: no delay-then-expand panel; it makes play slower
-  and duplicates the modal.
+- **Dwell pop-out**: no delay-then-expand panel; the expansion
+  duplicates the modal. (The hover-intent *delay* itself was adopted
+  for the button reveal — the expansion stays rejected.)
 - **Default inversion**: a bare card click must never start playback —
   accidental fullscreen mpv (+ HDR flip) is the app's most expensive
   misclick, and inversion is what would force a settings toggle.
