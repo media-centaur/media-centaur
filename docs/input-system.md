@@ -447,8 +447,7 @@ and the rule is invisible, which is exactly right.
 
 The constraint is currently gated to `SHELF` contexts. The mechanism is
 uniform — every `enter_context` directive carries its direction — and the gate
-comes off page by page as each is reviewed. See
-[`campaigns/input-system-1.0-pass.md`](../campaigns/input-system-1.0-pass.md).
+comes off page by page as each is reviewed.
 - **Zone change:** Clears grid + toolbar memory (content is new)
 - **Sort change:** Clears grid memory (order changed, positions meaningless)
 - **Modal/drawer dismiss:** Restores to the originating card via `_originEntityId`

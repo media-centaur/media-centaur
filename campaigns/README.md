@@ -21,62 +21,6 @@ Use [`template.md`](template.md) as a starter.
 
 ## Active
 
-* [`settings-coherence.md`](settings-coherence.md) —
-  **planning.** Finish the 2026-08-16 settings reorganization: the first
-  slice shipped (Maintenance/Danger Zone split, Updates merged into System,
-  threshold → Media Import, poster-titles → Preferences, Pipeline renamed
-  Media Import). Remaining: task-facing names for "Watchers"/"Pipeline" in
-  Services and Status copy (owner design conversation first), de-duplicate
-  Scan now, fold the one-field Release Tracking section into Acquisition,
-  unify the three directory-ignore settings, regenerate the stale settings
-  screenshots.
-* [`input-system-1.0-pass.md`](input-system-1.0-pass.md) —
-  **in progress — Phase 1 (Home).** Page-by-page keyboard/gamepad
-  navigation pass for 1.0, fixing the *model* rather than each page's
-  symptoms. Two conflated responsibilities get one owner each:
-  **adjacency** (geometry, not index arithmetic — `findNearest()` has
-  been dead code all along) and **reveal** (the input system, never
-  CSS — `scroll-snap-type: x mandatory` was silently overriding
-  `scrollIntoView` and clipping every focused card ~100px past the
-  fold, measured and A/B-confirmed). Entering a zone lands on an item
-  touching the edge you came through, which is what makes Coming Up's
-  "never tile 3" fall out of the rule instead of a special case.
-  Owner chose the coherent path over the cheap one. Mouse wheel over a
-  scrolling row deferred.
-* [`below-floor-releases.md`](below-floor-releases.md) —
-  **planning — design not started.** When every findable release of a
-  title is below the user's quality floor, the plan board says a bare
-  "unfound" — indistinguishable from "doesn't exist on your indexers"
-  (*The Magician* 2005: 6 real releases, all ≤720p/unlabeled, silently
-  rejected). Movies have no offer path at all; TV offers cover scope,
-  not quality. Campaign carries the diagnosis + open questions into an
-  owner-led design session; no design decisions yet.
-* [`documentation-catch-up.md`](documentation-catch-up.md) —
-  **planning.** A massive wiki / guide / documentation pass to catch
-  everything up to date, probably including an updated showcase and webpage
-  updates. Owner-directed follow-up to the usenet/multi-client work; starts
-  with a full surface inventory (wiki pages, guides, repo docs, showcase
-  screenshots, media-centaur.net) before any editing.
-* [`detail-page-gpu-blur.md`](detail-page-gpu-blur.md) —
-  **investigating.** Reported sustained GPU spike on the detail/now-playing
-  modal, blamed on `background-attachment: fixed` + stacked `backdrop-filter`
-  blur. Report's CSS claims partly wrong (no `.glass`@40px; detail page is the
-  entity modal's `.modal-page-backdrop`, not `.page-backdrop`; the real
-  full-viewport blur is the unmentioned `.modal-backdrop` scrim). Automated
-  headless A/B ruled out the proposed fix as a main-thread lever but can't
-  measure the GPU blur pass (SwiftShader). **Blocked on a hardware GPU profile**
-  — checklist in the file; prime suspect is the `.modal-backdrop` blur.
-* [`fit-aware-acquisition.md`](fit-aware-acquisition.md) —
-  **built; uncommitted/unpushed, awaiting owner review.** Picking one
-  episode no longer grabs the whole series. The planner gates pack grabs
-  by **fit** (`wanted-in-span / total-aired-in-span`) against a
-  user-set `pack_min_fit` (default 75% — "most of the span"); below it,
-  episodes are grabbed individually and an over-broad pack is surfaced as
-  a one-click **offer** rather than auto-grabbed. Gating is monotonic and
-  opt-in (only plans with persisted `span_sizes`; movies/tracking drops
-  unchanged). All 5083 tests green. Next: owner review, resolve the
-  pre-existing `earmark` deps.audit blocker, commit/push/tag, then
-  validate the 75% default in real use.
 * [`friends-recommendations.md`](friends-recommendations.md) —
   **parked — v2 backbone (do not start until v1 is complete).** Friends, with
   send/receive show recommendations that one-click into the existing
@@ -96,38 +40,6 @@ Use [`template.md`](template.md) as a starter.
   incidents), `showcase_mode` stub seams (update-available + acquisition
   alternatives), and a tour expansion. Skips Guide/Setup/Danger-Zone/
   first-run by decision. PD-or-CC for every visible string.
-* [`guide-book.md`](guide-book.md) —
-  **All 19 chapters on `main` (unpushed); pending owner review before push.** In-app
-  book-style guide at a deep-linkable `/guide` route (linked only from Settings → System,
-  not the main nav) teaching the enthusiast operator how Media Centaur works — 19 chapters
-  across 5 parts (Orientation, Your library, Watching, Acquisition, Operating it),
-  mastery-depth, each researched against source, with a discovery slant (surface under-used
-  capabilities). Portable markdown rendered to HEEx via Earmark; text-first; voice from the
-  `writing-copy` skill. Full precommit green. Deferred: title filter, screenshots,
-  full-text search, and the wiki exporter (separate campaign).
-* [`pursuit-identity-and-lifecycle.md`](pursuit-identity-and-lifecycle.md) —
-  **planning.** Composite pursuits die on their first landing:
-  `IdentityVerifier` fuzzy-matches the filename against the *lead* unit
-  and cancels the whole pursuit on mismatch (live S2+S3 pursuit nuked at
-  one S03E07 landing; six torrents orphaned), and the twin `Satisfy`
-  path closes a pursuit on the first verified file. Settled direction:
-  provenance over filenames — file→unit identity from the grab-time
-  envelope (`Pursuits.Identity` strategies 1–3), title-matching scoped
-  to `prowlarr_query` + hashless fallback, mismatch = per-unit review
-  flag, conclusion = aggregate over unit states. Sibling of
-  `plan-solver-consolidation`. Shipped through v0.88.4; prod-verified
-  2026-06-11 (a series pack landed per-unit without nuking the
-  pursuit).
-* [`plan-solver-consolidation.md`](plan-solver-consolidation.md) —
-  **shipped v0.88.2; live re-plan verification remains.** The
-  media-search plan solver grabbed overlapping releases: a real S2+S3
-  plan produced 7 grabs / ~59.5 GB where 2 season packs sufficed (one
-  4K single vetoed the S3 pack via the summed-quality ensemble
-  comparison; the pack was then grabbed anyway for leftovers, next to
-  ~11.6 GB of singles duplicating its content). Fixed in
-  `Acquisition.Planner`: consolidation claims spans greedily, packs win
-  at equal quality, upgrades are offer-as-swap only; regression test
-  pins the shape.
 * [`playable-item-versions.md`](playable-item-versions.md) —
   **planning.** First-class multi-version support for playable items:
   renditions (HDR/SDR, 2160p/1080p — second `WatchedFile`, shared
@@ -140,13 +52,6 @@ Use [`template.md`](template.md) as a starter.
   version the user didn't ask for, reclaimed from the same modal.
   Phase 1 = renditions, Phase 2 = cuts; swap-time pack mitigation and
   auto-upgrade stay deferred. No code yet.
-* [`external-dependency-health-classification.md`](external-dependency-health-classification.md) —
-  **shipped v0.83.2; prod-reconcile remains.** Move download-client connectivity faults off the noisy `:log`
-  incident track onto the existing `:subsystem` assessor track, so one qBit
-  outage is one auto-closing incident instead of 2–3 stale duplicates from a
-  transient blip. Codifies [ADR-054](../decisions/architecture/2026-06-08-054-external-dependency-faults-are-subsystem-health.md);
-  a download-client `assess/0` over `QueueMonitor` health plus a `LogHandler`
-  suppression marker for assessor-owned connectivity logs.
 * [`download-stack-control-plane.md`](download-stack-control-plane.md) —
   **planning.** Mature the download infrastructure (`prowlarr-stack`) from a
   one-shot installer into a **managed component with a control plane**, shipped
@@ -189,14 +94,6 @@ Use [`template.md`](template.md) as a starter.
   hitting missing-package, first-run, and Docker-without-sudo failures
   on a fresh Mint install — and our inability to reproduce any of them
   locally.
-* [`track-selection-source-of-truth.md`](track-selection-source-of-truth.md) —
-  **planning.** Mislabeled `forced` subtitle tracks (e.g. Sample Show
-  S01E01: a full 863-cue English track flagged `forced+default`) get
-  auto-enabled on understood-language audio because the on-screen sub is
-  mpv's auto-selection, not our resolver. Plan: parse `default` into
-  `Track`, distrust `forced+default` tracks, and make `MpvSession`
-  actively `set sid` so the resolver is the source of truth. Diagnosis
-  confirmed against the real file; no code yet.
 * [`macos-platform-support.md`](macos-platform-support.md) —
   resumed at Phase 5 (macOS impls). Seven Platform.* seams landed
   on the Linux side; CI matrix on both OSes is green and strict
