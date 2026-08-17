@@ -528,11 +528,13 @@ html:not([data-sidebar=collapsed]):is([data-input=keyboard], [data-input=gamepad
   left: 0;
   z-index: 60;
   pointer-events: none;
-  padding: 0.3125rem 0.625rem;
+  padding: 0.375rem 0.75rem;
   border-radius: 0.5rem;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  line-height: 1.25rem;
+  /* Typeset identically to the expanded .sidebar-label it stands in for —
+     a smaller/bolder face reads as a foreign, out-of-scale UI. */
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5rem;
   white-space: nowrap;
   color: oklch(from var(--color-base-content) l c h / 0.95);
   background: var(--glass-nav-bg);

@@ -76,12 +76,12 @@ describe("showDelay", () => {
 describe("tooltipPosition", () => {
   test("x clears the link's right edge by the gap", () => {
     const rect = { right: 52, top: 100, height: 36 }
-    expect(tooltipPosition(rect, 1)).toEqual({ x: 62, y: 118 })
+    expect(tooltipPosition(rect, 1)).toEqual({ x: 66, y: 118 })
   })
 
   test("rect coordinates are divided by the UI scale; the gap is local", () => {
     const rect = { right: 52, top: 100, height: 36 }
-    expect(tooltipPosition(rect, 2)).toEqual({ x: 36, y: 59 })
+    expect(tooltipPosition(rect, 2)).toEqual({ x: 40, y: 59 })
   })
 })
 

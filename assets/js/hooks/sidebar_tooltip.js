@@ -24,7 +24,7 @@ export const COLD_DELAY_MS = 300
 export const WARM_WINDOW_MS = 250
 
 const TOOLTIP_ID = "sidebar-tooltip"
-const GAP_PX = 10
+const GAP_PX = 14
 
 /**
  * Should a tooltip show at all, given the sidebar state and the link label?
