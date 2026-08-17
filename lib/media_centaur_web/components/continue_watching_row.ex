@@ -19,6 +19,8 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [sized_image_url: 2]
 
+  alias MediaCentaurWeb.Components.PlayOverlay
+
   # Cards sit in a `.row-scroll-backdrop-lg` track, so each is
   # `--card-backdrop-w` (453 CSS px, app.css) — 906 device px on a 4K panel,
   # which `960` covers. The logo is height-capped (`max-h-20`) and bounded to
@@ -33,8 +35,7 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
       :name,
       :progress_pct,
       :backdrop_url,
-      logo_url: nil,
-      autoplay: false
+      logo_url: nil
     ]
 
     @type t :: %__MODULE__{
@@ -43,8 +44,7 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
             name: String.t(),
             progress_pct: 0..100,
             backdrop_url: String.t() | nil,
-            logo_url: String.t() | nil,
-            autoplay: boolean()
+            logo_url: String.t() | nil
           }
   end
 
@@ -58,14 +58,14 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
       data-scroll-row="continue-watching"
       class="row-scroll row-scroll-backdrop-lg"
     >
-      <button
+      <%!-- A div, not a <button>: the play overlay nests a real button
+            inside (UIDR-027) and buttons cannot nest. --%>
+      <div
         :for={item <- @items}
         id={"continue-watching-#{item.entity_id}"}
-        type="button"
         phx-click="select_entity"
         phx-value-id={item.entity_id}
-        phx-value-autoplay={if item.autoplay, do: "1"}
-        class="card-hover relative aspect-[16/9] rounded-lg overflow-hidden glass-inset block w-full text-left"
+        class="card-hover play-overlay-host relative aspect-[16/9] rounded-lg overflow-hidden glass-inset block w-full text-left"
         data-row-item
         data-nav-item
         data-entity-id={item.entity_id}
@@ -94,10 +94,14 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
             {item.name}
           </div>
         </div>
+        <%!-- :dim, not the default gradient scrim — this card already
+              carries its own permanent bottom gradient (UIDR-027). --%>
+        <PlayOverlay.play_overlay entity_id={item.entity_id} size={:lg} scrim={:dim} />
+
         <div class="absolute left-0 right-0 bottom-0 h-1.5 bg-black/50">
           <div class="h-full bg-primary" style={"width: #{item.progress_pct}%"}></div>
         </div>
-      </button>
+      </div>
 
       <.link
         navigate="/library?sort=watched"

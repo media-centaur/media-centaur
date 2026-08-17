@@ -189,8 +189,6 @@ defmodule MediaCentaurWeb.HomeLive.LogicTest do
       assert item.progress_pct == 47
       assert item.backdrop_url == "/img/1/backdrop.jpg"
       assert item.logo_url == "/img/1/logo.png"
-      # Modal opens on click; user explicitly hits Play to resume.
-      assert item.autoplay == false
     end
 
     test "returns empty list for empty input" do

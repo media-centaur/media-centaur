@@ -19,6 +19,8 @@ defmodule MediaCentaurWeb.Components.PosterRow do
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
   import MediaCentaurWeb.LiveHelpers, only: [poster_src: 1]
 
+  alias MediaCentaurWeb.Components.PlayOverlay
+
   defmodule Item do
     @moduledoc "View-model for a single PosterRow card."
     @enforce_keys [:id, :entity_id, :name, :year, :poster_url]
@@ -47,13 +49,15 @@ defmodule MediaCentaurWeb.Components.PosterRow do
       data-scroll-row="poster-row"
       class="row-scroll row-scroll-poster"
     >
-      <button
+      <%!-- A div, not a <button>: the play overlay nests a real button
+            inside (UIDR-027) and buttons cannot nest. Same pattern as the
+            library poster card. --%>
+      <div
         :for={item <- @items}
         id={"poster-row-#{item.entity_id}"}
-        type="button"
         phx-click="select_entity"
         phx-value-id={item.entity_id}
-        class="card-hover relative aspect-[2/3] rounded overflow-hidden glass-inset block w-full text-left"
+        class="card-hover play-overlay-host relative aspect-[2/3] rounded overflow-hidden glass-inset block w-full text-left"
         data-row-item
         data-nav-item
         data-entity-id={item.entity_id}
@@ -73,7 +77,9 @@ defmodule MediaCentaurWeb.Components.PosterRow do
           <div class="text-xs font-semibold text-white text-on-image truncate">{item.name}</div>
           <div :if={item.year} class="text-[10px] text-white/70 text-on-image">{item.year}</div>
         </div>
-      </button>
+
+        <PlayOverlay.play_overlay entity_id={item.entity_id} />
+      </div>
 
       <.link
         :if={@see_all_href}

@@ -107,16 +107,16 @@ defmodule MediaCentaurWeb.Components.HeroCard do
           {@item.overview}
         </p>
         <%!-- Both CTAs are focusable nav items: Left/Right toggles between
-              Play and More info, Select activates the focused one. The shared
-              entity id lets PLAY and modal-close focus restoration target the
-              hero shelf. --%>
+              Play and More info, Select activates the focused one. Play
+              starts playback in place (UIDR-027) — no modal; More info is
+              the modal's front door. The shared entity id lets modal-close
+              focus restoration target the hero shelf. --%>
         <div class="flex gap-3 mt-2">
           <.button
             variant="primary"
             size="lg"
-            phx-click="select_entity"
+            phx-click="play"
             phx-value-id={@item.entity_id}
-            phx-value-autoplay="1"
             data-nav-item
             data-entity-id={@item.entity_id}
             tabindex="0"

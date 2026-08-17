@@ -10,6 +10,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   import MediaCentaurWeb.LiveHelpers, only: [poster_src: 1]
 
   alias MediaCentaur.Library.ContinueWatchingProgress
+  alias MediaCentaurWeb.Components.PlayOverlay
 
   # --- Poster Card ---
 
@@ -50,7 +51,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
       ]}
     >
       <%!-- Poster --%>
-      <div class="aspect-[2/3] glass-inset relative">
+      <div class="aspect-[2/3] glass-inset relative play-overlay-host">
         <img
           :if={@entry.poster_url && @available}
           src={poster_src(@entry.poster_url)}
@@ -66,6 +67,14 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
         <div :if={!@entry.poster_url} class="w-full h-full flex items-center justify-center">
           <.icon name="hero-film" class="size-8 text-base-content/20" />
         </div>
+
+        <%!-- Direct play (UIDR-027). Collections are filing, not content
+              (UIDR-025) — the shelf card never plays; offline artwork
+              means the file can't play either. --%>
+        <PlayOverlay.play_overlay
+          :if={@available && @entry.kind != :movie_series}
+          entity_id={@entry.id}
+        />
 
         <%!-- Now-playing pulse --%>
         <div

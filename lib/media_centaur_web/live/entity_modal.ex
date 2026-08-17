@@ -97,16 +97,12 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       # --- Modal: open / close ---
 
       @impl true
-      def handle_event("select_entity", %{"id" => id} = params, socket) do
-        autoplay = params["autoplay"] == "1" || params["autoplay"] == true
+      def handle_event("select_entity", %{"id" => id}, socket) do
         new_id = if socket.assigns.selected_entity_id != id, do: id
 
         # A member selection belongs to one collection — never carry it
         # across to the next entity.
-        overrides = %{selected: new_id, movie: nil}
-        overrides = if autoplay, do: Map.put(overrides, :autoplay, "1"), else: overrides
-
-        {:noreply, push_patch(socket, to: build_modal_path(socket, overrides))}
+        {:noreply, push_patch(socket, to: build_modal_path(socket, %{selected: new_id, movie: nil}))}
       end
 
       # Poster-rail pick inside a collection modal (UIDR-023): re-anchors
@@ -453,14 +449,6 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     end
   end
 
-  # Deferred autoplay — queued by `apply_modal_params/2` so the URL
-  # patch renders before the LV blocks on Playback.play/1 (which fans
-  # out to the Resolver + Sessions GenServer chain).
-  def handle_modal_pubsub({:autoplay, entity_id}, socket) do
-    _ = Playback.play(entity_id)
-    {:halt, socket}
-  end
-
   # Deferred file-info load — fired by the `spawn_files_load/1` task
   # spawned in `apply_modal_params/2`. Drops the result if the modal
   # has since switched to a different entity (the inbound id no longer
@@ -568,17 +556,18 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   @doc """
-  Reads the modal-related URL params (`selected`, `view`, `autoplay`),
-  loads the selected entry on demand, and assigns the modal slice on
-  the socket. Returns the updated socket.
+  Reads the modal-related URL params (`selected`, `view`), loads the
+  selected entry on demand, and assigns the modal slice on the socket.
+  Returns the updated socket.
 
   - `selected` UUID → resolved via `Library.Presentable` and composed by
     the matching loader (`SeriesDetail` / `CollectionDetail` /
     `Library.ModalEntry`). If the entity doesn't exist or has no present
     file, the modal stays closed (selected_entry: nil).
   - `view=info` → opens the file/info pane inside the modal.
-  - `autoplay=1` → fires `Playback.play/1` once for the loaded entity
-    (used by Continue Watching cards and the Hero "Play" button).
+
+  Playback never routes through here: play affordances fire the shared
+  `"play"` event and play in place (UIDR-027).
 
   Idempotent: re-applying the same params is a no-op.
   """
@@ -586,7 +575,6 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   def apply_modal_params(socket, params) do
     selected_id = params["selected"]
     detail_view = parse_view(params["view"])
-    autoplay? = params["autoplay"] == "1"
 
     selection_changed = selected_id != socket.assigns.selected_entity_id
     entity_switched = selection_changed && socket.assigns.selected_entity_id != nil
@@ -654,14 +642,6 @@ defmodule MediaCentaurWeb.Live.EntityModal do
           socket.assigns.tracking_status
       end
 
-    # Defer Playback.play/1 to a `handle_info({:autoplay, id}, _)` clause
-    # so the URL patch renders + ships to the client before the LV blocks
-    # on the resolver + Sessions.play chain. The deferred message is
-    # picked up by `handle_modal_pubsub/2` (the EntityModal hook).
-    if autoplay? && selected_entry do
-      send(self(), {:autoplay, selected_id})
-    end
-
     socket =
       socket
       |> Phoenix.Component.assign(
@@ -723,9 +703,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   defp initial_expanded_seasons(_entry), do: MapSet.new()
 
   @doc """
-  The modal's own URL query params (`selected` / `view` / `movie` /
-  `autoplay`), resolved from the current assigns with `overrides`
-  applied. Hosts merge this map into their page-specific params inside
+  The modal's own URL query params (`selected` / `view` / `movie`),
+  resolved from the current assigns with `overrides` applied. Hosts
+  merge this map into their page-specific params inside
   `build_modal_path/2` — one implementation of the modal's URL contract
   instead of a copy per host.
 
@@ -737,13 +717,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
     selected = Map.get(overrides, :selected, assigns.selected_entity_id)
     view = Map.get(overrides, :view, assigns.detail_view)
     movie = Map.get(overrides, :movie, assigns.selected_member_id)
-    autoplay = Map.get(overrides, :autoplay)
 
     params = %{}
     params = if selected, do: Map.put(params, :selected, selected), else: params
     params = if selected && view in [:info, :cast], do: Map.put(params, :view, view), else: params
     params = if selected && movie, do: Map.put(params, :movie, movie), else: params
-    params = if selected && autoplay, do: Map.put(params, :autoplay, autoplay), else: params
     params
   end
 

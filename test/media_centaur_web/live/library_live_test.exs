@@ -1636,4 +1636,63 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     {position, _length} = :binary.match(html, name)
     position
   end
+
+  describe "play in place (UIDR-027)" do
+    setup do
+      movie = create_standalone_movie(%{name: "Playable Sample Movie"})
+      _ = create_linked_file(%{movie_id: movie.id})
+      %{movie: movie}
+    end
+
+    test "poster card carries a direct play button", %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      assert has_element?(
+               view,
+               ~s|[data-entity-id="#{movie.id}"] button[phx-click="play"][phx-value-id="#{movie.id}"]|
+             )
+    end
+
+    test "the card play button plays directly — no modal opens", %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      view
+      |> element(~s|[data-entity-id="#{movie.id}"] button[phx-click="play"]|)
+      |> render_click()
+
+      # The factory file has no bytes on disk, so reaching Playback.play/1
+      # deterministically surfaces the file-not-available flash — proof the
+      # click went straight to playback instead of routing through the modal.
+      assert render(view) =~ "File not available"
+      refute has_element?(view, "#detail-modal[data-state='open']")
+    end
+
+    test "a collection shelf card gets no play button", %{conn: conn} do
+      # UIDR-025: a collection is filing, not content — the shelf never
+      # plays. Two parts, so the singleton hoist doesn't present it as a
+      # movie.
+      collection = create_movie_series(%{name: "Sample Collection"})
+
+      for {name, position} <- [{"Part 1", 0}, {"Part 2", 1}] do
+        part =
+          create_movie(%{movie_series_id: collection.id, name: name, position: position})
+
+        create_linked_file(%{movie_id: part.id})
+      end
+
+      {:ok, view, _html} = live_async!(conn, "/library")
+
+      refute has_element?(
+               view,
+               ~s|[data-entity-id="#{collection.id}"] button[phx-click="play"]|
+             )
+    end
+
+    test "an autoplay URL param is inert — the modal opens without side effects",
+         %{conn: conn, movie: movie} do
+      {:ok, view, _html} = live_async!(conn, "/library?selected=#{movie.id}&autoplay=1")
+
+      assert has_element?(view, "#detail-modal[data-state='open']")
+    end
+  end
 end

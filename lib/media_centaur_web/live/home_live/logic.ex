@@ -130,8 +130,7 @@ defmodule MediaCentaurWeb.HomeLive.Logic do
         name: row.entity_name,
         progress_pct: row.progress_pct,
         backdrop_url: with_image_version(row.backdrop_url, image_version),
-        logo_url: with_image_version(Map.get(row, :logo_url), image_version),
-        autoplay: false
+        logo_url: with_image_version(Map.get(row, :logo_url), image_version)
       }
     end)
   end
