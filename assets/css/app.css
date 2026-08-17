@@ -1883,6 +1883,9 @@ body:has(.modal-backdrop[data-state="open"]) {
    compositor-only / GPU-cheap. No box-shadow animation (per CSS
    animation rules in the user-interface skill). */
 .card-hover {
+  /* Tailwind v4 Preflight leaves buttons at cursor: default; card buttons
+     don't use .btn, so the pointer must come from the card class. */
+  cursor: pointer;
   transition: filter 180ms ease-out;
 }
 
