@@ -35,6 +35,11 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
     doc:
       "When false, hides the title + type/year footer beneath the poster — for the wall-of-posters view. Driven by the `library_show_card_info` Settings entry (see `MediaCentaur.LibraryCardInfo`)."
 
+  attr :show_play_button, :boolean,
+    default: true,
+    doc:
+      "When false, suppresses the hover play overlay (UIDR-027). Driven by the `card_play_button` Settings entry (see `MediaCentaur.CardPlayButton`)."
+
   def poster_card(assigns) do
     ~H"""
     <div
@@ -72,7 +77,7 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
               (UIDR-025) — the shelf card never plays; offline artwork
               means the file can't play either. --%>
         <PlayOverlay.play_overlay
-          :if={@available && @entry.kind != :movie_series}
+          :if={@show_play_button && @available && @entry.kind != :movie_series}
           entity_id={@entry.id}
         />
 

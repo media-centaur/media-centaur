@@ -503,5 +503,23 @@ defmodule MediaCentaurWeb.HomeLiveTest do
 
       refute has_element?(view, "[phx-value-autoplay]")
     end
+
+    test "card_play_button `enabled: false` removes the overlay from both rows — hero Play stays",
+         %{conn: conn, movie: movie} do
+      {:ok, _} =
+        MediaCentaur.Settings.find_or_create_entry(%{
+          key: MediaCentaur.CardPlayButton.setting_key(),
+          value: %{"enabled" => false}
+        })
+
+      {:ok, view, _html} = live_async!(conn, "/")
+
+      refute has_element?(view, ~s|#continue-watching-#{movie.id} button[phx-click="play"]|)
+      refute has_element?(view, ~s|#poster-row-#{movie.id} button[phx-click="play"]|)
+
+      # The hero's Play is a standing control, not the hover overlay —
+      # the toggle must not touch it.
+      assert has_element?(view, ~s|[data-component="hero"] [phx-click="play"]|)
+    end
   end
 end

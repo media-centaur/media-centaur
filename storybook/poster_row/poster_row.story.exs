@@ -117,6 +117,26 @@ defmodule MediaCentaurWeb.Storybook.PosterRow.PosterRow do
         attributes: %{items: []}
       },
       %Variation{
+        id: :play_button_disabled,
+        description:
+          "`show_play_button: false` — the hover play overlay (UIDR-027, " <>
+            "Settings entry `card_play_button`) is suppressed; hovering the " <>
+            "card shows nothing. The default (`true`) reveals a play button " <>
+            "on hover in every other variation.",
+        attributes: %{
+          show_play_button: false,
+          items: [
+            %Item{
+              id: "no-play",
+              entity_id: "entity-no-play",
+              name: "Sample Without Play",
+              year: "1924",
+              poster_url: poster_placeholder(1)
+            }
+          ]
+        }
+      },
+      %Variation{
         id: :no_poster_fallback,
         description:
           "All items have `poster_url: nil` — every card renders the fallback " <>

@@ -41,6 +41,11 @@ defmodule MediaCentaurWeb.Components.PosterRow do
     default: nil,
     doc: "when set, renders a trailing \"See all\" card navigating to this path"
 
+  attr :show_play_button, :boolean,
+    default: true,
+    doc:
+      "When false, suppresses the hover play overlay (UIDR-027). Driven by the `card_play_button` Settings entry (see `MediaCentaur.CardPlayButton`)."
+
   def poster_row(assigns) do
     ~H"""
     <div
@@ -78,7 +83,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
           <div :if={item.year} class="text-[10px] text-white/70 text-on-image">{item.year}</div>
         </div>
 
-        <PlayOverlay.play_overlay entity_id={item.entity_id} />
+        <PlayOverlay.play_overlay :if={@show_play_button} entity_id={item.entity_id} />
       </div>
 
       <.link
