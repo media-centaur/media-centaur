@@ -15,6 +15,7 @@ defmodule MediaCentaur.Credo.Checks.EntityModalContract do
           MediaCentaurWeb.Live.EntityModal              Library, Playback
           MediaCentaurWeb.Live.SpoilerFreeAware         Settings
           MediaCentaurWeb.Live.CapabilitiesAware        Capabilities
+          MediaCentaurWeb.Live.WatchlistAware           Discovery
 
       The historical bug this prevents (the EntityModal case): a host that
       mounted the modal but forgot to wire one of the four PubSub messages
@@ -56,7 +57,8 @@ defmodule MediaCentaur.Credo.Checks.EntityModalContract do
   @trait_subscribes %{
     [:MediaCentaurWeb, :Live, :EntityModal] => [:Library, :Playback],
     [:MediaCentaurWeb, :Live, :SpoilerFreeAware] => [:Settings],
-    [:MediaCentaurWeb, :Live, :CapabilitiesAware] => [:Capabilities]
+    [:MediaCentaurWeb, :Live, :CapabilitiesAware] => [:Capabilities],
+    [:MediaCentaurWeb, :Live, :WatchlistAware] => [:Discovery]
   }
 
   @impl true
