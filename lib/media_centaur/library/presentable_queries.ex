@@ -242,12 +242,16 @@ defmodule MediaCentaur.Library.PresentableQueries do
     )
   end
 
-  # "A WatchedFile for this Movie (`parent_as(:item)`) is present on disk":
-  # walks `WatchedFile → PlayableItem(:movie, container_id=item.id)`. The
-  # campaign Phase-3 FK on WatchedFile.file_presence_id (cascade-delete
-  # from Library.FilePresence) makes the prior watcher_files state
-  # filter structurally redundant.
-  defp movie_present_files_subquery do
+  @doc """
+  Correlated subquery: a present `WatchedFile` exists for the Movie bound
+  as `:item` in the outer query — walks `WatchedFile →
+  PlayableItem(:movie, container_id=item.id)`. The campaign Phase-3 FK on
+  `WatchedFile.file_presence_id` (cascade-delete from
+  `Library.FilePresence`) makes a separate watcher-state filter
+  structurally redundant. Use inside `exists(...)`; consumed here and by
+  `Library.ExternalIds.tmdb_owners/1`.
+  """
+  def movie_present_files_subquery do
     from(wf in WatchedFile,
       join: pi in PlayableItem,
       on: pi.id == wf.playable_item_id and pi.container_type == :movie,
