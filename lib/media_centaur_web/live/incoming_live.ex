@@ -80,6 +80,7 @@ defmodule MediaCentaurWeb.IncomingLive do
 
   use MediaCentaurWeb, :live_view
   use MediaCentaurWeb.Live.IncomingBackdropAware
+  use MediaCentaurWeb.Live.WatchlistAware
 
   require MediaCentaur.Log, as: Log
 
@@ -106,6 +107,8 @@ defmodule MediaCentaurWeb.IncomingLive do
   }
 
   alias MediaCentaur.Capabilities
+  alias MediaCentaur.Discovery
+  alias MediaCentaur.Library.ExternalIds
 
   alias MediaCentaurWeb.IncomingLive.{
     HistoryLogic,
@@ -211,6 +214,7 @@ defmodule MediaCentaurWeb.IncomingLive do
          omnibox_searching?: false,
          omnibox_searched: nil,
          omnibox_scope: :all,
+         in_library_refs: MapSet.new(),
          plan_param: nil,
          plan_stage: :loading,
          plan_selection: nil,
@@ -958,6 +962,8 @@ defmodule MediaCentaurWeb.IncomingLive do
             searching?={@omnibox_searching?}
             release_mode_available={@prowlarr_ready}
             scope={@omnibox_scope}
+            watchlisted_refs={@watchlisted_refs}
+            in_library_refs={@in_library_refs}
           />
 
           <Search.search_zone
@@ -1656,6 +1662,36 @@ defmodule MediaCentaurWeb.IncomingLive do
     end
   end
 
+  # No assign update here — the WatchlistAware PubSub hook refreshes
+  # `:watchlisted_refs` from the broadcast, same loop every other
+  # watchlist surface rides.
+  def handle_event("watchlist_toggle", %{"tmdb-id" => tmdb_id, "media-type" => media_type}, socket)
+      when media_type in ~w(movie tv_series) do
+    ref = {String.to_integer(tmdb_id), String.to_existing_atom(media_type)}
+
+    if MapSet.member?(socket.assigns.watchlisted_refs, ref) do
+      Discovery.remove_from_watchlist(elem(ref, 0), elem(ref, 1))
+    else
+      case Enum.find(socket.assigns.omnibox_results, &({&1.tmdb_id, &1.media_type} == ref)) do
+        nil ->
+          :ok
+
+        result ->
+          Discovery.add_to_watchlist(%{
+            tmdb_id: result.tmdb_id,
+            media_type: result.media_type,
+            name: result.name,
+            year: result.year,
+            release_date: result.release_date,
+            poster_path: result.poster_path,
+            overview: result.overview
+          })
+      end
+    end
+
+    {:noreply, socket}
+  end
+
   def handle_event("grab_selected", _params, socket) do
     selections = socket.assigns.search_session.selections
 
@@ -2309,7 +2345,21 @@ defmodule MediaCentaurWeb.IncomingLive do
       # past 20 is a query-refinement problem, not a pagination one.
       rows = Enum.take(results, 20)
 
-      {:noreply, assign(socket, omnibox_results: rows, omnibox_searching?: false)}
+      # Which of these titles the library already presents — one bulk
+      # lookup per landed result set, decorating the In library marker.
+      in_library_refs =
+        rows
+        |> Enum.map(&{&1.tmdb_id, &1.media_type})
+        |> ExternalIds.tmdb_owners()
+        |> Map.keys()
+        |> MapSet.new()
+
+      {:noreply,
+       assign(socket,
+         omnibox_results: rows,
+         omnibox_searching?: false,
+         in_library_refs: in_library_refs
+       )}
     else
       {:noreply, socket}
     end

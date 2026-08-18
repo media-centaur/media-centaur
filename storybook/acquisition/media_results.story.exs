@@ -2,8 +2,10 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
   @moduledoc """
   The flat media-search answer sheet — TMDB results as page content
   below the omnibox (no floating overlay). Rows carry poster thumb,
-  identity line, overview, and the one verb (Download / Track release);
-  the header row holds the search status and the Clear search reset.
+  identity line, overview, the row verb (Download / Track release), and
+  a sibling bookmark toggle for the watchlist; rows the library already
+  presents carry a quiet In library marker. The header row holds the
+  search status and the Clear search reset.
   """
 
   use PhoenixStorybook.Story, :component
@@ -61,15 +63,19 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaResults do
           "The answer sheet: one row per TMDB hit in relevance order — poster thumb " <>
             "(fake paths render broken outside the app; the icon fallback shows the " <>
             "no-poster treatment), identity line with quiet type/year text, overview, " <>
-            "tracked marker, and the row verb. The upcoming/released chips sit between " <>
-            "the box and the rows with counts.",
+            "tracked marker, and the row verb. Each row ends in the bookmark toggle — " <>
+            "filled primary on Sample Movie (watchlisted), ghost elsewhere — and " <>
+            "Sample Show carries the quiet In library marker. The upcoming/released " <>
+            "chips sit between the box and the rows with counts.",
         attributes: %{
           query: "sample",
           results: results(),
           searching?: false,
           release_mode_available: true,
           scope: :all,
-          today: ~D[2026-08-02]
+          today: ~D[2026-08-02],
+          watchlisted_refs: MapSet.new([{777, :movie}]),
+          in_library_refs: MapSet.new([{246_810, :tv_series}])
         }
       },
       %Variation{
