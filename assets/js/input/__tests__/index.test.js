@@ -138,11 +138,22 @@ describe("Incoming page nav (real config)", () => {
     expect(graph.sidebar.right).toBe("ledger")
   })
 
-  test("search owns the page: only the flat results grid below the omnibox", () => {
+  test("release search owns the page: only the flat results grid below the omnibox", () => {
     const counts = { omnibox: 1, grid: 8, sidebar: 4 }
     const graph = buildNavGraph("incoming", counts, inputConfig)
     expect(graph.omnibox.down).toBe("grid")
     expect(graph.grid.up).toBe("omnibox")
+  })
+
+  test("media search: the chip strip sits between the omnibox and the result rows", () => {
+    const counts = { omnibox: 1, toolbar: 2, grid: 8, sidebar: 4 }
+    const graph = buildNavGraph("incoming", counts, inputConfig)
+    expect(graph.omnibox.down).toBe("toolbar")
+    expect(graph.toolbar.up).toBe("omnibox")
+    expect(graph.toolbar.down).toBe("grid")
+    expect(graph.grid.up).toBe("toolbar")
+    expect(graph.toolbar.left).toBe("sidebar")
+    expect(graph.grid.left).toBe("sidebar")
   })
 
   test("forecast-only (no tabs in the DOM): the agenda leans on the candidate fallback", () => {

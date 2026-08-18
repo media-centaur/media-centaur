@@ -1323,7 +1323,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       html = render_async(view, 2_000)
 
       # Results are page content in the search zone — no floating overlay.
-      assert has_element?(view, "section[data-nav-zone='grid'] #omnibox-result-movie-777")
+      # Rows live in the `grid` nav zone; the chip strip above them is the
+      # page's `toolbar` zone (grid arithmetic needs the rows alone).
+      assert has_element?(view, "[data-nav-zone='grid'] #omnibox-result-movie-777")
+      assert has_element?(view, "[data-nav-zone='toolbar'] #media-results-clear")
       refute has_element?(view, "#omnibox-media-results")
       # A flat row has room for the overview the popup reserved for its
       # spotlight pane.
