@@ -2,7 +2,7 @@
 status: parked
 status_note: parked — v2 backbone (deferred until v1 is complete)
 started: 2026-06-17
-last_updated: 2026-06-17
+last_updated: 2026-08-18
 ---
 # Friends & recommendations (Nostr backbone)
 
@@ -56,24 +56,27 @@ the normal brainstorm → spec → plan flow.
   download" routes through the existing `acquisition` / `search` / `tmdb`
   pursuit machinery; the new feature only produces the TMDB reference + a
   human-confirm step, it does not own downloading.
+* `2026-08-18` — **Q4 resolved: broadcast-first, directed-capable.** The core
+  gesture is a published feed followers browse (Nostr-native, useful solo as a
+  public taste page — mitigates cold start). The data model keeps an optional
+  recipient so directed recommendations can be added later without reshaping.
+* `2026-08-18` — **Foundation designed: local watchlist (`Discovery`
+  context).** Received recommendations will land as candidates in a local
+  watchlist with provenance, triaged on an existing surface — shrinking this
+  campaign's build to transport + identity. See
+  `docs/superpowers/specs/2026-08-18-watchlist-foundation-design.md`.
 
 ## Open questions (resume here)
 
-1. **Q4 — the core gesture (unresolved).** Is the heart of the feature a
-   **broadcast feed** (you publish recs; followers browse them — Nostr-native,
-   makes "host your own feed" shine; leaned this way), a **directed
-   recommendation** ("send *this* to Alex," an inbox, inherently private), or
-   **genuinely both** co-equal from day one? This decides the event kinds and
-   whether the primary surface is a "Friends' Feed" page vs an "Inbox."
-2. **Recommendation payload shape** — TMDB ref (movie/series) + optional note;
+1. **Recommendation payload shape** — TMDB ref (movie/series) + optional note;
    maybe "where to start" (episode), maybe a reaction/reply primitive. Keep
    minimal (YAGNI; owner dislikes completeness padding).
-3. **Default privacy posture** — encrypted-over-public so it "just works," with
+2. **Default privacy posture** — encrypted-over-public so it "just works," with
    self-hosted relay as the lock-it-down upgrade?
-4. **Key & friend management UX** — where the keypair lives, the friend-add
+3. **Key & friend management UX** — where the keypair lives, the friend-add
    handshake (exchange npubs), relay configuration UI, backup/restore of the
    secret key.
-5. **Elixir Nostr support** — existing hex lib vs a thin in-house client (it's
+4. **Elixir Nostr support** — existing hex lib vs a thin in-house client (it's
    websocket + JSON + Schnorr sign/verify); pick the Schnorr NIF.
 
 ## Architectural sketch (provisional)
