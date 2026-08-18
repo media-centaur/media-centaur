@@ -242,14 +242,15 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   def active_query?(query), do: String.length(String.trim(query)) >= 2
 
   @doc """
-  A result's release status as of `today`. A passed date (including
+  A title's release status as of `today`. A passed date (including
   today) is `:released`; a future date is `:upcoming` — and so is a
-  missing one, because TMDB leaves unreleased titles undated.
+  missing one, because TMDB leaves unreleased titles undated. Accepts
+  anything carrying `:release_date` (`TitleResult`, `WatchlistItem`).
   """
-  @spec release_status(TitleResult.t(), Date.t()) :: :released | :upcoming
-  def release_status(%TitleResult{release_date: nil}, _today), do: :upcoming
+  @spec release_status(%{release_date: Date.t() | nil}, Date.t()) :: :released | :upcoming
+  def release_status(%{release_date: nil}, _today), do: :upcoming
 
-  def release_status(%TitleResult{release_date: release_date}, today) do
+  def release_status(%{release_date: release_date}, today) do
     if Date.after?(release_date, today), do: :upcoming, else: :released
   end
 
