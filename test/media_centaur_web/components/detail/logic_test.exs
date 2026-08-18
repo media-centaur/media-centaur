@@ -719,4 +719,14 @@ defmodule MediaCentaurWeb.Components.Detail.LogicTest do
       assert %{label: "Resume", percent: 0, remaining_text: nil} = Logic.member_playback(member)
     end
   end
+
+  describe "letterboxd_url/1" do
+    test "builds the TMDB-redirect URL from a TMDB id" do
+      assert Logic.letterboxd_url("603") == "https://letterboxd.com/tmdb/603"
+    end
+
+    test "nil when there is no TMDB id" do
+      assert Logic.letterboxd_url(nil) == nil
+    end
+  end
 end

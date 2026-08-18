@@ -202,6 +202,29 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       assert MediaCentaur.IncomingBackdrop.enabled?() == false
     end
 
+    test "the Letterboxd links row renders checked by default", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
+
+      assert has_element?(view, "span", "Letterboxd links")
+
+      assert has_element?(
+               view,
+               "div[phx-click=toggle_letterboxd_links] input[type=checkbox][checked]"
+             )
+    end
+
+    test "toggling Letterboxd links persists the flag", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
+
+      assert MediaCentaur.LetterboxdLinks.enabled?() == true
+
+      view |> element("div[phx-click=toggle_letterboxd_links]") |> render_click()
+      assert MediaCentaur.LetterboxdLinks.enabled?() == false
+
+      view |> element("div[phx-click=toggle_letterboxd_links]") |> render_click()
+      assert MediaCentaur.LetterboxdLinks.enabled?() == true
+    end
+
     # Personal display preferences live together — this toggle moved here
     # from the Library section's one-row Display card.
     test "toggling poster titles persists the flag from Preferences", %{conn: conn} do

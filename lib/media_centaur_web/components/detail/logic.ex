@@ -478,4 +478,13 @@ defmodule MediaCentaurWeb.Components.Detail.Logic do
       true -> nil
     end
   end
+
+  @doc """
+  The film's Letterboxd page, via Letterboxd's stable
+  `letterboxd.com/tmdb/<id>` redirect — no slug resolution or API
+  involved. `nil` without a TMDB id.
+  """
+  @spec letterboxd_url(String.t() | nil) :: String.t() | nil
+  def letterboxd_url(nil), do: nil
+  def letterboxd_url(tmdb_id), do: "https://letterboxd.com/tmdb/#{tmdb_id}"
 end

@@ -114,6 +114,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
   attr :tracking_status, :atom, default: nil
   attr :tmdb_ready, :boolean, default: true
 
+  attr :letterboxd_links, :boolean,
+    default: true,
+    doc:
+      "the `letterboxd_links` setting — whether a movie subject's hero shows the Letterboxd page link."
+
   attr :seasons_view, :list,
     default: nil,
     doc:
@@ -347,7 +352,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                 available={@available}
               >
                 <:controls>
-                  <ViewControls.view_controls entity={@controls_entity} detail_view={@detail_view} />
+                  <ViewControls.view_controls
+                    entity={@controls_entity}
+                    detail_view={@detail_view}
+                    letterboxd_links={@letterboxd_links}
+                  />
                   <%!-- Member watched toggle: acting on the *selected*
                         movie is what the movie-first modal is for, and
                         Play's line is the one place every input method

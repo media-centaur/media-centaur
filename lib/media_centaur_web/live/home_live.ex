@@ -10,6 +10,7 @@ defmodule MediaCentaurWeb.HomeLive do
   use MediaCentaurWeb.Live.EntityModal
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.CardPlayButtonAware
+  use MediaCentaurWeb.Live.LetterboxdLinksAware
 
   alias MediaCentaur.{
     Acquisition,
@@ -255,6 +256,7 @@ defmodule MediaCentaurWeb.HomeLive do
           availability_map={@availability_map}
           tmdb_ready={@tmdb_ready}
           spoiler_free={@spoiler_free}
+          letterboxd_links={@letterboxd_links}
         />
       </div>
     </Layouts.app>
