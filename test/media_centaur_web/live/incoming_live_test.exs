@@ -1,10 +1,12 @@
 defmodule MediaCentaurWeb.IncomingLiveTest do
   use MediaCentaurWeb.ConnCase, async: false
 
+  import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Acquisition.PlanEvents
+  alias MediaCentaur.Discovery
   alias MediaCentaur.Acquisition.Plans
   alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaur.Acquisition.Pursuits.Units
@@ -1427,6 +1429,77 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       assert has_element?(view, "#omnibox-result-movie-777")
       assert has_element?(view, "#omnibox-result-movie-888")
+    end
+
+    test "search row watchlist toggle adds then removes", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 777,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05"
+        }
+      ])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+
+      view |> element("[id^='omnibox-watchlist-']") |> render_click()
+      assert [{777, :movie}] = MapSet.to_list(Discovery.watchlisted_refs())
+
+      # The handler assigns nothing itself — the flipped icon proves the
+      # WatchlistAware PubSub refresh made the round trip.
+      assert has_element?(view, "[id^='omnibox-watchlist-'][aria-pressed='true']")
+
+      view |> element("[id^='omnibox-watchlist-']") |> render_click()
+      assert Discovery.watchlisted_refs() == MapSet.new()
+      assert has_element?(view, "[id^='omnibox-watchlist-'][aria-pressed='false']")
+
+      # add_to_watchlist fires a supervised artwork task — drive it to
+      # completion so its Req stub doesn't outlive this test (ADR-049).
+      await_supervised_tasks()
+    end
+
+    test "a result the library already presents carries the In library marker", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+
+      TmdbStubs.stub_search_multi([
+        %{
+          "id" => 777,
+          "media_type" => "movie",
+          "title" => "Sample Movie",
+          "release_date" => "2010-03-05"
+        },
+        %{
+          "id" => 888,
+          "media_type" => "movie",
+          "title" => "Other Movie",
+          "release_date" => "2010-03-05"
+        }
+      ])
+
+      # A presentable movie (container + linked file) owning TMDB id 777.
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "777"})
+      create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "sample"})
+      |> render_change()
+
+      render_async(view, 2_000)
+
+      assert has_element?(view, "#omnibox-result-movie-777", "In library")
+      refute has_element?(view, "#omnibox-result-movie-888", "In library")
     end
 
     test "an exhausted query renders the honest empty answer; Clear search resets it", %{

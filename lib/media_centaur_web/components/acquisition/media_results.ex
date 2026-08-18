@@ -11,11 +11,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   `grid` nav zone this reuses (the two modes are exclusive, so only
   one grid exists at a time).
 
-  Each row is one verb: clicking downloads the title — opening the plan
-  flow, which is a step toward it, not the goal — or tracks it when no
-  indexer is configured. Same `omnibox_pick` contract the popup rows
-  carried. Pure rendering; events bubble to the parent LiveView
-  (`omnibox_pick`, `omnibox_clear`).
+  Each row leads with one verb: clicking downloads the title — opening
+  the plan flow, which is a step toward it, not the goal — or tracks it
+  when no indexer is configured. Same `omnibox_pick` contract the popup
+  rows carried. A sibling bookmark button toggles the title on the
+  watchlist (`watchlist_toggle`), and rows the library already presents
+  carry a quiet "In library" marker. Pure rendering; events bubble to
+  the parent LiveView (`omnibox_pick`, `omnibox_clear`,
+  `watchlist_toggle`).
   """
 
   use Phoenix.Component
@@ -44,6 +47,14 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
   attr :today, :any,
     default: nil,
     doc: "`Date.t()` the upcoming/released split compares against — nil means today (fixed in stories)."
+
+  attr :watchlisted_refs, :any,
+    default: MapSet.new(),
+    doc: "`{tmdb_id, media_type}` refs on the watchlist."
+
+  attr :in_library_refs, :any,
+    default: MapSet.new(),
+    doc: "`{tmdb_id, media_type}` refs the library has a presentable container for."
 
   def media_results(assigns) do
     today = assigns.today || Date.utc_today()
@@ -117,6 +128,8 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
         result={result}
         status={release_status(result, @today)}
         release_mode_available={@release_mode_available}
+        watchlisted?={MapSet.member?(@watchlisted_refs, {result.tmdb_id, result.media_type})}
+        in_library?={MapSet.member?(@in_library_refs, {result.tmdb_id, result.media_type})}
       />
     </section>
     """
@@ -162,63 +175,101 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
 
   attr :release_mode_available, :boolean, required: true
 
+  attr :watchlisted?, :boolean,
+    required: true,
+    doc: "Whether this title is on the watchlist — fills the bookmark."
+
+  attr :in_library?, :boolean,
+    required: true,
+    doc: "Whether the library already presents this title — the quiet In library marker."
+
+  # A wrapper div owns the row surface: the main pick button and the
+  # bookmark toggle are siblings — nested interactive elements are
+  # invalid HTML.
   defp result_row(assigns) do
     assigns =
       assign(assigns, :verb, verb(assigns.result, assigns.status, assigns.release_mode_available))
 
     ~H"""
-    <button
-      id={"omnibox-result-#{@result.media_type}-#{@result.tmdb_id}"}
-      type="button"
-      class="glass-surface flex w-full cursor-pointer items-start gap-4 rounded-xl px-4 py-3 text-left transition-colors hover:bg-base-content/[0.05]"
-      phx-click="omnibox_pick"
-      phx-value-tmdb-id={@result.tmdb_id}
-      phx-value-media-type={@result.media_type}
-      data-nav-item
-      tabindex="0"
-    >
-      <span class="flex h-[72px] w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-base-content/10">
-        <img
-          :if={@result.poster_path}
-          src={tmdb_cdn_url(@result.poster_path, :w92)}
-          alt=""
-          class="h-full w-full object-cover"
-          loading="eager"
-          decoding="sync"
-        />
-        <.icon
-          :if={!@result.poster_path}
-          name={if @result.media_type == :movie, do: "hero-film-mini", else: "hero-tv-mini"}
-          class="size-5 text-base-content/25"
-        />
-      </span>
-
-      <span class="min-w-0 flex-1 space-y-0.5 self-center">
-        <span class="flex items-baseline gap-2">
-          <span class="truncate text-sm font-semibold">{@result.name}</span>
-          <%!-- Quiet text, not colored chips — type is metadata; color
-                stays reserved for interaction and state. --%>
-          <span class="shrink-0 text-xs text-base-content/50">
-            {if @result.media_type == :movie, do: "Movie", else: "TV"}<span :if={@result.year}> · {@result.year}</span>
-          </span>
-          <span :if={@result.tracked?} class="shrink-0 text-xs text-success/70">Tracked</span>
-        </span>
-        <span
-          :if={@result.overview}
-          class="line-clamp-2 block text-xs leading-relaxed text-base-content/55"
-        >
-          {@result.overview}
-        </span>
-      </span>
-
-      <span
-        :if={@verb}
-        class="inline-flex shrink-0 items-center gap-1 self-center text-xs font-medium text-primary/70"
+    <div class="glass-surface flex w-full items-start gap-1 rounded-xl pr-2 transition-colors hover:bg-base-content/[0.05]">
+      <button
+        id={"omnibox-result-#{@result.media_type}-#{@result.tmdb_id}"}
+        type="button"
+        class="flex min-w-0 flex-1 cursor-pointer items-start gap-4 py-3 pl-4 text-left"
+        phx-click="omnibox_pick"
+        phx-value-tmdb-id={@result.tmdb_id}
+        phx-value-media-type={@result.media_type}
+        data-nav-item
+        tabindex="0"
       >
-        {@verb}
-        <.icon name="hero-chevron-right-mini" class="size-3.5" />
-      </span>
-    </button>
+        <span class="flex h-[72px] w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-base-content/10">
+          <img
+            :if={@result.poster_path}
+            src={tmdb_cdn_url(@result.poster_path, :w92)}
+            alt=""
+            class="h-full w-full object-cover"
+            loading="eager"
+            decoding="sync"
+          />
+          <.icon
+            :if={!@result.poster_path}
+            name={if @result.media_type == :movie, do: "hero-film-mini", else: "hero-tv-mini"}
+            class="size-5 text-base-content/25"
+          />
+        </span>
+
+        <span class="min-w-0 flex-1 space-y-0.5 self-center">
+          <span class="flex items-baseline gap-2">
+            <span class="truncate text-sm font-semibold">{@result.name}</span>
+            <%!-- Quiet text, not colored chips — type is metadata; color
+                stays reserved for interaction and state. --%>
+            <span class="shrink-0 text-xs text-base-content/50">
+              {if @result.media_type == :movie, do: "Movie", else: "TV"}<span :if={@result.year}> · {@result.year}</span>
+            </span>
+            <span :if={@result.tracked?} class="shrink-0 text-xs text-success/70">Tracked</span>
+            <%!-- Quiet neutral, deliberately unlike Tracked's success tint —
+                in-library is metadata here, not a state this page owns. --%>
+            <span :if={@in_library?} class="shrink-0 text-xs text-base-content/50">In library</span>
+          </span>
+          <span
+            :if={@result.overview}
+            class="line-clamp-2 block text-xs leading-relaxed text-base-content/55"
+          >
+            {@result.overview}
+          </span>
+        </span>
+
+        <span
+          :if={@verb}
+          class="inline-flex shrink-0 items-center gap-1 self-center text-xs font-medium text-primary/70"
+        >
+          {@verb}
+          <.icon name="hero-chevron-right-mini" class="size-3.5" />
+        </span>
+      </button>
+
+      <button
+        id={"omnibox-watchlist-#{@result.media_type}-#{@result.tmdb_id}"}
+        type="button"
+        class={[
+          "cursor-pointer self-center px-2 py-2 transition-colors",
+          @watchlisted? && "text-primary",
+          !@watchlisted? && "text-base-content/30 hover:text-base-content/60"
+        ]}
+        phx-click="watchlist_toggle"
+        phx-value-tmdb-id={@result.tmdb_id}
+        phx-value-media-type={@result.media_type}
+        aria-pressed={to_string(@watchlisted?)}
+        title={if @watchlisted?, do: "Remove from watchlist", else: "Add to watchlist"}
+        data-nav-item
+        tabindex="0"
+      >
+        <.icon
+          name={if @watchlisted?, do: "hero-bookmark-solid", else: "hero-bookmark"}
+          class="size-4"
+        />
+      </button>
+    </div>
     """
   end
 
