@@ -14,7 +14,7 @@
 
 1. **Title value type stays put; convergence scheduled.** Greenfield would home a decoration-free "TMDB title" struct in the TMDB adapter context; today `ReleaseTracking.TitleResult` carries that role plus RT's `tracked?` decoration. Discovery's boundary therefore takes **plain attrs** (idiomatic cross-context composition: plain data + changeset validation), not `%TitleResult{}`. **Named convergence point:** when Discovery gains its first TMDB-calling source (TMDB discover, iteration 2), move title search + a neutral title struct into `MediaCentaur.TMDB` and re-point RT and Discovery at it. Record this in the Discovery moduledoc (Task 2 includes the text).
 2. **New decorations are component attrs, not struct fields.** `watchlisted?`/in-library state on search rows arrive as MapSet attrs decorated at the web layer (live-updatable without re-searching; RT cannot own them without an illegal dep). `tracked?` stays struct-baked for now; it converges to the attr mechanism next time RT search is being changed anyway — never in a sweep.
-3. **One owner for "does the library know this TMDB title":** a new bulk `ExternalIds.tmdb_owners/1`. Semantics: *container exists* (both types) — distinct from the stricter file-present checks (`find_present_movie/1`) the plan modal keeps using.
+3. **One owner for "does the library know this TMDB title":** a new bulk `ExternalIds.tmdb_owners/1`. Semantics: *container exists* (both types) — distinct from the stricter file-present checks (`find_present_movie/1`) the plan modal keeps using. *[Amended 2026-08-18: implementation corrected the semantics to* presentable (file-linked) *via the `PresentableQueries` presence fragments (commits fd63a52c, b0922a63) — `Presentable.resolve` requires files, so a container-only match would have produced In-library rows that cannot open or play.]*
 4. **One shared refresh mechanism:** `MediaCentaurWeb.Live.WatchlistAware` on_mount (SettingAware-family pattern) seeds `:watchlisted_refs` and keeps it live. Snapshot *resolution* stays per-surface (each surface has different local data), so toggle `handle_event`s are thin per-host clauses; the detail modal's lives in `EntityModal` so LibraryLive + HomeLive share it structurally.
 5. **`release_status` generalizes rather than duplicates:** `MediaResults.release_status/2` heads relax from `%TitleResult{}` to `%{release_date: _}` so the watchlist row reuses the same released/upcoming logic and verb honesty.
 
@@ -822,6 +822,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
 
   @impl true
   def render(assigns) do
+    # [Amended 2026-08-18: shipped as data-nav-default-zone="watchlist", not "grid".]
     ~H"""
     <div class="relative" data-page-behavior="watchlist" data-nav-default-zone="grid">
       <div class="mx-auto w-full max-w-3xl space-y-2 pt-10" data-nav-zone="grid">
@@ -1086,3 +1087,13 @@ Adjust field access (`entity.tmdb_id` vs `entity[:tmdb_id]`, `name` vs `title`, 
 - Task 2/3 ordering dependency is called out explicitly (Task 2 Step 6).
 - Types consistent: `{tmdb_id :: integer, media_type :: :movie | :tv_series}` refs everywhere; DOM values are strings and converted at each handler boundary; `tmdb_owners/1` compares stringified ids against `ExternalId.external_id`.
 - Deliberate verify-first steps (entity view-model fields, `/library?selected=` id, icon names, behavior-js shape) are marked with expected findings — they are verification steps with concrete fallbacks, not placeholders.
+
+---
+
+## Release note draft
+
+*(Drafted at ship-out 2026-08-18. CHANGELOG.md has no Unreleased section — entries are written per-release by the /ship flow, which should pick this up.)*
+
+### New
+
+- **Save titles for later with the watchlist.** A bookmark button on media-search results and on a title's detail panel saves it to the new **Watchlist** page in the sidebar. Each saved row offers the action its state calls for: **Download** opens the plan flow, **Track release** follows an upcoming title, and titles already in your library are marked **In library** and link to their page. Remove takes a row off the list. Search results now also mark titles you already have. This update adds a new database table, migrated automatically.

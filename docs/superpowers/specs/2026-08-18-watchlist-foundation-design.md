@@ -74,6 +74,10 @@ Deliberate absences:
 - `remove_from_watchlist(tmdb_id, media_type)`
 - `list_watchlist()` — items decorated with library presence (movies via
   `ExternalIds.find_present_movie/1`, series via `tmdb_ids_for_tv_series/1`).
+  *[Amended 2026-08-18: shipped as a single bulk `ExternalIds.tmdb_owners/1`
+  lookup, and "in library" means* presentable (file-linked) *— not merely that
+  a container row exists — via the `PresentableQueries` presence fragments
+  (commits fd63a52c, b0922a63), since `Presentable.resolve` requires files.]*
 - `on_watchlist?(tmdb_id, media_type)`
 - `watchlisted_refs()` — `MapSet` of `{tmdb_id, media_type}` for bulk
   decoration of search results.

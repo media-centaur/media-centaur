@@ -60,10 +60,12 @@ the normal brainstorm → spec → plan flow.
   gesture is a published feed followers browse (Nostr-native, useful solo as a
   public taste page — mitigates cold start). The data model keeps an optional
   recipient so directed recommendations can be added later without reshaping.
-* `2026-08-18` — **Foundation designed: local watchlist (`Discovery`
-  context).** Received recommendations will land as candidates in a local
-  watchlist with provenance, triaged on an existing surface — shrinking this
-  campaign's build to transport + identity. See
+* `2026-08-18` — **Foundation designed and built: local watchlist
+  (`Discovery` context).** Received recommendations will land as candidates in
+  a local watchlist with provenance, triaged on an existing surface —
+  shrinking this campaign's build to transport + identity. Shipped same day
+  (watchlist_items table, `/watchlist` page, search-row + detail toggles;
+  `source` enum is the provenance seam `:friend` extends). See
   `docs/superpowers/specs/2026-08-18-watchlist-foundation-design.md`.
 
 ## Open questions (resume here)
