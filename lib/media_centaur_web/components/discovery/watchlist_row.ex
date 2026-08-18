@@ -44,11 +44,14 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
     >
       <span class="flex h-[72px] w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-base-content/10">
         <%!-- The thumb paints at 48 CSS px (96 device px on the 4K 2×
-              compose) — 128 clears that; hotlinked TMDB urls pass
-              through `sized_image_url/2` untouched. --%>
+              compose) — 160 clears that and is the shared thumb
+              derivative width (incoming shelf, status, library
+              overview), so local artwork reuses the warm derivative;
+              hotlinked TMDB urls pass through `sized_image_url/2`
+              untouched. --%>
         <img
           :if={@poster_url}
-          src={sized_image_url(@poster_url, 128)}
+          src={sized_image_url(@poster_url, 160)}
           alt=""
           class="h-full w-full object-cover"
           loading="eager"
@@ -116,7 +119,7 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
     ~H"""
     <.link
       navigate={"/library?selected=#{@library_owner_id}"}
-      class="inline-flex items-center gap-1 text-xs font-medium text-primary/70"
+      class="inline-flex items-center gap-1 text-xs font-medium text-primary/70 transition-colors hover:text-primary"
       data-nav-item
       tabindex="0"
     >
@@ -129,7 +132,7 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
     ~H"""
     <.link
       navigate={"/incoming?plan=new&tmdb_id=#{@item.tmdb_id}&tmdb_type=#{plan_type(@item.media_type)}"}
-      class="inline-flex items-center gap-1 text-xs font-medium text-primary/70"
+      class="inline-flex items-center gap-1 text-xs font-medium text-primary/70 transition-colors hover:text-primary"
       data-nav-item
       tabindex="0"
     >
@@ -142,7 +145,7 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
     ~H"""
     <button
       type="button"
-      class="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-primary/70"
+      class="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-primary/70 transition-colors hover:text-primary"
       phx-click="watchlist_track"
       phx-value-tmdb-id={@item.tmdb_id}
       phx-value-media-type={@item.media_type}

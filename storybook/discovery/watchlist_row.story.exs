@@ -84,6 +84,18 @@ defmodule MediaCentaurWeb.Storybook.Discovery.WatchlistRow do
         }
       },
       %Variation{
+        id: :with_poster,
+        description:
+          "With art the placeholder gives way to the eager+sync poster thumb " <>
+            "(the bundled sample poster).",
+        attributes: %{
+          item: item(%{}),
+          poster_url: "/images/sample-nosferatu-poster.jpg",
+          release_mode_available: true,
+          today: ~D[2026-08-18]
+        }
+      },
+      %Variation{
         id: :with_note,
         description: "A provenance note displaces the TMDB overview — the note is why it's here.",
         attributes: %{
