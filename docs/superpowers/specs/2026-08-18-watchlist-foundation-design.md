@@ -97,7 +97,10 @@ referenced tier; watchlist items persist, so their artwork must too.
 
 **Media search results** (`components/acquisition/media_results.ex`): each row
 gains a watchlist action with three states — add / on watchlist (activate again
-to remove) / in library. This also closes an existing gap: search results
+to remove) / in library. *[Amended 2026-08-18: shipped as a two-state bookmark
+toggle plus a separate quiet "In library" marker — owned titles stay
+watchlistable, which follows decision 4 ("library presence is never a
+membership criterion") more faithfully than this paragraph did.]* This also closes an existing gap: search results
 currently show no in-library state (it appears only inside the plan modal).
 Both decorations are bulk lookups (`watchlisted_refs/0`, `ExternalIds` bulk
 functions) when results load.
@@ -106,7 +109,9 @@ functions) when results load.
 owned-title viewing intent is expressed.
 
 **`/watchlist` — `WatchlistLive`**: rows with poster, name, year, note,
-provenance label, and one state-dependent primary action:
+provenance label *[amended 2026-08-18: no provenance label shipped — with only
+`:manual` existing it would be pure redundancy (no-rails rule); add it when a
+second source value exists]*, and one state-dependent primary action:
 
 - not in library → **Plan**, navigating to
   `/incoming?plan=new&tmdb_id=…&tmdb_type=…` (existing plan modal, untouched —
@@ -114,7 +119,10 @@ provenance label, and one state-dependent primary action:
 - in library → link to the detail page.
 
 Pursuit-in-flight decoration is composed in the LiveView by asking
-ReleaseTracking/Acquisition directly; Discovery stays pure.
+ReleaseTracking/Acquisition directly; Discovery stays pure. *[Amended
+2026-08-18: deferred — v1 ships without in-flight decoration, so between
+planning a download and import completing a row still reads "Download".
+Follow-up candidate for the first sources iteration.]*
 
 Page plumbing: router entry in `live_session :default`, sidebar link
 (`layouts.ex`), input-system registration (`assets/js/input/config.js` zones +
