@@ -285,14 +285,17 @@ defmodule MediaCentaur.Library.ExternalIds do
   end
 
   @doc """
-  Bulk "does the library know this TMDB title" — maps each
+  Bulk "does the library have this TMDB title" — maps each
   `{tmdb_id, media_type}` ref to the owning container's id; refs the
-  library has no container for are absent from the result.
+  library has no *presentable* container for are absent from the result.
 
-  Semantics: *container exists* — deliberately looser than
-  `find_present_movie/1`'s file-linked check. Detail pages render
-  containers regardless of files, so this is the right authority for
-  "link to it" decorations (watchlist, search rows).
+  Semantics: *presentable* — the container must have at least one linked
+  file (movie via `PlayableItem → WatchedFile`, tv_series via any
+  episode's file), matching `Library.Presentable.resolve/1`. The result
+  decorates "link to it" affordances (watchlist, search rows) whose
+  targets deep-link through `Presentable.resolve/1`, and that resolver
+  returns `:not_found` for fileless containers — a looser
+  container-exists check here would mint links that open nothing.
   """
   @spec tmdb_owners([{integer(), :movie | :tv_series}]) ::
           %{{integer(), :movie | :tv_series} => Ecto.UUID.t()}
@@ -302,12 +305,10 @@ defmodule MediaCentaur.Library.ExternalIds do
     ids = refs |> Enum.map(fn {tmdb_id, _type} -> to_string(tmdb_id) end) |> Enum.uniq()
 
     lookup =
-      from(e in ExternalId,
-        where: e.source == "tmdb" and e.owner_type in [:movie, :tv_series] and e.external_id in ^ids,
-        select: {e.external_id, e.owner_type, e.owner_id}
-      )
-      |> Repo.all()
-      |> Map.new(fn {external_id, owner_type, owner_id} -> {{external_id, owner_type}, owner_id} end)
+      Map.new(present_movie_owners(ids) ++ present_tv_series_owners(ids), fn {external_id, owner_type,
+                                                                              owner_id} ->
+        {{external_id, owner_type}, owner_id}
+      end)
 
     refs
     |> Enum.flat_map(fn {tmdb_id, media_type} = ref ->
@@ -317,6 +318,42 @@ defmodule MediaCentaur.Library.ExternalIds do
       end
     end)
     |> Map.new()
+  end
+
+  # Movies with a linked file — mirrors `find_present_movie/1`'s joins.
+  defp present_movie_owners(external_ids) do
+    Repo.all(
+      from(e in ExternalId,
+        join: pi in PlayableItem,
+        on: pi.container_id == e.owner_id and pi.container_type == :movie,
+        join: w in WatchedFile,
+        on: w.playable_item_id == pi.id,
+        where: e.source == "tmdb" and e.owner_type == :movie and e.external_id in ^external_ids,
+        distinct: true,
+        select: {e.external_id, e.owner_type, e.owner_id}
+      )
+    )
+  end
+
+  # TV series with at least one episode file — mirrors the joins in
+  # `present_episode_keys/1`.
+  defp present_tv_series_owners(external_ids) do
+    Repo.all(
+      from(ext in ExternalId,
+        join: s in Season,
+        on: s.tv_series_id == ext.owner_id,
+        join: e in Episode,
+        on: e.season_id == s.id,
+        join: pi in PlayableItem,
+        on: pi.container_id == e.id and pi.container_type == :episode,
+        join: w in WatchedFile,
+        on: w.playable_item_id == pi.id,
+        where:
+          ext.source == "tmdb" and ext.owner_type == :tv_series and ext.external_id in ^external_ids,
+        distinct: true,
+        select: {ext.external_id, ext.owner_type, ext.owner_id}
+      )
+    )
   end
 
   @doc """

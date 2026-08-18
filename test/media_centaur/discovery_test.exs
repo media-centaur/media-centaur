@@ -79,10 +79,11 @@ defmodule MediaCentaur.DiscoveryTest do
       await_artwork_tasks()
     end
 
-    test "list_watchlist resolves the library owner when a container exists" do
+    test "list_watchlist resolves the library owner when a presentable container exists" do
       {:ok, _} = Discovery.add_to_watchlist(@attrs)
       movie = create_standalone_movie(%{name: "Sample Movie"})
       create_external_id(%{source: "tmdb", external_id: "777", movie_id: movie.id})
+      create_linked_file(%{movie_id: movie.id})
       assert [%{library_owner_id: owner_id}] = Discovery.list_watchlist()
       assert owner_id == movie.id
       await_artwork_tasks()

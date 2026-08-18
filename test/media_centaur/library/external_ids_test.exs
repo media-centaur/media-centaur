@@ -95,12 +95,14 @@ defmodule MediaCentaur.Library.ExternalIdsTest do
   end
 
   describe "tmdb_owners/1" do
-    test "maps refs to owning container ids; unknown refs are absent" do
+    test "maps refs to owning presentable container ids; unknown refs are absent" do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "777"})
+      create_linked_file(%{movie_id: movie.id})
 
       series = create_tv_series(%{name: "Sample Show"})
       create_external_id(%{tv_series_id: series.id, source: "tmdb", external_id: "42"})
+      create_linked_file(%{tv_series_id: series.id})
 
       assert ExternalIds.tmdb_owners([{777, :movie}, {42, :tv_series}, {999, :movie}]) ==
                %{{777, :movie} => movie.id, {42, :tv_series} => series.id}
@@ -109,8 +111,19 @@ defmodule MediaCentaur.Library.ExternalIdsTest do
     test "movie and tv ids do not cross-match" do
       movie = create_standalone_movie(%{name: "Sample Movie"})
       create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "550"})
+      create_linked_file(%{movie_id: movie.id})
 
       assert ExternalIds.tmdb_owners([{550, :tv_series}]) == %{}
+    end
+
+    test "a container without a linked file is absent (would not resolve via Presentable)" do
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "777"})
+
+      series = create_tv_series(%{name: "Sample Show"})
+      create_external_id(%{tv_series_id: series.id, source: "tmdb", external_id: "42"})
+
+      assert ExternalIds.tmdb_owners([{777, :movie}, {42, :tv_series}]) == %{}
     end
   end
 
