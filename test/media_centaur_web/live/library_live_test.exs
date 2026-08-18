@@ -353,6 +353,36 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
       await_supervised_tasks()
     end
 
+    test "toggling from a collection modal watchlists the shown member movie", %{conn: conn} do
+      # Two parts: a singleton collection is presented as the movie itself,
+      # so a one-part fixture would silently test the standalone-movie path.
+      collection = create_movie_series(%{name: "Watchlist Collection Fixture"})
+
+      for {name, position, tmdb_id} <- [{"Part 1", 0, "607"}, {"Part 2", 1, "608"}] do
+        part =
+          create_movie(%{
+            movie_series_id: collection.id,
+            name: name,
+            position: position,
+            tmdb_id: tmdb_id
+          })
+
+        create_linked_file(%{movie_id: part.id})
+      end
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{collection.id}")
+
+      view |> element("#detail-watchlist-toggle") |> render_click()
+
+      # The toggle acts on the member the panel shows (the default first
+      # part), not the collection or any other member — pins the
+      # gate-vs-action agreement through `watchlist_subject/2`.
+      assert Discovery.on_watchlist?(607, :movie)
+      refute Discovery.on_watchlist?(608, :movie)
+
+      await_supervised_tasks()
+    end
+
     test "no toggle when the title has no TMDB id", %{conn: conn} do
       movie = create_standalone_movie(%{name: "Unmatched Watchlist Fixture"})
       _ = create_linked_file(%{movie_id: movie.id})
