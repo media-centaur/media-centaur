@@ -84,7 +84,12 @@ defmodule MediaCentaurWeb.Components.Discovery.WatchlistRow do
         </span>
       </span>
 
-      <span class="flex shrink-0 items-center gap-3 self-center">
+      <%!-- The action strip is a real 2-track grid and carries
+            `data-nav-grid`: the input system reads its computed column
+            count, so DOWN/UP move row-to-row (primary → primary) and
+            LEFT/RIGHT move within a row (primary ↔ Remove). Every row
+            renders exactly these two nav items. --%>
+      <span class="grid shrink-0 grid-cols-[auto_auto] items-center gap-3 self-center" data-nav-grid>
         <.primary_action
           item={@item}
           status={@status}
