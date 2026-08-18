@@ -44,7 +44,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         {"/review", "review"},
         {"/reconcile", "reconcile"},
         {"/console", "console"},
-        {"/history", "watch history"}
+        {"/history", "watch history"},
+        {"/watchlist", "watchlist"}
       ] do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
       assert {:ok, _view, html} = live_async!(conn, unquote(path))

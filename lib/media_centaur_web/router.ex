@@ -41,6 +41,7 @@ defmodule MediaCentaurWeb.Router do
       live "/settings", SettingsLive, :index
       live "/setup", SetupLive, :index
       live "/status", StatusLive, :index
+      live "/watchlist", WatchlistLive, :index
     end
 
     # Backward-compat redirects — the Upcoming and Downloads pages merged

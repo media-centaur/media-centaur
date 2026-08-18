@@ -134,6 +134,17 @@ defmodule MediaCentaurWeb.Layouts do
             <.icon name="hero-book-open" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Library</span>
           </.link>
+          <.link
+            navigate="/watchlist"
+            class={sidebar_link_class(@current_path, "/watchlist")}
+            data-tip="Watchlist"
+            data-nav-item
+            data-nav-remember
+            tabindex="0"
+          >
+            <.icon name="hero-bookmark" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Watchlist</span>
+          </.link>
           <%!-- One entry for the whole collection-growth story (DDR-015) —
                 unconditional: without acquisition the page degrades to an
                 honest forecast instead of disappearing. --%>
