@@ -228,6 +228,10 @@ export const inputConfig = {
       grid:      { up: ["toolbar"], left: ["sidebar"] },
       sidebar:   { right: ["toolbar", "grid"] },
     },
+    watchlist: {
+      grid:    { left: ["sidebar"] },
+      sidebar: { right: ["grid"] },
+    },
     // Home: vertical stack of horizontal shelves. Up/down crosses between
     // shelves (candidate lists skip shelves the page didn't render); left
     // always returns to the sidebar.
@@ -258,6 +262,7 @@ export const inputConfig = {
     reconcile: ["reconcile-list", "reconcile-detail", "zone_tabs", "sidebar"],
     incoming:  ["coming_up_list", "pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["toolbar", "grid", "sidebar"],
+    watchlist: ["grid", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     setup:     ["grid"],
   },
