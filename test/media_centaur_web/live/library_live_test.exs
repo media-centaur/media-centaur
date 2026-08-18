@@ -1,10 +1,13 @@
 defmodule MediaCentaurWeb.LibraryLiveTest do
   use MediaCentaurWeb.ConnCase, async: false
 
+  import MediaCentaur.TaskAwaits, only: [await_supervised_tasks: 0]
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
+  alias MediaCentaur.Discovery
   alias MediaCentaur.Library
+  alias MediaCentaur.TmdbStubs
   alias MediaCentaur.Playback.{Events, ProgressBroadcaster}
   alias MediaCentaur.Playback.Events.{PlaybackFailed, PlaybackStateChanged, TrackOverrideChanged}
 
@@ -302,6 +305,62 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
 
       assert has_element?(view, "#detail-modal[data-state='open']")
       refute has_element?(view, "#detail-modal a[href^='https://letterboxd.com/tmdb/']")
+    end
+  end
+
+  describe "watchlist toggle" do
+    setup do
+      TmdbStubs.setup_tmdb_client()
+    end
+
+    test "toggling adds then removes the movie from the watchlist", %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Watchlist Fixture", tmdb_id: "605"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+
+      view |> element("#detail-watchlist-toggle") |> render_click()
+
+      assert Discovery.on_watchlist?(605, :movie)
+      assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='true']")
+
+      view |> element("#detail-watchlist-toggle") |> render_click()
+
+      refute Discovery.on_watchlist?(605, :movie)
+      assert has_element?(view, "#detail-watchlist-toggle[aria-pressed='false']")
+
+      await_supervised_tasks()
+    end
+
+    test "toggling adds a TV series with the :tv_series media type", %{conn: conn} do
+      series = create_tv_series(%{name: "Watchlist TV Fixture", tmdb_id: "606"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      _ =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Episode S1E1",
+          content_url: "/tv/watchlist-fixture/s01e01.mkv"
+        })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{series.id}")
+
+      view |> element("#detail-watchlist-toggle") |> render_click()
+
+      assert Discovery.on_watchlist?(606, :tv_series)
+
+      await_supervised_tasks()
+    end
+
+    test "no toggle when the title has no TMDB id", %{conn: conn} do
+      movie = create_standalone_movie(%{name: "Unmatched Watchlist Fixture"})
+      _ = create_linked_file(%{movie_id: movie.id})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+
+      assert has_element?(view, "#detail-modal[data-state='open']")
+      refute has_element?(view, "#detail-watchlist-toggle")
     end
   end
 

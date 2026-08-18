@@ -119,6 +119,11 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
     doc:
       "the `letterboxd_links` setting — whether a movie subject's hero shows the Letterboxd page link."
 
+  attr :watchlisted?, :boolean,
+    default: false,
+    doc:
+      "whether the panel's subject is on the watchlist — forwarded to the view controls' bookmark toggle. Compute via `EntityModal.watchlisted?/3`."
+
   attr :seasons_view, :list,
     default: nil,
     doc:
@@ -356,6 +361,7 @@ defmodule MediaCentaurWeb.Components.DetailPanel do
                     entity={@controls_entity}
                     detail_view={@detail_view}
                     letterboxd_links={@letterboxd_links}
+                    watchlisted?={@watchlisted?}
                   />
                   <%!-- Member watched toggle: acting on the *selected*
                         movie is what the movie-first modal is for, and

@@ -30,8 +30,9 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   - Render `<.entity_modal ... />` once in the template.
   - Maintain these adjacent assigns (read by the modal renderer but owned
     by the host's surrounding context): `:media_dirs`, `:availability_map`,
-    `:tmdb_ready`, `:spoiler_free`. Most are kept in sync via the
-    `SpoilerFreeAware` / `CapabilitiesAware` traits (see ADR-038).
+    `:tmdb_ready`, `:spoiler_free`, `:watchlisted_refs`. Most are kept in
+    sync via the `SpoilerFreeAware` / `CapabilitiesAware` /
+    `WatchlistAware` traits (see ADR-038).
 
   The on_mount hook subscribes for the host. Hosts MUST NOT call
   `Library.subscribe()` or `Playback.subscribe()` themselves — the
@@ -60,7 +61,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   require MediaCentaur.Log, as: Log
   require Phoenix.LiveView
 
-  alias MediaCentaur.{Format, Library, Playback, ReleaseTracking}
+  alias MediaCentaur.{Discovery, Format, Library, Playback, ReleaseTracking}
   alias MediaCentaur.Library.FileEventHandler
   alias MediaCentaur.Playback.{ProgressBroadcaster, ResumeTarget}
   alias MediaCentaurWeb.Components.Detail.CastSelection
@@ -222,6 +223,12 @@ defmodule MediaCentaurWeb.Live.EntityModal do
           _ ->
             {:noreply, socket}
         end
+      end
+
+      # --- Watchlist ---
+
+      def handle_event("modal_watchlist_toggle", _params, socket) do
+        {:noreply, EntityModal.toggle_watchlist(socket)}
       end
 
       # --- Track overrides ---
@@ -858,6 +865,11 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   attr :spoiler_free, :boolean, default: false
   attr :letterboxd_links, :boolean, default: true
 
+  attr :watchlisted_refs, :any,
+    required: true,
+    doc:
+      "`MapSet.t({tmdb_id, media_type})` from the host's `WatchlistAware` trait — drives the view controls' watchlist toggle. Required so a host cannot mount the modal without the trait."
+
   def entity_modal(assigns) do
     ~H"""
     <DetailPanel.detail_panel
@@ -882,6 +894,13 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       deleting={@deleting}
       spoiler_free={@spoiler_free}
       letterboxd_links={@letterboxd_links}
+      watchlisted?={
+        MediaCentaurWeb.Live.EntityModal.watchlisted?(
+          @selected_entry,
+          @selected_member_id,
+          @watchlisted_refs
+        )
+      }
       tracking_status={@tracking_status}
       available={
         @selected_entry == nil ||
@@ -1119,6 +1138,87 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   end
 
   def reset_track_override(socket), do: socket
+
+  @doc """
+  Adds or removes the modal's watchlist subject on the watchlist — the
+  open entity, or for a collection the selected member's `:movie`-shaped
+  subject (the same subject the view controls render, via
+  `member_view/2`, so the button and the action can never disagree).
+
+  No assign update: hosts carry `:watchlisted_refs` via `WatchlistAware`,
+  refreshed by the Discovery broadcast. No-op when the subject carries no
+  TMDB id (the toggle isn't rendered then).
+  """
+  @spec toggle_watchlist(Phoenix.LiveView.Socket.t()) :: Phoenix.LiveView.Socket.t()
+  def toggle_watchlist(socket) do
+    subject = watchlist_subject(socket.assigns.selected_entry, socket.assigns.selected_member_id)
+
+    case watchlist_ref(subject) do
+      nil ->
+        socket
+
+      {tmdb_id, media_type} ->
+        if MapSet.member?(socket.assigns.watchlisted_refs, {tmdb_id, media_type}) do
+          Discovery.remove_from_watchlist(tmdb_id, media_type)
+        else
+          Discovery.add_to_watchlist(%{
+            tmdb_id: tmdb_id,
+            media_type: media_type,
+            name: subject.name,
+            year: watchlist_year(subject[:date_published]),
+            release_date: subject[:date_published],
+            overview: subject[:description]
+          })
+        end
+
+        socket
+    end
+  end
+
+  @doc """
+  Whether the modal's watchlist subject is on the watchlist — the state
+  the view controls' bookmark toggle renders. Resolves the subject
+  exactly as `toggle_watchlist/1` does.
+  """
+  @spec watchlisted?(map() | nil, Ecto.UUID.t() | nil, MapSet.t()) :: boolean()
+  def watchlisted?(selected_entry, selected_member_id, watchlisted_refs) do
+    case watchlist_ref(watchlist_subject(selected_entry, selected_member_id)) do
+      nil -> false
+      ref -> MapSet.member?(watchlisted_refs, ref)
+    end
+  end
+
+  # The entity the watchlist toggle acts on: the open entity, except in a
+  # collection, where it is the selected member's subject (UIDR-023 —
+  # downstream components never learn a collection is involved).
+  defp watchlist_subject(nil, _member_id), do: nil
+
+  defp watchlist_subject(%CollectionDetail{} = entry, member_id) do
+    case member_view(entry, member_id) do
+      %{subject: subject} -> subject
+      nil -> nil
+    end
+  end
+
+  defp watchlist_subject(entry, _member_id), do: entry.entity
+
+  # `{tmdb_id, media_type}` for a watchlist-eligible subject, nil
+  # otherwise. `:movie` / `:tv_series` map 1:1 onto Discovery's media_type
+  # vocabulary. The subject's tmdb_id is a string on `DetailItem`
+  # entity maps and an integer on collection-member projections —
+  # normalized to the integer Discovery keys on.
+  defp watchlist_ref(%{type: type, tmdb_id: tmdb_id})
+       when type in [:movie, :tv_series] and not is_nil(tmdb_id) do
+    {normalize_tmdb_id(tmdb_id), type}
+  end
+
+  defp watchlist_ref(_subject), do: nil
+
+  defp normalize_tmdb_id(tmdb_id) when is_integer(tmdb_id), do: tmdb_id
+  defp normalize_tmdb_id(tmdb_id) when is_binary(tmdb_id), do: String.to_integer(tmdb_id)
+
+  defp watchlist_year(%Date{year: year}), do: Integer.to_string(year)
+  defp watchlist_year(_date), do: nil
 
   # Replace the open entry's `:track_override` in place. Surgical so we
   # don't reload (and thereby downgrade) a composed `%SeriesDetail{}`

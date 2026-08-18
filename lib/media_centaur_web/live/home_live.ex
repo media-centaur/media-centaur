@@ -11,6 +11,7 @@ defmodule MediaCentaurWeb.HomeLive do
   use MediaCentaurWeb.Live.SpoilerFreeAware
   use MediaCentaurWeb.Live.CardPlayButtonAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
+  use MediaCentaurWeb.Live.WatchlistAware
 
   alias MediaCentaur.{
     Acquisition,
@@ -257,6 +258,7 @@ defmodule MediaCentaurWeb.HomeLive do
           tmdb_ready={@tmdb_ready}
           spoiler_free={@spoiler_free}
           letterboxd_links={@letterboxd_links}
+          watchlisted_refs={@watchlisted_refs}
         />
       </div>
     </Layouts.app>
