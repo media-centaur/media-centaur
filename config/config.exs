@@ -149,7 +149,8 @@ config :media_centaur, :retention_policy_providers, [
 # referencing contexts upstream of TmdbArtwork in the Boundary graph.
 config :media_centaur, :tmdb_artwork_hold_providers, [
   MediaCentaur.ReleaseTracking.TmdbArtworkHolds,
-  MediaCentaur.Acquisition.TmdbArtworkHolds
+  MediaCentaur.Acquisition.TmdbArtworkHolds,
+  MediaCentaur.Discovery.TmdbArtworkHolds
 ]
 
 config :media_centaur,
