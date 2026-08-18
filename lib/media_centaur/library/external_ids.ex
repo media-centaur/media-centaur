@@ -39,6 +39,7 @@ defmodule MediaCentaur.Library.ExternalIds do
     MovieSeries,
     OwnerRef,
     PlayableItem,
+    PresentableQueries,
     Season,
     TVSeries,
     VideoObject,
@@ -291,10 +292,11 @@ defmodule MediaCentaur.Library.ExternalIds do
 
   Semantics: *presentable* — the container must have at least one linked
   file (movie via `PlayableItem → WatchedFile`, tv_series via any
-  episode's file), matching `Library.Presentable.resolve/1`. The result
-  decorates "link to it" affordances (watchlist, search rows) whose
-  targets deep-link through `Presentable.resolve/1`, and that resolver
-  returns `:not_found` for fileless containers — a looser
+  episode's file), expressed with the same `Library.PresentableQueries`
+  presence fragments `Library.Presentable.resolve/1` is built on. The
+  result decorates "link to it" affordances (watchlist, search rows)
+  whose targets deep-link through `Presentable.resolve/1`, and that
+  resolver returns `:not_found` for fileless containers — a looser
   container-exists check here would mint links that open nothing.
   """
   @spec tmdb_owners([{integer(), :movie | :tv_series}]) ::
@@ -320,38 +322,33 @@ defmodule MediaCentaur.Library.ExternalIds do
     |> Map.new()
   end
 
-  # Movies with a linked file — mirrors `find_present_movie/1`'s joins.
+  # Movies with a linked file — the shared `PresentableQueries` movie
+  # presence fragment over the container bound as `:item`.
   defp present_movie_owners(external_ids) do
     Repo.all(
-      from(e in ExternalId,
-        join: pi in PlayableItem,
-        on: pi.container_id == e.owner_id and pi.container_type == :movie,
-        join: w in WatchedFile,
-        on: w.playable_item_id == pi.id,
-        where: e.source == "tmdb" and e.owner_type == :movie and e.external_id in ^external_ids,
-        distinct: true,
+      from(m in Movie,
+        as: :item,
+        join: e in ExternalId,
+        on: e.owner_id == m.id and e.owner_type == :movie,
+        where: e.source == "tmdb" and e.external_id in ^external_ids,
+        where: exists(PresentableQueries.movie_present_files_subquery()),
         select: {e.external_id, e.owner_type, e.owner_id}
       )
     )
   end
 
-  # TV series with at least one episode file — mirrors the joins in
-  # `present_episode_keys/1`.
+  # TV series with at least one episode file — the shared
+  # `PresentableQueries` tv-series presence fragment over the container
+  # bound as `:item`.
   defp present_tv_series_owners(external_ids) do
     Repo.all(
-      from(ext in ExternalId,
-        join: s in Season,
-        on: s.tv_series_id == ext.owner_id,
-        join: e in Episode,
-        on: e.season_id == s.id,
-        join: pi in PlayableItem,
-        on: pi.container_id == e.id and pi.container_type == :episode,
-        join: w in WatchedFile,
-        on: w.playable_item_id == pi.id,
-        where:
-          ext.source == "tmdb" and ext.owner_type == :tv_series and ext.external_id in ^external_ids,
-        distinct: true,
-        select: {ext.external_id, ext.owner_type, ext.owner_id}
+      from(t in TVSeries,
+        as: :item,
+        join: e in ExternalId,
+        on: e.owner_id == t.id and e.owner_type == :tv_series,
+        where: e.source == "tmdb" and e.external_id in ^external_ids,
+        where: exists(PresentableQueries.tv_series_present_file_subquery()),
+        select: {e.external_id, e.owner_type, e.owner_id}
       )
     )
   end
