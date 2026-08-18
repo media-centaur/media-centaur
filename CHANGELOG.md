@@ -4,6 +4,13 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v0.127.1 — 2026-08-18
+
+### New
+
+- **Episodes play on through.** When a TV episode ends, the next one now starts in the same player window — no trip back to the library between episodes. While the credits roll, a **Next Episode** button appears in the player to skip ahead early. Turn it off with the **Auto-play next episode** setting under Settings → Preferences (on by default); the change takes effect at the next episode boundary, no restart needed.
+- **Movie pages link to Letterboxd.** A small Letterboxd button now sits beside the Manage cog on every matched movie's page, opening the film on letterboxd.com in a new tab — log it in your diary or read what others thought. It's a plain link: no Letterboxd account or API key involved. Turn it off with the **Letterboxd links** setting under Settings → Preferences (on by default).
+
 ## v0.127.0 — 2026-08-17
 
 ### New
