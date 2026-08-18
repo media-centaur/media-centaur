@@ -164,6 +164,66 @@ defmodule MediaCentaur.Library.EpisodeListTest do
     end
   end
 
+  describe "next_episode_after/2" do
+    setup do
+      episode_s1e1 = build_episode(%{episode_number: 1, content_url: "/s1e1.mkv"})
+      episode_s1e2 = build_episode(%{episode_number: 2, content_url: "/s1e2.mkv"})
+      episode_s2e1 = build_episode(%{episode_number: 1, content_url: "/s2e1.mkv", name: "Opener"})
+
+      entity =
+        build_entity(%{
+          seasons: [
+            build_season(%{season_number: 1, episodes: [episode_s1e1, episode_s1e2]}),
+            build_season(%{season_number: 2, episodes: [episode_s2e1]})
+          ]
+        })
+
+      %{
+        entity: entity,
+        episode_s1e1: episode_s1e1,
+        episode_s1e2: episode_s1e2,
+        episode_s2e1: episode_s2e1
+      }
+    end
+
+    test "returns the next episode within a season", context do
+      assert {1, 2, "/s1e2.mkv", id} =
+               EpisodeList.next_episode_after(context.entity, context.episode_s1e1.id)
+
+      assert id == context.episode_s1e2.id
+    end
+
+    test "crosses a season boundary", context do
+      assert {2, 1, "/s2e1.mkv", id} =
+               EpisodeList.next_episode_after(context.entity, context.episode_s1e2.id)
+
+      assert id == context.episode_s2e1.id
+    end
+
+    test "returns nil after the final episode", context do
+      assert EpisodeList.next_episode_after(context.entity, context.episode_s2e1.id) == nil
+    end
+
+    test "returns nil when the next episode has no content_url — never skips a gap" do
+      episode_a = build_episode(%{episode_number: 1, content_url: "/s1e1.mkv"})
+      episode_b = build_episode(%{episode_number: 2, content_url: nil})
+      episode_c = build_episode(%{episode_number: 3, content_url: "/s1e3.mkv"})
+
+      entity =
+        build_entity(%{
+          seasons: [
+            build_season(%{season_number: 1, episodes: [episode_a, episode_b, episode_c]})
+          ]
+        })
+
+      assert EpisodeList.next_episode_after(entity, episode_a.id) == nil
+    end
+
+    test "returns nil for an unknown episode id", context do
+      assert EpisodeList.next_episode_after(context.entity, Ecto.UUID.generate()) == nil
+    end
+  end
+
   describe "find_by_content_url/2" do
     setup do
       entity =

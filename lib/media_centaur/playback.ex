@@ -1,6 +1,6 @@
 defmodule MediaCentaur.Playback do
   use Boundary,
-    deps: [MediaCentaur.Library, MediaCentaur.Settings],
+    deps: [MediaCentaur.AutoPlayNextEpisode, MediaCentaur.Library, MediaCentaur.Settings],
     exports: [
       Iso639,
       LanguagePolicy,

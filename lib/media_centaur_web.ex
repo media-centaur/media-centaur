@@ -20,6 +20,7 @@ defmodule MediaCentaurWeb do
       MediaCentaur.SpoilerFree,
       MediaCentaur.LibraryCardInfo,
       MediaCentaur.CardPlayButton,
+      MediaCentaur.AutoPlayNextEpisode,
       MediaCentaur.LibraryBackdrop,
       MediaCentaur.IncomingBackdrop,
       MediaCentaur.UIScale,

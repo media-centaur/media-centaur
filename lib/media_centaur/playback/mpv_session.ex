@@ -2,13 +2,28 @@ defmodule MediaCentaur.Playback.MpvSession do
   @moduledoc """
   Per-session GenServer managing one MPV process via Port + Unix domain socket IPC.
 
-  Each session tracks a single entity's playback, identified by entity_id.
+  Each session tracks one entity's *viewing chain*, identified by entity_id.
   The socket path is `media-centaur-{entity_id}.sock` in the configured socket dir.
   Sessions register in `SessionRegistry` by entity_id for lookup and enumeration.
 
   This is an observation-only tracker — the user controls mpv directly.
   The session observes position/duration/pause/eof via IPC, persists watch
   progress, and broadcasts state changes via PubSub.
+
+  ## Episode auto-advance (ADR-062)
+
+  A TV episode session appends its successor to the mpv playlist
+  (`NextEpisode.resolve/1`), so end-of-episode rolls into the next file
+  inside the same mpv process — no window teardown, no HDR re-lock. The
+  queueing decision runs off mpv's own `playlist-count`/`playlist-pos`
+  properties: the successor is appended only while the current entry is
+  the playlist's last, which makes the check self-stabilizing (the append
+  bumps the count, disarming it) and reconnect-safe (an entry queued
+  before a backend restart is respected, never duplicated). A `path`
+  change is the advance signal: the session closes out the finished
+  episode, re-points its identity at the file now playing, and queues the
+  next successor. Quit-on-EOF only ever fires at true playlist end —
+  `eof-reached` stays false across mid-playlist transitions.
 
   ## Display environment
 
@@ -47,6 +62,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     LanguageContext,
     MpvExitClassifier,
     MpvLogReader,
+    NextEpisode,
     OverrideCapture,
     ProgressBroadcaster,
     SessionRegistry,
@@ -114,6 +130,14 @@ defmodule MediaCentaur.Playback.MpvSession do
     # spam, no enforcement loop). `nil` = nothing enforced yet.
     enforced_sid: nil,
     capture_timer: nil,
+    # The successor episode appended to the mpv playlist and not yet
+    # reached (ADR-062). `nil` while nothing is queued — chain end,
+    # auto-play off, or a non-episode session.
+    pending_next: nil,
+    # Mirror of mpv's playlist shape, fed by property observation. The
+    # queue check appends only while `playlist_count - playlist_pos == 1`.
+    playlist_count: 1,
+    playlist_pos: 0,
     # Carries the unterminated tail of the mpv IPC byte stream between
     # `{:tcp, ...}` deliveries. The socket is `packet: :raw`, so a long
     # JSON line (e.g. `track-list`) can span chunks — `IpcFraming.feed/2`
@@ -484,8 +508,19 @@ defmodule MediaCentaur.Playback.MpvSession do
     state
   end
 
-  defp handle_mpv_message(%{"event" => "end-file"}, state) do
+  defp handle_mpv_message(%{"event" => "end-file"}, %{pending_next: nil} = state) do
     finalize(state)
+  end
+
+  # Mid-chain end-file: mpv is advancing into the queued entry, not
+  # exiting. Save the outgoing episode's progress now, while `position`
+  # and `chapters` still describe the finished file — the new file's
+  # property events would clobber them before the `path` change lands.
+  # If this end-file is actually a quit, the exit-classification path
+  # still finalizes the session moments later.
+  defp handle_mpv_message(%{"event" => "end-file"}, state) do
+    if state.tracker.actively_watching, do: persist_progress(state)
+    state
   end
 
   defp handle_mpv_message(
@@ -504,6 +539,33 @@ defmodule MediaCentaur.Playback.MpvSession do
     %{state | chapters: chapters}
   end
 
+  defp handle_mpv_message(
+         %{"event" => "property-change", "name" => "playlist-count", "data" => count},
+         state
+       )
+       when is_integer(count) do
+    maybe_queue_next(%{state | playlist_count: count})
+  end
+
+  defp handle_mpv_message(
+         %{"event" => "property-change", "name" => "playlist-pos", "data" => pos},
+         state
+       )
+       when is_integer(pos) do
+    maybe_queue_next(%{state | playlist_pos: pos})
+  end
+
+  # `path` is nil between files; the initial observation echoes the file
+  # we launched. Only a change to a different file is an advance.
+  defp handle_mpv_message(%{"event" => "property-change", "name" => "path", "data" => path}, state)
+       when is_binary(path) do
+    if path == state.content_url do
+      state
+    else
+      advance_to(state, path)
+    end
+  end
+
   defp handle_mpv_message(%{"event" => "property-change", "name" => "aid", "data" => aid}, state) do
     schedule_capture(%{state | current_aid: aid})
   end
@@ -513,6 +575,111 @@ defmodule MediaCentaur.Playback.MpvSession do
   end
 
   defp handle_mpv_message(_message, state), do: state
+
+  # --- Episode auto-advance (ADR-062) ---
+
+  # Append the successor episode while the current entry is the
+  # playlist's last. Runs off every playlist-count/playlist-pos change
+  # and after each advance; all other states are no-ops, so the check is
+  # idempotent — an entry queued by a previous backend run (reconnect)
+  # keeps the count ahead and is never duplicated.
+  defp maybe_queue_next(state) do
+    if is_nil(state.pending_next) and not is_nil(state.episode_id) and
+         not is_nil(state.socket) and not state.exiting? and
+         state.playlist_count - state.playlist_pos == 1 do
+      queue_next(state)
+    else
+      state
+    end
+  end
+
+  defp queue_next(state) do
+    case NextEpisode.resolve(state.episode_id) do
+      {:ok, item} ->
+        send_mpv_command(state.socket, NextEpisode.loadfile_command(item))
+
+        Log.info(
+          :playback,
+          "queued next episode — S#{item.season_number}E#{item.episode_number} #{Path.basename(item.content_url)}"
+        )
+
+        %{state | pending_next: item}
+
+      :none ->
+        state
+    end
+  end
+
+  # A playlist advance landed on a new file: re-point the session at the
+  # episode now playing. Identity comes from the queued item when the
+  # path matches; otherwise it is re-derived from the path (the ADR-023
+  # discipline — covers entries queued before a backend restart). The
+  # outgoing episode's final progress was persisted at its end-file.
+  defp advance_to(state, path) do
+    identity =
+      case state.pending_next do
+        %{content_url: ^path} = item -> {:ok, item}
+        _ -> NextEpisode.identify(state.entity_id, path)
+      end
+
+    case identity do
+      {:ok, item} ->
+        Log.info(
+          :playback,
+          "advanced to S#{item.season_number}E#{item.episode_number} — #{Path.basename(path)}"
+        )
+
+        state = reset_for_file(state, path, %{episode_id: item.episode_id}, item)
+        broadcast_state_changed(state.state, state)
+        maybe_queue_next(state)
+
+      :none ->
+        # A file this session can't attribute (user loaded something
+        # into mpv by hand, or the library changed underneath). Stop
+        # attributing progress rather than corrupting the old episode's.
+        Log.warning(
+          :playback,
+          "playlist advanced to unrecognized file — #{Path.basename(path)}; progress attribution stops"
+        )
+
+        reset_for_file(
+          state,
+          path,
+          %{episode_id: nil, movie_id: nil, video_object_id: nil},
+          %{season_number: nil, episode_number: nil, episode_name: nil}
+        )
+    end
+  end
+
+  defp reset_for_file(state, path, fk_fields, item) do
+    if state.capture_timer, do: Process.cancel_timer(state.capture_timer)
+
+    Map.merge(
+      %{
+        state
+        | content_url: path,
+          season_number: item.season_number,
+          episode_number: item.episode_number,
+          episode_name: item.episode_name,
+          start_position: 0.0,
+          position: 0.0,
+          duration: 0.0,
+          tracker: WatchingTracker.new(),
+          chapters: [],
+          audio_tracks: [],
+          subtitle_tracks: [],
+          current_aid: nil,
+          current_sid: nil,
+          resolver_choice: nil,
+          enforced_sid: nil,
+          capture_timer: nil,
+          pending_next: nil,
+          last_db_write_at: System.monotonic_time(:millisecond),
+          state: if(state.paused, do: :paused, else: :playing)
+      },
+      fk_fields
+    )
+  end
 
   # --- Language / track override capture ---
 
@@ -917,6 +1084,9 @@ defmodule MediaCentaur.Playback.MpvSession do
     send_mpv_command(socket, ["observe_property", 6, "aid"])
     send_mpv_command(socket, ["observe_property", 7, "sid"])
     send_mpv_command(socket, ["observe_property", 8, "chapter-list"])
+    send_mpv_command(socket, ["observe_property", 9, "playlist-count"])
+    send_mpv_command(socket, ["observe_property", 10, "playlist-pos"])
+    send_mpv_command(socket, ["observe_property", 11, "path"])
   end
 
   defp send_mpv_command(nil, _command), do: :ok

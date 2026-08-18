@@ -14,6 +14,13 @@ defmodule MediaCentaurWeb.SettingsLive do
   use MediaCentaurWeb.Live.LibraryBackdropAware
   use MediaCentaurWeb.Live.IncomingBackdropAware
 
+  # Settings is the only host for this flag (the consumer is the Playback
+  # backend), so the SettingAware tuple is registered inline rather than
+  # through a dedicated *Aware wrapper module.
+  on_mount {MediaCentaurWeb.Live.SettingAware,
+            {MediaCentaur.AutoPlayNextEpisode, :auto_play_next_episode,
+             :setting_aware_auto_play_next_episode}}
+
   require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.{Capabilities, Config, SelfUpdate, Settings, Version}
@@ -761,6 +768,17 @@ defmodule MediaCentaurWeb.SettingsLive do
     })
 
     {:noreply, assign(socket, show_play_button: enabled)}
+  end
+
+  def handle_event("toggle_auto_play_next_episode", _params, socket) do
+    enabled = !socket.assigns.auto_play_next_episode
+
+    Settings.find_or_create_entry!(%{
+      key: MediaCentaur.AutoPlayNextEpisode.setting_key(),
+      value: %{"enabled" => enabled}
+    })
+
+    {:noreply, assign(socket, auto_play_next_episode: enabled)}
   end
 
   def handle_event("toggle_update_check", _params, socket) do
@@ -1733,6 +1751,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 ui_scale={@ui_scale}
                 show_card_info={@show_card_info}
                 show_play_button={@show_play_button}
+                auto_play_next_episode={@auto_play_next_episode}
                 library_backdrop={@library_backdrop}
                 incoming_backdrop={@incoming_backdrop}
                 tmdb_test={@tmdb_test}
@@ -1852,6 +1871,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       incoming_backdrop={@incoming_backdrop}
       show_card_info={@show_card_info}
       show_play_button={@show_play_button}
+      auto_play_next_episode={@auto_play_next_episode}
     />
     """
   end

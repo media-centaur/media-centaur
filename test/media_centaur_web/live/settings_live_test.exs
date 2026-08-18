@@ -212,6 +212,18 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       view |> element("div[phx-click=toggle_show_card_info]") |> render_click()
       assert MediaCentaur.LibraryCardInfo.enabled?() == false
     end
+
+    test "toggling auto-play next episode persists the flag", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
+
+      assert MediaCentaur.AutoPlayNextEpisode.enabled?() == true
+
+      view |> element("div[phx-click=toggle_auto_play_next_episode]") |> render_click()
+      assert MediaCentaur.AutoPlayNextEpisode.enabled?() == false
+
+      view |> element("div[phx-click=toggle_auto_play_next_episode]") |> render_click()
+      assert MediaCentaur.AutoPlayNextEpisode.enabled?() == true
+    end
   end
 
   describe "language & subtitle policy" do

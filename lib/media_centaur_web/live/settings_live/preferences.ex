@@ -17,6 +17,7 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
   attr :incoming_backdrop, :boolean, required: true
   attr :show_card_info, :boolean, required: true
   attr :show_play_button, :boolean, required: true
+  attr :auto_play_next_episode, :boolean, required: true
 
   def render(assigns) do
     ~H"""
@@ -68,6 +69,14 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="Hover a card to play it in one click"
           checked={@show_play_button}
           event="toggle_show_play_button"
+          color="info"
+        />
+
+        <.settings_row
+          label="Auto-play next episode"
+          description="When an episode ends, the next one starts on its own"
+          checked={@auto_play_next_episode}
+          event="toggle_auto_play_next_episode"
           color="info"
         />
 
