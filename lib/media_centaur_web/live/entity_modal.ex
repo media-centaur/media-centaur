@@ -856,6 +856,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
 
   attr :tmdb_ready, :boolean, default: true
   attr :spoiler_free, :boolean, default: false
+  attr :letterboxd_links, :boolean, default: true
 
   def entity_modal(assigns) do
     ~H"""
@@ -880,6 +881,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
       delete_confirm={@delete_confirm}
       deleting={@deleting}
       spoiler_free={@spoiler_free}
+      letterboxd_links={@letterboxd_links}
       tracking_status={@tracking_status}
       available={
         @selected_entry == nil ||

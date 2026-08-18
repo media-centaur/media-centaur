@@ -139,7 +139,8 @@ defmodule MediaCentaurWeb.CoreComponents do
   attr :shape, :string, default: nil, values: [nil, "circle", "square"]
   attr :class, :any, default: nil
 
-  attr :rest, :global, include: ~w(href navigate patch method download name value disabled type form)
+  attr :rest, :global,
+    include: ~w(href navigate patch method download name value disabled type form target rel)
 
   slot :inner_block, required: true
 

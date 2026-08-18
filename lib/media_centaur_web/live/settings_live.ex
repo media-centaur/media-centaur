@@ -13,6 +13,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   use MediaCentaurWeb.Live.CardPlayButtonAware
   use MediaCentaurWeb.Live.LibraryBackdropAware
   use MediaCentaurWeb.Live.IncomingBackdropAware
+  use MediaCentaurWeb.Live.LetterboxdLinksAware
 
   # Settings is the only host for this flag (the consumer is the Playback
   # backend), so the SettingAware tuple is registered inline rather than
@@ -699,6 +700,17 @@ defmodule MediaCentaurWeb.SettingsLive do
     end
 
     {:noreply, assign(socket, acquisition_running: Acquisition.auto_grab_running?())}
+  end
+
+  def handle_event("toggle_letterboxd_links", _params, socket) do
+    enabled = !socket.assigns.letterboxd_links
+
+    Settings.find_or_create_entry!(%{
+      key: "letterboxd_links",
+      value: %{"enabled" => enabled}
+    })
+
+    {:noreply, assign(socket, letterboxd_links: enabled)}
   end
 
   def handle_event("toggle_spoiler_free", _params, socket) do
@@ -1752,6 +1764,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 show_card_info={@show_card_info}
                 show_play_button={@show_play_button}
                 auto_play_next_episode={@auto_play_next_episode}
+                letterboxd_links={@letterboxd_links}
                 library_backdrop={@library_backdrop}
                 incoming_backdrop={@incoming_backdrop}
                 tmdb_test={@tmdb_test}
@@ -1872,6 +1885,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       show_card_info={@show_card_info}
       show_play_button={@show_play_button}
       auto_play_next_episode={@auto_play_next_episode}
+      letterboxd_links={@letterboxd_links}
     />
     """
   end

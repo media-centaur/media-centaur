@@ -38,6 +38,17 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   it. Reachable from the couch because it is a `data-nav-item` of the
   enclosing `detail_actions` zone (UIDR-019); the hero's icon cluster, the
   other place it could live, is mouse-only.
+
+  ## Letterboxd
+
+  A movie subject with a TMDB id gets a second quiet icon button before
+  the cog: the film's Letterboxd page, via the stable
+  `letterboxd.com/tmdb/<id>` redirect (no API or scraping) — where a
+  logged-in user logs a diary entry and reads community ratings. Movies
+  only (Letterboxd has no TV), gated by the `letterboxd_links` setting.
+  Deliberately NOT a `data-nav-item`: opening an external site from the
+  couch shell is a trap, so the couch walk skips it and the pointer gets
+  it.
   """
 
   use MediaCentaurWeb, :html
@@ -47,11 +58,15 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   attr :entity, :map,
     required: true,
     doc:
-      "entity-map from `MediaCentaur.Library.Views.DetailItem.to_entity_map/1`. Read only for `:type` and `:extras`, via `Detail.Logic`, to decide which control belongs here."
+      "entity-map from `MediaCentaur.Library.Views.DetailItem.to_entity_map/1`. Read for `:type` and `:extras` (via `Detail.Logic`) to decide which control belongs here, and for `:tmdb_id` for the Letterboxd link."
 
   attr :detail_view, :atom,
     required: true,
     doc: "the showing view — `:main`, `:cast` or `:info`."
+
+  attr :letterboxd_links, :boolean,
+    default: true,
+    doc: "the `letterboxd_links` setting — whether a movie subject gets the Letterboxd link."
 
   def view_controls(assigns) do
     assigns = assign(assigns, :destination, Logic.secondary_view(assigns.entity, assigns.detail_view))
@@ -67,6 +82,33 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
     <.view_button :if={@destination == :cast} view="cast" icon="hero-user-group-mini">
       Cast
     </.view_button>
+    <.button
+      :if={@letterboxd_links && @entity.type == :movie && @entity[:tmdb_id]}
+      variant="dismiss"
+      size="sm"
+      shape="circle"
+      class="ml-1 opacity-60 hover:opacity-100 transition-opacity"
+      href={Logic.letterboxd_url(@entity[:tmdb_id])}
+      target="_blank"
+      rel="noopener"
+      title="Open on Letterboxd"
+      aria-label="Open on Letterboxd"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        class="size-5"
+        aria-hidden="true"
+      >
+        <circle cx="6.5" cy="12" r="4.25" /><circle cx="12" cy="12" r="4.25" /><circle
+          cx="17.5"
+          cy="12"
+          r="4.25"
+        />
+      </svg>
+    </.button>
     <.button
       variant="dismiss"
       size="sm"

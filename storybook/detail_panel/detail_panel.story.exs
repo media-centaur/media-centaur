@@ -557,6 +557,11 @@ defmodule MediaCentaurWeb.Storybook.DetailPanel.DetailPanel do
         %{source: "imdb", external_id: "tt0000000"},
         %{source: "tmdb", external_id: "1001"}
       ],
+      # Top-level convenience ids mirror `DetailItem.to_entity_map/1`;
+      # `tmdb_id` also makes the movie variations render the Play-line
+      # Letterboxd link (default-on).
+      imdb_id: "tt0000000",
+      tmdb_id: "1001",
       extras: [],
       seasons: [],
       movies: [],

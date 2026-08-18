@@ -246,6 +246,65 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     end
   end
 
+  describe "Letterboxd link" do
+    defp create_letterboxd_movie(attrs) do
+      movie = create_standalone_movie(attrs)
+      _ = create_linked_file(%{movie_id: movie.id})
+      movie
+    end
+
+    test "movie detail links to the film's Letterboxd page", %{conn: conn} do
+      movie = create_letterboxd_movie(%{name: "Letterboxd Fixture", tmdb_id: "603"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+
+      assert has_element?(view, "#detail-modal[data-state='open']")
+      assert has_element?(view, "#detail-modal a[href='https://letterboxd.com/tmdb/603']")
+    end
+
+    test "no link when the Letterboxd links setting is off", %{conn: conn} do
+      movie = create_letterboxd_movie(%{name: "Letterboxd Fixture", tmdb_id: "603"})
+
+      MediaCentaur.Settings.find_or_create_entry!(%{
+        key: "letterboxd_links",
+        value: %{"enabled" => false}
+      })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+
+      assert has_element?(view, "#detail-modal[data-state='open']")
+      refute has_element?(view, "#detail-modal a[href='https://letterboxd.com/tmdb/603']")
+    end
+
+    test "no link for a TV series", %{conn: conn} do
+      series = create_tv_series(%{name: "Letterboxd TV Fixture", tmdb_id: "604"})
+      season = create_season(%{tv_series_id: series.id, season_number: 1})
+
+      _ =
+        create_episode(%{
+          season_id: season.id,
+          episode_number: 1,
+          name: "Episode S1E1",
+          duration_seconds: 1260,
+          content_url: "/tv/letterboxd-fixture/s01e01.mkv"
+        })
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{series.id}")
+
+      assert has_element?(view, "#detail-modal[data-state='open']")
+      refute has_element?(view, "#detail-modal a[href='https://letterboxd.com/tmdb/604']")
+    end
+
+    test "no link when the movie has no TMDB id", %{conn: conn} do
+      movie = create_letterboxd_movie(%{name: "Unmatched Letterboxd Fixture"})
+
+      {:ok, view, _html} = live_async!(conn, ~p"/library?selected=#{movie.id}")
+
+      assert has_element?(view, "#detail-modal[data-state='open']")
+      refute has_element?(view, "#detail-modal a[href^='https://letterboxd.com/tmdb/']")
+    end
+  end
+
   describe "detail modal view controls" do
     # The modal's view controls are a soft button and a Manage cog on Play's
     # own line. There is exactly ONE text control, in ONE slot: it offers

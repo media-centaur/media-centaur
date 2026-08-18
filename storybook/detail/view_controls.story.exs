@@ -26,6 +26,11 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
       has no Cast view (`:collection`); a movie with no extras opens *on*
       Cast, so that is its root (`:movie_without_extras`). Both render
       Play's line with just the cog.
+    * **A movie with a TMDB id gets the Letterboxd link** before the cog
+      (`:movie_letterboxd_link`) — the tri-circle icon button linking to
+      `letterboxd.com/tmdb/<id>`. Gated by the `letterboxd_links` setting
+      (`:movie_letterboxd_off`); never shown without a `:tmdb_id`, which
+      is why every other variation renders without it.
 
   Rendered here bare. In the app these sit inside `PlayCard`'s row via its
   `controls` slot, to the right of the Play button.
@@ -95,6 +100,28 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
         attributes: %{
           entity: %{type: :movie, extras: [%{owner_type: :movie}]},
           detail_view: :main
+        }
+      },
+      %Variation{
+        id: :movie_letterboxd_link,
+        description:
+          "A movie with a TMDB id carries the Letterboxd icon button " <>
+            "before the cog — the film's Letterboxd page via the " <>
+            "`/tmdb/<id>` redirect.",
+        attributes: %{
+          entity: %{type: :movie, extras: [%{owner_type: :movie}], tmdb_id: "1001"},
+          detail_view: :main
+        }
+      },
+      %Variation{
+        id: :movie_letterboxd_off,
+        description:
+          "The same movie with the `letterboxd_links` setting off — the " <>
+            "row carries only the view control and the cog.",
+        attributes: %{
+          entity: %{type: :movie, extras: [%{owner_type: :movie}], tmdb_id: "1001"},
+          detail_view: :main,
+          letterboxd_links: false
         }
       },
       %Variation{
