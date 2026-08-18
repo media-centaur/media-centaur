@@ -94,6 +94,26 @@ defmodule MediaCentaur.Library.ExternalIdsTest do
     end
   end
 
+  describe "tmdb_owners/1" do
+    test "maps refs to owning container ids; unknown refs are absent" do
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "777"})
+
+      series = create_tv_series(%{name: "Sample Show"})
+      create_external_id(%{tv_series_id: series.id, source: "tmdb", external_id: "42"})
+
+      assert ExternalIds.tmdb_owners([{777, :movie}, {42, :tv_series}, {999, :movie}]) ==
+               %{{777, :movie} => movie.id, {42, :tv_series} => series.id}
+    end
+
+    test "movie and tv ids do not cross-match" do
+      movie = create_standalone_movie(%{name: "Sample Movie"})
+      create_external_id(%{movie_id: movie.id, source: "tmdb", external_id: "550"})
+
+      assert ExternalIds.tmdb_owners([{550, :tv_series}]) == %{}
+    end
+  end
+
   describe "get/2" do
     test "returns the external_id for the given source on a preloaded record" do
       movie = create_standalone_movie(%{name: "Sample Movie"})

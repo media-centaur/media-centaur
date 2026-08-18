@@ -285,6 +285,41 @@ defmodule MediaCentaur.Library.ExternalIds do
   end
 
   @doc """
+  Bulk "does the library know this TMDB title" — maps each
+  `{tmdb_id, media_type}` ref to the owning container's id; refs the
+  library has no container for are absent from the result.
+
+  Semantics: *container exists* — deliberately looser than
+  `find_present_movie/1`'s file-linked check. Detail pages render
+  containers regardless of files, so this is the right authority for
+  "link to it" decorations (watchlist, search rows).
+  """
+  @spec tmdb_owners([{integer(), :movie | :tv_series}]) ::
+          %{{integer(), :movie | :tv_series} => Ecto.UUID.t()}
+  def tmdb_owners([]), do: %{}
+
+  def tmdb_owners(refs) when is_list(refs) do
+    ids = refs |> Enum.map(fn {tmdb_id, _type} -> to_string(tmdb_id) end) |> Enum.uniq()
+
+    lookup =
+      from(e in ExternalId,
+        where: e.source == "tmdb" and e.owner_type in [:movie, :tv_series] and e.external_id in ^ids,
+        select: {e.external_id, e.owner_type, e.owner_id}
+      )
+      |> Repo.all()
+      |> Map.new(fn {external_id, owner_type, owner_id} -> {{external_id, owner_type}, owner_id} end)
+
+    refs
+    |> Enum.flat_map(fn {tmdb_id, media_type} = ref ->
+      case Map.get(lookup, {to_string(tmdb_id), media_type}) do
+        nil -> []
+        owner_id -> [{ref, owner_id}]
+      end
+    end)
+    |> Map.new()
+  end
+
+  @doc """
   Returns every entity in the library that has a TMDB ExternalId,
   tagged with its type. Used by ReleaseTracking to scan for tracking
   candidates.
