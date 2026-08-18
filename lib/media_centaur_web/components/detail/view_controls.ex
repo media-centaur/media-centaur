@@ -49,6 +49,17 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   Deliberately NOT a `data-nav-item`: opening an external site from the
   couch shell is a trap, so the couch walk skips it and the pointer gets
   it.
+
+  ## Watchlist
+
+  A movie or TV subject with a TMDB id gets a bookmark toggle between the
+  Letterboxd link and the cog — the same flip idiom as the search-row
+  bookmark (`MediaResults`): outline off-list, solid + primary tint
+  on-list, state carried by `aria-pressed`. Fires `modal_watchlist_toggle`,
+  handled by the injected `EntityModal` clause; the rendered state comes
+  from the host's `:watchlisted_refs` (`WatchlistAware`), threaded down as
+  `watchlisted?`. In-app action, so unlike Letterboxd it IS a
+  `data-nav-item`.
   """
 
   use MediaCentaurWeb, :html
@@ -67,6 +78,11 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
   attr :letterboxd_links, :boolean,
     default: true,
     doc: "the `letterboxd_links` setting — whether a movie subject gets the Letterboxd link."
+
+  attr :watchlisted?, :boolean,
+    default: false,
+    doc:
+      "whether the subject is on the watchlist — flips the bookmark toggle solid. Compute via `EntityModal.watchlisted?/3` so it matches what `modal_watchlist_toggle` acts on."
 
   def view_controls(assigns) do
     assigns = assign(assigns, :destination, Logic.secondary_view(assigns.entity, assigns.detail_view))
@@ -108,6 +124,25 @@ defmodule MediaCentaurWeb.Components.Detail.ViewControls do
           r="4.25"
         />
       </svg>
+    </.button>
+    <.button
+      :if={@entity[:tmdb_id] && @entity.type in [:movie, :tv_series]}
+      id="detail-watchlist-toggle"
+      variant="dismiss"
+      size="sm"
+      shape="circle"
+      class={[
+        "ml-1 transition-opacity",
+        if(@watchlisted?, do: "text-primary", else: "opacity-60 hover:opacity-100")
+      ]}
+      phx-click="modal_watchlist_toggle"
+      data-nav-item
+      tabindex="0"
+      aria-pressed={to_string(@watchlisted?)}
+      title={if @watchlisted?, do: "Remove from watchlist", else: "Add to watchlist"}
+      aria-label={if @watchlisted?, do: "Remove from watchlist", else: "Add to watchlist"}
+    >
+      <.icon name={if @watchlisted?, do: "hero-bookmark-solid", else: "hero-bookmark"} class="size-5" />
     </.button>
     <.button
       variant="dismiss"

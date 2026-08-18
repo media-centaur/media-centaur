@@ -35,6 +35,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   use MediaCentaurWeb.Live.CardPlayButtonAware
   use MediaCentaurWeb.Live.LibraryBackdropAware
   use MediaCentaurWeb.Live.LetterboxdLinksAware
+  use MediaCentaurWeb.Live.WatchlistAware
 
   alias MediaCentaur.{
     Library,
@@ -487,6 +488,7 @@ defmodule MediaCentaurWeb.LibraryLive do
           tmdb_ready={@tmdb_ready}
           spoiler_free={@spoiler_free}
           letterboxd_links={@letterboxd_links}
+          watchlisted_refs={@watchlisted_refs}
         />
       </div>
     </Layouts.app>

@@ -29,8 +29,13 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
     * **A movie with a TMDB id gets the Letterboxd link** before the cog
       (`:movie_letterboxd_link`) — the tri-circle icon button linking to
       `letterboxd.com/tmdb/<id>`. Gated by the `letterboxd_links` setting
-      (`:movie_letterboxd_off`); never shown without a `:tmdb_id`, which
-      is why every other variation renders without it.
+      (`:movie_letterboxd_off`); never shown without a `:tmdb_id`.
+    * **A movie or TV subject with a TMDB id gets the watchlist bookmark**
+      between the Letterboxd link and the cog. Off-list it is a quiet
+      outline (`:movie_letterboxd_link`); on-list it flips solid with a
+      primary tint and `aria-pressed` (`:movie_on_watchlist`). Never shown
+      without a `:tmdb_id`, which is why the tmdb-id-less variations
+      render without either icon button.
 
   Rendered here bare. In the app these sit inside `PlayCard`'s row via its
   `controls` slot, to the right of the Play button.
@@ -107,7 +112,8 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
         description:
           "A movie with a TMDB id carries the Letterboxd icon button " <>
             "before the cog — the film's Letterboxd page via the " <>
-            "`/tmdb/<id>` redirect.",
+            "`/tmdb/<id>` redirect — and the watchlist bookmark in its " <>
+            "quiet off-list state between the two.",
         attributes: %{
           entity: %{type: :movie, extras: [%{owner_type: :movie}], tmdb_id: "1001"},
           detail_view: :main
@@ -117,11 +123,24 @@ defmodule MediaCentaurWeb.Storybook.Detail.ViewControls do
         id: :movie_letterboxd_off,
         description:
           "The same movie with the `letterboxd_links` setting off — the " <>
-            "row carries only the view control and the cog.",
+            "Letterboxd button drops out; the watchlist bookmark is a " <>
+            "library affordance and stays.",
         attributes: %{
           entity: %{type: :movie, extras: [%{owner_type: :movie}], tmdb_id: "1001"},
           detail_view: :main,
           letterboxd_links: false
+        }
+      },
+      %Variation{
+        id: :movie_on_watchlist,
+        description:
+          "The same movie already on the watchlist — the bookmark flips " <>
+            "solid with a primary tint and `aria-pressed`, and its title " <>
+            "offers removal.",
+        attributes: %{
+          entity: %{type: :movie, extras: [%{owner_type: :movie}], tmdb_id: "1001"},
+          detail_view: :main,
+          watchlisted?: true
         }
       },
       %Variation{
