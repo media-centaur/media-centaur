@@ -1161,6 +1161,8 @@ defmodule MediaCentaurWeb.Live.EntityModal do
         if MapSet.member?(socket.assigns.watchlisted_refs, {tmdb_id, media_type}) do
           Discovery.remove_from_watchlist(tmdb_id, media_type)
         else
+          # No poster_path on purpose: library subjects don't carry a TMDB
+          # poster path — artwork arrives via Discovery's async TmdbArtwork.ensure.
           Discovery.add_to_watchlist(%{
             tmdb_id: tmdb_id,
             media_type: media_type,
