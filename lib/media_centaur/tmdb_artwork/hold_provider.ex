@@ -6,8 +6,8 @@ defmodule MediaCentaur.TmdbArtwork.HoldProvider do
   returns it, the daily sweep will not remove that entry regardless of
   age. Providers are registered under the `:tmdb_artwork_hold_providers`
   config key — runtime dispatch keeps the referencing contexts
-  (ReleaseTracking, Acquisition) upstream of `TmdbArtwork` in the
-  Boundary graph, mirroring `:retention_policy_providers`.
+  upstream of `TmdbArtwork` in the Boundary graph, mirroring
+  `:retention_policy_providers`.
 
   `holds/0` runs inside the daily retention sweep; a provider that
   raises fails that sweep run (Oban retries), so keep it a plain query.
