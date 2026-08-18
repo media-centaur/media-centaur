@@ -88,6 +88,12 @@ defmodule MediaCentaur.DiscoveryTest do
       await_artwork_tasks()
     end
 
+    test "TmdbArtworkHolds holds every watchlist ref" do
+      {:ok, _} = Discovery.add_to_watchlist(@attrs)
+      assert MediaCentaur.Discovery.TmdbArtworkHolds.holds() == MapSet.new([{:movie, 777}])
+      await_artwork_tasks()
+    end
+
     test "duplicate insert at the changeset level returns an error, not a raise" do
       {:ok, _} = Discovery.add_to_watchlist(@attrs)
       # This insert is the operation under test, not setup: it pins that the
