@@ -32,6 +32,7 @@ cp -r ../contrib/mpv/scripts/ ~/.config/mpv/scripts/
 | `../contrib/mpv/input.conf` | Key bindings |
 | `../contrib/mpv/scripts/track-menu.lua` | Two-column audio/subtitle track selector overlay |
 | `../contrib/mpv/scripts/skip-intro.lua` | Chapter-based intro skip button |
+| `../contrib/mpv/scripts/next-episode.lua` | Chapter-based "Next Episode" button during credits |
 | `../contrib/mpv/scripts/hdr-display.lua` | Auto-switch the Hyprland output to HDR mode while HDR content plays |
 
 ## mpv.conf
@@ -153,6 +154,51 @@ mpv --msg-level=skip_intro=trace /path/to/video.mkv
 ```
 
 This outputs chapter change events, pattern matching results, overlay rendering, and skip actions.
+
+## next-episode Plugin
+
+`scripts/next-episode.lua` shows a "Next Episode" pill in the bottom-right
+corner while rolling credits play, if the playlist holds a queued successor
+(the backend appends the next episode — ADR-062). Press **Enter** or **click
+the pill** to advance immediately with `playlist-next`. If nothing is
+pressed, mpv advances on its own at end of file — the pill only shortens the
+credits, it never skips content automatically.
+
+### How It Works
+
+The script observes `chapter` and `playlist-count`. The pill appears when
+**both** hold:
+
+- the current chapter's title names the credits (`credits`/`outro`,
+  case-insensitive whole-word — same patterns as the backend's
+  `ChapterCompletion`) **and** the chapter starts at ≥ 80% of the runtime
+  (so an "Opening Credits" chapter at t=0 never triggers it); and
+- `playlist-count - playlist-pos > 1` — a successor is actually queued.
+
+### Behavior
+
+- **No key binding needed** — activates automatically via property observers
+- ENTER is force-bound to `playlist-next` while the pill is visible; the
+  global binding is restored when it disappears
+- The pill is clickable with the same hover-gated `MBTN_LEFT` capture as
+  skip-intro — clicks elsewhere still reach the OSC / seek bar
+- Files without a credits chapter never show the pill (end-of-file advance
+  still works); series without a queued successor (chain end, auto-play
+  turned off) never show it either
+
+### Visual Style
+
+Same glassmorphism pill as skip-intro: dim "ENTER" key hint, bold white
+"Next Episode" label, orange accent arrows.
+
+### Debugging
+
+```bash
+mpv --msg-level=next_episode=trace /path/to/video.mkv
+```
+
+This outputs chapter/playlist observations, credits detection results,
+overlay rendering, and advance actions.
 
 ## hdr-display Plugin
 

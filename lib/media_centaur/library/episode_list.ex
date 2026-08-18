@@ -74,6 +74,39 @@ defmodule MediaCentaur.Library.EpisodeList do
   end
 
   @doc """
+  Returns the episode that immediately follows `episode_id` in season/episode
+  order, as a `{season_number, episode_number, content_url, episode_id}` tuple,
+  or `nil` when there is no playable successor.
+
+  The walk is over *all* episodes, not just downloaded ones: when the
+  literally-next episode has no `content_url`, the result is `nil` rather
+  than the next available episode — auto-advance must never skip a gap in
+  story order. `nil` is also returned after the final episode and for an
+  unknown `episode_id`.
+  """
+  def next_episode_after(entity, episode_id) do
+    ordered =
+      (entity.seasons || [])
+      |> sort_seasons()
+      |> Enum.flat_map(fn season ->
+        season.episodes
+        |> sort_episodes()
+        |> Enum.map(&{season.season_number, &1.episode_number, &1.content_url, &1.id})
+      end)
+
+    case Enum.find_index(ordered, fn {_season, _episode, _url, id} -> id == episode_id end) do
+      nil ->
+        nil
+
+      index ->
+        case Enum.at(ordered, index + 1) do
+          {_season, _episode, nil, _id} -> nil
+          next -> next
+        end
+    end
+  end
+
+  @doc """
   Finds the content_url for a specific season/episode in an entity.
 
   Returns `{:ok, url}` or `{:error, :invalid_episode}`.

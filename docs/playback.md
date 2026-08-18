@@ -36,6 +36,8 @@ graph TD
 
 **Multi-session playback:** Multiple mpv processes can run concurrently, one per entity. Each session is identified by its entity_id and uses an entity-scoped socket (`media-centaur-{entity_id}.sock`).
 
+**Episode auto-advance ([ADR-062](../decisions/architecture/2026-08-18-062-playlist-based-episode-advance.md)):** a TV episode session is a *viewing chain*, not one file. The backend appends the successor episode to the mpv playlist (`Playback.NextEpisode`), so end-of-episode rolls into the next file inside the same mpv process — no window teardown, no HDR re-lock. The queueing decision runs off mpv's own `playlist-count`/`playlist-pos` observations (append only while the current entry is the last — reconnect-safe by construction), and a `path` change is the advance signal: the session closes out the finished episode, re-points its identity at the new file, and queues the next successor. The successor is always the *literally next* episode — a story-order gap (undownloaded episode) ends the chain rather than being skipped. Gated by the `auto_play_next_episode` setting (default on), read at each queueing decision. The in-player "Next Episode" pill during credits (`next-episode.lua`, contrib) is just `playlist-next`; the backend observes it like any other transition.
+
 **Observation, not control:** The backend is a tracking system. The user controls mpv directly (keyboard, remote, gamepad). Each MpvSession observes position/duration/pause/eof via IPC, persists watch progress, and broadcasts state via PubSub.
 
 **Seek-aware progress tracking:** The `WatchingTracker` distinguishes continuous watching from seeking. Progress is only saved during continuous playback (10+ uninterrupted seconds). Jumps > 3 seconds reset the continuous timer.
@@ -92,8 +94,11 @@ MpvSession communicates with mpv via newline-delimited JSON over a Unix domain s
 - `["observe_property", 1, "time-pos"]` — position tracking
 - `["observe_property", 2, "duration"]` — total duration
 - `["observe_property", 3, "pause"]` — pause state
-- `["observe_property", 4, "eof-reached"]` — end of file
-- `["quit"]` — close player on EOF
+- `["observe_property", 4, "eof-reached"]` — end of playlist (only fires at the final entry under `keep-open`)
+- `["observe_property", 9, "playlist-count"]` / `[..., 10, "playlist-pos"]` — auto-advance queue check (ADR-062)
+- `["observe_property", 11, "path"]` — playlist-advance detection
+- `["loadfile", url, "append", -1, "start=N"]` — queue the successor episode (per-entry start; the index argument needs mpv ≥ 0.38)
+- `["quit"]` — close player at playlist end
 
 **Events received:**
 - `property-change` for `time-pos`, `duration`, `pause`, `eof-reached`
@@ -173,8 +178,9 @@ After 10 continuous seconds, `actively_watching` becomes `true` and `saveable_po
 | `MediaCentaur.Playback.Supervisor` | Groups Registry + SessionSupervisor + Recovery | `lib/media_centaur/playback/supervisor.ex` |
 | `MediaCentaur.Playback.Resume` | Resume/next algorithm | `lib/media_centaur/playback/resume.ex` |
 | `MediaCentaur.Playback.Resolver` | UUID → play params | `lib/media_centaur/playback/resolver.ex` |
-| `MediaCentaur.Playback.EpisodeList` | TV episode walking helpers | `lib/media_centaur/playback/episode_list.ex` |
-| `MediaCentaur.Playback.MovieList` | Movie series walking helpers | `lib/media_centaur/playback/movie_list.ex` |
+| `MediaCentaur.Library.EpisodeList` | TV episode walking helpers | `lib/media_centaur/library/episode_list.ex` |
+| `MediaCentaur.Playback.NextEpisode` | Auto-advance successor resolution + path re-identification (ADR-062) | `lib/media_centaur/playback/next_episode.ex` |
+| `MediaCentaur.Library.MovieList` | Movie series walking helpers | `lib/media_centaur/library/movie_list.ex` |
 | `MediaCentaur.Playback.ProgressSummary` | Display-ready progress computation | `lib/media_centaur/playback/progress_summary.ex` |
 | `MediaCentaur.Playback.ResumeTarget` | Play-button hint computation | `lib/media_centaur/playback/resume_target.ex` |
 | `MediaCentaur.Playback.WatchingTracker` | Seek detection, continuous-watch gating | `lib/media_centaur/playback/watching_tracker.ex` |

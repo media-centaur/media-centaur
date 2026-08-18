@@ -267,10 +267,11 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # IncomingBackdropAware on SettingsLive) add two settings keys, each
       # read on the disconnected + connected mount = +4 cache-miss reads.
       # CardPlayButtonAware (UIDR-027 toggle) adds one more key = +2.
+      # AutoPlayNextEpisode (ADR-062 toggle) adds one more key = +2.
       mount_and_assert(
         conn,
         "/settings",
-        54,
+        56,
         "Config + Secret reads + maintenance health counts + per-client connection-test reads (per-key cache-miss DB fallback in test mode)"
       )
     end
