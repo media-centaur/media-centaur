@@ -33,6 +33,7 @@ defmodule MediaCentaur.Discovery do
   `(tmdb_id, media_type)` returns the existing item unchanged, including
   when a concurrent insert wins the race (unique-constraint branch).
   """
+  @spec add_to_watchlist(map()) :: {:ok, WatchlistItem.t()} | {:error, Ecto.Changeset.t()}
   def add_to_watchlist(attrs) do
     case get_item(attrs[:tmdb_id], attrs[:media_type]) do
       %WatchlistItem{} = existing ->
@@ -55,9 +56,14 @@ defmodule MediaCentaur.Discovery do
             {:ok, item}
 
           {:error, %Ecto.Changeset{errors: errors} = changeset} ->
-            # Concurrent add won the race — the unique constraint fired;
+            # Concurrent add won the race exactly when a unique constraint
+            # fired (constraint metadata, not field name — a future
+            # validation on :tmdb_id must not be mistaken for the race);
             # re-fetch so idempotency holds under contention too.
-            if Keyword.has_key?(errors, :tmdb_id),
+            unique_violation? =
+              Enum.any?(errors, fn {_field, {_msg, meta}} -> meta[:constraint] == :unique end)
+
+            if unique_violation?,
               do: {:ok, get_item(attrs[:tmdb_id], attrs[:media_type])},
               else: {:error, changeset}
         end
