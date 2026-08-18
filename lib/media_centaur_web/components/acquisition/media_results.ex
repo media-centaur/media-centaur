@@ -8,8 +8,12 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
 
   While it renders, the search owns the page: the host hides the
   forecast, the same convention as the release-search zone — whose
-  `grid` nav zone this reuses (the two modes are exclusive, so only
-  one grid exists at a time).
+  `grid` nav zone the result rows reuse (the two modes are exclusive,
+  so only one grid exists at a time). The header strip (scope chips +
+  Clear) is its own `toolbar` nav zone: the rows form a two-column
+  grid (pick + bookmark, declared via the row-level `data-nav-grid`),
+  and grid navigation is index arithmetic — header items sharing the
+  zone would shift the pairing.
 
   Each row leads with one verb: clicking downloads the title — opening
   the plan flow, which is a step toward it, not the goal — or tracks it
@@ -70,10 +74,9 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
     <section
       :if={active_query?(@query)}
       data-component="media-results"
-      data-nav-zone="grid"
       class="mx-auto w-full max-w-3xl space-y-2"
     >
-      <div class="flex items-center justify-between gap-3 px-1">
+      <div class="flex items-center justify-between gap-3 px-1" data-nav-zone="toolbar">
         <span class="flex items-center gap-2 text-xs text-base-content/40">
           <.scope_chip
             scope={:upcoming}
@@ -123,14 +126,16 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
         No {if @scope == :upcoming, do: "upcoming", else: "released"} titles in these results.
       </div>
 
-      <.result_row
-        :for={result <- @visible}
-        result={result}
-        status={release_status(result, @today)}
-        release_mode_available={@release_mode_available}
-        watchlisted?={MapSet.member?(@watchlisted_refs, {result.tmdb_id, result.media_type})}
-        in_library?={MapSet.member?(@in_library_refs, {result.tmdb_id, result.media_type})}
-      />
+      <div data-nav-zone="grid" class="space-y-2">
+        <.result_row
+          :for={result <- @visible}
+          result={result}
+          status={release_status(result, @today)}
+          release_mode_available={@release_mode_available}
+          watchlisted?={MapSet.member?(@watchlisted_refs, {result.tmdb_id, result.media_type})}
+          in_library?={MapSet.member?(@in_library_refs, {result.tmdb_id, result.media_type})}
+        />
+      </div>
     </section>
     """
   end
@@ -185,17 +190,24 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
 
   # A wrapper div owns the row surface: the main pick button and the
   # bookmark toggle are siblings — nested interactive elements are
-  # invalid HTML.
+  # invalid HTML. The wrapper is a real 2-track grid carrying
+  # `data-nav-grid`: the input system reads its computed column count,
+  # so DOWN/UP move row-to-row (pick → pick) and LEFT/RIGHT move
+  # within a row (pick ↔ bookmark). Every row renders exactly these
+  # two nav items.
   defp result_row(assigns) do
     assigns =
       assign(assigns, :verb, verb(assigns.result, assigns.status, assigns.release_mode_available))
 
     ~H"""
-    <div class="glass-surface flex w-full items-start gap-1 rounded-xl pr-2 transition-colors hover:bg-base-content/[0.05]">
+    <div
+      class="glass-surface grid w-full grid-cols-[1fr_auto] items-start gap-1 rounded-xl pr-2 transition-colors hover:bg-base-content/[0.05]"
+      data-nav-grid
+    >
       <button
         id={"omnibox-result-#{@result.media_type}-#{@result.tmdb_id}"}
         type="button"
-        class="flex min-w-0 flex-1 cursor-pointer items-start gap-4 py-3 pl-4 text-left"
+        class="flex min-w-0 cursor-pointer items-start gap-4 py-3 pl-4 text-left"
         phx-click="omnibox_pick"
         phx-value-tmdb-id={@result.tmdb_id}
         phx-value-media-type={@result.media_type}
@@ -252,7 +264,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaResults do
         id={"omnibox-watchlist-#{@result.media_type}-#{@result.tmdb_id}"}
         type="button"
         class={[
-          "cursor-pointer self-center px-2 py-2 transition-colors",
+          "flex cursor-pointer items-center self-stretch px-2 transition-colors",
           @watchlisted? && "text-primary",
           !@watchlisted? && "text-base-content/30 hover:text-base-content/60"
         ]}

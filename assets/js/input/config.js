@@ -209,12 +209,16 @@ export const inputConfig = {
     // lists do the routing: Coming up shows coming_up_list; Activity shows
     // drafts → pursuits → other_downloads; History shows the ledger
     // (glimpse AND expanded archive, one zone). While a search owns the
-    // page only "grid" (the flat results) exists below the omnibox and the
-    // tabs recede. The ledger always carries its "View all" toggle as a
-    // nav item once any history exists, so the archive stays reachable.
+    // page the tabs recede: media search renders "toolbar" (scope chips +
+    // Clear) over "grid" (the result rows, a 2-column pick/bookmark grid
+    // via the row-level data-nav-grid); release search renders only "grid"
+    // (its linear group list carries its own Clear). The ledger always
+    // carries its "View all" toggle as a nav item once any history exists,
+    // so the archive stays reachable.
     incoming: {
-      omnibox:         { down: ["grid", "zone_tabs", "coming_up_list", "drafts", "pursuits", "ledger"], left: ["sidebar"] },
-      grid:            { up: ["omnibox"], left: ["sidebar"] },
+      omnibox:         { down: ["toolbar", "grid", "zone_tabs", "coming_up_list", "drafts", "pursuits", "ledger"], left: ["sidebar"] },
+      toolbar:         { up: ["omnibox"], down: ["grid"], left: ["sidebar"] },
+      grid:            { up: ["toolbar", "omnibox"], left: ["sidebar"] },
       zone_tabs:       { up: ["omnibox"], down: ["coming_up_list", "drafts", "pursuits", "ledger", "other_downloads"], left: ["sidebar"] },
       coming_up_list:  { up: ["zone_tabs", "omnibox"], left: ["sidebar"] },
       drafts:          { up: ["zone_tabs", "omnibox"], down: ["pursuits", "other_downloads"], left: ["sidebar"] },
