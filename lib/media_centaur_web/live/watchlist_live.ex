@@ -96,7 +96,7 @@ defmodule MediaCentaurWeb.WatchlistLive do
       review_pending={assigns[:review_pending] || 0}
       mapping_pending={assigns[:mapping_pending] || 0}
     >
-      <div class="relative" data-page-behavior="watchlist" data-nav-default-zone="grid">
+      <div class="relative" data-page-behavior="watchlist" data-nav-default-zone="watchlist">
         <div class="mx-auto w-full max-w-3xl space-y-2 pt-10" data-nav-zone="grid">
           <h1 class="px-1 text-lg font-semibold">Watchlist</h1>
 
