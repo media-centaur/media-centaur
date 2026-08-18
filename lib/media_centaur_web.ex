@@ -35,7 +35,8 @@ defmodule MediaCentaurWeb do
       MediaCentaur.Status,
       MediaCentaur.Guide,
       MediaCentaur.Reconciliation,
-      MediaCentaur.DeleteTargets
+      MediaCentaur.DeleteTargets,
+      MediaCentaur.Discovery
     ],
     exports: [Endpoint]
 
