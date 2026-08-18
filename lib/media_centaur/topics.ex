@@ -56,6 +56,7 @@ defmodule MediaCentaur.Topics do
   | `controls:updates` | `Controls` | global control changes |
   | `watcher:state` | `Watcher` | dir-watch state transitions |
   | `review:intake` | `Review` | inbound files awaiting review |
+  | `discovery:updates` | `Discovery.Events` | `{:watchlist_item_added, _}`, `{:watchlist_item_removed, _}` |
   | `review:updates` | `Review.Events` | `{:file_added, _}`, `{:file_reviewed, _}`, `{:group_approved, _}`, `{:group_error, _}` — typed structs, ADR-060's worked example |
   | `pipeline:input`, `:matched`, `:images`, `:publish` | `Pipeline` | per-stage progress |
   | `console:logs` | `Console` | log stream for the in-app drawer |
@@ -156,6 +157,7 @@ defmodule MediaCentaur.Topics do
   def dir_state, do: "watcher:state"
   def review_intake, do: "review:intake"
   def review_updates, do: "review:updates"
+  def discovery_updates, do: "discovery:updates"
   def settings_updates, do: "settings:updates"
   def config_updates, do: "config:updates"
   def release_tracking_updates, do: "release_tracking:updates"
