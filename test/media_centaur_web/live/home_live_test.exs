@@ -15,6 +15,27 @@ defmodule MediaCentaurWeb.HomeLiveTest do
     assert html =~ "Continue Watching" or html =~ "Your home page will populate"
   end
 
+  describe "watchlist sidebar entry" do
+    test "is hidden by default", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/")
+      refute has_element?(view, "#sidebar a[href='/watchlist']")
+    end
+
+    test "shows when the preference is on, and live-updates on toggle", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, "/")
+      refute has_element?(view, "#sidebar a[href='/watchlist']")
+
+      # The Settings write broadcasts {:setting_changed, "show_watchlist", _};
+      # the session-wide SettingAware hook re-assigns without a remount.
+      MediaCentaur.Settings.find_or_create_entry!(%{
+        key: MediaCentaur.Preferences.WatchlistVisibility.setting_key(),
+        value: %{"enabled" => true}
+      })
+
+      render_until(view, fn _html -> has_element?(view, "#sidebar a[href='/watchlist']") end)
+    end
+  end
+
   test "renders the Continue Watching row when there is in-progress media", %{conn: conn} do
     movie = create_standalone_movie(%{name: "Sample Movie"})
     _ = create_linked_file(%{movie_id: movie.id})

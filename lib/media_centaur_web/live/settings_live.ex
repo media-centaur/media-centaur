@@ -713,6 +713,17 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, letterboxd_links: enabled)}
   end
 
+  def handle_event("toggle_show_watchlist", _params, socket) do
+    enabled = !socket.assigns.show_watchlist
+
+    Settings.find_or_create_entry!(%{
+      key: MediaCentaur.Preferences.WatchlistVisibility.setting_key(),
+      value: %{"enabled" => enabled}
+    })
+
+    {:noreply, assign(socket, show_watchlist: enabled)}
+  end
+
   def handle_event("toggle_spoiler_free", _params, socket) do
     enabled = !socket.assigns.spoiler_free
 
@@ -1658,6 +1669,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app
+      show_watchlist={@show_watchlist}
       flash={@flash}
       current_path="/settings"
       full_width
@@ -1765,6 +1777,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 show_play_button={@show_play_button}
                 auto_play_next_episode={@auto_play_next_episode}
                 letterboxd_links={@letterboxd_links}
+                show_watchlist={@show_watchlist}
                 library_backdrop={@library_backdrop}
                 incoming_backdrop={@incoming_backdrop}
                 tmdb_test={@tmdb_test}
@@ -1886,6 +1899,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       show_play_button={@show_play_button}
       auto_play_next_episode={@auto_play_next_episode}
       letterboxd_links={@letterboxd_links}
+      show_watchlist={@show_watchlist}
     />
     """
   end

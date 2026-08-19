@@ -77,6 +77,16 @@ defmodule MediaCentaurWeb.Layouts do
     or dismissed.
     """
 
+  attr :show_watchlist, :boolean,
+    default: false,
+    doc: """
+    Whether the sidebar shows the Watchlist entry — the `show_watchlist`
+    preference (`MediaCentaur.Preferences.WatchlistVisibility`, default off
+    while the feature is an opt-in preview). Seeded app-wide by the
+    `SettingAware` on_mount in the default `live_session`; only the nav
+    entry is gated — `/watchlist` stays reachable by URL.
+    """
+
   attr :full_width, :boolean, default: false, doc: "when true, removes max-w-7xl constraint"
 
   slot :inner_block, required: true
@@ -135,6 +145,7 @@ defmodule MediaCentaurWeb.Layouts do
             <span class="sidebar-label">Library</span>
           </.link>
           <.link
+            :if={@show_watchlist}
             navigate="/watchlist"
             class={sidebar_link_class(@current_path, "/watchlist")}
             data-tip="Watchlist"

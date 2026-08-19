@@ -97,6 +97,7 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app
+      show_watchlist={@show_watchlist}
       flash={@flash}
       current_path="/history"
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}
