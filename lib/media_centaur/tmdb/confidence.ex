@@ -60,7 +60,7 @@ defmodule MediaCentaur.TMDB.Confidence do
 
   @doc "Read the auto-approve threshold from config (default 0.85)."
   def threshold do
-    MediaCentaur.Config.get(:auto_approve_threshold) || 0.85
+    MediaCentaur.Settings.Config.get(:auto_approve_threshold) || 0.85
   end
 
   defp normalize(text) do

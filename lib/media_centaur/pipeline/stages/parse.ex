@@ -35,7 +35,7 @@ defmodule MediaCentaur.Pipeline.Stages.Parse do
   """
   @spec extras_dirs_from_config() :: [String.t()] | nil
   def extras_dirs_from_config do
-    case MediaCentaur.Config.get(:extras_dirs) do
+    case MediaCentaur.Settings.Config.get(:extras_dirs) do
       dirs when is_list(dirs) -> Enum.map(dirs, &String.downcase/1)
       _ -> nil
     end

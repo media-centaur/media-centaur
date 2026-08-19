@@ -14,9 +14,9 @@ defmodule MediaCentaur.Watcher.SupervisorTest do
     File.mkdir_p!(tmp_dir)
 
     # Override config to point media_dirs to our temp dir
-    original_config = :persistent_term.get({MediaCentaur.Config, :config})
+    original_config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
     updated_config = Map.put(original_config, :media_dirs, [tmp_dir])
-    :persistent_term.put({MediaCentaur.Config, :config}, updated_config)
+    :persistent_term.put({MediaCentaur.Settings.Config, :config}, updated_config)
 
     # Stop any existing watchers, then start fresh with our temp dir
     WatcherSupervisor.stop_watchers()
@@ -27,7 +27,7 @@ defmodule MediaCentaur.Watcher.SupervisorTest do
       WatcherSupervisor.stop_watchers()
       drain_task_supervisor()
       Ecto.Adapters.SQL.Sandbox.stop_owner(sandbox_owner)
-      :persistent_term.put({MediaCentaur.Config, :config}, original_config)
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, original_config)
       File.rm_rf!(tmp_dir)
     end)
 

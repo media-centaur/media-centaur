@@ -121,7 +121,7 @@ defmodule MediaCentaur.Credo.Checks.PubSubTransportTest do
 
     test "each direct call in a module is reported separately" do
       ~S'''
-      defmodule MediaCentaur.Config do
+      defmodule MediaCentaur.Settings.Config do
         def churn(topic, message) do
           Phoenix.PubSub.subscribe(MediaCentaur.PubSub, topic)
           Phoenix.PubSub.broadcast(MediaCentaur.PubSub, topic, message)

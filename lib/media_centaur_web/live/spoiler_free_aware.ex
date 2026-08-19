@@ -28,7 +28,8 @@ defmodule MediaCentaurWeb.Live.SpoilerFreeAware do
   defmacro __using__(_opts) do
     quote do
       on_mount {MediaCentaurWeb.Live.SettingAware,
-                {MediaCentaur.Preferences.SpoilerFree, :spoiler_free, :setting_aware_spoiler_free}}
+                {MediaCentaur.Settings.Preferences.SpoilerFree, :spoiler_free,
+                 :setting_aware_spoiler_free}}
     end
   end
 end

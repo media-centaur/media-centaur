@@ -3,7 +3,8 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrentTest do
 
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent
   alias MediaCentaur.Downloads.QueueItem
-  alias MediaCentaur.{Config, Secret}
+  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.Secret
 
   setup do
     original_config = :persistent_term.get({Config, :config}, %{})

@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.SettingsLiveAcquisitionTest do
 
   import Phoenix.LiveViewTest
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
 
   setup do
     # Reset Config keys at the START of each test (in the test process,

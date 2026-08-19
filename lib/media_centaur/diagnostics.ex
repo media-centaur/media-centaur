@@ -60,7 +60,7 @@ defmodule MediaCentaur.Diagnostics do
     IO.puts("Watcher children: #{watcher_children}")
     IO.puts("Pipeline children: #{pipeline_children}")
 
-    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
+    media_dirs = MediaCentaur.Settings.Config.get(:media_dirs) || []
     IO.puts("Media dirs: #{inspect(media_dirs)}")
 
     registry_entries = SessionRegistry.list()

@@ -3,7 +3,7 @@ defmodule MediaCentaur.Downloads.DownloadClient.DispatcherTest do
 
   alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Downloads.DownloadClient.{Dispatcher, QBittorrent, SABnzbd}
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
 
   setup do
     original = :persistent_term.get({Config, :config}, %{})

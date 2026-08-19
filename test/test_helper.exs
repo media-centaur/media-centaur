@@ -23,9 +23,9 @@ Ecto.Adapters.SQL.Sandbox.mode(MediaCentaur.Repo, :manual)
 # redirect itself (`setup_redirect_test.exs`) flip this back to false in
 # their own setup.
 :persistent_term.put(
-  {MediaCentaur.Config, :config},
+  {MediaCentaur.Settings.Config, :config},
   Map.put(
-    :persistent_term.get({MediaCentaur.Config, :config}),
+    :persistent_term.get({MediaCentaur.Settings.Config, :config}),
     :setup_wizard_dismissed,
     true
   )

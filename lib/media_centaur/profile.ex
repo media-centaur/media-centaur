@@ -111,7 +111,7 @@ defmodule MediaCentaur.Profile do
   end
 
   defp database_path do
-    case MediaCentaur.Config.get(:database_path) do
+    case MediaCentaur.Settings.Config.get(:database_path) do
       nil -> "unknown"
       path -> path
     end

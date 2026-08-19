@@ -18,7 +18,7 @@ defmodule MediaCentaur.Watcher.ConfigListener do
 
   @impl true
   def init(_) do
-    :ok = MediaCentaur.Config.subscribe()
+    :ok = MediaCentaur.Settings.Config.subscribe()
     {:ok, nil}
   end
 

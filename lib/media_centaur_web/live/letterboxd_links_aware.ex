@@ -6,7 +6,7 @@ defmodule MediaCentaurWeb.Live.LetterboxdLinksAware do
 
   `use MediaCentaurWeb.Live.LetterboxdLinksAware` registers the generic
   `MediaCentaurWeb.Live.SettingAware` on_mount with the
-  `MediaCentaur.Preferences.LetterboxdLinks` context: it subscribes to Settings
+  `MediaCentaur.Settings.Preferences.LetterboxdLinks` context: it subscribes to Settings
   updates, seeds the assign, and re-assigns on
   `{:setting_changed, "letterboxd_links", _}`. Hosts MUST NOT call
   `Settings.subscribe()` themselves (Credo MC0011).
@@ -15,7 +15,7 @@ defmodule MediaCentaurWeb.Live.LetterboxdLinksAware do
   defmacro __using__(_opts) do
     quote do
       on_mount {MediaCentaurWeb.Live.SettingAware,
-                {MediaCentaur.Preferences.LetterboxdLinks, :letterboxd_links,
+                {MediaCentaur.Settings.Preferences.LetterboxdLinks, :letterboxd_links,
                  :setting_aware_letterboxd_links}}
     end
   end

@@ -160,13 +160,13 @@ defmodule MediaCentaur.SelfUpdate.AutoApplyTest do
   end
 
   defp set_config(key, value) do
-    config = :persistent_term.get({MediaCentaur.Config, :config})
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
     original = Map.get(config, key)
-    :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, key, value))
+    :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, key, value))
 
     on_exit(fn ->
-      current = :persistent_term.get({MediaCentaur.Config, :config})
-      :persistent_term.put({MediaCentaur.Config, :config}, Map.put(current, key, original))
+      current = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(current, key, original))
     end)
   end
 end

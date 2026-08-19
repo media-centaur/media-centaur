@@ -9,7 +9,7 @@ defmodule MediaCentaur.Library.ImageHealth do
   """
   import Ecto.Query
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Library.Image
   alias MediaCentaur.Repo
 

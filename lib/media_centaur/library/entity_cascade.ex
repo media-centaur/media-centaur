@@ -44,7 +44,8 @@ defmodule MediaCentaur.Library.EntityCascade do
   require MediaCentaur.Log, as: Log
   import Ecto.Query
 
-  alias MediaCentaur.{Config, Format, Repo}
+  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.{Format, Repo}
   alias MediaCentaur.Library
 
   alias MediaCentaur.Library.{

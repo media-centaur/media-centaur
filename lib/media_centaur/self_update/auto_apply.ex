@@ -32,7 +32,8 @@ defmodule MediaCentaur.SelfUpdate.AutoApply do
 
   use GenServer
 
-  alias MediaCentaur.{Config, SelfUpdate, Topics}
+  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.{SelfUpdate, Topics}
 
   @type detection_action :: :apply | :defer | :ignore
   @type resume_action :: :apply | :hold

@@ -200,15 +200,15 @@ defmodule MediaCentaur.SelfUpdate.CheckerJobTest do
   end
 
   defp set_config(key, value) do
-    config = :persistent_term.get({MediaCentaur.Config, :config})
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
     original = Map.get(config, key)
-    :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, key, value))
+    :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, key, value))
     on_exit(fn -> set_config_raw(key, original) end)
   end
 
   defp set_config_raw(key, value) do
-    config = :persistent_term.get({MediaCentaur.Config, :config})
-    :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, key, value))
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+    :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, key, value))
   end
 
   defp perform_job(worker, args) do

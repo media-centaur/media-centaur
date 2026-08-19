@@ -12,7 +12,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServerTest do
   """
   use MediaCentaurWeb.ConnCase, async: false
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaurWeb.Plugs.ImageServer
 
   describe "missing file → role-appropriate SVG placeholder" do

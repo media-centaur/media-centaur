@@ -26,10 +26,10 @@ defmodule MediaCentaur.AcquisitionTest do
     MediaCentaur.TmdbStubs.setup_tmdb_client(self())
     Req.Test.stub(:tmdb, fn conn -> Req.Test.json(conn, %{"episodes" => []}) end)
 
-    config = :persistent_term.get({MediaCentaur.Config, :config})
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
     :persistent_term.put(
-      {MediaCentaur.Config, :config},
+      {MediaCentaur.Settings.Config, :config},
       config
       |> Map.put(:prowlarr_url, "http://prowlarr.test")
       |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
@@ -37,7 +37,7 @@ defmodule MediaCentaur.AcquisitionTest do
 
     on_exit(fn ->
       :persistent_term.erase({Prowlarr, :client})
-      :persistent_term.put({MediaCentaur.Config, :config}, config)
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
     end)
 
     :ok
@@ -112,8 +112,8 @@ defmodule MediaCentaur.AcquisitionTest do
       :persistent_term.erase({Prowlarr, :client})
 
       :persistent_term.put(
-        {MediaCentaur.Config, :config},
-        Map.put(:persistent_term.get({MediaCentaur.Config, :config}), :prowlarr_url, nil)
+        {MediaCentaur.Settings.Config, :config},
+        Map.put(:persistent_term.get({MediaCentaur.Settings.Config, :config}), :prowlarr_url, nil)
       )
 
       result = %SearchResult{title: "T", guid: "g", indexer_id: 1, quality: :uhd_4k}

@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
 
   Renders the full binding table grouped by category. The parent
   `SettingsLive` delegates to `render/1` and hosts the event handlers
-  that call into `MediaCentaur.Controls`.
+  that call into `MediaCentaur.Settings.Controls`.
   """
 
   use MediaCentaurWeb, :html
@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.SettingsLive.Controls do
   attr :bindings, :map,
     required: true,
     doc:
-      "the full bindings map keyed by binding id — value is a `MediaCentaur.Controls.Binding.t()`. Produced by `MediaCentaur.Controls.list_bindings/0` and grouped via `ControlsLogic.group_for_view/1`."
+      "the full bindings map keyed by binding id — value is a `MediaCentaur.Settings.Controls.Binding.t()`. Produced by `MediaCentaur.Settings.Controls.list_bindings/0` and grouped via `ControlsLogic.group_for_view/1`."
 
   attr :glyph_style, :string, required: true
   attr :listening, :any, required: true, doc: "{kind, id} tuple or nil"

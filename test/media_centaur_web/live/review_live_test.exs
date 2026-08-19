@@ -177,9 +177,14 @@ defmodule MediaCentaurWeb.ReviewLiveTest do
       # folder" of its own — its dirname IS the media root. This is
       # exactly the shape that must fall back to file-only deletion:
       # confirm the whole media directory survives, not just this file.
-      config = :persistent_term.get({MediaCentaur.Config, :config})
-      :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, :media_dirs, [media_dir]))
-      on_exit(fn -> :persistent_term.put({MediaCentaur.Config, :config}, config) end)
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+
+      :persistent_term.put(
+        {MediaCentaur.Settings.Config, :config},
+        Map.put(config, :media_dirs, [media_dir])
+      )
+
+      on_exit(fn -> :persistent_term.put({MediaCentaur.Settings.Config, :config}, config) end)
 
       path = Path.join(media_dir, "flat_movie.mkv")
       File.write!(path, "x")

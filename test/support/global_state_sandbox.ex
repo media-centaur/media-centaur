@@ -35,7 +35,7 @@ defmodule MediaCentaur.GlobalStateSandbox do
   since are erased, and terms owned by dependencies are left alone. A cache
   added tomorrow is covered without editing this module, which is the
   point — the previous mechanism restored one hand-named key
-  (`{MediaCentaur.Config, :config}`) and could only ever cover the leak
+  (`{MediaCentaur.Settings.Config, :config}`) and could only ever cover the leak
   someone had already been bitten by.
 
   ## Processes are classified, not guessed

@@ -24,7 +24,8 @@ defmodule MediaCentaur.Pipeline.ImageProcessor do
   Images at or below target size are written as-is — never upscaled.
   """
 
-  alias MediaCentaur.{Config, ImageFiles}
+  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.ImageFiles
 
   @role_config %{
     "poster" => [resize: {:fit, 1120, 1680}, format: :jpg],

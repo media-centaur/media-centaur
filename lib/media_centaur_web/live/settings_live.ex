@@ -19,12 +19,13 @@ defmodule MediaCentaurWeb.SettingsLive do
   # backend), so the SettingAware tuple is registered inline rather than
   # through a dedicated *Aware wrapper module.
   on_mount {MediaCentaurWeb.Live.SettingAware,
-            {MediaCentaur.Preferences.AutoPlayNextEpisode, :auto_play_next_episode,
+            {MediaCentaur.Settings.Preferences.AutoPlayNextEpisode, :auto_play_next_episode,
              :setting_aware_auto_play_next_episode}}
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.{Capabilities, Config, SelfUpdate, Settings, Version}
+  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.{Capabilities, SelfUpdate, Settings, Version}
 
   alias MediaCentaurWeb.Live.SettingsLive.{
     Overview,
@@ -32,7 +33,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   }
 
   alias MediaCentaur.Maintenance
-  alias MediaCentaur.Preferences.UIScale
+  alias MediaCentaur.Settings.Preferences.UIScale
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Search.Prowlarr
   alias MediaCentaur.Downloads.ClientConfig
@@ -42,7 +43,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   alias MediaCentaur.Pipeline
   alias MediaCentaur.Pipeline.Image, as: ImagePipeline
   alias MediaCentaurWeb.SettingsLive.MediaDirsLogic
-  alias MediaCentaur.Controls
+  alias MediaCentaur.Settings.Controls
   alias MediaCentaur.Playback.LanguagePolicy
   alias MediaCentaurWeb.SettingsLive.Danger
   alias MediaCentaurWeb.SettingsLive.SystemSettings
@@ -294,8 +295,8 @@ defmodule MediaCentaurWeb.SettingsLive do
       pipeline_running: Pipeline.Supervisor.pipeline_running?(),
       image_pipeline_running: ImagePipeline.Supervisor.pipeline_running?(),
       acquisition_running: Acquisition.auto_grab_running?(),
-      media_dirs: MediaCentaur.Config.media_dirs_entries(),
-      exclude_dirs: MediaCentaur.Config.get(:exclude_dirs) || [],
+      media_dirs: Config.media_dirs_entries(),
+      exclude_dirs: Config.get(:exclude_dirs) || [],
       missing_images_summary: Maintenance.missing_images_summary(),
       blank_extra_names_count: Maintenance.blank_extra_names_count(),
       tmdb_test: load_test_result(:tmdb),
@@ -509,7 +510,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
     if MediaDirsLogic.saveable?(validation) do
       entries = MediaDirsLogic.upsert(socket.assigns.media_dirs, entry)
-      :ok = MediaCentaur.Config.put_media_dirs(entries)
+      :ok = Config.put_media_dirs(entries)
       {:noreply, close_media_dir_dialog(socket)}
     else
       {:noreply, socket}
@@ -526,7 +527,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   def handle_event("media_dir:delete", %{"id" => id}, socket) do
     entries = MediaDirsLogic.remove(socket.assigns.media_dirs, id)
-    :ok = MediaCentaur.Config.put_media_dirs(entries)
+    :ok = Config.put_media_dirs(entries)
     {:noreply, assign(socket, :media_dir_delete_confirm, nil)}
   end
 
@@ -547,7 +548,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     case validate_exclude_dir(path, socket.assigns.exclude_dirs) do
       {:ok, trimmed} ->
         new_list = [trimmed | socket.assigns.exclude_dirs]
-        :ok = MediaCentaur.Config.update(:exclude_dirs, new_list)
+        :ok = Config.update(:exclude_dirs, new_list)
 
         socket =
           socket
@@ -564,7 +565,7 @@ defmodule MediaCentaurWeb.SettingsLive do
 
   def handle_event("exclude_dir:delete", %{"path" => path}, socket) do
     new_list = Enum.reject(socket.assigns.exclude_dirs, &(&1 == path))
-    :ok = MediaCentaur.Config.update(:exclude_dirs, new_list)
+    :ok = Config.update(:exclude_dirs, new_list)
     {:noreply, assign(socket, :exclude_dirs, new_list)}
   end
 
@@ -717,7 +718,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     enabled = !socket.assigns.show_watchlist
 
     Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Preferences.WatchlistVisibility.setting_key(),
+      key: MediaCentaur.Settings.Preferences.WatchlistVisibility.setting_key(),
       value: %{"enabled" => enabled}
     })
 
@@ -739,7 +740,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     enabled = !socket.assigns.library_backdrop
 
     Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Preferences.LibraryBackdrop.setting_key(),
+      key: MediaCentaur.Settings.Preferences.LibraryBackdrop.setting_key(),
       value: %{"enabled" => enabled}
     })
 
@@ -750,7 +751,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     enabled = !socket.assigns.incoming_backdrop
 
     Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Preferences.IncomingBackdrop.setting_key(),
+      key: MediaCentaur.Settings.Preferences.IncomingBackdrop.setting_key(),
       value: %{"enabled" => enabled}
     })
 
@@ -775,7 +776,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     enabled = !socket.assigns.show_card_info
 
     Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Preferences.LibraryCardInfo.setting_key(),
+      key: MediaCentaur.Settings.Preferences.LibraryCardInfo.setting_key(),
       value: %{"enabled" => enabled}
     })
 
@@ -786,7 +787,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     enabled = !socket.assigns.show_play_button
 
     Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Preferences.CardPlayButton.setting_key(),
+      key: MediaCentaur.Settings.Preferences.CardPlayButton.setting_key(),
       value: %{"enabled" => enabled}
     })
 
@@ -797,7 +798,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     enabled = !socket.assigns.auto_play_next_episode
 
     Settings.find_or_create_entry!(%{
-      key: MediaCentaur.Preferences.AutoPlayNextEpisode.setting_key(),
+      key: MediaCentaur.Settings.Preferences.AutoPlayNextEpisode.setting_key(),
       value: %{"enabled" => enabled}
     })
 

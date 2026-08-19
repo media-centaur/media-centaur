@@ -21,7 +21,7 @@ defmodule MediaCentaur.Library.MediaProbe do
   `parse/1` is pure and carries the tests.
   """
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
 
   @default_executable "ffprobe"
 

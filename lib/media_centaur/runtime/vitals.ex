@@ -47,7 +47,7 @@ defmodule MediaCentaur.Runtime.Vitals do
   end
 
   defp db_sizes do
-    path = MediaCentaur.Config.get(:database_path)
+    path = MediaCentaur.Settings.Config.get(:database_path)
     %{size_bytes: file_size(path), wal_bytes: file_size(wal_path(path))}
   end
 

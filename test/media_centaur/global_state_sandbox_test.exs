@@ -11,7 +11,7 @@ defmodule MediaCentaur.GlobalStateSandboxTest do
 
   describe "restore!/0 — :persistent_term" do
     test "puts back an app-owned term a test changed" do
-      key = {MediaCentaur.Config, :config}
+      key = {MediaCentaur.Settings.Config, :config}
       pristine = :persistent_term.get(key)
 
       :persistent_term.put(key, Map.put(pristine, :port, 65_432))

@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Watcher.SupervisorReconcileTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Watcher.Supervisor, as: WatcherSup
 
   setup do

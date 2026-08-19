@@ -8,7 +8,7 @@ defmodule MediaCentaur.DeleteTargetsTest do
 
   import MediaCentaur.TestFactory
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.DeleteTargets
 
   setup do

@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.SettingsLiveMediaDirsTest do
 
   import Phoenix.LiveViewTest
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
 
   # `SettingsLive.ensure_loaded/1` defers its 15+ config / capability
   # / probe reads to an owned `start_async(:settings_load, …)` (ADR-049).

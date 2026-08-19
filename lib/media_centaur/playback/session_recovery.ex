@@ -25,7 +25,7 @@ defmodule MediaCentaur.Playback.SessionRecovery do
   """
   @spec recover_all() :: [map()]
   def recover_all do
-    socket_dir = MediaCentaur.Config.get(:mpv_socket_dir)
+    socket_dir = MediaCentaur.Settings.Config.get(:mpv_socket_dir)
     pattern = Path.join(socket_dir, "#{@socket_prefix}*#{@socket_suffix}")
 
     Enum.flat_map(Path.wildcard(pattern), fn socket_path ->

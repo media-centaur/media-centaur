@@ -13,7 +13,7 @@ defmodule MediaCentaur.Storage do
   Used by the Operations page storage section.
   """
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Platform.DriveProbe
 
   @type role :: %{label: String.t(), path: String.t()}

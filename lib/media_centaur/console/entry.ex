@@ -155,7 +155,7 @@ defmodule MediaCentaur.Console.Entry do
     {"MediaCentaur.Review", :pipeline},
     {"MediaCentaur.TMDB", :tmdb},
     {"MediaCentaur.Playback", :playback},
-    {"MediaCentaur.Controls", :playback},
+    {"MediaCentaur.Settings.Controls", :playback},
     {"MediaCentaur.Library", :library},
     {"MediaCentaur.WatchHistory", :library},
     {"MediaCentaur.Acquisition", :acquisition},

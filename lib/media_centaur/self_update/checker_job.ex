@@ -25,7 +25,7 @@ defmodule MediaCentaur.SelfUpdate.CheckerJob do
     # boot enqueue racing a cron tick; the real interval lives in the gate.
     unique: [period: 120]
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.SelfUpdate
   alias MediaCentaur.SelfUpdate.Storage
 

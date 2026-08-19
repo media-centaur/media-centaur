@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.Live.IncomingBackdropAware do
   defmacro __using__(_opts) do
     quote do
       on_mount {MediaCentaurWeb.Live.SettingAware,
-                {MediaCentaur.Preferences.IncomingBackdrop, :incoming_backdrop,
+                {MediaCentaur.Settings.Preferences.IncomingBackdrop, :incoming_backdrop,
                  :setting_aware_incoming_backdrop}}
     end
   end

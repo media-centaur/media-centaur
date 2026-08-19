@@ -8,7 +8,7 @@ defmodule MediaCentaurWeb.SettingsLive.ImportSection do
 
   use MediaCentaurWeb, :html
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
 
   attr :config, :map,
     required: true,

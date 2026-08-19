@@ -261,7 +261,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
       # at-risk warning by configuring the test dir, then seeding a
       # Library.FilePresence row whose last_seen_at is older than the
       # TTL threshold. Restore config on exit so we don't leak.
-      original_media_dirs = :persistent_term.get({MediaCentaur.Config, :config}).media_dirs
+      original_media_dirs = :persistent_term.get({MediaCentaur.Settings.Config, :config}).media_dirs
 
       put_config(:media_dirs, ["/mnt/cold-storage"])
       on_exit(fn -> put_config(:media_dirs, original_media_dirs) end)
@@ -292,7 +292,7 @@ defmodule MediaCentaurWeb.StatusLiveTest do
     # breaks the line silently vanishes — this catches that. The per-piece
     # formatting is unit-tested in StatusHelpersTest.
     test "renders the last-scan line for a watching dir", %{conn: conn} do
-      original_media_dirs = :persistent_term.get({MediaCentaur.Config, :config}).media_dirs
+      original_media_dirs = :persistent_term.get({MediaCentaur.Settings.Config, :config}).media_dirs
 
       tmp_dir =
         Path.join(
@@ -376,8 +376,8 @@ defmodule MediaCentaurWeb.StatusLiveTest do
   end
 
   defp put_config(key, value) do
-    config = :persistent_term.get({MediaCentaur.Config, :config})
-    :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, key, value))
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+    :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, key, value))
   end
 
   defp eventually(fun, attempts \\ 50, delay_ms \\ 20) do

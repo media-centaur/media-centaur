@@ -28,7 +28,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
       # The Settings write broadcasts {:setting_changed, "show_watchlist", _};
       # the session-wide SettingAware hook re-assigns without a remount.
       MediaCentaur.Settings.find_or_create_entry!(%{
-        key: MediaCentaur.Preferences.WatchlistVisibility.setting_key(),
+        key: MediaCentaur.Settings.Preferences.WatchlistVisibility.setting_key(),
         value: %{"enabled" => true}
       })
 
@@ -529,7 +529,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
          %{conn: conn, movie: movie} do
       {:ok, _} =
         MediaCentaur.Settings.find_or_create_entry(%{
-          key: MediaCentaur.Preferences.CardPlayButton.setting_key(),
+          key: MediaCentaur.Settings.Preferences.CardPlayButton.setting_key(),
           value: %{"enabled" => false}
         })
 

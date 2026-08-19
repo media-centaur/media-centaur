@@ -8,23 +8,25 @@ defmodule MediaCentaur.Acquisition.Config do
   download clients drive progress display.
   """
 
+  alias MediaCentaur.Settings
+
   @doc "Returns true when Prowlarr is configured and acquisition features are available."
   @spec available?() :: boolean()
   def available? do
-    url = MediaCentaur.Config.get(:prowlarr_url)
+    url = Settings.Config.get(:prowlarr_url)
 
     is_binary(url) and url != "" and
-      MediaCentaur.Secret.present?(MediaCentaur.Config.get(:prowlarr_api_key))
+      MediaCentaur.Secret.present?(Settings.Config.get(:prowlarr_api_key))
   end
 
   @doc "Returns the configured Prowlarr URL, or nil."
   @spec url() :: String.t() | nil
-  def url, do: MediaCentaur.Config.get(:prowlarr_url)
+  def url, do: Settings.Config.get(:prowlarr_url)
 
   @doc """
   Returns the configured Prowlarr API key wrapped as a `Secret`, or `nil`.
   Use `Secret.expose/1` at the boundary where the raw value must be sent.
   """
   @spec api_key() :: MediaCentaur.Secret.t() | nil
-  def api_key, do: MediaCentaur.Config.get(:prowlarr_api_key)
+  def api_key, do: Settings.Config.get(:prowlarr_api_key)
 end

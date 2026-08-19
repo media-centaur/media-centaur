@@ -46,7 +46,8 @@ defmodule MediaCentaur.Credo.Checks.NoDbInOnExit do
   # Local + qualified call detection both supported.
   @forbidden_calls [
     {[:Config], :update},
-    {[:MediaCentaur, :Config], :update},
+    {[:Settings, :Config], :update},
+    {[:MediaCentaur, :Settings, :Config], :update},
     {[:Settings], :find_or_create_entry},
     {[:Settings], :find_or_create_entry!},
     {[:MediaCentaur, :Settings], :find_or_create_entry},

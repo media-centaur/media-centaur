@@ -34,7 +34,7 @@ defmodule MediaCentaur.DeleteTargets do
   """
   @spec safe_to_delete_folder?(String.t(), [String.t()]) :: boolean()
   def safe_to_delete_folder?(dir, file_paths) do
-    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
+    media_dirs = MediaCentaur.Settings.Config.get(:media_dirs) || []
 
     dir not in media_dirs and
       Library.Files.paths_under(dir) -- file_paths == []

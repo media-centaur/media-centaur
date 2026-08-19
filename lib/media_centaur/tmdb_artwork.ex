@@ -40,7 +40,7 @@ defmodule MediaCentaur.TmdbArtwork do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.ImageFiles
   alias MediaCentaur.Library.Image
   alias MediaCentaur.TMDB.Client

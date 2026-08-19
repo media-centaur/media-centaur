@@ -26,8 +26,8 @@ defmodule MediaCentaur.Playback.SessionRecoveryTest do
     # which runs under `ExUnit.OnExitHandler` (Credo MC0020). The config is
     # therefore reset at the *start* of setup rather than after the test;
     # `on_exit` is left with filesystem cleanup only.
-    MediaCentaur.Config.update(:mpv_socket_dir, @default_socket_dir)
-    MediaCentaur.Config.update(:mpv_socket_dir, socket_dir)
+    MediaCentaur.Settings.Config.update(:mpv_socket_dir, @default_socket_dir)
+    MediaCentaur.Settings.Config.update(:mpv_socket_dir, socket_dir)
 
     on_exit(fn -> File.rm_rf(socket_dir) end)
 

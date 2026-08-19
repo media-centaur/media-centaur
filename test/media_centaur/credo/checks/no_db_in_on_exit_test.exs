@@ -84,11 +84,11 @@ defmodule MediaCentaur.Credo.Checks.NoDbInOnExitTest do
       |> assert_issue()
     end
 
-    test "MediaCentaur.Config.update inside on_exit is reported (qualified call)" do
+    test "MediaCentaur.Settings.Config.update inside on_exit is reported (qualified call)" do
       ~S'''
       defmodule SomeTest do
         test "x" do
-          on_exit(fn -> MediaCentaur.Config.update(:k, :v) end)
+          on_exit(fn -> MediaCentaur.Settings.Config.update(:k, :v) end)
         end
       end
       '''

@@ -6,7 +6,7 @@ defmodule MediaCentaurWeb.Plugs.SetupRedirectTest do
 
   use MediaCentaurWeb.ConnCase, async: false
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaurWeb.Plugs.SetupRedirect
 
   setup do

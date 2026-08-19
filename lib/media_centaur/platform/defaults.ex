@@ -3,7 +3,7 @@ defmodule MediaCentaur.Platform.Defaults do
   OS-aware default paths for external binaries that ship through
   the package manager (mpv, ffprobe).
 
-  Read by `MediaCentaur.Config` at boot — users can still override
+  Read by `MediaCentaur.Settings.Config` at boot — users can still override
   via TOML, so these only matter on first install before the user
   has touched their config file. The Setup Tour's `BinaryDetector`
   already searches the right paths on both OSes (it includes

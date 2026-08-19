@@ -990,7 +990,7 @@ defmodule MediaCentaurWeb.Live.EntityModal do
   Resets to `nil` on selection change (`@per_selection_defaults`).
   """
   def handle_toggle_file_group(%{"dir" => dir}, socket) do
-    media_dirs = MapSet.new(MediaCentaur.Config.get(:media_dirs) || [])
+    media_dirs = MapSet.new(MediaCentaur.Settings.Config.get(:media_dirs) || [])
     file_groups = ManagePanel.build_file_groups(socket.assigns.detail_files, media_dirs)
 
     expanded =

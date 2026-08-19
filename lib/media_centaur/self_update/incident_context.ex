@@ -38,7 +38,7 @@ defmodule MediaCentaur.SelfUpdate.IncidentContext do
   is exactly the seam that lets a subsystem report health without that edge.
   """
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.SelfUpdate
   alias MediaCentaur.SelfUpdate.Health
 

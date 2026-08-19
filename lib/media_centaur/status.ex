@@ -57,7 +57,7 @@ defmodule MediaCentaur.Status do
   end
 
   def fetch_recent_changes do
-    days = MediaCentaur.Config.get(:recent_changes_days) || 3
+    days = MediaCentaur.Settings.Config.get(:recent_changes_days) || 3
     since = DateTime.add(DateTime.utc_now(), -days, :day)
     Library.ChangeLog.list_recent_changes(10, since)
   end

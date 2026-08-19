@@ -56,7 +56,8 @@ defmodule MediaCentaur.IntegrationHealth do
 
   use GenServer
 
-  alias MediaCentaur.{Config, Downloads, Secret, Topics}
+  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.{Downloads, Secret, Topics}
   alias MediaCentaur.IntegrationHealth.{Status, Verifier}
   require MediaCentaur.Log, as: Log
 

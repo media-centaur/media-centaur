@@ -56,10 +56,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     # own sandboxed DB (writes stay DB-only while the cache is unset).
     :persistent_term.erase({MediaCentaur.Settings, :entries})
 
-    config = :persistent_term.get({MediaCentaur.Config, :config})
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
     :persistent_term.put(
-      {MediaCentaur.Config, :config},
+      {MediaCentaur.Settings.Config, :config},
       Map.merge(config, %{
         prowlarr_url: "http://prowlarr.test",
         prowlarr_api_key: Secret.wrap("test-key"),
@@ -80,7 +80,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
     on_exit(fn ->
       :persistent_term.erase({Prowlarr, :client})
-      :persistent_term.put({MediaCentaur.Config, :config}, config)
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
       SearchSession.clear()
     end)
 
@@ -102,10 +102,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
     # honest forecast — hero omnibox reframed to tracking, no acquisition
     # sections — instead of navigating away.
     test "mounts forecast-only when Prowlarr is not configured", %{conn: conn} do
-      config = :persistent_term.get({MediaCentaur.Config, :config})
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
       :persistent_term.put(
-        {MediaCentaur.Config, :config},
+        {MediaCentaur.Settings.Config, :config},
         Map.merge(config, %{prowlarr_url: nil, prowlarr_api_key: nil})
       )
 
@@ -412,8 +412,8 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       File.mkdir_p!(dir)
       File.write!(Path.join(dir, "backdrop.jpg"), :binary.copy("x", 60_000))
 
-      config = :persistent_term.get({MediaCentaur.Config, :config})
-      :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, :data_dir, data_dir))
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, :data_dir, data_dir))
       on_exit(fn -> File.rm_rf!(data_dir) end)
     end
 
@@ -2069,10 +2069,10 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
 
       :persistent_term.put({QBittorrent, :client}, qbit_client)
 
-      config = :persistent_term.get({MediaCentaur.Config, :config})
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
       :persistent_term.put(
-        {MediaCentaur.Config, :config},
+        {MediaCentaur.Settings.Config, :config},
         Map.merge(config, %{
           download_client_type: "qbittorrent",
           download_client_url: "http://qbit.test",
@@ -2082,7 +2082,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       )
 
       on_exit(fn ->
-        :persistent_term.put({MediaCentaur.Config, :config}, config)
+        :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
         QBittorrent.invalidate_client()
       end)
 

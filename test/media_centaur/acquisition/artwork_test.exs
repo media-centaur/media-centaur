@@ -9,8 +9,8 @@ defmodule MediaCentaur.Acquisition.ArtworkTest do
     dir = Path.join(System.tmp_dir!(), "acq_artwork_test_#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
 
-    config = :persistent_term.get({MediaCentaur.Config, :config})
-    :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, :data_dir, dir))
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+    :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, :data_dir, dir))
 
     on_exit(fn -> File.rm_rf!(dir) end)
     {:ok, data_dir: dir}

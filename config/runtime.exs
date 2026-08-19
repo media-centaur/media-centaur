@@ -68,7 +68,7 @@ if config_env() != :test do
     durable_diagnostics:
       config_env() == :prod or System.get_env("MEDIA_CENTAUR_DURABLE_DIAGNOSTICS") == "1"
 
-  # Defaults that flow into MediaCentaur.Config as fallbacks — the TOML
+  # Defaults that flow into MediaCentaur.Settings.Config as fallbacks — the TOML
   # overrides any of these via `media_dirs`, `[tmdb].api_key`, etc.
   config :media_centaur,
     media_dirs: [System.get_env("MEDIA_DIR", "/mnt/videos/Videos")],

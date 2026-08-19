@@ -30,7 +30,7 @@ defmodule MediaCentaurWeb.Live.LibraryCardInfoAware do
   defmacro __using__(_opts) do
     quote do
       on_mount {MediaCentaurWeb.Live.SettingAware,
-                {MediaCentaur.Preferences.LibraryCardInfo, :show_card_info,
+                {MediaCentaur.Settings.Preferences.LibraryCardInfo, :show_card_info,
                  :setting_aware_show_card_info}}
     end
   end

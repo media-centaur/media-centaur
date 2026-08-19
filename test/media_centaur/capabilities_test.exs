@@ -2,7 +2,7 @@ defmodule MediaCentaur.CapabilitiesTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Capabilities
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Topics
 
   setup do

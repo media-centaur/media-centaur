@@ -43,7 +43,7 @@ defmodule MediaCentaur.Library.AbsenceSweeper do
   use GenServer
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Library.FileEventHandler
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Library.Helpers

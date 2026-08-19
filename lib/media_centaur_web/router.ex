@@ -32,7 +32,8 @@ defmodule MediaCentaurWeb.Router do
         # `:show_watchlist` seeded session-wide (and re-assigned live on
         # toggle) rather than per-LiveView.
         {MediaCentaurWeb.Live.SettingAware,
-         {MediaCentaur.Preferences.WatchlistVisibility, :show_watchlist, :setting_aware_show_watchlist}}
+         {MediaCentaur.Settings.Preferences.WatchlistVisibility, :show_watchlist,
+          :setting_aware_show_watchlist}}
       ] do
       live "/", HomeLive, :index
       live "/console", ConsolePageLive, :index

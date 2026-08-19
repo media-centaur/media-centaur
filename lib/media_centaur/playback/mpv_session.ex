@@ -49,6 +49,7 @@ defmodule MediaCentaur.Playback.MpvSession do
   use GenServer
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Format
   alias MediaCentaur.Library
   alias MediaCentaur.Library.Progress, as: LibraryProgress
@@ -174,10 +175,10 @@ defmodule MediaCentaur.Playback.MpvSession do
     Process.flag(:trap_exit, true)
 
     session_id = Base.encode16(:crypto.strong_rand_bytes(4), case: :lower)
-    socket_dir = MediaCentaur.Config.get(:mpv_socket_dir)
+    socket_dir = Config.get(:mpv_socket_dir)
     socket_path = Path.join(socket_dir, "media-centaur-#{params.entity_id}.sock")
     log_file_path = Path.join(socket_dir, "media-centaur-#{session_id}.log")
-    timeout_ms = MediaCentaur.Config.get(:mpv_socket_timeout_ms)
+    timeout_ms = Config.get(:mpv_socket_timeout_ms)
     max_retries = div(timeout_ms, @socket_retry_interval_ms)
 
     state = %__MODULE__{
@@ -290,7 +291,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
       {:error, _reason} ->
         if state.socket_retries > 0 do
-          timeout_ms = MediaCentaur.Config.get(:mpv_socket_timeout_ms)
+          timeout_ms = Config.get(:mpv_socket_timeout_ms)
           max_retries = div(timeout_ms, @socket_retry_interval_ms)
 
           if state.socket_retries == max_retries do
@@ -386,7 +387,7 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   defp spawn_mpv(state, env_pairs) do
     Log.info(:playback, "launching mpv — #{Path.basename(state.content_url)}")
-    mpv_path = MediaCentaur.Config.get(:mpv_path)
+    mpv_path = Config.get(:mpv_path)
 
     language_flags = LanguageContext.to_mpv_flags(state.language_context.priority_args)
 

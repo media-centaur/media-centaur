@@ -61,6 +61,7 @@ defmodule MediaCentaur.Watcher do
   use GenServer
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Library
   alias MediaCentaur.Library.FilePresence
   alias MediaCentaur.Library.WatchedFile
@@ -154,7 +155,7 @@ defmodule MediaCentaur.Watcher do
   def init(dir) do
     Process.flag(:trap_exit, true)
     send(self(), :start_watching)
-    :ok = MediaCentaur.Config.subscribe()
+    :ok = Config.subscribe()
 
     {:ok,
      %__MODULE__{
@@ -573,7 +574,7 @@ defmodule MediaCentaur.Watcher do
   end
 
   defp load_skip_dirs do
-    Enum.map(MediaCentaur.Config.get(:skip_dirs) || [], &String.downcase/1)
+    Enum.map(Config.get(:skip_dirs) || [], &String.downcase/1)
   end
 
   defp in_skip_dir?(path, skip_dirs), do: Walk.in_skip_dir?(path, skip_dirs)
@@ -583,9 +584,9 @@ defmodule MediaCentaur.Watcher do
   end
 
   defp load_exclude_dirs(media_dir) do
-    configured = MediaCentaur.Config.get(:exclude_dirs) || []
-    images_dir = MediaCentaur.Config.images_dir_for(media_dir)
-    staging_base = MediaCentaur.Config.staging_base_for(media_dir)
+    configured = Config.get(:exclude_dirs) || []
+    images_dir = Config.images_dir_for(media_dir)
+    staging_base = Config.staging_base_for(media_dir)
 
     auto_excludes =
       Enum.filter([images_dir, staging_base], &String.starts_with?(&1, media_dir <> "/"))

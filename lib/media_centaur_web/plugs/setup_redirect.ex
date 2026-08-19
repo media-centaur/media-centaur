@@ -16,7 +16,7 @@ defmodule MediaCentaurWeb.Plugs.SetupRedirect do
 
   import Plug.Conn
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
 
   @redirectable_paths ["/", "/library", "/home"]
 

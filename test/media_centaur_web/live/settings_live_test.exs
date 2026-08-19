@@ -3,9 +3,10 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Playback.LanguagePolicy
 
-  alias MediaCentaur.Preferences.{
+  alias MediaCentaur.Settings.Preferences.{
     AutoPlayNextEpisode,
     IncomingBackdrop,
     LetterboxdLinks,
@@ -365,9 +366,9 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     # exist on disk — `Probes.media_dirs/1` returns `:error` when every
     # configured dir is unreachable. Restored on exit.
     setup do
-      previous = MediaCentaur.Config.get(:media_dirs) || []
-      :ok = MediaCentaur.Config.put_media_dirs([%{"dir" => "/var/empty/nope/missing"}])
-      on_exit(fn -> MediaCentaur.Config.put_media_dirs(previous) end)
+      previous = Config.get(:media_dirs) || []
+      :ok = Config.put_media_dirs([%{"dir" => "/var/empty/nope/missing"}])
+      on_exit(fn -> Config.put_media_dirs(previous) end)
       :ok
     end
 
@@ -410,8 +411,8 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     setup do
       # Config.update mutates the global :persistent_term map (not rolled back
       # by the sandbox), so snapshot and restore it around each test.
-      config = :persistent_term.get({MediaCentaur.Config, :config})
-      on_exit(fn -> :persistent_term.put({MediaCentaur.Config, :config}, config) end)
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+      on_exit(fn -> :persistent_term.put({MediaCentaur.Settings.Config, :config}, config) end)
       :ok
     end
 
@@ -426,11 +427,11 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       })
       |> render_submit()
 
-      assert MediaCentaur.Config.image_resolution() == "1080p"
+      assert Config.image_resolution() == "1080p"
     end
 
     test "changing the resolution starts a backdrop re-fetch", %{conn: conn} do
-      MediaCentaur.Config.update(:image_resolution, "4k")
+      Config.update(:image_resolution, "4k")
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=import")
 
       html =
@@ -446,7 +447,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     end
 
     test "saving without changing the resolution does not start a re-fetch", %{conn: conn} do
-      MediaCentaur.Config.update(:image_resolution, "1080p")
+      Config.update(:image_resolution, "1080p")
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=import")
 
       html =
@@ -472,7 +473,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     end
 
     test "saving persists the auto-approve threshold", %{conn: conn} do
-      MediaCentaur.Config.update(:image_resolution, "1080p")
+      Config.update(:image_resolution, "1080p")
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=import")
 
       view
@@ -484,7 +485,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       })
       |> render_submit()
 
-      assert MediaCentaur.Config.get(:auto_approve_threshold) == 0.72
+      assert Config.get(:auto_approve_threshold) == 0.72
     end
 
     test "the completion message reports the re-queued count", %{conn: conn} do
@@ -617,7 +618,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       |> form("form[phx-submit=save_release_tracking]", %{"refresh_interval_hours" => "12"})
       |> render_submit()
 
-      assert MediaCentaur.Config.get(:release_tracking_refresh_interval_hours) == 12
+      assert Config.get(:release_tracking_refresh_interval_hours) == 12
     end
   end
 
@@ -734,7 +735,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     # rarely reachable from the host running media-centaur. The detect
     # flow must therefore pre-fill the form without persisting — the user
     # reviews the URL and confirms with Save. See ADR-037.
-    alias MediaCentaur.Config
+    alias MediaCentaur.Settings.Config
 
     test "pre-fills form with detected values but does not persist until save",
          %{conn: conn} do

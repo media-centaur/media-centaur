@@ -87,7 +87,7 @@ defmodule MediaCentaur.Pipeline.Import do
   end
 
   defp check_disk_space(media_directory) do
-    images_dir = MediaCentaur.Config.images_dir_for(media_directory)
+    images_dir = MediaCentaur.Settings.Config.images_dir_for(media_directory)
     # df works on parent even if images_dir doesn't exist yet
     path = if File.dir?(images_dir), do: images_dir, else: media_directory
 

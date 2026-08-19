@@ -47,6 +47,7 @@ defmodule MediaCentaur.Downloads do
   or pursuits — its world is "what's the client doing right now."
   """
 
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Downloads.ClientConfig
 
   @doc """
@@ -57,14 +58,14 @@ defmodule MediaCentaur.Downloads do
   This is the single read-side seam over the flat `download_client_*`
   (torrent) and `usenet_download_client_*` (usenet) config keys; the
   dispatcher and the queue monitor enumerate clients through it rather
-  than reading `MediaCentaur.Config` directly.
+  than reading `MediaCentaur.Settings.Config` directly.
   """
   @spec configured_clients() :: [ClientConfig.t()]
   def configured_clients do
     Enum.reject([torrent_slot(), usenet_slot()], &is_nil/1)
   end
 
-  # The flat `MediaCentaur.Config` keys backing the two client slots.
+  # The flat `MediaCentaur.Settings.Config` keys backing the two client slots.
   # Owned here so consumers (e.g. `IntegrationHealth`, which re-derives
   # `configured?` on any of them) don't hardcode the set.
   @config_keys [
@@ -108,8 +109,8 @@ defmodule MediaCentaur.Downloads do
           protocol: :torrent,
           type: type,
           url: url,
-          username: MediaCentaur.Config.get(:download_client_username),
-          password: MediaCentaur.Config.get(:download_client_password)
+          username: Config.get(:download_client_username),
+          password: Config.get(:download_client_password)
         }
     end
   end
@@ -124,14 +125,14 @@ defmodule MediaCentaur.Downloads do
           protocol: :usenet,
           type: type,
           url: url,
-          api_key: MediaCentaur.Config.get(:usenet_download_client_api_key)
+          api_key: Config.get(:usenet_download_client_api_key)
         }
     end
   end
 
   defp slot_identity(type_key, url_key) do
-    type = MediaCentaur.Config.get(type_key)
-    url = MediaCentaur.Config.get(url_key)
+    type = Config.get(type_key)
+    url = Config.get(url_key)
 
     if is_binary(type) and type != "" and is_binary(url) and url != "" do
       {type, url}
