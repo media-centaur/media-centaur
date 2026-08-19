@@ -32,7 +32,7 @@ cp -r ../contrib/mpv/scripts/ ~/.config/mpv/scripts/
 | `../contrib/mpv/input.conf` | Key bindings |
 | `../contrib/mpv/scripts/track-menu.lua` | Two-column audio/subtitle track selector overlay |
 | `../contrib/mpv/scripts/skip-intro.lua` | Chapter-based intro skip button |
-| `../contrib/mpv/scripts/next-episode.lua` | Chapter-based "Next Episode" button during credits |
+| `../contrib/mpv/scripts/next-episode.lua` | "Next Episode" button during credits + auto-play countdown with cancel |
 | `../contrib/mpv/scripts/hdr-display.lua` | Auto-switch the Hyprland output to HDR mode while HDR content plays |
 
 ## mpv.conf
@@ -158,16 +158,21 @@ This outputs chapter change events, pattern matching results, overlay rendering,
 ## next-episode Plugin
 
 `scripts/next-episode.lua` shows a "Next Episode" pill in the bottom-right
-corner while rolling credits play, if the playlist holds a queued successor
-(the backend appends the next episode — ADR-062). Press **Enter** or **click
-the pill** to advance immediately with `playlist-next`. If nothing is
-pressed, mpv advances on its own at end of file — the pill only shortens the
-credits, it never skips content automatically.
+corner when the playlist holds a queued successor (the backend appends the
+next episode — ADR-062). It has two modes:
+
+- **Skip mode** — while rolling credits play: press **Enter** or **click
+  the pill** to advance immediately with `playlist-next`. The pill only
+  shortens the credits, it never skips content automatically.
+- **Countdown mode** — in the final 30 seconds of the file, chapters or
+  not: the pill switches to "Next episode in Ns" with a draining bar so
+  auto-play never lands unannounced. **Enter** plays now, **ESC** cancels
+  auto-advance for the rest of the session.
 
 ### How It Works
 
-The script observes `chapter` and `playlist-count`. The pill appears when
-**both** hold:
+The script observes `chapter`, `playlist-count` and `time-remaining`. Skip
+mode appears when **both** hold:
 
 - the current chapter's title names the credits (`credits`/`outro`,
   case-insensitive whole-word — same patterns as the backend's
@@ -175,21 +180,35 @@ The script observes `chapter` and `playlist-count`. The pill appears when
   (so an "Opening Credits" chapter at t=0 never triggers it); and
 - `playlist-count - playlist-pos > 1` — a successor is actually queued.
 
+Countdown mode replaces it (or appears on its own for files without a
+credits chapter) once `time-remaining` drops inside the 30-second window
+while a successor is queued. The countdown number is the true time to
+end-of-file — when mpv itself advances — so pausing pauses the countdown.
+
+**Cancel** removes the queued playlist entry and sets
+`user-data/media-centaur/auto-advance-cancelled`, which the backend
+observes (`MpvSession.chain_cancelled`) — its queue check is otherwise
+self-stabilizing and would re-append the entry. Cancelling ends the viewing
+chain: mpv stops at this file's end as if auto-play were off.
+
 ### Behavior
 
 - **No key binding needed** — activates automatically via property observers
-- ENTER is force-bound to `playlist-next` while the pill is visible; the
-  global binding is restored when it disappears
+- ENTER is force-bound to `playlist-next` while the pill is visible; ESC is
+  additionally force-bound while the countdown shows; global bindings are
+  restored when it disappears
 - The pill is clickable with the same hover-gated `MBTN_LEFT` capture as
   skip-intro — clicks elsewhere still reach the OSC / seek bar
-- Files without a credits chapter never show the pill (end-of-file advance
-  still works); series without a queued successor (chain end, auto-play
-  turned off) never show it either
+- Series without a queued successor (chain end, auto-play turned off) never
+  show the pill in either mode
+- Skip mode waits 1 s after the chapter change before appearing; countdown
+  mode appears immediately
 
 ### Visual Style
 
-Same glassmorphism pill as skip-intro: dim "ENTER" key hint, bold white
-"Next Episode" label, orange accent arrows.
+Same glassmorphism pill as skip-intro: dim key hints, bold white label,
+orange accent arrows / draining bar. The countdown pill is wider to carry
+the label and both hints.
 
 ### Debugging
 
@@ -197,8 +216,8 @@ Same glassmorphism pill as skip-intro: dim "ENTER" key hint, bold white
 mpv --msg-level=next_episode=trace /path/to/video.mkv
 ```
 
-This outputs chapter/playlist observations, credits detection results,
-overlay rendering, and advance actions.
+This outputs chapter/playlist/time observations, credits detection results,
+mode switches, overlay rendering, advance and cancel actions.
 
 ## hdr-display Plugin
 

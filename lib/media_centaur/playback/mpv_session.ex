@@ -134,6 +134,12 @@ defmodule MediaCentaur.Playback.MpvSession do
     # reached (ADR-062). `nil` while nothing is queued — chain end,
     # auto-play off, or a non-episode session.
     pending_next: nil,
+    # The viewer cancelled auto-advance from the player (next-episode.lua's
+    # countdown ESC sets `user-data/media-centaur/auto-advance-cancelled`).
+    # The script removes the queued entry; this flag keeps the
+    # self-stabilizing queue check from appending it right back. Sticky for
+    # the session's remaining life — cancelling ends the viewing chain.
+    chain_cancelled: false,
     # Mirror of mpv's playlist shape, fed by property observation. The
     # queue check appends only while `playlist_count - playlist_pos == 1`.
     playlist_count: 1,
@@ -582,6 +588,21 @@ defmodule MediaCentaur.Playback.MpvSession do
     end
   end
 
+  # The countdown pill's ESC (next-episode.lua) — the script already
+  # removed the queued playlist entry; honouring the flag here stops the
+  # queue check from appending it right back.
+  defp handle_mpv_message(
+         %{
+           "event" => "property-change",
+           "name" => "user-data/media-centaur/auto-advance-cancelled",
+           "data" => true
+         },
+         state
+       ) do
+    Log.info(:playback, "viewer cancelled episode auto-advance — chain ends at this episode")
+    %{state | chain_cancelled: true, pending_next: nil}
+  end
+
   defp handle_mpv_message(%{"event" => "property-change", "name" => "aid", "data" => aid}, state) do
     schedule_capture(%{state | current_aid: aid})
   end
@@ -600,13 +621,25 @@ defmodule MediaCentaur.Playback.MpvSession do
   # idempotent — an entry queued by a previous backend run (reconnect)
   # keeps the count ahead and is never duplicated.
   defp maybe_queue_next(state) do
-    if is_nil(state.pending_next) and not is_nil(state.episode_id) and
-         not is_nil(state.socket) and not state.exiting? and
-         state.playlist_count - state.playlist_pos == 1 do
+    if queue_next?(state) do
       queue_next(state)
     else
       state
     end
+  end
+
+  @doc """
+  Whether the successor should be appended now (ADR-062): an episode
+  session with a live socket, nothing already queued, the current entry
+  the playlist's last, not exiting — and the viewer hasn't cancelled
+  auto-advance from the player (`chain_cancelled`).
+  """
+  @spec queue_next?(%__MODULE__{}) :: boolean()
+  def queue_next?(state) do
+    is_nil(state.pending_next) and not is_nil(state.episode_id) and
+      not is_nil(state.socket) and not state.exiting? and
+      not state.chain_cancelled and
+      state.playlist_count - state.playlist_pos == 1
   end
 
   defp queue_next(state) do
@@ -1103,6 +1136,7 @@ defmodule MediaCentaur.Playback.MpvSession do
     send_mpv_command(socket, ["observe_property", 9, "playlist-count"])
     send_mpv_command(socket, ["observe_property", 10, "playlist-pos"])
     send_mpv_command(socket, ["observe_property", 11, "path"])
+    send_mpv_command(socket, ["observe_property", 12, "user-data/media-centaur/auto-advance-cancelled"])
   end
 
   defp send_mpv_command(nil, _command), do: :ok
