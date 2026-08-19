@@ -148,9 +148,12 @@ export class FocusContextMachine {
    *    overlays, whose items have controls but no region above them.
    * 3. **The overlay itself** — dismiss.
    * 4. **The primary menu** — back to whatever the sidebar was opened over.
-   * 5. **Content** — nothing. Reaching the sidebar from a grid, shelf, toolbar
-   *    or zone-tab strip is LEFT's job, not BACK's, and every layout gives its
-   *    left-edge context an edge that gets there.
+   * 5. **Content** — enter the primary menu. The main nav is what contains
+   *    every content region, so BACK from a grid, shelf, toolbar, zone-tab
+   *    strip or non-primary menu goes there. LEFT stays lateral movement
+   *    within the page and never leaves it. A page whose layout declares no
+   *    sidebar node (the setup tour) has no menu to enter, so BACK stays a
+   *    no-op there — the node's presence in the graph is the capability check.
    *
    * Ordering is the whole design: an overlay region leaves for its sibling
    * before the overlay dismisses itself, which is what makes "BACK anywhere in
@@ -172,7 +175,12 @@ export class FocusContextMachine {
     }
 
     if (this._overlay) return DISMISS
-    if (this._context === this._config.primaryMenu) return { type: "exit_sidebar" }
+    const primaryMenu = this._config.primaryMenu
+    if (this._context === primaryMenu) return { type: "exit_sidebar" }
+    if (primaryMenu && this._navGraph?.[primaryMenu]) {
+      this._setContext(primaryMenu)
+      return { type: "enter_sidebar" }
+    }
     return NONE
   }
 
@@ -248,16 +256,6 @@ export class FocusContextMachine {
    */
   clearSubFocus() {
     this._subFocus = false
-  }
-
-  /**
-   * Enter primary menu from a left-wall transition in zone tabs or toolbar.
-   * Sets context to primaryMenu and returns the enter_sidebar directive.
-   * @returns {FocusDirective}
-   */
-  enterSidebarFromWall() {
-    this._setContext(this._config.primaryMenu)
-    return { type: "enter_sidebar" }
   }
 
   /**
@@ -380,10 +378,10 @@ export class FocusContextMachine {
   }
 
   /** Menu: up/down between items. Right exits toward content (primary menu)
-   *  or follows the nav graph (non-primary). BACK exits the primary menu
-   *  only — in non-primary menus it is a no-op, because lateral movement
-   *  (including reaching the sidebar) belongs to LEFT, not BACK.
-   *  Generalizes sidebar and section nav. */
+   *  or follows the nav graph (non-primary). BACK is handled before dispatch
+   *  by `_backTransition`: it exits the primary menu and enters it from
+   *  everywhere else — LEFT is lateral movement within the page and never
+   *  reaches the sidebar. Generalizes sidebar and section nav. */
   _menuTransition(action) {
     const isPrimaryMenu = this._context === this._config.primaryMenu
 
@@ -401,10 +399,6 @@ export class FocusContextMachine {
         if (isPrimaryMenu) return NONE
         const target = this._navGraph?.[this._context]?.left
         if (!target) return NONE
-        if (target === this._config.primaryMenu) {
-          this._setContext(this._config.primaryMenu)
-          return { type: "enter_sidebar" }
-        }
         this._setContext(target)
         return enterContext(target, "left")
       }
@@ -426,8 +420,8 @@ export class FocusContextMachine {
    * sequence. Keeping the walls out of here is what lets a mosaic and a row
    * share one rule set — the state machine never has to know which it is.
    *
-   * Select activates the focused card; BACK is a no-op in content — left at
-   * the left edge is the way to the sidebar.
+   * Select activates the focused card; BACK enters the sidebar via
+   * `_backTransition` before this dispatch is reached.
    */
   _shelfTransition(action) {
     switch (action) {
@@ -520,7 +514,6 @@ export class FocusContextMachine {
 
   /**
    * General wall handler: look up a nav graph edge for any context and direction.
-   * Handles sidebar entry when the target is the primary menu.
    * @param {string} context - The source context
    * @param {"up"|"down"|"left"|"right"} direction
    * @returns {FocusDirective}
@@ -528,10 +521,6 @@ export class FocusContextMachine {
   contextWall(context, direction) {
     const target = this.getGraphTarget(context, direction)
     if (!target) return NONE
-    if (target === this._config.primaryMenu) {
-      this._setContext(this._config.primaryMenu)
-      return { type: "enter_sidebar" }
-    }
     this._setContext(target)
     return enterContext(target, direction)
   }

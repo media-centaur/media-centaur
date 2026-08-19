@@ -48,7 +48,7 @@ Keyboard and gamepad are decoupled peers behind a duck-typed contract: `start()`
 
 ### MENU Behavior
 
-The `_menuTransition()` handles all MENU instances. The primaryMenu gets special treatment (exit_sidebar on right/back, wall on left). Non-primary MENU instances use the nav graph for left/right transitions; BACK is a no-op there (lateral movement, including reaching the sidebar, belongs to LEFT). SELECT on any MENU exits the menu into the content area (primary menu skips the click since items are already activated on focus; non-primary menus click after transitioning).
+The `_menuTransition()` handles all MENU instances. The primaryMenu gets special treatment (exit_sidebar on right/back, wall on left). Non-primary MENU instances use the nav graph for left/right transitions; BACK enters the sidebar there, like any content context. SELECT on any MENU exits the menu into the content area (primary menu skips the click since items are already activated on focus; non-primary menus click after transitioning). The sidebar's collapse toggle is a nav item with `data-nav-defer-activate`: reachable by cursor, toggled only by explicit SELECT.
 
 ### SHELF Behavior (spatial, unlike MENU)
 
@@ -81,7 +81,7 @@ An overlay carrying `data-nav-overlay="<name>"` navigates as several zones per `
 
 ### BACK and CLEAR Semantics
 
-BACK is answered by `_backTransition()` **before** the context-type dispatch — one function, not a `case Action.BACK` in each. It peels containment in order: an overlay region with a nav-graph `back` edge leaves for that region (one press, however deep — stepping out a level at a time is LEFT's job) → sub-focus exits → an overlay dismisses → the primary menu exits to the pre-sidebar context → content does nothing. In content contexts (grid, toolbar, zone_tabs, shelf) and non-primary menus (sections, the download zones) BACK is therefore a **no-op** — reaching the main nav is LEFT's job. Every zone layout gives its left-edge context a `left: ["sidebar"]` edge (or a chain that reaches it), so left-at-the-left-edge is the one idiom for getting to the sidebar. There is no `onEscape` behavior hook.
+BACK is answered by `_backTransition()` **before** the context-type dispatch — one function, not a `case Action.BACK` in each. It peels containment in order: an overlay region with a nav-graph `back` edge leaves for that region (one press, however deep — stepping out a level at a time is LEFT's job) → sub-focus exits → an overlay dismisses → the primary menu exits to the pre-sidebar context → content enters the primary menu. In content contexts (grid, toolbar, zone_tabs, shelf) and non-primary menus (sections, the download zones) BACK is therefore **the way to the main nav** (UIDR-028); LEFT is lateral movement within the page and never reaches the sidebar — no zone layout declares a `left: ["sidebar"]` edge. Each layout still declares its sidebar node (with `right` candidates for exiting); its presence in the graph is what tells BACK the page has a main menu, so a sidebar-less page (setup) stays a no-op. There is no `onEscape` behavior hook.
 
 Adding a BACK case to a transition function is a smell: express it as containment instead.
 

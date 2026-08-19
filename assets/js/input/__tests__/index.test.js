@@ -152,8 +152,6 @@ describe("Incoming page nav (real config)", () => {
     expect(graph.toolbar.up).toBe("omnibox")
     expect(graph.toolbar.down).toBe("grid")
     expect(graph.grid.up).toBe("toolbar")
-    expect(graph.toolbar.left).toBe("sidebar")
-    expect(graph.grid.left).toBe("sidebar")
   })
 
   test("forecast-only (no tabs in the DOM): the agenda leans on the candidate fallback", () => {
@@ -168,7 +166,7 @@ describe("Incoming page nav (real config)", () => {
     expect(graph.sidebar.right).toBe("coming_up_list")
   })
 
-  test("every incoming context reaches the sidebar via left", () => {
+  test("no incoming context has a left edge — the sidebar is BACK's job", () => {
     const counts = {
       omnibox: 1, zone_tabs: 3, grid: 2, coming_up_list: 6,
       drafts: 1, pursuits: 3, ledger: 5, other_downloads: 1, sidebar: 4,
@@ -184,18 +182,20 @@ describe("Incoming page nav (real config)", () => {
       "ledger",
       "other_downloads",
     ]) {
-      expect(graph[context].left).toBeDefined()
+      expect(graph[context].left).toBeUndefined()
     }
+    // The node BACK checks for is still declared
+    expect(graph.sidebar).toBeDefined()
   })
 })
 
 describe("Guide page nav (real config)", () => {
   const populated = { guide_chapters: 22, guide_outline: 4, sidebar: 7 }
 
-  test("chapters: right to outline, left to sidebar; outline left to chapters", () => {
+  test("chapters: right to outline; outline left to chapters; no sidebar edge", () => {
     const graph = buildNavGraph("guide", populated, inputConfig)
     expect(graph.guide_chapters.right).toBe("guide_outline")
-    expect(graph.guide_chapters.left).toBe("sidebar")
+    expect(graph.guide_chapters.left).toBeUndefined()
     expect(graph.guide_outline.left).toBe("guide_chapters")
   })
 

@@ -174,7 +174,6 @@ Keeping wall handling out of the state machine is what lets a row and a mosaic s
 | `presentationChanged(p)` | Modal/drawer opened/closed |
 | `forceContext(context)` | Set context directly (sidebar resume, exit restore) |
 | `syncDrawerState(isOpen)` | Sync drawer flag from DOM |
-| `enterSidebarFromWall()` | Left-wall transition from zone tabs/toolbar |
 
 **Config options:**
 
@@ -256,9 +255,9 @@ Source-agnostic action router. Receives full config object including `reader`, `
 2. **Sub-focus** → back out to the item. Reached only in overlays with no inner regions, i.e. the flat ones.
 3. **An overlay** → dismiss.
 4. **The primary menu** → exit to the pre-sidebar context.
-5. **Content** → nothing.
+5. **Content** → enter the primary menu. The main nav contains every content region, so BACK from a grid, shelf, toolbar, zone-tab strip or non-primary menu goes there, landing on the active item ([UIDR-028](../decisions/user-interface/2026-08-19-028-back-enters-main-menu.md)). A page whose layout declares no sidebar node (the setup tour) has no menu to enter, so BACK stays a no-op — the node's presence in the nav graph is the capability check.
 
-Lateral movement toward the sidebar belongs to LEFT: every zone layout gives its left-edge context a `left: ["sidebar"]` edge (or a chain that reaches it), so left-at-the-left-edge is the one idiom for reaching the main nav.
+LEFT is lateral movement within the page and never reaches the sidebar: no zone layout declares a `left: ["sidebar"]` edge. Genuine lateral edges between content zones (settings grid → sections, guide outline → chapters) are unaffected.
 
 **Activate on focus.** The `primaryMenu` (sidebar) always clicks items on focus during up/down navigation, triggering page navigation. Page behaviors can declare `activateOnFocus: ["sections"]` to add the same behavior for other menu contexts on that page only. This is page-scoped to avoid unintended navigation — e.g., the dashboard and settings pages both use a `sections` zone, but only settings should auto-navigate between sub-pages.
 
@@ -287,7 +286,7 @@ Actions in each context:
 | Left | navigate | navigate | navigate | wall | nav graph left | navigate (spatial) | `tree_out` | navigate (wrap) | → GRID (row edge) |
 | Right | navigate | navigate | navigate | exit sidebar | nav graph right | navigate (spatial) | `tree_in` | sub-focus / navigate | wall |
 | Select | activate | activate | activate | exit sidebar* | click + nav right | activate | activate | activate | activate |
-| Back | no-op | no-op | no-op | exit sidebar | no-op | no-op | graph `back` | dismiss | dismiss |
+| Back | enter sidebar | enter sidebar | enter sidebar | exit sidebar | enter sidebar | enter sidebar | graph `back` | dismiss | dismiss |
 | Clear | onClear | onClear | onClear | — | — | onClear | — | — | — |
 | Play | play | — | — | — | — | play | play | play | play |
 
@@ -303,7 +302,7 @@ layer out.
 
 **CLEAR behavior:** In any context, CLEAR delegates to the page behavior's `onClear()` hook. Currently only the library behavior implements this (clears the filter input). If no `onClear` exists, the action is silently dropped.
 
-**MENU behavior:** The sidebar instance has hardcoded exit_sidebar on right/back and wall on left. Other MENU instances (like `"sections"`, `"rail"`) use the navigation graph for left/right — if the graph points to `"sidebar"`, it produces `enter_sidebar`; BACK is a no-op there. Non-primary menus also support wall-to-graph fallback on up/down: hitting the top or bottom of the list consults the nav graph for that direction (e.g., up from the first `rail` item transitions to `actions`).
+**MENU behavior:** The sidebar instance has hardcoded exit_sidebar on right/back and wall on left. Other MENU instances (like `"sections"`, `"rail"`) use the navigation graph for left/right; BACK enters the sidebar there, like any content context. Non-primary menus also support wall-to-graph fallback on up/down: hitting the top or bottom of the list consults the nav graph for that direction (e.g., up from the first `rail` item transitions to `actions`).
 
 **Modal navigation:** UP/DOWN/LEFT navigate linearly with wrapping. RIGHT tries sub-focus first (entering a sub-item within the focused element); if no `[data-nav-sub-item]` exists, falls back to linear navigation. This makes both vertical item lists and horizontal button rows work without per-modal configuration.
 
@@ -322,12 +321,12 @@ layer out.
 
 **Wall transitions** (when navigation reaches the edge):
 - Grid up → TOOLBAR (library zone) or ZONE_TABS (watching zone)
-- Grid left → nav graph target (sidebar in library/watching zones, sections in settings zone)
+- Grid left → nav graph target where a lateral edge exists (sections in the settings zone); otherwise a wall — the sidebar is BACK's job
 - Grid right → DRAWER (if open)
 - MENU up/down → nav graph target for that direction (if defined)
 - TOOLBAR up/down → nav graph target for that instance (the standard toolbar reaches zone_tabs/grid; the upcoming mini-month reaches actions/stragglers)
-- SHELF, any direction with no spatial neighbour → nav graph, then (left/right only) the sequence — see the SHELF section above; left at the left edge therefore reaches the sidebar, and up/down with no neighbour and no graph edge is inert
-- Zone tabs / toolbar left at index 0 → nav graph left edge (SIDEBAR for the standard top-left contexts; the rail for the upcoming mini-month)
+- SHELF, any direction with no spatial neighbour → nav graph, then (left/right only) the sequence — see the SHELF section above; up/down with no neighbour and no graph edge is inert, and left at the left edge is a wall
+- Zone tabs / toolbar left at index 0 → nav graph left edge where one exists (the rail for the upcoming mini-month); otherwise a wall
 - Drawer left → GRID (rightmost column, same row)
 
 ## Directive Reference

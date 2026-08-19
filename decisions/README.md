@@ -80,7 +80,6 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 004 | 2026-03-05 | [Human-readable durations](user-interface/2026-03-05-004-human-readable-durations.md) | accepted |
 | 005 | 2026-03-06 | [Playback card hierarchy](user-interface/2026-03-06-005-playback-card-hierarchy.md) | accepted |
 | 006 | 2026-03-09 | [Library two-zone layout with zone-dependent detail shells](user-interface/2026-03-09-006-library-zone-architecture.md) | accepted |
-| 007 | 2026-03-09 | [Left wall enters sidebar](user-interface/2026-03-09-007-left-wall-enters-sidebar.md) | accepted |
 | 008 | 2026-03-15 | [Flex rows with mixed-size text use baseline alignment](user-interface/2026-03-15-008-flex-row-text-baseline-alignment.md) | accepted |
 | 009 | 2026-04-06 | [Modal panels must set explicit text color](user-interface/2026-04-06-009-modal-panel-color-inheritance.md) | accepted |
 | 010 | 2026-04-27 | [Page redistribution: Watch / System sidebar groups + dedicated Home, Library, Upcoming, History](user-interface/2026-04-27-010-page-redistribution.md) |  |
@@ -101,3 +100,4 @@ Visual conventions, component behavior, layout patterns, and interaction design.
 | 025 | 2026-08-14 | [Collections are filing, not content — activity surfaces speak in movies](user-interface/2026-08-14-025-collections-are-filing-not-content.md) | accepted |
 | 026 | 2026-08-14 | [Re-selecting the current page in the main nav scrolls to the top](user-interface/2026-08-14-026-nav-reselect-scrolls-to-top.md) | accepted |
 | 027 | 2026-08-17 | [Play affordances play in place — the modal is never a waystation](user-interface/2026-08-17-027-play-in-place.md) | accepted |
+| 028 | 2026-08-19 | [Back enters the main menu; left stays in the page](user-interface/2026-08-19-028-back-enters-main-menu.md) | accepted |

@@ -149,22 +149,26 @@ export const inputConfig = {
   // with the panel's subject.
   entryDefaults: { detail_list: "[data-resume-target]", detail_rail: "[data-selected]" },
 
-  // Zone layouts for nav graph
+  // Zone layouts for nav graph. No content context carries a left edge to the
+  // sidebar: reaching the main menu is BACK's job (see `_backTransition`), and
+  // LEFT stays lateral movement within the page. Each layout still declares a
+  // sidebar node with its `right` candidates — its presence is what tells BACK
+  // the page has a main menu, and the candidates are where exiting it lands.
   layouts: {
     watching: {
-      zone_tabs: { down: ["grid"],             left: ["sidebar"] },
-      grid:      { up: ["zone_tabs"],          left: ["sidebar"], right: ["drawer"] },
+      zone_tabs: { down: ["grid"] },
+      grid:      { up: ["zone_tabs"], right: ["drawer"] },
       sidebar:   { right: ["grid", "zone_tabs"] },
       drawer:    { left: ["grid"] },
     },
     library: {
-      toolbar:   { down: ["grid"],             left: ["sidebar"] },
-      grid:      { up: ["toolbar"],            left: ["sidebar"], right: ["drawer"] },
+      toolbar:   { down: ["grid"] },
+      grid:      { up: ["toolbar"], right: ["drawer"] },
       sidebar:   { right: ["grid", "toolbar"] },
       drawer:    { left: ["grid", "toolbar"] },
     },
     settings: {
-      sections:  { right: ["grid"],            left: ["sidebar"] },
+      sections:  { right: ["grid"] },
       grid:      { left: ["sections"] },
       sidebar:   { right: ["sections", "grid"] },
     },
@@ -173,7 +177,7 @@ export const inputConfig = {
     // straight to the outline; the outline is conditional (long chapters,
     // xl+ only), so the candidate fallback handles its absence.
     guide: {
-      guide_chapters: { right: ["guide_outline"], left: ["sidebar"] },
+      guide_chapters: { right: ["guide_outline"] },
       guide_outline:  { left: ["guide_chapters"] },
       sidebar:        { right: ["guide_chapters"] },
     },
@@ -181,9 +185,9 @@ export const inputConfig = {
     // (spatial GRID nav), with the conditional drill-in panel below —
     // skipped via candidate lists while no subsystem is selected.
     status: {
-      toolbar:    { down: ["grid"], left: ["sidebar"] },
-      grid:       { up: ["toolbar"], down: ["drill-in"], left: ["sidebar"] },
-      "drill-in": { up: ["grid"], left: ["sidebar"] },
+      toolbar:    { down: ["grid"] },
+      grid:       { up: ["toolbar"], down: ["drill-in"] },
+      "drill-in": { up: ["grid"] },
       sidebar:    { right: ["grid", "toolbar"] },
     },
     // The two review surfaces — identity (/review) and episode mapping
@@ -193,14 +197,14 @@ export const inputConfig = {
     // through the graph); the strip's own down edge returns to whichever pane
     // has items, so the empty state still navigates.
     review: {
-      zone_tabs:       { down: ["review-list", "review-detail"], left: ["sidebar"] },
-      "review-list":   { up: ["zone_tabs"], right: ["review-detail"], left: ["sidebar"] },
+      zone_tabs:       { down: ["review-list", "review-detail"] },
+      "review-list":   { up: ["zone_tabs"], right: ["review-detail"] },
       "review-detail": { up: ["zone_tabs"], left: ["review-list"] },
       sidebar:         { right: ["review-list", "review-detail", "zone_tabs"] },
     },
     reconcile: {
-      zone_tabs:          { down: ["reconcile-list", "reconcile-detail"], left: ["sidebar"] },
-      "reconcile-list":   { up: ["zone_tabs"], right: ["reconcile-detail"], left: ["sidebar"] },
+      zone_tabs:          { down: ["reconcile-list", "reconcile-detail"] },
+      "reconcile-list":   { up: ["zone_tabs"], right: ["reconcile-detail"] },
       "reconcile-detail": { up: ["zone_tabs"], left: ["reconcile-list"] },
       sidebar:            { right: ["reconcile-list", "reconcile-detail", "zone_tabs"] },
     },
@@ -216,34 +220,33 @@ export const inputConfig = {
     // carries its "View all" toggle as a nav item once any history exists,
     // so the archive stays reachable.
     incoming: {
-      omnibox:         { down: ["toolbar", "grid", "zone_tabs", "coming_up_list", "drafts", "pursuits", "ledger"], left: ["sidebar"] },
-      toolbar:         { up: ["omnibox"], down: ["grid"], left: ["sidebar"] },
-      grid:            { up: ["toolbar", "omnibox"], left: ["sidebar"] },
-      zone_tabs:       { up: ["omnibox"], down: ["coming_up_list", "drafts", "pursuits", "ledger", "other_downloads"], left: ["sidebar"] },
-      coming_up_list:  { up: ["zone_tabs", "omnibox"], left: ["sidebar"] },
-      drafts:          { up: ["zone_tabs", "omnibox"], down: ["pursuits", "other_downloads"], left: ["sidebar"] },
-      pursuits:        { up: ["drafts", "zone_tabs", "omnibox"], down: ["other_downloads"], left: ["sidebar"] },
-      ledger:          { up: ["zone_tabs", "omnibox"], left: ["sidebar"] },
-      other_downloads: { up: ["pursuits", "drafts", "zone_tabs"], left: ["sidebar"] },
+      omnibox:         { down: ["toolbar", "grid", "zone_tabs", "coming_up_list", "drafts", "pursuits", "ledger"] },
+      toolbar:         { up: ["omnibox"], down: ["grid"] },
+      grid:            { up: ["toolbar", "omnibox"] },
+      zone_tabs:       { up: ["omnibox"], down: ["coming_up_list", "drafts", "pursuits", "ledger", "other_downloads"] },
+      coming_up_list:  { up: ["zone_tabs", "omnibox"] },
+      drafts:          { up: ["zone_tabs", "omnibox"], down: ["pursuits", "other_downloads"] },
+      pursuits:        { up: ["drafts", "zone_tabs", "omnibox"], down: ["other_downloads"] },
+      ledger:          { up: ["zone_tabs", "omnibox"] },
+      other_downloads: { up: ["pursuits", "drafts", "zone_tabs"] },
       sidebar:         { right: ["coming_up_list", "pursuits", "ledger", "zone_tabs", "omnibox"] },
     },
     watch_history: {
-      toolbar:   { down: ["grid"], left: ["sidebar"] },
-      grid:      { up: ["toolbar"], left: ["sidebar"] },
+      toolbar:   { down: ["grid"] },
+      grid:      { up: ["toolbar"] },
       sidebar:   { right: ["toolbar", "grid"] },
     },
     watchlist: {
-      grid:    { left: ["sidebar"] },
+      grid:    {},
       sidebar: { right: ["grid"] },
     },
     // Home: vertical stack of horizontal shelves. Up/down crosses between
-    // shelves (candidate lists skip shelves the page didn't render); left
-    // always returns to the sidebar.
+    // shelves (candidate lists skip shelves the page didn't render).
     home: {
-      hero:      { down: ["continue", "recently", "coming_up"], left: ["sidebar"] },
-      continue:  { up: ["hero"], down: ["recently", "coming_up"], left: ["sidebar"] },
-      recently:  { up: ["continue", "hero"], down: ["coming_up"], left: ["sidebar"] },
-      coming_up: { up: ["recently", "continue", "hero"], left: ["sidebar"] },
+      hero:      { down: ["continue", "recently", "coming_up"] },
+      continue:  { up: ["hero"], down: ["recently", "coming_up"] },
+      recently:  { up: ["continue", "hero"], down: ["coming_up"] },
+      coming_up: { up: ["recently", "continue", "hero"] },
       sidebar:   { right: ["hero", "continue", "recently", "coming_up"] },
     },
     // Setup tour: a sidebar-less first-run wizard. A single `grid` context

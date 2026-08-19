@@ -20,7 +20,7 @@ function mockDom({ omnibox = null, historySearch = null } = {}) {
 }
 
 describe("download behavior", () => {
-  test("defines no onEscape — BACK is a no-op in content; left at the left edge reaches the sidebar", () => {
+  test("defines no onEscape — BACK semantics live in the state machine (content BACK enters the sidebar)", () => {
     const behavior = createIncomingBehavior(mockDom())
     expect(behavior.onEscape).toBeUndefined()
   })

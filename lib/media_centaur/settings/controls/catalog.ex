@@ -67,7 +67,7 @@ defmodule MediaCentaur.Settings.Controls.Catalog do
       id: :back,
       category: :navigation,
       name: "Back",
-      description: "Return to the previous zone or close modals",
+      description: "Close the open dialog, or jump to the main menu",
       default_key: "Escape",
       default_button: 1,
       scope: :input_system
