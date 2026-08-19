@@ -227,10 +227,16 @@ defmodule MediaCentaurWeb.Layouts do
 
         <div class="flex-1" />
 
+        <%!-- data-nav-defer-activate: sidebar entries activate on focus, but
+              merely walking the cursor over this toggle must not collapse the
+              rail — only an explicit SELECT flips it. --%>
         <button
           class="sidebar-link"
           phx-click={JS.dispatch("phx:toggle-sidebar")}
           data-tip="Expand"
+          data-nav-item
+          data-nav-defer-activate
+          tabindex="0"
         >
           <.icon
             name="hero-chevron-double-left"
