@@ -205,17 +205,19 @@ between the two shells.
 - Verify `DetailPanel` is a shared component rendered inside both shells →
   duplicated implementations → **Moderate**
 
-#### UIDR-007 — Left wall enters sidebar
+#### UIDR-028 — Back enters the main menu; left stays in the page
 
-**Rule:** Pressing Left at index 0 of *any* horizontal navigation row (zone
-tabs, toolbar, grid) enters the sidebar. Right from the sidebar restores
-focus to the remembered context.
+**Rule:** BACK (Escape / gamepad B) from any content context enters the
+sidebar; exiting the sidebar (Right or BACK) restores focus to the remembered
+context. No zone layout declares a `left: ["sidebar"]` edge — Left/Right are
+lateral movement within the page only.
 
 **Scan:**
-- Read `assets/js/input/` nav-graph wiring for `library`, `review`,
-  `dashboard`, `settings`, `console` pages.
-- Any horizontal row registered in a page behavior without a left-exit edge to
-  the sidebar → **Critical** (documented as a user spatial-model violation)
+- Read `assets/js/input/config.js` layouts.
+- Any content context with a left edge targeting `sidebar` → **Critical**
+  (reintroduces the retired UIDR-007 gesture)
+- Every zone layout for a page with a sidebar must declare a `sidebar` node
+  (its absence makes BACK a no-op there) → **Moderate**
 - Missing return-focus-restoration logic → **Moderate**
 
 #### UIDR-008 — Baseline alignment for mixed-size text rows

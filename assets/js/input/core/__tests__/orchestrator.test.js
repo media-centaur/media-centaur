@@ -4,37 +4,40 @@ import { KeyboardSource } from "../keyboard"
 import { Context } from "../focus_context"
 import { Action } from "../actions"
 
-// Test config — provides all config the orchestrator needs
+// Test config — provides all config the orchestrator needs. Mirrors the app
+// config's topology: no content context has a left edge to the sidebar
+// (reaching the main menu is BACK's job), but every zone still declares the
+// sidebar node BACK checks for.
 const TEST_LAYOUTS = {
   watching: {
-    zone_tabs: { down: ["grid"],             left: ["sidebar"] },
-    grid:      { up: ["zone_tabs"],          left: ["sidebar"], right: ["drawer"] },
+    zone_tabs: { down: ["grid"] },
+    grid:      { up: ["zone_tabs"], right: ["drawer"] },
     sidebar:   { right: ["grid", "zone_tabs"] },
     drawer:    { left: ["grid"] },
   },
   library: {
-    zone_tabs: { down: ["toolbar", "grid"],  left: ["sidebar"] },
-    toolbar:   { up: ["zone_tabs"],          down: ["grid"],   left: ["sidebar"] },
-    grid:      { up: ["toolbar", "zone_tabs"], left: ["sidebar"], right: ["drawer"] },
+    zone_tabs: { down: ["toolbar", "grid"] },
+    toolbar:   { up: ["zone_tabs"],          down: ["grid"] },
+    grid:      { up: ["toolbar", "zone_tabs"], right: ["drawer"] },
     sidebar:   { right: ["grid", "toolbar", "zone_tabs"] },
     drawer:    { left: ["grid", "toolbar"] },
   },
   upcoming: {
-    zone_tabs: { down: ["upcoming"],           left: ["sidebar"] },
-    upcoming:  { up: ["zone_tabs"],            left: ["sidebar"] },
-    grid:      { up: ["upcoming", "zone_tabs"], left: ["upcoming", "sidebar"] },
+    zone_tabs: { down: ["upcoming"] },
+    upcoming:  { up: ["zone_tabs"] },
+    grid:      { up: ["upcoming", "zone_tabs"], left: ["upcoming"] },
     sidebar:   { right: ["upcoming", "grid", "zone_tabs"] },
   },
   settings: {
-    sections:  { right: ["grid"],            left: ["sidebar"] },
+    sections:  { right: ["grid"] },
     grid:      { left: ["sections"] },
     sidebar:   { right: ["sections", "grid"] },
   },
   home: {
-    hero:      { down: ["continue", "recently", "coming_up"], left: ["sidebar"] },
-    continue:  { up: ["hero"], down: ["recently", "coming_up"], left: ["sidebar"] },
-    recently:  { up: ["continue", "hero"], down: ["coming_up"], left: ["sidebar"] },
-    coming_up: { up: ["recently", "continue", "hero"], left: ["sidebar"] },
+    hero:      { down: ["continue", "recently", "coming_up"] },
+    continue:  { up: ["hero"], down: ["recently", "coming_up"] },
+    recently:  { up: ["continue", "hero"], down: ["coming_up"] },
+    coming_up: { up: ["recently", "continue", "hero"] },
     sidebar:   { right: ["hero", "continue", "recently", "coming_up"] },
   },
 }
@@ -448,8 +451,8 @@ describe("Orchestrator", () => {
       // Clear calls from start
       calls.length = 0
 
-      // Left at the grid's left wall (index 0, column 0) enters the sidebar.
-      globals._dispatchKeyDown("ArrowLeft")
+      // BACK from the grid enters the sidebar.
+      globals._dispatchKeyDown("Escape")
 
       const navCalls = calls.filter(c => c.method === "setNavContext")
       expect(navCalls.some(c => c.args[0] === "sidebar")).toBe(true)
@@ -555,27 +558,24 @@ describe("Orchestrator", () => {
       expect(system._behavior).toBe(null)
     })
 
-    test("escape in a content context is a no-op — behaviors get no escape hook", () => {
+    test("escape in a content context enters the sidebar — behaviors get no escape hook", () => {
       let escapeCalled = false
-      const { system, calls, globals } = setup({
+      const { system, globals } = setup({
         getPageBehavior: () => "library",
       })
       system.start({})
 
-      // Even a behavior that still defines onEscape is ignored — left at
-      // the left edge is the way to the sidebar, not Escape.
+      // Even a behavior that still defines onEscape is ignored — BACK's
+      // containment peeling is the state machine's, not the behavior's.
       system._behavior = {
         onEscape: () => { escapeCalled = true; return "sidebar" },
         onSyncState: () => ({ clearGridMemory: false }),
       }
-      calls.length = 0
 
       globals._dispatchKeyDown("Escape")
 
       expect(escapeCalled).toBe(false)
-      expect(system.focusMachine.context).toBe(Context.GRID)
-      const navCalls = calls.filter(c => c.method === "setNavContext")
-      expect(navCalls.some(c => c.args[0] === "sidebar")).toBe(false)
+      expect(system.focusMachine.context).toBe("sidebar")
     })
 
     test("escape in modal still dismisses", () => {
@@ -746,8 +746,8 @@ describe("Orchestrator", () => {
     })
   })
 
-  describe("left wall enters sidebar from zone tabs/toolbar", () => {
-    test("left at index 0 in zone tabs enters sidebar", () => {
+  describe("BACK enters the sidebar; left walls stay walls", () => {
+    test("left at index 0 in zone tabs stays put; BACK enters the sidebar", () => {
       const { system, calls, globals } = setup({
         getFocusedIndex: () => 0,
         getItemCount: () => 3,
@@ -757,14 +757,15 @@ describe("Orchestrator", () => {
       system.focusMachine.forceContext(Context.ZONE_TABS)
       calls.length = 0
 
-      // Trigger left navigation from zone tabs
       system._handleAction(Action.NAVIGATE_LEFT)
+      expect(system.focusMachine.context).toBe(Context.ZONE_TABS)
 
+      system._handleAction(Action.BACK)
       expect(system.focusMachine.context).toBe("sidebar")
       expect(system._preSidebarContext).toBe(Context.ZONE_TABS)
     })
 
-    test("left at index 0 in a home shelf enters sidebar", () => {
+    test("left at index 0 in a home shelf stays put; BACK enters the sidebar", () => {
       const { system } = setup({
         getZone: () => "home",
         getFocusedIndex: () => 0,
@@ -775,7 +776,9 @@ describe("Orchestrator", () => {
       system.focusMachine.forceContext("continue")
 
       system._handleAction(Action.NAVIGATE_LEFT)
+      expect(system.focusMachine.context).toBe("continue")
 
+      system._handleAction(Action.BACK)
       expect(system.focusMachine.context).toBe("sidebar")
       expect(system._preSidebarContext).toBe("continue")
     })
@@ -1018,11 +1021,13 @@ describe("Orchestrator", () => {
       expect(system.focusMachine.context).toBe("recently")
     })
 
-    test("left from the large tile enters the sidebar", () => {
+    test("left from the large tile is a wall — BACK is the way to the sidebar", () => {
       const { system } = mosaic(0)
 
       system._handleAction(Action.NAVIGATE_LEFT)
+      expect(system.focusMachine.context).toBe("coming_up")
 
+      system._handleAction(Action.BACK)
       expect(system.focusMachine.context).toBe("sidebar")
     })
   })
@@ -1414,12 +1419,13 @@ describe("Orchestrator", () => {
   })
 
   describe("BACK action semantics", () => {
-    test("BACK in grid is a no-op — even a lingering behavior onEscape is ignored", () => {
+    test("BACK in grid enters the sidebar — a lingering behavior onEscape is ignored", () => {
       let escapeCalled = false
       let onActionCallback = null
       const mockSource = { start() {}, stop() {} }
       const { system, calls } = setup({
         getPageBehavior: () => "library",
+        getActiveItemIndex: (ctx) => ctx === "sidebar" ? 2 : -1,
       }, {
         sources: [
           (callbacks) => {
@@ -1441,15 +1447,22 @@ describe("Orchestrator", () => {
       onActionCallback(Action.BACK)
 
       expect(escapeCalled).toBe(false)
-      expect(system.focusMachine.context).toBe(Context.GRID)
-      const navCalls = calls.filter(c => c.method === "setNavContext")
-      expect(navCalls.some(c => c.args[0] === "sidebar")).toBe(false)
+      expect(system.focusMachine.context).toBe("sidebar")
+      // Rail stays at the user's chosen width — the collapsed rail labels
+      // the focused icon via the SidebarTooltip hook instead
+      const sidebarCalls = calls.filter(c => c.method === "setSidebarState")
+      expect(sidebarCalls.length).toBe(0)
+      // Lands on the active item, and records where it came from for exit
+      const focusCalls = calls.filter(c => c.method === "focusByIndex" && c.args[0] === "sidebar")
+      expect(focusCalls.length).toBe(1)
+      expect(focusCalls[0].args[1]).toBe(2)
+      expect(system._preSidebarContext).toBe(Context.GRID)
     })
 
-    test("LEFT at the grid's left wall enters the sidebar without expanding it and records pre-sidebar context", () => {
+    test("LEFT at the grid's left wall is a no-op — BACK is the way to the sidebar", () => {
       let onActionCallback = null
       const mockSource = { start() {}, stop() {} }
-      const { system, calls } = setup({
+      const { system } = setup({
         getZone: () => "library",
         getPageBehavior: () => "library",
         getItemCount: () => 8,
@@ -1465,24 +1478,17 @@ describe("Orchestrator", () => {
       })
       system.start({})
       system.focusMachine.forceContext(Context.GRID)
-      calls.length = 0
 
       onActionCallback(Action.NAVIGATE_LEFT)
 
-      // Should enter sidebar
-      expect(system.focusMachine.context).toBe("sidebar")
-      // Rail stays at the user's chosen width — the collapsed rail labels
-      // the focused icon via the SidebarTooltip hook instead
-      const sidebarCalls = calls.filter(c => c.method === "setSidebarState")
-      expect(sidebarCalls.length).toBe(0)
-      // Should record pre-sidebar context for exit restoration
-      expect(system._preSidebarContext).toBe(Context.GRID)
+      expect(system.focusMachine.context).toBe(Context.GRID)
+      expect(system._preSidebarContext).toBe(null)
     })
 
-    test("BACK in non-primary menu is a no-op — left is the way to the sidebar", () => {
+    test("BACK in non-primary menu enters the sidebar", () => {
       let onActionCallback = null
       const mockSource = { start() {}, stop() {} }
-      const { system, calls } = setup({
+      const { system } = setup({
         getZone: () => "settings",
         getPageBehavior: () => "settings",
         getItemCount: () => 3,
@@ -1498,15 +1504,11 @@ describe("Orchestrator", () => {
       })
       system.start({})
       system.focusMachine.forceContext("sections")
-      calls.length = 0
 
       onActionCallback(Action.BACK)
 
-      expect(system.focusMachine.context).toBe("sections")
-
-      // Left is what walks toward the main nav
-      onActionCallback(Action.NAVIGATE_LEFT)
       expect(system.focusMachine.context).toBe("sidebar")
+      expect(system._preSidebarContext).toBe("sections")
     })
 
     test("BACK in sidebar exits", () => {

@@ -17,30 +17,33 @@ const TEST_INSTANCE_TYPES = {
   coming_up: Context.SHELF,
 }
 
+// No content context carries a left edge to the sidebar — reaching the main
+// menu is BACK's job. The sidebar node itself stays in every layout: its
+// presence in the graph is what tells BACK the page has a main menu at all.
 const TEST_LAYOUTS = {
   watching: {
-    zone_tabs: { down: ["grid"],             left: ["sidebar"] },
-    grid:      { up: ["zone_tabs"],          left: ["sidebar"], right: ["drawer"] },
+    zone_tabs: { down: ["grid"] },
+    grid:      { up: ["zone_tabs"], right: ["drawer"] },
     sidebar:   { right: ["grid", "zone_tabs"] },
     drawer:    { left: ["grid"] },
   },
   library: {
-    zone_tabs: { down: ["toolbar", "grid"],  left: ["sidebar"] },
-    toolbar:   { up: ["zone_tabs"],          down: ["grid"],   left: ["sidebar"] },
-    grid:      { up: ["toolbar", "zone_tabs"], left: ["sidebar"], right: ["drawer"] },
+    zone_tabs: { down: ["toolbar", "grid"] },
+    toolbar:   { up: ["zone_tabs"],          down: ["grid"] },
+    grid:      { up: ["toolbar", "zone_tabs"], right: ["drawer"] },
     sidebar:   { right: ["grid", "toolbar", "zone_tabs"] },
     drawer:    { left: ["grid", "toolbar"] },
   },
   settings: {
-    sections:  { right: ["grid"],            left: ["sidebar"] },
+    sections:  { right: ["grid"] },
     grid:      { left: ["sections"] },
     sidebar:   { right: ["sections", "grid"] },
   },
   home: {
-    hero:      { down: ["continue", "recently", "coming_up"], left: ["sidebar"] },
-    continue:  { up: ["hero"], down: ["recently", "coming_up"], left: ["sidebar"] },
-    recently:  { up: ["continue", "hero"], down: ["coming_up"], left: ["sidebar"] },
-    coming_up: { up: ["recently", "continue", "hero"], left: ["sidebar"] },
+    hero:      { down: ["continue", "recently", "coming_up"] },
+    continue:  { up: ["hero"], down: ["recently", "coming_up"] },
+    recently:  { up: ["continue", "hero"], down: ["coming_up"] },
+    coming_up: { up: ["recently", "continue", "hero"] },
     sidebar:   { right: ["hero", "continue", "recently", "coming_up"] },
   },
 }
@@ -90,7 +93,13 @@ describe("FocusContextMachine", () => {
       expect(machine.transition(Action.PLAY)).toEqual({ type: "play" })
     })
 
-    test("back is no-op", () => {
+    test("back enters the sidebar when the page has one", () => {
+      machine.setNavGraph(fullGraph("watching"))
+      expect(machine.transition(Action.BACK)).toEqual({ type: "enter_sidebar" })
+      expect(machine.context).toBe("sidebar")
+    })
+
+    test("back is a no-op when the page has no sidebar in its graph", () => {
       expect(machine.transition(Action.BACK)).toEqual({ type: "none" })
     })
 
@@ -126,11 +135,11 @@ describe("FocusContextMachine", () => {
       expect(machine.context).toBe(Context.TOOLBAR)
     })
 
-    test("left wall goes to sidebar", () => {
+    test("left wall stays a wall — BACK is the way to the sidebar", () => {
       machine.setNavGraph(fullGraph("watching"))
       const directive = machine.gridWall("left")
-      expect(directive).toEqual({ type: "enter_sidebar" })
-      expect(machine.context).toBe("sidebar")
+      expect(directive).toEqual({ type: "none" })
+      expect(machine.context).toBe(Context.GRID)
     })
 
     test("right wall with drawer open switches to drawer", () => {
@@ -429,22 +438,6 @@ describe("FocusContextMachine", () => {
     })
   })
 
-  describe("enterSidebarFromWall()", () => {
-    test("sets context to sidebar and returns enter_sidebar directive", () => {
-      machine.forceContext(Context.TOOLBAR)
-      const directive = machine.enterSidebarFromWall()
-      expect(directive).toEqual({ type: "enter_sidebar" })
-      expect(machine.context).toBe("sidebar")
-    })
-
-    test("works from zone tabs context", () => {
-      machine.forceContext(Context.ZONE_TABS)
-      const directive = machine.enterSidebarFromWall()
-      expect(directive).toEqual({ type: "enter_sidebar" })
-      expect(machine.context).toBe("sidebar")
-    })
-  })
-
   describe("Presentation changes", () => {
     test("opening modal switches to modal context", () => {
       machine.presentationChanged("modal")
@@ -518,20 +511,12 @@ describe("FocusContextMachine", () => {
       expect(machine.context).toBe("grid")
     })
 
-    test("sections left navigates to sidebar via nav graph", () => {
+    test("sections back enters the sidebar", () => {
       machine._context = "sections"
-      machine.setNavGraph({ sections: { left: "sidebar" } })
-      const directive = machine.transition(Action.NAVIGATE_LEFT)
+      machine.setNavGraph({ sections: {}, sidebar: {} })
+      const directive = machine.transition(Action.BACK)
       expect(directive).toEqual({ type: "enter_sidebar" })
       expect(machine.context).toBe("sidebar")
-    })
-
-    test("sections back is a no-op — left is the way to the sidebar", () => {
-      machine._context = "sections"
-      machine.setNavGraph({ sections: { left: "sidebar" } })
-      const directive = machine.transition(Action.BACK)
-      expect(directive).toEqual({ type: "none" })
-      expect(machine.context).toBe("sections")
     })
 
     test("sections left with no nav graph edge is no-op", () => {
@@ -632,9 +617,11 @@ describe("FocusContextMachine", () => {
       expect(machine.transition(Action.PLAY)).toEqual({ type: "play" })
     })
 
-    test("back is a no-op — left at the shelf's left edge reaches the sidebar", () => {
+    test("back enters the sidebar", () => {
       machine._context = "continue"
-      expect(machine.transition(Action.BACK)).toEqual({ type: "none" })
+      machine.setNavGraph(homeGraph())
+      expect(machine.transition(Action.BACK)).toEqual({ type: "enter_sidebar" })
+      expect(machine.context).toBe("sidebar")
     })
   })
 
@@ -743,13 +730,6 @@ describe("FocusContextMachine", () => {
   })
 
   describe("gridWall left is nav-graph-driven", () => {
-    test("left wall goes to sidebar when nav graph points there", () => {
-      machine.setNavGraph(fullGraph("watching"))
-      const directive = machine.gridWall("left")
-      expect(directive).toEqual({ type: "enter_sidebar" })
-      expect(machine.context).toBe("sidebar")
-    })
-
     test("left wall is no-op when nav graph has no left edge", () => {
       machine.setNavGraph({ grid: {} })
       const directive = machine.gridWall("left")
@@ -805,16 +785,29 @@ describe("FocusContextMachine", () => {
       expect(machine.transition(Action.BACK)).toEqual({ type: "exit_sidebar" })
     })
 
-    // Content is not a layer — LEFT at the left edge is the way to the sidebar.
+    // Content's containing layer is the main menu itself: BACK from any
+    // content context enters the sidebar. LEFT stays lateral movement within
+    // the page and never leaves it.
     test.each([
       ["grid", Context.GRID],
       ["a shelf", "continue"],
       ["zone tabs", Context.ZONE_TABS],
       ["a non-primary menu", "sections"],
       ["a toolbar outside an overlay", Context.TOOLBAR],
-    ])("is a no-op in %s", (_label, context) => {
+    ])("enters the sidebar from %s", (_label, context) => {
       machine.forceContext(context)
+      machine.setNavGraph({ [context]: {}, sidebar: {} })
+      expect(machine.transition(Action.BACK)).toEqual({ type: "enter_sidebar" })
+      expect(machine.context).toBe("sidebar")
+    })
+
+    // A page without a sidebar (the setup tour) declares no sidebar node in
+    // its layout, so BACK has no menu to enter and stays a no-op.
+    test("is a no-op in content when the page graph has no sidebar", () => {
+      machine.forceContext(Context.GRID)
+      machine.setNavGraph({ grid: {} })
       expect(machine.transition(Action.BACK)).toEqual({ type: "none" })
+      expect(machine.context).toBe(Context.GRID)
     })
   })
 

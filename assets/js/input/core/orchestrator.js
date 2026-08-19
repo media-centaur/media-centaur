@@ -297,10 +297,10 @@ export class Orchestrator {
       return
     }
 
-    // BACK only peels layers: overlays (modal/drawer) dismiss and the
-    // primary menu exits back to content. Everywhere else it is a no-op
-    // (the state machine returns NONE) — reaching the sidebar is the left
-    // edge's job, not Escape's.
+    // BACK peels containment layers: overlays (modal/drawer) dismiss, the
+    // primary menu exits back to content, and content enters the primary
+    // menu — the main nav is what contains every content region. See
+    // `_backTransition`.
     this._handleAction(action)
   }
 
@@ -941,13 +941,7 @@ export class Orchestrator {
     if (context === Context.GRID) {
       const result = this._gridNavigate(direction)
       if (result === "wall") {
-        const wallDirective = this.focusMachine.gridWall(direction)
-        // Record where we came from, same as the linear-list wall paths,
-        // so exiting the sidebar restores into the grid.
-        if (wallDirective.type === "enter_sidebar") {
-          this._preSidebarContext = context
-        }
-        this._executeDirective(wallDirective)
+        this._executeDirective(this.focusMachine.gridWall(direction))
       }
       return
     }
@@ -1035,7 +1029,6 @@ export class Orchestrator {
     this._saveContextMemory()
     const wallDirective = this.focusMachine.contextWall(context, direction)
     if (wallDirective.type !== "none") {
-      if (wallDirective.type === "enter_sidebar") this._preSidebarContext = context
       this._executeDirective(wallDirective)
       return
     }
@@ -1096,20 +1089,15 @@ export class Orchestrator {
     } else if (nextIndex < 0 || nextIndex >= totalCount) {
       const type = contextType(context, this._config.instanceTypes)
       // Left wall on a horizontal row (zone tabs or toolbar) → follow the nav
-      // graph's left edge. For the standard top-left contexts that edge is the
-      // sidebar; for a right-side toolbar companion (the upcoming mini-month)
-      // it is the rail. Keyed by TYPE so non-"toolbar" toolbar instances are
-      // included, and routed through contextWall so the graph — not a
-      // hardcoded sidebar — decides the target. Shelves never reach here: they
-      // resolve every direction, walls included, in _shelfNavigate.
+      // graph's left edge, where the layout declares one (the upcoming
+      // mini-month's edge to the rail). Keyed by TYPE so non-"toolbar" toolbar
+      // instances are included. No content context has a left edge to the
+      // sidebar — reaching the main menu is BACK's job. Shelves never reach
+      // here: they resolve every direction, walls included, in _shelfNavigate.
       if (nextIndex < 0 && direction === "left" &&
           (type === Context.ZONE_TABS || type === Context.TOOLBAR)) {
         this._saveContextMemory()
-        const wallDirective = this.focusMachine.contextWall(context, "left")
-        if (wallDirective.type === "enter_sidebar") {
-          this._preSidebarContext = context
-        }
-        this._executeDirective(wallDirective)
+        this._executeDirective(this.focusMachine.contextWall(context, "left"))
       }
       // Up/down wall on MENU or TREE → try nav graph neighbor. For a TREE the
       // edge exists only where the layout declares one (the Manage toolbar
@@ -1119,11 +1107,7 @@ export class Orchestrator {
                (contextType(context, this._config.instanceTypes) === Context.MENU ||
                 contextType(context, this._config.instanceTypes) === Context.TREE)) {
         this._saveContextMemory()
-        const wallDirective = this.focusMachine.contextWall(context, direction)
-        if (wallDirective.type === "enter_sidebar") {
-          this._preSidebarContext = context
-        }
-        this._executeDirective(wallDirective)
+        this._executeDirective(this.focusMachine.contextWall(context, direction))
       }
       return
     }

@@ -28,7 +28,7 @@ function mockDom({ filterValue = "" } = {}) {
 }
 
 describe("Library behavior", () => {
-  test("defines no onEscape — BACK is a no-op in content; left at the left edge reaches the sidebar", () => {
+  test("defines no onEscape — BACK semantics live in the state machine (content BACK enters the sidebar)", () => {
     const behavior = createLibraryBehavior(mockDom())
     expect(behavior.onEscape).toBeUndefined()
   })

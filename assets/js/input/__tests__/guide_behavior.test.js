@@ -12,7 +12,7 @@ describe("guide behavior", () => {
     expect(behavior.activateOnFocus).not.toContain("guide_outline")
   })
 
-  test("defines no onEscape — BACK is a no-op; left from chapters reaches the sidebar", () => {
+  test("defines no onEscape — BACK semantics live in the state machine (content BACK enters the sidebar)", () => {
     const behavior = createGuideBehavior()
     expect(behavior.onEscape).toBeUndefined()
   })
