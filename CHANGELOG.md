@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.1.0 — 2026-08-20
+
+### New
+
+- **Back is now the way to the main menu.** Press Escape (keyboard) or B (gamepad) from anywhere on a page to jump to the sidebar, landing on the current page's entry; press it again to return to where you were. Left no longer slides into the sidebar — it only moves within the page, so overshooting a row can't pull you out of it. Escape still closes an open title page first, then reaches the menu on the next press. The controller hint bar shows the new **B — Menu** shortcut.
+- **Collapse the sidebar without a mouse.** The Collapse control at the bottom of the sidebar is now part of keyboard and gamepad navigation — walk down to it and press Enter / A to pin the rail, and again to expand it. Moving the highlight over it never toggles anything; only a deliberate press does.
+
+### Improved
+
+- **The Watchlist sidebar entry is now opt-in.** The watchlist is an early preview and its shape may still change, so its sidebar entry hides behind the new **Show watchlist** toggle under Settings → Preferences (off by default). Nothing is lost when it's off: saved items are kept, the bookmark buttons stay in place, and the page remains reachable at `/watchlist`.
+
+### Fixed
+
+- **Auto-played episodes start at the beginning.** When you resumed an episode partway through and let the next one auto-play, the next episode could start at the same offset instead of from the start.
+- **Exiting the player now declines the next episode.** Quitting playback during the end-of-episode countdown no longer queues the next episode anyway — leaving the player is the "no".
+
 ## v1.0.0 — 2026-08-19
 
 Media Centaur 1.0. The core experience — finding, downloading, organizing, reviewing, watching, and tracking your library — is complete and stable. Releases continue as 1.x from here.
