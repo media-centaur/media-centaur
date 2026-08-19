@@ -72,7 +72,7 @@ defmodule MediaCentaur.ErrorReports.RedactorTest do
     setup do
       # Stub Config values. The real Config is `:persistent_term`-backed,
       # so we overwrite the key for the test and restore it after.
-      original = :persistent_term.get({MediaCentaur.Config, :config})
+      original = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
       patched =
         original
@@ -80,10 +80,10 @@ defmodule MediaCentaur.ErrorReports.RedactorTest do
         |> Map.put(:prowlarr_url, "http://prowlarr.local:9696")
         |> Map.put(:download_client_url, "http://qbit.local:8080")
 
-      :persistent_term.put({MediaCentaur.Config, :config}, patched)
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, patched)
 
       on_exit(fn ->
-        :persistent_term.put({MediaCentaur.Config, :config}, original)
+        :persistent_term.put({MediaCentaur.Settings.Config, :config}, original)
       end)
 
       :ok
@@ -107,11 +107,11 @@ defmodule MediaCentaur.ErrorReports.RedactorTest do
     end
 
     test "no-op on short/missing API key" do
-      original = :persistent_term.get({MediaCentaur.Config, :config})
+      original = :persistent_term.get({MediaCentaur.Settings.Config, :config})
       patched = Map.put(original, :tmdb_api_key, MediaCentaur.Secret.wrap(""))
-      :persistent_term.put({MediaCentaur.Config, :config}, patched)
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, patched)
 
-      on_exit(fn -> :persistent_term.put({MediaCentaur.Config, :config}, original) end)
+      on_exit(fn -> :persistent_term.put({MediaCentaur.Settings.Config, :config}, original) end)
 
       input = "error contains the literal string a"
       # empty key must not replace every 'a' in the input
@@ -121,15 +121,15 @@ defmodule MediaCentaur.ErrorReports.RedactorTest do
 
   describe "configured_urls/0" do
     test "returns the set of non-nil configured external URLs" do
-      original = :persistent_term.get({MediaCentaur.Config, :config})
+      original = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
       patched =
         original
         |> Map.put(:prowlarr_url, "http://p")
         |> Map.put(:download_client_url, nil)
 
-      :persistent_term.put({MediaCentaur.Config, :config}, patched)
-      on_exit(fn -> :persistent_term.put({MediaCentaur.Config, :config}, original) end)
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, patched)
+      on_exit(fn -> :persistent_term.put({MediaCentaur.Settings.Config, :config}, original) end)
 
       urls = Redactor.configured_urls()
       assert "http://p" in urls

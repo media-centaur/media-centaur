@@ -42,4 +42,4 @@ All of these live on the **Settings** page and apply immediately with no restart
 
 ## Contributor reference
 
-`MediaCentaur.Config` details live in the module's `@moduledoc` (`lib/media_centaur/config.ex`).
+`MediaCentaur.Settings.Config` details live in the module's `@moduledoc` (`lib/media_centaur/settings/config.ex`).

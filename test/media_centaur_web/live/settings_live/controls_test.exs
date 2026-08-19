@@ -3,7 +3,7 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsTest do
 
   import Phoenix.LiveViewTest
 
-  alias MediaCentaur.Controls
+  alias MediaCentaur.Settings.Controls
 
   describe "mount" do
     test "renders all bindings grouped by category", %{conn: conn} do

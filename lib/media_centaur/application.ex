@@ -6,7 +6,7 @@ defmodule MediaCentaur.Application do
     top_level?: true,
     deps: [
       MediaCentaur.Capabilities,
-      MediaCentaur.Controls,
+      MediaCentaur.Settings.Controls,
       MediaCentaur.Library,
       MediaCentaur.Maintenance,
       MediaCentaur.Pipeline,
@@ -21,16 +21,18 @@ defmodule MediaCentaur.Application do
       MediaCentaur.Downloads,
       MediaCentaur.WatchHistory,
       MediaCentaur.SelfUpdate,
-      MediaCentaur.Preferences,
+      MediaCentaur.Settings.Preferences,
       MediaCentaur.TMDB,
       MediaCentaurWeb
     ]
 
   use Application
 
+  alias MediaCentaur.Settings.Config
+
   @impl true
   def start(_type, _args) do
-    MediaCentaur.Config.load!()
+    Config.load!()
 
     :logger.add_handler(
       :media_centaur_console,
@@ -122,7 +124,7 @@ defmodule MediaCentaur.Application do
   or passes the error through unchanged when it didn't.
 
   Skipping the hooks on a failed start prevents misleading secondary
-  errors — e.g. `Config.load_runtime_overrides/0` tries to read Settings
+  errors — e.g. `Settings.Config.load_runtime_overrides/0` tries to read Settings
   from Repo, and if a child failed to start, Repo is already being torn
   down. The Repo-lookup crash that results hides the original cause of
   the failure. Guarding here keeps the first crash the only crash.
@@ -130,7 +132,7 @@ defmodule MediaCentaur.Application do
   @spec post_supervisor_hooks({:ok, pid()} | {:error, term()}) ::
           {:ok, pid()} | {:error, term()}
   def post_supervisor_hooks({:ok, _pid} = result) do
-    MediaCentaur.Config.load_runtime_overrides()
+    Config.load_runtime_overrides()
 
     # Hydrate the update-check cache from persisted state and, if the
     # last check is stale, enqueue a fresh one. Skipped in test mode so
@@ -148,11 +150,11 @@ defmodule MediaCentaur.Application do
     toml_entries = Application.get_env(:media_centaur, :__raw_toml_media_dirs, [])
 
     try do
-      :ok = MediaCentaur.Config.migrate_media_dirs_from_toml(toml_entries)
-      :ok = MediaCentaur.Config.refresh_media_dirs_from_settings()
-      :ok = MediaCentaur.Config.load_runtime_overrides()
+      :ok = Config.migrate_media_dirs_from_toml(toml_entries)
+      :ok = Config.refresh_media_dirs_from_settings()
+      :ok = Config.load_runtime_overrides()
 
-      count = length(MediaCentaur.Config.media_dirs_entries())
+      count = length(Config.media_dirs_entries())
       require MediaCentaur.Log
       MediaCentaur.Log.info(:library, "media_dirs: #{count} entries active")
     rescue
@@ -216,7 +218,7 @@ defmodule MediaCentaur.Application do
       # Settings starts first so derived caches see a warm upstream.
       {MediaCentaur.Cache.Worker, context: MediaCentaur.Settings},
       {MediaCentaur.Cache.Worker, context: MediaCentaur.Capabilities},
-      {MediaCentaur.Cache.Worker, context: MediaCentaur.Controls},
+      {MediaCentaur.Cache.Worker, context: MediaCentaur.Settings.Controls},
       # ETS-backed Library projections (ADR-041).
       {MediaCentaur.Cache.Worker, context: MediaCentaur.Library.Views.Browse},
       {MediaCentaur.Cache.Worker, context: MediaCentaur.Library.Views.ContinueWatching},

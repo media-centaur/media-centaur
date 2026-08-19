@@ -3,7 +3,7 @@ defmodule MediaCentaur.DownloadsTest do
   # as DispatcherTest.
   use ExUnit.Case, async: false
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Downloads
   alias MediaCentaur.Downloads.ClientConfig
   alias MediaCentaur.Secret

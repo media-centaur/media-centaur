@@ -14,7 +14,7 @@ defmodule MediaCentaurWeb.SettingsLiveUpdateAutomationTest do
 
   import Phoenix.LiveViewTest
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.SelfUpdate.UpdateChecker
 
   setup do

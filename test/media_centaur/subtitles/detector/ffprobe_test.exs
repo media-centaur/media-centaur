@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Subtitles.Detector.FfprobeTest do
   use ExUnit.Case, async: false
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Subtitles.Detector.Ffprobe
   alias MediaCentaur.Subtitles.Track
 

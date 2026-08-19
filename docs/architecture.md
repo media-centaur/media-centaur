@@ -87,7 +87,7 @@ The backend is organised into the bounded contexts below plus a TMDB adapter, al
 | `MediaCentaur.TMDB` | TMDB HTTP adapter + rate limiter | Cross-cutting adapter, not a bounded context owner. |
 | `MediaCentaur.TmdbArtwork` | `{data_dir}/images/tmdb/` cache — temporary artwork for TMDB identities not (yet) in the library | Referenced tier of the artwork promotion ladder: entries are held alive by registered `HoldProvider`s (`:tmdb_artwork_hold_providers` — tracked items, non-terminal pursuits) and swept 7 days after last use once unheld. |
 | `MediaCentaur.Capabilities` | Pure query layer over Settings | Predicates that gate features on a passing Test Connection. Reads `Settings`, owns no state. |
-| `MediaCentaur.Controls` | Compile-time keybinding catalog + persisted overrides | Used by Settings → Controls UI. |
+| `MediaCentaur.Settings.Controls` | Compile-time keybinding catalog + persisted overrides | Used by Settings → Controls UI. |
 | `MediaCentaur.Downloads` | Download-client drivers (`qBittorrent`, `SABnzbd`) behind one `@behaviour`, queue monitor, client health | Two-slot model — see [docs/download-clients.md](download-clients.md). |
 | `MediaCentaur.Search` | Indexer search providers (Prowlarr) + query expansion | Feeds Acquisition; gated by `Capabilities`. |
 | `MediaCentaur.Subtitles` | `subtitles_*` table, embedded + sidecar track detection | Owned by Library's ingest path, read by Playback. |
@@ -201,10 +201,10 @@ Protocol specifications live in [`specs/`](../specs/):
 | Module | Description | Path |
 |--------|-------------|------|
 | `MediaCentaur.Application` | OTP application, supervision tree | `lib/media_centaur/application.ex` |
-| `MediaCentaur.Config` | Bootstrap TOML loader (`database_path`, `port`, `media_dirs` seed) + DB-backed runtime config | `lib/media_centaur/config.ex` |
+| `MediaCentaur.Settings.Config` | Bootstrap TOML loader (`database_path`, `port`, `media_dirs` seed) + DB-backed runtime config | `lib/media_centaur/settings/config.ex` |
 | `MediaCentaur.Topics` | Single source of truth for PubSub topic strings | `lib/media_centaur/topics.ex` |
 | `MediaCentaur.Capabilities` | Predicates gating features on Test Connection results | `lib/media_centaur/capabilities.ex` |
-| `MediaCentaur.Controls` | Keybinding catalog + persisted overrides | `lib/media_centaur/controls.ex` |
+| `MediaCentaur.Settings.Controls` | Keybinding catalog + persisted overrides | `lib/media_centaur/settings/controls.ex` |
 | `MediaCentaur.ImageFiles` | Shared image download + libvips resize service | `lib/media_centaur/image_files.ex` |
 | `MediaCentaur.Log` | Component-tagged thinking-log macros | `lib/media_centaur/log.ex` |
 | `MediaCentaur.Storage` | Disk usage measurement | `lib/media_centaur/storage.ex` |

@@ -28,7 +28,7 @@ defmodule MediaCentaur.Library.AbsenceSweeperTest do
   alias MediaCentaur.Repo
 
   setup do
-    original_ttl = MediaCentaur.Config.get(:file_absence_ttl_days)
+    original_ttl = MediaCentaur.Settings.Config.get(:file_absence_ttl_days)
     on_exit(fn -> if original_ttl, do: put_ttl_days(original_ttl) end)
     :ok
   end
@@ -100,10 +100,10 @@ defmodule MediaCentaur.Library.AbsenceSweeperTest do
   # --- helpers ---
 
   defp put_ttl_days(days) do
-    config = :persistent_term.get({MediaCentaur.Config, :config})
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
     :persistent_term.put(
-      {MediaCentaur.Config, :config},
+      {MediaCentaur.Settings.Config, :config},
       Map.put(config, :file_absence_ttl_days, days)
     )
   end

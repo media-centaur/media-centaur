@@ -3,7 +3,7 @@ defmodule MediaCentaur.Pipeline.ImageRepairTest do
 
   import MediaCentaur.TmdbStubs
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Library
   alias MediaCentaur.Pipeline.ImageQueue
   alias MediaCentaur.Pipeline.ImageQueueEntry

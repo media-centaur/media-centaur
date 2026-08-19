@@ -99,7 +99,7 @@ defmodule MediaCentaurWeb.Components.Detail.ManagePanel do
     external_ids =
       if is_list(assigns.entity.external_ids), do: assigns.entity.external_ids, else: []
 
-    media_dirs = MapSet.new(MediaCentaur.Config.get(:media_dirs) || [])
+    media_dirs = MapSet.new(MediaCentaur.Settings.Config.get(:media_dirs) || [])
     file_groups = build_file_groups(assigns.files, media_dirs)
     expanded_dirs = effective_expanded_dirs(file_groups, assigns.expanded_groups)
 

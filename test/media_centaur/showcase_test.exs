@@ -27,17 +27,17 @@ defmodule MediaCentaur.ShowcaseTest do
     # dir for the duration of the test.
     tmp_dir = Path.join(System.tmp_dir!(), "showcase-test-#{System.unique_integer([:positive])}")
     File.mkdir_p!(tmp_dir)
-    config = :persistent_term.get({MediaCentaur.Config, :config})
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
     :persistent_term.put(
-      {MediaCentaur.Config, :config},
+      {MediaCentaur.Settings.Config, :config},
       config
       |> Map.put(:media_dirs, [tmp_dir])
       |> Map.put(:database_path, "priv/showcase/test.db")
     )
 
     on_exit(fn ->
-      :persistent_term.put({MediaCentaur.Config, :config}, config)
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
       File.rm_rf!(tmp_dir)
     end)
 
@@ -129,16 +129,16 @@ defmodule MediaCentaur.ShowcaseTest do
       # must not redirect /library and / to /setup (SetupRedirect plug).
       # Force the first-run state so this proves the seeder flips it, rather
       # than passing on whatever ambient value persistent_term already holds.
-      config = :persistent_term.get({MediaCentaur.Config, :config})
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
       :persistent_term.put(
-        {MediaCentaur.Config, :config},
+        {MediaCentaur.Settings.Config, :config},
         Map.put(config, :setup_wizard_dismissed, false)
       )
 
       Showcase.seed!()
 
-      assert MediaCentaur.Config.get(:setup_wizard_dismissed) == true
+      assert MediaCentaur.Settings.Config.get(:setup_wizard_dismissed) == true
     end
   end
 
@@ -422,14 +422,14 @@ defmodule MediaCentaur.ShowcaseTest do
 
   describe "safety rail" do
     test "raises when database_path does not look like a showcase path" do
-      config = :persistent_term.get({MediaCentaur.Config, :config})
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
       :persistent_term.put(
-        {MediaCentaur.Config, :config},
+        {MediaCentaur.Settings.Config, :config},
         Map.put(config, :database_path, "/home/user/.local/share/media-centaur/media-centaur.db")
       )
 
-      on_exit(fn -> :persistent_term.put({MediaCentaur.Config, :config}, config) end)
+      on_exit(fn -> :persistent_term.put({MediaCentaur.Settings.Config, :config}, config) end)
 
       assert_raise RuntimeError, ~r/refusing to seed/i, fn ->
         Showcase.seed!()

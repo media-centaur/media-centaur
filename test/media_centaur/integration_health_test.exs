@@ -15,7 +15,7 @@ defmodule MediaCentaur.IntegrationHealthTest do
   # owns a named ETS table, so concurrent tests would clobber each other.
   use ExUnit.Case, async: false
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.IntegrationHealth
   alias MediaCentaur.IntegrationHealth.Status
   alias MediaCentaur.IntegrationHealthTest.{OkVerifier, RejectVerifier}

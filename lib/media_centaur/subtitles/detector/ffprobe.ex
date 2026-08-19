@@ -12,7 +12,7 @@ defmodule MediaCentaur.Subtitles.Detector.Ffprobe do
   `:media_centaur, :subtitles_runner` to return canned output.
   """
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Subtitles.Detector.Runner
   alias MediaCentaur.Subtitles.LanguageCode
   alias MediaCentaur.Subtitles.Track

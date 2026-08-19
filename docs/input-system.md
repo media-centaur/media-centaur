@@ -69,7 +69,7 @@ Tests in `__tests__/` run via `bun test assets/js/input/__tests__/`.
 | `incoming_behavior.js` | Yes | Incoming (`/incoming`) page navigation |
 | `status_behavior.js` | Yes | Status (`/status`) page navigation |
 | `watch_history_behavior.js` | Yes | Watch History (`/history`) page — filter pills, date badge, event list, pagination |
-| `controls_bridge.js` | No | Listens for `controls:updates` from `MediaCentaur.Controls` and rewrites the keyboard/gamepad source maps at runtime so user rebindings take effect without reload |
+| `controls_bridge.js` | No | Listens for `controls:updates` from `MediaCentaur.Settings.Controls` and rewrites the keyboard/gamepad source maps at runtime so user rebindings take effect without reload |
 
 *Library behavior is pure when injected with mock DOM.
 

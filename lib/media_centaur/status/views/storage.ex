@@ -29,7 +29,7 @@ defmodule MediaCentaur.Status.Views.Storage do
   """
   @behaviour MediaCentaur.Cache
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Library.AbsenceSweeper
   alias MediaCentaur.Library.Availability
   alias MediaCentaur.Status.Views.StorageSnapshot

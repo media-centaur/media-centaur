@@ -110,7 +110,7 @@ defmodule MediaCentaur.Credo.Checks.LookupNamingContractTest do
 
     test "get_* backed by Map.get or Enum.find is allowed" do
       ~S'''
-      defmodule MediaCentaur.Controls.Catalog do
+      defmodule MediaCentaur.Settings.Controls.Catalog do
         def get(id), do: Enum.find(@bindings, &(&1.id == id))
         def get_config(key), do: Map.get(:persistent_term.get({__MODULE__, :config}), key)
       end

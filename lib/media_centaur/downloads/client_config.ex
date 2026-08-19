@@ -4,7 +4,7 @@ defmodule MediaCentaur.Downloads.ClientConfig do
 
   Config storage stays flat keys — the pre-existing `download_client_*`
   keys are the **torrent slot** and `usenet_download_client_*` is the
-  **usenet slot** — but everything above `MediaCentaur.Config` consumes
+  **usenet slot** — but everything above `MediaCentaur.Settings.Config` consumes
   slots in this shape, via `MediaCentaur.Downloads.configured_clients/0`.
   One slot per protocol: Prowlarr routes each grab by the indexer's
   protocol, so MC never needs N clients of the same protocol.

@@ -9,8 +9,8 @@ defmodule MediaCentaur.TmdbArtworkTest do
     dir = Path.join(System.tmp_dir!(), "tmdb_artwork_test_#{System.unique_integer([:positive])}")
     File.mkdir_p!(dir)
 
-    config = :persistent_term.get({MediaCentaur.Config, :config})
-    :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, :data_dir, dir))
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+    :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, :data_dir, dir))
 
     on_exit(fn -> File.rm_rf!(dir) end)
     {:ok, data_dir: dir}
@@ -142,8 +142,8 @@ defmodule MediaCentaur.TmdbArtworkTest do
     end
 
     test "no data_dir configured sweeps nothing" do
-      config = :persistent_term.get({MediaCentaur.Config, :config})
-      :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, :data_dir, nil))
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, :data_dir, nil))
 
       assert TmdbArtwork.sweep() == 0
     end

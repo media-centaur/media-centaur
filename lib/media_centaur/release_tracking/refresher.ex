@@ -257,12 +257,12 @@ defmodule MediaCentaur.ReleaseTracking.Refresher do
   end
 
   defp refresh_interval_ms do
-    hours = MediaCentaur.Config.get(:release_tracking_refresh_interval_hours) || 6
+    hours = MediaCentaur.Settings.Config.get(:release_tracking_refresh_interval_hours) || 6
     hours * 60 * 60 * 1000
   end
 
   defp sweep_interval_ms do
-    minutes = MediaCentaur.Config.get(:release_tracking_sweep_interval_minutes) || 15
+    minutes = MediaCentaur.Settings.Config.get(:release_tracking_sweep_interval_minutes) || 15
     minutes * 60 * 1000
   end
 

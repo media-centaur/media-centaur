@@ -91,7 +91,7 @@ defmodule MediaCentaur.Library.FileEventHandler do
   """
   @spec delete_folder(String.t(), [String.t()]) :: {:ok, [String.t()]} | {:error, any()}
   def delete_folder(folder_path, file_paths) do
-    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
+    media_dirs = MediaCentaur.Settings.Config.get(:media_dirs) || []
 
     if folder_path in media_dirs do
       Log.warning(:library, "refused to delete media directory — #{folder_path}")

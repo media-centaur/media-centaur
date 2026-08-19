@@ -17,7 +17,7 @@ defmodule MediaCentaur.ErrorReports.ShutdownMonitor do
   """
   use GenServer
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.ErrorReports
   alias MediaCentaur.ErrorReports.ShutdownMarker
 

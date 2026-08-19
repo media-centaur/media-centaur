@@ -44,7 +44,7 @@ defmodule MediaCentaurWeb.Components.PosterRow do
   attr :show_play_button, :boolean,
     default: true,
     doc:
-      "When false, suppresses the hover play overlay (UIDR-027). Driven by the `card_play_button` Settings entry (see `MediaCentaur.Preferences.CardPlayButton`)."
+      "When false, suppresses the hover play overlay (UIDR-027). Driven by the `card_play_button` Settings entry (see `MediaCentaur.Settings.Preferences.CardPlayButton`)."
 
   def poster_row(assigns) do
     ~H"""

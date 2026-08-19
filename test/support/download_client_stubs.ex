@@ -19,10 +19,10 @@ defmodule MediaCentaur.DownloadClientStubs do
   body; cleans up on exit automatically.
   """
   def setup_qbittorrent_client(context \\ %{}) do
-    config = :persistent_term.get({MediaCentaur.Config, :config})
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
     :persistent_term.put(
-      {MediaCentaur.Config, :config},
+      {MediaCentaur.Settings.Config, :config},
       Map.merge(config, %{
         download_client_type: "qbittorrent",
         download_client_url: "http://qbit.test"
@@ -34,7 +34,7 @@ defmodule MediaCentaur.DownloadClientStubs do
     Req.Test.stub(:qbittorrent, fn conn -> Req.Test.json(conn, %{}) end)
 
     ExUnit.Callbacks.on_exit(fn ->
-      :persistent_term.put({MediaCentaur.Config, :config}, config)
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
       QBittorrent.invalidate_client()
     end)
 
@@ -48,10 +48,10 @@ defmodule MediaCentaur.DownloadClientStubs do
   history; override per test with `Req.Test.stub(:sabnzbd, …)`.
   """
   def setup_sabnzbd_client(context \\ %{}) do
-    config = :persistent_term.get({MediaCentaur.Config, :config})
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
     :persistent_term.put(
-      {MediaCentaur.Config, :config},
+      {MediaCentaur.Settings.Config, :config},
       Map.merge(config, %{
         usenet_download_client_type: "sabnzbd",
         usenet_download_client_url: "http://sab.test"
@@ -69,7 +69,7 @@ defmodule MediaCentaur.DownloadClientStubs do
     end)
 
     ExUnit.Callbacks.on_exit(fn ->
-      :persistent_term.put({MediaCentaur.Config, :config}, config)
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
       SABnzbd.invalidate_client()
     end)
 

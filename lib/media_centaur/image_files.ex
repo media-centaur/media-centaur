@@ -159,7 +159,7 @@ defmodule MediaCentaur.ImageFiles do
   defp derivative_root do
     base =
       Process.get(:image_derivative_root) ||
-        MediaCentaur.Config.get(:data_dir) ||
+        MediaCentaur.Settings.Config.get(:data_dir) ||
         System.tmp_dir!()
 
     Path.join(base, "image-derivatives")

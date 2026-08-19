@@ -94,7 +94,7 @@ defmodule MediaCentaur.Library.Images do
     with false <- Enum.any?(lookup, fn {_key, value} -> is_nil(value) end),
          %Image{content_url: old_url} when is_binary(old_url) <- Repo.get_by(Image, lookup),
          new_url when new_url != old_url <- Map.get(attrs, :content_url),
-         old_path when is_binary(old_path) <- MediaCentaur.Config.resolve_image_path(old_url) do
+         old_path when is_binary(old_path) <- MediaCentaur.Settings.Config.resolve_image_path(old_url) do
       File.rm(old_path)
     else
       _no_replaced_file -> :ok

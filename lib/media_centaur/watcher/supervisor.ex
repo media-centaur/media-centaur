@@ -9,6 +9,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
   import Ecto.Query
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Library
   alias MediaCentaur.Repo
   alias MediaCentaur.Topics
@@ -143,7 +144,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
   Called after the supervisor starts to launch a watcher for each configured directory.
   """
   def start_watchers do
-    dirs = MediaCentaur.Config.get(:media_dirs) || []
+    dirs = Config.get(:media_dirs) || []
 
     Enum.each(dirs, fn dir ->
       start_under(
@@ -159,7 +160,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
   Starts a DirMonitor for each image directory that needs independent monitoring.
   """
   def start_image_dir_monitors do
-    pairs = MediaCentaur.Config.image_dirs_needing_monitoring()
+    pairs = Config.image_dirs_needing_monitoring()
     Enum.each(pairs, &start_image_monitor/1)
   end
 
@@ -174,7 +175,7 @@ defmodule MediaCentaur.Watcher.Supervisor do
     actions =
       MediaCentaur.Watcher.Reconciler.diff_image_monitors(
         currently_running_image_pairs(),
-        MediaCentaur.Config.image_dirs_needing_monitoring()
+        Config.image_dirs_needing_monitoring()
       )
 
     Enum.each(actions.to_stop, &stop_image_monitor/1)

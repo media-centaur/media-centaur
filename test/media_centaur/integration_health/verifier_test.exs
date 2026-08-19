@@ -3,7 +3,7 @@ defmodule MediaCentaur.IntegrationHealth.VerifierTest do
   # which download-client slots count as configured.
   use ExUnit.Case, async: false
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.IntegrationHealth.Verifier
 
   setup do

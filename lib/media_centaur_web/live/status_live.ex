@@ -12,7 +12,8 @@ defmodule MediaCentaurWeb.StatusLive do
   import MediaCentaurWeb.StatusHelpers
   import MediaCentaurWeb.HealthComponents
 
-  alias MediaCentaur.{Config, ErrorReports, Playback, SelfUpdate, Status}
+  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.{ErrorReports, Playback, SelfUpdate, Status}
   alias MediaCentaur.SelfUpdate.Changelog
   alias MediaCentaur.Version
   alias MediaCentaurWeb.StatusLive.ActivityWidgets
@@ -625,7 +626,7 @@ defmodule MediaCentaurWeb.StatusLive do
   end
 
   defp load_config do
-    config = MediaCentaur.Config
+    config = MediaCentaur.Settings.Config
 
     %{
       tmdb_configured: MediaCentaur.Secret.present?(config.get(:tmdb_api_key)),

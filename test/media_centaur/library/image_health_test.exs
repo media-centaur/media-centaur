@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Library.ImageHealthTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Library
   alias MediaCentaur.Library.ImageHealth
 

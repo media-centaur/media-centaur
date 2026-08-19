@@ -7,7 +7,7 @@ defmodule MediaCentaur.Library.RetentionPolicies do
   """
   @behaviour MediaCentaur.Retention.PolicyProvider
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Retention.Policy
 
   @change_log_cap 100

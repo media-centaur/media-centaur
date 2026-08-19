@@ -10,7 +10,7 @@ defmodule MediaCentaurWeb.SetupLiveTest do
 
   import Phoenix.LiveViewTest
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
 
   setup do
     original = :persistent_term.get({Config, :config})

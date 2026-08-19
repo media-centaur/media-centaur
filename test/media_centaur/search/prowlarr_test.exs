@@ -227,10 +227,10 @@ defmodule MediaCentaur.Search.ProwlarrTest do
 
   describe "default_client/0" do
     setup do
-      original = :persistent_term.get({MediaCentaur.Config, :config})
+      original = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
       :persistent_term.put(
-        {MediaCentaur.Config, :config},
+        {MediaCentaur.Settings.Config, :config},
         %{
           original
           | prowlarr_url: "http://prowlarr.test",
@@ -242,7 +242,7 @@ defmodule MediaCentaur.Search.ProwlarrTest do
       Prowlarr.invalidate_client()
 
       on_exit(fn ->
-        :persistent_term.put({MediaCentaur.Config, :config}, original)
+        :persistent_term.put({MediaCentaur.Settings.Config, :config}, original)
         Prowlarr.invalidate_client()
       end)
 

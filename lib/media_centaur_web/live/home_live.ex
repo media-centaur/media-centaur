@@ -61,7 +61,7 @@ defmodule MediaCentaurWeb.HomeLive do
       |> assign(:recently_added_timer, nil)
       |> assign(:hero_timer, nil)
       |> assign(:availability_map, %{})
-      |> assign(:media_dirs, MediaCentaur.Config.get(:media_dirs) || [])
+      |> assign(:media_dirs, MediaCentaur.Settings.Config.get(:media_dirs) || [])
       # Bumped on every `:availability_changed` so /media-images/* URLs get a
       # fresh `?v=` and the browser refetches artwork that may have flipped
       # between placeholder and real file. See `Logic.with_image_version/2`.

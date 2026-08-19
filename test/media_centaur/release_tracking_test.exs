@@ -1496,8 +1496,8 @@ defmodule MediaCentaur.ReleaseTrackingTest do
         Path.join(System.tmp_dir!(), "rt_artwork_#{System.unique_integer([:positive])}")
 
       File.mkdir_p!(data_dir)
-      config = :persistent_term.get({MediaCentaur.Config, :config})
-      :persistent_term.put({MediaCentaur.Config, :config}, Map.put(config, :data_dir, data_dir))
+      config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, Map.put(config, :data_dir, data_dir))
       on_exit(fn -> File.rm_rf!(data_dir) end)
       data_dir
     end

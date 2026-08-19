@@ -34,10 +34,10 @@ defmodule MediaCentaurWeb.IncomingLivePursuitModalTest do
     client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
     :persistent_term.put({Prowlarr, :client}, client)
 
-    config = :persistent_term.get({MediaCentaur.Config, :config})
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
     :persistent_term.put(
-      {MediaCentaur.Config, :config},
+      {MediaCentaur.Settings.Config, :config},
       Map.merge(config, %{
         prowlarr_url: "http://prowlarr.test",
         prowlarr_api_key: Secret.wrap("test-key")

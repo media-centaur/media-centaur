@@ -17,12 +17,13 @@ defmodule MediaCentaur.Capabilities do
   result is a strong signal that the integration is currently usable.
 
   Nothing here owns a GenServer or data table — the module is a pure
-  query layer over `MediaCentaur.Config` + `MediaCentaur.Settings.Entry`.
+  query layer over `MediaCentaur.Settings.Config` + `MediaCentaur.Settings.Entry`.
   Writers call `save_test_result/2` and `clear_test_result/1`, which
   persist through `Settings` and broadcast `:capabilities_changed` on
   `Topics.capabilities_updates/0` so subscribed LiveViews can refresh.
   """
 
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Settings
   alias MediaCentaur.Topics
 
@@ -219,18 +220,18 @@ defmodule MediaCentaur.Capabilities do
     end
   end
 
-  defp tmdb_configured?, do: MediaCentaur.Secret.present?(MediaCentaur.Config.get(:tmdb_api_key))
+  defp tmdb_configured?, do: MediaCentaur.Secret.present?(Config.get(:tmdb_api_key))
 
   defp prowlarr_configured? do
-    url = MediaCentaur.Config.get(:prowlarr_url)
+    url = Config.get(:prowlarr_url)
 
     is_binary(url) and url != "" and
-      MediaCentaur.Secret.present?(MediaCentaur.Config.get(:prowlarr_api_key))
+      MediaCentaur.Secret.present?(Config.get(:prowlarr_api_key))
   end
 
   defp client_configured?(type_key, url_key) do
-    type = MediaCentaur.Config.get(type_key)
-    url = MediaCentaur.Config.get(url_key)
+    type = Config.get(type_key)
+    url = Config.get(url_key)
     is_binary(type) and type != "" and is_binary(url) and url != ""
   end
 

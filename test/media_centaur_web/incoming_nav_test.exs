@@ -18,7 +18,7 @@ defmodule MediaCentaurWeb.IncomingNavTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Capabilities
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Topics
 
   @cache_key {Capabilities, :ready_flags}

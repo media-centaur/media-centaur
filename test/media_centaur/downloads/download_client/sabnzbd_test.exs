@@ -3,7 +3,8 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbdTest do
 
   alias MediaCentaur.Downloads.DownloadClient.SABnzbd
   alias MediaCentaur.Downloads.QueueItem
-  alias MediaCentaur.{Config, Secret}
+  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.Secret
 
   setup do
     original_config = :persistent_term.get({Config, :config}, %{})

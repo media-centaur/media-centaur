@@ -37,6 +37,8 @@ defmodule MediaCentaurWeb.LibraryLive do
   use MediaCentaurWeb.Live.LetterboxdLinksAware
   use MediaCentaurWeb.Live.WatchlistAware
 
+  alias MediaCentaur.Settings.Config
+
   alias MediaCentaur.{
     Library,
     Library.Availability
@@ -60,7 +62,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     if connected?(socket) do
       Library.Views.subscribe()
       Availability.subscribe()
-      MediaCentaur.Config.subscribe()
+      Config.subscribe()
       Process.send_after(self(), :tick_pipeline, 1_000)
     end
 
@@ -81,7 +83,7 @@ defmodule MediaCentaurWeb.LibraryLive do
        counts: %{all: 0, movies: 0, tv: 0},
        grid_count: 0,
        unavailable_count: 0,
-       media_dirs: MediaCentaur.Config.get(:media_dirs) || [],
+       media_dirs: Config.get(:media_dirs) || [],
        media_dirs_configured: media_dirs_configured?(),
        dir_status: Availability.dir_status(),
        pipeline_queue_depth: 0,
@@ -97,7 +99,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   the empty-state branch to decide between "no media yet" (user hasn't
   set up a library root) and "media_dirs configured but no files found".
   """
-  def media_dirs_configured?(dirs \\ MediaCentaur.Config.get(:media_dirs)) do
+  def media_dirs_configured?(dirs \\ Config.get(:media_dirs)) do
     case dirs do
       list when is_list(list) and list != [] -> true
       _ -> false
@@ -282,7 +284,7 @@ defmodule MediaCentaurWeb.LibraryLive do
   def handle_info({:config_updated, :media_dirs, _entries}, socket) do
     {:noreply,
      assign(socket,
-       media_dirs: MediaCentaur.Config.get(:media_dirs) || [],
+       media_dirs: Config.get(:media_dirs) || [],
        media_dirs_configured: media_dirs_configured?()
      )}
   end

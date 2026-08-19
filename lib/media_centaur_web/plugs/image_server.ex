@@ -16,6 +16,8 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
   @behaviour Plug
   import Plug.Conn
 
+  alias MediaCentaur.Settings.Config
+
   # {width, height} in SVG units — the viewBox shape is what makes the
   # placeholder swap in seamlessly for the missing asset.
   @placeholder_dims %{
@@ -91,10 +93,10 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
   end
 
   defp locate_file(relative) do
-    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
+    media_dirs = Config.get(:media_dirs) || []
 
     Enum.find_value(media_dirs, fn dir ->
-      candidate = Path.join(MediaCentaur.Config.images_dir_for(dir), relative)
+      candidate = Path.join(Config.images_dir_for(dir), relative)
       if File.regular?(candidate), do: candidate
     end) || find_in_data_dir(relative) || find_in_legacy_data(relative)
   end
@@ -102,7 +104,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
   # Configured app-data root — covers tracking-item images written by
   # `MediaCentaur.ReleaseTracking.ImageStore`. Independent of cwd.
   defp find_in_data_dir(relative) do
-    case MediaCentaur.Config.get(:data_dir) do
+    case Config.get(:data_dir) do
       nil ->
         nil
 

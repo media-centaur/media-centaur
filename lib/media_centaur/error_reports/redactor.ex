@@ -13,7 +13,7 @@ defmodule MediaCentaur.ErrorReports.Redactor do
   Unicode-aware; callers can assume input has been NFC-normalized.
   """
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Secret
 
   @min_secret_len 8

@@ -81,7 +81,7 @@ defmodule MediaCentaurWeb.Layouts do
     default: false,
     doc: """
     Whether the sidebar shows the Watchlist entry — the `show_watchlist`
-    preference (`MediaCentaur.Preferences.WatchlistVisibility`, default off
+    preference (`MediaCentaur.Settings.Preferences.WatchlistVisibility`, default off
     while the feature is an opt-in preview). Seeded app-wide by the
     `SettingAware` on_mount in the default `live_session`; only the nav
     entry is gated — `/watchlist` stays reachable by URL.
@@ -390,8 +390,8 @@ defmodule MediaCentaurWeb.Layouts do
   end
 
   defp input_bindings do
-    resolved = MediaCentaur.Controls.get()
-    catalog = MediaCentaur.Controls.Catalog.all()
+    resolved = MediaCentaur.Settings.Controls.get()
+    catalog = MediaCentaur.Settings.Controls.Catalog.all()
     input_scope_ids = for b <- catalog, b.scope == :input_system, do: b.id
 
     %{
@@ -413,8 +413,8 @@ defmodule MediaCentaurWeb.Layouts do
   end
 
   defp global_bindings do
-    resolved = MediaCentaur.Controls.get()
-    catalog = MediaCentaur.Controls.Catalog.all()
+    resolved = MediaCentaur.Settings.Controls.get()
+    catalog = MediaCentaur.Settings.Controls.Catalog.all()
     global_scope_ids = for b <- catalog, b.scope == :global, do: b.id
 
     Enum.reduce(global_scope_ids, %{}, fn id, acc ->

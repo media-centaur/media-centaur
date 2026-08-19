@@ -100,7 +100,7 @@ defmodule MediaCentaur.Playback.NextEpisodeTest do
       %{episode_one: episode_one} = create_series_with_two_episodes(dir)
 
       Settings.find_or_create_entry!(%{
-        key: MediaCentaur.Preferences.AutoPlayNextEpisode.setting_key(),
+        key: MediaCentaur.Settings.Preferences.AutoPlayNextEpisode.setting_key(),
         value: %{"enabled" => false}
       })
 

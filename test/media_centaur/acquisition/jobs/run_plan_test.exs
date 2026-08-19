@@ -12,10 +12,10 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     client = Req.new(plug: {Req.Test, :prowlarr}, retry: false, base_url: "http://prowlarr.test")
     :persistent_term.put({Prowlarr, :client}, client)
 
-    config = :persistent_term.get({MediaCentaur.Config, :config})
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
     :persistent_term.put(
-      {MediaCentaur.Config, :config},
+      {MediaCentaur.Settings.Config, :config},
       config
       |> Map.put(:prowlarr_url, "http://prowlarr.test")
       |> Map.put(:prowlarr_api_key, MediaCentaur.Secret.wrap("test-key"))
@@ -23,7 +23,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
 
     on_exit(fn ->
       :persistent_term.erase({Prowlarr, :client})
-      :persistent_term.put({MediaCentaur.Config, :config}, config)
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
     end)
 
     :ok

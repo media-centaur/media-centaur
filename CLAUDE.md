@@ -176,7 +176,7 @@ Architecture records are cited as **ADR-NNN**, user-interface records as **UIDR-
 
 ## Defaults
 
-`defaults/` contains git-tracked starter configs — seed values shipped with the repo, **never overwritten at runtime**. `defaults/media-centaur.toml` carries **only bootstrap state** — `database_path`, `port`, and the initial `media_dirs` seed (the values the app needs before its database is reachable). Every runtime preference lives in the Settings database and is set in-app; TOML is no longer read for those keys (see the `MediaCentaur.Config` moduledoc). Keep every bootstrap key present in the file with a comment and a logical default — commented out where the built-in default is right, but always shown, so a user editing the file can see the key's shape without reading the source. The file must always be valid TOML.
+`defaults/` contains git-tracked starter configs — seed values shipped with the repo, **never overwritten at runtime**. `defaults/media-centaur.toml` carries **only bootstrap state** — `database_path`, `port`, and the initial `media_dirs` seed (the values the app needs before its database is reachable). Every runtime preference lives in the Settings database and is set in-app; TOML is no longer read for those keys (see the `MediaCentaur.Settings.Config` moduledoc). Keep every bootstrap key present in the file with a comment and a logical default — commented out where the built-in default is right, but always shown, so a user editing the file can see the key's shape without reading the source. The file must always be valid TOML.
 
 `defaults/` also holds `media-centaur-showcase.toml` and `media-centaur-profile.toml` (config overrides, above) plus the `media-centaur*.service` systemd units.
 

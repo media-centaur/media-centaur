@@ -16,7 +16,7 @@ defmodule MediaCentaur.Pipeline.ImageTest do
     images_dir = Path.join(System.tmp_dir!(), "image_pipeline_test_#{Ecto.UUID.generate()}")
     File.mkdir_p!(images_dir)
 
-    config = :persistent_term.get({MediaCentaur.Config, :config})
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
     updated_config =
       config
@@ -25,11 +25,11 @@ defmodule MediaCentaur.Pipeline.ImageTest do
         if @media_directory in dirs, do: dirs, else: [@media_directory | dirs]
       end)
 
-    :persistent_term.put({MediaCentaur.Config, :config}, updated_config)
+    :persistent_term.put({MediaCentaur.Settings.Config, :config}, updated_config)
 
     on_exit(fn ->
       File.rm_rf!(images_dir)
-      :persistent_term.put({MediaCentaur.Config, :config}, config)
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
     end)
 
     %{images_dir: images_dir}

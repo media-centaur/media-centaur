@@ -43,7 +43,7 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
 
   ## Configuration
 
-  Reads from `MediaCentaur.Config`:
+  Reads from `MediaCentaur.Settings.Config`:
 
     * `:usenet_download_client_url`     — e.g. `http://localhost:8085`
     * `:usenet_download_client_api_key` — SABnzbd API key (Secret)
@@ -56,7 +56,7 @@ defmodule MediaCentaur.Downloads.DownloadClient.SABnzbd do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Downloads.DownloadClient.SyncResult
   alias MediaCentaur.Downloads.QueueItem
 

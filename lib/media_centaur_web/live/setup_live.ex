@@ -17,7 +17,7 @@ defmodule MediaCentaurWeb.SetupLive do
 
   alias MediaCentaur.Search.Prowlarr, as: ProwlarrClient
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.IntegrationHealth
   alias MediaCentaur.Secret
   alias MediaCentaur.Setup.Gate

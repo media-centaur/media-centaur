@@ -76,6 +76,7 @@ defmodule MediaCentaur.Showcase do
   persistent-term stub used by tests — so `mix test` never hits the real API.
   """
 
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Acquisition.Pursuits.{Pursuit, TargetUnit, Unit}
   alias MediaCentaur.Acquisition.Target
   alias MediaCentaur.Library
@@ -897,14 +898,14 @@ defmodule MediaCentaur.Showcase do
     # A seeded showcase is a ready-to-demo instance, not a first run — dismiss
     # the setup wizard so `/` and `/library` render instead of redirecting to
     # `/setup` (see MediaCentaurWeb.Plugs.SetupRedirect).
-    MediaCentaur.Config.update(:setup_wizard_dismissed, true)
+    Config.update(:setup_wizard_dismissed, true)
 
-    MediaCentaur.Config.update(:prowlarr_url, "http://localhost:9696")
-    MediaCentaur.Config.update(:prowlarr_api_key, "showcase-prowlarr-key")
-    MediaCentaur.Config.update(:download_client_type, "qbittorrent")
-    MediaCentaur.Config.update(:download_client_url, "http://localhost:8080")
-    MediaCentaur.Config.update(:download_client_username, "admin")
-    MediaCentaur.Config.update(:download_client_password, "showcase-dl-password")
+    Config.update(:prowlarr_url, "http://localhost:9696")
+    Config.update(:prowlarr_api_key, "showcase-prowlarr-key")
+    Config.update(:download_client_type, "qbittorrent")
+    Config.update(:download_client_url, "http://localhost:8080")
+    Config.update(:download_client_username, "admin")
+    Config.update(:download_client_password, "showcase-dl-password")
 
     MediaCentaur.Capabilities.save_test_result(:prowlarr, :ok)
     MediaCentaur.Capabilities.save_test_result(:download_client, :ok)
@@ -914,7 +915,7 @@ defmodule MediaCentaur.Showcase do
     # subsequent Prowlarr / qBittorrent calls go through the fixture
     # plugs in MediaCentaur.Showcase.Stubs instead of hitting real
     # backends that the showcase instance doesn't have.
-    MediaCentaur.Config.update(:showcase_mode, true)
+    Config.update(:showcase_mode, true)
     MediaCentaur.Search.Prowlarr.invalidate_client()
     MediaCentaur.Downloads.DownloadClient.QBittorrent.invalidate_client()
 
@@ -1041,7 +1042,7 @@ defmodule MediaCentaur.Showcase do
   # `Pipeline.ImageRepair.repair_all/0`.
   defp download_image_role!(owner_id, owner_type, entity_id, role, path) do
     url = MediaCentaur.TMDB.Mapper.tmdb_image_url(path)
-    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
+    media_dirs = Config.get(:media_dirs) || []
     primary = List.first(media_dirs)
 
     if primary do
@@ -1072,7 +1073,7 @@ defmodule MediaCentaur.Showcase do
   end
 
   defp perform_inline_download(owner_id, owner_type, role, extension, url, media_dir) do
-    images_root = MediaCentaur.Config.images_dir_for(media_dir)
+    images_root = Config.images_dir_for(media_dir)
     dest = Path.join([images_root, owner_id, "#{role}.#{extension}"])
 
     case MediaCentaur.ImageFiles.download(url, dest, []) do
@@ -1127,11 +1128,11 @@ defmodule MediaCentaur.Showcase do
     fixture_index = rem(max(episode.episode_number - 1, 0), @bundled_thumb_count) + 1
     fixture = Path.expand("priv/showcase/fixtures/thumbs/thumb-#{fixture_index}.jpg")
 
-    media_dirs = MediaCentaur.Config.get(:media_dirs) || []
+    media_dirs = Config.get(:media_dirs) || []
 
     with primary when is_binary(primary) <- List.first(media_dirs),
          true <- File.exists?(fixture) do
-      images_root = MediaCentaur.Config.images_dir_for(primary)
+      images_root = Config.images_dir_for(primary)
       dest = Path.join([images_root, episode.id, "thumb.jpg"])
       File.mkdir_p!(Path.dirname(dest))
       File.cp!(fixture, dest)
@@ -1175,7 +1176,7 @@ defmodule MediaCentaur.Showcase do
   end
 
   defp showcase_media_dir do
-    case MediaCentaur.Config.get(:media_dirs) do
+    case Config.get(:media_dirs) do
       [dir | _] -> dir
       _ -> "/showcase"
     end
@@ -1261,7 +1262,7 @@ defmodule MediaCentaur.Showcase do
   # would bypass that check. This rail fires for both invocation paths by
   # inspecting the live config.
   defp assert_showcase_db! do
-    db_path = MediaCentaur.Config.get(:database_path) || ""
+    db_path = Config.get(:database_path) || ""
 
     if !String.contains?(db_path, "showcase") do
       raise """

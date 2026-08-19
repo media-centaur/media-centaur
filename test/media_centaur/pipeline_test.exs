@@ -44,7 +44,7 @@ defmodule MediaCentaur.PipelineTest do
     images_dir = Path.join(System.tmp_dir!(), "pipeline_test_#{Ecto.UUID.generate()}")
     File.mkdir_p!(images_dir)
 
-    config = :persistent_term.get({MediaCentaur.Config, :config})
+    config = :persistent_term.get({MediaCentaur.Settings.Config, :config})
 
     updated_config =
       Map.put(config, :media_dir_images, %{
@@ -52,11 +52,11 @@ defmodule MediaCentaur.PipelineTest do
         "/media/pipeline/TV" => images_dir
       })
 
-    :persistent_term.put({MediaCentaur.Config, :config}, updated_config)
+    :persistent_term.put({MediaCentaur.Settings.Config, :config}, updated_config)
 
     on_exit(fn ->
       File.rm_rf!(images_dir)
-      :persistent_term.put({MediaCentaur.Config, :config}, config)
+      :persistent_term.put({MediaCentaur.Settings.Config, :config}, config)
     end)
 
     :ok

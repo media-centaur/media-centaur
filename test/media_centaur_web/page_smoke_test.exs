@@ -21,7 +21,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
   import MediaCentaur.TestFactory
   import Phoenix.LiveViewTest
 
-  alias MediaCentaur.{Config, Secret}
+  alias MediaCentaur.Settings.Config
+  alias MediaCentaur.Secret
 
   # These smokes mount each route and assert the key structural content
   # renders — a render-path crash (KeyError, FunctionClauseError, a bad

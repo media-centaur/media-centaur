@@ -28,7 +28,7 @@ defmodule MediaCentaur.Search.Prowlarr do
 
   ## Configuration
 
-  Reads from `MediaCentaur.Config`:
+  Reads from `MediaCentaur.Settings.Config`:
 
     * `:prowlarr_url`     — base URL, e.g. `http://localhost:9696`
     * `:prowlarr_api_key` — sent as `x-api-key` header
@@ -47,6 +47,7 @@ defmodule MediaCentaur.Search.Prowlarr do
 
   require MediaCentaur.Log, as: Log
 
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Search.SearchResult
 
   @doc "Clears the cached Req client so the next call rebuilds it from config."
@@ -79,11 +80,11 @@ defmodule MediaCentaur.Search.Prowlarr do
   @ping_timeout_ms 5_000
 
   defp build_client do
-    if MediaCentaur.Config.get(:showcase_mode) do
+    if Config.get(:showcase_mode) do
       Req.new(plug: &MediaCentaur.Showcase.Stubs.prowlarr_plug/1)
     else
-      url = MediaCentaur.Config.get(:prowlarr_url)
-      api_key = MediaCentaur.Secret.expose(MediaCentaur.Config.get(:prowlarr_api_key))
+      url = Config.get(:prowlarr_url)
+      api_key = MediaCentaur.Secret.expose(Config.get(:prowlarr_api_key))
 
       Req.new(
         base_url: url,

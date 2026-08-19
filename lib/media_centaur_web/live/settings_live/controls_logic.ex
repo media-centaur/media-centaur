@@ -6,7 +6,7 @@ defmodule MediaCentaurWeb.SettingsLive.ControlsLogic do
   with `async: true` and has no side effects.
   """
 
-  alias MediaCentaur.Controls.Catalog
+  alias MediaCentaur.Settings.Controls.Catalog
 
   @category_labels %{
     navigation: "Navigation",

@@ -29,7 +29,7 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
 
   ## Configuration
 
-  Reads from `MediaCentaur.Config`:
+  Reads from `MediaCentaur.Settings.Config`:
 
     * `:download_client_url`      — e.g. `http://localhost:8080`
     * `:download_client_username` — qBit WebUI username (may be nil)
@@ -43,7 +43,7 @@ defmodule MediaCentaur.Downloads.DownloadClient.QBittorrent do
 
   require MediaCentaur.Log, as: Log
 
-  alias MediaCentaur.Config
+  alias MediaCentaur.Settings.Config
   alias MediaCentaur.Downloads.DownloadClient.QBittorrent.Sync
   alias MediaCentaur.Downloads.DownloadClient.SyncResult
   alias MediaCentaur.Downloads.QueueItem
