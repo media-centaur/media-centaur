@@ -367,6 +367,23 @@ defmodule MediaCentaur.Playback.MpvSession do
 
   # --- mpv launch ---
 
+  @doc """
+  The argv tail selecting the launch file, with its resume position scoped
+  per-file via mpv's `--{ … --}` option grouping.
+
+  A bare global `--start` applies to **every** file mpv loads — including
+  successors appended to the playlist (ADR-062) — so an unwatched next
+  episode would begin at the first episode's resume offset. The group pins
+  the flag to the launch file alone; appended entries carry their own
+  per-entry `start` option or none at all (`NextEpisode.loadfile_command/1`).
+  """
+  @spec launch_target(String.t(), number()) :: [String.t()]
+  def launch_target(url, start_position) when start_position > 0 do
+    ["--{", "--start=#{start_position}", url, "--}"]
+  end
+
+  def launch_target(url, _start_position), do: [url]
+
   defp spawn_mpv(state, env_pairs) do
     Log.info(:playback, "launching mpv — #{Path.basename(state.content_url)}")
     mpv_path = MediaCentaur.Config.get(:mpv_path)
@@ -383,8 +400,7 @@ defmodule MediaCentaur.Playback.MpvSession do
         "--log-file=#{state.log_file_path}"
       ] ++
         language_flags ++
-        if(state.start_position > 0, do: ["--start=#{state.start_position}"], else: []) ++
-        [state.content_url]
+        launch_target(state.content_url, state.start_position)
 
     port =
       Port.open({:spawn_executable, to_charlist(mpv_path)}, [
