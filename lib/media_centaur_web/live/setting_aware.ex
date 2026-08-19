@@ -5,7 +5,7 @@ defmodule MediaCentaurWeb.Live.SettingAware do
   `LibraryCardInfoAware`) register it with their context module and assign:
 
       on_mount {MediaCentaurWeb.Live.SettingAware,
-                {MediaCentaur.SpoilerFree, :spoiler_free, :setting_aware_spoiler_free}}
+                {MediaCentaur.Preferences.SpoilerFree, :spoiler_free, :setting_aware_spoiler_free}}
 
   where the third element is a unique `:handle_info` hook name (a literal
   atom, so no atom is created at runtime).

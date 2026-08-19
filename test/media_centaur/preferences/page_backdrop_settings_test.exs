@@ -1,4 +1,4 @@
-defmodule MediaCentaur.PageBackdropSettingsTest do
+defmodule MediaCentaur.Preferences.PageBackdropSettingsTest do
   @moduledoc """
   Tests for the per-page backdrop typed Settings accessors
   (`LibraryBackdrop`, `IncomingBackdrop`) — both default-off, so the
@@ -9,8 +9,8 @@ defmodule MediaCentaur.PageBackdropSettingsTest do
   """
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.IncomingBackdrop
-  alias MediaCentaur.LibraryBackdrop
+  alias MediaCentaur.Preferences.IncomingBackdrop
+  alias MediaCentaur.Preferences.LibraryBackdrop
   alias MediaCentaur.Settings
 
   for {module, key} <- [

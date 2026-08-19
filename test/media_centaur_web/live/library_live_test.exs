@@ -1640,7 +1640,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
     # flow via the `settings:updates` PubSub topic through the
     # `LibraryCardInfoAware` on_mount trait — no full re-mount required.
 
-    alias MediaCentaur.LibraryCardInfo
+    alias MediaCentaur.Preferences.LibraryCardInfo
     alias MediaCentaur.Settings
     alias MediaCentaur.Topics
 
@@ -1845,7 +1845,7 @@ defmodule MediaCentaurWeb.LibraryLiveTest do
   end
 
   describe "card play button toggle" do
-    alias MediaCentaur.CardPlayButton
+    alias MediaCentaur.Preferences.CardPlayButton
     alias MediaCentaur.Settings
     alias MediaCentaur.Topics
 

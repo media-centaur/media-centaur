@@ -1,6 +1,4 @@
-defmodule MediaCentaur.LibraryBackdrop do
-  use Boundary, deps: [MediaCentaur.Settings, {MediaCentaur.BooleanSetting, :compile}]
-
+defmodule MediaCentaur.Preferences.LibraryBackdrop do
   @moduledoc """
   Typed accessor for the `library_backdrop` Settings entry — whether the
   Library page renders its ambient artwork band (`.page-atmosphere`).
@@ -13,5 +11,5 @@ defmodule MediaCentaur.LibraryBackdrop do
   explicit `enabled: true` row on non-empty databases.
   """
 
-  use MediaCentaur.BooleanSetting, key: "library_backdrop", default: false
+  use MediaCentaur.Preferences.BooleanSetting, key: "library_backdrop", default: false
 end

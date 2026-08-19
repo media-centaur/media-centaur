@@ -9,7 +9,7 @@ defmodule MediaCentaur.Playback.NextEpisode do
   auto-play is switched off, the episode is the last one, the successor
   isn't downloaded, or its file is missing from disk.
 
-  The `MediaCentaur.AutoPlayNextEpisode` setting is read here, at each
+  The `MediaCentaur.Preferences.AutoPlayNextEpisode` setting is read here, at each
   queueing decision, so flipping it mid-session takes effect at the next
   episode boundary.
 
@@ -21,7 +21,7 @@ defmodule MediaCentaur.Playback.NextEpisode do
   plain 3-argument form.
   """
 
-  alias MediaCentaur.AutoPlayNextEpisode
+  alias MediaCentaur.Preferences.AutoPlayNextEpisode
   alias MediaCentaur.Library
   alias MediaCentaur.Library.{EntityShape, EpisodeList, TypeResolver}
   alias MediaCentaur.Playback.PlayableFks

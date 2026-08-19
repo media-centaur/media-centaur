@@ -53,7 +53,7 @@ defmodule MediaCentaurWeb.Components.ContinueWatchingRow do
   attr :show_play_button, :boolean,
     default: true,
     doc:
-      "When false, suppresses the hover play overlay (UIDR-027). Driven by the `card_play_button` Settings entry (see `MediaCentaur.CardPlayButton`)."
+      "When false, suppresses the hover play overlay (UIDR-027). Driven by the `card_play_button` Settings entry (see `MediaCentaur.Preferences.CardPlayButton`)."
 
   def continue_watching_row(assigns) do
     ~H"""

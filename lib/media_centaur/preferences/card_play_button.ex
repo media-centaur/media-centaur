@@ -1,6 +1,4 @@
-defmodule MediaCentaur.CardPlayButton do
-  use Boundary, deps: [MediaCentaur.Settings, {MediaCentaur.BooleanSetting, :compile}]
-
+defmodule MediaCentaur.Preferences.CardPlayButton do
   @moduledoc """
   Typed accessor for the `card_play_button` Settings entry.
 
@@ -11,5 +9,5 @@ defmodule MediaCentaur.CardPlayButton do
   button is a standing control, not the hover overlay, and is unaffected.
   """
 
-  use MediaCentaur.BooleanSetting, key: "card_play_button", default: true
+  use MediaCentaur.Preferences.BooleanSetting, key: "card_play_button", default: true
 end

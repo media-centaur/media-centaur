@@ -14,7 +14,8 @@ defmodule MediaCentaurWeb.Live.LibraryBackdropAware do
   defmacro __using__(_opts) do
     quote do
       on_mount {MediaCentaurWeb.Live.SettingAware,
-                {MediaCentaur.LibraryBackdrop, :library_backdrop, :setting_aware_library_backdrop}}
+                {MediaCentaur.Preferences.LibraryBackdrop, :library_backdrop,
+                 :setting_aware_library_backdrop}}
     end
   end
 end

@@ -33,12 +33,12 @@ defmodule MediaCentaurWeb.Components.LibraryCards do
   attr :show_info, :boolean,
     default: true,
     doc:
-      "When false, hides the title + type/year footer beneath the poster — for the wall-of-posters view. Driven by the `library_show_card_info` Settings entry (see `MediaCentaur.LibraryCardInfo`)."
+      "When false, hides the title + type/year footer beneath the poster — for the wall-of-posters view. Driven by the `library_show_card_info` Settings entry (see `MediaCentaur.Preferences.LibraryCardInfo`)."
 
   attr :show_play_button, :boolean,
     default: true,
     doc:
-      "When false, suppresses the hover play overlay (UIDR-027). Driven by the `card_play_button` Settings entry (see `MediaCentaur.CardPlayButton`)."
+      "When false, suppresses the hover play overlay (UIDR-027). Driven by the `card_play_button` Settings entry (see `MediaCentaur.Preferences.CardPlayButton`)."
 
   def poster_card(assigns) do
     ~H"""

@@ -1,6 +1,4 @@
-defmodule MediaCentaur.LibraryCardInfo do
-  use Boundary, deps: [MediaCentaur.Settings, {MediaCentaur.BooleanSetting, :compile}]
-
+defmodule MediaCentaur.Preferences.LibraryCardInfo do
   @moduledoc """
   Typed accessor for the `library_show_card_info` Settings entry.
 
@@ -11,5 +9,5 @@ defmodule MediaCentaur.LibraryCardInfo do
   written when the user opts out, for the pure wall-of-posters view.
   """
 
-  use MediaCentaur.BooleanSetting, key: "library_show_card_info", default: true
+  use MediaCentaur.Preferences.BooleanSetting, key: "library_show_card_info", default: true
 end

@@ -1,4 +1,4 @@
-defmodule MediaCentaur.BooleanSettingTest do
+defmodule MediaCentaur.Preferences.BooleanSettingTest do
   @moduledoc """
   The macro's own contract, as opposed to the four flags it generates
   (covered in `SpoilerFreeTest`, `LibraryCardInfoTest` and
@@ -15,8 +15,8 @@ defmodule MediaCentaur.BooleanSettingTest do
   test "a non-boolean default is a compile error, not a silently inverted flag" do
     assert_raise ArgumentError, ~r/expects a literal boolean `default:`/, fn ->
       Code.compile_string("""
-      defmodule MediaCentaur.BooleanSettingTest.StringDefault do
-        use MediaCentaur.BooleanSetting, key: "probe", default: "true"
+      defmodule MediaCentaur.Preferences.BooleanSettingTest.StringDefault do
+        use MediaCentaur.Preferences.BooleanSetting, key: "probe", default: "true"
       end
       """)
     end
@@ -25,8 +25,8 @@ defmodule MediaCentaur.BooleanSettingTest do
   test "a missing default is a compile error" do
     assert_raise KeyError, fn ->
       Code.compile_string("""
-      defmodule MediaCentaur.BooleanSettingTest.NoDefault do
-        use MediaCentaur.BooleanSetting, key: "probe"
+      defmodule MediaCentaur.Preferences.BooleanSettingTest.NoDefault do
+        use MediaCentaur.Preferences.BooleanSetting, key: "probe"
       end
       """)
     end
@@ -35,8 +35,8 @@ defmodule MediaCentaur.BooleanSettingTest do
   test "a missing key is a compile error" do
     assert_raise KeyError, fn ->
       Code.compile_string("""
-      defmodule MediaCentaur.BooleanSettingTest.NoKey do
-        use MediaCentaur.BooleanSetting, default: false
+      defmodule MediaCentaur.Preferences.BooleanSettingTest.NoKey do
+        use MediaCentaur.Preferences.BooleanSetting, default: false
       end
       """)
     end

@@ -1,10 +1,8 @@
-defmodule MediaCentaur.BooleanSetting do
-  use Boundary, deps: [MediaCentaur.Settings]
-
+defmodule MediaCentaur.Preferences.BooleanSetting do
   @moduledoc """
   Generates a typed accessor for a boolean Settings entry.
 
-      use MediaCentaur.BooleanSetting, key: "library_backdrop", default: false
+      use MediaCentaur.Preferences.BooleanSetting, key: "library_backdrop", default: false
 
   Defines `setting_key/0`, `enabled?/0` and `enabled?/1` on the calling
   module. Four flags shared this shape, differing only in the key and the
@@ -36,7 +34,7 @@ defmodule MediaCentaur.BooleanSetting do
 
     if !is_boolean(default) do
       raise ArgumentError,
-            "use MediaCentaur.BooleanSetting expects a literal boolean `default:`, got: " <>
+            "use MediaCentaur.Preferences.BooleanSetting expects a literal boolean `default:`, got: " <>
               inspect(default)
     end
 

@@ -1,4 +1,4 @@
-defmodule MediaCentaur.SpoilerFreeTest do
+defmodule MediaCentaur.Preferences.SpoilerFreeTest do
   @moduledoc """
   The fourth boolean Settings accessor. `LibraryCardInfo` and the two page
   backdrops each had their polarity pinned; `SpoilerFree` did not, which
@@ -10,7 +10,7 @@ defmodule MediaCentaur.SpoilerFreeTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Settings
-  alias MediaCentaur.SpoilerFree
+  alias MediaCentaur.Preferences.SpoilerFree
 
   describe "enabled?/0" do
     test "returns false when no setting entry exists (default-off)" do

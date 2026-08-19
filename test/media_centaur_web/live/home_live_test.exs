@@ -508,7 +508,7 @@ defmodule MediaCentaurWeb.HomeLiveTest do
          %{conn: conn, movie: movie} do
       {:ok, _} =
         MediaCentaur.Settings.find_or_create_entry(%{
-          key: MediaCentaur.CardPlayButton.setting_key(),
+          key: MediaCentaur.Preferences.CardPlayButton.setting_key(),
           value: %{"enabled" => false}
         })
 

@@ -1,6 +1,4 @@
-defmodule MediaCentaur.AutoPlayNextEpisode do
-  use Boundary, deps: [MediaCentaur.Settings, {MediaCentaur.BooleanSetting, :compile}]
-
+defmodule MediaCentaur.Preferences.AutoPlayNextEpisode do
   @moduledoc """
   Typed accessor for the `auto_play_next_episode` Settings entry.
 
@@ -12,5 +10,5 @@ defmodule MediaCentaur.AutoPlayNextEpisode do
   boundary without a restart.
   """
 
-  use MediaCentaur.BooleanSetting, key: "auto_play_next_episode", default: true
+  use MediaCentaur.Preferences.BooleanSetting, key: "auto_play_next_episode", default: true
 end

@@ -1,7 +1,7 @@
-defmodule MediaCentaur.LibraryCardInfoTest do
+defmodule MediaCentaur.Preferences.LibraryCardInfoTest do
   use MediaCentaur.DataCase, async: false
 
-  alias MediaCentaur.LibraryCardInfo
+  alias MediaCentaur.Preferences.LibraryCardInfo
   alias MediaCentaur.Settings
 
   describe "enabled?/0" do

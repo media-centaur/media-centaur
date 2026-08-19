@@ -1,4 +1,4 @@
-defmodule MediaCentaur.UIScaleTest do
+defmodule MediaCentaur.Preferences.UIScaleTest do
   @moduledoc """
   Tests for the `ui_scale` typed Settings accessor — parse/normalize/clamp/step
   (pure) plus the `scale/0` read and `set/1` write round-trip (DB).
@@ -6,7 +6,7 @@ defmodule MediaCentaur.UIScaleTest do
   use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Settings
-  alias MediaCentaur.UIScale
+  alias MediaCentaur.Preferences.UIScale
 
   describe "bounds and step" do
     test "the range is 70%–200% in 5% steps around a 100% default" do
