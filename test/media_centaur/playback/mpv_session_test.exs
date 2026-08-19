@@ -40,10 +40,6 @@ defmodule MediaCentaur.Playback.MpvSessionTest do
       assert MpvSession.queue_next?(queue_state(%{}))
     end
 
-    test "never queues again after the viewer cancelled auto-advance" do
-      refute MpvSession.queue_next?(queue_state(%{chain_cancelled: true}))
-    end
-
     test "does not queue when a successor is already pending" do
       refute MpvSession.queue_next?(queue_state(%{pending_next: %{episode_id: "ep-2"}}))
     end

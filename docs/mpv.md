@@ -32,7 +32,7 @@ cp -r ../contrib/mpv/scripts/ ~/.config/mpv/scripts/
 | `../contrib/mpv/input.conf` | Key bindings |
 | `../contrib/mpv/scripts/track-menu.lua` | Two-column audio/subtitle track selector overlay |
 | `../contrib/mpv/scripts/skip-intro.lua` | Chapter-based intro skip button |
-| `../contrib/mpv/scripts/next-episode.lua` | "Next Episode" button during credits + auto-play countdown with cancel |
+| `../contrib/mpv/scripts/next-episode.lua` | "Next Episode" button during credits + auto-play countdown |
 | `../contrib/mpv/scripts/hdr-display.lua` | Auto-switch the Hyprland output to HDR mode while HDR content plays |
 
 ## mpv.conf
@@ -166,8 +166,9 @@ next episode — ADR-062). It has two modes:
   shortens the credits, it never skips content automatically.
 - **Countdown mode** — in the final 20 seconds of the file, chapters or
   not: the pill switches to "Next episode in Ns" so auto-play never lands
-  unannounced. **Enter** plays now, **ESC** cancels auto-advance for the
-  rest of the session.
+  unannounced. **Enter** plays now. Declining needs no dedicated control —
+  quitting the player (ESC / the remote's back button, as ever) ends the
+  session, queued successor and all.
 
 ### How It Works
 
@@ -185,18 +186,12 @@ credits chapter) once `time-remaining` drops inside the 20-second window
 while a successor is queued. The countdown number is the true time to
 end-of-file — when mpv itself advances — so pausing pauses the countdown.
 
-**Cancel** removes the queued playlist entry and sets
-`user-data/media-centaur/auto-advance-cancelled`, which the backend
-observes (`MpvSession.chain_cancelled`) — its queue check is otherwise
-self-stabilizing and would re-append the entry. Cancelling ends the viewing
-chain: mpv stops at this file's end as if auto-play were off.
-
 ### Behavior
 
 - **No key binding needed** — activates automatically via property observers
-- ENTER is force-bound to `playlist-next` while the pill is visible; ESC is
-  additionally force-bound while the countdown shows; global bindings are
-  restored when it disappears
+- ENTER is force-bound to `playlist-next` while the pill is visible; the
+  global binding is restored when it disappears. ESC keeps its global
+  quit binding at all times — exiting the player is how you decline
 - The pill is clickable with the same hover-gated `MBTN_LEFT` capture as
   skip-intro — clicks elsewhere still reach the OSC / seek bar
 - Series without a queued successor (chain end, auto-play turned off) never
@@ -207,9 +202,8 @@ chain: mpv stops at this file's end as if auto-play were off.
 ### Visual Style
 
 Same glassmorphism pill as skip-intro: dim key hints, bold white label,
-orange accent arrows. The countdown pill is slightly wider to carry the
-label and both hints — same single-row density, no progress bar (the
-ticking seconds are the countdown).
+orange accent arrows. The countdown pill reuses the same
+footprint — no progress bar (the ticking seconds are the countdown).
 
 ### Debugging
 
@@ -218,7 +212,7 @@ mpv --msg-level=next_episode=trace /path/to/video.mkv
 ```
 
 This outputs chapter/playlist/time observations, credits detection results,
-mode switches, overlay rendering, advance and cancel actions.
+mode switches, overlay rendering, and advance actions.
 
 ## hdr-display Plugin
 
