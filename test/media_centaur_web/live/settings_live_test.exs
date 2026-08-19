@@ -4,7 +4,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   import Phoenix.LiveViewTest
 
   alias MediaCentaur.Playback.LanguagePolicy
-  alias MediaCentaur.UIScale
+  alias MediaCentaur.Preferences.UIScale
 
   # `SettingsLive.ensure_loaded/1` loads its config / capability / probe
   # reads synchronously on first render (desktop first-paint correctness),
@@ -186,20 +186,20 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
       view |> element("div[phx-click=toggle_library_backdrop]") |> render_click()
-      assert MediaCentaur.LibraryBackdrop.enabled?() == true
+      assert MediaCentaur.Preferences.LibraryBackdrop.enabled?() == true
 
       view |> element("div[phx-click=toggle_library_backdrop]") |> render_click()
-      assert MediaCentaur.LibraryBackdrop.enabled?() == false
+      assert MediaCentaur.Preferences.LibraryBackdrop.enabled?() == false
     end
 
     test "toggling the Incoming backdrop persists the flag", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
       view |> element("div[phx-click=toggle_incoming_backdrop]") |> render_click()
-      assert MediaCentaur.IncomingBackdrop.enabled?() == true
+      assert MediaCentaur.Preferences.IncomingBackdrop.enabled?() == true
 
       view |> element("div[phx-click=toggle_incoming_backdrop]") |> render_click()
-      assert MediaCentaur.IncomingBackdrop.enabled?() == false
+      assert MediaCentaur.Preferences.IncomingBackdrop.enabled?() == false
     end
 
     test "the Letterboxd links row renders checked by default", %{conn: conn} do
@@ -216,13 +216,13 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     test "toggling Letterboxd links persists the flag", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
-      assert MediaCentaur.LetterboxdLinks.enabled?() == true
+      assert MediaCentaur.Preferences.LetterboxdLinks.enabled?() == true
 
       view |> element("div[phx-click=toggle_letterboxd_links]") |> render_click()
-      assert MediaCentaur.LetterboxdLinks.enabled?() == false
+      assert MediaCentaur.Preferences.LetterboxdLinks.enabled?() == false
 
       view |> element("div[phx-click=toggle_letterboxd_links]") |> render_click()
-      assert MediaCentaur.LetterboxdLinks.enabled?() == true
+      assert MediaCentaur.Preferences.LetterboxdLinks.enabled?() == true
     end
 
     # Personal display preferences live together — this toggle moved here
@@ -230,22 +230,22 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     test "toggling poster titles persists the flag from Preferences", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
-      assert MediaCentaur.LibraryCardInfo.enabled?() == true
+      assert MediaCentaur.Preferences.LibraryCardInfo.enabled?() == true
 
       view |> element("div[phx-click=toggle_show_card_info]") |> render_click()
-      assert MediaCentaur.LibraryCardInfo.enabled?() == false
+      assert MediaCentaur.Preferences.LibraryCardInfo.enabled?() == false
     end
 
     test "toggling auto-play next episode persists the flag", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
-      assert MediaCentaur.AutoPlayNextEpisode.enabled?() == true
+      assert MediaCentaur.Preferences.AutoPlayNextEpisode.enabled?() == true
 
       view |> element("div[phx-click=toggle_auto_play_next_episode]") |> render_click()
-      assert MediaCentaur.AutoPlayNextEpisode.enabled?() == false
+      assert MediaCentaur.Preferences.AutoPlayNextEpisode.enabled?() == false
 
       view |> element("div[phx-click=toggle_auto_play_next_episode]") |> render_click()
-      assert MediaCentaur.AutoPlayNextEpisode.enabled?() == true
+      assert MediaCentaur.Preferences.AutoPlayNextEpisode.enabled?() == true
     end
   end
 

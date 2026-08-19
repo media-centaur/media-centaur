@@ -1,6 +1,4 @@
-defmodule MediaCentaur.LetterboxdLinks do
-  use Boundary, deps: [MediaCentaur.Settings, {MediaCentaur.BooleanSetting, :compile}]
-
+defmodule MediaCentaur.Preferences.LetterboxdLinks do
   @moduledoc """
   Typed accessor for the `letterboxd_links` Settings entry.
 
@@ -11,5 +9,5 @@ defmodule MediaCentaur.LetterboxdLinks do
   Letterboxd does not cover TV.
   """
 
-  use MediaCentaur.BooleanSetting, key: "letterboxd_links", default: true
+  use MediaCentaur.Preferences.BooleanSetting, key: "letterboxd_links", default: true
 end

@@ -19,7 +19,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   # backend), so the SettingAware tuple is registered inline rather than
   # through a dedicated *Aware wrapper module.
   on_mount {MediaCentaurWeb.Live.SettingAware,
-            {MediaCentaur.AutoPlayNextEpisode, :auto_play_next_episode,
+            {MediaCentaur.Preferences.AutoPlayNextEpisode, :auto_play_next_episode,
              :setting_aware_auto_play_next_episode}}
 
   require MediaCentaur.Log, as: Log
@@ -32,7 +32,7 @@ defmodule MediaCentaurWeb.SettingsLive do
   }
 
   alias MediaCentaur.Maintenance
-  alias MediaCentaur.UIScale
+  alias MediaCentaur.Preferences.UIScale
   alias MediaCentaur.Acquisition
   alias MediaCentaur.Search.Prowlarr
   alias MediaCentaur.Downloads.ClientConfig
@@ -728,7 +728,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     enabled = !socket.assigns.library_backdrop
 
     Settings.find_or_create_entry!(%{
-      key: MediaCentaur.LibraryBackdrop.setting_key(),
+      key: MediaCentaur.Preferences.LibraryBackdrop.setting_key(),
       value: %{"enabled" => enabled}
     })
 
@@ -739,7 +739,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     enabled = !socket.assigns.incoming_backdrop
 
     Settings.find_or_create_entry!(%{
-      key: MediaCentaur.IncomingBackdrop.setting_key(),
+      key: MediaCentaur.Preferences.IncomingBackdrop.setting_key(),
       value: %{"enabled" => enabled}
     })
 
@@ -764,7 +764,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     enabled = !socket.assigns.show_card_info
 
     Settings.find_or_create_entry!(%{
-      key: MediaCentaur.LibraryCardInfo.setting_key(),
+      key: MediaCentaur.Preferences.LibraryCardInfo.setting_key(),
       value: %{"enabled" => enabled}
     })
 
@@ -775,7 +775,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     enabled = !socket.assigns.show_play_button
 
     Settings.find_or_create_entry!(%{
-      key: MediaCentaur.CardPlayButton.setting_key(),
+      key: MediaCentaur.Preferences.CardPlayButton.setting_key(),
       value: %{"enabled" => enabled}
     })
 
@@ -786,7 +786,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     enabled = !socket.assigns.auto_play_next_episode
 
     Settings.find_or_create_entry!(%{
-      key: MediaCentaur.AutoPlayNextEpisode.setting_key(),
+      key: MediaCentaur.Preferences.AutoPlayNextEpisode.setting_key(),
       value: %{"enabled" => enabled}
     })
 

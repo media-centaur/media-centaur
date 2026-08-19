@@ -1,6 +1,4 @@
-defmodule MediaCentaur.UIScale do
-  use Boundary, deps: [MediaCentaur.Settings]
-
+defmodule MediaCentaur.Preferences.UIScale do
   @moduledoc """
   Typed accessor for the `ui_scale` Settings entry — the user's **preference
   factor** in the two-factor UI scale, where 1.0 means "as designed".

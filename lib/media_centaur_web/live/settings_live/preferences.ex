@@ -9,7 +9,7 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
 
   import MediaCentaurWeb.SettingsLive.Components
 
-  alias MediaCentaur.UIScale
+  alias MediaCentaur.Preferences.UIScale
 
   attr :spoiler_free, :boolean, required: true
   attr :ui_scale, :float, required: true

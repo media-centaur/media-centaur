@@ -1,6 +1,4 @@
-defmodule MediaCentaur.IncomingBackdrop do
-  use Boundary, deps: [MediaCentaur.Settings, {MediaCentaur.BooleanSetting, :compile}]
-
+defmodule MediaCentaur.Preferences.IncomingBackdrop do
   @moduledoc """
   Typed accessor for the `incoming_backdrop` Settings entry — whether the
   Incoming page renders its ambient artwork band (`.page-atmosphere`).
@@ -13,5 +11,5 @@ defmodule MediaCentaur.IncomingBackdrop do
   explicit `enabled: true` row on non-empty databases.
   """
 
-  use MediaCentaur.BooleanSetting, key: "incoming_backdrop", default: false
+  use MediaCentaur.Preferences.BooleanSetting, key: "incoming_backdrop", default: false
 end

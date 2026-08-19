@@ -21,7 +21,7 @@ defmodule MediaCentaur.Application do
       MediaCentaur.Downloads,
       MediaCentaur.WatchHistory,
       MediaCentaur.SelfUpdate,
-      MediaCentaur.SpoilerFree,
+      MediaCentaur.Preferences,
       MediaCentaur.TMDB,
       MediaCentaurWeb
     ]
