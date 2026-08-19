@@ -41,7 +41,13 @@ session, one viewing chain*:
   successor and appends it to the mpv playlist with a **per-entry**
   `start` option carrying the successor's own resume position. The
   global `--start` flag (ADR-013) applies only to the first file — it
-  must never leak onto later playlist entries.
+  must never leak onto later playlist entries. *[Corrected 2026-08-19:
+  mpv applies a bare global `--start` to **every** file it loads,
+  playlist entries included — the original premise was wrong, and an
+  unwatched successor (no per-entry `start` to override the global)
+  started at the first episode's resume offset. Fixed by scoping the
+  launch resume with per-file option grouping (`--{ --start=… <file> --}`);
+  see `MpvSession.launch_target/2`.]*
 * `MpvSession` observes the file transition, closes out progress for
   the finished episode, re-attributes tracking to the new playable
   item, and appends the next successor — always one ahead.
