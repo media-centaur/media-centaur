@@ -19,6 +19,7 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
   attr :show_play_button, :boolean, required: true
   attr :auto_play_next_episode, :boolean, required: true
   attr :letterboxd_links, :boolean, required: true
+  attr :show_watchlist, :boolean, required: true
 
   def render(assigns) do
     ~H"""
@@ -86,6 +87,14 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="Movie pages link to the film on Letterboxd"
           checked={@letterboxd_links}
           event="toggle_letterboxd_links"
+          color="info"
+        />
+
+        <.settings_row
+          label="Watchlist"
+          description="Show the watchlist in the sidebar. Early preview — it may still change shape"
+          checked={@show_watchlist}
+          event="toggle_show_watchlist"
           color="info"
         />
 

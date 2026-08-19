@@ -10,7 +10,8 @@ defmodule MediaCentaur.Preferences do
       LibraryBackdrop,
       LibraryCardInfo,
       SpoilerFree,
-      UIScale
+      UIScale,
+      WatchlistVisibility
     ]
 
   @moduledoc """

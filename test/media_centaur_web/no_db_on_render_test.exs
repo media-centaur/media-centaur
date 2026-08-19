@@ -269,10 +269,12 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # CardPlayButtonAware (UIDR-027 toggle) adds one more key = +2.
       # AutoPlayNextEpisode (ADR-062 toggle) adds one more key = +2.
       # LetterboxdLinks (detail-modal Letterboxd link) adds one more = +2.
+      # WatchlistVisibility (sidebar entry, session-wide on_mount) adds
+      # one more key on every page = +2.
       mount_and_assert(
         conn,
         "/settings",
-        58,
+        60,
         "Config + Secret reads + maintenance health counts + per-client connection-test reads (per-key cache-miss DB fallback in test mode)"
       )
     end
@@ -280,7 +282,9 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
     test "GET /setup mounts within budget", %{conn: conn} do
       # ReviewBadge (session-wide on_mount) adds two bounded counts on
       # each mount phase = +4 aggregates on every page.
-      mount_and_assert(conn, "/setup", 19, "Initial setup wizard — minimal reads")
+      # WatchlistVisibility (session-wide on_mount) adds one settings key
+      # on each mount phase = +2 cache-miss reads.
+      mount_and_assert(conn, "/setup", 21, "Initial setup wizard — minimal reads")
     end
 
     test "GET /review mounts within budget", %{conn: conn} do

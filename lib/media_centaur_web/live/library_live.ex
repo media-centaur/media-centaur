@@ -337,6 +337,7 @@ defmodule MediaCentaurWeb.LibraryLive do
     ~H"""
     <Layouts.console_mount socket={@socket} />
     <Layouts.app
+      show_watchlist={@show_watchlist}
       flash={@flash}
       current_path="/library"
       full_width
