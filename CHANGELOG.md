@@ -4,6 +4,18 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.0.0 — 2026-08-19
+
+Media Centaur 1.0. The core experience — finding, downloading, organizing, reviewing, watching, and tracking your library — is complete and stable. Releases continue as 1.x from here.
+
+### New
+
+- **Save titles for later with the watchlist.** A bookmark button on media-search results and on a title's page saves it to the new **Watchlist** page in the sidebar. Remove takes a title off the list whenever you're done with it.
+- **Watchlist entries offer the right action for where each title stands.** **Download** opens the planning flow, **Track release** follows a title that isn't out yet, and titles already in your library are marked **In library** and link straight to their page — when a download you planned finishes importing, the entry flips to In library on its own.
+- **Search results mark what you already have.** Media-search rows now show an **In library** note next to titles your library already holds — no more opening the planning flow just to find out.
+
+This update adds a new database table, created automatically during the update.
+
 ## v0.127.1 — 2026-08-18
 
 ### New
