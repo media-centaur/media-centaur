@@ -164,10 +164,10 @@ next episode — ADR-062). It has two modes:
 - **Skip mode** — while rolling credits play: press **Enter** or **click
   the pill** to advance immediately with `playlist-next`. The pill only
   shortens the credits, it never skips content automatically.
-- **Countdown mode** — in the final 30 seconds of the file, chapters or
-  not: the pill switches to "Next episode in Ns" with a draining bar so
-  auto-play never lands unannounced. **Enter** plays now, **ESC** cancels
-  auto-advance for the rest of the session.
+- **Countdown mode** — in the final 20 seconds of the file, chapters or
+  not: the pill switches to "Next episode in Ns" so auto-play never lands
+  unannounced. **Enter** plays now, **ESC** cancels auto-advance for the
+  rest of the session.
 
 ### How It Works
 
@@ -181,7 +181,7 @@ mode appears when **both** hold:
 - `playlist-count - playlist-pos > 1` — a successor is actually queued.
 
 Countdown mode replaces it (or appears on its own for files without a
-credits chapter) once `time-remaining` drops inside the 30-second window
+credits chapter) once `time-remaining` drops inside the 20-second window
 while a successor is queued. The countdown number is the true time to
 end-of-file — when mpv itself advances — so pausing pauses the countdown.
 
@@ -207,8 +207,9 @@ chain: mpv stops at this file's end as if auto-play were off.
 ### Visual Style
 
 Same glassmorphism pill as skip-intro: dim key hints, bold white label,
-orange accent arrows / draining bar. The countdown pill is wider to carry
-the label and both hints.
+orange accent arrows. The countdown pill is slightly wider to carry the
+label and both hints — same single-row density, no progress bar (the
+ticking seconds are the countdown).
 
 ### Debugging
 
