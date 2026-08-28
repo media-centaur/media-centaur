@@ -32,7 +32,6 @@ defmodule MediaCentaur.ReleaseTracking do
   """
 
   import Ecto.Query
-  require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Repo
 

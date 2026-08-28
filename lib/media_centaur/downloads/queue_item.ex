@@ -233,8 +233,6 @@ defmodule MediaCentaur.Downloads.QueueItem do
   # `MediaCentaur.Acquisition.Pursuits.Identity.normalize_title/1` so the
   # cached value is the same one the matcher would compute. Asserted by
   # `QueueItemTest`.
-  defp normalize_title(nil), do: ""
-
   defp normalize_title(title) when is_binary(title) do
     title
     |> String.downcase()

@@ -142,10 +142,10 @@ defmodule MediaCentaurWeb.WatchHistoryLive do
               <div class="min-w-0">
                 <h3 class="font-semibold">Removed from history</h3>
                 <p class="text-sm text-base-content/60 truncate mt-0.5">
-                  {@deleted_event && @deleted_event.title}
+                  {@deleted_event.title}
                 </p>
                 <p class="text-xs text-base-content/40 mt-1">
-                  {@deleted_event && type_label(@deleted_event.entity_type)}
+                  {type_label(@deleted_event.entity_type)}
                 </p>
               </div>
             </div>

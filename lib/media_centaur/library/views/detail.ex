@@ -561,8 +561,6 @@ defmodule MediaCentaur.Library.Views.Detail do
     end
   end
 
-  defp build_item_for_container(_, _), do: nil
-
   # --- Context: the pre-loaded data the pure builders read from ---
 
   # A `context` holds every per-item datum the item builder needs, keyed
@@ -1003,8 +1001,6 @@ defmodule MediaCentaur.Library.Views.Detail do
       fn video_object -> {{:video_object, video_object.id}, video_object} end
     )
   end
-
-  defp load_containers(_type, _ids), do: %{}
 
   # --- Leaf-level fields ---
 

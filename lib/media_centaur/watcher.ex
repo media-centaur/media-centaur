@@ -629,8 +629,6 @@ defmodule MediaCentaur.Watcher do
     |> Enum.uniq()
   end
 
-  defp broadcast_entities_changed([]), do: :ok
-
   defp broadcast_entities_changed(entity_ids) do
     MediaCentaur.Library.Events.broadcast(%MediaCentaur.Library.Events.EntitiesChanged{
       entity_ids: entity_ids
