@@ -30,6 +30,13 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.MediaOmnibox do
         attributes: %{mode: :media}
       },
       %Variation{
+        id: :media_typed,
+        description:
+          "A query in the box — the in-input clear X appears at the far right " <>
+            "(same in release mode, where it dismisses the session).",
+        attributes: %{mode: :media, query: "nosferatu"}
+      },
+      %Variation{
         id: :release_mode,
         description:
           "The flipped box — monospace brace-expansion input (Enter to search, no button), " <>

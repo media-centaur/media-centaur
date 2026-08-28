@@ -23,6 +23,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
 
   import MediaCentaurWeb.CoreComponents, only: [icon: 1]
 
+  alias Phoenix.LiveView.JS
   alias MediaCentaurWeb.IncomingLive.SearchSession
   alias MediaCentaurWeb.IncomingLive.Logic
 
@@ -126,7 +127,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           name="query"
           value={@query}
           class={[
-            "input input-bordered w-full pl-12 text-base",
+            "input input-bordered w-full pl-12 pr-12 text-base",
             (@hero && "h-[52px] rounded-xl") || "h-12"
           ]}
           placeholder="What do you want to watch?"
@@ -135,6 +136,25 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           data-nav-item
           tabindex="0"
         />
+        <%!-- The input is cleared client-side too (the app.js
+              omnibox:clear-input listener): LiveView never overwrites a
+              focused input's value, so the server-side query reset alone
+              would leave stale text in the box. --%>
+        <button
+          :if={@query != ""}
+          id="omnibox-media-clear"
+          type="button"
+          class="absolute right-3 top-1/2 -translate-y-1/2 z-10 cursor-pointer text-base-content/40 transition-colors hover:text-base-content/80"
+          phx-click={
+            JS.dispatch("omnibox:clear-input", to: "#omnibox-media-input")
+            |> JS.push("omnibox_clear")
+          }
+          aria-label="Clear search"
+          data-nav-item
+          tabindex="0"
+        >
+          <.icon name="hero-x-mark-mini" class="size-5" />
+        </button>
       </div>
     </form>
     """
@@ -163,7 +183,7 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           name="query"
           value={@session.query}
           class={[
-            "input input-bordered w-full pl-12 font-mono text-sm",
+            "input input-bordered w-full pl-12 pr-12 font-mono text-sm",
             (@hero && "h-[52px] rounded-xl") || "h-12"
           ]}
           placeholder="Title S01E{01-10}"
@@ -172,11 +192,31 @@ defmodule MediaCentaurWeb.Components.Acquisition.MediaOmnibox do
           data-nav-item
           tabindex="0"
         />
+        <%!-- The spinner yields the far-right slot to the X whenever a
+              query is present (the X exists exactly then). --%>
         <span
           :if={@any_loading?}
-          class="loading loading-spinner loading-sm absolute right-4 top-1/2 -translate-y-1/2 text-base-content/40"
+          class={[
+            "loading loading-spinner loading-sm absolute top-1/2 -translate-y-1/2 text-base-content/40",
+            (@session.query != "" && "right-12") || "right-4"
+          ]}
         >
         </span>
+        <button
+          :if={@session.query != ""}
+          id="omnibox-release-clear"
+          type="button"
+          class="absolute right-3 top-1/2 -translate-y-1/2 z-10 cursor-pointer text-base-content/40 transition-colors hover:text-base-content/80"
+          phx-click={
+            JS.dispatch("omnibox:clear-input", to: "#omnibox-release-input")
+            |> JS.push("clear_search")
+          }
+          aria-label="Clear search"
+          data-nav-item
+          tabindex="0"
+        >
+          <.icon name="hero-x-mark-mini" class="size-5" />
+        </button>
       </div>
     </form>
     """
