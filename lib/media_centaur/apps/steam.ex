@@ -25,6 +25,14 @@ defmodule MediaCentaur.Apps.Steam do
   # Filenames per role in the per-appid librarycache layout and on the
   # CDN; the legacy flat layout prefixes the same names with `{appid}_`.
   @art_files %{banner: "header.jpg", poster: "library_600x900.jpg"}
+
+  # Steam's current pipeline stores art hash-addressed: semantic
+  # filenames inside sha-named subdirectories of the appid dir
+  # (`<appid>/<sha1>/library_header.jpg`). Titles released under this
+  # layout have no flat-named files locally AND no flat-path CDN asset
+  # (the CDN moved to `apps/<appid>/<sha1>/header.jpg`, hash unknowable
+  # without the store API) — the hashed local file is the only source.
+  @hashed_art_files %{banner: "library_header.jpg", poster: "library_capsule.jpg"}
   @cdn "https://shared.steamstatic.com/store_item_assets/steam/apps"
 
   @type game :: %{app_id: integer(), name: String.t()}
@@ -67,9 +75,10 @@ defmodule MediaCentaur.Apps.Steam do
   end
 
   @doc """
-  Path to locally-cached Steam art for a role, or nil. Checks both
-  librarycache layouts: per-appid subdirectory (current Steam) and the
-  legacy flat `{appid}_header.jpg` naming.
+  Path to locally-cached Steam art for a role, or nil. Checks all three
+  librarycache layouts: named files in the per-appid subdirectory,
+  legacy flat `{appid}_header.jpg` naming, and the current
+  hash-addressed `{appid}/{sha1}/library_header.jpg` layout.
   """
   @spec local_art_path(String.t(), integer(), role()) :: String.t() | nil
   def local_art_path(root, app_id, role) do
@@ -81,7 +90,14 @@ defmodule MediaCentaur.Apps.Steam do
       Path.join(cache, "#{app_id}_#{filename}")
     ]
 
-    Enum.find(candidates, &File.regular?/1)
+    Enum.find(candidates, &File.regular?/1) || hashed_art_path(cache, app_id, role)
+  end
+
+  defp hashed_art_path(cache, app_id, role) do
+    [cache, to_string(app_id), "*", Map.fetch!(@hashed_art_files, role)]
+    |> Path.join()
+    |> Path.wildcard()
+    |> List.first()
   end
 
   @doc "Steam CDN fallback URL for a role's art."

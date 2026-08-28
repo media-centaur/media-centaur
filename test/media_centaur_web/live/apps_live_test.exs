@@ -142,6 +142,10 @@ defmodule MediaCentaurWeb.AppsLiveTest do
 
       assert has_element?(view, "[phx-click='add_steam_game'][phx-value-app-id='100']")
 
+      # Tile art routes through SteamArtController with the page's root,
+      # not a hotlinked CDN URL (hash-addressed titles 404 there).
+      assert has_element?(view, "img[src^='/apps/steam-art/100/banner?root=']")
+
       view |> element("[phx-click='add_steam_game'][phx-value-app-id='100']") |> render_click()
 
       assert [app] = Apps.list_apps()

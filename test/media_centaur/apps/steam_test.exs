@@ -126,6 +126,41 @@ defmodule MediaCentaur.Apps.SteamTest do
       assert Steam.local_art_path(root, 100, :poster) ==
                Path.join(cache, "library_600x900.jpg")
     end
+
+    # Steam's current content pipeline stores per-appid art in
+    # hash-named subdirectories with semantic filenames one level down
+    # (observed 2026-08: <appid>/<sha1>/library_header.jpg). Titles
+    # released under this layout have no flat-named files at all — and
+    # no flat-path CDN asset either, so the local hit is the only
+    # artwork source.
+    test "finds art in the hashed librarycache layout" do
+      root = tmp_steam_root("hashed-art")
+      cache = Path.join([root, "appcache", "librarycache", "100"])
+      banner_dir = Path.join(cache, "3be0683f48f4db94e0f0ae6b74ab7ad22f3e57a1")
+      capsule_dir = Path.join(cache, "bb28e343ed25c21ced3a0e8c9c14144fcbc72964")
+      File.mkdir_p!(banner_dir)
+      File.mkdir_p!(capsule_dir)
+      File.write!(Path.join(banner_dir, "library_header.jpg"), "banner-jpg")
+      File.write!(Path.join(capsule_dir, "library_capsule.jpg"), "capsule-jpg")
+
+      assert Steam.local_art_path(root, 100, :banner) ==
+               Path.join(banner_dir, "library_header.jpg")
+
+      assert Steam.local_art_path(root, 100, :poster) ==
+               Path.join(capsule_dir, "library_capsule.jpg")
+    end
+
+    test "prefers the flat layout and ignores foreign files in hash dirs" do
+      root = tmp_steam_root("mixed-art")
+      cache = Path.join([root, "appcache", "librarycache", "100"])
+      hash_dir = Path.join(cache, "764b524c8f5761832b3e7328e754652626479d82")
+      File.mkdir_p!(hash_dir)
+      File.write!(Path.join(cache, "header.jpg"), "flat-jpg")
+      File.write!(Path.join(hash_dir, "logo.png"), "logo-png")
+
+      assert Steam.local_art_path(root, 100, :banner) == Path.join(cache, "header.jpg")
+      assert Steam.local_art_path(root, 100, :poster) == nil
+    end
   end
 
   describe "cdn_art_url/2" do

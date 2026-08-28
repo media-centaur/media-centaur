@@ -272,8 +272,13 @@ defmodule MediaCentaurWeb.AppsLive do
                       data-steam-added={game.app_id}
                       class="relative aspect-[460/215] rounded-lg overflow-hidden glass-inset opacity-50"
                     >
+                      <%!-- Tile art goes through SteamArtController: the
+                            local librarycache copy when present, CDN
+                            redirect otherwise. Hash-addressed titles
+                            404 on any guessed CDN URL, so hotlinking
+                            broke their tiles. --%>
                       <img
-                        src={Steam.cdn_art_url(game.app_id, :banner)}
+                        src={~p"/apps/steam-art/#{game.app_id}/banner?#{[root: @steam_root]}"}
                         alt={game.name}
                         loading="lazy"
                         decoding="async"
@@ -292,7 +297,7 @@ defmodule MediaCentaurWeb.AppsLive do
                       tabindex="0"
                     >
                       <img
-                        src={Steam.cdn_art_url(game.app_id, :banner)}
+                        src={~p"/apps/steam-art/#{game.app_id}/banner?#{[root: @steam_root]}"}
                         alt={game.name}
                         loading="lazy"
                         decoding="async"
@@ -348,11 +353,12 @@ defmodule MediaCentaurWeb.AppsLive do
   defp assign_steam_games(socket) do
     case steam_root(socket) do
       nil ->
-        assign(socket, steam_games: :unavailable, added_steam_ids: MapSet.new())
+        assign(socket, steam_games: :unavailable, steam_root: nil, added_steam_ids: MapSet.new())
 
       root ->
         assign(socket,
           steam_games: Steam.installed_games(root),
+          steam_root: root,
           added_steam_ids: Apps.added_steam_ids()
         )
     end
