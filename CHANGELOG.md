@@ -4,6 +4,17 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.2.0 — 2026-08-28
+
+### New
+
+- **Launch other programs from Media Centaur with the new Apps page.** Apps is a launcher for things outside your media library — Steam games, emulators, anything you can start with a command. Great for a shared living-room machine: whoever's holding the controller can start a game without leaving Media Centaur. Turn it on with the **Apps** toggle under Settings → Preferences (off by default) and it appears in the sidebar.
+- **Add your installed Steam games in a couple of clicks.** On the Apps page, open **Manage → Add app**. The Steam tab lists the games installed on the machine, artwork included — click one to add it. Media Centaur reads Steam's own files to find them; no Steam login or API key involved. Launching a game starts it through the Steam client.
+- **Or add any program by command.** The Manual tab takes a name and the command you'd type in a terminal — one line, quoting and environment variables work as expected. Apps without artwork get a clean monogram card.
+- **Launching is hands-off by design.** Apps start detached: they keep running if Media Centaur restarts, and closing Media Centaur never closes them. Cards respond to keyboard and gamepad navigation like the rest of the interface.
+
+This update adds a new database table, created automatically during the update.
+
 ## v1.1.0 — 2026-08-20
 
 ### New
