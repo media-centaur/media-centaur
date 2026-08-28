@@ -1,5 +1,5 @@
 defmodule MediaCentaur.Apps.ArtworkTest do
-  use MediaCentaur.DataCase
+  use MediaCentaur.DataCase, async: false
 
   alias MediaCentaur.Apps.Artwork
   alias MediaCentaur.Settings.Config

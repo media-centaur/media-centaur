@@ -271,10 +271,12 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # LetterboxdLinks (detail-modal Letterboxd link) adds one more = +2.
       # WatchlistVisibility (sidebar entry, session-wide on_mount) adds
       # one more key on every page = +2.
+      # AppsVisibility (Apps sidebar entry, session-wide on_mount) adds
+      # one more key on every page = +2.
       mount_and_assert(
         conn,
         "/settings",
-        60,
+        62,
         "Config + Secret reads + maintenance health counts + per-client connection-test reads (per-key cache-miss DB fallback in test mode)"
       )
     end
@@ -284,7 +286,8 @@ defmodule MediaCentaurWeb.NoDbOnRenderTest do
       # each mount phase = +4 aggregates on every page.
       # WatchlistVisibility (session-wide on_mount) adds one settings key
       # on each mount phase = +2 cache-miss reads.
-      mount_and_assert(conn, "/setup", 21, "Initial setup wizard — minimal reads")
+      # AppsVisibility (session-wide on_mount) adds one more = +2.
+      mount_and_assert(conn, "/setup", 23, "Initial setup wizard — minimal reads")
     end
 
     test "GET /review mounts within budget", %{conn: conn} do

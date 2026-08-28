@@ -1,5 +1,5 @@
 defmodule MediaCentaur.AppsTest do
-  use MediaCentaur.DataCase
+  use MediaCentaur.DataCase, async: false
 
   import MediaCentaur.TestFactory
 

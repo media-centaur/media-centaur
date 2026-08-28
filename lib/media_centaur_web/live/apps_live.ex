@@ -193,9 +193,16 @@ defmodule MediaCentaurWeb.AppsLive do
       </div>
 
       <:overlays>
-        <div class="modal-backdrop" data-state={if @modal == :closed, do: "closed", else: "open"}>
-          <div class="modal-panel" phx-click-away={@modal_open? && "close_modal"}>
-            <div :if={@modal_open?} class="p-5 space-y-4">
+        <.modal
+          id="apps-manage-modal"
+          open={@modal_open?}
+          dismiss={:ephemeral}
+          on_close="close_modal"
+          size={:sm}
+          panel_class="p-5 space-y-4"
+        >
+          <div :if={@modal_open?}>
+            <div class="space-y-4">
               <div class="flex items-center justify-between">
                 <h2 class="text-lg font-semibold">
                   {if @editing?, do: "Edit app", else: "Add app"}
@@ -297,7 +304,7 @@ defmodule MediaCentaurWeb.AppsLive do
               </.form>
             </div>
           </div>
-        </div>
+        </.modal>
       </:overlays>
     </Layouts.app>
     """
