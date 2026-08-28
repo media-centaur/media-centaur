@@ -51,6 +51,10 @@ defmodule MediaCentaur.Apps do
     :ok
   end
 
+  @doc "Launches an app fire-and-forget. See `MediaCentaur.Apps.Launcher`."
+  @spec launch(App.t()) :: :ok | {:error, :launcher_unavailable}
+  defdelegate launch(app), to: MediaCentaur.Apps.Launcher
+
   @doc "Steam app ids already added — the picker marks these."
   @spec added_steam_ids() :: MapSet.t(integer())
   def added_steam_ids do
