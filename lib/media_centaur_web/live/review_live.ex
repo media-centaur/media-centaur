@@ -426,6 +426,7 @@ defmodule MediaCentaurWeb.ReviewLive do
     <Layouts.console_mount socket={@socket} />
     <Layouts.app
       show_watchlist={@show_watchlist}
+      show_apps={@show_apps}
       flash={@flash}
       current_path="/review"
       diagnostics_unseen={assigns[:diagnostics_unseen] || 0}

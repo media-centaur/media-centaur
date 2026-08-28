@@ -39,6 +39,7 @@ defmodule MediaCentaurWeb.Router do
          {MediaCentaur.Settings.Preferences.AppsVisibility, :show_apps, :setting_aware_show_apps}}
       ] do
       live "/", HomeLive, :index
+      live "/apps", AppsLive, :index
       live "/console", ConsolePageLive, :index
       live "/guide", GuideLive, :index
       live "/guide/:slug", GuideLive, :show
