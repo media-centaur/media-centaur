@@ -46,7 +46,7 @@ defmodule MediaCentaur.WatchHistory.Views.PlaybackActivity do
       recent: recent,
       last_write_at: List.first(recent) && List.first(recent).at,
       lifetime: %{
-        hours: round((stats.total_seconds || 0.0) / 3600),
+        hours: round(stats.total_seconds / 3600),
         titles: stats.total_count,
         streak: stats.streak
       }

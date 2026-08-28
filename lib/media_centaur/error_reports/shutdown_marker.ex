@@ -9,7 +9,6 @@ defmodule MediaCentaur.ErrorReports.ShutdownMarker do
   functions, best-effort (a write/delete failure never raises), so the caller
   (`ShutdownMonitor`) stays trivial.
   """
-  require Logger
 
   @doc """
   Records that a run is in progress and reports whether the previous run left

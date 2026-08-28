@@ -31,7 +31,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.ChangeTarget do
   partial enqueue if the inner transaction rolls back.
   """
 
-  require MediaCentaur.Log, as: Log
 
   alias MediaCentaur.Acquisition.Pursuits
   alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Helpers, Runner}

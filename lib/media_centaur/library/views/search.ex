@@ -275,8 +275,6 @@ defmodule MediaCentaur.Library.Views.Search do
     Enum.any?(ids, fn m_id -> MapSet.member?(presence_set, {:movie, m_id}) end)
   end
 
-  defp entity_present?(_entity, _presence_set), do: false
-
   # --- Scoring + filtering ---
 
   defp score_row({_playable_item_id, {normalised_name, %SearchItem{} = item}}, normalised_query) do

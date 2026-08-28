@@ -44,8 +44,6 @@ defmodule MediaCentaur.Acquisition.Pursuits.Commands.AutoCancel do
 
   import Ecto.Query
 
-  require MediaCentaur.Log, as: Log
-
   alias MediaCentaur.Acquisition.Pursuits.Commands.{ClientCleanup, Helpers, Runner}
   alias MediaCentaur.Acquisition.Pursuits.Events
   alias MediaCentaur.Acquisition.Pursuits.Events.{AutoCancelled, TargetChanged}

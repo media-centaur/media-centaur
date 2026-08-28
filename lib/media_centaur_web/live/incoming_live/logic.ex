@@ -342,8 +342,6 @@ defmodule MediaCentaurWeb.IncomingLive.Logic do
   # Re-parse the human ETA back into seconds so we can sort. The original
   # integer ETA is dropped during QueueItem construction; if that ever
   # changes, this helper goes away.
-  defp parse_eta(nil), do: 0
-
   defp parse_eta(text) when is_binary(text) do
     case Regex.run(~r/^(\d+)([smhd])(?:\s+(\d+)m)?$/, text) do
       [_, num, "s"] -> String.to_integer(num)

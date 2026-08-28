@@ -138,7 +138,6 @@ defmodule MediaCentaur.Acquisition.QueueMatcher do
 
   defp claimed?(%QueueItem{id: id}, claimed), do: MapSet.member?(claimed, id)
 
-  defp claim(claimed, nil), do: claimed
   defp claim(claimed, %QueueItem{id: id}), do: MapSet.put(claimed, id)
 
   # Falls back to on-the-fly normalisation when the cached value isn't
