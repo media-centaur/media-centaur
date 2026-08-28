@@ -240,6 +240,11 @@ export const inputConfig = {
       grid:    {},
       sidebar: { right: ["grid"] },
     },
+    apps: {
+      toolbar: { down: ["grid"] },
+      grid:    { up: ["toolbar"] },
+      sidebar: { right: ["grid", "toolbar"] },
+    },
     // Home: vertical stack of horizontal shelves. Up/down crosses between
     // shelves (candidate lists skip shelves the page didn't render).
     home: {
@@ -270,6 +275,7 @@ export const inputConfig = {
     incoming:  ["coming_up_list", "pursuits", "ledger", "zone_tabs", "omnibox", "sidebar"],
     watch_history: ["toolbar", "grid", "sidebar"],
     watchlist: ["grid", "sidebar"],
+    apps: ["grid", "toolbar", "sidebar"],
     home:      ["hero", "continue", "recently", "coming_up", "sidebar"],
     setup:     ["grid"],
   },

@@ -23,6 +23,7 @@ import { createSettingsBehavior } from "./settings_behavior"
 import { createIncomingBehavior, incomingDom } from "./incoming_behavior"
 import { createWatchHistoryBehavior } from "./watch_history_behavior"
 import { createWatchlistBehavior } from "./watchlist_behavior"
+import { createAppsBehavior } from "./apps_behavior"
 import { createSetupBehavior } from "./setup_behavior"
 import { createGuideBehavior } from "./guide_behavior"
 import { withWipNotice } from "./wip_notice"
@@ -40,6 +41,7 @@ const BEHAVIOR_REGISTRY = {
   incoming: () => createIncomingBehavior(incomingDom),
   "watch-history": () => withWipNotice(createWatchHistoryBehavior()),
   watchlist: () => createWatchlistBehavior(),
+  apps: () => createAppsBehavior(),
   setup: () => createSetupBehavior(),
   guide: () => createGuideBehavior(),
 }
