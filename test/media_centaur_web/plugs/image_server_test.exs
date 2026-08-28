@@ -49,6 +49,14 @@ defmodule MediaCentaurWeb.Plugs.ImageServerTest do
       assert conn.resp_body =~ ~r/viewBox="0 0 400 100"/
     end
 
+    test "banner miss returns landscape SVG placeholder (Apps launcher cards)", %{conn: conn} do
+      conn = call_plug(conn, "/media-images/images/apps/ffffffff-0000-0000-0000-000000000000/banner.jpg")
+
+      assert conn.status == 200
+      assert content_type(conn) == "image/svg+xml; charset=utf-8"
+      assert conn.resp_body =~ ~r/viewBox="0 0 320 150"/
+    end
+
     test "unknown role miss returns generic square SVG placeholder", %{conn: conn} do
       conn = call_plug(conn, "/media-images/ffffffff-0000-0000-0000-000000000000/mystery.jpg")
 

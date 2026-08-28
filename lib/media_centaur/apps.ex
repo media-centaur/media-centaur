@@ -16,6 +16,8 @@ defmodule MediaCentaur.Apps do
   import Ecto.Query
 
   alias MediaCentaur.Apps.App
+  alias MediaCentaur.Apps.Artwork
+  alias MediaCentaur.Apps.Steam
   alias MediaCentaur.Repo
 
   @doc "All apps, alphabetical by name (case-insensitive)."
@@ -48,8 +50,36 @@ defmodule MediaCentaur.Apps do
   @spec remove_app(App.t()) :: :ok
   def remove_app(%App{} = app) do
     Repo.delete(app)
+    Artwork.delete(app.id)
     :ok
   end
+
+  @doc """
+  Adds a Steam game: resolves the launch command, inserts the row, and
+  caches both art shapes — local Steam librarycache copy first, CDN
+  fallback async (network stays off the caller per ADR-049).
+  """
+  @spec add_steam_app(%{app_id: integer(), name: String.t()}, String.t()) ::
+          {:ok, App.t()} | {:error, Ecto.Changeset.t()}
+  def add_steam_app(%{app_id: app_id, name: name}, steam_root) do
+    attrs = %{
+      name: name,
+      command: Steam.command_for(app_id, steam_root),
+      origin: %{"source" => "steam", "app_id" => app_id}
+    }
+
+    with {:ok, app} <- add_app(attrs) do
+      cache_steam_artwork(app, app_id, steam_root)
+      {:ok, app}
+    end
+  end
+
+  @doc "Web URLs for an app's cached artwork. See `MediaCentaur.Apps.Artwork`."
+  @spec artwork_urls(Ecto.UUID.t()) :: %{
+          banner_url: String.t() | nil,
+          poster_url: String.t() | nil
+        }
+  defdelegate artwork_urls(app_id), to: Artwork, as: :urls
 
   @doc "Launches an app fire-and-forget. See `MediaCentaur.Apps.Launcher`."
   @spec launch(App.t()) :: :ok | {:error, :launcher_unavailable}
@@ -70,4 +100,21 @@ defmodule MediaCentaur.Apps do
   end
 
   defp existing_by_origin(_origin), do: nil
+
+  defp cache_steam_artwork(app, steam_app_id, steam_root) do
+    for role <- [:banner, :poster],
+        is_nil(Map.fetch!(Artwork.urls(app.id), :"#{role}_url")) do
+      case Steam.local_art_path(steam_root, steam_app_id, role) do
+        nil ->
+          Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+            Artwork.store_url(role, app.id, Steam.cdn_art_url(steam_app_id, role))
+          end)
+
+        local_path ->
+          Artwork.store_file(role, app.id, local_path)
+      end
+    end
+
+    :ok
+  end
 end

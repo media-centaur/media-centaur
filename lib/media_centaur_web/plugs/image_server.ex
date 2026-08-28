@@ -25,6 +25,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
     "backdrop" => {320, 180},
     "thumb" => {320, 180},
     "logo" => {400, 100},
+    "banner" => {320, 150},
     "unknown" => {200, 200}
   }
 
@@ -193,6 +194,7 @@ defmodule MediaCentaurWeb.Plugs.ImageServer do
       "thumb" -> "thumb"
       "thumbnail" -> "thumb"
       "logo" -> "logo"
+      "banner" -> "banner"
       _ -> "unknown"
     end
   end
