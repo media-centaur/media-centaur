@@ -39,6 +39,23 @@ persona: a kid with a gamepad launching a game; a parent manages the list.
 - **Command format:** single shell string, run via `sh -c` under `setsid`.
   One line to type in the manual form; shell quoting/env behave as expected.
   This is the user's own machine — shell-injection framing does not apply.
+- **Artwork architecture (unify-design pass):** app artwork is an instance of
+  the app's existing non-library-artwork concept — an identity-keyed directory
+  under `data_dir`, **disk as the ledger** (no path columns), URLs resolved
+  from disk at read time, served by the existing `/media-images/*` plug with
+  the `?w=` derivative ladder. Modeled on `MediaCentaur.TmdbArtwork`, minus
+  TTL/holds (app art is permanent and deleted synchronously with its app).
+  An earlier draft's separate `/app-images/*` plug and `banner_path` /
+  `poster_path` columns were rejected as parallel representations.
+- **Launcher not unified with mpv — explicit refusal.** mpv's spawn is
+  session-coupled (IPC socket, log reader, exit classifier); a detached
+  fire-and-forget spawn shares none of it. No existing duplication collapses.
+- **Steam binary resolved at add time — explicit.** The stored command bakes
+  in the launch invocation (native `steam` vs flatpak); the importer detects
+  which once, at add time. The command is user-editable data afterward, same
+  as any manual app.
+- **No ETS projection for the Apps page — explicit.** Projections exist for
+  library-scale instant-nav; a dozen rows read straight from the context.
 
 ## Context & boundary
 
@@ -50,11 +67,12 @@ lib/media_centaur/apps/
   app.ex        # Ecto schema
   launcher.ex   # detached spawn
   steam.ex      # Steam root discovery, VDF/ACF parsing, art lookup
-  artwork.ex    # fetch/cache art via shared ImageFiles service
+  artwork.ex    # owns cache layout + URL resolution; fetches via ImageFiles
 ```
 
-`use Boundary, deps: [MediaCentaur.Settings], exports: [App]`. The web layer
-adds `MediaCentaur.Apps` to its deps.
+`use Boundary, deps: [MediaCentaur.Settings, MediaCentaur.Library], exports: [App]`
+(Library for `Image.web_path/1`, same as `TmdbArtwork`). The web layer adds
+`MediaCentaur.Apps` to its deps.
 
 ## Data model
 
@@ -64,12 +82,11 @@ One table, `apps`:
 |---|---|---|
 | `name` | string, required | display name |
 | `command` | string, required | single shell string |
-| `origin` | map, default `%{}` | e.g. `%{"source" => "steam", "app_id" => 413150}`; manual: `%{"source" => "manual"}` |
-| `banner_path` | string, nullable | relative filename in the app-art cache |
-| `poster_path` | string, nullable | cached for future poster view; unused by MVP UI |
+| `origin` | map, default `%{}` | e.g. `%{"source" => "steam", "app_id" => 413150}`; manual: `%{"source" => "manual"}`. Keys documented in the `App` moduledoc. |
 
-Sort: alphabetical (manual ordering deferred). Dedup: context-level origin
-check at add time — no JSON indexes for a dozen rows.
+No artwork columns — disk is the ledger (see Artwork). Sort: alphabetical
+(manual ordering deferred). Dedup: context-level origin check at add time —
+no JSON indexes for a dozen rows.
 
 ## Steam discovery
 
@@ -89,11 +106,24 @@ subdirectory layout), CDN fallback by app id. Launch command produced:
 
 ## Artwork
 
-At add time both shapes are copied/downloaded into an app-art directory next
-to the database (not media-dir image caches — apps aren't media): 460×215
-header (used now) and 600×900 capsule (future poster view). Fetching goes
-through `MediaCentaur.ImageFiles.download/3`. Served by a small
-`/app-images/*` plug modeled on `ImageServer`, including placeholder-on-miss.
+`Apps.Artwork` owns the cache layout and resolution, modeled on
+`MediaCentaur.TmdbArtwork`'s paths/urls sections:
+
+- **Layout:** `{data_dir}/images/apps/{app_id}/banner.jpg` (460×215 header,
+  used now) and `poster.jpg` (600×900 capsule, cached for a future poster
+  view). Both fetched at add time via `MediaCentaur.ImageFiles`.
+- **Disk is the ledger:** no DB columns. `Apps.Artwork.urls/1` resolves
+  role URLs by `File.exists?` at read time (trivially cheap at this scale,
+  self-healing) and builds URLs via `Library.Image.web_path/1`. Missing role
+  → `nil` → the card renders its monogram fallback.
+- **Serving:** the existing `ImageServer` plug already searches `data_dir`,
+  so `images/apps/…` is served — with `?w=` derivatives and cache headers —
+  with zero new serving code. One coherent extension: a `"banner"` stem in
+  its placeholder-dims table (`{320, 150}`).
+- **Deletion:** removing an app synchronously deletes its art directory and
+  purges derivatives via `ImageFiles.purge_derivatives_for/1`. No TTL, no
+  holds — app art is permanent while its app exists, and `TmdbArtwork.sweep/0`
+  never walks `images/apps/`.
 
 Manual apps: optional artwork field accepting a URL or local file path
 (droppable if the form should be leaner); without art the card renders a
@@ -121,7 +151,11 @@ restarts. No session tracking or supervision beyond the caller.
   `layouts.ex` → `settings_row` toggle + handler in Settings.
 - Page: toolbar with **Manage**; banner-card grid (`data-nav-zone` /
   `data-nav-grid`); new `AppCards.banner_card` component + storybook story
-  covering art and monogram-fallback states.
+  covering art and monogram-fallback states. The card keeps Steam art's
+  native `aspect-[460/215]` ratio (forcing the existing 16:9 backdrop-card
+  ratio would crop ~17% of the art) but shares the established card chrome —
+  `card-hover`, `glass-inset`, rounded corners, nav-focus states — and the
+  art-less fallback-variant idiom from `continue_watching_row`.
 - Manage mode reveals **Add app** and per-card edit/remove. Add modal has two
   tabs: **Steam** (grid of discovered installed games with header art,
   already-added marked) and **Manual** (name, command, optional artwork).
