@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Apps do
   use Boundary,
     deps: [MediaCentaur.Settings, MediaCentaur.Library],
-    exports: [App, Steam]
+    exports: [App, Events, Events.ArtworkCached, Steam]
 
   @moduledoc """
   Bounded context for the Apps launcher — user-curated external
@@ -17,8 +17,14 @@ defmodule MediaCentaur.Apps do
 
   alias MediaCentaur.Apps.App
   alias MediaCentaur.Apps.Artwork
+  alias MediaCentaur.Apps.Events
   alias MediaCentaur.Apps.Steam
   alias MediaCentaur.Repo
+  alias MediaCentaur.Topics
+
+  @doc "Subscribe the caller to apps update events."
+  @spec subscribe() :: :ok | {:error, term()}
+  def subscribe, do: Topics.subscribe(Topics.apps_updates())
 
   @doc "All apps, alphabetical by name (case-insensitive)."
   @spec list_apps() :: [App.t()]
@@ -106,12 +112,19 @@ defmodule MediaCentaur.Apps do
         is_nil(Map.fetch!(Artwork.urls(app.id), url_key)) do
       case Steam.local_art_path(steam_root, steam_app_id, role) do
         nil ->
+          # Newer Steam librarycache entries carry only hashed filenames,
+          # so the named-file lookup misses and the art comes from the CDN
+          # after the caller has rendered — the event closes that gap.
           Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-            Artwork.store_url(role, app.id, Steam.cdn_art_url(steam_app_id, role))
+            with :ok <- Artwork.store_url(role, app.id, Steam.cdn_art_url(steam_app_id, role)) do
+              Events.broadcast(%Events.ArtworkCached{app_id: app.id, role: role})
+            end
           end)
 
         local_path ->
-          Artwork.store_file(role, app.id, local_path)
+          with :ok <- Artwork.store_file(role, app.id, local_path) do
+            Events.broadcast(%Events.ArtworkCached{app_id: app.id, role: role})
+          end
       end
     end
 
