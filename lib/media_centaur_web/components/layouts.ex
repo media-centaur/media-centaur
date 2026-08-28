@@ -87,6 +87,16 @@ defmodule MediaCentaurWeb.Layouts do
     entry is gated — `/watchlist` stays reachable by URL.
     """
 
+  attr :show_apps, :boolean,
+    default: false,
+    doc: """
+    Whether the sidebar shows the Apps launcher entry — the `show_apps`
+    preference (`MediaCentaur.Settings.Preferences.AppsVisibility`, default off).
+    Seeded app-wide by the `SettingAware` on_mount in the default
+    `live_session`; only the nav entry is gated — `/apps` stays reachable
+    by URL.
+    """
+
   attr :full_width, :boolean, default: false, doc: "when true, removes max-w-7xl constraint"
 
   slot :inner_block, required: true
@@ -169,6 +179,18 @@ defmodule MediaCentaurWeb.Layouts do
           >
             <.icon name="hero-inbox-arrow-down" class="size-5 flex-shrink-0" />
             <span class="sidebar-label">Incoming</span>
+          </.link>
+          <.link
+            :if={@show_apps}
+            navigate="/apps"
+            class={sidebar_link_class(@current_path, "/apps")}
+            data-tip="Apps"
+            data-nav-item
+            data-nav-remember
+            tabindex="0"
+          >
+            <.icon name="hero-rocket-launch" class="size-5 flex-shrink-0" />
+            <span class="sidebar-label">Apps</span>
           </.link>
         </nav>
 

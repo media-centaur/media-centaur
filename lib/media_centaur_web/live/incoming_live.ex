@@ -844,6 +844,7 @@ defmodule MediaCentaurWeb.IncomingLive do
     <Layouts.console_mount socket={@socket} />
     <Layouts.app
       show_watchlist={@show_watchlist}
+      show_apps={@show_apps}
       flash={@flash}
       current_path="/incoming"
       full_width

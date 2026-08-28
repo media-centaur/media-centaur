@@ -1682,6 +1682,7 @@ defmodule MediaCentaurWeb.SettingsLive do
     <Layouts.console_mount socket={@socket} />
     <Layouts.app
       show_watchlist={@show_watchlist}
+      show_apps={@show_apps}
       flash={@flash}
       current_path="/settings"
       full_width

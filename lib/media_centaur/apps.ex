@@ -1,7 +1,7 @@
 defmodule MediaCentaur.Apps do
   use Boundary,
     deps: [MediaCentaur.Settings, MediaCentaur.Library],
-    exports: [App]
+    exports: [App, Steam]
 
   @moduledoc """
   Bounded context for the Apps launcher — user-curated external

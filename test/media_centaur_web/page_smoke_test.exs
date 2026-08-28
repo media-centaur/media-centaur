@@ -46,7 +46,8 @@ defmodule MediaCentaurWeb.PageSmokeTest do
         {"/reconcile", "reconcile"},
         {"/console", "console"},
         {"/history", "watch history"},
-        {"/watchlist", "watchlist"}
+        {"/watchlist", "watchlist"},
+        {"/apps", "apps"}
       ] do
     test "#{label} (#{path}) renders without crashing", %{conn: conn} do
       assert {:ok, _view, html} = live_async!(conn, unquote(path))
@@ -674,6 +675,18 @@ defmodule MediaCentaurWeb.PageSmokeTest do
                live_async!(conn, "/incoming?selected=#{Ecto.UUID.generate()}")
 
       assert html =~ "Pursuit not found"
+    end
+  end
+
+  describe "/apps with apps present" do
+    setup do
+      create_app(%{name: "Sample Smoke App"})
+      :ok
+    end
+
+    test "renders the card grid", %{conn: conn} do
+      assert {:ok, _view, html} = live_async!(conn, "/apps")
+      assert html =~ "Sample Smoke App"
     end
   end
 end
