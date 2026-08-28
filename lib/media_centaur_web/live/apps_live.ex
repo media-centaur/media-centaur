@@ -128,7 +128,10 @@ defmodule MediaCentaurWeb.AppsLive do
     assigns =
       assign(assigns,
         modal_open?: assigns.modal != :closed,
-        editing?: match?({:edit, _app}, assigns.modal)
+        editing?: match?({:edit, _app}, assigns.modal),
+        steam_picker?:
+          assigns.modal == :add and assigns.add_tab == :steam and
+            is_list(assigns.steam_games) and assigns.steam_games != []
       )
 
     ~H"""
@@ -202,12 +205,15 @@ defmodule MediaCentaurWeb.AppsLive do
       </div>
 
       <:overlays>
+        <%!-- The Steam picker earns the full :md panel — a wide grid
+              beats a two-column tower. Every other state (manual form,
+              edit, no-Steam notices) stays a compact dialog. --%>
         <.modal
           id="apps-manage-modal"
           open={@modal_open?}
           dismiss={:ephemeral}
           on_close="close_modal"
-          size={:sm}
+          size={if @steam_picker?, do: :md, else: :sm}
           panel_class="p-5 space-y-4"
         >
           <div :if={@modal_open?}>
@@ -253,9 +259,12 @@ defmodule MediaCentaurWeb.AppsLive do
                 >
                   Installed games from your Steam library. Adding one launches it through Steam.
                 </p>
+                <%!-- The vh cap divides by --ui-scale: the root zoom
+                      multiplies vh, so a bare 60vh would overflow the
+                      screen at >1× (same idiom as --modal-panel-h). --%>
                 <div
                   :if={is_list(@steam_games) && @steam_games != []}
-                  class="grid gap-2 grid-cols-2 max-h-[50vh] overflow-y-auto thin-scrollbar"
+                  class="grid gap-2 grid-cols-3 max-h-[calc(60vh/var(--ui-scale,1))] overflow-y-auto thin-scrollbar"
                 >
                   <%= for game <- @steam_games do %>
                     <div
