@@ -1529,6 +1529,49 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       refute has_element?(view, "[data-component='media-results']")
     end
 
+    test "an in-input X appears once a media query is typed and clears the search", %{conn: conn} do
+      TmdbStubs.setup_tmdb_client()
+      TmdbStubs.stub_search_multi([])
+
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      # Empty box — no X to click.
+      refute has_element?(view, "#omnibox-media-clear")
+
+      view
+      |> form("form[phx-change='omnibox_change']", %{query: "zzzz"})
+      |> render_change()
+
+      render_async(view, 2_000)
+      assert has_element?(view, "#omnibox-media-clear")
+
+      view
+      |> element("#omnibox-media-clear")
+      |> render_click()
+
+      refute has_element?(view, "#omnibox-media-clear")
+      refute has_element?(view, "[data-component='media-results']")
+    end
+
+    test "the release-mode in-input X dismisses the session", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/incoming")
+
+      enter_release_mode(view)
+      refute has_element?(view, "#omnibox-release-clear")
+
+      view
+      |> form("form[phx-change='query_change']", query: "Sample Show S01E{01-04}")
+      |> render_change()
+
+      assert has_element?(view, "#omnibox-release-clear")
+
+      view
+      |> element("#omnibox-release-clear")
+      |> render_click()
+
+      refute has_element?(view, "#omnibox-release-clear")
+    end
+
     test "the results show the full first TMDB page, not just eight", %{conn: conn} do
       TmdbStubs.setup_tmdb_client()
 
