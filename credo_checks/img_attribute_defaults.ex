@@ -48,7 +48,10 @@ defmodule MediaCentaur.Credo.Checks.ImgAttributeDefaults do
   # can grow into the dozens behind an explicit reveal.
   @exempt_files [
     "components/detail/cast_panel.ex",
-    "credo/checks/img_attribute_defaults_test.exs"
+    "credo/checks/img_attribute_defaults_test.exs",
+    # Steam picker: a scrollable modal grid of CDN-hotlinked headers, one
+    # per installed game — dozens of images revealed on demand, not page flow.
+    "live/apps_live.ex"
   ]
 
   @lazy_loading_attr ~r/loading\s*=\s*"lazy"/

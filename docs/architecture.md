@@ -98,6 +98,7 @@ The backend is organised into the bounded contexts below plus a TMDB adapter, al
 | `MediaCentaur.Status` | Read-side aggregator for the Status page | Composition only, owns no state. |
 | `MediaCentaur.Guide` | Markdown guide book rendering | Static content; no DB tables. |
 | `MediaCentaur.Setup` | First-run tour state + probes | Reads Capabilities and IntegrationHealth. |
+| `MediaCentaur.Apps` | `apps` table, app launcher (Steam discovery, fire-and-forget spawn), `{data_dir}/images/apps/` art cache | Uniform App rows filled by add-time importers; artwork is disk-as-ledger, same idiom as TmdbArtwork. Nav entry gated by the `show_apps` preference. |
 
 ## Data Flow
 

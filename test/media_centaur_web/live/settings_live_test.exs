@@ -7,6 +7,7 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
   alias MediaCentaur.Playback.LanguagePolicy
 
   alias MediaCentaur.Settings.Preferences.{
+    AppsVisibility,
     AutoPlayNextEpisode,
     IncomingBackdrop,
     LetterboxdLinks,
@@ -250,13 +251,13 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
     test "toggling the apps launcher persists the flag", %{conn: conn} do
       {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
 
-      assert MediaCentaur.Settings.Preferences.AppsVisibility.enabled?() == false
+      assert AppsVisibility.enabled?() == false
 
       view |> element("div[phx-click=toggle_show_apps]") |> render_click()
-      assert MediaCentaur.Settings.Preferences.AppsVisibility.enabled?() == true
+      assert AppsVisibility.enabled?() == true
 
       view |> element("div[phx-click=toggle_show_apps]") |> render_click()
-      assert MediaCentaur.Settings.Preferences.AppsVisibility.enabled?() == false
+      assert AppsVisibility.enabled?() == false
     end
 
     # Personal display preferences live together — this toggle moved here

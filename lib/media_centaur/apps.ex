@@ -102,8 +102,8 @@ defmodule MediaCentaur.Apps do
   defp existing_by_origin(_origin), do: nil
 
   defp cache_steam_artwork(app, steam_app_id, steam_root) do
-    for role <- [:banner, :poster],
-        is_nil(Map.fetch!(Artwork.urls(app.id), :"#{role}_url")) do
+    for {role, url_key} <- [banner: :banner_url, poster: :poster_url],
+        is_nil(Map.fetch!(Artwork.urls(app.id), url_key)) do
       case Steam.local_art_path(steam_root, steam_app_id, role) do
         nil ->
           Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
