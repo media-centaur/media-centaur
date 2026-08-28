@@ -33,7 +33,10 @@ defmodule MediaCentaurWeb.Router do
         # toggle) rather than per-LiveView.
         {MediaCentaurWeb.Live.SettingAware,
          {MediaCentaur.Settings.Preferences.WatchlistVisibility, :show_watchlist,
-          :setting_aware_show_watchlist}}
+          :setting_aware_show_watchlist}},
+        # Same deal for the Apps launcher entry.
+        {MediaCentaurWeb.Live.SettingAware,
+         {MediaCentaur.Settings.Preferences.AppsVisibility, :show_apps, :setting_aware_show_apps}}
       ] do
       live "/", HomeLive, :index
       live "/console", ConsolePageLive, :index

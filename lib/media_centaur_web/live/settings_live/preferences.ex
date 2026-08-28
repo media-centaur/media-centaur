@@ -20,6 +20,7 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
   attr :auto_play_next_episode, :boolean, required: true
   attr :letterboxd_links, :boolean, required: true
   attr :show_watchlist, :boolean, required: true
+  attr :show_apps, :boolean, required: true
 
   def render(assigns) do
     ~H"""
@@ -95,6 +96,14 @@ defmodule MediaCentaurWeb.SettingsLive.Preferences do
           description="Show the watchlist in the sidebar. Early preview — it may still change shape"
           checked={@show_watchlist}
           event="toggle_show_watchlist"
+          color="info"
+        />
+
+        <.settings_row
+          label="Apps"
+          description="Show the Apps launcher in the sidebar"
+          checked={@show_apps}
+          event="toggle_show_apps"
           color="info"
         />
 

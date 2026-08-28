@@ -247,6 +247,18 @@ defmodule MediaCentaurWeb.SettingsLiveTest do
       assert WatchlistVisibility.enabled?() == false
     end
 
+    test "toggling the apps launcher persists the flag", %{conn: conn} do
+      {:ok, view, _html} = live_async!(conn, ~p"/settings?section=preferences")
+
+      assert MediaCentaur.Settings.Preferences.AppsVisibility.enabled?() == false
+
+      view |> element("div[phx-click=toggle_show_apps]") |> render_click()
+      assert MediaCentaur.Settings.Preferences.AppsVisibility.enabled?() == true
+
+      view |> element("div[phx-click=toggle_show_apps]") |> render_click()
+      assert MediaCentaur.Settings.Preferences.AppsVisibility.enabled?() == false
+    end
+
     # Personal display preferences live together — this toggle moved here
     # from the Library section's one-row Display card.
     test "toggling poster titles persists the flag from Preferences", %{conn: conn} do

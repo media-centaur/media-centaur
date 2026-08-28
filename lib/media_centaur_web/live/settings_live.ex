@@ -725,6 +725,17 @@ defmodule MediaCentaurWeb.SettingsLive do
     {:noreply, assign(socket, show_watchlist: enabled)}
   end
 
+  def handle_event("toggle_show_apps", _params, socket) do
+    enabled = !socket.assigns.show_apps
+
+    Settings.find_or_create_entry!(%{
+      key: MediaCentaur.Settings.Preferences.AppsVisibility.setting_key(),
+      value: %{"enabled" => enabled}
+    })
+
+    {:noreply, assign(socket, show_apps: enabled)}
+  end
+
   def handle_event("toggle_spoiler_free", _params, socket) do
     enabled = !socket.assigns.spoiler_free
 
@@ -1779,6 +1790,7 @@ defmodule MediaCentaurWeb.SettingsLive do
                 auto_play_next_episode={@auto_play_next_episode}
                 letterboxd_links={@letterboxd_links}
                 show_watchlist={@show_watchlist}
+                show_apps={@show_apps}
                 library_backdrop={@library_backdrop}
                 incoming_backdrop={@incoming_backdrop}
                 tmdb_test={@tmdb_test}
@@ -1901,6 +1913,7 @@ defmodule MediaCentaurWeb.SettingsLive do
       auto_play_next_episode={@auto_play_next_episode}
       letterboxd_links={@letterboxd_links}
       show_watchlist={@show_watchlist}
+      show_apps={@show_apps}
     />
     """
   end
