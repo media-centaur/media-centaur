@@ -57,6 +57,7 @@ defmodule MediaCentaur.Topics do
   | `watcher:state` | `Watcher` | dir-watch state transitions |
   | `review:intake` | `Review` | inbound files awaiting review |
   | `discovery:updates` | `Discovery.Events` | `{:watchlist_item_added, _}`, `{:watchlist_item_removed, _}` |
+  | `apps:updates` | `Apps.Events` | `{:app_artwork_cached, _}` — async CDN art landed |
   | `review:updates` | `Review.Events` | `{:file_added, _}`, `{:file_reviewed, _}`, `{:group_approved, _}`, `{:group_error, _}` — typed structs, ADR-060's worked example |
   | `pipeline:input`, `:matched`, `:images`, `:publish` | `Pipeline` | per-stage progress |
   | `console:logs` | `Console` | log stream for the in-app drawer |
@@ -158,6 +159,7 @@ defmodule MediaCentaur.Topics do
   def review_intake, do: "review:intake"
   def review_updates, do: "review:updates"
   def discovery_updates, do: "discovery:updates"
+  def apps_updates, do: "apps:updates"
   def settings_updates, do: "settings:updates"
   def config_updates, do: "config:updates"
   def release_tracking_updates, do: "release_tracking:updates"

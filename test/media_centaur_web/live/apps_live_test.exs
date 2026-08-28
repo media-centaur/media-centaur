@@ -150,6 +150,28 @@ defmodule MediaCentaurWeb.AppsLiveTest do
       refute has_element?(view, "[phx-click='add_steam_game'][phx-value-app-id='100']")
     end
 
+    test "picker states its Steam provenance", %{conn: conn} do
+      root = Path.join(System.tmp_dir!(), "mc-steam-prov-#{System.unique_integer([:positive])}")
+      File.mkdir_p!(Path.join(root, "steamapps"))
+
+      File.write!(Path.join([root, "steamapps", "appmanifest_100.acf"]), """
+      "AppState"
+      {
+      \t"appid"\t\t"100"
+      \t"name"\t\t"Sample Game"
+      }
+      """)
+
+      on_exit(fn -> File.rm_rf!(root) end)
+
+      {:ok, view, _html} = live(conn, "/apps?steam_root=#{URI.encode_www_form(root)}")
+
+      view |> element("[phx-click='toggle_manage']") |> render_click()
+      html = view |> element("[phx-click='open_add']") |> render_click()
+
+      assert html =~ "from your Steam library"
+    end
+
     test "steam absent shows the manual-tab hint", %{conn: conn} do
       missing = Path.join(System.tmp_dir!(), "mc-steam-none-#{System.unique_integer([:positive])}")
 
@@ -159,6 +181,28 @@ defmodule MediaCentaurWeb.AppsLiveTest do
       html = view |> element("[phx-click='open_add']") |> render_click()
 
       assert html =~ "Steam wasn&#39;t found"
+    end
+  end
+
+  describe "async artwork updates" do
+    test "a card gains its banner when the artwork-cached event arrives", %{conn: conn} do
+      app = create_app(%{name: "Sample Game"})
+      {:ok, view, _html} = live(conn, "/apps")
+
+      refute has_element?(view, "#app-card-#{app.id} img")
+
+      # The async CDN fetch lands after first render — simulate its result.
+      banner = MediaCentaur.Apps.Artwork.on_disk_path(:banner, app.id)
+      File.mkdir_p!(Path.dirname(banner))
+      File.write!(banner, "banner-bytes")
+
+      MediaCentaur.Apps.Events.broadcast(%MediaCentaur.Apps.Events.ArtworkCached{
+        app_id: app.id,
+        role: :banner
+      })
+
+      render(view)
+      assert has_element?(view, "#app-card-#{app.id} img")
     end
   end
 

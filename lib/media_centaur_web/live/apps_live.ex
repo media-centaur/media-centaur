@@ -24,6 +24,8 @@ defmodule MediaCentaurWeb.AppsLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket), do: Apps.subscribe()
+
     {:ok,
      socket
      |> assign(page_title: "Apps", manage: false, modal: :closed, add_tab: :steam)
@@ -113,6 +115,13 @@ defmodule MediaCentaurWeb.AppsLive do
         {:noreply, assign_manual_form(socket, Map.put(changeset, :action, :validate))}
     end
   end
+
+  @impl true
+  def handle_info({:app_artwork_cached, %Apps.Events.ArtworkCached{}}, socket) do
+    {:noreply, load_apps(socket)}
+  end
+
+  def handle_info(_message, socket), do: {:noreply, socket}
 
   @impl true
   def render(assigns) do
@@ -231,12 +240,18 @@ defmodule MediaCentaurWeb.AppsLive do
                 </.button>
               </div>
 
-              <div :if={@modal == :add && @add_tab == :steam}>
+              <div :if={@modal == :add && @add_tab == :steam} class="space-y-3">
                 <p :if={@steam_games == :unavailable} class="text-sm text-base-content/50">
                   Steam wasn't found on this machine. Use the Manual tab to add any app by command.
                 </p>
                 <p :if={@steam_games == []} class="text-sm text-base-content/50">
                   Steam is installed, but no games were found.
+                </p>
+                <p
+                  :if={is_list(@steam_games) && @steam_games != []}
+                  class="text-sm text-base-content/50"
+                >
+                  Installed games from your Steam library. Adding one launches it through Steam.
                 </p>
                 <div
                   :if={is_list(@steam_games) && @steam_games != []}

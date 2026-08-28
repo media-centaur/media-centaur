@@ -114,6 +114,22 @@ defmodule MediaCentaur.AppsTest do
       assert is_binary(banner) and is_binary(poster)
     end
 
+    test "add_steam_app/2 broadcasts app_artwork_cached as each role lands" do
+      root = Path.join(System.tmp_dir!(), "mc-steam-evt-#{System.unique_integer([:positive])}")
+      cache = Path.join([root, "appcache", "librarycache", "100"])
+      File.mkdir_p!(cache)
+      File.write!(Path.join(cache, "header.jpg"), "banner-bytes")
+      File.write!(Path.join(cache, "library_600x900.jpg"), "poster-bytes")
+      on_exit(fn -> File.rm_rf!(root) end)
+
+      :ok = Apps.subscribe()
+      assert {:ok, app} = Apps.add_steam_app(%{app_id: 100, name: "Sample Game"}, root)
+      app_id = app.id
+
+      assert_receive {:app_artwork_cached, %Apps.Events.ArtworkCached{app_id: ^app_id, role: :banner}}
+      assert_receive {:app_artwork_cached, %Apps.Events.ArtworkCached{app_id: ^app_id, role: :poster}}
+    end
+
     test "remove_app/1 deletes the cached artwork", %{data_dir: data_dir} do
       app = create_app(%{})
       dir = Path.join([data_dir, "images", "apps", app.id])
