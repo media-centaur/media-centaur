@@ -171,8 +171,15 @@
           # runtime-only context. Limit to lib/.
           {CredoEnvvar.Check.Warning.EnvironmentVariablesAtCompileTime, [files: %{excluded: ["test/"]}]},
 
-          # credo_check_error_handling_ecto_oban plugin
-          {CredoCheckErrorHandlingEctoOban.Check.TransactionErrorInObanJob, []},
+          # credo_check_error_handling_ecto_oban was dropped 2026-08-28: the
+          # hex package (0.9.1, unmaintained since 2023) declares credo as
+          # `only: [:dev, :test]` in its own mix.exs, so hex strips the dep
+          # for consumers and the package cannot compile under Elixir 1.20's
+          # stricter per-dep code paths (`Credo.Check` not loaded). It is
+          # GPL-3.0, so vendoring into this MIT repo is not an option. If the
+          # guarded footgun (an Oban worker returning Repo.transaction/2's
+          # 4-tuple, which Oban treats as success) needs coverage again,
+          # reimplement it as a custom check in credo_checks/.
 
           # Custom checks (this repo)
           {MediaCentaur.Credo.Checks.PredicateNaming, []},

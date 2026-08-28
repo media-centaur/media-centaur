@@ -121,7 +121,6 @@ defmodule MediaCentaur.MixProject do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:credo_naming, "~> 2.1", only: [:dev, :test], runtime: false},
       {:credo_envvar, "~> 0.1", only: [:dev, :test], runtime: false},
-      {:credo_check_error_handling_ecto_oban, "~> 0.9", only: [:dev, :test], runtime: false},
       {:quokka, "~> 2.12", only: [:dev, :test], runtime: false},
       {:sobelow, "~> 0.14", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},

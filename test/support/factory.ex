@@ -441,6 +441,18 @@ defmodule MediaCentaur.TestFactory do
     create_with_external_ids(:movie, %{}, attrs)
   end
 
+  @doc "Persists an app (launcher entry) via the Apps context."
+  def create_app(attrs) do
+    defaults = %{
+      name: "Sample App #{System.unique_integer([:positive])}",
+      command: "sample-app",
+      origin: %{"source" => "manual"}
+    }
+
+    {:ok, app} = MediaCentaur.Apps.add_app(Map.merge(defaults, Map.new(attrs)))
+    app
+  end
+
   def create_tv_series(attrs \\ %{}) do
     create_with_external_ids(:tv_series, %{name: "Test TV Series"}, attrs)
   end
