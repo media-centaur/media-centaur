@@ -40,7 +40,7 @@ defmodule MediaCentaur.AppsTest do
                })
 
       assert second.id == first.id
-      assert Apps.list_apps() |> length() == 1
+      assert length(Apps.list_apps()) == 1
     end
   end
 

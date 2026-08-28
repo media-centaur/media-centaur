@@ -1,6 +1,7 @@
 defmodule MediaCentaurWeb do
   use Boundary,
     deps: [
+      MediaCentaur.Apps,
       MediaCentaur.ErrorReports,
       MediaCentaur.Library,
       MediaCentaur.Maintenance,
