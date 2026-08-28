@@ -54,6 +54,10 @@ defmodule MediaCentaurWeb.Router do
       live "/watchlist", WatchlistLive, :index
     end
 
+    # Steam picker artwork — local librarycache file or CDN redirect
+    # (hash-addressed titles have no guessable CDN URL; see controller).
+    get "/apps/steam-art/:app_id/:role", SteamArtController, :show
+
     # Backward-compat redirects — the Upcoming and Downloads pages merged
     # into /incoming (DDR-015); bookmarks and stale deep-links land there
     # with their query strings intact (`?selected=<pursuit>` keeps opening

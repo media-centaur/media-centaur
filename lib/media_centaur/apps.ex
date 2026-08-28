@@ -112,9 +112,12 @@ defmodule MediaCentaur.Apps do
         is_nil(Map.fetch!(Artwork.urls(app.id), url_key)) do
       case Steam.local_art_path(steam_root, steam_app_id, role) do
         nil ->
-          # Newer Steam librarycache entries carry only hashed filenames,
-          # so the named-file lookup misses and the art comes from the CDN
-          # after the caller has rendered — the event closes that gap.
+          # No local copy in any librarycache layout (flat, per-appid, or
+          # hash-addressed) — fetch from the CDN after the caller has
+          # rendered; the event closes that gap. Note the flat CDN URL
+          # itself 404s for hash-addressed titles, but those always have
+          # the local copy, so this branch only runs for titles where the
+          # flat URL is the right one.
           Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
             with :ok <- Artwork.store_url(role, app.id, Steam.cdn_art_url(steam_app_id, role)) do
               Events.broadcast(%Events.ArtworkCached{app_id: app.id, role: role})
