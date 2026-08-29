@@ -33,6 +33,23 @@ defmodule MediaCentaur.Apps.ArtworkTest do
     assert %{banner_url: nil, poster_url: nil} = Artwork.urls(Ecto.UUID.generate())
   end
 
+  # Overwriting a master in place (refresh_steam_artwork) must change the
+  # URL, or morphdom keeps the old src and the browser never refetches.
+  test "urls/1 versions each URL by the master's mtime", %{data_dir: data_dir} do
+    app_id = Ecto.UUID.generate()
+    dir = Path.join([data_dir, "images", "apps", app_id])
+    File.mkdir_p!(dir)
+    banner = Path.join(dir, "banner.jpg")
+    File.write!(banner, "jpg")
+
+    assert %{banner_url: url} = Artwork.urls(app_id)
+    assert url =~ ~r/\?v=\d+$/
+
+    File.touch!(banner, {{2020, 1, 1}, {0, 0, 0}})
+    assert %{banner_url: aged_url} = Artwork.urls(app_id)
+    assert aged_url != url
+  end
+
   test "store_file/3 copies a source file into the cache", %{data_dir: data_dir} do
     app_id = Ecto.UUID.generate()
     source = Path.join(data_dir, "source.jpg")
