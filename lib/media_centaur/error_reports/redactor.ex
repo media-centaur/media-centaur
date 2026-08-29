@@ -8,7 +8,8 @@ defmodule MediaCentaur.ErrorReports.Redactor do
   1. Active-config strip — exact-literal replacement of the TMDB API key
      and every configured external URL (Prowlarr, download client, etc.)
      with `<redacted:api_key>` / `<redacted:url>`.
-  2. Regex substitutions — paths, UUIDs, IPs, emails, long digit runs.
+  2. Regex substitutions — paths, UUIDs, datetimes, IPs, emails, long
+     digit runs.
 
   Unicode-aware; callers can assume input has been NFC-normalized.
   """
@@ -24,6 +25,16 @@ defmodule MediaCentaur.ErrorReports.Redactor do
   # (db_connection Connection.init), so one fault hitting several pool
   # connections would otherwise mint one fingerprint per connection.
   @db_conn_label_re ~r/\bdb_conn_\d+\b/u
+  # Datetimes shard fingerprints: the digit-run rule catches the year but
+  # leaves 2-digit month/day/time components, so a crash message embedding
+  # a timestamp (an inspected struct's ~U sigil, a formatted DateTime)
+  # minted a fresh bucket per occurrence (2026-08-28: one fault, seven
+  # buckets). Sigils are replaced wholesale; bare dates and clock times
+  # are caught separately for non-sigil formatting.
+  @datetime_sigil_re ~r/~[UNDT]\[[^\]]*\]/u
+  @iso_datetime_re ~r/\b\d{4}-\d{2}-\d{2}[T ]\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?/u
+  @date_re ~r/\b\d{4}-\d{2}-\d{2}\b/u
+  @clock_re ~r/\b\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?\b/u
   @path_re ~r|(?<![A-Za-z0-9_])/(?:[^\s/"']+/){1,}[^\s/"']*|u
   @uuid_re ~r/\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/iu
   @ipv4_re ~r/\b(?:\d{1,3}\.){3}\d{1,3}\b/u
@@ -74,6 +85,10 @@ defmodule MediaCentaur.ErrorReports.Redactor do
     text
     |> then(&Regex.replace(@db_conn_label_re, &1, "db_conn_<N>"))
     |> then(&Regex.replace(@uuid_re, &1, "<uuid>"))
+    |> then(&Regex.replace(@datetime_sigil_re, &1, "<ts>"))
+    |> then(&Regex.replace(@iso_datetime_re, &1, "<ts>"))
+    |> then(&Regex.replace(@date_re, &1, "<date>"))
+    |> then(&Regex.replace(@clock_re, &1, "<time>"))
     |> then(&Regex.replace(@path_re, &1, "<path>"))
     |> then(&Regex.replace(@email_re, &1, "<email>"))
     |> then(&Regex.replace(@ipv4_re, &1, "<ip>"))
