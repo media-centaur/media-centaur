@@ -57,6 +57,28 @@ defmodule MediaCentaur.ErrorReports.RedactorTest do
       refute disconnect.("db_conn_9") =~ "db_conn_9"
     end
 
+    test "redacts datetime sigils so timestamps don't shard fingerprints" do
+      # A crash message inspecting a struct embeds ~U/~N/~D/~T sigils whose
+      # 2-digit time components survive the digit-run rule (2026-08-28: one
+      # duplicate-track fault, seven buckets).
+      crash = fn sigil ->
+        Redactor.normalize("terminating: changes: %{last_refreshed_at: #{sigil}} badmatch")
+      end
+
+      assert crash.("~U[2026-08-28 19:46:45Z]") == crash.("~U[2026-08-28 19:46:41Z]")
+      refute crash.("~U[2026-08-28 19:46:45Z]") =~ "46"
+      assert crash.("~N[2026-08-28 19:46:45]") == crash.("~N[2026-08-27 08:12:01]")
+      assert crash.("~D[2026-08-28]") == crash.("~D[2026-08-27]")
+      assert crash.("~T[19:46:45]") == crash.("~T[08:12:01]")
+    end
+
+    test "redacts bare ISO dates and clock times" do
+      assert Redactor.normalize("job ran at 2026-08-28 19:46:45Z") ==
+               Redactor.normalize("job ran at 2026-08-27 08:12:01Z")
+
+      refute Redactor.normalize("deadline 19:46:45 passed") =~ "19:46:45"
+    end
+
     test "collapses whitespace and trims" do
       assert Redactor.normalize("  foo   bar  \n baz  ") == "foo bar baz"
     end
