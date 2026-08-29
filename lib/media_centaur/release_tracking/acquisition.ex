@@ -194,22 +194,25 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
             all_releases
           end
 
-        {:ok, item} =
-          ReleaseTracking.track_item(%{
-            tmdb_id: result.tmdb_id,
-            media_type: :tv_series,
-            name: response["name"] || result.name,
-            source: :manual,
-            last_refreshed_at: DateTime.utc_now(),
-            last_library_season: start_season,
-            last_library_episode: start_episode
-          })
+        case ReleaseTracking.track_item(%{
+               tmdb_id: result.tmdb_id,
+               media_type: :tv_series,
+               name: response["name"] || result.name,
+               source: :manual,
+               last_refreshed_at: DateTime.utc_now(),
+               last_library_season: start_season,
+               last_library_episode: start_episode
+             }) do
+          {:ok, item} ->
+            persist_releases(item, releases)
+            create_began_tracking_event(item)
+            schedule_image_downloads(item, result.tmdb_id, response)
 
-        persist_releases(item, releases)
-        create_began_tracking_event(item)
-        schedule_image_downloads(item, result.tmdb_id, response)
+            {:ok, item}
 
-        {:ok, item}
+          {:error, changeset} ->
+            {:error, track_item_error(changeset)}
+        end
 
       {:error, reason} ->
         {:error, reason}
@@ -219,26 +222,43 @@ defmodule MediaCentaur.ReleaseTracking.Acquisition do
   defp do_track_from_search(%{media_type: :movie} = result, _start_season, _start_episode) do
     case Client.get_movie(result.tmdb_id) do
       {:ok, response} ->
-        {:ok, item} =
-          ReleaseTracking.track_item(%{
-            tmdb_id: result.tmdb_id,
-            media_type: :movie,
-            name: response["title"] || result.name,
-            source: :manual,
-            last_refreshed_at: DateTime.utc_now()
-          })
+        case ReleaseTracking.track_item(%{
+               tmdb_id: result.tmdb_id,
+               media_type: :movie,
+               name: response["title"] || result.name,
+               source: :manual,
+               last_refreshed_at: DateTime.utc_now()
+             }) do
+          {:ok, item} ->
+            releases = Extractor.extract_movie_release_dates(response)
+            persist_movie_releases(item, releases)
 
-        releases = Extractor.extract_movie_release_dates(response)
-        persist_movie_releases(item, releases)
+            create_began_tracking_event(item)
+            schedule_image_downloads(item, result.tmdb_id, response)
 
-        create_began_tracking_event(item)
-        schedule_image_downloads(item, result.tmdb_id, response)
+            {:ok, item}
 
-        {:ok, item}
+          {:error, changeset} ->
+            {:error, track_item_error(changeset)}
+        end
 
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  # A duplicate track attempt (double click, stale search results, two
+  # in-flight async tracks) hits the {tmdb_id, media_type} unique
+  # constraint — an expected no-op, not a fault. Anything else is a
+  # genuine changeset failure the caller should see.
+  defp track_item_error(changeset) do
+    duplicate? =
+      Enum.any?(changeset.errors, fn
+        {:tmdb_id, {_message, meta}} -> meta[:constraint] == :unique
+        _other -> false
+      end)
+
+    if duplicate?, do: :already_tracked, else: changeset
   end
 
   defp persist_releases(item, releases) do

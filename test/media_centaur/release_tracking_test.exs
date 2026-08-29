@@ -1105,6 +1105,55 @@ defmodule MediaCentaur.ReleaseTrackingTest do
       assert length(releases) == 1
       assert hd(releases).air_date == nil
     end
+
+    test "tracking an already-tracked TV series returns :already_tracked" do
+      MediaCentaur.TmdbStubs.stub_routes([
+        {"/tv/7777",
+         %{
+           "id" => 7777,
+           "name" => "Sample Show",
+           "status" => "Returning Series",
+           "poster_path" => "/sample.jpg",
+           "number_of_seasons" => 1,
+           "next_episode_to_air" => %{
+             "air_date" => "2027-06-01",
+             "season_number" => 1,
+             "episode_number" => 1,
+             "name" => "Premiere"
+           }
+         }}
+      ])
+
+      result = %{tmdb_id: 7777, media_type: :tv_series, name: "Sample Show", poster_path: nil}
+
+      {:ok, item} = ReleaseTracking.track_from_search(result, %{})
+
+      assert {:error, :already_tracked} = ReleaseTracking.track_from_search(result, %{})
+
+      # The duplicate attempt must not disturb the existing item or its releases.
+      assert ReleaseTracking.get_item_by_tmdb(7777, :tv_series).id == item.id
+      assert length(ReleaseTracking.list_releases_for_item(item.id)) == 1
+    end
+
+    test "tracking an already-tracked movie returns :already_tracked" do
+      MediaCentaur.TmdbStubs.stub_routes([
+        {"/movie/6060",
+         %{
+           "id" => 6060,
+           "title" => "Sample Movie",
+           "status" => "Planned",
+           "release_date" => nil,
+           "poster_path" => nil
+         }}
+      ])
+
+      result = %{tmdb_id: 6060, media_type: :movie, name: "Sample Movie", poster_path: nil}
+
+      {:ok, item} = ReleaseTracking.track_from_search(result, %{})
+
+      assert {:error, :already_tracked} = ReleaseTracking.track_from_search(result, %{})
+      assert ReleaseTracking.get_item_by_tmdb(6060, :movie).id == item.id
+    end
   end
 
   describe "create_event/1" do
