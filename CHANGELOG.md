@@ -4,6 +4,22 @@ User-facing release notes for Media Centaur. Internal refactors, test
 changes, and dependency bumps with no user impact are omitted here —
 see the git history for the full engineering trail.
 
+## v1.3.0 — 2026-08-29
+
+### New
+
+- **Clear the search with one click.** The search box on the Incoming page now shows an ✕ at its right edge whenever you've typed something — click it to empty the box and dismiss the results. It works in both search modes, and the box refocuses so you can type the next search straight away.
+
+### Improved
+
+- **The Steam game picker got roomier.** Add app → Steam now opens as a wide dialog with a three-column grid instead of a narrow two-column tower, and the list scrolls inside the dialog instead of growing past the screen — including at larger interface scales, where the old picker could overflow entirely.
+- **Game names sit below the artwork.** Picker tiles no longer print the name over the banner art, where it fought the game's own logo — each tile is now clean art with the name underneath.
+
+### Fixed
+
+- **Newer Steam games no longer show a broken image in the picker.** Steam changed how it hosts game artwork, and recently released titles had no image at the address Media Centaur used. The picker now finds their artwork reliably.
+- **Steam artwork stays current instead of quietly going stale.** Banner art now comes from the game's current store listing rather than an outdated copy, both in the picker and for the apps you've added. Launching an app also refreshes its stored artwork in the background, so cards keep up as publishers rotate their art.
+
 ## v1.2.0 — 2026-08-28
 
 ### New
