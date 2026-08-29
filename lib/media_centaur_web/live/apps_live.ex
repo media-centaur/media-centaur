@@ -266,48 +266,12 @@ defmodule MediaCentaurWeb.AppsLive do
                   :if={is_list(@steam_games) && @steam_games != []}
                   class="grid gap-2 grid-cols-3 max-h-[calc(60vh/var(--ui-scale,1))] overflow-y-auto thin-scrollbar"
                 >
-                  <%= for game <- @steam_games do %>
-                    <div
-                      :if={MapSet.member?(@added_steam_ids, game.app_id)}
-                      data-steam-added={game.app_id}
-                      class="relative aspect-[460/215] rounded-lg overflow-hidden glass-inset opacity-50"
-                    >
-                      <%!-- Tile art goes through SteamArtController: the
-                            local librarycache copy when present, CDN
-                            redirect otherwise. Hash-addressed titles
-                            404 on any guessed CDN URL, so hotlinking
-                            broke their tiles. --%>
-                      <img
-                        src={~p"/apps/steam-art/#{game.app_id}/banner?#{[root: @steam_root]}"}
-                        alt={game.name}
-                        loading="lazy"
-                        decoding="async"
-                        class="absolute inset-0 w-full h-full object-cover"
-                      />
-                      <span class="absolute bottom-1 left-2 text-xs text-white text-on-image">
-                        {game.name} — added
-                      </span>
-                    </div>
-                    <div
-                      :if={!MapSet.member?(@added_steam_ids, game.app_id)}
-                      phx-click="add_steam_game"
-                      phx-value-app-id={game.app_id}
-                      class="card-hover relative aspect-[460/215] rounded-lg overflow-hidden glass-inset cursor-pointer"
-                      data-nav-item
-                      tabindex="0"
-                    >
-                      <img
-                        src={~p"/apps/steam-art/#{game.app_id}/banner?#{[root: @steam_root]}"}
-                        alt={game.name}
-                        loading="lazy"
-                        decoding="async"
-                        class="absolute inset-0 w-full h-full object-cover"
-                      />
-                      <span class="absolute bottom-1 left-2 text-xs text-white text-on-image">
-                        {game.name}
-                      </span>
-                    </div>
-                  <% end %>
+                  <.steam_tile
+                    :for={game <- @steam_games}
+                    game={game}
+                    steam_root={@steam_root}
+                    added?={MapSet.member?(@added_steam_ids, game.app_id)}
+                  />
                 </div>
               </div>
 
@@ -336,6 +300,47 @@ defmodule MediaCentaurWeb.AppsLive do
         </.modal>
       </:overlays>
     </Layouts.app>
+    """
+  end
+
+  attr :game, :map,
+    required: true,
+    doc: "a `Steam.game/0` map (`%{app_id, name}`) from `Steam.installed_games/1`"
+
+  attr :steam_root, :string, required: true
+  attr :added?, :boolean, required: true
+
+  # One picker tile: banner art with the name below it — an overlay
+  # fought the art (Steam headers carry their own logo lockups).
+  # Added games keep their slot, dimmed and inert.
+  defp steam_tile(assigns) do
+    ~H"""
+    <div
+      id={"steam-tile-#{@game.app_id}"}
+      data-steam-added={@added? && @game.app_id}
+      phx-click={!@added? && "add_steam_game"}
+      phx-value-app-id={!@added? && @game.app_id}
+      class={[(@added? && "opacity-50") || "card-hover cursor-pointer"]}
+      data-nav-item={!@added?}
+      tabindex={!@added? && "0"}
+    >
+      <div class="relative aspect-[460/215] rounded-lg overflow-hidden glass-inset">
+        <%!-- Tile art goes through SteamArtController: the local
+              librarycache copy when present, CDN redirect otherwise.
+              Hash-addressed titles 404 on any guessed CDN URL, so
+              hotlinking broke their tiles. --%>
+        <img
+          src={~p"/apps/steam-art/#{@game.app_id}/banner?#{[root: @steam_root]}"}
+          alt={@game.name}
+          loading="lazy"
+          decoding="async"
+          class="absolute inset-0 w-full h-full object-cover"
+        />
+      </div>
+      <p class="mt-1 truncate text-xs text-base-content/70">
+        {@game.name}{if @added?, do: " — added"}
+      </p>
+    </div>
     """
   end
 
