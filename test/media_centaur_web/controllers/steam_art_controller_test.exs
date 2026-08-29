@@ -8,6 +8,44 @@ defmodule MediaCentaurWeb.SteamArtControllerTest do
     root
   end
 
+  defp write_local_banner(root, app_id, bytes) do
+    hash_dir = Path.join([root, "appcache", "librarycache", to_string(app_id), "3be0683f"])
+    File.mkdir_p!(hash_dir)
+    File.write!(Path.join(hash_dir, "library_header.jpg"), bytes)
+  end
+
+  defmodule FakeStoreClient do
+    @moduledoc false
+    def get(_url), do: Process.get(:fake_store_response)
+  end
+
+  defp stub_store(response) do
+    Process.put(:steam_store_http_client, FakeStoreClient)
+    Process.put(:fake_store_response, response)
+  end
+
+  test "banner prefers the store API's current URL over local art", %{conn: conn} do
+    root = tmp_steam_root()
+    write_local_banner(root, 100, "stale-local-bytes")
+
+    stub_store(
+      {:ok,
+       %{
+         status: 200,
+         body: %{
+           "100" => %{
+             "success" => true,
+             "data" => %{"header_image" => "https://cdn.test/98dd/header.jpg?t=1"}
+           }
+         }
+       }}
+    )
+
+    conn = get(conn, ~p"/apps/steam-art/100/banner?#{[root: root]}")
+
+    assert redirected_to(conn, 302) == "https://cdn.test/98dd/header.jpg?t=1"
+  end
+
   test "serves locally-cached art for the role", %{conn: conn} do
     root = tmp_steam_root()
     hash_dir = Path.join([root, "appcache", "librarycache", "100", "3be0683f"])
