@@ -19,6 +19,7 @@ defmodule MediaCentaur.Apps do
   alias MediaCentaur.Apps.Artwork
   alias MediaCentaur.Apps.Events
   alias MediaCentaur.Apps.Steam
+  alias MediaCentaur.Apps.SteamStore
   alias MediaCentaur.Repo
   alias MediaCentaur.Topics
 
@@ -87,9 +88,43 @@ defmodule MediaCentaur.Apps do
         }
   defdelegate artwork_urls(app_id), to: Artwork, as: :urls
 
-  @doc "Launches an app fire-and-forget. See `MediaCentaur.Apps.Launcher`."
+  @doc """
+  Launches an app fire-and-forget. See `MediaCentaur.Apps.Launcher`.
+
+  A successful launch also kicks an async `refresh_steam_artwork/1` —
+  the natural, self-throttling trigger that keeps stored banners from
+  drifting as publishers rotate their store art.
+  """
   @spec launch(App.t()) :: :ok | {:error, :launcher_unavailable}
-  defdelegate launch(app), to: MediaCentaur.Apps.Launcher
+  def launch(%App{} = app) do
+    with :ok <- MediaCentaur.Apps.Launcher.launch(app) do
+      Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+        refresh_steam_artwork(app)
+      end)
+
+      :ok
+    end
+  end
+
+  @doc """
+  Re-resolves the current store banner for a steam-origin app and
+  overwrites the cached copy, broadcasting `ArtworkCached` so cards
+  repaint (artwork URLs are mtime-versioned). `:noop` for non-steam
+  apps and whenever the store API can't resolve a URL — the stored
+  copy is never deleted, only replaced.
+  """
+  @spec refresh_steam_artwork(App.t()) :: :ok | :noop
+  def refresh_steam_artwork(%App{origin: %{"source" => "steam", "app_id" => steam_app_id}} = app) do
+    with url when is_binary(url) <- SteamStore.current_banner_url(steam_app_id),
+         :ok <- Artwork.store_url(:banner, app.id, url) do
+      Events.broadcast(%Events.ArtworkCached{app_id: app.id, role: :banner})
+      :ok
+    else
+      _unresolved -> :noop
+    end
+  end
+
+  def refresh_steam_artwork(%App{}), do: :noop
 
   @doc "Steam app ids already added — the picker marks these."
   @spec added_steam_ids() :: MapSet.t(integer())
@@ -112,21 +147,34 @@ defmodule MediaCentaur.Apps do
         is_nil(Map.fetch!(Artwork.urls(app.id), url_key)) do
       case Steam.local_art_path(steam_root, steam_app_id, role) do
         nil ->
-          # No local copy in any librarycache layout (flat, per-appid, or
-          # hash-addressed) — fetch from the CDN after the caller has
-          # rendered; the event closes that gap. Note the flat CDN URL
-          # itself 404s for hash-addressed titles, but those always have
-          # the local copy, so this branch only runs for titles where the
-          # flat URL is the right one.
+          # No local copy in any librarycache layout — fetch after the
+          # caller has rendered; the event closes that gap. Banners
+          # resolve the store API first (the flat CDN path is frozen for
+          # hash-addressed titles and can be stale even when it serves);
+          # posters have no API source, so the flat URL is all there is.
           Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
-            with :ok <- Artwork.store_url(role, app.id, Steam.cdn_art_url(steam_app_id, role)) do
+            url =
+              (role == :banner && SteamStore.current_banner_url(steam_app_id)) ||
+                Steam.cdn_art_url(steam_app_id, role)
+
+            with :ok <- Artwork.store_url(role, app.id, url) do
               Events.broadcast(%Events.ArtworkCached{app_id: app.id, role: role})
             end
           end)
 
         local_path ->
+          # The local copy paints instantly but is a snapshot of the Steam
+          # client's last refresh — the async re-resolve overwrites the
+          # banner with the current store art when it lands (versioned
+          # URLs make the card repaint).
           with :ok <- Artwork.store_file(role, app.id, local_path) do
             Events.broadcast(%Events.ArtworkCached{app_id: app.id, role: role})
+          end
+
+          if role == :banner do
+            Task.Supervisor.start_child(MediaCentaur.TaskSupervisor, fn ->
+              refresh_steam_artwork(app)
+            end)
           end
       end
     end

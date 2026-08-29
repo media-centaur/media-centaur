@@ -72,9 +72,18 @@ defmodule MediaCentaur.Apps.Artwork do
     :ok
   end
 
+  # URLs carry the master's mtime as `?v=` (ImageServer's immutable
+  # versioned-URL contract): refreshing a master in place mints a new
+  # URL, so cards actually repaint — an unversioned overwrite would
+  # leave morphdom holding an identical src and the browser its cache.
   defp role_url(role, app_id) do
-    if File.exists?(on_disk_path(role, app_id)) do
-      Image.web_path(relative_path(role, app_id))
+    case File.stat(on_disk_path(role, app_id)) do
+      {:ok, %{mtime: mtime}} ->
+        version = :calendar.datetime_to_gregorian_seconds(mtime)
+        Image.web_path(relative_path(role, app_id)) <> "?v=#{version}"
+
+      {:error, _missing} ->
+        nil
     end
   end
 

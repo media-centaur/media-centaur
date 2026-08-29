@@ -140,4 +140,89 @@ defmodule MediaCentaur.AppsTest do
       refute File.dir?(dir)
     end
   end
+
+  describe "refresh_steam_artwork/1 (tmp data_dir)" do
+    setup do
+      data_dir = Path.join(System.tmp_dir!(), "mc-apps-refresh-#{System.unique_integer([:positive])}")
+      File.mkdir_p!(data_dir)
+
+      original = :persistent_term.get({MediaCentaur.Settings.Config, :config}, %{})
+
+      :persistent_term.put(
+        {MediaCentaur.Settings.Config, :config},
+        Map.put(original, :data_dir, data_dir)
+      )
+
+      on_exit(fn ->
+        :persistent_term.put({MediaCentaur.Settings.Config, :config}, original)
+        File.rm_rf!(data_dir)
+      end)
+
+      %{data_dir: data_dir}
+    end
+
+    defmodule FakeStoreClient do
+      @moduledoc false
+      def get(_url), do: Process.get(:fake_store_response)
+    end
+
+    defmodule FakeImageClient do
+      @moduledoc false
+      def get(_url), do: Process.get(:fake_image_response)
+    end
+
+    defp stub_store_url(url) do
+      Process.put(:steam_store_http_client, FakeStoreClient)
+
+      Process.put(
+        :fake_store_response,
+        {:ok, %{status: 200, body: %{"100" => %{"success" => true, "data" => %{"header_image" => url}}}}}
+      )
+    end
+
+    defp stub_image_bytes(bytes) do
+      Process.put(:image_http_client, FakeImageClient)
+      Process.put(:fake_image_response, {:ok, %{status: 200, body: bytes}})
+    end
+
+    test "overwrites the cached banner with the current store art and broadcasts", %{
+      data_dir: data_dir
+    } do
+      app = create_app(%{origin: %{"source" => "steam", "app_id" => 100}})
+      banner = Path.join([data_dir, "images", "apps", app.id, "banner.jpg"])
+      File.mkdir_p!(Path.dirname(banner))
+      File.write!(banner, "stale-bytes")
+
+      fresh_bytes = String.duplicate("n", 2048)
+      stub_store_url("https://cdn.test/98dd/header.jpg")
+      stub_image_bytes(fresh_bytes)
+
+      :ok = Apps.subscribe()
+      app_id = app.id
+
+      assert :ok = Apps.refresh_steam_artwork(app)
+
+      assert File.read!(banner) == fresh_bytes
+      assert_receive {:app_artwork_cached, %Apps.Events.ArtworkCached{app_id: ^app_id, role: :banner}}
+    end
+
+    test "noop when the store API cannot resolve a URL", %{data_dir: data_dir} do
+      app = create_app(%{origin: %{"source" => "steam", "app_id" => 100}})
+      banner = Path.join([data_dir, "images", "apps", app.id, "banner.jpg"])
+      File.mkdir_p!(Path.dirname(banner))
+      File.write!(banner, "stale-bytes")
+
+      Process.put(:steam_store_http_client, FakeStoreClient)
+      Process.put(:fake_store_response, {:ok, %{status: 429, body: ""}})
+
+      assert :noop = Apps.refresh_steam_artwork(app)
+      assert File.read!(banner) == "stale-bytes"
+    end
+
+    test "noop for a non-steam app" do
+      app = create_app(%{name: "Manual One", origin: %{"source" => "manual"}})
+
+      assert :noop = Apps.refresh_steam_artwork(app)
+    end
+  end
 end
