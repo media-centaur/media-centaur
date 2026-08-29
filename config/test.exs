@@ -61,6 +61,9 @@ config :media_centaur, :start_pipeline, false
 # test that subscribes to playback events.
 config :media_centaur, :start_playback_recovery, false
 config :media_centaur, :start_watchers, false
+# Steam storefront appdetails lookups (SteamArtController banner
+# freshness) resolve nothing under test — fall back to local/CDN paths.
+config :media_centaur, :steam_store_http_client, MediaCentaur.NoopImageDownloader
 
 # The retention sweep's staging policy walks this root with File.rm_rf —
 # point it away from the real ~/.cache so tests can never touch live
