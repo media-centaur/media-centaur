@@ -3,9 +3,12 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   The plan-flow modal (UIDR-014): targeting picker → live coverage
   board → approval footer, one continuous URL-driven surface. The
   board's cell vocabulary — searching (dashed/pulsing), assigned
-  (filled; consecutive same-release cells fuse into a capsule), unfound
-  (amber hollow) — is the same language the pursuit card's segmented
-  progress and the UnitBoard drill-down speak.
+  (filled; consecutive same-release cells fuse into a capsule),
+  below-preference (info hollow — releases exist, all under the quality
+  preference, UIDR-029), unfound (amber hollow) — is the same language
+  the pursuit card's segmented progress and the UnitBoard drill-down
+  speak. A ready board leads with the adaptive verdict headline and
+  demotes the descent narrative to a "How we searched" disclosure.
   """
 
   use PhoenixStorybook.Story, :component
@@ -172,7 +175,10 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
       %Variation{
         id: :board_planning,
         description:
-          "Mid-flight — the expectation panel narrates the descent (done/active/pending rungs), dashed searching cells, the activity ticker, no spinner-only state.",
+          "Mid-flight — the expectation panel narrates the descent (done/active/pending rungs), " <>
+            "dashed searching cells, the activity ticker, no spinner-only state. The footer is a " <>
+            "one-press Stop searching (no confirmation — nothing is lost by stopping); Discard " <>
+            "with confirmation belongs to ready boards only (UIDR-029).",
         attributes: %{
           open: true,
           stage: :board,
@@ -396,6 +402,39 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
           board: board(:offer),
           gap_verdict: gap_verdict(:tv_offer),
           last_activity: "11 searches · 8 from corpus"
+        }
+      },
+      %Variation{
+        id: :board_below_preference_tv,
+        description:
+          "The Murphy Brown shape (UIDR-029): a season wanted at 1080p in a world that only " <>
+            "has SD. One episode found at the preference, the rest available only lower — the " <>
+            "verdict headline states it, the grouped row carries the one decision (Take lower " <>
+            "quality for this show) with the scope note, below-preference cells read as " <>
+            "info-tinted availability rather than amber gaps, and the rung narrative sits in " <>
+            "the collapsed How-we-searched disclosure.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          backdrop_url: @sample_backdrop,
+          board: board(:below_preference_tv),
+          gap_verdict: gap_verdict(:below_preference_tv),
+          descent: descent(:finished_below),
+          last_activity: "24 searches · 3 indexers · live just now"
+        }
+      },
+      %Variation{
+        id: :board_lower_quality_accepted,
+        description:
+          "After Take lower quality: the acceptance is stored on the title (tracked from here " <>
+            "on), the status area carries the accepted line with Undo, and the re-solve has " <>
+            "assigned the best of what exists — no below-preference row remains.",
+        attributes: %{
+          open: true,
+          stage: :board,
+          backdrop_url: @sample_backdrop,
+          board: board(:lower_quality_accepted),
+          last_activity: "Re-solved from the last results — nothing re-searched"
         }
       },
       %Variation{
@@ -690,6 +729,92 @@ defmodule MediaCentaurWeb.Storybook.Acquisition.PlanModal do
   # Verdicts go through the real `GapVerdict.build/2` so story copy can
   # never drift from the shipped diagnosis vocabulary (UIDR-022).
   @story_now ~U[2026-08-11 12:00:00Z]
+
+  defp board(:below_preference_tv) do
+    cells =
+      for episode <- 1..8 do
+        state = if episode == 4, do: :assigned, else: :below_preference
+        guid = if episode == 4, do: "good-single"
+
+        %PlanBoard.Cell{
+          plan_unit_id: "story-unit-1-#{episode}",
+          season_number: 1,
+          episode_number: episode,
+          label: "S01E0#{episode}",
+          state: state,
+          release_guid: guid,
+          release_title: guid && "Sample.Show.S01E04.1080p.WEB-DL"
+        }
+      end
+
+    %PlanBoard{
+      plan_id: "story-plan",
+      title: "Sample Show",
+      status: :ready,
+      wanted: 8,
+      covered: 1,
+      seasons: [%PlanBoard.SeasonRow{season_number: 1, cells: cells}],
+      releases: [release("good-single", "S01E04", 1)],
+      gaps: [],
+      total_size_bytes: 2_100_000_000,
+      below_preference: %PlanBoard.BelowPreference{units: 7, releases: 31}
+    }
+  end
+
+  defp board(:lower_quality_accepted) do
+    cells = for episode <- 1..8, do: cell(1, episode, :assigned, "sd-singles")
+
+    %PlanBoard{
+      plan_id: "story-plan",
+      title: "Sample Show",
+      status: :ready,
+      wanted: 8,
+      covered: 8,
+      lower_quality_accepted?: true,
+      seasons: [%PlanBoard.SeasonRow{season_number: 1, cells: cells}],
+      releases: [release("sd-singles", "8 singles", 8)],
+      gaps: [],
+      total_size_bytes: 4_800_000_000
+    }
+  end
+
+  defp descent(:finished_below) do
+    %DescentNarrative.View{
+      headline: "Search finished.",
+      rows: [
+        %DescentNarrative.Row{
+          id: :series,
+          state: :done,
+          label: "Complete series",
+          detail: "nothing usable found"
+        },
+        %DescentNarrative.Row{
+          id: :seasons,
+          state: :done,
+          label: "Season packs",
+          detail: "covered 1 episode — 7 still missing"
+        },
+        %DescentNarrative.Row{
+          id: :episodes,
+          state: :done,
+          label: "Individual episodes",
+          detail: "nothing usable found"
+        }
+      ]
+    }
+  end
+
+  defp gap_verdict(:below_preference_tv) do
+    GapVerdict.build(tv_evidence(),
+      gaps: [],
+      movie?: false,
+      search_health: nil,
+      now: @story_now,
+      below: %{units: 7, releases: 31},
+      wanted: 8,
+      covered: 1
+    )
+  end
 
   defp gap_verdict(:tv_nothing) do
     GapVerdict.build(tv_evidence(),

@@ -646,19 +646,92 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           </p>
         </div>
 
-        <div :if={@descent} class="glass-inset rounded-lg px-4 py-3 space-y-2">
-          <p class="text-sm text-base-content/70">{@descent.headline}</p>
-          <div :for={row <- @descent.rows} class="flex items-center gap-2 text-xs">
-            <span class={["size-1.5 rounded-full flex-shrink-0", descent_dot(row.state)]}></span>
-            <span class={[
-              "w-32 flex-shrink-0 text-base-content/60",
-              row.state == :skipped && "line-through text-base-content/30"
-            ]}>
-              {row.label}
-            </span>
-            <span class="min-w-0 truncate text-base-content/40">{row.detail}</span>
+        <div :if={@board.status == :ready && @gap_verdict} class="space-y-2">
+          <%!-- The adaptive diagnosis verdict (UIDR-022): the headline
+                states the world the counts prove; the muted line beneath
+                carries the receipts (queries, freshness). --%>
+          <div
+            :if={@gap_verdict.world == :below_preference}
+            id="plan-verdict"
+            class="space-y-1"
+          >
+            <p class="text-lg leading-snug text-base-content/90">{@gap_verdict.headline}</p>
+            <p :if={@gap_verdict.evidence_line} class="text-xs text-base-content/50">
+              {@gap_verdict.evidence_line}
+            </p>
           </div>
+          <div
+            :if={@gap_verdict.world != :below_preference}
+            class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3"
+          >
+            <.icon name="hero-exclamation-triangle-mini" class="size-4 text-warning flex-shrink-0" />
+            <span class="min-w-0 flex-1 text-sm">
+              <span class="block text-warning/90">{@gap_verdict.headline}</span>
+              <span :if={@gap_verdict.evidence_line} class="block text-xs text-base-content/50 mt-1">
+                {@gap_verdict.evidence_line}
+              </span>
+            </span>
+            <.button
+              :if={@gap_verdict.show_rejected?}
+              variant="neutral"
+              size="xs"
+              class="flex-shrink-0"
+              phx-click={if @rejected, do: "plan_hide_rejected", else: "plan_show_rejected"}
+              data-nav-item
+              tabindex="0"
+            >
+              {if @rejected, do: "Hide", else: "Show them anyway"}
+            </.button>
+            <.button
+              variant="neutral"
+              size="xs"
+              class="flex-shrink-0"
+              phx-click="plan_track_gaps"
+              title="Keep watching for these — opens gap wants on the title's tracking entry"
+              data-nav-item
+              tabindex="0"
+            >
+              Track these later
+            </.button>
+            <.button
+              variant="neutral"
+              size="xs"
+              class="flex-shrink-0"
+              phx-click="plan_search_again"
+              data-nav-item
+              tabindex="0"
+            >
+              Search again
+            </.button>
+          </div>
+
+          <.alternatives_panel
+            :if={@rejected}
+            alternatives={%{unit_id: @rejected.unit_id, items: @rejected.items}}
+            variant={:rejected}
+          />
         </div>
+
+        <div
+          :if={@descent && @board.status == :planning}
+          class="glass-inset rounded-lg px-4 py-3 space-y-2"
+        >
+          <p class="text-sm text-base-content/70">{@descent.headline}</p>
+          <.descent_rows descent={@descent} />
+        </div>
+
+        <details
+          :if={@descent && @board.status != :planning}
+          id="plan-how-we-searched"
+          class="glass-inset rounded-lg px-4 py-3"
+        >
+          <summary class="cursor-pointer text-xs text-base-content/50 select-none">
+            How we searched
+          </summary>
+          <div class="mt-2 space-y-2">
+            <.descent_rows descent={@descent} />
+          </div>
+        </details>
 
         <div :if={!@board.movie?} class="space-y-2">
           <div :for={season <- @board.seasons} class="flex items-start gap-3">
@@ -831,59 +904,6 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           />
         </div>
 
-        <div :if={@board.status == :ready && @gap_verdict} class="space-y-2">
-          <%!-- The adaptive diagnosis verdict (UIDR-022): the headline
-                states the world the counts prove; the muted line beneath
-                carries the receipts (queries, freshness). --%>
-          <div class="glass-inset rounded-lg px-4 py-3 border border-warning/30 flex items-center gap-3">
-            <.icon name="hero-exclamation-triangle-mini" class="size-4 text-warning flex-shrink-0" />
-            <span class="min-w-0 flex-1 text-sm">
-              <span class="block text-warning/90">{@gap_verdict.headline}</span>
-              <span :if={@gap_verdict.evidence_line} class="block text-xs text-base-content/50 mt-1">
-                {@gap_verdict.evidence_line}
-              </span>
-            </span>
-            <.button
-              :if={@gap_verdict.show_rejected?}
-              variant="neutral"
-              size="xs"
-              class="flex-shrink-0"
-              phx-click={if @rejected, do: "plan_hide_rejected", else: "plan_show_rejected"}
-              data-nav-item
-              tabindex="0"
-            >
-              {if @rejected, do: "Hide", else: "Show them anyway"}
-            </.button>
-            <.button
-              variant="neutral"
-              size="xs"
-              class="flex-shrink-0"
-              phx-click="plan_track_gaps"
-              title="Keep watching for these — opens gap wants on the title's tracking entry"
-              data-nav-item
-              tabindex="0"
-            >
-              Track these later
-            </.button>
-            <.button
-              variant="neutral"
-              size="xs"
-              class="flex-shrink-0"
-              phx-click="plan_search_again"
-              data-nav-item
-              tabindex="0"
-            >
-              Search again
-            </.button>
-          </div>
-
-          <.alternatives_panel
-            :if={@rejected}
-            alternatives={%{unit_id: @rejected.unit_id, items: @rejected.items}}
-            variant={:rejected}
-          />
-        </div>
-
         <p :if={@board.error} class="text-xs text-error/80">{@board.error}</p>
         <p :if={@last_activity} class="text-sm text-base-content/40">{@last_activity}</p>
       </div>
@@ -1045,6 +1065,23 @@ defmodule MediaCentaurWeb.Components.Acquisition.PlanModal do
           {if @alternatives[:searching?], do: "Searching…", else: "Find more"}
         </.button>
       </div>
+    </div>
+    """
+  end
+
+  attr :descent, :any, required: true, doc: "%DescentNarrative.View{} — typed at the public attr."
+
+  defp descent_rows(assigns) do
+    ~H"""
+    <div :for={row <- @descent.rows} class="flex items-center gap-2 text-xs">
+      <span class={["size-1.5 rounded-full flex-shrink-0", descent_dot(row.state)]}></span>
+      <span class={[
+        "w-32 flex-shrink-0 text-base-content/60",
+        row.state == :skipped && "line-through text-base-content/30"
+      ]}>
+        {row.label}
+      </span>
+      <span class="min-w-0 truncate text-base-content/40">{row.detail}</span>
     </div>
     """
   end

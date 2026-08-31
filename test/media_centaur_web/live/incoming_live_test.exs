@@ -918,16 +918,21 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
         ]
       })
 
+      # On a ready board the rung narrative lives in the collapsed
+      # How-we-searched disclosure; the headline duty moved to the
+      # adaptive verdict (UIDR-029).
       html = render(view)
-      assert html =~ "Everything covered — the deeper searches weren&#39;t needed."
+      assert has_element?(view, "#plan-how-we-searched")
+      assert html =~ "How we searched"
       assert html =~ "not needed — already covered"
+      refute html =~ "Everything covered — the deeper searches weren&#39;t needed."
 
       # A board reload for the SAME plan (Changed event) must not reset
       # the live panel back to the initial itinerary.
       send(view.pid, %PlanEvents.Changed{plan_id: plan.id, status: "ready"})
 
       html = render(view)
-      assert html =~ "Everything covered — the deeper searches weren&#39;t needed."
+      assert html =~ "not needed — already covered"
 
       # A status for some other plan must not clobber the open board's panel.
       send(view.pid, %PlanEvents.DescentStatus{
@@ -941,7 +946,7 @@ defmodule MediaCentaurWeb.IncomingLiveTest do
       })
 
       html = render(view)
-      assert html =~ "Everything covered — the deeper searches weren&#39;t needed."
+      assert html =~ "not needed — already covered"
     end
 
     test "a draft plan resumes from the page and can be discarded", %{conn: conn} do
