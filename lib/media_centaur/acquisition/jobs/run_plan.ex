@@ -165,6 +165,7 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       assignment_by_unit: %{},
       offers_by_unit: %{},
       below_floor_by_unit: %{},
+      halted?: false,
       residual: wanted,
       stages: []
     }
@@ -175,42 +176,50 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
         active = %{id: rung_id, state: :active, term_count: length(terms), residual_after: nil}
         broadcast_descent(plan, length(wanted), state.stages, active)
 
-        state =
-          state
-          |> gather_rung(plan, terms, identity, excluded, unit_air_dates, force?)
-          |> solve_groups(wanted, floor_groups, plan_prefs)
+        state = gather_rung(state, plan, terms, identity, excluded, unit_air_dates, force?)
 
-        done = %{active | state: :done, residual_after: length(state.residual)}
-        state = %{state | stages: state.stages ++ [done]}
+        if state.halted? do
+          {:halt, state}
+        else
+          state = solve_groups(state, wanted, floor_groups, plan_prefs)
+          done = %{active | state: :done, residual_after: length(state.residual)}
+          state = %{state | stages: state.stages ++ [done]}
 
-        if state.residual == [], do: {:halt, state}, else: {:cont, state}
+          if state.residual == [], do: {:halt, state}, else: {:cont, state}
+        end
       end)
 
-    skipped =
-      for {rung_id, _terms_for} <- rungs(plan),
-          not Enum.any?(state.stages, &(&1.id == rung_id)),
-          do: %{id: rung_id, state: :skipped, term_count: nil, residual_after: nil}
+    # A halted run belongs to a plan the user already discarded — no
+    # solve, no persistence, no further broadcasts (ADR-063 §3).
+    if state.halted? do
+      :ok
+    else
+      skipped =
+        for {rung_id, _terms_for} <- rungs(plan),
+            not Enum.any?(state.stages, &(&1.id == rung_id)),
+            do: %{id: rung_id, state: :skipped, term_count: nil, residual_after: nil}
 
-    broadcast_descent(plan, length(wanted), state.stages ++ skipped, nil)
+      broadcast_descent(plan, length(wanted), state.stages ++ skipped, nil)
 
-    state = add_cour_offers(state, plan, wanted, excluded, force?, plan_prefs)
+      state = add_cour_offers(state, plan, wanted, excluded, force?, plan_prefs)
 
-    Enum.each(units, fn unit ->
-      key = {unit.season_number, unit.episode_number}
+      Enum.each(units, fn unit ->
+        key = {unit.season_number, unit.episode_number}
 
-      case Map.get(state.assignment_by_unit, key) do
-        nil ->
-          offer = offer_attrs(Map.get(state.offers_by_unit, key))
-          below_floor_count = Map.get(state.below_floor_by_unit, key, 0)
-          {:ok, _} = Repo.update(PlanUnit.unfound_changeset(unit, offer, below_floor_count))
+        case Map.get(state.assignment_by_unit, key) do
+          nil ->
+            offer = offer_attrs(Map.get(state.offers_by_unit, key))
+            below_floor_count = Map.get(state.below_floor_by_unit, key, 0)
+            {:ok, _} = Repo.update(PlanUnit.unfound_changeset(unit, offer, below_floor_count))
 
-        assignment ->
-          {:ok, _} =
-            Repo.update(
-              PlanUnit.assign_changeset(unit, assignment_attrs(assignment, state.terms_by_guid))
-            )
-      end
-    end)
+          assignment ->
+            {:ok, _} =
+              Repo.update(
+                PlanUnit.assign_changeset(unit, assignment_attrs(assignment, state.terms_by_guid))
+              )
+        end
+      end)
+    end
   end
 
   # The coverage ladder, broad to narrow. Each rung sees the current
@@ -235,29 +244,37 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
   # rejected for one episode is almost never what they want for
   # another); guid dedup keeps the first term that surfaced a release.
   defp gather_rung(state, plan, terms, identity, excluded, unit_air_dates, force?) do
-    Enum.reduce(terms, state, fn {term, opts}, state ->
-      plan
-      |> search(term, opts, force?)
-      |> Enum.reduce(state, fn result, state ->
-        with false <- ReleaseRedFlags.suspicious?(result.title, result.size_bytes),
-             false <- MapSet.member?(excluded, result.guid),
-             false <- Map.has_key?(state.terms_by_guid, result.guid),
-             {:ok, scope} <- TitleMatcher.coverage(result, identity) do
-          option = %Planner.Option{
-            result: result,
-            scope: scope,
-            coverable: CoverageGuard.coverable_units(unit_air_dates, result.publish_date)
-          }
+    Enum.reduce_while(terms, state, fn {term, opts}, state ->
+      if still_planning?(plan) do
+        {:cont, gather_term(state, plan, term, opts, identity, excluded, unit_air_dates, force?)}
+      else
+        {:halt, %{state | halted?: true}}
+      end
+    end)
+  end
 
-          %{
-            state
-            | options: [option | state.options],
-              terms_by_guid: Map.put(state.terms_by_guid, result.guid, term)
-          }
-        else
-          _ -> state
-        end
-      end)
+  defp gather_term(state, plan, term, opts, identity, excluded, unit_air_dates, force?) do
+    plan
+    |> search(term, opts, force?)
+    |> Enum.reduce(state, fn result, state ->
+      with false <- ReleaseRedFlags.suspicious?(result.title, result.size_bytes),
+           false <- MapSet.member?(excluded, result.guid),
+           false <- Map.has_key?(state.terms_by_guid, result.guid),
+           {:ok, scope} <- TitleMatcher.coverage(result, identity) do
+        option = %Planner.Option{
+          result: result,
+          scope: scope,
+          coverable: CoverageGuard.coverable_units(unit_air_dates, result.publish_date)
+        }
+
+        %{
+          state
+          | options: [option | state.options],
+            terms_by_guid: Map.put(state.terms_by_guid, result.guid, term)
+        }
+      else
+        _ -> state
+      end
     end)
   end
 
@@ -437,37 +454,73 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
     {best, below_floor_guids} =
       plan
       |> LadderTerms.for_plan([])
-      |> Enum.reduce_while({nil, MapSet.new()}, fn {term, opts}, {_best, below_floor_guids} ->
-        matched =
-          plan
-          |> search(term, opts, force?)
-          |> Enum.filter(fn result ->
-            not ReleaseRedFlags.suspicious?(result.title, result.size_bytes) and
-              not MapSet.member?(excluded, result.guid) and
-              TitleMatcher.matches?(result, criteria)
-          end)
-
-        pick =
-          matched
-          |> Enum.filter(&Quality.acceptable?(&1.quality, min_quality, plan_prefs.max_quality))
-          |> Enum.max_by(
-            &{Quality.rank(&1.quality),
-             Quality.source_rank(Quality.source(&1.title), plan_prefs.size_preference), &1.seeders || 0},
-            fn -> nil end
+      |> Enum.reduce_while({nil, MapSet.new()}, fn {term, opts}, {_best, below_floor_guids} = acc ->
+        if still_planning?(plan) do
+          movie_term_step(
+            plan,
+            term,
+            opts,
+            criteria,
+            excluded,
+            min_quality,
+            plan_prefs,
+            below_floor_guids,
+            force?
           )
-
-        below_floor_guids =
-          matched
-          |> Enum.filter(&(Quality.rank(&1.quality) < Quality.label_rank(min_quality)))
-          |> MapSet.new(& &1.guid)
-          |> MapSet.union(below_floor_guids)
-
-        case pick do
-          nil -> {:cont, {nil, below_floor_guids}}
-          result -> {:halt, {{result, term}, below_floor_guids}}
+        else
+          {:halt, acc}
         end
       end)
 
+    if still_planning?(plan) do
+      persist_movie_outcome(units, best, below_floor_guids)
+    else
+      :ok
+    end
+  end
+
+  defp movie_term_step(
+         plan,
+         term,
+         opts,
+         criteria,
+         excluded,
+         min_quality,
+         plan_prefs,
+         below_floor_guids,
+         force?
+       ) do
+    matched =
+      plan
+      |> search(term, opts, force?)
+      |> Enum.filter(fn result ->
+        not ReleaseRedFlags.suspicious?(result.title, result.size_bytes) and
+          not MapSet.member?(excluded, result.guid) and
+          TitleMatcher.matches?(result, criteria)
+      end)
+
+    pick =
+      matched
+      |> Enum.filter(&Quality.acceptable?(&1.quality, min_quality, plan_prefs.max_quality))
+      |> Enum.max_by(
+        &{Quality.rank(&1.quality),
+         Quality.source_rank(Quality.source(&1.title), plan_prefs.size_preference), &1.seeders || 0},
+        fn -> nil end
+      )
+
+    below_floor_guids =
+      matched
+      |> Enum.filter(&(Quality.rank(&1.quality) < Quality.label_rank(min_quality)))
+      |> MapSet.new(& &1.guid)
+      |> MapSet.union(below_floor_guids)
+
+    case pick do
+      nil -> {:cont, {nil, below_floor_guids}}
+      result -> {:halt, {{result, term}, below_floor_guids}}
+    end
+  end
+
+  defp persist_movie_outcome(units, best, below_floor_guids) do
     Enum.each(units, fn unit ->
       case best do
         nil ->
@@ -567,6 +620,13 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlan do
       # none → `nil` → the planner stays broad-first. Percent → fraction.
       pack_min_fit: if(span_sizes != %{}, do: settings.pack_min_fit / 100)
     }
+  end
+
+  # ADR-063 §3: plan status is the cancellation channel — the run
+  # re-checks it between search terms so a Stop lands within one
+  # search, never at the end of the ladder.
+  defp still_planning?(plan) do
+    match?(%Plan{status: "planning"}, Repo.reload(plan))
   end
 
   defp pad(number), do: number |> Integer.to_string() |> String.pad_leading(2, "0")

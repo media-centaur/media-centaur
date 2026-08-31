@@ -767,4 +767,35 @@ defmodule MediaCentaur.Acquisition.Jobs.RunPlanTest do
     end
   end
 
+
+  describe "stop searching (ADR-063: status is the cancellation channel)" do
+    test "a plan discarded mid-run stops before the next search term" do
+      test_pid = self()
+
+      Req.Test.stub(:prowlarr, fn conn ->
+        case {conn.method, conn.request_path} do
+          {"GET", "/api/v1/indexer"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/indexerstatus"} ->
+            Req.Test.json(conn, [])
+
+          {"GET", "/api/v1/search"} ->
+            %{"query" => query} = URI.decode_query(conn.query_string)
+            send(test_pid, {:searched, query})
+            Enum.each(Plans.list_drafts(), &Plans.discard/1)
+            Req.Test.json(conn, [])
+
+          _other ->
+            Req.Test.json(conn, %{})
+        end
+      end)
+
+      {:ok, _plan} = Plans.create_series_plan(selection(), [{1, 1}, {1, 2}, {2, 1}])
+
+      assert_received {:searched, "Sample Show"}
+      refute_received {:searched, _any_later_term}
+    end
+  end
+
 end
